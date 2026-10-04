@@ -45,9 +45,9 @@ His family, as his code writes it:
 
 ## Rules for every experiment
 
-- Every value is an exact form: rational coefficients times rational powers of one held e times held atoms.
-- The atoms (E1, w(z_c) and w'(z_c), rho, the tail integral) are never evaluated. Where a form meets one of his
-  decimals, his decimals define the atoms: the atom values his printed numbers imply are solved for exactly, and
+- Every value is an exact form: rational coefficients times rational powers of one held e times held terms.
+- The terms (E1, w(z_c) and w'(z_c), rho, the tail integral) are never evaluated. Where a form meets one of his
+  decimals, his decimals define the terms: the term values his printed numbers imply are solved for exactly, and
   his other printed numbers are the check. They agree, or the disagreement is recorded.
 - A subject is measured by 8 witnesses at the corners of a cube around it. The 8 corner forms give the 8 components:
   the value, 3 edge differences, 3 face differences and 1 body difference, each a whole form.
@@ -58,7 +58,7 @@ His family, as his code writes it:
 ## 0. Ground work
 
 - 0a. Dense magnitude arrays. A form is one array of exact integers over a shared index, the power of e and then
-  the atom powers, with one denominator per form. Check: join_datum, join_series and axis_heat give the same forms
+  the term powers, with one denominator per form. Check: join_datum, join_series and axis_heat give the same forms
   term for term as the map. Recorded: entries and bits per entry.
 - 0b. Module objects built once per width and linked into each driver, each rebuilt only where its source or a
   header it reads is newer.
@@ -97,30 +97,30 @@ The subject is the right side of Pi_0 over (X_a, X_b, eta). The answer depends o
 measure how much the join's placement puts into it. A sweep over blend terms, orders and cuts records the
 difference forms.
 
-Measured (`datum_cubes`, 3 checks) about (X_a, X_b, eta) = (1, 2, 1/2), half-edges 1/8: 877 terms over 57 atoms.
+Measured (`datum_cubes`, 3 checks) about (X_a, X_b, eta) = (1, 2, 1/2), half-edges 1/8: 877 terms over 57 terms.
 873 terms have character 8. The 4 terms of the exterior tail have character 4, held in c_0, c_2, c_4 and c_6 alone,
-the components with no X_a direction: the tail does not depend on X_a. The part with no atom has c_0 = -0.168,
+the components with no X_a direction: the tail does not depend on X_a. The part with no term has c_0 = -0.168,
 c_1 = -0.0074 (X_a), c_2 = -0.0101 (X_b) and c_4 = 0.0218 (eta).
 
 ## 4. The annulus family and the six identities
 
-Both sides of each identity as exact forms, the difference reduced in the atoms. Every term left in the difference is
+Both sides of each identity as exact forms, the difference reduced in the terms. Every term left in the difference is
 recorded: those are the terms the identity drops.
 
 Measured (`matching_functions`, 6 checks) on his 8-parameter F_0, U_0 and b_0 = -2.01, with b_1 = 0 standing in
 for the value he does not print and Pi_0 = 0 for the datum: at eta = 0 and 1/2 the six functions are exact forms of
-34 to 291 terms over 31 atoms. With the blend switched off the core alone fills the annulus, and its torque and force
+34 to 291 terms over 31 terms. With the blend switched off the core alone fills the annulus, and its torque and force
 come out at 1.2e-10 and 3.7e-11, the core series' own truncation at order 24: the boundary terms and the parts taken
 out by parts are right.
 
 ## 5. The fits
 
 His parameters enter the series polynomially and the Jacobian is exact. Exact Gauss-Newton on the six functions,
-the atoms defined by his decimals.
+the terms defined by his decimals.
 
 - 5a. The exterior tail, c^2 X_b^(-2h) / (4h) at his values, against 0.99. Measured: it is exactly 2^(-1/50), and
   two exact comparisons, 0.985^50 2 < 1 < 0.995^50 2, put it within his two places of 0.99.
-- Atom values. Every atom is written in the few independent numbers it is made of, and each of those is the limit
+- Term values. Every term is written in the few independent numbers it is made of, and each of those is the limit
   of its own exact sequence of rationals, taken to more and more terms; a form's value at each length is exact, and
   the values are recorded as they converge:
   - e^q = e^m e^f by the exponential series, m the whole part of q, and rho(c) = 1 / (1 + e^ratio) from it.
@@ -135,7 +135,7 @@ the atoms defined by his decimals.
     int_(z_b)^inf (z w - z^(-h)) dz = (z_b^2 (w'(z_b) - w(z_b)) + z_b^(1-h)) / (1 - h).
   - The tail of S: the two integrals of w joined in sigma = t + s and expanded in u = sigma / (1 + sigma) give
     int_(z_b)^inf (z w^2 - z^(-1-2h)) dz = sum_n D_n (z_b G_n^+ + G_n) / Gamma(2 + 2h) - z_b^(-2h) / (2h), every D_n
-    rational and every G_n an integral split at sigma = 1 as w's is (atom_value.h).
+    rational and every G_n an integral split at sigma = 1 as w's is (term_value.h).
 
   Measured (`matching_values`, 1024 limbs) on the forms of experiment 4, his 8-parameter F_0, U_0 and b_0 = -2.01,
   b_1 = 0 and Pi_0 = 0, at lengths 16, 24 and 32. Gamma(1 + h) comes out 0.994325851, w(1) = 0.994015508 and
@@ -161,13 +161,13 @@ Y = G(p) - p and DG(p) at the polynomial p as exact forms on the Chebyshev basis
 the workbook.
 
 Pi_0 = sum_(k<n) p_k T_k(eta), and G(p)(eta) is the right side of the datum with the core built on that Pi_0, every
-atom valued as in 5. Pi_0 is a fixed point where Y_i = G(p)(eta_i) - p(eta_i) is 0 at n rational nodes inside the
+term valued as in 5. Pi_0 is a fixed point where Y_i = G(p)(eta_i) - p(eta_i) is 0 at n rational nodes inside the
 reach of w's series about 1. Pi_0 enters the core at U_1 and comes back through every product after it. G's values
 are rationals of thousands of digits, and a whole one carried into the next core passes any width: each iterate is
 written to a set number of decimal places, as his data are, and Y at it is exact. The step to the next iterate solves
 J d = -Y on decimals of Y and J, J by divided differences at the first iterate and Broyden's update after.
 
-Measured (`datum_fixed_point`, 4 checks, 1024 limbs) on his 8-parameter F_0 and U_0, order 24, blend terms 12, atoms at
+Measured (`datum_fixed_point`, 4 checks, 1024 limbs) on his 8-parameter F_0 and U_0, order 24, blend terms 12, terms at
 length 24, five modes on the nodes eta = 0, +-0.3, +-0.6, from Pi_0 = 0:
 
 | iterate | places | largest abs Y at the nodes |

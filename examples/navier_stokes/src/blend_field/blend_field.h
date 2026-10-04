@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // blend_field.h: fields on the annulus 0 <= s <= 1 that carry the blend weight psi, their products, their derivative
-// in s, and their integrals over the cut pieces, every value a form in atoms
+// in s, and their integrals over the cut pieces, every value a form in terms
 #ifndef BLEND_FIELD_H
 #define BLEND_FIELD_H
 
@@ -65,7 +65,7 @@ BlendField blend_field_bump(const BlendPlace *place);
 BlendField blend_field_sum(const BlendField &left, const BlendField &right);
 BlendField blend_field_difference(const BlendField &left, const BlendField &right);
 BlendField blend_field_scaled(const BlendField &field, SimRational factor);
-BlendField blend_field_form_scaled(const BlendField &field, const AtomForm &form);
+BlendField blend_field_form_scaled(const BlendField &field, const TermForm &form);
 BlendField blend_field_product(const BlendField &left, const BlendField &right);
 
 // d/ds, one term fewer in each series
@@ -73,20 +73,20 @@ BlendField blend_field_derivative(const BlendField &field);
 
 // the field's value at the place's center: the middle's series at c, or at an end the part with no psi and no decay,
 // pole 0, at tau = 0; 1 where it is there to take, 0 where a piece is singular at the end
-int blend_field_value(const BlendField &field, AtomForm *value);
+int blend_field_value(const BlendField &field, TermForm *value);
 
 // the field integrated over the place's interval in s
-AtomForm blend_field_integral(const BlendField &field, AtomBook *book);
+TermForm blend_field_integral(const BlendField &field, TermBook *book);
 
 // the places the cuts make: the end at s = 0, the middle pieces about their midpoints, the end at s = 1
-std::vector<BlendPlace> blend_field_places(const BlendPieces *pieces, AtomBook *book);
+std::vector<BlendPlace> blend_field_places(const BlendPieces *pieces, TermBook *book);
 
 // a field at each place, given by the caller
-typedef BlendField (*BlendFieldIntegrand)(const void *context, const BlendPlace *place, AtomBook *book);
+typedef BlendField (*BlendFieldIntegrand)(const void *context, const BlendPlace *place, TermBook *book);
 
 // int_0^1 of the caller's field over the pieces the cuts make
-AtomForm blend_field_total(const BlendPieces *pieces, BlendFieldIntegrand integrand, const void *context,
-                           AtomBook *book);
+TermForm blend_field_total(const BlendPieces *pieces, BlendFieldIntegrand integrand, const void *context,
+                           TermBook *book);
 
 // 1 where a value in this module outgrew the build's width, or an end integral was asked of a piece that diverges
 int blend_field_short(void);

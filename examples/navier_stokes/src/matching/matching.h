@@ -17,7 +17,7 @@
 //     int Pi = Pi(X_a) w + X_b P(X_b) - int X F^2,   P = int_{X_a} F^2,   and the same for Pi_eta,
 // and the viscous terms are boundary values, -2 [X^2 F_X] and -2 [X U_X]. Every other integrand is local, a field of
 // blend_field.h. The exterior tail of S is c^2 X_b^(-2h) / (4h) + (c^2 / 2) (2d)^(-2h) int_{z_b}^inf (z w^2 - z^(-1-2h))
-// dz, the last integral an atom, and the tail of H is sqrt 2 c times the atom
+// dz, the last integral an term, and the tail of H is sqrt 2 c times the term
 // int_{X_b}^inf ((2d)^(-1-h) x w(x / (2d)) - x^(-h)) dx.
 
 #include "blend_field.h"
@@ -43,14 +43,14 @@ typedef struct
 
 typedef struct
 {
-    AtomForm torque;
-    AtomForm force;
-    AtomForm m_inf;
-    AtomForm j_inf;
-    AtomForm s_inf;
-    AtomForm h_match;
-    // c^2 X_b^(-2h) / (4h), the part of the tail of S with no atom of w
-    AtomForm s_tail_power;
+    TermForm torque;
+    TermForm force;
+    TermForm m_inf;
+    TermForm j_inf;
+    TermForm s_inf;
+    TermForm h_match;
+    // c^2 X_b^(-2h) / (4h), the part of the tail of S with no term of w
+    TermForm s_tail_power;
     // 1 where the fields' values at X_a and X_b were there to take
     int ends;
 } MatchingFunctions;
@@ -61,7 +61,7 @@ typedef struct
 int matching_read(const RunCfg *cfg, MatchingRequest *request, CoreSeries *series);
 
 // the six functions at `eta`, -1 < eta < 1
-void matching_at(const MatchingRequest *request, SimRational eta, AtomBook *book, MatchingFunctions *functions);
+void matching_at(const MatchingRequest *request, SimRational eta, TermBook *book, MatchingFunctions *functions);
 
 // 1 where a value in this module outgrew the build's width
 int matching_short(void);

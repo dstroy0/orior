@@ -8,18 +8,18 @@ TaylorSeries taylor_rational(SimRational center, const std::vector<SimRational> 
     series.center = center;
     for (const SimRational &value : values)
     {
-        series.coefficient.push_back(atom_form_rational(value));
+        series.coefficient.push_back(term_form_rational(value));
     }
     return series;
 }
 
-TaylorSeries taylor_form_scaled(const TaylorSeries &series, const AtomForm &form)
+TaylorSeries taylor_form_scaled(const TaylorSeries &series, const TermForm &form)
 {
     TaylorSeries scaled;
     scaled.center = series.center;
-    for (const AtomForm &coefficient : series.coefficient)
+    for (const TermForm &coefficient : series.coefficient)
     {
-        scaled.coefficient.push_back(atom_form_product(coefficient, form));
+        scaled.coefficient.push_back(term_form_product(coefficient, form));
     }
     return scaled;
 }
@@ -28,9 +28,9 @@ TaylorSeries taylor_scaled(const TaylorSeries &series, SimRational factor)
 {
     TaylorSeries scaled;
     scaled.center = series.center;
-    for (const AtomForm &coefficient : series.coefficient)
+    for (const TermForm &coefficient : series.coefficient)
     {
-        scaled.coefficient.push_back(atom_form_scaled(coefficient, factor));
+        scaled.coefficient.push_back(term_form_scaled(coefficient, factor));
     }
     return scaled;
 }
@@ -46,7 +46,7 @@ TaylorSeries taylor_sum(const TaylorSeries &left, const TaylorSeries &right)
     sum.center = left.center;
     for (size_t index = 0u; index < taylor_fewer(left, right); index += 1u)
     {
-        sum.coefficient.push_back(atom_form_sum(left.coefficient[index], right.coefficient[index]));
+        sum.coefficient.push_back(term_form_sum(left.coefficient[index], right.coefficient[index]));
     }
     return sum;
 }
@@ -57,7 +57,7 @@ TaylorSeries taylor_difference(const TaylorSeries &left, const TaylorSeries &rig
     difference.center = left.center;
     for (size_t index = 0u; index < taylor_fewer(left, right); index += 1u)
     {
-        difference.coefficient.push_back(atom_form_difference(left.coefficient[index], right.coefficient[index]));
+        difference.coefficient.push_back(term_form_difference(left.coefficient[index], right.coefficient[index]));
     }
     return difference;
 }
@@ -69,10 +69,10 @@ TaylorSeries taylor_product(const TaylorSeries &left, const TaylorSeries &right)
     const size_t terms = taylor_fewer(left, right);
     for (size_t index = 0u; index < terms; index += 1u)
     {
-        AtomForm sum;
+        TermForm sum;
         for (size_t first = 0u; first <= index; first += 1u)
         {
-            sum = atom_form_sum(sum, atom_form_product(left.coefficient[first], right.coefficient[index - first]));
+            sum = term_form_sum(sum, term_form_product(left.coefficient[first], right.coefficient[index - first]));
         }
         product.coefficient.push_back(sum);
     }
@@ -85,7 +85,7 @@ TaylorSeries taylor_derivative(const TaylorSeries &series)
     slope.center = series.center;
     for (size_t index = 1u; index < series.coefficient.size(); index += 1u)
     {
-        slope.coefficient.push_back(atom_form_scaled(series.coefficient[index], sim_rational((long long)index, 1ll)));
+        slope.coefficient.push_back(term_form_scaled(series.coefficient[index], sim_rational((long long)index, 1ll)));
     }
     return slope;
 }
@@ -99,15 +99,15 @@ TaylorSeries taylor_unit_inverse(const TaylorSeries &series)
     {
         return inverse;
     }
-    inverse.coefficient.push_back(atom_form_rational(sim_rational(1ll, 1ll)));
+    inverse.coefficient.push_back(term_form_rational(sim_rational(1ll, 1ll)));
     for (size_t index = 1u; index < series.coefficient.size(); index += 1u)
     {
-        AtomForm sum;
+        TermForm sum;
         for (size_t first = 1u; first <= index; first += 1u)
         {
-            sum = atom_form_sum(sum, atom_form_product(series.coefficient[first], inverse.coefficient[index - first]));
+            sum = term_form_sum(sum, term_form_product(series.coefficient[first], inverse.coefficient[index - first]));
         }
-        inverse.coefficient.push_back(atom_form_scaled(sum, sim_rational(-1ll, 1ll)));
+        inverse.coefficient.push_back(term_form_scaled(sum, sim_rational(-1ll, 1ll)));
     }
     return inverse;
 }
@@ -117,9 +117,9 @@ TaylorSeries taylor_stretched(const TaylorSeries &series, SimRational stretch)
     TaylorSeries stretched;
     stretched.center = series.center;
     SimRational power = sim_rational(1ll, 1ll);
-    for (const AtomForm &coefficient : series.coefficient)
+    for (const TermForm &coefficient : series.coefficient)
     {
-        stretched.coefficient.push_back(atom_form_scaled(coefficient, power));
+        stretched.coefficient.push_back(term_form_scaled(coefficient, power));
         power = sim_rational_product(power, stretch);
     }
     return stretched;
@@ -149,36 +149,36 @@ TaylorSeries taylor_polynomial(const std::vector<SimRational> &values, SimRation
     return taylor_rational(center, moved);
 }
 
-AtomForm taylor_value(const TaylorSeries &series, SimRational x)
+TermForm taylor_value(const TaylorSeries &series, SimRational x)
 {
     const SimRational offset = sim_rational_difference(x, series.center);
-    AtomForm sum;
+    TermForm sum;
     for (size_t index = series.coefficient.size(); index > 0u; index -= 1u)
     {
-        sum = atom_form_sum(atom_form_scaled(sum, offset), series.coefficient[index - 1u]);
+        sum = term_form_sum(term_form_scaled(sum, offset), series.coefficient[index - 1u]);
     }
     return sum;
 }
 
-AtomForm taylor_integral(const TaylorSeries &series, SimRational low, SimRational high)
+TermForm taylor_integral(const TaylorSeries &series, SimRational low, SimRational high)
 {
     const SimRational upper = sim_rational_difference(high, series.center);
     const SimRational lower = sim_rational_difference(low, series.center);
     SimRational upper_power = upper;
     SimRational lower_power = lower;
-    AtomForm sum;
+    TermForm sum;
     for (size_t index = 0u; index < series.coefficient.size(); index += 1u)
     {
         const SimRational weight = sim_rational_product(sim_rational_difference(upper_power, lower_power),
                                                         sim_rational(1ll, (long long)index + 1ll));
-        sum = atom_form_sum(sum, atom_form_scaled(series.coefficient[index], weight));
+        sum = term_form_sum(sum, term_form_scaled(series.coefficient[index], weight));
         upper_power = sim_rational_product(upper_power, upper);
         lower_power = sim_rational_product(lower_power, lower);
     }
     return sum;
 }
 
-TaylorSeries taylor_integral_from_center(const TaylorSeries &series, const AtomForm &start)
+TaylorSeries taylor_integral_from_center(const TaylorSeries &series, const TermForm &start)
 {
     TaylorSeries integral;
     integral.center = series.center;
@@ -186,7 +186,7 @@ TaylorSeries taylor_integral_from_center(const TaylorSeries &series, const AtomF
     for (size_t index = 0u; index < series.coefficient.size(); index += 1u)
     {
         integral.coefficient.push_back(
-            atom_form_scaled(series.coefficient[index], sim_rational(1ll, (long long)index + 1ll)));
+            term_form_scaled(series.coefficient[index], sim_rational(1ll, (long long)index + 1ll)));
     }
     return integral;
 }

@@ -12,8 +12,8 @@
 
 // The subject at (X_a, X_b, eta) is the right side of the datum (pressure_datum.h) for the cfg's core, joined from X_a
 // to X_b. What the answer should depend on is eta; the X_a and X_b components measure how much the join's own
-// placement puts into it. The atoms of the exterior sit at points that move with the corner, and the part with no
-// atom is reported by component.
+// placement puts into it. The terms of the exterior sit at points that move with the corner, and the part with no
+// term is reported by component.
 // Checks:
 // 1. The cube's components rebuild its 8 corners exactly.
 // 2. Every exact value is held in the build's width.
@@ -21,7 +21,7 @@
 // The request: datum_cubes <cfg>.
 //     bash examples/navier_stokes/run.sh datum_cubes examples/navier_stokes/cfg/datum_cubes.cfg
 
-static AtomForm datum_cubes_subject(const void *context, const SimRational *point, AtomBook *book)
+static TermForm datum_cubes_subject(const void *context, const SimRational *point, TermBook *book)
 {
     const PressureDatumRequest *const request = (const PressureDatumRequest *)context;
     PressureDatum datum;
@@ -95,7 +95,7 @@ int main(int count, char **arguments)
     static CoreSeries series;
     core_series_recursion(&request.shape, &swirl_data, &axial_data, &pressure_data, (unsigned int)order, &series);
     request.series = &series;
-    static AtomBook book;
+    static TermBook book;
     static WitnessCube cube;
     witness_cube_measure(datum_cubes_subject, &request, center.data(), half.data(), &book, &cube);
 
@@ -109,17 +109,17 @@ int main(int count, char **arguments)
     scriptura_decimal(&results.line, cube.slot.size(), 1u);
     scriptura_text(&results.line, " terms over ");
     scriptura_decimal(&results.line, book.names.size(), 1u);
-    scriptura_text(&results.line, " atoms; by character 1..8:");
+    scriptura_text(&results.line, " terms; by character 1..8:");
     for (unsigned int character = 1u; character <= 8u; character += 1u)
     {
         scriptura_character(&results.line, ' ');
         scriptura_decimal(&results.line, witness_cube_characters(&cube, character), 1u);
     }
-    scriptura_text(&results.line, "\n    the part with no atom, components c0..c7:");
+    scriptura_text(&results.line, "\n    the part with no term, components c0..c7:");
     for (unsigned int component = 0u; component < 8u; component += 1u)
     {
         scriptura_character(&results.line, ' ');
-        report_value(&results.line, atom_form_constant(cube.component[component]), (unsigned int)places);
+        report_value(&results.line, term_form_constant(cube.component[component]), (unsigned int)places);
     }
     scriptura_character(&results.line, '\n');
     // 1. the corners rebuilt
@@ -137,7 +137,7 @@ int main(int count, char **arguments)
     }
     // 2. the width
     const int held = (s_sim_rational_wide == 0) && (run_cfg_short() == 0) && (report_short() == 0) &&
-                     (atom_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
+                     (term_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
                      (eta_function_short() == 0) && (core_series_short() == 0) && (decay_integral_short() == 0) &&
                      (blend_short() == 0) && (pressure_datum_short() == 0) && (record_short() == 0) &&
                      (witness_cube_short() == 0);

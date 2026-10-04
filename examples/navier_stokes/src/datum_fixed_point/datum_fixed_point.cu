@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // datum_fixed_point.cu: the axis pressure Pi_0 that Duraiswami's datum returns, by Newton steps on decimal iterates
-// (pressure_datum.h, atom_value.h)
+// (pressure_datum.h, term_value.h)
 #include "run_cfg.h"
 
 #include "report.h"
 
-#include "atom_value.h"
+#include "term_value.h"
 #include "decay_integral.h"
 #include "ode_series.h"
 #include "pressure_datum.h"
 #include "record.h"
 
-// Pi_0 = sum_(k<n) p_k T_k(eta), and G(p)(eta) the right side of the datum with the core built on that Pi_0, every atom
-// valued by atom_value.h at the cfg's length. Pi_0 is a fixed point where Y_i = G(p)(eta_i) - p(eta_i) is 0 at each of
+// Pi_0 = sum_(k<n) p_k T_k(eta), and G(p)(eta) the right side of the datum with the core built on that Pi_0, every term
+// valued by term_value.h at the cfg's length. Pi_0 is a fixed point where Y_i = G(p)(eta_i) - p(eta_i) is 0 at each of
 // the cfg's n nodes. A full exact iterate would carry G's values, thousands of digits each, into the next core. Each
 // iterate is written to the cfg's decimal places for that step instead, and Y at it is exact. The step to the next
 // iterate solves J d = -Y with Y and J to the cfg's step places: J by divided differences at the first iterate, then
 // Broyden's update, J += ((dY - J dp) dp^T) / (dp^T dp).
 // Checks:
-// 1. Every atom the forms hold is one atom_value.h writes in its independent numbers.
+// 1. Every term the forms hold is one term_value.h writes in its independent numbers.
 // 2. At the last iterate every |Y_i| is no more than the cfg's tolerance.
 // 3. Every exact value is held in the build's width.
 // 4. Every iterate, its Y and the last iterate's datum forms are written whole to the record the cfg names.
@@ -33,14 +33,14 @@ typedef struct
     unsigned int order;
     SimRational inner;
     SimRational outer;
-    AtomBook book;
-    AtomValues numbers;
-    // the atoms' values as the book names them, held[i] 1 where atoms[i] is valued
-    std::vector<SimRational> atoms;
+    TermBook book;
+    TermValues numbers;
+    // the terms' values as the book names them, held[i] 1 where terms[i] is valued
+    std::vector<SimRational> terms;
     std::vector<int> held;
     int named;
     // the last evaluation's datum forms, one a node
-    std::vector<AtomForm> forms;
+    std::vector<TermForm> forms;
 } DatumFixedPointRun;
 
 // sum values[k] T_k(eta)
@@ -68,7 +68,7 @@ static SimRational datum_fixed_point_decimal(SimRational value, unsigned int pla
 {
     SimRational scale;
     sim_exact_power(10ull, places, &scale.numerator);
-    scale.denominator = atom_form_unit();
+    scale.denominator = term_form_unit();
     const SimRational half = sim_rational((sim_rational_sign(value) < 0) ? -1ll : 1ll, 2ll);
     const SimRational shifted = sim_rational_sum(sim_rational_product(value, scale), half);
     SimRational whole;
@@ -78,7 +78,7 @@ static SimRational datum_fixed_point_decimal(SimRational value, unsigned int pla
         s_sim_rational_wide = 1;
         return sim_rational(0ll, 1ll);
     }
-    whole.denominator = atom_form_unit();
+    whole.denominator = term_form_unit();
     return sim_rational_product(whole, sim_rational_reciprocal(scale));
 }
 
@@ -92,29 +92,29 @@ static void datum_fixed_point_residual(DatumFixedPointRun *run, const std::vecto
     core_series_recursion(&run->request.shape, &run->swirl, &run->axial, &pressure, run->order, &series);
     run->request.series = &series;
     residual->assign(etas.size(), sim_rational(0ll, 1ll));
-    run->forms.assign(etas.size(), AtomForm());
+    run->forms.assign(etas.size(), TermForm());
     for (size_t index = 0u; index < etas.size(); index += 1u)
     {
         PressureDatum datum;
         pressure_datum_at(&run->request, etas[index], run->inner, run->outer, &run->book, &datum);
         run->forms[index] = datum.datum;
-        while (run->atoms.size() < run->book.names.size())
+        while (run->terms.size() < run->book.names.size())
         {
-            run->atoms.push_back(sim_rational(0ll, 1ll));
+            run->terms.push_back(sim_rational(0ll, 1ll));
             run->held.push_back(0);
         }
-        for (size_t atom = 0u; atom < run->book.names.size(); atom += 1u)
+        for (size_t term = 0u; term < run->book.names.size(); term += 1u)
         {
-            if (!run->held[atom])
+            if (!run->held[term])
             {
-                run->held[atom] = 1;
-                if (!atom_value_named(&run->numbers, run->book.names[atom], &run->atoms[atom]))
+                run->held[term] = 1;
+                if (!term_value_named(&run->numbers, run->book.names[term], &run->terms[term]))
                 {
                     run->named = 0;
                 }
             }
         }
-        const SimRational value = atom_value_form(&run->numbers, datum.datum, run->atoms);
+        const SimRational value = term_value_form(&run->numbers, datum.datum, run->terms);
         (*residual)[index] = sim_rational_difference(value, datum_fixed_point_chebyshev(p, etas[index]));
     }
 }
@@ -273,7 +273,7 @@ int main(int count, char **arguments)
     run.named = 1;
     eta_function_chebyshev(swirl, &run.swirl);
     eta_function_chebyshev(axial, &run.axial);
-    atom_value_open(&run.numbers, h, (unsigned int)length);
+    term_value_open(&run.numbers, h, (unsigned int)length);
     const size_t modes = nodes.size();
     std::vector<SimRational> p = start;
     p.resize(modes, sim_rational(0ll, 1ll));
@@ -306,12 +306,12 @@ int main(int count, char **arguments)
             for (size_t mode = 0u; mode < modes; mode += 1u)
             {
                 record_form(record, ("iterate_" + std::to_string(iterate) + "_p_" + std::to_string(mode)).c_str(),
-                            atom_form_rational(p[mode]), &run.book);
+                            term_form_rational(p[mode]), &run.book);
             }
             for (size_t node = 0u; node < modes; node += 1u)
             {
                 record_form(record, ("iterate_" + std::to_string(iterate) + "_Y_" + std::to_string(node)).c_str(),
-                            atom_form_rational(residual[node]), &run.book);
+                            term_form_rational(residual[node]), &run.book);
             }
         }
         const std::vector<SimRational> right = datum_fixed_point_decimals(residual, (unsigned int)step_places);
@@ -381,24 +381,24 @@ int main(int count, char **arguments)
         const std::string at = "iterate_" + std::to_string(iterate_places.size());
         for (size_t mode = 0u; mode < modes; mode += 1u)
         {
-            record_form(record, (at + "_p_" + std::to_string(mode)).c_str(), atom_form_rational(p[mode]), &run.book);
+            record_form(record, (at + "_p_" + std::to_string(mode)).c_str(), term_form_rational(p[mode]), &run.book);
         }
         for (size_t node = 0u; node < modes; node += 1u)
         {
-            record_form(record, (at + "_Y_" + std::to_string(node)).c_str(), atom_form_rational(residual[node]), &run.book);
-            record_form(record, ("datum_eta_" + atom_book_rational(nodes[node])).c_str(), run.forms[node], &run.book);
+            record_form(record, (at + "_Y_" + std::to_string(node)).c_str(), term_form_rational(residual[node]), &run.book);
+            record_form(record, ("datum_eta_" + term_book_rational(nodes[node])).c_str(), run.forms[node], &run.book);
         }
         for (size_t index = 0u; index < last_between.size(); index += 1u)
         {
-            record_form(record, ("between_Y_eta_" + atom_book_rational(between[index])).c_str(),
-                        atom_form_rational(last_between[index]), &run.book);
+            record_form(record, ("between_Y_eta_" + term_book_rational(between[index])).c_str(),
+                        term_form_rational(last_between[index]), &run.book);
         }
     }
 
-    // 1. the atoms
-    scriptura_text(&results.line, run.named ? "  every atom is written in its independent numbers\n"
-                                            : "  an atom has no value\n");
-    sim_check(&results, run.named, "every atom valued");
+    // 1. the terms
+    scriptura_text(&results.line, run.named ? "  every term is written in its independent numbers\n"
+                                            : "  an term has no value\n");
+    sim_check(&results, run.named, "every term valued");
     // 2. the residual at the last iterate
     const int settled = datum_fixed_point_within(residual, tolerance);
     scriptura_text(&results.line, settled ? "  at the last iterate every |Y| at the nodes is within the cfg's tolerance\n"
@@ -407,13 +407,13 @@ int main(int count, char **arguments)
     // 4. the record, before the width
     const int recorded = (record != NULL) && record_close(record);
     // 3. the width
-    const int wide[13] = {s_sim_rational_wide, run_cfg_short(),     report_short(),      atom_form_short(),
+    const int wide[13] = {s_sim_rational_wide, run_cfg_short(),     report_short(),      term_form_short(),
                           taylor_short(),      ode_series_short(),  eta_function_short(), core_series_short(),
-                          decay_integral_short(), blend_short(),    pressure_datum_short(), atom_value_short(),
+                          decay_integral_short(), blend_short(),    pressure_datum_short(), term_value_short(),
                           record_short()};
-    static const char *const modules[13] = {"datum_fixed_point", "run_cfg", "report", "atom_form", "taylor", "ode_series",
+    static const char *const modules[13] = {"datum_fixed_point", "run_cfg", "report", "term_form", "taylor", "ode_series",
                                             "eta_function", "core_series", "decay_integral", "blend", "pressure_datum",
-                                            "atom_value", "record"};
+                                            "term_value", "record"};
     int held = 1;
     for (size_t module = 0u; module < 13u; module += 1u)
     {

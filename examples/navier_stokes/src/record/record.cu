@@ -25,10 +25,10 @@ FILE *record_open(const char *cfg_path, const RunCfg *cfg, const char *member)
     return file;
 }
 
-void record_form(FILE *file, const char *name, const AtomForm &form, const AtomBook *book)
+void record_form(FILE *file, const char *name, const TermForm &form, const TermBook *book)
 {
-    fprintf(file, "form %s %zu\n", name, atom_form_terms(form));
-    atom_form_write(file, form, book->names);
+    fprintf(file, "form %s %zu\n", name, term_form_terms(form));
+    term_form_write(file, form, book->names);
 }
 
 void record_text(FILE *file, const char *text)

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// atom_form.cu: forms in atoms (atom_form.h)
-#include "atom_form.h"
+// term_form.cu: forms in terms (term_form.h)
+#include "term_form.h"
 
 #include "report.h"
 
 #include <algorithm>
 
-bool AtomKeyOrder::operator()(const AtomKey &left, const AtomKey &right) const
+bool TermKeyOrder::operator()(const TermKey &left, const TermKey &right) const
 {
     const int lean = sim_rational_sign(sim_rational_difference(left.e, right.e));
     if (lean != 0)
@@ -17,25 +17,25 @@ bool AtomKeyOrder::operator()(const AtomKey &left, const AtomKey &right) const
 }
 
 // the slots of the program: the key at each, the slot of each key, and the slot of each product of two
-static std::vector<AtomKey> s_atom_slots;
-static std::map<AtomKey, unsigned int, AtomKeyOrder> s_atom_slot_of;
-static std::map<std::pair<unsigned int, unsigned int>, unsigned int> s_atom_slot_product;
+static std::vector<TermKey> s_term_slots;
+static std::map<TermKey, unsigned int, TermKeyOrder> s_term_slot_of;
+static std::map<std::pair<unsigned int, unsigned int>, unsigned int> s_term_slot_product;
 
-AnchorExactInteger atom_form_unit(void)
+AnchorExactInteger term_form_unit(void)
 {
     AnchorExactInteger one;
     sim_exact_unsigned(&one, 1ull);
     return one;
 }
 
-static AnchorExactInteger atom_form_nothing(void)
+static AnchorExactInteger term_form_nothing(void)
 {
     AnchorExactInteger zero;
     sim_exact_unsigned(&zero, 0ull);
     return zero;
 }
 
-static void atom_form_check(int ok)
+static void term_form_check(int ok)
 {
     if (!ok)
     {
@@ -44,7 +44,7 @@ static void atom_form_check(int ok)
 }
 
 // the power with trailing zeros dropped
-static AtomPower atom_form_trimmed(AtomPower power)
+static TermPower term_form_trimmed(TermPower power)
 {
     while (!power.empty() && (power.back() == 0u))
     {
@@ -53,69 +53,69 @@ static AtomPower atom_form_trimmed(AtomPower power)
     return power;
 }
 
-static AtomKey atom_form_key(SimRational e, const AtomPower &power)
+static TermKey term_form_key(SimRational e, const TermPower &power)
 {
-    AtomKey key;
+    TermKey key;
     key.e = e;
-    key.power = atom_form_trimmed(power);
+    key.power = term_form_trimmed(power);
     return key;
 }
 
-static unsigned int atom_form_slot(const AtomKey &key)
+static unsigned int term_form_slot(const TermKey &key)
 {
-    const auto found = s_atom_slot_of.find(key);
-    if (found != s_atom_slot_of.end())
+    const auto found = s_term_slot_of.find(key);
+    if (found != s_term_slot_of.end())
     {
         return found->second;
     }
-    const unsigned int slot = (unsigned int)s_atom_slots.size();
-    s_atom_slots.push_back(key);
-    s_atom_slot_of.insert(std::make_pair(key, slot));
+    const unsigned int slot = (unsigned int)s_term_slots.size();
+    s_term_slots.push_back(key);
+    s_term_slot_of.insert(std::make_pair(key, slot));
     return slot;
 }
 
-static unsigned int atom_form_slot_product(unsigned int left, unsigned int right)
+static unsigned int term_form_slot_product(unsigned int left, unsigned int right)
 {
     const std::pair<unsigned int, unsigned int> pair = (left < right) ? std::make_pair(left, right)
                                                                       : std::make_pair(right, left);
-    const auto found = s_atom_slot_product.find(pair);
-    if (found != s_atom_slot_product.end())
+    const auto found = s_term_slot_product.find(pair);
+    if (found != s_term_slot_product.end())
     {
         return found->second;
     }
-    const AtomPower &left_power = s_atom_slots[left].power;
-    const AtomPower &right_power = s_atom_slots[right].power;
+    const TermPower &left_power = s_term_slots[left].power;
+    const TermPower &right_power = s_term_slots[right].power;
     const size_t size = (left_power.size() > right_power.size()) ? left_power.size() : right_power.size();
-    AtomPower power(size, 0u);
+    TermPower power(size, 0u);
     for (size_t index = 0u; index < size; index += 1u)
     {
         power[index] = ((index < left_power.size()) ? left_power[index] : 0u) +
                        ((index < right_power.size()) ? right_power[index] : 0u);
     }
     const unsigned int slot =
-        atom_form_slot(atom_form_key(sim_rational_sum(s_atom_slots[left].e, s_atom_slots[right].e), power));
-    s_atom_slot_product.insert(std::make_pair(pair, slot));
+        term_form_slot(term_form_key(sim_rational_sum(s_term_slots[left].e, s_term_slots[right].e), power));
+    s_term_slot_product.insert(std::make_pair(pair, slot));
     return slot;
 }
 
 // the entry at `slot`, the array grown to hold it
-static AnchorExactInteger *atom_form_entry(AtomForm *form, unsigned int slot)
+static AnchorExactInteger *term_form_entry(TermForm *form, unsigned int slot)
 {
     if (form->magnitude.size() <= slot)
     {
-        form->magnitude.resize((size_t)slot + 1u, atom_form_nothing());
+        form->magnitude.resize((size_t)slot + 1u, term_form_nothing());
     }
     return &form->magnitude[slot];
 }
 
 // trailing zeros dropped, and the entries and the denominator divided by the factor they share
-static void atom_form_settle(AtomForm *form)
+static void term_form_settle(TermForm *form)
 {
     while (!form->magnitude.empty() && (form->magnitude.back().sign == 0))
     {
         form->magnitude.pop_back();
     }
-    const AnchorExactInteger one = atom_form_unit();
+    const AnchorExactInteger one = term_form_unit();
     if (form->magnitude.empty())
     {
         form->denominator = one;
@@ -128,7 +128,7 @@ static void atom_form_settle(AtomForm *form)
         {
             continue;
         }
-        atom_form_check(anchor_exact_gcd(&common, &entry, &common) == ANCHOR_EXACT_OK);
+        term_form_check(anchor_exact_gcd(&common, &entry, &common) == ANCHOR_EXACT_OK);
         if (anchor_exact_compare(&common, &one) == 0)
         {
             return;
@@ -139,30 +139,30 @@ static void atom_form_settle(AtomForm *form)
         if (entry.sign != 0)
         {
             AnchorExactInteger quotient;
-            atom_form_check(anchor_exact_divide_exact(&entry, &common, &quotient) == ANCHOR_EXACT_OK);
+            term_form_check(anchor_exact_divide_exact(&entry, &common, &quotient) == ANCHOR_EXACT_OK);
             entry = quotient;
         }
     }
     AnchorExactInteger quotient;
-    atom_form_check(anchor_exact_divide_exact(&form->denominator, &common, &quotient) == ANCHOR_EXACT_OK);
+    term_form_check(anchor_exact_divide_exact(&form->denominator, &common, &quotient) == ANCHOR_EXACT_OK);
     form->denominator = quotient;
 }
 
 // the term coefficient times the key
-static AtomForm atom_form_term(const AtomKey &key, SimRational coefficient)
+static TermForm term_form_term(const TermKey &key, SimRational coefficient)
 {
-    AtomForm form;
+    TermForm form;
     if (sim_rational_sign(coefficient) == 0)
     {
         return form;
     }
-    *atom_form_entry(&form, atom_form_slot(key)) = coefficient.numerator;
+    *term_form_entry(&form, term_form_slot(key)) = coefficient.numerator;
     form.denominator = coefficient.denominator;
     return form;
 }
 
 // the coefficient at `slot` as a rational in lowest terms
-static SimRational atom_form_coefficient(const AtomForm &form, size_t slot)
+static SimRational term_form_coefficient(const TermForm &form, size_t slot)
 {
     SimRational value;
     value.numerator = form.magnitude[slot];
@@ -172,7 +172,7 @@ static SimRational atom_form_coefficient(const AtomForm &form, size_t slot)
 }
 
 // the slots holding a term, in key order
-static std::vector<unsigned int> atom_form_held(const AtomForm &form)
+static std::vector<unsigned int> term_form_held(const TermForm &form)
 {
     std::vector<unsigned int> held;
     for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
@@ -182,30 +182,30 @@ static std::vector<unsigned int> atom_form_held(const AtomForm &form)
             held.push_back((unsigned int)slot);
         }
     }
-    const AtomKeyOrder order;
+    const TermKeyOrder order;
     std::sort(held.begin(), held.end(),
-              [&order](unsigned int left, unsigned int right) { return order(s_atom_slots[left], s_atom_slots[right]); });
+              [&order](unsigned int left, unsigned int right) { return order(s_term_slots[left], s_term_slots[right]); });
     return held;
 }
 
-AtomForm atom_form_rational(SimRational value)
+TermForm term_form_rational(SimRational value)
 {
-    return atom_form_term(atom_form_key(sim_rational(0ll, 1ll), AtomPower()), value);
+    return term_form_term(term_form_key(sim_rational(0ll, 1ll), TermPower()), value);
 }
 
-AtomForm atom_form_atom(unsigned int atom)
+TermForm term_form_term(unsigned int term)
 {
-    AtomPower power(atom + 1u, 0u);
-    power[atom] = 1u;
-    return atom_form_term(atom_form_key(sim_rational(0ll, 1ll), power), sim_rational(1ll, 1ll));
+    TermPower power(term + 1u, 0u);
+    power[term] = 1u;
+    return term_form_term(term_form_key(sim_rational(0ll, 1ll), power), sim_rational(1ll, 1ll));
 }
 
-AtomForm atom_form_e(SimRational power)
+TermForm term_form_e(SimRational power)
 {
-    return atom_form_term(atom_form_key(power, AtomPower()), sim_rational(1ll, 1ll));
+    return term_form_term(term_form_key(power, TermPower()), sim_rational(1ll, 1ll));
 }
 
-AtomForm atom_form_sum(const AtomForm &left, const AtomForm &right)
+TermForm term_form_sum(const TermForm &left, const TermForm &right)
 {
     if (left.magnitude.empty())
     {
@@ -215,9 +215,9 @@ AtomForm atom_form_sum(const AtomForm &left, const AtomForm &right)
     {
         return left;
     }
-    AtomForm sum;
-    AnchorExactInteger left_factor = atom_form_unit();
-    AnchorExactInteger right_factor = atom_form_unit();
+    TermForm sum;
+    AnchorExactInteger left_factor = term_form_unit();
+    AnchorExactInteger right_factor = term_form_unit();
     if (anchor_exact_compare(&left.denominator, &right.denominator) == 0)
     {
         sum.denominator = left.denominator;
@@ -226,64 +226,64 @@ AtomForm atom_form_sum(const AtomForm &left, const AtomForm &right)
     {
         // the least common denominator, each side lifted to it
         AnchorExactInteger common;
-        atom_form_check(anchor_exact_gcd(&left.denominator, &right.denominator, &common) == ANCHOR_EXACT_OK);
-        atom_form_check(anchor_exact_divide_exact(&right.denominator, &common, &left_factor) == ANCHOR_EXACT_OK);
-        atom_form_check(anchor_exact_divide_exact(&left.denominator, &common, &right_factor) == ANCHOR_EXACT_OK);
-        atom_form_check(sim_exact_product(&left.denominator, &left_factor, &sum.denominator));
+        term_form_check(anchor_exact_gcd(&left.denominator, &right.denominator, &common) == ANCHOR_EXACT_OK);
+        term_form_check(anchor_exact_divide_exact(&right.denominator, &common, &left_factor) == ANCHOR_EXACT_OK);
+        term_form_check(anchor_exact_divide_exact(&left.denominator, &common, &right_factor) == ANCHOR_EXACT_OK);
+        term_form_check(sim_exact_product(&left.denominator, &left_factor, &sum.denominator));
     }
     const size_t size = (left.magnitude.size() > right.magnitude.size()) ? left.magnitude.size() : right.magnitude.size();
-    sum.magnitude.assign(size, atom_form_nothing());
+    sum.magnitude.assign(size, term_form_nothing());
     for (size_t slot = 0u; slot < size; slot += 1u)
     {
-        AnchorExactInteger first = atom_form_nothing();
-        AnchorExactInteger second = atom_form_nothing();
+        AnchorExactInteger first = term_form_nothing();
+        AnchorExactInteger second = term_form_nothing();
         if ((slot < left.magnitude.size()) && (left.magnitude[slot].sign != 0))
         {
-            atom_form_check(sim_exact_product(&left.magnitude[slot], &left_factor, &first));
+            term_form_check(sim_exact_product(&left.magnitude[slot], &left_factor, &first));
         }
         if ((slot < right.magnitude.size()) && (right.magnitude[slot].sign != 0))
         {
-            atom_form_check(sim_exact_product(&right.magnitude[slot], &right_factor, &second));
+            term_form_check(sim_exact_product(&right.magnitude[slot], &right_factor, &second));
         }
-        atom_form_check(sim_exact_sum(&first, &second, &sum.magnitude[slot]));
+        term_form_check(sim_exact_sum(&first, &second, &sum.magnitude[slot]));
     }
-    atom_form_settle(&sum);
+    term_form_settle(&sum);
     return sum;
 }
 
-AtomForm atom_form_difference(const AtomForm &left, const AtomForm &right)
+TermForm term_form_difference(const TermForm &left, const TermForm &right)
 {
-    AtomForm negative = right;
+    TermForm negative = right;
     for (AnchorExactInteger &entry : negative.magnitude)
     {
         entry.sign = -entry.sign;
     }
-    return atom_form_sum(left, negative);
+    return term_form_sum(left, negative);
 }
 
-AtomForm atom_form_scaled(const AtomForm &form, SimRational factor)
+TermForm term_form_scaled(const TermForm &form, SimRational factor)
 {
-    AtomForm scaled;
+    TermForm scaled;
     if ((sim_rational_sign(factor) == 0) || form.magnitude.empty())
     {
         return scaled;
     }
-    scaled.magnitude.assign(form.magnitude.size(), atom_form_nothing());
+    scaled.magnitude.assign(form.magnitude.size(), term_form_nothing());
     for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
     {
         if (form.magnitude[slot].sign != 0)
         {
-            atom_form_check(sim_exact_product(&form.magnitude[slot], &factor.numerator, &scaled.magnitude[slot]));
+            term_form_check(sim_exact_product(&form.magnitude[slot], &factor.numerator, &scaled.magnitude[slot]));
         }
     }
-    atom_form_check(sim_exact_product(&form.denominator, &factor.denominator, &scaled.denominator));
-    atom_form_settle(&scaled);
+    term_form_check(sim_exact_product(&form.denominator, &factor.denominator, &scaled.denominator));
+    term_form_settle(&scaled);
     return scaled;
 }
 
-AtomForm atom_form_product(const AtomForm &left, const AtomForm &right)
+TermForm term_form_product(const TermForm &left, const TermForm &right)
 {
-    AtomForm product;
+    TermForm product;
     if (left.magnitude.empty() || right.magnitude.empty())
     {
         return product;
@@ -300,22 +300,22 @@ AtomForm atom_form_product(const AtomForm &left, const AtomForm &right)
             {
                 continue;
             }
-            const unsigned int slot = atom_form_slot_product((unsigned int)first, (unsigned int)second);
+            const unsigned int slot = term_form_slot_product((unsigned int)first, (unsigned int)second);
             AnchorExactInteger part;
-            atom_form_check(sim_exact_product(&left.magnitude[first], &right.magnitude[second], &part));
-            AnchorExactInteger *const entry = atom_form_entry(&product, slot);
+            term_form_check(sim_exact_product(&left.magnitude[first], &right.magnitude[second], &part));
+            AnchorExactInteger *const entry = term_form_entry(&product, slot);
             AnchorExactInteger total;
-            atom_form_check(sim_exact_sum(entry, &part, &total));
+            term_form_check(sim_exact_sum(entry, &part, &total));
             *entry = total;
         }
     }
-    atom_form_check(sim_exact_product(&left.denominator, &right.denominator, &product.denominator));
-    atom_form_settle(&product);
+    term_form_check(sim_exact_product(&left.denominator, &right.denominator, &product.denominator));
+    term_form_settle(&product);
     return product;
 }
 
 // 1 where e's power is ratio times a whole number 1 or more
-static int atom_form_multiple(SimRational e, SimRational ratio)
+static int term_form_multiple(SimRational e, SimRational ratio)
 {
     if ((sim_rational_sign(e) == 0) || (sim_rational_sign(ratio) == 0))
     {
@@ -327,17 +327,17 @@ static int atom_form_multiple(SimRational e, SimRational ratio)
            (denominator == 1ll);
 }
 
-AtomForm atom_form_unit_reduced(const AtomForm &form, SimRational ratio, unsigned int share)
+TermForm term_form_unit_reduced(const TermForm &form, SimRational ratio, unsigned int share)
 {
-    AtomForm reduced = form;
+    TermForm reduced = form;
     for (;;)
     {
         size_t mixed = reduced.magnitude.size();
         for (size_t slot = 0u; slot < reduced.magnitude.size(); slot += 1u)
         {
-            const AtomPower &power = s_atom_slots[slot].power;
+            const TermPower &power = s_term_slots[slot].power;
             if ((reduced.magnitude[slot].sign != 0) && (power.size() > share) && (power[share] > 0u) &&
-                atom_form_multiple(s_atom_slots[slot].e, ratio))
+                term_form_multiple(s_term_slots[slot].e, ratio))
             {
                 mixed = slot;
                 break;
@@ -345,38 +345,38 @@ AtomForm atom_form_unit_reduced(const AtomForm &form, SimRational ratio, unsigne
         }
         if (mixed == reduced.magnitude.size())
         {
-            atom_form_settle(&reduced);
+            term_form_settle(&reduced);
             return reduced;
         }
         // e^ratio share -> 1 - share, over the same denominator
         const AnchorExactInteger value = reduced.magnitude[mixed];
-        const SimRational lowered_e = sim_rational_difference(s_atom_slots[mixed].e, ratio);
-        AtomPower lowered = s_atom_slots[mixed].power;
-        reduced.magnitude[mixed] = atom_form_nothing();
+        const SimRational lowered_e = sim_rational_difference(s_term_slots[mixed].e, ratio);
+        TermPower lowered = s_term_slots[mixed].power;
+        reduced.magnitude[mixed] = term_form_nothing();
         lowered[share] -= 1u;
-        AtomPower kept = lowered;
+        TermPower kept = lowered;
         kept[share] += 1u;
-        const unsigned int lowered_slot = atom_form_slot(atom_form_key(lowered_e, lowered));
-        const unsigned int kept_slot = atom_form_slot(atom_form_key(lowered_e, kept));
+        const unsigned int lowered_slot = term_form_slot(term_form_key(lowered_e, lowered));
+        const unsigned int kept_slot = term_form_slot(term_form_key(lowered_e, kept));
         AnchorExactInteger total;
-        atom_form_check(sim_exact_sum(atom_form_entry(&reduced, lowered_slot), &value, &total));
-        *atom_form_entry(&reduced, lowered_slot) = total;
-        atom_form_check(sim_exact_less(atom_form_entry(&reduced, kept_slot), &value, &total));
-        *atom_form_entry(&reduced, kept_slot) = total;
+        term_form_check(sim_exact_sum(term_form_entry(&reduced, lowered_slot), &value, &total));
+        *term_form_entry(&reduced, lowered_slot) = total;
+        term_form_check(sim_exact_less(term_form_entry(&reduced, kept_slot), &value, &total));
+        *term_form_entry(&reduced, kept_slot) = total;
     }
 }
 
-AtomForm atom_form_square_reduced(const AtomForm &form, unsigned int root, SimRational square)
+TermForm term_form_square_reduced(const TermForm &form, unsigned int root, SimRational square)
 {
-    AtomForm reduced;
+    TermForm reduced;
     for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
     {
         if (form.magnitude[slot].sign == 0)
         {
             continue;
         }
-        AtomPower power = s_atom_slots[slot].power;
-        SimRational value = atom_form_coefficient(form, slot);
+        TermPower power = s_term_slots[slot].power;
+        SimRational value = term_form_coefficient(form, slot);
         if (power.size() > root)
         {
             while (power[root] >= 2u)
@@ -385,12 +385,12 @@ AtomForm atom_form_square_reduced(const AtomForm &form, unsigned int root, SimRa
                 value = sim_rational_product(value, square);
             }
         }
-        reduced = atom_form_sum(reduced, atom_form_term(atom_form_key(s_atom_slots[slot].e, power), value));
+        reduced = term_form_sum(reduced, term_form_term(term_form_key(s_term_slots[slot].e, power), value));
     }
     return reduced;
 }
 
-unsigned int atom_book_id(AtomBook *book, const std::string &name)
+unsigned int term_book_id(TermBook *book, const std::string &name)
 {
     for (size_t index = 0u; index < book->names.size(); index += 1u)
     {
@@ -404,7 +404,7 @@ unsigned int atom_book_id(AtomBook *book, const std::string &name)
 }
 
 // every limb in hex from the highest held; two values share a text only where they are equal
-static std::string atom_book_limbs(const AnchorExactInteger &value)
+static std::string term_book_limbs(const AnchorExactInteger &value)
 {
     static const char digits[] = "0123456789abcdef";
     std::string text = (value.sign < 0) ? "-0x" : "0x";
@@ -424,35 +424,35 @@ static std::string atom_book_limbs(const AnchorExactInteger &value)
     return text;
 }
 
-std::string atom_book_rational(SimRational value)
+std::string term_book_rational(SimRational value)
 {
     long long numerator = 0ll;
     long long denominator = 0ll;
     if (!sim_rational_small(&value.numerator, &numerator) || !sim_rational_small(&value.denominator, &denominator))
     {
-        return "(" + atom_book_limbs(value.numerator) + "/" + atom_book_limbs(value.denominator) + ")";
+        return "(" + term_book_limbs(value.numerator) + "/" + term_book_limbs(value.denominator) + ")";
     }
     return (denominator == 1ll) ? std::to_string(numerator)
                                 : (std::to_string(numerator) + "/" + std::to_string(denominator));
 }
 
-int atom_form_zero(const AtomForm &form)
+int term_form_zero(const TermForm &form)
 {
     return form.magnitude.empty();
 }
 
-SimRational atom_form_constant(const AtomForm &form)
+SimRational term_form_constant(const TermForm &form)
 {
-    const auto found = s_atom_slot_of.find(atom_form_key(sim_rational(0ll, 1ll), AtomPower()));
-    if ((found == s_atom_slot_of.end()) || (found->second >= form.magnitude.size()) ||
+    const auto found = s_term_slot_of.find(term_form_key(sim_rational(0ll, 1ll), TermPower()));
+    if ((found == s_term_slot_of.end()) || (found->second >= form.magnitude.size()) ||
         (form.magnitude[found->second].sign == 0))
     {
         return sim_rational(0ll, 1ll);
     }
-    return atom_form_coefficient(form, found->second);
+    return term_form_coefficient(form, found->second);
 }
 
-SimRational atom_form_largest(const AtomForm &form)
+SimRational term_form_largest(const TermForm &form)
 {
     SimRational largest = sim_rational(0ll, 1ll);
     for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
@@ -461,7 +461,7 @@ SimRational atom_form_largest(const AtomForm &form)
         {
             continue;
         }
-        const SimRational size = sim_rational_absolute(atom_form_coefficient(form, slot));
+        const SimRational size = sim_rational_absolute(term_form_coefficient(form, slot));
         if (sim_rational_sign(sim_rational_difference(size, largest)) > 0)
         {
             largest = size;
@@ -470,34 +470,34 @@ SimRational atom_form_largest(const AtomForm &form)
     return largest;
 }
 
-SimRational atom_form_coefficient_of(const AtomForm &form, unsigned int atom)
+SimRational term_form_coefficient_of(const TermForm &form, unsigned int term)
 {
-    AtomPower power(atom + 1u, 0u);
-    power[atom] = 1u;
-    const auto found = s_atom_slot_of.find(atom_form_key(sim_rational(0ll, 1ll), power));
-    if ((found == s_atom_slot_of.end()) || !atom_form_holds(form, found->second))
+    TermPower power(term + 1u, 0u);
+    power[term] = 1u;
+    const auto found = s_term_slot_of.find(term_form_key(sim_rational(0ll, 1ll), power));
+    if ((found == s_term_slot_of.end()) || !term_form_holds(form, found->second))
     {
         return sim_rational(0ll, 1ll);
     }
-    return atom_form_coefficient(form, found->second);
+    return term_form_coefficient(form, found->second);
 }
 
-size_t atom_form_e_count(const AtomForm &form)
+size_t term_form_e_count(const TermForm &form)
 {
     size_t count = 0u;
-    const AtomKey *last = NULL;
-    for (unsigned int slot : atom_form_held(form))
+    const TermKey *last = NULL;
+    for (unsigned int slot : term_form_held(form))
     {
-        if ((last == NULL) || !sim_rational_equal(last->e, s_atom_slots[slot].e))
+        if ((last == NULL) || !sim_rational_equal(last->e, s_term_slots[slot].e))
         {
             count += 1u;
         }
-        last = &s_atom_slots[slot];
+        last = &s_term_slots[slot];
     }
     return count;
 }
 
-void atom_form_print(ScripturaLine *line, const AtomForm &form, const std::vector<std::string> &names,
+void term_form_print(ScripturaLine *line, const TermForm &form, const std::vector<std::string> &names,
                      unsigned int places)
 {
     if (form.magnitude.empty())
@@ -506,40 +506,40 @@ void atom_form_print(ScripturaLine *line, const AtomForm &form, const std::vecto
         return;
     }
     int first = 1;
-    for (unsigned int slot : atom_form_held(form))
+    for (unsigned int slot : term_form_held(form))
     {
-        const AtomKey &key = s_atom_slots[slot];
+        const TermKey &key = s_term_slots[slot];
         if (!first)
         {
             scriptura_text(line, " + ");
         }
         first = 0;
-        report_value(line, atom_form_coefficient(form, slot), places);
+        report_value(line, term_form_coefficient(form, slot), places);
         if (sim_rational_sign(key.e) != 0)
         {
             scriptura_text(line, " e^(");
-            scriptura_text(line, atom_book_rational(key.e).c_str());
+            scriptura_text(line, term_book_rational(key.e).c_str());
             scriptura_character(line, ')');
         }
-        for (size_t atom = 0u; atom < key.power.size(); atom += 1u)
+        for (size_t term = 0u; term < key.power.size(); term += 1u)
         {
-            if (key.power[atom] == 0u)
+            if (key.power[term] == 0u)
             {
                 continue;
             }
             scriptura_character(line, ' ');
-            scriptura_text(line, (atom < names.size()) ? names[atom].c_str() : "atom");
-            if (key.power[atom] > 1u)
+            scriptura_text(line, (term < names.size()) ? names[term].c_str() : "term");
+            if (key.power[term] > 1u)
             {
                 scriptura_character(line, '^');
-                scriptura_decimal(line, key.power[atom], 1u);
+                scriptura_decimal(line, key.power[term], 1u);
             }
         }
     }
 }
 
 // one exact integer in decimal, its sign first
-static void atom_form_write_integer(FILE *file, const AnchorExactInteger &value, std::vector<char> *buffer)
+static void term_form_write_integer(FILE *file, const AnchorExactInteger &value, std::vector<char> *buffer)
 {
     ScripturaLine line;
     line.out = buffer->data();
@@ -557,38 +557,38 @@ static void atom_form_write_integer(FILE *file, const AnchorExactInteger &value,
     fwrite(line.out, 1u, (size_t)line.at, file);
 }
 
-void atom_form_write(FILE *file, const AtomForm &form, const std::vector<std::string> &names)
+void term_form_write(FILE *file, const TermForm &form, const std::vector<std::string> &names)
 {
     // a magnitude of the build's width in decimal, groups of nine, with room for its sign
     std::vector<char> buffer((size_t)(SIM_DECIMAL_GROUPS * SIM_DECIMAL_GROUP_DIGITS + 8ull));
-    for (unsigned int slot : atom_form_held(form))
+    for (unsigned int slot : term_form_held(form))
     {
-        const AtomKey &key = s_atom_slots[slot];
-        const SimRational coefficient = atom_form_coefficient(form, slot);
-        atom_form_write_integer(file, coefficient.numerator, &buffer);
+        const TermKey &key = s_term_slots[slot];
+        const SimRational coefficient = term_form_coefficient(form, slot);
+        term_form_write_integer(file, coefficient.numerator, &buffer);
         fputc('/', file);
-        atom_form_write_integer(file, coefficient.denominator, &buffer);
+        term_form_write_integer(file, coefficient.denominator, &buffer);
         if (sim_rational_sign(key.e) != 0)
         {
-            fprintf(file, " e^(%s)", atom_book_rational(key.e).c_str());
+            fprintf(file, " e^(%s)", term_book_rational(key.e).c_str());
         }
-        for (size_t atom = 0u; atom < key.power.size(); atom += 1u)
+        for (size_t term = 0u; term < key.power.size(); term += 1u)
         {
-            if (key.power[atom] == 0u)
+            if (key.power[term] == 0u)
             {
                 continue;
             }
-            fprintf(file, " %s", (atom < names.size()) ? names[atom].c_str() : "atom");
-            if (key.power[atom] > 1u)
+            fprintf(file, " %s", (term < names.size()) ? names[term].c_str() : "term");
+            if (key.power[term] > 1u)
             {
-                fprintf(file, "^%u", key.power[atom]);
+                fprintf(file, "^%u", key.power[term]);
             }
         }
         fputc('\n', file);
     }
 }
 
-size_t atom_form_terms(const AtomForm &form)
+size_t term_form_terms(const TermForm &form)
 {
     size_t count = 0u;
     for (const AnchorExactInteger &entry : form.magnitude)
@@ -598,60 +598,60 @@ size_t atom_form_terms(const AtomForm &form)
     return count;
 }
 
-std::vector<unsigned int> atom_form_slots(const AtomForm &form)
+std::vector<unsigned int> term_form_slots(const TermForm &form)
 {
-    return atom_form_held(form);
+    return term_form_held(form);
 }
 
-int atom_form_holds(const AtomForm &form, unsigned int slot)
+int term_form_holds(const TermForm &form, unsigned int slot)
 {
     return (slot < form.magnitude.size()) && (form.magnitude[slot].sign != 0);
 }
 
-const AtomKey &atom_form_key_at(unsigned int slot)
+const TermKey &term_form_key_at(unsigned int slot)
 {
-    return s_atom_slots[slot];
+    return s_term_slots[slot];
 }
 
-SimRational atom_form_coefficient_at(const AtomForm &form, unsigned int slot)
+SimRational term_form_coefficient_at(const TermForm &form, unsigned int slot)
 {
-    if (!atom_form_holds(form, slot))
+    if (!term_form_holds(form, slot))
     {
         return sim_rational(0ll, 1ll);
     }
-    return atom_form_coefficient(form, slot);
+    return term_form_coefficient(form, slot);
 }
 
-std::string atom_form_key_text(unsigned int slot, const std::vector<std::string> &names)
+std::string term_form_key_text(unsigned int slot, const std::vector<std::string> &names)
 {
-    const AtomKey &key = s_atom_slots[slot];
+    const TermKey &key = s_term_slots[slot];
     std::string text;
     if (sim_rational_sign(key.e) != 0)
     {
-        text = "e^(" + atom_book_rational(key.e) + ")";
+        text = "e^(" + term_book_rational(key.e) + ")";
     }
-    for (size_t atom = 0u; atom < key.power.size(); atom += 1u)
+    for (size_t term = 0u; term < key.power.size(); term += 1u)
     {
-        if (key.power[atom] == 0u)
+        if (key.power[term] == 0u)
         {
             continue;
         }
         text += text.empty() ? "" : " ";
-        text += (atom < names.size()) ? names[atom] : "atom";
-        if (key.power[atom] > 1u)
+        text += (term < names.size()) ? names[term] : "term";
+        if (key.power[term] > 1u)
         {
-            text += "^" + std::to_string(key.power[atom]);
+            text += "^" + std::to_string(key.power[term]);
         }
     }
     return text.empty() ? "1" : text;
 }
 
-size_t atom_form_entries(const AtomForm &form)
+size_t term_form_entries(const TermForm &form)
 {
     return form.magnitude.size();
 }
 
-unsigned long long atom_form_bits(const AtomForm &form)
+unsigned long long term_form_bits(const TermForm &form)
 {
     unsigned long long most = sim_exact_bits(&form.denominator);
     for (const AnchorExactInteger &entry : form.magnitude)
@@ -662,7 +662,7 @@ unsigned long long atom_form_bits(const AtomForm &form)
     return most;
 }
 
-int atom_form_short(void)
+int term_form_short(void)
 {
     return s_sim_rational_wide != 0;
 }

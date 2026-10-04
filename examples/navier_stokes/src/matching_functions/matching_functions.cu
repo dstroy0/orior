@@ -10,7 +10,7 @@
 #include "record.h"
 
 // The axis data, the amplitude c, the join and the annulus content are the cfg's. At each eta the six functions are
-// exact forms in held atoms, written whole to the record. c^2 X_b^(-2h) / (4h), the power part of the tail of S, is
+// exact forms in held terms, written whole to the record. c^2 X_b^(-2h) / (4h), the power part of the tail of S, is
 // X_b to a rational power: with 2h = r / q, y lies below it exactly where (y 4h / c^2)^q X_b^r < 1, and the cfg's
 // decimal for it, with its places, is checked by two such comparisons.
 // Checks:
@@ -100,14 +100,14 @@ int main(int count, char **arguments)
     }
     const SimRational h = request.h;
 
-    static AtomBook book;
+    static TermBook book;
     // the core alone on the annulus, at the first eta
     request.blended = 0;
     static MatchingFunctions alone;
     matching_at(&request, etas[0], &book, &alone);
     request.blended = 1;
-    const SimRational torque_alone = atom_form_largest(alone.torque);
-    const SimRational force_alone = atom_form_largest(alone.force);
+    const SimRational torque_alone = term_form_largest(alone.torque);
+    const SimRational force_alone = term_form_largest(alone.force);
     scriptura_text(&results.line, "  the core alone at eta = ");
     report_value(&results.line, etas[0], (unsigned int)places);
     scriptura_text(&results.line, ": torque ");
@@ -115,7 +115,7 @@ int main(int count, char **arguments)
     scriptura_text(&results.line, ", force ");
     report_value(&results.line, force_alone, (unsigned int)places);
     scriptura_text(&results.line, " (largest coefficient), M ");
-    report_value(&results.line, atom_form_constant(alone.m_inf), (unsigned int)places);
+    report_value(&results.line, term_form_constant(alone.m_inf), (unsigned int)places);
     scriptura_character(&results.line, '\n');
     std::vector<MatchingFunctions> functions(etas.size());
     int ends = alone.ends;
@@ -126,21 +126,21 @@ int main(int count, char **arguments)
         scriptura_text(&results.line, "  eta = ");
         report_value(&results.line, etas[index], (unsigned int)places);
         scriptura_text(&results.line, ": terms in torque, force, M, J, S, H:");
-        const AtomForm *const six[6] = {&functions[index].torque, &functions[index].force, &functions[index].m_inf,
+        const TermForm *const six[6] = {&functions[index].torque, &functions[index].force, &functions[index].m_inf,
                                         &functions[index].j_inf, &functions[index].s_inf, &functions[index].h_match};
-        for (const AtomForm *form : six)
+        for (const TermForm *form : six)
         {
             scriptura_character(&results.line, ' ');
-            scriptura_decimal(&results.line, atom_form_terms(*form), 1u);
+            scriptura_decimal(&results.line, term_form_terms(*form), 1u);
         }
-        scriptura_text(&results.line, "\n    the part of M with no atom: ");
-        report_value(&results.line, atom_form_constant(functions[index].m_inf), (unsigned int)places);
+        scriptura_text(&results.line, "\n    the part of M with no term: ");
+        report_value(&results.line, term_form_constant(functions[index].m_inf), (unsigned int)places);
         scriptura_character(&results.line, '\n');
         sim_flush(&results);
     }
     scriptura_text(&results.line, "  ");
     scriptura_decimal(&results.line, book.names.size(), 1u);
-    scriptura_text(&results.line, " atoms\n");
+    scriptura_text(&results.line, " terms\n");
 
     // 1. the decay integral below k = -1
     int decay = 1;
@@ -170,7 +170,7 @@ int main(int count, char **arguments)
     const int high_below = matching_functions_below(sim_rational_sum(printed, half_unit), h, request.amplitude, request.outer);
     const int within = (low_below == 1) && (high_below == 0);
     scriptura_text(&results.line, "  c^2 X_b^(-2h) / (4h) = ");
-    atom_form_print(&results.line, functions.empty() ? AtomForm() : functions[0].s_tail_power, book.names, (unsigned int)places);
+    term_form_print(&results.line, functions.empty() ? TermForm() : functions[0].s_tail_power, book.names, (unsigned int)places);
     scriptura_text(&results.line, within ? ", within half a unit of the last place of his "
                                          : ", not within half a unit of the last place of his ");
     report_value(&results.line, printed, (unsigned int)places);
@@ -183,7 +183,7 @@ int main(int count, char **arguments)
     {
         for (size_t index = 0u; index < etas.size(); index += 1u)
         {
-            const std::string at = "eta_" + atom_book_rational(etas[index]);
+            const std::string at = "eta_" + term_book_rational(etas[index]);
             record_form(record, (at + "_torque").c_str(), functions[index].torque, &book);
             record_form(record, (at + "_force").c_str(), functions[index].force, &book);
             record_form(record, (at + "_m_inf").c_str(), functions[index].m_inf, &book);
@@ -195,7 +195,7 @@ int main(int count, char **arguments)
     }
     // 5. the width
     const int held = (s_sim_rational_wide == 0) && (run_cfg_short() == 0) && (report_short() == 0) &&
-                     (atom_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
+                     (term_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
                      (eta_function_short() == 0) && (core_series_short() == 0) && (decay_integral_short() == 0) &&
                      (blend_short() == 0) && (blend_field_short() == 0) && (matching_short() == 0) &&
                      (record_short() == 0);

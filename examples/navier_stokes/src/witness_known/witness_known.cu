@@ -14,8 +14,8 @@
 //   part the sum over odd k. Component S is the product over the axes of the odd part where the axis is in S and the
 //   even part where it is not.
 // - A trilinear form, sum over S of q_S k_S times the product over a in S of (x_a - center_a) / half_a, with q_S from
-//   the cfg and k_S an atom. Component S is q_S k_S.
-// - The axis heat's A K(s_b) and A J(s_b) over (C, X_b, Pr), A = C^2 Pr^2 / (4 nu c) and s_b = Pr X_b / 2, the atom
+//   the cfg and k_S an term. Component S is q_S k_S.
+// - The axis heat's A K(s_b) and A J(s_b) over (C, X_b, Pr), A = C^2 Pr^2 / (4 nu c) and s_b = Pr X_b / 2, the term
 //   E1(s_b) at each corner its own. Nothing is known of its components; they are recorded.
 // Checks:
 // 1. The product's 8 components are the products of the parts, exactly.
@@ -41,7 +41,7 @@ typedef struct
     SimRational center[3];
     SimRational half[3];
     std::vector<SimRational> coefficients;
-    unsigned int atom[8];
+    unsigned int term[8];
 } WitnessTrilinear;
 
 typedef struct
@@ -65,39 +65,39 @@ static TaylorSeries witness_known_factor(const WitnessProduct *product, unsigned
     return ode_series_kummer(product->center[2], product->h, product->terms, product->value, product->slope);
 }
 
-static AtomForm witness_known_product(const void *context, const SimRational *point, AtomBook *book)
+static TermForm witness_known_product(const void *context, const SimRational *point, TermBook *book)
 {
     const WitnessProduct *const product = (const WitnessProduct *)context;
     (void)book;
-    AtomForm value = atom_form_rational(sim_rational(1ll, 1ll));
+    TermForm value = term_form_rational(sim_rational(1ll, 1ll));
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
-        value = atom_form_product(value, taylor_value(witness_known_factor(product, axis), point[axis]));
+        value = term_form_product(value, taylor_value(witness_known_factor(product, axis), point[axis]));
     }
     return value;
 }
 
 // the even (odd = 0) or odd (odd = 1) part of a series at the offset `half`
-static AtomForm witness_known_part(const TaylorSeries &series, SimRational half, unsigned int odd)
+static TermForm witness_known_part(const TaylorSeries &series, SimRational half, unsigned int odd)
 {
-    AtomForm sum;
+    TermForm sum;
     SimRational power = sim_rational(1ll, 1ll);
     for (size_t index = 0u; index < series.coefficient.size(); index += 1u)
     {
         if ((index & 1u) == odd)
         {
-            sum = atom_form_sum(sum, atom_form_scaled(series.coefficient[index], power));
+            sum = term_form_sum(sum, term_form_scaled(series.coefficient[index], power));
         }
         power = sim_rational_product(power, half);
     }
     return sum;
 }
 
-static AtomForm witness_known_trilinear(const void *context, const SimRational *point, AtomBook *book)
+static TermForm witness_known_trilinear(const void *context, const SimRational *point, TermBook *book)
 {
     const WitnessTrilinear *const form = (const WitnessTrilinear *)context;
     (void)book;
-    AtomForm value;
+    TermForm value;
     for (unsigned int component = 0u; component < 8u; component += 1u)
     {
         SimRational weight = form->coefficients[component];
@@ -110,13 +110,13 @@ static AtomForm witness_known_trilinear(const void *context, const SimRational *
                                                  sim_rational_reciprocal(form->half[axis])));
             }
         }
-        value = atom_form_sum(value, atom_form_scaled(atom_form_atom(form->atom[component]), weight));
+        value = term_form_sum(value, term_form_scaled(term_form_term(form->term[component]), weight));
     }
     return value;
 }
 
 // A K(s_b), or A J(s_b) where `start` is set, at (C, X_b, Pr)
-static AtomForm witness_known_heat(const void *context, const SimRational *point, AtomBook *book)
+static TermForm witness_known_heat(const void *context, const SimRational *point, TermBook *book)
 {
     const WitnessHeat *const heat = (const WitnessHeat *)context;
     const SimRational s = sim_rational_product(sim_rational_product(point[2], point[1]), sim_rational(1ll, 2ll));
@@ -124,15 +124,15 @@ static AtomForm witness_known_heat(const void *context, const SimRational *point
         sim_rational_product(sim_rational_product(point[0], point[0]), sim_rational_product(point[2], point[2])),
         sim_rational_reciprocal(sim_rational_product(sim_rational(4ll, 1ll),
                                                      sim_rational_product(heat->diffusion, heat->heat_capacity))));
-    const unsigned int integral = atom_book_id(book, "E1(" + atom_book_rational(s) + ")");
+    const unsigned int integral = term_book_id(book, "E1(" + term_book_rational(s) + ")");
     const SimRational over = sim_rational_reciprocal(s);
-    const AtomForm decay = atom_form_scaled(atom_form_e(sim_rational_negative(s)), over);
-    const AtomForm value =
-        heat->start ? atom_form_difference(decay, atom_form_atom(integral))
-                    : atom_form_difference(atom_form_scaled(atom_form_atom(integral),
+    const TermForm decay = term_form_scaled(term_form_e(sim_rational_negative(s)), over);
+    const TermForm value =
+        heat->start ? term_form_difference(decay, term_form_term(integral))
+                    : term_form_difference(term_form_scaled(term_form_term(integral),
                                                             sim_rational_sum(sim_rational(1ll, 1ll), over)),
                                            decay);
-    return atom_form_scaled(value, scale);
+    return term_form_scaled(value, scale);
 }
 
 static int witness_known_cube(const RunCfg *cfg, const char *name, SimRational *center, SimRational *half)
@@ -218,13 +218,13 @@ int main(int count, char **arguments)
     }
     product.terms = (unsigned int)terms;
     heat.diffusion = sim_rational_product(viscosity, sim_rational_reciprocal(density));
-    static AtomBook book;
-    product.power = atom_book_id(&book, "(" + atom_book_rational(product.center[1]) + ")^h");
-    product.value = atom_book_id(&book, "w(" + atom_book_rational(product.center[2]) + ")");
-    product.slope = atom_book_id(&book, "w'(" + atom_book_rational(product.center[2]) + ")");
+    static TermBook book;
+    product.power = term_book_id(&book, "(" + term_book_rational(product.center[1]) + ")^h");
+    product.value = term_book_id(&book, "w(" + term_book_rational(product.center[2]) + ")");
+    product.slope = term_book_id(&book, "w'(" + term_book_rational(product.center[2]) + ")");
     for (unsigned int component = 0u; component < 8u; component += 1u)
     {
-        trilinear.atom[component] = atom_book_id(&book, "k_" + std::to_string(component));
+        trilinear.term[component] = term_book_id(&book, "k_" + std::to_string(component));
     }
 
     static WitnessCube product_cube;
@@ -247,13 +247,13 @@ int main(int count, char **arguments)
     int parts = 1;
     for (unsigned int component = 0u; component < 8u; component += 1u)
     {
-        AtomForm expected = atom_form_rational(sim_rational(1ll, 1ll));
+        TermForm expected = term_form_rational(sim_rational(1ll, 1ll));
         for (unsigned int axis = 0u; axis < 3u; axis += 1u)
         {
-            expected = atom_form_product(expected, witness_known_part(witness_known_factor(&product, axis),
+            expected = term_form_product(expected, witness_known_part(witness_known_factor(&product, axis),
                                                                       product_half[axis], (component >> axis) & 1u));
         }
-        parts = parts && atom_form_zero(atom_form_difference(expected, product_cube.component[component]));
+        parts = parts && term_form_zero(term_form_difference(expected, product_cube.component[component]));
     }
     scriptura_text(&results.line, parts ? "  the product's 8 components are the products of its factors' parts\n"
                                         : "  a component of the product is not the product of its factors' parts\n");
@@ -262,9 +262,9 @@ int main(int count, char **arguments)
     int coefficients = 1;
     for (unsigned int component = 0u; component < 8u; component += 1u)
     {
-        const AtomForm expected =
-            atom_form_scaled(atom_form_atom(trilinear.atom[component]), trilinear.coefficients[component]);
-        coefficients = coefficients && atom_form_zero(atom_form_difference(expected, trilinear_cube.component[component]));
+        const TermForm expected =
+            term_form_scaled(term_form_term(trilinear.term[component]), trilinear.coefficients[component]);
+        coefficients = coefficients && term_form_zero(term_form_difference(expected, trilinear_cube.component[component]));
     }
     scriptura_text(&results.line, coefficients ? "  the trilinear form's 8 components are its coefficients\n"
                                                : "  a component of the trilinear form is not its coefficient\n");
@@ -288,7 +288,7 @@ int main(int count, char **arguments)
     }
     // 4. the width
     const int held = (s_sim_rational_wide == 0) && (run_cfg_short() == 0) && (report_short() == 0) &&
-                     (atom_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
+                     (term_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
                      (record_short() == 0) && (witness_cube_short() == 0);
     scriptura_text(&results.line, held ? "  every exact value is held in the build's width\n"
                                        : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
