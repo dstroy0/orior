@@ -29,6 +29,8 @@ STEM = "Nater-final"
 LANGUAGE = "Bella Coola"
 AUTHORS = ["Hank Nater"]
 paper = gen.Paper(STEM, authors=AUTHORS[0], language=LANGUAGE)
+# Every hyphen the paper ends a line on is printed, North Wakash- / induced and pre- / CS.
+paper.hyphen_ends_join = True
 RAW = [""] + open(residue.source_path(STEM), encoding="utf-8").read().split("\n")
 NAMES = [("Nater", "Hank Nater, the author; Nater (1984, 1990, 1994, 2010, 2013) and his Southern Carrier fieldnotes"),
          ("Kuipers", "Aert H. Kuipers (1967, 1969, 1974, 2002), Squamish, Shuswap and the Salish etymological dictionary"),
@@ -62,7 +64,8 @@ SUBHEADS = {"Prepositions", "Articles", "Pre-predicatives", "Other", "Adverbs", 
 ENTRY = re.compile(r"^(\d{3,4}(?:, \d{3,4})?)\s+(?!Excel\b)(\S.*)$")
 TAG = re.compile(r"(?<![\w*-])(%s)\s+(?=\S)" % "|".join(re.escape(one) for one in sorted(TAGS, key=len, reverse=True)))
 GLOSS = re.compile(r"^\s*(‘[^’]*(?:’[^\s,;)][^’]*)*’)")
-SOURCE = re.compile(r"^\s*\(((?:Ku\d\d|Ki|VE\d\d|Na\d\d|Ku\d\d\d\d)[^)]*)\)")
+# The source is the citation alone; Kuipers's own form can follow it in the bracket, (Ku02:210 -wil 'canoe').
+SOURCE = re.compile(r"^\s*\(((?:Ku\d\d|Ki|VE\d\d|Na\d\d|Ku\d\d\d\d)\d*(?::\s?[\d,\-– ]*\d)?)(?=\)|\s[^\d\s])")
 # A token that is no form: an English word, a source, a cross-reference number.
 WORDS = {"id.", "in", "and", "or", "cf.", "petrified", "suffix", "found", "beside", "as", "with", "see", "the", "of",
          "is", "if", "but", "also"}
@@ -85,11 +88,28 @@ def gloss_after(text, at):
     return gloss, source.group(1) if source else ""
 
 
-def forms_in(text):
-    """[(form, language, gloss)] for the forms of a note: the forms after an abbreviation, a list
-    parted by commas, given to its language; a starred form to its stage; and a form glossed in
-    quotes with no abbreviation before it to Bella Coola."""
-    found, taken = [], set()
+def italic_pieces(pages):
+    """The words the paper sets in italics on the pages, each a form: a run parted at its spaces
+    and the = of ʔiɬ˽ = ɬa˽, a piece of one letter or with a bracket left open, q(ʷ of *q(ʷ),
+    passed over."""
+    pieces = []
+    for page in pages:
+        for run in paper.italics().get(page, []):
+            for piece in run.split():
+                piece = piece.strip(",;:")
+                if len(piece) < 2 or not re.search(r"[^\W\d_]", piece) or piece.count("(") != piece.count(")"):
+                    continue
+                if piece not in pieces:
+                    pieces.append(piece)
+    return pieces
+
+
+def forms_in(text, pages=()):
+    """[(form, language, gloss)] for the forms of a note in the order printed: the forms after an
+    abbreviation, a list parted by commas, given to its language; a starred form to its stage; a
+    form glossed in quotes with no abbreviation before it to Bella Coola; and any other word of the
+    pages' italics, ta˽ in cf. 1516 ta˽ and ʔa-ɬay after <, to Bella Coola."""
+    found, taken, spans = [], set(), []
     for tag in TAG.finditer(text):
         at = tag.end()
         while True:
@@ -98,8 +118,9 @@ def forms_in(text):
                 break
             form = token.group(1)
             gloss, source = gloss_after(text, at + token.end())
-            found.append((form, TAGS[tag.group(1)], ", ".join(one for one in (gloss, source) if one)))
+            found.append((at, form, TAGS[tag.group(1)], ", ".join(one for one in (gloss, source) if one)))
             taken.add(at)
+            spans.append((at, at + token.end()))
             at += token.end()
             # A list goes on past a gloss and a source to the next form of the same language,
             # Sq ɬa 'DEF.PRES.WEAK.FEM', ʔaɬi 'DEF.PRESENT.STRONG.DISTAL.FEM', and stops at a tag.
@@ -118,11 +139,17 @@ def forms_in(text):
         if star.start() in taken:
             continue
         gloss, source = gloss_after(text, star.end())
+        # The source after a list of starred forms is each one's, *wəs, *wis 'high, above' (Ku02:116).
+        listed = re.match(r"(?:,\s*\*[^\s,;‘()]+)+", text[star.end():])
+        if listed and not source:
+            source = gloss_after(text, star.end() + listed.end())[1]
         before = text[:star.start()]
         stage = "pre-Coastal Salish" if re.search(r"pre-CS\s*(?:\(|:)?\s*$", before) or text.startswith("pre-CS") \
             else "Proto-Salish" if re.search(r"\bPS\s*$", before) or source.startswith("Ku02") else L
-        found.append((star.group(1), stage, ", ".join(one for one in (gloss, source) if one)))
+        # The colon after a reconstruction opens its cognates, *t-…: Sh t(k)- and is no part of it.
+        found.append((star.start(), star.group(1).rstrip(":"), stage, ", ".join(one for one in (gloss, source) if one)))
         taken.add(star.start())
+        spans.append(star.span())
     for quoted in re.finditer(r"(?<!\S)([^\s,;:‘’<=*+(][^\s,;:‘’<=*+]*)\s+‘", text):
         form = quoted.group(1)
         if quoted.start() in taken or not is_form(form) or re.search(r"(?:%s)\s+$" % "|".join(map(re.escape, TAGS)),
@@ -131,17 +158,70 @@ def forms_in(text):
         if re.fullmatch(r"\d+", text[:quoted.start()].split()[-1] if text[:quoted.start()].split() else ""):
             continue
         gloss, source = gloss_after(text, quoted.end() - 1)
-        # A word a cognate is found in is that cognate's language's, Sq -ilš found in ɬχilš.
-        tags = list(TAG.finditer(text[:quoted.start()]))
-        language = TAGS[tags[-1].group(1)] if tags and re.search(r"\bin\s+$", text[:quoted.start()]) else L
-        found.append((form, language, ", ".join(one for one in (gloss, source) if one)))
-    return found
+        found.append((quoted.start(1), form, language_at(text, quoted.start(1)),
+                      ", ".join(one for one in (gloss, source) if one)))
+        spans.append(quoted.span(1))
+    # The Bella Coola form a cognate in (= Ch …) is set beside, ʔaɬ˽ (= Ch ʔaɬ) and x˽ (= Ch š).
+    for pair in re.finditer(r"(?<![^\s(])([^\s,;:‘’(=][^\s,;:‘’]*)\s+(?=(?:‘[^’]*’\s+)?\(=\s)", text):
+        if any(start < pair.end(1) and pair.start(1) < end for start, end in spans):
+            continue
+        gloss, source = gloss_after(text, pair.end(1))
+        found.append((pair.start(1), pair.group(1), L, ", ".join(one for one in (gloss, source) if one)))
+        spans.append(pair.span(1))
+    for piece in italic_pieces(pages):
+        # A piece of a form set partly in italics, in of -…in, is no word of its own in the prose,
+        # nor is a capitalized word, the Bella Coola of the closing list set in italics.
+        if piece in WORDS or piece[:1].isupper():
+            continue
+        # A whole word: no star or root sign before it, √a being read above, no
+        # letter before the bracket it opens on, an of -m(an)-, and an affix's hyphen the italics
+        # leave upright, -ʔiɬ in (= -ʔiɬ) and ʔix- in cf. 261 ʔix-, taken in.
+        for hit in re.finditer(r"(?<![^\s(<+,;:\[])(?<!\S\()-?%s-?(?![^\s,;:)\]’.])" % re.escape(piece), text):
+            if any(start < hit.end() and hit.start() < end for start, end in spans):
+                continue
+            form, end = hit.group(0), hit.end()
+            # A ’ after the run that closes no quote is the word's glottal mark, set upright, ɬq’ in
+            # cf. ɬq’ 'to slap'.
+            if text[end:end + 1] == "’" and text[:hit.start()].count("‘") <= text[:hit.start()].count("’"):
+                form, end = form + "’", end + 1
+            gloss, source = gloss_after(text, end)
+            found.append((hit.start(), form, language_at(text, hit.start()),
+                          ", ".join(one for one in (gloss, source) if one)))
+            spans.append((hit.start(), end))
+    return [one[1:] for one in sorted(found, key=lambda one: one[0])]
 
 
-def add_forms(where, text, page, said):
-    for form, language, gloss in forms_in(text):
-        kind = "cited affix" if language == L and (form.startswith("-") or form.endswith("-")) else "cited form"
-        paper.add(where, language, kind, form, "page %d, %s%s" % (page, said, ", " + gloss if gloss else ""))
+def language_at(text, at):
+    """The language of an unstarred form at position at that no abbreviation stands right before.
+    A word after an abbreviation is that language's, North Wakash -inuχʷ , -iniχʷ, until a
+    cross-reference, a cf., a <, a semicolon or a bracket opened after a closed one turns back to
+    Bella Coola: Sq -numut (Ku67:95) (for -cut ~ -mut,
+    where -cut is entry 1737's. PS and pre-CS name a stage in the prose, of PS origin, and a stage's
+    forms are starred. A form after Kuipers's (2002) page in the bracket is his reconstruction,
+    (Ku02:210 -wil)."""
+    if re.search(r"\(Ku02:[\d,\-–]+\s+$", text[:at]):
+        return "Proto-Salish"
+    tags = [tag for tag in TAG.finditer(text) if tag.end() <= at and tag.group(1) not in ("PS", "pre-CS")]
+    between = text[tags[-1].end():at] if tags else ""
+    # An abbreviation inside a bracket names nothing past its close, -tuɬ-/-muɬ- (= Ch -tul-/-mul-),
+    # -c(an)-/-m(an)-.
+    closed = between.count(")") > between.count("(")
+    if tags and not closed and not re.search(r"\bcf\.|<|;|\)\s+\(|\b\d{1,4}\s+$", between):
+        return TAGS[tags[-1].group(1)]
+    return L
+
+
+def kind_of(form, language):
+    if form.startswith("√"):
+        return "root"
+    if language == L and (form.startswith("-") or form.endswith("-")):
+        return "cited affix"
+    return "cited form"
+
+
+def add_forms(where, text, page, said, pages=None):
+    for form, language, gloss in forms_in(text, pages if pages is not None else (page,)):
+        paper.add(where, language, kind_of(form, language), form, "page %d, %s%s" % (page, said, ", " + gloss if gloss else ""))
 
 
 def indented(number):
@@ -153,7 +233,9 @@ def head_forms(head):
     forms, rest = [], head
     while rest:
         token = re.match(r"([^\s‘]+?)(,|\s=)?(?=\s|‘|$)", rest)
-        if not token or token.group(1).startswith(("(", "<", "‘")) or token.group(1) in ("various",):
+        # A form can open on its optional part in brackets, (ka)nus-…-m; a remark in brackets is no form.
+        bracketed = token and token.group(1).startswith("(") and not re.match(r"\([^)\s]*\)[^\s)]", token.group(1))
+        if not token or bracketed or token.group(1).startswith(("<", "‘")) or token.group(1) in ("various",):
             break
         forms.append(token.group(1))
         rest = rest[token.end():].lstrip()
@@ -180,7 +262,8 @@ def entries(start, where):
         if paragraph:
             body = paper.joined(paragraph)
             paper.add("§" + section, A, "note", body, "page %d" % paper.page(paragraph[0]))
-            add_forms("§" + section, body, paper.page(paragraph[0]), "in the prose")
+            add_forms("§" + section, body, paper.page(paragraph[0]), "in the prose",
+                      sorted({paper.page(one) for one in paragraph}))
             paragraph.clear()
 
     def close():
@@ -193,9 +276,10 @@ def entries(start, where):
         paper.add(where, A, "note", " ".join([label, head] + notes), "page %d, the entry as printed" % page)
         for form in forms:
             paper.add(where, L, KINDS[section], form, "page %d, %s" % (page, rest or "its head"))
-        add_forms(where, rest, page, "in the head of the entry")
+        # An entry can run on over the foot of its page.
+        add_forms(where, rest, page, "in the head of the entry", (page, page + 1))
         for note in notes:
-            add_forms(where, note, page, "under the entry")
+            add_forms(where, note, page, "under the entry", (page, page + 1))
         state["entry"] = None
 
     def open_bracket():
@@ -273,7 +357,16 @@ def shifts(start, where):
         label = re.match(r"^\(([a-h]\d?)\)", body)
         at = "§3 (%s)" % label.group(1) if label else "§3"
         paper.add(at, A, "note", body, "page %d" % paper.page(lines[0]))
-        add_forms(at, body, paper.page(lines[0]), "a shift of §3" if label else "in the prose")
+        pages = sorted({paper.page(one) for one in lines})
+        # A shift is a rule, its statement up to the examples it gives, (h) *ns > nc; the starred
+        # sequences of the statement, *ən# and *#yə, are no forms.
+        example = body.find("(e.g.")
+        if label and example > 0:
+            paper.add(at, LANGUAGE, "rule", body[label.end():example].strip(), "page %d, shift (%s) of §3" % (
+                paper.page(lines[0]), label.group(1)))
+            add_forms(at, body[example:], paper.page(lines[0]), "a shift of §3", pages)
+        else:
+            add_forms(at, body, paper.page(lines[0]), "a shift of §3" if label else "in the prose", pages)
     return end
 
 
@@ -313,13 +406,30 @@ paper.meta = {
 HEADINGS = {paper.find(r"^%s " % label): label for label in ("1", "2", "3", "4", "5", "6")}
 paper.standard(AUTHORS, NAMES, LANGUAGES, blocks=BLOCKS, headings=HEADINGS)
 
+# §6's paragraphs are read as §5's are, each cognate given to the language its abbreviation names,
+# the preposition š of (= Ch š) to Upper Chehalis; the forms of its figures are their notes.
+rebuilt = []
+for row in paper.rows:
+    if row[0] == "§6" and row[2] == "cited form" and "in italics" in row[4]:
+        continue
+    rebuilt.append(row)
+    if row[0] == "§6" and row[2] == "note" and re.fullmatch(r"page \d+", row[4]):
+        page = int(row[4].split()[1])
+        for form, language, gloss in forms_in(row[3], (page,)):
+            rebuilt.append(["§6", language, kind_of(form, language), form,
+                            "page %d, in the prose%s" % (page, ", " + gloss if gloss else "")])
+paper.rows = rebuilt
+
 # The note on the author's name is marked by a private-use glyph, U+F020, which page_footnotes
 # finds no mark in, and the paragraph over it at the foot of page 1 runs on into it.
 CONTACT = " Contact info: "
 at = next(at for at, row in enumerate(paper.rows) if row[2] == "note" and CONTACT in row[3])
 paper.rows[at][3], contact = paper.rows[at][3].split(CONTACT)
+paper.rows[at][3] = paper.rows[at][3].replace("", "").rstrip()
 paper.rows.insert(at + 1, ["footnote", A, "note", "Contact info: " + contact,
                            "page 1, the footnote on the author's name, its mark the private-use glyph U+F020"])
+# The author line holds the name and that mark.
+paper.rows = [row for row in paper.rows if not (row[2] == "note" and row[4] == "page 1, the author line")]
 
 
 def split_reference(opening):

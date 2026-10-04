@@ -36,7 +36,7 @@ sets after a stacked mark is closed, except before an opening quote, then NFC, t
 correction.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
-the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 1071
+the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 1233
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 11220 distinct tokens in the paper, 0 language tokens are held by no row.
 
@@ -45,7 +45,8 @@ where    the paper's locator: the title, the front matter, a section, a footnote
 who      the language for an example tier and a cited form; the work cited on an example's
          line, or the speaker for a volunteered translation, for its English; the authors for
          the prose, the tables and the notes
-kind     cited form     a word of the language named in the prose, a note or a table
+kind     rule           a line of a rule, a derivation or a tree the authors display
+         cited form     a word of the language named in the prose, a note or a table
          cited affix    an affix named on its own
          root           a root named on its own
          language       a language name

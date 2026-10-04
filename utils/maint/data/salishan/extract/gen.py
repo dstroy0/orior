@@ -306,14 +306,17 @@ class Paper(object):
 
     def joined(self, numbers):
         """The lines' text run together with a space, or with none after a line that ends on a
-        hyphen where the paper sets hyphen_ends_join: a paper set ragged right breaks a line only at
-        a hyphen it prints, taboo- / driven for taboo-driven."""
+        hyphen where the paper sets hyphen_ends_join and the next line opens on a letter, a digit or
+        a closing bracket: the paper breaks a line only at a hyphen it prints, taboo- / driven for
+        taboo-driven and (morpho- / )syntax. An affix's hyphen before its gloss, *-mi- / '2SG.OBJ',
+        keeps the space."""
         out = ""
         for one in numbers:
             text = self.text(one)
             if not text:
                 continue
-            glue = "" if not out or getattr(self, "hyphen_ends_join", False) and out.endswith("-") else " "
+            closes = getattr(self, "hyphen_ends_join", False) and out.endswith("-") and re.match(r"[^\W_]|\)", text)
+            glue = "" if not out or closes else " "
             out += glue + text
         return out
 
