@@ -28,6 +28,8 @@ import defects
 HERE = os.path.dirname(os.path.abspath(__file__))
 from workdir import CORPUS  # noqa: E402
 from workdir import PRIVATE  # noqa: E402
+from marks import ACUTE, COMMA_ABOVE, DOT_BELOW  # noqa: E402
+import tables  # noqa: E402
 # The faces a font named but not embedded draws from, Times New Roman in Nater's 2019 paper.
 WINDOWS_FONTS = "C:/Windows/Fonts"
 SYSTEM_FONTS = {"Times New Roman": "times.ttf", "Times New Roman,Italic": "timesi.ttf",
@@ -165,7 +167,7 @@ def tounicode_stream(entries):
 OUTLINE_FACES = {"TimesNewRomanPSMT": "times.ttf", "TimesNewRomanPS-BoldMT": "timesbd.ttf",
                  "TimesNewRomanPS-ItalicMT": "timesi.ttf", "TimesNewRomanPS-BoldItalicMT": "timesbi.ttf",
                  "Arial": "arial.ttf", "DejaVuSans": "DejaVuSans.ttf", "LucidaSansUnicode": "l_10646.ttf"}
-PAPER_OUTLINED = {"2008_Brown"}
+PAPER_OUTLINED = tables.members("PAPER_OUTLINED")
 _FACE_KEYS = {}
 
 
@@ -405,16 +407,7 @@ def mended_fonts(path):
 # has a font that gives one mark or one dotless letter a space, the ̌ of č or the ȷ of ǰ, and the
 # mend would change what their ops and hand rows are keyed to. A paper leaves this list when its
 # oracle is rebuilt on the mended fonts.
-UNMENDED = {"05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final", "18_ICSNL55_Sardinha2_final", "2011_Blamire",
-            "7_Mellesmoen_SV_ComoxSliammon", "Davis-NederveenICSNL60",
-            "Hall-Luntzlara-Mellesmoen-Reid-ICSNL60", "ICSNL56_DavisJ_2_final-1",
-            "ICSNL56_Mellesmoen_Urbanczyk_final", "ICSNL57_HDavis", "ICSNL57_Reisinger_Griffin",
-            "ICSNL58_Davis_Mellesmoen_final", "ICSNL58_Givens_final", "ICSNL58_Hall_final",
-            "ICSNL58_Hannon_Stacey_Steiner_final", "ICSNL58_Khalaji_final", "ICSNL58_Schillo_final",
-            "ICSNL59_Davis_final", "ICSNL59_Mellesmoen_final", "ICSNL59_Murphey_Ch_final",
-            "ICSNL59_Schneider_Gerdts_final", "ICSNL59_Thompson_final", "Janzen_ICSNL61-1", "MellesmoenICSNL60_BCHk",
-            "Phillips_et_al_ICSNL61-1", "PincottICSNL60", "Reisinger_ICSNL61-1", "SchneiderGriffinICSNL60",
-            "ZenkICSNL60"}
+UNMENDED = tables.members("UNMENDED")
 _OPENED = {}
 
 
@@ -450,9 +443,6 @@ def layer_text(stem):
     return "\n".join(out)
 
 
-COMMA_ABOVE = "̓"
-
-
 class OnePage(object):
     """One page of a document, shaped as a document of one page for gap_lines."""
 
@@ -467,21 +457,14 @@ class OnePage(object):
         return self.document[self.number]
 
 
-DOT_BELOW = "̣"
-ACUTE = "́"
 # Papers read before pdfium's line and the glyph line were let respace a layer line they read alike,
 # whose hand ops are keyed to the layer's spacing: pr eferred in ZenkICSNL60 is preferred on the
 # page. Eight of them no longer build once respaced, and a paper leaves this list when its ops are
 # moved to the page's spacing and its oracle is rebuilt.
-LAYER_SPACED = {"ZenkICSNL60", "ICSNL56_Zenk_final", "ICSNL56_Inman_final", "ICSNL56_Suharwardy_final",
-                "Mellesmoen_Trotter_ICSNL61", "ICSNL58_Nater_final2", "ICSNL56_Sobolak_final", "Steiner_ICSNL61-1",
-                "ICSNL59_Nederveen_Oliver_final", "ICSNL57_Francis_et_al", "ICSNL58_Huijsmans_final2",
-                "ICSNL57_JDavis", "ICSNL59_Nater_1_final", "ICSNL59_Diep_Xu_Babel_Bochnak_final",
-                "09_ICSNL55_Galligos_et_al._final", "ICSNL59_Nederveen_final", "ICSNL59_Oliver_final",
-                "ICSNL57_program", "ICSNL56_Inman_correction"}
+LAYER_SPACED = tables.members("LAYER_SPACED")
 # The two letters a font's ToUnicode gives one glyph, and the letter the glyph draws: ə and the
 # Cyrillic ә in one box, in Stewart, Noguchi, Sardinha and Davis's 2011 and 2012 papers.
-CLOSEUP_UNJOINED = {"11_Reisinger-Modality-in-Comox-Sliammon"}
+CLOSEUP_UNJOINED = tables.members("CLOSEUP_UNJOINED")
 ONE_GLYPH = {"əә": "ə"}
 # The letter a font's ToUnicode gives for each mark, in wlwlmelst and Janzen's paper: ƛ for the
 # comma above in the running text and w in the bold title, ə for the acute and x for the dot below.
@@ -493,147 +476,7 @@ DROPPED = "∼"
 # A font that maps the letters it draws to the private use area, which the text layer drops: [o for
 # [p̓oq̓] `‘grey’` in Huijsmans. Each code point was read off a 600 dpi render of the page named, with
 # pua_crops.py.
-PRIVATE_USE = {
-    # Van Eijk's AboriginalSans shares Huijsmans's codes for the glottalized letters and adds ə́, c̓,
-    # z̓ and the high dot of the inchoative infix, each read off a 600 dpi render with pua_crops.py.
-    "2011_van_Eijk": {
-        "": "k̓",  # p1, s.k̓ʷzús-əm
-        "": "·",  # p2, ɣi·ʔp
-        "": "x̌",  # p2, nax̌ʷə́<x̌ʷ>t
-        "": "ə́",  # p2, nax̌ʷə́<x̌ʷ>t
-        "": "ƛ̓",  # p2, s.ƛ̓qʷ-aw̓s
-        "": "w̓",  # p2, s.ƛ̓qʷ-aw̓s
-        "": "n̓",  # p3, √ɣíp-in̓
-        "": "q̓",  # p4, s.q̓it
-        "": "c̓",  # p4, ʔác̓x̌-n-əm
-        "": "z̓",  # p4, ʔiz̓ˬkʷu
-        "": "m̓",  # p4, pəlʔ-ám̓
-        "": "l̓",  # p5, -kál̓ap
-        "": "y̓",  # p6, húy̓-ɬkaɬ
-    },
-    # Wingdings 3's arrows in Nater's sound shifts, *…an# → …a# and Table 2's ↘ and ↓, read off
-    # 600 dpi renders with pua_crops.py.
-    "Nater_2019_ICSNL": {"": "→", "": "↘", "": "↓"},
-    # The Symbol font's codes in Davis's proper names, each the letter the Symbol encoding gives its
-    # low byte and read off 400 dpi renders: the title's ∗, λ in (1), (64) to (70) and footnotes 14
-    # and 18, ∃ in (65), ∈ in footnote 14 and Chierchia's raised ∪ on page 21.
-    "HDavis_2019_ICSNL": {"": "∗", "": "λ", "": "∃", "": "∈", "": "∪"},
-    # Davis and Mellesmoen's formulas in the same Symbol codes: λ in (76) to (78) and (85), and the ¬
-    # of (82), read off 300 dpi renders with crop_lines.py.
-    # John Hamilton Davis's FirstNationsNew draws the glottalized č̓, k̓ and ƛ̓ at the codes of Æ, ˚ and
-    # «, which no other font of the paper sets: ch’ia [č̓ʸε] on page 3, [k̓ʷʌhiyišʊçʷ] on page 5 and
-    # [ʔot tθəm šʸæƛ̓ʌčʊçʷ] on page 9, read off 600 dpi renders with crop_words.py.
-    "2012_Davis_J": {"Æ": "č̓", "˚": "k̓", "«": "ƛ̓"},
-    # Davis and Van Eijk's bird names set AboriginalSans with the 2011 van Eijk codes, Huijsmans's
-    # p̓, and the retracted vowels and dotted letters of Lillooet, each read off a 600 dpi render with
-    # pua_crops.py. The paper's layer defines schwa ǝ (U+01DD), and so does this map.
-    "2012_Davis_H_vanEijk": {
-        "": "k̓",  # p3, k̓ʷsixʷ
-        "": "x̌",  # p2, s.x̌iq
-        "": "ǝ́",  # p3, s.mǝ́q̓ʷaʔ
-        "": "ƛ̓",  # p3, ƛ̓ʔum
-        "": "w̓",  # p5, haláw̓
-        "": "n̓",  # p2, s.pzízan̓ǝk
-        "": "q̓",  # p3, s.mǝ́q̓ʷaʔ
-        "": "c̓",  # p5, c̓ǝ̣ḷs
-        "": "z̓",  # p3, ʔi<ʔ>pikʷ-áz̓
-        "": "m̓",  # p3, s.pǝq-m̓íx
-        "": "l̓",  # p5, xʷí<xʷ>l̓ǝt
-        "": "y̓",  # p10, *qʷasqʷay̓
-        "": "p̓",  # p5, s.p̓áq̓ʷ-us
-        "": "ạ́",  # p3, q̓ʷṣạ́ɬnạɬ
-        "": "ị́",  # p4, ḷị́ḷuya
-        "": "ǝ̣",  # p5, c̓ǝ̣ḷs
-        "": "ǝ̣́",  # p6, m̓ǝ̣́ṣ:m̓ǝ̣ṣ
-        "": "ʕ̓",  # p10, s.xláʕ̓
-        "": "c̣",  # p10, c̣ǝ̣k-a:c̣ǝ̣́k-a
-        "": "ḷ̓",  # p13, s.kʷạ́<kʷǝ̣>ḷ̓
-        "": "ụ́",  # p14, k̓ʷụ́ḷc̓-aʔ
-    },
-    # Van Eijk's 2013 paper sets the same AboriginalSans codes, its layer definition schwa ǝ, and ạ́ at a
-    # code of its own, read off 600 dpi renders with crop_lines.py.
-    "2013_van_Eijk": {
-        "": "k̓", "": "x̌", "": "ǝ́", "": "ƛ̓", "": "w̓", "": "n̓",
-        "": "q̓",  # p12, /q̓á[•q̓]y̓-m̓
-        "": "c̓", "": "z̓", "": "m̓", "": "l̓", "": "y̓",
-        "": "p̓",  # p8, lǝp̓-xál-tn
-        "": "ạ́",  # p8, (10) xʷʔạ́z
-    },
-    # Jantzen's Aboriginal Serif sets the glottalized letters at van Eijk's codes, the ToUnicode giving
-    # each a space; the font mend writes each code, and the 400 dpi renders of pages 2, 3 and 5 print
-    # ʔump-w̓əɬə, -q̓ən, ʔek̓ak̓-ala, c̓ə, m̓ and n̓ where the layer had none.
-    "2011_Jantzen": {"": "c̓", "": "k̓", "": "m̓", "": "n̓", "": "p̓", "": "q̓",
-                     "": "w̓"},
-    # Gerdts and Peter's Table 1 sets the ǰ of ǰ > č as a j with SILDoulosIPA's háček at U+F0E0 over
-    # it, read off a 600 dpi render with glyph_sheet.py.
-    "2011_Gerdts_Peter": {"\uf0e0": "\u030c"},
-    # Noguchi's Wingdings sets the arrow of /sub-ayu/ \u2192 /s\u00fa.ba.yu/ on page 6 and of (5) at U+F0E0, a
-    # right arrow in the 300 dpi render.
-    "2011_Noguchi": {"\uf0e0": "\u2192"},
-    # Sardinha's 2011 Wingdings sets the same arrow at U+F0E0: (i) \u2192 (ii) \u2192 (iii) on page 12 and the
-    # sound changes *h \u2192 h\u02b8/_i on page 26, a right arrow in the 300 dpi render.
-    "2011_Sardinha": {"\uf0e0": "\u2192"},
-    # Clarissa Forbes's table of relative clause positions on page 12 sets its check marks in
-    # Wingdings at U+F0FC, a ✓ in the 300 dpi render.
-    # Peter Jacobs's Aboriginal Sans sets Huijsmans's codes for the glottalized resonants and ɛ́, x̱
-    # and n̥ at codes of their own, and his Wingdings the ✓ and ✗ of (80) and (85), read off 500 and
-    # 600 dpi renders with crop_lines.py.
-    "2012_Jacobs": {
-        "": "x̱",  # p2, x̱its-ḵ-á-n
-        "": "n̥",  # p19, [sé·tn̥]
-        "": "y̓",  # p44, (shày̓)
-        "": "m̓",  # p46, (shnám̓)
-        "": "w̓",
-        "": "n̓",  # p9, √x̱in̓
-        "": "l̓",  # p13, s-tl’i-tl’íl̓ḵem
-        "": "ɛ́",  # p19, [mɛ́·χæɬ]
-        "": "✓",  # p44, (80a)
-        "": "✗",  # p46, (85b)
-    },
-    # JeongEun Lee's lists of verb stem parts, stem types and complex verbs set their bullets in
-    # Wingdings at U+F06C, a ● in the 600 dpi render of page 5.
-    "2012_Lee": {"": "●"},
-    "2012_Forbes": {"": "✓"},
-    # Mellesmoen's 2017 tableaux set the pointing hand at each winner in Wingdings at U+F046, a ☞ in
-    # the 300 dpi render of page 6.
-    "Mellesmoen_Dim_final": {"": "☞"},
-    # Bates and Lonsdale's ToUnicode gives the schwa of dxʷləšucid on page 1 as Ɵ and the glottal
-    # stop of cícuʔ on page 6 as Ɲ, each read off a 300 dpi render with crop_words.py.
-    "2009_Bates_Lonsdale": {"Ɵ": "ə", "Ɲ": "ʔ"},
-    "HDavisMellesmoen_2019_ICSNL": {"": "λ", "": "¬"},
-    # (3) and (4) on page 6 print q̓əč̓-t and q̓əč̓-it, read off a 400 dpi render with page_crop.py:
-    # the codes of Huijsmans's font.
-    "ICSNL58_Menon_final": {"\uf7eb": "q̓", "\uf729": "č̓"},
-    "ICSNL58_Huijsmans_final2": {
-        "\uf729": "č̓",  # p4, č̓ɩč̓noʔ
-        "\uf7ab": "l̓",  # p4, qʷə∼qʷol̓=ti
-        "\uf7cb": "n̓",  # p4, [tə č̓ɩč̓n̓oʔs]
-        "\uf79b": "k̓",  # p4, [č̓ɩč̓noʔ]aʔk̓ʷa
-        "\uf81b": "t̓",  # p4, t̓at̓ᶿɛm
-        "\uf893": "ƛ̓",  # p5, χaƛ̓]
-        "\uf847": "x̌",  # p5, [kʷ=ətᶿ=x̌aƛ̓]
-        "\uf7eb": "q̓",  # p8, q̓ətxʷ
-        "\uf7db": "p̓",  # p8, yɛp̓oɬ
-        "\uf83b": "w̓",  # p9, mɛmmaw̓]
-        "\uf7bb": "m̓",  # p10, [čəm̓∼čəm
-        "\uf6ab": "y̓",  # p10, qay̓ɛ]
-        "\uf043": "ɛ́",  # p24, pənɛ́t
-    },
-    # Mellesmoen and Huijsmans set their ʔayʔaǰuθəm in AboriginalSerif with Huijsmans's codes and
-    # g̓, each read off a 300 dpi render with crop_lines.py.
-    "MellesmoenHuijsmans_2019_ICSNL": {
-        "\uf729": "č̓",  # p2, č̓əχ
-        "\uf893": "ƛ̓",  # p2, ƛ̓akʷ
-        "\uf79b": "k̓",  # p3, k̓ʷə-t
-        "\uf7bb": "m̓",  # p4, ƛəm̓
-        "\uf7db": "p̓",  # p4, k̓ʷəp̓it
-        "\uf7eb": "q̓",  # p4, məq̓
-        "\uf83b": "w̓",  # p4, χʷəw̓
-        "\uf81b": "t̓",  # p5, t̓ap
-        "\uf76b": "g̓",  # p19, təg̓itstixʷ
-        "\uf7ab": "l̓",  # p21, qʷəl̓
-    },
-}
+PRIVATE_USE = tables.gather("PRIVATE_USE")
 
 
 # The modifier letter for each letter a page sets small and raised after another letter: the
@@ -1034,290 +877,32 @@ def font_name(textpage, index):
 # in the text layer, IND as U+061C U+0621 U+0617, and pdfium's bidi order scrambles them there.
 FONT_CIPHERS = {"Brill-Roman": (0x614, 0x62D, 0x5D3)}
 # A paper whose font puts every code it sets at an offset, by the font's name: each range, lowest
-# and highest code, with the offset to take off. Inman's TeXGyreTermes sets the small capitals A to
-# Z at U+049B to U+04B4 and 1 to 4 at U+0492 to U+0495, Cyrillic letters in the text layer, STRG.3
-# as ҭҮҬҡ*Ҕ, and each sign and capital four codes below its own: * for the stop, $ for the opening
-# bracket, ) for the hyphen, 9 for =, W and Y for [ and ], ? and R for C and V. Lyon and Davis's
-# TeXGyreTermes sets the same small capitals and figures, CIRC=REM=A, and their TeX-tipa10 sets the
-# dot below of ạ and ṣ in the orthography table at U+02D9, the spacing dot above.
-PAPER_CIPHERS = {"3_Inman_2018": {"TeXGyreTermes-Regular": ((0x49B, 0x4B4, 0x45A), (0x492, 0x495, 0x461),
-                                                            (0x21, 0x7E, -4))},
-                 "5_Lyon-Davis_2018": {"TeXGyreTermes-Regular": ((0x49B, 0x4B4, 0x45A), (0x492, 0x495, 0x461)),
-                                       "TeX-tipa10": ((0x2D9, 0x2D9, -0x4A),)},
-                 # Sobolak's TeX-xipa10 declares no ToUnicode map and sets the three letters it
-                 # draws at their T3 codes, P for ʔ, @ for ə and ì for ɬ, čɬpɬúləmt in (13) read off
-                 # page 5.
-                 "20_ICSNL55_Sobolak_final": {"TeX-xipa10": ((0x50, 0x50, -0x244), (0x40, 0x40, -0x219),
-                                                             (0xEC, 0xEC, -0x180))},
-                 # Tammpere, Birdstone and Wiltschko's TeX-xipa10 and its slant set the same P and ì,
-                 # F for the ɸ of pro-ɸP, and > for the tie over ts, kamint͡s and t͡san in (1a),
-                 # read off 400 dpi renders of page 1.
-                 "2012_Tammpere_Birdstone_Wiltschko": {face: ((0x50, 0x50, -0x244), (0xEC, 0xEC, -0x180),
-                                                              (0x46, 0x46, -0x232), (0x3E, 0x3E, -0x323))
-                                                       for face in ("TeX-xipa10", "TeX-xipasl10")},
-                 # Bird's SILDoulosIPA has a ToUnicode map that gives the legacy SIL keyboard codes:
-                 # ´ for ə, T for θ, S for ʃ, ¬ for ɬ, N for ŋ, I for ɪ, E for ɛ, X for χ, / for ʔ,
-                 # ≤ for ɴ and » for the stress mark ˈ. Its Wingdings Æ is the arrow of (2). All
-                 # were read off 300 and 600 dpi renders of the title, (1), (2), Figure 1, Table 1
-                 # and page 7.
-                 "2012_Bird": {"SILDoulosIPA": ((0xB4, 0xB4, -0x1A5), (0x54, 0x54, -0x364),
-                                                (0x53, 0x53, -0x230), (0xAC, 0xAC, -0x1C0),
-                                                (0x4E, 0x4E, -0xFD), (0x49, 0x49, -0x221),
-                                                (0x45, 0x45, -0x216), (0x58, 0x58, -0x36F),
-                                                (0x2F, 0x2F, -0x265), (0x2264, 0x2264, 0x1FF0),
-                                                (0xBB, 0xBB, -0x20D)),
-                               "Wingdings": ((0xC6, 0xC6, -0x20CC),)},
-                 # Brent Galloway's subset Times and DoulosSIL carry no map to Unicode, and pdfium
-                 # gives each glyph's code 29 under its letter, :RUN for Work, the digits at U+0013
-                 # to U+001C and Times' = at the code of a space. Past ASCII each font has codes of
-                 # its own: Times sets á é í ó at i p t y and its dashes and quotes at ± to ¶, and
-                 # DoulosSIL its IPA letters, its fi, fl, ff and ffi ligatures and its combining
-                 # acute, dot below and macron below at scattered codes. All were read off 600 dpi
-                 # renders of pages 1 to 30; the page numbers stand in an untagged
-                 # TimesNewRomanPSMT that sets its digits plainly.
-                 "2012_Galloway": {
-                     "CRQYUO+TimesNewRomanPSMT": ((0x09, 0x5D, -29), (0x69, 0x69, "á"), (0x70, 0x70, "é"),
-                                                  (0x74, 0x74, "í"), (0x79, 0x79, "ó"), (0xB1, 0xB1, "–"),
-                                                  (0xB2, 0xB2, "—"), (0xB3, 0xB3, "“"), (0xB4, 0xB4, "”"),
-                                                  (0xB5, 0xB5, "‘"), (0xB6, 0xB6, "’")),
-                     "TimesNewRomanPS-BoldMT": ((0x09, 0x5D, -29),),
-                     "TimesNewRomanPS-ItalicMT": ((0x09, 0x5D, -29),),
-                     "DoulosSIL": ((0x09, 0x5D, -29), (0x69, 0x69, "á"), (0x70, 0x70, "é"), (0x74, 0x74, "í"),
-                                   (0x79, 0x79, "ó"), (0x7B, 0x7B, "ô"), (0x7E, 0x7E, "ú"), (0x84, 0x84, "¢"),
-                                   (0xA0, 0xA0, "æ"), (0xB2, 0xB2, "–"), (0xB3, 0xB3, "—"), (0xB4, 0xB4, "“"),
-                                   (0xB5, 0xB5, "”"), (0xB6, 0xB6, "‘"), (0xB7, 0xB7, "’"), (0xC3, 0xC3, "·"),
-                                   (0x13E, 0x13E, "ɑ"), (0x1CC, 0x1CC, "ǽ"), (0x25D, 0x25D, "ć"),
-                                   (0x25F, 0x25F, "č"), (0x26C, 0x26C, "ɔ"), (0x338, 0x338, "ə"),
-                                   (0x351, 0x351, "ɛ"), (0x3E7, 0x3E7, "fi"), (0x3E9, 0x3E9, "fl"),
-                                   (0x3EB, 0x3EB, "ffi"), (0x3F1, 0x3F1, "ff"), (0x4FB, 0x4FB, "ɩ"),
-                                   (0x50C, 0x50C, "ɪ"), (0x5D6, 0x5D6, "ɬ"), (0x69F, 0x69F, "ō"),
-                                   (0x6CF, 0x6CF, "θ"), (0x7A0, 0x7A0, "ʅ"), (0x7C2, 0x7C2, "š"),
-                                   (0x871, 0x871, "ʊ"), (0x8DC, 0x8DC, "ʌ"), (0x945, 0x945, "ƛ"),
-                                   (0x9AA, 0x9AA, "ʔ"), (0xA37, 0xA38, "́"), (0xA90, 0xA90, "̱"),
-                                   (0xAAA, 0xAAA, "̣"), (0xAAF, 0xAAF, "’"))},
-                 # Palmer's Lushootseed font sets its letters at the keys of a typewriter: e for ə,
-                 # x for xʷ, X for x̌, S for š, ç for č, œ for qʷ, Q for q̓, G for gʷ, L for l̓, ¬ for ł
-                 # and ? for ʔ, taœSeblu for taqʷšəblu. Read off 250 and 600 dpi renders of pages 1,
-                 # 3, 8 and 9.
-                 "2013_Palmer": {"Lushootseed": ((0x65, 0x65, "ə"), (0x78, 0x78, "xʷ"), (0x58, 0x58, "x̌"),
-                                                 (0x53, 0x53, "š"), (0xE7, 0xE7, "č"), (0x153, 0x153, "qʷ"),
-                                                 (0x51, 0x51, "q" + COMMA_ABOVE), (0x47, 0x47, "gʷ"),
-                                                 (0x4C, 0x4C, "l" + COMMA_ABOVE), (0xAC, 0xAC, "ł"),
-                                                 (0x3F, 0x3F, "ʔ"))},
-                 # Gerdts and Peter's Straight font sets its Hul’q’umi’num’ letters at the codes of
-                 # a Mac keyboard's symbols: ; for ə, ÷ for ʔ, ø for ʷ, ß for š, ® for ł, ∆ for č,
-                 # ≈ for x̌, ƒ for θ, © for tᶿ, and a letter under a comma above for each glottalized
-                 # one, µ m̓, ∫ n̓, ¬ l̓, ¥ y̓, Σ w̓, ç c̓, œ q̓, ˚ k̓, † t̓, √ ƛ̓. Read off 400 and 900
-                 # dpi renders of pages 1 to 17 with glyph_sheet.py.
-                 "2011_Gerdts_Peter": {"Straight": tuple((ord(code), ord(code), text) for code, text in (
-                     (";", "ə"), ("÷", "ʔ"), ("ø", "ʷ"), ("ß", "š"), ("®", "ł"), ("∆", "č"), ("≈", "x̌"),
-                     ("ƒ", "θ"), ("©", "tᶿ"), ("µ", "m" + COMMA_ABOVE), ("∫", "n" + COMMA_ABOVE),
-                     ("¬", "l" + COMMA_ABOVE), ("¥", "y" + COMMA_ABOVE), ("Σ", "w" + COMMA_ABOVE),
-                     ("ç", "c" + COMMA_ABOVE), ("œ", "q" + COMMA_ABOVE), ("˚", "k" + COMMA_ABOVE),
-                     ("†", "t" + COMMA_ABOVE), ("√", "ƛ" + COMMA_ABOVE)))}}
-# Thompson and Sloat's GenSal SILDoulos TR, upright and italic, declares Latin-1 codes for the
-# Lushootseed and Twana letters: Å for ə, Â for ə́, Ò for ɔ́, Ó for ɔ, Î for ɪ, È for ɛ́, Ÿ and ž for
-# č, Ç for ǰ, Ê for gʷ, © for kʷ, ¨ for k̓ʷ, ° for qʷ, ¯ for q̇ʷ, ® for x̌, ³ for x̌ʷ, Ë for xʷ, ¿ for
-# ʔ, Ž for ƛ̓, ™ for l̓, ¢ for ẏ and ‡ for ċ, the dot above a glottalization; its α, ´ and • stand
-# as printed. Read off 400 to 900 dpi renders of Tables 1, 2, 3 and
-# 6 and pages 8, 10, 14, 15, 18, 19, 33 and 34.
-GENSAL = {"Å": "ə", "Â": "ə" + ACUTE, "Ò": "ɔ" + ACUTE, "Ó": "ɔ", "Î": "ɪ", "È": "ɛ" + ACUTE, "Ÿ": "č",
-          "ž": "č", "Ç": "ǰ", "Ê": "gʷ", "©": "kʷ", "¨": "k" + COMMA_ABOVE + "ʷ", "°": "qʷ",
-          "¯": "q̇ʷ", "®": "x̌", "³": "x̌ʷ", "Ë": "xʷ", "¿": "ʔ", "Ž": "ƛ" + COMMA_ABOVE,
-          "™": "l" + COMMA_ABOVE, "¢": "ẏ", "‡": "ċ"}
-PAPER_CIPHERS["2013_Thompson_Sloat"] = {face: tuple((ord(code), ord(code), text) for code, text in GENSAL.items())
-                                        for face in ("GenSal SILDoulos TR", "GenSal SILDoulos TR,Italic")}
-# Urbanczyk's Halkomelem sets the same Straight codes, and two more: ˙ for t̓ᶿ and ∂ for č̓, ˙aœø;m
-# for t̓ᶿaq̓ʷəm and ∂;kø≈ for č̓əkʷx̌. Read off 400 dpi renders of pages 1, 2, 6, 7 and 14.
-PAPER_CIPHERS["2011_Urbanczyk"] = {"Straight": PAPER_CIPHERS["2011_Gerdts_Peter"]["Straight"] + (
-    (0x2D9, 0x2D9, "t" + COMMA_ABOVE + "ᶿ"), (0x2202, 0x2202, "č" + COMMA_ABOVE))}
-# Gerdts's 2010 Halkomelem auxiliaries set the Straight codes in Straight and StraightItalic, with ˙
-# for t̓ᶿ as Urbanczyk's, s-˙®e˚ø for s-t̓ᶿɬek̓ʷ in (1), and π for p̓, π;®œø-;m for p̓əɬq̓ʷ-əm in (6)
-# and the evidential πe÷. Read off 400 dpi renders of pages 1, 2 and 4.
-PAPER_CIPHERS["2010_Gerdts"] = {face: PAPER_CIPHERS["2011_Gerdts_Peter"]["Straight"] + (
-    (0x2D9, 0x2D9, "t" + COMMA_ABOVE + "ᶿ"), (0x3C0, 0x3C0, "p" + COMMA_ABOVE)) for face in ("Straight", "StraightItalic")}
-# Rude's Proto-Sahaptian sounds set the Sahaptin and Nez Perce letters in a Windows TTE subset whose
-# map to Unicode names Latin-1 and symbol codes: ƒ for é, • for í, ™ for ɨ́, Ş for ʔ, Õ for k̓.
-# TTE22F0728t00 is its italic, with the same codes. The glottalized letters take the comma above.
-# Read off 10x renders of each code's first three places.
-RUDE = {"Ã": "á", "ƒ": "é", "•": "í", "å": "ó", "õ": "ú", "™": "ɨ́", "√": "ɨ", "Č": "č", "Ð": "č",
-        "∆": "č" + COMMA_ABOVE, "ć": "c" + COMMA_ABOVE, "·": "p" + COMMA_ABOVE, "ï": "t" + COMMA_ABOVE,
-        "Õ": "k" + COMMA_ABOVE, "đ": "kʷ", "₣": "kʷ", "ß": "q" + COMMA_ABOVE, "ç": "qʷ",
-        "é": "q" + COMMA_ABOVE + "ʷ", "û": "x̣", "Ó": "x̣ʷ", "ù": "xʷ", "í": "š", "µ": "ł", "ñ": "ƛ",
-        "ó": "ƛ" + COMMA_ABOVE, "¤": "m" + COMMA_ABOVE, "Ÿ": "n" + COMMA_ABOVE, "‰": "l" + COMMA_ABOVE,
-        "»": "w" + COMMA_ABOVE, "…": "y" + COMMA_ABOVE, "Ş": "ʔ", "¿": "C" + COMMA_ABOVE,
-        # The no-break space draws k̓ʷ, 8.3pt wide: łk̓ʷí ‘day’ in Table 2.
-        "\xa0": "k" + COMMA_ABOVE + "ʷ"}
-PAPER_CIPHERS["2012_Rude"] = {face: tuple((ord(code), ord(code), text) for code, text in RUDE.items())
-                              for face in ("TTE235E4F8t00", "TTE22F0728t00")}
+# and highest code, with the offset to take off.
+PAPER_CIPHERS = tables.gather("PAPER_CIPHERS")
 # A paper whose simple fonts carry no map to Unicode, given one before it is read: by the font's
-# name without its subset tag, each code and the text its glyph draws. Denzer-King's forms stand in
-# Windows TTE subsets that number their glyphs 1, 2, 3 in the order the document first set them.
-# TTE2ABAB40t00 is a Times with IPA letters; its caron, acute and comma above are zero-width marks
-# drawn back over the letter before, and its U+2019 is a spacing letter. TTE1F7AF18t00 sets the space, 0,
-# % and 1 to 9, and TTE19EDEB0t00 one č. Read off glyph_sheet.py's drawing of the three programs.
-PAPER_TOUNICODE = {"2010_Denzer-King": {
-    "TTE2ABAB40t00": dict(enumerate(
-        ("n", "a", "q", "s", " ", "c", "m", "ú", "ː", "á", "u", "t", "ə", "ł", "p", "é", "y", "e", "ʔ",
-         "d", "č", "’", "h", "i", "g", "k", "ʷ", "l", "æ", "x", "b", "w", "̌", "z", "ǽ", "́",
-         "-", "(", ")", "*", "/", "ƛ", "θ", "š", "U", "r", "C", "ó", COMMA_ABOVE, "í"), 1)),
-    "TTE1F7AF18t00": dict(enumerate((" ", "0", "%", "1", "2", "3", "4", "5", "6", "7", "8", "9"), 1)),
-    "TTE19EDEB0t00": {1: "č"}}}
-# Turner's 2010 SENĆOŦEN reflexives set their letters in AboriginalSerif subsets that map the ASCII
-# codes and give each letter past them a control code, W\x02 for W̱ and \x04 for Ȼ. A map written
-# here stands in for the font's own, and it carries the ASCII codes too. The marks cdmmau, cdmeje,
-# cdmdou and cdmcar are zero-width, drawn back over the letter before: the macron below of W̱, the
-# comma above, the dot below and the caron. Lbar is Ƚ, its bar level; Tbar is Ŧ, Tslash Ⱦ, Aslash Ⱥ,
-# Cslash Ȼ. Read off glyph_sheet.py's drawing of the three faces, each glyph under its name.
-TURNER_ASCII = {code: chr(code) for code in range(32, 127)}
-PAPER_TOUNICODE["2010_Turner"] = {
-    "AboriginalSerif": {**TURNER_ASCII, **dict(enumerate(
-        ("Í", "̱", "Á", "Ȼ", "Ḵ", "ə", COMMA_ABOVE, "ʷ", "Ŧ", "Ƚ", "θ", "ɬ", "Ṉ", "ŋ", "Ś", "ʔ", "š", "Ḱ",
-         "Ć", "č", "̣", "√", "ᶿ", "Ⱥ", "Ⱦ", "̌", "ƛ", "Ṯ"), 1)), 143: "‘", 144: "’"},
-    "AboriginalSerif-Bold": {**TURNER_ASCII, **dict(enumerate(
-        ("ə", "̱", "ʷ", "Ḵ", "Ȼ", "Ṉ", COMMA_ABOVE, "ŋ", "Á", "θ", "á", "š", "Ć", "č", "Ⱦ", "Ƚ", "ᶿ",
-         "ɬ"), 1))},
-    "AboriginalSerif-Italic": {**TURNER_ASCII, **dict(enumerate(
-        ("Ć", "Á", "č", "ə", COMMA_ABOVE, "ʷ", "Ȼ", "Ƚ", "ɬ", "ŋ"), 1)), 141: "“", 142: "”", 144: "’"}}
-# Black's (19) sets the arrow between each sentence and its reading, The king is on holiday. → Only
-# one king in context, in TT10Ft00, a subset holding that one glyph. Read off a 300 dpi render of page 12.
-PAPER_TOUNICODE["2011_Black"] = {"TT10Ft00": {1: "→"}}
-# Lyon's 2010 Word export gives each Times face two copies of many letters: one under its name, which
-# the ToUnicode maps, and one under /gN, which it leaves out, and pdfium reads that code as a control
-# character, the whole of page 1's abstract. Its DejaVu faces set the IPA letters and marks under
-# /gN alone. glyph_match.py drew each /gN outline and found its twin among the face's own mapped
-# glyphs, every one alike to 0.995 of its pixels or more, or else among the system face's glyphs,
-# the rest; its matching gave each mapped glyph its own letter. The DejaVu ʔ, bold and bold italic,
-# was read off glyph_sheet.py's drawing. These maps add to the faces' own.
-PAPER_TOUNICODE["2010_Lyon"] = {
-    "TimesNewRomanPS-BoldMT": {0x06: 'N', 0x07: 'o', 0x08: 'm', 0x09: 'i', 0x0A: 'n', 0x0B: 'a', 0x0C: 'l',
-        0x0D: ' ', 0x0E: 'd', 0x0F: 'f', 0x10: 'c', 0x11: 't', 0x12: 'U', 0x13: 'p', 0x14: 'e', 0x15: 'r',
-        0x16: 'O', 0x17: 'k', 0x18: 'g', 0x19: ':', 0x1A: 'A', 0x1B: 'w', 0x1C: '1', 0x1D: 'I', 0x1E: 'u',
-        0x1F: '2', 0x21: 'B', 0x22: 's', 0x23: 'C', 0x24: 'S', 0x25: 'b', 0x27: 'M', 0x2F: 'P', 0x3B: '3',
-        0x3C: '.', 0x3E: 'v', 0x3F: 'T', 0x40: 'R', 0x47: '4', 0x4B: 'E', 0x59: 'x', 0x5A: 'h', 0x5B: 'D',
-        0x5C: 'H', 0x5D: '-', 0x5E: 'L', 0x5F: 'F', 0x60: '5', 0x7B: '6', 0x7C: '(', 0x7D: ')', 0x7E: '*',
-        0x7F: 'y', 0x80: 'G', 0x81: 'z', 0x82: 'V', 0x83: 'J', 0x84: 'X', 0x86: 'Y', 0x87: 'Q'},
-    "TimesNewRomanPSMT": {0x1D: '≠', 0x1E: '≈', 0x60: 'Ō', 0x7F: 'J', 0x80: 'o', 0x81: 'h', 0x82: 'n',
-        0x86: ' ', 0x87: 'L', 0x88: 'y', 0x89: 'U', 0x8A: 'i', 0x8B: 'v', 0x8C: 'e', 0x91: 'r', 0x92: 's',
-        0x93: 't', 0x94: 'f', 0x95: 'B', 0x96: 'C', 0x97: 'l', 0x98: 'u', 0x99: 'm', 0x9A: 'b', 0x9C: 'a',
-        0x9E: 'T', 0x9F: 'g', 0xA0: 'p', 0xA1: 'x', 0xA2: 'd', 0xA3: 'c', 0xA4: 'N', 0xA5: 'O', 0xA6: 'k',
-        0xA7: ',', 0xA8: 'w', 0xAA: '-', 0xAB: '.', 0xAD: 'I', 0xAF: '(', 0xB0: ')', 0xB1: ';', 0xB2: 'q',
-        0xB3: '/', 0xB4: 'Q', 0xB5: 'D', 0xB6: "'", 0xB8: 'A', 0xB9: 'M', 0xBA: 'S', 0xBB: 'K', 0xBC: 'F',
-        0xBD: '1', 0xBE: '9', 0xBF: '7', 0xC0: '2', 0xC1: '0', 0xC2: '4', 0xC3: '6', 0xC4: '&', 0xC5: '5',
-        0xC6: 'R', 0xC7: '3', 0xC8: 'z', 0xC9: ':', 0xCA: 'H', 0xCB: 'W', 0xCC: 'j', 0xCD: 'ə', 0xCE: '[',
-        0xCF: 'á', 0xD0: 'í', 0xD1: ']', 0xD2: 'G', 0xD3: 'E', 0xD4: 'V', 0xD5: 'P', 0xD6: '*', 0xD7: '’',
-        0xD9: 'ú', 0xDA: '8', 0xDB: '‘', 0xDC: '"', 0xDD: '!', 0xDE: '¬', 0xDF: 'X', 0xE2: 'Y', 0xE4: '√',
-        0xE5: '?', 0xE6: 'ì', 0xE7: '+', 0xE8: '#', 0xEB: "̣", 0xEC: 'é', 0xEE: 'à', 0xEF: '…',
-        0xF0: '–', 0xF1: '@'},
-    "DejaVuSerif-Italic": {0x01: 'ʔ', 0x02: "̕", 0x03: 'ʷ', 0x04: 'ɬ', 0x05: "̓", 0x06: 'ʕ'},
-    "TimesNewRomanPS-ItalicMT": {0x0F: "̃", 0x12: 'i', 0x13: ' ', 0x14: 't', 0x15: '.', 0x16: 'N',
-        0x17: 's', 0x18: 'y', 0x19: 'l', 0x1A: 'x', 0x1B: 'c', 0x1C: 'n', 0x1D: ',', 0x1E: 'k', 0x1F: 'ə',
-        0x22: 'á', 0x23: 'm', 0x24: 'í', 0x25: 'u', 0x2A: '-', 0x2B: 'e', 0x35: 'o', 0x38: 'r', 0x39: 'a',
-        0x3C: 'p', 0x3E: '(', 0x40: ')', 0x5A: '/', 0x5B: 'w', 0x5C: 'é', 0x5D: 'A', 0x5E: 'g', 0x5F: 'h',
-        0x60: 'I', 0x7B: 'd', 0x7C: "'", 0x7D: 'T', 0x7E: 'q', 0x7F: 'ú', 0x80: 'D', 0x81: 'P', 0x82: 'b',
-        0x84: 'C', 0x86: 'O', 0x87: '√', 0x88: '*', 0x89: 'v', 0x8A: 'f', 0x8B: 'R', 0x8C: 'K', 0x8D: 'E',
-        0x8E: '3', 0x91: '7', 0x92: 'S', 0x93: 'L', 0x94: '9', 0x95: 'G', 0x96: '4', 0x97: '1', 0x98: 'F',
-        0x99: ':', 0x9A: '0', 0x9C: 'Q', 0x9D: 'W', 0x9E: 'J', 0x9F: '2', 0xA0: '8', 0xA1: '5'},
-    "DejaVuSerif-Bold": {0x01: 'ʔ', 0x02: 'ɬ'},
-    "DejaVuSerif": {0x01: "̕", 0x02: 'ʷ', 0x03: 'ɬ', 0x04: 'ʔ', 0x05: 'ƛ', 0x06: 'ʕ', 0x07: "̌",
-        0x08: "̓", 0x09: 'ˑ'},
-    "DejaVuSans": {0x01: '∅', 0x02: '.'},
-    "DejaVuSerif-BoldItalic": {0x01: 'ʔ'},
-    "TimesNewRomanPS-BoldItalicMT": {0x01: 'i', 0x02: ' ', 0x03: 't', 0x04: '-'}}
-# Matthewson's 2009 Word export leaves the SymbolMT of its formulas unmapped, φ, ∈, λ and the rest at
-# codes 1 to 12, and a few codes of its Times and Courier faces: the non-breaking hyphen of Indo-European
-# and che-subjunctives, ≠ and ≈ as in Lyon's 2010 Times, the tilde over the a of the Romanian rãspundã,
-# and Courier's ş of ştie and ɬ and ʔ of Nłeʔkepmxcín. SymbolMT read off glyph_sheet.py's drawing, the
-# rest off code_crops.py's 5x crops of each code's first place.
-PAPER_TOUNICODE["2009_Matthewson"] = {
-    "SymbolMT": {0x01: "φ", 0x02: "∩", 0x03: "α", 0x04: "∀", 0x05: "∈", 0x06: "⊂", 0x07: "⊆", 0x08: "∃",
-                 0x09: "λ", 0x0A: "∧", 0x0B: "ι", 0x0C: "√"},
-    "TimesNewRomanPSMT": {0x02: "-", 0x1D: "≠", 0x1E: "≈"},
-    "TimesNewRomanPS-ItalicMT": {0x02: "-", 0x0F: "̃"},
-    "CourierNewPSMT": {0x02: "ş", 0x03: "ɬ", 0x04: "ʔ"}}
+# name without its subset tag, each code and the text its glyph draws.
+PAPER_TOUNICODE = tables.gather("PAPER_TOUNICODE")
 # Papers whose PAPER_TOUNICODE maps add to the faces' own ToUnicode.
-PAPER_TOUNICODE_ADDED = {"2010_Lyon", "2009_Matthewson"}
+PAPER_TOUNICODE_ADDED = tables.members("PAPER_TOUNICODE_ADDED")
 # A paper that draws letters as images, by the first ten hex digits of the SHA-1 of each bitmap's
-# pixels and size: the letters it stands for, ' for the comma above. Frim's Kwak’wala text draws each
-# glottalized letter, l̓ and ƛ̓ and the rest, as an image the text layer leaves a gap for, lal̓əʔi as
-# la əʔi, and some images carry their neighbors too, l̓a= and χc̓a, or a whole word, q̓umxq̓umgil̓a in
-# (1). The bold, italic and footnote sizes have bitmaps of their own, and a bold letter's bitmap can
-# stand ten lines tall with the letter at its top. Read in rows mode only.
-PAPER_IMAGES = {"15-Frim_ICSNL50_final-34": {
-    "e767624669": "l'", "3991bc5f0d": "l'", "ee7eb9fb5a": "l'", "17e864bafe": "m'", "dedbb509cf": "m'",
-    "69ec90c315": "m'", "2b970b6eaa": "m'", "ec2adee942": "q'", "d31936a9aa": "k'", "0dc5d3b1ca": "k'",
-    "0e2f0fe471": "c'", "da3c035116": "w'", "9150518de0": "w'", "e46aa97bc4": "w'", "e623ce9eb5": "w'",
-    "0f73126a34": "w'", "e62ecf6cf0": "n'", "d9cb49b300": "n'", "ff0737cb88": "n'", "954ab4c15a": "n'",
-    "45218d851e": "y'", "087df421b5": "p'", "96543459be": "p'", "e7ab0f3382": "ƛ'", "b01e9e5344": "t'",
-    "d64158e830": "l'a=", "8236267613": "l'a", "dc7354aebf": "l'a", "8048fcb321": "l'a",
-    "aa1ed393ca": "χc'a", "3e8b3f5e43": "χc'", "d8f9975b68": "ay'", "7173615157": "łc'",
-    "adc3fc3997": "lal'a", "4343ffb8cf": "gil'a", "fe04f6dba1": "q'i", "d82380f8f8": "k'ʷ",
-    "ab7221cbd3": "k'ʷa", "edebcf782e": "im'", "e96947df55": "zoy'i", "8a62d6ccb7": "c'aq",
-    "4763d9e525": "n'", "222ae22697": "w'", "08b22e668a": "xw'", "a7c3b078f6": "nay'a",
-    "679d3b2085": "l'a=i", "afd1552aec": "q'umx", "08dd7bb88b": "q'um", "7303287a52": "q'umxq'umgil'a",
-    "464dd03eef": "q'iq'asasG", "d73d0ad731": "q'asa", "e5c1d283f9": "m'awa", "dbc71b0746": "m'w",
-    "eff455c80d": "k'awaq", "c9b2034f4c": "k'ʷam'a", "641d361ef7": "aluzoy'i", "504eae6324": "liwazoy'a",
-    "d736fc0d2d": "liwin'os", "80fb0f81fd": "ak'ʷala", "aa20a2bf22": "k'wala 5 to"},
-    # Nater's second paper sets the tie between the words of a tier as an image, four bitmaps of one
-    # arc, and m̩, x̌ and nx̌ too; the gloss of (3) sets its words and their ties in two images.
-    "11-Nater-Complex-predicate-18": {
-        "435b68af46": "˽", "4fe80f3fcc": "˽", "4cb318b2c9": "˽", "a8960ac6f2": "˽",
-        "8ea288d9d2": "˽kids˽art", "b858343191": "prep.art˽doings˽supposedly",
-        "290367c030": "m̩", "f3a7aa11cc": "x̌", "d490d5189b": "nx̌"},
-    # Van Eijk's Lillooet irrealis sets a word with a glottalized letter, x̌ or ạ́ in italics as an
-    # image, c̓áq and an̓as and the rest, with the letters and spaces around it in the same image.
-    "08-vanEijk_ICSNL50_FINAL-10": {
-        "9951c93165": "c'áq", "921edf763d": "an'as", "2844b0288d": "c'aq", "634a8f41ef": "an'á",
-        "318a67a822": "ƛ'", "76a7d2d82c": "s.Ɂə́n", "4904af8bad": "sɁə́n", "feebe6faee": "s.ƛ'íq",
-        "f251975e06": "ạ́z", "0587860ad5": "s.q'", "50c1966455": "ə́", "b4da984f55": "uɁ Ɂíƛ'",
-        "022da3828b": "íƛ'", "87bc041f8b": "uɁ Ɂíƛ'", "9ec4bfd414": "c'áq", "418560fc9e": "an'as",
-        "f7eaa70aa6": "an'", "9d55c12681": "an' waɁ p", "b3a620f109": "l'p", "4f7a18e27a": "l'p",
-        "9a3cebc9db": "an'", "eb57fba21b": "k'", "cd0ddddf91": "k'", "210f6045bf": "]s.tám'",
-        "9c7203182f": "n, húy'", "63ad5a2a54": "kan cunám'", "abf218a38c": "píx̌", "5e56bc67e5": "m'",
-        "192ec706fd": "cunám'", "e2c2a0beb3": "xín'", "1118ad74ca": "xin'", "0d372b5fef": "as, s.x̌á",
-        "109325b2ba": "w'", "e3ad4938f1": "s.x̌aw'", "0c297aef26": "kə́", "6538840cba": "ac'x̌",
-        "b438bf93ff": "ác'x̌", "ca5069a5f7": "s.qax̌aɁ", "cb20d83ba4": "s.qáx̌aɁ", "37924327ec": "ƛ'ạ́",
-        "93cedcfe01": "c'ə́", "753b3ae00c": "min'", "52cb46ed44": "kə́", "3a7c26d2b5": "min'",
-        "8e9770b996": "un'", "35125c154e": "un'", "7f4b1dbd23": "x̌zú", "3931b51b8d": "m'",
-        "28faf5e52b": "m'x", "655959a83d": "x̌zum", "0113e8c2db": "kə́m'x", "313f845cf9": "k'a",
-        "a1ee93036a": "k'a k", "6ba519e8a1": "al'", "c6a48f334e": "ál'", "b3790a5453": "ạ́",
-        "9cab2380a6": "k'a k", "3d34e5e300": "m'tə́t", "12fdee0ec2": "m'tə́t", "94403bcea6": "k'a",
-        "36147a2e70": "an'", "579417161f": "an'", "2d586809e8": "k'a", "6f0af64c91": "an'",
-        "c2a03192d3": "k'a", "67d1522e0a": "k'a", "936f1d9ecc": "k'a", "bebbbd2b58": "uz'"},
-    # Janzen's Kwak̓wala draws ƛ̓ in the soft mask of an image the text layer leaves a gap for, (ƛ̓í] in
-    # (15) as (kás-dzi) í], and (20)'s whole word (ƛ̓áχʷstu); every image shares one bitmap of two by
-    # two pixels, and each is named by its place. The image over ʔump-w̓əɬə on page 2 draws letters
-    # the layer holds and is left out. Read off 400 dpi renders of pages 4 and 5.
-    "2011_Jantzen": {"4@306,336": "(ƛ'", "5@270,653": "(ƛ'", "5@327,604": "ƛ'", "5@324,556": "(ƛ'áχʷstu)"}}
+# pixels and size: the letters it stands for, ' for the comma above. Read in rows mode only.
+PAPER_IMAGES = tables.gather("PAPER_IMAGES")
 # Papers that draw the glottal mark as an apostrophe over its letter, q and y of stsq̓éy̓ in Ignace,
 # Ignace and Lyon: the stream sets it after the line, its middle over the letter and its bottom
 # above the letter's top, and the rows would read it into the line above, transfor’mers. Each is
 # set on its letter as the comma above. Read in rows mode only.
-PAPER_OVERSET = {"IgnaceIgnaceLyon_w7eyle_final"}
+PAPER_OVERSET = tables.members("PAPER_OVERSET")
 # Papers whose word-space share the calibration sets too low, read in rows mode. The calibration
-# counts only gaps between two letters, and the small-caps glosses of Áístainskiaakii et al. set
-# ( and > 0.15 to 0.21 em from the sign before, camp(vai), 3sg>4 and (buffalo)(vai), and the u of
-# fut and the l of refl 0.083 em after their f; their word spaces open at 0.278 em.
-# Sardinha's 2011 glosses are tracked out, the letters of go.out.to.sea-PERF 1.0 to 1.9pt apart,
-# 0.19 em at most. The calibrated 0.145 split them, and every gap in the paper between 0.145 and
-# 0.22 em, the ][ of page 9's brackets and the …by, [s]…when and ‘hiýa…’ of the prose among them,
-# sets no space in the render.
-PAPER_SHARE = {"2013_Aistainskiaakii": 0.24, "2011_Sardinha": 0.22}
-# Papers read with row_lines's tracked rules: Sardinha's 2011 small capitals, O B L at 0.16 em of
-# their own size, her Menlo ʲ and ʸ, and her [ PREP + NP ] and { =ńd.s }. Read in rows mode only.
-PAPER_TRACKED = {"2011_Sardinha"}
-# Faces whose word spaces the stream alone sets, by paper, read in rows mode. Mellesmoen's footnote 8
-# is set in Calibri, whose gaps inside a word reach 0.144 em, over the paper's calibrated 0.131, and
-# her Times sets ‘ 0.158 em after the r of small flower‘ in (1j) and a hyphen 0.14 em after ] and
-# before [; every word space of both faces stands in the stream.
-# Brown's 2008 stream sets a space glyph at every word space of its three faces, 0.03 em apart at
-# the narrowest in a justified line, and no gap without one opens wider than a digit's.
-PAPER_STREAM_FACES = {"Mellesmoen_Dim_final": ("Calibri", "TimesNewRoman"),
-                      "2008_Brown": ("TimesNewRoman", "SILDoulosIPA", "LucidaSansUnicode")}
+# counts only gaps between two letters.
+PAPER_SHARE = tables.gather("PAPER_SHARE")
+# Papers read with row_lines's tracked rules. Read in rows mode only.
+PAPER_TRACKED = tables.members("PAPER_TRACKED")
+# Faces whose word spaces the stream alone sets, by paper, read in rows mode.
+PAPER_STREAM_FACES = tables.gather("PAPER_STREAM_FACES")
 # Papers that underline a letter with a rule drawn under it, the k̲, x̲ and g̲ of the U'mista
 # orthography in Black's k̲ina̲m=ox̲=da ga̲la mix̲a, where the font holds no underlined letter. Each
 # rule a letter wide is set on its letter as the macron below. Read in rows mode only.
-PAPER_UNDERLINED = {"2011_Black"}
+PAPER_UNDERLINED = tables.members("PAPER_UNDERLINED")
 UNDER_RULE = "̱"
 # The letters the U'mista orthography underlines, a̲ for schwa, g̲, k̲ and x̲, and the schwa Black's
 # phonetic lines underline once, m̉ə̲kwalá in (18b).
@@ -1357,24 +942,24 @@ def under_rules(page, glyphs):
 # Papers that strike letters out with a rule drawn through them, the deleted hi of Sardinha's 2011
 # Table 4, hi sk, and of (ii) on her page 12. Each struck letter takes the long stroke overlay.
 # Read in rows mode only.
-PAPER_STRUCK = {"2011_Sardinha"}
+PAPER_STRUCK = tables.members("PAPER_STRUCK")
 STRIKE_RULE = "̶"
 # Papers that set a spacing acute alone for a stressed vowel left unwritten, Rude's 2012 Nez Perce
 # underlying forms /t´yam/ and /p´qʷn/. Read in rows mode only.
-PAPER_LONE_ACUTE = {"2012_Rude"}
+PAPER_LONE_ACUTE = tables.members("PAPER_LONE_ACUTE")
 # Papers that draw a glyph back over the stream space set before it, Lyon's 2010 iʔ. Read in rows
 # mode only.
-PAPER_DRAWN_BACK = {"2010_Lyon"}
+PAPER_DRAWN_BACK = tables.members("PAPER_DRAWN_BACK")
 # Papers that raise a letter after an apostrophe set on the letter before it, Smith's 2011 ejective
 # [k’ʷ] and [q’ʷ]: the apostrophe is passed over and the ʷ is measured against the k. Read in rows
 # mode only.
-PAPER_MARK_BASE = {"2011_Smith"}
+PAPER_MARK_BASE = tables.members("PAPER_MARK_BASE")
 MARK_BASES = "’'ʼ"
 # Papers whose tables are ruled grids with cells that wrap, Nater's 2013 lexicon: the glyph rows
 # read a cell of two lines into the lines of the cells beside it, *ƛ’əp ‘deep (water)’ over
 # (Ku02:143) as (*Kƛu’ǝ0p2‘:d14ee3p) (water)’. Each grid is read cell by cell instead, a line to a
 # table row. Read in rows mode only.
-PAPER_RULED = {"2013_Nater", "Mellesmoen_Dim_final"}
+PAPER_RULED = tables.members("PAPER_RULED")
 # A horizontal rule is a path under RULE points high and wider than it is high, a vertical rule
 # the other way. A dashed rule is drawn a cell high at a time, its bounds RULE_DASHED points wide
 # with the stroke's width: the dashed column rules of Mellesmoen's 2017 tableaux, 2pt wide and 18pt
@@ -1769,7 +1354,7 @@ def sheared(textpage, index):
 
 # Papers whose cited forms are sheared upright faces. Elsewhere a writer's synthesized oblique
 # covers only part of a form, the həxʔid and doχaλəɬnukʷ of Sardinha's 2013 paper, and splits it.
-PAPER_SHEARED = {"2011_Sardinha"}
+PAPER_SHEARED = tables.members("PAPER_SHEARED")
 
 
 def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream_spaces=False,

@@ -6,7 +6,7 @@ For each page, each pair of neighboring page-text tokens with a letter outside A
 looked up on the glyph line holding them both: where the gap between the last glyph of the first
 and the first glyph of the second is under the threshold, the page sets them as one word and the
 space is the text layer's. Prints the spaced and the joined text with the gap, once per distinct
-pair, for a person to check before it goes into residue.CORRECTIONS.
+pair, for a person to check before it goes into the CORRECTIONS of the paper's table file.
 """
 import os
 import re
