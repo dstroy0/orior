@@ -116,6 +116,28 @@ int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRation
     return 1;
 }
 
+int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values)
+{
+    const unsigned int at = run_cfg_find(cfg, path);
+    if ((at == 0u) || (cfg->tokens[at].kind != CFG_JSON_ARRAY) || (cfg->tokens[at].count == 0u))
+    {
+        return 0;
+    }
+    values->clear();
+    unsigned int element = at + 1u;
+    for (unsigned int index = 0u; index < cfg->tokens[at].count; index += 1u)
+    {
+        unsigned long long value = 0ull;
+        if (cfg_json_unsigned(cfg->text.data(), &cfg->tokens[element], &value) == 0)
+        {
+            return 0;
+        }
+        values->push_back(value);
+        element = cfg->tokens[element].next;
+    }
+    return 1;
+}
+
 int run_cfg_text(const RunCfg *cfg, const char *path, std::string *value)
 {
     const unsigned int at = run_cfg_find(cfg, path);

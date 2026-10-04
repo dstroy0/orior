@@ -9,12 +9,12 @@ SRC="$(cd "$TOP/../src" && pwd)"
 PROGRAM="${1:-}"
 CFG="${2:-}"
 case "$PROGRAM" in
-    axis_heat|axis_series|join_series|join_datum|witness_known) ;;
-    *) echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known <cfg>"; exit 2 ;;
+    axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes) ;;
+    *) echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes <cfg>"; exit 2 ;;
 esac
-[ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known <cfg>"; exit 2; }
+[ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes <cfg>"; exit 2; }
 # the driver's modules, each src/<module>/<module>.cu with its header beside it
-MODULES=(run_cfg report atom_form record witness_cube taylor ode_series eta_function core_series decay_integral blend)
+MODULES=(run_cfg report atom_form record witness_cube taylor ode_series eta_function core_series decay_integral blend pressure_datum)
 source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 
