@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // matching_values.cu: Duraiswami's six matching functions valued, every term by its own exact series at each length,
-// as sums and chains the record machine runs, one lane a prime (matching.h, term_value.h)
+// as sums and chains the record machine runs, one lane a modulus (matching.h, term_value.h)
 #include "run_cfg.h"
 
 #include "report.h"
@@ -21,9 +21,13 @@
 
 // The six functions at each eta are the exact forms of matching_functions. At each length every term is written by
 // term_value.h as sums and chains over residues, and each form's value after them. Every residue is an exact integer
-// held modulo each of the lanes' primes: a sum of rows is one sweep of the record machine, a lane a row and a prime,
-// its rows summed on the device by cycle_record_sum; a chain is one lane taking its steps. One sweep's residues
-// are the tables the next sweep's lanes read. The primes are as many as the widest value's bits need and two more.
+// held modulo each of the lanes' moduli: odd primes, each taken by the remainder, and 2^32, taken by the wrap. The
+// primes are as many as the widest value's bits need and two more. Every residue at every modulus is one record of a
+// store on the device. A sum of rows is a sweep of the record machine, a lane a row and a modulus, reading the row's
+// residues from the store as its member records two at a time, its product so far carried from one sweep to the next
+// as a member of its own, and its rows summed on the device by cycle_record_sum; a chain is one lane taking its steps
+// from its first X and Y, read as its two members. Each sweep's residues are written to the store, where the next
+// sweep reads them.
 // The program runs twice. Built at the default width, it writes the plan, runs every sweep and writes each value's
 // residues, with the width that holds the values whole, beside the record. Built again at that width and given those
 // residues, it reads each value whole by the Chinese remainder theorem, reports it and writes the record.
@@ -31,7 +35,7 @@
 // 1. Every term the forms hold is one term_value.h writes in its independent numbers.
 // 2. Every value is written as sums and chains of the record machine.
 // 3. Every sweep's records on the device equal the same program's on the host over its first lanes, word for word.
-// 4. Every value read back lies within its bound, over every prime.
+// 4. Every value read back lies within its bound, over every modulus.
 // 5. At each z the cfg names, w and w' by their series about 1 and by their integral agree within the cfg's agreement
 //    at the last length.
 // 6. Every function's values at the last two lengths agree within the cfg's agreement.
@@ -47,7 +51,7 @@ static const char *const s_matching_values_names[6] = {"torque", "force", "m_inf
 static const unsigned int s_matching_values_prime_bits = 31u;
 static const unsigned int s_matching_values_spare = 2u;
 static const unsigned long long s_matching_values_checked = 16ull;
-static const unsigned long long s_matching_values_lanes_most = 1ull << 25u;
+static const unsigned long long s_matching_values_lanes_most = 1ull << 22u;
 
 // one value the program reads back: its numerator and divisor residues
 typedef struct
@@ -117,18 +121,25 @@ static std::vector<unsigned long long> matching_values_primes(unsigned long long
     return primes;
 }
 
-// a program for one sweep: its steps, its tables with the limbs each holds, and the steps it writes out
+// a program for one sweep: its steps, its tables with the limbs each holds, and the steps it writes out. A lane reduces
+// modulo its prime by the remainder, or, where `wrap` is set, modulo 2^32 by the wrap, and each output takes the and
+// with 2^32 - 1 that holds the residue never negative
 typedef struct
 {
     std::vector<EngineRecordStep> steps;
     std::vector<EngineRecordTable> tables;
     std::vector<std::vector<unsigned int>> held;
     std::vector<unsigned int> outputs;
+    int wrap;
     unsigned int zero;
+    unsigned int low_bits;
     unsigned int prime;
     unsigned int place;
     unsigned int row;
 } MatchingValuesProgram;
+
+// the power of two the wrap takes its lane's residues modulo
+static const unsigned int s_matching_values_wrap_bits = 32u;
 
 static unsigned int matching_values_step(MatchingValuesProgram *program, EngineRecordOperation operation, unsigned int left,
                                          unsigned int right)
@@ -138,15 +149,25 @@ static unsigned int matching_values_step(MatchingValuesProgram *program, EngineR
     return (unsigned int)program->steps.size() - 1u;
 }
 
+// field `field` of member `member`, read unsigned
+static unsigned int matching_values_field(MatchingValuesProgram *program, unsigned int field, unsigned int member)
+{
+    EngineRecordStep step = {ENGINE_RECORD_FIELD, field, 0u, member};
+    program->steps.push_back(step);
+    return (unsigned int)program->steps.size() - 1u;
+}
+
 static unsigned int matching_values_constant(MatchingValuesProgram *program, unsigned long long value)
 {
     return matching_values_step(program, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull), (unsigned int)(value >> 32u));
 }
 
-// a table holding `entries`, each row as many limbs as the widest entry needs; every row past them 0
-static unsigned int matching_values_table(MatchingValuesProgram *program, const std::vector<std::vector<unsigned int>> &entries)
+// a table holding `entries`, each row as many limbs as the widest entry needs and at least `least` bits; every row past
+// them 0
+static unsigned int matching_values_table(MatchingValuesProgram *program, const std::vector<std::vector<unsigned int>> &entries,
+                                          unsigned int least)
 {
-    unsigned int out_bits = 1u;
+    unsigned int out_bits = (least == 0u) ? 1u : least;
     for (const std::vector<unsigned int> &entry : entries)
     {
         for (size_t limb = entry.size(); limb > 0u; limb -= 1u)
@@ -175,15 +196,16 @@ static unsigned int matching_values_table(MatchingValuesProgram *program, const 
     return (unsigned int)program->tables.size() - 1u;
 }
 
-// a table of words, each below 2^64
-static unsigned int matching_values_words(MatchingValuesProgram *program, const std::vector<unsigned long long> &words)
+// a table of words, each below 2^64, at least `least` bits wide
+static unsigned int matching_values_words(MatchingValuesProgram *program, const std::vector<unsigned long long> &words,
+                                          unsigned int least)
 {
     std::vector<std::vector<unsigned int>> entries(words.size());
     for (size_t row = 0u; row < words.size(); row += 1u)
     {
         entries[row] = {(unsigned int)(words[row] & 0xFFFFFFFFull), (unsigned int)(words[row] >> 32u)};
     }
-    return matching_values_table(program, entries);
+    return matching_values_table(program, entries, least);
 }
 
 static unsigned int matching_values_look(MatchingValuesProgram *program, unsigned int index, unsigned int table)
@@ -193,6 +215,10 @@ static unsigned int matching_values_look(MatchingValuesProgram *program, unsigne
 
 static unsigned int matching_values_reduce(MatchingValuesProgram *program, unsigned int value)
 {
+    if (program->wrap)
+    {
+        return matching_values_step(program, ENGINE_RECORD_WRAP, value, s_matching_values_wrap_bits);
+    }
     return matching_values_step(program, ENGINE_RECORD_REMAINDER, value, program->prime);
 }
 
@@ -201,82 +227,36 @@ static unsigned int matching_values_times(MatchingValuesProgram *program, unsign
     return matching_values_reduce(program, matching_values_step(program, ENGINE_RECORD_PRODUCT, left, right));
 }
 
-// the lane read as its run, its row in the run and its prime: lane = (run K + place) group + row, the row of the sweep
-// run group + row and the prime the place-th
-static void matching_values_begin(MatchingValuesProgram *program, unsigned long long group, unsigned long long count,
-                                   const std::vector<unsigned long long> &primes)
+// the lane read as its run, its row in the run and its modulus: lane = (run count + place) group + row, the row of the
+// sweep run group + row and the modulus the place-th of `moduli`
+static void matching_values_begin(MatchingValuesProgram *program, unsigned long long group, const std::vector<unsigned long long> &moduli)
 {
-    program->zero = matching_values_step(program, ENGINE_RECORD_FIELD, 0u, 0u);
+    program->zero = matching_values_constant(program, 0ull);
+    program->low_bits = program->wrap ? matching_values_constant(program, (1ull << s_matching_values_wrap_bits) - 1ull) : program->zero;
     const unsigned int lane = matching_values_step(program, ENGINE_RECORD_LANE, 0u, 0u);
     const unsigned int width = matching_values_constant(program, group);
-    const unsigned int size = matching_values_constant(program, count);
+    const unsigned int size = matching_values_constant(program, moduli.size());
     const unsigned int row = matching_values_step(program, ENGINE_RECORD_REMAINDER, lane, width);
     const unsigned int above = matching_values_step(program, ENGINE_RECORD_QUOTIENT, lane, width);
     program->place = matching_values_step(program, ENGINE_RECORD_REMAINDER, above, size);
     const unsigned int run = matching_values_step(program, ENGINE_RECORD_QUOTIENT, above, size);
     const unsigned int first = matching_values_step(program, ENGINE_RECORD_PRODUCT, run, width);
-    program->row = matching_values_step(program, ENGINE_RECORD_SUM, matching_values_step(program, ENGINE_RECORD_SUM, first, row),
-                                        program->zero);
-    program->prime = matching_values_look(program, program->place, matching_values_words(program, primes));
+    program->row = matching_values_step(program, ENGINE_RECORD_SUM, first, row);
+    // the place plus 2^index_bits: the table reads the same low bits, and the register is as wide as the table's index
+    const unsigned int table = matching_values_words(program, moduli, 1u);
+    const unsigned int index = matching_values_step(program, ENGINE_RECORD_SUM, program->place,
+                                                    matching_values_constant(program, 1ull << program->tables[table].index_bits));
+    program->prime = matching_values_look(program, index, table);
 }
 
-// the residues a sweep reads, each given a place in the sweep's table of them
-typedef struct
-{
-    std::map<unsigned int, unsigned int> place;
-    std::vector<unsigned int> residues;
-} MatchingValuesRead;
-
-static unsigned int matching_values_read_place(MatchingValuesRead *read, unsigned int residue)
-{
-    const auto found = read->place.find(residue);
-    if (found != read->place.end())
-    {
-        return found->second;
-    }
-    const unsigned int place = (unsigned int)read->residues.size();
-    read->place[residue] = place;
-    read->residues.push_back(residue);
-    return place;
-}
-
-// the table of every residue the sweep reads: entry r K_pad + j the residue's integer modulo the j-th prime, as written
-static unsigned int matching_values_residue_table(MatchingValuesProgram *program, const MatchingValuesRead &read,
-                                                  const std::vector<std::vector<unsigned long long>> &store,
-                                                  unsigned long long span)
-{
-    std::vector<unsigned long long> words(read.residues.size() * span, 0ull);
-    for (size_t at = 0u; at < read.residues.size(); at += 1u)
-    {
-        const std::vector<unsigned long long> &held = store[read.residues[at]];
-        for (size_t place = 0u; place < held.size(); place += 1u)
-        {
-            words[at * span + place] = held[place];
-        }
-    }
-    return matching_values_words(program, words);
-}
-
-// the residue's value in this lane: entry place K_pad + the lane's place of the table
-static unsigned int matching_values_take(MatchingValuesProgram *program, unsigned int place, unsigned int table,
-                                          unsigned long long span)
-{
-    // the index plus 2^index_bits: the table reads the same low bits, and the register is as wide as the table's index
-    const unsigned int start = matching_values_step(program, ENGINE_RECORD_PRODUCT, place, matching_values_constant(program, span));
-    const unsigned int index = matching_values_step(program, ENGINE_RECORD_SUM, start, program->place);
-    const unsigned long long above = 1ull << program->tables[table].index_bits;
-    return matching_values_look(program, matching_values_step(program, ENGINE_RECORD_SUM, index, matching_values_constant(program, above)),
-                                table);
-}
-
-// the entry at row `row` times `width` plus `at` of a table laid out a row of the sweep at a time
+// the entry at row `base` plus `at` of a table laid out a row of the sweep at a time
 static unsigned int matching_values_entry(MatchingValuesProgram *program, unsigned int base, unsigned int at, unsigned int table)
 {
     const unsigned int index = (at == 0u) ? base : matching_values_step(program, ENGINE_RECORD_SUM, base, matching_values_constant(program, at));
     return matching_values_look(program, index, table);
 }
 
-// p - value where `negative` is 1: value + negative (p - 2 value), then reduced
+// m - value where `negative` is 1, m the lane's modulus: value + negative (m - 2 value), then reduced
 static unsigned int matching_values_signed(MatchingValuesProgram *program, unsigned int value, unsigned int negative)
 {
     const unsigned int rest = matching_values_step(program, ENGINE_RECORD_DIFFERENCE,
@@ -296,17 +276,84 @@ static unsigned long long matching_values_lifted(long long word)
     return (unsigned long long)word + (1ull << 62u);
 }
 
-// one sweep's program laid out and run on the device: its records, and the host's over the first lanes checked
+// every residue on the device, one record of two limbs for each residue and each modulus: residue r at modulus m is
+// record r places + m
 typedef struct
 {
-    EngineRecordKey key;
-    EngineRecordLayout layout;
+    unsigned int *device;
+    unsigned long long places;
+    unsigned long long residues;
+} MatchingValuesStore;
+
+static unsigned int matching_values_record(const MatchingValuesStore *store, unsigned int residue, unsigned long long place)
+{
+    return (unsigned int)((unsigned long long)residue * store->places + place);
+}
+
+// `count` values written into the residue's records from modulus `first` on
+static int matching_values_put(MatchingValuesStore *store, unsigned int residue, unsigned long long first,
+                               const long long *values, unsigned long long count)
+{
+    std::vector<unsigned int> words((size_t)(2ull * count), 0u);
+    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    {
+        words[2ull * at] = (unsigned int)((unsigned long long)values[at] & 0xFFFFFFFFull);
+        words[2ull * at + 1ull] = (unsigned int)((unsigned long long)values[at] >> 32u);
+    }
+    return cudaMemcpy(store->device + 2ull * matching_values_record(store, residue, first), words.data(),
+                      words.size() * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess;
+}
+
+// the residue's value at every modulus, read from the device
+static std::vector<unsigned long long> matching_values_got(const MatchingValuesStore *store, unsigned int residue)
+{
+    std::vector<unsigned int> words((size_t)(2ull * store->places), 0u);
+    std::vector<unsigned long long> values((size_t)store->places, 0ull);
+    if (cudaMemcpy(words.data(), store->device + 2ull * matching_values_record(store, residue, 0ull), words.size() * sizeof(unsigned int),
+                   cudaMemcpyDeviceToHost) != cudaSuccess)
+    {
+        s_sim_rational_wide = 1;
+    }
+    for (size_t at = 0u; at < values.size(); at += 1u)
+    {
+        values[at] = (unsigned long long)words[2u * at] | ((unsigned long long)words[2u * at + 1u] << 32u);
+    }
+    return values;
+}
+
+// the members a sweep reads, field f read from member f: each a buffer on the device, its records' count and length
+typedef struct
+{
+    unsigned int count;
+    const unsigned int *device[ENGINE_RECORD_MEMBERS_MAX];
+    unsigned long long bodies[ENGINE_RECORD_MEMBERS_MAX];
+    unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX];
+    unsigned int field_bits[ENGINE_RECORD_MEMBERS_MAX];
+    unsigned int field_offset[ENGINE_RECORD_MEMBERS_MAX];
+} MatchingValuesMembers;
+
+// the store as a member: every record two limbs, its one field the residue's 64 bits
+static void matching_values_store_member(MatchingValuesMembers *members, unsigned int member, const MatchingValuesStore *store)
+{
+    members->device[member] = store->device;
+    members->bodies[member] = store->residues * store->places;
+    members->in_limbs[member] = 2u;
+    members->field_bits[member] = 64u;
+    members->field_offset[member] = 0u;
+}
+
+// a sweep's records left on the device for the next sweep to read: the buffer, its record length, and its first output
+typedef struct
+{
+    unsigned int *device;
+    unsigned long long lanes;
     unsigned int out_limbs;
-} MatchingValuesLaid;
+    unsigned int offset;
+    unsigned int bits;
+} MatchingValuesKept;
 
 typedef struct
 {
-    std::vector<unsigned int> host_words;
     unsigned long long sweeps;
     unsigned long long checked;
     unsigned long long agreed;
@@ -316,32 +363,40 @@ typedef struct
     int ok;
 } MatchingValuesRuns;
 
-// the sweep run: every lane on the device, its first lanes on the host to check the device; `sum` the output summed over
-// each run of `group` lanes into `sums`, or each output read lane by lane into `fields` where group is 1
-static int matching_values_sweep(MatchingValuesProgram *program, unsigned long long lanes, unsigned long long group,
-                                 MatchingValuesRuns *runs, std::vector<std::vector<long long>> *fields)
+// the sweep run: every lane on the device, lane l reading record index[l count + m] of member m, and its first lanes on
+// the host to check the device. The first output is summed over each run of `group` lanes into `fields`, or each
+// output read lane by lane where the group is 1; where `kept` is given the records stay on the device for the next
+// sweep.
+static int matching_values_sweep(MatchingValuesProgram *program, const MatchingValuesMembers *members,
+                                 const std::vector<unsigned int> &index, unsigned long long lanes, unsigned long long group,
+                                 MatchingValuesRuns *runs, std::vector<std::vector<long long>> *fields, MatchingValuesKept *kept)
 {
     for (size_t table = 0u; table < program->tables.size(); table += 1u)
     {
         program->tables[table].values = program->held[table].data();
     }
+    const unsigned int count = members->count;
     EngineError error;
     memset(&error, 0, sizeof(error));
-    MatchingValuesLaid laid;
-    memset(&laid, 0, sizeof(laid));
-    const unsigned int field_bits[1] = {1u};
-    const unsigned int field_offset[1] = {0u};
-    const KeymathRecordRequest encode = {program->steps.data(), (unsigned int)program->steps.size(), field_bits, 1u, 1u,
+    EngineRecordKey key;
+    EngineRecordLayout layout;
+    memset(&key, 0, sizeof(key));
+    memset(&layout, 0, sizeof(layout));
+    const KeymathRecordRequest encode = {program->steps.data(), (unsigned int)program->steps.size(), members->field_bits, count, count,
                                          program->outputs.data(), (unsigned int)program->outputs.size(),
-                                         program->tables.data(), (unsigned int)program->tables.size(), &laid.key, &error};
+                                         program->tables.data(), (unsigned int)program->tables.size(), &key, &error};
     int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
-    unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {1u, 0u, 0u};
-    const KeyScheduleRecordRequest lay = {&laid.key, field_offset, 1u, in_limbs, 1, &laid.layout, &error};
     const int encoded = ok;
+    unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {0u, 0u, 0u};
+    for (unsigned int member = 0u; member < count; member += 1u)
+    {
+        in_limbs[member] = members->in_limbs[member];
+    }
+    const KeyScheduleRecordRequest lay = {&key, members->field_offset, count, in_limbs, 1, &layout, &error};
     ok = ok && (key_schedule_record_layout(&lay) != KEY_SCHEDULE_ERROR);
     const int laid_out = ok;
     CycleRecord *record = NULL;
-    ok = ok && (cycle_record_load(&laid.layout, &record, &error) != CYCLE_ERROR);
+    ok = ok && (cycle_record_load(&layout, &record, &error) != CYCLE_ERROR);
     if (!ok)
     {
         fprintf(stderr, "  matching_values: a sweep of %zu steps did not %s: module %d site %u status %d\n",
@@ -362,25 +417,50 @@ static int matching_values_sweep(MatchingValuesProgram *program, unsigned long l
                     at_table->index_bits, at_table->out_bits);
         }
     }
-    const unsigned int out_limbs = ok ? laid.layout.out_limbs : 0u;
-    unsigned int *device_in = NULL;
+    const unsigned int out_limbs = ok ? layout.out_limbs : 0u;
+    unsigned int *device_index = NULL;
     unsigned int *device_out = NULL;
-    const unsigned int in_word = 0u;
-    ok = ok && (cudaMalloc((void **)&device_in, sizeof(unsigned int)) == cudaSuccess) &&
+    ok = ok && (cudaMalloc((void **)&device_index, index.size() * sizeof(unsigned int)) == cudaSuccess) &&
          (cudaMalloc((void **)&device_out, (size_t)(lanes * out_limbs) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_in, &in_word, sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
-    const CycleRecordRunRequest run = {record, {device_in, NULL, NULL}, {1ull, 0ull, 0ull}, NULL, lanes, device_out, &error};
+         (cudaMemcpy(device_index, index.data(), index.size() * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
+    const CycleRecordRunRequest run = {record,
+                                       {members->device[0], members->device[1], members->device[2]},
+                                       {members->bodies[0], members->bodies[1], members->bodies[2]},
+                                       device_index,
+                                       lanes,
+                                       device_out,
+                                       &error};
     ok = ok && (cycle_record_run(&run) == (long)lanes);
-    // the host's records of the first lanes, from the exact integer library, against the device's
+    // the host's records of the first lanes, from the exact integer library, against the device's: each lane's member
+    // records brought to the host and read through an index of their own
     const unsigned long long checked = (lanes < s_matching_values_checked) ? lanes : s_matching_values_checked;
+    std::vector<std::vector<unsigned int>> host_in(count);
+    std::vector<unsigned int> host_index((size_t)(checked * count), 0u);
+    int same = ok;
+    for (unsigned int member = 0u; same && (member < count); member += 1u)
+    {
+        host_in[member].assign((size_t)(checked * in_limbs[member]), 0u);
+        for (unsigned long long lane = 0ull; same && (lane < checked); lane += 1ull)
+        {
+            const unsigned long long at = index[(size_t)(lane * count + member)];
+            same = cudaMemcpy(&host_in[member][(size_t)(lane * in_limbs[member])], members->device[member] + at * in_limbs[member],
+                              in_limbs[member] * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess;
+            host_index[(size_t)(lane * count + member)] = (unsigned int)lane;
+        }
+    }
     std::vector<unsigned int> host_out((size_t)(checked * out_limbs), 0u);
     std::vector<unsigned int> device_head((size_t)(checked * out_limbs), 0u);
-    const CycleRecordHostRequest host = {&laid.layout, {&in_word, NULL, NULL}, {1ull, 0ull, 0ull}, NULL, checked,
-                                         host_out.data(), &error};
-    const int same = ok && (cycle_record_run_host(&host) == (long)checked) &&
-                     (cudaMemcpy(device_head.data(), device_out, device_head.size() * sizeof(unsigned int),
-                                 cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                     (memcmp(host_out.data(), device_head.data(), device_head.size() * sizeof(unsigned int)) == 0);
+    const CycleRecordHostRequest host = {&layout,
+                                         {(count > 0u) ? host_in[0].data() : NULL, (count > 1u) ? host_in[1].data() : NULL,
+                                          (count > 2u) ? host_in[2].data() : NULL},
+                                         {checked, checked, checked},
+                                         host_index.data(),
+                                         checked,
+                                         host_out.data(),
+                                         &error};
+    same = same && (cycle_record_run_host(&host) == (long)checked) &&
+           (cudaMemcpy(device_head.data(), device_out, device_head.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess) &&
+           (memcmp(host_out.data(), device_head.data(), device_head.size() * sizeof(unsigned int)) == 0);
     runs->sweeps += 1ull;
     runs->checked += checked;
     runs->agreed += same ? checked : 0ull;
@@ -388,13 +468,13 @@ static int matching_values_sweep(MatchingValuesProgram *program, unsigned long l
     runs->steps_most = (program->steps.size() > runs->steps_most) ? program->steps.size() : runs->steps_most;
     const int compiled = (record != NULL) && cycle_record_compiled(record);
     runs->compiled = runs->compiled && compiled;
-    printf("    sweep: %zu steps, %llu lanes in runs of %llu, %s, %llu of %llu host lanes agree\n", program->steps.size(), lanes,
-           group, compiled ? "compiled" : "interpreted", same ? checked : 0ull, checked);
+    printf("    sweep: %zu steps, %u members, %llu lanes in runs of %llu, %s, %s, %llu of %llu host lanes agree\n",
+           program->steps.size(), count, lanes, group, program->wrap ? "modulo 2^32 by the wrap" : "modulo primes",
+           compiled ? "compiled" : "interpreted", same ? checked : 0ull, checked);
     fields->assign(program->outputs.size(), std::vector<long long>());
-    if (ok && (group > 1ull))
+    const DeviceRecordStep *const step = ok ? &layout.step_table[program->outputs[0]] : NULL;
+    if (ok && (kept == NULL) && (group > 1ull))
     {
-        // the first output summed over each run of `group` lanes
-        const DeviceRecordStep *const step = &laid.layout.step_table[program->outputs[0]];
         std::vector<unsigned int> sums((size_t)(lanes / group) * 2u, 0u);
         const CycleRecordSumRequest sum = {device_out, lanes, group, out_limbs, step->out_offset, step->out_bits, 2u,
                                            sums.data(), &error};
@@ -405,20 +485,20 @@ static int matching_values_sweep(MatchingValuesProgram *program, unsigned long l
             (*fields)[0][at] = (long long)((unsigned long long)sums[2u * at] | ((unsigned long long)sums[2u * at + 1u] << 32u));
         }
     }
-    else if (ok)
+    else if (ok && (kept == NULL))
     {
         std::vector<unsigned int> words((size_t)(lanes * out_limbs), 0u);
         ok = cudaMemcpy(words.data(), device_out, words.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess;
         for (size_t output = 0u; ok && (output < program->outputs.size()); output += 1u)
         {
-            const DeviceRecordStep *const step = &laid.layout.step_table[program->outputs[output]];
+            const DeviceRecordStep *const held = &layout.step_table[program->outputs[output]];
             (*fields)[output].resize((size_t)lanes);
             for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
             {
                 unsigned long long word = 0ull;
-                for (unsigned int bit = 0u; bit < step->out_bits; bit += 1u)
+                for (unsigned int bit = 0u; bit < held->out_bits; bit += 1u)
                 {
-                    const unsigned int at = step->out_offset + bit;
+                    const unsigned int at = held->out_offset + bit;
                     word |= (unsigned long long)((words[lane * out_limbs + at / 32u] >> (at % 32u)) & 1u) << bit;
                 }
                 (*fields)[output][lane] = (long long)word;
@@ -430,33 +510,52 @@ static int matching_values_sweep(MatchingValuesProgram *program, unsigned long l
         fprintf(stderr, "  matching_values: a sweep of %llu lanes did not run: module %d site %u status %d\n", lanes,
                 (int)error.module, error.site, error.status);
     }
-    cudaFree(device_in);
-    cudaFree(device_out);
+    if (ok && (kept != NULL))
+    {
+        kept->device = device_out;
+        kept->lanes = lanes;
+        kept->out_limbs = out_limbs;
+        kept->offset = step->out_offset;
+        kept->bits = step->out_bits;
+    }
+    else
+    {
+        cudaFree(device_out);
+    }
+    cudaFree(device_index);
     if (record != NULL)
     {
         cycle_record_release(record);
     }
     if (laid_out)
     {
-        key_schedule_record_release(&laid.layout);
+        key_schedule_record_release(&layout);
     }
     if (encoded)
     {
-        keymath_record_release(&laid.key);
+        keymath_record_release(&key);
     }
     runs->ok = runs->ok && ok;
     return ok;
 }
 
-// the runs given, each `group` chains, swept: X times the tail summed over each run, or with Y and every step's X
-// where the group is 1
-static int matching_values_chains(const TermValues *plan, const std::vector<const TermValueRun *> &chosen, unsigned long long group,
-                                  const std::vector<unsigned long long> &primes, unsigned long long span,
-                                  std::vector<std::vector<unsigned long long>> *store, MatchingValuesRuns *runs)
+// the moduli one sweep runs over: the store's places from `first`, and whether they are the primes or 2^32
+typedef struct
 {
-    const unsigned long long count = primes.size();
+    unsigned long long first;
+    std::vector<unsigned long long> moduli;
+    int wrap;
+} MatchingValuesPart;
+
+// the runs given, each `group` chains, swept: X times the tail summed over each run, or with Y and every step's X
+// where the group is 1. A lane reads its chain's first X and Y as its two members, records of the store.
+static int matching_values_chains(const std::vector<const TermValueRun *> &chosen, unsigned long long group,
+                                  const MatchingValuesPart *part, MatchingValuesStore *store, MatchingValuesRuns *runs)
+{
+    const unsigned long long count = part->moduli.size();
     MatchingValuesProgram program;
-    matching_values_begin(&program, group, count, primes);
+    program.wrap = part->wrap;
+    matching_values_begin(&program, group, part->moduli);
     size_t steps = 0u;
     size_t tail_words = 1u;
     int keep = 0;
@@ -465,18 +564,18 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
         for (const TermValueChain &chain : run->chains)
         {
             steps = (chain.steps.size() > steps) ? chain.steps.size() : steps;
-            tail_words = (term_value_words(chain.tail.primes).size() > tail_words) ? term_value_words(chain.tail.primes).size() : tail_words;
+            const size_t words = term_value_words(chain.tail.primes).size();
+            tail_words = (words > tail_words) ? words : tail_words;
             keep = keep || !chain.history.empty();
         }
     }
     // every chain of the sweep at its row; a run short of `group` chains, and a chain short of the most steps, filled
     // with chains and steps that change nothing and whose tail is 0
     const unsigned long long rows = chosen.size() * group;
-    MatchingValuesRead read;
     std::vector<unsigned long long> x_words(rows, matching_values_lifted(0ll));
     std::vector<unsigned long long> y_words(rows, matching_values_lifted(0ll));
-    std::vector<unsigned long long> x_places(rows, 0ull);
-    std::vector<unsigned long long> y_places(rows, 0ull);
+    std::vector<unsigned int> x_residues(rows, 0u);
+    std::vector<unsigned int> y_residues(rows, 0u);
     std::vector<unsigned long long> coefficients[4];
     for (unsigned int which = 0u; which < 4u; which += 1u)
     {
@@ -484,7 +583,6 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
     }
     std::vector<unsigned long long> tails(rows * tail_words, 1ull);
     std::vector<unsigned long long> signs(rows, 0ull);
-    matching_values_read_place(&read, 0u);
     for (size_t at = 0u; at < chosen.size(); at += 1u)
     {
         for (size_t member = 0u; member < group; member += 1u)
@@ -498,8 +596,8 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
             const TermValueChain &chain = chosen[at]->chains[member];
             x_words[row] = matching_values_lifted(chain.x_word);
             y_words[row] = matching_values_lifted(chain.y_word);
-            x_places[row] = matching_values_read_place(&read, chain.x_residue);
-            y_places[row] = matching_values_read_place(&read, chain.y_residue);
+            x_residues[row] = chain.x_residue;
+            y_residues[row] = chain.y_residue;
             const size_t start = steps - chain.steps.size();
             for (size_t step = 0u; step < chain.steps.size(); step += 1u)
             {
@@ -536,22 +634,19 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
             }
         }
     }
-    const unsigned int residues = matching_values_residue_table(&program, read, *store, span);
-    const unsigned int x_word_table = matching_values_words(&program, x_words);
-    const unsigned int y_word_table = matching_values_words(&program, y_words);
-    const unsigned int x_place_table = matching_values_words(&program, x_places);
-    const unsigned int y_place_table = matching_values_words(&program, y_places);
+    const unsigned int x_word_table = matching_values_words(&program, x_words, 1u);
+    const unsigned int y_word_table = matching_values_words(&program, y_words, 1u);
     unsigned int coefficient_tables[4] = {0u, 0u, 0u, 0u};
     for (unsigned int which = 0u; which < 4u; which += 1u)
     {
         if (!fixed[which])
         {
-            coefficient_tables[which] = matching_values_words(&program, coefficients[which]);
+            coefficient_tables[which] = matching_values_words(&program, coefficients[which], 1u);
         }
     }
-    const unsigned int tail_table = matching_values_words(&program, tails);
-    const unsigned int sign_table = matching_values_words(&program, signs);
-    // a signed entry e = c + 2^62 read as c modulo p: e + 2^62 - (2^63 mod p), never negative, reduced
+    const unsigned int tail_table = matching_values_words(&program, tails, 1u);
+    const unsigned int sign_table = matching_values_words(&program, signs, 1u);
+    // a signed entry e = c + 2^62 read as e + 2^62 - (2^63 mod m), congruent to c and never negative
     const unsigned int shift = matching_values_step(
         &program, ENGINE_RECORD_DIFFERENCE, matching_values_constant(&program, 1ull << 62u),
         matching_values_reduce(&program, matching_values_constant(&program, 1ull << 63u)));
@@ -559,18 +654,18 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
     const unsigned int x_start = matching_values_times(
         &program,
         matching_values_reduce(&program, matching_values_step(&program, ENGINE_RECORD_SUM, matching_values_look(&program, row, x_word_table), shift)),
-        matching_values_take(&program, matching_values_look(&program, row, x_place_table), residues, span));
+        matching_values_reduce(&program, matching_values_field(&program, 0u, 0u)));
     const unsigned int y_start = matching_values_times(
         &program,
         matching_values_reduce(&program, matching_values_step(&program, ENGINE_RECORD_SUM, matching_values_look(&program, row, y_word_table), shift)),
-        matching_values_take(&program, matching_values_look(&program, row, y_place_table), residues, span));
+        matching_values_reduce(&program, matching_values_field(&program, 1u, 1u)));
     unsigned int x = x_start;
     unsigned int y = y_start;
     const unsigned int base = matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, steps));
     std::vector<unsigned int> history;
     for (size_t step = 0u; step < steps; step += 1u)
     {
-        // each coefficient c read as e + 2^62 - (2^63 mod p), congruent to c and never negative; the step's sum is
+        // each coefficient c read as e + 2^62 - (2^63 mod m), congruent to c and never negative; the step's sum is
         // reduced once
         const unsigned int index =
             (step == 0u) ? base : matching_values_step(&program, ENGINE_RECORD_SUM, base, matching_values_constant(&program, step));
@@ -597,8 +692,7 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
                     continue;
                 }
                 held[side] = 1;
-                parts[side] = fixed[which] ? sides[side]
-                                           : matching_values_step(&program, ENGINE_RECORD_PRODUCT, coefficient[which], sides[side]);
+                parts[side] = fixed[which] ? sides[side] : matching_values_step(&program, ENGINE_RECORD_PRODUCT, coefficient[which], sides[side]);
             }
             if (held[0] && held[1])
             {
@@ -612,7 +706,7 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
             }
             else
             {
-                next[half] = matching_values_constant(&program, 0ull);
+                next[half] = program.zero;
             }
         }
         x = next[0];
@@ -620,14 +714,14 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
         history.push_back(x);
     }
     unsigned int ended = x;
-    const unsigned int tail_base =
-        matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, tail_words));
+    const unsigned int tail_base = matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, tail_words));
     for (size_t word = 0u; word < tail_words; word += 1u)
     {
         ended = matching_values_times(&program, ended, matching_values_entry(&program, tail_base, (unsigned int)word, tail_table));
     }
     ended = matching_values_signed(&program, ended, matching_values_look(&program, row, sign_table));
-    // each output a step of its own: a step named twice is copied by a sum with the zero field
+    // each output a step of its own: in the wrap lane its and with 2^32 - 1, otherwise a step named twice is copied by a
+    // sum with zero
     std::map<unsigned int, int> named;
     std::vector<unsigned int> written = {ended};
     if (group == 1ull)
@@ -640,63 +734,63 @@ static int matching_values_chains(const TermValues *plan, const std::vector<cons
     }
     for (unsigned int step : written)
     {
-        const unsigned int out = named[step] ? matching_values_step(&program, ENGINE_RECORD_SUM, step, program.zero) : step;
+        const unsigned int out = program.wrap   ? matching_values_step(&program, ENGINE_RECORD_AND, step, program.low_bits)
+                                 : named[step] ? matching_values_step(&program, ENGINE_RECORD_SUM, step, program.zero)
+                                               : step;
         named[step] = 1;
         named[out] = 1;
         program.outputs.push_back(out);
     }
-    std::vector<std::vector<long long>> fields;
+    // lane l = (run count + place) group + member reads the store's records of its chain's X and Y at its modulus
     const unsigned long long lanes = chosen.size() * count * group;
-    if (!matching_values_sweep(&program, lanes, group, runs, &fields))
+    std::vector<unsigned int> index((size_t)(lanes * 2ull), 0u);
+    for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
+    {
+        const unsigned long long member = lane % group;
+        const unsigned long long place = (lane / group) % count;
+        const unsigned long long at = (lane / group) / count;
+        const size_t held_row = (size_t)(at * group + member);
+        index[(size_t)(2ull * lane)] = matching_values_record(store, x_residues[held_row], part->first + place);
+        index[(size_t)(2ull * lane + 1ull)] = matching_values_record(store, y_residues[held_row], part->first + place);
+    }
+    MatchingValuesMembers members;
+    memset(&members, 0, sizeof(members));
+    members.count = 2u;
+    matching_values_store_member(&members, 0u, store);
+    matching_values_store_member(&members, 1u, store);
+    std::vector<std::vector<long long>> fields;
+    if (!matching_values_sweep(&program, &members, index, lanes, group, runs, &fields, NULL))
     {
         return 0;
     }
-    for (size_t at = 0u; at < chosen.size(); at += 1u)
+    int ok = 1;
+    for (size_t at = 0u; ok && (at < chosen.size()); at += 1u)
     {
         const TermValueRun *run = chosen[at];
-        std::vector<unsigned long long> &x_held = (*store)[run->x_target];
-        x_held.assign(count, 0ull);
-        for (unsigned long long place = 0ull; place < count; place += 1ull)
-        {
-            x_held[place] = (unsigned long long)fields[0][at * count + place];
-        }
+        ok = matching_values_put(store, run->x_target, part->first, &fields[0][at * count], count);
         if (group != 1ull)
         {
             continue;
         }
-        std::vector<unsigned long long> &y_held = (*store)[run->y_target];
-        y_held.assign(count, 0ull);
-        for (unsigned long long place = 0ull; place < count; place += 1ull)
+        ok = ok && matching_values_put(store, run->y_target, part->first, &fields[1][at * count], count);
+        const std::vector<unsigned int> &held = run->chains[0].history;
+        for (size_t step = 0u; ok && (step < held.size()); step += 1u)
         {
-            y_held[place] = (unsigned long long)fields[1][at * count + place];
-        }
-        const std::vector<unsigned int> &kept = run->chains[0].history;
-        for (size_t step = 0u; step < kept.size(); step += 1u)
-        {
-            std::vector<unsigned long long> &held = (*store)[kept[step]];
-            held.assign(count, 0ull);
-            const size_t output = 2u + (steps - kept.size()) + step;
-            for (unsigned long long place = 0ull; place < count; place += 1ull)
-            {
-                held[place] = (unsigned long long)fields[output][at * count + place];
-            }
+            const size_t output = 2u + (steps - held.size()) + step;
+            ok = matching_values_put(store, held[step], part->first, &fields[output][at * count], count);
         }
     }
-    return 1;
+    return ok;
 }
 
-// the sums given, each at most `group` rows, swept: each row a lane over each prime, the rows of a sum summed on the
-// device
-static int matching_values_sums(const TermValues *plan, const std::vector<const TermValueSum *> &chosen, unsigned long long group,
-                                const std::vector<unsigned long long> &primes, unsigned long long span,
-                                std::vector<std::vector<unsigned long long>> *store, MatchingValuesRuns *runs)
+// the sums given, each at most `group` rows, swept: each row a lane over each modulus, the rows of a sum summed on the
+// device. A row's residues are read two to a sweep as two members, records of the store; the row's product so far is
+// the third member after the first sweep, the records the sweep before it left on the device.
+static int matching_values_sums(const std::vector<const TermValueSum *> &chosen, unsigned long long group,
+                                const MatchingValuesPart *part, MatchingValuesStore *store, MatchingValuesRuns *runs)
 {
-    (void)plan;
-    const unsigned long long count = primes.size();
-    MatchingValuesProgram program;
-    matching_values_begin(&program, group, count, primes);
-    size_t raised_most = 0u;
-    size_t plain_most = 0u;
+    const unsigned long long count = part->moduli.size();
+    size_t slots = 0u;
     size_t word_most = 1u;
     unsigned int exponent_most = 1u;
     int wide = 0;
@@ -704,28 +798,22 @@ static int matching_values_sums(const TermValues *plan, const std::vector<const 
     {
         for (const TermValueRow &row : sum->rows)
         {
-            size_t raised = 0u;
-            size_t plain = 0u;
+            slots = (row.residues.size() > slots) ? row.residues.size() : slots;
             for (const auto &entry : row.residues)
             {
-                raised += (entry.second > 1u) ? 1u : 0u;
-                plain += (entry.second == 1u) ? 1u : 0u;
                 exponent_most = (entry.second > exponent_most) ? entry.second : exponent_most;
             }
-            raised_most = (raised > raised_most) ? raised : raised_most;
-            plain_most = (plain > plain_most) ? plain : plain_most;
             const size_t words = term_value_words(row.primes).size();
             word_most = (words > word_most) ? words : word_most;
             wide = wide || !row.wide.empty();
         }
     }
+    const size_t passes = (slots <= 2u) ? 1u : (slots + 1u) / 2u;
     const unsigned int exponent_bits = matching_values_bit_length(exponent_most);
     const unsigned long long rows = chosen.size() * group;
-    MatchingValuesRead read;
-    matching_values_read_place(&read, 0u);
-    std::vector<unsigned long long> raised_places(rows * (raised_most == 0u ? 1u : raised_most), 0ull);
-    std::vector<unsigned long long> raised_powers(rows * (raised_most == 0u ? 1u : raised_most), 0ull);
-    std::vector<unsigned long long> plain_places(rows * (plain_most == 0u ? 1u : plain_most), 0ull);
+    // each row's residues at slots 0, 1, ...; a slot past them the integer 1, residue 0, to the power 1
+    std::vector<unsigned int> residues((size_t)(rows * 2u * passes), 0u);
+    std::vector<unsigned long long> exponents((size_t)(rows * 2u * passes), 1ull);
     std::vector<unsigned long long> words(rows * word_most, 1ull);
     std::vector<std::vector<unsigned int>> wide_rows(wide ? rows : 0u, std::vector<unsigned int>(1u, 1u));
     std::vector<unsigned long long> signs(rows, 0ull);
@@ -740,21 +828,12 @@ static int matching_values_sums(const TermValues *plan, const std::vector<const 
                 continue;
             }
             const TermValueRow &held = chosen[at]->rows[member];
-            size_t raised = 0u;
-            size_t plain = 0u;
+            size_t slot = 0u;
             for (const auto &entry : held.residues)
             {
-                if (entry.second > 1u)
-                {
-                    raised_places[row * raised_most + raised] = matching_values_read_place(&read, entry.first);
-                    raised_powers[row * raised_most + raised] = entry.second;
-                    raised += 1u;
-                }
-                else
-                {
-                    plain_places[row * plain_most + plain] = matching_values_read_place(&read, entry.first);
-                    plain += 1u;
-                }
+                residues[row * 2u * passes + slot] = entry.first;
+                exponents[row * 2u * passes + slot] = entry.second;
+                slot += 1u;
             }
             const std::vector<unsigned long long> factors = term_value_words(held.primes);
             for (size_t word = 0u; word < factors.size(); word += 1u)
@@ -768,22 +847,61 @@ static int matching_values_sums(const TermValues *plan, const std::vector<const 
             signs[row] = matching_values_sign_bit(held.negative);
         }
     }
-    const unsigned int residues = matching_values_residue_table(&program, read, *store, span);
-    const unsigned int row = program.row;
-    unsigned int value = matching_values_constant(&program, 1ull);
-    if (raised_most > 0u)
+    const unsigned long long lanes = chosen.size() * count * group;
+    MatchingValuesKept before;
+    memset(&before, 0, sizeof(before));
+    std::vector<std::vector<long long>> fields;
+    int ok = 1;
+    for (size_t pass = 0u; ok && (pass < passes); pass += 1u)
     {
-        const unsigned int place_table = matching_values_words(&program, raised_places);
-        const unsigned int power_table = matching_values_words(&program, raised_powers);
-        const unsigned int base =
-            matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, raised_most));
+        MatchingValuesProgram program;
+        program.wrap = part->wrap;
+        matching_values_begin(&program, group, part->moduli);
+        const unsigned int row = program.row;
+        const unsigned int first_member = (pass == 0u) ? 0u : 1u;
+        unsigned int value = 0u;
+        if (pass == 0u)
+        {
+            value = matching_values_constant(&program, 1ull);
+            const unsigned int word_table = matching_values_words(&program, words, 1u);
+            const unsigned int word_base =
+                matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, word_most));
+            for (size_t word = 0u; word < word_most; word += 1u)
+            {
+                value = matching_values_times(&program, value, matching_values_entry(&program, word_base, (unsigned int)word, word_table));
+            }
+            if (wide)
+            {
+                const unsigned int wide_table = matching_values_table(&program, wide_rows, 1u);
+                value = matching_values_times(&program, value, matching_values_reduce(&program, matching_values_look(&program, row, wide_table)));
+            }
+            value = matching_values_signed(&program, value, matching_values_look(&program, row, matching_values_words(&program, signs, 1u)));
+        }
+        else
+        {
+            value = matching_values_field(&program, 0u, 0u);
+        }
+        // this sweep's two exponents of each row
+        std::vector<unsigned long long> held_exponents((size_t)(rows * 2u), 1ull);
+        for (unsigned long long at = 0ull; at < rows; at += 1ull)
+        {
+            held_exponents[(size_t)(2ull * at)] = exponents[(size_t)(at * 2u * passes + 2u * pass)];
+            held_exponents[(size_t)(2ull * at + 1ull)] = exponents[(size_t)(at * 2u * passes + 2u * pass + 1u)];
+        }
+        const unsigned int exponent_table = (exponent_bits > 1u) ? matching_values_words(&program, held_exponents, exponent_bits) : 0u;
+        const unsigned int exponent_base =
+            matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, 2ull));
         const unsigned int one = matching_values_constant(&program, 1ull);
         const unsigned int two = matching_values_constant(&program, 2ull);
-        for (size_t slot = 0u; slot < raised_most; slot += 1u)
+        for (unsigned int side = 0u; side < 2u; side += 1u)
         {
-            const unsigned int factor = matching_values_reduce(
-                &program, matching_values_take(&program, matching_values_entry(&program, base, (unsigned int)slot, place_table), residues, span));
-            const unsigned int power = matching_values_entry(&program, base, (unsigned int)slot, power_table);
+            const unsigned int factor = matching_values_reduce(&program, matching_values_field(&program, first_member + side, first_member + side));
+            if (exponent_bits <= 1u)
+            {
+                value = matching_values_times(&program, value, factor);
+                continue;
+            }
+            const unsigned int power = matching_values_entry(&program, exponent_base, side, exponent_table);
             const unsigned int less = matching_values_step(&program, ENGINE_RECORD_DIFFERENCE, factor, one);
             // factor^power by its bits from the top: square, then times factor where the bit is 1
             unsigned int raised = one;
@@ -802,48 +920,53 @@ static int matching_values_sums(const TermValues *plan, const std::vector<const 
             }
             value = matching_values_times(&program, value, raised);
         }
-    }
-    if (plain_most > 0u)
-    {
-        const unsigned int place_table = matching_values_words(&program, plain_places);
-        const unsigned int base =
-            matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, plain_most));
-        for (size_t slot = 0u; slot < plain_most; slot += 1u)
+        program.outputs.push_back(program.wrap ? matching_values_step(&program, ENGINE_RECORD_AND, value, program.low_bits) : value);
+        // lane l reads its row's two residues of this sweep at its modulus, and after the first sweep its own record of
+        // the sweep before
+        MatchingValuesMembers members;
+        memset(&members, 0, sizeof(members));
+        members.count = first_member + 2u;
+        if (pass > 0u)
         {
-            value = matching_values_times(
-                &program, value,
-                matching_values_take(&program, matching_values_entry(&program, base, (unsigned int)slot, place_table), residues, span));
+            members.device[0] = before.device;
+            members.bodies[0] = before.lanes;
+            members.in_limbs[0] = before.out_limbs;
+            members.field_bits[0] = before.bits;
+            members.field_offset[0] = before.offset;
         }
-    }
-    const unsigned int word_table = matching_values_words(&program, words);
-    const unsigned int word_base = matching_values_step(&program, ENGINE_RECORD_PRODUCT, row, matching_values_constant(&program, word_most));
-    for (size_t word = 0u; word < word_most; word += 1u)
-    {
-        value = matching_values_times(&program, value, matching_values_entry(&program, word_base, (unsigned int)word, word_table));
-    }
-    if (wide)
-    {
-        const unsigned int wide_table = matching_values_table(&program, wide_rows);
-        value = matching_values_times(&program, value, matching_values_reduce(&program, matching_values_look(&program, row, wide_table)));
-    }
-    value = matching_values_signed(&program, value, matching_values_look(&program, row, matching_values_words(&program, signs)));
-    program.outputs.push_back(value);
-    std::vector<std::vector<long long>> fields;
-    const unsigned long long lanes = chosen.size() * count * group;
-    if (!matching_values_sweep(&program, lanes, group, runs, &fields))
-    {
-        return 0;
-    }
-    for (size_t at = 0u; at < chosen.size(); at += 1u)
-    {
-        std::vector<unsigned long long> &held = (*store)[chosen[at]->target];
-        held.assign(count, 0ull);
-        for (unsigned long long place = 0ull; place < count; place += 1ull)
+        matching_values_store_member(&members, first_member, store);
+        matching_values_store_member(&members, first_member + 1u, store);
+        std::vector<unsigned int> index((size_t)(lanes * members.count), 0u);
+        for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
         {
-            held[place] = (unsigned long long)fields[0][at * count + place];
+            const unsigned long long member = lane % group;
+            const unsigned long long place = (lane / group) % count;
+            const unsigned long long at = (lane / group) / count;
+            const size_t held_row = (size_t)(at * group + member);
+            unsigned int *const here = &index[(size_t)(lane * members.count)];
+            if (pass > 0u)
+            {
+                here[0] = (unsigned int)lane;
+            }
+            for (unsigned int side = 0u; side < 2u; side += 1u)
+            {
+                here[first_member + side] =
+                    matching_values_record(store, residues[held_row * 2u * passes + 2u * pass + side], part->first + place);
+            }
         }
+        MatchingValuesKept next;
+        memset(&next, 0, sizeof(next));
+        const int last = pass + 1u == passes;
+        ok = matching_values_sweep(&program, &members, index, lanes, group, runs, &fields, last ? NULL : &next);
+        cudaFree(before.device);
+        before = next;
     }
-    return 1;
+    for (size_t at = 0u; ok && (at < chosen.size()); at += 1u)
+    {
+        ok = matching_values_put(store, chosen[at]->target, part->first, &fields[0][at * count], count);
+    }
+    cudaFree(before.device);
+    return ok;
 }
 
 static unsigned long long matching_values_group(unsigned long long size)
@@ -856,44 +979,26 @@ static unsigned long long matching_values_group(unsigned long long size)
     return group;
 }
 
-// every level of the plan swept in order, each level's sums and runs by their group, each residue released once the
-// last sweep that reads it has run
-static int matching_values_device(const TermValues *plan, const std::vector<unsigned long long> &primes,
-                                  const std::vector<int> &kept, std::vector<std::vector<unsigned long long>> *store,
-                                  MatchingValuesRuns *runs)
+// every level of the plan swept in order, each level's sums and runs by their group, once over the primes and once
+// modulo 2^32
+static int matching_values_device(const TermValues *plan, const std::vector<unsigned long long> &moduli,
+                                  MatchingValuesStore *store, MatchingValuesRuns *runs)
 {
-    const unsigned long long count = primes.size();
-    const unsigned long long span = matching_values_group(count);
+    const unsigned long long count = moduli.size() - 1u;
+    MatchingValuesPart parts[2];
+    parts[0].first = 0ull;
+    parts[0].moduli.assign(moduli.begin(), moduli.end() - 1);
+    parts[0].wrap = 0;
+    parts[1].first = count;
+    parts[1].moduli.assign(1u, moduli.back());
+    parts[1].wrap = 1;
     unsigned int levels = 0u;
     for (const TermValueResidue &residue : plan->residues)
     {
         levels = (residue.level > levels) ? residue.level : levels;
     }
-    // the last level that reads each residue
-    std::vector<unsigned int> last(plan->residues.size(), 0u);
-    for (const TermValueSum &sum : plan->sums)
-    {
-        for (const TermValueRow &row : sum.rows)
-        {
-            for (const auto &entry : row.residues)
-            {
-                const unsigned int level = plan->residues[sum.target].level;
-                last[entry.first] = (level > last[entry.first]) ? level : last[entry.first];
-            }
-        }
-    }
-    for (const TermValueRun &run : plan->runs)
-    {
-        const unsigned int level = plan->residues[run.x_target].level;
-        for (const TermValueChain &chain : run.chains)
-        {
-            last[chain.x_residue] = (level > last[chain.x_residue]) ? level : last[chain.x_residue];
-            last[chain.y_residue] = (level > last[chain.y_residue]) ? level : last[chain.y_residue];
-        }
-    }
-    store->assign(plan->residues.size(), std::vector<unsigned long long>());
-    (*store)[0].assign(count, 1ull);
-    int ok = 1;
+    const std::vector<long long> ones((size_t)store->places, 1ll);
+    int ok = matching_values_put(store, 0u, 0ull, ones.data(), store->places);
     for (unsigned int level = 1u; ok && (level <= levels); level += 1u)
     {
         std::map<std::pair<unsigned long long, int>, std::vector<const TermValueRun *>> run_groups;
@@ -932,12 +1037,15 @@ static int matching_values_device(const TermValues *plan, const std::vector<unsi
         for (const auto &entry : run_groups)
         {
             const unsigned long long group = entry.first.first;
-            const unsigned long long most = s_matching_values_lanes_most / (count * group);
+            const unsigned long long most = (s_matching_values_lanes_most / (count * group) > 0ull) ? s_matching_values_lanes_most / (count * group) : 1ull;
             for (size_t start = 0u; ok && (start < entry.second.size()); start += (size_t)most)
             {
                 const size_t stop = (start + most < entry.second.size()) ? start + (size_t)most : entry.second.size();
                 const std::vector<const TermValueRun *> chosen(entry.second.begin() + (long long)start, entry.second.begin() + (long long)stop);
-                ok = matching_values_chains(plan, chosen, group, primes, span, store, runs);
+                for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
+                {
+                    ok = matching_values_chains(chosen, group, &parts[which], store, runs);
+                }
             }
         }
         for (const auto &entry : sum_groups)
@@ -948,14 +1056,10 @@ static int matching_values_device(const TermValues *plan, const std::vector<unsi
             {
                 const size_t stop = (start + most < entry.second.size()) ? start + (size_t)most : entry.second.size();
                 const std::vector<const TermValueSum *> chosen(entry.second.begin() + (long long)start, entry.second.begin() + (long long)stop);
-                ok = matching_values_sums(plan, chosen, group, primes, span, store, runs);
-            }
-        }
-        for (size_t residue = 1u; residue < plan->residues.size(); residue += 1u)
-        {
-            if ((last[residue] == level) && !kept[residue])
-            {
-                std::vector<unsigned long long>().swap((*store)[residue]);
+                for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
+                {
+                    ok = matching_values_sums(chosen, group, &parts[which], store, runs);
+                }
             }
         }
         printf("  level %u of %u swept\n", level, levels);
@@ -1086,15 +1190,12 @@ static int matching_values_write(int count, char **arguments, SimResults *result
     delete request;
     delete series;
     unsigned long long widest = 0ull;
-    std::vector<int> kept(plan->residues.size(), 0);
     for (const MatchingValuesOutput &output : outputs)
     {
         if (output.zero)
         {
             continue;
         }
-        kept[output.numerator] = 1;
-        kept[output.divisor] = 1;
         widest = (plan->residues[output.numerator].bits > widest) ? plan->residues[output.numerator].bits : widest;
         widest = (plan->residues[output.divisor].bits > widest) ? plan->residues[output.divisor].bits : widest;
     }
@@ -1108,11 +1209,13 @@ static int matching_values_write(int count, char **arguments, SimResults *result
     {
         chains += run.chains.size();
     }
-    // each prime above 2^30 adds 30 bits or more; the sign takes one more, and the spare primes stand past the bound
+    // each prime above 2^30 adds 30 bits or more; the sign takes one more, and the spare primes stand past the bound.
+    // 2^32 is the last modulus, its lane taken by the wrap
     const unsigned long long prime_count = (widest + 1ull + 29ull) / 30ull + s_matching_values_spare;
-    const std::vector<unsigned long long> primes = matching_values_primes(prime_count);
-    printf("  %zu residues, %zu sums of %llu rows, %zu runs of %llu chains; the widest value %llu bits, %llu primes\n",
-           plan->residues.size(), plan->sums.size(), rows, plan->runs.size(), chains, widest, prime_count);
+    std::vector<unsigned long long> moduli = matching_values_primes(prime_count);
+    moduli.push_back(1ull << s_matching_values_wrap_bits);
+    printf("  %zu residues, %zu sums of %llu rows, %zu runs of %llu chains; the widest value %llu bits, %llu primes and 2^%u\n",
+           plan->residues.size(), plan->sums.size(), rows, plan->runs.size(), chains, widest, prime_count, s_matching_values_wrap_bits);
     fflush(stdout);
     sim_check(results, named, "every term valued");
     sim_check(results, !term_value_short(), "every value written as sums and chains");
@@ -1121,11 +1224,17 @@ static int matching_values_write(int count, char **arguments, SimResults *result
     {
         held = MatchingFunctions();
     }
-    // the device's part: the most lanes a sweep holds, each output record two limbs, and its tables
-    const unsigned long long declared = s_matching_values_lanes_most * 2ull * sizeof(unsigned int) + (256ull << 20u);
+    // the device's part: the store of every residue at every modulus, and the most lanes a sweep holds, each with its
+    // index, its output record and the record of the sweep before
+    MatchingValuesStore store;
+    store.device = NULL;
+    store.places = moduli.size();
+    store.residues = plan->residues.size();
+    const unsigned long long store_bytes = store.residues * store.places * 2ull * sizeof(unsigned int);
+    const unsigned long long declared = store_bytes + s_matching_values_lanes_most * 7ull * sizeof(unsigned int) + (64ull << 20u);
     const int submitted = sim_job_submit(results, "matching_values", count, arguments, declared);
     sim_check(results, submitted, "the device job submitted");
-    std::vector<std::vector<unsigned long long>> store;
+    const int held_store = submitted && (cudaMalloc((void **)&store.device, (size_t)store_bytes) == cudaSuccess);
     MatchingValuesRuns runs;
     runs.sweeps = 0ull;
     runs.checked = 0ull;
@@ -1134,17 +1243,17 @@ static int matching_values_write(int count, char **arguments, SimResults *result
     runs.lanes = 0ull;
     runs.compiled = 1;
     runs.ok = 1;
-    const int swept = submitted && matching_values_device(plan, primes, kept, &store, &runs);
+    const int swept = held_store && matching_values_device(plan, moduli, &store, &runs);
     printf("  %llu sweeps over %llu lanes, the longest program %llu steps, %s; the host checked %llu lanes, %llu agree\n",
            runs.sweeps, runs.lanes, runs.steps_most, runs.compiled ? "every program compiled" : "a program interpreted",
            runs.checked, runs.agreed);
     sim_check(results, swept, "every sweep run on the device");
     sim_check(results, swept && (runs.checked == runs.agreed), "the host's records equal the device's");
 
-    // the residues beside the record, with the width that holds the primes' product and a sign, and at least the width
-    // a product of two values in lowest terms takes
+    // the residues beside the record, with the width that holds the moduli's product and a sign, and at least the
+    // width a product of two values in lowest terms takes
     unsigned long long limbs = 1024ull;
-    while (limbs < prime_count + 4ull)
+    while (limbs < moduli.size() + 4ull)
     {
         limbs <<= 1u;
     }
@@ -1152,10 +1261,10 @@ static int matching_values_write(int count, char **arguments, SimResults *result
     FILE *const out = swept ? fopen(path.c_str(), "w") : NULL;
     if (out != NULL)
     {
-        fprintf(out, "limbs %llu\nprimes %zu\n", limbs, primes.size());
-        for (unsigned long long prime : primes)
+        fprintf(out, "limbs %llu\nmoduli %zu\n", limbs, moduli.size());
+        for (unsigned long long modulus : moduli)
         {
-            fprintf(out, "%llu\n", prime);
+            fprintf(out, "%llu\n", modulus);
         }
         fprintf(out, "values %zu\n", outputs.size());
         for (const MatchingValuesOutput &output : outputs)
@@ -1164,20 +1273,22 @@ static int matching_values_write(int count, char **arguments, SimResults *result
                     output.zero ? 0ull : plan->residues[output.numerator].bits, output.zero ? 0ull : plan->residues[output.divisor].bits);
             for (unsigned int part = 0u; !output.zero && (part < 2u); part += 1u)
             {
-                const std::vector<unsigned long long> &held = store[(part == 0u) ? output.numerator : output.divisor];
-                for (size_t place = 0u; place < primes.size(); place += 1u)
+                const std::vector<unsigned long long> held = matching_values_got(&store, (part == 0u) ? output.numerator : output.divisor);
+                for (size_t place = 0u; place < moduli.size(); place += 1u)
                 {
-                    fprintf(out, "%llu%c", held[place] % primes[place], (place + 1u == primes.size()) ? '\n' : ' ');
+                    fprintf(out, "%llu%c", held[place] % moduli[place], (place + 1u == moduli.size()) ? '\n' : ' ');
                 }
             }
         }
     }
     const int written = (out != NULL) && (fclose(out) == 0);
     sim_check(results, written, "every value's residues written");
+    cudaFree(store.device);
     delete plan;
     delete book;
     return -1;
 }
+
 
 // the inverse of `value` modulo the prime, value not a multiple of it
 static unsigned long long matching_values_inverse(unsigned long long value, unsigned long long prime)
@@ -1287,7 +1398,7 @@ static int matching_values_read(char **arguments, SimResults *results)
     FILE *const in = read ? fopen(arguments[2], "r") : NULL;
     unsigned long long limbs = 0ull;
     size_t prime_count = 0u;
-    int ok = (in != NULL) && (fscanf(in, " limbs %llu primes %zu", &limbs, &prime_count) == 2);
+    int ok = (in != NULL) && (fscanf(in, " limbs %llu moduli %zu", &limbs, &prime_count) == 2);
     std::vector<unsigned long long> primes(prime_count, 0ull);
     for (size_t index = 0u; ok && (index < prime_count); index += 1u)
     {
