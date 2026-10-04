@@ -17,8 +17,14 @@ void decay_integral_reduction(unsigned int m, std::vector<SimRational> *a, std::
 // the two polynomials the check asks to be 0, for m = k + 2
 void decay_integral_residual(unsigned int k, std::vector<SimRational> *first, std::vector<SimRational> *second);
 
-// int_0^b s^k e^(-n/s) ds, n > 0 and b > 0, a form in e^(-n/b) and the book's atom E1(n/b)
-AtomForm decay_integral_from_zero(unsigned int k, SimRational n, SimRational b, AtomBook *book);
+// int_0^b s^k e^(-n/s) ds, n > 0 and b > 0, a form in e^(-n/b) and the book's atom E1(n/b). k may be negative: at
+// k = -1 the integral is E1(n/b), and below it E_m(x), m = k + 2 <= 0, is a rational multiple of e^(-x),
+// E_0 = e^(-x) / x and E_m = (e^(-x) - m E_(m+1)) / x
+AtomForm decay_integral_from_zero(int k, SimRational n, SimRational b, AtomBook *book);
+
+// for k <= -2, with E_(k+2)(x) = r(x) e^(-x): (k + 1) r - x r' + x r - 1 at `x`, which is 0 exactly where
+// d/db of the integral is b^k e^(-n/b)
+SimRational decay_integral_negative_residual(int k, SimRational x);
 
 // 1 where a value in this module outgrew the build's width
 int decay_integral_short(void);
