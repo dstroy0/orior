@@ -309,13 +309,16 @@ class Paper(object):
         hyphen where the paper sets hyphen_ends_join and the next line opens on a letter, a digit or
         a closing bracket: the paper breaks a line only at a hyphen it prints, taboo- / driven for
         taboo-driven and (morpho- / )syntax. An affix's hyphen before its gloss, *-mi- / '2SG.OBJ',
-        keeps the space."""
+        keeps the space. Where the paper sets address_ends_join, a line ending inside a web address
+        joins with none to a line opening on a lower-case letter or &, muckleshoot08m. / html."""
         out = ""
         for one in numbers:
             text = self.text(one)
             if not text:
                 continue
             closes = getattr(self, "hyphen_ends_join", False) and out.endswith("-") and re.match(r"[^\W_]|\)", text)
+            closes = closes or getattr(self, "address_ends_join", False) and \
+                re.search(r"(?:https?://|www\.)\S*$", out) and re.match(r"[a-z&]", text)
             glue = "" if not out or closes else " "
             out += glue + text
         return out
@@ -574,6 +577,10 @@ class Paper(object):
                 entries.append([text, self.page(number)])
             else:
                 glue = "" if entries[-1][0].endswith("-") and text[:1].islower() is False else " "
+                # A web address broken at the line's end, where the paper sets address_ends_join.
+                if getattr(self, "address_ends_join", False) and \
+                        re.search(r"(?:https?://|www\.)\S*$", entries[-1][0]) and re.match(r"[a-z&]", text):
+                    glue = ""
                 entries[-1][0] += glue + text
             previous = text
         return [tuple(one) for one in entries]
@@ -627,6 +634,9 @@ class Paper(object):
             # the paper's font keeps in the private use area reads as the page text reads it, the
             # k̓ of k̓ʷək̓ʷʔitas in Mellesmoen and Huijsmans's footnote 24.
             private = page_text.PRIVATE_USE.get(self.stem, {})
+            # A paper whose font declares its letters at codes of its own names them in
+            # italic_letters, the GenSal ¯ of Thompson and Sloat's q̇ʷélo.
+            private = dict(private, **getattr(self, "italic_letters", {}))
             for number, run in italic_runs.italic_runs(self.stem):
                 run = "".join(private.get(one, one) for one in run)
                 run = unicodedata.normalize("NFC", " ".join(run.split()))

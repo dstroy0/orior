@@ -23,6 +23,7 @@
 
 import io
 import os
+import re
 import subprocess
 import sys
 import unicodedata
@@ -412,6 +413,9 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
             tail = previous.split()[-1]
             reach.append("%s%s" % (tail, line.lstrip()))
             reach.append("%s%s" % (tail[:-1], line.lstrip()))
+        elif re.search(r"(?:https?://|www\.)\S*$", previous) and re.match(r"[a-z&]", line.lstrip()):
+            # A web address the line's end breaks with no hyphen, muckleshoot08m. / html.
+            reach.append("%s%s" % (previous.split()[-1], line.lstrip()))
         previous = line
         for at, one in enumerate(reach):
             tokens = one.split()

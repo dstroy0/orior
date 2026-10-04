@@ -1115,6 +1115,18 @@ PAPER_CIPHERS = {"3_Inman_2018": {"TeXGyreTermes-Regular": ((0x49B, 0x4B4, 0x45A
                      ("¬", "l" + COMMA_ABOVE), ("¥", "y" + COMMA_ABOVE), ("Σ", "w" + COMMA_ABOVE),
                      ("ç", "c" + COMMA_ABOVE), ("œ", "q" + COMMA_ABOVE), ("˚", "k" + COMMA_ABOVE),
                      ("†", "t" + COMMA_ABOVE), ("√", "ƛ" + COMMA_ABOVE)))}}
+# Thompson and Sloat's GenSal SILDoulos TR, upright and italic, declares Latin-1 codes for the
+# Lushootseed and Twana letters: Å for ə, Â for ə́, Ò for ɔ́, Ó for ɔ, Î for ɪ, È for ɛ́, Ÿ and ž for
+# č, Ç for ǰ, Ê for gʷ, © for kʷ, ¨ for k̓ʷ, ° for qʷ, ¯ for q̇ʷ, ® for x̌, ³ for x̌ʷ, Ë for xʷ, ¿ for
+# ʔ, Ž for ƛ̓, ™ for l̓, ¢ for ẏ and ‡ for ċ, the dot above a glottalization; its α, ´ and • stand
+# as printed. Read off 400 to 900 dpi renders of Tables 1, 2, 3 and
+# 6 and pages 8, 10, 14, 15, 18, 19, 33 and 34.
+GENSAL = {"Å": "ə", "Â": "ə" + ACUTE, "Ò": "ɔ" + ACUTE, "Ó": "ɔ", "Î": "ɪ", "È": "ɛ" + ACUTE, "Ÿ": "č",
+          "ž": "č", "Ç": "ǰ", "Ê": "gʷ", "©": "kʷ", "¨": "k" + COMMA_ABOVE + "ʷ", "°": "qʷ",
+          "¯": "q̇ʷ", "®": "x̌", "³": "x̌ʷ", "Ë": "xʷ", "¿": "ʔ", "Ž": "ƛ" + COMMA_ABOVE,
+          "™": "l" + COMMA_ABOVE, "¢": "ẏ", "‡": "ċ"}
+PAPER_CIPHERS["2013_Thompson_Sloat"] = {face: tuple((ord(code), ord(code), text) for code, text in GENSAL.items())
+                                        for face in ("GenSal SILDoulos TR", "GenSal SILDoulos TR,Italic")}
 # Urbanczyk's Halkomelem sets the same Straight codes, and two more: ˙ for t̓ᶿ and ∂ for č̓, ˙aœø;m
 # for t̓ᶿaq̓ʷəm and ∂;kø≈ for č̓əkʷx̌. Read off 400 dpi renders of pages 1, 2, 6, 7 and 14.
 PAPER_CIPHERS["2011_Urbanczyk"] = {"Straight": PAPER_CIPHERS["2011_Gerdts_Peter"]["Straight"] + (

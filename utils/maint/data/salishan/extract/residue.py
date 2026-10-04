@@ -662,6 +662,25 @@ CORRECTIONS = {
                      ("Cowlitz.smê΄c", "Cowlitz .smê΄c"), ("(2).smê΄c", "(2) .smê΄c"),
                      ("while.smê΄c", "while .smê΄c"), ("txʷan̓(", "txʷan̓ ("), ("wít̕ as", "wít̕as"),
                      ("and Squamish síʔ-", "and Squamish síʔ-sinƛ̕"), ("sinƛ̕ are explicitly", "are explicitly")),
+    # Read at 400 to 900 dpi over the page text read by glyph rows. Page 10 sets the spacing acute of
+    # Allen's xα´l'os and sa'α´q against the α, Table 1 prints qʷələʔat whole, and Table 2 sets the
+    # apostrophe of c'ix̌ʷ against the c; the glyph rows part each. The GenSal ʔ stands off the letter
+    # before it in the glyph rows, and the page sets it against that letter in each word.
+    "2013_Thompson_Sloat": (("α ´", "α´"), ("qʷələ ʔat", "qʷələʔat"), ("c 'ix̌ʷ", "c'ix̌ʷ"),
+                            ("łəsyə ʔáẏčəd", "łəsyəʔáẏčəd"), ("(s ʔáliwas)", "(sʔáliwas)"),
+                            ("[c’i ʔúx̌c’a]", "[c’iʔúx̌c’a]"), ("duxʷƛ̓a ʔaysəbəd", "duxʷƛ̓aʔaysəbəd"),
+                            ("sx̌ʷi ʔšəd", "sx̌ʷiʔšəd"), ("k̓ʷəl ʔílas", "k̓ʷəlʔílas"), ("čƛ̓a ʔ", "čƛ̓aʔ"),
+                            # Page 46 raises the th of Allen's (May 12th); the glyph rows set it on a
+                            # line of its own above, which the generator passes over.
+                            ("Wash. (May 12).", "Wash. (May 12th)."),
+                            # The glyph rows set a space inside each straight quote, " salt water" and
+                            # "language, ", and after the bracket of [H]e; the page sets each closed.
+                            ('an Indian. "', 'an Indian."'), ("[H] e", "[H]e"),
+                            ('" strong people, "', '"strong people,"'), ('" familiar with"', '"familiar with"'),
+                            ('"old time Saanich. "', '"old time Saanich."'), ('" salt water"', '"salt water"'),
+                            ('"language, "', '"language,"'), ('"language. "', '"language."'),
+                            # Page 24 sets a raised point after the mark of note 12, no part of the note.
+                            ("12. In May 1942", "12 In May 1942")),
     # Read at 300 dpi: page 12 sets the Squamish cognate of 0233 against the quote opening its gloss,
     # -(a)xʷ'2SG.SUBJ', and the form is parted from the gloss to be a word of its own.
     "Nater-final": (("-(a)xʷ‘2SG.SUBJ’", "-(a)xʷ ‘2SG.SUBJ’"),),
