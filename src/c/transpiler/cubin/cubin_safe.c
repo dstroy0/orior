@@ -109,10 +109,17 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
         SassInstructionParts parts;
         sass_instruction_read(text, &parts);
         unsigned int soonest = SASS_STALL_LONGEST;
-        sass_operation_schedule(parts.operation, &soonest);
+        const unsigned int schedule = sass_operation_schedule(parts.operation, &soonest);
         if (stall < soonest)
         {
             return CUBIN_SAFE_STALL;
+        }
+        // a barrier set by an operation whose result is back in a measured count of cycles is never released, and the
+        // next wait on all six never ends
+        if ((schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_LONGEST) &&
+            (sass_barrier_set(high, SASS_WRITE_BARRIER_FIRST) || sass_barrier_set(high, SASS_READ_BARRIER_FIRST)))
+        {
+            return CUBIN_SAFE_BARRIER;
         }
         if (cubin_exit(&parts))
         {
@@ -165,6 +172,7 @@ const char *cubin_safe_name(unsigned int verdict)
                                           "a control transfer or a wait",
                                           "an operation key unknown or holding a control transfer or a wait",
                                           "a second instruction no form holds",
-                                          "no EXIT without a guard"};
+                                          "no EXIT without a guard",
+                                          "a barrier set by an operation whose result is back in a measured count"};
     return (verdict < (sizeof(s_names) / sizeof(s_names[0]))) ? s_names[verdict] : "unknown";
 }

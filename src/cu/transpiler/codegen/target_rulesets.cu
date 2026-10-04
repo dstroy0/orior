@@ -2,6 +2,9 @@
 // target_rulesets.cu: rulesets read, loaded and written
 #include "target_internal.h"
 
+#include <fstream>
+#include <map>
+
 // the ruleset at `path` read whole into `rules` against its schema: 1 where its first line is krs 1, every entry holds,
 // and every bank, fixed register and form the code generator names is given with the ruleset's name, toolchain and
 // header, else 0 with the reason in rules->error. A line that begins with # is a comment, and a blank line is nothing
@@ -28,6 +31,95 @@ static int ruleset_read(Ruleset *rules, const std::string &path)
     return rules->error.empty() ? 1 : 0;
 }
 
+// the words of `line` split at white space
+static std::vector<std::string> ruleset_words(const std::string &line)
+{
+    std::vector<std::string> words;
+    std::string word;
+    for (const char letter : line + " ")
+    {
+        if ((letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == '\n'))
+        {
+            if (!word.empty())
+            {
+                words.push_back(word);
+            }
+            word.clear();
+            continue;
+        }
+        word += letter;
+    }
+    return words;
+}
+
+std::vector<std::string> ruleset_parameters(const Ruleset *rules, const std::string &form)
+{
+    std::vector<std::string> names;
+    std::ifstream ruleset(rules->path);
+    std::string line;
+    while (std::getline(ruleset, line))
+    {
+        const std::vector<std::string> words = ruleset_words(line);
+        const int named = (words.size() >= 2u) && (words[1] == form) &&
+                          ((words[0] == "form") || (words[0] == "err") || (words[0] == "nop") ||
+                           (words[0] == "construct"));
+        for (size_t at = 2u; (named != 0) && (at < words.size()) && (words[at] != "="); at += 1u)
+        {
+            names.push_back(words[at]);
+        }
+        if (named != 0)
+        {
+            break;
+        }
+    }
+    return names;
+}
+
+void ruleset_folds_read(Ruleset *rules)
+{
+    rules->folds.clear();
+    const size_t dot = rules->path.find_last_of('.');
+    FILE *const file = fopen((rules->path.substr(0u, dot) + ".ksc").c_str(), "rb");
+    if (file == NULL)
+    {
+        return;
+    }
+    const std::string folds = "compile folds ";
+    const std::string system = ": the system folds the ";
+    const std::string put = " put for ";
+    char text[512];
+    while (fgets(text, sizeof(text), file) != NULL)
+    {
+        const std::string fold = ruleset_words(text).empty() ? std::string() : std::string(text);
+        const size_t colon = fold.find(system);
+        const size_t kind_end = fold.find(put, colon + system.size());
+        if ((fold.compare(0u, folds.size(), folds) != 0) || (colon == std::string::npos) ||
+            (kind_end == std::string::npos))
+        {
+            continue;
+        }
+        const std::vector<std::string> head = ruleset_words(fold.substr(0u, colon));
+        const std::string kind = fold.substr(colon + system.size(), kind_end - colon - system.size());
+        const std::vector<std::string> role = ruleset_words(fold.substr(kind_end + put.size()));
+        const RulesetSchema *const schema = rules->schema;
+        const unsigned int form = (head.size() == 4u) ? ruleset_find(schema->forms, schema->form_count, head[3])
+                                                       : schema->form_count;
+        if ((form == schema->form_count) || (role.size() != 1u))
+        {
+            continue;
+        }
+        const std::vector<std::string> names = ruleset_parameters(rules, head[3]);
+        for (unsigned int at = 0u; at < (unsigned int)names.size(); at += 1u)
+        {
+            if (names[at] == role[0])
+            {
+                rules->folds.push_back(RulesetFold{form, kind, at});
+            }
+        }
+    }
+    fclose(file);
+}
+
 // a ruleset read once a process into `rules` from its schema's file; NULL where it errors. A ruleset naming
 // another toolchain or header than its code generator's path builds with errors with the rest
 static const Ruleset *ruleset_load(Ruleset *rules, const RulesetSchema *schema, int report)
@@ -44,6 +136,10 @@ static const Ruleset *ruleset_load(Ruleset *rules, const RulesetSchema *schema, 
         rules->ready = 0;
         rules->error =
             "its path builds with " + std::string(schema->toolchain) + " and takes its header from " + schema->header;
+    }
+    if (rules->ready != 0)
+    {
+        ruleset_folds_read(rules);
     }
     if ((report != 0) && (rules->ready != 0))
     {
@@ -75,6 +171,14 @@ const Ruleset *Target::ruleset(int report)
 const Ruleset *Target::ready(void) const
 {
     return (rules->ready != 0) ? rules : NULL;
+}
+
+void Target::folds_read(void)
+{
+    if (rules->ready != 0)
+    {
+        ruleset_folds_read(rules);
+    }
 }
 
 // form `name` of `rules` appended to `text`, `argument` holding as many arguments as it takes, in the order of its

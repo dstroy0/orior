@@ -7,17 +7,17 @@ Every file extension the engine and its projects write or read. A new extension 
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2263\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5977\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.1760\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2160\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6178\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.1661\linewidth-2\tabcolsep\relax}}
 \toprule
 Extension & What it is & Named by \\
 \midrule
 \endhead
-\texttt{.\allowbreak{}kcr} & The information crystal (Kolmogorov crystal): its own compression format. It reads every source format, takes each format's own compression out, and can rebuild the data into any format (Doug). krep kind “KCR\textbackslash{}0”, version 1. The only crystal format. & Doug \\
-\texttt{.\allowbreak{}krs} & A ruleset: how the emitter defines the forms in one language (\texttt{ptx.\allowbreak{}krs}, \texttt{c.\allowbreak{}krs}, \texttt{vhdl.\allowbreak{}krs}). &  \\
-\texttt{.\allowbreak{}kcs} & A construction set, part of the crystal flattener. & Doug \\
-\texttt{.\allowbreak{}knf} & A sample's noise floor. &  \\
-\texttt{.\allowbreak{}ksh} & The flattened set: every body of every sample as one number each (\texttt{train.\allowbreak{}ksh}). &  \\
-\texttt{.\allowbreak{}ans} & The answer file. &  \\
+\texttt{.\allowbreak{}kcr} & Kolmogorov information crystal: its own compression format. It reads every source format, takes each format's own compression out, and can rebuild the data into any format (Doug). krep kind “KCR\textbackslash{}0”, version 1. The only crystal format. & Doug \\
+\texttt{.\allowbreak{}krs} & Kolmogorov information ruleset: one language's forms (\texttt{ptx.\allowbreak{}krs}, \texttt{c.\allowbreak{}krs}, \texttt{vhdl.\allowbreak{}krs}). & Doug \\
+\texttt{.\allowbreak{}kcs} & Kolmogorov information construction set: what reconstructs information. A target's forms and their costs are its construction set. krep kind “KCS\textbackslash{}0”. & Doug \\
+\texttt{.\allowbreak{}knf} & Kolmogorov noise floor. A sample's floor is its entropy history. krep kind “KNF\textbackslash{}0”. & Doug \\
+\texttt{.\allowbreak{}kdm} & Kolmogorov device map: the hardware map. & Doug \\
+\texttt{.\allowbreak{}ksc} & Kolmogorov system classification: the language map. & Doug \\
 \bottomrule
 \end{longtable}
 }

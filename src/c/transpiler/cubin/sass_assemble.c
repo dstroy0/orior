@@ -96,13 +96,24 @@ static unsigned long long sass_register_value(const char *text)
     return strtoull(digits, NULL, 10) + (sass_high_half(text) ? 1ull : 0ull);
 }
 
-// the offset a constant names, c[bank][offset], and the bank through `bank`
+// the offset a constant names, c[bank][offset], and the bank through `bank`. The offset may be a sum, each term after
+// a +, as sass.krs writes a kernel's parameter at the target's base and the parameter's own place, c[0x0][0x160+8]
 static unsigned long long sass_constant_value(const char *text, unsigned long long *bank)
 {
     const char *const first = strchr(text, '[');
     const char *const second = (first != NULL) ? strchr(first + 1, '[') : NULL;
     *bank = (first != NULL) ? strtoull(first + 1, NULL, 0) : 0ull;
-    return (second != NULL) ? strtoull(second + 1, NULL, 0) : 0ull;
+    if (second == NULL)
+    {
+        return 0ull;
+    }
+    char *walk = NULL;
+    unsigned long long offset = strtoull(second + 1, &walk, 0);
+    while (*walk == '+')
+    {
+        offset += strtoull(walk + 1, &walk, 0);
+    }
+    return offset;
 }
 
 // the base register an address names, [R2.64+0x4], and its offset through `offset`
@@ -326,14 +337,18 @@ static void sass_high_write(unsigned long long *high, unsigned int first, unsign
 // pass, and an operation with no measured count stalls the longest. An instruction whose result comes back late has
 // to set a barrier for the wait to have anything to wait on, and a store has to set one for whatever writes its
 // operands next: which instructions those are is the operation's schedule (sass_operation_schedule), and a barrier the
-// form's own encoding sets is set too. A barrier no instruction set is already at rest, and waiting on all six costs
-// nothing where none was set
+// form's own encoding sets is set too, except on an operation whose result is back in a measured count of cycles.
+// Nothing releases a barrier such an operation sets, and the next instruction's wait on all six never ends. A barrier
+// no instruction set is already at rest, and waiting on all six costs nothing where none was set
 static void sass_control_safe(const SassForm *form, unsigned long long *high)
 {
     unsigned int soonest = SASS_STALL_LONGEST;
     const unsigned int schedule = sass_operation_schedule(form->operation, &soonest);
-    const int wrote = (schedule == SASS_SCHEDULE_LATE) || sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST);
-    const int read = (schedule == SASS_SCHEDULE_STORE) || sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST);
+    const int fixed = (schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_LONGEST);
+    const int wrote = (schedule == SASS_SCHEDULE_LATE) ||
+                      (!fixed && sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST));
+    const int read = (schedule == SASS_SCHEDULE_STORE) ||
+                     (!fixed && sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST));
     sass_high_write(high, SASS_STALL_FIRST, 4u, soonest);
     sass_high_write(high, SASS_YIELD_FIRST, 1u, 0ull);
     sass_high_write(high, SASS_WRITE_BARRIER_FIRST, 3u, wrote ? 0ull : SASS_BARRIER_NONE);

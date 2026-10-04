@@ -15,7 +15,9 @@
 //   3. where no form holds it, its operation key holds forms and no form under the key transfers control or waits.
 //      Whatever its other bits say, it falls through to the next instruction. One instruction at most is held by no
 //      form: the one a probe asks about;
-//   4. an EXIT with no guard is reached: no thread runs off the end of the code.
+//   4. an EXIT with no guard is reached: no thread runs off the end of the code;
+//   5. an operation whose result is back in a measured count of cycles sets no barrier. Nothing releases one it sets,
+//      and the next instruction's wait on all six never ends: the kernel never returns.
 //
 // The code is read from its first instruction to its first EXIT with no guard, and nothing past it is read, since
 // nothing reaches it: the self branch and the padding after a kernel's last exit are never run. Nothing here changes
@@ -33,7 +35,8 @@ enum CubinSafe
     CUBIN_SAFE_CONTROL = 4,
     CUBIN_SAFE_KEY = 5,
     CUBIN_SAFE_UNHELD = 6,
-    CUBIN_SAFE_EXIT = 7
+    CUBIN_SAFE_EXIT = 7,
+    CUBIN_SAFE_BARRIER = 8
 };
 
 // The verdict on `code`, `code_size` bytes of sixteen-byte instructions, against `machine`: CUBIN_SAFE, or the rule

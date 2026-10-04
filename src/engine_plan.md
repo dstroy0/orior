@@ -267,8 +267,7 @@ works there.
      - The engine names cells. `schedule.cu` writes `cell_tracking.program`, `spiral_table.h` holds the cell table's
        1182-step spiral, and `track_driver` sets the globals `g_survey` and `g_schedule_path`.
      - Numbers written into the machine: the noise detector's bins and windows from one data set's transfer curve in
-       `compression_table.md`; the Rice block, `k` width and escape; the tessera and qasm job times. Nothing asserts
-       that `QASM_FRACTION_BITS` lies from 32 to 63, which `qasm_step_scale` needs.
+       `compression_table.md`; the Rice block, `k` width and escape; the tessera and qasm job times.
      - `tessera_core_wants` reserves the more of standing plus declared and the kept peak, the rule the scheduler
        document says is not approved. `tessera_core_remember` keeps the last run's peak and not the most: one light
        run lowers the next reservation.

@@ -2842,19 +2842,29 @@ static int forms_read(const char *questions_path, const char *listing, const cha
            "read otherwise; the record written to %s\n",
            questions.size(), sass_verdicts.size(), sass_same, sass_adopted.size(), ptx_same, ptx_adopted.size(),
            record);
-    // The folds the system does are its own and belong in its classification. Read the part's .ksc, add this pass's
-    // compile-channel folds in place, and write it back: the probe's channels are kept and the folds are regenerated
-    const std::string machine_path = machine;
-    const size_t slash = machine_path.find_last_of('/');
-    const std::string machines = (slash == std::string::npos) ? std::string(".") : machine_path.substr(0u, slash);
-    const std::string part = (slash == std::string::npos) ? machine_path : machine_path.substr(slash + 1u);
-    sass_class_read(machines.c_str(), part.c_str());
+    // The folds the system does are its own and belong in the classification of what is emitted, the .ksc beside
+    // sass.krs that the code generator reads with it. Read it, drop what it holds of the numbers and registers this
+    // pass put to each form it asked of, add this pass's compile-channel folds in place, and write it back: every other
+    // fold is kept
+    const std::string ruleset_path = sass_krs;
+    const size_t slash = ruleset_path.find_last_of('/');
+    const std::string rulesets = (slash == std::string::npos) ? std::string(".") : ruleset_path.substr(0u, slash);
+    const std::string file = (slash == std::string::npos) ? ruleset_path : ruleset_path.substr(slash + 1u);
+    const std::string stem = file.substr(0u, file.find_last_of('.'));
+    sass_class_read(rulesets.c_str(), stem.c_str());
+    for (const Question &question : questions)
+    {
+        sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
+                        (question.form + ": the system folds the number put for ").c_str());
+        sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
+                        (question.form + ": the system folds the register put for ").c_str());
+    }
     for (const auto &fold : fold_fact)
     {
         const std::string question = fold.first + ": " + fold.second;
         sass_class_take(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS, question.c_str(), 0u);
     }
-    sass_class_write(machines.c_str(), part.c_str());
+    sass_class_write(rulesets.c_str(), stem.c_str());
     if (apply)
     {
         const int sass_written = krs_apply(sass_krs, sass_adopted);

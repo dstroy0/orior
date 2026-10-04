@@ -175,6 +175,10 @@ static void check_cases(void)
     check_verdict("an IADD3 stalled its soonest read, then an EXIT", 2u, CUBIN_SAFE);
     check_instruction(0u, straight->low, check_stalled(check_safe_high(straight->high), soonest - 1u));
     check_verdict("an IADD3 stalled a cycle short of its soonest read", 2u, CUBIN_SAFE_STALL);
+    // a fixed result's barrier is never released
+    check_instruction(0u, straight->low,
+                      check_safe_high(straight->high) & ~(7ull << (SASS_WRITE_BARRIER_FIRST - 64u)));
+    check_verdict("an IADD3 setting write barrier 0", 2u, CUBIN_SAFE_BARRIER);
     // the self branch past the last exit is never reached and is not read
     check_instruction(0u, exit_low, exit_high);
     check_instruction(1u, branch->low, branch->high);

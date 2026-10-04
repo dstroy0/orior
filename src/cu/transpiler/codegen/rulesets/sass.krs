@@ -303,3 +303,36 @@ nop state_loop back where next
 # bytes of encodings, which is a transcription and carries no compression at all - and the way to take it is to
 # rearrange against that floor, never to start from nothing
 err program_unit launch_bytes count_offset hot_offset block_offset number_offset ttl_offset checkin_every_offset next_offset start_offset finished_offset checkins_offset owner_at command_at state_at offset_at step_at launch_time_at exectime_at checkin_at checkin_time_at run_command stop_command done_state stopped_state yielded_state
+
+# a kernel of its own, as nvcc writes one for sm_86 (measuring_stick.md): the stack pointer and the memory descriptor
+# opening it, its exit and the self branch closing it, the thread's and the block's numbers read from the special
+# registers, the sizes and every parameter read from the constant bank, the parameters at the target's base, 0x160
+form kernel_open = \tMOV \tR1, c[0x0][0x28];\n\tULDC.64 \tUR4, c[0x0][0x118];\n
+form kernel_close = \tEXIT;\n.L_kernel_close:\n\tBRA \t`(.L_kernel_close);\n
+form thread_idx_x to = \tS2R \t{to}, SR_TID.X;\n
+form thread_idx_y to = \tS2R \t{to}, SR_TID.Y;\n
+form thread_idx_z to = \tS2R \t{to}, SR_TID.Z;\n
+form block_idx_x to = \tS2R \t{to}, SR_CTAID.X;\n
+form block_idx_y to = \tS2R \t{to}, SR_CTAID.Y;\n
+form block_idx_z to = \tS2R \t{to}, SR_CTAID.Z;\n
+form block_dim_x to = \tMOV \t{to}, c[0x0][0x0];\n
+form block_dim_y to = \tMOV \t{to}, c[0x0][0x4];\n
+form block_dim_z to = \tMOV \t{to}, c[0x0][0x8];\n
+form grid_dim_x to = \tMOV \t{to}, c[0x0][0xc];\n
+form grid_dim_y to = \tMOV \t{to}, c[0x0][0x10];\n
+form grid_dim_z to = \tMOV \t{to}, c[0x0][0x14];\n
+form warp_size to = \tMOV \t{to}, 0x20;\n
+form parameter_load to offset = \tMOV \t{to}, c[0x0][0x160+{offset}];\n
+form parameter_load_wide to offset = \tMOV \t{to}, c[0x0][0x160+{offset}];\n\tMOV \t{to}.hi, c[0x0][0x160+{offset}+4];\n
+form test_word_below where left right = \tISETP.LT.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form exit_unless where = \t@!{where} EXIT;\n
+form wide_multiply_word_add to left right added = \tIMAD.WIDE.U32 \t{to}, {left}, {right}, {added};\n
+form global_load_word to address offset = \tLDG.E \t{to}, [{address}.64+{offset}];\n
+form global_load_wide to address offset = \tLDG.E.64 \t{to}, [{address}.64+{offset}];\n
+form global_store_wide address offset from = \tSTG.E.64 \t[{address}.64+{offset}], {from};\n
+form wide_from_signed_word to from = \tMOV \t{to}, {from};\n\tSHF.R.S32.HI \t{to}.hi, RZ, 0x1f, {from};\n
+form test_word_geq where left right = \tISETP.GE.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form exit_if where = \t@{where} EXIT;\n
+form test_word_leq where left right = \tISETP.LE.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_word_neq where left right = \tISETP.NE.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_word_identical where left right = \tISETP.EQ.U32.AND \t{where}, PT, {left}, {right}, PT;\n
