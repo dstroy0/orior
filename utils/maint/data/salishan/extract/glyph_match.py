@@ -243,4 +243,5 @@ def main():
         print('"%s": {%s},' % (name, ", ".join("0x%02X: %r" % item for item in sorted(found.items()))))
 
 
-main()
+if __name__ == "__main__":
+    main()
