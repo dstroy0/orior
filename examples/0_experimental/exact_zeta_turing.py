@@ -539,7 +539,8 @@ class Control:
 
 def run_cell(binary, constants, nu, p, method, level=0, listing=0):
     """Cell nu at 2^p points from the device, its main sum by `method`; by Euler-Maclaurin at widening `level`; with
-    `listing`, every point's sign, S, Z and w written out beside the sums, at the path the cell keeps."""
+    `listing`, every point's sign, S, Z and w written out beside the sums, at the path the cell keeps, and with
+    `listing` 2 and the multiple evaluation, each point's exp(i theta) F' / 2^shift beside them and the shift."""
     terms = em_terms(level) if method == "em" else 0
     heads = em_heads(nu, terms) if method == "em" else 0
     per_point = heads - 1 if method == "em" else nu

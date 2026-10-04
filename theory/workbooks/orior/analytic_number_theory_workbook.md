@@ -1346,6 +1346,158 @@ to be built to trap the zeros between its peaks.
   The certified zeros of ten cells place the primes and count them, to an integer's width, to 3,049.
   Reading `psi` from the zeros is Riemann's explicit formula; the reading here is Landau's, at each
   integer, from a window of zeros the engine certified itself.
+- **The twist on the device.** `F'` is the multiple evaluation again, over the same poles with `a` and
+  every charge times `-i ln k / 2^c`, `d/dt k^(-it) = -i ln k k^(-it)`, and `2^c` at least `ln nu`
+  keeps every charge at most `F`'s, inside every width that holds `F`. A twist stage turns it by
+  `exp(i theta)` beside `w`, and their ratio is `F'/F`: the twist `(arg F)'` its imaginary part, the
+  swell `(ln |F|)'` its real part, at every point (`exact_zeta_turing.cu`, listing word 2). It places no
+  point and certifies no sign.
+- **The flag from one point.** Derived: Newton's step `t* = t - F/F'` places the nearest source from a
+  single coarse point, exactly for a single pole. A source at `gamma + i delta` runs the clock back where
+  `delta < 0` and `u^2 < |delta| / theta' - delta^2`, and spins a coarse step's `pi` past it where
+  `delta > 0` and `u^2 < delta / ((r - 1) theta') - delta^2`, `r` the points a zero. A coarse step is
+  flagged where that stretch, from a source placed at either end, meets it. Nothing in the rule is
+  fitted.
+- **Measured, the twist** (`twist` mode, cells 300 to 309, the uniform lattice at 4.76 points a zero,
+  327,670 coarse steps, the 166 misses, 0 host checks failed). The device's `F'/F` against the fine
+  lattice's own differences of `w`, over `theta'`: 0.00007 at the median, 0.0017 at the 90th
+  percentile, 0.063 at the 99th, the tail where the differences fail at the dips.
+
+  | flag | steps flagged | misses caught |
+  |---|---|---|
+  | source inside the step, `\|delta\| theta' < 0.5` | 5.4% | 36 (21.7%) |
+  | the same, under 1 | 12.6% | 99 (59.6%) |
+  | the same, under 2 | 24.3% | 129 (77.7%) |
+  | the pole's own stretch | 18.8% | 165 (99.4%) |
+
+  The pole's own rule catches 165 of the 166 at 18.8% of the steps, where steps taken by lot at that
+  share catch 18.8%. The coarse lattice with `F'` at its points names the steps that can hide a pair,
+  and the fine lattice is wanted in those alone: the dip-driven control of the open list, with the
+  flag from the device.
+- **The slide.** Posit, Doug's: the miss the pole rule leaves is the ball sliding while it spins; it
+  loses its grip for a moment, and the forces decouple entirely. The slides come on extreme changes of
+  course. Rules are to be relational, one motion against another, not set at a threshold: where the
+  momentum is 1 and the angle 0, the coupling is 1. The turn at a miss is an orbital slingshot.
+  Measured, the miss left, across its two zeros: the drag 0.93 to 1.50, the clock steady; the swell
+  -6.3 to -1.1 over `theta'`, `|F|` falling from 0.147 to 0.033; the level `R / (2 |F|)` rising from
+  0.17 to 0.76 while `cos(phi)` turns through -0.71 to -0.16. The zeros are `cos(phi) = -R / (2 |F|)`,
+  and the level, driven by the falling `|F|`, sweeps across the slow phase twice. The grip `|F|` came
+  to within 0.76 of letting go.
+  Derived, the coupling: `zeta = (w'/w) / (i theta') = 1 + (F'/F) / (i theta')`, the ball's motion in
+  the carrier's units, `|zeta|` its momentum and `arg zeta` its course off the tangent. `zeta = 1` is
+  the ball rolling with the carrier, the coupling whole. Running back is `Re zeta < 0`, the spin past
+  is `|zeta|` past the points a zero, the slide is `arg zeta` near a right angle, and at a source
+  `|zeta|` runs to infinity, the forces decoupled. Its distance from 1 is the surface's whole share,
+  `(F'/F) / (i theta')`, from the device at every point.
+  Derived, the slingshot: near a source `F ~ c (t - t*)`, and the pass turns `arg F` by `pi` whatever
+  the miss distance `|delta|`, at a rate `1 / |delta|` at its closest, `|F| = |c| |delta|`. A pass
+  against the carrier inside `1 / theta'` turns the ball back for a moment; one with it throws the
+  ball forward.
+- **Measured, the coupling and the course** (`twist` mode, the same cells and misses, 0 host checks
+  failed). At every 97th fine point and, for each miss, at its dip and at its farthest `zeta` across
+  its zeros:
+
+  | reading | every point | the misses |
+  |---|---|---|
+  | course off the tangent, median | 23.7 degrees | 89.0 degrees |
+  | course past 60 degrees | 16.8% | 97.0% |
+  | `\|zeta - 1\|`, median | 0.543 | 1.510 |
+  | `Re zeta < 0`, the clock back | 8.8% | 93.4% |
+  | `\|arg zeta\|` past 60 degrees | 16.8% | 95.2% |
+
+  At the bottom of a miss the ball moves straight in or out, the turn of the slingshot, where the
+  clock passes through zero and the swell is all the motion left.
+- **Measured, the flags against each other**, of 327,670 coarse steps:
+
+  | flag | steps flagged | misses caught |
+  |---|---|---|
+  | Hermite, the cubic through `Z` and `Z' = 2 Re(w (i theta' + F'/F))` at the step's two ends | 165 | 165 (99.4%) |
+  | the pole's model, `F` linear through its source and the carrier at `theta'` | 10,526 | 141 (84.9%) |
+  | the pole's own stretch | 61,455 | 165 (99.4%) |
+  | the pole's stretch or Hermite | 61,456 | 166 (100%) |
+
+  The Hermite flag reads the spin and the slide alike through `Z'`: of its 165 flagged steps, 165 hold
+  a miss, and it leaves one miss. `R'` is left out of `Z'`.
+  The miss it leaves is a Lehmer pair: its two zeros in neighboring fine steps, `|F|` 0.53 and the
+  grip whole, the level 0.048, and the clock stopped at its turn, `zeta = -0.03 + 0.24 i`, with
+  `cos(phi) = -0.048` on the level. `Z` touches the axis and leaves it, a dip too shallow for a cubic
+  through the ends, and the pole's stretch holds it.
+- **The pair as a figure.** Posit, Doug's: the ball, centered on its triangular plane and twisting with
+  a slight downward momentum, gives the triangle a large moment in a downward twist, the first zero;
+  its inertia carries it through the turn, the ball traces a rough figure eight, and the plane inverts
+  again, the second zero; then the ball's twist comes back into line, it has angular momentum again,
+  and the inversions settle. The figure eight is a Möbius strip: the ball still moves through space
+  and never over its own path, which would break the fractal.
+  Derived, the strip: in space-time, `(Re w, Im w, t)`, `t` only rises and the track is a ribbon about
+  the `t` axis that never meets itself; a crossing in the plane of `w` is its shadow. A pass by a source
+  turns `arg F` by `pi` whatever its miss distance, the Lorentzian's area, and the frame the ball
+  carries leaves the pass turned over: a half twist, `cos(phi)` changing sign with it. A source with
+  `delta < 0` twists against the carrier, with `delta > 0` with it, and a half twist each way leaves
+  the frame as it was.
+  Derived: the moment of inertia is `|w|^2 = |F|^2`, the angular momentum `L = Im(conj(w) w') =
+  |F|^2 phi'`. The pair is `phi` crossing the level, `L` falling through 0, `phi` crossing back, and
+  `L` rising again: the signs `+ - +`. `w = exp(i theta) F` is a deferent carrying a sum of epicycles
+  `n^(-1/2) exp(-i t ln n)`, and where the epicycles outrun the deferent the track runs retrograde,
+  the loops of a planet's apparent path (from knowledge). In the phase portrait `(Z, Z')` the track
+  turns one way, and a turn the other way wants `Z` and `Z''` of one sign, a turning point on the
+  wrong side of zero: a figure eight there and a wiggle are one event.
+- **Measured, the figure** (`twist` mode, the same cells; each miss over its steps and one step each
+  side, against 600 windows three steps long placed by lot):
+
+  | reading | the misses, 166 | by lot, 600 |
+  |---|---|---|
+  | the track crosses itself, in `w` | 2.4% | 0.0% |
+  | the same, in `F`, the frame turning with the carrier | 0.0% | 0.2% |
+  | the same, in `(Z, Z' / theta')` | 0.0% | 0.0% |
+  | `L`'s signs `- +` or `+ -`, part of a turn in the window | 74.0% | 14.8% |
+  | `L`'s signs `+ - +`, the whole turn | 19.3% | 3.3% |
+  | `L` of one sign, `+` | 6.6% | 81.7% |
+
+  The momentum is handed off and taken back at the misses, `L` turning in 93% of them against 18% by
+  lot. The inversion is a hairpin: the ball folds back over its track without crossing it, `|F|`
+  changing as it turns, and a true loop shows in `w` at 4 of the 166. The figure eight in the phase
+  portrait does not occur, the same count as the turning points of the trap, none on the wrong side of
+  zero; for `Xi` its absence is the Laguerre-Polya property RH gives (from knowledge).
+- **Measured, the half twist** (`twist` mode, the same cells, 0 host checks failed). At each minimum of
+  `|F|` Newton's step places the source, and the device's twist summed over `u` in
+  `[-3 |delta|, 3 |delta|]` is read against the single pass's `2 atan(3) sign(delta)`, about `0.80 pi`:
+
+  | `\|delta\| theta'` | passes | the turn over the single pass's, 10 / 50 / 90 | its sign `delta`'s |
+  |---|---|---|---|
+  | under 0.25 | 5,885 | 0.82 / 1.10 / 1.24 | 100.0% |
+  | 0.25 to 0.5 | 6,773 | 0.60 / 1.30 / 1.47 | 100.0% |
+  | 0.5 to 1 | 8,255 | 0.21 / 1.53 / 1.82 | 97.8% |
+
+  The side of the source sets the way of the half twist: all 12,658 passes within `0.5 / theta'` of the
+  line turn as `delta`'s sign says. The sharpest turn the single pass's half twist, within a tenth at
+  the median, and the wider gather more, the window `6 |delta|` taking in the neighbors' twist, and the
+  excess runs the same way as the pass's own. Whether near sources lie on one side is open.
+- **The slip at the crossover.** Posit, Doug's: the small miss is the ball slipping on the figure eight.
+  There the ball is ruled by its center of mass, any perturbation can send it either way, and the
+  field is noisy: noise is the dominant decider.
+  Derived: the strip is edge-on where `cos(phi) = 0`, a quarter turn, and a stall is `phi' = 0`,
+  `zeta` at its smallest. A ball stalled at the edge has no momentum to carry it, and whether `Z`
+  crosses, and how far, is set by the smallest terms present: the level `R / (2 |F|)`, the far field of
+  the other sources, and the device's bound. The noise is not drawn; it is `R`, known exactly, and its
+  kind is the primes'.
+- **Measured, the slip** (`twist` mode, the same cells; at each miss's dip, the slip `|Z| / (2 |F|)`, how
+  far past the level the ball goes, against the level `|R| / (2 |F|)`, `cos(phi)` and the drag). The
+  slip runs 0.0039 / 0.0209 / 0.0989 at the 10th, 50th and 90th percentiles.
+
+  | | the shallowest quarter | the deepest quarter |
+  |---|---|---|
+  | `\|cos(phi)\|`, median, 0 edge-on | 0.016 | 0.106 |
+  | `\|drag\|`, median, 0 stalled | 0.005 | 0.265 |
+  | the zeros apart, fine steps, median | 6 | 10 |
+  | the level `\|R\| / (2 \|F\|)`, median | 0.014 | 0.094 |
+  | the slip over the level, median | 0.37 | 1.07 |
+
+  The eight shallowest: the slip 0.00022 to 0.00175, `|cos(phi)|` 0.010 to 0.049, the drag within
+  0.022 of zero, the zeros 0 to 3 fine steps apart, and the level 0.009 to 0.049, past the slip 10 to
+  220 times. The shallow pairs are the ball stalled edge-on, and the remainder `R`, a few hundredths of
+  `2 |F|`, decides them; in the deep pairs the slip and the level are alike. At the shallowest, `|Z|`
+  at the dip is `2.3e-4`, past the bound on `Z` there, about `6e-6`: the device certifies its sign,
+  and what decides the pair is `R`, not the arithmetic.
 
 **What it is not.** A map of where the coarse lattice loses zeros, against the fine lattice's count.
 Every zero it places is certified by entry 15's machine. It claims nothing about the hypothesis.
