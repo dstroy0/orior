@@ -1498,6 +1498,27 @@ to be built to trap the zeros between its peaks.
   `2 |F|`, decides them; in the deep pairs the slip and the level are alike. At the shallowest, `|Z|`
   at the dip is `2.3e-4`, past the bound on `Z` there, about `6e-6`: the device certifies its sign,
   and what decides the pair is `R`, not the arithmetic.
+- **The flag in the machine.** Derived: a run of one sign between two certified points is certified
+  again only where the Hermite flag trips on one of its steps, at eight times the points, by the pairs
+  at the points listed (the device's method 4, `refine` in entry 15's machine). The flag chooses where
+  to look and certifies nothing; each zero it adds lies between two certified fine points, and the
+  sums take the earlier one's `x^2` rounded down to the cell's lattice and the later one's rounded up,
+  which leaves both of Turing's bounds bounds. A pair the flag leaves makes its cell short, and the
+  cell runs again on the whole lattice four times finer, as before.
+- **Measured, the machine with the flag** (cells 300 to 309, 2^15 points a cell, 0 host checks
+  failed):
+
+  | | the transform alone | with the flag |
+  |---|---|---|
+  | runs flagged, points listed | | 165, 1,155 |
+  | zeros certified at round 0 | 55,552 | 55,830 |
+  | rounds of reruns | 2 | 1 |
+  | zeros certified in `(T_a, T_b]` | 55,830 | 55,830 |
+  | time | 73 s | 64 s |
+
+  The 165 runs hold 330 zeros, a pair each. The miss the flag leaves, the Lehmer pair at
+  `t = 599943.38`, lies past `T_b = 599924.82`. One cell is short at round 0 with every zero
+  certified: Turing's bounds there want the finer lattice, and the rerun closes it.
 
 **What it is not.** A map of where the coarse lattice loses zeros, against the fine lattice's count.
 Every zero it places is certified by entry 15's machine. It claims nothing about the hypothesis.
