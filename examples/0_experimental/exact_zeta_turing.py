@@ -9,6 +9,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_zeta_turing.py <binary> [first] [last] [rate] [pairs|transform|both]
 #           python examples/0_experimental/exact_zeta_turing.py <binary> [first] [last] [rate] em
+#           python examples/0_experimental/exact_zeta_turing.py <binary> [first] [last] [rate] refine
 #
 # For each run of the device it writes the device's input to a file in a temporary directory and reads the device's
 # output back.
@@ -78,6 +79,13 @@
 # an F where N is not held to one value, are run again on a lattice four times finer, and the counts are taken again. Where every cell closes, every zero from the second
 # cell's F to the last cell's is a certified sign change: on the line, and simple.
 #
+# With refine, each cell runs by the multiple evaluation with F', and Z' = 2 Re(exp(i theta) F (i theta' + F'/F)) at
+# every point. A run of one sign between two certified points is flagged where the cubic through Z and Z' at some
+# step's two ends changes sign inside it, and only the flagged runs are certified again, at 2^REFINE_BITS times the
+# points, by pairs at the points listed (the device's method 4). The flag chooses where to look; every zero it adds
+# is a certified sign change, held between two certified points, and the cell's fallback is still the whole lattice
+# four times finer.
+#
 # Positive control: the device's Z at two points of the first cell against the house's main sum and remainder,
 # exact_zeta_riemann_siegel's rs_cut_at; by Euler-Maclaurin, against its em_at, and at cell `last` against
 # Riemann-Siegel's Z within the two bounds.
@@ -115,7 +123,7 @@ ORDER = 28
 BETA = 4
 E1_TERMS = 48
 SINC_TERMS = 18
-METHODS = {"pairs": 0, "transform": 1, "both": 2, "em": 3}
+METHODS = {"pairs": 0, "transform": 1, "both": 2, "em": 3, "points": 4}
 PI_LOW = Fraction(314159265, 100000000)
 PI_HIGH = Fraction(314159266, 100000000)
 LN_TWO_HIGH = Fraction(693148, 1000000)
@@ -539,7 +547,8 @@ class Control:
 
 def run_cell(binary, constants, nu, p, method, level=0, listing=0):
     """Cell nu at 2^p points from the device, its main sum by `method`; by Euler-Maclaurin at widening `level`; with
-    `listing`, every point's sign, S, Z and w written out beside the sums, at the path the cell keeps."""
+    `listing`, every point's sign, S, Z and w written out beside the sums, at the path the cell keeps, and with
+    `listing` 2 and the multiple evaluation, each point's exp(i theta) F' / 2^shift beside them and the shift."""
     terms = em_terms(level) if method == "em" else 0
     heads = em_heads(nu, terms) if method == "em" else 0
     per_point = heads - 1 if method == "em" else nu
@@ -576,6 +585,162 @@ def run_cell(binary, constants, nu, p, method, level=0, listing=0):
         cell = Cell(nu, p, [line for line in handle if not line.startswith("point")])
     cell.path = taken
     return cell, bound
+
+
+def run_points(binary, constants, nu, p, js):
+    """The certified signs of Z at the points j of cell nu's lattice of 2^p, by pairs at those points alone: each
+    point's sign and S, in the order listed. The list is padded with its last point to a whole number of pieces; a
+    point repeated changes no sign."""
+    piece = 1
+    while piece * 2 <= len(js) and piece * 2 * nu < 1 << LANE_BITS:
+        piece *= 2
+    listed = list(js) + [js[-1]] * ((-len(js)) % piece)
+    bound, theta_bound = bounds(nu, constants.slope, p, "pairs")
+    folder = tempfile.mkdtemp(prefix="turing_")
+    given, taken = os.path.join(folder, "in.bin"), os.path.join(folder, "out.txt")
+    with open(given, "wb") as handle:
+        array.array("q", (len(listed), min(CHECKED, piece), nu, p, ARTANH_TERMS, COS_TERMS, GAMMA_TERMS, NEWTON_STEPS,
+                          piece, METHODS["points"], ORDER, BETA, E1_TERMS, SINC_TERMS, 0, 0, 1)).tofile(handle)
+        for v in ([constants.ln2] + constants.gamma + constants.artanh + constants.cosine +
+                  [constants.c96, bound, theta_bound, constants.pi_scaled] + constants.fact + constants.sinc):
+            put(handle, v)
+        array.array("q", listed).tofile(handle)
+    for attempt in range(2):
+        ran = subprocess.run([binary, given, taken], capture_output=True, text=True,
+                             env=dict(os.environ, CYCLE_RECORD_KEEP_PTX="1"))
+        if not ran.returncode:
+            break
+        print(ran.stdout.strip()[-2000:])
+        print(ran.stderr.strip()[-2000:])
+        print("  cell %d, %d listed points at 2^%d: the device run failed, attempt %d" % (nu, len(js), p, attempt + 1))
+    if ran.returncode:
+        raise SystemExit("  cell %d, %d listed points at 2^%d: the device run failed" % (nu, len(js), p))
+    signs, failed = [], 0
+    with open(taken) as handle:
+        for line in handle:
+            if line.startswith("point"):
+                sign, big_s = (int(v, 16) for v in line.split()[1:3])
+                signs.append((sign, big_s))
+            elif line.startswith("host"):
+                failed = sum(1 for v in line.split()[1:] if v != "1")
+    os.remove(taken)
+    return signs[:len(js)], failed
+
+
+REFINE_BITS = 3
+
+
+def hermite_turns(z0, z1, d0, d1, h, samples=32):
+    """Whether the cubic through Z and Z' at a step's two ends, h apart, changes sign inside it while its ends hold
+    one sign. A cubic lies in the hull of its Bezier points: where all four hold the ends' sign it does not turn."""
+    if (z0 > 0) != (z1 > 0):
+        return False
+    m0, m1 = d0 * h, d1 * h
+    if ((z0 + m0 / 3) > 0) == (z0 > 0) and ((z1 - m1 / 3) > 0) == (z0 > 0):
+        return False
+    for k in range(1, samples):
+        s = k / samples
+        value = ((2 * s ** 3 - 3 * s ** 2 + 1) * z0 + (s ** 3 - 2 * s ** 2 + s) * m0 + (-2 * s ** 3 + 3 * s ** 2) * z1 +
+                 (s ** 3 - s ** 2) * m1)
+        if (value > 0) != (z0 > 0):
+            return True
+    return False
+
+
+def pole_passes(source, clock, rate):
+    """The stretch of t where a single pole at `source` = gamma + i delta passes the clock: its twist below -theta'
+    where delta < 0, past (rate - 1) theta' where delta > 0; None where it does not."""
+    delta = source.imag
+    if delta < 0.0:
+        room = -delta / clock - delta * delta
+    elif rate > 1.0:
+        room = delta / ((rate - 1.0) * clock) - delta * delta
+    else:
+        room = -1.0
+    if room <= 0.0:
+        return None
+    half = math.sqrt(room)
+    return source.real - half, source.real + half
+
+
+def flagged_spans(cell, pole=False):
+    """The spans of a cell listed with the twist that can hide a pair: each run between two consecutive certified
+    points of one sign, past F, holding a step where the cubic through Z and Z' at its ends turns, or with `pole`,
+    where the stretch a single pole placed by Newton's step from either end passes the clock meets it.
+    Z' = 2 Re(w (i theta' + F'/F)), R's slope left out. The flags choose where to look again; the count certifies
+    whatever they choose."""
+    unit = float(1 << SCALE_BITS)
+    shift, rows = 0, []
+    with open(cell.path) as handle:
+        for line in handle:
+            if line.startswith("twist"):
+                shift = int(line.split()[1])
+            elif line.startswith("point"):
+                sign, big_s, z, re, im, dre, dim = (int(v, 16) for v in line.split()[1:8])
+                rows.append((sign, big_s, z / unit, complex(re / unit, im / unit),
+                             complex(dre / unit, dim / unit) * (1 << shift)))
+    rate = (1 << cell.p) / rises(cell.nu)
+    held = [j for j in range(cell.first, len(rows)) if rows[j][0] != 0]
+    out = []
+
+    def at(j):
+        x2 = rows[j][1] / float(1 << cell.p)
+        t, clock = 2 * math.pi * x2, 0.5 * math.log(x2)
+        w, turned = rows[j][3], rows[j][4]
+        ratio = turned / w if abs(w) else 0j
+        slope = 2 * (complex(0, clock) * w + turned).real
+        return t, clock, ratio, slope
+
+    for a, b in zip(held, held[1:]):
+        if rows[a][0] != rows[b][0]:
+            continue
+        hit = False
+        for k in range(a, b):
+            t0, clock, ratio0, slope0 = at(k)
+            t1, _, ratio1, slope1 = at(k + 1)
+            if hermite_turns(rows[k][2], rows[k + 1][2], slope0, slope1, t1 - t0):
+                hit = True
+                break
+            for t_end, ratio in ((t0, ratio0), (t1, ratio1)):
+                if ratio == 0j or not pole:
+                    continue
+                span = pole_passes(t_end - 1.0 / ratio, clock, rate)
+                if span is not None and span[0] <= t1 and span[1] >= t0:
+                    hit = True
+            if hit:
+                break
+        if hit:
+            out.append((a, b, rows[a][0], rows[a][1], rows[b][1]))
+    return out
+
+
+def refine(binary, constants, cell, spans):
+    """The pairs the flagged spans hide, certified at the lattice 2^REFINE_BITS times finer by the listed points, and
+    taken into the cell's sums past F. Each zero lies between two certified fine points, and the sums take the earlier
+    point's S rounded down to the cell's lattice and the later one's rounded up: a later point than the zero's makes
+    N's upper bound looser and an earlier one its lower bound, both still bounds. Returns the points listed, the zeros
+    added and the host checks that failed."""
+    if not spans:
+        return 0, 0, 0
+    fine_p = cell.p + REFINE_BITS
+    js, ranges = [], []
+    for a, b, sign, s_a, s_b in spans:
+        low = len(js)
+        js.extend(range((a << REFINE_BITS) + 1, b << REFINE_BITS))
+        ranges.append((low, len(js)))
+    signs, failed = run_points(binary, constants, cell.nu, fine_p, js)
+    added = 0
+    for (a, b, sign, s_a, s_b), (low, high) in zip(spans, ranges):
+        # the certified signs and fine S from a to b in order, a's and b's alike; each change is a zero
+        run = ([(sign, s_a << REFINE_BITS)] + [(s, big_s) for s, big_s in signs[low:high] if s != 0] +
+               [(sign, s_b << REFINE_BITS)])
+        for (u, s_u), (v, s_v) in zip(run, run[1:]):
+            if u != v:
+                cell.sums["zeros_after"] += 1
+                cell.sums["zeros_p_after"] += s_u >> REFINE_BITS
+                cell.sums["zeros_q_after"] += -(-s_v >> REFINE_BITS)
+                added += 1
+    return len(js), added, failed
 
 
 def ln_high(t):
@@ -726,13 +891,26 @@ def main():
     last = int(sys.argv[3]) if len(sys.argv) > 3 else 20
     rate = int(sys.argv[4]) if len(sys.argv) > 4 else 4
     method = sys.argv[5] if len(sys.argv) > 5 else "pairs"
-    if 2 * first * first <= 168 or last < first + 2 or method not in METHODS:
+    if 2 * first * first <= 168 or last < first + 2 or (method not in METHODS and method != "refine"):
         raise SystemExit("  the first cell must start past t = 168 pi, at nu = 10 or above, three cells are the least, "
-                         "and the method is one of %s" % ", ".join(METHODS))
+                         "and the method is one of %s or refine" % ", ".join(METHODS))
     sys.stdout.reconfigure(line_buffering=True)
     constants = Constants()
     control_ = Control() if rate == 0 else None
     cells = {}
+
+    def fetch(nu, p):
+        """Cell nu at 2^p points by the method asked; with refine, by the multiple evaluation with the twist, and the
+        flagged spans certified again at the finer lattice by the listed points."""
+        if method != "refine":
+            return run_cell(binary, constants, nu, p, method)
+        cell, bound = run_cell(binary, constants, nu, p, "transform", listing=2)
+        spans = flagged_spans(cell)
+        os.remove(cell.path)
+        listed, added, failed = refine(binary, constants, cell, spans)
+        cell.failed += failed
+        cell.refined = (len(spans), listed, added)
+        return cell, bound
 
     def shortfall(nu):
         """The zeros cell nu misses, from N held at its F and the next cell's: 0 where it closes."""
@@ -742,7 +920,7 @@ def main():
 
     def timed(nu, p):
         began = time.time()
-        cell, bound = run_cell(binary, constants, nu, p, method)
+        cell, bound = fetch(nu, p)
         if control_:
             control_.timing(p, time.time() - began)
         return cell, bound
@@ -761,6 +939,9 @@ def main():
               (nu, cells[nu].p, bound / 2 ** SCALE_BITS, cells[nu].first, cells[nu].sums["zeros_after"],
                cells[nu].sums["loose"], "; c %.3f, a run %.2f s at 2^%d" %
                (float(control_.c()), control_.timed[-1][1], cells[nu].p) if control_ else ""))
+        if method == "refine":
+            print("    %d spans flagged, %d points listed at 2^%d, %d zeros found in them" %
+                  (cells[nu].refined[0], cells[nu].refined[1], cells[nu].p + REFINE_BITS, cells[nu].refined[2]))
         if cells[nu].apart:
             print("    the transform's Z and the pairs' differ by %.3e at most, at point %d" %
                   (cells[nu].apart[0] / 2 ** SCALE_BITS, cells[nu].apart[1]))
@@ -779,7 +960,7 @@ def main():
         coarse = set(short) | {m for nu in loose for m in (nu - 1, nu, nu + 1) if first <= m <= last}
         for nu in sorted(coarse):
             if cells[nu].p + 2 <= FINEST and not control_:
-                cells[nu], _ = run_cell(binary, constants, nu, cells[nu].p + 2, method)
+                cells[nu], _ = fetch(nu, cells[nu].p + 2)
             elif control_ and cells[nu].p < FINEST:
                 cells[nu], _ = timed(nu, control_.choose(nu, cells[nu].p))
     failed = sum(cell.failed for cell in cells.values())
