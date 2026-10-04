@@ -41,7 +41,7 @@ static SimRational matching_polynomial(const std::vector<SimRational> &values, S
 }
 
 // int_0^a of the product of the polynomials, each list the coefficients in X, times X^lift
-static AtomForm matching_core_integral(const std::vector<const std::vector<SimRational> *> &factors, unsigned int lift,
+static TermForm matching_core_integral(const std::vector<const std::vector<SimRational> *> &factors, unsigned int lift,
                                        SimRational inner)
 {
     unsigned int total = lift + 1u;
@@ -152,7 +152,7 @@ typedef struct
     SimRational eta;
     SimRational twice;
     SimRational width;
-    AtomForm exterior_factor;
+    TermForm exterior_factor;
     std::vector<SimRational> swirl;
     std::vector<SimRational> swirl_eta;
     std::vector<SimRational> axial;
@@ -180,17 +180,17 @@ static BlendField matching_in_s(const BlendPlace *place, const std::vector<SimRa
 }
 
 // F_ext and F_ext_eta about the place: k w(z) and (4 eta / (2d)) k ((1 + h) w + z w'), z = X / (2d)
-static void matching_exterior(const MatchingContext *context, const BlendPlace *place, AtomBook *book, BlendField *value,
+static void matching_exterior(const MatchingContext *context, const BlendPlace *place, TermBook *book, BlendField *value,
                               BlendField *slope)
 {
     const MatchingRequest *const request = context->request;
     const SimRational at = matching_add(request->inner, matching_times(context->width, place->center));
     const SimRational point = matching_over(at, context->twice);
-    const std::string name = atom_book_rational(point);
-    const unsigned int value_atom = atom_book_id(book, "w(" + name + ")");
-    const unsigned int slope_atom = atom_book_id(book, "w'(" + name + ")");
+    const std::string name = term_book_rational(point);
+    const unsigned int value_term = term_book_id(book, "w(" + name + ")");
+    const unsigned int slope_term = term_book_id(book, "w'(" + name + ")");
     const unsigned int terms = place->terms + 1u;
-    const TaylorSeries kummer = ode_series_kummer(point, request->h, terms, value_atom, slope_atom);
+    const TaylorSeries kummer = ode_series_kummer(point, request->h, terms, value_term, slope_term);
     std::vector<SimRational> line(terms, matching_word(0ll, 1ll));
     line[0] = point;
     if (terms > 1u)
@@ -214,7 +214,7 @@ static void matching_exterior(const MatchingContext *context, const BlendPlace *
     *slope = blend_field_smooth(place, slope_series);
 }
 
-void matching_at(const MatchingRequest *request, SimRational eta, AtomBook *book, MatchingFunctions *functions)
+void matching_at(const MatchingRequest *request, SimRational eta, TermBook *book, MatchingFunctions *functions)
 {
     const EtaShape *const shape = &request->shape;
     const SimRational one = matching_word(1ll, 1ll);
@@ -233,12 +233,12 @@ void matching_at(const MatchingRequest *request, SimRational eta, AtomBook *book
     context.eta = eta;
     context.twice = matching_times(matching_word(2ll, 1ll), d);
     context.width = matching_less(b, a);
-    const unsigned int root = atom_book_id(book, "2^(-1/2)");
-    const unsigned int spread = atom_book_id(book, "(" + atom_book_rational(context.twice) + ")^(-h)");
-    const unsigned int reach = atom_book_id(book, "(" + atom_book_rational(b) + ")^(-h)");
+    const unsigned int root = term_book_id(book, "2^(-1/2)");
+    const unsigned int spread = term_book_id(book, "(" + term_book_rational(context.twice) + ")^(-h)");
+    const unsigned int reach = term_book_id(book, "(" + term_book_rational(b) + ")^(-h)");
     // k = (c / sqrt 2) (2d)^(-1-h)
     context.exterior_factor =
-        atom_form_scaled(atom_form_product(atom_form_atom(root), atom_form_atom(spread)), matching_over(c, context.twice));
+        term_form_scaled(term_form_product(term_form_term(root), term_form_term(spread)), matching_over(c, context.twice));
     context.swirl = core_series_at(shape, request->series->swirl, eta);
     context.swirl_eta = core_series_at(shape, request->series->swirl_slope, eta);
     context.axial = core_series_at(shape, request->series->axial, eta);
@@ -259,28 +259,28 @@ void matching_at(const MatchingRequest *request, SimRational eta, AtomBook *book
     const SimRational flux_a = matching_times(a, matching_polynomial(inflow, a));
     const SimRational pressure_a = matching_polynomial(pressure, a);
     const SimRational pressure_eta_a = matching_polynomial(pressure_eta, a);
-    const std::string end_name = atom_book_rational(matching_over(b, context.twice));
+    const std::string end_name = term_book_rational(matching_over(b, context.twice));
     // F, F_X, U and U_X at X_a and X_b, taken from the fields at the two ends
-    AtomForm f_a;
-    AtomForm f_x_a;
-    AtomForm u_a;
-    AtomForm u_x_a;
-    AtomForm f_b;
-    AtomForm f_x_b;
-    AtomForm u_b;
-    AtomForm u_x_b;
+    TermForm f_a;
+    TermForm f_x_a;
+    TermForm u_a;
+    TermForm u_x_a;
+    TermForm f_b;
+    TermForm f_x_b;
+    TermForm u_b;
+    TermForm u_x_b;
     int ends = 1;
     // the weight and the content switched off leave the core alone on the annulus
     const SimRational blend = request->blended ? one : matching_word(0ll, 1ll);
 
     // the annulus, place by place
-    AtomForm torque_sum;
-    AtomForm force_sum;
-    AtomForm m_sum;
-    AtomForm i_sum;
-    AtomForm j_sum;
-    AtomForm s_sum;
-    AtomForm c_sum;
+    TermForm torque_sum;
+    TermForm force_sum;
+    TermForm m_sum;
+    TermForm i_sum;
+    TermForm j_sum;
+    TermForm s_sum;
+    TermForm c_sum;
     const std::vector<BlendPlace> places = blend_field_places(&request->pieces, book);
     for (const BlendPlace &place : places)
     {
@@ -361,70 +361,70 @@ void matching_at(const MatchingRequest *request, SimRational eta, AtomBook *book
         const BlendField force_field = blend_field_sum(
             blend_field_difference(blend_field_sum(t_u, blend_field_product(u, z_u)), blend_field_product(flux_slope, u)),
             pressure_field);
-        torque_sum = atom_form_sum(torque_sum, blend_field_integral(torque_field, book));
-        force_sum = atom_form_sum(force_sum, blend_field_integral(force_field, book));
-        m_sum = atom_form_sum(m_sum, blend_field_integral(u, book));
-        i_sum = atom_form_sum(i_sum, blend_field_integral(blend_field_scaled(x_f, matching_word(2ll, 1ll)), book));
-        j_sum = atom_form_sum(j_sum, blend_field_integral(blend_field_scaled(blend_field_product(u, x_f), matching_word(2ll, 1ll)), book));
-        s_sum = atom_form_sum(s_sum, blend_field_integral(blend_field_difference(blend_field_product(u, u),
+        torque_sum = term_form_sum(torque_sum, blend_field_integral(torque_field, book));
+        force_sum = term_form_sum(force_sum, blend_field_integral(force_field, book));
+        m_sum = term_form_sum(m_sum, blend_field_integral(u, book));
+        i_sum = term_form_sum(i_sum, blend_field_integral(blend_field_scaled(x_f, matching_word(2ll, 1ll)), book));
+        j_sum = term_form_sum(j_sum, blend_field_integral(blend_field_scaled(blend_field_product(u, x_f), matching_word(2ll, 1ll)), book));
+        s_sum = term_form_sum(s_sum, blend_field_integral(blend_field_difference(blend_field_product(u, u),
                                                                                 blend_field_product(x, f_square)), book));
-        c_sum = atom_form_sum(c_sum, blend_field_integral(flux_slope, book));
+        c_sum = term_form_sum(c_sum, blend_field_integral(flux_slope, book));
     }
     const SimRational w = context.width;
 
     // the core on [0, X_a]
-    const AtomForm m_core = matching_core_integral({&context.axial}, 0u, a);
-    const AtomForm i_core = atom_form_scaled(matching_core_integral({&context.swirl}, 1u, a), matching_word(2ll, 1ll));
-    const AtomForm j_core =
-        atom_form_scaled(matching_core_integral({&context.axial, &context.swirl}, 1u, a), matching_word(2ll, 1ll));
-    const AtomForm s_core = atom_form_difference(matching_core_integral({&context.axial, &context.axial}, 0u, a),
+    const TermForm m_core = matching_core_integral({&context.axial}, 0u, a);
+    const TermForm i_core = term_form_scaled(matching_core_integral({&context.swirl}, 1u, a), matching_word(2ll, 1ll));
+    const TermForm j_core =
+        term_form_scaled(matching_core_integral({&context.axial, &context.swirl}, 1u, a), matching_word(2ll, 1ll));
+    const TermForm s_core = term_form_difference(matching_core_integral({&context.axial, &context.axial}, 0u, a),
                                                  matching_core_integral({&context.swirl, &context.swirl}, 1u, a));
 
     // the torque: w int + V(X_b) X_b F(X_b) - V_a X_a F(X_a) - 2 (X_b^2 F_X(X_b) - X_a^2 F_X(X_a))
-    const AtomForm flux_b = atom_form_sum(atom_form_rational(flux_a), atom_form_scaled(c_sum, w));
-    AtomForm torque = atom_form_scaled(torque_sum, w);
-    torque = atom_form_sum(torque, atom_form_scaled(atom_form_product(flux_b, f_b), b));
-    torque = atom_form_difference(torque, atom_form_scaled(f_a, matching_times(flux_a, a)));
-    torque = atom_form_difference(torque, atom_form_scaled(f_x_b, matching_times(matching_word(2ll, 1ll), matching_times(b, b))));
-    torque = atom_form_sum(torque, atom_form_scaled(f_x_a, matching_times(matching_word(2ll, 1ll), matching_times(a, a))));
+    const TermForm flux_b = term_form_sum(term_form_rational(flux_a), term_form_scaled(c_sum, w));
+    TermForm torque = term_form_scaled(torque_sum, w);
+    torque = term_form_sum(torque, term_form_scaled(term_form_product(flux_b, f_b), b));
+    torque = term_form_difference(torque, term_form_scaled(f_a, matching_times(flux_a, a)));
+    torque = term_form_difference(torque, term_form_scaled(f_x_b, matching_times(matching_word(2ll, 1ll), matching_times(b, b))));
+    torque = term_form_sum(torque, term_form_scaled(f_x_a, matching_times(matching_word(2ll, 1ll), matching_times(a, a))));
     // the force: 2^(-1/2) (w int + L^-1 w (-4 A eta Pi_a + d Pi_eta,a) + [V U] - 2 [X U_X])
-    AtomForm force = atom_form_scaled(force_sum, w);
+    TermForm force = term_form_scaled(force_sum, w);
     const SimRational constants =
         matching_times(matching_times(l_inverse, w),
                        matching_add(matching_times(matching_times(matching_word(-4ll, 1ll), matching_times(big_a, eta)), pressure_a),
                                     matching_times(d, pressure_eta_a)));
-    force = atom_form_sum(force, atom_form_rational(constants));
-    force = atom_form_sum(force, atom_form_product(flux_b, u_b));
-    force = atom_form_difference(force, atom_form_scaled(u_a, flux_a));
-    force = atom_form_difference(force, atom_form_scaled(u_x_b, matching_times(matching_word(2ll, 1ll), b)));
-    force = atom_form_sum(force, atom_form_scaled(u_x_a, matching_times(matching_word(2ll, 1ll), a)));
-    force = atom_form_product(force, atom_form_atom(root));
+    force = term_form_sum(force, term_form_rational(constants));
+    force = term_form_sum(force, term_form_product(flux_b, u_b));
+    force = term_form_difference(force, term_form_scaled(u_a, flux_a));
+    force = term_form_difference(force, term_form_scaled(u_x_b, matching_times(matching_word(2ll, 1ll), b)));
+    force = term_form_sum(force, term_form_scaled(u_x_a, matching_times(matching_word(2ll, 1ll), a)));
+    force = term_form_product(force, term_form_term(root));
     functions->ends = ends;
     // the tails
     const SimRational square_c = matching_times(c, c);
-    const AtomForm reach_square = atom_form_product(atom_form_atom(reach), atom_form_atom(reach));
-    functions->s_tail_power = atom_form_scaled(reach_square, matching_over(square_c, matching_times(matching_word(4ll, 1ll), h)));
-    const unsigned int s_rest = atom_book_id(book, "int_(" + end_name + ")^inf (z w^2 - z^(-1-2h)) dz");
-    const AtomForm s_tail = atom_form_sum(
+    const TermForm reach_square = term_form_product(term_form_term(reach), term_form_term(reach));
+    functions->s_tail_power = term_form_scaled(reach_square, matching_over(square_c, matching_times(matching_word(4ll, 1ll), h)));
+    const unsigned int s_rest = term_book_id(book, "int_(" + end_name + ")^inf (z w^2 - z^(-1-2h)) dz");
+    const TermForm s_tail = term_form_sum(
         functions->s_tail_power,
-        atom_form_scaled(atom_form_product(atom_form_product(atom_form_atom(spread), atom_form_atom(spread)), atom_form_atom(s_rest)),
+        term_form_scaled(term_form_product(term_form_product(term_form_term(spread), term_form_term(spread)), term_form_term(s_rest)),
                          matching_times(square_c, matching_word(1ll, 2ll))));
-    const unsigned int h_rest = atom_book_id(book, "int_(" + atom_book_rational(b) + ")^inf ((" + atom_book_rational(context.twice) +
-                                                       ")^(-1-h) x w(x/(" + atom_book_rational(context.twice) + ")) - x^(-h)) dx");
+    const unsigned int h_rest = term_book_id(book, "int_(" + term_book_rational(b) + ")^inf ((" + term_book_rational(context.twice) +
+                                                       ")^(-1-h) x w(x/(" + term_book_rational(context.twice) + ")) - x^(-h)) dx");
     // sqrt 2 = 2 2^(-1/2)
-    const AtomForm square_root = atom_form_scaled(atom_form_atom(root), matching_word(2ll, 1ll));
-    const AtomForm power_part = atom_form_scaled(atom_form_product(square_root, atom_form_atom(reach)),
+    const TermForm square_root = term_form_scaled(term_form_term(root), matching_word(2ll, 1ll));
+    const TermForm power_part = term_form_scaled(term_form_product(square_root, term_form_term(reach)),
                                                  matching_over(matching_times(c, b), matching_less(one, h)));
-    const AtomForm h_tail = atom_form_scaled(atom_form_product(square_root, atom_form_atom(h_rest)), c);
+    const TermForm h_tail = term_form_scaled(term_form_product(square_root, term_form_term(h_rest)), c);
 
-    functions->torque = atom_form_square_reduced(torque, root, matching_word(1ll, 2ll));
-    functions->force = atom_form_square_reduced(force, root, matching_word(1ll, 2ll));
-    functions->m_inf = atom_form_square_reduced(atom_form_sum(m_core, atom_form_scaled(m_sum, w)), root, matching_word(1ll, 2ll));
-    functions->j_inf = atom_form_square_reduced(atom_form_sum(j_core, atom_form_scaled(j_sum, w)), root, matching_word(1ll, 2ll));
-    functions->s_inf = atom_form_square_reduced(
-        atom_form_difference(atom_form_sum(s_core, atom_form_scaled(s_sum, w)), s_tail), root, matching_word(1ll, 2ll));
-    functions->h_match = atom_form_square_reduced(
-        atom_form_sum(atom_form_difference(atom_form_sum(i_core, atom_form_scaled(i_sum, w)), power_part), h_tail), root,
+    functions->torque = term_form_square_reduced(torque, root, matching_word(1ll, 2ll));
+    functions->force = term_form_square_reduced(force, root, matching_word(1ll, 2ll));
+    functions->m_inf = term_form_square_reduced(term_form_sum(m_core, term_form_scaled(m_sum, w)), root, matching_word(1ll, 2ll));
+    functions->j_inf = term_form_square_reduced(term_form_sum(j_core, term_form_scaled(j_sum, w)), root, matching_word(1ll, 2ll));
+    functions->s_inf = term_form_square_reduced(
+        term_form_difference(term_form_sum(s_core, term_form_scaled(s_sum, w)), s_tail), root, matching_word(1ll, 2ll));
+    functions->h_match = term_form_square_reduced(
+        term_form_sum(term_form_difference(term_form_sum(i_core, term_form_scaled(i_sum, w)), power_part), h_tail), root,
         matching_word(1ll, 2ll));
 }
 

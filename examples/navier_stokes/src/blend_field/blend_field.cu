@@ -26,16 +26,16 @@ static TaylorSeries blend_field_shifted(const TaylorSeries &series, unsigned int
     {
         shifted.coefficient.push_back((index >= shift) && (index - shift < series.coefficient.size())
                                           ? series.coefficient[index - shift]
-                                          : AtomForm());
+                                          : TermForm());
     }
     return shifted;
 }
 
 static TaylorSeries blend_field_reduced(TaylorSeries series, const BlendPlace *place)
 {
-    for (AtomForm &form : series.coefficient)
+    for (TermForm &form : series.coefficient)
     {
-        form = atom_form_unit_reduced(form, place->ratio, place->share);
+        form = term_form_unit_reduced(form, place->ratio, place->share);
     }
     return series;
 }
@@ -120,7 +120,7 @@ BlendField blend_field_bump(const BlendPlace *place)
     }
     // e^(4 - 1/(tau(1-tau))) = e^(-1/tau) e^4 e^(-1/(1-tau)), the same at both ends
     const TaylorSeries rest = taylor_form_scaled(ode_series_decay_reflected(sim_rational(0ll, 1ll), place->terms),
-                                                 atom_form_e(sim_rational(4ll, 1ll)));
+                                                 term_form_e(sim_rational(4ll, 1ll)));
     blend_field_add(&field, 0u, 1u, 0u, rest);
     return field;
 }
@@ -151,7 +151,7 @@ BlendField blend_field_scaled(const BlendField &field, SimRational factor)
     return scaled;
 }
 
-BlendField blend_field_form_scaled(const BlendField &field, const AtomForm &form)
+BlendField blend_field_form_scaled(const BlendField &field, const TermForm &form)
 {
     BlendField scaled = field;
     for (std::vector<BlendFieldPiece> &part : scaled.part)
@@ -258,14 +258,14 @@ BlendField blend_field_derivative(const BlendField &field)
     return slope;
 }
 
-int blend_field_value(const BlendField &field, AtomForm *value)
+int blend_field_value(const BlendField &field, TermForm *value)
 {
-    *value = AtomForm();
+    *value = TermForm();
     if (field.place->kind == BLEND_FIELD_MIDDLE)
     {
         for (const BlendFieldPiece &piece : field.part.empty() ? std::vector<BlendFieldPiece>() : field.part[0])
         {
-            *value = atom_form_sum(*value, taylor_value(piece.series, field.place->center));
+            *value = term_form_sum(*value, taylor_value(piece.series, field.place->center));
         }
         return 1;
     }
@@ -280,7 +280,7 @@ int blend_field_value(const BlendField &field, AtomForm *value)
                 {
                     return 0;
                 }
-                *value = atom_form_sum(*value, taylor_value(piece.series, sim_rational(0ll, 1ll)));
+                *value = term_form_sum(*value, taylor_value(piece.series, sim_rational(0ll, 1ll)));
             }
         }
     }
@@ -298,17 +298,17 @@ static long long blend_field_choose(long long top, long long bottom)
     return value;
 }
 
-AtomForm blend_field_integral(const BlendField &field, AtomBook *book)
+TermForm blend_field_integral(const BlendField &field, TermBook *book)
 {
     const BlendPlace *const place = field.place;
-    AtomForm sum;
+    TermForm sum;
     if (place->kind == BLEND_FIELD_MIDDLE)
     {
         for (const BlendFieldPiece &piece : field.part.empty() ? std::vector<BlendFieldPiece>() : field.part[0])
         {
-            sum = atom_form_sum(sum, taylor_integral(piece.series, place->low, place->high));
+            sum = term_form_sum(sum, taylor_integral(piece.series, place->low, place->high));
         }
-        return atom_form_unit_reduced(sum, place->ratio, place->share);
+        return term_form_unit_reduced(sum, place->ratio, place->share);
     }
     const SimRational end = (place->kind == BLEND_FIELD_LOW) ? place->high
                                                              : sim_rational_difference(sim_rational(1ll, 1ll), place->low);
@@ -326,12 +326,12 @@ AtomForm blend_field_integral(const BlendField &field, AtomBook *book)
                         s_blend_field_diverges = 1;
                         continue;
                     }
-                    sum = atom_form_sum(sum, taylor_integral(piece.series, zero, end));
+                    sum = term_form_sum(sum, taylor_integral(piece.series, zero, end));
                     continue;
                 }
                 for (size_t k = 0u; k < piece.series.coefficient.size(); k += 1u)
                 {
-                    sum = atom_form_sum(sum, atom_form_product(piece.series.coefficient[k],
+                    sum = term_form_sum(sum, term_form_product(piece.series.coefficient[k],
                                                                decay_integral_from_zero((int)k - (int)piece.pole,
                                                                                         sim_rational(piece.decay, 1ll),
                                                                                         end, book)));
@@ -350,16 +350,16 @@ AtomForm blend_field_integral(const BlendField &field, AtomBook *book)
                 const TaylorSeries rise =
                     taylor_rational(zero, ode_series_first(rise_p, rise_q, zero, (unsigned int)piece.series.coefficient.size()));
                 const TaylorSeries product = taylor_product(rise, piece.series);
-                AtomForm part;
+                TermForm part;
                 for (size_t k = 0u; k < product.coefficient.size(); k += 1u)
                 {
-                    part = atom_form_sum(part, atom_form_product(product.coefficient[k],
+                    part = term_form_sum(part, term_form_product(product.coefficient[k],
                                                                  decay_integral_from_zero(
                                                                      (int)k - (int)piece.pole,
                                                                      sim_rational((long long)(order + piece.decay), 1ll),
                                                                      end, book)));
                 }
-                sum = atom_form_sum(sum, atom_form_scaled(atom_form_product(part, atom_form_e(sim_rational(order, 1ll))),
+                sum = term_form_sum(sum, term_form_scaled(term_form_product(part, term_form_e(sim_rational(order, 1ll))),
                                                           weight));
             }
         }
@@ -367,7 +367,7 @@ AtomForm blend_field_integral(const BlendField &field, AtomBook *book)
     return sum;
 }
 
-std::vector<BlendPlace> blend_field_places(const BlendPieces *pieces, AtomBook *book)
+std::vector<BlendPlace> blend_field_places(const BlendPieces *pieces, TermBook *book)
 {
     const size_t count = pieces->cuts.size();
     std::vector<BlendPlace> places;
@@ -401,13 +401,13 @@ std::vector<BlendPlace> blend_field_places(const BlendPieces *pieces, AtomBook *
     return places;
 }
 
-AtomForm blend_field_total(const BlendPieces *pieces, BlendFieldIntegrand integrand, const void *context,
-                           AtomBook *book)
+TermForm blend_field_total(const BlendPieces *pieces, BlendFieldIntegrand integrand, const void *context,
+                           TermBook *book)
 {
-    AtomForm sum;
+    TermForm sum;
     for (const BlendPlace &place : blend_field_places(pieces, book))
     {
-        sum = atom_form_sum(sum, blend_field_integral(integrand(context, &place, book), book));
+        sum = term_form_sum(sum, blend_field_integral(integrand(context, &place, book), book));
     }
     return sum;
 }

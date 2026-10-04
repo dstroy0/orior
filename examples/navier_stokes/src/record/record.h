@@ -5,10 +5,10 @@
 
 // A record is plain text. It opens with the cfg as it was read, then each form: a line "form <name> <terms>", then
 // one term per line, its coefficient as the exact numerator and denominator in decimal, "e^(<q>)" where the power of
-// e is not 0, and each atom by its name with "^<k>" where its power passes 1. Nothing is truncated; two runs that give
+// e is not 0, and each term by its name with "^<k>" where its power passes 1. Nothing is truncated; two runs that give
 // the same forms give the same bytes.
 
-#include "atom_form.h"
+#include "term_form.h"
 #include "run_cfg.h"
 
 #include <stdio.h>
@@ -18,7 +18,7 @@
 FILE *record_open(const char *cfg_path, const RunCfg *cfg, const char *member);
 
 // one form, its terms in the form's own order
-void record_form(FILE *file, const char *name, const AtomForm &form, const AtomBook *book);
+void record_form(FILE *file, const char *name, const TermForm &form, const TermBook *book);
 
 // one line of text as it is given
 void record_text(FILE *file, const char *text);

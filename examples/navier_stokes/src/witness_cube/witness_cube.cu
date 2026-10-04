@@ -19,7 +19,7 @@ static long long witness_cube_sign(unsigned int corner, unsigned int component)
 }
 
 void witness_cube_measure(WitnessSubject subject, const void *context, const SimRational *center,
-                          const SimRational *half, AtomBook *book, WitnessCube *cube)
+                          const SimRational *half, TermBook *book, WitnessCube *cube)
 {
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
@@ -38,13 +38,13 @@ void witness_cube_measure(WitnessSubject subject, const void *context, const Sim
     }
     for (unsigned int component = 0u; component < 8u; component += 1u)
     {
-        AtomForm sum;
+        TermForm sum;
         for (unsigned int corner = 0u; corner < 8u; corner += 1u)
         {
-            sum = atom_form_sum(sum, atom_form_scaled(cube->corner[corner],
+            sum = term_form_sum(sum, term_form_scaled(cube->corner[corner],
                                                       sim_rational(witness_cube_sign(corner, component), 1ll)));
         }
-        cube->component[component] = atom_form_scaled(sum, sim_rational(1ll, 8ll));
+        cube->component[component] = term_form_scaled(sum, sim_rational(1ll, 8ll));
     }
     // every slot any corner holds, in key order as the corners give it
     std::set<unsigned int> seen;
@@ -52,7 +52,7 @@ void witness_cube_measure(WitnessSubject subject, const void *context, const Sim
     cube->holding.clear();
     for (unsigned int corner = 0u; corner < 8u; corner += 1u)
     {
-        for (unsigned int slot : atom_form_slots(cube->corner[corner]))
+        for (unsigned int slot : term_form_slots(cube->corner[corner]))
         {
             if (seen.insert(slot).second)
             {
@@ -65,7 +65,7 @@ void witness_cube_measure(WitnessSubject subject, const void *context, const Sim
         unsigned int bits = 0u;
         for (unsigned int component = 0u; component < 8u; component += 1u)
         {
-            if (atom_form_holds(cube->component[component], slot))
+            if (term_form_holds(cube->component[component], slot))
             {
                 bits |= 1u << component;
             }
@@ -78,13 +78,13 @@ int witness_cube_whole(const WitnessCube *cube)
 {
     for (unsigned int corner = 0u; corner < 8u; corner += 1u)
     {
-        AtomForm rebuilt;
+        TermForm rebuilt;
         for (unsigned int component = 0u; component < 8u; component += 1u)
         {
-            rebuilt = atom_form_sum(rebuilt, atom_form_scaled(cube->component[component],
+            rebuilt = term_form_sum(rebuilt, term_form_scaled(cube->component[component],
                                                               sim_rational(witness_cube_sign(corner, component), 1ll)));
         }
-        if (!atom_form_zero(atom_form_difference(rebuilt, cube->corner[corner])))
+        if (!term_form_zero(term_form_difference(rebuilt, cube->corner[corner])))
         {
             return 0;
         }
@@ -112,28 +112,28 @@ size_t witness_cube_characters(const WitnessCube *cube, unsigned int count)
     return terms;
 }
 
-void witness_cube_record(FILE *file, const char *name, const WitnessCube *cube, const AtomBook *book)
+void witness_cube_record(FILE *file, const char *name, const WitnessCube *cube, const TermBook *book)
 {
     fprintf(file, "cube %s\ncenter", name);
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
-        fprintf(file, " %s", atom_book_rational(cube->center[axis]).c_str());
+        fprintf(file, " %s", term_book_rational(cube->center[axis]).c_str());
     }
     fprintf(file, "\nhalf");
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
-        fprintf(file, " %s", atom_book_rational(cube->half[axis]).c_str());
+        fprintf(file, " %s", term_book_rational(cube->half[axis]).c_str());
     }
     fputc('\n', file);
     for (unsigned int corner = 0u; corner < 8u; corner += 1u)
     {
-        fprintf(file, "form corner_%u %zu\n", corner, atom_form_terms(cube->corner[corner]));
-        atom_form_write(file, cube->corner[corner], book->names);
+        fprintf(file, "form corner_%u %zu\n", corner, term_form_terms(cube->corner[corner]));
+        term_form_write(file, cube->corner[corner], book->names);
     }
     for (unsigned int component = 0u; component < 8u; component += 1u)
     {
-        fprintf(file, "form component_%u %zu\n", component, atom_form_terms(cube->component[component]));
-        atom_form_write(file, cube->component[component], book->names);
+        fprintf(file, "form component_%u %zu\n", component, term_form_terms(cube->component[component]));
+        term_form_write(file, cube->component[component], book->names);
     }
     // character: the count, the components as their numbers, the term
     fprintf(file, "characters %zu\n", cube->slot.size());
@@ -147,7 +147,7 @@ void witness_cube_record(FILE *file, const char *name, const WitnessCube *cube, 
                 fprintf(file, " c%u", component);
             }
         }
-        fprintf(file, " : %s\n", atom_form_key_text(cube->slot[index], book->names).c_str());
+        fprintf(file, " : %s\n", term_form_key_text(cube->slot[index], book->names).c_str());
     }
 }
 

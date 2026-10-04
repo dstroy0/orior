@@ -14,7 +14,7 @@
 //     A (K(s_b) / tau - J(s_b) / t),   A = C^2 Pr^2 / (4 nu c),   s_b = Pr X_b / 2,
 //     K(s) = (1 + 1/s) E1(s) - e^(-s) / s,   J(s) = e^(-s) / s - E1(s),
 // with Pr = mu c / k and nu = mu / rho. Every quantity is an exact rational read from the cfg's decimals, and K and J
-// are each two terms: rational multiples of e^(-s_b) and of the atom E1(s_b). While tau <= T* / 2 the time t is at
+// are each two terms: rational multiples of e^(-s_b) and of the term E1(s_b). While tau <= T* / 2 the time t is at
 // least T* / 2, and the axis has risen by the cfg's rise once tau <= A K / (rise + 2 A J / T*), a ratio of two forms.
 // K' = -E1 / s^2 and J' = -e^(-s) / s^2 with K and J 0 at infinity: K = int_s^inf E1(t) / t^2 dt and
 // J = int_s^inf e^(-t) / t^2 dt, both above 0, the sign Proposition 21 proves.
@@ -40,28 +40,28 @@ typedef struct
     unsigned long long places;
 } AxisHeatRequest;
 
-// K(s) and J(s) as forms in e^(-s) and the atom `integral`
-static AtomForm axis_heat_kept(SimRational s, unsigned int integral)
+// K(s) and J(s) as forms in e^(-s) and the term `integral`
+static TermForm axis_heat_kept(SimRational s, unsigned int integral)
 {
     const SimRational over = sim_rational_reciprocal(s);
-    const AtomForm decay = atom_form_e(sim_rational_negative(s));
-    return atom_form_difference(atom_form_scaled(atom_form_atom(integral), sim_rational_sum(sim_rational(1ll, 1ll), over)),
-                                atom_form_scaled(decay, over));
+    const TermForm decay = term_form_e(sim_rational_negative(s));
+    return term_form_difference(term_form_scaled(term_form_term(integral), sim_rational_sum(sim_rational(1ll, 1ll), over)),
+                                term_form_scaled(decay, over));
 }
 
-static AtomForm axis_heat_before_start(SimRational s, unsigned int integral)
+static TermForm axis_heat_before_start(SimRational s, unsigned int integral)
 {
     const SimRational over = sim_rational_reciprocal(s);
-    return atom_form_difference(atom_form_scaled(atom_form_e(sim_rational_negative(s)), over),
-                                atom_form_atom(integral));
+    return term_form_difference(term_form_scaled(term_form_e(sim_rational_negative(s)), over),
+                                term_form_term(integral));
 }
 
 // 1 where every coefficient the series holds is 0
 static int axis_heat_zero(const TaylorSeries &series)
 {
-    for (const AtomForm &form : series.coefficient)
+    for (const TermForm &form : series.coefficient)
     {
-        if (!atom_form_zero(form))
+        if (!term_form_zero(form))
         {
             return 0;
         }
@@ -69,13 +69,13 @@ static int axis_heat_zero(const TaylorSeries &series)
     return 1;
 }
 
-static void axis_heat_form(ScripturaLine *line, const char *name, const AtomForm &form, const AtomBook *book,
+static void axis_heat_form(ScripturaLine *line, const char *name, const TermForm &form, const TermBook *book,
                            unsigned int places)
 {
     scriptura_text(line, "  ");
     scriptura_text(line, name);
     scriptura_text(line, " = ");
-    atom_form_print(line, form, book->names, places);
+    term_form_print(line, form, book->names, places);
     scriptura_character(line, '\n');
 }
 
@@ -130,26 +130,26 @@ int main(int count, char **arguments)
     report_line(&results.line, "s_b = Pr X_b / 2", s, "", places);
     report_line(&results.line, "A = C^2 Pr^2 / (4 nu c)", scale, " K s", places);
 
-    static AtomBook book;
-    const unsigned int integral = atom_book_id(&book, "E1(" + atom_book_rational(s) + ")");
-    const AtomForm kept = axis_heat_kept(s, integral);
-    const AtomForm before_start = axis_heat_before_start(s, integral);
+    static TermBook book;
+    const unsigned int integral = term_book_id(&book, "E1(" + term_book_rational(s) + ")");
+    const TermForm kept = axis_heat_kept(s, integral);
+    const TermForm before_start = axis_heat_before_start(s, integral);
     axis_heat_form(&results.line, "K(s_b)", kept, &book, places);
     axis_heat_form(&results.line, "J(s_b)", before_start, &book, places);
-    const AtomForm lowest = atom_form_scaled(kept, scale);
-    const AtomForm start = atom_form_scaled(before_start, scale);
+    const TermForm lowest = term_form_scaled(kept, scale);
+    const TermForm start = term_form_scaled(before_start, scale);
     axis_heat_form(&results.line, "A K(s_b), the coefficient of 1 / tau, K s", lowest, &book, places);
     axis_heat_form(&results.line, "A J(s_b), the coefficient of 1 / t, K s", start, &book, places);
     // tau <= A K / (rise + 2 A J / T*), and no later than T* / 2
-    const AtomForm below = atom_form_sum(
-        atom_form_rational(request.rise),
-        atom_form_scaled(start, sim_rational_product(two, sim_rational_reciprocal(request.singular_time))));
+    const TermForm below = term_form_sum(
+        term_form_rational(request.rise),
+        term_form_scaled(start, sim_rational_product(two, sim_rational_reciprocal(request.singular_time))));
     scriptura_text(&results.line, "  the latest tau by which the axis has risen by the cfg's rise, the lesser of T* / 2 = ");
     report_value(&results.line, sim_rational_product(request.singular_time, sim_rational_reciprocal(two)), places);
     scriptura_text(&results.line, " s and (");
-    atom_form_print(&results.line, lowest, book.names, places);
+    term_form_print(&results.line, lowest, book.names, places);
     scriptura_text(&results.line, ") / (");
-    atom_form_print(&results.line, below, book.names, places);
+    term_form_print(&results.line, below, book.names, places);
     scriptura_text(&results.line, ") s\n");
 
     // the series about s_b: e^(-s), 1/s and E1
@@ -158,12 +158,12 @@ int main(int count, char **arguments)
     std::vector<SimRational> line_p(2u, sim_rational(0ll, 1ll));
     line_p[1] = sim_rational(1ll, 1ll);
     const TaylorSeries decay = taylor_form_scaled(taylor_rational(s, ode_series_first(unit, negative_unit, s, terms)),
-                                                  atom_form_e(sim_rational_negative(s)));
+                                                  term_form_e(sim_rational_negative(s)));
     // s f' = -f, f(s_b) = 1: f = s_b / s
     const TaylorSeries over = taylor_scaled(taylor_rational(s, ode_series_first(line_p, negative_unit, s, terms)),
                                             sim_rational_reciprocal(s));
     const TaylorSeries falling = taylor_scaled(taylor_product(decay, over), sim_rational(-1ll, 1ll));
-    const TaylorSeries exponential_integral = taylor_integral_from_center(falling, atom_form_atom(integral));
+    const TaylorSeries exponential_integral = taylor_integral_from_center(falling, term_form_term(integral));
     std::vector<SimRational> one_values(terms, sim_rational(0ll, 1ll));
     one_values[0] = sim_rational(1ll, 1ll);
     const TaylorSeries one = taylor_rational(s, one_values);
@@ -186,7 +186,7 @@ int main(int count, char **arguments)
     sim_check(&results, start_zero, "J' = -e^(-s) / s^2");
     // 3. the width
     const int held = (s_sim_rational_wide == 0) && (run_cfg_short() == 0) && (report_short() == 0) &&
-                     (atom_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0);
+                     (term_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0);
     scriptura_text(&results.line, held ? "  every exact value is held in the build's width\n"
                                        : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
     sim_check(&results, held, "every exact value held");
@@ -200,8 +200,8 @@ int main(int count, char **arguments)
         record_form(record, "A_K", lowest, &book);
         record_form(record, "A_J", start, &book);
         record_form(record, "latest_tau_over", below, &book);
-        // a number wider than the decimal buffer marks atom_form short and leaves the record not whole
-        recorded = record_close(record) && (atom_form_short() == 0);
+        // a number wider than the decimal buffer marks term_form short and leaves the record not whole
+        recorded = record_close(record) && (term_form_short() == 0);
     }
     scriptura_text(&results.line, recorded ? "  every form is written whole to the cfg's record\n"
                                            : "  the record is not written: the cfg names none, or it does not open\n");

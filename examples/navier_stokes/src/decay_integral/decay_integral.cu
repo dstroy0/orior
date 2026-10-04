@@ -79,12 +79,12 @@ static SimRational decay_integral_polynomial(const std::vector<SimRational> &val
     return sum;
 }
 
-AtomForm decay_integral_from_zero(int k, SimRational n, SimRational b, AtomBook *book)
+TermForm decay_integral_from_zero(int k, SimRational n, SimRational b, TermBook *book)
 {
     const SimRational x = sim_rational_product(n, sim_rational_reciprocal(b));
     if (k == -1)
     {
-        return atom_form_atom(atom_book_id(book, "E1(" + atom_book_rational(x) + ")"));
+        return term_form_term(term_book_id(book, "E1(" + term_book_rational(x) + ")"));
     }
     if (k < -1)
     {
@@ -102,7 +102,7 @@ AtomForm decay_integral_from_zero(int k, SimRational n, SimRational b, AtomBook 
         {
             lift = sim_rational_product(lift, sim_rational_reciprocal(b));
         }
-        return atom_form_scaled(atom_form_e(sim_rational_negative(x)), sim_rational_product(lift, share));
+        return term_form_scaled(term_form_e(sim_rational_negative(x)), sim_rational_product(lift, share));
     }
     std::vector<SimRational> a;
     std::vector<SimRational> bb;
@@ -113,13 +113,13 @@ AtomForm decay_integral_from_zero(int k, SimRational n, SimRational b, AtomBook 
     {
         lift = sim_rational_product(lift, b);
     }
-    const std::string name = atom_book_rational(x);
-    const unsigned int integral = atom_book_id(book, "E1(" + name + ")");
-    const AtomForm decay_part = atom_form_scaled(atom_form_e(sim_rational_negative(x)),
+    const std::string name = term_book_rational(x);
+    const unsigned int integral = term_book_id(book, "E1(" + name + ")");
+    const TermForm decay_part = term_form_scaled(term_form_e(sim_rational_negative(x)),
                                                  sim_rational_product(lift, decay_integral_polynomial(a, x)));
-    const AtomForm integral_part = atom_form_scaled(atom_form_atom(integral),
+    const TermForm integral_part = term_form_scaled(term_form_term(integral),
                                                     sim_rational_product(lift, decay_integral_polynomial(bb, x)));
-    return atom_form_sum(decay_part, integral_part);
+    return term_form_sum(decay_part, integral_part);
 }
 
 SimRational decay_integral_negative_residual(int k, SimRational x)

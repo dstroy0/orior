@@ -7,9 +7,9 @@ static std::vector<SimRational> ode_series_moved(const std::vector<SimRational> 
 {
     const TaylorSeries moved = taylor_polynomial(values, center, (unsigned int)values.size());
     std::vector<SimRational> coefficients;
-    for (const AtomForm &form : moved.coefficient)
+    for (const TermForm &form : moved.coefficient)
     {
-        coefficients.push_back(atom_form_constant(form));
+        coefficients.push_back(term_form_constant(form));
     }
     return coefficients;
 }
@@ -39,9 +39,9 @@ std::vector<SimRational> ode_series_first(const std::vector<SimRational> &p, con
     return a;
 }
 
-static TaylorSeries ode_series_atom(SimRational center, const std::vector<SimRational> &values, unsigned int atom)
+static TaylorSeries ode_series_term(SimRational center, const std::vector<SimRational> &values, unsigned int term)
 {
-    return taylor_form_scaled(taylor_rational(center, values), atom_form_atom(atom));
+    return taylor_form_scaled(taylor_rational(center, values), term_form_term(term));
 }
 
 static std::vector<SimRational> ode_series_words(std::initializer_list<long long> words)
@@ -56,7 +56,7 @@ static std::vector<SimRational> ode_series_words(std::initializer_list<long long
 
 static TaylorSeries ode_series_e(SimRational center, const std::vector<SimRational> &values, SimRational power)
 {
-    return taylor_form_scaled(taylor_rational(center, values), atom_form_e(power));
+    return taylor_form_scaled(taylor_rational(center, values), term_form_e(power));
 }
 
 TaylorSeries ode_series_decay(SimRational center, unsigned int terms)
@@ -87,11 +87,11 @@ TaylorSeries ode_series_bump(SimRational center, unsigned int terms)
     return ode_series_e(center, ode_series_first(p, q, center, terms), power);
 }
 
-TaylorSeries ode_series_power(SimRational center, SimRational h, unsigned int terms, unsigned int atom)
+TaylorSeries ode_series_power(SimRational center, SimRational h, unsigned int terms, unsigned int term)
 {
     const std::vector<SimRational> p = ode_series_words({0ll, 1ll});
     const std::vector<SimRational> q(1u, h);
-    return ode_series_atom(center, ode_series_first(p, q, center, terms), atom);
+    return ode_series_term(center, ode_series_first(p, q, center, terms), term);
 }
 
 TaylorSeries ode_series_kummer(SimRational center, SimRational h, unsigned int terms, unsigned int value,
@@ -122,7 +122,7 @@ TaylorSeries ode_series_kummer(SimRational center, SimRational h, unsigned int t
             sim_rational_difference(sim_rational_product(rise, second[k]), sim_rational_product(fall, second[k + 1u])),
             below);
     }
-    return taylor_sum(ode_series_atom(center, first, value), ode_series_atom(center, second, slope));
+    return taylor_sum(ode_series_term(center, first, value), ode_series_term(center, second, slope));
 }
 
 TaylorSeries ode_series_first_residual(const TaylorSeries &series, const std::vector<SimRational> &p,

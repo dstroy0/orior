@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// atom_value.h: every atom written in a few independent numbers, each the sum of its own exact series to one length,
+// term_value.h: every term written in a few independent numbers, each the sum of its own exact series to one length,
 // and a form's value there
-#ifndef ATOM_VALUE_H
-#define ATOM_VALUE_H
+#ifndef TERM_VALUE_H
+#define TERM_VALUE_H
 
 // At length N every series below is summed to N terms and every continued fraction taken to N levels; each value is
 // an exact rational, and the values converge as N grows. w = U(1 + h, 2, z), E_n the exponential integral.
@@ -29,7 +29,7 @@
 //   (1 - v)^(2h-1) = sum (1 - 2h)_k / k! v^k, and int_1^inf e^(-z sigma) v^j d sigma = e^(-z) 2^(1-j) eps_j(2z).
 // - int_(z_b)^inf w^2 dz = sum_n D_n G_n^+ / Gamma(2 + 2h), the same join with 1/sigma for z_b/sigma + 1/sigma^2.
 
-#include "atom_form.h"
+#include "term_form.h"
 
 #include <string>
 #include <vector>
@@ -38,14 +38,14 @@ typedef struct
 {
     SimRational key;
     SimRational value;
-} AtomValuePair;
+} TermValuePair;
 
 typedef struct
 {
     SimRational x;
     // eps_n(x) at n = -1, 0, 1, ...
     std::vector<SimRational> eps;
-} AtomValueRatios;
+} TermValueRatios;
 
 typedef struct
 {
@@ -53,51 +53,51 @@ typedef struct
     unsigned int length;
     SimRational e;
     // e^q at each q asked for
-    std::vector<AtomValuePair> exponentials;
-    std::vector<AtomValueRatios> ratios;
+    std::vector<TermValuePair> exponentials;
+    std::vector<TermValueRatios> ratios;
     SimRational gamma_once;
     SimRational gamma_twice;
     SimRational value_at_one;
     SimRational slope_at_one;
-} AtomValues;
+} TermValues;
 
 // the independent numbers at length `length`
-void atom_value_open(AtomValues *values, SimRational h, unsigned int length);
+void term_value_open(TermValues *values, SimRational h, unsigned int length);
 
 // e^q
-SimRational atom_value_e(AtomValues *values, SimRational q);
+SimRational term_value_e(TermValues *values, SimRational q);
 
 // x^p, x above 1/2
-SimRational atom_value_power(AtomValues *values, SimRational x, SimRational p);
+SimRational term_value_power(TermValues *values, SimRational x, SimRational p);
 
 // eps_n(x), n -1 or more
-SimRational atom_value_ratio(AtomValues *values, SimRational x, int n);
+SimRational term_value_ratio(TermValues *values, SimRational x, int n);
 
 // Gamma(s), 1 < s < 2
-SimRational atom_value_gamma(AtomValues *values, SimRational s);
+SimRational term_value_gamma(TermValues *values, SimRational s);
 
 // w(z) and w'(z), 0 < z < 2, by w's series about 1
-void atom_value_kummer(AtomValues *values, SimRational z, SimRational *value, SimRational *slope);
+void term_value_kummer(TermValues *values, SimRational z, SimRational *value, SimRational *slope);
 
 // w(z) and w'(z), z above 0, by the integral split at t = 1
-void atom_value_integral(AtomValues *values, SimRational z, SimRational *value, SimRational *slope);
+void term_value_integral(TermValues *values, SimRational z, SimRational *value, SimRational *slope);
 
 // int_(z_b)^inf (z w^2 - z^(-1-2h)) dz
-SimRational atom_value_square_tail(AtomValues *values, SimRational z_b);
+SimRational term_value_square_tail(TermValues *values, SimRational z_b);
 
 // int_(z_b)^inf w^2 dz
-SimRational atom_value_square_integral(AtomValues *values, SimRational z_b);
+SimRational term_value_square_integral(TermValues *values, SimRational z_b);
 
 // int_(z_b)^inf (z w - z^(-h)) dz
-SimRational atom_value_linear_tail(AtomValues *values, SimRational z_b);
+SimRational term_value_linear_tail(TermValues *values, SimRational z_b);
 
-// the value of the atom named `name` as the modules name their atoms: 1, or 0 where the name is not one of them
-int atom_value_named(AtomValues *values, const std::string &name, SimRational *value);
+// the value of the term named `name` as the modules name their terms: 1, or 0 where the name is not one of them
+int term_value_named(TermValues *values, const std::string &name, SimRational *value);
 
-// the form's value, atom i given by atoms[i]
-SimRational atom_value_form(AtomValues *values, const AtomForm &form, const std::vector<SimRational> &atoms);
+// the form's value, term i given by terms[i]
+SimRational term_value_form(TermValues *values, const TermForm &form, const std::vector<SimRational> &terms);
 
 // 1 where a value in this module outgrew the build's width
-int atom_value_short(void);
+int term_value_short(void);
 
 #endif

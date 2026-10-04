@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// join_datum.cu: the right side of Duraiswami's pressure datum at one eta, an exact form in atoms (pressure_datum.h)
+// join_datum.cu: the right side of Duraiswami's pressure datum at one eta, an exact form in terms (pressure_datum.h)
 #include "run_cfg.h"
 
 #include "report.h"
@@ -9,7 +9,7 @@
 #include "pressure_datum.h"
 #include "record.h"
 
-// The value returned is the right side for the cfg's axis data and datum Pi_0, every atom held.
+// The value returned is the right side for the cfg's axis data and datum Pi_0, every term held.
 // Checks:
 // 1. Every exact value is held in the build's width.
 // 2. The two-term decay integral's derivative is b^k e^(-n/b) exactly, for every k the pieces use.
@@ -74,25 +74,25 @@ int main(int count, char **arguments)
     static CoreSeries series;
     core_series_recursion(&request.shape, &swirl_data, &axial_data, &pressure_data, (unsigned int)order, &series);
     request.series = &series;
-    static AtomBook book;
+    static TermBook book;
     static PressureDatum datum;
     pressure_datum_at(&request, eta, inner, outer, &book, &datum);
 
     scriptura_text(&results.line, "  join datum at eta = ");
     report_value(&results.line, eta, (unsigned int)places);
     scriptura_text(&results.line, ": ");
-    scriptura_decimal(&results.line, atom_form_terms(datum.datum), 1u);
+    scriptura_decimal(&results.line, term_form_terms(datum.datum), 1u);
     scriptura_text(&results.line, " terms over ");
     scriptura_decimal(&results.line, book.names.size(), 1u);
-    scriptura_text(&results.line, " atoms and ");
-    scriptura_decimal(&results.line, atom_form_e_count(datum.datum), 1u);
+    scriptura_text(&results.line, " terms and ");
+    scriptura_decimal(&results.line, term_form_e_count(datum.datum), 1u);
     scriptura_text(&results.line, " powers of e, held as ");
-    scriptura_decimal(&results.line, atom_form_entries(datum.datum), 1u);
+    scriptura_decimal(&results.line, term_form_entries(datum.datum), 1u);
     scriptura_text(&results.line, " entries of at most ");
-    scriptura_decimal(&results.line, atom_form_bits(datum.datum), 1u);
+    scriptura_decimal(&results.line, term_form_bits(datum.datum), 1u);
     scriptura_text(&results.line, " bits over one denominator\n  the core inside X_a, -int_0^{X_a} F_core^2 dX = ");
-    report_value(&results.line, sim_rational_negative(atom_form_constant(datum.inside)), (unsigned int)places);
-    scriptura_text(&results.line, "\n  the atoms:");
+    report_value(&results.line, sim_rational_negative(term_form_constant(datum.inside)), (unsigned int)places);
+    scriptura_text(&results.line, "\n  the terms:");
     for (const std::string &name : book.names)
     {
         scriptura_text(&results.line, " ");
@@ -121,7 +121,7 @@ int main(int count, char **arguments)
     }
     // 1. the width
     const int held = (s_sim_rational_wide == 0) && (run_cfg_short() == 0) && (report_short() == 0) &&
-                     (atom_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
+                     (term_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
                      (eta_function_short() == 0) && (core_series_short() == 0) && (decay_integral_short() == 0) &&
                      (blend_short() == 0) && (pressure_datum_short() == 0) && (record_short() == 0);
     scriptura_text(&results.line, held ? "  every exact value is held in the build's width\n"

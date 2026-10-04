@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// matching_values.cu: Duraiswami's six matching functions valued, every atom by its own exact series at each length
-// the cfg names (matching.h, atom_value.h)
+// matching_values.cu: Duraiswami's six matching functions valued, every term by its own exact series at each length
+// the cfg names (matching.h, term_value.h)
 #include "run_cfg.h"
 
 #include "report.h"
 
-#include "atom_value.h"
+#include "term_value.h"
 #include "decay_integral.h"
 #include "matching.h"
 #include "ode_series.h"
 #include "record.h"
 
-// The six functions at each eta are the exact forms of matching_functions. At each length every atom is given by the
-// series atom_value.h writes it in, summed to that length, and each form's value is an exact rational, written at each
+// The six functions at each eta are the exact forms of matching_functions. At each length every term is given by the
+// series term_value.h writes it in, summed to that length, and each form's value is an exact rational, written at each
 // length and whole to the record.
 // Checks:
-// 1. Every atom the forms hold is one atom_value.h writes in its independent numbers.
+// 1. Every term the forms hold is one term_value.h writes in its independent numbers.
 // 2. At each z the cfg names, w and w' by their series about 1 and by their integral agree within the cfg's agreement
 //    at the last length.
 // 3. Every function's values at the last two lengths agree within the cfg's agreement.
@@ -78,7 +78,7 @@ int main(int count, char **arguments)
     }
     const SimRational h = request.h;
 
-    static AtomBook book;
+    static TermBook book;
     std::vector<MatchingFunctions> functions(etas.size());
     for (size_t index = 0u; index < etas.size(); index += 1u)
     {
@@ -86,7 +86,7 @@ int main(int count, char **arguments)
     }
     scriptura_text(&results.line, "  ");
     scriptura_decimal(&results.line, book.names.size(), 1u);
-    scriptura_text(&results.line, " atoms in the forms at ");
+    scriptura_text(&results.line, " terms in the forms at ");
     scriptura_decimal(&results.line, etas.size(), 1u);
     scriptura_text(&results.line, " etas\n");
     sim_flush(&results);
@@ -96,19 +96,19 @@ int main(int count, char **arguments)
     int kummer = 1;
     // values[length][eta][function]
     std::vector<std::vector<std::vector<SimRational>>> values(lengths.size());
-    static AtomValues numbers;
+    static TermValues numbers;
     for (size_t step = 0u; step < lengths.size(); step += 1u)
     {
-        atom_value_open(&numbers, h, (unsigned int)lengths[step]);
-        std::vector<SimRational> atoms(book.names.size());
-        for (size_t atom = 0u; atom < book.names.size(); atom += 1u)
+        term_value_open(&numbers, h, (unsigned int)lengths[step]);
+        std::vector<SimRational> terms(book.names.size());
+        for (size_t term = 0u; term < book.names.size(); term += 1u)
         {
-            if (!atom_value_named(&numbers, book.names[atom], &atoms[atom]))
+            if (!term_value_named(&numbers, book.names[term], &terms[term]))
             {
                 named = 0;
-                atoms[atom] = sim_rational(0ll, 1ll);
-                scriptura_text(&results.line, "  no value for the atom ");
-                scriptura_text(&results.line, book.names[atom].c_str());
+                terms[term] = sim_rational(0ll, 1ll);
+                scriptura_text(&results.line, "  no value for the term ");
+                scriptura_text(&results.line, book.names[term].c_str());
                 scriptura_character(&results.line, '\n');
             }
         }
@@ -126,22 +126,22 @@ int main(int count, char **arguments)
         if (record != NULL)
         {
             const std::string at = "length_" + std::to_string(lengths[step]);
-            for (size_t atom = 0u; atom < book.names.size(); atom += 1u)
+            for (size_t term = 0u; term < book.names.size(); term += 1u)
             {
-                record_form(record, (at + "_atom_" + std::to_string(atom)).c_str(), atom_form_rational(atoms[atom]), &book);
+                record_form(record, (at + "_term_" + std::to_string(term)).c_str(), term_form_rational(terms[term]), &book);
             }
         }
         values[step].assign(etas.size(), std::vector<SimRational>(6u));
         for (size_t index = 0u; index < etas.size(); index += 1u)
         {
-            const AtomForm *const six[6] = {&functions[index].torque, &functions[index].force, &functions[index].m_inf,
+            const TermForm *const six[6] = {&functions[index].torque, &functions[index].force, &functions[index].m_inf,
                                             &functions[index].j_inf, &functions[index].s_inf, &functions[index].h_match};
             scriptura_text(&results.line, "    eta = ");
             report_value(&results.line, etas[index], (unsigned int)places);
             scriptura_character(&results.line, ':');
             for (size_t which = 0u; which < 6u; which += 1u)
             {
-                const SimRational value = atom_value_form(&numbers, *six[which], atoms);
+                const SimRational value = term_value_form(&numbers, *six[which], terms);
                 values[step][index][which] = value;
                 scriptura_character(&results.line, ' ');
                 scriptura_text(&results.line, s_matching_values_names[which]);
@@ -149,9 +149,9 @@ int main(int count, char **arguments)
                 report_value(&results.line, value, (unsigned int)places);
                 if (record != NULL)
                 {
-                    const std::string at = "length_" + std::to_string(lengths[step]) + "_eta_" + atom_book_rational(etas[index]) +
+                    const std::string at = "length_" + std::to_string(lengths[step]) + "_eta_" + term_book_rational(etas[index]) +
                                            "_" + s_matching_values_names[which];
-                    record_form(record, at.c_str(), atom_form_rational(value), &book);
+                    record_form(record, at.c_str(), term_form_rational(value), &book);
                 }
             }
             scriptura_character(&results.line, '\n');
@@ -166,8 +166,8 @@ int main(int count, char **arguments)
                 SimRational series_slope;
                 SimRational integral_value;
                 SimRational integral_slope;
-                atom_value_kummer(&numbers, z, &series_value, &series_slope);
-                atom_value_integral(&numbers, z, &integral_value, &integral_slope);
+                term_value_kummer(&numbers, z, &series_value, &series_slope);
+                term_value_integral(&numbers, z, &integral_value, &integral_slope);
                 const int near = matching_values_near(series_value, integral_value, agreement) &&
                                  matching_values_near(series_slope, integral_slope, agreement);
                 kummer = kummer && near;
@@ -186,10 +186,10 @@ int main(int count, char **arguments)
         }
     }
 
-    // 1. the atoms
-    scriptura_text(&results.line, named ? "  every atom is written in its independent numbers\n"
-                                        : "  an atom has no value\n");
-    sim_check(&results, named, "every atom valued");
+    // 1. the terms
+    scriptura_text(&results.line, named ? "  every term is written in its independent numbers\n"
+                                        : "  an term has no value\n");
+    sim_check(&results, named, "every term valued");
     // 2. the two routes to w
     scriptura_text(&results.line, kummer ? "  w and w' by their series about 1 and by their integral agree within the cfg's agreement\n"
                                          : "  w or w' by its series about 1 and by its integral differ past the cfg's agreement\n");
@@ -219,13 +219,13 @@ int main(int count, char **arguments)
     // 5. the record, before the width
     const int recorded = (record != NULL) && record_close(record);
     // 4. the width
-    const int wide[14] = {s_sim_rational_wide,    run_cfg_short(),    report_short(),      atom_form_short(),
+    const int wide[14] = {s_sim_rational_wide,    run_cfg_short(),    report_short(),      term_form_short(),
                           taylor_short(),         ode_series_short(), eta_function_short(), core_series_short(),
                           decay_integral_short(), blend_short(),      blend_field_short(),  matching_short(),
-                          atom_value_short(),     record_short()};
-    static const char *const modules[14] = {"matching_values", "run_cfg", "report", "atom_form", "taylor", "ode_series",
+                          term_value_short(),     record_short()};
+    static const char *const modules[14] = {"matching_values", "run_cfg", "report", "term_form", "taylor", "ode_series",
                                             "eta_function", "core_series", "decay_integral", "blend", "blend_field",
-                                            "matching", "atom_value", "record"};
+                                            "matching", "term_value", "record"};
     int held = 1;
     for (size_t module = 0u; module < 14u; module += 1u)
     {

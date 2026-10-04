@@ -9,7 +9,7 @@
 // A and B polynomials in x with rational coefficients. With I(b) = b^(k+1) (A e^(-x) + B E1(x)) and m = k + 2,
 // dI/db = b^k e^(-n/b) holds exactly where (k + 1) B - x B' = 0 and (k + 1) A - x A' + x A + B = 1, the check.
 
-#include "atom_form.h"
+#include "term_form.h"
 
 // A_m and B_m as coefficients in x
 void decay_integral_reduction(unsigned int m, std::vector<SimRational> *a, std::vector<SimRational> *b);
@@ -17,10 +17,10 @@ void decay_integral_reduction(unsigned int m, std::vector<SimRational> *a, std::
 // the two polynomials the check asks to be 0, for m = k + 2
 void decay_integral_residual(unsigned int k, std::vector<SimRational> *first, std::vector<SimRational> *second);
 
-// int_0^b s^k e^(-n/s) ds, n > 0 and b > 0, a form in e^(-n/b) and the book's atom E1(n/b). k may be negative: at
+// int_0^b s^k e^(-n/s) ds, n > 0 and b > 0, a form in e^(-n/b) and the book's term E1(n/b). k may be negative: at
 // k = -1 the integral is E1(n/b), and below it E_m(x), m = k + 2 <= 0, is a rational multiple of e^(-x),
 // E_0 = e^(-x) / x and E_m = (e^(-x) - m E_(m+1)) / x
-AtomForm decay_integral_from_zero(int k, SimRational n, SimRational b, AtomBook *book);
+TermForm decay_integral_from_zero(int k, SimRational n, SimRational b, TermBook *book);
 
 // for k <= -2, with E_(k+2)(x) = r(x) e^(-x): (k + 1) r - x r' + x r - 1 at `x`, which is 0 exactly where
 // d/db of the integral is b^k e^(-n/b)

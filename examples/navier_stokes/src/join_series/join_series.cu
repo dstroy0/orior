@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // join_series.cu: the pieces of the join as Taylor series about rational centers, each coefficient exact, each
-// transcendental value an atom held apart
+// transcendental value an term held apart
 #include "run_cfg.h"
 
 #include "report.h"
@@ -9,7 +9,7 @@
 #include "ode_series.h"
 
 // The pieces: e^(-1/s) and e^(-1/(1-s)) for the blend weight, the annulus bump e^(4 - 1/(s(1-s))), x^h, and Kummer's
-// w = U(1 + h, 2, z), whose two atoms carry the heat exterior H(Z) = Z^(-1-h) w(1/Z). Each comes from its equation's
+// w = U(1 + h, 2, z), whose two terms carry the heat exterior H(Z) = Z^(-1-h) w(1/Z). Each comes from its equation's
 // recursion, and each is checked against that equation: the residual of the series it gives has every held
 // coefficient exactly 0. The blend weight psi = e^(-1/s) / (e^(-1/s) + e^(-1/(1-s))) is 1 / (1 + r g) with
 // r = e^(-1/(1-c)) / e^(-1/c) = e^(1/c - 1/(1-c)) and g the ratio of the two unit series; with rho = 1 / (1 + r) it
@@ -34,9 +34,9 @@ typedef struct
 // 1 where every coefficient the series holds is 0
 static int join_zero(const TaylorSeries &series)
 {
-    for (const AtomForm &form : series.coefficient)
+    for (const TermForm &form : series.coefficient)
     {
-        if (!atom_form_zero(form))
+        if (!term_form_zero(form))
         {
             return 0;
         }
@@ -54,7 +54,7 @@ static void join_report(SimResults *results, int passed, const char *what)
 }
 
 static void join_first_terms(ScripturaLine *line, const char *name, const TaylorSeries &series, unsigned int shown,
-                             const AtomBook *book, unsigned int places)
+                             const TermBook *book, unsigned int places)
 {
     scriptura_text(line, "  ");
     scriptura_text(line, name);
@@ -66,7 +66,7 @@ static void join_first_terms(ScripturaLine *line, const char *name, const Taylor
         scriptura_text(line, "    t^");
         scriptura_decimal(line, index, 1u);
         scriptura_text(line, ": ");
-        atom_form_print(line, series.coefficient[index], book->names, places);
+        term_form_print(line, series.coefficient[index], book->names, places);
         scriptura_character(line, '\n');
     }
 }
@@ -114,15 +114,15 @@ int main(int count, char **arguments)
     line_p[1] = one;
     const std::vector<SimRational> power_q(1u, request.h);
 
-    static AtomBook book;
-    const unsigned int power_atom = atom_book_id(&book, "c^h");
-    const unsigned int value_atom = atom_book_id(&book, "w(z_c)");
-    const unsigned int slope_atom = atom_book_id(&book, "w'(z_c)");
+    static TermBook book;
+    const unsigned int power_term = term_book_id(&book, "c^h");
+    const unsigned int value_term = term_book_id(&book, "w(z_c)");
+    const unsigned int slope_term = term_book_id(&book, "w'(z_c)");
     const TaylorSeries decay = ode_series_decay(request.blend_center, terms);
     const TaylorSeries reflected = ode_series_decay_reflected(request.blend_center, terms);
     const TaylorSeries bump = ode_series_bump(request.blend_center, terms);
-    const TaylorSeries power = ode_series_power(request.power_center, request.h, terms, power_atom);
-    const TaylorSeries kummer = ode_series_kummer(request.kummer_center, request.h, terms, value_atom, slope_atom);
+    const TaylorSeries power = ode_series_power(request.power_center, request.h, terms, power_term);
+    const TaylorSeries kummer = ode_series_kummer(request.kummer_center, request.h, terms, value_term, slope_term);
 
     // psi = alpha / (alpha + r beta), alpha and beta the unit series
     const TaylorSeries alpha =
@@ -146,19 +146,19 @@ int main(int count, char **arguments)
     join_report(&results, join_zero(ode_series_kummer_residual(kummer, request.h)),
                 "w: z w'' + (2-z) w' - (1+h) w");
     // psi (alpha + r beta) - alpha, every coefficient reduced under rho (1 + r) = 1
-    const TaylorSeries whole = taylor_sum(alpha, taylor_form_scaled(beta, atom_form_e(ratio)));
+    const TaylorSeries whole = taylor_sum(alpha, taylor_form_scaled(beta, term_form_e(ratio)));
     TaylorSeries back = taylor_difference(taylor_product(weight, whole), alpha);
-    for (AtomForm &form : back.coefficient)
+    for (TermForm &form : back.coefficient)
     {
-        form = atom_form_unit_reduced(form, ratio, share);
+        form = term_form_unit_reduced(form, ratio, share);
     }
     join_report(&results, join_zero(back), "psi: psi (alpha + r beta) - alpha, reduced by rho (1 + r) = 1");
     // e^(-1/s) e^(-1/(1-s)) = e^(-1/(s(1-s))), the bump at e^(-4)
     const TaylorSeries joined = taylor_difference(taylor_product(decay, reflected),
-                                                  taylor_form_scaled(bump, atom_form_e(sim_rational(-4ll, 1ll))));
+                                                  taylor_form_scaled(bump, term_form_e(sim_rational(-4ll, 1ll))));
     join_report(&results, join_zero(joined), "e: e^(-1/s) e^(-1/(1-s)) - e^(-4) e^(4-1/(s(1-s)))");
     const int held = (s_sim_rational_wide == 0) && (run_cfg_short() == 0) && (report_short() == 0) &&
-                     (atom_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
+                     (term_form_short() == 0) && (taylor_short() == 0) && (ode_series_short() == 0) &&
                      (blend_short() == 0);
     scriptura_text(&results.line, held ? "  every exact value is held in the build's width\n"
                                        : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");

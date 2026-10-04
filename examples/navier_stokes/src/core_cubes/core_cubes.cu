@@ -9,7 +9,7 @@
 #include "witness_cube.h"
 
 // The subject at (X, eta, h) is F [F] + U [U] + v0 [v0] + Pi [Pi], each field the core series cut after X^K and summed
-// exactly at X, and [F], [U], [v0], [Pi] four atoms that name the field a term belongs to. The series is computed once
+// exactly at X, and [F], [U], [v0], [Pi] four terms that name the field a term belongs to. The series is computed once
 // for each of the two values of h the cubes take, to the highest order asked: the coefficients of order K do not
 // depend on where the series is cut, and a lower order is the same series cut sooner. For each cube and each pair of
 // consecutive orders the difference of the components is recorded.
@@ -31,7 +31,7 @@ typedef struct
     EtaShape shape[2];
     CoreSeries series[2];
     unsigned int cut;
-    unsigned int atom[CORE_CUBES_FIELDS];
+    unsigned int term[CORE_CUBES_FIELDS];
 } CoreCubes;
 
 static const std::vector<EtaFunction> &core_cubes_field(const CoreSeries *series, unsigned int field)
@@ -47,12 +47,12 @@ static const std::vector<EtaFunction> &core_cubes_field(const CoreSeries *series
     return (field == 2u) ? series->inflow : series->pressure;
 }
 
-static AtomForm core_cubes_subject(const void *context, const SimRational *point, AtomBook *book)
+static TermForm core_cubes_subject(const void *context, const SimRational *point, TermBook *book)
 {
     const CoreCubes *const cubes = (const CoreCubes *)context;
     (void)book;
     const unsigned int side = sim_rational_equal(point[2], cubes->h[0]) ? 0u : 1u;
-    AtomForm value;
+    TermForm value;
     for (unsigned int field = 0u; field < CORE_CUBES_FIELDS; field += 1u)
     {
         const std::vector<EtaFunction> &whole = core_cubes_field(&cubes->series[side], field);
@@ -64,7 +64,7 @@ static AtomForm core_cubes_subject(const void *context, const SimRational *point
         {
             sum = sim_rational_sum(sim_rational_product(sum, point[0]), coefficients[index - 1u]);
         }
-        value = atom_form_sum(value, atom_form_scaled(atom_form_atom(cubes->atom[field]), sum));
+        value = term_form_sum(value, term_form_scaled(term_form_term(cubes->term[field]), sum));
     }
     return value;
 }
@@ -135,10 +135,10 @@ int main(int count, char **arguments)
         core_series_recursion(&cubes.shape[side], &swirl_data, &axial_data, &pressure_data, orders.back(),
                               &cubes.series[side]);
     }
-    static AtomBook book;
+    static TermBook book;
     for (unsigned int field = 0u; field < CORE_CUBES_FIELDS; field += 1u)
     {
-        cubes.atom[field] = atom_book_id(&book, s_core_cubes_fields[field]);
+        cubes.term[field] = term_book_id(&book, s_core_cubes_fields[field]);
     }
 
     const size_t cube_count = centers.size() / 3u;
@@ -182,7 +182,7 @@ int main(int count, char **arguments)
                 for (unsigned int component = 0u; component < 8u; component += 1u)
                 {
                     scriptura_character(&results.line, ' ');
-                    report_value(&results.line, atom_form_coefficient_of(now->component[component], cubes.atom[field]),
+                    report_value(&results.line, term_form_coefficient_of(now->component[component], cubes.term[field]),
                                  (unsigned int)places);
                 }
                 scriptura_character(&results.line, '\n');
@@ -199,8 +199,8 @@ int main(int count, char **arguments)
                         scriptura_character(&results.line, ' ');
                         report_value(&results.line,
                                      sim_rational_difference(
-                                         atom_form_coefficient_of(now->component[component], cubes.atom[field]),
-                                         atom_form_coefficient_of(before->component[component], cubes.atom[field])),
+                                         term_form_coefficient_of(now->component[component], cubes.term[field]),
+                                         term_form_coefficient_of(before->component[component], cubes.term[field])),
                                      (unsigned int)places);
                     }
                     scriptura_character(&results.line, '\n');
@@ -230,7 +230,7 @@ int main(int count, char **arguments)
     }
     // 2. the width
     const int held = (s_sim_rational_wide == 0) && (run_cfg_short() == 0) && (report_short() == 0) &&
-                     (atom_form_short() == 0) && (eta_function_short() == 0) && (core_series_short() == 0) &&
+                     (term_form_short() == 0) && (eta_function_short() == 0) && (core_series_short() == 0) &&
                      (record_short() == 0) && (witness_cube_short() == 0);
     scriptura_text(&results.line, held ? "  every exact value is held in the build's width\n"
                                        : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
