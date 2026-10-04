@@ -29,8 +29,9 @@ from workdir import FINISH, ORACLES, WORK  # noqa: E402
 # A work in preparation stands for its year, (Forbes et al. in prep.:HH: Before the people die).
 # A tag can open on what the speaker did, (volunteered HH) or (volunteered HH; accepted BS, JH) in
 # Hill and Matthewson. A disc recording and its time stands for a source, (694 side 2,
-# 00:04:44.902 – 00:04:46.274) in the Joe Peter Chinook Transcription Project.
-TRAILER = re.compile(r"^(.*?[’”.?!̓])\s*((?:\[[^\]]*\]\s*)?\((?:vt|vf|sf|volunteered\b|accepted\b"
+# 00:04:44.902 – 00:04:46.274) in the Joe Peter Chinook Transcription Project. A translation can
+# close on a straight quote, really full now.' (SF | KBG 15 Jun 2026) in Steiner and Matthewson.
+TRAILER = re.compile(r"^(.*?[’”.?!̓'])\s*((?:\[[^\]]*\]\s*)?\((?:vt|vf|sf|volunteered\b|accepted\b"
                      r"|\d+ side \d[^()]*"
                      r"|[A-Z][^()]*(?:\d{4}|in prep\.)[^()]*"
                      r"|[A-Z][^()]*, lines? \d+(?:[–-]\d+)?"
