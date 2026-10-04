@@ -1,0 +1,149 @@
+permutations 2000 seed 61 least_shared 15 least_meanings 40 p_below 1/100
+language CS Halkomelem meanings 385
+language CS Lushootseed meanings 148
+language CS Northern Straits meanings 90
+language CS Sechelt meanings 56
+language CS ʔayʔaǰuθəm meanings 593
+language NIS Nɬeʔkepmxcín meanings 527
+language NIS Secwepemctsín meanings 298
+language NIS St’át’imcets meanings 653
+language NUX Nuxalk meanings 228
+language OUT Chinuk Wawa meanings 169
+language OUT Gitksan meanings 249
+language OUT Haisla meanings 80
+language OUT Ktunaxa meanings 77
+language OUT Kwak’wala meanings 208
+language OUT Nuuchahnulth meanings 95
+language SIS Columbian meanings 81
+language SIS Montana Salish meanings 109
+language SIS Nsyilxcən meanings 525
+pair Halkomelem | Lushootseed shared 50 matched 8 shuffled_sum 2246 above 0 excess+1 113754/100000 p 1/2001 excess +0.137540
+pair Halkomelem | Northern Straits shared 40 matched 13 shuffled_sum 2390 above 0 excess+1 103610/80000 p 1/2001 excess +0.295125
+pair Halkomelem | Sechelt shared 19 matched 4 shuffled_sum 719 above 0 excess+1 45281/38000 p 1/2001 excess +0.191605
+pair Halkomelem | ʔayʔaǰuθəm shared 123 matched 27 shuffled_sum 6512 above 0 excess+1 293488/246000 p 1/2001 excess +0.193040
+pair Halkomelem | Nɬeʔkepmxcín shared 138 matched 13 shuffled_sum 8023 above 0 excess+1 293977/276000 p 1/2001 excess +0.065134
+pair Halkomelem | Secwepemctsín shared 83 matched 9 shuffled_sum 5787 above 1 excess+1 178213/166000 p 2/2001 excess +0.073572
+pair Halkomelem | St’át’imcets shared 140 matched 16 shuffled_sum 10078 above 0 excess+1 301922/280000 p 1/2001 excess +0.078292
+pair Halkomelem | Nuxalk shared 33 matched 4 shuffled_sum 2048 above 24 excess+1 71952/66000 p 25/2001 excess +0.090181
+pair Halkomelem | Chinuk Wawa shared 55 matched 3 shuffled_sum 2744 above 310 excess+1 113256/110000 p 311/2001 excess +0.029600
+pair Halkomelem | Gitksan shared 82 matched 2 shuffled_sum 4671 above 1386 excess+1 163329/164000 p 1387/2001 excess -0.004091
+pair Halkomelem | Haisla shared 28 matched 2 shuffled_sum 1830 above 460 excess+1 58170/56000 p 461/2001 excess +0.038750
+pair Halkomelem | Ktunaxa shared 31 matched 0 shuffled_sum 1165 above 2000 excess+1 60835/62000 p 2001/2001 excess -0.018790
+pair Halkomelem | Kwak’wala shared 54 matched 1 shuffled_sum 3225 above 1631 excess+1 106775/108000 p 1632/2001 excess -0.011342
+pair Halkomelem | Nuuchahnulth shared 33 matched 0 shuffled_sum 1209 above 2000 excess+1 64791/66000 p 2001/2001 excess -0.018318
+pair Halkomelem | Columbian shared 29 matched 4 shuffled_sum 1436 above 10 excess+1 64564/58000 p 11/2001 excess +0.113172
+pair Halkomelem | Montana Salish shared 36 matched 1 shuffled_sum 1699 above 1182 excess+1 72301/72000 p 1183/2001 excess +0.004180
+pair Halkomelem | Nsyilxcən shared 120 matched 12 shuffled_sum 9491 above 4 excess+1 254509/240000 p 5/2001 excess +0.060454
+pair Lushootseed | Northern Straits shared 15 matched 1 shuffled_sum 664 above 602 excess+1 31336/30000 p 603/2001 excess +0.044533
+pair Lushootseed | ʔayʔaǰuθəm shared 54 matched 1 shuffled_sum 1602 above 1154 excess+1 108398/108000 p 1155/2001 excess +0.003685
+pair Lushootseed | Nɬeʔkepmxcín shared 48 matched 2 shuffled_sum 3065 above 933 excess+1 96935/96000 p 934/2001 excess +0.009739
+pair Lushootseed | Secwepemctsín shared 38 matched 0 shuffled_sum 2785 above 2000 excess+1 73215/76000 p 2001/2001 excess -0.036644
+pair Lushootseed | St’át’imcets shared 46 matched 4 shuffled_sum 3753 above 209 excess+1 96247/92000 p 210/2001 excess +0.046163
+pair Lushootseed | Nuxalk shared 19 matched 4 shuffled_sum 1984 above 24 excess+1 44016/38000 p 25/2001 excess +0.158315
+pair Lushootseed | Chinuk Wawa shared 19 matched 1 shuffled_sum 878 above 742 excess+1 39122/38000 p 743/2001 excess +0.029526
+pair Lushootseed | Gitksan shared 27 matched 0 shuffled_sum 1152 above 2000 excess+1 52848/54000 p 2001/2001 excess -0.021333
+pair Lushootseed | Kwak’wala shared 24 matched 0 shuffled_sum 873 above 2000 excess+1 47127/48000 p 2001/2001 excess -0.018187
+pair Lushootseed | Nsyilxcən shared 51 matched 3 shuffled_sum 3688 above 544 excess+1 104312/102000 p 545/2001 excess +0.022666
+pair Northern Straits | ʔayʔaǰuθəm shared 42 matched 11 shuffled_sum 3083 above 0 excess+1 102917/84000 p 1/2001 excess +0.225202
+pair Northern Straits | Nɬeʔkepmxcín shared 37 matched 4 shuffled_sum 2916 above 92 excess+1 79084/74000 p 93/2001 excess +0.068702
+pair Northern Straits | Secwepemctsín shared 20 matched 3 shuffled_sum 1741 above 77 excess+1 44259/40000 p 78/2001 excess +0.106475
+pair Northern Straits | St’át’imcets shared 50 matched 5 shuffled_sum 4835 above 175 excess+1 105165/100000 p 176/2001 excess +0.051650
+pair Northern Straits | Gitksan shared 28 matched 0 shuffled_sum 1150 above 2000 excess+1 54850/56000 p 2001/2001 excess -0.020535
+pair Northern Straits | Kwak’wala shared 21 matched 0 shuffled_sum 1331 above 2000 excess+1 40669/42000 p 2001/2001 excess -0.031690
+pair Northern Straits | Nsyilxcən shared 39 matched 4 shuffled_sum 2996 above 112 excess+1 83004/78000 p 113/2001 excess +0.064153
+pair Sechelt | ʔayʔaǰuθəm shared 39 matched 7 shuffled_sum 2422 above 0 excess+1 89578/78000 p 1/2001 excess +0.148435
+pair Sechelt | Nɬeʔkepmxcín shared 24 matched 5 shuffled_sum 972 above 0 excess+1 57028/48000 p 1/2001 excess +0.188083
+pair Sechelt | Secwepemctsín shared 16 matched 2 shuffled_sum 1015 above 139 excess+1 34985/32000 p 140/2001 excess +0.093281
+pair Sechelt | St’át’imcets shared 32 matched 4 shuffled_sum 2107 above 22 excess+1 69893/64000 p 23/2001 excess +0.092078
+pair Sechelt | Nsyilxcən shared 28 matched 4 shuffled_sum 1792 above 22 excess+1 62208/56000 p 23/2001 excess +0.110857
+pair ʔayʔaǰuθəm | Nɬeʔkepmxcín shared 184 matched 21 shuffled_sum 12996 above 0 excess+1 397004/368000 p 1/2001 excess +0.078815
+pair ʔayʔaǰuθəm | Secwepemctsín shared 123 matched 4 shuffled_sum 6571 above 819 excess+1 247429/246000 p 820/2001 excess +0.005808
+pair ʔayʔaǰuθəm | St’át’imcets shared 200 matched 17 shuffled_sum 12641 above 0 excess+1 421359/400000 p 1/2001 excess +0.053397
+pair ʔayʔaǰuθəm | Nuxalk shared 51 matched 3 shuffled_sum 3178 above 420 excess+1 104822/102000 p 421/2001 excess +0.027666
+pair ʔayʔaǰuθəm | Chinuk Wawa shared 68 matched 4 shuffled_sum 3197 above 151 excess+1 140803/136000 p 152/2001 excess +0.035316
+pair ʔayʔaǰuθəm | Gitksan shared 111 matched 5 shuffled_sum 5713 above 304 excess+1 226287/222000 p 305/2001 excess +0.019310
+pair ʔayʔaǰuθəm | Haisla shared 28 matched 1 shuffled_sum 1827 above 1241 excess+1 56173/56000 p 1242/2001 excess +0.003089
+pair ʔayʔaǰuθəm | Ktunaxa shared 40 matched 3 shuffled_sum 2514 above 255 excess+1 83486/80000 p 256/2001 excess +0.043575
+pair ʔayʔaǰuθəm | Kwak’wala shared 80 matched 7 shuffled_sum 4481 above 12 excess+1 169519/160000 p 13/2001 excess +0.059493
+pair ʔayʔaǰuθəm | Nuuchahnulth shared 36 matched 2 shuffled_sum 1697 above 430 excess+1 74303/72000 p 431/2001 excess +0.031986
+pair ʔayʔaǰuθəm | Columbian shared 34 matched 2 shuffled_sum 1386 above 301 excess+1 70614/68000 p 302/2001 excess +0.038441
+pair ʔayʔaǰuθəm | Montana Salish shared 34 matched 5 shuffled_sum 1976 above 5 excess+1 76024/68000 p 6/2001 excess +0.118000
+pair ʔayʔaǰuθəm | Nsyilxcən shared 192 matched 11 shuffled_sum 11786 above 63 excess+1 394214/384000 p 64/2001 excess +0.026598
+pair Nɬeʔkepmxcín | Secwepemctsín shared 135 matched 50 shuffled_sum 10228 above 0 excess+1 359772/270000 p 1/2001 excess +0.332488
+pair Nɬeʔkepmxcín | St’át’imcets shared 197 matched 91 shuffled_sum 19439 above 0 excess+1 556561/394000 p 1/2001 excess +0.412591
+pair Nɬeʔkepmxcín | Nuxalk shared 54 matched 4 shuffled_sum 4721 above 407 excess+1 111279/108000 p 408/2001 excess +0.030361
+pair Nɬeʔkepmxcín | Chinuk Wawa shared 78 matched 2 shuffled_sum 3257 above 970 excess+1 156743/156000 p 971/2001 excess +0.004762
+pair Nɬeʔkepmxcín | Gitksan shared 108 matched 5 shuffled_sum 6761 above 483 excess+1 219239/216000 p 484/2001 excess +0.014995
+pair Nɬeʔkepmxcín | Haisla shared 30 matched 0 shuffled_sum 2140 above 2000 excess+1 57860/60000 p 2001/2001 excess -0.035666
+pair Nɬeʔkepmxcín | Ktunaxa shared 41 matched 2 shuffled_sum 2666 above 768 excess+1 83334/82000 p 769/2001 excess +0.016268
+pair Nɬeʔkepmxcín | Kwak’wala shared 81 matched 4 shuffled_sum 4040 above 282 excess+1 165960/162000 p 283/2001 excess +0.024444
+pair Nɬeʔkepmxcín | Nuuchahnulth shared 39 matched 1 shuffled_sum 1683 above 1167 excess+1 78317/78000 p 1168/2001 excess +0.004064
+pair Nɬeʔkepmxcín | Columbian shared 43 matched 12 shuffled_sum 3418 above 0 excess+1 106582/86000 p 1/2001 excess +0.239325
+pair Nɬeʔkepmxcín | Montana Salish shared 42 matched 7 shuffled_sum 2854 above 0 excess+1 95146/84000 p 1/2001 excess +0.132690
+pair Nɬeʔkepmxcín | Nsyilxcən shared 203 matched 59 shuffled_sum 15886 above 0 excess+1 508114/406000 p 1/2001 excess +0.251512
+pair Secwepemctsín | St’át’imcets shared 141 matched 46 shuffled_sum 11821 above 0 excess+1 362179/282000 p 1/2001 excess +0.284322
+pair Secwepemctsín | Nuxalk shared 37 matched 2 shuffled_sum 3285 above 1027 excess+1 74715/74000 p 1028/2001 excess +0.009662
+pair Secwepemctsín | Chinuk Wawa shared 54 matched 1 shuffled_sum 2145 above 1354 excess+1 107855/108000 p 1355/2001 excess -0.001342
+pair Secwepemctsín | Gitksan shared 73 matched 3 shuffled_sum 4030 above 650 excess+1 147970/146000 p 651/2001 excess +0.013493
+pair Secwepemctsín | Haisla shared 23 matched 1 shuffled_sum 1591 above 1144 excess+1 46409/46000 p 1145/2001 excess +0.008891
+pair Secwepemctsín | Ktunaxa shared 28 matched 1 shuffled_sum 3191 above 1653 excess+1 54809/56000 p 1654/2001 excess -0.021267
+pair Secwepemctsín | Kwak’wala shared 51 matched 1 shuffled_sum 3703 above 1711 excess+1 100297/102000 p 1712/2001 excess -0.016696
+pair Secwepemctsín | Nuuchahnulth shared 32 matched 3 shuffled_sum 1906 above 123 excess+1 68094/64000 p 124/2001 excess +0.063968
+pair Secwepemctsín | Columbian shared 40 matched 8 shuffled_sum 2693 above 0 excess+1 93307/80000 p 1/2001 excess +0.166337
+pair Secwepemctsín | Montana Salish shared 32 matched 5 shuffled_sum 1528 above 2 excess+1 72472/64000 p 3/2001 excess +0.132375
+pair Secwepemctsín | Nsyilxcən shared 152 matched 42 shuffled_sum 11275 above 0 excess+1 376725/304000 p 1/2001 excess +0.239226
+pair St’át’imcets | Nuxalk shared 52 matched 7 shuffled_sum 5936 above 41 excess+1 112064/104000 p 42/2001 excess +0.077538
+pair St’át’imcets | Chinuk Wawa shared 81 matched 2 shuffled_sum 4308 above 1271 excess+1 161692/162000 p 1272/2001 excess -0.001901
+pair St’át’imcets | Gitksan shared 105 matched 5 shuffled_sum 7296 above 581 excess+1 212704/210000 p 582/2001 excess +0.012876
+pair St’át’imcets | Haisla shared 36 matched 3 shuffled_sum 1952 above 125 excess+1 76048/72000 p 126/2001 excess +0.056222
+pair St’át’imcets | Ktunaxa shared 43 matched 2 shuffled_sum 3542 above 1077 excess+1 86458/86000 p 1078/2001 excess +0.005325
+pair St’át’imcets | Kwak’wala shared 71 matched 3 shuffled_sum 6029 above 1182 excess+1 141971/142000 p 1183/2001 excess -0.000204
+pair St’át’imcets | Nuuchahnulth shared 34 matched 1 shuffled_sum 1816 above 1217 excess+1 68184/68000 p 1218/2001 excess +0.002705
+pair St’át’imcets | Columbian shared 42 matched 10 shuffled_sum 4046 above 0 excess+1 99954/84000 p 1/2001 excess +0.189928
+pair St’át’imcets | Montana Salish shared 45 matched 9 shuffled_sum 3377 above 0 excess+1 104623/90000 p 1/2001 excess +0.162477
+pair St’át’imcets | Nsyilxcən shared 219 matched 58 shuffled_sum 19711 above 0 excess+1 534289/438000 p 1/2001 excess +0.219837
+pair Nuxalk | Chinuk Wawa shared 24 matched 2 shuffled_sum 1803 above 443 excess+1 50197/48000 p 444/2001 excess +0.045770
+pair Nuxalk | Gitksan shared 31 matched 0 shuffled_sum 1861 above 2000 excess+1 60139/62000 p 2001/2001 excess -0.030016
+pair Nuxalk | Kwak’wala shared 30 matched 1 shuffled_sum 2604 above 1492 excess+1 59396/60000 p 1493/2001 excess -0.010066
+pair Nuxalk | Columbian shared 16 matched 1 shuffled_sum 1454 above 1090 excess+1 32546/32000 p 1091/2001 excess +0.017062
+pair Nuxalk | Nsyilxcən shared 51 matched 2 shuffled_sum 3847 above 1195 excess+1 102153/102000 p 1196/2001 excess +0.001500
+pair Chinuk Wawa | Gitksan shared 48 matched 1 shuffled_sum 1593 above 1109 excess+1 96407/96000 p 1110/2001 excess +0.004239
+pair Chinuk Wawa | Haisla shared 18 matched 1 shuffled_sum 895 above 747 excess+1 37105/36000 p 748/2001 excess +0.030694
+pair Chinuk Wawa | Ktunaxa shared 25 matched 0 shuffled_sum 799 above 2000 excess+1 49201/50000 p 2001/2001 excess -0.015980
+pair Chinuk Wawa | Kwak’wala shared 30 matched 0 shuffled_sum 834 above 2000 excess+1 59166/60000 p 2001/2001 excess -0.013900
+pair Chinuk Wawa | Nuuchahnulth shared 24 matched 2 shuffled_sum 667 above 78 excess+1 51333/48000 p 79/2001 excess +0.069437
+pair Chinuk Wawa | Columbian shared 23 matched 0 shuffled_sum 481 above 2000 excess+1 45519/46000 p 2001/2001 excess -0.010456
+pair Chinuk Wawa | Montana Salish shared 22 matched 0 shuffled_sum 967 above 2000 excess+1 43033/44000 p 2001/2001 excess -0.021977
+pair Chinuk Wawa | Nsyilxcən shared 83 matched 1 shuffled_sum 3886 above 1752 excess+1 164114/166000 p 1753/2001 excess -0.011361
+pair Gitksan | Haisla shared 25 matched 0 shuffled_sum 736 above 2000 excess+1 49264/50000 p 2001/2001 excess -0.014720
+pair Gitksan | Ktunaxa shared 26 matched 0 shuffled_sum 1103 above 2000 excess+1 50897/52000 p 2001/2001 excess -0.021211
+pair Gitksan | Kwak’wala shared 52 matched 2 shuffled_sum 3386 above 1022 excess+1 104614/104000 p 1023/2001 excess +0.005903
+pair Gitksan | Nuuchahnulth shared 25 matched 0 shuffled_sum 813 above 2000 excess+1 49187/50000 p 2001/2001 excess -0.016260
+pair Gitksan | Columbian shared 27 matched 0 shuffled_sum 1334 above 2000 excess+1 52666/54000 p 2001/2001 excess -0.024703
+pair Gitksan | Montana Salish shared 33 matched 1 shuffled_sum 1802 above 1226 excess+1 66198/66000 p 1227/2001 excess +0.003000
+pair Gitksan | Nsyilxcən shared 115 matched 4 shuffled_sum 8079 above 1173 excess+1 229921/230000 p 1174/2001 excess -0.000343
+pair Haisla | Kwak’wala shared 15 matched 6 shuffled_sum 1398 above 0 excess+1 40602/30000 p 1/2001 excess +0.353400
+pair Haisla | Nsyilxcən shared 30 matched 1 shuffled_sum 1897 above 1302 excess+1 60103/60000 p 1303/2001 excess +0.001716
+pair Ktunaxa | Kwak’wala shared 16 matched 1 shuffled_sum 1030 above 864 excess+1 32970/32000 p 865/2001 excess +0.030312
+pair Ktunaxa | Nsyilxcən shared 46 matched 2 shuffled_sum 3629 above 1107 excess+1 92371/92000 p 1108/2001 excess +0.004032
+pair Kwak’wala | Nuuchahnulth shared 20 matched 2 shuffled_sum 507 above 46 excess+1 43493/40000 p 47/2001 excess +0.087325
+pair Kwak’wala | Columbian shared 18 matched 0 shuffled_sum 1337 above 2000 excess+1 34663/36000 p 2001/2001 excess -0.037138
+pair Kwak’wala | Montana Salish shared 15 matched 2 shuffled_sum 1199 above 215 excess+1 32801/30000 p 216/2001 excess +0.093366
+pair Kwak’wala | Nsyilxcən shared 81 matched 2 shuffled_sum 5807 above 1607 excess+1 160193/162000 p 1608/2001 excess -0.011154
+pair Nuuchahnulth | Columbian shared 15 matched 0 shuffled_sum 0 above 2000 excess+1 30000/30000 p 2001/2001 excess +0.000000
+pair Nuuchahnulth | Nsyilxcən shared 44 matched 2 shuffled_sum 1910 above 499 excess+1 90090/88000 p 500/2001 excess +0.023750
+pair Columbian | Nsyilxcən shared 53 matched 25 shuffled_sum 4785 above 0 excess+1 151215/106000 p 1/2001 excess +0.426556
+pair Montana Salish | Nsyilxcən shared 50 matched 19 shuffled_sum 2827 above 0 excess+1 135173/100000 p 1/2001 excess +0.351730
+(a) Nɬeʔkepmxcín       best Salish partner St’át’imcets       pass
+(a) Secwepemctsín      best Salish partner Nɬeʔkepmxcín       pass
+(a) St’át’imcets       best Salish partner Nɬeʔkepmxcín       pass
+(a) Columbian          best Salish partner Nsyilxcən          pass
+(a) Montana Salish     best Salish partner Nsyilxcən          pass
+(a) Nsyilxcən          best Salish partner Columbian          pass
+(b) Halkomelem         best Salish partner Northern Straits   pass
+(b) Lushootseed        best Salish partner Nuxalk             FAIL
+(b) Northern Straits   best Salish partner Halkomelem         pass
+(b) Sechelt            best Salish partner Halkomelem         pass
+(b) ʔayʔaǰuθəm         best Salish partner Northern Straits   pass
+(c) pass
+(d) FAIL

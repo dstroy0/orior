@@ -10,7 +10,7 @@
 # not place. The experiments import it.
 #
 # The oracles are closed. This file reads them where they sit, at a directory passed to it or at
-# build/oracles, and nothing it returns is written back into this tree. The experiments print counts and rates.
+# examples/Salishan/oracles, and nothing it returns is written back into this tree. The experiments print counts and rates.
 #
 # An oracle row is where, who, kind, form, gloss. For a form row, who names the language, but the
 # papers define one language several ways (nɬeʔkepmxcín, Nɬeʔkepmxcín, Nłeʔkepmxcín), a few give an
@@ -35,7 +35,7 @@ while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "
 
 
 def oracle_dir(given=None):
-    """The oracle tables: an explicit path, or build/oracles."""
+    """The oracle tables: an explicit path, or examples/Salishan/oracles."""
     for candidate in (given, os.path.join(ROOT, "examples", "Salishan", "oracles")):
         if candidate and os.path.isdir(candidate):
             return candidate

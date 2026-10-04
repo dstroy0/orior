@@ -14,7 +14,7 @@ This is a workbook, and it claims no result. It follows the rail the other workb
   corpus copy unless the entry says it arrived by report.
 - A known answer runs first. No comparison across languages is read until the same code has recovered
   something the field already knows (entry P0).
-- Withdrawn entries stay on the page with what killed them. Five are recorded below.
+- Withdrawn entries stay on the page with what killed them. Six are recorded below.
 
 These words belong to the people who speak them. The conditions their speakers set are recorded per
 table in the Salishan research paper, under "Whose words these are", and they hold here. The tables stay closed,
@@ -25,7 +25,7 @@ quoted below are quoted from the published papers named beside them, as a reader
 
 | # | Question, as asked | Asked by | Test | Control | Status |
 |---|---|---|---|---|---|
-| P0 | Does meaning-matched vocabulary from these tables recover the accepted Salish subgrouping? | the field's classification (known answer) | Dolgopolsky classes, first two consonants, excess over a meaning shuffle | criteria (a) to (d) fixed before the run | **passes** (a, b, c; d as revised) |
+| P0 | Does meaning-matched vocabulary from these tables recover the accepted Salish subgrouping? | the field's classification (known answer) | Dolgopolsky classes, first two consonants, excess over a meaning shuffle | criteria (a) to (d) fixed before the run | **fails on all 370 tables** (b, d); passed on 138 |
 | P1 | Are lexical suffixes phonologically related to nouns of the same meaning, as consonant + suffix nouns ([C + LS])? | Kinkade 1998 against Mithun 1984 (via Kinkade) | same-meaning suffix/noun pairs, Kinkade shape and tail shape | meanings shuffled among each language's nouns, 5000 times | **tail relation above chance; [C + LS] shape too rare to test** |
 | P2 | How does a glottalized resonant fare under reduplication in the five languages left Unclear? | Mellesmoen & Urbanczyk 2021, Table 4 | doubled consonant pairs, glottalization of each copy | the survey's classified languages, its own papers left out | **method agrees 7 of 8; the blanks stay blank on these tables** |
 | P3 | Is Nuxalk's reputation for vowelless words in large part spacing, clitics printed apart? | Robertson 2020 (blog comment, read) | obstruent-only tokens in two oral texts, clitics joined and opened | the same text counted both ways | **supported: 0.9% joined, 18.5% opened** |
@@ -74,8 +74,36 @@ Chinuk Wawa 69, Gitksan 99, Haisla 78 and Nuuchahnulth 69. Result, criteria fixe
   shuffle p below 0.01. Chinuk Wawa, Gitksan, Haisla and Nuuchahnulth all pass; the largest excess
   among them is Gitksan with St'át'imcets, +0.067 over 33 meanings.
 
-The measure is coarse and it sorts the family the way the field does. It is trusted below for broad
-structure and not for anything finer.
+The measure is coarse, and on these 138 papers it sorts the family the way the field does.
+
+## P0 exact, 2026-10-04: all tables
+
+`bash examples/Salishan/4_measure/subgrouping.sh`.
+
+The same vocabulary, read from all 370 oracle tables by the same loader, and the same criteria, run on
+the record machine. `subgrouping.py` writes each language's meanings with the first two classes and the
+paper of each form, and does no arithmetic. `subgrouping.cu` builds the matches, counts each shuffle's
+matches, sums them, and gives each pair's excess and p as exact rationals; the device and the host agree
+word for word on every program, 66 checks and 0 failed. Its 2000 shuffles are drawn from `sim_draw`, not
+from Python's generator. A p here is a p over other shuffles of the same null. The records are
+`examples/Salishan/4_measure/records/subgrouping.txt`.
+
+Eighteen languages carry 40 or more meanings, and 117 pairs share 15 or more. Result:
+
+- (a) Each Interior language's best Salish partner is Interior, for all six: Nɬeʔkepmxcín with
+  St'át'imcets, Secwepemctsín and St'át'imcets with Nɬeʔkepmxcín, Columbian and Montana Salish with
+  Nsyilxcən, Nsyilxcən with Columbian. Pass.
+- (b) Lushootseed's best Salish partner is Nuxalk, +0.158315 over 19 meanings, ahead of Halkomelem at
+  +0.137. The four matching meanings are 'eye', 'hand', 'thick' and 'younger sibling'. The other four
+  Central languages pass. Fail.
+- (c) Mean excess inside Interior +0.252957 over 14 pairs, inside Central +0.154895 over 8, between the
+  two +0.063878 over 24. Pass.
+- (d) ʔayʔaǰuθəm with Kwak'wala has p = 13/2001, excess +0.059493 over 80 meanings. Its seven matching
+  meanings include 'cup', 'basket', 'ball' and 'shirt'. Fail.
+
+The run in Python over the same tables gives the same four verdicts, with Lushootseed and Nuxalk at
++0.156 and ʔayʔaǰuθəm with Kwak'wala at p = 0.0045. P0 fails on all tables, and no entry that rests on
+it is read until it passes.
 
 ## P1, 2026-09-24: lexical suffixes and the nouns of their meaning
 
@@ -204,6 +232,8 @@ excess by about 0.05. Undetermined.
 
 ## Withdrawn
 
+- **Withdrawn.** P0's pass as the known answer the entries after it rest on. **What killed it:** the
+  exact run over all 370 tables, which fails (b) and (d) with the criteria unchanged.
 - **Withdrawn.** P1's first run, which read noun meanings from any short gloss.
   **What killed it:** the diagnostics. The commonest "noun meanings" were provenance notes ("wordlist",
   "orthography"), and the =-morphemes of the Interior papers were proclitic hosts, not suffixes.
