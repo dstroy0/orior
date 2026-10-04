@@ -452,6 +452,24 @@ SimRational atom_form_constant(const AtomForm &form)
     return atom_form_coefficient(form, found->second);
 }
 
+SimRational atom_form_largest(const AtomForm &form)
+{
+    SimRational largest = sim_rational(0ll, 1ll);
+    for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
+    {
+        if (form.magnitude[slot].sign == 0)
+        {
+            continue;
+        }
+        const SimRational size = sim_rational_absolute(atom_form_coefficient(form, slot));
+        if (sim_rational_sign(sim_rational_difference(size, largest)) > 0)
+        {
+            largest = size;
+        }
+    }
+    return largest;
+}
+
 SimRational atom_form_coefficient_of(const AtomForm &form, unsigned int atom)
 {
     AtomPower power(atom + 1u, 0u);
@@ -588,6 +606,20 @@ std::vector<unsigned int> atom_form_slots(const AtomForm &form)
 int atom_form_holds(const AtomForm &form, unsigned int slot)
 {
     return (slot < form.magnitude.size()) && (form.magnitude[slot].sign != 0);
+}
+
+const AtomKey &atom_form_key_at(unsigned int slot)
+{
+    return s_atom_slots[slot];
+}
+
+SimRational atom_form_coefficient_at(const AtomForm &form, unsigned int slot)
+{
+    if (!atom_form_holds(form, slot))
+    {
+        return sim_rational(0ll, 1ll);
+    }
+    return atom_form_coefficient(form, slot);
 }
 
 std::string atom_form_key_text(unsigned int slot, const std::vector<std::string> &names)

@@ -80,6 +80,9 @@ int atom_form_zero(const AtomForm &form);
 // the coefficient of the term with no atom and e^0
 SimRational atom_form_constant(const AtomForm &form);
 
+// the largest magnitude among the form's coefficients, 0 for the form 0
+SimRational atom_form_largest(const AtomForm &form);
+
 // the coefficient of the term that is the atom `atom` alone, e^0
 SimRational atom_form_coefficient_of(const AtomForm &form, unsigned int atom);
 
@@ -102,6 +105,12 @@ std::vector<unsigned int> atom_form_slots(const AtomForm &form);
 
 // 1 where the form holds a term at `slot`
 int atom_form_holds(const AtomForm &form, unsigned int slot);
+
+// the key at `slot`, a slot some form holds
+const AtomKey &atom_form_key_at(unsigned int slot);
+
+// the coefficient at `slot` in lowest terms, 0 where the form holds no term there
+SimRational atom_form_coefficient_at(const AtomForm &form, unsigned int slot);
 
 // the key at `slot` as text: "1", or e^(q) and each atom by its name, ^k where its power passes 1
 std::string atom_form_key_text(unsigned int slot, const std::vector<std::string> &names);

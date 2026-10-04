@@ -107,12 +107,50 @@ c_1 = -0.0074 (X_a), c_2 = -0.0101 (X_b) and c_4 = 0.0218 (eta).
 Both sides of each identity as exact forms, the difference reduced in the atoms. Every term left in the difference is
 recorded: those are the terms the identity drops.
 
+Measured (`matching_functions`, 6 checks) on his 8-parameter F_0, U_0 and b_0 = -2.01, with b_1 = 0 standing in
+for the value he does not print and Pi_0 = 0 for the datum: at eta = 0 and 1/2 the six functions are exact forms of
+34 to 291 terms over 31 atoms. With the blend switched off the core alone fills the annulus, and its torque and force
+come out at 1.2e-10 and 3.7e-11, the core series' own truncation at order 24: the boundary terms and the parts taken
+out by parts are right.
+
 ## 5. The fits
 
 His parameters enter the series polynomially and the Jacobian is exact. Exact Gauss-Newton on the six functions,
 the atoms defined by his decimals.
 
-- 5a. The exterior tail, c^2 X_b^(-2h) / (4h) at his values, against 0.99.
+- 5a. The exterior tail, c^2 X_b^(-2h) / (4h) at his values, against 0.99. Measured: it is exactly 2^(-1/50), and
+  two exact comparisons, 0.985^50 2 < 1 < 0.995^50 2, put it within his two places of 0.99.
+- Atom values. Every atom is written in the few independent numbers it is made of, and each of those is the limit
+  of its own exact sequence of rationals, taken to more and more terms; a form's value at each length is exact, and
+  the values are recorded as they converge:
+  - e^q = e^m e^f by the exponential series, m the whole part of q, and rho(c) = 1 / (1 + e^ratio) from it.
+  - 2^(-1/2), 2^(-h) and (3/2)^(-h) by the binomial series, x^p = sum (p)_k / k! (1 - 1/x)^k.
+  - E1(x) = e^(-x) eps_1(x), eps_1 by its continued fraction; eps_n = e^x E_n by eps_(n+1) = (1 - x eps_n) / n.
+  - w(1) and w'(1) from Gamma(1 + h) w(z) = int_0^inf e^(-zt) t^h (1 + t)^(-h) dt split at t = 1: below,
+    (1 + t)^(-h) by its binomial series in (1 - t) / 2 and e^(-zt) by its series, each term a beta integral; above,
+    t^h (1 + t)^(-h) = (1 - 1/(1 + t))^h by its binomial series, each term e^(-z) 2^(1-k) eps_k(2z). Gamma(1 + h) is
+    int_0^1 by its series and Gamma(1 + h, 1) by its continued fraction. Every other w(z_c) and w'(z_c) is w's own
+    series about 1 summed at z_c.
+  - The tail of H is no new number: (z^2 w' - z^2 w)' = (h - 1) z w gives
+    int_(z_b)^inf (z w - z^(-h)) dz = (z_b^2 (w'(z_b) - w(z_b)) + z_b^(1-h)) / (1 - h).
+  - The tail of S: the two integrals of w joined in sigma = t + s and expanded in u = sigma / (1 + sigma) give
+    int_(z_b)^inf (z w^2 - z^(-1-2h)) dz = sum_n D_n (z_b G_n^+ + G_n) / Gamma(2 + 2h) - z_b^(-2h) / (2h), every D_n
+    rational and every G_n an integral split at sigma = 1 as w's is (atom_value.h).
+
+  Measured (`matching_values`, 1024 limbs) on the forms of experiment 4, his 8-parameter F_0, U_0 and b_0 = -2.01,
+  b_1 = 0 and Pi_0 = 0, at lengths 16, 24 and 32. Gamma(1 + h) comes out 0.994325851, w(1) = 0.994015508 and
+  w'(1) = -0.999925858. At z = 1/2 and z = 5/4, w and w' by the series about 1 and by the integral agree to 8 places.
+  The six functions at length 32:
+
+  | eta | torque      | force       | M(inf)      | J(inf)      | S(inf)      | H          |
+  |-----|-------------|-------------|-------------|-------------|-------------|------------|
+  | 0   | -0.0289574  | 0.00876772  | 0.109920    | -0.102630   | -0.0404458  | -0.0699486 |
+  | 1/2 | 0.0129802   | -0.359788   | -0.0682000  | -0.187081   | 0.0284819   | -0.0684166 |
+
+  Each value moves by no more than 8e-7 from length 16 to 24 and 4e-9 from 24 to 32. At length 32 each is an exact
+  rational of up to 5000 digits, and the record holds them whole. These are not yet his 0.077: Pi_0 waits on the
+  fixed point of experiment 6, b_1 is not solved for, and his eta grid is the Chebyshev points with eta = +-1, where
+  the exterior's form is singular.
 - 5b. The 8-parameter optimum. His printed F_0, U_0 and b_0 are put in exactly and b_1 is solved for. Check: the
   root-mean-square converges onto 0.077, and a fit over all 8 lands on his printed coefficients within his places.
 - 5c. The 32-parameter matched core. Check: the forms converge onto every value in the 32-parameter table.
