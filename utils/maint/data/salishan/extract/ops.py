@@ -1,7 +1,7 @@
 r"""Context written as one-line ops, the form oracle.py takes on stdin.
 
 A paper's ops live in ops/<stem>.ops, one to a line, and load_context in finish.py lays them over
-finish/<stem>.py when there is one, or over a blank context when there is none. Fields part at a | with space on both sides.
+the closed corpus's finish/<stem>.py when there is one, or over a blank context when there is none. Fields part at a | with space on both sides.
 A field holding a | of its own writes it \|, as a tag (sf \| EP.2021/07/10) does.
 A who of @a is the authors and @l the paper's language.
 

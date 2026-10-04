@@ -22,7 +22,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from workdir import ORACLES, WORK  # noqa: E402
+from workdir import FINISH, ORACLES, WORK  # noqa: E402
 import ops  # noqa: E402
 
 ENV = dict(os.environ, PYTHONIOENCODING="utf-8")
@@ -131,7 +131,7 @@ def main():
             show([line.rstrip("\n").split("\t") for line in handle][1:], rest[0] if rest else "")
     elif command == "done":
         print(run("make_md.py", stem).strip().split("\n")[-1])
-        for name in (path, os.path.join(HERE, "finish", stem + ".py")):
+        for name in (path, os.path.join(FINISH, stem + ".py")):
             if os.path.exists(name):
                 with open(name, encoding="utf-8") as handle:
                     for number, line in enumerate(handle, 1):

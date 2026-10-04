@@ -6,6 +6,9 @@ in the closed corpus, and the tools read them there:
               checkout the public tree's build/papers links into;
   PRIVATE     its extract/ directory: each paper's page text and ops, the defects table, and the
               outline and line tables the tools read and write;
+  GENERATORS  each paper's generator, at PRIVATE/generators, and FINISH each paper's finish
+              context, at PRIVATE/finish. Both import the tools from SALISHAN_TOOLS, which
+              importing this sets to the tools' own directory;
   WORK        what a command remakes: a paper's engine draft, its alphabet, word web and residue
               tables, the oracles a rerun saves to compare against, and the crops read to settle a
               glyph. SALISHAN_WORK when it is set, and otherwise salishan_work beside CORPUS;
@@ -29,6 +32,9 @@ ORACLES = os.path.join(ROOT, "examples", "Salishan", "oracles")
 CORPUS = os.environ.get("ANCHOR_SIFT_PRIVATE") or os.path.dirname(
     os.path.realpath(os.path.join(ROOT, "build", "papers")))
 PRIVATE = os.path.join(CORPUS, "extract")
+GENERATORS = os.path.join(PRIVATE, "generators")
+FINISH = os.path.join(PRIVATE, "finish")
+os.environ["SALISHAN_TOOLS"] = HERE
 if not (os.path.isdir(os.path.join(CORPUS, "papers")) and os.path.isdir(PRIVATE)):
     raise SystemExit("no closed corpus at %s: set ANCHOR_SIFT_PRIVATE, or link build/papers to its papers/"
                      % CORPUS)

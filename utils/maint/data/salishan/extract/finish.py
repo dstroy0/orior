@@ -2,7 +2,7 @@
 
 usage: python finish.py <stem>
 
-Reads <stem>.draft.tsv, written by paper_sift.py, and finish/<stem>.py, the context a person read
+Reads <stem>.draft.tsv, written by paper_sift.py, and the closed corpus's finish/<stem>.py, the context a person read
 off the page: who and kind for the names, places and languages the draft calls cited forms, rows to
 add (title, names, notations, symbol notes), and text to replace where the text layer broke a row.
 
@@ -21,7 +21,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from workdir import ORACLES, WORK  # noqa: E402
+from workdir import FINISH, ORACLES, WORK  # noqa: E402
 
 # What can close a translation's line: a source with its year, a speaker tag, a bracketed label,
 # or the text and lines a sentence comes from, (Sandro Botticelli: Primavera, lines 3–4), or the
@@ -45,7 +45,7 @@ def load_context(stem):
     # finish/<stem>.py when a paper has one, with ops/<stem>.ops laid over it, the one-line ops
     # oracle.py takes on stdin.
     import ops
-    path = os.path.join(HERE, "finish", stem + ".py")
+    path = os.path.join(FINISH, stem + ".py")
     if not os.path.exists(path):
         return ops.apply(ops.blank(stem), stem)
     spec = importlib.util.spec_from_file_location("context_" + re.sub(r"\W", "_", stem), path)

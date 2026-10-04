@@ -5,10 +5,14 @@
 # usage: sh check_papers.sh <stem> [stem ...]
 cd "$(dirname "$0")" || exit 1
 export PYTHONIOENCODING=utf-8
+# Each paper's generator is the closed corpus's, and imports the tools from here.
+GENERATORS="$(python -c 'import workdir; print(workdir.GENERATORS)')" || exit 1
+SALISHAN_TOOLS="$(python -c 'import workdir; print(workdir.HERE)')" || exit 1
+export SALISHAN_TOOLS
 for stem in "$@"; do
     echo "== $stem"
     # A generator that fails leaves the oracle before it in place; nothing after it is checked.
-    out=$(python "generators/$stem.py" 2>&1)
+    out=$(python "$GENERATORS/$stem.py" 2>&1)
     status=$?
     printf '%s\n' "$out" | grep -v " rows$"
     if [ "$status" -ne 0 ]; then

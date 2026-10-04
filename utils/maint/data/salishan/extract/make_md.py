@@ -3,7 +3,7 @@
 usage: python make_md.py <stem>
 
 The per-paper sections, whose words these are, the letters and the page against the text layer, come
-from finish/<stem>.py, where a person wrote them off the page. The counts come from running
+from the closed corpus's finish/<stem>.py, where a person wrote them off the page. The counts come from running
 residue.py and reading the table, and nothing in them is typed by hand.
 """
 import collections
