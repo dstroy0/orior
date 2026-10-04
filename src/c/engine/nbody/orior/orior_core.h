@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_core.h: counters, the sift's engines, plan and run, the census and steering (orior.h includes the
 // parts in order)
 #ifndef ORIOR_CORE_H
@@ -209,12 +209,10 @@ extern "C"
      *       total squared over the sum of squared counts, the comparison clears its denominators into
      *       100*total^2 >= 85*distinct*sum(count^2), which holds for the short circuiting engine, and
      *       holds no floating point value anywhere.
-     *       Scored against the clock over 42 rows by bench_dispatch: 39 of 42 giving up 9131790 cycles
-     *       at a share of 0.035 on x64 MSVC 19.44 Release, and 41 of 42 giving up 86511 at 0.000 under
-     *       gcc. A hundredfold gap in cycles between two real runs. The figure belongs to the
-     *       toolchain that produced it. Re-run the bench before quoting either.
+     *       Scored against the clock by bench_dispatch. A figure from it belongs to the toolchain that
+     *       produced it: re-run the bench before quoting one.
      * @note THE NEEDLE LENGTH TERM CHANGES NO ANSWER ON THIS DATA. Scoring flatness alone ties this rule
-     *       exactly, same rows and same cycles, across all 42. It is kept because a
+     *       exactly, same rows and same cycles, on every row bench_dispatch scores. It is kept because a
      *       tunable with no reader is an integration point, and it is named here so nobody concludes
      *       from the code that it is carrying weight. Find a row where it pays or leave it inert.
      * @note The rule is read off the cycle measurements and belongs to the machine that produced them.

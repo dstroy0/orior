@@ -46,7 +46,7 @@ int ir_step_valid(const EngineRecordLayout *layout, unsigned int at)
 }
 
 // The rulesets a lane is written in, one a language, each read once a process from its .krs file in
-// engine/compiler/codegen/rulesets, or in the folder $CYCLE_RULESETS names. The format is the comment at the head of
+// src/cu/transpiler/codegen/rulesets, or in the folder $CYCLE_RULESETS names. The format is the comment at the head of
 // ptx.krs. Each language's code generator names every bank of registers it takes from, every register it passes to a
 // form by name, and every form it writes with the parameters each takes, in the schema its class gives the base; a
 // ruleset that lacks one of them, holds one they do not name, or gives a form other parameters errors on whole, and

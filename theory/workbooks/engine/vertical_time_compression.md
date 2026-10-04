@@ -350,8 +350,8 @@ Derived.
 
 ## The lane index and the latch
 
-- **The lane index.** Derived from `cycle.cu`: the kernel holds each lane's number as a 64-bit loop variable, and no step reads it. A step that writes it into a register is open on main, and built off main, in PR 15 (`ENGINE_RECORD_LANE`).
-- **The latch.** Derived. The first lane that meets a condition is the minimum over lanes of ℓ where the condition holds, with ∞ where it does not. The minimum is associative, commutative and idempotent. Any grouping returns the same lane as a serial scan from lane 0: a tree of depth ⌈log2 lanes⌉, or a device-wide atomic minimum. The latch is not built on main, and built off main, in PR 15.
+- **The lane index.** Derived from `cycle.cu`: the kernel holds each lane's number as a 64-bit loop variable, and no step reads it. The step `ENGINE_RECORD_LANE` writes it into a register.
+- **The latch.** Derived. The first lane that meets a condition is the minimum over lanes of ℓ where the condition holds, with ∞ where it does not. The minimum is associative, commutative and idempotent. Any grouping returns the same lane as a serial scan from lane 0: a tree of depth ⌈log2 lanes⌉, or a device-wide atomic minimum. `cycle_record_latch` reads it on the device by a tree over each warp and one atomic minimum, and `cycle_record_latch_host` reads it on the host (`cycle.h`).
 
 ## Tables
 
@@ -366,8 +366,6 @@ Derived.
 
 ## Open
 
-- **A lane's own index as a register.** A lane now reads its inputs only from records. An operation giving the lane's number as a value would let one shared atom stand for a whole range of inputs, with the lanes enumerating the range and no input stored per lane.
-- **The latch.** A device reduction that returns the first lane whose output meets a condition. Only that lane's index comes back to the host.
 - **Depth by tables.** Which rounds' sub-functions fit a 32-bit index, and how much depth that removes.
 - **The chained cost apart.** Launch, synchronization and the state's round trip through memory, each measured on its own.
 - **The neighbor gather.** For D axes: the halo in the record, or one axis per sweep. Which costs less waits on the chained cost apart. A tile's file under a better order than depth-first is also open.

@@ -4,7 +4,7 @@
 
 // the ruleset at `path` read whole into `rules` against its schema: 1 where its first line is krs 1, every entry holds,
 // and every bank, fixed register and form the code generator names is given with the ruleset's name, toolchain and
-// header, else 0 with the reason in rules->errored. A line that begins with # is a comment, and a blank line is nothing
+// header, else 0 with the reason in rules->error. A line that begins with # is a comment, and a blank line is nothing
 static int ruleset_read(Ruleset *rules, const std::string &path)
 {
     std::string ruleset_text;

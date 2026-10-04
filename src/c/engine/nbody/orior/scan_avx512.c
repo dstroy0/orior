@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
  *
  * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
@@ -16,7 +16,7 @@
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract AnchorSteerEngine carries, the same one the exact arms carry in no_rounding.
+ * the contract AnchorSteerEngine carries, the same one the exact arms carry in src/c/types/integers/arm.h.
  *
  * @note No machine in this project has AVX-512. This arm has never been run. It is compiled for
  *       the target and its emitted instructions are read by utils/maint/engine/verify_arm_asm.sh, which

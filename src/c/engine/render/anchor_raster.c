@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // anchor_raster.c: the raster on the host
 #include "anchor_raster_internal.h"
 
@@ -159,6 +159,29 @@ uint8_t anchor_raster_sample(const AnchorRasterConfig *config, const uint8_t *co
     }
 }
 
+void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value, AnchorRasterReduce reduce)
+{
+    // A cell's first arrival fills it and every later arrival meets the reduction. Zero is a value a cell holds and
+    // not the mark of an empty one: a zero byte under ANCHOR_REDUCE_MIN stays, as the device's identity seed keeps it
+    if (filled[cell] == 0u)
+    {
+        filled[cell] = 1u;
+        values[cell] = value;
+        return;
+    }
+    if (reduce == ANCHOR_REDUCE_MAX)
+    {
+        if (value > values[cell])
+        {
+            values[cell] = value;
+        }
+    }
+    else if (value < values[cell])
+    {
+        values[cell] = value;
+    }
+}
+
 int anchor_raster_host(uint8_t *pixels, const AnchorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
                        const uint8_t *needle, size_t needle_len, const AnchorRasterProbe *probes, size_t probe_count)
 {
@@ -173,6 +196,12 @@ int anchor_raster_host(uint8_t *pixels, const AnchorRasterConfig *config, const 
     }
 
     const size_t cells = config->width * config->height;
+    // which cells an alignment has reached; a cell nothing reaches writes ANCHOR_RASTER_EMPTY
+    uint8_t *const filled = (uint8_t *)calloc(cells, 1u);
+    if (filled == NULL)
+    {
+        return 0;
+    }
     for (size_t cell = 0u; cell < cells; cell += 1u)
     {
         pixels[cell] = (uint8_t)ANCHOR_RASTER_EMPTY;
@@ -186,27 +215,9 @@ int anchor_raster_host(uint8_t *pixels, const AnchorRasterConfig *config, const 
     {
         const uint8_t value = anchor_raster_sample(config, corpus, needle, needle_len, probes, probe_count, at,
                                                    census.occurrences, census.total);
-        const size_t cell = anchor_raster_cell(config, at, alignments);
-
-        /* An empty cell holds zero, which would win every minimum and lose every maximum. It is
-         * filled on first arrival and not compared against. */
-        if (pixels[cell] == (uint8_t)ANCHOR_RASTER_EMPTY)
-        {
-            pixels[cell] = value;
-            continue;
-        }
-        if (config->reduce == ANCHOR_REDUCE_MAX)
-        {
-            if (value > pixels[cell])
-            {
-                pixels[cell] = value;
-            }
-        }
-        else if (value < pixels[cell])
-        {
-            pixels[cell] = value;
-        }
+        raster_reduce(pixels, filled, anchor_raster_cell(config, at, alignments), value, config->reduce);
     }
+    free(filled);
     return 1;
 }
 

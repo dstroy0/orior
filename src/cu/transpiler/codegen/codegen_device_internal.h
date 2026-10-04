@@ -226,12 +226,8 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
                           unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
                           ScheduleReport *report, MachineInstr **text_items, unsigned long long *item_count,
                           std::string *error);
+#endif
 
 int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std::string *error);
-#endif
-#if !(defined(__CUDACC__))
-
-int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std::string *error);
-#endif
 
 #endif

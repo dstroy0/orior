@@ -89,7 +89,7 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
     written.kernel = kernel;
     written.code = s_code;
     written.code_size = code_size;
-    written.registers = cubin_registers_read(s_pattern, kernel);
+    written.registers = cubin_registers_read(s_pattern, pattern_size, kernel);
     written.exit_count = cubin_exits_find(s_code, code_size, sass_exit_encoding(machine), s_exits, SASS_EXITS);
     written.exits = s_exits;
     unsigned long long size = 0ull;

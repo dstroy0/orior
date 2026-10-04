@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_steer.c: the census and the steering probe order
 #include "orior_internal.h"
 
@@ -112,14 +112,13 @@ int anchor_steer_prefers_free(const AnchorFieldCensus *census)
     if ((census == NULL) || (census->total == 0u) || (census->distinct == 0u))
     {
         // An empty field distinguishes nothing. It takes the short circuiting engine, the
-        // one that ran before any of this and the cheaper of the two on a field with no
-        // structure to exploit.
+        // cheaper of the two on a field with no structure to exploit.
         return 0;
     }
 
     // Three integers, each built in place, since every exact operation accepts its result aliasing
-    // an input. The six this held before came to 768 KiB at 32768 limbs, and with the multiply's
-    // accumulator that passes the 1 MiB stack the MSVC linker gives a main thread.
+    // an input. Six would come to 768 KiB at 32768 limbs, and with the multiply's accumulator that
+    // passes the 1 MiB stack the MSVC linker gives a main thread.
     AnchorExactInteger left;
     AnchorExactInteger right;
     AnchorExactInteger term;

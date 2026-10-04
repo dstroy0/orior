@@ -93,6 +93,12 @@ int bus_enum_walk(const QueryWalk *walk, unsigned int *kinds, unsigned long long
             }
             continue;
         }
+        // a probe that wrote a line for every address it was given and then ended answered them all, and its
+        // ending is no address's answer
+        if (read == given)
+        {
+            continue;
+        }
         // the address that ended the probe is answered by the ending: nothing on the part drove it
         kinds[next] = HOST_NOTHING;
         next += 1ull;

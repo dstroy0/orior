@@ -2,7 +2,7 @@
 #ifndef KEY_SCHEDULE_CORE_H
 #define KEY_SCHEDULE_CORE_H
 
-// key_schedule's record layout as one source the host and the device both compile (engine_table.md item 11(f)(a), the
+// key_schedule's record layout as one source the host and the device both compile (engine_table.md item 11(a), the
 // compiler on the device): each step laid out for the device from its term, its register placed in the file, and each
 // output placed in the record. The host's key_schedule_record_layout runs it and builds the layout; the device runs it
 // in one thread, since each place is taken from what the steps before it freed. The lists it works in are the caller's,

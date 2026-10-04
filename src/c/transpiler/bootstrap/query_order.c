@@ -26,6 +26,10 @@ static void query_order_exact(AnchorExactInteger *value, unsigned long long give
     value->sign = (given != 0ull) ? 1 : 0;
 }
 
+// a run's cost multiplies two counts of 64 bits and takes one such product from another: four limbs hold every
+// term, and the exact calls below are given no width they can refuse
+_Static_assert((unsigned long long)(ANCHOR_EXACT_LIMBS) >= 4ull, "a run's cost holds two 64-bit counts multiplied");
+
 // The links `covered` marks, each put `repeat` times, timed on a clock that turns over now and then and read finely by
 // counting. The run starts on a turn of the clock. When it ends, the reads of the clock word until its next turn are
 // counted, and so are the reads across the whole turn after that. The run's cost is the clock's advance from the turn

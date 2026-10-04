@@ -22,28 +22,35 @@ itself depends on it.
 ## Where things live
 
 A module's place depends on whether its request carries a body count. The folders below `nbody/` never see a body.
+The engine's folders are under `c/engine/`, with the device code of each under the same name in `cu/engine/`:
 
-- `formats/` reads and writes the source and stored formats (zarr, tiff, hdf5, nifti, nrrd, dicom, npy, the stack,
-  cfg_json, apxrep, krep), and `codecs/` holds their compressors and the CRC.
-- `arithmetic/` holds exact arithmetic (`no_rounding/`) and the exact decimal and double fields.
 - `analysis/` holds the measures of the lattice itself: the tower, the residual, the period, compression, the entropy
-  history, shift agreement, the noise detector and the rest.
-- `compiler/` holds the record compiler: keymath, key_schedule, the cycle machine, code generation and the cell.
+  history, shift agreement, the noise detector and the rest, and the record compiler's keymath, key_schedule and
+  cycle machine.
 - `runtime/` holds the seal (`obsignatio/`), the device pool, the scheduler, the radix keys, scriptura, and tessera,
   the one daemon per device that admits every process's device jobs
   ([runtime/daemon/README.md](c/engine/runtime/daemon/README.md)).
-- `quantum/` holds the qasm reader and its device code.
 - `nbody/` is defined over n ≥ 1 bodies, n = 1 being its base case. There is no single-body folder, because one body
   is the case n = 1, not a separate machine.
 - `prg_sch/` holds the programs and schedules that compose the two: the cfgs and the n-body program.
   [prg_sch/README.md](c/engine/prg_sch/README.md) is how to write a program for the machine. The tracker's run programs and
   its answer key are cell tracking's own, in `examples/cell_tracking/src/` (`run_cfg`, `run_log`, `answer_key`).
 - `render/` draws any step's state as a sheet or a volume.
+
+What the engine reads, writes and computes with is outside `c/engine/`:
+
+- `c/includes/formats/` reads and writes the source and stored formats (zarr, tiff, hdf5, nifti, nrrd, dicom, npy,
+  the stack, cfg_json), and `c/includes/codecs/` holds their compressors and the CRC. apxrep is in `c/kcmplx/`, and
+  krep and the other file types the engine writes are in `c/types/file_defs/`.
+- `c/types/integers/` holds exact arithmetic, and `c/types/integerfloats/` the exact decimal and double fields.
+- `c/transpiler/` and `cu/transpiler/` hold code generation, the cubin writer, the bootstrap that asks the part, and
+  the qasm reader with its device code.
 - `sims/` holds the simulations. Each builds a lattice whose answer is known and grades a measurement against it, on
   the device, in exact integers.
 
-`engine_*.cu`, `engine.h` and `engine_config.h` sit at the top. `engine_*.cu` is the entry layer, the only file that
-reaches every module. `engine.h` declares its calls, and `engine_config.h` the types every module shares.
+`cu/engine/engine_*.cu`, `c/engine/engine.h` and `c/engine/engine_config.h` sit at the top. `engine_*.cu` is the entry
+layer, the only file that reaches every module. `engine.h` declares its calls, and `engine_config.h` the types every
+module shares.
 
 # General use
 

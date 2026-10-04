@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_steer_count.c: sweeping the probes and counting
 #include "orior_internal.h"
 
@@ -162,8 +162,8 @@ size_t anchor_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, 
     }
     // An empty needle occurs at every alignment. orior_naive and anchor_steer_count both report
     // corpus_len + 1 for it, and the reference fixes that answer. This returns the same before the
-    // loop instead of reading needle[offset] off a needle with no positions. Returning 0 here
-    // disagreed with the reference and with the two counting entries beside it.
+    // loop instead of reading needle[offset] off a needle with no positions. Returning 0 here would
+    // disagree with the reference and with the two counting entries beside it.
     if (needle_len == 0u)
     {
         return corpus_len + 1u;

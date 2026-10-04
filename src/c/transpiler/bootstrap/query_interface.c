@@ -102,6 +102,12 @@ unsigned long long query_interface_walk(const QueryWalk *walk, QueryAsk *answers
             }
             continue;
         }
+        // a probe that wrote a line for every address it was given and then ended answered them all, and its
+        // ending is no address's answer
+        if (read == given)
+        {
+            continue;
+        }
         // the probe ended at the address after its last line: that address is answered by the ending
         QueryAsk *const ended = &answers[next];
         ended->address = walk->from + (next * walk->stride);

@@ -92,7 +92,7 @@ static unsigned int code_generator_takes(unsigned int bank)
 
 // The banks laid into one register file, from the counts the lane declared: each bank begins where the one before it
 // ended, in the order the declarations come. A language whose banks are namespaces of their own leaves every bank at
-// 0, which writes each register by its own number as it always was. The predicates are a file of their own on every
+// 0, which writes each register by its own number. The predicates are a file of their own on every
 // language that has them, and are not laid with the rest. 0 where the banks run past what the file holds, the lane
 // then written by nobody: every register from there on would be one the language has already pinned
 static int code_generator_file(const CodeGenerator *generator, const std::vector<MachineInstr> &items,
@@ -290,7 +290,7 @@ CodeGenerator::CodeGenerator(const char *file, const char *toolchain, const char
 // place, held by an item of the form ASM_PRINTER_ALL_ONES, the lane's opening and declarations, the body's opening, the
 // body and the end; the places a thread holds in shared memory (the file's where the language lays it out there, else
 // 0), and the most words it holds live at once. The core decides the steps first, then the lane's own forms in the
-// order they were always written. 0 where the ruleset is not read, a step is one the lane does not hold, or a form
+// order the lane writes them. 0 where the ruleset is not read, a step is one the lane does not hold, or a form
 // breaks the lane. With a schedule model, the body is split into states and `report` told how
 int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
                           unsigned int *places, unsigned int *live, std::vector<MachineInstr> *items)

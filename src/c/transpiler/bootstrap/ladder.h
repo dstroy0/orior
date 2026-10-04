@@ -12,7 +12,7 @@
 // The names below are coherence anchors. That is all they are: they let the compiler say which relations it has
 // found a writing for and compose them into larger ones. A target is never told a name and never asked about one.
 //
-// Two anchors are required. A system that holds IDENTITY and ADD can be given the rest: TAKE is ADD over a
+// Two anchors are required. A system that holds SAME and ADD can be given the rest: TAKE is ADD over a
 // complement, PRODUCT is UP and ADD stacked, and the gates reach one another through rewrites. A system that holds
 // neither cannot be spoken to.
 

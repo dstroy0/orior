@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // anchor_raster_output.c: the PGM, the volume and the device entry points
 #include "anchor_raster_internal.h"
 
@@ -152,8 +152,8 @@ int anchor_volume_render_host(uint8_t *voxels, const AnchorVolumeConfig *config,
 {
     // RESERVED, NOT READ, AND NOT DELETED. The census below is built from `corpus`. A caller
     // supplied one is discarded here. The parameter stays because a tunable with no reader is an
-    // integration point and not dead weight, and the header says so at the declaration instead
-    // of calling it the rarity source, as it did until it was measured.
+    // integration point and not dead weight, and the header says so at the declaration. It is not
+    // the rarity source.
     (void)census_in;
 
     if ((voxels == NULL) || (config == NULL) || (corpus == NULL) || (needle == NULL) || (config->width == 0u) ||
@@ -167,6 +167,12 @@ int anchor_volume_render_host(uint8_t *voxels, const AnchorVolumeConfig *config,
     }
 
     const size_t cells = config->width * config->height * config->depth;
+    // which cells an alignment has reached; a cell nothing reaches writes ANCHOR_RASTER_EMPTY
+    uint8_t *const filled = (uint8_t *)calloc(cells, 1u);
+    if (filled == NULL)
+    {
+        return 0;
+    }
     for (size_t cell = 0u; cell < cells; cell += 1u)
     {
         voxels[cell] = (uint8_t)ANCHOR_RASTER_EMPTY;
@@ -190,29 +196,15 @@ int anchor_volume_render_host(uint8_t *voxels, const AnchorVolumeConfig *config,
         {
             // The layout errored on this configuration. Erroring on every alignment identically
             // makes the error visible as an empty volume and not as a partial one.
+            free(filled);
             return 0;
         }
 
         const uint8_t value = anchor_raster_sample(&flat, corpus, needle, needle_len, probes, probe_count, at,
                                                    census.occurrences, census.total);
-
-        if (voxels[cell] == (uint8_t)ANCHOR_RASTER_EMPTY)
-        {
-            voxels[cell] = value;
-            continue;
-        }
-        if (config->reduce == ANCHOR_REDUCE_MAX)
-        {
-            if (value > voxels[cell])
-            {
-                voxels[cell] = value;
-            }
-        }
-        else if (value < voxels[cell])
-        {
-            voxels[cell] = value;
-        }
+        raster_reduce(voxels, filled, cell, value, config->reduce);
     }
+    free(filled);
     return 1;
 }
 

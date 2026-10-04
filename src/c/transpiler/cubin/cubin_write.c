@@ -15,8 +15,10 @@
 #define ELF_SHSTRNDX 62u
 #define ELF_HEADER_BYTES 64u
 
-// where a section header keeps what this reads and writes
+// where a section header keeps what this reads and writes, and the type of a section that takes no bytes in the file
 #define SECTION_NAME 0u
+#define SECTION_TYPE 4u
+#define SECTION_TYPE_NOBITS 8u
 #define SECTION_OFFSET 24u
 #define SECTION_SIZE 32u
 #define SECTION_INFO 44u
@@ -55,6 +57,7 @@ typedef struct
     unsigned long long size;
     unsigned long long align;
     unsigned long long goes_at;
+    unsigned long long type;
 } CubinSection;
 
 static unsigned long long cubin_read(const unsigned char *bytes, unsigned int width)
@@ -98,6 +101,57 @@ unsigned int cubin_exits_find(const unsigned char *code, unsigned long long code
     return found;
 }
 
+// 1 where every place the writer reads in `pattern`, which is `size` bytes, lies inside it: the header, both tables,
+// the bytes of every section that takes bytes in the file, and every section's name with its ending inside the names
+static int cubin_pattern_holds(const unsigned char *pattern, unsigned long long size)
+{
+    if (size < ELF_HEADER_BYTES)
+    {
+        return 0;
+    }
+    const unsigned long long table = cubin_read(&pattern[ELF_SHOFF], 8u);
+    const unsigned long long header_bytes = cubin_read(&pattern[ELF_SHENTSIZE], 2u);
+    const unsigned long long count = cubin_read(&pattern[ELF_SHNUM], 2u);
+    const unsigned long long names_index = cubin_read(&pattern[ELF_SHSTRNDX], 2u);
+    const unsigned long long segment_table = cubin_read(&pattern[ELF_PHOFF], 8u);
+    const unsigned long long segment_bytes = cubin_read(&pattern[ELF_PHENTSIZE], 2u);
+    const unsigned long long segments = cubin_read(&pattern[ELF_PHNUM], 2u);
+    if ((header_bytes < (SECTION_ALIGN + 8u)) || (names_index >= count) || (table > size) ||
+        ((count * header_bytes) > (size - table)))
+    {
+        return 0;
+    }
+    if ((segments != 0ull) && ((segment_bytes < (SEGMENT_MEMSIZE + 8u)) || (segment_table > size) ||
+                               ((segments * segment_bytes) > (size - segment_table))))
+    {
+        return 0;
+    }
+    const unsigned long long names_header = table + (names_index * header_bytes);
+    const unsigned long long names_at = cubin_read(&pattern[names_header + SECTION_OFFSET], 8u);
+    const unsigned long long names_size = cubin_read(&pattern[names_header + SECTION_SIZE], 8u);
+    if ((names_at > size) || (names_size > (size - names_at)))
+    {
+        return 0;
+    }
+    for (unsigned long long index = 0ull; index < count; index += 1ull)
+    {
+        const unsigned long long at = table + (index * header_bytes);
+        const unsigned long long offset = cubin_read(&pattern[at + SECTION_OFFSET], 8u);
+        const unsigned long long length = cubin_read(&pattern[at + SECTION_SIZE], 8u);
+        const int takes_bytes = (index != 0ull) && (cubin_read(&pattern[at + SECTION_TYPE], 4u) != SECTION_TYPE_NOBITS);
+        if (takes_bytes && ((offset > size) || (length > (size - offset))))
+        {
+            return 0;
+        }
+        const unsigned long long name = cubin_read(&pattern[at + SECTION_NAME], 4u);
+        if ((name >= names_size) || (memchr(&pattern[names_at + name], '\0', names_size - name) == NULL))
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // the section header table of `pattern`, and through `count` how many headers it holds and through `strings` where
 // the section names lie
 static unsigned long long cubin_sections(const unsigned char *pattern, unsigned int *count,
@@ -111,8 +165,12 @@ static unsigned long long cubin_sections(const unsigned char *pattern, unsigned 
     return table;
 }
 
-unsigned int cubin_registers_read(const unsigned char *pattern, const char *kernel)
+unsigned int cubin_registers_read(const unsigned char *pattern, unsigned long long pattern_size, const char *kernel)
 {
+    if (!cubin_pattern_holds(pattern, pattern_size))
+    {
+        return 0u;
+    }
     unsigned int count = 0u;
     unsigned long long strings = 0ull;
     unsigned long long header_bytes = 0ull;
@@ -204,6 +262,11 @@ static const unsigned char *cubin_attribute(const unsigned char *bytes, unsigned
         const unsigned int named = bytes[at + 1u];
         const unsigned long long kept =
             (format == ATTRIBUTE_FORMAT_VALUE) ? cubin_read(&bytes[at + 2u], 2u) : 0ull;
+        // a value that runs past the section ends the read, and the section holds no attribute past it
+        if (kept > (size - (at + ATTRIBUTE_HEADER)))
+        {
+            break;
+        }
         if (named == attribute)
         {
             *value_size = kept;
@@ -277,6 +340,12 @@ static void cubin_registers_set(unsigned char *bytes, unsigned long long size, u
 int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long long room, unsigned long long *size)
 {
     const unsigned char *const pattern = args->pattern;
+    if (!cubin_pattern_holds(pattern, args->pattern_size))
+    {
+        printf("  cubin_write: a table, a section or a name of the pattern lies past its %llu bytes\n",
+               args->pattern_size);
+        return 0;
+    }
     const unsigned long long section_table = cubin_read(&pattern[ELF_SHOFF], 8u);
     const unsigned long long section_bytes = cubin_read(&pattern[ELF_SHENTSIZE], 2u);
     const unsigned int sections = (unsigned int)cubin_read(&pattern[ELF_SHNUM], 2u);
@@ -284,7 +353,7 @@ int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long lo
     const unsigned long long segment_bytes = cubin_read(&pattern[ELF_PHENTSIZE], 2u);
     const unsigned int segments = (unsigned int)cubin_read(&pattern[ELF_PHNUM], 2u);
     const unsigned int strings_index = (unsigned int)cubin_read(&pattern[ELF_SHSTRNDX], 2u);
-    if ((sections == 0u) || (sections > CUBIN_SECTIONS) || (args->pattern_size < ELF_HEADER_BYTES))
+    if (sections > CUBIN_SECTIONS)
     {
         printf("  cubin_write: the pattern holds %u sections in %llu bytes\n", sections, args->pattern_size);
         return 0;
@@ -295,10 +364,13 @@ int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long lo
         const unsigned long long at = section_table + ((unsigned long long)index * section_bytes);
         kept[index].was_at = at;
         kept[index].was_size = cubin_read(&pattern[at + SECTION_SIZE], 8u);
-        kept[index].bytes = &pattern[cubin_read(&pattern[at + SECTION_OFFSET], 8u)];
-        kept[index].size = kept[index].was_size;
+        kept[index].type = cubin_read(&pattern[at + SECTION_TYPE], 4u);
         kept[index].align = cubin_read(&pattern[at + SECTION_ALIGN], 8u);
         kept[index].goes_at = cubin_read(&pattern[at + SECTION_OFFSET], 8u);
+        // a section that takes no bytes in the file is laid out at no length and keeps the size its header gives
+        const int takes_bytes = (index != 0u) && (kept[index].type != SECTION_TYPE_NOBITS);
+        kept[index].bytes = takes_bytes ? &pattern[kept[index].goes_at] : pattern;
+        kept[index].size = takes_bytes ? kept[index].was_size : 0ull;
     }
     const unsigned long long strings = cubin_read(&pattern[kept[strings_index].was_at + SECTION_OFFSET], 8u);
     char named[256];
@@ -334,6 +406,13 @@ int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long lo
     memcpy(s_all, kept[all_index].bytes, kept[all_index].size);
     const unsigned int symbol =
         (unsigned int)(cubin_read(&pattern[kept[code_index].was_at + SECTION_INFO], 4u) & 0xffffffu);
+    // the symbol's size is written inside the symbol table
+    if ((((unsigned long long)symbol * SYMBOL_BYTES) + SYMBOL_SIZE + 8ull) > kept[symbols_index].size)
+    {
+        printf("  cubin_write: the kernel's symbol %u lies past the %llu bytes of .symtab\n", symbol,
+               kept[symbols_index].size);
+        return 0;
+    }
     cubin_registers_set(s_all, kept[all_index].size, symbol, args->registers);
     kept[code_index].bytes = args->code;
     kept[code_index].size = args->code_size;
@@ -367,7 +446,10 @@ int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long lo
         {
             memcpy(&written[kept[index].goes_at], kept[index].bytes, kept[index].size);
             cubin_put(&header[SECTION_OFFSET], 8u, kept[index].goes_at);
-            cubin_put(&header[SECTION_SIZE], 8u, kept[index].size);
+            if (kept[index].type != SECTION_TYPE_NOBITS)
+            {
+                cubin_put(&header[SECTION_SIZE], 8u, kept[index].size);
+            }
         }
     }
     // the code section carries the register count in the top byte of its info, beside the symbol it names

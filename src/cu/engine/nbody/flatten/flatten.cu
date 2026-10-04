@@ -26,8 +26,8 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 #define FLATTEN_IO(condition_, evacaddr_, error_)                                                                      \
     engine_io_check((condition_), ENGINE_MODULE_FLATTEN, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
 
-// The flattened file's format word, first in its head. Format 2 records each sample's orders after its name. The first
-// format held MAX_TREE_FIELDS in that place and recorded no orders, and a file of it errors.
+// The flattened file's format word, first in its head. Format 2 records each sample's orders after its name, and a file
+// of any other format errors on read.
 #define FLATTEN_FORMAT 2u
 
 #define FLATTEN_HEAD_LIMBS 5u

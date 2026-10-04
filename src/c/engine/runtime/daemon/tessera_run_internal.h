@@ -135,13 +135,6 @@ unsigned long long run_limit(const char *name, unsigned long long fallback);
 int run_record_read(const char *path, char state[RUN_STATE_CAPACITY], unsigned long long numbers[RUN_NUMBERS]);
 
 void run_log(const char *records, const char *entry);
-#if (defined(_WIN32))
-
-int run_names_wsl(const char *program);
-
-int run_mounted_path(const char *path, char *mounted, size_t capacity);
-
-int run_wsl_program(char *mounted, size_t capacity);
 
 int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel);
 
@@ -164,6 +157,13 @@ void run_record_put(RunChannel *channel, const char *line, size_t length);
 void run_record_close(RunChannel *channel);
 
 int run_parent_alive(const char *parent);
+#if (defined(_WIN32))
+
+int run_names_wsl(const char *program);
+
+int run_mounted_path(const char *path, char *mounted, size_t capacity);
+
+int run_wsl_program(char *mounted, size_t capacity);
 #endif
 #if !(defined(_WIN32))
 typedef struct
@@ -178,28 +178,6 @@ typedef struct
 int run_process_read(unsigned long long pid, RunProcess *process);
 
 RunProcess *run_tree(pid_t root, unsigned long long *count);
-
-int run_cpu(const RunChild *child, unsigned long long *microseconds);
-
-int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel);
-
-int run_ended(RunChild *child, unsigned long long microseconds);
-
-int run_finish(RunChild *child);
-
-unsigned long long run_end_command(RunChild *child, unsigned long long grace);
-
-void run_folder_make(const char *path);
-
-int run_folder_exists(const char *path);
-
-int run_record_make(RunChannel *channel, const char *path);
-
-void run_record_put(RunChannel *channel, const char *line, size_t length);
-
-void run_record_close(RunChannel *channel);
-
-int run_parent_alive(const char *parent);
 #endif
 
 void run_record_launched(RunChannel *channel, unsigned long long pid);

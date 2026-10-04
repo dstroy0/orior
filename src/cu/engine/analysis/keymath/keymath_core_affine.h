@@ -3,7 +3,7 @@
 #ifndef KEYMATH_CORE_AFFINE_H
 #define KEYMATH_CORE_AFFINE_H
 
-// keymath's record encoding as one source the host and the device both compile (engine_table.md item 11(f)(a), the
+// keymath's record encoding as one source the host and the device both compile (engine_table.md item 11(a), the
 // compiler on the device): each step's term and width, read from its operation and its operands' in step order, and
 // each register's linear form, which narrows the width where it is tighter. The host's keymath_record_encode runs it
 // and lays out the key; the device runs it in one thread, since each step reads the steps before it. A linear form's

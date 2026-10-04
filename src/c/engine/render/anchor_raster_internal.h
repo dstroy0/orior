@@ -1,10 +1,9 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // What the anchor_raster_*.c pieces share: its includes, types and the functions one piece calls in another
 #ifndef ANCHOR_RASTER_INTERNAL_H
 #define ANCHOR_RASTER_INTERNAL_H
 
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
  *
  * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
@@ -24,6 +23,7 @@
 #include "anchor_raster.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 /** @brief Death level step in the gray ramp, chosen so four probes stay far apart in 8 bits. */
 #define ANCHOR_RASTER_STEP 40u
@@ -46,6 +46,9 @@ typedef struct
 } AnchorRasterCensus;
 
 void raster_census(AnchorRasterCensus *census, const uint8_t *corpus, size_t corpus_len);
+
+// `value` reduced into `values[cell]` by `reduce`, the cell's first arrival marked in `filled`
+void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value, AnchorRasterReduce reduce);
 
 uint8_t anchor_raster_sample(const AnchorRasterConfig *config, const uint8_t *corpus, const uint8_t *needle,
                              size_t needle_len, const AnchorRasterProbe *probes, size_t probe_count, size_t at,

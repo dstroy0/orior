@@ -88,7 +88,7 @@ class CodeGenerator : public Target
     // 0, and program() leaves the form out in place of asking the ruleset for it.
     //
     // SASS answers 0. The resident is the same for every program, its arguments are offsets fixed at build time,
-    // and the part's own compiler turns ptx.krs's 110 instructions of it into SASS that runs. A program is put
+    // and the part's own compiler turns ptx.krs's PTX for it into SASS that runs. A program is put
     // together by writing the lane into that cubin's cycle_lane, leaving cycle_program as the compiler wrote it, and
     // asking sass.krs for a resident would be asking it to derive what is already in hand
     virtual int program_unit_written(void) const;

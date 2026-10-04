@@ -481,7 +481,7 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
     }
     const unsigned int limbs = request->sum_limbs;
     unsigned int *const value = (unsigned int *)malloc(limbs * sizeof(unsigned int));
-    if (!CYCLE_CHECK(value != NULL, request, error, ENGINE_ERROR_REQUEST))
+    if (!CYCLE_CHECK(value != NULL, request, error, ENGINE_ERROR_RESOURCE))
     {
         return CYCLE_ERROR;
     }

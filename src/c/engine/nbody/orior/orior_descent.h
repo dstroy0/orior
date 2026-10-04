@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_descent.h: descent, the recursive plan, probes and counting (orior.h includes the parts in order)
 #ifndef ORIOR_DESCENT_H
 #define ORIOR_DESCENT_H
@@ -14,9 +14,9 @@ extern "C"
      * @brief Everything a descent reads, as one argument.
      *
      * ONE STRUCT FOR THE WHOLE FAMILY. The reordering descent and the spawning descent ask the same
-     * question of the same field and differ only in where their candidates come from. They took nine
-     * and ten positional parameters before this, four of them `size_t` in a row, which is a call a
-     * reader cannot check and a caller can transpose silently.
+     * question of the same field and differ only in where their candidates come from. Nine or ten
+     * positional parameters, four of them `size_t` in a row, would be a call a reader cannot check and
+     * a caller can transpose silently.
      *
      * @note AN OMITTED MEMBER IS ZERO AND THAT IS PART OF THE CONTRACT. `sample_stride` of zero is read
      *       as one, `force_full_depth` of zero honors the destroy rule, `any` of zero takes the byte
@@ -40,9 +40,8 @@ extern "C"
      * probes placed before the stop point ever differ the induction broke. One member, two meanings a
      * reader can tell apart.
      *
-     * @note It was a separate entry, anchor_steer_spawn_coarms_deep, taking ten positional parameters.
-     *       A member an omitted initializer leaves zero does the same work, and two entries sharing one
-     *       descent is the drift this structure was adopted to remove.
+     * @note A member an omitted initializer leaves zero does this work, and a second entry sharing one
+     *       descent would be the drift this structure exists to remove.
      * @warning Every pointer here is BORROWED for the duration of the call. `survivors` is written and
      *          `corpus` and `needle` are only read.
      */
@@ -96,13 +95,8 @@ extern "C"
      *          reading the return value alone cannot tell which guard errored. Check the bound before
      *          the call, because the call will not tell you.
      *
-     * @param[in,out] offsets       Anchor offsets, reordered in place into evaluation order [BORROWS].
-     * @param[in]     count         How many offsets. At most ANCHOR_STEER_ANCHORS.
-     * @param[in]     corpus        Bytes the search will run over [BORROWS].
-     * @param[in]     corpus_len    How many.
-     * @param[in]     needle        Bytes to find [BORROWS].
-     * @param[in]     needle_len    How many.
-     * @param[in]     sample_stride Plan on every Nth alignment. 1 reads them all. 0 is treated as 1.
+     * @param[in,out] args          The descent [BORROWS], each member as AnchorSteerDescent gives it:
+     *                              `offsets` reordered in place into evaluation order.
      * @return                      Levels actually descended, which is AT MOST `count` and is fewer
      *                              when the destroy rule ends the descent early. `count` on a valid call
      *                              is the ceiling the depth cannot exceed. Read the return to learn the
@@ -134,9 +128,8 @@ extern "C"
      * array does. There is no runtime guard, no iteration cap and no watchdog, because a bound enforced
      * at compile time does not need one.
      *
-     * THE DEPTH IS NOT FIXED, THOUGH, AND AN EARLIER FORM OF THIS LIST SAID IT WAS. It read "no branch
-     * anywhere in the descent depends on corpus content for its DEPTH, only for its choice at a level",
-     * which is false unless `force_full_depth` is set. The destroy test reads a survivor count off the
+     * THE DEPTH IS NOT FIXED, THOUGH. Corpus content decides the descent's depth as well as its choice
+     * at a level, unless `force_full_depth` is set. The destroy test reads a survivor count off the
      * corpus and breaks. The field routinely ends the descent early, and an omitted member is zero so
      * that is the default path. Depth is a truthy and falsy steer bounded above by a constant, and the
      * return value exists for a caller to read the depth actually reached instead of assuming `count`.
@@ -154,15 +147,9 @@ extern "C"
     /**
      * @brief Spawns coarms at the positions that prune most, one per level, and places them in order.
      *
-     * @param[out] offsets          Where the chosen offsets are written, in evaluation order [BORROWS].
-     * @param[in]  wanted           How many coarms to spawn. At most ANCHOR_STEER_ANCHORS.
-     * @param[in]  corpus           Bytes the search will run over [BORROWS].
-     * @param[in]  corpus_len       How many.
-     * @param[in]  needle           Bytes to find [BORROWS].
-     * @param[in]  needle_len       How many.
-     * @param[out] survivors        Which alignments the probes left standing, one byte each [BORROWS].
-     * @param[in]  survivors_length How many. Must reach the alignment count.
-     * @param[in]  sample_stride    Plan on every Nth alignment. 1 reads them all. 0 is treated as 1.
+     * @param[in,out] args          The descent [BORROWS], each member as AnchorSteerDescent gives it:
+     *                              `offsets` written in evaluation order, and `count` the coarms
+     *                              wanted, written `wanted` below.
      * @return                      Coarms actually placed, which is AT MOST `wanted` and is fewer when
      *                              the destroy rule ends the descent early. `wanted` on a valid call is
      *                              the ceiling the count cannot exceed. Read the return to learn how many
@@ -190,7 +177,7 @@ extern "C"
      *
      * @warning THE GUARANTEE IS ON ALIGNMENTS REJECTED AND NOT ON READS. Rejecting an alignment early
      *          saves the reads a later probe would spend on it. Two probe sets covering the same
-     *          alignments can cost different numbers of reads. It alassumes marginal gains are
+     *          alignments can cost different numbers of reads. It assumes marginal gains are
      *          scored exactly, which holds only at `sample_stride` of one. Above one the scoring is
      *          taken on a sample, the oracle is approximate, and the ratio no longer holds as stated.
      *
@@ -291,16 +278,9 @@ extern "C"
     /**
      * @brief Spawns probes anywhere on the needle, sweeping shapes, and orders them by pruning.
      *
-     * @param[out] probes           Where the chosen probes are written, in evaluation order [BORROWS].
-     * @param[in]  wanted           How many to spawn. At most ANCHOR_STEER_ANCHORS.
-     * @param[in]  corpus           Bytes the search will run over [BORROWS].
-     * @param[in]  corpus_len       How many.
-     * @param[in]  needle           Bytes to find [BORROWS].
-     * @param[in]  needle_len       How many.
-     * @param[in]  max_length       Longest eye to consider. One restricts the sweep to arms.
-     * @param[out] survivors        Which alignments the probes left standing, one byte each [BORROWS].
-     * @param[in]  survivors_length How many. Must reach the alignment count.
-     * @param[in]  sample_stride    Plan on every Nth alignment. 1 reads them all. 0 is treated as 1.
+     * @param[in,out] args          The sweep [BORROWS], each member as AnchorSteerSweep gives it:
+     *                              `probes` written in evaluation order, and `count` the probes
+     *                              wanted, written `wanted` below.
      * @return                      Probes actually placed.
      *
      * THE SWEEP TOUCHES EVERYTHING IT IS ALLOWED TO REACH. At each level it considers every origin in
