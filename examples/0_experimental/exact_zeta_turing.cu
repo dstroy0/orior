@@ -44,22 +44,27 @@
 // (F, P).
 //
 // The main sum's half comes from the pair stage, or from the multiple evaluation below, or from both, the method
-// word 0, 1 or 2; with both, the verdict is the multiple evaluation's and the most the two Z differ by is written.
+// word 0, 1 or 2, or from the pair stage at listed points, 4; with both, the verdict is the multiple evaluation's and the most the two Z differ by is written.
 //
 // Method 3 is Euler-Maclaurin, which holds at every t: zeta = sum over n < N of n^(-s) + N^(-s) C, the pole stage
 // takes k <= N, the pair stage the N - 1 terms of each point, and the Euler-Maclaurin stage C and the term
 // Re(exp(i theta) N^(-s) C); the verdict takes Z = sum + that term, with no doubling, and its bound is the machine's.
+// Method 4 is the listed points: the pairs at the points j of the lattice of 2^p the input lists, as many as its
+// points word, in place of every point of the cell. The point stage reads j from the list and gives S last, the pair
+// and verdict stages read S from it, and the count runs over the points in the order listed. It certifies the signs
+// at those points alone, for the steps of a coarser run that can hide a pair.
+//
 // The multiple evaluation runs each of its programs many times a cell: the host checks a stage's first run over
 // `checked` lanes and each later run over its first lane.
 //
 // The input, little-endian: 64-bit words points (2^p), checked, nu, p, L, K, J, Newton steps, piece, method, the
 // expansions' order, beta, E, R, for method 3 Euler-Maclaurin's N and M, else 0 and 0, and 1 where every point is
 // to be listed, 2 where every point is to be listed with the twist, which the multiple evaluation alone gives, else
-// 0, then the constants, each a
-// 64-bit word count w, w 32-bit limbs of its magnitude least significant first, and a 64-bit sign word: ln 2, the J
+// 0, then the constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least significant first, and a
+// 64-bit sign word: ln 2, the J
 // coefficients of C_0, the L constants 1 / (2k + 1) of artanh, the K constants of cos, 1 / (96 pi^2), the bound on Z,
 // the bound on theta / pi, pi, the E constants 1 / (n + 1)! of E1, the R constants of S, and for method 3 the M - 1
-// ratios r_k for k from 2 to M, every one at 2^62.
+// ratios r_k for k from 2 to M, every one at 2^62, and for method 4 the listed points j, one 64-bit word each.
 //
 // The output: lines "key value" and "key value value ...", values signed hexadecimal: the cell, its first and last
 // certified points and point 0, each with its sign, S, and theta / pi less and more its bound, the sums, Z at two
@@ -589,10 +594,11 @@ static void turing_pole_build(TuringStage *stage, unsigned int newton, const Tur
     stage->outputs.push_back(turing_op(program, ENGINE_RECORD_QUOTIENT, turing_negate(program, charge.im), big_p));
 }
 
-// the point stage: shared fields sign, nu^2 2^p, 2 nu + 1, nu, then the logarithm's, 1 / (96 pi^2), then C_0's
+// the point stage: shared fields sign, nu^2 2^p, 2 nu + 1, nu, then the logarithm's, 1 / (96 pi^2), then C_0's.
+// Where `listed`, point j is read from member 1, a record a point, in place of the lane, and S is given last
 static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int newton, const TuringConstant &ln2,
                                const std::vector<TuringConstant> &artanh, const TuringConstant &c96,
-                               const std::vector<TuringConstant> &gamma, const TuringOsConstants *os)
+                               const std::vector<TuringConstant> &gamma, const TuringOsConstants *os, int listed)
 {
     TuringProgram *const program = &stage->program;
     const unsigned int sign_field = turing_field(program, 2u);
@@ -607,7 +613,8 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
     {
         gamma_field.push_back(turing_field(program, gamma[k].bits));
     }
-    const unsigned int lane = turing_lane(program, p + 1u);
+    const unsigned int lane = listed ? turing_read(program, turing_member_field(program, p + 2u, 0u), 1u)
+                                     : turing_lane(program, p + 1u);
     const unsigned int big_s = turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 0u),
                                          turing_op(program, ENGINE_RECORD_PRODUCT, lane, turing_read(program, step_field, 0u)));
 
@@ -655,6 +662,10 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
         stage->outputs.push_back(turn.re);
         stage->outputs.push_back(turn.im);
     }
+    if (listed)
+    {
+        stage->outputs.push_back(big_s);
+    }
 }
 
 // a step's output place in a laid-out stage
@@ -664,9 +675,9 @@ static const DeviceRecordStep *turing_place(const TuringStage *stage, unsigned i
 }
 
 // the pair stage: member 0 the pole records, member 1 the point records, member 2 the shared record of nu,
-// nu^2 2^p, 2 nu + 1, start, then cos's constants
+// nu^2 2^p, 2 nu + 1, start, then cos's constants. Where `s_place` is given, S is read from the point record
 static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringStage *pole, const TuringStage *point,
-                              const std::vector<TuringConstant> &cosine)
+                              const std::vector<TuringConstant> &cosine, const DeviceRecordStep *s_place)
 {
     TuringProgram *const program = &stage->program;
     const DeviceRecordStep *const log_place = turing_place(pole, 0u);
@@ -689,8 +700,10 @@ static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringSt
     const unsigned int j = turing_op(program, ENGINE_RECORD_SUM,
                                      turing_op(program, ENGINE_RECORD_QUOTIENT, lane, turing_read(program, nu_field, 2u)),
                                      turing_read(program, start_field, 2u));
-    const unsigned int big_s = turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, j, turing_read(program, step_field, 2u)));
+    const unsigned int big_s =
+        (s_place != NULL) ? turing_read(program, turing_member_field(program, s_place->out_bits, s_place->out_offset), 1u)
+                          : turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
+                                      turing_op(program, ENGINE_RECORD_PRODUCT, j, turing_read(program, step_field, 2u)));
     // 2 s ln k = S ln k / 2^(p - 1)
     const unsigned int twice = turing_op(program, ENGINE_RECORD_QUOTIENT,
                                          turing_op(program, ENGINE_RECORD_PRODUCT, big_s, turing_read(program, log_field, 0u)),
@@ -1347,7 +1360,7 @@ static void turing_twist_build(TuringStage *stage, const TuringExpansion &values
 // The shared record's fields are the stage's parameters, in order
 static void turing_verdict_build(TuringStage *stage, unsigned int p, unsigned int sum_limbs, const TuringStage *point,
                                  unsigned int bound_bits, unsigned int theta_bits, const TuringExpansion *transform,
-                                 int doubled)
+                                 int doubled, const DeviceRecordStep *s_place)
 {
     TuringProgram *const program = &stage->program;
     const DeviceRecordStep *const held_place = turing_place(point, 0u);
@@ -1363,8 +1376,10 @@ static void turing_verdict_build(TuringStage *stage, unsigned int p, unsigned in
 
     const unsigned int lane = turing_lane(program, p + 1u);
     const unsigned int step = turing_read(program, step_field, 2u);
-    const unsigned int big_s = turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, lane, step));
+    const unsigned int big_s =
+        (s_place != NULL) ? turing_read(program, turing_member_field(program, s_place->out_bits, s_place->out_offset), 1u)
+                          : turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
+                                      turing_op(program, ENGINE_RECORD_PRODUCT, lane, step));
     TuringComplex w = {0u, 0u};
     if (transform != NULL)
     {
@@ -2398,14 +2413,18 @@ int main(int count, char **arguments)
     // Euler-Maclaurin, method 3, takes N - 1 terms a point and holds from cell 1; the others take nu from cell 2. Only
     // the multiple evaluation reads the leaf width 2^beta, which must lie below the cell's 2^p points. The input is
     // read for its form alone: every count at least what its series needs, the points the 2^p a 64-bit word holds,
-    // and none refused for its size
+    // and none refused for its size. Method 4, the listed points, takes the pairs at the points j the input lists after
+    // its constants, each on the lattice of 2^p, as many as the points word says
     const int em_header = (header[9] == 3);
+    const int listed_header = (header[9] == 4);
     const long long terms_header = em_header ? header[14] - 1 : header[2];
     read = read && (header[2] >= (em_header ? 1 : 2)) && (header[3] >= 2) && (header[3] < 63) &&
-           (header[0] == (1ll << header[3])) && (header[1] > 0) && (header[4] >= 2) && (header[5] >= 2) &&
+           (listed_header ? (header[0] >= 1) : (header[0] == (1ll << header[3]))) && (header[1] > 0) &&
+           (header[4] >= 2) && (header[5] >= 2) &&
            (header[6] >= 2) && (header[7] >= 1) && (header[8] >= 1) && (header[8] <= header[0]) &&
-           ((header[0] % header[8]) == 0) && (header[1] <= header[8]) && (header[9] >= 0) && (header[9] <= 3) &&
-           (header[10] >= 2) && (header[11] >= 2) && ((header[9] == 0) || em_header || (header[11] < header[3])) &&
+           ((header[0] % header[8]) == 0) && (header[1] <= header[8]) && (header[9] >= 0) && (header[9] <= 4) &&
+           (header[10] >= 2) && (header[11] >= 2) &&
+           ((header[9] == 0) || em_header || listed_header || (header[11] < header[3])) &&
            (header[12] >= 2) && (header[13] >= 2) && (!em_header || ((header[14] >= 2) && (header[15] >= 2))) &&
            (header[16] >= 0) && (header[16] <= 2) && ((header[16] < 2) || (header[9] == 1) || (header[9] == 2));
     const unsigned long long points = read ? (unsigned long long)header[0] : 0ull;
@@ -2479,6 +2498,18 @@ int main(int count, char **arguments)
     {
         read = turing_read_constant(in, &ratio[k]);
     }
+    // the listed points j, each below 2^p, a record of two limbs a point, least significant first
+    const unsigned int j_limbs = read ? ((unsigned int)header[3] + 2u + 31u) / 32u : 1u;
+    std::vector<unsigned int> listed_j;
+    for (long long k = 0; read && listed_header && (k < header[0]); k += 1)
+    {
+        long long j = 0;
+        read = turing_word(in, &j) && (j >= 0) && (j < (1ll << header[3]));
+        for (unsigned int limb = 0u; read && (limb < j_limbs); limb += 1u)
+        {
+            listed_j.push_back((unsigned int)(((unsigned long long)j >> (32u * limb)) & 0xFFFFFFFFull));
+        }
+    }
     os.cosine = cosine;
     if (in != NULL)
     {
@@ -2492,6 +2523,7 @@ int main(int count, char **arguments)
     const unsigned long long floor_s = (nu * nu) << p;
     const unsigned long long step_s = 2ull * nu + 1ull;
     const int em_run = (method == 3u);
+    const int listed_run = (method == 4u);
     const int pairs_run = (method != 1u);
     const int transform_run = (method == 1u) || (method == 2u);
     const TuringOsConstants *const with_os = transform_run ? &os : NULL;
@@ -2506,7 +2538,7 @@ int main(int count, char **arguments)
     turing_open_stage(&pole, "pole", 1u);
     turing_open_stage(&pole_twist, "pole, weighted by -i ln k", 1u);
     turing_open_stage(&twist, "twist", 2u);
-    turing_open_stage(&point, "point", 1u);
+    turing_open_stage(&point, "point", listed_run ? 2u : 1u);
     turing_open_stage(&pair, "pair", 3u);
     turing_open_stage(&em, "Euler-Maclaurin", 3u);
     turing_open_stage(&verdict, "verdict", 3u);
@@ -2535,9 +2567,10 @@ int main(int count, char **arguments)
     }
     unsigned int field = 0u;
 
-    turing_point_build(&point, p, newton, ln2, artanh, c96, gamma, with_os);
+    turing_point_build(&point, p, newton, ln2, artanh, c96, gamma, with_os, listed_run);
     turing_seal(&point);
     point.in_limbs[0] = (unsigned int)point.shared.size();
+    point.in_limbs[1] = listed_run ? j_limbs : 0u;
     turing_put_small(&point, 0u, 1ull, ((nu - 1ull) % 2ull) ? -1 : 1);
     turing_put_small(&point, 1u, floor_s, 1);
     turing_put_small(&point, 2u, step_s, 1);
@@ -2556,9 +2589,12 @@ int main(int count, char **arguments)
 
     int ok = turing_load(&job, &pole, &error) && turing_load(&job, &point, &error) &&
              (!twisted || turing_load(&job, &pole_twist, &error));
+    // with the listed points, S as the point stage gives it, its last output
+    const DeviceRecordStep *const s_place =
+        (ok && listed_run) ? turing_place(&point, (unsigned int)point.outputs.size() - 1u) : NULL;
     if (ok && pairs_run)
     {
-        turing_pair_build(&pair, p, &pole, &point, cosine);
+        turing_pair_build(&pair, p, &pole, &point, cosine, s_place);
         pair.in_limbs[0] = pole.layout.out_limbs;
         pair.in_limbs[1] = point.layout.out_limbs;
         pair.in_limbs[2] = (unsigned int)pair.shared.size();
@@ -2615,8 +2651,12 @@ int main(int count, char **arguments)
     unsigned int *const device_point = ok ? turing_alloc(&owned, (size_t)(points * point.layout.out_limbs)) : NULL;
     ok = ok && (device_point_shared != NULL) && (device_point != NULL);
     {
-        unsigned int *const members[3] = {device_point_shared, NULL, NULL};
-        ok = ok && turing_sweep(&point, members, one, std::vector<unsigned int>(), points, device_point, checked, &error,
+        // with the listed points, member 1 the points' records, read at each lane
+        unsigned int *const device_listed = (ok && listed_run) ? turing_upload(&owned, listed_j) : NULL;
+        ok = ok && (!listed_run || (device_listed != NULL));
+        unsigned int *const members[3] = {device_point_shared, device_listed, NULL};
+        const unsigned long long bodies[3] = {1ull, listed_run ? points : 0ull, 0ull};
+        ok = ok && turing_sweep(&point, members, bodies, std::vector<unsigned int>(), points, device_point, checked, &error,
                                 &host_point);
     }
     sim_check(&job, ok && host_point, "the point stage runs and the host's records equal the device's");
@@ -2741,7 +2781,7 @@ int main(int count, char **arguments)
     if (ok)
     {
         turing_verdict_build(&verdict, p, sum_limbs, held_stage, bound.bits, theta_bound.bits,
-                             transform_run ? &values : NULL, !em_run);
+                             transform_run ? &values : NULL, !em_run, s_place);
         verdict.in_limbs[0] = transform_run ? values.out_limbs : sum_limbs;
         verdict.in_limbs[1] = held_stage->layout.out_limbs;
         verdict.in_limbs[2] = (unsigned int)verdict.shared.size();
@@ -2773,7 +2813,7 @@ int main(int count, char **arguments)
     std::vector<unsigned int> apart;
     if (ok && pairs_run && transform_run)
     {
-        turing_verdict_build(&verdict_pairs, p, sum_limbs, &point, bound.bits, theta_bound.bits, NULL, 1);
+        turing_verdict_build(&verdict_pairs, p, sum_limbs, &point, bound.bits, theta_bound.bits, NULL, 1, s_place);
         verdict_pairs.in_limbs[0] = sum_limbs;
         verdict_pairs.in_limbs[1] = point.layout.out_limbs;
         verdict_pairs.in_limbs[2] = (unsigned int)verdict_pairs.shared.size();
