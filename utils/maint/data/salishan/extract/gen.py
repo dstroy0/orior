@@ -321,6 +321,17 @@ class Paper(object):
             out += glue + text
         return out
 
+    def on(self, lines, form):
+        """form, held to the page: lines is the line number it stands on, or the first and last of
+        the lines it runs over, and the page text there holds it with its line ends run together by
+        a space or by none. A form the page text no longer holds there stops the generator."""
+        first, last = (lines, lines) if isinstance(lines, int) else lines
+        texts = [self.text(one) for one in range(first, last + 1)]
+        flat = " ".join(form.split())
+        if flat in " ".join(texts) or flat in "".join(texts):
+            return form
+        raise SystemExit("line %s does not hold %s" % (lines, form))
+
     def find(self, pattern, start=1, end=None):
         """The first line number from start whose text matches pattern, or None. An end past the
         paper's last line stops at it, front()'s 200 in Abraham's page text of 106 lines."""
@@ -1813,6 +1824,23 @@ class Paper(object):
         form = " ".join(form.split())
         if form:
             self.rows.append([where, who, kind, form, gloss])
+
+    def keep(self, row, lines=None):
+        """A row a person read off the page, its fields as they stand, a row of four having no gloss,
+        and its form held to lines where lines is given."""
+        if lines is not None:
+            self.on(lines, row[3])
+        self.rows.append(list(row))
+
+    def write_oracle(self, header):
+        """Write the oracle of the rows keep() took, under header, with no ops file: the oracle is the
+        rows as they stand, and check_papers.sh runs no finish over it."""
+        target = os.path.join(ORACLES, self.stem + ".oracle.tsv")
+        with open(target, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write("\t".join(header) + "\n")
+            for row in self.rows:
+                handle.write("\t".join(row) + "\n")
+        print("%s: %d rows" % (target, len(self.rows)), file=sys.stderr)
 
     def ops(self):
         out = []

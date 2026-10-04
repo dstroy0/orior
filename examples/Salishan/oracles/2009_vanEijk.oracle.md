@@ -7,7 +7,7 @@ Drafted by the anchor_sift engine and read against the page by a person. The eng
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
-from the characters that sit outside that English, and word_web.web() built 691 edges over the
+from the characters that sit outside that English, and word_web.web() built 650 edges over the
 language forms. A person then matched the context: who, kind and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until

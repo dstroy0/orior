@@ -1,7 +1,7 @@
 """Build a paper's oracle from one-line ops piped in, and print only what changed.
 
 usage:
-  python oracle.py STEM start "AUTHORS" "LANGUAGE"   the engine passes, the draft, a rerun.sh line
+  python oracle.py STEM start "AUTHORS" "LANGUAGE"   the engine passes, the draft, the paper's AUTHORS and LANG in its table file
   printf '%s\\n' 'OP' 'OP' | python oracle.py STEM ops  keep the ops, rebuild, print changed rows
   python oracle.py STEM show [REGEX]                 oracle rows whose line matches, compact
   python oracle.py STEM draft [REGEX]                draft rows whose line matches, compact
@@ -24,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from workdir import FINISH, ORACLES, WORK  # noqa: E402
 import ops  # noqa: E402
+import tables  # noqa: E402
 
 ENV = dict(os.environ, PYTHONIOENCODING="utf-8")
 sys.stdout.reconfigure(encoding="utf-8")
@@ -90,11 +91,12 @@ def main():
                 handle.write("# start %s\nmeta authors %s\nmeta lang %s\n"
                              % (subprocess.run(["date", "+%H:%M"], capture_output=True, text=True).stdout.strip(),
                                 authors, language))
-        with open(os.path.join(HERE, "rerun.sh"), encoding="utf-8") as handle:
-            listed = "run %s " % stem in handle.read()
-        if not listed:
-            with open(os.path.join(HERE, "rerun.sh"), "a", encoding="utf-8") as handle:
-                handle.write('run %s "%s" "%s"\n' % (stem, authors, language))
+        # rerun.sh runs each paper whose table file sets AUTHORS and LANG.
+        known = tables.of(stem)
+        if known is None or not (hasattr(known, "AUTHORS") and hasattr(known, "LANG")):
+            os.makedirs(tables.TABLES, exist_ok=True)
+            with open(os.path.join(tables.TABLES, stem + ".py"), "a", encoding="utf-8", newline="\n") as handle:
+                handle.write("AUTHORS = %r\nLANG = %r\n" % (authors, language))
         rebuild(stem)
     elif command == "ops":
         lines = [one.rstrip() for one in sys.stdin.read().split("\n") if one.strip()]

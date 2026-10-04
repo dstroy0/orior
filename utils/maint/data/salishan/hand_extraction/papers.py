@@ -10,10 +10,8 @@
 # against a hand extraction is grading it against a different paper than the check that grades the
 # hand extraction against its source.
 #
-# It happened here. This file held the alphabets and coverage_check.py held the same alphabets
-# written out a second time as literals, and the two disagreed on the repair for two papers before
-# anyone noticed. Both now read corpus_script_extraction/paper_config.py, the only file where a
-# paper is described: who spoke it, what it is written with, and which grains its extraction carries.
+# Both checks read corpus_script_extraction/paper_config.py, the only file where a paper is
+# described: who spoke it, what it is written with, and which grains its extraction carries.
 #
 # What stays here is the shape the two checks want, and the one fact that belongs to the checks and
 # not to the papers: which extractions are not what their page says.

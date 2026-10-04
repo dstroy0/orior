@@ -29,7 +29,7 @@ sets after a stacked mark is closed, except before an opening quote, then NFC.
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 562
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
-12902 distinct tokens in the paper, 0 language tokens are held by no row.
+12990 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example
          line such as (3) line 2, the references, or all for a note about the whole paper
@@ -40,7 +40,6 @@ kind     transcription  an example tier in the orthography
          segmentation   an example tier broken into morphemes
          phonemic       an example tier in a phonemic alphabet
          gloss          the morpheme gloss tier of an example
-         word gloss     an English tier under the gloss, word for word
          translation    the English of an example
          cited form     a word of the language named in the prose, a note or a table
          cited affix    an affix named on its own
