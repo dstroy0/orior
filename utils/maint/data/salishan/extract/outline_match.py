@@ -96,13 +96,13 @@ def main():
                 found[key] = [name, best, round(scored[0][0], 3), runner[1], round(runner[0], 3), 1]
     named = []
     for key, (name, text, score, runner, other, count) in sorted(found.items(), key=lambda item: -item[1][-1]):
-        floor = CLONE_MATCH if page_text.OUTLINE_FACES[name].startswith(page_text.TERMES) else MATCH
+        floor = CLONE_MATCH if page_text.OUTLINE_FACES.get(name, "").startswith(page_text.TERMES) else MATCH
         good = text is not None and score >= floor and score - other >= MARGIN
         print("%s %-26s %-3s %.3f %-3s %.3f %3d%s" % (key, name, text, score, runner, other, count,
                                                        "" if good else "   left for the eye"))
         if good:
             named.append("%s\t%s\t%s\t%s\toutline_match.py: raster overlap %.3f against %s, the next letter %.3f\n"
-                         % (key, text, name, stem, score, page_text.OUTLINE_FACES[name], other))
+                         % (key, text, name, stem, score, os.path.basename(page_text.OUTLINE_FACES[name]), other))
     if "--write" in sys.argv[2:] and named:
         with open(os.path.join(PRIVATE, "outline_letters.tsv"), "a", encoding="utf-8", newline="\n") as handle:
             handle.writelines(named)
