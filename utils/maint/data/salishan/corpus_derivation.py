@@ -1220,7 +1220,7 @@ def main():
     # since the converter escapes every backslash.
     body = re.sub(r"\[\[cite:([^\]]+)\]\]", r"\\cite{\1}", body)
     # Rewritten only where the text changes, and each rewrite printed as "  wrote <path>" for the
-    # research paper's build to stage.
+    # research paper's build to show.
     old = None
     if os.path.isfile(TARGET):
         with open(TARGET, encoding="utf-8") as handle:

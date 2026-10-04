@@ -31,7 +31,7 @@
 # exits 1, since a figure set into a sentence that no longer holds is wrong.
 #
 # The macros file is rewritten only where its text changes, and each path rewritten is printed as
-# "  wrote <path>" for the build to stage.
+# "  wrote <path>" for the build to show.
 
 import io
 import os
