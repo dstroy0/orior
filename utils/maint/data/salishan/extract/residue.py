@@ -649,6 +649,17 @@ CORRECTIONS = {
     "Nater_ICSNL60_resonants": (
         ("", "√"), ("ʕ̞ʕ̞ʷ", "ʕ̞ ʕ̞ʷ"), ("ḥḥʷ", "ḥ ḥʷ"), ("ḥḥw", "ḥ ḥw"), ("čč’", "č č’"),
     ),
+    # Read at 220 and 400 dpi over the page text closed up from the glyph rows. The table of page 2
+    # prints Saanich nəq̓ix̌ s.peʔəθ as two words, which closing the space after the caron runs
+    # together. The acute over a schwa sets the letter after it apart and runs the next word on,
+    # s.čə́ txʷnand on page 4 and s.mə́ šis on page 6, where the table prints s.čə́txʷn whole; each is
+    # one word. The glyph rows part s.čét̕xʷʌn after its glottal mark and close the space before a
+    # form opening on a period, Cowlitz .smê΄c, and before a bracket after n̓, all of which the
+    # page sets as the layer does.
+    "2009_vanEijk": (("nəq̓ix̌s.peʔəθ", "nəq̓ix̌ s.peʔəθ"), ("s.čə́ txʷ", "s.čə́txʷ"), ("əsə́ lqin", "əsə́lqin"),
+                     ("s.mə́ š", "s.mə́š"), ("s.kə́ txʷan̓", "s.kə́txʷan̓"), ("s.čét̕ xʷʌn", "s.čét̕xʷʌn"),
+                     ("Cowlitz.smê΄c", "Cowlitz .smê΄c"), ("(2).smê΄c", "(2) .smê΄c"),
+                     ("while.smê΄c", "while .smê΄c"), ("txʷan̓(", "txʷan̓ ("), ("wít̕ as", "wít̕as")),
     # Read at 300 dpi: page 12 sets the Squamish cognate of 0233 against the quote opening its gloss,
     # -(a)xʷ'2SG.SUBJ', and the form is parted from the gloss to be a word of its own.
     "Nater-final": (("-(a)xʷ‘2SG.SUBJ’", "-(a)xʷ ‘2SG.SUBJ’"),),
