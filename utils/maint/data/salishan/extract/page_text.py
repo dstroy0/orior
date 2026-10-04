@@ -166,7 +166,11 @@ def tounicode_stream(entries):
 # checked in the decoded text.
 OUTLINE_FACES = {"TimesNewRomanPSMT": "times.ttf", "TimesNewRomanPS-BoldMT": "timesbd.ttf",
                  "TimesNewRomanPS-ItalicMT": "timesi.ttf", "TimesNewRomanPS-BoldItalicMT": "timesbi.ttf",
-                 "Arial": "arial.ttf", "DejaVuSans": "DejaVuSans.ttf", "LucidaSansUnicode": "l_10646.ttf"}
+                 "Arial": "arial.ttf", "DejaVuSans": "DejaVuSans.ttf", "LucidaSansUnicode": "l_10646.ttf",
+                 "TimesNewRoman": "times.ttf", "TimesNewRoman,Bold": "timesbd.ttf",
+                 "TimesNewRoman,Italic": "timesi.ttf", "TimesNewRoman,BoldItalic": "timesbi.ttf",
+                 "Calibri": "calibri.ttf", "Calibri,Bold": "calibrib.ttf", "Calibri,Italic": "calibrii.ttf",
+                 "Calibri,BoldItalic": "calibriz.ttf"}
 PAPER_OUTLINED = tables.members("PAPER_OUTLINED")
 _FACE_KEYS = {}
 
@@ -236,7 +240,8 @@ def outlined_fonts(path):
             # The code is the glyph id only where the CIDFont maps them one to one.
             if program is None or str(descendant.get("/CIDToGIDMap", "/Identity")) != "/Identity":
                 continue
-            name = re.sub(r"^[A-Z]{6}\+", "", str(font.get("/BaseFont", "")).lstrip("/"))
+            # A face embedded twice is told apart by a *1 after its name, TimesNewRoman,Italic*1.
+            name = re.sub(r"^[A-Z]{6}\+|\*\d+$", "", str(font.get("/BaseFont", "")).lstrip("/"))
             tt = TTFont(io.BytesIO(program.get_object().get_data()))
             glyphset, units = tt.getGlyphSet(), tt["head"].unitsPerEm
             system = face_keys(OUTLINE_FACES[name]) if name in OUTLINE_FACES else {}
@@ -493,7 +498,11 @@ MODIFIER = {"w": "ʷ", "y": "ʸ", "θ": "ᶿ", "ε": "ᵋ", "ɛ": "ᵋ", "o": "�
 MODIFIER_LETTERS = set(MODIFIER.values())
 
 
-def raised_letters(textpage, mapping=None, ciphers=None, found=None, lifted=None, mark_base=False):
+SUBSCRIPT = dict(zip("0123456789", "₀₁₂₃₄₅₆₇₈₉"))
+
+
+def raised_letters(textpage, mapping=None, ciphers=None, found=None, lifted=None, mark_base=False,
+                   lowered=False):
     """The glyphs of a page with no space among them, and {position: modifier letter} for each
     letter set at under 0.85 of the size of the letter before it and raised a fifth of that size
     over its baseline. A digit is a footnote's mark and stays, and so does a letter raised after
@@ -504,7 +513,9 @@ def raised_letters(textpage, mapping=None, ciphers=None, found=None, lifted=None
     for each raised letter. lifted holds the indexes of the raised letters the glyph rows already
     write as their modifiers: each stands among the glyphs as its modifier and is left out of
     the positions returned. With mark_base, an apostrophe after a letter leaves that letter the
-    one a raised letter is measured against, the ʷ of [k’ʷ]."""
+    one a raised letter is measured against, the ʷ of [k’ʷ]. With lowered, a digit set at under
+    0.85 of the size of the letter, ∅ or bracket before it and lowered a tenth of that size under
+    its baseline is an index, the subscript of Bill₁ and ∅₁ in Cable's co-reference examples."""
     glyphs, raised = [], {}
     base = None
     x, y = ctypes.c_double(), ctypes.c_double()
@@ -538,13 +549,18 @@ def raised_letters(textpage, mapping=None, ciphers=None, found=None, lifted=None
             else:
                 raised[len(glyphs) - 1] = MODIFIER[symbol]
             continue
+        if lowered and base is not None and symbol in SUBSCRIPT and (base[0].isalpha() or base[0] in "∅])₀₁₂₃₄₅₆₇₈₉") \
+                and size <= 0.85 * base[3] and base[3] * 0.1 <= base[2] - y.value < base[3] * 0.6 and x.value >= base[1]:
+            raised[len(glyphs) - 1] = SUBSCRIPT[symbol]
+            base = (SUBSCRIPT[symbol], base[1], base[2], base[3])
+            continue
         if mark_base and symbol in MARK_BASES and base is not None and base[0].isalpha():
             continue
         base = (symbol, x.value, y.value, size)
     return glyphs, raised
 
 
-def raise_letters(document, merged, mapping=None, ciphers=None, lifted=None, mark_base=False):
+def raise_letters(document, merged, mapping=None, ciphers=None, lifted=None, mark_base=False, lowered=False):
     """merged, a page text with its ===== page N ===== markers, with each raised letter of the page
     written as its modifier: the page's glyphs are aligned to the text's letters page by page.
     mapping is the paper's PRIVATE_USE letters and ciphers its PAPER_CIPHERS entry. lifted, where
@@ -560,7 +576,8 @@ def raise_letters(document, merged, mapping=None, ciphers=None, lifted=None, mar
             out.extend(lines)
             return
         glyphs, raised = raised_letters(document[page - 1].get_textpage(), mapping, ciphers,
-                                        lifted=lifted.get(page - 1) if lifted else None, mark_base=mark_base)
+                                        lifted=lifted.get(page - 1) if lifted else None, mark_base=mark_base,
+                                        lowered=lowered)
         if not raised:
             out.extend(lines)
             return
@@ -958,6 +975,9 @@ PAPER_DRAWN_BACK = tables.members("PAPER_DRAWN_BACK")
 # mode only.
 PAPER_MARK_BASE = tables.members("PAPER_MARK_BASE")
 MARK_BASES = "’'ʼ"
+# Papers that set an index as a lowered digit, Bill₁ and ∅₁ in Cable's co-reference examples, which
+# the glyph rows read as a plain one. Read in rows mode only.
+PAPER_SUBSCRIPTED = tables.members("PAPER_SUBSCRIPTED")
 # Papers whose tables are ruled grids with cells that wrap, Nater's 2013 lexicon: the glyph rows
 # read a cell of two lines into the lines of the cells beside it, *ƛ’əp ‘deep (water)’ over
 # (Ku02:143) as (*Kƛu’ǝ0p2‘:d14ee3p) (water)’. Each grid is read cell by cell instead, a line to a
@@ -1101,21 +1121,39 @@ def ruled_line(row):
 
 def strike_rules(page, glyphs):
     """Set the long stroke overlay on each glyph of glyphs a short rule is drawn through: a filled
-    path under 0.15 em high whose level stands 0.15 to 0.4 em over the letters' bottoms, through
-    their x-height, over one to six letters side by side, the letters whose middles it spans. Its
-    width is 0.8 to 1.3 times theirs and 0.1 em more: the rule through Sardinha's hi runs 7.7pt
-    over letters 7.4pt wide, 0.22 em up. A table's border runs a cell wide and spans no letters'
-    width. Returns the count set."""
+    path under 0.15 em high whose level stands inside the letters' boxes and 0.15 to 0.6 em over
+    their bottoms, through their x-height and the descender of the j of Cable's struck Object in
+    (41), over the letters whose middles it spans. Its width is 0.8 to 1.3 times that of the glyphs
+    whose middles it spans on the row, brackets and stops among them, and 0.1 em more: the rule
+    through Sardinha's hi runs 7.7pt over letters 7.4pt wide, 0.22 em up, and the one through
+    Cable's [ S. or R.-ko ]₁ in (44) over its brackets. A table's border runs a cell wide and spans
+    no letters' width. Returns the count set."""
     count = 0
     for one in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_PATH], max_depth=3):
         left, bottom, right, top = one.get_bounds()
         height, level = top - bottom, (top + bottom) / 2
         through = [glyph for glyph in glyphs if glyph[0][:1].isalpha() and height < 0.15 * glyph[2]
                    and left <= (glyph[1][0] + glyph[1][2]) / 2 <= right
-                   and 0.15 * glyph[2] <= level - glyph[1][1] <= 0.4 * glyph[2]]
-        if not 1 <= len(through) <= 6:
+                   and glyph[1][1] < level < glyph[1][3]
+                   and 0.15 * glyph[2] <= level - glyph[1][1] <= 0.6 * glyph[2]]
+        if not through:
             continue
-        span = max(glyph[1][2] for glyph in through) - min(glyph[1][0] for glyph in through)
+        size = through[0][2]
+        spanned = [glyph for glyph in glyphs if glyph[1][2] > glyph[1][0]
+                   and left <= (glyph[1][0] + glyph[1][2]) / 2 <= right
+                   and abs((glyph[1][1] + glyph[1][3]) / 2 - level) < 0.5 * size]
+        first, last = min(glyph[1][0] for glyph in spanned), max(glyph[1][2] for glyph in spanned)
+        # A rule that runs on through the space to the next glyph or back to the one before, Tom
+        # and its space in Cable's struck [ Tom ka Linda ]₁ in (45), spans that space too.
+        row = [glyph for glyph in glyphs if glyph[1][2] > glyph[1][0]
+               and abs((glyph[1][1] + glyph[1][3]) / 2 - level) < 0.5 * size]
+        after = [glyph[1][0] for glyph in row if glyph[1][0] >= last]
+        before = [glyph[1][2] for glyph in row if glyph[1][2] <= first]
+        if after and min(after) <= right + 0.1 * size:
+            last = max(last, min(min(after), right))
+        if before and max(before) >= left - 0.1 * size:
+            first = min(first, max(max(before), left))
+        span = last - first
         if 0.8 * span <= right - left <= 1.3 * span + 0.1 * through[0][2]:
             for glyph in through:
                 glyph[0] += STRIKE_RULE
@@ -2047,7 +2085,7 @@ def write_rows(stem, by_page, document, lifted=None):
         merged.append("===== page %d =====" % (number + 1))
         merged.extend(page_lines)
     merged, raised = raise_letters(document, merged, PRIVATE_USE.get(stem), PAPER_CIPHERS.get(stem), lifted,
-                                   mark_base=stem in PAPER_MARK_BASE)
+                                   mark_base=stem in PAPER_MARK_BASE, lowered=stem in PAPER_SUBSCRIPTED)
     os.makedirs(os.path.join(PRIVATE, "pagetext"), exist_ok=True)
     target = os.path.join(PRIVATE, "pagetext", stem + ".txt")
     with open(target, "w", encoding="utf-8", newline="\n") as handle:

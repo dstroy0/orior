@@ -69,8 +69,9 @@ def check(stem):
     glosses = [form for _, kind, form in rows if kind == "gloss"]
     translations = [form for _, kind, form in rows if kind == "translation"]
     # A translation may open on the closing quote where the page misprints it, U+2019(S)he/they/we
-    # hunted you (SG).’ in Sobolak's (7).
-    quoted = re.compile(r"^[?#*]*\s*[‘’“'\"]")
+    # hunted you (SG).’ in Sobolak's (7), or on a font's turned comma, ʻHe₁ loves Bill₁ʼs mother.ʼ in
+    # Cable's (52a).
+    quoted = re.compile(r"^[?#*]*\s*[‘’“ʻ'\"]")
     # A translation under a label in straight quotes, Intended: 'I bought the white one. ' in
     # Forbes's adjectives, stands as LABELED_QUOTE's label stands over curly ones.
     # Its label may open lower-case, attempt at: ‘The child almost got lost.’ in Turner's (45).

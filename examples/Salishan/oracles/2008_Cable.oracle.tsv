@@ -1,0 +1,568 @@
+where	who	kind	form	gloss
+front	Seth Cable	title	Covert A-scrambling in Tlingit	page 1, carries footnote 1
+front	Seth Cable	name	Seth Cable	author
+front	Seth Cable	note	University of Massachusetts, Amherst	page 1, under Seth Cable
+front	Seth Cable	note	I argue that the grammar of Tlingit possesses a covert variant of the operation of A-scrambling, well-known from languages such as Hindi. I first present evidence that Tlingit possesses a configurational clausal structure, where subjects asymmetrically c-command objects. I then present data that seem to conflict with this evidence, and which appear to indicate that objects c-command subjects (even in SOV order). Finally, I show that these sets of data can be reconciled, if we assume that objects in Tlingit can covertly scramble to A- positions above subjects.	page 1, the abstract
+front	Seth Cable	language	Tlingit	Na-Dene; Alaska, British Columbia, Yukon
+footnote 1	Seth Cable	note	Special thanks are due first and foremost to David Katzeek (DK) and John Marks (JM), the Tlingit language consultants for this project. Their generosity, patience and energy are truly exceptional, and I thank them for all the time and help they have provided me in my study of their language. Most of the Tlingit data presented here were gathered from interviews conducted at the Sealaska Heritage Institute (SHI) in December 2007 and May 2008. Special thanks are owed to Richard Dauenhauer, Nora Marks Dauenhauer, Keri Edwards, Yarrow Vaara, Rosita Worl, and everyone else at SHI. Aatlein gunalchéesh! I would also like to thank Henry Davis and Lisa Matthewson, as well as audiences at both ICSNL 43 and the UBC Linguistics Research Seminar, for their helpful comments upon earlier versions of this work. Finally, I gratefully acknowledge the support of the Killam Trusts, as this research has been supported through a Killam Postdoctoral Research Fellowship.	page 1, footnote 1, on the title
+footnote 1	Tlingit	cited form	Aatlein gunalchéesh	page 1, in italics
+footnote 1	Seth Cable	name	David Katzeek	Tlingit language consultant (DK), footnote 1
+footnote 1	Seth Cable	name	John Marks	Tlingit language consultant (JM), footnote 1
+footnote 1	Seth Cable	name	Richard Dauenhauer	thanked, Sealaska Heritage Institute, footnote 1
+footnote 1	Seth Cable	name	Nora Marks Dauenhauer	thanked, Sealaska Heritage Institute, footnote 1
+footnote 1	Seth Cable	name	Keri Edwards	thanked, Sealaska Heritage Institute, footnote 1; reports the SVO and VSO orders awkward for some speakers, footnote 3
+footnote 1	Seth Cable	name	Yarrow Vaara	thanked, Sealaska Heritage Institute, footnote 1
+footnote 1	Seth Cable	name	Rosita Worl	thanked, Sealaska Heritage Institute, footnote 1
+footnote 1	Seth Cable	name	Henry Davis	thanked for comments, footnote 1
+footnote 1	Seth Cable	name	Lisa Matthewson	thanked for comments, footnote 1
+§1	Seth Cable	heading	1 Introduction	page 1
+§1	Seth Cable	note	The central claim of this paper is that the grammar of Tlingit (Na-Dene; Alaska, British Columbia, Yukon) includes a covert variant of the operation of ‘A-scrambling,’ well-known from languages such as Hindi (Mahajan 1990, 1997).	page 1
+§1	Seth Cable	language	Hindi	a language with A-scrambling
+§1	Seth Cable	note	This central, overarching claim comprises the following more specific claims. First, I argue that Tlingit possesses a configurational clausal structure, where subjects (S) asymmetrically c-command objects (O) (contra Leer 1991). Next, however, I argue that despite the evidence indicating a configurational structure, Os in Tlingit display properties suggesting that they c-command into Ss, even in canonical SOV order. Finally, I argue that these two sets of data can be reconciled if we assume that objects in Tlingit can covertly scramble to A- positions above subjects.	page 1
+§1	Seth Cable	note	In outline, the paper will proceed as follows. In Section 2, I provide some basic background on the Tlingit language and its grammar. Section 3 then presents evidence that the Tlingit clause is ‘configurational,’ in the sense that subjects appear to be hierarchically superior to objects. Following this, however, Section 4 presents some apparently contradictory evidence indicating that Tlingit objects can c-command into subjects, even under SOV order. In Section 5, I provide an analysis of these apparently incompatible data sets, one that appeals to an operation of ‘covert A-scrambling’. Finally, Section 6 discusses certain residual issues stemming from the proposed analysis.	page 2
+§2	Seth Cable	heading	2 Basic background regarding the Tlingit language	page 2
+§2	Seth Cable	note	The Tlingit language is the sole member of the Tlingit language family, and is grouped together with the Athabaskan and Eyak families into the Na- Dene (or Athabaskan-Eyak-Tlingit, or Tlina-Dene) Language Phylum. The original geographic extent of the language included all of Southeast Alaska, as well as portions of Northwest British Columbia and Southwest Yukon Territory. The language is currently spoken by perhaps at most 300 individuals, the youngest of whom are in their 50’s.	page 2
+§2	Seth Cable	language	Athabaskan	a family grouped with Tlingit and Eyak in Na-Dene
+§2	Seth Cable	language	Eyak	a family grouped with Tlingit and Athabaskan in Na-Dene
+§2	Seth Cable	note	Despite the language’s considerable geographic spread, there is comparatively little dialectical diversity. While distinct dialects of the language are recognized, the differences between these varieties are principally phonetic or phonological, and all dialects are quite mutually intelligible. Nevertheless, it should be acknowledged here that all data in this paper were provided by speakers of the ‘Greater Northern’ dialect of the language (Leer 1991).	page 2
+§2	Seth Cable	note	Regarding the structure of the language itself, its phonological inventory is notable for (i) being one of the few in the world to contain ejective fricatives, and (ii) contrasting between five different lateral phonemes, none of which is the voiced lateral liquid /l/. Morphologically, Tlingit is highly similar to the related Athabaskan and Eyak languages, as it possesses the complex, templatic verbal prefix string of its Athabaskan and Eyak relatives. It should be noted, however, that since this paper concerns the syntax of the language, I will be ignoring the highly complex morpho-syntactic structure of the Tlingit verb. That is, I will throughout gloss Tlingit verbs only with their ‘lexical content’, adding inflectional information only where it is relevant. Such glossing conventions are illustrated in example (1) below.	page 2
+§2	Seth Cable	note	Similar to its Athabaskan and Eyak relatives, the syntax of Tlingit displays largely ‘head-final’ alignment. That is, the language possesses post- positions (rather than prepositions), verbal auxiliaries follow main verbs, and within the NP, both adjectives and possessors precede the head N. An additional indicator of ‘head-final’ alignment is the fact that there is a (slight) statistical tendency in texts for objects to precede verbs (Dryer 1985).	page 2
+§2	Seth Cable	note	One feature of Tlingit syntax, however, will be particularly important for the discussion that follows. Unlike most Athabaskan languages (except for Hupa and Koyukon (Thompson 2000)), Tlingit has rather free word-order, and freely permits the positioning of major constituents after the verb.2 Generally speaking, any permutation of subject (S), verb (V), and object (O) is an allowable sentence of Tlingit, though there are of course discourse-pragmatic effects associated with particular orders (Leer 1991; Chapter 2). The following sentences illustrate:	page 2
+footnote 2	Seth Cable	note	Indeed, in some texts, (S)VO order slightly outnumbers (S)OV order. This is reported in Dryer (1985) and also conforms to my own experience.	page 3, footnote 2
+§2	Seth Cable	language	Hupa	an Athabaskan language with rather free word order (Thompson 2000)
+§2	Seth Cable	language	Koyukon	an Athabaskan language with rather free word order (Thompson 2000)
+(1) line 1	Seth Cable	note	Word Order Freedom in Tlingit	page 3, the caption, carries footnotes 3 and 4
+footnote 3	Seth Cable	note	Keri Edwards (p.c.) reports that some speakers find the SVO and VSO orders in (1b,e) to be awkward, characterizing them as ‘backwards’ and only said in moments of great excitement.	page 3, footnote 3
+footnote 4	Seth Cable	note	Throughout this paper, I use the following abbreviations in my glosses of example sentences: ERG = ergative marker, ACC = accusative marker, DAT = dative marker, pro = phonologically empty pronoun, Q = indefinite/interrogative particle, IRR = irrealis.	page 3, footnote 4
+(1a) line 1	Seth Cable	note	SOV	page 3, the part's description
+(1a) line 2	Tlingit	transcription	Wé shaawátch xóots awsiteen.	page 3
+(1a) line 3	Tlingit	gloss	that woman.ERG bear saw	page 3
+(1a) line 4	Seth Cable	translation	‘The woman saw the bear.’	page 3
+(1b) line 1	Seth Cable	note	SVO	page 3, the part's description
+(1b) line 2	Tlingit	transcription	Wé shaawátch wusiteen xóots.	page 3, carries footnote 5
+footnote 5	Seth Cable	note	The reader may note that the verbal form in (1b) differs from that in (1a). This is due to a morpho-phonological rule that deletes 3rd obviative object agreement when the verb is directly preceded by an NP marked by the optional ergative post-position (Leer 1991). The effect of this rule appears in many of the examples throughout this paper.	page 3, footnote 5
+(1b) line 3	Tlingit	gloss	that woman.ERG saw bear	page 3
+(1b) line 4	Seth Cable	translation	‘The woman saw the bear.’	page 3
+(1c) line 1	Seth Cable	note	OVS	page 3, the part's description
+(1c) line 2	Tlingit	transcription	Xóots awsiteen wé shaawátch.	page 3
+(1c) line 3	Tlingit	gloss	bear saw that woman.ERG	page 3
+(1c) line 4	Seth Cable	translation	‘The woman saw the bear.’	page 3
+(1d) line 1	Seth Cable	note	OSV	page 3, the part's description
+(1d) line 2	Tlingit	transcription	Xóots wé shaawátch wusiteen.	page 3
+(1d) line 3	Tlingit	gloss	bear that woman.ERG saw	page 3
+(1d) line 4	Seth Cable	translation	‘The woman saw the bear.’	page 3
+(1e) line 1	Seth Cable	note	VSO	page 3, the part's description
+(1e) line 2	Tlingit	transcription	Awsiteen wé shaawátch xóots.	page 3
+(1e) line 3	Tlingit	gloss	saw that woman.ERG bear	page 3
+(1e) line 4	Seth Cable	translation	‘The woman saw the bear.’	page 3
+(1f) line 1	Seth Cable	note	VOS	page 3, the part's description
+(1f) line 2	Tlingit	transcription	Awsiteen xóots wé shaawátch.	page 3
+(1f) line 3	Tlingit	gloss	saw bear that woman.ERG	page 3
+(1f) line 4	Seth Cable	translation	‘The woman saw the bear.’	page 3
+§3	Seth Cable	heading	3 The configurational structure of the Tlingit clause	page 4
+§3	Seth Cable	note	In this section, I will defend the claim that Tlingit possesses an underlyingly ‘configurational’ clausal structure. That is, I claim that the subject of a Tlingit sentence is initially generated (or merged) at a position that is hierarchically superior to that of the object. Such an analysis is illustrated under (2a) below.	page 4
+§3	Seth Cable	note	It should be noted, however, that such a configurational analysis runs counter to the analysis of Tlingit clausal structure developed by Leer (1991), the only other treatment of clausal syntax in this language.6 One of the main claims of Leer’s (1991) analysis, illustrated under (2b), is that there are no hierarchical asymmetries between subjects and objects in Tlingit. As Leer explains, ‘…there is no independent evidence for positing a VP in Tlingit’ (Leer 1991; p. 27).	page 4
+footnote 6	Seth Cable	note	The main subject of Leer 1991, however, is the verbal morphology of Tlingit, which it documents in unprecedented and remarkable detail. Only seven pages of an introductory grammar sketch is given to clause-level syntax.	page 4, footnote 6
+(2) line 1	Seth Cable	note	Possible Analyses Tlingit Sentence Structure	page 4, the caption
+(2a) line 1	Seth Cable	note	A Configurational Analysis of Tlingit Sentence Structure	page 4, the part's description
+(2a) line 2	Seth Cable	note	Sentence	page 4, a line of the tree as the glyph rows read it
+(2a) line 3	Seth Cable	note	S VP (Verb Phrase)	page 4, a line of the tree as the glyph rows read it
+(2a) line 4	Seth Cable	note	O V	page 4, a line of the tree as the glyph rows read it
+(2b) line 1	Seth Cable	note	Leer’s (1991) Analysis of Tlingit Sentence Structure	page 4, the part's description
+(2b) line 2	Seth Cable	note	Sentence	page 4, a line of the tree as the glyph rows read it
+(2b) line 3	Seth Cable	note	Forephrase Afterphrase	page 4, a line of the tree as the glyph rows read it
+(2b) line 4	Seth Cable	note	Clause Proper	page 4, a line of the tree as the glyph rows read it
+(2b) line 5	Seth Cable	note	… XP … … XP ….	page 4, a line of the tree as the glyph rows read it
+(2b) line 6	Seth Cable	note	Subj Obj V	page 4, a line of the tree as the glyph rows read it
+§3	Seth Cable	note	Thus, as illustrated above, Leer (1991) proposes that clauses in Tlingit possess a ‘flat structure’, one where the subject and the object are structurally parallel, and both c-command one another.	page 4
+§3	Seth Cable	note	I will argue below, however, that contrary to the claim embodied by the analysis in (2b), there is some evidence that subjects in Tlingit occupy a structurally higher position than objects. That is, I will argue that the Tlingit clause does possess a VP.	page 4
+§3.1	Seth Cable	heading	3.1 Evidence from Principle C effects	page 5
+§3.1	Seth Cable	note	Some initial evidence that Tlingit possesses a configurational structure comes from the existence in the language of ‘classic Principle C effects’. To begin, let us note that, as shown by (3), a pronoun within an object in Tlingit can co-refer with a name in subject position.	page 5
+(3) line 1	Seth Cable	note	Permissible (Intra-Clausal) Anaphora	page 5, the caption, carries footnotes 7 and 8
+footnote 7	Seth Cable	note	The numeric subscripts in (3) (and other examples) represent co-reference; phrases sharing the same index are understood to co-refer. These indices do not represent any pronounced structure of the sentence, which would be more directly transcribed as ‘Bill du tláa asix̱án.’	page 5, footnote 7
+footnote 8	Seth Cable	note	In order to test whether the sentences in (3)-(9) permit the targeted interpretations, I presented speakers with scenarios – described both verbally and pictorially – where only the targeted interpretation of the sentence was true. I then asked (i) how the situation could be described in Tlingit, and (ii) whether the situation could be described with the tested structure. The data in (3)-(5) represent the judgments of JM and DK, while the data in (6)-(9) represent only the judgments of JM (DK was not asked about those structures).	page 5, footnote 8
+(3) line 2	Tlingit	transcription	Bill₁ [du₁ tláa] asix̱án.	page 5
+(3) line 3	Tlingit	gloss	Bill his mother loves	page 5
+(3) line 4	Seth Cable	translation	‘Bill₁ loves his₁ mother.’	page 5
+§3.1	Seth Cable	note	Similarly, as shown in (4), a pronominal object can co-refer with a name inside the subject.	page 5
+(4) line 1	Seth Cable	note	Permissible (Intra-Clausal) Anaphora	page 5, the caption, carries footnote 9
+footnote 9	Seth Cable	note	The symbol ‘∅’ in example (4) represents a phonologically null pronoun. It is not a pronounced structure of the original Tlingit sentence, which would be more directly transcribed as ‘Bill tláach six̱án.’	page 5, footnote 9
+(4) line 2	Tlingit	transcription	[Bill₁ tláach] ∅₁ six̱án.	page 5
+(4) line 3	Tlingit	gloss	Bill mother.ERG pro loves	page 5
+(4) line 4	Seth Cable	translation	‘Bill₁’s mother loves him₁.’	page 5
+§3.1	Seth Cable	note	However, as we see in (5), Tlingit does not allow a pronominal subject to co- refer with a name inside the object.	page 5
+(5) line 1	Seth Cable	note	Principle C Effect in Tlingit (Intra-Clausal)	page 5, the caption
+(5) line 2	Tlingit	transcription	* ∅₁ [Bill₁ tláa] asix̱án.	page 5
+(5) line 3	Tlingit	gloss	pro Bill mother loves	page 5
+(5) line 4	Seth Cable	translation	* ‘He₁ loves Bill₁’s mother.’	page 5
+(5) line 5	Seth Cable	speaker comment	(speaker comment: ‘it has to be somebody else that loves Bill’s mom’)	page 5, under the translation
+§3.1	Seth Cable	note	Of course, co-reference relationships like those in (5) are also disallowed in many languages (including English; cf. the free translation of (5)). The impossibility of such an interpretation is commonly referred to as a ‘Principle C Effect’. It should also be noted that not all languages display such ‘Principle C Effects’. For example, as reported by Davis et al. (2007), the Wakashan language Nuu-chah-nulth regularly permits co-reference relationships like those in (5).	page 6
+§3.1	Seth Cable	language	English	the free translations; it disallows the co-reference of (5)
+§3.1	Seth Cable	language	Nuu-chah-nulth	Wakashan; regularly permits co-reference relationships like those in (5), Davis et al. (2007)
+§3.1	Seth Cable	note	At this point, however, one might rightly wonder whether the impossibility of the interpretation in (5) is simply due to a condition in Tlingit that a pronoun must linearly precede its antecedent. That is, the contrast between (5) and (3)-(4) might be taken to follow from a general ban on cataphora in the language. However, we can see from examples such as those in (6) that such a general ban does not actually hold in Tlingit. That is, (6) shows that it is in principle possible for a pronoun to linearly follow its antecedent.	page 6
+(6) line 1	Seth Cable	note	Possibility of Cataphora in Tlingit	page 6, the caption
+(6a) line 1	Tlingit	transcription	Du₁ tláach six̱án Bill₁.	page 6
+(6a) line 2	Tlingit	gloss	his mother.ERG loves Bill	page 6
+(6a) line 3	Seth Cable	translation	‘His₁ mother loves Bill₁.’	page 6
+(6b) line 1	Tlingit	transcription	Du₁ tláach yéi uwajée [Lindach Tom₁ asix̱áni].	page 6
+(6b) line 2	Tlingit	gloss	his mother.ERG thinks Linda.ERG Tom loves	page 6
+(6b) line 3	Seth Cable	translation	‘His₁ mother thinks that Linda loves Tom₁.’	page 6
+§3.1	Seth Cable	note	We find, then, that the pattern of data in (3)-(5) does not reflect a general ban on cataphora in Tlingit. However, such a pattern would be captured under the account in (7), which is a common analysis of this pattern in other languages of the world.	page 6
+(7) line 1	Seth Cable	note	Configurational Theory of the Preceding Co-Reference Data	page 6, the caption
+(7a) line 1	Seth Cable	note	A pronoun cannot be co-referent with an NP that it c-commands (Principle C)	page 6, set as an example
+(7b) line 1	Seth Cable	note	Subjects c-command objects, but not vice versa.	page 6, set as an example
+§3.1	Seth Cable	note	Thus, the existence of classic Principle C effects in Tlingit provides one source of evidence that subjects in the language asymmetrically c-command objects.	page 6
+§3.1	Seth Cable	note	Before we leave this section, it is worthwhile pausing to ask whether the condition in (7a) constrains co-reference across clauses. It has been found, for example, that some Salish languages – such as St’át’imcets (Matthewson et al. 1993) and Thomspson River Salish (Koch 2006) – allow pronouns to be co- referent with NPs they c-command, just so long as the pronoun is in a separate clause. However, we can see from the data in (8) and (9) that such a weakening of the condition in (7a) does not hold for Tlingit.	page 6
+§3.1	Seth Cable	language	St’át’imcets	Salish; allows a pronoun co-referent with an NP it c-commands in a separate clause (Matthewson et al. 1993)
+§3.1	Seth Cable	language	Thomspson River Salish	Salish, as the page spells Thompson River Salish; allows the same (Koch 2006)
+(8) line 1	Seth Cable	note	Principle C Effects in Tlingit (Cross-Clausal)	page 7, the caption
+(8a) line 1	Tlingit	transcription	Tom₁ yéi shkalneek [Linda ash₁ een aawal'eix̱].	page 7
+(8a) line 2	Tlingit	gloss	Tom said Linda him with danced	page 7
+(8a) line 3	Seth Cable	translation	‘Tom₁ said that Linda danced with him₁.’	page 7
+(8b) line 1	Tlingit	transcription	* ∅₁ Yéi shkalneek [Linda Tom₁ een aawal'eix̱].	page 7
+(8b) line 2	Tlingit	gloss	pro said Linda Tom with danced	page 7
+(8b) line 3	Seth Cable	translation	* ‘He₁ said that Linda danced with Tom₁.’	page 7
+(9) line 1	Seth Cable	note	Principle C Effects in Tlingit (Cross-Clausal)	page 7, the caption
+(9a) line 1	Tlingit	transcription	Tom Bill₁ yéi ayawsiḵaa [Lindach ∅₁ six̱án.]	page 7
+(9a) line 2	Tlingit	gloss	Tom Bill told Linda.ERG pro loves	page 7
+(9a) line 3	Seth Cable	translation	‘Tom told Bill₁ that Linda loves him₁.’	page 7
+(9b) line 1	Tlingit	transcription	* Tom ∅₁ yéi ayawsiḵaa [Lindach Bill₁ asix̱án].	page 7
+(9b) line 2	Tlingit	gloss	Tom pro told Linda.ERG Bill loves	page 7
+(9b) line 3	Seth Cable	translation	* ‘Tom told him₁ that Linda loves Bill₁.’	page 7
+§3.1	Seth Cable	note	Thus, unlike those Salish languages, Tlingit exhibits Principle C effects both intra-clausally and cross-clausally.	page 7
+§3.2	Seth Cable	heading	3.2 Evidence from Superiority effects in wh-questions	page 7
+§3.2	Seth Cable	note	A second piece of evidence that Tlingit possesses a configurational structure comes from the existence in the language of so-called ‘Superiority effects’. Although Tlingit in principle allows for OSV order (cf. (1d)), there is one interesting circumstance where it is ruled out. As discussed by Cable (2007), if both the subject and the object are wh-words in a multiple wh- question, then the subject must precede the object.	page 7
+(10) line 1	Seth Cable	note	Superiority Effects in Tlingit Multiple Wh-Questions	page 7, the caption, carries footnote 10
+footnote 10	Seth Cable	note	Not all speakers of Tlingit accept multiple wh-questions like (10). However, Cable (2007) provides a ‘naturally occurring’ example of such a structure in an independently published Tlingit text. The sentences in (10) and (11) reflect only the judgments of JM.	page 7, footnote 10
+(10a) line 1	Tlingit	transcription	Aa sá daa sá aawax̱áa?	page 7
+(10a) line 2	Tlingit	gloss	who Q what Q ate	page 7
+(10a) line 3	Seth Cable	translation	‘Who ate what?’	page 7
+(10b) line 1	Tlingit	transcription	Daa sá aa sá aawax̱áa?	page 7
+(10b) line 2	Tlingit	gloss	what Q who Q ate	page 7
+(10b) line 3	Seth Cable	translation	‘What ate who / which person?’	page 7
+(10b) line 4	Seth Cable	translation	* ‘Who ate what?’	page 7
+(11) line 1	Seth Cable	note	Superiority Effects in Tlingit Multiple Wh-Questions	page 8, the caption
+(11a) line 1	Tlingit	transcription	Aa sá waa sá ḵuyawsiḵaa?	page 8
+(11a) line 2	Tlingit	gloss	who Q how Q said	page 8
+(11a) line 3	Seth Cable	translation	‘Who said what?’	page 8
+(11b) line 1	Tlingit	transcription	* Waa sá aa sá ḵuyawsiḵaa?	page 8
+(11b) line 2	Tlingit	gloss	how Q who Q said	page 8
+§3.2	Seth Cable	note	This same pattern is attested across many languages of the world, and is often referred to as a ‘Superiority effect’ (Kuno & Robinson 1972, Chomsky 1973, Pesetsky 1982, Aoun & Li 1993, Richards 1997). Time and space preclude discussion of the many numerous, conflicting theories of this phenomenon. Nevertheless, it is important to note that all existing accounts share the assumption that the phenomenon occurs (in part) because subjects are structurally superior to objects. Thus, the existence of this phenomenon in Tlingit provides some additional evidence for the configurational analysis (2a).	page 8
+§3.3	Seth Cable	heading	3.3 Evidence from scopal interactions with negation	page 8
+§3.3	Seth Cable	note	A third piece of evidence that subjects in Tlingit occupy a distinct structural position from objects concerns the distribution of wh-words interpreted as Negative Polarity Items (NPIs). As described by Cable (2006), wh-words in Tlingit can receive an interpretation akin to NPI indefinites like English anyone, anything, anywhere, etc. Such an interpretation, however, requires that the wh-word be located within the scope of a licensing operator, like negation. This phenomenon is illustrated in sentences like (12a) and (13a) below.	page 8
+§3.3	Seth Cable	note	Interestingly, it appears that a wh-object can, when it is post-verbal, still be construed as within the scope of negation. This is illustrated by the possibility of both the (a) and the (b) examples in (12) and (13).	page 8
+(12) line 1	Seth Cable	note	Indefinite Object and Negation	page 8, the caption, carries footnotes 11 and 12
+footnote 11	Seth Cable	note	Not all speakers of Tlingit seem to accept post-verbal NPIs as in (12b) and (13b). The sentences in (12)-(16) reflect only the judgments of JM.	page 8, footnote 11
+footnote 12	Seth Cable	note	For a theory regarding the nature of the ‘indefinite/interrogative particle’ sá in Tlingit – and especially its presence with wh-words interpreted as NPIs – I refer the reader to Cable (2007).	page 8, footnote 12
+footnote 12	Tlingit	cited form	sá	page 8, in italics
+(12a) line 1	Tlingit	transcription	Tlél daa sá x̱wax̱á.	page 8
+(12a) line 2	Tlingit	gloss	not what Q I.ate	page 8
+(12a) line 3	Seth Cable	translation	‘I didn’t eat anything.’	page 8
+(12b) line 1	Tlingit	transcription	Tlél x̱wax̱á daa sá.	page 8
+(12b) line 2	Tlingit	gloss	not I.ate. what Q	page 8
+(12b) line 3	Seth Cable	translation	‘I didn’t eat anything.’	page 8
+(13) line 1	Seth Cable	note	Indefinite Object and Negation	page 9, the caption
+(13a) line 1	Tlingit	transcription	Tlél daa sá x̱watéen.	page 9
+(13a) line 2	Tlingit	gloss	not what Q I.saw	page 9
+(13a) line 3	Seth Cable	translation	‘I didn't see anything.’	page 9
+(13b) line 1	Tlingit	transcription	Tlél x̱watéen daa sá.	page 9
+(13b) line 2	Tlingit	gloss	not I.saw what Q	page 9
+(13b) line 3	Seth Cable	translation	‘I didn't see anything.’	page 9
+§3.3	Seth Cable	note	In contrast, however, a post-verbal wh-subject cannot be construed as within the scope of the negation. This is shown by the impossibility of the (b)-examples in (14)-(16) below.	page 9
+(14) line 1	Seth Cable	note	Indefinite Subject and Negation	page 9, the caption
+(14a) line 1	Tlingit	transcription	Tlél aadóoch sá awux̱á.	page 9
+(14a) line 2	Tlingit	gloss	not who.ERG Q ate	page 9
+(14a) line 3	Seth Cable	translation	‘Nobody ate it.’	page 9
+(14b) line 1	Tlingit	transcription	* Tlél awux̱á aadóoch sá.	page 9
+(14b) line 2	Tlingit	gloss	not ate who.ERG Q	page 9
+(15) line 1	Seth Cable	note	Indefinite Subject and Negation	page 9, the caption
+(15a) line 1	Tlingit	transcription	Hél aa sá wudaxwétl.	page 9
+(15a) line 2	Tlingit	gloss	not who Q is.tired	page 9
+(15a) line 3	Seth Cable	translation	‘Nobody is tired.’	page 9
+(15b) line 1	Tlingit	transcription	* Hél wudaxwétl aa sá.	page 9
+(15b) line 2	Tlingit	gloss	not is.tired who Q	page 9
+(16) line 1	Seth Cable	note	Indefinite Subject and Negation	page 9, the caption
+(16a) line 1	Tlingit	transcription	Tlél aa sá awul'eix̱.	page 9
+(16a) line 2	Tlingit	gloss	not who Q danced	page 9
+(16a) line 3	Seth Cable	translation	‘Nobody danced.’	page 9
+(16b) line 1	Tlingit	transcription	* Tlél awul'eix̱ aa sá.	page 9
+(16b) line 2	Tlingit	gloss	not danced who Q	page 9
+§3.3	Seth Cable	note	Thus, it seems that post-verbal subjects must occupy a position above the scope of negation, whereas post-verbal objects can occupy a position below the scope of negation.	page 9
+§3.3	Seth Cable	note	On its own, this fact seems to indicate that subjects generally occupy higher positions in the clause than objects. More importantly, however, it is possible to understand the contrast between (12)-(13) and (14)-(16) within a theory where subjects in Tlingit are generated in a position that is structurally superior to objects. Let us assume the following picture regarding the clausal structure of Tlingit: (a) negation dominates the VP projection, (b) subjects are generated (initially merged) as specifiers of VP, and (c) objects are generated (initially merged) as complements of V. This picture is sketched in (17) below.	page 9
+(17) line 1	Seth Cable	note	The Underlying Positions of Subject, Object, Verb and Negation	page 10, the caption
+(17) line 2	Seth Cable	note	NegP	page 10, a line of the tree as the glyph rows read it
+(17) line 3	Seth Cable	note	NEG VP	page 10, a line of the tree as the glyph rows read it
+(17) line 4	Seth Cable	note	SUBJ VP	page 10, a line of the tree as the glyph rows read it
+(17) line 5	Seth Cable	note	OBJ VERB	page 10, a line of the tree as the glyph rows read it
+§3.3	Seth Cable	note	Because the analysis in (17) assumes that objects are initially merged as complements, no principles would prevent a Tlingit object from undergoing movement to a rightward specifier of VP. Such movement, illustrated below, would place the object in a post-verbal position that is within the scope of negation.	page 10
+(18) line 1	Seth Cable	note	Licit Rightward Movement of Object to Position Below Negation	page 10, the caption
+(18) line 2	Seth Cable	note	NegP	page 10, a line of the tree as the glyph rows read it
+(18) line 3	Seth Cable	note	NEG VP	page 10, a line of the tree as the glyph rows read it
+(18) line 4	Seth Cable	note	VP OBJ₁	page 10, a line of the tree as the glyph rows read it
+(18) line 5	Seth Cable	note	SUBJ VP	page 10, a line of the tree as the glyph rows read it
+(18) line 6	Seth Cable	note	t₁ VERB	page 10, a line of the tree as the glyph rows read it
+§3.3	Seth Cable	note	On the other hand, because (17) assumes that the subject underlyingly occupies a specifier of VP, general locality principles (Grohmann 2003) would prevent the subject from moving to a higher specifier within the same VP. Consequently, any movement of the subject to a post-verbal position would necessarily place the subject in a position that is higher than – and so outside the scope of – negation. This is illustrated below in (19).	page 10
+(19) line 1	Seth Cable	note	Licit and Illicit Rightward Movement of Subject	page 11, the caption
+(19) line 2	Seth Cable	note	NegP	page 11, a line of the tree as the glyph rows read it
+(19) line 3	Seth Cable	note	NegP SUBJ₁	page 11, a line of the tree as the glyph rows read it
+(19) line 4	Seth Cable	note	NEG VP Licit Movement	page 11, a line of the tree as the glyph rows read it
+(19) line 5	Seth Cable	note	VP SUBJ₁ XXXX	page 11, a line of the tree as the glyph rows read it
+(19) line 6	Seth Cable	note	t₁ VP Illicit Movement	page 11, a line of the tree as the glyph rows read it
+(19) line 7	Seth Cable	note	OBJ VERB	page 11, a line of the tree as the glyph rows read it
+§3.3	Seth Cable	note	We find, then, that it is possible to account for the contrast between (12)-(13) and (14)-(16) if one assumes that subjects in Tlingit occupy a position that is hierarchically superior to objects in the language. Thus, the data in (12)- (16) provide some indirect support for the configurational structure in (2a).	page 11
+§3.4	Seth Cable	heading	3.4 Evidence from coordination	page 11
+§3.4	Seth Cable	note	A fourth and rather striking argument in support of a VP in Tlingit concerns the language’s coordination structures. To begin, consider the coordinated structure in (20).	page 11
+(20) line 1	Seth Cable	note	VP-Coordination in Tlingit	page 11, the caption
+(20) line 2	Tlingit	transcription	Tlél aadóoch sá kóox awux̱á ḵa ch’u cháayu awdaná.	page 11
+(20) line 3	Tlingit	gloss	not who.ERG Q rice ate.IRR or tea drank.IRR	page 11
+(20) line 4	Seth Cable	translation	‘Nobody ate rice or drank tea.’	page 11
+§3.4	Seth Cable	note	Speakers confirm that this sentence, like its English translation, describes a scenario where there are no rice-eaters and no tea-drinkers.13	page 11
+footnote 13	Seth Cable	note	This judgment was shared both by JM and DK.	page 11, footnote 13
+§3.4	Seth Cable	note	Let us ask, then, what could the disjunction ḵa ch'u ‘or’ in sentence (20) be co-ordinating? Clearly, it is conjoining a structure larger than a word (i.e., it is not understood here to be conjoining the verb awux̱á ‘ate.IRR’ with the noun cháayu ‘tea’). Given that Tlingit possesses null anaphora, one initial possibility might be that ḵa ch'u ‘or’ in (20) is conjoining two full sentences. This analysis is sketched in (21) below.	page 11
+§3.4	Tlingit	cited form	cháayu	page 11, in italics, ‘tea’
+§3.4	Tlingit	cited form	ḵa ch'u	page 11, in italics, ‘or’
+§3.4	Tlingit	cited form	awux̱á	page 11, in italics, ‘ate.IRR’
+(21) line 1	Seth Cable	note	The Sentence in (20) as Clausal Coordination	page 12, the caption
+(21) line 2	Seth Cable	note	Sentence	page 12, a line of the tree as the glyph rows read it
+(21) line 3	Seth Cable	note	Sentence CONJ Sentence	page 12, a line of the tree as the glyph rows read it
+(21) line 4	Seth Cable	note	[Tlél aadóoch sá kóox awux̱á] ḵa ch’u	page 12, a line of the tree as the glyph rows read it
+(21) line 5	Seth Cable	note	not who.ERG Q rice ate.IRR or	page 12, a line of the tree as the glyph rows read it
+(21) line 6	Seth Cable	note	‘Nobody ate rice’	page 12, a line of the tree as the glyph rows read it
+(21) line 7	Seth Cable	note	[∅ cháayu awdaná]	page 12, a line of the tree as the glyph rows read it
+(21) line 8	Seth Cable	note	pro tea drank.IRR	page 12, a line of the tree as the glyph rows read it
+(21) line 9	Seth Cable	note	‘They drank tea’	page 12, a line of the tree as the glyph rows read it
+§3.4	Seth Cable	note	However, there are several facts which indicate that (21) does not correctly represent the structure of (20). The first is that, under the simplest assumptions regarding compositional semantics, the structure in (21) could never be assigned the meaning that (20) is reported to have. That is, the very meaning of (20) requires that the (negative) indefinite subject have scope over the second VP, as well as over the disjunction ḵa ch'u ‘or’. To illustrate, note that the English sentence under (22b) can never receive the same meaning as the sentence under (22a).	page 12
+(22) line 1	Seth Cable	note	The Semantics of (20) are Inconsistent with Clausal Coordination	page 12, the caption
+(22a) line 1	Seth Cable	note	Nobody [VP [VP ate rice] or [VP drank tea]].	page 12, set as an example
+(22b) line 1	Seth Cable	note	[S [S Nobody ate rice] or [S they drank tea]].	page 12, set as an example
+§3.4	Seth Cable	note	The second issue with the structure in (21) is somewhat Tlingit-specific. Note that the verb in the second VP under (20) (awdaná 'drink') bears 'irrealis' morphology.14 In Tlingit, however, such irrealis morphology is only licensed if the verb is within the scope of negation or a related operator (Leer 1991). Thus, the presence of irrealis morphology on the second verb in (20) indicates that this verb is within the scope of the negation that precedes the indefinite subject. Under the analysis in (21), however, such a scopal relation does not hold.	page 12
+footnote 14	Seth Cable	note	This can be seen from the fact that the verb is awdaná rather than awdinaa.	page 12, footnote 14
+footnote 14	Tlingit	cited form	awdinaa	page 12, in italics, the form the second verb of (20) is not
+§3.4	Tlingit	cited form	awdaná	page 12, in italics
+§3.4	Seth Cable	note	With these facts in mind, consider the analysis of (20) sketched below in (23).	page 12
+(23) line 1	Seth Cable	note	The Sentence in (20) as VP-Coordination	page 13, the caption
+(23) line 2	Seth Cable	note	Sentence	page 13, a line of the tree as the glyph rows read it
+(23) line 3	Seth Cable	note	SUB VP	page 13, a line of the tree as the glyph rows read it
+(23) line 4	Seth Cable	note	Tlél aadóoch sá VP CONJ VP	page 13, a line of the tree as the glyph rows read it
+(23) line 5	Seth Cable	note	not who.ERG Q ḵa ch’u	page 13, a line of the tree as the glyph rows read it
+(23) line 6	Seth Cable	note	‘nobody’ kóox awux̱á ‘or’ cháayu awdaná	page 13, a line of the tree as the glyph rows read it
+(23) line 7	Seth Cable	note	rice ate.IRR tea drank	page 13, a line of the tree as the glyph rows read it
+(23) line 8	Seth Cable	note	‘ate rice’ ‘drank tea’	page 13, a line of the tree as the glyph rows read it
+§3.4	Seth Cable	note	Under this analysis, the disjunction ḵa ch'u ‘or’ is coordinating – not two full clauses – but two Verb Phrases (VPs). Thus, the analysis above would assign to the Tlingit sentence in (20) a structure nearly identical to its English translation. In so doing, the account would straightforwardly predict that (20) should allow an interpretation equivalent to its English translation, one where the (negative) indefinite subject takes scope above both the second VP and the disjunction ḵa ch'u ‘or’. Furthermore, under the analysis in (23), the second verb awdaná is correctly placed within the scope of the negation tlél ‘not’, and so the account correctly predicts the presence of irrealis morphology on awdaná.	page 13
+§3.4	Tlingit	cited form	tlél	page 13, in italics, ‘not’
+§3.4	Seth Cable	note	For these reasons, I conclude that (23) – and not (21) – accurately represents the structure of sentence (20). If we accept the analysis in (23), it would follow that it is possible in Tlingit for a verb to group together with the object to form a phrase. Such a phrase is by definition a ‘verb phrase’ (VP). Thus, coordination structures like (20) provide rather striking evidence that (contra Leer 1991) Tlingit does possess a VP.	page 13
+§3.4	Seth Cable	note	In summary, I have presented four arguments that Tlingit possesses the configurational clausal structure in (2a), a structure where (i) the verb groups together with the object to form a phrase that excludes the subject, and so (ii) the subject occupies a position in the sentence that is hierarchically superior to the object. The following summarizes the four arguments presented above.	page 13
+(24) line 1	Seth Cable	note	Evidence that Tlingit has a Configurational Clausal Structure	page 13, the caption
+(24) line 2	Seth Cable	note	Classic Principle C effects	page 13, an item of the bulleted list
+(24) line 3	Seth Cable	note	Classic Superiority effects in multiple wh-questions	page 13, an item of the bulleted list
+(24) line 4	Seth Cable	note	Only post-verbal objects, and not post-verbal subjects, can occupy a position within the scope of negation	page 13, an item of the bulleted list
+(24) line 5	Seth Cable	note	Co-ordination reveals that the object and the verb can together form a constituent (to the exclusion of the subject)	page 13, an item of the bulleted list
+§4	Seth Cable	heading	4 Some surprising parallels between subjects and objects in Tlingit	page 14
+§4	Seth Cable	note	The preceding section presented data that univocally point to a structural asymmetry between subjects and objects in Tlingit. In this section, however, we will see that there are nevertheless several phenomena in the language where subjects and objects behave as if they were structurally parallel.15 These phenomena appear to challenge a configurational analysis like (2a), and to actually support the 'flat', non-configurational structure in (2b).16	page 14
+footnote 15	Seth Cable	note	The remaining Tlingit data in this paper reflect only the judgments of JM (DK was not asked about these structures).	page 14, footnote 15
+footnote 16	Seth Cable	note	These phenomena are not discussed by Leer (1991), who bases his adoption of the flat structure in (2b) purely on the lack of any known arguments for a VP in Tlingit.	page 14, footnote 16
+§4	Seth Cable	note	After these puzzling cases are presented, I will propose in Section 5 an analysis that can reconcile them with the data from Section 3.	page 14
+§4.1	Seth Cable	heading	4.1 Binding of pronouns	page 14
+§4.1	Seth Cable	note	The first puzzling case of subject-object symmetry in Tlingit concerns the quantificational binding of pronouns. As would be expected under any imaginable analysis, subjects in Tlingit can bind pronouns inside of objects.	page 14
+(25) line 1	Seth Cable	note	Subject can Bind Pronoun inside of Object	page 14, the caption
+(25) line 2	Tlingit	transcription	Ch’a ldakát₁ [has du₁ tláa] has asix̱án.	page 14
+(25) line 3	Tlingit	gloss	just all their mother love	page 14
+(25) line 4	Seth Cable	translation	‘Everyone₁ loves their₁ mom.’	page 14
+§4.1	Seth Cable	note	More surprisingly, however, objects in Tlingit are also able to bind pronouns inside of subjects, even in canonical SOV order. Such unexpected structures are illustrated in (26) and (27) below.17	page 14
+footnote 17	Seth Cable	note	It should be noted, though, that such structures were never offered by JM himself, and I know of no textually attested instances of them. Nevertheless, these structures have been consistently accepted by JM (even after several months had elapsed between meetings), while other binding structures have been rejected (cf. Section 3.1 and 3.3). For this reason, I conclude that these data (as well as the parallel examples with reciprocals in Section 4.2) should be captured by our theory of Tlingit grammar. (Note, also, that these data are prima facie evidence against the configurational analysis in (2a), and so any skepticism towards them simply bolsters the case for that analysis).	page 14, footnote 17
+(26) line 1	Seth Cable	note	Object can Bind Pronoun inside of Subject, Even in SOV Sentences	page 14, the caption
+(26) line 2	Tlingit	transcription	[Has du₁ tláach] ldakát₁ has asix̱án.	page 14
+(26) line 3	Tlingit	gloss	their mother.ERG everyone love	page 14
+(26) line 4	Seth Cable	translation	‘Everybody₁’s mother loves them₁.’	page 14
+(26) line 5	Seth Cable	note	(Literally: ‘Their₁ mother loves everbody₁.’)	page 14, the literal translation
+(27) line 1	Seth Cable	note	Object can Bind Pronoun inside of Subject, Even in SOV Sentences	page 15, the caption
+(27) line 2	Tlingit	transcription	[Du₁ éeshch] tléil at k'átsk'u awustín.	page 15
+(27) line 3	Tlingit	gloss	his father.ERG not boy saw	page 15
+(27) line 4	Seth Cable	translation	‘No boy₁'s father saw him₁.’	page 15
+(27) line 5	Seth Cable	note	(Literally: ‘His₁ father saw [no boy]₁.’)	page 15, the literal translation
+§4.1	Seth Cable	note	The data in (26) and (27) are particularly surprising in light of certain standard assumptions regarding quantificational binding, stated below in (28).	page 15
+(28) line 1	Seth Cable	note	Standard Assumption Regarding Binding	page 15, the caption
+(28) line 2	Seth Cable	note	A phrase X can bind a pronoun/reciprocal Y if and only if X c- commands Y.	page 15, set as an example
+§4.1	Seth Cable	note	Under the assumption above, the facts in (26) and (27) are entirely unexpected by a configurational analysis like (2a). After all, under such an analysis, the object (in an SOV sentence) doesnʼt c-command the subject, and so shouldnʼt be able to bind any pronouns inside of the subject.	page 15
+§4.1	Seth Cable	note	Interestingly, however, the data in (26) and (27) would follow from the non-configurational, flat structure in (2b) (given the assumption in (28)). As illustrated below, under such a flat structure, the object and the subject c- command each other. Thus, the assumption in (28) would predict that the object in Tlingit should be able to bind pronouns inside of the subject.	page 15
+(29) line 1	Seth Cable	note	C-Command Relations Predicted by Flat Structure	page 15, the caption
+(29) line 2	Seth Cable	note	S	page 15, a line of the tree as the glyph rows read it
+(29) line 3	Seth Cable	note	Subject Object V	page 15, a line of the tree as the glyph rows read it
+(29) line 4	Seth Cable	note	(a) Subject c-commands Object	page 15, the label under the tree
+(29) line 5	Seth Cable	note	(b) Object c-commands Subject	page 15, the label under the tree
+§4.1	Seth Cable	note	We see, then, that the ability for the sentences in (26) and (27) to receive the reported interpretations provides evidence for the flat, non- configurational account in (2b) over the configurational account in (2a).	page 15
+§4.2	Seth Cable	heading	4.2 Binding of reciprocals	page 15
+§4.2	Seth Cable	note	A second puzzling subject-object symmetry in Tlingit is rather similar to the quantificational binding data just presented, and concerns the distribution of reciprocal pronouns.	page 15
+§4.2	Seth Cable	note	First, as would be expected under any imaginable account, subjects in Tlingit can bind reciprocal pronouns inside of objects.	page 16
+(30) line 1	Seth Cable	note	Subject can Bind Reciprocal inside of Object	page 16, the caption, carries footnote 18
+footnote 18	Seth Cable	note	Under the description of Tlingit reciprocals by Leer (1991), one might expect the verbal forms in (30a) and (30b) to be has awdzix̱án and has awdziteen, respectively. I leave as a question for future research the nature of this apparent discrepancy.	page 16, footnote 18
+footnote 18	Tlingit	cited form	has awdzix̱án	page 16, in italics, the verbal form one might expect in (30a)
+footnote 18	Tlingit	cited form	has awdziteen	page 16, in italics, the verbal form one might expect in (30b)
+(30a) line 1	Tlingit	transcription	[Tom ḵa Lindach]₁ [wooch₁ shagóoni] has asix̱án.	page 16
+(30a) line 2	Tlingit	gloss	Tom and Linda.ERG each.other parents love	page 16
+(30a) line 3	Seth Cable	translation	‘Tom and Linda love each other’s parents.’	page 16
+(30b) line 1	Tlingit	transcription	[Tom ḵa Lindach]₁ [wooch₁ shagóoni] has awsiteen.	page 16
+(30b) line 2	Tlingit	gloss	Tom and Linda.ERG each.other parents saw	page 16
+(30b) line 3	Seth Cable	translation	‘Tom and Linda saw each other's parents.’	page 16
+§4.2	Seth Cable	note	More surprisingly, however, objects in Tlingit are also able to bind reciprocal pronouns inside of subjects, even in canonical SOV order. Such unexpected structures are illustrated in (31) below.	page 16
+(31) line 1	Seth Cable	note	Object can Bind Reciprocal inside Subject, Even in SOV Sentences	page 16, the caption
+(31a) line 1	Tlingit	transcription	Wooch₁ shagóonich [Tom ḵa Linda]₁ has asix̱án.	page 16
+(31a) line 2	Tlingit	gloss	each.other parents.ERG Tom and Linda love	page 16
+(31a) line 3	Seth Cable	translation	‘Tom and Linda are loved by each other’s parents.’	page 16
+(31a) line 4	Seth Cable	note	(Literally: 'Each other₁'s parents love [Tom and Linda]₁.')	page 16, the literal translation
+(31b) line 1	Tlingit	transcription	Wooch₁ shagóonich tsú [Tom ḵa Linda]₁ has awsiteen.	page 16
+(31b) line 2	Tlingit	gloss	each.other parents.ERG also Tom and Linda they.saw	page 16
+(31b) line 3	Seth Cable	translation	‘Tom and Linda were seen by each other's parents.’	page 16
+(31b) line 4	Seth Cable	note	(Literally: 'Each other₁'s parents saw [Tom and Linda]₁.')	page 16, the literal translation
+§4.2	Seth Cable	note	As with the binding data in (26) and (27), the data in (31) are particularly surprising in light of the standard assumption, formulated in (28), that a reciprocal can only be bound by phrases that c-command it. Under such an assumption, the data in (31) would seem to show that subjects are c- commanded by objects in Tlingit SOV sentences. This fact, in turn, would argue against the configurational analysis in (2a), but for the flat, non- configurational analysis in (2b).	page 16
+§4.2	Seth Cable	note	We find, then, that the acceptability of the sentences in (31) provides evidence for the flat, non-configurational account in (2b) over the configurational account in (2a).	page 16
+§4.3	Seth Cable	heading	4.3 Relative scope	page 17
+§4.3	Seth Cable	note	The third and final subject-object symmetry in Tlingit concerns the interpretation of quantificational expressions. In many other predominantly head-final (OV) languages, quantificational objects cannot take scope over quantificational subjects in SOV sentences. Rather, in the SOV sentences of these languages, the quantificational subject necessarily takes scope over the object.	page 17
+§4.3	Seth Cable	note	This pattern is illustrated for the language Hindi below.	page 17
+(32) line 1	Seth Cable	note	Subject / Object Scope in Hindi SOV Sentences (Mahajan 1997)	page 17, the caption
+(32) line 2	Hindi	transcription	Sab tiin ciize khariide ge.	page 17
+(32) line 3	Hindi	gloss	everyone three things will.buy	page 17
+(32) line 4	Seth Cable	translation	‘Everyone will buy three things.’	page 17
+(32) line 5	Seth Cable	note	a. For every person, there are three (possibly different) things that that person will buy.	page 17, the reading
+(32) line 6	Seth Cable	note	b. * There are three things A, B, C, and every person will buy A, B, C.	page 17, the reading
+§4.3	Seth Cable	note	The Hindi sentence in (32) is translatable into English as ‘Everyone will buy three things.’ Importantly, however, the English translation of (32) is ambiguous in a way that the original Hindi sentence is not. While the English translation can be interpreted either as in (32a) or as in (32b), the original Hindi sentence only permits the interpretation in (32a). Thus, the original SOV Hindi sentence in (32) only permits a reading where the subject has scope above the object.	page 17
+§4.3	Seth Cable	note	If Hindi is assumed to possess a configurational structure as in (2a), the facts in (32) would follow from a slight expansion of the assumption in (28), stated below (cf. Mahajan 1990, 1997).	page 17
+(33) line 1	Seth Cable	note	Standard Assumption Regarding Binding and Scope	page 17, the caption
+(33) line 2	Seth Cable	note	A phrase X can (i) bind a pronoun/reciprocal Y or (ii) take scope over a phrase Y if and only if X c-commands Y.	page 17, set as an example
+§4.3	Seth Cable	note	Under the configurational analysis in (2a), subjects c-command objects (in SOV sentences), but not vice versa. Thus the condition in (33) would correctly predict that SOV sentences in Hindi will only permit the subject to take scope over the object (and not vice versa.)	page 17
+§4.3	Seth Cable	note	We see, then, that in many predominantly SOV languages, there exist ‘scope asymmetries’ between subjects and objects, and that these asymmetries are potential evidence in support of the configurational analysis in (2a) for those languages.	page 17
+§4.3	Seth Cable	note	Interestingly, in contrast to the pattern seen in (32) for Hindi, Tlingit readily permits objects to take scope over subjects, even in SOV sentences. This is illustrated via the pattern of judgments below.	page 18
+(34) line 1	Seth Cable	note	Scope in SOV Sentences of Tlingit	page 18, the caption, carries footnote 19
+footnote 19	Seth Cable	note	In order to test whether the sentences in (34) permit the targeted interpretations, I presented the speaker (JM) with scenarios – described both verbally and pictorially – where only the targeted interpretation of the sentence was true. I then asked (i) how the situation could be described in Tlingit, and (ii) whether the situation could be described with the tested structure.	page 18, footnote 19
+(34a) line 1	Tlingit	transcription	Ldakát ax̱ ḵaa yátx’i déix̱ x̱áat has aawashaat.	page 18
+(34a) line 2	Tlingit	gloss	all my sons two fish caught	page 18
+(34a) line 3	Seth Cable	translation	‘All my sons caught two fish.’	page 18
+(34a) line 4	Seth Cable	note	(i) All my sons each caught two (different) fish.	page 18, the reading
+(34a) line 5	Seth Cable	note	(ii) There were two fish, and my sons (together) caught them.	page 18, the reading
+(34b) line 1	Tlingit	transcription	Ldakát ax̱ ḵaa yátx’i déix̱ x’úx’ s aawa.óo.	page 18
+(34b) line 2	Tlingit	gloss	all my sons two book bought	page 18
+(34b) line 3	Seth Cable	translation	‘All my sons bought two books.’	page 18
+(34b) line 4	Seth Cable	note	(i) All my sons each bought two (different) books.	page 18, the reading
+(34b) line 5	Seth Cable	note	(ii) There were two books, and my sons (together) bought them.	page 18, the reading
+§4.3	Seth Cable	note	Under the assumption regarding scope in (33) above, the pattern of scope judgments in (34) would not be predicted by a configurational analysis like (2a). If we accept the assumption in (33), then the possibility of the interpretations in (34aii) and (34bii) would seem to indicate that subjects are c- commanded by objects in Tlingit SOV sentences. This fact would again argue against the configurational analysis in (2a), but for the flat, non-configurational analysis in (2b).	page 18
+§5	Seth Cable	heading	5 Reconciling the data: covert A-scrambling in Tlingit	page 18
+§5	Seth Cable	note	We appear to be confronted with two mutually incompatible sets of data regarding the clausal structure of the Tlingit language. Section 3 presented evidence in support of the configurational analysis in (2a), while Section 4 presented data that seem to clearly contradict the predictions of (2a), and to instead support the non-configurational analysis in (2b).	page 18
+§5	Seth Cable	note	In this section, I will attempt to show that these seemingly conflicting data can, in fact, be captured under a single, univocal analysis. In outline, the view that I will build towards in this section runs as follows. First, I will assume that our conclusions regarding the data in Section 3 were correct; the subject of a Tlingit sentence is initially generated/merged in a position that is structurally superior to the object. That is, I will adhere throughout to the configurational analysis of Tlingit sentence structure in (2a). However, I will also propose that the grammar of Tlingit includes a covert version of the so-called ‘A-scrambling’ operation seen in languages such as Hindi and Japanese (Mahajan 1990, 1997). Given the independently observable properties of this ‘A-scrambling’ operation, we can actually predict the initially puzzling data from Section 4, without sacrificing the data from Section 3 or the configurational analysis in (2a).	page 18
+§5	Seth Cable	language	Japanese	a language with A-scrambling, with Hindi
+§5	Seth Cable	note	To properly present this account, however, I begin in the next section with a brief introduction to the phenomenon of ‘A-scrambling’.	page 19
+§5.1	Seth Cable	heading	5.1 Overt A-scrambling (in Hindi)	page 19
+§5.1	Seth Cable	note	In many predominantly head-final (OV) languages, it is possible for objects in declarative sentences to invert - or ‘scramble’ - to so-called ‘A- positions’ above the subject.20 This phenomenon is illustrated for the OV language Hindi in (35) below.	page 19
+footnote 20	Seth Cable	note	Since it is not crucial for understanding the material that follows, I will not review here the distinction between so-called ‘A-positions’ and so-called ‘A-bar positions’. The interested reader is referred to Mahajan (1990).	page 19, footnote 20
+(35) line 1	Seth Cable	note	Overt A-Scrambling in Hindi (Mahajan 1997)	page 19, the caption
+(35a) line 1	Seth Cable	note	Canonical (non-scrambled) SOV Order	page 19, the part's description
+(35a) line 2	Hindi	transcription	Sab tiin ciize khariide ge.	page 19
+(35a) line 3	Hindi	gloss	everyone three things will.buy	page 19
+(35a) line 4	Seth Cable	translation	‘Everyone will buy three things.’	page 19
+(35b) line 1	Seth Cable	note	Non-canonical (scrambled) OSV Order	page 19, the part's description
+(35b) line 2	Hindi	transcription	Tiin ciize sab khariide ge.	page 19
+(35b) line 3	Hindi	gloss	three things everyone will.buy	page 19
+(35b) line 4	Seth Cable	translation	‘Everyone will buy three things.’	page 19
+§5.1	Seth Cable	note	Since the ‘scrambling’ illustrated above moves the object to an ‘A-position’, this special (optional) movement operation receives the name ‘A-scrambling’.	page 19
+§5.1	Seth Cable	note	Interestingly, this operation of A-scrambling has a variety of grammatical effects beyond simply altering the order of the subject and the object.21 One of the most important of these concerns the binding of pronouns and reciprocals: an object that has undergone A-scrambling to a position above the subject is able to bind pronouns and reciprocals inside the subject. To see this, let us first consider the pair of sentences in (36) below.	page 19
+footnote 21	Seth Cable	note	The data and discussion that follow are all taken from Mahajan (1997).	page 19, footnote 21
+(36) line 1	Seth Cable	note	A-Scrambling Allows Object to Bind Pronoun inside Subject	page 20, the caption
+(36a) line 1	Hindi	transcription	* [Uske₁ bhaai-ne] [har ek aadmii-ko]₁ maaraa.	page 20
+(36a) line 2	Hindi	gloss	his brother-ERG every man-ACC hit	page 20
+(36a) line 3	Seth Cable	translation	* ‘His₁ brother hit everyone₁.’	page 20
+(36b) line 1	Hindi	transcription	[Har ek aadmii-ko]₁ [uske₁ bhaai-ne] maaraa.	page 20
+(36b) line 2	Hindi	gloss	every man-ACC his brother-ERG hit	page 20
+(36b) line 3	Seth Cable	translation	‘Everyone₁ was hit by his₁ brother.’	page 20
+(36b) line 4	Seth Cable	note	(Literally: ‘His₁ brother hit everyone₁.’)	page 20, the literal translation
+§5.1	Seth Cable	note	In sentence (36a), the quantificational object har ek aadmiiko ‘every man’ occurs below the subject uske bhaaine ‘his brother’. Consequently, the sentence does not permit an interpretation under which the object ‘every man’ is understood to bind the pronoun inside the subject. However, in sentence (36b), the quantificational object has undergone A-scrambling to a position above the subject. Consequently, the sentence now permits an interpretation where the object ‘every man’ is understood to bind the pronoun in the subject. Such an interpretation is equivalent in logical form to the English translation under (36b), ‘Everyone was hit by his brother’.	page 20
+§5.1	Hindi	cited form	har ek aadmiiko	page 20, in italics, ‘every man’
+§5.1	Hindi	cited form	uske bhaaine	page 20, in italics, ‘his brother’
+§5.1	Seth Cable	note	Now let us consider the pair of sentences in (37) below.	page 20
+(37) line 1	Seth Cable	note	A-Scrambling Allows Object to Bind Reciprocal inside Subject	page 20, the caption
+(37a) line 1	Hindi	transcription	* [Ek duusre₁ ke parivaaro-ne] [Siita or Raam-ko]₁ khaane le liye.	page 20
+(37a) line 2	Hindi	gloss	each other’s parents-ERG Sita and Ram-ACC for.dinner	page 20
+(37a) line 3	Hindi	transcription	bulaayaa.	page 20
+(37a) line 4	Hindi	gloss	called	page 20
+(37a) line 5	Seth Cable	translation	* ‘Each other₁’s parents invited [Sita and Ram]₁ for dinner.’	page 20
+(37b) line 1	Hindi	transcription	[Siita or Raam-ko]₁ [ek duusre₁ ke parivaaro-ne] khaane le liye	page 20
+(37b) line 2	Hindi	gloss	Sita and Ram-ACC each other’s parents-ERG for.dinner	page 20
+(37b) line 3	Hindi	transcription	bulaayaa.	page 20
+(37b) line 4	Hindi	gloss	called	page 20
+(37b) line 5	Seth Cable	translation	‘[Sita and Ram]₁ were invited for dinner by each other₁’s parents.’	page 20
+(37b) line 6	Seth Cable	note	(Literally: ‘Each other₁’s parents invited [Sita and Ram]₁ for dinner.’)	page 20, the literal translation
+§5.1	Seth Cable	note	In sentence (37a), the plural object Siita or Raamko ‘Sita and Ram’ occurs below the subject ek duusre ke parivaarone ‘each other’s parents’. Consequently, the sentence does not permit an interpretation under which the object ‘Sita and Ram’ is understood to bind the reciprocal inside the subject. However, in sentence (37b), the plural object has undergone A-scrambling to a position above the subject. Consequently, the sentence now permits an interpretation where the object is understood to bind the reciprocal in the subject. Such an interpretation is equivalent to the English translation under (37b), ‘Sita and Ram were invited for dinner by each other’s parents.	page 20
+§5.1	Hindi	cited form	Siita or Raamko	page 20, in italics, ‘Sita and Ram’
+§5.1	Hindi	cited form	ek duusre ke parivaarone	page 20, in italics, ‘each other’s parents’
+§5.1	Seth Cable	note	We find, then, that A-scrambling of the object to a position before the subject has the following grammatical effect: it allows the object to bind pronouns/reciprocals inside the subject. Moreover, another important consequence of such A-scrambling concerns quantificational scope. In brief, a quantificational object that has undergone A-scrambling to a position above a quantificational subject is able to take scope over the quantificational subject. To see this, let us consider the pair of sentences under (38) below.	page 21
+(38) line 1	Seth Cable	note	A-Scrambling Allows Object to Have Scope Over Subject	page 21, the caption
+(38a) line 1	Hindi	transcription	Sab tiin ciize khariide ge.	page 21
+(38a) line 2	Hindi	gloss	everyone three things will.buy	page 21
+(38a) line 3	Seth Cable	translation	‘Everyone will buy three things.’	page 21
+(38a) line 4	Seth Cable	note	(i) For every person, there are three (possibly different) things that that person will buy.	page 21, the reading
+(38a) line 5	Seth Cable	note	(ii) * There are three things, and every person will buy them.	page 21, the reading
+(38b) line 1	Hindi	transcription	Tiin ciize sab khariide ge.	page 21
+(38b) line 2	Hindi	gloss	three things everyone will.buy	page 21
+(38b) line 3	Seth Cable	translation	‘Everyone will buy three things.’	page 21
+(38b) line 4	Seth Cable	note	(i) For every person, there are three (possibly different) things that that person will buy.	page 21, the reading
+(38b) line 5	Seth Cable	note	(ii) There are three things, and every person will buy them.	page 21, the reading
+§5.1	Seth Cable	note	In sentence (38a), the quantificational object occupies a position below the quantificational subject. Consequently, as reported in Section 4.3, the sentence does not permit the reading in (38aii), where the object is understood to take scope over the quantificational subject. However, in sentence (38b), the object has undergone A-scrambling to a position above the quantificational subject. As a result, the sentence in (38b) can receive the interpretation is (38bii), where the object takes scope over the subject.	page 21
+§5.1	Seth Cable	note	In summary, then, we have been presented with the following facts. In predominantly head-final (OV) languages (like Tlingit), there often exists an operation of A-scrambling, which functions to place the object in an A-position, higher than the subject. Moreover, objects which have undergone A-scrambling have the following properties: (i) they can bind pronouns/reciprocals inside the subject, (ii) they can take scope over the subject.	page 21
+§5.1	Seth Cable	note	It is quite striking, then, that the properties which hold for overtly A- scrambled objects in languages like Hindi are precisely the properties that we observed in Section 4 to hold of all objects in Tlingit – even those which still linearly follow the subject in the sentence. In the following section, I will put forth an account which explicitly connects the A-scrambling phenomena above to the puzzling subject-object symmetries we observed for Tlingit in Section 4.	page 21
+§5.2	Seth Cable	heading	5.2 Covert A-scrambling in Tlingit	page 22
+§5.2	Seth Cable	note	The central idea behind the proposal put forth in this section is that the ‘A-scrambling’ operation seen above to take place in languages like Hindi also takes place in Tlingit, but does so ‘covertly’. That is, I propose that Tlingit possesses a rule of A-scrambling nearly identical to that seen above for Hindi, but with the difference that Tlingit A-scrambling neednʼt be pronounced.	page 22
+§5.2	Seth Cable	note	The notion that some movement operations are ‘covert’, in the sense that one doesn’t overtly ‘hear’ their effects, has been familiar to linguists for quite some time (Chomsky 1981). One recent implementation of this notion makes use of the so-called ‘copy theory of movement’ (Chomsky 1995). According to the ‘copy theory’, movement operations serve to create additional copies of phrases within the sentence. Thus, the abstract structure of an English sentence like (39a) below is as in (39b), where the italicized phrases are the ‘earlier’ copies of the material that appears displaced in (39a).	page 22
+(39) line 1	Seth Cable	note	The Copy Theory of Movement	page 22, the caption
+(39a) line 1	Seth Cable	note	Who did Bill see?	page 22, set as an example
+(39b) line 1	Seth Cable	note	Who [did [Bill did see who]]?	page 22, set as an example
+(39c) line 1	Seth Cable	note	Who [did [Bill d̶i̶d̶ see w̶h̶o̶]]?	page 22, set as an example
+§5.2	Seth Cable	note	Of course, given the obvious differences between the abstract structure in (39b) and the pronounced form of the sentence in (39a), it follows that not all the copies of a given phrase are pronounced. Thus, it is typically assumed that there is some deletion process that occurs prior to pronunciation, and which functions to delete all but one copy of the moved phrase. Such deletion is illustrated in (39c).	page 22
+§5.2	Seth Cable	note	Now, in (39c) the deletion operation deletes the lower copies of the moved phrases. Linguists have observed, however, that nothing in principle requires that deletion must target lower copies. Interestingly, if deletion were to target the higher copy of a moved phrase, as illustrated below in (40), then the movement operation in question would have no effect upon the pronunciation of the sentence. From a phonological point of view, it would be as if the movement never happened at all.	page 22
+(40) line 1	Seth Cable	note	Covert Movement in the Copy Theory of Movement	page 22, the caption
+(40) line 2	Seth Cable	note	W̶h̶o̶ [d̶i̶d̶ [Bill did see who]?	page 22, set as an example
+§5.2	Seth Cable	note	In this sense, then, it is believed that there are cases where movement occurs but has no overt, phonological effect on the sentence. Such ‘unpronounced movement’ is often referred to as ‘covert movement’.	page 23
+§5.2	Seth Cable	note	With these theoretical assumptions as background, let us now consider the possibility that the grammar of Tlingit differs from that of Hindi in the following way. While both languages possess a rule of so-called ‘A- scrambling’, as illustrated in (41) below, the rule of A-scrambling in Tlingit is covert. That is, as illustrated in (41b), when A-scrambling takes place in Tlingit, the phonology deletes the higher copy of the scrambled phrase.	page 23
+(41) line 1	Seth Cable	note	Overt A-Scrambling in Hindi vs. Covert A-Scrambling in Tlingit	page 23, the caption
+(41a) line 1	Seth Cable	note	Hindi	page 23, the part's description
+(41a) line 2	Seth Cable	note	Object [Subject [O̶b̶j̶e̶c̶t̶ Verb]] = “Object Subject Verb”	page 23, a line of the tree as the glyph rows read it
+(41a) line 3	Seth Cable	note	A-Scrambling	page 23, a line of the tree as the glyph rows read it
+(41b) line 1	Seth Cable	note	Tlingit	page 23, the part's description
+(41b) line 2	Seth Cable	note	O̶b̶j̶e̶c̶t̶ [Subject [Object Verb]] = “Subject Object Verb”	page 23, a line of the tree as the glyph rows read it
+(41b) line 3	Seth Cable	note	A-Scrambling	page 23, a line of the tree as the glyph rows read it
+§5.2	Seth Cable	note	As illustrated above, such ‘covert A-scrambling’ would entail that even in the SOV sentences of Tlingit, the object should be able to exhibit all the syntactic properties of overtly A-scrambled objects in Hindi. That is, SOV sentences in Tlingit should – despite their surface appearance – have the abstract syntactic properties of OSV sentences in Hindi.	page 23
+§5.2	Seth Cable	note	Importantly, given the properties that we’ve seen hold of OSV sentences in Hindi, the postulation of such ‘covert A-scrambling’ in Tlingit predicts all the puzzling phenomena from Section 4. For example, let us first recall the fact that overt A-scrambling in Hindi permits an object to bind a pronoun inside of the subject (cf. (36b)).	page 23
+(42) line 1	Seth Cable	note	Overt A-Scrambling in Hindi Allows Object to Bind into Subject	page 23, the caption
+(42) line 2	Hindi	transcription	[Har ek aadmii-ko]₁	page 23
+(42) line 3	Hindi	gloss	every man-ACC	page 23
+(42) line 4	Hindi	transcription	[uske₁ bhaai-ne] [h̶a̶r̶ e̶k̶ a̶a̶d̶m̶i̶i̶-k̶o̶]₁ maaraa.	page 23
+(42) line 5	Hindi	gloss	his brother-ERG hit	page 23
+§5.2	Seth Cable	note	If we assume that this same A-scrambling happens covertly in Tlingit, then we predict that even in canonical SOV sentences of the language, objects should be able to bind pronouns inside of subjects. Compare, for example, the Hindi structure in (42) to the analysis below of the Tlingit sentence in (26).	page 23
+(43) line 1	Seth Cable	note	Covert A-Scrambling in Tlingit Allows Object to Bind into Subject	page 24, the caption
+(43) line 2	Tlingit	transcription	L̶d̶a̶k̶á̶t̶₁	page 24
+(43) line 3	Tlingit	transcription	[has du₁ tláach] ldakát₁ has asix̱án.	page 24
+(43) line 4	Tlingit	gloss	their mother.ERG everyone love	page 24
+§5.2	Seth Cable	note	Similarly, recall that overt A-scrambling in Hindi allows an object to bind a reciprocal inside of the subject (cf. (37b)).	page 24
+(44) line 1	Seth Cable	note	Overt A-Scrambling in Hindi Allows Objects to Bind into Subjects	page 24, the caption
+(44) line 2	Hindi	transcription	[Siita or Raam-ko]₁	page 24
+(44) line 3	Hindi	gloss	Sita and Ram-ACC	page 24
+(44) line 4	Hindi	transcription	[ek duusre₁ ke parivaaro-ne] [S̶. o̶r̶ R̶.-k̶o̶]₁	page 24
+(44) line 5	Hindi	gloss	each other’s parents-ERG	page 24
+(44) line 6	Hindi	transcription	khaane le liye bulaayaa.	page 24
+(44) line 7	Hindi	gloss	for.dinner called	page 24
+§5.2	Seth Cable	note	Again, if we assume that this same scrambling process can take place covertly in Tlingit, then we predict that even SOV sentences in Tlingit should permit the object to bind a reciprocal pronoun inside of the subject. Compare the Hindi structure in (44) to the analysis below of the Tlingit sentence in (31a).	page 24
+(45) line 1	Seth Cable	note	Covert A-Scrambling in Tlingit Allows Object to Bind into Subject	page 24, the caption
+(45) line 2	Tlingit	transcription	[T̶o̶m̶ ḵ̶̱a̶ L̶i̶n̶d̶a̶]₁	page 24
+(45) line 3	Tlingit	transcription	[wooch₁ shagóonich] [Tom ḵa Linda]₁	page 24
+(45) line 4	Tlingit	gloss	each.other parents-ERG Tom and Linda	page 24
+(45) line 5	Tlingit	transcription	has asix̱án	page 24
+(45) line 6	Tlingit	gloss	love	page 24
+§5.2	Seth Cable	note	Finally, recall that overt A-scrambling in Hindi allows objects to take scope over subjects. The following structure illustrates this fact for the example in (38b).	page 24
+(46) line 1	Seth Cable	note	Overt A-Scrambling in Hindi Allows OBJ to Scope over SUB	page 25, the caption
+(46) line 2	Hindi	transcription	[Tiin ciize] sab [t̶i̶i̶n̶ c̶i̶i̶z̶e̶] khariide ge.	page 25
+(46) line 3	Hindi	gloss	three things everyone will.buy	page 25
+(46) line 4	Seth Cable	note	(i) For every person, there are three (possibly different) things that that person will buy.	page 25, the reading
+(46) line 5	Seth Cable	note	(ii) There are three things, and every person will buy them.	page 25, the reading
+§5.2	Seth Cable	note	It follows, then, that if this same A-scrambling operation occurs covertly in Tlingit, then even SOV sentences in the language should permit the object to take scope above the subject. Compare the Hindi structure in (46) to the analysis below of the Tlngit sentence in (34a).	page 25
+(47) line 1	Seth Cable	note	Covert A-Scrambling in Tlingit Allows OBJ to Scope over SUB	page 25, the caption
+(47) line 2	Tlingit	transcription	[D̶é̶i̶x̶̱ x̶̱á̶a̶t̶] [Ldakát ax̱ ḵaa yátx’i] [déix̱ x̱áat] has aawashaat.	page 25
+(47) line 3	Tlingit	gloss	all my sons two fish caught	page 25
+(47) line 4	Seth Cable	note	(i) All my sons each caught two (different) fish.	page 25, the reading
+(47) line 5	Seth Cable	note	(ii) There were two fish, and my sons (together) caught them.	page 25, the reading
+§5.2	Seth Cable	note	In summary, then, we have seen the following. By examining the operation of A-scrambling in languages like Hindi, we’ve observed that A- scrambled objects possess the following properties.	page 25
+(48) line 1	Seth Cable	note	Properties of A-Scrambled Objects (in Hindi)	page 25, the caption
+(48) line 2	Seth Cable	note	Objects having undergone A-scrambling can:	page 25, set as an example
+(48a) line 1	Seth Cable	note	bind pronouns inside of subjects	page 25, set as an example
+(48b) line 1	Seth Cable	note	bind reciprocals inside of subjects	page 25, set as an example
+(48c) line 1	Seth Cable	note	take scope over subjects	page 25, set as an example
+§5.2	Seth Cable	note	Therefore, if we assume that this operation of A-scrambling can take place covertly in Tlingit (as diagrammed in (41b)), it would follow that, even in canonical SOV sentences of the language, objects in Tlingit should display the properties listed in (48). Thus, the ‘covert A-scrambling’ analysis in (41b) would predict all those prima facie surprising properties of Tlingit objects outlined in Section 4. Moreover, the account is able to capture those facts without sacrificing the configurational analysis of clausal structure in (2a).	page 25
+§5.2	Seth Cable	note	In this way, the seemingly incompatible data from Sections 3 and 4 might be captured under a single, univocal analysis.	page 25
+§6	Seth Cable	heading	6 A potential problem: Principle C effects	page 26
+§6	Seth Cable	note	In Section 4, we observed that direct objects in Tlingit exhibit properties that seem to support the ‘flat’, non-configurational account in (2b) over the configurational analysis in (2a). However, in the preceding section, we saw that those initially puzzling properties of Tlingit objects could be captured within a configurational system like (2a), if we assume that the language possesses a covert version of the well-known operation of A-scrambling.	page 26
+§6	Seth Cable	note	At this point in our argumentation, however, we still must consider whether the analysis from Section 5 affects any of the crucial empirical results of our confirugational analysis. That is, we must ask whether the introduction of covert A-scrambling into our theory potentially impacts our earlier, configurational analyses of the data from Section 3.	page 26
+§6	Seth Cable	note	While space precludes a full discussion, we can note in passing that the introduction of ‘covert A-scrambling’ into our theory of Tlingit grammar does not in any way affect our analyses of the phenomena from Sections 3.2 – 3.4. Both the existence of Superiority effects (Section 3.2) and the inability for post- verbal subjects to scope below negation (Section 3.3) would still be predicted under our newly augmented account, since both phenomena are ultimately derived from the postulated differences in the underlying (base) positions of the subject and the object. Similarly, the possibility of sentences like (20) in Tlingit (Section 3.4) is not affected by the introduction of covert A-movement, since the proposed account attributes their possibility solely to the existence of a verb phrase (VP) in the language.	page 26
+§6	Seth Cable	note	Thus, for the most part, the introduction of ‘covert A-scrambling’ does not undermine our earlier arguments for the configuational analysis in (2a). However, our arguments regarding so-called Principle C effects in the language (Section 3.1) may be critically weakened if we assume that Tlingit allows objects to A-scramble covertly.	page 26
+§6	Seth Cable	note	To recall, one of our main arguments for the configurational analysis in (2a) was the following fact.	page 26
+(49) line 1	Seth Cable	note	Classic Principle C Effects in Tlingit (Section 3.1)	page 26, the caption
+(49) line 2	Seth Cable	note	In Tlingit, a pronominal subject cannot co-refer with a phrase inside the object (cf. (3)-(9))	page 26, set as an example
+§6	Seth Cable	note	Let us also recall, however, that our main argument for the ‘covert A- scrambling’ analysis of Section 5 was the fact that it predicted the following generalization.	page 26
+(50) line 1	Seth Cable	note	Tlingit Objects Behave as if They were A-Scrambled (Section 5.2)	page 26, the caption
+(50) line 2	Seth Cable	note	Even in canonical SOV sentences, objects in Tlingit should display the special properties of overtly A-scrambled objects in languages like Hindi.	page 26, set as an example
+§6	Seth Cable	note	Unfortunately, there is a prima facie incompatibility between the statements in (49) and (50), one that stems from the following fact.	page 27
+(51) line 1	Seth Cable	note	Overt A-Scrambling (in Hindi) Obviates Principle C Effects	page 27, the caption
+(51) line 2	Seth Cable	note	Overtly A-scrambled objects (in Hindi) are such that pronominal subjects can co-refer with phrases inside of them (Mahajan 1990, 1997)	page 27, set as an example
+(51a) line 1	Hindi	transcription	* Us₁-ne Siitaa-ko [tumhaaraa Raam₁-ko likhaa hua petr]	page 27
+(51a) line 2	Hindi	gloss	he-ERG Sita-DAT your Ram-DAT written be letter	page 27
+(51a) line 3	Hindi	transcription	dikhaayaa.	page 27
+(51a) line 4	Hindi	gloss	showed	page 27
+(51a) line 5	Seth Cable	translation	* ‘He₁ showed to Sita a letter written by you to Ram₁.’	page 27
+(51b) line 1	Hindi	transcription	[Tumhaaraa Raam₁-ko likhaa hua petr] us₁-ne Siitaa-ko	page 27
+(51b) line 2	Hindi	gloss	your Ram-DAT written be letter he-ERG Sita-DAT	page 27
+(51b) line 3	Hindi	transcription	dikhaayaa.	page 27
+(51b) line 4	Hindi	gloss	showed	page 27
+(51b) line 5	Seth Cable	translation	‘A letter written to you by Ram₁ was shown by him₁ to Sita.’	page 27
+(51b) line 6	Seth Cable	note	(Literally: ‘He₁ showed to Sita a letter written by you to Ram₁.’)	page 27, the literal translation
+§6	Seth Cable	note	That is, as shown above, A-scrambling of an object to a position above a pronominal subject (in Hindi) allows phrases inside the object to co-refer with the subject. In sentence (51a), for example, a phrase containing the name Raam ‘Ram’ occupies a position below the pronominal subject. Consequently, the pronominal subject cannot be understood as co-referent with the name Raam (cf. (7a)). However, in Sentence (51b), the object containing the name Raam has been A-scrambled to a position above the pronominal subject, and the sentence now allows an interpretation where the subject is co-referent with Raam.	page 27
+§6	Hindi	cited form	Raam	page 27, in italics, ‘Ram’
+§6	Seth Cable	note	This ability for A-scrambling to obviate Principle C effects raises a difficult challenge to our account from Section 5. Given that our ‘covert A- scrambling’ account makes the general prediction in (50), the pattern in (51) entails that our account wrongly predicts an absence of classic Principle C effects in Tlingit. After all, the illicit c-command configuration in (52a) could presumably be eliminated via covert A-scrambling of the object as in (52b). Compare the predicted structure in (52b) to the Hindi structure in (51b).	page 27
+(52) line 1	Seth Cable	note	Covert A-scrambling (in Tlingit) Means No Principle C Effects	page 27, the caption
+(52a) line 1	Tlingit	transcription	* ∅₁ [Bill₁ tláa] asix̱án.	page 27
+(52a) line 2	Tlingit	gloss	pro Bill mother loves	page 27
+(52a) line 3	Seth Cable	translation	* ʻHe₁ loves Bill₁ʼs mother.ʼ	page 27
+(52b) line 1	Tlingit	transcription	[B̶i̶l̶l̶₁ t̶l̶á̶a̶] ∅₁ [Bill₁ tláa] asix̱án.	page 27
+(52b) line 2	Tlingit	gloss	pro Bill mother loves	page 27
+§6	Seth Cable	note	In other words, our covert A-scrambling analysis from Section 5 must answer the following, challenging question: given the general prediction in (50), why doesnʼt the object in (52a) display the special property of the A-scrambled object in (51b), namely, the ability for phrases inside of it co-refer with a pronominal subject?	page 28
+§6	Seth Cable	note	While this issue remains an outstanding problem for our covert A- scrambling account, I will in the remainder of this section sketch a possible route to its solution. In broad outline, I will propose that certain independent principles regarding movement might rule out the problematic A-scrambling in (52b). That is, I will attempt to provide a principled reason why covert A- scrambling might (unlike overt A-scrambling) be generally unable to obviate Principle C effects. Unfortunately, because of the nature of the claims involved, the ensuing discussion will be more technical and less accessible than any of the preceding material of this paper.	page 28
+§6	Seth Cable	note	Recent research into the syntax-semantics interface (Chomsky 1995, Fox 1999, Reinhart 2006) has argued that operations taking place in the syntactic derivation of a sentence must have some semantic ‘motivation’. This general dictum has the following specific consequence regarding syntactic movement operations like A-scrambling: such movement operations can only take place if they affect the meaning that is assigned to the sentence. This specific generalization can be referred to as the ‘Have an Effect on Output’ (HEO) Condition, stated below.	page 28
+(53) line 1	Seth Cable	note	HEO Condition (Chomsky 1995, Fox 1999, Reinhart 2006)	page 28, the caption
+(53) line 2	Seth Cable	note	Movement can only occur if it affects the meaning of the sentence.	page 28, set as an example
+§6	Seth Cable	note	Interestingly, if we accept the principle in (53), it might be possible to understand why the putative A-scrambling in (52b) is not possible. To begin, let us first observe that all the covert A-scrambling postulated in Section 5 for Tlingit satisfies the condition in (53). For example, covert A-scrambling of the object in (43) and (45) creates an otherwise unavailable binding relationship between the object and a pronoun/reciprocal inside the subject. Thus, in these circumstances covert A-scrambling increases the number of interpretations that the sentence can be assigned, and so clearly affects the meaning of the sentence. Furthermore, the covert A-scrambling in (47) creates an otherwise unavailable scope relationship between the object and the subject. Therefore, once again, such covert A-scrambling increases the number of interpretations that the sentence can be assigned, and so is in compliance with condition (53).	page 28
+§6	Seth Cable	note	We see, then, that all those instances of covert A-scrambling that our account relies upon are licensed by the principle in (53). Significantly, however, the ‘unwanted’ A-scrambling in (52b) would violate the condition in (53). Since the phrase Bill tláa ‘Bill’s mother’ is a referential expression (of semantic type ‘e’), its movement in (52b) is semantically vacuous (Heim & Kratzer 1998). That is, whether or not the phrase Bill tláa ‘Bill’s mother’ undergoes the A- scrambling in (52b), the sentence will (under the given indexation) be assigned the same interpretation, namely, ‘Bill saw Bill’s mother’. Thus, we find that the illicit covert A-scrambling in (52b) would actually be independently ruled out by the HEO Condition in (53), and so our account (augmented with (53)) accurately predicts that Tlingit should exhibit all the classic Principle C effects witnessed in Section 3.1.	page 28
+§6	Tlingit	cited form	Bill tláa	page 28, in italics, ‘Bill’s mother’
+§6	Seth Cable	note	Before we leave this section, however, we should note some potential problems for the above line of reasoning. The first is that the account rests on the fact that the moved phrase in (52b) is a referential expression, and so its movement is semantically vacuous. This immediately raises the question of whether Tlingit still exhibits Principle C effects when the object is a quantificational expression that can take scope over the subject. That is, would the Tlingit equivalent of the sentence in (54a) permit an interpretation akin to that in (54b)? If it doesn’t, if co-reference between the object and the c- commanded name ‘Bill’ is still impermissible, then the principle in (53) would not be sufficient for explaining the existence of classic Principle C effects in Tlingit.	page 29
+(54) line 1	Seth Cable	note	A Sentence Where Semantically Contentful A-Scrambling Could Obviate Principle C	page 29, the caption
+(54a) line 1	Seth Cable	note	A relative gave him₁ [every picture of Dave₁’s mom].	page 29, set as an example
+(54b) line 1	Seth Cable	note	[Every picture of Dave₁’s mom] was given to him₁ by a relative.	page 29, set as an example
+§6	Seth Cable	note	Another potential problem for the account based upon (53) is that it has the potential of being far too strong, and of ruling out the licit overt A- scrambling in Hindi sentences like (51b). After all, the overt A-scrambling in (51b) also targets a purely referential (type ‘e’) phrase. Consequently, the interpretations that would be assigned to both (51a) and (51b) would seem to be identical: ‘Ram showed to Sita a letter written by you to Ram.’ Thus, it appears that our principle in (53) would also incorrectly rule out the well-formed A- scrambling structure in (51b).	page 29
+§6	Seth Cable	note	On the other hand, there may be a way of construing the principle in (53) so that, while it correctly rules out the covert A-scrambling in (52b), it also correctly rules in the overt A-scrambling in (51b). First, let us note that precisely because the Hindi A-scrambling in (51b) is overt, it has effects upon the intonational structure assigned to the sentence. Secondly, let us note that in some languages, changes to intonational structure resulting from A-scrambling can, in turn, lead to changes in the discourse-pragmatic properties of the sentence (Arregi 2002, Rienhart 2006). Thus, in some languages, overt A- scrambling of referential (type ‘e’) phrases does have an indirect semantic effect upon the sentence, via its altering of the sentence’s intonational structure. If such an account can be extended to A-scrambling in Hindi, we would predict that the condition in (53) needn’t – contrary to first appearances – incorrectly rule out the overt A-scrambling in (51b). Furthermore, since the putative semantic effects of such A-scrambling crucially rely upon its being overt (and hence affecting the intonational structure of the sentence), it would follow that covert A-scrambling of the kind in (52b) would still be in violation of the condition in (53).	page 29
+§6	Seth Cable	note	While the preceding remarks certainly do not entirely resolve the problems surrounding Principle C effects within the ‘covert A-scrambling’ analysis, they do offer an ‘existence proof’ that the data from Section 3.1 do not necessarily undermine the proposed account. Conversely, we’ve seen that the proposal that Tlingit grammar includes a covert version of ‘A-scrambling’ needn’t undermine our arguments from Section 3 that the language possesses the configuational structure in (2a). Thus, the full range of data from Sections 3 and 4 can in principle be captured under a single, univocal account, one in which the sentences of Tlingit possess a structure where subjects (underlyingly) occupy a position that is hierarchically superior to that of objects.	page 30
+§7	Seth Cable	heading	7 Conclusion	page 30
+§7	Seth Cable	note	In this paper, we have seen that there are syntactic phenomena in Tlingit which strongly suggest that the language possesses a configurational clausal structure, where subjects asymmetrically c-command objects. The data supporting such a structure are repeated below.	page 30
+(55) line 1	Seth Cable	note	Evidence that Tlingit has a Configurational Clausal Structure	page 30, the caption
+(55) line 2	Seth Cable	note	Classic Principle C effects	page 30, an item of the bulleted list
+(55) line 3	Seth Cable	note	Classic Superiority effects in multiple wh-questions	page 30, an item of the bulleted list
+(55) line 4	Seth Cable	note	Only post-verbal objects, and not post-verbal subjects, can occupy a position within the scope of negation.	page 30, an item of the bulleted list
+(55) line 5	Seth Cable	note	Co-ordination reveals that the object and the verb can together form a constituent (to the exclusion of the subject)	page 30, an item of the bulleted list
+§7	Seth Cable	note	On the other hand, we’ve also seen that, paradoxically, there are syntactic phenomena that strongly suggest that the language possesses a flat, non- configuational structure, where objects and subjects symmetrically c-command one another. The data supporting such a structure are summarized below.	page 30
+(56) line 1	Seth Cable	note	Evidence that Tlingit has a Non-Configurational Clausal Structure	page 30, the caption
+(56) line 2	Seth Cable	note	Objects can bind pronouns/reciprocals inside subjects, even in canonical SOV order.	page 30, an item of the bulleted list
+(56) line 3	Seth Cable	note	Quantificational objects can take scope over quantificational subjects, even in canonical SOV order.	page 30, an item of the bulleted list
+§7	Seth Cable	note	Finally, we’ve seen that while the data in (55) and (56) appear to be in direct conflict with one another, both can be accounted for in a model where the Tlingit language possesses (i) a configurational structure, as well as (ii) a covert variant of the operation of ‘A-scrambling’, well-known from languages such as Hindi (Mahajan 1990, 1997). While certain outstanding problems remain for this model, it stands as perhaps the most successful of the available or imaginable options.	page 31
+references	Seth Cable	heading	References	page 31
+references	Seth Cable	reference	Adesola, Oluseye. 2006. “On the Absence of Superiority and Weak Crossover Effects in Yoruba.” Linguistic Inquiry 37:2.	page 31
+references	Seth Cable	reference	Aoun, Joseph and Audrey Li. 1993. The Syntax of Scope. MIT Press. Cambridge, MA.	page 31
+references	Seth Cable	reference	Arregi, Karlos. 2002. Focus on Basque Movements. PhD Dissertation. MIT. Cambridge, MA.	page 31
+references	Seth Cable	reference	Cable, Seth. 2006. The Interrogative Words of Tlingit: An Informal Grammatical Study. Manuscript. Available at the Sealaska Heritage Institute Archives. Available on-line at: http://people.umass.edu/scable/papers/Tlingit-Interrogatives-Grammar.pdf	page 31
+references	Seth Cable	reference	Cable, Seth. 2007. The Grammar of Q: Q-Particles and the Nature of Wh-Fronting, as Revealed by the Wh Questions of Tlingit. Doctoral Dissertation. MIT.	page 31
+references	Seth Cable	reference	Chomsky, Noam. 1973. “Conditions on Transformations.” In Anderson, Stephen and Paul Kiparsky (eds) A Festschrift for Morris Halle. Holt, Reinhart & Winston. New York.	page 31
+references	Seth Cable	reference	Chomsky, Noam. 1981. Lectures on Government and Binding: The Pisa Lectures. Mouton de Gruyter.	page 31
+references	Seth Cable	reference	Chomsky, Noam. 1995. The Minimalist Program. MIT Press. Cambridge, MA.	page 31
+references	Seth Cable	reference	Davis, Henry. 2005. “Constituency and Coordination in St’át’imcets (Lillooet Salish).” In Carnie, Andrew, Sheila Anne Dooley, and Heidi Harley (eds.) Verb First: On the Syntax of Verb Initial Languages. John Benjamins. Amsterdam.	page 31
+references	Seth Cable	reference	Davis, Henry, Ryan Waldie, and Rachel Wojdak. 2007. “Condition C Effects in Nuu-chah-nulth.” Canadian Journal of Linguistics 52.	page 31
+references	Seth Cable	reference	Dryer, Matthew. 1985. “Tlingit: An Object-Initial Language?” Canadian Journal of Linguistics 30.	page 31
+references	Seth Cable	reference	Fanselow, Gisbert. 1991. Minimale Syntax. Habilitation Thesis. University of Passau.	page 31
+references	Seth Cable	reference	Fanselow, Gisbert. 1997. “Minimal Link Effects in German (and Other Languages).” Manuscript. University of Potsdam.	page 31
+references	Seth Cable	reference	Fox, Danny. 1999. Economy and Semantic Interpretation. MIT Press. Cambridge, MA.	page 31
+references	Seth Cable	reference	Grohmann, Kleanthes. 2003. Prolific Domains: On the Anti-Locality of Movement Dependencies. John Benjamins. Amsterdam.	page 32
+references	Seth Cable	reference	Heim, Irene and Angelika Kratzer. 1998. Semantics in Generative Grammar. Blackwell. Oxford.	page 32
+references	Seth Cable	reference	Koch, Karsten. 2006. “Transitive Word Order in Nle7kepmxin (Thompson River Salish).” In Papers for the 41st International Conference on Salish and Neighboring Languages. UBCWPL. Vancouver.	page 32
+references	Seth Cable	reference	Kuno, Susumu and Jane J. Robinson. 1972. “Multiple Wh-Questions.” Linguistic Inquiry 3.	page 32
+references	Seth Cable	reference	Lasnik, Howard and Tim Stowell. 1991. “Weakest Crossover.” Linguistic Inquiry 22.	page 32
+references	Seth Cable	reference	Leer, Jeff. 1991. The Schetic Categories of the Tlingit Verb. PhD Dissertation. University of Chicago.	page 32
+references	Seth Cable	reference	Mahajan, Anoop. 1990. The A/A-bar Distinction and Movement Theory. Doctoral Dissertation. MIT. Cambridge, MA.	page 32
+references	Seth Cable	reference	Mahajan, Anoop. 1997. “Rightward Scrambling.” In Beerman, Dorothee, David Leblanc, and Henk van Riemsdijk (eds.) Rightward Movement. John Benjamins. Amsterdam.	page 32
+references	Seth Cable	reference	Matthewson, Lisa, Dwight Gardiner and Henry Davis. 1993. “Coreference in Northern Interior Salish. In Papers for the 28th International Conference on Salish and Neighboring Languages. University of Washington.	page 32
+references	Seth Cable	reference	Pesetsky, David. 1982. Paths and Categories. Doctoral Dissertation. MIT. Cambridge, MA.	page 32
+references	Seth Cable	reference	Pesetsky, David. 2000. Phrasal Movement and Its Kin. MIT Press. Cambridge, MA.	page 32
+references	Seth Cable	reference	Reinhart, Tanya. 2006. Interface Strategies. MIT Press. Cambridge, MA.	page 32
+references	Seth Cable	reference	Richards, Norvin. 1997. What Moves Where in Which Language? Doctoral Dissertation. MIT. Cambridge, MA.	page 32
+references	Seth Cable	reference	Rudin, Catherine. 1986. Aspects of Bulgarian Syntax: Complementizers and Wh Constructions. Slavica Publishers, Inc. Columbus, OH.	page 32
+references	Seth Cable	reference	Thompson, Chad L. 2000. “Iconicity and Word Order in Koyukon Athabaskan.” In Fernald, Theodore B. and Paul R. Platero (eds.) The Athabaskan Languages: Perspectives on a Native American Language Family. Oxford University Press.	page 32
+end	Seth Cable	note	Seth Cable Department of Linguistics University of Massachusetts, Amherst 226 South College 150 Hicks Way Amherst, MA 01003-9274 United States scable@linguist.umass.edu	page 32, the author's name and address
