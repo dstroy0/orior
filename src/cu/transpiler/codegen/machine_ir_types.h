@@ -119,7 +119,36 @@
     form_(LOOP_LABEL, "loop_label", 1u)                             \
     form_(LOOP_BACK, "loop_back", 2u)                               \
     form_(STATE_LOOP, "state_loop", 3u)                             \
-    form_(PROGRAM_UNIT, "program_unit", 25u)
+    form_(PROGRAM_UNIT, "program_unit", 25u)                        \
+    form_(KERNEL_OPEN, "kernel_open", 0u)                           \
+    form_(KERNEL_CLOSE, "kernel_close", 0u)                         \
+    form_(THREAD_IDX_X, "thread_idx_x", 1u)                         \
+    form_(THREAD_IDX_Y, "thread_idx_y", 1u)                         \
+    form_(THREAD_IDX_Z, "thread_idx_z", 1u)                         \
+    form_(BLOCK_IDX_X, "block_idx_x", 1u)                           \
+    form_(BLOCK_IDX_Y, "block_idx_y", 1u)                           \
+    form_(BLOCK_IDX_Z, "block_idx_z", 1u)                           \
+    form_(BLOCK_DIM_X, "block_dim_x", 1u)                           \
+    form_(BLOCK_DIM_Y, "block_dim_y", 1u)                           \
+    form_(BLOCK_DIM_Z, "block_dim_z", 1u)                           \
+    form_(GRID_DIM_X, "grid_dim_x", 1u)                             \
+    form_(GRID_DIM_Y, "grid_dim_y", 1u)                             \
+    form_(GRID_DIM_Z, "grid_dim_z", 1u)                             \
+    form_(WARP_SIZE, "warp_size", 1u)                               \
+    form_(PARAMETER_LOAD, "parameter_load", 2u)                     \
+    form_(PARAMETER_LOAD_WIDE, "parameter_load_wide", 2u)           \
+    form_(TEST_WORD_BELOW, "test_word_below", 3u)                   \
+    form_(EXIT_UNLESS, "exit_unless", 1u)                           \
+    form_(WIDE_MULTIPLY_WORD_ADD, "wide_multiply_word_add", 4u)     \
+    form_(GLOBAL_LOAD_WORD, "global_load_word", 3u)                 \
+    form_(GLOBAL_LOAD_WIDE, "global_load_wide", 3u)                 \
+    form_(GLOBAL_STORE_WIDE, "global_store_wide", 3u)               \
+    form_(WIDE_FROM_SIGNED_WORD, "wide_from_signed_word", 2u)       \
+    form_(TEST_WORD_GEQ, "test_word_geq", 3u)                       \
+    form_(EXIT_IF, "exit_if", 1u)                                   \
+    form_(TEST_WORD_LEQ, "test_word_leq", 3u)                       \
+    form_(TEST_WORD_NEQ, "test_word_neq", 3u)                       \
+    form_(TEST_WORD_IDENTICAL, "test_word_identical", 3u)
 // clang-format on
 
 // every bank of registers the code generator takes from, each written with one parameter, the register's number n

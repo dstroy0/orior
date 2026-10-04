@@ -272,13 +272,16 @@ unsigned int sass_operation_schedule(const char *operation, unsigned int *soones
     // the names before the first dot NVIDIA's compiler gives a write barrier at every place, or a read barrier
     static const char *const s_late[] = {"LDG", "LDS", "S2R", "S2UR", "F2I", "I2F", "MUFU", "ATOMG"};
     static const char *const s_store[] = {"STG", "STS", "STL", "ST", "RED"};
+    // A wide result is a register pair, and its count is the soonest the pair is read whole, as a load's address:
+    // NVIDIA's compiler stalls an IMAD.WIDE.U32 six cycles before an LDG reads its pair, and the soonest any one
+    // register of the pair is read is too few, the load's address reading a high register not yet back
     static const SassSoonest s_soonest[] = {
         {"LOP3.LUT", 4u},      {"IADD3", 4u},         {"IADD3.X", 4u},         {"SHF.R.U32.HI", 4u},
         {"SHF.L.U32", 4u},     {"SHF.R.S32.HI", 4u},  {"SHF.L.W.U32.HI", 4u},  {"SHF.R.W.U32", 4u},
         {"SHF.R.W.U32.HI", 4u}, {"SHF.L.U64.HI", 4u}, {"SHF.R.U64", 4u},       {"IMAD", 4u},
         {"IMAD.MOV.U32", 4u},  {"IMAD.MOV", 4u},      {"IMAD.X", 4u},          {"IMAD.IADD", 4u},
-        {"IMAD.WIDE.U32", 4u}, {"IMAD.HI.U32", 4u},   {"IMNMX.U32", 4u},       {"SEL", 4u},
-        {"MOV", 4u},           {"IMAD.U32", 5u},      {"IMAD.WIDE", 5u},       {"IMAD.WIDE.U32.X", 5u},
+        {"IMAD.WIDE.U32", 6u}, {"IMAD.HI.U32", 4u},   {"IMNMX.U32", 4u},       {"SEL", 4u},
+        {"MOV", 4u},           {"IMAD.U32", 5u},      {"IMAD.WIDE", 6u},       {"IMAD.WIDE.U32.X", 6u},
         {"SHF.L.W.U32", 5u},   {"SHF.R.W.S32.HI", 5u}, {"CS2R", 6u}};
     const size_t base = strcspn(operation, ".");
     *soonest = SASS_STALL_LONGEST;

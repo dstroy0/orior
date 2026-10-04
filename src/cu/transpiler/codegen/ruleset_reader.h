@@ -83,6 +83,15 @@ struct Pseudo
 // writer has none of that bank to give
 typedef std::function<std::string(unsigned int bank)> ScratchRegisters;
 
+// a fold the system does of a form, as the classification beside the ruleset gives it on the compile channel: the form
+// by its place in the schema, what was put for the parameter ("number" or "register"), and the parameter by its place
+struct RulesetFold
+{
+    unsigned int form;
+    std::string kind;
+    unsigned int parameter;
+};
+
 // a ruleset read from its file against its code generator's schema: where it was read, and why it errored where it
 // was; its own name, the toolchain that builds its text and where its header comes from; each bank's written form of a
 // register, each fixed register's written form, and each form, by their places in the schema; and which of them the
@@ -104,10 +113,21 @@ struct Ruleset
     std::vector<unsigned char> bank_given;
     std::vector<unsigned char> fixed_given;
     std::vector<unsigned char> form_given;
+    // the folds of the .ksc of the ruleset's name beside it, none where there is no such file
+    std::vector<RulesetFold> folds;
     // the construct being read, its place among the forms (the form count where none is), and its parameters' names
     unsigned int building;
     std::vector<std::string> building_parameters;
 };
+
+// the folds of the .ksc of `rules`' name beside its file read into rules->folds in place of those it held: each line
+// `compile folds <word> <form>: the system folds the <kind> put for <parameter>`, the parameter found by its name in the
+// ruleset's own line for the form. A line naming a form or parameter the ruleset does not give is passed over
+void ruleset_folds_read(Ruleset *rules);
+
+// the names of form `form`'s parameters in the order the ruleset's own line for it gives them; none where it gives no
+// line for the form
+std::vector<std::string> ruleset_parameters(const Ruleset *rules, const std::string &form);
 
 // form `name` of `rules` appended to `text`, its arguments in the order of its parameters, a construct's scratch
 // taken of `scratch`; `broken` set, and nothing written, where they are not as many as the form takes

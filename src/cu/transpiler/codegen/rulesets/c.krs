@@ -159,3 +159,35 @@ nop state_loop back where next
 # the program resident around the lane: the kernel the record machine launches, which takes the launch's lanes a round
 # a thread block and holds the program to its block (vhdl.krs writes the same resident as a circuit)
 form program_unit launch_bytes count_offset hot_offset block_offset number_offset ttl_offset checkin_every_offset next_offset start_offset finished_offset checkins_offset owner_at command_at state_at offset_at step_at launch_time_at exectime_at checkin_at checkin_time_at run_command stop_command done_state stopped_state yielded_state = \n// the device's timer, in nanoseconds, where a device's compiler builds the text; 0 on a host that only compiles it\n__device__ __forceinline__ static u64 cycle_clock(void)\n{\n    u64 now = 0ull;\n#if defined(__CUDACC__)\n    asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(now));\n#endif\n    return now;\n}\n\n// The program resident: each thread block takes the next round of lanes from the one counter, and before each round\n// its first thread reads the clock. Past the launch's time to live, or told by the block's command, the thread block\n// leaves without taking more; every so often it checks in to the block. The thread block that opens the launch runs\n// one round before the clock can send it out: every launch moves the program on however short its time to live. A\n// launch that does not find its number as the block's owner leaves at once and writes nothing. The last thread block\n// out writes where the program stands, its state last. The block's words are read at their byte offsets\nextern "C" __global__ void __launch_bounds__(256) cycle_program(CycleCompiledLaunch launch)\n{\n    __shared__ u64 claimed;\n    volatile u64 *const block = launch.block;\n    u64 checked = 0ull;\n    u64 rounds = 0ull;\n    int opened = 0;\n    if (threadIdx.x == 0u)\n    {\n        opened = (atomicCAS(&launch.hot->launch_start, 0ull, cycle_clock()) == 0ull) ? 1 : 0;\n    }\n    for (;;)\n    {\n        if (threadIdx.x == 0u)\n        {\n            const u64 now = cycle_clock();\n            const u64 ran = now - *(volatile u64 *)&launch.hot->launch_start;\n            int leave = (((opened == 0) || (rounds != 0ull)) && (ran >= launch.ttl)) ? 1 : 0;\n            if ((now - checked) >= launch.checkin_every)\n            {\n                checked = now;\n                const int owned = (block[{owner_at}u / 8u] == launch.launch_number) ? 1 : 0;\n                leave = ((owned == 0) || (block[{command_at}u / 8u] != {run_command}ull)) ? 1 : leave;\n                if (owned != 0)\n                {\n                    const u64 next = *(volatile u64 *)&launch.hot->next_lane;\n                    block[{checkin_at}u / 8u] = atomicAdd(&launch.hot->checkins, 1ull) + 1ull;\n                    block[{checkin_time_at}u / 8u] = now;\n                    block[{offset_at}u / 8u] = (next < launch.count) ? next : launch.count;\n                }\n            }\n            claimed = (leave != 0) ? launch.count : atomicAdd(&launch.hot->next_lane, (u64)blockDim.x);\n            rounds += 1ull;\n        }\n        __syncthreads();\n        const u64 first = claimed;\n        __syncthreads();\n        if (first >= launch.count)\n        {\n            break;\n        }\n        if ((first + threadIdx.x) < launch.count)\n        {\n            cycle_lane(&launch, first + threadIdx.x);\n        }\n    }\n    if (threadIdx.x == 0u)\n    {\n        __threadfence();\n        if (atomicAdd(&launch.hot->finished, 1ull) == ((u64)gridDim.x - 1ull))\n        {\n            const u64 now = cycle_clock();\n            const u64 next = *(volatile u64 *)&launch.hot->next_lane;\n            const u64 start = *(volatile u64 *)&launch.hot->launch_start;\n            if (block[{owner_at}u / 8u] == launch.launch_number)\n            {\n                const u64 command = block[{command_at}u / 8u];\n                block[{offset_at}u / 8u] = (next < launch.count) ? next : launch.count;\n                block[{step_at}u / 8u] = 0ull;\n                block[{launch_time_at}u / 8u] = start;\n                block[{exectime_at}u / 8u] = now - start;\n                block[{checkin_at}u / 8u] = atomicAdd(&launch.hot->checkins, 1ull) + 1ull;\n                block[{checkin_time_at}u / 8u] = now;\n                __threadfence();\n                block[{state_at}u / 8u] = (next >= launch.count) ? {done_state}ull\n                                        : ((command == {stop_command}ull) ? {stopped_state}ull : {yielded_state}ull);\n                __threadfence();\n            }\n        }\n    }\n}\n
+
+# a kernel of its own: its body's braces, the built-in variables, a comparison, a return under a guard, and the global
+# memory a pointer parameter reaches. CUDA names a parameter and never reads one at an offset
+form kernel_open = {\n
+form kernel_close = }\n
+form thread_idx_x to =     {to} = threadIdx.x;\n
+form thread_idx_y to =     {to} = threadIdx.y;\n
+form thread_idx_z to =     {to} = threadIdx.z;\n
+form block_idx_x to =     {to} = blockIdx.x;\n
+form block_idx_y to =     {to} = blockIdx.y;\n
+form block_idx_z to =     {to} = blockIdx.z;\n
+form block_dim_x to =     {to} = blockDim.x;\n
+form block_dim_y to =     {to} = blockDim.y;\n
+form block_dim_z to =     {to} = blockDim.z;\n
+form grid_dim_x to =     {to} = gridDim.x;\n
+form grid_dim_y to =     {to} = gridDim.y;\n
+form grid_dim_z to =     {to} = gridDim.z;\n
+form warp_size to =     {to} = warpSize;\n
+err parameter_load to offset
+err parameter_load_wide to offset
+form test_word_below where left right =     {where} = ({left} < {right});\n
+form exit_unless where =     if (!{where})\n    {\n        return;\n    }\n
+form wide_multiply_word_add to left right added =     {to} = ((u64){left} * {right}) + {added};\n
+form global_load_word to address offset =     {to} = *(const u32 *)({address} + {offset}ull);\n
+form global_load_wide to address offset =     {to} = *(const u64 *)({address} + {offset}ull);\n
+form global_store_wide address offset from =     *(u64 *)({address} + {offset}ull) = {from};\n
+form wide_from_signed_word to from =     {to} = (u64)(long long)(int){from};\n
+form test_word_geq where left right =     {where} = ({left} >= {right});\n
+form exit_if where =     if ({where})\n    {\n        return;\n    }\n
+form test_word_leq where left right =     {where} = ({left} <= {right});\n
+form test_word_neq where left right =     {where} = ({left} != {right});\n
+form test_word_identical where left right =     {where} = ({left} == {right});\n

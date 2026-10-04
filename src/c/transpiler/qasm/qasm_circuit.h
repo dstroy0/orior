@@ -20,6 +20,14 @@ extern "C"
 // ends each lane's arithmetic.
 #define QASM_FRACTION_BITS 60u
 
+// 2^QASM_FRACTION_BITS is written as one CONSTANT step whose right word holds 2^(QASM_FRACTION_BITS - 32), and
+// 2^(2 QASM_FRACTION_BITS) as one limb of the exact scale: both hold for 32 to 63 bits and no other
+#if defined(__cplusplus)
+static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM_FRACTION_BITS lies from 32 to 63");
+#else
+_Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM_FRACTION_BITS lies from 32 to 63");
+#endif
+
 // The index names a record by a 32-bit number, and a sweep has one lane per amplitude.
 #define QASM_QUBITS_MAX 30u
 

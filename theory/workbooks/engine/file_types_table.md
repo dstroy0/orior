@@ -7,12 +7,12 @@ proposed, it is checked against this table and against the whole biohub tree, or
 
 | Extension | What it is | Named by |
 |---|---|---|
-| `.kcr` | The information crystal (Kolmogorov crystal): its own compression format. It reads every source format, takes each format's own compression out, and can rebuild the data into any format (Doug). krep kind "KCR\0", version 1. The only crystal format. | Doug |
-| `.krs` | A ruleset: how the emitter defines the forms in one language (`ptx.krs`, `c.krs`, `vhdl.krs`). | |
-| `.kcs` | A construction set, part of the crystal flattener. | Doug |
-| `.knf` | A sample's noise floor. | |
-| `.ksh` | The flattened set: every body of every sample as one number each (`train.ksh`). | |
-| `.ans` | The answer file. | |
+| `.kcr` | Kolmogorov information crystal: its own compression format. It reads every source format, takes each format's own compression out, and can rebuild the data into any format (Doug). krep kind "KCR\0", version 1. The only crystal format. | Doug |
+| `.krs` | Kolmogorov information ruleset: one language's forms (`ptx.krs`, `c.krs`, `vhdl.krs`). | Doug |
+| `.kcs` | Kolmogorov information construction set: what reconstructs information. A target's forms and their costs are its construction set. krep kind "KCS\0". | Doug |
+| `.knf` | Kolmogorov noise floor. A sample's floor is its entropy history. krep kind "KNF\0". | Doug |
+| `.kdm` | Kolmogorov device map: the hardware map. | Doug |
+| `.ksc` | Kolmogorov system classification: the language map. | Doug |
 
 ## Retired
 

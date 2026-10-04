@@ -27,7 +27,7 @@ count decode   folds    0
 count compile  answers  28
 count compile  nothing  0
 count compile  illegal  0
-count compile  folds    11
+count compile  folds    0
 count clock    answers  2
 count clock    nothing  1
 count clock    illegal  0
@@ -75,18 +75,6 @@ run answers fffffaff IADD3 R6, -R0, RZ, RZ;SHF.L.U64.HI R7, R6, R7, R6
 clock nothing 00000000 a move
 clock answers 00000000 a wide add's high word
 clock answers 00000000 doubled
-compile folds 00000000 sign_select: the system folds the number put for otherwise
-compile folds 00000000 sign_set: the system folds the number put for value
-compile folds 00000000 test_signed_differ: the system folds the number put for right
-compile folds 00000000 wide_add_unsigned: the system folds the number put for right
-compile folds 00000000 wide_multiply: the system folds the number put for right
-compile folds 00000000 wide_select: the system folds the number put for otherwise
-compile folds 00000000 wide_unpack: the system folds the register put for low
-compile folds 00000000 word_copy: the system folds the register put for to
-compile folds 00000000 word_multiply: the system folds the number put for right
-compile folds 00000000 word_set: the system folds the number put for value
-compile folds 00000000 word_shift_left: the system folds the number put for bits
 
 # writings the system answers alike: an operation written where the ruleset holds the other, each
 # giving the same machine code. A reading in one is the ruleset's form in the other.
-equal mul.lo.u32 mul.lo.s32

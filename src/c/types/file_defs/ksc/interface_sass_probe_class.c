@@ -115,6 +115,26 @@ void sass_class_take(unsigned int channel, unsigned int answered, const char *qu
     s_classed_count += 1u;
 }
 
+void sass_class_drop(unsigned int channel, unsigned int answered, const char *opening)
+{
+    const size_t length = strlen(opening);
+    unsigned int kept = 0u;
+    for (unsigned int number = 0u; number < s_classed_count; number += 1u)
+    {
+        const SassClassed *const one = &s_classed[number];
+        const int dropped = (one->channel == channel) && (one->answered == answered) &&
+                            (strncmp(one->question, opening, length) == 0);
+        if (dropped != 0)
+        {
+            s_tally[channel][answered] -= (s_tally[channel][answered] != 0u) ? 1u : 0u;
+            continue;
+        }
+        s_classed[kept] = *one;
+        kept += 1u;
+    }
+    s_classed_count = kept;
+}
+
 // the channel or class named `text`, or the count where none names it
 static unsigned int sass_channel_of(const char *text)
 {
@@ -149,19 +169,30 @@ int sass_class_read(const char *machines, const char *part)
     {
         return 0;
     }
+    // the file is the classification: what was held before it is read is its own, and the equal writings a pass has
+    // already taken are kept beside those the file holds
+    s_classed_count = 0u;
+    memset(s_tally, 0, sizeof(s_tally));
     char line[SASS_TEXT * 2u];
     while (fgets(line, sizeof(line), file) != NULL)
     {
         char channel_text[16];
         char class_text[16];
         char question[SASS_TEXT];
+        char one[SASS_TEXT];
+        char other[SASS_TEXT];
         unsigned int word = 0u;
         unsigned int tally = 0u;
+        if (sscanf(line, "equal %191s %191s", one, other) == 2)
+        {
+            sass_equal_take(one, other);
+            continue;
+        }
         if (sscanf(line, "count %15s %15s %u", channel_text, class_text, &tally) == 3)
         {
             const unsigned int channel = sass_channel_of(channel_text);
             const unsigned int answered = sass_class_of(class_text);
-            // a compile pass's folds are its own and are regenerated, never read back as a count
+            // a fold is counted as its line is read back, each line one
             if ((channel < SASS_CHANNEL_COUNT) && (answered < SASS_CLASS_COUNT) && (answered != SASS_CLASS_FOLDS))
             {
                 s_tally[channel][answered] = tally;
@@ -172,8 +203,11 @@ int sass_class_read(const char *machines, const char *part)
         {
             const unsigned int channel = sass_channel_of(channel_text);
             const unsigned int answered = sass_class_of(class_text);
-            if ((channel < SASS_CHANNEL_COUNT) && (answered < SASS_CLASS_COUNT) && (answered != SASS_CLASS_FOLDS) &&
-                (s_classed_count < SASS_CLASSED))
+            if ((channel < SASS_CHANNEL_COUNT) && (answered == SASS_CLASS_FOLDS))
+            {
+                s_tally[channel][answered] += 1u;
+            }
+            if ((channel < SASS_CHANNEL_COUNT) && (answered < SASS_CLASS_COUNT) && (s_classed_count < SASS_CLASSED))
             {
                 SassClassed *const one = &s_classed[s_classed_count];
                 one->channel = (unsigned char)channel;

@@ -85,6 +85,9 @@ class Target
     // the language's ruleset, read once a process; NULL where it errors, `report` saying which on stderr
     const Ruleset *ruleset(int report);
 
+    // the folds of the classification beside the ruleset read again, for a pass that has just written it
+    void folds_read(void);
+
     // a program's lane in the language under `header`, the places a thread holds in shared memory and the most words
     // it holds live at once (0 where the language does not reckon them); empty where the ruleset is not read, or the
     // program is one the language does not hold
