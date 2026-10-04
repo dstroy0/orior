@@ -26,6 +26,10 @@ import page_text  # noqa: E402
 from workdir import CORPUS, PRIVATE  # noqa: E402
 
 MATCH, MARGIN, TIE = 0.95, 0.05, 0.002
+# A face that only clones the font's shapes, TeX Gyre Termes for Adobe's Times-Roman, draws each
+# letter a little apart from the subset's: its best overlap runs 0.92 to 0.99 where the system face's
+# own copy gives 0.99, and CLONE_MATCH takes its place.
+CLONE_MATCH = 0.90
 
 
 def windows(text):
@@ -92,7 +96,8 @@ def main():
                 found[key] = [name, best, round(scored[0][0], 3), runner[1], round(runner[0], 3), 1]
     named = []
     for key, (name, text, score, runner, other, count) in sorted(found.items(), key=lambda item: -item[1][-1]):
-        good = text is not None and score >= MATCH and score - other >= MARGIN
+        floor = CLONE_MATCH if page_text.OUTLINE_FACES[name].startswith(page_text.TERMES) else MATCH
+        good = text is not None and score >= floor and score - other >= MARGIN
         print("%s %-26s %-3s %.3f %-3s %.3f %3d%s" % (key, name, text, score, runner, other, count,
                                                        "" if good else "   left for the eye"))
         if good:
