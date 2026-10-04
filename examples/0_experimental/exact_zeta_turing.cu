@@ -59,24 +59,32 @@
 //
 // The input, little-endian: 64-bit words points (2^p), checked, nu, p, L, K, J, Newton steps, piece, method, the
 // expansions' order, beta, E, R, for method 3 Euler-Maclaurin's N and M, else 0 and 0, and 1 where every point is
-// to be listed, 2 where every point is to be listed with the twist, which the multiple evaluation alone gives, else
-// 0, then the constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least significant first, and a
-// 64-bit sign word: ln 2, the J
-// coefficients of C_0, the L constants 1 / (2k + 1) of artanh, the K constants of cos, 1 / (96 pi^2), the bound on Z,
-// the bound on theta / pi, pi, the E constants 1 / (n + 1)! of E1, the R constants of S, and for method 3 the M - 1
-// ratios r_k for k from 2 to M, every one at 2^62, and for method 4 the listed points j, one 64-bit word each.
+// to be listed, 2 where every point is to be listed with Z' and each step's flag, by the multiple evaluation or at
+// the listed points, else 0, then the constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least
+// significant first, and a 64-bit sign word: ln 2, the J coefficients of C_0, the L constants 1 / (2k + 1) of artanh,
+// the K constants of cos, 1 / (96 pi^2), the bound on Z, the bound on theta / pi, pi, the E constants 1 / (n + 1)! of
+// E1, the R constants of S, for method 3 the M - 1 ratios r_k for k from 2 to M, with the listing word 2 h / 3 and
+// the margin, every one at 2^62, and for method 4 the listed points j, one 64-bit word each.
 //
 // The output: lines "key value" and "key value value ...", values signed hexadecimal: the cell, its first and last
-// certified points and point 0, each with its sign, S, and theta / pi less and more its bound, the sums, Z at two
-// points for the positive control, the host's checks of every stage and sum, each 1 where they equal the device's
-// word for word, the steps of each program, with both methods the most the two Z differ by and the point it falls
-// at, and where the input asks, each point's sign, S, Z and w, and with the twist the shift and each point's
-// exp(i theta) F' / 2^shift.
+// certified points and point 0, each with its sign, S, and theta / pi less and more its bound, the sums, with the
+// listing word 2 the steps past F that are clean and those flagged, Z at two points for the positive control, the
+// host's checks of every stage and sum, each 1 where they equal the device's word for word, the steps of each
+// program, with both methods the most the two Z differ by and the point it falls at, and where the input asks, each
+// point's sign, S, Z and w, with the twist the shift and each point's exp(i theta) F' / 2^shift, and with the
+// listing word 2 the flag of the step that ends at the point.
 //
 // The twist: the pole stage again with a and every charge times -i ln k / 2^shift, 2^shift at least ln nu, and the
 // multiple evaluation over those poles gives F' / 2^shift at every point, F' = dF/dt. The twist stage turns it by
 // exp(i theta) beside w; (exp(i theta) F') / w = F'/F, the twist (arg F)' its imaginary part and the swell (ln |F|)' its
 // real part. It places no point and certifies no sign.
+//
+// The slope stage gives Z' at each point, the main sum's slope: from the twist, or at the listed points from the
+// pairs' sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi), with theta' = ln s / 2. The margin stage, one lane a
+// step, holds the cubic through Z and Z' at the step's ends in the hull of its four Bezier points, and calls the step
+// clean where all four hold the ends' certified sign past the margin, the machine's bound on the cubic's distance
+// from Z over the step. A clean step holds no zero. A step is flagged where it is not clean and its ends are not
+// certified signs that change.
 
 #include "../../src/c/engine/analysis/cycle/cycle.h"
 #include "../../src/c/engine/analysis/key_schedule/key_schedule.h"
@@ -595,10 +603,12 @@ static void turing_pole_build(TuringStage *stage, unsigned int newton, const Tur
 }
 
 // the point stage: shared fields sign, nu^2 2^p, 2 nu + 1, nu, then the logarithm's, 1 / (96 pi^2), then C_0's.
-// Where `listed`, point j is read from member 1, a record a point, in place of the lane, and S is given last
+// Where `listed`, point j is read from member 1, a record a point, in place of the lane, and S is given last. With the
+// multiple evaluation or where `sloped`, ln s is given after theta / pi and cos theta and sin theta, where they are
 static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int newton, const TuringConstant &ln2,
                                const std::vector<TuringConstant> &artanh, const TuringConstant &c96,
-                               const std::vector<TuringConstant> &gamma, const TuringOsConstants *os, int listed)
+                               const std::vector<TuringConstant> &gamma, const TuringOsConstants *os, int listed,
+                               int sloped)
 {
     TuringProgram *const program = &stage->program;
     const unsigned int sign_field = turing_field(program, 2u);
@@ -662,6 +672,11 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
         stage->outputs.push_back(turn.re);
         stage->outputs.push_back(turn.im);
     }
+    // ln s, twice theta' to within 1 / (24 t^2), for the slope of Z
+    if ((os != NULL) || sloped)
+    {
+        stage->outputs.push_back(log);
+    }
     if (listed)
     {
         stage->outputs.push_back(big_s);
@@ -675,9 +690,11 @@ static const DeviceRecordStep *turing_place(const TuringStage *stage, unsigned i
 }
 
 // the pair stage: member 0 the pole records, member 1 the point records, member 2 the shared record of nu,
-// nu^2 2^p, 2 nu + 1, start, then cos's constants. Where `s_place` is given, S is read from the point record
+// nu^2 2^p, 2 nu + 1, start, then cos's constants. Where `s_place` is given, S is read from the point record. Where
+// `sloped`, it gives besides k^(-1/2) cos(phi) the terms of Z''s sums, k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi),
+// sin(phi) = cos(phi - pi / 2)
 static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringStage *pole, const TuringStage *point,
-                              const std::vector<TuringConstant> &cosine, const DeviceRecordStep *s_place)
+                              const std::vector<TuringConstant> &cosine, const DeviceRecordStep *s_place, int sloped)
 {
     TuringProgram *const program = &stage->program;
     const DeviceRecordStep *const log_place = turing_place(pole, 0u);
@@ -717,6 +734,21 @@ static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringSt
         c = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, c, u), turing_read(program, cos_field[k - 1u], 2u));
     }
     stage->outputs.push_back(turing_scaled(program, c, turing_read(program, root_field, 0u)));
+    if (sloped)
+    {
+        const unsigned int shifted = turing_wrap(
+            program, turing_op(program, ENGINE_RECORD_DIFFERENCE, s, turing_constant(program, 1ull << (TURING_SCALE_BITS - 1u))),
+            TURING_SCALE_BITS + 1u);
+        const unsigned int v = turing_scaled(program, shifted, shifted);
+        unsigned int sine = turing_read(program, cos_field[cos_field.size() - 1u], 2u);
+        for (size_t k = cos_field.size() - 1u; k > 0u; k -= 1u)
+        {
+            sine = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, sine, v), turing_read(program, cos_field[k - 1u], 2u));
+        }
+        const unsigned int term = turing_scaled(program, sine, turing_read(program, root_field, 0u));
+        stage->outputs.push_back(term);
+        stage->outputs.push_back(turing_scaled(program, term, turing_read(program, log_field, 0u)));
+    }
     stage->shared.assign((program->shared_bits + 31u) / 32u, 0u);
 }
 
@@ -1352,6 +1384,114 @@ static void turing_twist_build(TuringStage *stage, const TuringExpansion &values
     stage->outputs.push_back(turned.im);
 }
 
+// the slope stage: member 0 the twist records, member 1 the verdict records, member 2 the point records. With
+// theta' = ln s / 2, it gives each point's sign, Z and Z' = 2 Re(i theta' w + exp(i theta) F'), the main sum's
+// slope, R's left out: Z' = 2 (exp(i theta) F' / 2^shift) 2^shift - 2 theta' Im w in its real part
+static void turing_slope_build(TuringStage *stage, const TuringStage *twist, const TuringStage *verdict,
+                               const TuringStage *point, unsigned int shift)
+{
+    TuringProgram *const program = &stage->program;
+    const DeviceRecordStep *const turned_place = turing_place(twist, 0u);
+    const DeviceRecordStep *const sign_place = turing_place(verdict, 0u);
+    const DeviceRecordStep *const z_place = turing_place(verdict, 6u);
+    const DeviceRecordStep *const im_place = turing_place(verdict, 8u);
+    const DeviceRecordStep *const log_place = turing_place(point, 4u);
+    const unsigned int turned = turing_read(program, turing_member_field(program, turned_place->out_bits, turned_place->out_offset), 0u);
+    const unsigned int sign = turing_read(program, turing_member_field(program, sign_place->out_bits, sign_place->out_offset), 1u);
+    const unsigned int z = turing_read(program, turing_member_field(program, z_place->out_bits, z_place->out_offset), 1u);
+    const unsigned int im = turing_read(program, turing_member_field(program, im_place->out_bits, im_place->out_offset), 1u);
+    const unsigned int log = turing_read(program, turing_member_field(program, log_place->out_bits, log_place->out_offset), 2u);
+    const unsigned int clock = turing_op(program, ENGINE_RECORD_QUOTIENT, log, turing_constant(program, 2ull));
+    const unsigned int half = turing_op(program, ENGINE_RECORD_DIFFERENCE,
+                                        turing_op(program, ENGINE_RECORD_PRODUCT, turned, turing_power(program, shift)),
+                                        turing_scaled(program, clock, im));
+    const unsigned int listed[3] = {sign, z, turing_op(program, ENGINE_RECORD_SUM, half, half)};
+    stage->outputs.assign(listed, listed + 3);
+}
+
+// the slope stage by pairs: member 0 each point's sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi), `sum_limbs`
+// limbs each, member 1 the verdict records, member 2 the point records, ln s at output `log_output`. With
+// d/dt cos(theta - t ln k) = -(theta' - ln k) sin(phi), it gives each point's sign, Z and
+// Z' = 2 (sum of k^(-1/2) ln k sin(phi) - theta' sum of k^(-1/2) sin(phi))
+static void turing_slope_pairs_build(TuringStage *stage, const TuringStage *verdict, const TuringStage *point,
+                                     unsigned int log_output, unsigned int sum_limbs)
+{
+    TuringProgram *const program = &stage->program;
+    const DeviceRecordStep *const sign_place = turing_place(verdict, 0u);
+    const DeviceRecordStep *const z_place = turing_place(verdict, 6u);
+    const DeviceRecordStep *const log_place = turing_place(point, log_output);
+    const unsigned int sine = turing_read(program, turing_member_field(program, 32u * sum_limbs, 0u), 0u);
+    const unsigned int weighted = turing_read(program, turing_member_field(program, 32u * sum_limbs, 32u * sum_limbs), 0u);
+    const unsigned int sign = turing_read(program, turing_member_field(program, sign_place->out_bits, sign_place->out_offset), 1u);
+    const unsigned int z = turing_read(program, turing_member_field(program, z_place->out_bits, z_place->out_offset), 1u);
+    const unsigned int log = turing_read(program, turing_member_field(program, log_place->out_bits, log_place->out_offset), 2u);
+    const unsigned int clock = turing_op(program, ENGINE_RECORD_QUOTIENT, log, turing_constant(program, 2ull));
+    const unsigned int half = turing_op(program, ENGINE_RECORD_DIFFERENCE, weighted, turing_scaled(program, clock, sine));
+    const unsigned int listed[3] = {sign, z, turing_op(program, ENGINE_RECORD_SUM, half, half)};
+    stage->outputs.assign(listed, listed + 3);
+}
+
+// the margin stage, lane q the step from point q - 1 to point q: members 0 and 1 the slope records at q and q - 1,
+// member 2 the shared record of h / 3, the margin and the steepness, its parameters. The cubic through Z and Z' at
+// the step's ends, h apart, lies in the hull of z0, z0 + (h / 3) Z'0, z1 - (h / 3) Z'1 and z1, and where all four
+// hold the ends' sign past the margin, Z holds it over the whole step: the step is clean. Where the ends' certified
+// signs change, and the cubic's slope, a quadratic, has its three Bernstein points past the steepness the way Z
+// crosses, Z' holds that way over the step and Z crosses once: the step is single. It gives clean, the flag, 1 where
+// the step is neither, and single
+static void turing_margin_build(TuringStage *stage, const TuringStage *slope, unsigned int third_bits, unsigned int margin_bits,
+                                unsigned int steep_bits)
+{
+    TuringProgram *const program = &stage->program;
+    const DeviceRecordStep *const places[3] = {turing_place(slope, 0u), turing_place(slope, 1u), turing_place(slope, 2u)};
+    unsigned int fields[3];
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        fields[at] = turing_member_field(program, places[at]->out_bits, places[at]->out_offset);
+    }
+    program->shared_bits = 0u;
+    const unsigned int third_field = turing_param_field(stage, third_bits);
+    const unsigned int margin_field = turing_param_field(stage, margin_bits);
+    const unsigned int steep_field = turing_param_field(stage, steep_bits);
+    stage->shared.assign((program->shared_bits + 31u) / 32u, 0u);
+
+    const unsigned int s1 = turing_read(program, fields[0], 0u);
+    const unsigned int z1 = turing_read(program, fields[1], 0u);
+    const unsigned int d1 = turing_read(program, fields[2], 0u);
+    const unsigned int s0 = turing_read(program, fields[0], 1u);
+    const unsigned int z0 = turing_read(program, fields[1], 1u);
+    const unsigned int d0 = turing_read(program, fields[2], 1u);
+    const unsigned int third = turing_read(program, third_field, 2u);
+    const unsigned int margin = turing_read(program, margin_field, 2u);
+    const unsigned int both = turing_op(program, ENGINE_RECORD_PRODUCT, s0, s1);
+    const unsigned int same = turing_equal(program, both, turing_constant(program, 1ull));
+    const unsigned int changed = turing_equal(program, both, turing_negate(program, turing_constant(program, 1ull)));
+    const unsigned int hull[4] = {z0, turing_op(program, ENGINE_RECORD_SUM, z0, turing_scaled(program, third, d0)),
+                                  turing_op(program, ENGINE_RECORD_DIFFERENCE, z1, turing_scaled(program, third, d1)), z1};
+    unsigned int clean = same;
+    for (unsigned int at = 0u; at < 4u; at += 1u)
+    {
+        clean = turing_op(program, ENGINE_RECORD_PRODUCT, clean,
+                          turing_above(program, turing_op(program, ENGINE_RECORD_PRODUCT, s0, hull[at]), margin));
+    }
+    // the cubic's slope is a quadratic whose Bernstein points, over h / 3, are Z'0, (b2 - b1) / (h / 3) and Z'1: each
+    // past the steepness the way Z crosses, the middle one as s1 (b2 - b1) > (h / 3) steepness
+    const unsigned int steepness = turing_read(program, steep_field, 2u);
+    const unsigned int middle = turing_op(program, ENGINE_RECORD_DIFFERENCE, hull[2], hull[1]);
+    unsigned int single = changed;
+    single = turing_op(program, ENGINE_RECORD_PRODUCT, single,
+                       turing_above(program, turing_op(program, ENGINE_RECORD_PRODUCT, s1, d0), steepness));
+    single = turing_op(program, ENGINE_RECORD_PRODUCT, single,
+                       turing_above(program, turing_op(program, ENGINE_RECORD_PRODUCT, s1, d1), steepness));
+    single = turing_op(program, ENGINE_RECORD_PRODUCT, single,
+                       turing_above(program, turing_op(program, ENGINE_RECORD_PRODUCT, s1, middle),
+                                    turing_scaled(program, third, steepness)));
+    const unsigned int flag = turing_op(program, ENGINE_RECORD_DIFFERENCE,
+                                        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull), clean),
+                                        single);
+    const unsigned int listed[3] = {clean, flag, single};
+    stage->outputs.assign(listed, listed + 3);
+}
+
 // the verdict stage: member 0 the sums, member 1 the point records, member 2 the shared record of nu^2 2^p,
 // 2 nu + 1 and the bounds
 // member 0 is the transform's F where `transform` is given, its layout, and the pair stage's sums where it is not.
@@ -1855,6 +1995,59 @@ static unsigned int *turing_fold(std::vector<unsigned int *> *owned, TuringStage
         }
     }
     return current;
+}
+
+// the largest |a - b| over `points` lanes, a and b output `output` of two stages' records, as limbs, and the lane it
+// falls at after them
+static std::vector<unsigned int> turing_widest(const TuringStage *stage_a, const std::vector<unsigned int> &records_a,
+                                               const TuringStage *stage_b, const std::vector<unsigned int> &records_b,
+                                               unsigned int output, unsigned long long points)
+{
+    unsigned long long widest_at = 0ull;
+    std::vector<unsigned int> widest;
+    for (unsigned long long lane = 0ull; lane < points; lane += 1ull)
+    {
+        const std::vector<unsigned int> a = turing_output(stage_a, records_a, lane, output);
+        const std::vector<unsigned int> b = turing_output(stage_b, records_b, lane, output);
+        const size_t limbs = (a.size() > b.size()) ? a.size() : b.size();
+        std::vector<unsigned int> d(limbs, 0u);
+        long long borrow = 0;
+        for (size_t at = 0u; at < limbs; at += 1u)
+        {
+            const long long left = (long long)((at < a.size()) ? a[at] : ((a.back() >> 31u) ? 0xFFFFFFFFu : 0u));
+            const long long right = (long long)((at < b.size()) ? b[at] : ((b.back() >> 31u) ? 0xFFFFFFFFu : 0u));
+            long long v = left - right - borrow;
+            borrow = (v < 0) ? 1 : 0;
+            d[at] = (unsigned int)(v & 0xFFFFFFFFll);
+        }
+        if (d.back() >> 31u)
+        {
+            unsigned long long carry = 1ull;
+            for (size_t at = 0u; at < limbs; at += 1u)
+            {
+                carry += (unsigned long long)(~d[at] & 0xFFFFFFFFu);
+                d[at] = (unsigned int)carry;
+                carry >>= 32u;
+            }
+        }
+        int larger = widest.empty();
+        for (size_t at = limbs; !larger && (at-- > 0u);)
+        {
+            const unsigned int w = (at < widest.size()) ? widest[at] : 0u;
+            if (d[at] != w)
+            {
+                larger = (d[at] > w);
+                break;
+            }
+        }
+        if (larger)
+        {
+            widest = d;
+            widest_at = lane;
+        }
+    }
+    widest.push_back((unsigned int)widest_at);
+    return widest;
 }
 
 // the circular distance of boxes a and b among `boxes`
@@ -2426,7 +2619,8 @@ int main(int count, char **arguments)
            (header[10] >= 2) && (header[11] >= 2) &&
            ((header[9] == 0) || em_header || listed_header || (header[11] < header[3])) &&
            (header[12] >= 2) && (header[13] >= 2) && (!em_header || ((header[14] >= 2) && (header[15] >= 2))) &&
-           (header[16] >= 0) && (header[16] <= 2) && ((header[16] < 2) || (header[9] == 1) || (header[9] == 2));
+           (header[16] >= 0) && (header[16] <= 2) &&
+           ((header[16] < 2) || (header[9] == 1) || (header[9] == 2) || (header[9] == 4));
     const unsigned long long points = read ? (unsigned long long)header[0] : 0ull;
     const unsigned long long checked = read ? (unsigned long long)header[1] : 0ull;
     const unsigned long long nu = read ? (unsigned long long)header[2] : 0ull;
@@ -2437,8 +2631,11 @@ int main(int count, char **arguments)
     const unsigned int order = read ? (unsigned int)header[10] : 0u;
     const unsigned int beta = read ? (unsigned int)header[11] : 0u;
     const int listing = read && (header[16] >= 1);
-    // with the twist, F' / 2^shift at every point beside w, 2^shift at least ln nu: the bits of the bits of nu
-    const int twisted = read && (header[16] == 2);
+    // with the listing word 2, Z' at every point and each step's hull against the margin: by the multiple evaluation,
+    // the twist, F' / 2^shift at every point beside w, 2^shift at least ln nu, the bits of the bits of nu; at the
+    // listed points, by the pairs' sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi)
+    const int sloped = read && (header[16] == 2);
+    const int twisted = sloped && ((header[9] == 1) || (header[9] == 2));
     const unsigned int shift = read ? turing_bits_of((unsigned long long)turing_bits_of((unsigned long long)header[2])) : 0u;
     // the width every value is wrapped to: the floor, or 60 + l where the multiple evaluation's top level
     // l = p - beta asks more
@@ -2498,6 +2695,12 @@ int main(int count, char **arguments)
     {
         read = turing_read_constant(in, &ratio[k]);
     }
+    // with the listing word 2, the margin a step's hull must clear, h / 3, and the steepness a step whose ends change
+    // sign must hold at both ends
+    TuringConstant third, margin, steep;
+    read = read && (!sloped || (turing_read_constant(in, &margin) && turing_read_constant(in, &third) &&
+                                turing_read_constant(in, &steep) && (third.sign > 0) && (margin.sign > 0) &&
+                                (steep.sign > 0)));
     // the listed points j, each below 2^p, a record of two limbs a point, least significant first
     const unsigned int j_limbs = read ? ((unsigned int)header[3] + 2u + 31u) / 32u : 1u;
     std::vector<unsigned int> listed_j;
@@ -2526,6 +2729,7 @@ int main(int count, char **arguments)
     const int listed_run = (method == 4u);
     const int pairs_run = (method != 1u);
     const int transform_run = (method == 1u) || (method == 2u);
+    const int pairs_sloped = sloped && pairs_run;
     const TuringOsConstants *const with_os = transform_run ? &os : NULL;
     // the poles the pole stage takes, and the terms a point the pair stage takes: nu and nu, or N and N - 1
     const unsigned long long poles = em_run ? (unsigned long long)header[14] : nu;
@@ -2534,10 +2738,13 @@ int main(int count, char **arguments)
     EngineError error;
     memset(&error, 0, sizeof(error));
     std::vector<unsigned int *> owned;
-    TuringStage pole, point, pair, em, verdict, counted, verdict_pairs, pole_twist, twist;
+    TuringStage pole, point, pair, em, verdict, counted, verdict_pairs, pole_twist, twist, slope, slope_pairs, margined;
     turing_open_stage(&pole, "pole", 1u);
     turing_open_stage(&pole_twist, "pole, weighted by -i ln k", 1u);
     turing_open_stage(&twist, "twist", 2u);
+    turing_open_stage(&slope, "slope", 3u);
+    turing_open_stage(&slope_pairs, "slope of the pairs", 3u);
+    turing_open_stage(&margined, "margin", 3u);
     turing_open_stage(&point, "point", listed_run ? 2u : 1u);
     turing_open_stage(&pair, "pair", 3u);
     turing_open_stage(&em, "Euler-Maclaurin", 3u);
@@ -2567,7 +2774,7 @@ int main(int count, char **arguments)
     }
     unsigned int field = 0u;
 
-    turing_point_build(&point, p, newton, ln2, artanh, c96, gamma, with_os, listed_run);
+    turing_point_build(&point, p, newton, ln2, artanh, c96, gamma, with_os, listed_run, pairs_sloped);
     turing_seal(&point);
     point.in_limbs[0] = (unsigned int)point.shared.size();
     point.in_limbs[1] = listed_run ? j_limbs : 0u;
@@ -2594,7 +2801,7 @@ int main(int count, char **arguments)
         (ok && listed_run) ? turing_place(&point, (unsigned int)point.outputs.size() - 1u) : NULL;
     if (ok && pairs_run)
     {
-        turing_pair_build(&pair, p, &pole, &point, cosine, s_place);
+        turing_pair_build(&pair, p, &pole, &point, cosine, s_place, pairs_sloped);
         pair.in_limbs[0] = pole.layout.out_limbs;
         pair.in_limbs[1] = point.layout.out_limbs;
         pair.in_limbs[2] = (unsigned int)pair.shared.size();
@@ -2663,6 +2870,12 @@ int main(int count, char **arguments)
 
     // the pair stage, a piece of points at a time, each point's nu lanes summed on the device
     std::vector<unsigned int> sums((size_t)(points * sum_limbs), 0u);
+    // with the listed points sloped, each point's sums of the sine terms, k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi)
+    std::vector<unsigned int> sine_sums[2];
+    for (unsigned int at = 0u; pairs_sloped && (at < 2u); at += 1u)
+    {
+        sine_sums[at].assign((size_t)(points * sum_limbs), 0u);
+    }
     if (pairs_run)
     {
         const DeviceRecordStep *const term_place = ok ? turing_place(&pair, 0u) : NULL;
@@ -2687,6 +2900,14 @@ int main(int count, char **arguments)
             const CycleRecordSumRequest sum = {device_pair_out, pair_lanes, heads, pair.layout.out_limbs, term_place->out_offset,
                                                term_place->out_bits, sum_limbs, &sums[(size_t)(start * sum_limbs)], &error};
             ok = ok && (cycle_record_sum(&sum) != CYCLE_ERROR);
+            for (unsigned int at = 0u; ok && pairs_sloped && (at < 2u); at += 1u)
+            {
+                const DeviceRecordStep *const sine_place = turing_place(&pair, 1u + at);
+                const CycleRecordSumRequest sine = {device_pair_out, pair_lanes, heads, pair.layout.out_limbs,
+                                                    sine_place->out_offset, sine_place->out_bits, sum_limbs,
+                                                    &sine_sums[at][(size_t)(start * sum_limbs)], &error};
+                ok = (cycle_record_sum(&sine) != CYCLE_ERROR);
+            }
             if (ok && (start == 0ull))
             {
                 const std::vector<unsigned int> records =
@@ -2705,6 +2926,15 @@ int main(int count, char **arguments)
                                                         host_piece.data(), &error};
                 host_sums = (cycle_record_sum_host(&host_sum) != CYCLE_ERROR) &&
                             (memcmp(host_piece.data(), sums.data(), host_piece.size() * sizeof(unsigned int)) == 0);
+                for (unsigned int at = 0u; pairs_sloped && (at < 2u); at += 1u)
+                {
+                    const DeviceRecordStep *const sine_place = turing_place(&pair, 1u + at);
+                    const CycleRecordSumRequest host_sine = {records.data(), pair_lanes, heads, pair.layout.out_limbs,
+                                                             sine_place->out_offset, sine_place->out_bits, sum_limbs,
+                                                             host_piece.data(), &error};
+                    host_sums = host_sums && (cycle_record_sum_host(&host_sine) != CYCLE_ERROR) &&
+                                (memcmp(host_piece.data(), sine_sums[at].data(), host_piece.size() * sizeof(unsigned int)) == 0);
+                }
             }
         }
         sim_check(&job, ok, "every pair of the cell runs on the device and sums over its point");
@@ -2726,6 +2956,7 @@ int main(int count, char **arguments)
     // with the twist: the weighted poles, the multiple evaluation over them, F' / 2^shift, and the twist stage
     int host_twist = 1;
     std::vector<unsigned int> twist_records;
+    unsigned int *device_twist = NULL;
     if (ok && twisted)
     {
         unsigned int *const shared = turing_upload(&owned, pole_twist.shared);
@@ -2748,7 +2979,7 @@ int main(int count, char **arguments)
             twist.in_limbs[1] = point.layout.out_limbs;
             ok = turing_load(&job, &twist, &error);
         }
-        unsigned int *const device_twist = ok ? turing_alloc(&owned, (size_t)(points * twist.layout.out_limbs)) : NULL;
+        device_twist = ok ? turing_alloc(&owned, (size_t)(points * twist.layout.out_limbs)) : NULL;
         ok = ok && (device_twist != NULL);
         {
             unsigned int *const twist_members[3] = {device_transform_twist, device_point, NULL};
@@ -2832,51 +3063,10 @@ int main(int count, char **arguments)
         const std::vector<unsigned int> other =
             ok ? turing_copy_back(out, (size_t)(points * verdict_pairs.layout.out_limbs)) : std::vector<unsigned int>();
         // the largest |Z_transform - Z_pairs| over the cell, as limbs, and where it falls
-        unsigned long long widest_at = 0ull;
-        std::vector<unsigned int> widest;
-        for (unsigned long long lane = 0ull; ok && (lane < points); lane += 1ull)
+        if (ok)
         {
-            const std::vector<unsigned int> a = turing_output(&verdict, verdicts, lane, 6u);
-            const std::vector<unsigned int> b = turing_output(&verdict_pairs, other, lane, 6u);
-            const size_t limbs = (a.size() > b.size()) ? a.size() : b.size();
-            std::vector<unsigned int> d(limbs, 0u);
-            long long borrow = 0;
-            for (size_t at = 0u; at < limbs; at += 1u)
-            {
-                const long long left = (long long)((at < a.size()) ? a[at] : ((a.back() >> 31u) ? 0xFFFFFFFFu : 0u));
-                const long long right = (long long)((at < b.size()) ? b[at] : ((b.back() >> 31u) ? 0xFFFFFFFFu : 0u));
-                long long v = left - right - borrow;
-                borrow = (v < 0) ? 1 : 0;
-                d[at] = (unsigned int)(v & 0xFFFFFFFFll);
-            }
-            if (d.back() >> 31u)
-            {
-                unsigned long long carry = 1ull;
-                for (size_t at = 0u; at < limbs; at += 1u)
-                {
-                    carry += (unsigned long long)(~d[at] & 0xFFFFFFFFu);
-                    d[at] = (unsigned int)carry;
-                    carry >>= 32u;
-                }
-            }
-            int larger = widest.empty();
-            for (size_t at = limbs; !larger && (at-- > 0u);)
-            {
-                const unsigned int w = (at < widest.size()) ? widest[at] : 0u;
-                if (d[at] != w)
-                {
-                    larger = (d[at] > w);
-                    break;
-                }
-            }
-            if (larger)
-            {
-                widest = d;
-                widest_at = lane;
-            }
+            apart = turing_widest(&verdict, verdicts, &verdict_pairs, other, 6u, points);
         }
-        apart = widest;
-        apart.push_back((unsigned int)widest_at);
     }
 
     // the count stage, over the verdict records at q, q - 1 and q - 2
@@ -2900,6 +3090,102 @@ int main(int count, char **arguments)
     sim_check(&job, ok && host_count, "the count stage runs and the host's records equal the device's");
     const std::vector<unsigned int> count_records =
         ok ? turing_copy_back(device_count, (size_t)(points * counted.layout.out_limbs)) : std::vector<unsigned int>();
+
+    // with the listing word 2: Z' at every point, by the twist or by the pairs' sine sums, then each step's hull
+    // against the margin; the slope records laid after one empty record, which point 0's step reads as uncertified
+    std::vector<unsigned int> margin_records, slope_apart;
+    unsigned int *device_margin = NULL;
+    if (ok && sloped)
+    {
+        // ln s follows cos theta and sin theta where the multiple evaluation gives them
+        const unsigned int log_output = transform_run ? 4u : 2u;
+        unsigned int *device_sines = NULL;
+        if (pairs_sloped)
+        {
+            std::vector<unsigned int> both((size_t)(2ull * points * sum_limbs), 0u);
+            for (unsigned long long lane = 0ull; lane < points; lane += 1ull)
+            {
+                for (unsigned int at = 0u; at < 2u; at += 1u)
+                {
+                    memcpy(&both[(size_t)((2ull * lane + at) * sum_limbs)], &sine_sums[at][(size_t)(lane * sum_limbs)],
+                           sum_limbs * sizeof(unsigned int));
+                }
+            }
+            device_sines = turing_upload(&owned, both);
+            ok = (device_sines != NULL);
+        }
+        if (twisted)
+        {
+            turing_slope_build(&slope, &twist, &verdict, &point, shift);
+            slope.in_limbs[0] = twist.layout.out_limbs;
+        }
+        else
+        {
+            turing_slope_pairs_build(&slope, &verdict, &point, log_output, sum_limbs);
+            slope.in_limbs[0] = 2u * sum_limbs;
+        }
+        slope.in_limbs[1] = verdict.layout.out_limbs;
+        slope.in_limbs[2] = point.layout.out_limbs;
+        ok = ok && turing_load(&job, &slope, &error);
+        const unsigned int slope_limbs = ok ? slope.layout.out_limbs : 0u;
+        unsigned int *const device_slope = ok ? turing_alloc(&owned, (size_t)((points + 1ull) * slope_limbs)) : NULL;
+        ok = ok && (device_slope != NULL);
+        {
+            unsigned int *const members[3] = {twisted ? device_twist : device_sines, device_verdict + TURING_PADS * verdict_limbs,
+                                              device_point};
+            const unsigned long long bodies[3] = {points, points, points};
+            ok = ok && turing_sweep(&slope, members, bodies, std::vector<unsigned int>(), points, device_slope + slope_limbs,
+                                    checked, &error, &host_twist);
+        }
+        // with both methods, Z' by the pairs beside Z' by the twist, and the most the two differ by
+        if (ok && twisted && pairs_sloped)
+        {
+            turing_slope_pairs_build(&slope_pairs, &verdict, &point, log_output, sum_limbs);
+            slope_pairs.in_limbs[0] = 2u * sum_limbs;
+            slope_pairs.in_limbs[1] = verdict.layout.out_limbs;
+            slope_pairs.in_limbs[2] = point.layout.out_limbs;
+            ok = turing_load(&job, &slope_pairs, &error);
+            unsigned int *const out = ok ? turing_alloc(&owned, (size_t)(points * slope_pairs.layout.out_limbs)) : NULL;
+            unsigned int *const members[3] = {device_sines, device_verdict + TURING_PADS * verdict_limbs, device_point};
+            const unsigned long long bodies[3] = {points, points, points};
+            ok = ok && (out != NULL) &&
+                 turing_sweep(&slope_pairs, members, bodies, std::vector<unsigned int>(), points, out, checked, &error,
+                              &host_twist);
+            const std::vector<unsigned int> by_twist =
+                ok ? turing_copy_back(device_slope + slope_limbs, (size_t)(points * slope_limbs)) : std::vector<unsigned int>();
+            const std::vector<unsigned int> by_pairs =
+                ok ? turing_copy_back(out, (size_t)(points * slope_pairs.layout.out_limbs)) : std::vector<unsigned int>();
+            ok = ok && !by_twist.empty() && !by_pairs.empty();
+            if (ok)
+            {
+                slope_apart = turing_widest(&slope, by_twist, &slope_pairs, by_pairs, 2u, points);
+            }
+        }
+        if (ok)
+        {
+            turing_margin_build(&margined, &slope, third.bits, margin.bits, steep.bits);
+            margined.in_limbs[0] = slope_limbs;
+            margined.in_limbs[1] = slope_limbs;
+            margined.in_limbs[2] = (unsigned int)margined.shared.size();
+            turing_put_field(&margined, margined.params[0], third.magnitude, third.sign);
+            turing_put_field(&margined, margined.params[1], margin.magnitude, margin.sign);
+            turing_put_field(&margined, margined.params[2], steep.magnitude, steep.sign);
+            ok = turing_load(&job, &margined, &error);
+        }
+        unsigned int *const device_margin_shared = ok ? turing_upload(&owned, margined.shared) : NULL;
+        device_margin = ok ? turing_alloc(&owned, (size_t)(points * margined.layout.out_limbs)) : NULL;
+        ok = ok && (device_margin_shared != NULL) && (device_margin != NULL);
+        {
+            unsigned int *const members[3] = {device_slope + slope_limbs, device_slope, device_margin_shared};
+            const unsigned long long bodies[3] = {points, points + 1ull, 1ull};
+            ok = ok && turing_sweep(&margined, members, bodies, std::vector<unsigned int>(), points, device_margin, checked,
+                                    &error, &host_twist);
+        }
+        margin_records = ok ? turing_copy_back(device_margin, (size_t)(points * margined.layout.out_limbs))
+                            : std::vector<unsigned int>();
+        ok = ok && !margin_records.empty();
+        sim_check(&job, ok && host_twist, "the slope and margin stages run and the host's records equal the device's");
+    }
 
     // the cell's first and last certified points, read from the signs
     unsigned long long first = points, last = points;
@@ -2955,6 +3241,16 @@ int main(int count, char **arguments)
         }
         host_ranges &= turing_range(out, "loose", &counted, device_count, count_records, first + 1ull,
                                     points - first - 1ull, 3u, &error);
+        // with the listing word 2, the steps past F that are clean, and those flagged
+        if (sloped)
+        {
+            host_ranges &= turing_range(out, "clean", &margined, device_margin, margin_records, first + 1ull,
+                                        points - first - 1ull, 0u, &error);
+            host_ranges &= turing_range(out, "flagged", &margined, device_margin, margin_records, first + 1ull,
+                                        points - first - 1ull, 1u, &error);
+            host_ranges &= turing_range(out, "single", &margined, device_margin, margin_records, first + 1ull,
+                                        points - first - 1ull, 2u, &error);
+        }
         fprintf(out, "host %d %d %d %d %d %d %d %d %d %d\n", host_pole, host_point, host_pair, host_sums, host_os, host_em,
                 host_verdict, host_count, host_ranges, host_twist);
         fprintf(out, "steps %u %u %u %u %u", pole.layout.steps, point.layout.steps, pairs_run ? pair.layout.steps : 0u,
@@ -2974,8 +3270,15 @@ int main(int count, char **arguments)
             turing_hex(out, apart.data(), (unsigned int)apart.size() - 1u);
             fprintf(out, " %u\n", apart.back());
         }
-        // every point, where the input asks: its sign, S, Z and w = exp(i theta) F, read from its verdict record, and
-        // with the twist exp(i theta) F' / 2^shift from its twist record
+        if (!slope_apart.empty())
+        {
+            fprintf(out, "slope_apart");
+            turing_hex(out, slope_apart.data(), (unsigned int)slope_apart.size() - 1u);
+            fprintf(out, " %u\n", slope_apart.back());
+        }
+        // every point, where the input asks: its sign, S, Z and w = exp(i theta) F, read from its verdict record, with
+        // the twist exp(i theta) F' / 2^shift from its twist record, and with the listing word 2 last the flag of the
+        // step that ends at it
         if (twisted)
         {
             fprintf(out, "twist %u\n", shift);
@@ -2991,6 +3294,10 @@ int main(int count, char **arguments)
             for (unsigned int at = 0u; twisted && (at < 2u); at += 1u)
             {
                 turing_write_output(out, &twist, twist_records, lane, at);
+            }
+            if (sloped)
+            {
+                turing_write_output(out, &margined, margin_records, lane, 1u);
             }
             fprintf(out, "\n");
         }
@@ -3012,5 +3319,8 @@ int main(int count, char **arguments)
     turing_release(&verdict_pairs);
     turing_release(&pole_twist);
     turing_release(&twist);
+    turing_release(&slope);
+    turing_release(&slope_pairs);
+    turing_release(&margined);
     return sim_close(&job, "exact_zeta_turing");
 }
