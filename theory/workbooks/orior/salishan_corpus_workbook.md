@@ -25,12 +25,12 @@ quoted below are quoted from the published papers named beside them, as a reader
 
 | # | Question, as asked | Asked by | Test | Control | Status |
 |---|---|---|---|---|---|
-| P0 | Does meaning-matched vocabulary from these tables recover the accepted Salish subgrouping? | the field's classification (known answer) | Dolgopolsky classes, first two consonants, excess over a meaning shuffle | criteria (a) to (d) fixed before the run | **fails on all 370 tables** (b, d); passed on 138 |
+| P0 | Does meaning-matched vocabulary from these tables recover the accepted Salish subgrouping? | the field's classification (known answer) | Dolgopolsky classes, first two consonants, excess over a meaning shuffle | criteria (a) to (d) fixed before the run | **fails on all 254 tables** (b, d); passed on 138 |
 | P1 | Are lexical suffixes phonologically related to nouns of the same meaning, as consonant + suffix nouns ([C + LS])? | Kinkade 1998 against Mithun 1984 (via Kinkade) | same-meaning suffix/noun pairs, Kinkade shape and tail shape | meanings shuffled among each language's nouns, 5000 times | **tail relation above chance; [C + LS] shape too rare to test** |
-| P2 | How does a glottalized resonant fare under reduplication in the five languages left Unclear? | Mellesmoen & Urbanczyk 2021, Table 4 | doubled consonant pairs, glottalization of each copy | the survey's classified languages, its own papers left out | **method agrees 7 of 10 on all 370 tables (7 of 8 on 138); the blanks stay blank** |
+| P2 | How does a glottalized resonant fare under reduplication in the five languages left Unclear? | Mellesmoen & Urbanczyk 2021, Table 4 | doubled consonant pairs, glottalization of each copy | the survey's classified languages, its own papers left out | **method agrees 7 of 10 on all 254 tables (7 of 8 on 138); the blanks stay blank** |
 | P3 | Is Nuxalk's reputation for vowelless words in large part spacing, clitics printed apart? | Robertson 2020 (blog comment, read) | obstruent-only tokens in two oral texts, clitics joined and opened | the same text counted both ways | **supported: 0.9% joined, 18.5% opened** |
 | P4 | How common are free obstruent-only words in Nuxalk, and is there more than one made of stops only? | Mellesmoen 2021 against Nater 2024 | Mellesmoen's own definition applied outside both disputants' papers | both disputants' papers excluded | **9.2% of 1332 distinct free words; three stops-only words attested** |
-| P5 | Which branch does Nuxalk share most vocabulary with? | the family's standing puzzle | P0's measure, Nuxalk rows | P0 | **not read on all 370 tables: P0 fails** (undetermined on 138) |
+| P5 | Which branch does Nuxalk share most vocabulary with? | the family's standing puzzle | P0's measure, Nuxalk rows | P0 | **not read on all 254 tables: P0 fails** (undetermined on 138) |
 | P6 | Do Southern Interior languages with word-initial glottalized resonants also shift the quality of schwa? | Mellesmoen & Urbanczyk 2021, section 4 | none possible here | none | **not testable on these tables**: it needs phonetic measurement |
 
 ## What the tables hold
@@ -80,7 +80,7 @@ The measure is coarse, and on these 138 papers it sorts the family the way the f
 
 `bash examples/Salishan/4_measure/subgrouping.sh`.
 
-The same vocabulary, read from all 370 oracle tables by the same loader, and the same criteria, run on
+The same vocabulary, read from all 254 oracle tables by the same loader, and the same criteria, run on
 the record machine. `subgrouping.py` writes each language's meanings with the first two classes and the
 paper of each form, and does no arithmetic. `subgrouping.cu` builds the matches, counts each shuffle's
 matches, sums them, and gives each pair's excess and p as exact rationals; the device and the host agree
@@ -140,7 +140,7 @@ language. The test is ready for tables with a dictionary's worth of nouns.
 
 `bash examples/Salishan/4_measure/lexical_suffix_origins.sh`.
 
-The same suffixes, nouns and relations, read from all 370 tables, and the same null, run on the record
+The same suffixes, nouns and relations, read from all 254 tables, and the same null, run on the record
 machine. `lexical_suffix_origins.py` writes each language's suffixes and nouns as segments with their
 meanings. `lexical_suffix_origins.cu` builds the relation bits, counts every relation in the observed
 run and in each of 5000 shuffles, sums them per language and pooled, and gives each null mean, largest
@@ -188,7 +188,7 @@ not checked. It is a question for the authors and corrects nothing.
 
 `bash examples/Salishan/4_measure/reduplication_glottalization.sh`.
 
-The same doubled roots, read from all 370 tables with the survey's papers left out, tallied and read on
+The same doubled roots, read from all 254 tables with the survey's papers left out, tallied and read on
 the record machine. `reduplication_glottalization.py` writes each language's doubled roots with their
 verdicts and papers. `reduplication_glottalization.cu` sums the verdicts and papers per language and
 reads each language by exact comparisons of I against 3/4 and 1/4 of T; 21 checks, 0 failed. The records
@@ -289,7 +289,7 @@ of Nuxalk's excesses here.
 ## Withdrawn
 
 - **Withdrawn.** P0's pass as the known answer the entries after it rest on. **What killed it:** the
-  exact run over all 370 tables, which fails (b) and (d) with the criteria unchanged.
+  exact run over all 254 tables, which fails (b) and (d) with the criteria unchanged.
 - **Withdrawn.** P1's first run, which read noun meanings from any short gloss.
   **What killed it:** the diagnostics. The commonest "noun meanings" were provenance notes ("wordlist",
   "orthography"), and the =-morphemes of the Interior papers were proclitic hosts, not suffixes.
