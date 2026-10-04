@@ -61,7 +61,14 @@ def attached(line):
     A mora's µ subscript set after a stressed vowel's acute sits a space apart in the text layer,
     [kə́ µɬµpµ] in the tableaux of Hall et al., and joins its vowel inside the brackets.
     """
-    return SPACE_AFTER_STACK.sub("", SPACE_MORA.sub("", SPACE_BEFORE_MARK.sub(r"\1", line)))
+    return SPACE_AFTER_STACK.sub("", placed(line))
+
+
+def placed(line):
+    """attached without closing the space after a stacked mark: a page read from glyph positions
+    sets that space where the page does, Cable's struck [Déix̱ x̱áat] in (47) and Chinookan -x̣̣
+    would in Zenk."""
+    return SPACE_MORA.sub("", SPACE_BEFORE_MARK.sub(r"\1", line))
 
 
 SPACE_MORA = re.compile("(?<=[̀-ͯ]) (?=[µμ][^\\s\\[\\]]*\\])")
@@ -89,7 +96,7 @@ def paper_repair(stem):
     """
     if os.path.isfile(os.path.join(PAGE_TEXT, stem + ".rows")) or \
             getattr(tables.of(stem), "TRANSCRIBED_FROM_SCAN", False):
-        return sequence(reopened, attached, lettered, composed(),
+        return sequence(reopened, placed, lettered, composed(),
                         corrected(CORRECTIONS.get(stem, ())))
     return sequence(inserted_space(stem), reopened, attached, lettered, composed(),
                     corrected(CORRECTIONS.get(stem, ())))
@@ -282,7 +289,7 @@ def log_repairs(stem):
     glyph_read = os.path.isfile(os.path.join(PAGE_TEXT, stem + ".rows"))
     head = () if glyph_read else (inserted_space(stem),)
     plain = sequence(*(head + (reopened, lettered, composed())))
-    joined = sequence(*(head + (reopened, attached, lettered, composed())))
+    joined = sequence(*(head + (reopened, placed if glyph_read else attached, lettered, composed())))
     full = paper_repair(stem)
     entries = []
     page = 1
