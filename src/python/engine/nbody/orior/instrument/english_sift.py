@@ -43,6 +43,31 @@ while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "
 PAPERS = os.path.join(ROOT, "build", "papers")
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
+# The nine papers that have a reader written against their layout. The pure corpus is what those readers
+# produce. A paper here is a source of the anchors and is never read against them.
+READ = {
+    "ICSNL59_Garcia_Hannon_Stacey_final",
+    "HallPhillipsICSNL60",
+    "ICSNL59_LaFontaine_Janzen_final",
+    "Matthewson_Redan_ICSNL61",
+    "AlexanderDavis_ICSNL61",
+    "ICSNL56_DavisJ_2_final-1",
+    "22-Nater-Bella-Coola-tale-10",
+    "19-Lyon_ICSNL50_final-78",
+    "2013_Lindley_Lyon",
+}
+
+
+def paper_texts():
+    """One text per paper under PAPERS, sorted. A <stem>.page.txt is draft_page_text.py's second text of a
+    paper whose <stem>.txt is already here, and it is left out where that text exists."""
+    held = []
+    for path in sorted(glob.glob(os.path.join(PAPERS, "*.txt"))):
+        if path.endswith(".page.txt") and os.path.isfile(path[: -len(".page.txt")] + ".txt"):
+            continue
+        held.append(path)
+    return held
+
 MARKED_SPAN = re.compile(r"([TN])\.([^:{}\s]*):\{([^}]*)\}")
 PAGE = re.compile(r"^===== page \d+ =====$")
 

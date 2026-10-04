@@ -51,10 +51,11 @@ from orior import (
 from english_sift import (
     MARKED_SPAN,
     PAGE,
-    PAPERS,
+    READ,
     calibrated_cut,
     english_reference,
     looks_like_writing,
+    paper_texts,
     surprise,
 )
 from paper_language import attribution, named_in
@@ -227,7 +228,10 @@ def main():
     judged = 0
     unreadable = 0
     disagreed = []
-    for path in sorted(glob.glob(os.path.join(PAPERS, "*.txt"))):
+    for path in paper_texts():
+        # A paper that has a reader is a source of the anchors and is not read against them.
+        if os.path.basename(path)[:-len(".txt")] in READ:
+            continue
         says = attribution(named_in(path))
         if says not in anchors:
             continue

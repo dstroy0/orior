@@ -20,7 +20,6 @@
 # here has been found, not read.
 
 import collections
-import glob
 import io
 import os
 import subprocess
@@ -41,9 +40,10 @@ sys.path.insert(0, os.path.join(_at, "src", "python", "engine", "nbody", "orior"
 
 from english_sift import (
     PAGE,
-    PAPERS,
+    READ,
     english_reference,
     language_reference,
+    paper_texts,
     sorted_into,
     surprise,
 )
@@ -104,18 +104,6 @@ def _repository_root():
 ROOT = _repository_root()
 SIFTED = os.path.join(ROOT, "build", "corpora", "sifted")
 
-# The nine that already have a reader. Their output is named and verified and does not belong here.
-READ = {
-    "ICSNL59_Garcia_Hannon_Stacey_final",
-    "HallPhillipsICSNL60",
-    "ICSNL59_LaFontaine_Janzen_final",
-    "Matthewson_Redan_ICSNL61",
-    "AlexanderDavis_ICSNL61",
-    "ICSNL56_DavisJ_2_final-1",
-    "22-Nater-Bella-Coola-tale-10",
-    "19-Lyon_ICSNL50_final-78",
-    "2013_Lindley_Lyon",
-}
 
 
 def found_in(path, english, language):
@@ -167,7 +155,9 @@ def main():
     named = 0
     index = []
     candidates = collections.defaultdict(list)
-    for path in sorted(glob.glob(os.path.join(PAPERS, "*.txt"))):
+    # The nine that already have a reader are left out: their output is named and verified and does not
+    # belong here.
+    for path in paper_texts():
         stem = os.path.basename(path)[:-4]
         if stem in READ:
             continue

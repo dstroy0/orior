@@ -15,7 +15,9 @@
 #   boundary_check.py   how much more text the whole-distribution comparison needs at the dialect border;
 #   gold_readings.cu    every distance, split-half distance, verdict and median, exact on the record
 #                       machine, read from build/salishan_gold/gold_figures.tex, which
-#                       examples/Salishan/4_measure/gold_readings.sh writes and has to have run first.
+#                       examples/Salishan/4_measure/gold_readings.sh writes and has to have run first;
+#                       the papers read again from their tool extractions, from gold_figures_sifted.tex
+#                       beside it, each of its paper figures named Sifted in place of Gold.
 # The whole sifted set added to a refused corpus is measured here, with orior.py's functions, since
 # no check prints it.
 #
@@ -26,8 +28,9 @@
 # Some sentences of the chapter rest on the shape of a result as well as its figures: one pair of
 # corpora that does not read, and that pair's wider split-half distance being Lushootseed's; the
 # midpoint split-half distance above the alternating one for every corpus; every pair of languages
-# reading at the alternating split; Lushootseed admitting every candidate; at least one corpus
-# refusing all of its own. Each is held here, and where one fails nothing is written and the file
+# reading at the alternating split; no paper reading from its screened lines, and none too small to
+# ask; at least one paper reading from its tool extraction, and every one that reads agreeing with its
+# prose; Lushootseed admitting every candidate; at least one corpus refusing all of its own. Each is held here, and where one fails nothing is written and the file
 # exits 1, since a figure set into a sentence that no longer holds is wrong.
 #
 # The macros file is rewritten only where its text changes, and each path rewritten is printed as
@@ -57,6 +60,9 @@ from corpus_derivation import reported  # noqa: E402
 from orior import self_distance, squash, support  # noqa: E402
 
 GOLD = os.path.join(ROOT, "build", "salishan_gold", "gold_figures.tex")
+SIFTED = os.path.join(ROOT, "build", "salishan_gold", "gold_figures_sifted.tex")
+# The figures of the tool-extraction reading the chapter sets: the ones about papers.
+SIFTED_FIGURES = re.compile(r"^Gold(Papers\w*|Median\w*|NoiseTimes)$")
 TARGET = os.path.join(ROOT, "theory", "theory", "Salishan", "chapters", "figures_orior_salishan.tex")
 
 # The corpus whose wider split-half distance the chapter's sentences about the unread pair, the
@@ -93,11 +99,11 @@ def held(condition, what):
         raise Stop("the chapter says %s, and the measurement no longer does" % what)
 
 
-def gold_macros():
+def gold_macros(path=GOLD):
     """The exact program's figures, as it wrote them."""
-    if not os.path.isfile(GOLD):
-        raise Stop("no %s; run examples/Salishan/4_measure/gold_readings.sh first" % GOLD)
-    with open(GOLD, encoding="utf-8") as handle:
+    if not os.path.isfile(path):
+        raise Stop("no %s; run examples/Salishan/4_measure/gold_readings.sh first" % path)
+    with open(path, encoding="utf-8") as handle:
         return dict(MACRO.findall(handle.read()))
 
 
@@ -136,6 +142,12 @@ def escape(text):
 def figures():
     """Every macro the chapter reads, as (name, value), after holding each shape its sentences rest on."""
     gold = gold_macros()
+    tool = {
+        "Sifted" + match.group(1): value
+        for name, value in gold_macros(SIFTED).items()
+        for match in [SIFTED_FIGURES.match(name)]
+        if match
+    }
     coverage = reported(coverage_check)
     covered = found(COVERED, coverage, "count of papers fully accounted for")
     missing = len(MISSING.findall(coverage))
@@ -151,6 +163,11 @@ def figures():
     held(not gold.get("GoldRatioLeast", "0").startswith("0."), "the midpoint figure is the larger every time")
     held(gold.get("GoldLanguagePairsReadAlternating") == gold.get("GoldLanguagePairs"),
          "every pair of languages reads at the alternating split")
+    held(gold.get("GoldPapersRead") == "0", "no paper reads from its screened lines")
+    held(gold.get("GoldPapersSmall") == "0", "every paper's screened lines hold enough pairs to ask")
+    held(tool.get("SiftedPapersRead", "0") != "0", "a paper reads from its tool extraction")
+    held(tool.get("SiftedPapersAgreed") == tool.get("SiftedPapersRead"),
+         "every paper that reads from its tool extraction agrees with its prose")
     named_row = [row for row in rows if row[0] == NAMED]
     held(bool(named_row) and named_row[0][2] == named_row[0][3], "%s took every candidate" % NAMED)
     refused = [row for row in rows if row[3] == "0"]
@@ -165,7 +182,9 @@ def figures():
     only.sort(key=lambda pair: (-pair[1], pair[0]))
 
     values = [(name, value) for name, value in sorted(gold.items())]
+    values += [(name, value) for name, value in sorted(tool.items())]
     values += [
+        ("ReaderPapers", str(len(sift_extract.READ))),
         ("HandExtractions", str(int(covered.group(2)) + missing)),
         ("Extractors", covered.group(2)),
         ("ExtractorsAccounted", covered.group(1)),

@@ -17,7 +17,6 @@
 # comparative papers unattributed, correctly.
 
 import collections
-import glob
 import io
 import os
 import re
@@ -219,7 +218,11 @@ def main():
     counted = collections.Counter()
     unattributed = 0
     rows = []
-    for path in sorted(glob.glob(os.path.join(PAPERS, "*.txt"))):
+    # One text per paper, as english_sift gives them, from the engine's instrument directory.
+    sys.path.insert(0, os.path.join(ROOT, "src", "python", "engine", "nbody", "orior", "instrument"))
+    from english_sift import paper_texts
+
+    for path in paper_texts():
         found = named_in(path)
         one = attribution(found)
         if one:

@@ -4,7 +4,9 @@
 #
 # Builds gold_readings, the gold standard corpora's record programs, with the record compiler and the tessera client
 # beside it, writes its input from the corpora, runs it, and writes its records beside this file and its figures,
-# the TeX macros the Salishan research paper reads, to build/salishan_gold/gold_figures.tex.
+# the TeX macros the Salishan research paper reads, to build/salishan_gold/gold_figures.tex. It then reads the papers
+# again from their tool extractions, the lines sift_extract.py sorts nearer the pure corpus than English, and writes
+# those records to records/gold_readings_sifted.txt and their figures to build/salishan_gold/gold_figures_sifted.tex.
 #
 #   Usage:  bash examples/Salishan/4_measure/gold_readings.sh [sm_NN ...]
 set -u
@@ -94,4 +96,7 @@ esac
 INPUT="$TOP/build/salishan_gold/gold_readings.in"
 mkdir -p "$HERE/records"
 "$PYTHON" "$HERE/gold_readings.py" "$INPUT" || exit 1
-"$BINARY" "$INPUT" "$HERE/records/gold_readings.txt" "$TOP/build/salishan_gold/gold_figures.tex"
+"$BINARY" "$INPUT" "$HERE/records/gold_readings.txt" "$TOP/build/salishan_gold/gold_figures.tex" || exit 1
+SIFTED="$TOP/build/salishan_gold/gold_readings_sifted.in"
+"$PYTHON" "$HERE/gold_readings.py" "$SIFTED" sifted || exit 1
+"$BINARY" "$SIFTED" "$HERE/records/gold_readings_sifted.txt" "$TOP/build/salishan_gold/gold_figures_sifted.tex"

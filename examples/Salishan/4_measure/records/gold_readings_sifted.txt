@@ -1,0 +1,1111 @@
+margin 1/1 least 2000
+corpus Comox lines 426 pairs 12136
+corpus English lines 1782 pairs 104377
+corpus Lushootseed lines 219 pairs 3847
+corpus Nsyilxcən lines 738 pairs 54190
+corpus Nuxalk lines 98 pairs 3609
+corpus St'át'imcets lines 371 pairs 18680
+corpus nɬeʔkepmxcín lines 451 pairs 39721
+distance Comox to English = 1608155346 / 2533438544
+distance Comox to Lushootseed = 77921880 / 93374384
+distance Comox to Nsyilxcən = 952431832 / 1315299680
+distance Comox to Nuxalk = 62743162 / 87597648
+distance Comox to St'át'imcets = 295752816 / 453400960
+distance Comox to nɬeʔkepmxcín = 681420254 / 964108112
+distance English to Lushootseed = 668377120 / 803076638
+distance English to Nsyilxcən = 8868665362 / 11312379260
+distance English to Nuxalk = 615449786 / 753393186
+distance English to St'át'imcets = 2699793542 / 3899524720
+distance English to nɬeʔkepmxcín = 6486756948 / 8291917634
+distance Lushootseed to Nsyilxcən = 259366376 / 416937860
+distance Lushootseed to Nuxalk = 22161538 / 27767646
+distance Lushootseed to St'át'imcets = 111708150 / 143723920
+distance Lushootseed to nɬeʔkepmxcín = 217275882 / 305613374
+distance Nsyilxcən to Nuxalk = 280758828 / 391143420
+distance Nsyilxcən to St'át'imcets = 1485669620 / 2024538400
+distance Nsyilxcən to nɬeʔkepmxcín = 2207473628 / 4304961980
+distance Nuxalk to St'át'imcets = 102691300 / 134832240
+distance Nuxalk to nɬeʔkepmxcín = 222611532 / 286706178
+distance St'át'imcets to nɬeʔkepmxcín = 1090048926 / 1483976560
+distance Comox midpoint = 14400084 / 73620846
+distance English midpoint = 808950864 / 5446945320
+distance Lushootseed midpoint = 3960638 / 6178220
+distance Nsyilxcən midpoint = 226482766 / 1451295258
+distance Nuxalk midpoint = 1651332 / 6512380
+distance St'át'imcets midpoint = 47881598 / 172988558
+distance nɬeʔkepmxcín midpoint = 238658340 / 770462540
+distance Comox alternating = 7879438 / 73509150
+distance English alternating = 275367080 / 5447275784
+distance Lushootseed alternating = 2211324 / 7357364
+distance Nsyilxcən alternating = 84222444 / 1468152048
+distance Nuxalk alternating = 1244646 / 6512400
+distance St'át'imcets alternating = 21621764 / 173746392
+distance nɬeʔkepmxcín alternating = 64693770 / 786561216
+distance 01_ICSNL55_Beck_final to Comox = 118203676 / 160268016
+distance 01_ICSNL55_Beck_final to Lushootseed = 31231564 / 50803482
+distance 01_ICSNL55_Beck_final to Nsyilxcən = 452781634 / 715633140
+distance 01_ICSNL55_Beck_final to Nuxalk = 32114580 / 47660454
+distance 01_ICSNL55_Beck_final to St'át'imcets = 200361416 / 246688080
+distance 01_ICSNL55_Beck_final to nɬeʔkepmxcín = 373802392 / 524555526
+distance 01_ICSNL55_Beck_final midpoint = 9559624 / 21777544
+distance 04_ICSNL55_HDavis1_final to Comox = 256802236 / 405293856
+distance 04_ICSNL55_HDavis1_final to Lushootseed = 99390862 / 128474412
+distance 04_ICSNL55_HDavis1_final to Nsyilxcən = 1354766388 / 1809729240
+distance 04_ICSNL55_HDavis1_final to Nuxalk = 89863272 / 120526164
+distance 04_ICSNL55_HDavis1_final to St'át'imcets = 147446724 / 623837280
+distance 04_ICSNL55_HDavis1_final to nɬeʔkepmxcín = 1004493996 / 1326522516
+distance 04_ICSNL55_HDavis1_final midpoint = 32825420 / 133405024
+distance 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final to Comox = 113907492 / 160170928
+distance 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final to Lushootseed = 33234644 / 50772706
+distance 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final to Nsyilxcən = 414205344 / 715199620
+distance 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final to Nuxalk = 34795976 / 47631582
+distance 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final to St'át'imcets = 184116462 / 246538640
+distance 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final to nɬeʔkepmxcín = 307716608 / 524237758
+distance 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final midpoint = 9068812 / 21772100
+distance 07_ICSNL55_JDavis1_final to Comox = 61133884 / 81141296
+distance 07_ICSNL55_JDavis1_final to Lushootseed = 20194924 / 25721042
+distance 07_ICSNL55_JDavis1_final to Nsyilxcən = 279488932 / 362314340
+distance 07_ICSNL55_JDavis1_final to Nuxalk = 19112458 / 24129774
+distance 07_ICSNL55_JDavis1_final to St'át'imcets = 104504712 / 124894480
+distance 07_ICSNL55_JDavis1_final to nɬeʔkepmxcín = 216642204 / 265574606
+distance 07_ICSNL55_JDavis1_final midpoint = 2959862 / 5587560
+distance 08_ICSNL55_JDavis_2_final to Comox = 50874266 / 72937360
+distance 08_ICSNL55_JDavis_2_final to Lushootseed = 17644678 / 23120470
+distance 08_ICSNL55_JDavis_2_final to Nsyilxcən = 237630150 / 325681900
+distance 08_ICSNL55_JDavis_2_final to Nuxalk = 16560560 / 21690090
+distance 08_ICSNL55_JDavis_2_final to St'át'imcets = 91193600 / 112266800
+distance 08_ICSNL55_JDavis_2_final to nɬeʔkepmxcín = 183857090 / 238723210
+distance 08_ICSNL55_JDavis_2_final midpoint = 2054520 / 4430552
+distance 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final to Comox = 80616098 / 102015216
+distance 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final to Lushootseed = 22034064 / 32337882
+distance 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final to Nsyilxcən = 291953074 / 455521140
+distance 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final to Nuxalk = 22963662 / 30337254
+distance 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final to St'át'imcets = 130238828 / 157024080
+distance 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final to nɬeʔkepmxcín = 236663132 / 333894726
+distance 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final midpoint = 2531528 / 8825284
+distance 11_Reisinger-Modality-in-Comox-Sliammon to Comox = 49518000 / 66990720
+distance 11_Reisinger-Modality-in-Comox-Sliammon to Lushootseed = 13884546 / 21235440
+distance 11_Reisinger-Modality-in-Comox-Sliammon to Nsyilxcən = 178440880 / 299128800
+distance 11_Reisinger-Modality-in-Comox-Sliammon to Nuxalk = 14784918 / 19921680
+distance 11_Reisinger-Modality-in-Comox-Sliammon to St'át'imcets = 79529600 / 103113600
+distance 11_Reisinger-Modality-in-Comox-Sliammon to nɬeʔkepmxcín = 148243970 / 219259920
+distance 11_Reisinger-Modality-in-Comox-Sliammon midpoint = 1551450 / 3802750
+distance 13_ICSNL55_Johnson_Barnes_Hardwick_final to Comox = 193413654 / 265414320
+distance 13_ICSNL55_Johnson_Barnes_Hardwick_final to Lushootseed = 58628240 / 84133890
+distance 13_ICSNL55_Johnson_Barnes_Hardwick_final to Nsyilxcən = 559897450 / 1185135300
+distance 13_ICSNL55_Johnson_Barnes_Hardwick_final to Nuxalk = 60983748 / 78928830
+distance 13_ICSNL55_Johnson_Barnes_Hardwick_final to St'át'imcets = 297671910 / 408531600
+distance 13_ICSNL55_Johnson_Barnes_Hardwick_final to nɬeʔkepmxcín = 479738204 / 868698270
+distance 13_ICSNL55_Johnson_Barnes_Hardwick_final midpoint = 12399276 / 59670468
+distance 1973_Davis_P_Saunders_1 to Comox = 66937584 / 81602464
+distance 1973_Davis_P_Saunders_1 to Lushootseed = 21134350 / 25867228
+distance 1973_Davis_P_Saunders_1 to Nsyilxcən = 313195120 / 364373560
+distance 1973_Davis_P_Saunders_1 to Nuxalk = 21018484 / 24266916
+distance 1973_Davis_P_Saunders_1 to St'át'imcets = 105904308 / 125604320
+distance 1973_Davis_P_Saunders_1 to nɬeʔkepmxcín = 231570740 / 267084004
+distance 1973_Davis_P_Saunders_1 midpoint = 1958244 / 5625984
+distance 1973_Hess to Comox = 44736232 / 53932384
+distance 1973_Hess to Lushootseed = 11585922 / 17096068
+distance 1973_Hess to Nsyilxcən = 208432868 / 240820360
+distance 1973_Hess to Nuxalk = 14045046 / 16038396
+distance 1973_Hess to St'át'imcets = 68348232 / 83013920
+distance 1973_Hess to nɬeʔkepmxcín = 158384402 / 176520124
+distance 1973_Hess midpoint = 1318652 / 2446170
+distance 1974_Davis_P_Saunders to Comox = 38653422 / 48568272
+distance 1974_Davis_P_Saunders to Lushootseed = 12887312 / 15395694
+distance 1974_Davis_P_Saunders to Nsyilxcən = 187321176 / 216868380
+distance 1974_Davis_P_Saunders to Nuxalk = 11660958 / 14443218
+distance 1974_Davis_P_Saunders to St'át'imcets = 61635496 / 74757360
+distance 1974_Davis_P_Saunders to nɬeʔkepmxcín = 136086722 / 158963442
+distance 1974_Davis_P_Saunders midpoint = 636516 / 1876500
+distance 1974_Mattina to Comox = 349615536 / 440148448
+distance 1974_Mattina to Lushootseed = 101955300 / 139522996
+distance 1974_Mattina to Nsyilxcən = 1500701192 / 1965362920
+distance 1974_Mattina to Nuxalk = 97826036 / 130891212
+distance 1974_Mattina to St'át'imcets = 518460612 / 677486240
+distance 1974_Mattina to nɬeʔkepmxcín = 1240458184 / 1440601228
+distance 1974_Mattina midpoint = 42820670 / 164353266
+distance 1975_Davis_P_Saunders_0 to Comox = 58345802 / 67791696
+distance 1975_Davis_P_Saunders_0 to Lushootseed = 17903754 / 21489342
+distance 1975_Davis_P_Saunders_0 to Nsyilxcən = 268619792 / 302705340
+distance 1975_Davis_P_Saunders_0 to Nuxalk = 16067514 / 20159874
+distance 1975_Davis_P_Saunders_0 to St'át'imcets = 89019774 / 104346480
+distance 1975_Davis_P_Saunders_0 to nɬeʔkepmxcín = 205136730 / 221881506
+distance 1975_Davis_P_Saunders_0 midpoint = 1500508 / 3822412
+distance 1976_Davis_P_Saunders to Comox = 53199168 / 62039232
+distance 1976_Davis_P_Saunders to Lushootseed = 16253612 / 19665864
+distance 1976_Davis_P_Saunders to Nsyilxcən = 244204904 / 277019280
+distance 1976_Davis_P_Saunders to Nuxalk = 14535666 / 18449208
+distance 1976_Davis_P_Saunders to St'át'imcets = 80597312 / 95492160
+distance 1976_Davis_P_Saunders to nɬeʔkepmxcín = 181983538 / 203053752
+distance 1976_Davis_P_Saunders midpoint = 1017436 / 3266230
+distance 1976_Saunders_Davis_P to Comox = 69567056 / 82160720
+distance 1976_Saunders_Davis_P to Lushootseed = 20670550 / 26044190
+distance 1976_Saunders_Davis_P to Nsyilxcən = 318947330 / 366866300
+distance 1976_Saunders_Davis_P to Nuxalk = 19356928 / 24432930
+distance 1976_Saunders_Davis_P to St'át'imcets = 105108570 / 126463600
+distance 1976_Saunders_Davis_P to nɬeʔkepmxcín = 237973390 / 268911170
+distance 1976_Saunders_Davis_P midpoint = 2195010 / 5474928
+distance 1977_Davis_P_SaundersC to Comox = 139608754 / 169005936
+distance 1977_Davis_P_SaundersC to Lushootseed = 42303292 / 53573322
+distance 1977_Davis_P_SaundersC to Nsyilxcən = 624177010 / 754649940
+distance 1977_Davis_P_SaundersC to Nuxalk = 34854300 / 50258934
+distance 1977_Davis_P_SaundersC to St'át'imcets = 205179992 / 260137680
+distance 1977_Davis_P_SaundersC to nɬeʔkepmxcín = 485295866 / 553154646
+distance 1977_Davis_P_SaundersC midpoint = 5821006 / 24224572
+distance 1977_Nater to Comox = 46075832 / 57330464
+distance 1977_Nater to Lushootseed = 13391892 / 18173228
+distance 1977_Nater to Nsyilxcən = 200596560 / 255993560
+distance 1977_Nater to Nuxalk = 12529436 / 17048916
+distance 1977_Nater to St'át'imcets = 67963048 / 88244320
+distance 1977_Nater to nɬeʔkepmxcín = 160260506 / 187642004
+distance 1977_Nater midpoint = 1173524 / 2412810
+distance 1978_Davis_Saunders to Comox = 43411184 / 50048864
+distance 1978_Davis_Saunders to Lushootseed = 13110384 / 15865028
+distance 1978_Davis_Saunders to Nsyilxcən = 196705612 / 223479560
+distance 1978_Davis_Saunders to Nuxalk = 11939874 / 14883516
+distance 1978_Davis_Saunders to St'át'imcets = 65350224 / 77036320
+distance 1978_Davis_Saunders to nɬeʔkepmxcín = 146902020 / 163809404
+distance 1978_Davis_Saunders midpoint = 740704 / 2074080
+distance 1978_Mattina2 to Comox = 40550340 / 49369248
+distance 1978_Mattina2 to Lushootseed = 12828500 / 15649596
+distance 1978_Mattina2 to Nsyilxcən = 181010600 / 220444920
+distance 1978_Mattina2 to Nuxalk = 12087018 / 14681412
+distance 1978_Mattina2 to St'át'imcets = 62519240 / 75990240
+distance 1978_Mattina2 to nɬeʔkepmxcín = 140492944 / 161585028
+distance 1978_Mattina2 midpoint = 957868 / 2057026
+distance 1980_Nater to Comox = 574114616 / 720174512
+distance 1980_Nater to Lushootseed = 177916394 / 228288674
+distance 1980_Nater to Nsyilxcən = 2510544094 / 3215742980
+distance 1980_Nater to Nuxalk = 175191620 / 214165278
+distance 1980_Nater to St'át'imcets = 838528930 / 1108508560
+distance 1980_Nater to nɬeʔkepmxcín = 2004974998 / 2357123582
+distance 1980_Nater midpoint = 127645254 / 439835508
+distance 1981_Davis_P_Saunders to Comox = 46963020 / 53641120
+distance 1981_Davis_P_Saunders to Lushootseed = 14399716 / 17003740
+distance 1981_Davis_P_Saunders to Nsyilxcən = 212201240 / 239519800
+distance 1981_Davis_P_Saunders to Nuxalk = 12609244 / 15951780
+distance 1981_Davis_P_Saunders to St'át'imcets = 69635780 / 82565600
+distance 1981_Davis_P_Saunders to nɬeʔkepmxcín = 158628038 / 175566820
+distance 1981_Davis_P_Saunders midpoint = 1141332 / 2398832
+distance 1983_Hymes_D to Comox = 141365600 / 167282624
+distance 1983_Hymes_D to Lushootseed = 44143476 / 53027048
+distance 1983_Hymes_D to Nsyilxcən = 621310048 / 746954960
+distance 1983_Hymes_D to Nuxalk = 38257802 / 49746456
+distance 1983_Hymes_D to St'át'imcets = 212129288 / 257485120
+distance 1983_Hymes_D to nɬeʔkepmxcín = 489623290 / 547514264
+distance 1983_Hymes_D midpoint = 6385366 / 23748774
+distance 1986_Hilbert to Comox = 43484288 / 53786752
+distance 1986_Hilbert to Lushootseed = 11642178 / 17049904
+distance 1986_Hilbert to Nsyilxcən = 199809416 / 240170080
+distance 1986_Hilbert to Nuxalk = 13353080 / 15995088
+distance 1986_Hilbert to St'át'imcets = 63564432 / 82789760
+distance 1986_Hilbert to nɬeʔkepmxcín = 153487366 / 176043472
+distance 1986_Hilbert midpoint = 1300196 / 2373720
+distance 1993_Mattina-A to Comox = 133819206 / 172501104
+distance 1993_Mattina-A to Lushootseed = 41711052 / 54681258
+distance 1993_Mattina-A to Nsyilxcən = 557733798 / 770256660
+distance 1993_Mattina-A to Nuxalk = 39059442 / 51298326
+distance 1993_Mattina-A to St'át'imcets = 201346632 / 265517520
+distance 1993_Mattina-A to nɬeʔkepmxcín = 475510050 / 564594294
+distance 1993_Mattina-A midpoint = 9341910 / 24914412
+distance 1994_Mattina-A to Comox = 123765182 / 153908752
+distance 1994_Mattina-A to Lushootseed = 38618920 / 48787654
+distance 1994_Mattina-A to Nsyilxcən = 515316284 / 687237580
+distance 1994_Mattina-A to Nuxalk = 38331384 / 45769338
+distance 1994_Mattina-A to St'át'imcets = 186126772 / 236899760
+distance 1994_Mattina-A to nɬeʔkepmxcín = 422090678 / 503741722
+distance 1994_Mattina-A midpoint = 9805970 / 19803828
+distance 1996_Davis-H to Comox = 44181000 / 53932384
+distance 1996_Davis-H to Lushootseed = 13511234 / 17096068
+distance 1996_Davis-H to Nsyilxcən = 204826368 / 240820360
+distance 1996_Davis-H to Nuxalk = 13001580 / 16038396
+distance 1996_Davis-H to St'át'imcets = 63778416 / 83013920
+distance 1996_Davis-H to nɬeʔkepmxcín = 159337310 / 176520124
+distance 1996_Davis-H midpoint = 1133824 / 2414850
+distance 1996_Davis-H_Matthewson to Comox = 117176466 / 148763088
+distance 1996_Davis-H_Matthewson to Lushootseed = 38753438 / 47156526
+distance 1996_Davis-H_Matthewson to Nsyilxcən = 573263276 / 664261020
+distance 1996_Davis-H_Matthewson to Nuxalk = 36787698 / 44239122
+distance 1996_Davis-H_Matthewson to St'át'imcets = 155599816 / 228979440
+distance 1996_Davis-H_Matthewson to nɬeʔkepmxcín = 440514794 / 486900018
+distance 1996_Davis-H_Matthewson midpoint = 6756062 / 18620440
+distance 1996_Demirdache to Comox = 77706878 / 104442416
+distance 1996_Demirdache to Lushootseed = 27729692 / 33107282
+distance 1996_Demirdache to Nsyilxcən = 388073868 / 466359140
+distance 1996_Demirdache to Nuxalk = 25751078 / 31059054
+distance 1996_Demirdache to St'át'imcets = 106980058 / 160760080
+distance 1996_Demirdache to nɬeʔkepmxcín = 290645916 / 341838926
+distance 1996_Demirdache midpoint = 3428104 / 9232140
+distance 1996_Demirdache_2 to Comox = 49888186 / 64442160
+distance 1996_Demirdache_2 to Lushootseed = 17893738 / 20427570
+distance 1996_Demirdache_2 to Nsyilxcən = 247819030 / 287748900
+distance 1996_Demirdache_2 to Nuxalk = 16174638 / 19163790
+distance 1996_Demirdache_2 to St'át'imcets = 74783690 / 99190800
+distance 1996_Demirdache_2 to nɬeʔkepmxcín = 177736394 / 210918510
+distance 1996_Demirdache_2 midpoint = 1147230 / 3508132
+distance 1996_Mattina-A to Comox = 51272746 / 63568368
+distance 1996_Mattina-A to Lushootseed = 16149926 / 20150586
+distance 1996_Mattina-A to Nsyilxcən = 228581048 / 283847220
+distance 1996_Mattina-A to Nuxalk = 14969664 / 18903942
+distance 1996_Mattina-A to St'át'imcets = 78297606 / 97845840
+distance 1996_Mattina-A to nɬeʔkepmxcín = 171777822 / 208058598
+distance 1996_Mattina-A midpoint = 2164594 / 3401968
+distance 1997_Blake to Comox = 76461264 / 93884096
+distance 1997_Blake to Lushootseed = 24805010 / 29760392
+distance 1997_Blake to Nsyilxcən = 365603936 / 419213840
+distance 1997_Blake to Nuxalk = 23160056 / 27919224
+distance 1997_Blake to St'át'imcets = 118079624 / 144508480
+distance 1997_Blake to nɬeʔkepmxcín = 276177462 / 307281656
+distance 1997_Blake midpoint = 3118312 / 7450944
+distance 1997_Brooks to Comox = 42156992 / 52476064
+distance 1997_Brooks to Lushootseed = 14137286 / 16634428
+distance 1997_Brooks to Nsyilxcən = 201003284 / 234317560
+distance 1997_Brooks to Nuxalk = 13855664 / 15605316
+distance 1997_Brooks to St'át'imcets = 64709548 / 80772320
+distance 1997_Brooks to nɬeʔkepmxcín = 154512160 / 171753604
+distance 1997_Brooks midpoint = 1083944 / 2332890
+distance 1997_Davis-H_Lai_Matthewson to Comox = 63734892 / 78592736
+distance 1997_Davis-H_Lai_Matthewson to Lushootseed = 19778528 / 24913172
+distance 1997_Davis-H_Lai_Matthewson to Nsyilxcən = 301557240 / 350934440
+distance 1997_Davis-H_Lai_Matthewson to Nuxalk = 19458570 / 23371884
+distance 1997_Davis-H_Lai_Matthewson to St'át'imcets = 93713592 / 120971680
+distance 1997_Davis-H_Lai_Matthewson to nɬeʔkepmxcín = 233509770 / 257233196
+distance 1997_Davis-H_Lai_Matthewson midpoint = 2122990 / 5132810
+distance 1998_Beck to Comox = 66128252 / 83374320
+distance 1998_Beck to Lushootseed = 20657952 / 26428890
+distance 1998_Beck to Nsyilxcən = 303552180 / 372285300
+distance 1998_Beck to Nuxalk = 18057870 / 24793830
+distance 1998_Beck to St'át'imcets = 97916220 / 128331600
+distance 1998_Beck to nɬeʔkepmxcín = 232073528 / 272883270
+distance 1998_Beck midpoint = 2131822 / 5623588
+distance 1998_Bennett_Beck to Comox = 68414760 / 80947120
+distance 1998_Bennett_Beck to Lushootseed = 17436024 / 25659490
+distance 1998_Bennett_Beck to Nsyilxcən = 314646950 / 361447300
+distance 1998_Bennett_Beck to Nuxalk = 19415510 / 24072030
+distance 1998_Bennett_Beck to St'át'imcets = 102736250 / 124595600
+distance 1998_Bennett_Beck to nɬeʔkepmxcín = 241042162 / 264939070
+distance 1998_Bennett_Beck midpoint = 2319480 / 5533968
+distance 1999_Davis-H to Comox = 58958804 / 76772336
+distance 1999_Davis-H to Lushootseed = 20342320 / 24336122
+distance 1999_Davis-H to Nsyilxcən = 289086236 / 342805940
+distance 1999_Davis-H to Nuxalk = 19144208 / 22830534
+distance 1999_Davis-H to St'át'imcets = 75198656 / 118169680
+distance 1999_Davis-H to nɬeʔkepmxcín = 217492454 / 251275046
+distance 1999_Davis-H midpoint = 2303756 / 4958180
+distance 1999_Matthewson to Comox = 203787396 / 286166880
+distance 1999_Matthewson to Lushootseed = 73792778 / 90712260
+distance 1999_Matthewson to Nsyilxcən = 1042420360 / 1277800200
+distance 1999_Matthewson to Nuxalk = 68028624 / 85100220
+distance 1999_Matthewson to St'át'imcets = 245718980 / 440474400
+distance 1999_Matthewson to nɬeʔkepmxcín = 771469010 / 936621180
+distance 1999_Matthewson midpoint = 17932900 / 69484000
+distance 2001_Arregui_Matthewson to Comox = 38801968 / 51893536
+distance 2001_Arregui_Matthewson to Lushootseed = 13771658 / 16449772
+distance 2001_Arregui_Matthewson to Nsyilxcən = 194190612 / 231716440
+distance 2001_Arregui_Matthewson to Nuxalk = 12529142 / 15432084
+distance 2001_Arregui_Matthewson to St'át'imcets = 54799512 / 79875680
+distance 2001_Arregui_Matthewson to nɬeʔkepmxcín = 145226182 / 169846996
+distance 2001_Arregui_Matthewson midpoint = 721548 / 2283344
+distance 2009_Lyon to Comox = 46470548 / 60704272
+distance 2009_Lyon to Lushootseed = 13688668 / 19242694
+distance 2009_Lyon to Nsyilxcən = 120857588 / 271058380
+distance 2009_Lyon to Nuxalk = 13152568 / 18052218
+distance 2009_Lyon to St'át'imcets = 71898152 / 93437360
+distance 2009_Lyon to nɬeʔkepmxcín = 128931100 / 198684442
+distance 2009_Lyon midpoint = 1115970 / 3127280
+distance 2009_Matthewson to Comox = 120907194 / 180510864
+distance 2009_Matthewson to Lushootseed = 47067666 / 57220278
+distance 2009_Matthewson to Nsyilxcən = 621968136 / 806022060
+distance 2009_Matthewson to Nuxalk = 41425920 / 53680266
+distance 2009_Matthewson to St'át'imcets = 117259590 / 277846320
+distance 2009_Matthewson to nɬeʔkepmxcín = 493248040 / 590810154
+distance 2009_Matthewson midpoint = 5176938 / 27637740
+distance 2011_Lyon to Comox = 184563476 / 228278160
+distance 2011_Lyon to Lushootseed = 60934728 / 72362070
+distance 2011_Lyon to Nsyilxcən = 749921370 / 1019313900
+distance 2011_Lyon to Nuxalk = 53382690 / 67885290
+distance 2011_Lyon to St'át'imcets = 251690480 / 351370800
+distance 2011_Lyon to nɬeʔkepmxcín = 646903246 / 747152010
+distance 2011_Lyon midpoint = 11996838 / 44226928
+distance 2012_Lindley_Lyon to Comox = 742185204 / 981389776
+distance 2012_Lindley_Lyon to Lushootseed = 250267870 / 311091502
+distance 2012_Lindley_Lyon to Nsyilxcən = 2748123138 / 4382128540
+distance 2012_Lindley_Lyon to Nuxalk = 224132006 / 291845394
+distance 2012_Lindley_Lyon to St'át'imcets = 999371950 / 1510576880
+distance 2012_Lindley_Lyon to nɬeʔkepmxcín = 2598633782 / 3212078386
+distance 2012_Lindley_Lyon midpoint = 124476664 / 805197120
+distance 2013_Nater to Comox = 575953420 / 801024544
+distance 2013_Nater to Lushootseed = 194101042 / 253917388
+distance 2013_Nater to Nsyilxcən = 2604991484 / 3576756760
+distance 2013_Nater to Nuxalk = 164245752 / 238208436
+distance 2013_Nater to St'át'imcets = 903338936 / 1232954720
+distance 2013_Nater to nɬeʔkepmxcín = 1982157854 / 2621744884
+distance 2013_Nater midpoint = 165405942 / 539822802
+distance 5_Lyon-Davis_2018 to Comox = 410993528 / 620950576
+distance 5_Lyon-Davis_2018 to Lushootseed = 156270892 / 196835602
+distance 5_Lyon-Davis_2018 to Nsyilxcən = 2055938998 / 2772685540
+distance 5_Lyon-Davis_2018 to Nuxalk = 139258662 / 184658094
+distance 5_Lyon-Davis_2018 to St'át'imcets = 320945672 / 955780880
+distance 5_Lyon-Davis_2018 to nɬeʔkepmxcín = 1637426308 / 2032364686
+distance 5_Lyon-Davis_2018 midpoint = 71360900 / 257305980
+distance 7_Mellesmoen_SV_ComoxSliammon to Comox = 40268928 / 52912960
+distance 7_Mellesmoen_SV_ComoxSliammon to Lushootseed = 12895116 / 16772920
+distance 7_Mellesmoen_SV_ComoxSliammon to Nsyilxcən = 175064780 / 236268400
+distance 7_Mellesmoen_SV_ComoxSliammon to Nuxalk = 11779798 / 15735240
+distance 7_Mellesmoen_SV_ComoxSliammon to St'át'imcets = 63249920 / 81444800
+distance 7_Mellesmoen_SV_ComoxSliammon to nɬeʔkepmxcín = 133785294 / 173183560
+distance 7_Mellesmoen_SV_ComoxSliammon midpoint = 1190442 / 2341878
+distance 8_Mellesmoen_ICSNLinfixpaper to Comox = 37562520 / 52184800
+distance 8_Mellesmoen_ICSNLinfixpaper to Lushootseed = 11308632 / 16542100
+distance 8_Mellesmoen_ICSNLinfixpaper to Nsyilxcən = 146823320 / 233017000
+distance 8_Mellesmoen_ICSNLinfixpaper to Nuxalk = 11293134 / 15518700
+distance 8_Mellesmoen_ICSNLinfixpaper to St'át'imcets = 62858440 / 80324000
+distance 8_Mellesmoen_ICSNLinfixpaper to nɬeʔkepmxcín = 118191374 / 170800300
+distance 8_Mellesmoen_ICSNLinfixpaper midpoint = 1088652 / 2290848
+distance 9_vestiges-of-tsimshianic to Comox = 54162720 / 75922816
+distance 9_vestiges-of-tsimshianic to Lushootseed = 18609150 / 24066832
+distance 9_vestiges-of-tsimshianic to Nsyilxcən = 259518976 / 339012640
+distance 9_vestiges-of-tsimshianic to Nuxalk = 15338590 / 22577904
+distance 9_vestiges-of-tsimshianic to St'át'imcets = 83642960 / 116862080
+distance 9_vestiges-of-tsimshianic to nɬeʔkepmxcín = 193995432 / 248494576
+distance 9_vestiges-of-tsimshianic midpoint = 2455474 / 4886142
+distance AlexanderLyonAndrew_Narrative_final to Comox = 88595818 / 142889264
+distance AlexanderLyonAndrew_Narrative_final to Lushootseed = 35964984 / 45294578
+distance AlexanderLyonAndrew_Narrative_final to Nsyilxcən = 457188938 / 638033060
+distance AlexanderLyonAndrew_Narrative_final to Nuxalk = 32726950 / 42492366
+distance AlexanderLyonAndrew_Narrative_final to St'át'imcets = 73746234 / 219938320
+distance AlexanderLyonAndrew_Narrative_final to nɬeʔkepmxcín = 358374900 / 467675054
+distance AlexanderLyonAndrew_Narrative_final midpoint = 3182510 / 17326644
+distance Bates_2004 to Comox = 109558272 / 130097920
+distance Bates_2004 to Lushootseed = 27526710 / 41239840
+distance Bates_2004 to Nsyilxcən = 501579220 / 580916800
+distance Bates_2004 to Nuxalk = 31190960 / 38688480
+distance Bates_2004 to St'át'imcets = 164567840 / 200249600
+distance Bates_2004 to nɬeʔkepmxcín = 388032032 / 425809120
+distance Bates_2004 midpoint = 3849694 / 14345198
+distance Beck_2007 to Comox = 105942504 / 125995952
+distance Beck_2007 to Lushootseed = 28025174 / 39939554
+distance Beck_2007 to Nsyilxcən = 485906492 / 562600580
+distance Beck_2007 to Nuxalk = 31812016 / 37468638
+distance Beck_2007 to St'át'imcets = 157270798 / 193935760
+distance Beck_2007 to nɬeʔkepmxcín = 373296246 / 412383422
+distance Beck_2007 midpoint = 3912372 / 13468536
+distance DavisHuijsmans-_transitive-_final to Comox = 64014944 / 83689856
+distance DavisHuijsmans-_transitive-_final to Lushootseed = 18246520 / 26528912
+distance DavisHuijsmans-_transitive-_final to Nsyilxcən = 248242360 / 373694240
+distance DavisHuijsmans-_transitive-_final to Nuxalk = 18436116 / 24887664
+distance DavisHuijsmans-_transitive-_final to St'át'imcets = 105453216 / 128817280
+distance DavisHuijsmans-_transitive-_final to nɬeʔkepmxcín = 198286996 / 273916016
+distance DavisHuijsmans-_transitive-_final midpoint = 2380464 / 5944224
+distance DavisICSNL60 to Comox = 146321910 / 182064272
+distance DavisICSNL60 to Lushootseed = 38921330 / 57712694
+distance DavisICSNL60 to Nsyilxcən = 488857356 / 812958380
+distance DavisICSNL60 to Nuxalk = 39296952 / 54142218
+distance DavisICSNL60 to St'át'imcets = 186642346 / 280237360
+distance DavisICSNL60 to nɬeʔkepmxcín = 380813880 / 595894442
+distance DavisICSNL60 midpoint = 8187196 / 28074360
+distance Davis_2003 to Comox = 50688144 / 64078080
+distance Davis_2003 to Lushootseed = 17398598 / 20312160
+distance Davis_2003 to Nsyilxcən = 247500660 / 286123200
+distance Davis_2003 to Nuxalk = 16057740 / 19055520
+distance Davis_2003 to St'át'imcets = 62403360 / 98630400
+distance Davis_2003 to nɬeʔkepmxcín = 186960576 / 209726880
+distance Davis_2003 midpoint = 1495634 / 3481102
+distance Davis_H_ICSNL61 to Comox = 145432760 / 210341152
+distance Davis_H_ICSNL61 to Lushootseed = 50615662 / 66676204
+distance Davis_H_ICSNL61 to Nsyilxcən = 678805120 / 939221080
+distance Davis_H_ICSNL61 to Nuxalk = 49968498 / 62551188
+distance Davis_H_ICSNL61 to St'át'imcets = 204210024 / 323761760
+distance Davis_H_ICSNL61 to nɬeʔkepmxcín = 517866016 / 688444372
+distance Davis_H_ICSNL61 midpoint = 11304752 / 37545360
+distance Davis_Matthewson_2003 to Comox = 38069088 / 52330432
+distance Davis_Matthewson_2003 to Lushootseed = 13647644 / 16588264
+distance Davis_Matthewson_2003 to Nsyilxcən = 193778024 / 233667280
+distance Davis_Matthewson_2003 to Nuxalk = 12492592 / 15562008
+distance Davis_Matthewson_2003 to St'át'imcets = 47828336 / 80548160
+distance Davis_Matthewson_2003 to nɬeʔkepmxcín = 145498232 / 171276952
+distance Davis_Matthewson_2003 midpoint = 885640 / 2293416
+distance Davis_Matthewson_Rullmann_2007 to Comox = 91467760 / 120243488
+distance Davis_Matthewson_Rullmann_2007 to Lushootseed = 32241374 / 38116076
+distance Davis_Matthewson_Rullmann_2007 to Nsyilxcən = 449428392 / 536914520
+distance Davis_Matthewson_Rullmann_2007 to Nuxalk = 28611768 / 35757972
+distance Davis_Matthewson_Rullmann_2007 to St'át'imcets = 110716940 / 185081440
+distance Davis_Matthewson_Rullmann_2007 to nɬeʔkepmxcín = 339597052 / 393555668
+distance Davis_Matthewson_Rullmann_2007 midpoint = 3530892 / 12269600
+distance Dominick_et_al_ICSNL61 to Comox = 49429744 / 67476160
+distance Dominick_et_al_ICSNL61 to Lushootseed = 16295284 / 21389320
+distance Dominick_et_al_ICSNL61 to Nsyilxcən = 213515220 / 301296400
+distance Dominick_et_al_ICSNL61 to Nuxalk = 15292142 / 20066040
+distance Dominick_et_al_ICSNL61 to St'át'imcets = 80285720 / 103860800
+distance Dominick_et_al_ICSNL61 to nɬeʔkepmxcín = 165664078 / 220848760
+distance Dominick_et_al_ICSNL61 midpoint = 1251790 / 3832950
+distance Gerdts_Kiyosawa_2007 to Comox = 78951264 / 101020064
+distance Gerdts_Kiyosawa_2007 to Lushootseed = 24811902 / 32022428
+distance Gerdts_Kiyosawa_2007 to Nsyilxcən = 361415116 / 451077560
+distance Gerdts_Kiyosawa_2007 to Nuxalk = 23629804 / 30041316
+distance Gerdts_Kiyosawa_2007 to St'át'imcets = 116345852 / 155492320
+distance Gerdts_Kiyosawa_2007 to nɬeʔkepmxcín = 276254434 / 330637604
+distance Gerdts_Kiyosawa_2007 midpoint = 3665364 / 8659664
+distance HDavisMellesmoen_2019_ICSNL to Comox = 73465070 / 101092880
+distance HDavisMellesmoen_2019_ICSNL to Lushootseed = 23497924 / 32045510
+distance HDavisMellesmoen_2019_ICSNL to Nsyilxcən = 285014510 / 451402700
+distance HDavisMellesmoen_2019_ICSNL to Nuxalk = 22170426 / 30062970
+distance HDavisMellesmoen_2019_ICSNL to St'át'imcets = 115448620 / 155604400
+distance HDavisMellesmoen_2019_ICSNL to nɬeʔkepmxcín = 225382356 / 330875930
+distance HDavisMellesmoen_2019_ICSNL midpoint = 3161248 / 8673068
+distance HDavis_2019_ICSNL to Comox = 65297876 / 94709344
+distance HDavis_2019_ICSNL to Lushootseed = 24483598 / 30021988
+distance HDavis_2019_ICSNL to Nsyilxcən = 327208276 / 422898760
+distance HDavis_2019_ICSNL to Nuxalk = 22173472 / 28164636
+distance HDavis_2019_ICSNL to St'át'imcets = 58982820 / 145778720
+distance HDavis_2019_ICSNL to nɬeʔkepmxcín = 250137414 / 309982684
+distance HDavis_2019_ICSNL midpoint = 2843264 / 7567200
+distance Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 to Comox = 150017440 / 183399232
+distance Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 to Lushootseed = 44561538 / 58135864
+distance Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 to Nsyilxcən = 605711852 / 818919280
+distance Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 to Nuxalk = 44850930 / 54539208
+distance Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 to St'át'imcets = 221208408 / 282292160
+distance Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 to nɬeʔkepmxcín = 402034070 / 600263752
+distance Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 midpoint = 12335488 / 28461696
+distance Hall-et-al.-ICSNL_61-1 to Comox = 50974200 / 62621760
+distance Hall-et-al.-ICSNL_61-1 to Lushootseed = 16023206 / 19850520
+distance Hall-et-al.-ICSNL_61-1 to Nsyilxcən = 216165640 / 279620400
+distance Hall-et-al.-ICSNL_61-1 to Nuxalk = 15438162 / 18622440
+distance Hall-et-al.-ICSNL_61-1 to St'át'imcets = 75604280 / 96388800
+distance Hall-et-al.-ICSNL_61-1 to nɬeʔkepmxcín = 156520208 / 204960360
+distance Hall-et-al_-ICSNL_61-1 to Comox = 50974200 / 62621760
+distance Hall-et-al_-ICSNL_61-1 to Lushootseed = 16023206 / 19850520
+distance Hall-et-al_-ICSNL_61-1 to Nsyilxcən = 216165640 / 279620400
+distance Hall-et-al_-ICSNL_61-1 to Nuxalk = 15438162 / 18622440
+distance Hall-et-al_-ICSNL_61-1 to St'át'imcets = 75604280 / 96388800
+distance Hall-et-al_-ICSNL_61-1 to nɬeʔkepmxcín = 156520208 / 204960360
+distance HannonICSNL60 to Comox = 119580358 / 150899024
+distance HannonICSNL60 to Lushootseed = 36265220 / 47833598
+distance HannonICSNL60 to Nsyilxcən = 428134456 / 673798460
+distance HannonICSNL60 to Nuxalk = 35461744 / 44874306
+distance HannonICSNL60 to St'át'imcets = 175348880 / 232267120
+distance HannonICSNL60 to nɬeʔkepmxcín = 270394806 / 493890914
+distance HannonICSNL60 midpoint = 6311564 / 19096380
+distance ICSNL56_DavisJ_1_final to Comox = 35697764 / 68811120
+distance ICSNL56_DavisJ_1_final to Lushootseed = 17896754 / 21812490
+distance ICSNL56_DavisJ_1_final to Nsyilxcən = 233170790 / 307257300
+distance ICSNL56_DavisJ_1_final to Nuxalk = 15590682 / 20463030
+distance ICSNL56_DavisJ_1_final to St'át'imcets = 78521750 / 105915600
+distance ICSNL56_DavisJ_1_final to nɬeʔkepmxcín = 172144502 / 225218070
+distance ICSNL56_DavisJ_1_final midpoint = 1339394 / 4017772
+distance ICSNL56_Huijsmans_Mellesmoen_final to Comox = 107744160 / 139224192
+distance ICSNL56_Huijsmans_Mellesmoen_final to Lushootseed = 28893312 / 44132784
+distance ICSNL56_Huijsmans_Mellesmoen_final to Nsyilxcən = 394380700 / 621667680
+distance ICSNL56_Huijsmans_Mellesmoen_final to Nuxalk = 31423230 / 41402448
+distance ICSNL56_Huijsmans_Mellesmoen_final to St'át'imcets = 177763584 / 214296960
+distance ICSNL56_Huijsmans_Mellesmoen_final to nɬeʔkepmxcín = 314108280 / 455679312
+distance ICSNL56_Huijsmans_Mellesmoen_final midpoint = 5837070 / 16344126
+distance ICSNL56_Reisinger_Huijsmans_v1.2-1 to Comox = 470443100 / 618207840
+distance ICSNL56_Reisinger_Huijsmans_v1.2-1 to Lushootseed = 138369978 / 195966180
+distance ICSNL56_Reisinger_Huijsmans_v1.2-1 to Nsyilxcən = 1786123380 / 2760438600
+distance ICSNL56_Reisinger_Huijsmans_v1.2-1 to Nuxalk = 140151114 / 183842460
+distance ICSNL56_Reisinger_Huijsmans_v1.2-1 to St'át'imcets = 785703760 / 951559200
+distance ICSNL56_Reisinger_Huijsmans_v1.2-1 to nɬeʔkepmxcín = 1397916748 / 2023387740
+distance ICSNL56_Reisinger_Huijsmans_v1.2-1 midpoint = 70366060 / 324111232
+distance ICSNL57_Francis_et_al to Comox = 37431284 / 49830416
+distance ICSNL57_Francis_et_al to Lushootseed = 11500530 / 15795782
+distance ICSNL57_Francis_et_al to Nsyilxcən = 147748592 / 222504140
+distance ICSNL57_Francis_et_al to Nuxalk = 11167310 / 14818554
+distance ICSNL57_Francis_et_al to St'át'imcets = 68477080 / 76700080
+distance ICSNL57_Francis_et_al to nɬeʔkepmxcín = 115346314 / 163094426
+distance ICSNL57_Francis_et_al midpoint = 562052 / 2038584
+distance ICSNL57_Reisinger_Griffin to Comox = 183444900 / 257525920
+distance ICSNL57_Reisinger_Griffin to Lushootseed = 57729410 / 81633340
+distance ICSNL57_Reisinger_Griffin to Nsyilxcən = 811351980 / 1149911800
+distance ICSNL57_Reisinger_Griffin to Nuxalk = 56512510 / 76582980
+distance ICSNL57_Reisinger_Griffin to St'át'imcets = 286414300 / 396389600
+distance ICSNL57_Reisinger_Griffin to nɬeʔkepmxcín = 628639260 / 842879620
+distance ICSNL57_Reisinger_Griffin midpoint = 18903472 / 51737922
+distance ICSNL58_Davis_Mellesmoen_final to Comox = 165863944 / 219321792
+distance ICSNL58_Davis_Mellesmoen_final to Lushootseed = 45726670 / 69522984
+distance ICSNL58_Davis_Mellesmoen_final to Nsyilxcən = 606500936 / 979321680
+distance ICSNL58_Davis_Mellesmoen_final to Nuxalk = 47422512 / 65221848
+distance ICSNL58_Davis_Mellesmoen_final to St'át'imcets = 233610256 / 337584960
+distance ICSNL58_Davis_Mellesmoen_final to nɬeʔkepmxcín = 435492740 / 717837912
+distance ICSNL58_Davis_Mellesmoen_final midpoint = 12861512 / 40819648
+distance ICSNL58_Davis_Trotter_final to Comox = 58845504 / 75291744
+distance ICSNL58_Davis_Trotter_final to Lushootseed = 17343450 / 23866788
+distance ICSNL58_Davis_Trotter_final to Nsyilxcən = 230570068 / 336194760
+distance ICSNL58_Davis_Trotter_final to Nuxalk = 17466762 / 22390236
+distance ICSNL58_Davis_Trotter_final to St'át'imcets = 88257584 / 115890720
+distance ICSNL58_Davis_Trotter_final to nɬeʔkepmxcín = 177062314 / 246429084
+distance ICSNL58_Davis_Trotter_final midpoint = 1573964 / 4789984
+distance ICSNL58_Givens_Hall_final to Comox = 79837456 / 107088064
+distance ICSNL58_Givens_Hall_final to Lushootseed = 26224112 / 33945928
+distance ICSNL58_Givens_Hall_final to Nsyilxcən = 312129680 / 478172560
+distance ICSNL58_Givens_Hall_final to Nuxalk = 24550044 / 31845816
+distance ICSNL58_Givens_Hall_final to St'át'imcets = 126518600 / 164832320
+distance ICSNL58_Givens_Hall_final to nɬeʔkepmxcín = 142783316 / 350498104
+distance ICSNL58_Givens_Hall_final midpoint = 2455124 / 8843094
+distance ICSNL58_Hannon_Smith_final to Comox = 100503744 / 149806784
+distance ICSNL58_Hannon_Smith_final to Lushootseed = 36116072 / 47487368
+distance ICSNL58_Hannon_Smith_final to Nsyilxcən = 438771620 / 668921360
+distance ICSNL58_Hannon_Smith_final to Nuxalk = 34835464 / 44549496
+distance ICSNL58_Hannon_Smith_final to St'át'imcets = 158160552 / 230585920
+distance ICSNL58_Hannon_Smith_final to nɬeʔkepmxcín = 230323696 / 490316024
+distance ICSNL58_Hannon_Smith_final midpoint = 7062738 / 19044054
+distance ICSNL58_Hannon_Stacey_Steiner_final to Comox = 286896560 / 405730752
+distance ICSNL58_Hannon_Stacey_Steiner_final to Lushootseed = 98551482 / 128612904
+distance ICSNL58_Hannon_Stacey_Steiner_final to Nsyilxcən = 1150721516 / 1811680080
+distance ICSNL58_Hannon_Stacey_Steiner_final to Nuxalk = 94274574 / 120656088
+distance ICSNL58_Hannon_Stacey_Steiner_final to St'át'imcets = 464022376 / 624509760
+distance ICSNL58_Hannon_Stacey_Steiner_final to nɬeʔkepmxcín = 525017576 / 1327952472
+distance ICSNL58_Hannon_Stacey_Steiner_final midpoint = 33413320 / 139688128
+distance ICSNL58_Huijsmans_final2 to Comox = 166819688 / 208035312
+distance ICSNL58_Huijsmans_final2 to Lushootseed = 47649116 / 65945274
+distance ICSNL58_Huijsmans_final2 to Nsyilxcən = 648756240 / 928924980
+distance ICSNL58_Huijsmans_final2 to Nuxalk = 44708538 / 61865478
+distance ICSNL58_Huijsmans_final2 to St'át'imcets = 268432822 / 320212560
+distance ICSNL58_Huijsmans_final2 to nɬeʔkepmxcín = 523709906 / 680897382
+distance ICSNL58_Huijsmans_final2 midpoint = 12701658 / 36701496
+distance ICSNL58_Khalaji_final to Comox = 55136602 / 78956816
+distance ICSNL58_Khalaji_final to Lushootseed = 18008402 / 25028582
+distance ICSNL58_Khalaji_final to Nsyilxcən = 221180256 / 352560140
+distance ICSNL58_Khalaji_final to Nuxalk = 17051404 / 23480154
+distance ICSNL58_Khalaji_final to St'át'imcets = 83781700 / 121532080
+distance ICSNL58_Khalaji_final to nɬeʔkepmxcín = 142525592 / 258424826
+distance ICSNL58_Khalaji_final midpoint = 1871006 / 5283192
+distance ICSNL58_Lyon_final to Comox = 262361424 / 355244992
+distance ICSNL58_Lyon_final to Lushootseed = 76185816 / 112609384
+distance ICSNL58_Lyon_final to Nsyilxcən = 700341864 / 1586249680
+distance ICSNL58_Lyon_final to Nuxalk = 78188518 / 105642648
+distance ICSNL58_Lyon_final to St'át'imcets = 394123840 / 546800960
+distance ICSNL58_Lyon_final to nɬeʔkepmxcín = 636401314 / 1162713112
+distance ICSNL58_Lyon_final midpoint = 23530108 / 106755126
+distance ICSNL58_Matthewson_final to Comox = 140632928 / 193593472
+distance ICSNL58_Matthewson_final to Lushootseed = 46085024 / 61367344
+distance ICSNL58_Matthewson_final to Nsyilxcən = 522437396 / 864438880
+distance ICSNL58_Matthewson_final to Nuxalk = 45125400 / 57570768
+distance ICSNL58_Matthewson_final to St'át'imcets = 229665184 / 297983360
+distance ICSNL58_Matthewson_final to nɬeʔkepmxcín = 259624948 / 633629392
+distance ICSNL58_Matthewson_final midpoint = 9503010 / 31612350
+distance ICSNL59_Hall__Phillips_final to Comox = 513691248 / 687528672
+distance ICSNL59_Hall__Phillips_final to Lushootseed = 165332878 / 217940244
+distance ICSNL59_Hall__Phillips_final to Nsyilxcən = 1919730924 / 3069971880
+distance ICSNL59_Hall__Phillips_final to Nuxalk = 154627716 / 204457068
+distance ICSNL59_Hall__Phillips_final to St'át'imcets = 801487996 / 1058259360
+distance ICSNL59_Hall__Phillips_final to nɬeʔkepmxcín = 774038890 / 2250274092
+distance ICSNL59_Hall__Phillips_final midpoint = 75912558 / 388399570
+distance ICSNL59_Hannon_final to Comox = 106425182 / 140704784
+distance ICSNL59_Hannon_final to Lushootseed = 33009778 / 44602118
+distance ICSNL59_Hannon_final to Nsyilxcən = 377597180 / 628278860
+distance ICSNL59_Hannon_final to Nuxalk = 32700484 / 41842746
+distance ICSNL59_Hannon_final to St'át'imcets = 163984402 / 216575920
+distance ICSNL59_Hannon_final to nɬeʔkepmxcín = 230376080 / 460525274
+distance ICSNL59_Hannon_final midpoint = 4518312 / 16763684
+distance ICSNL59_Huijsmans_McCarthy_final to Comox = 169203500 / 231409248
+distance ICSNL59_Huijsmans_McCarthy_final to Lushootseed = 46549826 / 73354596
+distance ICSNL59_Huijsmans_McCarthy_final to Nsyilxcən = 612971608 / 1033294920
+distance ICSNL59_Huijsmans_McCarthy_final to Nuxalk = 50660790 / 68816412
+distance ICSNL59_Huijsmans_McCarthy_final to St'át'imcets = 279565008 / 356190240
+distance ICSNL59_Huijsmans_McCarthy_final to nɬeʔkepmxcín = 506333154 / 757400028
+distance ICSNL59_Huijsmans_McCarthy_final midpoint = 17217936 / 45122146
+distance ICSNL59_Lyon_final to Comox = 277300786 / 361531440
+distance ICSNL59_Lyon_final to Lushootseed = 80719276 / 114602130
+distance ICSNL59_Lyon_final to Nsyilxcən = 763215660 / 1614320100
+distance ICSNL59_Lyon_final to Nuxalk = 76336362 / 107512110
+distance ICSNL59_Lyon_final to St'át'imcets = 412114700 / 556477200
+distance ICSNL59_Lyon_final to nɬeʔkepmxcín = 665680494 / 1183288590
+distance ICSNL59_Lyon_final midpoint = 20661516 / 110915892
+distance ICSNL59_Mellesmoen_Urbanczyk_final to Comox = 37308256 / 50995472
+distance ICSNL59_Mellesmoen_Urbanczyk_final to Lushootseed = 11012836 / 16165094
+distance ICSNL59_Mellesmoen_Urbanczyk_final to Nsyilxcən = 160243620 / 227706380
+distance ICSNL59_Mellesmoen_Urbanczyk_final to Nuxalk = 10923524 / 15165018
+distance ICSNL59_Mellesmoen_Urbanczyk_final to St'át'imcets = 54875538 / 78493360
+distance ICSNL59_Mellesmoen_Urbanczyk_final to nɬeʔkepmxcín = 115591036 / 166907642
+distance ICSNL59_Mellesmoen_Urbanczyk_final midpoint = 953810 / 2186900
+distance ICSNL59_Nater_1_final to Comox = 213047640 / 250535584
+distance ICSNL59_Nater_1_final to Lushootseed = 65089588 / 79417468
+distance ICSNL59_Nater_1_final to Nsyilxcən = 883755400 / 1118698360
+distance ICSNL59_Nater_1_final to Nuxalk = 44716844 / 74504196
+distance ICSNL59_Nater_1_final to St'át'imcets = 312761148 / 385629920
+distance ICSNL59_Nater_1_final to nɬeʔkepmxcín = 675752702 / 820000324
+distance ICSNL59_Nater_1_final midpoint = 10395126 / 53271042
+distance ICSNL59_Nater_2_final to Comox = 44949426 / 56675120
+distance ICSNL59_Nater_2_final to Lushootseed = 15520364 / 17965490
+distance ICSNL59_Nater_2_final to Nsyilxcən = 195537520 / 253067300
+distance ICSNL59_Nater_2_final to Nuxalk = 12353340 / 16854030
+distance ICSNL59_Nater_2_final to St'át'imcets = 70334870 / 87235600
+distance ICSNL59_Nater_2_final to nɬeʔkepmxcín = 142885006 / 185497070
+distance ICSNL59_Nater_2_final midpoint = 1288442 / 2655048
+distance ICSNL59_Reisinger_final to Comox = 50068288 / 69709184
+distance ICSNL59_Reisinger_final to Lushootseed = 14815066 / 22097168
+distance ICSNL59_Reisinger_final to Nsyilxcən = 193999004 / 311267360
+distance ICSNL59_Reisinger_final to Nuxalk = 15142760 / 20730096
+distance ICSNL59_Reisinger_final to St'át'imcets = 85032096 / 107297920
+distance ICSNL59_Reisinger_final to nɬeʔkepmxcín = 163103584 / 228157424
+distance ICSNL59_Reisinger_final midpoint = 1941672 / 4077984
+distance ICSNL59_Thompson_final to Comox = 51559860 / 62476128
+distance ICSNL59_Thompson_final to Lushootseed = 13202616 / 19804356
+distance ICSNL59_Thompson_final to Nsyilxcən = 178472944 / 278970120
+distance ICSNL59_Thompson_final to Nuxalk = 15543558 / 18579132
+distance ICSNL59_Thompson_final to St'át'imcets = 76323008 / 96164640
+distance ICSNL59_Thompson_final to nɬeʔkepmxcín = 138812168 / 204483708
+distance ICSNL59_Thompson_final midpoint = 1363416 / 3312720
+distance Kelly_Huijsmans_McCarthy_ICSNL61-1 to Comox = 43271244 / 57306192
+distance Kelly_Huijsmans_McCarthy_ICSNL61-1 to Lushootseed = 12264646 / 18165534
+distance Kelly_Huijsmans_McCarthy_ICSNL61-1 to Nsyilxcən = 161141086 / 255885180
+distance Kelly_Huijsmans_McCarthy_ICSNL61-1 to Nuxalk = 12479736 / 17041698
+distance Kelly_Huijsmans_McCarthy_ICSNL61-1 to St'át'imcets = 70946918 / 88206960
+distance Kelly_Huijsmans_McCarthy_ICSNL61-1 to nɬeʔkepmxcín = 128134606 / 187562562
+distance Kelly_Huijsmans_McCarthy_ICSNL61-1 midpoint = 1204534 / 2784196
+distance LouieICSNL60 to Comox = 130027584 / 176214720
+distance LouieICSNL60 to Lushootseed = 37703964 / 55858440
+distance LouieICSNL60 to Nsyilxcən = 459766560 / 786838800
+distance LouieICSNL60 to Nuxalk = 38039754 / 52402680
+distance LouieICSNL60 to St'át'imcets = 220729280 / 271233600
+distance LouieICSNL60 to nɬeʔkepmxcín = 383666602 / 576748920
+distance LouieICSNL60 midpoint = 8964416 / 23871808
+distance LyonICSNL60_CS to Comox = 160216120 / 220826656
+distance LyonICSNL60_CS to Lushootseed = 49650464 / 70000012
+distance LyonICSNL60_CS to Nsyilxcən = 574188716 / 986041240
+distance LyonICSNL60_CS to Nuxalk = 47382970 / 65669364
+distance LyonICSNL60_CS to St'át'imcets = 238881932 / 339901280
+distance LyonICSNL60_CS to nɬeʔkepmxcín = 479934700 / 722763316
+distance LyonICSNL60_CS midpoint = 19817076 / 41216274
+distance LyonICSNL60_Inch-2 to Comox = 113239228 / 146748512
+distance LyonICSNL60_Inch-2 to Lushootseed = 33537416 / 46517924
+distance LyonICSNL60_Inch-2 to Nsyilxcən = 418299616 / 655265480
+distance LyonICSNL60_Inch-2 to Nuxalk = 32645752 / 43640028
+distance LyonICSNL60_Inch-2 to St'át'imcets = 176025508 / 225878560
+distance LyonICSNL60_Inch-2 to nɬeʔkepmxcín = 330134508 / 480306332
+distance LyonICSNL60_Inch-2 midpoint = 6316154 / 17103546
+distance Lyon_ICSNL61-1 to Comox = 306104540 / 395123888
+distance Lyon_ICSNL61-1 to Lushootseed = 85675702 / 125250626
+distance Lyon_ICSNL61-1 to Nsyilxcən = 803004118 / 1764318020
+distance Lyon_ICSNL61-1 to Nuxalk = 81146360 / 117501822
+distance Lyon_ICSNL61-1 to St'át'imcets = 451235782 / 608183440
+distance Lyon_ICSNL61-1 to nɬeʔkepmxcín = 747460762 / 1293236318
+distance Lyon_ICSNL61-1 midpoint = 27770236 / 132441320
+distance Matthewson_Rullmann_Davis_2006 to Comox = 69942410 / 99102576
+distance Matthewson_Rullmann_Davis_2006 to Lushootseed = 26328500 / 31414602
+distance Matthewson_Rullmann_Davis_2006 to Nsyilxcən = 363477448 / 442515540
+distance Matthewson_Rullmann_Davis_2006 to Nuxalk = 23626188 / 29471094
+distance Matthewson_Rullmann_Davis_2006 to St'át'imcets = 92290828 / 152540880
+distance Matthewson_Rullmann_Davis_2006 to nɬeʔkepmxcín = 277567500 / 324361686
+distance Matthewson_Rullmann_Davis_2006 midpoint = 2775736 / 8334760
+distance MellesmoenICSNL60_BCHk to Comox = 60406688 / 78956816
+distance MellesmoenICSNL60_BCHk to Lushootseed = 18540936 / 25028582
+distance MellesmoenICSNL60_BCHk to Nsyilxcən = 234992350 / 352560140
+distance MellesmoenICSNL60_BCHk to Nuxalk = 18585814 / 23480154
+distance MellesmoenICSNL60_BCHk to St'át'imcets = 95896070 / 121532080
+distance MellesmoenICSNL60_BCHk to nɬeʔkepmxcín = 182968770 / 258424826
+distance MellesmoenICSNL60_BCHk midpoint = 2811446 / 5286864
+distance Mellesmoen_Kye_ICSNL61 to Comox = 112100024 / 139127104
+distance Mellesmoen_Kye_ICSNL61 to Lushootseed = 20612644 / 44102008
+distance Mellesmoen_Kye_ICSNL61 to Nsyilxcən = 395473148 / 621234160
+distance Mellesmoen_Kye_ICSNL61 to Nuxalk = 32675436 / 41373576
+distance Mellesmoen_Kye_ICSNL61 to St'át'imcets = 164704944 / 214147520
+distance Mellesmoen_Kye_ICSNL61 to nɬeʔkepmxcín = 311445640 / 455361544
+distance Mellesmoen_Kye_ICSNL61 midpoint = 6646260 / 16103094
+distance Mellesmoen_ThirdPersonObject_final to Comox = 43269400 / 50704208
+distance Mellesmoen_ThirdPersonObject_final to Lushootseed = 12253528 / 16072766
+distance Mellesmoen_ThirdPersonObject_final to Nsyilxcən = 169572216 / 226405820
+distance Mellesmoen_ThirdPersonObject_final to Nuxalk = 11692294 / 15078402
+distance Mellesmoen_ThirdPersonObject_final to St'át'imcets = 66808256 / 78045040
+distance Mellesmoen_ThirdPersonObject_final to nɬeʔkepmxcín = 125464194 / 165954338
+distance Mellesmoen_ThirdPersonObject_final midpoint = 1036004 / 2179716
+distance MichelletalICSNL60 to Comox = 116012150 / 172598192
+distance MichelletalICSNL60 to Lushootseed = 41814948 / 54712034
+distance MichelletalICSNL60 to Nsyilxcən = 442861376 / 770690180
+distance MichelletalICSNL60 to Nuxalk = 39036786 / 51327198
+distance MichelletalICSNL60 to St'át'imcets = 206899092 / 265666960
+distance MichelletalICSNL60 to nɬeʔkepmxcín = 224685872 / 564912062
+distance MichelletalICSNL60 midpoint = 5976796 / 24055416
+distance Nater-final to Comox = 44124780 / 57354736
+distance Nater-final to Lushootseed = 15017224 / 18180922
+distance Nater-final to Nsyilxcən = 199589400 / 256101940
+distance Nater-final to Nuxalk = 11376026 / 17056134
+distance Nater-final to St'át'imcets = 67115998 / 88281680
+distance Nater-final to nɬeʔkepmxcín = 154128990 / 187721446
+distance Nater-final midpoint = 1546996 / 2791872
+distance Phillips_et_al_ICSNL61-1 to Comox = 216874058 / 297162096
+distance Phillips_et_al_ICSNL61-1 to Lushootseed = 74618440 / 94197642
+distance Phillips_et_al_ICSNL61-1 to Nsyilxcən = 921166996 / 1326896340
+distance Phillips_et_al_ICSNL61-1 to Nuxalk = 70431216 / 88369974
+distance Phillips_et_al_ICSNL61-1 to St'át'imcets = 347374168 / 457398480
+distance Phillips_et_al_ICSNL61-1 to nɬeʔkepmxcín = 392064530 / 972608406
+distance Phillips_et_al_ICSNL61-1 midpoint = 16595392 / 74027512
+distance ReisingerHuijsmans_2019_ICSNL to Comox = 48579318 / 61141168
+distance ReisingerHuijsmans_2019_ICSNL to Lushootseed = 14242386 / 19381186
+distance ReisingerHuijsmans_2019_ICSNL to Nsyilxcən = 184955552 / 273009220
+distance ReisingerHuijsmans_2019_ICSNL to Nuxalk = 13846960 / 18182142
+distance ReisingerHuijsmans_2019_ICSNL to St'át'imcets = 72525800 / 94109840
+distance ReisingerHuijsmans_2019_ICSNL to nɬeʔkepmxcín = 141771982 / 200114398
+distance ReisingerHuijsmans_2019_ICSNL midpoint = 1147202 / 3172316
+distance Reisinger_ICSNL61-1 to Comox = 249746252 / 359395504
+distance Reisinger_ICSNL61-1 to Lushootseed = 76137750 / 113925058
+distance Reisinger_ICSNL61-1 to Nsyilxcən = 970154948 / 1604782660
+distance Reisinger_ICSNL61-1 to Nuxalk = 75950104 / 106876926
+distance Reisinger_ICSNL61-1 to St'át'imcets = 417547932 / 553189520
+distance Reisinger_ICSNL61-1 to nɬeʔkepmxcín = 787341132 / 1176297694
+distance Reisinger_ICSNL61-1 midpoint = 20373872 / 109347600
+distance SchneiderGriffinICSNL60 to Comox = 66685024 / 95534592
+distance SchneiderGriffinICSNL60 to Lushootseed = 19840280 / 30283584
+distance SchneiderGriffinICSNL60 to Nsyilxcən = 255866284 / 426583680
+distance SchneiderGriffinICSNL60 to Nuxalk = 21030120 / 28410048
+distance SchneiderGriffinICSNL60 to St'át'imcets = 110717184 / 147048960
+distance SchneiderGriffinICSNL60 to nɬeʔkepmxcín = 195850434 / 312683712
+distance SchneiderGriffinICSNL60 midpoint = 3600984 / 7619040
+distance Steiner_ICSNL61-1 to Comox = 201695792 / 245341376
+distance Steiner_ICSNL61-1 to Lushootseed = 59730438 / 77770952
+distance Steiner_ICSNL61-1 to Nsyilxcən = 696296904 / 1095505040
+distance Steiner_ICSNL61-1 to Nuxalk = 57424840 / 72959544
+distance Steiner_ICSNL61-1 to St'át'imcets = 294391888 / 377634880
+distance Steiner_ICSNL61-1 to nɬeʔkepmxcín = 457985556 / 802999736
+distance Steiner_ICSNL61-1 midpoint = 17780876 / 51077640
+distance Steiner_Matthewson_ICSNL61-1 to Comox = 282444200 / 364371264
+distance Steiner_Matthewson_ICSNL61-1 to Lushootseed = 86063612 / 115502328
+distance Steiner_Matthewson_ICSNL61-1 to Nsyilxcən = 1050856508 / 1627000560
+distance Steiner_Matthewson_ICSNL61-1 to Nuxalk = 83241234 / 108356616
+distance Steiner_Matthewson_ICSNL61-1 to St'át'imcets = 426030680 / 560848320
+distance Steiner_Matthewson_ICSNL61-1 to nɬeʔkepmxcín = 490102714 / 1192583304
+distance Steiner_Matthewson_ICSNL61-1 midpoint = 28188544 / 112620904
+distance Trotter_ICSNL to Comox = 48436468 / 60655728
+distance Trotter_ICSNL to Lushootseed = 13205716 / 19227306
+distance Trotter_ICSNL to Nsyilxcən = 175184206 / 270841620
+distance Trotter_ICSNL to Nuxalk = 13731756 / 18037782
+distance Trotter_ICSNL to St'át'imcets = 77206992 / 93362640
+distance Trotter_ICSNL to nɬeʔkepmxcín = 143394692 / 198525558
+distance Trotter_ICSNL midpoint = 1389164 / 3052936
+distance cusinek_et_al_ICSNL61 to Comox = 277128268 / 365876128
+distance cusinek_et_al_ICSNL61 to Lushootseed = 88813840 / 115979356
+distance cusinek_et_al_ICSNL61 to Nsyilxcən = 1002817188 / 1633720120
+distance cusinek_et_al_ICSNL61 to Nuxalk = 84853458 / 108804132
+distance cusinek_et_al_ICSNL61 to St'át'imcets = 430916656 / 563164640
+distance cusinek_et_al_ICSNL61 to nɬeʔkepmxcín = 418745720 / 1197508708
+distance cusinek_et_al_ICSNL61 midpoint = 27566472 / 113300688
+distance icsnl2016 to Comox = 588663948 / 927020496
+distance icsnl2016 to Lushootseed = 196843556 / 293856942
+distance icsnl2016 to Nsyilxcən = 2367023236 / 4139357340
+distance icsnl2016 to Nuxalk = 200119152 / 275677074
+distance icsnl2016 to St'át'imcets = 628882082 / 1426890480
+distance icsnl2016 to nɬeʔkepmxcín = 1907979328 / 3034128306
+distance icsnl2016 midpoint = 427995252 / 722181940
+distance van-Eijk_SubObNPa_final to Comox = 52404840 / 75097568
+distance van-Eijk_SubObNPa_final to Lushootseed = 19610994 / 23805236
+distance van-Eijk_SubObNPa_final to Nsyilxcən = 255594892 / 335327720
+distance van-Eijk_SubObNPa_final to Nuxalk = 18018954 / 22332492
+distance van-Eijk_SubObNPa_final to St'át'imcets = 52966532 / 115591840
+distance van-Eijk_SubObNPa_final to nɬeʔkepmxcín = 200774590 / 245793548
+distance van-Eijk_SubObNPa_final midpoint = 1483536 / 4774866
+distance wlwlmelst-Janzen_ICSNL61 to Comox = 85526704 / 118641536
+distance wlwlmelst-Janzen_ICSNL61 to Lushootseed = 29293726 / 37608272
+distance wlwlmelst-Janzen_ICSNL61 to Nsyilxcən = 327263876 / 529761440
+distance wlwlmelst-Janzen_ICSNL61 to Nuxalk = 27897958 / 35281584
+distance wlwlmelst-Janzen_ICSNL61 to St'át'imcets = 150253824 / 182615680
+distance wlwlmelst-Janzen_ICSNL61 to nɬeʔkepmxcín = 197681494 / 388312496
+distance wlwlmelst-Janzen_ICSNL61 midpoint = 3043664 / 10286430
+ratio Comox midpoint to alternating = 1058537934768600 / 580090891564548
+ratio English midpoint to alternating = 4406578451913077376 / 1499909427688065600
+ratio Lushootseed midpoint to alternating = 29139855438232 / 13662046163280
+ratio Nsyilxcən midpoint to alternating = 332511136739604768 / 122231633594370552
+ratio Nuxalk midpoint to alternating = 10754134516800 / 8105607717480
+ratio St'át'imcets midpoint to alternating = 8319254895694416 / 3740317775776312
+ratio nɬeʔkepmxcín midpoint to alternating = 187719394118941440 / 49844126356375800
+verdict Comox to English midpoint 1 1 alternating 1 1
+verdict Comox to Lushootseed midpoint 1 1 alternating 1 1
+verdict Comox to Nsyilxcən midpoint 1 1 alternating 1 1
+verdict Comox to Nuxalk midpoint 1 1 alternating 1 1
+verdict Comox to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Comox to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict English to Lushootseed midpoint 1 1 alternating 1 1
+verdict English to Nsyilxcən midpoint 1 1 alternating 1 1
+verdict English to Nuxalk midpoint 1 1 alternating 1 1
+verdict English to St'át'imcets midpoint 1 1 alternating 1 1
+verdict English to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict Lushootseed to Nsyilxcən midpoint -1 1 alternating 1 1
+verdict Lushootseed to Nuxalk midpoint 1 1 alternating 1 1
+verdict Lushootseed to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Lushootseed to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict Nsyilxcən to Nuxalk midpoint 1 1 alternating 1 1
+verdict Nsyilxcən to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Nsyilxcən to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict Nuxalk to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Nuxalk to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict St'át'imcets to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+paper 01_ICSNL55_Beck_final says Lushootseed pairs 6603 held 1 nearest Lushootseed gap 652541380418628 / 36356655346593480 split 9559624 / 21777544 reads 0
+paper 03_ICSNL55_HDavis2_revised_final says St'át'imcets pairs 0 held 0
+paper 04_ICSNL55_HDavis1_final says St'át'imcets pairs 16698 held 1 nearest St'át'imcets gap 100443557079630336 / 252837416727751680 split 32825420 / 133405024 reads 1
+paper 05-DavisJ-ICSNL50_final-10 says Comox pairs 1125 held 0
+paper 05_ICSNL55_Davis_Griffin_Huijsmans_Mellesmoen_final says Comox pairs 6599 held 1 nearest Nsyilxcən gap 2936720219110208 / 374934645311251960 split 9068812 / 21772100 reads 0
+paper 06-Koch_ICSNL50_final-24 says nɬeʔkepmxcín pairs 929 held 0
+paper 07_ICSNL55_JDavis1_final says Comox pairs 3343 held 1 nearest Comox gap 528411327039312 / 29398655106984640 split 2959862 / 5587560 reads 0
+paper 08-vanEijk_ICSNL50_FINAL-10 says St'át'imcets pairs 590 held 0
+paper 08_ICSNL55_JDavis_2_final says Comox pairs 3005 held 1 nearest Comox gap 763288185418600 / 23754377985784000 split 2054520 / 4430552 reads 0
+paper 09-Crowgey_ICSNL50_final-6 says Lushootseed pairs 0 held 0
+paper 09_ICSNL55_Galligos_et_al._final says Comox pairs 1294 held 0
+paper 11-Nater-Complex-predicate-18 says Nuxalk pairs 1934 held 0
+paper 11_ICSNL55_Huijsmans_Reisinger_Matthewson_final says Comox pairs 4203 held 1 nearest Nsyilxcən gap 595837895563692 / 14730588873825480 split 2531528 / 8825284 reads 0
+paper 11_Reisinger-Modality-in-Comox-Sliammon says Comox pairs 2760 held 1 nearest Nsyilxcən gap 363996982737600 / 6352131684672000 split 1551450 / 3802750 reads 0
+paper 13_ICSNL55_Johnson_Barnes_Hardwick_final says Nsyilxcən pairs 10935 held 1 nearest Nsyilxcən gap 82172734126589700 / 1029524984825931000 split 12399276 / 59670468 reads 0
+paper 1967_Hess says Lushootseed pairs 142 held 0
+paper 1968_HessT says Lushootseed pairs 242 held 0
+paper 1969_AmossP says Lushootseed pairs 0 held 0
+paper 1969_HessT says Lushootseed pairs 372 held 0
+paper 1970_DavisJ says Comox pairs 914 held 0
+paper 1970_HoardJ says Lushootseed pairs 177 held 0
+paper 1971_Davis says Comox pairs 424 held 0
+paper 1972_DavisP_SaundersR says Nuxalk pairs 1113 held 0
+paper 1972_HessT says Lushootseed pairs 61 held 0
+paper 1973_Davis_P_Saunders_1 says Nuxalk pairs 3362 held 1 nearest Lushootseed gap 6874712058752 / 2110829541649792 split 1958244 / 5625984 reads 0
+paper 1973_Davis_P_Saunders_2 says Nuxalk pairs 460 held 0
+paper 1973_Hess says Lushootseed pairs 2222 held 1 nearest Lushootseed gap 206693219917536 / 1419211621266560 split 1318652 / 2446170 reads 0
+paper 1973_Ingram says Nuxalk pairs 439 held 0
+paper 1974_Davis_P_Saunders says Nuxalk pairs 2001 held 1 nearest Comox gap 8072779532580 / 701482140379296 split 636516 / 1876500 reads 0
+paper 1974_Hess says Lushootseed pairs 66 held 0
+paper 1974_Hilbert says Lushootseed pairs 996 held 0
+paper 1974_Hukari says Lushootseed pairs 761 held 0
+paper 1974_Mattina says Nsyilxcən pairs 18134 held 1 nearest Lushootseed gap 303928842700256 / 18262334048311152 split 42820670 / 164353266 reads 0
+paper 1974_Nater says Nuxalk pairs 347 held 0
+paper 1974_Saunders_Davis_P says Nuxalk pairs 460 held 0
+paper 1975_Davis_P_Saunders_0 says Nuxalk pairs 2793 held 1 nearest Nuxalk gap 15657121331208 / 433222427062908 split 1500508 / 3822412 reads 0
+paper 1975_Hilbert_Hess says Lushootseed pairs 825 held 0
+paper 1975_Hukari says Lushootseed pairs 1317 held 0
+paper 1975_Saunders_Davis_P_0 says Nuxalk pairs 317 held 0
+paper 1976_Davis_P_Saunders says Nuxalk pairs 2556 held 1 nearest Nuxalk gap 14009837833872 / 362819615435712 split 1017436 / 3266230 reads 0
+paper 1976_Hagege says Comox pairs 449 held 0
+paper 1976_Hilbert says Lushootseed pairs 0 held 0
+paper 1976_Mattina says Nsyilxcən pairs 350 held 0
+paper 1976_Saunders_Davis_P says Nuxalk pairs 3385 held 1 nearest Nuxalk gap 906590563180 / 636335871176700 split 2195010 / 5474928 reads 0
+paper 1976_Thompson_L_Thompson_M says nɬeʔkepmxcín pairs 133 held 0
+paper 1977_Davis_P_SaundersC says Nuxalk pairs 6963 held 1 nearest Nuxalk gap 1245210936024528 / 13074242490033120 split 5821006 / 24224572 reads 0
+paper 1977_Nater says Nuxalk pairs 2362 held 1 nearest Nuxalk gap 616944649664 / 309833837620848 split 1173524 / 2412810 reads 0
+paper 1977_VinkC says Nsyilxcən pairs 611 held 0
+paper 1978_Davis_Saunders says Nuxalk pairs 2062 held 1 nearest Nuxalk gap 5702174703672 / 236127398078448 split 740704 / 2074080 reads 0
+paper 1978_Hebert says Nsyilxcən pairs 403 held 0
+paper 1978_Mattina says Nsyilxcən pairs 235 held 0
+paper 1978_Mattina2 says Nsyilxcən pairs 2034 held 1 nearest Lushootseed gap 4765105497600 / 3449873938252320 split 957868 / 2057026 reads 0
+paper 1978_Montler says Nsyilxcən pairs 1117 held 0
+paper 1978_Nater_2 says Nuxalk pairs 234 held 0
+paper 1978_Nater_3 says Nuxalk pairs 129 held 0
+paper 1978_Saunders_Davis_P says Nuxalk pairs 1089 held 0
+paper 1979_Davis_P_SaundersW says Nuxalk pairs 1648 held 0
+paper 1979_HebertW says Nsyilxcən pairs 1435 held 0
+paper 1979_KinkadeW says Nuxalk pairs 134 held 0
+paper 1979_Mattina_1 says Nsyilxcən pairs 0 held 0
+paper 1979_Mattina_2 says Nsyilxcən pairs 1876 held 0
+paper 1980_Davis_P_Saunders says Nuxalk pairs 762 held 0
+paper 1980_Kaisse says Lushootseed pairs 305 held 0
+paper 1980_Kuipers says Lushootseed pairs 30 held 0
+paper 1980_Mattina_1 says Nsyilxcən pairs 1641 held 0
+paper 1980_Nater says Nuxalk pairs 29671 held 1 nearest St'át'imcets gap 5795188172993820 / 253059949280049440 split 127645254 / 439835508 reads 0
+paper 1980_vanEijk_1 says St'át'imcets pairs 601 held 0
+paper 1980_vanEijk_2 says St'át'imcets pairs 54 held 0
+paper 1981_Davis_P_Saunders says Nuxalk pairs 2210 held 1 nearest Nuxalk gap 69724846282000 / 1317068286768000 split 1141332 / 2398832 reads 0
+paper 1981_Egesdal says Nsyilxcən pairs 156 held 0
+paper 1981_vanEijk_2 says St'át'imcets pairs 190 held 0
+paper 1982_Galin says Lushootseed pairs 126 held 0
+paper 1982_Hess says Lushootseed pairs 61 held 0
+paper 1982_Jelinek_Demers says Nuxalk pairs 739 held 0
+paper 1982_vanEijk says St'át'imcets pairs 273 held 0
+paper 1983_Hilbert says Lushootseed pairs 1409 held 0
+paper 1983_Hymes_D says Nuxalk pairs 6892 held 1 nearest Nuxalk gap 701865552897088 / 12808972192734720 split 6385366 / 23748774 reads 0
+paper 1984_Galin says Lushootseed pairs 71 held 0
+paper 1984_Langen says Lushootseed pairs 0 held 0
+paper 1984_vanEijk says St'át'imcets pairs 54 held 0
+paper 1985_Hymes_D_2U says Lushootseed pairs 1141 held 0
+paper 1985_Langen says Lushootseed pairs 474 held 0
+paper 1985_Miller says Lushootseed pairs 177 held 0
+paper 1985_NaterU says Nuxalk pairs 582 held 0
+paper 1986_Hilbert says St'át'imcets pairs 2216 held 1 nearest Lushootseed gap 119914340917248 / 1411557460183040 split 1300196 / 2373720 reads 0
+paper 1986_vanEijk says St'át'imcets pairs 181 held 0
+paper 1987_HagiwaraU says Lushootseed pairs 151 held 0
+paper 1987_MattinaU says Nsyilxcən pairs 10 held 0
+paper 1987_Nater_2U says Nuxalk pairs 612 held 0
+paper 1989_Hagiwara says Lushootseed pairs 1396 held 0
+paper 1989_Nater says Nuxalk pairs 0 held 0
+paper 1989_Thompson_N says Lushootseed pairs 0 held 0
+paper 1990_Langen says Lushootseed pairs 0 held 0
+paper 1991_Kirkham says Lushootseed pairs 394 held 0
+paper 1991_Nater says Nuxalk pairs 132 held 0
+paper 1992_vanEijk says St'át'imcets pairs 8 held 0
+paper 1993_Egesdal_Thompson_M says St'át'imcets pairs 9 held 0
+paper 1993_Langen_Moses says Lushootseed pairs 715 held 0
+paper 1993_Matthewson_Davis-H_Gardiner says nɬeʔkepmxcín pairs 499 held 0
+paper 1993_Mattina-A says Nsyilxcən pairs 7107 held 1 nearest Nsyilxcən gap 7000489401428160 / 204516638126683200 split 9341910 / 24914412 reads 0
+paper 1993_Mattina-N says Nsyilxcən pairs 1795 held 0
+paper 1993_Roberts says St'át'imcets pairs 1325 held 0
+paper 1994_Mattina-A says Nsyilxcən pairs 6341 held 1 nearest Nsyilxcən gap 5835008358799920 / 162806417764980800 split 9805970 / 19803828 reads 0
+paper 1994_Mattina-N says Nsyilxcən pairs 226 held 0
+paper 1994_Watanabe says Comox pairs 1624 held 0
+paper 1995_Bianco says Lushootseed pairs 956 held 0
+paper 1995_Matthewson_Demirdache says St'át'imcets pairs 1386 held 0
+paper 1995_Shahin says St'át'imcets pairs 48 held 0
+paper 1995_Willet_CzaykowskaHiggins says Nuxalk pairs 868 held 0
+paper 1996_Beck says Lushootseed pairs 1060 held 0
+paper 1996_Davis-H says St'át'imcets pairs 2222 held 1 nearest St'át'imcets gap 31260361508992 / 1419211621266560 split 1133824 / 2414850 reads 0
+paper 1996_Davis-H_Matthewson says St'át'imcets pairs 6129 held 1 nearest St'át'imcets gap 3683492445467232 / 34063688582910720 split 6756062 / 18620440 reads 0
+paper 1996_Demirdache says St'át'imcets pairs 4303 held 1 nearest St'át'imcets gap 1318908202490112 / 16790171151553280 split 3428104 / 9232140 reads 0
+paper 1996_Demirdache_2 says St'át'imcets pairs 2655 held 1 nearest St'át'imcets gap 129226563518400 / 6392069404128000 split 1147230 / 3508132 reads 0
+paper 1996_Mattina-A says Nsyilxcən pairs 2619 held 1 nearest Nuxalk gap 15414053965092 / 1849672084301280 split 2164594 / 3401968 reads 0
+paper 1996_Shahin says St'át'imcets pairs 110 held 0
+paper 1996_Thompson_Armagost says Lushootseed pairs 356 held 0
+paper 1996_Urbanczyk says Lushootseed pairs 178 held 0
+paper 1996_Watanabe says Comox pairs 1403 held 0
+paper 1997_Bates says Lushootseed pairs 1785 held 0
+paper 1997_Blake says Comox pairs 3868 held 1 nearest Comox gap 36497715741184 / 13567048009134080 split 3118312 / 7450944 reads 0
+paper 1997_Brooks says Lushootseed pairs 2162 held 1 nearest St'át'imcets gap 9415665802368 / 4238613433748480 split 1083944 / 2332890 reads 0
+paper 1997_Davis-H_Lai_Matthewson says Lushootseed pairs 3238 held 1 nearest St'át'imcets gap 57938923853216 / 3013788270968960 split 2122990 / 5132810 reads 0
+paper 1997_Langen says Lushootseed pairs 624 held 0
+paper 1997_Mattina-A_Peterson-S says Nsyilxcən pairs 378 held 0
+paper 1997_Nater says Nuxalk pairs 0 held 0
+paper 1997_Watanabe says Comox pairs 648 held 0
+paper 1998_Beck says Nuxalk pairs 3435 held 1 nearest Nuxalk gap 110322763230600 / 3181831874028000 split 2131822 / 5623588 reads 0
+paper 1998_Bennett_Beck says Lushootseed pairs 3335 held 1 nearest Lushootseed gap 78471591881180 / 617676013064700 split 2319480 / 5533968 reads 0
+paper 1998_Cort says Lushootseed pairs 252 held 0
+paper 1998_Hess_Bates says Lushootseed pairs 970 held 0
+paper 1998_Hinkson says Nuxalk pairs 669 held 0
+paper 1998_Langen says Lushootseed pairs 841 held 0
+paper 1999_Bates says Lushootseed pairs 361 held 0
+paper 1999_Davis-H says St'át'imcets pairs 3163 held 1 nearest St'át'imcets gap 1193966516682304 / 9072162377972480 split 2303756 / 4958180 reads 0
+paper 1999_Langen says Lushootseed pairs 1689 held 0
+paper 1999_Matthewson says St'át'imcets pairs 11790 held 1 nearest St'át'imcets gap 19446497117280000 / 126049184767872000 split 17932900 / 69484000 reads 0
+paper 1999_Mattina-A says Nsyilxcən pairs 854 held 0
+paper 1999_Mattina-N says Nsyilxcən pairs 1716 held 0
+paper 1999_Thomason says Nsyilxcən pairs 7 held 0
+paper 1_Expressing-Future-Certainty-in-Comox says Comox pairs 1491 held 0
+paper 20-Lonsdale_ICSNL50_final-10 says Lushootseed pairs 0 held 0
+paper 2000_Barthmaier says Lushootseed pairs 1291 held 0
+paper 2000_Matthewson says St'át'imcets pairs 1959 held 0
+paper 2000_Mattina_A says Nsyilxcən pairs 505 held 0
+paper 2000_Mattina_N says Nsyilxcən pairs 842 held 0
+paper 2000_Werle says St'át'imcets pairs 1101 held 0
+paper 2001_Arregui_Matthewson says St'át'imcets pairs 2138 held 1 nearest St'át'imcets gap 255593130583808 / 4145031475604480 split 721548 / 2283344 reads 0
+paper 2001_Bates_Hess says Lushootseed pairs 568 held 0
+paper 2001_Lonsdale says Lushootseed pairs 129 held 0
+paper 2001_Mattina_A says Nsyilxcən pairs 1660 held 0
+paper 2002_Barthmaier says Nsyilxcən pairs 898 held 0
+paper 2002_Bates says Lushootseed pairs 105 held 0
+paper 2002_Lonsdale says Lushootseed pairs 824 held 0
+paper 2002_vanEijk says St'át'imcets pairs 0 held 0
+paper 2009_Bates_Lonsdale says Lushootseed pairs 12 held 0
+paper 2009_Lyon says Nsyilxcən pairs 2501 held 1 nearest Nsyilxcən gap 10935332664372104 / 53855082979723960 split 1115970 / 3127280 reads 0
+paper 2009_Matthewson says St'át'imcets pairs 7437 held 1 nearest St'át'imcets gap 12426989011240320 / 50154279282420480 split 5176938 / 27637740 reads 1
+paper 2010_Denzer-King says Nuxalk pairs 6 held 0
+paper 2010_vanEijk says St'át'imcets pairs 140 held 0
+paper 2011_Littell_Mackie says nɬeʔkepmxcín pairs 1669 held 0
+paper 2011_Lonsdale_Matsushita says Lushootseed pairs 173 held 0
+paper 2011_Lyon says Nsyilxcən pairs 9405 held 1 nearest St'át'imcets gap 6948866952324000 / 358157140494120000 split 11996838 / 44226928 reads 0
+paper 2011_van_Eijk says St'át'imcets pairs 1844 held 0
+paper 2012_Davis_H_vanEijk says St'át'imcets pairs 20 held 0
+paper 2012_Davis_J says Comox pairs 596 held 0
+paper 2012_Lindley_Lyon says Nsyilxcən pairs 40433 held 1 nearest Nsyilxcən gap 228125068514603560 / 6619542057712155200 split 124476664 / 805197120 reads 0
+paper 2013_Nater says Nuxalk pairs 33002 held 1 nearest Nuxalk gap 5632084787314032 / 190810803823853184 split 165405942 / 539822802 reads 0
+paper 2013_Palmer says Lushootseed pairs 0 held 0
+paper 2013_van_Eijk says St'át'imcets pairs 1203 held 0
+paper 21-Abraham_ICSNL50_final-4 says St'át'imcets pairs 1811 held 0
+paper 2_huijsmans_reisinger says Comox pairs 1986 held 0
+paper 5_Lyon-Davis_2018 says St'át'imcets pairs 25583 held 1 nearest St'át'imcets gap 193528355973037568 / 593492687965786880 split 71360900 / 257305980 reads 1
+paper 7_Mellesmoen_SV_ComoxSliammon says Comox pairs 2180 held 1 nearest Nsyilxcən gap 28507696936000 / 3717739978416000 split 1190442 / 2341878 reads 0
+paper 8_Mellesmoen_ICSNLinfixpaper says Comox pairs 2150 held 1 nearest Nsyilxcən gap 206337460972000 / 3854590515700000 split 1088652 / 2290848 reads 0
+paper 9_vestiges-of-tsimshianic says Nuxalk pairs 3128 held 1 nearest Nuxalk gap 58331746269440 / 1714178051057664 split 2455474 / 4886142 reads 0
+paper AlexanderLyonAndrew_Narrative_final says St'át'imcets pairs 5887 held 1 nearest St'át'imcets gap 8948070270913984 / 31426824670196480 split 3182510 / 17326644 reads 1
+paper Bates_2004 says Lushootseed pairs 5360 held 1 nearest Lushootseed gap 221343630545600 / 1595506725043200 split 3849694 / 14345198 reads 0
+paper Bates_2005 says Lushootseed pairs 1319 held 0
+paper Bates_Hess_2003 says Lushootseed pairs 385 held 0
+paper Beck_2007 says Lushootseed pairs 5191 held 1 nearest Lushootseed gap 846242110521852 / 7745707759051040 split 3912372 / 13468536 reads 0
+paper Crowgey-final says Lushootseed pairs 1089 held 0
+paper DavisHuijsmans-_transitive-_final says Comox pairs 3448 held 1 nearest Nsyilxcən gap 233019700932480 / 9913701607866880 split 2380464 / 5944224 reads 0
+paper DavisICSNL60 says St'át'imcets pairs 7501 held 1 nearest Nsyilxcən gap 18278453595099048 / 484437380219323960 split 8187196 / 28074360 reads 0
+paper Davis_2003 says St'át'imcets pairs 2640 held 1 nearest St'át'imcets gap 1000704423628800 / 6320046661632000 split 1495634 / 3481102 reads 0
+paper Davis_2005 says Comox pairs 174 held 0
+paper Davis_H_ICSNL61 says St'át'imcets pairs 8666 held 1 nearest St'át'imcets gap 4131794641149952 / 68100421571947520 split 11304752 / 37545360 reads 0
+paper Davis_Matthewson_2003 says Lushootseed pairs 2156 held 1 nearest St'át'imcets gap 563517506556928 / 4215120009605120 split 885640 / 2293416 reads 0
+paper Davis_Matthewson_Rullmann_2007 says St'át'imcets pairs 4954 held 1 nearest St'át'imcets gap 3615993688087680 / 22254837909662720 split 3530892 / 12269600 reads 0
+paper Dilts_2006 says Nsyilxcən pairs 1234 held 0
+paper Dominick_et_al_ICSNL61 says Comox pairs 2780 held 1 nearest Nsyilxcən gap 485816772966400 / 20330324093824000 split 1251790 / 3832950 reads 0
+paper Gerdts_Kiyosawa_2007 says Nsyilxcən pairs 4162 held 1 nearest St'át'imcets gap 132383536823984 / 4979241621752960 split 3665364 / 8659664 reads 0
+paper Gilmour_ICSNL61 says Comox pairs 0 held 0
+paper HDavisMellesmoen_2019_ICSNL says Comox pairs 4165 held 1 nearest Nsyilxcən gap 7433762971016900 / 149358288167011000 split 3161248 / 8673068 reads 0
+paper HDavis_2019_ICSNL says St'át'imcets pairs 3902 held 1 nearest St'át'imcets gap 3932816592528640 / 13806606940359680 split 2843264 / 7567200 reads 0
+paper Hall-Luntzlara-Mellesmoen-Reid-ICSNL60 says nɬeʔkepmxcín pairs 7556 held 1 nearest nɬeʔkepmxcín gap 34353417772519104 / 491567559597938560 split 12335488 / 28461696 reads 0
+paper Hall-et-al.-ICSNL_61-1 says nɬeʔkepmxcín pairs 2580 held 1 nearest nɬeʔkepmxcín gap 539144224987200 / 57311097847344000 split 1 / 1 reads 0
+paper Hall-et-al_-ICSNL_61-1 says nɬeʔkepmxcín pairs 2580 held 1 nearest nɬeʔkepmxcín gap 539144224987200 / 57311097847344000 split 1 / 1 reads 0
+paper HannonICSNL60 says nɬeʔkepmxcín pairs 6217 held 1 nearest nɬeʔkepmxcín gap 29260113913934024 / 332782937261192440 split 6311564 / 19096380 reads 0
+paper ICSNL56_DavisJ_1_final says Comox pairs 2835 held 1 nearest Comox gap 1622219469141600 / 7288171061472000 split 1339394 / 4017772 reads 0
+paper ICSNL56_Huijsmans_Mellesmoen_final says Comox pairs 5736 held 1 nearest Nsyilxcən gap 556919991687360 / 27435925441221120 split 5837070 / 16344126 reads 0
+paper ICSNL56_Kye_final says Lushootseed pairs 0 held 0
+paper ICSNL56_Mellesmoen_final says Nuxalk pairs 409 held 0
+paper ICSNL56_Reisinger_Huijsmans_v1.2-1 says Comox pairs 25470 held 1 nearest Nsyilxcən gap 244843201546311600 / 5585437620262764000 split 70366060 / 324111232 reads 0
+paper ICSNL57_Francis_et_al says Comox pairs 2053 held 1 nearest Nsyilxcən gap 1568060594191768 / 36289184995923640 split 562052 / 2038584 reads 0
+paper ICSNL57_JDavis says Comox pairs 1171 held 0
+paper ICSNL57_Reisinger_Griffin says Comox pairs 10610 held 1 nearest Nsyilxcən gap 150357723024800 / 93871140939412000 split 18903472 / 51737922 reads 0
+paper ICSNL57_Zhou says St'át'imcets pairs 1300 held 0
+paper ICSNL58_Andreatta_Recalma_Urbanczyk_final says Comox pairs 710 held 0
+paper ICSNL58_Davis_Mellesmoen_final says St'át'imcets pairs 9036 held 1 nearest nɬeʔkepmxcín gap 8881883759682432 / 702994229947532160 split 12861512 / 40819648 reads 0
+paper ICSNL58_Davis_Trotter_final says St'át'imcets pairs 3102 held 1 nearest Nsyilxcən gap 2708251505216928 / 82848166752399840 split 1573964 / 4789984 reads 0
+paper ICSNL58_Givens_Hall_final says nɬeʔkepmxcín pairs 4412 held 1 nearest nɬeʔkepmxcín gap 41125797305117760 / 167598575664826240 split 2455124 / 8843094 reads 0
+paper ICSNL58_Hannon_Smith_final says nɬeʔkepmxcín pairs 6172 held 1 nearest nɬeʔkepmxcín gap 61068316193892320 / 327982861603872640 split 7062738 / 19044054 reads 0
+paper ICSNL58_Hannon_Stacey_Steiner_final says nɬeʔkepmxcín pairs 16716 held 1 nearest nɬeʔkepmxcín gap 576939597666701472 / 2405825040709157760 split 33413320 / 139688128 reads 1
+paper ICSNL58_Huijsmans_final2 says Comox pairs 8571 held 1 nearest Nsyilxcən gap 1480046121307920 / 61258212331544520 split 12701658 / 36701496 reads 0
+paper ICSNL58_Khalaji_final says nɬeʔkepmxcín pairs 3253 held 1 nearest nɬeʔkepmxcín gap 6909626502332576 / 91110292834035640 split 1871006 / 5283192 reads 0
+paper ICSNL58_Kye_final says Lushootseed pairs 0 held 0
+paper ICSNL58_Lyon_final says Nsyilxcən pairs 14636 held 1 nearest Nsyilxcən gap 195194712528758752 / 1844353301841804160 split 23530108 / 106755126 reads 0
+paper ICSNL58_Matthewson_final says nɬeʔkepmxcín pairs 7976 held 1 nearest nɬeʔkepmxcín gap 106601790316364992 / 547733881955560960 split 9503010 / 31612350 reads 0
+paper ICSNL58_McCarthy_Schnoor_final says Comox pairs 0 held 0
+paper ICSNL58_Menon_final says Comox pairs 503 held 0
+paper ICSNL58_Reid_final says nɬeʔkepmxcín pairs 1438 held 0
+paper ICSNL59_Hall__Phillips_final says nɬeʔkepmxcín pairs 28326 held 1 nearest nɬeʔkepmxcín gap 1943643135562007808 / 6908278184732532960 split 75912558 / 388399570 reads 1
+paper ICSNL59_Hannon_final says nɬeʔkepmxcín pairs 5797 held 1 nearest nɬeʔkepmxcín gap 29152623867458520 / 289338294149907640 split 4518312 / 16763684 reads 0
+paper ICSNL59_Huijsmans_McCarthy_final says Comox pairs 9534 held 1 nearest Nsyilxcən gap 3135414068373552 / 75796931405452320 split 17217936 / 45122146 reads 0
+paper ICSNL59_Lyon_final says Nsyilxcən pairs 14895 held 1 nearest Nsyilxcən gap 171517019454810000 / 1910206554937659000 split 20661516 / 110915892 reads 0
+paper ICSNL59_Mellesmoen_Urbanczyk_final says Lushootseed pairs 2101 held 1 nearest Lushootseed gap 30413474004672 / 2698077722248348 split 953810 / 2186900 reads 0
+paper ICSNL59_Mellesmoen_final says Comox pairs 1093 held 0
+paper ICSNL59_Nater_1_final says Nuxalk pairs 10322 held 1 nearest Nuxalk gap 15818825490482560 / 83347721878318560 split 10395126 / 53271042 reads 0
+paper ICSNL59_Nater_2_final says Nuxalk pairs 2335 held 1 nearest Nuxalk gap 116679802960380 / 3126373182692100 split 1288442 / 2655048 reads 0
+paper ICSNL59_Reisinger_final says Comox pairs 2872 held 1 nearest Nsyilxcən gap 324617898825088 / 6878127146836480 split 1941672 / 4077984 reads 0
+paper ICSNL59_Thompson_final says Comox pairs 2574 held 1 nearest Nsyilxcən gap 148593650489856 / 5524823569842720 split 1363416 / 3312720 reads 0
+paper JDavis_2019_ICSNL says Comox pairs 1247 held 0
+paper Kelly_Huijsmans_McCarthy_ICSNL61-1 says Comox pairs 2361 held 1 nearest Nsyilxcən gap 211127272816356 / 4648290937386120 split 1204534 / 2784196 reads 0
+paper Koch_2004 says nɬeʔkepmxcín pairs 617 held 0
+paper Koch_2005 says Lushootseed pairs 991 held 0
+paper Koch_2007 says nɬeʔkepmxcín pairs 1554 held 0
+paper Kye2025ICSNL60 says Lushootseed pairs 264 held 0
+paper Lo_NegUniversal_final says Comox pairs 1611 held 0
+paper Lonsdale_2003 says Lushootseed pairs 129 held 0
+paper LouieICSNL60 says Comox pairs 7260 held 1 nearest Nsyilxcən gap 36713901785642400 / 453808428114096000 split 8964416 / 23871808 reads 0
+paper LyonICSNL60_CS says Nsyilxcən pairs 9098 held 1 nearest Nsyilxcən gap 58232866321085744 / 712674436335151840 split 19817076 / 41216274 reads 0
+paper LyonICSNL60_Inch-2 says Nsyilxcən pairs 6046 held 1 nearest Nsyilxcən gap 15413792611215328 / 314728159185019360 split 6316154 / 17103546 reads 0
+paper Lyon_ICSNL61-1 says Nsyilxcən pairs 16279 held 1 nearest Nsyilxcən gap 280284402738373716 / 2281680139965850360 split 27770236 / 132441320 reads 0
+paper Matthewson_Rullmann_Davis says St'át'imcets pairs 1907 held 0
+paper Matthewson_Rullmann_Davis_2006 says St'át'imcets pairs 4083 held 1 nearest St'át'imcets gap 1522817974747872 / 15117194153306880 split 2775736 / 8334760 reads 0
+paper MellesmoenAndreotti_NTrStative_final says Comox pairs 899 held 0
+paper MellesmoenHuijsmans_2019_ICSNL says Comox pairs 1978 held 0
+paper MellesmoenICSNL60_BCHk says Nuxalk pairs 3253 held 1 nearest Nsyilxcən gap 3779638006746700 / 91110292834035640 split 2811446 / 5286864 reads 0
+paper Mellesmoen_Dim_final says Comox pairs 1599 held 0
+paper Mellesmoen_Kye_ICSNL61 says Lushootseed pairs 5732 held 1 nearest Lushootseed gap 4635881356162144 / 27397673894193280 split 6646260 / 16103094 reads 0
+paper Mellesmoen_ThirdPersonObject_final says Comox pairs 2089 held 1 nearest Nsyilxcən gap 264578873736072 / 37573027977447160 split 1036004 / 2179716 reads 0
+paper Mellesmoen_Trotter_ICSNL61 says Comox pairs 1257 held 0
+paper MichelletalICSNL60 says nɬeʔkepmxcín pairs 7111 held 1 nearest nɬeʔkepmxcín gap 77014537961180352 / 435372178746951160 split 5976796 / 24055416 reads 0
+paper Nater-final says Nuxalk pairs 2363 held 1 nearest Nuxalk gap 140444768428052 / 1505744163825120 split 1546996 / 2791872 reads 0
+paper NaterICSNL60_BellaCoola says Nuxalk pairs 300 held 0
+paper Nater_2004 says Nuxalk pairs 97 held 0
+paper Nater_Tahltan-Tlingit_final says St'át'imcets pairs 1723 held 0
+paper Oberg_2007 says St'át'imcets pairs 292 held 0
+paper Phillips_et_al_ICSNL61-1 says nɬeʔkepmxcín pairs 12243 held 1 nearest nɬeʔkepmxcín gap 375705773738548176 / 1290550534174634040 split 16595392 / 74027512 reads 1
+paper ReisingerHuijsmans_2019_ICSNL says Comox pairs 2519 held 1 nearest Nsyilxcən gap 1692789278436344 / 54633075708749560 split 1147202 / 3172316 reads 0
+paper ReisingerLo_degreeless-_final says Comox pairs 894 held 0
+paper Reisinger_ICSNL61-1 says Comox pairs 14807 held 1 nearest Nsyilxcən gap 11659582251528016 / 182824957617894280 split 20373872 / 109347600 reads 0
+paper Robertson_2004 says nɬeʔkepmxcín pairs 295 held 0
+paper SchneiderGriffinICSNL60 says Comox pairs 3936 held 1 nearest Nsyilxcən gap 3541379408550912 / 133385768541020160 split 3600984 / 7619040 reads 0
+paper Shahim_2007 says St'át'imcets pairs 511 held 0
+paper Steiner_ICSNL61-1 says nɬeʔkepmxcín pairs 10108 held 1 nearest nɬeʔkepmxcín gap 57400745244415104 / 879690257906669440 split 17780876 / 51077640 reads 0
+paper Steiner_Matthewson_ICSNL61-1 says St'át'imcets pairs 15012 held 1 nearest nɬeʔkepmxcín gap 455836536205022592 / 1940333703454650240 split 28188544 / 112620904 reads 0
+paper Trotter_ICSNL says Comox pairs 2499 held 1 nearest Nsyilxcən gap 208337179570884 / 5207554705275720 split 1389164 / 3052936 reads 0
+paper cusinek_et_al_ICSNL61 says nɬeʔkepmxcín pairs 15074 held 1 nearest nɬeʔkepmxcín gap 516769007234186704 / 1956394070134804960 split 27566472 / 113300688 reads 1
+paper icsnl2016 says Comox pairs 38193 held 1 nearest St'át'imcets gap 774315259266011400 / 5906409581764123200 split 427995252 / 722181940 reads 0
+paper icsnl2016_nater says St'át'imcets pairs 795 held 0
+paper icsnl2016_vaneijk_one says St'át'imcets pairs 93 held 0
+paper icsnl2016_vaneijk_two says St'át'imcets pairs 827 held 0
+paper van-Eijk_SubObNPa_final says St'át'imcets pairs 3094 held 1 nearest St'át'imcets gap 2079914141911424 / 8680666064645120 split 1483536 / 4774866 reads 0
+paper vanEijk-final says St'át'imcets pairs 345 held 0
+paper wlwlmelst-Janzen_ICSNL61 says nɬeʔkepmxcín pairs 4888 held 1 nearest nɬeʔkepmxcín gap 22356619617403136 / 205712987050954240 split 3043664 / 10286430 reads 0
+median gap = 244843201546311600 / 5585437620262764000
+median split = 6316154 / 17103546
