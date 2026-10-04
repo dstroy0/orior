@@ -176,8 +176,8 @@ OUTLINE_FACES = {"TimesNewRomanPSMT": "times.ttf", "TimesNewRomanPS-BoldMT": "ti
                  "Calibri": "calibri.ttf", "Calibri,Bold": "calibrib.ttf", "Calibri,Italic": "calibrii.ttf",
                  "Calibri,BoldItalic": "calibriz.ttf", "Times-Roman": TERMES + "regular.otf",
                  "Times-Bold": TERMES + "bold.otf", "Times-Italic": TERMES + "italic.otf",
-                 "Times-BoldItalic": TERMES + "bolditalic.otf", "Symbol": "symbol.ttf",
-                 "SymbolMT": "symbol.ttf", "Helvetica": "arial.ttf", "CourierNewPSMT": "cour.ttf"}
+                 "Times-BoldItalic": TERMES + "bolditalic.otf", "Helvetica": "arial.ttf",
+                 "CourierNewPSMT": "cour.ttf"}
 PAPER_OUTLINED = tables.members("PAPER_OUTLINED")
 _FACE_KEYS = {}
 
@@ -194,8 +194,9 @@ def outline_key(glyphset, name, advance):
 def face_keys(face):
     """{outline key: text} for every glyph a system face's cmap maps. Where several code points
     draw one outline, the right single quote and the modifier apostrophe of Times New Roman, the
-    text is a character Windows-1252 holds, as Word exports, and failing that the lowest code point
-    past the private use area."""
+    text is a character Windows-1252 holds, as Word exports, then a letter of the IPA block, the
+    schwa ə of Lucida Sans Unicode, which draws the turned e ǝ alike, in Mattina's 2008 forms, and
+    failing that the lowest code point past the private use area."""
     if face not in _FACE_KEYS:
         font = TTFont(os.path.join("C:/Windows/Fonts", face))
         glyphset, units = font.getGlyphSet(), font["head"].unitsPerEm
@@ -205,7 +206,8 @@ def face_keys(face):
             drawn.setdefault(key, []).append(point)
         keys = {}
         for key, points in drawn.items():
-            points = sorted(points, key=lambda point: (0xE000 <= point <= 0xF8FF, not in_cp1252(point), point))
+            points = sorted(points, key=lambda point: (0xE000 <= point <= 0xF8FF, not in_cp1252(point),
+                                                       not 0x0250 <= point <= 0x02AF, point))
             keys[key] = chr(points[0])
         _FACE_KEYS[face] = keys
     return _FACE_KEYS[face]
@@ -1058,6 +1060,24 @@ def ruled_grids(page):
     return sorted(out, key=lambda one: -one[1][0])
 
 
+def drawn_edges(page, xs, ys):
+    """For each row of a grid, the column edges a vertical rule is drawn at through that row. A
+    cell that spans columns has no rule inside it: the head of Mattina's Table 1, Forms written as
+    separate words, over its three columns."""
+    upright = []
+    for obj in page.get_objects(max_depth=5):
+        if obj.type != pdfium.raw.FPDF_PAGEOBJ_PATH:
+            continue
+        left, bottom, right, top = obj.get_bounds()
+        wide, high = right - left, top - bottom
+        if wide <= RULE < high or wide <= RULE_DASHED and high >= RULE_LONG * wide:
+            upright.append((left, bottom, right, top))
+    return [{at for at, edge in enumerate(xs)
+             if any(abs((one[0] + one[2]) / 2 - edge) <= RULE_JOIN and one[1] < (ys[row] + ys[row + 1]) / 2 < one[3]
+                    for one in upright)}
+            for row in range(len(ys) - 1)]
+
+
 def ruled_tables(page, bold=None, grids=None):
     """Each ruled grid of a page read cell by cell, top first: (xs, ys, rows), each row a list of
     cells and each cell a list of lines. Each glyph goes to the cell its middle stands in. Inside a
@@ -1071,7 +1091,9 @@ def ruled_tables(page, bold=None, grids=None):
     below, its edges taken from the words' boxes."""
     textpage = page.get_textpage()
     found = ruled_grids(page) if grids is None else grids
-    # Each cell is a list of lines, each [text, lowest bottom so far, inside a bold run].
+    drawn = [drawn_edges(page, xs, ys) for xs, ys in found] if grids is None else None
+    # Each cell is a list of lines, each [text, lowest bottom so far, inside a bold run, and the
+    # left and right of each glyph that takes a mark with its end in the text].
     cells = [[[[] for _ in range(len(xs) - 1)] for _ in range(len(ys) - 1)] for xs, ys in found]
     spaced = {}
     for index in range(textpage.count_chars()):
@@ -1092,20 +1114,43 @@ def ruled_tables(page, bold=None, grids=None):
                 continue
             column = max(one for one in range(len(xs) - 1) if xs[one] <= middle_x)
             row = max(one for one in range(len(ys) - 1) if ys[one] >= middle_y)
+            while drawn and column and column not in drawn[which][row]:
+                column -= 1
             key = (which, row, column)
             lines = cells[which][row][column]
+            # pdfium makes up a space on either side of a mark the stream positions apart from its
+            # letter, the acute of dìlɪ́bərèt in Mattina's Table 6, which goes. The spaces it makes up
+            # between words stand: nu- ‘water’ in Nater's 2013 line 18, and Tahltan q’anaˑχán̥ (my
+            # in-laws in its line 577, after a mark set over the letter streamed before it.
             if symbol == " ":
-                spaced[key] = bool(lines)
+                if not (pdfium.raw.FPDFText_IsGenerated(textpage.raw, index) and displaced_mark(textpage, index)):
+                    spaced[key] = bool(lines)
                 break
+            # A combining mark goes on the glyph of its line it stands over, wherever the stream
+            # sets it: Mattina's tables stream the marks of a cell's word after the word, pn+kin ̓ ̓
+            # for pn̓+kin̓ in Table 1, and the acute of lɪ́bərèt after its t in Table 6. A comma
+            # above right stands just past its letter, the l̕ of k̕ʷul̕+l̕ t in Table 1, 0.1pt after it.
+            if unicodedata.combining(symbol) and lines:
+                under = [one for one in lines[-1][3] if one[0] <= middle_x <= one[1]] or \
+                    [one for one in lines[-1][3] if 0 <= box[0] - one[1] <= 1.0]
+                if under:
+                    end = under[-1][2]
+                    lines[-1][0] = lines[-1][0][:end] + symbol + lines[-1][0][end:]
+                    for one in lines[-1][3]:
+                        if one[2] >= end:
+                            one[2] += len(symbol)
+                    break
             # A tie of enclisis stands low between the words it joins, its top under the line's
             # letters, and opens no line. The stream sets a space before it, which the page draws
             # it back into: ʔinutᴗʔiks in Nater's 2013 line 360 streams as ʔinut ᴗʔiks.
+            # So does an underscore linking the words of a gloss, cracked_feet in Mattina's Table 7.
             tie = symbol == "ᴗ"
+            low = tie or symbol == "_"
             heavy = bool(bold) and face(font_name(textpage, index))[0]
-            if not lines or box[3] < lines[-1][1] and not tie:
+            if not lines or box[3] < lines[-1][1] and not low:
                 if lines and lines[-1][2]:
                     lines[-1][0], lines[-1][2] = lines[-1][0] + bold[1], False
-                lines.append(["", box[1], False])
+                lines.append(["", box[1], False, []])
             elif spaced.get(key) and not tie:
                 if lines[-1][2]:
                     lines[-1][0], lines[-1][2] = lines[-1][0] + bold[1], False
@@ -1115,12 +1160,32 @@ def ruled_tables(page, bold=None, grids=None):
                 lines[-1][0] += bold[0] if heavy else bold[1]
                 lines[-1][2] = heavy
             lines[-1][0] += symbol
-            if not tie:
+            if box[2] > box[0] and not unicodedata.combining(symbol):
+                lines[-1][3].append([box[0], box[2], len(lines[-1][0])])
+            if not low:
                 lines[-1][1] = min(lines[-1][1], box[1])
             break
     return [(xs, ys, [[[(one[0] + (bold[1] if one[2] else "")).strip() for one in cell] for cell in row]
                       for row in table])
             for (xs, ys), table in zip(found, cells)]
+
+
+def displaced_mark(textpage, index):
+    """Whether the space at index stands before a combining mark, or after one that does not stand
+    over the glyph the stream sets before it: a mark the stream positions apart from its letter."""
+    count = textpage.count_chars()
+    if index + 1 < count and unicodedata.combining(textpage.get_text_range(index + 1, 1)):
+        return True
+    if not index or not unicodedata.combining(textpage.get_text_range(index - 1, 1)):
+        return False
+    mark = textpage.get_charbox(index - 1)
+    middle = (mark[0] + mark[2]) / 2
+    for before in range(index - 2, -1, -1):
+        symbol = textpage.get_text_range(before, 1)
+        if symbol.strip() and not unicodedata.combining(symbol):
+            box = textpage.get_charbox(before)
+            return not box[0] - 1.0 <= middle <= box[2] + 1.5
+    return True
 
 
 def cell_text(cell):
@@ -1598,15 +1663,16 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 rows.append([middle, [glyph]])
         # A row of quote marks alone is the marks of the row beside it: the quotes round a gloss
         # set in small capitals stand clear of its letters, ‘1sg’ in Brown, Forbes and Schwan's
-        # (48c), and so do the apostrophes of ’waa-’nu in their footnote 17. Each such row joins
-        # the neighbor whose middle is nearer. The ties of enclisis do the same, set low between
-        # the words they join: kaᴗcut-iɬᴗc’akʷ in Nater's 2013 §3.
+        # (48c), and so do the apostrophes of ’waa-’nu in their footnote 17, and the closing quote
+        # of pronouns.”, alone on the last line of a quotation in Baier and Wdzenczny's §6.
+        # Each such row joins the neighbor whose middle is nearer. The ties of enclisis do the same,
+        # set low between the words they join: kaᴗcut-iɬᴗc’akʷ in Nater's 2013 §3.
         for place in range(len(rows) - 1, -1, -1):
             middle, members = rows[place]
-            if not all(one[0] in "‘’'ʼᴗ" for one in members):
+            if not all(one[0] in "‘’“”'ʼᴗ" for one in members):
                 continue
             beside = [one for one in (place - 1, place + 1) if 0 <= one < len(rows)
-                      and not all(glyph[0] in "‘’'ʼᴗ" for glyph in rows[one][1])]
+                      and not all(glyph[0] in "‘’“”'ʼᴗ" for glyph in rows[one][1])]
             if not beside:
                 continue
             nearest = min(beside, key=lambda one: (abs(rows[one][0] - middle), -one))
@@ -1649,13 +1715,15 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
         # stands within an em over it, set smaller than that row's letters. Only a w or an h joins,
         # the h the aspiration of [tɕɪpʰamej:ʊ̀χda] in Black's (39b), or a letter already written as
         # its modifier, the ʲ of -kʲ in Black's (32): a raised digit or suffix standing alone
-        # (Crowgey's 331, Thompson's rd) is read where it stands.
+        # (Crowgey's 331, Thompson's rd) is read where it stands. The raised apostrophes of the same
+        # word join with them, ’ ’w over u c oq m for c’oq’ʷm in Baier and Wdzenczny's (4).
         for place in range(len(rows) - 2, -1, -1):
             middle, members = rows[place]
             below_middle, below = rows[place + 1]
             size = sorted(one[2] for one in below)[len(below) // 2]
-            if not all(one[0] in "wh" or one[0] in MODIFIER_LETTERS for one in members) or \
-                    max(one[2] for one in members) >= 0.85 * size:
+            if not all(one[0] in "wh’'ʼ" or one[0] in MODIFIER_LETTERS for one in members) or \
+                    all(one[0] in "’'ʼ" for one in members) or \
+                    max(one[2] for one in members if one[0] not in "’'ʼ") >= 0.85 * size:
                 continue
             if middle - below_middle < size:
                 below.extend(members)
@@ -1836,9 +1904,9 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                     elif (gap > limit * measure or streamed) and not closing and \
                             previous[0][-1] not in "([{‘“" or braced:
                         text.append(" ")
-                        if slanted is not None and gap <= plain * size:
-                            slanted.append((number + 1, "".join(text[:-1]).split()[-1],
-                                            symbol, gap / size))
+                        words = "".join(text[:-1]).split()
+                        if slanted is not None and gap <= plain * size and words:
+                            slanted.append((number + 1, words[-1], symbol, gap / size))
                 if id(members[place]) in unlifted:
                     swapped[len(text)] = unicodedata.normalize("NFC", unlifted[id(members[place])] + symbol[1:])
                 text.append(unicodedata.normalize("NFC", symbol))

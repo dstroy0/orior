@@ -1,0 +1,299 @@
+where	who	kind	form	gloss
+front	Nico Baier, Di Wdzenczny	title	Negation in Montana Salish	page 1, carries footnote 1
+front	Nico Baier, Di Wdzenczny	name	Nico Baier	author
+front	Nico Baier, Di Wdzenczny	name	Di Wdzenczny	author
+front	Nico Baier, Di Wdzenczny	note	University of Michigan	page 1, under Di Wdzenczny
+front	Nico Baier, Di Wdzenczny	note	There are two negators in Montana Salish, ta and tam. This paper will be concerned with two basic questions: a) In what environments are the two negators found, and, if they can be determined, what factors condition the use of one negator over the other?, and b) Is this type of system found in other Salish languages? How did the distinction between ta and tam arise? For a), we argue that there are two main factors conditioning the choice of negator: 1) the type of predicate being negated and 2) the aspectual form of the predicate. For b), it seems that there are similar systems in Kalispel and Spokane, dialects of the same language of Montana Salish. Also, the Montana Salish negator tam appears to be cognate with the Tillamook negative existential taw, as noted by Davis (2005).	page 1, the abstract
+front	Nico Baier, Di Wdzenczny	language	Montana Salish	Southern Interior Salish (MSa)
+footnote 1	Nico Baier, Di Wdzenczny	note	We would like to sincerely thank Prof. Sally Thomason of the University of Michigan for her help and her willingness to make available field data and texts, without either of which the writing of this paper would not have been possible.	page 1, footnote 1, on the title
+footnote 1	Nico Baier, Di Wdzenczny	name	Sally Thomason	Prof. Sally Thomason of the University of Michigan, who made field data and texts available, footnote 1
+§1	Nico Baier, Di Wdzenczny	heading	1 Introduction	page 1
+§1	Nico Baier, Di Wdzenczny	note	There are two negators in Montana Salish (from here on MSa), ta and tam. Although it has previously been clear that these negative words are not interchangeable, their distribution has been only vaguely understood. In this paper, we attempt to address this issue. We examine the environments in which each of the negators occurs, and from these data try to determine what factors condition the choice of one negator over the other. We also examine whether parallels to this system can be found in other Salish languages, specifically those of the Interior branch. We will first deal with some preliminaries regarding the general morphosyntactic properties of the negators in section 2, before examining ta and tam in sections 3 and 4, respectively. We then analyze this distribution in section 5, before looking at the situation in the related Southern Interior dialects of Kalispel and Spokane in section 6.	page 1
+§1	Nico Baier, Di Wdzenczny	language	Kalispel	a dialect of the same language as Montana Salish
+§1	Nico Baier, Di Wdzenczny	language	Spokane	a dialect of the same language as Montana Salish
+§2	Nico Baier, Di Wdzenczny	heading	2 Preliminaries	page 1
+§2	Nico Baier, Di Wdzenczny	note	The negators are found in clause initial position before the predicate they negate. In some cases, they occur after a particle or a fronted constituent.	page 1
+(1a) line 1	Montana Salish	transcription	ta qe sčmšqanmí.	page 2
+(1a) line 2	Montana Salish	segmentation	ta qeʔ s-č-míš=qín-míst	page 2
+(1a) line 3	Montana Salish	gloss	NEG 1PL NOM-LOC:TO-none=head-INTR.REFL	page 2
+(1a) line 4	Nico Baier, Di Wdzenczny	translation	‘We didn’t give up.’	page 2
+(1b) line 1	Montana Salish	transcription	tam čn esčχsmé	page 2
+(1b) line 2	Montana Salish	segmentation	tam čn es-č-χés-m=é(?)	page 2
+(1b) line 3	Montana Salish	gloss	NEG 1SG ASP-LOC:TO-good-ANTIP=?	page 2
+(1b) line 4	Nico Baier, Di Wdzenczny	translation	‘I’m unlucky’	page 2
+(1c) line 1	Montana Salish	transcription	ƛe tam p esntélsmm	page 2
+(1c) line 2	Montana Salish	segmentation	ƛe tam p es-nt=éls-mí-m	page 2
+(1c) line 3	Montana Salish	gloss	already NEG 2PL ASP-think=feelings-DER.TR-TR.CONT	page 2
+(1c) line 4	Nico Baier, Di Wdzenczny	translation	‘We don’t want you.	page 2
+§2	Nico Baier, Di Wdzenczny	note	In example 1a, the negative ta negates the following predicate qe sčmšqanmí ‘we gave up’, and in 1b, we find the negative tam negating the adjective-like predicate čn esčχsmé ‘I’m unlucky’.	page 2
+§2	Montana Salish	cited form	qe sčmšqanmí	page 2, in italics, ‘we gave up’
+§2	Montana Salish	cited form	čn esčχsmé	page 2, in italics, ‘I’m unlucky’
+§2	Nico Baier, Di Wdzenczny	note	It is difficult to determine whether or not the negators are predicative themselves, forming a complex clause with the following predicate, or behave more like particles. Although they occupy a sentential position that is normally reserved for predicates in MSa, they do not take inflection like other predicates in the language. Unfortunately, we do not have examples of subordinated negated clauses, which would be useful towards reaching an answer. Although it seems likely that they the negatives are non-predicative, there are a few facts that complicate the picture.	page 2
+§2	Nico Baier, Di Wdzenczny	note	First, the negator tam may be separated from its negated predicate by the particle u ‘and,’ a common strategy for coordinating clauses in MSa. Consider example 2 below:	page 2
+(2) line 1	Montana Salish	transcription	č’ tam u kʷ esxwúyi	page 2
+(2) line 2	Montana Salish	segmentation	č’ tam u kʷ es-xwúy-mí	page 2
+(2) line 3	Montana Salish	gloss	to NEG and 2SG.INTR.SBJ ASP-go-INTR.CONT	page 2
+(2) line 4	Nico Baier, Di Wdzenczny	translation	‘You’re going the wrong way’	page 2
+§2	Nico Baier, Di Wdzenczny	note	Here, the negator tam is separated from the negated predicate in a coordinate structure. This seems to point to the conclusion that, in this example, tam is in fact predicative. Perhaps also supporting this analysis is the use of tam in negating non-verbal predicates, such as in ex. 3:	page 2
+(3) line 1	Montana Salish	transcription	tam xʷʔi smχe	page 2
+(3) line 2	Montana Salish	segmentation	tam xʷʔi smχe	page 2
+(3) line 3	Montana Salish	gloss	NEG many grizzly	page 2
+(3) line 4	Nico Baier, Di Wdzenczny	translation	‘[There are] not many grizzlies’	page 2
+§2	Nico Baier, Di Wdzenczny	note	Here, tam seems to be used as a negative existential. It is not known whether xwʔi smχe ‘many grizzlies’ is acting as an argument of tam or as a separate predicate, perhaps like the constituent kw esxwúyi ‘you are going’ in ex. 2 above. Because of that example, however, we will proceed with the assumption that xwʔi smχe is a predicate.	page 3
+§2	Montana Salish	cited form	xwʔi smχe	page 3, in italics, ‘many grizzlies’
+§2	Montana Salish	cited form	kw esxwúyi	page 3, in italics, ‘you are going’
+§2	Nico Baier, Di Wdzenczny	note	Next, we find the use of ta with what seem to be subordinated predicates. There is a construction in which ta precedes a completive verbal predicate bearing normal inflection but except for the nominalizing prefix s-. This parallels another form of subordination in which an otherwise normally inflected predicate is subordinated to a predicate of qualification (Kroeber 1999). Compare ex. 4 to ex. 5 (or to exx. 8a-b):	page 3
+§2	Montana Salish	cited form	s-	page 3, in italics
+(4) line 1	Montana Salish	transcription	q’sip sk’ʷłpaχém Čoní	page 3
+(4) line 2	Montana Salish	segmentation	q’si-p s-k’ʷł-páχ-ém Čoní	page 3
+(4) line 3	Montana Salish	gloss	long.time-INCH NOM-LOC:UNDER-think.about-ANTIP Johnny	page 3
+(4) line 4	Montana Salish	transcription	u c’oq’ʷm	page 3
+(4) line 5	Montana Salish	segmentation	u c’óq’ʷ-ém	page 3
+(4) line 6	Montana Salish	gloss	and point-ANTIP	page 3
+(4) line 7	Nico Baier, Di Wdzenczny	translation	‘Johnny thinks for a long time and then points.’	page 3
+(5) line 1	Montana Salish	transcription	ta swíčis	page 3
+(5) line 2	Montana Salish	segmentation	ta s-wíč-nt-és	page 3
+(5) line 3	Montana Salish	gloss	NEG NOM-see-TR-3TR.SBJ	page 3
+(5) line 4	Nico Baier, Di Wdzenczny	translation	‘He didn’t see it.’	page 3
+§2	Nico Baier, Di Wdzenczny	note	In example 4 above, the predicate skw’łpaχém ‘he thinks’ takes the prefix s-, showing that it is subordinate to the predicate q’síp ‘for a long time’. This seems to parallel what we see in example 5. In this construction, the negated predicate takes the prefix s- as well, suggesting that it is also subordinate. There are also examples of ta negated predicates, not completive in meaning, which have the prefix s- in meaning as can be seen in exx. 6a and b:	page 3
+§2	Montana Salish	cited form	skw’łpaχém	page 3, in italics, ‘he thinks’
+§2	Montana Salish	cited form	q’síp	page 3, in italics, ‘for a long time’
+(6a) line 1	Montana Salish	transcription	ta qskʷupncn	page 3
+(6a) line 2	Montana Salish	segmentation	ta qł-s-kʷúp-nt-sí-én	page 3
+(6a) line 3	Montana Salish	gloss	NEG IRR-NOM-push-TR-2SG.OBJ-1SG.TR.SBJ	page 3
+(6a) line 4	Nico Baier, Di Wdzenczny	translation	‘I won’t push you.’	page 3
+(6b) line 1	Montana Salish	transcription	ta epspelím’cn.	page 3
+(6b) line 2	Montana Salish	segmentation	ta epł-s-plím’=cín	page 3
+(6b) line 3	Montana Salish	gloss	NEG have-NOM-lip=mouth	page 3
+(6b) line 4	Nico Baier, Di Wdzenczny	translation	‘He didn’t have any lips’	page 3
+§2	Nico Baier, Di Wdzenczny	note	In 6a, s- follows the irrealis prefix qł-, while in 6b it follows the morpheme epł- ‘have’. It is hard to determine whether these demonstrate the same use as the construction shown in ex. 5. It could be further evidence that predicates negated by ta are subordinated, or it could simply be a requirement of this construction.	page 3
+§2	Montana Salish	cited form	qł-	page 3, in italics
+§2	Montana Salish	cited form	epł-	page 3, in italics, ‘have’
+§2	Montana Salish	cited form	qł-	page 4, in italics
+§2	Nico Baier, Di Wdzenczny	note	Not all predicates negated by ta have the prefix s-, complicating the situation further. These predicates generally show the aspect prefix es-, as in example 7 below.	page 4
+§2	Montana Salish	cited form	es-	page 4, in italics
+(7) line 1	Montana Salish	transcription	ta kʷ esčłχp’χp’qní!	page 4
+(7) line 2	Montana Salish	segmentation	ta kʷ es-čł-χp’-χp’=qín-íst	page 4
+(7) line 3	Montana Salish	gloss	NEG 2SG.INTR.SBJ ASP-LOC:ON-REDUP-button.pants=head-INTR.REFL	page 4
+(7) line 4	Nico Baier, Di Wdzenczny	translation	‘You’re not buttoned!’	page 4
+§2	Nico Baier, Di Wdzenczny	note	It could be the case that the prefix es- blocks the use of the s- prefix, therefore obscuring any sign of subordination.	page 4
+§3	Nico Baier, Di Wdzenczny	heading	3 Environment of ta	page 4
+§3	Nico Baier, Di Wdzenczny	note	We first examine the environments in which the negative element ta occurs. The first and most common of these environments is before completive verbal predicates prefixed with s- (see also exx. 1a and 5):	page 4
+(8a) line 1	Montana Salish	transcription	ta sč'stmís t Čoní	page 4
+(8a) line 2	Montana Salish	segmentation	ta s-č'és-t-mí-nt-és t Čoní	page 4
+(8a) line 3	Montana Salish	gloss	NEG NOM-bad-STATV-DER.TR-TR-3.TR.SUBJ OBL Johny	page 4
+(8a) line 4	Nico Baier, Di Wdzenczny	translation	‘Johnny didn’t get mad’	page 4
+(8b) line 1	Montana Salish	transcription	ta skʷlstnun	page 4
+(8b) line 2	Montana Salish	segmentation	ta s-kʷúl-íst-nún-nt-én	page 4
+(8b) line 3	Montana Salish	gloss	NEG NOM-send-INTR.REFL-SUCCESS-TR-1SG.TR.SBJ	page 4
+(8b) line 4	Nico Baier, Di Wdzenczny	translation	‘He refused to go’	page 4
+(8b) line 5	Nico Baier, Di Wdzenczny	note	(lit. ‘I didn’t succeed in sending him’)	page 4, at the right of the translation
+§3	Nico Baier, Di Wdzenczny	note	The predicates negated in this type of construction take normal inflection, such as the 3rd person transitive subject suffix –és (ex. 7a) or the 1st person transitive subject suffix –én (ex. 7b).	page 4
+§3	Montana Salish	cited form	–és	page 4, in italics
+§3	Montana Salish	cited form	–én	page 4, in italics
+§3	Nico Baier, Di Wdzenczny	note	Next, we find that ta is also used in negative constructions with predicates having the irrealis prefix qł-, producing negative future clauses or negative commands. It is the only negator found in such formations. Two examples of such constructions are below (as well as in ex. 3b, above):	page 4
+(9a) line 1	Montana Salish	transcription	ta qskʷupncn!	page 4
+(9a) line 2	Montana Salish	segmentation	ta qł-s-kʷúp-nt-sí-én	page 4
+(9a) line 3	Montana Salish	gloss	NEG IRR-NOM-push-TR-2SG.OBJ-1SG.TR.SBJ	page 4
+(9a) line 4	Nico Baier, Di Wdzenczny	translation	‘I won’t push you.’	page 4
+(9b) line 1	Montana Salish	transcription	ta qesqʷomscú!	page 5
+(9b) line 2	Montana Salish	segmentation	ta qł-es-qʷom-st-cút	page 5
+(9b) line 3	Montana Salish	gloss	NEG IRR-ASP-mistake-TR-3.TR.SBJ	page 5
+(9b) line 4	Nico Baier, Di Wdzenczny	translation	‘Don’t make a mistake!’	page 5
+§3	Nico Baier, Di Wdzenczny	note	As can be seen from the examples above, the prefix qł- does not surface as such. In most cases, either the prefix s- or the prefix es- follows the irrealis prefix. This sequence then contracts to qs- or qes-, respectively. It is not clear what the function of these prefixes is in the formation, or what underpins their distribution. As discussed in section 2 above, the s- may be a sign of subordination to ta.	page 5
+§3	Montana Salish	cited form	qs-	page 5, in italics
+§3	Montana Salish	cited form	qes-	page 5, in italics
+§3	Nico Baier, Di Wdzenczny	note	Ta also negates verbal predicates containing the morpheme epł- ‘have’ (see also ex. 3c):	page 5
+§3	Montana Salish	cited form	epł-	page 5, in italics, ‘have’
+(10a) line 1	Montana Salish	transcription	ta čn epłkapí	page 5
+(10a) line 2	Montana Salish	segmentation	ta čn epł-kapí	page 5
+(10a) line 3	Montana Salish	gloss	NEG 1SG.INTR.SBJ have-coffee	page 5
+(10a) line 4	Nico Baier, Di Wdzenczny	translation	‘I don’t have any coffee.’	page 5
+(10b) line 1	Montana Salish	transcription	ta qe epłqéne	page 5
+(10b) line 2	Montana Salish	segmentation	ta qeʔ epł-qéneʔ	page 5
+(10b) line 3	Montana Salish	gloss	NEG 1PL have-grandmother	page 5
+(10b) line 4	Nico Baier, Di Wdzenczny	translation	‘We don’t have a grandmother.’	page 5
+§3	Nico Baier, Di Wdzenczny	note	Forms with epł- may or may not take the nominalizing prefix s-. If they do, the s- occurs after the epł- and the morpheme sequence contracts to eps-, as in 6b above. It is not known whether the s- in these forms is required by the presence of ta, or if it is already present in the nominal words which are compounded with epł-.	page 5
+§3	Montana Salish	cited form	eps-	page 5, in italics
+§3	Nico Baier, Di Wdzenczny	note	Ta is also found with some verbal predicates having the aspect prefix es-:	page 5
+(11a) line 1	Montana Salish	transcription	ta esyostén sq’ʷeymncú.	page 5
+(11a) line 2	Montana Salish	segmentation	ta es-yoʔ-st-én s-q’ʷey-mí-n-cút	page 5
+(11a) line 3	Montana Salish	gloss	NEG ASP-know.how-TR-1SG.TR.SBJ NOM-dance-DER.TR-TR-REFL	page 5
+(11a) line 4	Nico Baier, Di Wdzenczny	translation	I didn’t know how to dance	page 5
+(11b) line 1	Montana Salish	transcription	ta esk’ʷłnc’nmá	page 5
+(11b) line 2	Montana Salish	segmentation	ta es-k’ʷł-n-c’an-m-ép	page 5
+(11b) line 3	Montana Salish	gloss	NEG ASP-LOC:UNDER-LOC:IN-TIGHT-ANTIP=bottom/door	page 5
+(11b) line 4	Nico Baier, Di Wdzenczny	translation	‘It’s unlocked/not locked.’	page 5
+(11c) line 1	Montana Salish	transcription	ta esséwne Čoní	page 5
+(11c) line 2	Montana Salish	segmentation	tá es-séw=enéʔ Čoní	page 5
+(11c) line 3	Montana Salish	gloss	NEG ASP-ask/perceive=ear Johnny	page 5
+(11c) line 4	Nico Baier, Di Wdzenczny	translation	‘Johnny doesn’t mind.’	page 5
+(11c) line 5	Nico Baier, Di Wdzenczny	note	(lit. ‘Johnny doesn’t hear’)	page 5, at the right of the translation
+§3	Nico Baier, Di Wdzenczny	note	These forms seem to go against the norm, since there aren’t many in the data. In some cases, they have continuative or stative semantics, and in some cases not. This topic will be dealt with below in section 5.	page 6
+§3	Nico Baier, Di Wdzenczny	note	Next, there is a small group of ta negations in which the negated predicate is found with the first person possessive prefix in-, instead of normal person inflection:	page 6
+§3	Montana Salish	cited form	in-	page 6, in italics
+(12a) line 1	Montana Salish	transcription	ta y’esniw’áls	page 6
+(12a) line 2	Montana Salish	segmentation	ta in-es-n-yíl’w=éls	page 6
+(12a) line 3	Montana Salish	gloss	NEG 1SG.POSS-ASP-LOC:IN-move=feelings	page 6
+(12a) line 4	Nico Baier, Di Wdzenczny	translation	‘I don’t feel right about it.’	page 6
+(12b) line 1	Montana Salish	transcription	ta y’esčmšqnmí(st)	page 6
+(12b) line 2	Montana Salish	segmentation	ta in-es-č-míš=qín-míst	page 6
+(12b) line 3	Montana Salish	gloss	NEG 1SG.POSS-ASP-LOC:TO-none=head-INTR.REFL	page 6
+(12b) line 4	Nico Baier, Di Wdzenczny	translation	‘I don’t give up.’	page 6
+(12c) line 1	Montana Salish	transcription	ta y’epłkapí	page 6
+(12c) line 2	Montana Salish	segmentation	ta in-epł-kapí	page 6
+(12c) line 3	Montana Salish	gloss	NEG 1SG.POSS-have-coffee	page 6
+(12c) line 4	Nico Baier, Di Wdzenczny	translation	‘I don’t have any coffee yet.’	page 6
+§3	Nico Baier, Di Wdzenczny	note	This group of predicates is very limited. Forms with the second person possessive prefix an- are not attested, although one might expect them to be. Also, this construction seems to be the only type of ta negatives which always have stative or generic meaning. All predicates taking this type of negation have the prefix es- or are based on a predicate containing epł-. Before both these prefixes in- usually becomes y or y’, though sometimes the entire sequence contracts to is-.2	page 6
+footnote 2	Nico Baier, Di Wdzenczny	note	This sound change, like quite a few others observed in examples above, do not have a bearing on the phenomenon we are discussing, and therefore will not be addressed in this paper.	page 6, footnote 2
+§3	Montana Salish	cited form	an-	page 6, in italics
+§3	Montana Salish	cited form	is-	page 6, in italics
+§3	Nico Baier, Di Wdzenczny	note	Finally, ta is found in the negative expressions tapisté ‘never’, ta stém ‘nothing’, and ta suwé ‘no one’:	page 6
+§3	Montana Salish	cited form	tapisté	page 6, in italics, ‘never’
+§3	Montana Salish	cited form	ta stém	page 6, in italics, ‘nothing’
+§3	Montana Salish	cited form	ta suwé	page 6, in italics, ‘no one’
+(13a) line 1	Montana Salish	transcription	tapisté kʷ escnʔúłxʷ	page 6
+(13a) line 2	Montana Salish	segmentation	ta-pén-s-tém’ kʷ es-c-n-ʔúłxʷ	page 6
+(13a) line 3	Montana Salish	gloss	NEG-time-NOM-what 2SG.INTR.SBJ ASP-LOC:HITHER-LOC:IN-go.in	page 6
+(13a) line 4	Montana Salish	transcription	ye l incítxʷ	page 6
+(13a) line 5	Montana Salish	segmentation	ye l in-cítxʷ	page 6
+(13a) line 6	Montana Salish	gloss	DEM at 1SG.POSS-tipi	page 6
+(13a) line 7	Nico Baier, Di Wdzenczny	translation	‘You’ve never come into my tipi.’	page 6
+(13b) line 1	Montana Salish	transcription	ta stém’ esiyostés	page 7
+(13b) line 2	Montana Salish	segmentation	ta s-tém’ es-yoʔ-st-és	page 7
+(13b) line 3	Montana Salish	gloss	NEG NOM-what ASP-know.how-TR-3TR.SBJ	page 7
+(13b) line 4	Nico Baier, Di Wdzenczny	translation	‘He couldn’t do anything right.’	page 7
+(13c) line 1	Montana Salish	transcription	ta suwé qeswéłkʷp	page 7
+(13c) line 2	Montana Salish	segmentation	ta suwé qł-es-wéłkʷ-p	page 7
+(13c) line 3	Montana Salish	gloss	NEG who IRR-ASP-go.down-INCH	page 7
+(13c) line 4	Nico Baier, Di Wdzenczny	translation	‘Don’t anyone go down!’	page 7
+§3	Nico Baier, Di Wdzenczny	note	These forms seem to be specialized negative expressions, perhaps a type of compound, instead of a predicate negated by ta. That is, they seem to be lexicalized.	page 7
+§4	Nico Baier, Di Wdzenczny	heading	4 Environment of tam	page 7
+§4	Nico Baier, Di Wdzenczny	note	Next, we examine the environments in which the negator tam is found. A major function of tam, it seems, is to negate non-verbal predicates. First, it is found before nominal-like predicates:	page 7
+(14a) line 1	Montana Salish	transcription	tam ilmíxʷm łu Čułmsčí.	page 7
+(14a) line 2	Montana Salish	segmentation	tam yál=míxʷ-m łu Čúłmsčí	page 7
+(14a) line 3	Montana Salish	gloss	NEG round=person-ANTIP 2NDRY Čúłmsčí	page 7
+(14a) line 4	Nico Baier, Di Wdzenczny	translation	‘Čułmsčí wasn’t even a chief.’	page 7
+(14b) line 1	Montana Salish	transcription	tam ascnq’éʔe	page 7
+(14b) line 2	Montana Salish	segmentation	tam an-s-c-n-q’éʔ	page 7
+(14b) line 3	Montana Salish	gloss	NEG 2SG.POSS-NOM-LOC:HITHER-LOC:IN-do.business	page 7
+(14b) line 4	Nico Baier, Di Wdzenczny	translation	‘That’s none of your business.’	page 7
+(14c) line 1	Montana Salish	transcription	tam sqélixʷ	page 7
+(14c) line 2	Montana Salish	segmentation	tam s-qél=ixʷ	page 7
+(14c) line 3	Montana Salish	gloss	NEG NOM-body=person	page 7
+(14c) line 4	Nico Baier, Di Wdzenczny	translation	‘He’s not an Indian.’	page 7
+§4	Nico Baier, Di Wdzenczny	note	The meaning of these negations is either existential (as in ex. 3, above), or equational. There is no special marking on the nominal predicate. It is not clear whether the negator is part of the negated predicate or predicative itself, as discussed above.	page 7
+§4	Nico Baier, Di Wdzenczny	note	Tam is also found before adverbial-like predicates and predicates which contain a particle:	page 7
+(15a) line 1	Montana Salish	transcription	tam χʷl' anwí esyapqéyni!	page 7
+(15a) line 2	Montana Salish	segmentation	tam χʷl' anwí es-yaʔ-p=qín-mí	page 7
+(15a) line 3	Montana Salish	gloss	NEG for 2SG.INDEP ASP-gather-INCH=head-INTR.CONT	page 7
+(15a) line 4	Nico Baier, Di Wdzenczny	translation	‘This meeting’s not for you!’	page 7
+(15b) line 1	Montana Salish	transcription	tam t šiʔmí, tam tl’ ntχwe,	page 8
+(15b) line 2	Montana Salish	segmentation	tam t šiʔmí tam tl’ n-tóχ=étkw	page 8
+(15b) line 3	Montana Salish	gloss	NEG OBL any NEG from LOC:IN-straight=water	page 8
+(15b) line 4	Montana Salish	transcription	u tl’ čłq’alí	page 8
+(15b) line 5	Montana Salish	segmentation	u tl’ čł-q’lí	page 8
+(15b) line 6	Montana Salish	gloss	and from LOC:ON-lake	page 8
+(15b) line 7	Nico Baier, Di Wdzenczny	translation	‘Not just any old [rocks], not from the river or lake.’	page 8
+§4	Nico Baier, Di Wdzenczny	note	In this pattern, the predicate being negated is adverbial, as in 15a. In 15b, we see two negations, one in construction with t šiʔmí ‘any’, and one in construction with two coordinated locative constituents: tl’ ntχwé u tl’ čłq’alí ‘from the river or from the lake’. The meaning of these constructions is stative.	page 8
+§4	Montana Salish	cited form	t šiʔmí	page 8, in italics, ‘any’
+§4	Montana Salish	cited form	tl’ ntχwé u tl’ čłq’alí	page 8, in italics, ‘from the river or from the lake’
+§4	Nico Baier, Di Wdzenczny	note	In addition to negating these non-verbal forms, tam is found before adjective-like predicates:	page 8
+(16a) line 1	Montana Salish	transcription	tam uné	page 8
+(16a) line 2	Montana Salish	segmentation	tam uné	page 8
+(16a) line 3	Montana Salish	gloss	NEG true	page 8
+(16a) line 4	Nico Baier, Di Wdzenczny	translation	‘It wasn’t true.’	page 8
+(16b) line 1	Montana Salish	transcription	ta, tam kʷkʷtunt	page 8
+(16b) line 2	Montana Salish	segmentation	ta tam kʷ-kʷtún-t	page 8
+(16b) line 3	Montana Salish	gloss	NEG NEG REDUP-big-STATV	page 8
+(16b) line 4	Nico Baier, Di Wdzenczny	translation	‘No, they weren’t big ones.’	page 8
+§4	Nico Baier, Di Wdzenczny	note	The meaning of these constructions is also equational. The predicates that appear negated in this pattern may or may not bear the stative suffix –t, as in example 15b. There does not seem to have an effect on the meaning of the predicate.	page 8
+§4	Nico Baier, Di Wdzenczny	note	The negator tam is also used before continuative verbal predicates. These predicates are overtly marked for continuative aspect, either in the form of the transitive continuative construction (exx. 17a, 17c, below) or in the form of an intransitive continuative (ex. 17b, below):	page 8
+(17a) line 1	Montana Salish	transcription	tam iesntélsmm	page 8
+(17a) line 2	Montana Salish	segmentation	tam in-es-nt=éls-mí-ém	page 8
+(17a) line 3	Montana Salish	gloss	NEG 1SG.POSS-ASP-think=feelings-DER.TR-TR.CONT	page 8
+(17a) line 4	Montana Salish	transcription	ci skʷískʷs	page 8
+(17a) line 5	Montana Salish	segmentation	ci s-kʷískʷs	page 8
+(17a) line 6	Montana Salish	gloss	DEM NOM-chicken	page 8
+(17a) line 7	Nico Baier, Di Wdzenczny	translation	“I don’t want those chickens.”	page 8
+(17b) line 1	Montana Salish	transcription	tam esxʷúyi	page 9
+(17b) line 2	Montana Salish	segmentation	tam es-xʷuy-mí	page 9
+(17b) line 3	Montana Salish	gloss	NEG ASP-go-INTR.CONT	page 9
+(17b) line 4	Nico Baier, Di Wdzenczny	translation	“She isn’t going.”	page 9
+(17c) line 1	Montana Salish	transcription	t Čoní tam qʷo	page 9
+(17c) line 2	Montana Salish	segmentation	t Čoní tam qʷo	page 9
+(17c) line 3	Montana Salish	gloss	OBL Johnny NEG 1SG.INTR.SBJ	page 9
+(17c) line 4	Montana Salish	transcription	esxʷíc’łtms pusts	page 9
+(17c) line 5	Montana Salish	segmentation	es-xʷíc’-ł-t-ém-s pust-s	page 9
+(17c) line 6	Montana Salish	gloss	ASP-give-REL-TR-TR.CONT-3POSS cat-3POSS	page 9
+(17c) line 7	Nico Baier, Di Wdzenczny	translation	‘Johnny isn't giving his cat to me.’	page 9
+§4	Nico Baier, Di Wdzenczny	note	All predicates overtly marked for continuative aspect are negated by tam. Though there are verbal predicates negated by tam that are not overtly marked for continuative aspect, the majority of these negations are. We discuss such examples below, in sections 5.	page 9
+§5	Nico Baier, Di Wdzenczny	heading	5 Analysis	page 9
+§5	Nico Baier, Di Wdzenczny	note	What can the environments outlined above tell us about the underlying factors conditioning the use of the two negators? We have indentified two major patterns in our data. First, there is a split according to the type of predicate being negated. Tam negations are based on those that are generally not verbal, though there are examples of tam negations based on verbs. Ta negations, on the other hand, are based exclusively on verbal predicates. Second, within verbal negations, there is a split between those negations based on non-continuative predicates which employ ta, and those based on continuative predicates, which are negated by tam. This split is not perfect. Predicates that are not marked for aspect have been found negated by both ta and tam. We will discuss each of these patterns in turn.	page 9
+§5	Nico Baier, Di Wdzenczny	note	The first major factor conditioning the choice of negator is the type of predicate being negated. As seen from the examples above, nominal- (exx. 3, 14), adverbial- (ex. 15), and adjectival-like (ex. 16) predicates are exclusively negated by tam. They contrast with negations using ta, which are exclusively verbal. Though at first sight the negative expressions tapisté, ta stém and ta suwé pose a contradiction to this claim, these forms become less problematic when one approaches them as lexicalized phrases. Because nominal forms cannot be substituted for pisté, etc., it seems clear that these elements are not predicative within the negation itself. They are separate forms.	page 9
+§5	Montana Salish	cited form	pisté	page 9, in italics
+§5	Nico Baier, Di Wdzenczny	note	Because of the overlap between the two negators in the realm of verbal negations, another factor is needed to determine which verbal predication will take ta and which tam. To solve this problem, we propose that the aspectual form of a verbal predicate conditions which negator is taken by that predicate. This split occurs between non-continuative and continuative predicates, though this split is not perfect. For some predicates not marked for any type of aspect, there are examples of negations with ta and negations with tam. We will return to this point below.	page 9
+§5	Nico Baier, Di Wdzenczny	note	There are two definite splits in aspect. First, tam always negates continuative verbal predicates (exx. 1c, 2 and 17). Second, ta is always found with completive (exx. 1a, 5 and 8) and irrealis predicates (exx. 6a and 9). Negated completive predicates occur with the prefix s-, and negated irrealis predicates occur with the prefix qł-, which may be followed by either the prefix s- or the prefix es-. Second, tam always negates continuative verbal predicates (exx. 1c, 2 and 17).	page 10
+§5	Nico Baier, Di Wdzenczny	note	There are examples of predicates without aspect marking, many of which are statives or generics, and there does not seem to be any clear rule dictating which predicate will take which negator. Those stative or generic predicates containing epł- are negated by ta (exx. 10a-b). Examples like 7 and 11b may be resultatives, showing a state that has been reached, and thus this aspectual meaning may license the use of ta. Statives negated by tam (such as ex. 1b) may be lexically durative, and therefore be associated more closely with the status of other tam marked predicates. If this is the case, examples such as 18a-b, below, could be explained:	page 10
+(18a) line 1	Montana Salish	transcription	Čoní tam esnté	page 10
+(18a) line 2	Montana Salish	segmentation	Čoní tam es-nt=éls	page 10
+(18a) line 3	Montana Salish	gloss	Johnny NEG ASP-think=feelings	page 10
+(18a) line 4	Montana Salish	transcription	u łe t skʷiskʷs	page 10
+(18a) line 5	Montana Salish	segmentation	u łu-ʔe t s-kʷískʷs	page 10
+(18a) line 6	Montana Salish	gloss	and 2NDARY-this/that OBL NOM-chicken	page 10
+(18a) line 7	Nico Baier, Di Wdzenczny	translation	‘Johnny didn’t want any more chickens.’	page 10
+(18b) line 1	Montana Salish	transcription	t Malí tam xmenčs łu Čoní	page 10
+(18b) line 2	Montana Salish	segmentation	t Malí tam xménč-és łu Čoní	page 10
+(18b) line 3	Montana Salish	gloss	OBL Mary NEG love/like-3TR.SBJ 2NDARY Johnny	page 10
+(18b) line 4	Nico Baier, Di Wdzenczny	translation	‘Mary doesn’t love Johnny.’	page 10
+§5	Nico Baier, Di Wdzenczny	note	Notice that the negated predicate, xmenčs ‘she loves him’, in 18b does not have either es- or s-. The inherent durativity of such predicates could cause the use of tam in such examples.	page 10
+§5	Montana Salish	cited form	xmenčs	page 10, in italics, ‘she loves him’
+§5	Nico Baier, Di Wdzenczny	note	Also interesting are predicates such as those in example 12, above. In such constructions, the negator ta appears before a stative or generic predicate having the first person possessive prefix in-. This formation seems to be limited to the first person. Additionally, there seem to be a limited number of roots or stems that can appear in it. All predicates in this construction have the prefix es- or contain the morpheme epł- ‘have’. Many of these negations have non-in- prefixed equivalents. Compare 19a to 19b:	page 10
+(19a) line 1	Montana Salish	transcription	ta y’epłkapí	page 11
+(19a) line 2	Montana Salish	segmentation	ta in-epł-kapí	page 11
+(19a) line 3	Montana Salish	gloss	NEG 1SG.POSS-have-coffee	page 11
+(19a) line 4	Nico Baier, Di Wdzenczny	translation	‘I don’t have any coffee yet.’	page 11
+(19b) line 1	Montana Salish	transcription	ta čn epłkapí	page 11
+(19b) line 2	Montana Salish	segmentation	ta čn epł-kapí	page 11
+(19b) line 3	Montana Salish	gloss	NEG 1SG.INTR.SBJ have-coffee	page 11
+(19b) line 4	Nico Baier, Di Wdzenczny	translation	‘I don’t have any coffee.’	page 11
+§5	Nico Baier, Di Wdzenczny	note	These two examples seem to be very similar in meaning, though there may be a slight aspectual difference in 19a. This distinction is not yet understood, and merits further investigation.	page 11
+§6	Nico Baier, Di Wdzenczny	heading	6 Negation in Southern Interior Salish & the origin of the ta/tam distinction	page 11
+§6	Nico Baier, Di Wdzenczny	note	We now examine whether there are any parallels between the negation system described above for Montana Salish, and those of other Salish languages, specifically, those of the Interior branch of the Salish family. For two dialects of the same nameless language as Montana Salish, Kalispel and Spokane, there seem to be similarities. In this section, we also consider the origin on the ta/tam distinction.	page 11
+§6	Nico Baier, Di Wdzenczny	note	There seem to be quite a few parallels between the negation system of Kalispel and that of Montana Salish. Kalispel employs both ta and tam. In his grammar of the language, Vogt (1940) states that tam is used with:	page 11
+§6	Nico Baier, Di Wdzenczny	note	1) “nominal expressions”	page 11, an item of the list
+§6	Nico Baier, Di Wdzenczny	note	2) “continuative forms of the verb”	page 11, an item of the list
+§6	Nico Baier, Di Wdzenczny	note	3) “adjectives used as adverbs”	page 11, an item of the list
+§6	Nico Baier, Di Wdzenczny	note	He also states that the ta is used with:	page 11
+§6	Nico Baier, Di Wdzenczny	note	1) “completive tasks which take the nominalizing prefix s-”	page 11, an item of the list
+§6	Nico Baier, Di Wdzenczny	note	2) “to form negative pronouns tapistém ‘never,’ talčén ‘nowhere,’ tasuwét ‘no one’”	page 11, an item of the list
+§6	Kalispel	cited form	tapistém	page 11, in italics, ‘never,’
+§6	Kalispel	cited form	talčén	page 11, in italics, ‘nowhere,’
+§6	Kalispel	cited form	tasuwét	page 11, in italics, ‘no one’
+§6	Nico Baier, Di Wdzenczny	note	3) “continuative forms of the verb”	page 11, an item of the list
+§6	Nico Baier, Di Wdzenczny	note	Most of these uses match the uses of the Montana Salish negators, though there is a key difference in that ta may be used with continuative verb forms. Vogt does not discuss this point, therefore which continuative forms are used with which negator is unknown. He also notes that “the resultative has ta”, which may resemble uses of ta as noted above, and speaks of negative forms bearing a possessive prefix, which he analyzes as arising out of nominalization present in those forms (Vogt 1940).	page 11
+§6	Nico Baier, Di Wdzenczny	note	We can only superficially speak of Spokane’s negation system, but it appears to be similar to that of MSa. Both ta and tam are present in Spokane. The use of tam seems to be more limited. In his 1972 grammar, Carlson states the following about tam:	page 12
+§6	Nico Baier, Di Wdzenczny	note	“s- derived words also occur commonly after restricted negative word tam ‘be nothing’. However, after tam, s- words serving as adjuncts refer to entities rather than events and occur only with possessive and intransitive pronouns.”	page 12, the block quotation
+§6	Nico Baier, Di Wdzenczny	note	He also states that after ta, most predicates have the nominalizing s-. These two facts, though not elaborated upon in Carlson’s grammar, do point to at least some similar processes in the language involving the distribution of negatives.	page 12
+§6	Nico Baier, Di Wdzenczny	note	Two other Southern Interior Languages, Colville-Okanagan and Couer D’Alene, do not have negative systems like MSa. Both these languages use a different negative, lut, and neither appears to make a distinction in negative constructions according to predicate type of aspect (Doak 1997, Mattina 1973). In the Couer D’Alene, the negated predicate is subordinated, and immediately follows lut.	page 12
+§6	Nico Baier, Di Wdzenczny	language	Colville-Okanagan	a Southern Interior language whose negative is lut, Mattina (1973)
+§6	Nico Baier, Di Wdzenczny	language	Couer D’Alene	a Southern Interior language whose negative is lut, Doak (1997), the title of which spells it Coeur d’Alene
+§6	Nico Baier, Di Wdzenczny	note	It is not clear whether tam is an innovation of the Southern Interior languages, or whether it could have originally been wider spread alongside the negator ta. A similar form, tem, exists alongside a form teʔ in Thompson Salish, a Northern Interior language, as noted in Thompson & Thompson 1992. Davis 2005 shows evidence that tam could earlier have been wider spread, perhaps contrasting with *ta. He cites the existence of the negative existential taw in Tillamook, which is historically related to tam through the regular sound change *m → w. This can be seen in the example below:	page 12
+§6	Thompson Salish	cited form	teʔ	page 12, in italics
+§6	Nico Baier, Di Wdzenczny	language	Thompson Salish	a Northern Interior language, where tem exists alongside teʔ, Thompson & Thompson (1992)
+§6	Nico Baier, Di Wdzenczny	language	Tillamook	its negative existential taw is cognate with tam, Davis (2005)
+(20) line 1	Tillamook	transcription	taw kʷ=łiyəlhu	page 12
+(20) line 2	Tillamook	gloss	NEG DET=man	page 12
+(20) line 3	Nico Baier, Di Wdzenczny	translation	‘No man (was there)’	page 12
+(20) line 4	Nico Baier, Di Wdzenczny	citation	(Davis 2005:40)	page 12, the tag or source at the right of the translation
+§6	Nico Baier, Di Wdzenczny	note	This use of taw closely resembles tam negations such as those found in example 3, above. This use could suggest that an older form, tam, had a closer affinity with nominal or non-verbal predicates.	page 12
+§7	Nico Baier, Di Wdzenczny	heading	7 Conclusion	page 12
+§7	Nico Baier, Di Wdzenczny	note	We have examined the distribution of the two Montana Salish negatives ta and tam, and attempted to elucidate the underlying factors which condition this distribution, of which there seem to be two. First, MSa makes a distinction between verbal and non-verbal predicates, with all non-verbal predicates being negated by tam. Second, there is a split within negated verbal predicates along the lines of aspectual form. Tam negates continuative verbal predicates, while many non-continuative forms are negated by ta. Although this does fill in many gaps about what was previously known about Montana Salish’s negation system, there are still areas which merit further investigation, especially the syntax of the negators; the construction found with ta in which a negated predicate takes the first person possessive prefix in-; and the use factors which underpin the distribution of the negators with predicates unmarked for aspect.	page 12
+references	Nico Baier, Di Wdzenczny	heading	References	page 13
+references	Nico Baier, Di Wdzenczny	reference	Carlson, Barry. 1972. A Grammar of Spokane: A Salish language of eastern Washington. Ph.D. dissertation., University of Hawaii.	page 13
+references	Nico Baier, Di Wdzenczny	reference	Doak, Ivy G. 1997. Coeur d’Alene Grammatical Relations. Ph.D. dissertation, University of Texas at Austin.	page 13
+references	Nico Baier, Di Wdzenczny	reference	Davis, Henry. 2005. On the Syntax and Semantics of Negation in Salish. International Journal of American Linguistics 71:1-55.	page 13
+references	Nico Baier, Di Wdzenczny	reference	Kroeber, Paul D. 1999. The Salish Language Family: Reconstructing Syntax. Lincoln: The University of Nebraska Press.	page 13
+references	Nico Baier, Di Wdzenczny	reference	Mattina, Anthony. 1973. Colville Grammatical Structure. Honolulu. Ph.D. dissertation, University of Hawaii, Honolulu. DAI 34A:3375. [Published as UHWPL 5.]	page 13
+references	Nico Baier, Di Wdzenczny	reference	Thompson, Laurence C., and M. Terry Thompson. 1992. The Thompson Language. UMOPL 8. Missoula.	page 13
+references	Nico Baier, Di Wdzenczny	reference	Vogt, Hans. 1940. The Kalispel Language: An outline of the grammar with texts, translations, and dictionary. Oslo: Det Norske Videnskape-Akdemi i Oslo.	page 13
