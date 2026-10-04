@@ -68,7 +68,8 @@
 // The input, little-endian: 64-bit words points (2^p), checked, nu, p, L, K, J, Newton steps, piece, method, the
 // expansions' order, beta, E, R, for method 3 Euler-Maclaurin's N and M, else 0 and 0, and 1 where every point is
 // to be listed, 2 where every point is to be listed with Z' and each step's flag, by the multiple evaluation or at
-// the listed points, else 0, then the constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least
+// the listed points, 3 where every point is to be listed with theta / pi less and more its bound, else 0, then the
+// constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least
 // significant first, and a 64-bit sign word: ln 2, the J coefficients of C_0, the L constants 1 / (2k + 1) of artanh,
 // the K constants of cos, 1 / (96 pi^2), the bound on Z, the bound on theta / pi, pi, the E constants 1 / (n + 1)! of
 // E1, the R constants of S, for method 3 the M - 1 ratios r_k for k from 2 to M, with the listing word 2 h / 3 and
@@ -80,7 +81,8 @@
 // host's checks of every stage and sum, each 1 where they equal the device's word for word, the steps of each
 // program, with both methods the most the two Z differ by and the point it falls at, and where the input asks, each
 // point's sign, S, Z and w, with the twist the shift and each point's exp(i theta) F' / 2^shift, and with the
-// listing word 2 the flag of the step that ends at the point.
+// listing word 2 the flag of the step that ends at the point, and with the listing word 3 theta / pi less and more
+// its bound.
 //
 // The twist: the pole stage again with a and every charge times -i ln k / 2^shift, 2^shift at least ln nu, and the
 // multiple evaluation over those poles gives F' / 2^shift at every point, F' = dF/dt. The poles and the weighted poles
@@ -3009,8 +3011,8 @@ static int turing_job(const char *input, const char *output)
            (header[10] >= 2) && (header[11] >= 2) &&
            ((header[9] == 0) || em_header || listed_header || (header[11] < header[3])) &&
            (header[12] >= 2) && (header[13] >= 2) && (!em_header || ((header[14] >= 2) && (header[15] >= 2))) &&
-           (header[16] >= 0) && (header[16] <= 2) &&
-           ((header[16] < 2) || (header[9] == 1) || (header[9] == 2) || (header[9] == 4));
+           (header[16] >= 0) && (header[16] <= 3) &&
+           ((header[16] != 2) || (header[9] == 1) || (header[9] == 2) || (header[9] == 4));
     const unsigned long long points = read ? (unsigned long long)header[0] : 0ull;
     const unsigned long long checked = read ? (unsigned long long)header[1] : 0ull;
     const unsigned long long nu = read ? (unsigned long long)header[2] : 0ull;
@@ -3026,6 +3028,8 @@ static int turing_job(const char *input, const char *output)
     // listed points, by the pairs' sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi)
     const int sloped = read && (header[16] == 2);
     const int twisted = sloped && ((header[9] == 1) || (header[9] == 2));
+    // with the listing word 3, each point's theta / pi less and more its bound after its w
+    const int bracketed = read && (header[16] == 3);
     const unsigned int shift = read ? turing_bits_of((unsigned long long)turing_bits_of((unsigned long long)header[2])) : 0u;
     // the width every value is wrapped to: the floor, or 60 + l where the multiple evaluation's top level
     // l = p - beta asks more
@@ -3749,6 +3753,10 @@ static int turing_job(const char *input, const char *output)
             if (sloped)
             {
                 turing_write_output(out, &margined, margin_records, lane, 1u);
+            }
+            for (unsigned int at = 2u; bracketed && (at < 4u); at += 1u)
+            {
+                turing_write_output(out, &verdict, verdicts, lane, at);
             }
             fprintf(out, "\n");
         }
