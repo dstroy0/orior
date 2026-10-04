@@ -1,10 +1,8 @@
 """The shared half of a paper's generator: its lines, its paragraph starts, its footnotes, its
 references, and the ops file the rows become.
 
-A generator used to carry all of this itself, copied from the paper before and edited, and most of
-the time a paper took went into the copy. A paper's own generator now imports this module and
-states only what is the paper's: which lines are headings, how its examples are laid out, which
-names and languages it holds.
+A paper's own generator imports this module and states only what is the paper's: which lines are
+headings, how its examples are laid out, which names and languages it holds.
 
     import gen
     paper = gen.Paper("ICSNL56_Zenk_final")
