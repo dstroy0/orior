@@ -1706,10 +1706,10 @@ In the field's terms:
   grow and the mean of `Z^2` grows as `log t`. The field's mean square is the harmonic sum of `1 / k`,
   which grows as `ln nu` while the waves grow as `nu`: each wave carries less as more join.
 
-The term the machine holds and does not measure is the restoring force itself: how fast `S` returns to
-0 across the certified zeros, its correlation from one zero to the next and over longer lags. The
-certified zeros of a run give `S` at each of them, and the form factor of the certified zeros on
-`theta / pi` asks the same measure.
+The term the machine holds and does not certify is the restoring force itself: how fast `S` returns to
+0 across the zeros, its correlation from one zero to the next and over longer lags. It is measured
+below, in "Measured, the field's tension", and the form factor of the certified zeros on `theta / pi`
+asks the same measure.
 
 **One process, each program loaded once.** `exact_zeta_turing serve` reads two lines a run, the input's
 path and the output's, and answers each with `done` and the run's code. A program is imprinted, laid
@@ -1799,6 +1799,55 @@ halves come out equal word for word.
 `both` over cells 40 to 44 each give output equal to the two evaluations' build, cell 301's equal word
 for word with every point's `F'`. `refine` over cells 300 to 309 takes 15 s: past the cells, its wall
 is the host's work between the device's runs.
+
+**Measured, the field's tension.** `exact_zeta_tension.py` runs each cell once on the device with every
+point listed, on the lattice two steps finer than four points a zero, and places each zero between two
+`F`'s at a change of sign of the device's `Z`, on the line through `Z` at the two points. A close pair
+no point falls between is found where `|Z|` dips and keeps its sign, listed again 64 times finer by
+pairs. N is held by Turing's method at cells 300 and 310; at cells 1000 and 1003 it is given from a run
+of the machine over cells 999 to 1003, which closes in 2 rounds. On `u = theta / pi + 1`, `S` between
+the `n`-th zero and the next is `n - u` at their midpoint. The statistics are the host's, in floating
+point, over the device's `Z`.
+
+| measured | cells 300 to 310 | cells 1000 to 1003 |
+|---|---|---|
+| zeros placed, of N's difference | 69,789 of 69,789, 6 in 3 dips | 83,036 of 83,036, 6 in 3 dips |
+| `ln(t / 2 pi)`, the mean spacing in `t` | 11.441, 0.5492 | 13.819, 0.4547 |
+| `S`'s mean, its variance, Selberg's leading term | 0.0000, 0.0701, 0.1235 | 0.0000, 0.0788, 0.1330 |
+| the spacings' variance, neighbors' correlation | 0.1676, -0.349 | 0.1701, -0.343 |
+| `S`'s pull back each zero, the spacings shuffled | -0.389, -0.0001 | -0.354, 0.0000 |
+| `S`'s least correlation, at `k` zeros and in `t` | -0.625 at `k = 26`, 14.28 | -0.611 at `k = 31`, 14.10 |
+| the prime powers to 100: signs the same, rms, scale | 58 of 60, 0.043, 1.220 | 57 of 60, 0.031, 1.118 |
+| the prime powers to 10,000: signs the same, rms | 59 of 60, 0.060 | 57 of 60, 0.048 |
+| `S`'s correlation over 100, 1,000 zeros | +0.352, -0.112 | +0.467, -0.146 |
+
+- **The restoring force is in the spacings.** Each step of `S` takes back 0.39 of `S` at cell 300 and
+  0.35 at cell 1000. With the same spacings shuffled, every gap kept and their order dropped, it takes
+  back none. A wide gap is followed by a narrow one, neighbors' correlation -0.35.
+- **The slack grows as Selberg's term.** `S`'s variance rises by 0.0087 from the first height to the
+  second, and Selberg's leading term `(1 / (2 pi^2)) ln ln(t / 2 pi)` by 0.0095. The term itself stands
+  0.054 above at both, the constant it leaves out.
+- **The waves of `S` are the prime powers.** `S = -(1 / pi)` times the sum over `p^r` of
+  `sin(r t ln p) / (r p^(r / 2))`. With the phases independent, its correlation at a lag `tau` in `t` is
+  the sum of `cos(r tau ln p) / (r^2 p^r)` over the sum of `1 / (r^2 p^r)`. Over lags of 1 to 60 zeros the
+  prime powers to 100 give the sign of `S`'s correlation at 58 and 57 of them.
+- **The deepest trough stands at a lag in `t`, not in zeros.** It falls at 14.28 and 14.10 in `t`, 26 and
+  31 zeros: 26 times the ratio of the spacings, 1.208, gives 31.4. The trough of 2 alone, half the beat
+  `ln(t / 2 pi) / ln 2`, would fall at 8.3 and 10.0 zeros; the first trough falls at 6 and 7. The small
+  primes together set it, and 2 alone does not.
+- **The number variance saturates.** Over windows of `L` on `u`:
+
+| `L` | 1 | 5 | 8 | 20 | 100 | 400 |
+|---|---|---|---|---|---|---|
+| the zeros, cells 300 to 310 | 0.333 | 0.436 | 0.429 | 0.357 | 0.335 | 0.404 |
+| the zeros, cells 1000 to 1003 | 0.329 | 0.443 | 0.457 | 0.390 | 0.332 | 0.378 |
+| the spacings shuffled, cells 1000 to 1003 | 0.337 | 1.020 | 1.544 | 3.583 | 18.29 | 76.04 |
+| GUE's `(1 / pi^2)(ln 2 pi L + gamma + 1 - pi^2 / 8)` | 0.221 | 0.384 | 0.432 | 0.525 | 0.688 | 0.828 |
+
+  The zeros' variance stands near GUE's to `L` about 10, rises no further past 0.46, and stays between
+  0.32 and 0.49 out to `L = 400`, where GUE's reaches 0.83. The shuffled spacings' grows as `L`. Every
+  gap's spread is the same in both, and the field holds the count only through how each gap holds to
+  the others.
 
 ## The zeros in the engine's field
 
