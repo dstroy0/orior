@@ -644,11 +644,11 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
            "scheduler bits for %u\n",
            held.size(), read_same, assembled_same, control_same);
 
-    // NOP is gnascor's passage: GRAY between FUZZ and FIZZ, the word carried in and carried out as it came, written as
+    // NOP is gnascor's passage: gray between fuzz and fizz, the word carried in and carried out as it came, written as
     // no instruction
     if (precept == PRECEPT_NOP)
     {
-        printf("  our compiler: NOP is the passage, GRAY between FUZZ and FIZZ (gnascor): no instruction, the word "
+        printf("  our compiler: NOP is the passage, gray between fuzz and fizz (gnascor): no instruction, the word "
                "carried out as it came in\n");
         std::string loaded;
         std::string stored;
@@ -726,7 +726,7 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             where = guard->text.substr((guard->text[1] == '!') ? 2u : 1u, space - ((guard->text[1] == '!') ? 2u : 1u));
         }
         std::string written;
-        const int branch = ruleset_opcode(rules, "error", {where, "1"}, emit_scratch, written);
+        const int branch = ruleset_opcode(rules, "error_if", {where, "1"}, emit_scratch, written);
         const int label = branch && ruleset_opcode(rules, "label_error", {"1"}, emit_scratch, written);
         if (!label)
         {
@@ -761,8 +761,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         return;
     }
 
-    // JCC is the loop_back word (word_web.h), a jump taken on a predicate to a label, written through sass.krs on the
-    // predicate NVIDIA's branch is guarded by and landing on the label loop_label writes; its guard's sense is kept
+    // JCC is the loop_back_if word (word_web.h), a jump taken on a predicate to a label, written through sass.krs on
+    // the predicate NVIDIA's branch is guarded by and landing on the label label_loop writes; its guard's sense is kept
     if (precept == PRECEPT_JCC)
     {
         const EmitLine *guard = nullptr;
@@ -772,15 +772,15 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         }
         if (guard == nullptr)
         {
-            printf("  our compiler: loop_back, and NVIDIA's block holds no guarded branch\n");
-            emit_row(block, precept, "", "", "", "", "", "loop_back", "NVIDIA's block holds no guarded branch");
+            printf("  our compiler: loop_back_if, and NVIDIA's block holds no guarded branch\n");
+            emit_row(block, precept, "", "", "", "", "", "loop_back_if", "NVIDIA's block holds no guarded branch");
             return;
         }
         const std::string where = guard->text.substr(1u, guard->text.find(' ') - 1u);
         std::string written;
-        // loop_back's parameters are the loop's number, then the predicate
-        const int branch = ruleset_opcode(rules, "loop_back", {"1", where}, emit_scratch, written);
-        const int label = branch && ruleset_opcode(rules, "loop_label", {"1"}, emit_scratch, written);
+        // loop_back_if's parameters are the loop's number, then the predicate
+        const int branch = ruleset_opcode(rules, "loop_back_if", {"1", where}, emit_scratch, written);
+        const int label = branch && ruleset_opcode(rules, "label_loop", {"1"}, emit_scratch, written);
         static unsigned char code[256];
         const unsigned int assembled =
             label ? sass_assemble_lines(machine, written.c_str(), SASS_CONTROL_BASE, code, sizeof(code)) : 0u;
@@ -794,15 +794,16 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
                                       ? emit_plain(text)
                                       : std::string("(unread)");
         // the jump's guard and operation held against NVIDIA's, its target apart: the label here lands where
-        // loop_label stands and NVIDIA's lands past its block
+        // label_loop stands and NVIDIA's lands past its block
         const unsigned long long guard_bits = 0xf000ull;
         const unsigned long long operation_bits = 0xfffull;
         const int same_guard = (assembled != 0u) && ((low & guard_bits) == (guard->low & guard_bits));
         const int same_operation = (assembled != 0u) && ((low & operation_bits) == (guard->low & operation_bits));
-        printf("  our compiler, loop_back on %s: %s\n", where.c_str(), reads.c_str());
+        printf("  our compiler, loop_back_if on %s: %s\n", where.c_str(), reads.c_str());
         printf("    against NVIDIA's %s: the guard %s, the operation %s, the target its own label's\n",
                guard->text.c_str(), same_guard ? "the same" : "apart", same_operation ? "the same" : "apart");
-        emit_row(block, precept, emit_hex(guard->address, 5), guard->text, "", "", "", "loop_back on " + where + ": " + reads,
+        emit_row(block, precept, emit_hex(guard->address, 5), guard->text, "", "", "",
+                 "loop_back_if on " + where + ": " + reads,
                  (assembled == 0u) ? "does not assemble"
                                    : (std::string("guard ") + (same_guard ? "the same" : "apart") + ", operation " +
                                       (same_operation ? "the same" : "apart") + ", target its own label's"));

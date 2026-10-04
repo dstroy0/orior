@@ -30,29 +30,29 @@ form of label & labels & \(H(\text{pair}\mid\text{label})\) & kept \\
 \midrule
 one name a cell, as the tables print it & 19 & 2.675 & 3.302 \\
 one name, decided in its situation & 26 & 2.129 & 3.848 \\
-SYNC written as its passage & 41 & 1.121 & 4.856 \\
-GRAY trips also carrying their state & 53 & 0.498 & 5.480 \\
+sync written as its passage & 41 & 1.121 & 4.856 \\
+gray trips also carrying their state & 53 & 0.498 & 5.480 \\
 \bottomrule
 \end{tabular}
 \caption{Bits of a transition each form of label keeps, of 5.977.}
 \label{tab:labelbits}
 \end{table}
 
-Read from the tables alone, SYNC is reached from 22 pairs and leaves 4.459 bits of its pair
-unread; FIZZ and FUZZ, 7 pairs each, leave 2.807; DROP, 6 pairs, 2.585; HALT, 5 pairs, 2.322; JOIN
-and WAKE, 2 pairs each, 1.000.
+Read from the tables alone, sync is reached from 22 pairs and leaves 4.459 bits of its pair
+unread; fizz and fuzz, 7 pairs each, leave 2.807; drop, 6 pairs, 2.585; halt, 5 pairs, 2.322; join
+and wake, 2 pairs each, 1.000.
 
-Deciding each label in its situation moves six of SYNC's pairs to the high load table's names,
-SURG, VENT twice, SNAP, LEAD and RITE, and leaves SYNC reached from 16 pairs at 3.999 bits.
-Writing SYNC as its passage, FUZZ carrying the state left and FIZZ the state reached, removes its
+Deciding each label in its situation moves six of sync's pairs to the high load table's names,
+surg, vent twice, snap, lead and rite, and leaves sync reached from 16 pairs at 3.999 bits.
+Writing sync as its passage, fuzz carrying the state left and fizz the state reached, removes its
 loss entirely.
 
-What remains, 1.121 bits, sits in eight labels: FIZZ and FUZZ into and out of GRAY, 2.807 bits
-each; DROP, 2.539; HALT, 2.322; JOIN, TILT, VENT and WAKE, 1.000 each. A GRAY trip loses what a
-SYNC passage keeps because its labels carry no state. Letting FUZZ into GRAY carry the state it
-left, and FIZZ out of GRAY the state it reaches, raises what a label keeps to 5.480 bits of
-5.977. The loss left, 0.498 bits, sits in DROP, HALT, JOIN, TILT, VENT and WAKE. DROP and HALT
-are the largest: each is a rule, any stable state to VOID and any state to BLOK, and a rule
+What remains, 1.121 bits, sits in eight labels: fizz and fuzz into and out of gray, 2.807 bits
+each; drop, 2.539; halt, 2.322; join, tilt, vent and wake, 1.000 each. A gray trip loses what a
+sync passage keeps because its labels carry no state. Letting fuzz into gray carry the state it
+left, and fizz out of gray the state it reaches, raises what a label keeps to 5.480 bits of
+5.977. The loss left, 0.498 bits, sits in drop, halt, join, tilt, vent and wake. drop and halt
+are the largest: each is a rule, any stable state to void and any state to blok, and a rule
 covering many pairs names none of them.
 
 \section{A scenario put to a real host}
@@ -60,13 +60,13 @@ covering many pairs names none of them.
 
 \textbf{Method.} A scenario fixes, for each of ten cycles, what each side is: held, not held,
 late, or not asked. Each side is realized as a run of a million asks between two readings of the
-host clock, after four baseline cycles from which the timeout and the BUSY edge are derived. The
+host clock, after four baseline cycles from which the timeout and the busy edge are derived. The
 host is a Windows workstation.
 
 \textbf{Result.} The clock printed by one run is
 \begin{flushleft}\small\ttfamily
-[DUAL] -(DROP)-> [LEAD] -(PASS)-> [RITE] -(JOIN)-> [DUAL] -(FUZZ+DUAL)-> [SYNC] -(FIZZ+WAIT)->
-[WAIT] -(LOSS)-> [VOID] -(FUZZ)-> [GRAY] -(FIZZ)-> [DUAL] -(FUSE)-> [VOID] -(SPRK)-> [DUAL]
+[dual] -(drop)-> [lead] -(pass)-> [rite] -(join)-> [dual] -(fuzz+dual)-> [sync] -(fizz+wait)->
+[wait] -(loss)-> [void] -(fuzz)-> [gray] -(fizz)-> [dual] -(fuse)-> [void] -(sprk)-> [dual]
 \end{flushleft}
 In the field's terms: both sides healthy, the right side lost, failover to the right, both healthy
 again, the left side lagging, the lagging side timing out into an outage, the left side going
@@ -90,7 +90,7 @@ reading & A & B \\
 \midrule
 cycles read as other than the recorded sides imply & 0 of 400 & 0 of 400 \\
 held asks past the timeout their run derived & 2 of 480 & 0 of 480 \\
-both-held cycles read BUSY in place of DUAL & 8 of 160 & 15 of 160 \\
+both-held cycles read busy in place of dual & 8 of 160 & 15 of 160 \\
 distinct clocks & 5 & 8 \\
 runs printing the most common clock & 32 of 40 & 28 of 40 \\
 derived timeout, least & 72,182 & 79,782 \\
@@ -107,27 +107,27 @@ sides imply. Every departure from the scenario is the host's, in timing.
 
 \textbf{Spurious timeouts.} Two held asks of 960, 0.21\%, came in past the timeout their run
 derived: correct answers, late. Both were in batch A, both in the cycle where a held side stands
-beside an unasked one and the pair reads GRAY whatever the held side does, and both in runs whose
+beside an unasked one and the pair reads gray whatever the held side does, and both in runs whose
 derived timeouts were among the lowest, 72,910 and 74,596 against a median of 150,810.
 
 \textbf{The timeout varies.} Within a batch the largest derived timeout is 2.65 times the least in
 A and 2.66 times in B. Each run derives its own from the host as it is at that moment, and the
 spread across runs measures how far a figure written once would have been wrong.
 
-\textbf{BUSY varies; nothing else does.} Of 320 both-held cycles, 23 read BUSY, 5\% in A and 9.4\%
-in B. The scenario does not choose BUSY; the host's load does. The distinct clocks differ in these
-readings only. In A each of the four both-held cycles reads BUSY in 2 runs and DUAL in 38; in B in
-3, 2, 6 and 4 runs. Every other cycle reads the same state in all 80 runs: LEAD, RITE, VOID, WAIT
-and GRAY, each decided by which sides held, never varied.
+\textbf{busy varies; nothing else does.} Of 320 both-held cycles, 23 read busy, 5\% in A and 9.4\%
+in B. The scenario does not choose busy; the host's load does. The distinct clocks differ in these
+readings only. In A each of the four both-held cycles reads busy in 2 runs and dual in 38; in B in
+3, 2, 6 and 4 runs. Every other cycle reads the same state in all 80 runs: lead, rite, void, wait
+and gray, each decided by which sides held, never varied.
 
-\textbf{BUSY reads the host, not a side.} In batch B, 53 of the 320 sides of the both-held cycles
+\textbf{busy reads the host, not a side.} In batch B, 53 of the 320 sides of the both-held cycles
 came in past the edge, a share of 0.1656. Were the two sides independent, both would be past it at
 once in \(160 \times 0.1656^2 = 4.39\) cycles. They were past it together in 15, 3.4 times as often.
 
 \section{Which side is asked first}
 \label{sec:side}
 
-\textbf{Method.} CORE and SURV, LEAD held and RITE held, are distinct only where the side a branch
+\textbf{Method.} core and surv, lead held and rite held, are distinct only where the side a branch
 is read from leaves a mark. Two branches doing the same work are put through the known order of
 Proposition~\ref{prop:slice}, the branch asked first alternating from trial to trial, and every
 pass is solved in exact integers.
@@ -135,14 +135,14 @@ pass is solved in exact integers.
 \textbf{Results.} On the host the branch asked first reads dearer in 12 of 29 trials that are not
 even, with no lean past twice the spread. With one branch made 512 reads dearer, the cheaper reads
 cheaper in 46 to 58 of 64 comparisons at every link, from both sides alike. On this host a steady
-LEAD and a steady RITE are one state seen from two sides; on a part whose side does leave a mark
+lead and a steady rite are one state seen from two sides; on a part whose side does leave a mark
 they are two.
 
 \section{Checks of the definition}
 
 On traces whose answers are known, every rule of Chapter~\ref{ch:states} holds. Every pair the
-tables name takes a label from its own candidates in all 256 situations; GRAY trips are atomic
-over 500 random traces of 40 cycles; and all 3,035 SYNC passages in those traces read back their
+tables name takes a label from its own candidates in all 256 situations; gray trips are atomic
+over 500 random traces of 40 cycles; and all 3,035 sync passages in those traces read back their
 exact pair from their labels. Of the 49 transitions among the first seven states, 12 take a name
-nothing else uses and SYNC covers 22. Where both tables name a transition, 3 agree, the second
-names 7 the first calls SYNC, and 2 disagree.
+nothing else uses and sync covers 22. Where both tables name a transition, 3 agree, the second
+names 7 the first calls sync, and 2 disagree.

@@ -27,7 +27,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$TEST/ruleset_read_test.c
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-c++ -o "$BINARY" "${OBJECTS[@]}"
+c++ -o "$BINARY" "${OBJECTS[@]}" -static
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 
 "$BINARY"

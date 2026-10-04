@@ -3,7 +3,7 @@
 //
 //     branch_side_check
 //
-// gnascor names a steady LEAD and a steady RITE apart, CORE and SURV. LEAD and RITE are the sign of the signed
+// gnascor names a steady lead and a steady rite apart, core and surv. lead and rite are the sign of the signed
 // difference between two branches at a link, and the two names are one state seen from either side unless the side
 // itself leaves a mark. This asks the part whether it does. Two branches doing the same work, seven links each, are
 // put through the known order one after the other, the one asked first changing from trial to trial, and every

@@ -58,7 +58,7 @@ bench looks like and nothing else does." \
 bench and of no other code."
 edit "which the widening round refuses on purpose" "which the widening round deliberately refuses"
 edit "SASS has no declarations, so sass.krs" "SASS has no declarations, and sass.krs"
-edit "a predicate in predicate_xor), so each form" "a predicate in predicate_xor), and each form"
+edit "a predicate in predicate_bitxor), so each form" "a predicate in predicate_bitxor), and each form"
 edit "as a ruleset has, so 0 of 58 assembled" "as a ruleset has: 0 of 58 assembled"
 edit "an nvdisasm listing, so nothing had" "an nvdisasm listing, and nothing had"
 edit "where a predicate belongs, so no predicate operation" \

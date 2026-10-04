@@ -123,6 +123,14 @@ void sass_equal_take(const char *one, const char *other);
 // 1 where `one` and `other` are held equal, in either order
 int sass_equal_held(const char *one, const char *other);
 
+// an operation the system writes on the FMA pipe in place of the integer pipe, held in the .ksc: the operation, its
+// writing there, and the lane it moves in, one whose integer pipe holds `least` operations or more and `over` more
+// than its FMA pipe. A pipe already held for `operation` is replaced
+void sass_pipe_take(const char *operation, const char *writing, unsigned int least, unsigned int over);
+
+// 1 where a pipe is held for `operation`, its writing in `writing`, of SASS_TEXT, and its lane in `least` and `over`
+int sass_pipe_held(const char *operation, char *writing, unsigned int *least, unsigned int *over);
+
 // `machines`/<part>.ksc read back into the classification in place of the questions and counts it held, for a later
 // pass to add to in place of overwriting it: its folds among them, and its equal writings beside those already taken.
 // 1, or 0 where the file does not open (a first run has none)
@@ -184,11 +192,11 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
 unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, unsigned int *asked);
 
 // How the part loops, asked of the part (engine_plan.md, "A loop is learned by asking"). Every form `machine` holds is
-// put in loop_back's place with its operands filled by their kinds, at the end of a body that counts the case's first
-// word down with add_alone and sets the flag with test_nonzero. A form that comes back to the label on the flag
-// answers that word and one that falls through answers 1; 2 is asked first and the forms that answer it are asked
+// put in loop_back_if's place with its operands filled by their kinds, at the end of a body that counts the case's
+// first word down with word_add and sets the flag with test_word_nonzero. A form that comes back to the label on the
+// flag answers that word and one that falls through answers 1; 2 is asked first and the forms that answer it are asked
 // every other count. Those that answer every count are timed and walked (sass_loop_walk), and the cheapest is printed
-// as the part's loop_back. `asked` counts the forms put: how many came back on every count
+// as the part's loop_back_if. `asked` counts the forms put: how many came back on every count
 unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsigned int *asked);
 
 // the output of the last process sass_run ran

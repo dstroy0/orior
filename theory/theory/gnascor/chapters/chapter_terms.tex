@@ -7,29 +7,29 @@ them in a narrower sense than the field does.
 
 \section{States}
 
-\noindent\textbf{DUAL.} Both sides answer inside the timeout. Active-active operation of a
+\noindent\textbf{dual.} Both sides answer inside the timeout. Active-active operation of a
 redundant pair.
 
-\noindent\textbf{LEAD, RITE.} One side answers, the left or the right. Active-passive operation,
+\noindent\textbf{lead, rite.} One side answers, the left or the right. Active-passive operation,
 the serving side named.
 
-\noindent\textbf{VOID.} Neither side answers. An outage; in a probe, both probes failed.
+\noindent\textbf{void.} Neither side answers. An outage; in a probe, both probes failed.
 
-\noindent\textbf{BUSY.} Both sides answer, each dearer than every held ask of the baseline.
+\noindent\textbf{busy.} Both sides answer, each dearer than every held ask of the baseline.
 Saturation, one of the four golden signals of monitoring \cite{src:SRE}.
 
-\noindent\textbf{WAIT.} One side answers and the other answers past the timeout. Latency, the
+\noindent\textbf{wait.} One side answers and the other answers past the timeout. Latency, the
 second golden signal \cite{src:SRE}.
 
-\noindent\textbf{BLOK.} A side refuses or ends its asker. Errors, the third golden signal
+\noindent\textbf{blok.} A side refuses or ends its asker. Errors, the third golden signal
 \cite{src:SRE}.
 
-\noindent\textbf{GRAY.} A side not asked: no answer, as against VOID, an answer of no. Belnap's
+\noindent\textbf{gray.} A side not asked: no answer, as against void, an answer of no. Belnap's
 value None, told nothing, in his four-valued logic for a question-answering machine
 \cite{src:Belnap}.
 
-\noindent\textbf{SYNC.} A superstate standing for every transition between a load state and a
-binary one, entered by FUZZ carrying the state left and left by FIZZ carrying the state reached.
+\noindent\textbf{sync.} A superstate standing for every transition between a load state and a
+binary one, entered by fuzz carrying the state left and left by fizz carrying the state reached.
 Harel's superstate \cite{src:Harel}.
 
 \section{Transitions}
@@ -37,36 +37,36 @@ Harel's superstate \cite{src:Harel}.
 \noindent\textbf{Mnemonic, label.} The output written on a transition of a Mealy machine, a
 function of the state left and the input that moved it \cite{src:Mealy}.
 
-\noindent\textbf{NEXUS, CORE, SURV, ZERO, DRAG, HOLD, DEAD.} Self-loops: a state held from one
+\noindent\textbf{nexus, core, surv, zero, drag, hold, dead.} Self-loops: a state held from one
 cycle to the next.
 
-\noindent\textbf{PASS, BACK.} Failover and failback, the serving side changing from left to right
+\noindent\textbf{pass, back.} Failover and failback, the serving side changing from left to right
 and back.
 
-\noindent\textbf{DROP.} A stable state lost to VOID.
+\noindent\textbf{drop.} A stable state lost to void.
 
-\noindent\textbf{JAMM.} Saturation turning into refusal. Gridlock.
+\noindent\textbf{jamm.} Saturation turning into refusal. Gridlock.
 
-\noindent\textbf{HALT.} Any state reaching a refusal.
+\noindent\textbf{halt.} Any state reaching a refusal.
 
-\noindent\textbf{LOSS.} A lagging side timing out into an outage.
+\noindent\textbf{loss.} A lagging side timing out into an outage.
 
-\noindent\textbf{SPRK.} From VOID straight to DUAL. Recovery; the trial request of a half-open
+\noindent\textbf{sprk.} From void straight to dual. Recovery; the trial request of a half-open
 circuit breaker succeeding \cite{src:Nygard}.
 
-\noindent\textbf{WAKE, JOIN.} One side returning from VOID; a second side joining one already
+\noindent\textbf{wake, join.} One side returning from void; a second side joining one already
 serving.
 
-\noindent\textbf{SURG, SNAP.} Saturation clearing into full service; a lagging side catching up.
+\noindent\textbf{surg, snap.} Saturation clearing into full service; a lagging side catching up.
 
-\noindent\textbf{VENT.} A saturated pair dropping one side. Load shedding.
+\noindent\textbf{vent.} A saturated pair dropping one side. Load shedding.
 
-\noindent\textbf{TILT.} Full service decaying to one side by a fraction of a cycle's lag.
+\noindent\textbf{tilt.} Full service decaying to one side by a fraction of a cycle's lag.
 
-\noindent\textbf{FUSE.} Both sides lost at once with no decay. A tripped circuit breaker
+\noindent\textbf{fuse.} Both sides lost at once with no decay. A tripped circuit breaker
 \cite{src:Nygard}.
 
-\noindent\textbf{FUZZ, FIZZ.} Entry into and exit from a superstate, GRAY or SYNC.
+\noindent\textbf{fuzz, fizz.} Entry into and exit from a superstate, gray or sync.
 
 \noindent\textbf{Coherence clock.} The stream of states and labels. A health status stream.
 

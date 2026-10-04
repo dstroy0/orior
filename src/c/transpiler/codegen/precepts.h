@@ -19,12 +19,12 @@
     /* the two the metalanguage needs before any gate: nothing to do, and cannot be done */                            \
     precept_(NOP, "nop", 0u)                                                                                           \
     precept_(ERR, "err", 0u)                                                                                           \
-    /* the gates. NAND and NOR are each a tree over NOT and AND or OR, and are precepts anyway because a part that    \
-       builds from them builds everything from them, which two nodes apiece would hide */                              \
+    /* the gates. NAND and NOR are each a tree over NOT and BITAND or BITOR, and are precepts anyway because a part   \
+       that builds from them builds everything from them, which two nodes apiece would hide */                         \
     precept_(NOT, "not", 1u)                                                                                           \
-    precept_(AND, "and", 2u)                                                                                           \
-    precept_(OR, "or", 2u)                                                                                             \
-    precept_(XOR, "xor", 2u)                                                                                           \
+    precept_(BITAND, "bitand", 2u)                                                                                     \
+    precept_(BITOR, "bitor", 2u)                                                                                       \
+    precept_(BITXOR, "bitxor", 2u)                                                                                     \
     precept_(NAND, "nand", 2u)                                                                                         \
     precept_(NOR, "nor", 2u)                                                                                           \
     /* the wires: a copy, and the four ways a word is moved along itself. ASR carries the sign in, ROL and ROR carry \
@@ -94,27 +94,27 @@ static const PreceptRewrite s_precept_web[] = {
     // NOT a = a NAND a
     {PRECEPT_NOT, 1u, {{PRECEPT_NAND, PRECEPT_LEFT, PRECEPT_LEFT}}},
     // a NAND b = NOT (a AND b)
-    {PRECEPT_NAND, 2u, {{PRECEPT_AND, PRECEPT_LEFT, PRECEPT_RIGHT}, {PRECEPT_NOT, 0u, PRECEPT_NONE}}},
+    {PRECEPT_NAND, 2u, {{PRECEPT_BITAND, PRECEPT_LEFT, PRECEPT_RIGHT}, {PRECEPT_NOT, 0u, PRECEPT_NONE}}},
     // a NOR b = NOT (a OR b)
-    {PRECEPT_NOR, 2u, {{PRECEPT_OR, PRECEPT_LEFT, PRECEPT_RIGHT}, {PRECEPT_NOT, 0u, PRECEPT_NONE}}},
+    {PRECEPT_NOR, 2u, {{PRECEPT_BITOR, PRECEPT_LEFT, PRECEPT_RIGHT}, {PRECEPT_NOT, 0u, PRECEPT_NONE}}},
     // a AND b = NOT (a NAND b)
-    {PRECEPT_AND, 2u, {{PRECEPT_NAND, PRECEPT_LEFT, PRECEPT_RIGHT}, {PRECEPT_NOT, 0u, PRECEPT_NONE}}},
+    {PRECEPT_BITAND, 2u, {{PRECEPT_NAND, PRECEPT_LEFT, PRECEPT_RIGHT}, {PRECEPT_NOT, 0u, PRECEPT_NONE}}},
     // a OR b = (NOT a) NAND (NOT b)
-    {PRECEPT_OR,
+    {PRECEPT_BITOR,
      3u,
      {{PRECEPT_NOT, PRECEPT_LEFT, PRECEPT_NONE},
       {PRECEPT_NOT, PRECEPT_RIGHT, PRECEPT_NONE},
       {PRECEPT_NAND, 0u, 1u}}},
     // a XOR b = (a AND NOT b) OR (NOT a AND b)
-    {PRECEPT_XOR,
+    {PRECEPT_BITXOR,
      5u,
      {{PRECEPT_NOT, PRECEPT_RIGHT, PRECEPT_NONE},
-      {PRECEPT_AND, PRECEPT_LEFT, 0u},
+      {PRECEPT_BITAND, PRECEPT_LEFT, 0u},
       {PRECEPT_NOT, PRECEPT_LEFT, PRECEPT_NONE},
-      {PRECEPT_AND, 2u, PRECEPT_RIGHT},
-      {PRECEPT_OR, 1u, 3u}}},
+      {PRECEPT_BITAND, 2u, PRECEPT_RIGHT},
+      {PRECEPT_BITOR, 1u, 3u}}},
     // MOV a = a OR a, the cheapest node that reads one word and writes it back unchanged
-    {PRECEPT_MOV, 1u, {{PRECEPT_OR, PRECEPT_LEFT, PRECEPT_LEFT}}},
+    {PRECEPT_MOV, 1u, {{PRECEPT_BITOR, PRECEPT_LEFT, PRECEPT_LEFT}}},
     // a SUB b = NOT ((NOT a) ADD b). The plainer reading of a subtraction is a plus the complement of b plus one,
     // and the one is a word no leaf here carries: a rewrite has a word of zeroes and a word of ones and reaching a
     // single set bit from either takes a shift by the width, the width-counted node this file does not

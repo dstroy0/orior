@@ -37,20 +37,20 @@ dependent chain cheaper than its depth times the instruction latency.
 \label{sec:h2}
 
 \textbf{Hypothesis.} The states of the machine fall into two classes. States decided by which
-sides held (LEAD, RITE, VOID, WAIT, GRAY, BLOK) are reproducible exactly from run to run. States
-decided by cost (BUSY against DUAL, TILT against DROP, FUSE against DROP) vary with the host's load
+sides held (lead, rite, void, wait, gray, blok) are reproducible exactly from run to run. States
+decided by cost (busy against dual, tilt against drop, fuse against drop) vary with the host's load
 and are reproducible only as rates. The gate and rank rule of Chapter~\ref{ch:protocol} holds
 inside the state alphabet itself.
 
 \textbf{Evidence.} Over 80 runs of one scenario every bit-decided state repeated in every run,
-and every difference between runs was a both-held cycle reading BUSY in place of DUAL, at 5\% in
+and every difference between runs was a both-held cycle reading busy in place of dual, at 5\% in
 one batch and 9.4\% in the other (Section~\ref{sec:repeat}). Both sides of a pair came in past the
-BUSY edge together 3.4 times as often as independence predicts. A slow moment of the host slows
-both sides at once. BUSY reads load common to the pair, the common-mode noise of a measurement
+busy edge together 3.4 times as often as independence predicts. A slow moment of the host slows
+both sides at once. busy reads load common to the pair, the common-mode noise of a measurement
 that shares one host, and not a property of either address.
 
 \textbf{Consequence.} A program should branch on bit-decided states and treat cost-decided states
-as signals with a rate. BUSY should not be attributed to either address of a pair that shares a
+as signals with a rate. busy should not be attributed to either address of a pair that shares a
 host. Production monitoring draws the same line: saturation is a property of a shared resource,
 and it is watched as a trend and not acted on per request \cite{src:SRE}.
 
@@ -63,7 +63,7 @@ that beat it were not exchangeable: the host had changed between them. This is t
 of large services \cite{src:Dean-Barroso} seen on one machine, and it is why a reference ask is
 put beside each real one in place of a timeout carried forward.
 
-\textbf{Prediction.} Two asks on separate hosts pass the BUSY edge together at about the product
+\textbf{Prediction.} Two asks on separate hosts pass the busy edge together at about the product
 of their separate rates.
 
 \textbf{Refutation.} A bit-decided state that differs between runs whose recorded sides agree;
@@ -76,13 +76,13 @@ or, on separate hosts, joint passes far above the product.
 situation and every passage through a superstate carries the state left and the state reached.
 
 \textbf{Evidence.} Table~\ref{tab:labelbits}. The labels as printed keep 3.302 of 5.977 bits of
-the transition. Deciding them in their situation keeps 3.848; writing SYNC as its passage, 4.856;
-letting GRAY trips carry their state as well, 5.480. The 0.498 bits still lost sit in labels
-that each name a rule covering many pairs, DROP and HALT the largest.
+the transition. Deciding them in their situation keeps 3.848; writing sync as its passage, 4.856;
+letting gray trips carry their state as well, 5.480. The 0.498 bits still lost sit in labels
+that each name a rule covering many pairs, drop and halt the largest.
 
-\textbf{Consequence.} The superstate form already used for SYNC extends to GRAY at no cost to the
+\textbf{Consequence.} The superstate form already used for sync extends to gray at no cost to the
 atomicity of Proposition~\ref{prop:atomic}, since only the labels change and not where they fall.
-The rule labels, DROP, HALT, JOIN, TILT, VENT and WAKE, can either carry their pair as SYNC does or
+The rule labels, drop, halt, join, tilt, vent and wake, can either carry their pair as sync does or
 stay as names; that is a choice of the language's design and the measurement only prices it.
 
 \textbf{Refutation.} A pair that cannot be recovered from a label carrying it, which would mean
@@ -96,20 +96,20 @@ two transitions share a pair and the machine is not a function of its pairs.
   preference part by part. Per part and operation splits the samples until each is noise.
   Chaining clears the noise floor, and the chain length that makes a per-part baseline usable is
   not measured.
-\item \textbf{Whether a handoff moves the channel.} Whether PASS should make the right address
+\item \textbf{Whether a handoff moves the channel.} Whether pass should make the right address
   the primary channel is undecided. In the field, failover usually does and failback is made a
   deliberate step.
-\item \textbf{Recovery from collapse.} JAMM, HALT and FUSE are named and have no defined
+\item \textbf{Recovery from collapse.} jamm, halt and fuse are named and have no defined
   recovery. The circuit breaker \cite{src:Nygard} gives one: stop asking for a waiting period,
   then let one trial ask through, closing on success and opening again on failure. In this
-  language the trial succeeding is SPRK.
+  language the trial succeeding is sprk.
 \item \textbf{A loop construct.} The language has no syntax for a query loop. A loop has to
   express: a pair put each cycle; the timeout left implicit and derived, the unbound pass first;
   a branch on the label with its pair carried; a turn count that bounds the loop where a fault
   cannot reach it; and the record written as it runs. The field's nearest form is the control
   loop of a reconciling controller. The syntax is the language's to define.
 \item \textbf{A difference inside the floor.} Whether a link whose difference between two
-  branches sits inside the floor reads DUAL, both alike, or GRAY, neither known to be cheaper.
+  branches sits inside the floor reads dual, both alike, or gray, neither known to be cheaper.
 \item \textbf{Comparing branches.} The link-by-link comparison of two branches is stated and not
   yet measured.
 \item \textbf{The record's view.} The view holding every ask and answer has no suffix.

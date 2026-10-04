@@ -2843,9 +2843,9 @@ static int forms_read(const char *questions_path, const char *listing, const cha
            questions.size(), sass_verdicts.size(), sass_same, sass_adopted.size(), ptx_same, ptx_adopted.size(),
            record);
     // The folds the system does are its own and belong in the classification of what is emitted, the .ksc beside
-    // sass.krs that the code generator reads with it. Read it, drop what it holds of the numbers and registers this
-    // pass put to each form it asked of, add this pass's compile-channel folds in place, and write it back: every other
-    // fold is kept
+    // sass.krs that the code generator reads with it. Read it, drop what it holds of each number and register this
+    // pass put for a role of a form it asked of, add this pass's compile-channel folds in place, and write it back:
+    // every other fold is kept
     const std::string ruleset_path = sass_krs;
     const size_t slash = ruleset_path.find_last_of('/');
     const std::string rulesets = (slash == std::string::npos) ? std::string(".") : ruleset_path.substr(0u, slash);
@@ -2854,10 +2854,20 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     sass_class_read(rulesets.c_str(), stem.c_str());
     for (const Question &question : questions)
     {
-        sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
-                        (question.form + ": the system folds the number put for ").c_str());
-        sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
-                        (question.form + ": the system folds the register put for ").c_str());
+        for (const Role &role : question.roles)
+        {
+            const int put = !role.fixed && ((role.kind == "in") || (role.kind == "out"));
+            if (role.kind == "number")
+            {
+                sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
+                                (question.form + ": the system folds the number put for " + role.name).c_str());
+            }
+            if (put)
+            {
+                sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
+                                (question.form + ": the system folds the register put for " + role.name).c_str());
+            }
+        }
     }
     for (const auto &fold : fold_fact)
     {

@@ -127,31 +127,31 @@ static void check_sass_registers(const Ruleset *rules)
 // the 32-bit arithmetic, each form the instruction its question's listing held
 static void check_sass_words(const Ruleset *rules)
 {
-    // add_alone, and the chain of add_first, add_middle and add_last over 96 bits
-    check_form(rules, "add_alone", {"R8", "R0", "R1"}, "\tIADD3 \tR8, R0, R1, RZ;\n");
-    check_form(rules, "add_first", {"R8", "R0", "R3"}, "\tIADD3 \tR8, P6, R0, R3, RZ;\n");
-    check_form(rules, "add_middle", {"R9", "R1", "R4"}, "\tIADD3.X \tR9, P6, R1, R4, RZ, P6, !PT;\n");
-    check_form(rules, "add_last", {"R10", "R2", "R5"}, "\tIADD3.X \tR10, R2, R5, RZ, P6, !PT;\n");
+    // word_add, and the chain of word_add_first, word_add_middle and word_add_last over 96 bits
+    check_form(rules, "word_add", {"R8", "R0", "R1"}, "\tIADD3 \tR8, R0, R1, RZ;\n");
+    check_form(rules, "word_add_first", {"R8", "R0", "R3"}, "\tIADD3 \tR8, P6, R0, R3, RZ;\n");
+    check_form(rules, "word_add_middle", {"R9", "R1", "R4"}, "\tIADD3.X \tR9, P6, R1, R4, RZ, P6, !PT;\n");
+    check_form(rules, "word_add_last", {"R10", "R2", "R5"}, "\tIADD3.X \tR10, R2, R5, RZ, P6, !PT;\n");
     // a subtraction adds the right's negation, and its chain takes the borrow back as ~right
-    check_form(rules, "subtract_alone", {"R8", "R0", "R1"}, "\tIADD3 \tR8, R0, -R1, RZ;\n");
-    check_form(rules, "subtract_middle", {"R9", "R1", "R4"}, "\tIADD3.X \tR9, P6, R1, ~R4, RZ, P6, !PT;\n");
-    check_form(rules, "borrow_read", {"R9", "P0"},
+    check_form(rules, "word_sub", {"R8", "R0", "R1"}, "\tIADD3 \tR8, R0, -R1, RZ;\n");
+    check_form(rules, "word_sub_middle", {"R9", "R1", "R4"}, "\tIADD3.X \tR9, P6, R1, ~R4, RZ, P6, !PT;\n");
+    check_form(rules, "word_borrow_read", {"R9", "P0"},
                "\tIMAD.X \tR9, RZ, RZ, -0x1, P6;\n\tISETP.NE.U32.AND \tP0, PT, R9, RZ, PT;\n");
     // one LOP3 over a lookup of its three inputs: 0xc0 is a and b, 0xfc a or b, 0x3c a xor b
-    check_form(rules, "word_and", {"R8", "R0", "R1"}, "\tLOP3.LUT \tR8, R0, R1, RZ, 0xc0, !PT;\n");
-    check_form(rules, "word_or", {"R9", "R0", "R1"}, "\tLOP3.LUT \tR9, R0, R1, RZ, 0xfc, !PT;\n");
-    check_form(rules, "word_xor", {"R10", "R0", "R1"}, "\tLOP3.LUT \tR10, R0, R1, RZ, 0x3c, !PT;\n");
+    check_form(rules, "word_bitand", {"R8", "R0", "R1"}, "\tLOP3.LUT \tR8, R0, R1, RZ, 0xc0, !PT;\n");
+    check_form(rules, "word_bitor", {"R9", "R0", "R1"}, "\tLOP3.LUT \tR9, R0, R1, RZ, 0xfc, !PT;\n");
+    check_form(rules, "word_bitxor", {"R10", "R0", "R1"}, "\tLOP3.LUT \tR10, R0, R1, RZ, 0x3c, !PT;\n");
     // a shift names RZ for the half of the pair it does not have, and .HI takes the result's high word
-    check_form(rules, "word_shift_left", {"R8", "R0", "R1"}, "\tSHF.L.U32 \tR8, R0, R1, RZ;\n");
-    check_form(rules, "word_shift_right", {"R9", "R0", "R1"}, "\tSHF.R.U32.HI \tR9, RZ, R1, R0;\n");
+    check_form(rules, "word_shl", {"R8", "R0", "R1"}, "\tSHF.L.U32 \tR8, R0, R1, RZ;\n");
+    check_form(rules, "word_shr", {"R9", "R0", "R1"}, "\tSHF.R.U32.HI \tR9, RZ, R1, R0;\n");
     check_form(rules, "word_funnel_right", {"R8", "R0", "R1", "R2"}, "\tSHF.R.U32 \tR8, R0, R2, R1;\n");
-    check_form(rules, "word_multiply", {"R8", "R0", "R1"}, "\tIMAD \tR8, R0, R1, RZ;\n");
-    check_form(rules, "word_multiply_add", {"R9", "R0", "R1", "R2"}, "\tIMAD \tR9, R0, R1, R2;\n");
+    check_form(rules, "word_mul", {"R8", "R0", "R1"}, "\tIMAD \tR8, R0, R1, RZ;\n");
+    check_form(rules, "word_mul_add", {"R9", "R0", "R1", "R2"}, "\tIMAD \tR9, R0, R1, R2;\n");
     check_form(rules, "word_select", {"R8", "R0", "R1", "P0"}, "\tSEL \tR8, R0, R1, P0;\n");
     check_form(rules, "sign_absolute", {"R9", "R0"}, "\tIABS \tR9, R0;\n");
-    check_form(rules, "sign_negate", {"R10", "R0"}, "\tIADD3 \tR10, -R0, RZ, RZ;\n");
-    check_form(rules, "test_nonzero", {"P0", "R0"}, "\tISETP.NE.U32.AND \tP0, PT, R0, RZ, PT;\n");
-    check_form(rules, "test_signed_greater", {"P1", "R0", "R1"}, "\tISETP.GT.AND \tP1, PT, R0, R1, PT;\n");
+    check_form(rules, "sign_neg", {"R10", "R0"}, "\tIADD3 \tR10, -R0, RZ, RZ;\n");
+    check_form(rules, "test_word_nonzero", {"P0", "R0"}, "\tISETP.NE.U32.AND \tP0, PT, R0, RZ, PT;\n");
+    check_form(rules, "test_sign_gt", {"P1", "R0", "R1"}, "\tISETP.GT.AND \tP1, PT, R0, R1, PT;\n");
 }
 
 // the 64-bit forms, each two registers: the pair's high half written .hi, which sass.krs names and no listing prints
@@ -161,13 +161,13 @@ static void check_sass_wides(const Ruleset *rules)
     check_form(rules, "wide_unpack", {"R8", "R9", "R12"}, "\tMOV \tR8, R12;\n\tMOV \tR9, R12.hi;\n");
     check_form(rules, "wide_add", {"R14", "R12", "R16"},
                "\tIADD3 \tR14, P6, R12, R16, RZ;\n\tIADD3.X \tR14.hi, R12.hi, R16.hi, RZ, P6, !PT;\n");
-    check_form(rules, "wide_multiply_word", {"R14", "R4", "R5"}, "\tIMAD.WIDE.U32 \tR14, R4, R5, RZ;\n");
+    check_form(rules, "wide_mul_word", {"R14", "R4", "R5"}, "\tIMAD.WIDE.U32 \tR14, R4, R5, RZ;\n");
     // the cross products are added into the high half after the pair's write, which would undo them
-    check_form(rules, "wide_multiply", {"R14", "R12", "R16"},
+    check_form(rules, "wide_mul", {"R14", "R12", "R16"},
                "\tIMAD.WIDE.U32 \tR14, R12, R16, RZ;\n\tIMAD \tR14.hi, R12.hi, R16, R14.hi;\n\tIMAD \tR14.hi, R12, "
                "R16.hi, R14.hi;\n");
     // the high half reads both halves of the value shifted, and is written before the low half overwrites it
-    check_form(rules, "wide_shift_left", {"R14", "R12", "R2"},
+    check_form(rules, "wide_shl", {"R14", "R12", "R2"},
                "\tSHF.L.U64.HI \tR14.hi, R12, R2, R12.hi;\n\tSHF.L.U32 \tR14, R12, R2, RZ;\n");
     check_form(rules, "wide_select", {"R14", "R12", "R16", "P0"},
                "\tSEL \tR14, R12, R16, P0;\n\tSEL \tR14.hi, R12.hi, R16.hi, P0;\n");
@@ -175,61 +175,61 @@ static void check_sass_wides(const Ruleset *rules)
     // operand, and the one before it is the predicate anded into the answer
     check_form(rules, "test_wide_nonzero", {"P0", "R12"},
                "\tISETP.NE.U32.AND \tP6, PT, R12, RZ, PT;\n\tISETP.NE.U32.AND.EX \tP0, PT, R12.hi, RZ, PT, P6;\n");
-    check_form(rules, "test_wide_below_and", {"P3", "R12", "R16", "P3"},
+    check_form(rules, "test_wide_lt_and", {"P3", "R12", "R16", "P3"},
                "\tISETP.LT.U32.AND \tP6, PT, R12, R16, PT;\n\tISETP.LT.U32.AND.EX \tP3, PT, R12.hi, R16.hi, P3, P6;\n");
 }
 
 // memory, the lane's branches and its return, and the forms sass.krs leaves empty because no question gave them
 static void check_sass_lane(const Ruleset *rules)
 {
-    check_form(rules, "global_load", {"R0", "R2", "4"}, "\tLDG.E.CONSTANT \tR0, [R2.64+4];\n");
-    check_form(rules, "record_store", {"8", "R7"}, "\tSTG.E \t[R242.64+8], R7;\n");
-    check_form(rules, "guarded_load", {"P3", "R7", "R12"}, "\t@P3 LDG.E.CONSTANT \tR7, [R12.64];\n");
-    check_form(rules, "open_error_unless", {"P5"}, "\t@!P5 BRA \t`(.L_error_open);\n");
-    check_form(rules, "error", {"P0", "3"}, "\t@P0 BRA \t`(.L_error3);\n");
-    check_form(rules, "loop_back", {"2", "P0"}, "\t@P0 BRA \t`(.L_loop2);\n");
+    check_form(rules, "global_load_constant_word", {"R0", "R2", "4"}, "\tLDG.E.CONSTANT \tR0, [R2.64+4];\n");
+    check_form(rules, "record_store_word", {"8", "R7"}, "\tSTG.E \t[R242.64+8], R7;\n");
+    check_form(rules, "global_load_word_if", {"P3", "R7", "R12"}, "\t@P3 LDG.E.CONSTANT \tR7, [R12.64];\n");
+    check_form(rules, "error_open_unless", {"P5"}, "\t@!P5 BRA \t`(.L_error_open);\n");
+    check_form(rules, "error_if", {"P0", "3"}, "\t@P0 BRA \t`(.L_error3);\n");
+    check_form(rules, "loop_back_if", {"2", "P0"}, "\t@P0 BRA \t`(.L_loop2);\n");
     check_form(rules, "return", {}, "\tRET.ABS.NODEC R20 0x0;\n");
     // The lane's entry, which no listing gave because nothing has ever called our lane: the resident hands it the
     // launch in R4 and R5 and the lane's number in R6 and R7, and both sides of that call are ours to write. One
     // 64-bit load reads a parameter, since a ruleset does no arithmetic and cannot write {offset}+4 for the second
     // half; the part answers LDG.E.64.CONSTANT, R8 reading 0xb and R9 reading 0x7
-    check_form(rules, "open_launch", {},
+    check_form(rules, "launch_open", {},
                "\tMOV \tR238, R4;\n"
                "\tMOV \tR239, R5;\n"
                "\tMOV \tR240, R6;\n"
                "\tMOV \tR241, R7;\n");
-    check_form(rules, "launch_load", {"R2", "16"}, "\tLDG.E.64.CONSTANT \tR2, [R238.64+16];\n");
+    check_form(rules, "launch_load_wide", {"R2", "16"}, "\tLDG.E.64.CONSTANT \tR2, [R238.64+16];\n");
     // the resident's counter. The part's reduction reads what it adds from a register and never out of the
     // instruction: the 1 is moved into R254, this file's scratch word, first
-    check_form(rules, "count_add", {"R6"},
+    check_form(rules, "global_add_atomic_word", {"R6"},
                "\tMOV \tR254, 1;\n"
                "\tRED.E.ADD.STRONG.GPU \t[R6.64], R254;\n");
     // no instruction declares a register: how many the lane holds is the ELF's
     check_form(rules, "declare_temporaries", {"12"}, "");
     // PTX's cvta.to.global left no instruction in any listing
-    check_form(rules, "to_global", {"R2"}, "");
+    check_form(rules, "cast_global", {"R2"}, "");
     // The part has no integer divide. sass.krs gives both as errors, not as nops: a lane that needs one is refused,
     // where a lane that needs a declaration or a cvta is written without it
-    check_refused(rules, "word_divide", {"R8", "R0", "R1"});
-    check_refused(rules, "wide_divide", {"R14", "R12", "R16"});
+    check_refused(rules, "word_div", {"R8", "R0", "R1"});
+    check_refused(rules, "wide_div", {"R14", "R12", "R16"});
     // The compiler wrote a word product as one IMAD.WIDE.U32 into an aligned pair, which the core cannot promise
     // because it names the two halves apart. Each half is written on its own instead, and the part was asked both:
     // 0xffffffff squared plus 0xffffffff is 0 carrying 1 in the low word and 0xffffffff in the high
-    check_form(rules, "product_low", {"R8", "R0", "R1", "R2"},
+    check_form(rules, "word_mul_low", {"R8", "R0", "R1", "R2"},
                "\tIMAD \tR8, R0, R1, RZ;\n"
                "\tIADD3 \tR8, P6, R8, R2, RZ;\n");
-    check_form(rules, "product_high", {"R9", "R0", "R1"},
+    check_form(rules, "word_mul_high", {"R9", "R0", "R1"},
                "\tIMAD.HI.U32 \tR9, R0, R1, RZ;\n"
                "\tIMAD.X \tR9, RZ, RZ, R9, P6;\n");
     // No question asked for an operation over predicates alone, and PLOP3.LUT is reached only from SHF.L.U32, where
     // it decodes with a register where a predicate belongs. Both go through the words a predicate selects, as
     // constructs over forms the listings did give: an exclusive or takes two scratch registers and an and three
-    check_construct(rules, "predicate_xor", {"P2", "P0", "P1"},
+    check_construct(rules, "predicate_bitxor", {"P2", "P0", "P1"},
                     "\tSEL \tR100, RZ, 1, P0;\n"
                     "\tSEL \tR101, RZ, 1, P1;\n"
                     "\tLOP3.LUT \tR100, R100, R101, RZ, 0x3c, !PT;\n"
                     "\tISETP.NE.U32.AND \tP2, PT, R100, RZ, PT;\n");
-    check_construct(rules, "predicate_and", {"P3", "P0", "P1"},
+    check_construct(rules, "predicate_bitand", {"P3", "P0", "P1"},
                     "\tMOV \tR102, 1;\n"
                     "\tSEL \tR103, R102, 0, P0;\n"
                     "\tSEL \tR104, R102, 0, P1;\n"

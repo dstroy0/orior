@@ -99,19 +99,19 @@ Chapter~\ref{ch:terms} the sources.
 \toprule
 keyword & what it names & field term \\
 \midrule
-DUAL & both sides answer inside the timeout & active-active \\
-LEAD, RITE & one side answers & active-passive \\
-VOID & neither side answers & outage \\
-BUSY & both answer, both slow & saturation \\
-WAIT & one side lags & latency \\
-BLOK & a side refuses & error \\
-GRAY & a side not yet asked & unknown; Belnap's None \\
-PASS, BACK & the answering side changes over & failover, failback \\
-VENT & a saturated pair drops one side & load shedding \\
-FUSE & both sides lost at once & circuit breaker tripped \\
-JAMM & saturation turns into refusal & gridlock \\
-SPRK & from nothing to both & recovery \\
-SYNC, GRAY & entered and left by marked labels & superstate \\
+dual & both sides answer inside the timeout & active-active \\
+lead, rite & one side answers & active-passive \\
+void & neither side answers & outage \\
+busy & both answer, both slow & saturation \\
+wait & one side lags & latency \\
+blok & a side refuses & error \\
+gray & a side not yet asked & unknown; Belnap's None \\
+pass, back & the answering side changes over & failover, failback \\
+vent & a saturated pair drops one side & load shedding \\
+fuse & both sides lost at once & circuit breaker tripped \\
+jamm & saturation turns into refusal & gridlock \\
+sprk & from nothing to both & recovery \\
+sync, gray & entered and left by marked labels & superstate \\
 the clock & the stream of states and labels & health status stream \\
 \bottomrule
 \end{tabular}

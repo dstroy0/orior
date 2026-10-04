@@ -3,7 +3,7 @@
 // reads against its code generator's schema, and that a form given as a construct writes the lines it says it does
 //
 //     ruleset_read_one <form> <argument> ...
-//     ruleset_read_one predicate_xor P0 P1 P2
+//     ruleset_read_one predicate_bitxor P0 P1 P2
 #include "sass_target.h"
 #include "target.h"
 

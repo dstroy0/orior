@@ -58,9 +58,9 @@ CODEGEN_CORE void codegen_product(MachineFunction *lane, const IrStep *at)
             codegen_instr2(lane, OPCODE_WORD_COPY, codegen_at(multiplier, limb),
                            ((limb + 1u) < rows) ? codegen_at(multiplier, limb + 1u) : zero);
         }
-        codegen_instr3(lane, OPCODE_SUBTRACT_ALONE, count, count, codegen_immediate(1u));
+        codegen_instr3(lane, OPCODE_WORD_SUB, count, count, codegen_immediate(1u));
         const MachineOperand going = codegen_predicate(lane);
-        codegen_instr2(lane, OPCODE_TEST_NONZERO, going, count);
+        codegen_instr2(lane, OPCODE_TEST_WORD_NONZERO, going, count);
         codegen_loop_back(lane, loop, going);
         for (unsigned int limb = 0u; limb < limbs; limb += 1u)
         {
@@ -68,7 +68,7 @@ CODEGEN_CORE void codegen_product(MachineFunction *lane, const IrStep *at)
                            (limb < rows) ? codegen_at(low, limb) : codegen_at(sum, limb - rows));
         }
     }
-    codegen_instr3(lane, OPCODE_SIGN_MULTIPLY, codegen_sign(at->place), codegen_sign(at->left_place),
+    codegen_instr3(lane, OPCODE_SIGN_MUL, codegen_sign(at->place), codegen_sign(at->left_place),
                    codegen_sign(at->right_place));
 }
 
@@ -86,18 +86,19 @@ CODEGEN_CORE void codegen_table(MachineFunction *lane, const IrStep *at)
     }
     else
     {
-        codegen_instr3(lane, OPCODE_WORD_AND, index, source, codegen_immediate((1u << step->index_bits) - 1u));
+        codegen_instr3(lane, OPCODE_WORD_BITAND, index, source, codegen_immediate((1u << step->index_bits) - 1u));
     }
-    codegen_instr3(lane, OPCODE_WORD_MULTIPLY, index, index, codegen_immediate(step->limbs));
-    codegen_instr3(lane, OPCODE_ADD_ALONE, index, index, codegen_immediate(step->table_offset));
+    codegen_instr3(lane, OPCODE_WORD_MUL, index, index, codegen_immediate(step->limbs));
+    codegen_instr3(lane, OPCODE_WORD_ADD, index, index, codegen_immediate(step->table_offset));
     const MachineOperand address = codegen_wide(lane);
-    codegen_instr3(lane, OPCODE_WIDE_MULTIPLY_WORD, address, index, codegen_number(4u));
+    codegen_instr3(lane, OPCODE_WIDE_MUL_WORD, address, index, codegen_number(4u));
     codegen_instr3(lane, OPCODE_WIDE_ADD, address, codegen_physreg(PHYSREG_TABLES), address);
     const MachineOperandRange value = codegen_limbs(at->place, step->limbs, step->limbs);
     for (unsigned int limb = 0u; limb < step->limbs; limb += 1u)
     {
         codegen_instr2(lane, OPCODE_GLOBAL_ASK, address, codegen_number(4u * limb));
-        codegen_instr3(lane, OPCODE_GLOBAL_LOAD, codegen_at(value, limb), address, codegen_number(4u * limb));
+        codegen_instr3(lane, OPCODE_GLOBAL_LOAD_CONSTANT_WORD, codegen_at(value, limb), address,
+                       codegen_number(4u * limb));
     }
     codegen_signed(lane, at, codegen_number(1u));
 }
@@ -112,8 +113,8 @@ CODEGEN_CORE void codegen_bitwise(MachineFunction *lane, const IrStep *at)
     const MachineOperandRange value = codegen_limbs(at->place, limbs, limbs);
     const MachineOperand left_negative = codegen_predicate(lane);
     const MachineOperand right_negative = codegen_predicate(lane);
-    codegen_instr2(lane, OPCODE_TEST_NEGATIVE, left_negative, codegen_sign(at->left_place));
-    codegen_instr2(lane, OPCODE_TEST_NEGATIVE, right_negative, codegen_sign(at->right_place));
+    codegen_instr2(lane, OPCODE_TEST_SIGNED_WORD_NEGATIVE, left_negative, codegen_sign(at->left_place));
+    codegen_instr2(lane, OPCODE_TEST_SIGNED_WORD_NEGATIVE, right_negative, codegen_sign(at->right_place));
     const MachineOperandRange left = codegen_limbs(at->left_place, step->left_limbs, limbs);
     const MachineOperandRange right = codegen_limbs(at->right_place, step->right_limbs, limbs);
     const MachineOperandRange one = codegen_temporaries(lane, limbs);
@@ -125,11 +126,11 @@ CODEGEN_CORE void codegen_bitwise(MachineFunction *lane, const IrStep *at)
     const int exclusive = (step->operation == ENGINE_RECORD_XOR);
     for (unsigned int limb = 0u; limb < limbs; limb += 1u)
     {
-        codegen_instr3(lane, (exclusive != 0) ? OPCODE_WORD_XOR : OPCODE_WORD_AND, codegen_at(value, limb),
+        codegen_instr3(lane, (exclusive != 0) ? OPCODE_WORD_BITXOR : OPCODE_WORD_BITAND, codegen_at(value, limb),
                        codegen_at(one, limb), codegen_at(other, limb));
     }
     const MachineOperand negative = codegen_predicate(lane);
-    codegen_instr3(lane, (exclusive != 0) ? OPCODE_PREDICATE_XOR : OPCODE_PREDICATE_AND, negative, left_negative,
+    codegen_instr3(lane, (exclusive != 0) ? OPCODE_PREDICATE_BITXOR : OPCODE_PREDICATE_BITAND, negative, left_negative,
                    right_negative);
     const MachineOperandRange negated = codegen_temporaries(lane, limbs);
     codegen_negate(lane, negated, value, limbs);
@@ -158,7 +159,7 @@ CODEGEN_CORE void codegen_wrap(MachineFunction *lane, const IrStep *at)
         return;
     }
     const MachineOperand left_negative = codegen_predicate(lane);
-    codegen_instr2(lane, OPCODE_TEST_NEGATIVE, left_negative, left_sign);
+    codegen_instr2(lane, OPCODE_TEST_SIGNED_WORD_NEGATIVE, left_negative, left_sign);
     const MachineOperandRange complement = codegen_temporaries(lane, limbs);
     codegen_negate(lane, complement, left, limbs);
     codegen_select(lane, value, complement, left, left_negative, limbs);
@@ -188,7 +189,7 @@ CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at
     const MachineOperand divisor = codegen_file(at->right_place);
     const MachineOperand left_sign = codegen_sign(at->left_place);
     const MachineOperand nothing = codegen_predicate(lane);
-    codegen_instr2(lane, OPCODE_TEST_ZERO, nothing, divisor);
+    codegen_instr2(lane, OPCODE_TEST_WORD_ZERO, nothing, divisor);
     codegen_error(lane, nothing);
     const MachineOperand carried = codegen_temporary(lane);
     const MachineOperand taken = codegen_temporary(lane);
@@ -205,16 +206,16 @@ CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at
         if (word == left_limbs)
         {
             // nothing is carried into the top limb, and its word divides alone
-            codegen_instr3(lane, OPCODE_WORD_DIVIDE, quotient_word, numerator, divisor);
+            codegen_instr3(lane, OPCODE_WORD_DIV, quotient_word, numerator, divisor);
         }
         else
         {
             codegen_instr3(lane, OPCODE_WIDE_PACK, part, numerator, carried);
-            codegen_instr3(lane, OPCODE_WIDE_DIVIDE, part, part, wide_divisor);
+            codegen_instr3(lane, OPCODE_WIDE_DIV, part, part, wide_divisor);
             codegen_instr2(lane, OPCODE_WORD_FROM_WIDE, quotient_word, part);
         }
-        codegen_instr3(lane, OPCODE_WORD_MULTIPLY, taken, quotient_word, divisor);
-        codegen_instr3(lane, OPCODE_SUBTRACT_ALONE, carried, numerator, taken);
+        codegen_instr3(lane, OPCODE_WORD_MUL, taken, quotient_word, divisor);
+        codegen_instr3(lane, OPCODE_WORD_SUB, carried, numerator, taken);
     }
     if (operation == ENGINE_RECORD_REMAINDER)
     {
@@ -233,7 +234,7 @@ CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at
     if (operation == ENGINE_RECORD_EXACT_QUOTIENT)
     {
         const MachineOperand remains = codegen_predicate(lane);
-        codegen_instr2(lane, OPCODE_TEST_NONZERO, remains, carried);
+        codegen_instr2(lane, OPCODE_TEST_WORD_NONZERO, remains, carried);
         codegen_error(lane, remains);
         if (left_limbs > limbs)
         {
@@ -242,7 +243,7 @@ CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at
         }
     }
     const MachineOperand operand = codegen_temporary(lane);
-    codegen_instr3(lane, OPCODE_SIGN_MULTIPLY, operand, left_sign, codegen_sign(at->right_place));
+    codegen_instr3(lane, OPCODE_SIGN_MUL, operand, left_sign, codegen_sign(at->right_place));
     codegen_signed(lane, at, operand);
 }
 
@@ -296,10 +297,10 @@ CODEGEN_CORE void codegen_long_division(MachineFunction *lane, const IrStep *at)
     const MachineOperand below = codegen_borrowed(lane);
     codegen_select(lane, rest, rest, taken, below, right_limbs + 1u);
     codegen_instr4(lane, OPCODE_WORD_SELECT, bit, zero, codegen_immediate(1u), below);
-    codegen_instr3(lane, OPCODE_WORD_OR, codegen_at(quotient, 0u), codegen_at(quotient, 0u), bit);
-    codegen_instr3(lane, OPCODE_SUBTRACT_ALONE, count, count, codegen_immediate(1u));
+    codegen_instr3(lane, OPCODE_WORD_BITOR, codegen_at(quotient, 0u), codegen_at(quotient, 0u), bit);
+    codegen_instr3(lane, OPCODE_WORD_SUB, count, count, codegen_immediate(1u));
     const MachineOperand going = codegen_predicate(lane);
-    codegen_instr2(lane, OPCODE_TEST_NONZERO, going, count);
+    codegen_instr2(lane, OPCODE_TEST_WORD_NONZERO, going, count);
     codegen_loop_back(lane, loop, going);
     if (operation == ENGINE_RECORD_REMAINDER)
     {
@@ -318,7 +319,7 @@ CODEGEN_CORE void codegen_long_division(MachineFunction *lane, const IrStep *at)
         }
     }
     const MachineOperand operand = codegen_temporary(lane);
-    codegen_instr3(lane, OPCODE_SIGN_MULTIPLY, operand, left_sign, codegen_sign(at->right_place));
+    codegen_instr3(lane, OPCODE_SIGN_MUL, operand, left_sign, codegen_sign(at->right_place));
     codegen_signed(lane, at, operand);
 }
 
@@ -354,19 +355,19 @@ CODEGEN_CORE void codegen_gcd(MachineFunction *lane, const IrStep *at)
     // the two tests are taken in the order a call's arguments were, the left's first
     const MachineOperand left_going = codegen_nonzero(lane, left, width);
     const MachineOperand right_going = codegen_nonzero(lane, right, width);
-    codegen_instr3(lane, OPCODE_PREDICATE_AND, going, left_going, right_going);
-    codegen_instr3(lane, OPCODE_WORD_AND, left_odd, codegen_at(left, 0u), one);
-    codegen_instr3(lane, OPCODE_WORD_AND, right_odd, codegen_at(right, 0u), one);
+    codegen_instr3(lane, OPCODE_PREDICATE_BITAND, going, left_going, right_going);
+    codegen_instr3(lane, OPCODE_WORD_BITAND, left_odd, codegen_at(left, 0u), one);
+    codegen_instr3(lane, OPCODE_WORD_BITAND, right_odd, codegen_at(right, 0u), one);
     const MachineOperand left_even = codegen_predicate(lane);
     const MachineOperand right_even = codegen_predicate(lane);
     const MachineOperand both_odd = codegen_predicate(lane);
     const MachineOperand both_even = codegen_predicate(lane);
-    codegen_instr2(lane, OPCODE_TEST_ZERO, left_even, left_odd);
-    codegen_instr2(lane, OPCODE_TEST_ZERO, right_even, right_odd);
-    codegen_instr3(lane, OPCODE_WORD_AND, odd, left_odd, right_odd);
-    codegen_instr2(lane, OPCODE_TEST_NONZERO, both_odd, odd);
-    codegen_instr3(lane, OPCODE_WORD_OR, odd, left_odd, right_odd);
-    codegen_instr2(lane, OPCODE_TEST_ZERO, both_even, odd);
+    codegen_instr2(lane, OPCODE_TEST_WORD_ZERO, left_even, left_odd);
+    codegen_instr2(lane, OPCODE_TEST_WORD_ZERO, right_even, right_odd);
+    codegen_instr3(lane, OPCODE_WORD_BITAND, odd, left_odd, right_odd);
+    codegen_instr2(lane, OPCODE_TEST_WORD_NONZERO, both_odd, odd);
+    codegen_instr3(lane, OPCODE_WORD_BITOR, odd, left_odd, right_odd);
+    codegen_instr2(lane, OPCODE_TEST_WORD_ZERO, both_even, odd);
     codegen_chain(lane, codegen_borrow_chain(), difference, left, right, width);
     const MachineOperand below = codegen_borrowed(lane);
     codegen_negate(lane, turned, difference, width);
@@ -384,21 +385,21 @@ CODEGEN_CORE void codegen_gcd(MachineFunction *lane, const IrStep *at)
     codegen_select(lane, chosen, chosen, right, both_odd, width);
     codegen_select(lane, chosen, right_half, chosen, right_even, width);
     codegen_select(lane, right, chosen, right, going, width);
-    codegen_instr3(lane, OPCODE_ADD_ALONE, counted, twos, one);
+    codegen_instr3(lane, OPCODE_WORD_ADD, counted, twos, one);
     codegen_instr4(lane, OPCODE_WORD_SELECT, counted, counted, twos, both_even);
     codegen_instr4(lane, OPCODE_WORD_SELECT, twos, counted, twos, going);
     codegen_loop_back(lane, halving, going);
     // one of the two is zero, and the other is their or
     for (unsigned int limb = 0u; limb < width; limb += 1u)
     {
-        codegen_instr3(lane, OPCODE_WORD_OR, codegen_at(left, limb), codegen_at(left, limb), codegen_at(right, limb));
+        codegen_instr3(lane, OPCODE_WORD_BITOR, codegen_at(left, limb), codegen_at(left, limb), codegen_at(right, limb));
     }
     const MachineOperand doubling = codegen_loop_open(lane);
     const MachineOperand shifting = codegen_predicate(lane);
-    codegen_instr2(lane, OPCODE_TEST_NONZERO, shifting, twos);
+    codegen_instr2(lane, OPCODE_TEST_WORD_NONZERO, shifting, twos);
     codegen_double(lane, left_half, left, zero);
     codegen_select(lane, left, left_half, left, shifting, width);
-    codegen_instr3(lane, OPCODE_SUBTRACT_ALONE, counted, twos, one);
+    codegen_instr3(lane, OPCODE_WORD_SUB, counted, twos, one);
     codegen_instr4(lane, OPCODE_WORD_SELECT, twos, counted, twos, shifting);
     codegen_loop_back(lane, doubling, shifting);
     codegen_copy_out(lane, codegen_limbs(at->place, step->limbs, step->limbs),
@@ -422,8 +423,8 @@ CODEGEN_CORE void codegen_ladder(MachineFunction *lane, const IrStep *at)
     // the right's sign less 1 is negative where the sign is not positive
     const MachineOperand lessened = codegen_temporary(lane);
     const MachineOperand not_positive = codegen_predicate(lane);
-    codegen_instr3(lane, OPCODE_SUBTRACT_ALONE, lessened, codegen_sign(at->right_place), one);
-    codegen_instr2(lane, OPCODE_TEST_NEGATIVE, not_positive, lessened);
+    codegen_instr3(lane, OPCODE_WORD_SUB, lessened, codegen_sign(at->right_place), one);
+    codegen_instr2(lane, OPCODE_TEST_SIGNED_WORD_NEGATIVE, not_positive, lessened);
     codegen_error(lane, not_positive);
     const MachineOperandRange fibonacci_lower = codegen_temporaries(lane, 2u);
     const MachineOperandRange fibonacci_upper = codegen_temporaries(lane, 2u);
@@ -443,18 +444,18 @@ CODEGEN_CORE void codegen_ladder(MachineFunction *lane, const IrStep *at)
     codegen_instr2(lane, OPCODE_WORD_SET, climbing, one);
     const MachineOperand loop = codegen_loop_open(lane);
     const MachineOperand going = codegen_predicate(lane);
-    codegen_instr2(lane, OPCODE_TEST_NONZERO, going, climbing);
+    codegen_instr2(lane, OPCODE_TEST_WORD_NONZERO, going, climbing);
     codegen_multiply(lane, reached, codegen_limbs(at->right_place, right_limbs, right_limbs), fibonacci_upper);
     codegen_chain(lane, codegen_borrow_chain(), difference, codegen_limbs(at->left_place, step->left_limbs, width),
                   codegen_range(reached.first, range, width), width);
     const MachineOperand over = codegen_borrowed(lane);
     codegen_instr4(lane, OPCODE_WORD_SELECT, counted, zero, one, over);
-    codegen_instr3(lane, OPCODE_ADD_ALONE, moved, band, counted);
+    codegen_instr3(lane, OPCODE_WORD_ADD, moved, band, counted);
     codegen_instr4(lane, OPCODE_WORD_SELECT, band, moved, band, going);
     codegen_chain(lane, codegen_add_chain(), fibonacci_next, fibonacci_lower, fibonacci_upper, 2u);
     codegen_select(lane, fibonacci_lower, fibonacci_upper, fibonacci_lower, going, 2u);
     codegen_select(lane, fibonacci_upper, fibonacci_next, fibonacci_upper, going, 2u);
-    codegen_instr3(lane, OPCODE_ADD_ALONE, moved, rung, one);
+    codegen_instr3(lane, OPCODE_WORD_ADD, moved, rung, one);
     codegen_instr4(lane, OPCODE_WORD_SELECT, rung, moved, rung, going);
     // the ladder climbs on where this rung counted and the next is still below ENGINE_GOLDEN_RUNGS
     codegen_chain(lane, codegen_borrow_chain(), codegen_one(moved), codegen_one(rung),

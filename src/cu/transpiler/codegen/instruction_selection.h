@@ -24,7 +24,8 @@ CODEGEN_CORE void codegen_store_placed(MachineFunction *lane, const DeviceRecord
     {
         if (lane->program->put_last[word] == (lane->at + 1u))
         {
-            codegen_instr2(lane, OPCODE_RECORD_STORE, codegen_number(4u * word), codegen_register(REGCLASS_OUT, word));
+            codegen_instr2(lane, OPCODE_RECORD_STORE_WORD, codegen_number(4u * word),
+                           codegen_register(REGCLASS_OUT, word));
         }
     }
 }
@@ -51,7 +52,7 @@ CODEGEN_CORE void codegen_put(MachineFunction *lane, const IrStep *at)
     else
     {
         const MachineOperand negative = codegen_predicate(lane);
-        codegen_instr2(lane, OPCODE_TEST_NEGATIVE, negative, codegen_sign(at->place));
+        codegen_instr2(lane, OPCODE_TEST_SIGNED_WORD_NEGATIVE, negative, codegen_sign(at->place));
         const MachineOperandRange negated = codegen_temporaries(lane, words);
         codegen_negate(lane, negated, source, words);
         codegen_select(lane, word, negated, source, negative, words);
@@ -75,19 +76,19 @@ CODEGEN_CORE void codegen_put(MachineFunction *lane, const IrStep *at)
         if ((low < out_limbs) && (shift == 0u))
         {
             const MachineOperand record = codegen_register(REGCLASS_OUT, low);
-            codegen_instr3(lane, OPCODE_WORD_OR, record, record, codegen_at(word, each));
+            codegen_instr3(lane, OPCODE_WORD_BITOR, record, record, codegen_at(word, each));
         }
         else if (low < out_limbs)
         {
             const MachineOperand record = codegen_register(REGCLASS_OUT, low);
-            codegen_instr3(lane, OPCODE_WORD_SHIFT_LEFT, moved, codegen_at(word, each), codegen_number(shift));
-            codegen_instr3(lane, OPCODE_WORD_OR, record, record, moved);
+            codegen_instr3(lane, OPCODE_WORD_SHL, moved, codegen_at(word, each), codegen_number(shift));
+            codegen_instr3(lane, OPCODE_WORD_BITOR, record, record, moved);
         }
         if ((shift != 0u) && ((low + 1u) < out_limbs))
         {
             const MachineOperand record = codegen_register(REGCLASS_OUT, low + 1u);
-            codegen_instr3(lane, OPCODE_WORD_SHIFT_RIGHT, moved, codegen_at(word, each), codegen_number(32u - shift));
-            codegen_instr3(lane, OPCODE_WORD_OR, record, record, moved);
+            codegen_instr3(lane, OPCODE_WORD_SHR, moved, codegen_at(word, each), codegen_number(32u - shift));
+            codegen_instr3(lane, OPCODE_WORD_BITOR, record, record, moved);
         }
     }
 }

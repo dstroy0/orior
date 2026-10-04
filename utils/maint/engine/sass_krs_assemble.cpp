@@ -10,7 +10,7 @@
 // be emitted through, whatever the ruleset says.
 //
 // A parameter's kind is not guessed from its name, because one name is two things in two forms: `left` is a register
-// in word_and and a predicate in predicate_xor, `value` a register in test_nonzero and a number in word_set. Each
+// in word_bitand and a predicate in predicate_bitxor, `value` a register in test_word_nonzero and a number in word_set. Each
 // form is written instead with every assignment of kinds to its parameters, register first, and holds where any one
 // of them assembles. A form that assembles under no assignment is the gap, and the assignment that worked is what
 // the form's parameters are.
@@ -154,7 +154,7 @@ static int krs_has_instruction(const std::string &text)
 }
 
 // Every label the ruleset's forms define, as one preamble. A branch names a label another form writes
-// (open_error_unless branches to the one label_error_open writes), and the assembler resolves a label from the lines
+// (error_open_unless branches to the one label_error_open writes), and the assembler resolves a label from the lines
 // of the text it is given: a form written alone has none. Each form that carries no instruction is written with
 // every number a branch here is given: whatever a branch names stands in front of it
 static std::string krs_labels(const Ruleset *rules, const std::vector<KrsForm> &forms)

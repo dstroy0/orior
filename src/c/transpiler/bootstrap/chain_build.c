@@ -7,7 +7,7 @@
 
 // The precepts a chain is built from: the ones that carry a word and take a child. NOP carries no child, ERR says a
 // thing cannot be done, and the two branches go nowhere a word comes back from
-static const unsigned char s_chain_precepts[] = {PRECEPT_NOT, PRECEPT_AND, PRECEPT_OR,  PRECEPT_XOR, PRECEPT_NAND,
+static const unsigned char s_chain_precepts[] = {PRECEPT_NOT, PRECEPT_BITAND, PRECEPT_BITOR,  PRECEPT_BITXOR, PRECEPT_NAND,
                                                  PRECEPT_NOR, PRECEPT_MOV, PRECEPT_SHL, PRECEPT_SHR, PRECEPT_ASR,
                                                  PRECEPT_ROL, PRECEPT_ROR, PRECEPT_ADD, PRECEPT_SUB};
 

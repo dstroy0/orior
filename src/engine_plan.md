@@ -307,15 +307,15 @@ works there.
    assemble for every number it was asked, folded probes counted, or a reading drawn from register operands alone is no
    form of an operator a literal is asked of in a slot it cannot encode. Where a reading differs from the ruleset only in
    an operation's signedness and the SASS reads the same word, the system compiles the two writings to one machine code:
-   the reading is the ruleset's form, `word_multiply`'s `mul.lo.s32` the ruleset's `mul.lo.u32`, and the writing the
+   the reading is the ruleset's form, `word_mul`'s `mul.lo.s32` the ruleset's `mul.lo.u32`, and the writing the
    system answers alike is written to the `.ksc` beside its folds. Of 55 forms over 440 questions, 43 of
    `sass.krs` and 18 of `ptx.krs` are the reading. What keeps the rest: no question reads a copy, as in a straight run
    the allocator names a copy's two words one register, which leaves `word_copy`, `word_set`, `sign_set` and
    `wide_unpack` nothing to read; `sign_select` and `wide_select` take a number in either of two slots and `SEL` takes
-   one only in its second, and no one text assembles for every number asked; `ptx.krs` reaches `launch_load` through a
-   generic `ld`; `guarded_load` reads as a branch, `count_add` and `wide_multiply` read longer than the ruleset's,
-   `wide_multiply` reads `mul.lo.s` where the ruleset holds `mul.lo.u` and is folded with nothing to prove the two one
-   word here, and the ruleset holds no `predicate_and` or `predicate_xor`. It is the loop and it is the work.
+   one only in its second, and no one text assembles for every number asked; `ptx.krs` reaches `launch_load_wide` through a
+   generic `ld`; `global_load_word_if` reads as a branch, `global_add_atomic_word` and `wide_mul` read longer than the ruleset's,
+   `wide_mul` reads `mul.lo.s` where the ruleset holds `mul.lo.u` and is folded with nothing to prove the two one
+   word here, and the ruleset holds no `predicate_bitand` or `predicate_bitxor`. It is the loop and it is the work.
    The query protocol above gives the loop its shape and nothing emits one yet. The cost bound is the open part
    of it: static, written into the query as `$10ms`, or dynamic, measured against a running average. The chain
    clock already reads a cost in the part's own time, and that reading is what a bound would be set from. That
@@ -413,7 +413,7 @@ works there.
      down 408. Then the cases `gate_descent` places for each relation, one or two, are put to every arrangement it
      descends over, 3575 of them, on the part alone, and `interface_sass_descent.md` holds the part's verdicts to the
      descent's: what stands on the part stands on the host for every relation, and no verdict differs.
-   - `sass.krs`. `word_shift_left` and `word_shift_right` carry no `.W`, and a count of 32 or more answers 0
+   - `sass.krs`. `word_shl` and `word_shr` carry no `.W`, and a count of 32 or more answers 0
      where the precept wraps it. The machine file holds no `.W` form with a number for the count, and the code
      generator writes number counts of 1 to 31 alone, where both forms agree. `word_funnel_right` carries no `.W`
      and has no left form; there is no
@@ -421,7 +421,7 @@ works there.
      subtract write `IADD3` alone.
    - Word web and alphabet web. On this part every gate is one `LOP3` node and ASR, ROL and ROR are each one
      `SHF` node, where the webs hold gates as separate precepts, NOT and NAND written from each other, and the
-     rotates and the sign spread as trees the width counts. `word_shift_*` is the precept by the word web and
+     rotates and the sign spread as trees the width counts. `word_shl` and `word_shr` are the precept by the word web and
      not by its form.
    - Candidates the part's clock chooses between: ERR as a trap in place or a branch to a handler; MOV as the
      passage or `word_copy`; ADD and SUB as `IADD3` or `IMAD.IADD`.
@@ -443,7 +443,7 @@ works there.
    `machines/sm_86` is one run's output read back as an input. These are for checking a derivation against. Nothing
    that derives may read them.
 
-6. **The relations are not asked for everything.** An atomic add has no relation put for it. `count_add` waits on
+6. **The relations are not asked for everything.** An atomic add has no relation put for it. `global_add_atomic_word` waits on
    that, and not on a name a disassembler will not print.
 
 7. **VHDL is a target on the Pi**, built on the `cell_tracking` branch at `bbc464b`, off main. State forms cut the
@@ -465,7 +465,7 @@ works there.
    order writes a 12293-step program as 17 MB of C source in one function, and the host's compiler does not finish
    it inside the harness's 1800 s. interface_sass puts its asks against the machine file the tree
    holds, 63 checks, 0 failed: 36 questions in the part's own code answer as each says, and 26 of the 27 kernels
-   written again answer as the toolchain's did. The 27th, wide_divide, calls the toolchain's division and is held off
+   written again answer as the toolchain's did. The 27th, wide_div, calls the toolchain's division and is held off
    the part. The three codings weighed run in a loop and are held off the part, and the clock reads nothing. With
    `SASS_LEARN` set it learns the machine again through the disassembler, bit by bit, and prints nothing the harness
    sees for more than 1800 s: the harness ends it. It alone

@@ -20,7 +20,7 @@
 //    word out node by node, and the .kdm records which. That reading is the coherence, and the part gives it.
 //
 // A word's leaves are its operands by place, PRECEPT_ARG_AT(0) first, in the order the schema's form takes them
-// after the destination. word_and's form is `word_and to left right`, putting left at place 0 and right at place 1.
+// after the destination. word_bitand's form is `word_bitand to left right`, putting left at place 0 and right at place 1.
 // The destination is where the root lands and is never a leaf.
 typedef struct
 {
@@ -37,7 +37,8 @@ typedef struct
 //
 //  - The declarations and the notes (declare_file, program_note, step_note, the lane's opening and close). These
 //    name no operation and have no tree; they are the frame a lane is written into.
-//  - The words over memory and over the launch (global_load, record_store, launch_load, count_add). A load is not a
+//  - The words over memory and over the launch (global_load_constant_word, record_store_word, launch_load_wide,
+//  global_add_atomic_word). A load is not a
 //    gate and reduces to nothing in the alphabet: a target either reaches memory or does not.
 //  - Every word whose tree counts the register's width. This is the larger half, and one missing node accounts for
 //    all of it. An adder is a rank of gates per bit; a multiply is one adder per bit again; a rotate is a shift left by
@@ -51,25 +52,25 @@ typedef struct
 // This table is the floor of the word web and not all of it. What it does hold, it holds exactly.
 static const Word s_word_web[] = {
     // the gates, each its own precept and one node
-    {"word_and", 2u, 1u, {{PRECEPT_AND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
-    {"word_or", 2u, 1u, {{PRECEPT_OR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
-    {"word_xor", 2u, 1u, {{PRECEPT_XOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_bitand", 2u, 1u, {{PRECEPT_BITAND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_bitor", 2u, 1u, {{PRECEPT_BITOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_bitxor", 2u, 1u, {{PRECEPT_BITXOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // a copy
     {"word_copy", 1u, 1u, {{PRECEPT_MOV, PRECEPT_ARG_AT(0u), PRECEPT_NONE}}},
     // the two shifts, whose amount is an operand and needs no width
-    {"word_shift_left", 2u, 1u, {{PRECEPT_SHL, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
-    {"word_shift_right", 2u, 1u, {{PRECEPT_SHR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_shl", 2u, 1u, {{PRECEPT_SHL, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_shr", 2u, 1u, {{PRECEPT_SHR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // one limb of arithmetic, the precept itself with nothing around it. The carry chains running these over limbs are
     // width counted and are not here
-    {"add_alone", 2u, 1u, {{PRECEPT_ADD, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
-    {"subtract_alone", 2u, 1u, {{PRECEPT_SUB, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_add", 2u, 1u, {{PRECEPT_ADD, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_sub", 2u, 1u, {{PRECEPT_SUB, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // gates over words that carry one bit, which need no width because there is only the one bit
-    {"predicate_xor", 2u, 1u, {{PRECEPT_XOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
-    {"predicate_and", 2u, 1u, {{PRECEPT_AND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"predicate_bitxor", 2u, 1u, {{PRECEPT_BITXOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"predicate_bitand", 2u, 1u, {{PRECEPT_BITAND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // the lane's branches. Every other branch the schema has - the error, the top of a loop, the next state - is one
     // of these two with a reason written around it, and none is a word of its own
-    {"loop_back", 2u, 1u, {{PRECEPT_JCC, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
-    {"error", 2u, 1u, {{PRECEPT_JCC, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"loop_back_if", 2u, 1u, {{PRECEPT_JCC, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"error_if", 2u, 1u, {{PRECEPT_JCC, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
 };
 
 #define WORD_WEB_COUNT (sizeof(s_word_web) / sizeof(s_word_web[0]))

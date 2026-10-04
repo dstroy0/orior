@@ -110,15 +110,15 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
         form("word_select", {t[8u + output], "1", "0", p[predicate]});
     };
 
-    form("add_alone", {t[8], t[0], t[1]});
-    ask("add_alone", 1u, [](const unsigned int *in, unsigned int *out) {
+    form("word_add", {t[8], t[0], t[1]});
+    ask("word_add", 1u, [](const unsigned int *in, unsigned int *out) {
         out[0] = in[0] + in[1];
         return 1;
     });
-    form("add_first", {t[8], t[0], t[3]});
-    form("add_middle", {t[9], t[1], t[4]});
-    form("add_last", {t[10], t[2], t[5]});
-    ask("add_first, add_middle, add_last: 96 bits", 3u, [](const unsigned int *in, unsigned int *out) {
+    form("word_add_first", {t[8], t[0], t[3]});
+    form("word_add_middle", {t[9], t[1], t[4]});
+    form("word_add_last", {t[10], t[2], t[5]});
+    ask("word_add_first, word_add_middle, word_add_last: 96 bits", 3u, [](const unsigned int *in, unsigned int *out) {
         unsigned long long carry = 0ull;
         for (unsigned int limb = 0u; limb < 3u; limb += 1u)
         {
@@ -128,38 +128,39 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
         }
         return 1;
     });
-    form("subtract_alone", {t[8], t[0], t[1]});
-    ask("subtract_alone", 1u, [](const unsigned int *in, unsigned int *out) {
+    form("word_sub", {t[8], t[0], t[1]});
+    ask("word_sub", 1u, [](const unsigned int *in, unsigned int *out) {
         out[0] = in[0] - in[1];
         return 1;
     });
-    form("subtract_first", {t[8], t[0], t[3]});
-    form("subtract_middle", {t[9], t[1], t[4]});
-    form("subtract_last", {t[10], t[2], t[5]});
-    ask("subtract_first, subtract_middle, subtract_last: 96 bits", 3u, [](const unsigned int *in, unsigned int *out) {
-        unsigned long long borrow = 0ull;
-        for (unsigned int limb = 0u; limb < 3u; limb += 1u)
-        {
-            const unsigned long long difference = (unsigned long long)in[limb] - in[3u + limb] - borrow;
-            out[limb] = (unsigned int)difference;
-            borrow = (difference >> 32u) & 1ull;
-        }
-        return 1;
-    });
-    form("borrow_alone", {t[8], t[0], t[1]});
-    form("borrow_read", {t[9], p[0]});
+    form("word_sub_first", {t[8], t[0], t[3]});
+    form("word_sub_middle", {t[9], t[1], t[4]});
+    form("word_sub_last", {t[10], t[2], t[5]});
+    ask("word_sub_first, word_sub_middle, word_sub_last: 96 bits", 3u,
+        [](const unsigned int *in, unsigned int *out) {
+            unsigned long long borrow = 0ull;
+            for (unsigned int limb = 0u; limb < 3u; limb += 1u)
+            {
+                const unsigned long long difference = (unsigned long long)in[limb] - in[3u + limb] - borrow;
+                out[limb] = (unsigned int)difference;
+                borrow = (difference >> 32u) & 1ull;
+            }
+            return 1;
+        });
+    form("word_borrow", {t[8], t[0], t[1]});
+    form("word_borrow_read", {t[9], p[0]});
     read_out(2u, 0u);
-    ask("borrow_alone, borrow_read", 3u, [](const unsigned int *in, unsigned int *out) {
+    ask("word_borrow, word_borrow_read", 3u, [](const unsigned int *in, unsigned int *out) {
         out[0] = in[0] - in[1];
         out[1] = (in[0] < in[1]) ? 0xFFFFFFFFu : 0u;
         out[2] = (in[0] < in[1]) ? 1u : 0u;
         return 1;
     });
-    form("borrow_first", {t[8], t[0], t[3]});
-    form("borrow_middle", {t[9], t[1], t[4]});
-    form("borrow_last", {t[10], t[2], t[5]});
-    form("borrow_read", {t[11], p[0]});
-    ask("borrow_first, borrow_middle, borrow_last, borrow_read: 96 bits", 4u,
+    form("word_borrow_first", {t[8], t[0], t[3]});
+    form("word_borrow_middle", {t[9], t[1], t[4]});
+    form("word_borrow_last", {t[10], t[2], t[5]});
+    form("word_borrow_read", {t[11], p[0]});
+    ask("word_borrow_first, word_borrow_middle, word_borrow_last, word_borrow_read: 96 bits", 4u,
         [](const unsigned int *in, unsigned int *out) {
             unsigned long long borrow = 0ull;
             for (unsigned int limb = 0u; limb < 3u; limb += 1u)
@@ -180,19 +181,19 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
         out[2] = 0x80000000u;
         return 1;
     });
-    form("word_and", {t[8], t[0], t[1]});
-    form("word_or", {t[9], t[0], t[1]});
-    form("word_xor", {t[10], t[0], t[1]});
-    ask("word_and, word_or, word_xor", 3u, [](const unsigned int *in, unsigned int *out) {
+    form("word_bitand", {t[8], t[0], t[1]});
+    form("word_bitor", {t[9], t[0], t[1]});
+    form("word_bitxor", {t[10], t[0], t[1]});
+    ask("word_bitand, word_bitor, word_bitxor", 3u, [](const unsigned int *in, unsigned int *out) {
         out[0] = in[0] & in[1];
         out[1] = in[0] | in[1];
         out[2] = in[0] ^ in[1];
         return 1;
     });
     // a shift of the register's width or more leaves 0 (PTX clamps the amount to the width)
-    form("word_shift_left", {t[8], t[0], t[1]});
-    form("word_shift_right", {t[9], t[0], t[1]});
-    ask("word_shift_left, word_shift_right", 2u, [](const unsigned int *in, unsigned int *out) {
+    form("word_shl", {t[8], t[0], t[1]});
+    form("word_shr", {t[9], t[0], t[1]});
+    ask("word_shl, word_shr", 2u, [](const unsigned int *in, unsigned int *out) {
         out[0] = (in[1] < 32u) ? (in[0] << in[1]) : 0u;
         out[1] = (in[1] < 32u) ? (in[0] >> in[1]) : 0u;
         return 1;
@@ -204,28 +205,28 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
         out[0] = (unsigned int)(probe_pair(in[0], in[1]) >> bits);
         return 1;
     });
-    form("word_multiply", {t[8], t[0], t[1]});
-    form("word_multiply_add", {t[9], t[0], t[1], t[2]});
-    ask("word_multiply, word_multiply_add", 2u, [](const unsigned int *in, unsigned int *out) {
+    form("word_mul", {t[8], t[0], t[1]});
+    form("word_mul_add", {t[9], t[0], t[1], t[2]});
+    ask("word_mul, word_mul_add", 2u, [](const unsigned int *in, unsigned int *out) {
         out[0] = in[0] * in[1];
         out[1] = (in[0] * in[1]) + in[2];
         return 1;
     });
-    form("word_divide", {t[8], t[0], t[1]});
-    ask("word_divide", 1u, [](const unsigned int *in, unsigned int *out) {
+    form("word_div", {t[8], t[0], t[1]});
+    ask("word_div", 1u, [](const unsigned int *in, unsigned int *out) {
         out[0] = (in[1] != 0u) ? (in[0] / in[1]) : 0u;
         return in[1] != 0u;
     });
-    form("test_nonzero", {p[0], t[2]});
+    form("test_word_nonzero", {p[0], t[2]});
     form("word_select", {t[8], t[0], t[1], p[0]});
-    ask("word_select, test_nonzero", 1u, [](const unsigned int *in, unsigned int *out) {
+    ask("word_select, test_word_nonzero", 1u, [](const unsigned int *in, unsigned int *out) {
         out[0] = (in[2] != 0u) ? in[0] : in[1];
         return 1;
     });
     // a product and its carry in: a b + c never passes 64 bits
-    form("product_low", {t[8], t[0], t[1], t[2]});
-    form("product_high", {t[9], t[0], t[1]});
-    ask("product_low, product_high", 2u, [](const unsigned int *in, unsigned int *out) {
+    form("word_mul_low", {t[8], t[0], t[1], t[2]});
+    form("word_mul_high", {t[9], t[0], t[1]});
+    ask("word_mul_low, word_mul_high", 2u, [](const unsigned int *in, unsigned int *out) {
         const unsigned long long product = ((unsigned long long)in[0] * in[1]) + in[2];
         out[0] = (unsigned int)product;
         out[1] = (unsigned int)(product >> 32u);
@@ -233,7 +234,7 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     });
     form("sign_set", {t[8], "-1"});
     form("sign_set", {t[9], "1"});
-    form("test_nonzero", {p[0], t[2]});
+    form("test_word_nonzero", {p[0], t[2]});
     form("sign_select", {t[10], t[0], t[1], p[0]});
     ask("sign_set, sign_select", 3u, [](const unsigned int *in, unsigned int *out) {
         out[0] = 0xFFFFFFFFu;
@@ -242,33 +243,34 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
         return 1;
     });
     // the signed product's low word, and the absolute value and negation modulo 2^32: |-2^31| is -2^31
-    form("sign_multiply", {t[8], t[0], t[1]});
+    form("sign_mul", {t[8], t[0], t[1]});
     form("sign_absolute", {t[9], t[0]});
-    form("sign_negate", {t[10], t[0]});
-    ask("sign_multiply, sign_absolute, sign_negate", 3u, [](const unsigned int *in, unsigned int *out) {
+    form("sign_neg", {t[10], t[0]});
+    ask("sign_mul, sign_absolute, sign_neg", 3u, [](const unsigned int *in, unsigned int *out) {
         out[0] = in[0] * in[1];
         out[1] = ((in[0] & 0x80000000u) != 0u) ? (0u - in[0]) : in[0];
         out[2] = 0u - in[0];
         return 1;
     });
-    form("test_nonzero", {p[0], t[0]});
-    form("test_zero", {p[1], t[0]});
-    form("test_negative", {p[2], t[0]});
+    form("test_word_nonzero", {p[0], t[0]});
+    form("test_word_zero", {p[1], t[0]});
+    form("test_signed_word_negative", {p[2], t[0]});
     read_out(0u, 0u);
     read_out(1u, 1u);
     read_out(2u, 2u);
-    ask("test_nonzero, test_zero, test_negative", 3u, [](const unsigned int *in, unsigned int *out) {
-        out[0] = (in[0] != 0u) ? 1u : 0u;
-        out[1] = (in[0] == 0u) ? 1u : 0u;
-        out[2] = ((in[0] & 0x80000000u) != 0u) ? 1u : 0u;
-        return 1;
-    });
-    // a signed word is zero where its bits are, which test_zero above asks
-    form("test_signed_differ", {p[0], t[0], t[1]});
-    form("test_signed_greater", {p[1], t[0], t[1]});
+    ask("test_word_nonzero, test_word_zero, test_signed_word_negative", 3u,
+        [](const unsigned int *in, unsigned int *out) {
+            out[0] = (in[0] != 0u) ? 1u : 0u;
+            out[1] = (in[0] == 0u) ? 1u : 0u;
+            out[2] = ((in[0] & 0x80000000u) != 0u) ? 1u : 0u;
+            return 1;
+        });
+    // a signed word is zero where its bits are, which test_word_zero above asks
+    form("test_sign_ne", {p[0], t[0], t[1]});
+    form("test_sign_gt", {p[1], t[0], t[1]});
     read_out(0u, 0u);
     read_out(1u, 1u);
-    ask("test_signed_differ, test_signed_greater", 2u, [](const unsigned int *in, unsigned int *out) {
+    ask("test_sign_ne, test_sign_gt", 2u, [](const unsigned int *in, unsigned int *out) {
         // a word read as its two's complement value
         const long long left = (long long)(int)in[0];
         // a word read as its two's complement value
@@ -279,16 +281,16 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     });
     form("wide_pack", {w[0], t[0], t[1]});
     form("wide_pack", {w[1], t[2], t[3]});
-    form("test_nonzero", {p[3], t[4]});
+    form("test_word_nonzero", {p[3], t[4]});
     form("test_wide_nonzero", {p[0], w[0]});
-    form("test_wide_equal", {p[1], w[0], w[1]});
-    form("test_wide_below", {p[2], w[0], w[1]});
-    form("test_wide_below_and", {p[3], w[0], w[1], p[3]});
+    form("test_wide_eq", {p[1], w[0], w[1]});
+    form("test_wide_lt", {p[2], w[0], w[1]});
+    form("test_wide_lt_and", {p[3], w[0], w[1], p[3]});
     read_out(0u, 0u);
     read_out(1u, 1u);
     read_out(2u, 2u);
     read_out(3u, 3u);
-    ask("test_wide_nonzero, test_wide_equal, test_wide_below, test_wide_below_and", 4u,
+    ask("test_wide_nonzero, test_wide_eq, test_wide_lt, test_wide_lt_and", 4u,
         [](const unsigned int *in, unsigned int *out) {
             const unsigned long long left = probe_pair(in[0], in[1]);
             const unsigned long long right = probe_pair(in[2], in[3]);
@@ -298,13 +300,13 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
             out[3] = ((left < right) && (in[4] != 0u)) ? 1u : 0u;
             return 1;
         });
-    form("test_nonzero", {p[0], t[0]});
-    form("test_nonzero", {p[1], t[1]});
-    form("predicate_xor", {p[2], p[0], p[1]});
-    form("predicate_and", {p[3], p[0], p[1]});
+    form("test_word_nonzero", {p[0], t[0]});
+    form("test_word_nonzero", {p[1], t[1]});
+    form("predicate_bitxor", {p[2], p[0], p[1]});
+    form("predicate_bitand", {p[3], p[0], p[1]});
     read_out(0u, 2u);
     read_out(1u, 3u);
-    ask("predicate_xor, predicate_and", 2u, [](const unsigned int *in, unsigned int *out) {
+    ask("predicate_bitxor, predicate_bitand", 2u, [](const unsigned int *in, unsigned int *out) {
         out[0] = ((in[0] != 0u) != (in[1] != 0u)) ? 1u : 0u;
         out[1] = ((in[0] != 0u) && (in[1] != 0u)) ? 1u : 0u;
         return 1;
@@ -323,11 +325,11 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     });
     form("wide_pack", {w[0], t[0], t[1]});
     form("wide_pack", {w[1], t[2], t[3]});
-    form("wide_multiply", {w[2], w[0], w[1]});
+    form("wide_mul", {w[2], w[0], w[1]});
     form("wide_unpack", {t[8], t[9], w[2]});
-    form("wide_multiply_word", {w[3], t[4], t[5]});
+    form("wide_mul_word", {w[3], t[4], t[5]});
     form("wide_unpack", {t[10], t[11], w[3]});
-    ask("wide_multiply, wide_multiply_word", 4u, [](const unsigned int *in, unsigned int *out) {
+    ask("wide_mul, wide_mul_word", 4u, [](const unsigned int *in, unsigned int *out) {
         const unsigned long long product = probe_pair(in[0], in[1]) * probe_pair(in[2], in[3]);
         const unsigned long long word_product = (unsigned long long)in[4] * in[5];
         out[0] = (unsigned int)product;
@@ -340,25 +342,21 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     form("wide_pack", {w[1], t[2], t[3]});
     form("wide_add", {w[2], w[0], w[1]});
     form("wide_unpack", {t[8], t[9], w[2]});
-    form("wide_add_unsigned", {w[3], w[0], w[1]});
-    form("wide_unpack", {t[10], t[11], w[3]});
-    ask("wide_add, wide_add_unsigned", 4u, [](const unsigned int *in, unsigned int *out) {
+    ask("wide_add", 2u, [](const unsigned int *in, unsigned int *out) {
         const unsigned long long sum = probe_pair(in[0], in[1]) + probe_pair(in[2], in[3]);
         out[0] = (unsigned int)sum;
         out[1] = (unsigned int)(sum >> 32u);
-        out[2] = out[0];
-        out[3] = out[1];
         return 1;
     });
     // a shift of 64 bits or more leaves 0
     form("wide_pack", {w[0], t[0], t[1]});
-    form("wide_shift_left", {w[2], w[0], t[2]});
+    form("wide_shl", {w[2], w[0], t[2]});
     form("wide_unpack", {t[8], t[9], w[2]});
     form("wide_pack", {w[1], t[3], t[4]});
-    form("test_nonzero", {p[0], t[5]});
+    form("test_word_nonzero", {p[0], t[5]});
     form("wide_select", {w[3], w[0], w[1], p[0]});
     form("wide_unpack", {t[10], t[11], w[3]});
-    ask("wide_shift_left, wide_select", 4u, [](const unsigned int *in, unsigned int *out) {
+    ask("wide_shl, wide_select", 4u, [](const unsigned int *in, unsigned int *out) {
         const unsigned long long shifted = (in[2] < 64u) ? (probe_pair(in[0], in[1]) << in[2]) : 0ull;
         const unsigned long long chosen = (in[5] != 0u) ? probe_pair(in[0], in[1]) : probe_pair(in[3], in[4]);
         out[0] = (unsigned int)shifted;
@@ -369,25 +367,25 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     });
     form("wide_pack", {w[0], t[0], t[1]});
     form("wide_pack", {w[1], t[2], t[3]});
-    form("wide_divide", {w[2], w[0], w[1]});
+    form("wide_div", {w[2], w[0], w[1]});
     form("wide_unpack", {t[8], t[9], w[2]});
-    ask("wide_divide", 2u, [](const unsigned int *in, unsigned int *out) {
+    ask("wide_div", 2u, [](const unsigned int *in, unsigned int *out) {
         const unsigned long long divisor = probe_pair(in[2], in[3]);
         const unsigned long long quotient = (divisor != 0ull) ? (probe_pair(in[0], in[1]) / divisor) : 0ull;
         out[0] = (unsigned int)quotient;
         out[1] = (unsigned int)(quotient >> 32u);
         return divisor != 0ull;
     });
-    // count_add, the one form the resident counts with and no other question reaches. What it leaves cannot be read
-    // here: the only load the ruleset gives is ld.global.nc, which promises the location is not written while the
-    // kernel runs, and a read-back of a word this just added to breaks that promise (ptxas takes it at its word and
-    // folds the two loads into one, the .CONSTANT in the listing). So the case asked is one a question
-    // here can ask - that the part assembles it, runs it, and goes on past it - and the word it adds to is this
-    // thread's own case in the input buffer, which the host never reads back. What the add leaves is read on the part
-    // instead, in the SASS probe's own code, where the instructions are ours and the read-back is a plain load
-    form("count_add", {"%interface_wide2"});
+    // global_add_atomic_word, the one form the resident counts with and no other question reaches. What it leaves
+    // cannot be read here: the only load the ruleset gives is ld.global.nc, which promises the location is not written
+    // while the kernel runs, and a read-back of a word this just added to breaks that promise (ptxas takes it at its
+    // word and folds the two loads into one, the .CONSTANT in the listing). So the case asked is one a question here
+    // can ask - that the part assembles it, runs it, and goes on past it - and the word it adds to is this thread's own
+    // case in the input buffer, which the host never reads back. What the add leaves is read on the part instead, in
+    // the SASS probe's own code, where the instructions are ours and the read-back is a plain load
+    form("global_add_atomic_word", {"%interface_wide2"});
     form("word_copy", {t[8], t[0]});
-    ask("count_add", 1u, [](const unsigned int *in, unsigned int *out) {
+    ask("global_add_atomic_word", 1u, [](const unsigned int *in, unsigned int *out) {
         out[0] = in[0];
         return 1;
     });
