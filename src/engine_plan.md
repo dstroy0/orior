@@ -236,13 +236,10 @@ works there.
 ## Open
 
 1. **The device engine and this plan disagree where the list below says.** Every file of `src/c/engine`,
-   `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `src/cu/includes`, `src/cu/kcmplx` and the bootstrap, codegen,
-   cubin, emit and interface folders of `src/c/transpiler` is read against this plan, `gnascor.md`, the engine table and
-   the query protocol table. `src/python/engine`, `src/c/types`, `src/c/includes` and the host qasm are read with the
-   other engines. Each entry is fixed in the code or in the document it contradicts.
-   - Defects in the code.
-     - `query_order_to_edge` waits with no bound on a clock that never turns over.
-     - `krep_bodies_write` and `krep_forms_write` write two layouts under the one kind `KCS` and the one version.
+   `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `src/cu/includes` and the bootstrap, codegen, cubin, emit and
+   interface folders of `src/c/transpiler` is read against this plan, `gnascor.md`, the engine table and the query
+   protocol table. `src/python/engine`, `src/c/types`, `src/c/includes` and the host qasm are read with the other
+   engines. Each entry is fixed in the code or in the document it contradicts.
    - Named here and not built, or built and not called.
      - The run channel. `run_channel.h` declares `run_channel_open`, `run_channel_ask`, `run_channel_close` and
        `run_channel_carrier`, and nothing defines one of them. `tessera_run` defines a `run_channel_open` and a
@@ -255,8 +252,6 @@ works there.
      - The device tower runs 5/3 alone. A named lifting ruleset reaches the record floors and not `tower_lift`.
      - No engine route calls `sass_assemble`, `cubin_write`, `cubin_safe` or `sass_target`. The cubin path is reached
        from `utils/test` and `utils/maint` alone.
-     - `krep_crystal_*`, `krep_history_*` and `krep_bodies_*` have no caller. The engine writes and reads the `.kcr`
-       through `apxrep_input_write` and `apxrep_input_read`.
      - `crc.h`'s `CRC_TABLE_DEVICE`, `CRC_ADVANCE_DEVICE`, `crc_pixel`, `crc_apply`, `crc_finish` and its segment
        constants have no caller.
      - `src/build_engine.sh` names 51 module folders that are not in the tree (`engine/compiler/cycle`,
@@ -279,18 +274,10 @@ works there.
        run lowers the next reservation.
      - Modules outside the engine's shape answer a bare -1 or an int with no `EngineError`: `body_overlap`,
        `heaviest_matching`, `shift_agreement`, `golden_bands`, `residual_survey`, `climb_machine`, `schedule` and
-       `radix_keys`. orior and render keep their own house style. `cubin_write`, `container_write` and `sass_assemble`
-       give their reasons by `printf`.
+       `radix_keys`. orior and render keep their own house style. `container_write`, `container_layout` and
+       `sass_assemble` give their reasons by `printf`.
      - Six files pass 500 lines: `sass_assemble.c` 1002, `sass_machine.c` 550, `cycle_compile.cu` 524,
        `code_generator.cu` 523, `cycle_record_launch.cu` 511 and `cycle.c` 508.
-   - One thing written twice.
-     - `apxrep_*` and `krep_*` are one code apart from the magic, and every `.kcr` opens with `APXREP`.
-     - `cubin_write.c` and `container_write.c` do one work, and `container_write.h` says there is one emitter.
-     - `query_interface.c` and `bus_enum_walk.c` are one probe driver.
-     - `codegen_reads_right`, `codegen_reads_left` and `codegen_step_valid` repeat `ir_reads_right`, `ir_reads_left`
-       and `ir_step_valid`.
-     - Euclid's gcd stands in `contact_side`, `division` and `fingerprint`; `choose_offsets` in `orior_core.c` and
-       `orior_steer_count.c`; the xorshift in `ladder.h` and `ask_order.c`.
    - Documents the tree contradicts.
      - CRC-64 guards `EngineProgramBlock`, the `.oapx` and the `.bapx`; the seal guards the `.kcr`.
        `compression_tower.md`'s byte table for 44b6_0113de3b lays a CRC-64 word in the `.kcr`, and the table is

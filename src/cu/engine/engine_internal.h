@@ -5,7 +5,7 @@
 
 #include "../../c/engine/engine.h"
 
-#include "../../c/kcmplx/apxrep.h"
+#include "../../c/types/file_defs/krep/krep.h"
 #include "../../c/includes/codecs/blosc/blosc.h"
 #include "../../c/includes/formats/cfg_json/cfg_json.h"
 #include "codegen_device.h"

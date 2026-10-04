@@ -23,19 +23,6 @@ static const unsigned int FINGERPRINT_SECOND_AXIS[FINGERPRINT_MOMENTS] = {0u, 1u
 
 #define FINGERPRINT_PER_MOMENT 6u
 
-static unsigned long long fingerprint_common_unit(unsigned long long first, unsigned long long second)
-{
-    unsigned long long larger = first;
-    unsigned long long smaller = second;
-    while (smaller != 0ull)
-    {
-        const unsigned long long rest = larger % smaller;
-        larger = smaller;
-        smaller = rest;
-    }
-    return larger;
-}
-
 static void fingerprint_step(EngineRecordStep *step, EngineRecordOperation operation, unsigned int left,
                              unsigned int right)
 {
@@ -47,8 +34,8 @@ static void fingerprint_step(EngineRecordStep *step, EngineRecordOperation opera
 extern "C" long fingerprint_program(const FingerprintRequest *request, EngineRecordStep program[FINGERPRINT_STEPS],
                                     unsigned int outputs[FINGERPRINT_OUTPUTS])
 {
-    const unsigned long long unit = fingerprint_common_unit(
-        fingerprint_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
+    const unsigned long long unit =
+        engine_common_unit(engine_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
     if ((request->voxel_pm[0] == 0ull) || (request->voxel_pm[1] == 0ull) || (request->voxel_pm[2] == 0ull))
     {
         return FINGERPRINT_ERROR;

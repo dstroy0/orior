@@ -117,42 +117,6 @@ void anchor_steer_probes_reset(void)
     anchor_steer_probes = 0u;
 }
 
-/**
- * @brief Places anchor offsets by spatial spread, one drawn inside each evenly sized cell.
- *
- * @param[out] offsets    Where the chosen offsets are written [BORROWS].
- * @param[in]  wanted     How many to choose.
- * @param[in]  needle_len Length of the needle they index.
- *
- * @note The same placement rule the search above uses, carried here so the steered route chooses where
- *       to probe the same way the engines it is compared against do. Only the ORDER of evaluation is
- *       this file's contribution, and placing differently would confound the two.
- * @note Returns every offset zero at `needle_len` zero instead of computing `needle_len - 1u`,
- *       which on size_t wraps to SIZE_MAX. The caller does not probe at that length in any case.
- */
-static void steer_choose_offsets(size_t *offsets, size_t wanted, size_t needle_len)
-{
-    if (needle_len == 0u)
-    {
-        for (size_t slot = 0u; slot < wanted; slot += 1u)
-        {
-            offsets[slot] = 0u;
-        }
-        return;
-    }
-
-    const size_t cell = needle_len / wanted;
-    for (size_t slot = 0u; slot < wanted; slot += 1u)
-    {
-        const size_t inside = (cell > 1u) ? ((slot * 7u) % cell) : 0u;
-        offsets[slot] = (slot * cell) + inside;
-        if (offsets[slot] >= needle_len)
-        {
-            offsets[slot] = needle_len - 1u;
-        }
-    }
-}
-
 size_t anchor_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
                                       size_t needle_len, const AnchorProbe *probes, size_t count)
 {
@@ -239,7 +203,9 @@ size_t anchor_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_
     }
 
     size_t offsets[ANCHOR_STEER_ANCHORS];
-    steer_choose_offsets(offsets, ANCHOR_STEER_ANCHORS, needle_len);
+    // the placement the search uses: the steered route probes where the engines it is compared against do, and
+    // only the order of evaluation is this file's
+    choose_offsets(offsets, ANCHOR_STEER_ANCHORS, needle_len);
 
     if (steered != 0)
     {

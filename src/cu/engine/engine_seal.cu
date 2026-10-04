@@ -284,7 +284,7 @@ int entry_seal_make(const unsigned short *device_lanes, const EngineStream *stre
                    entry_seal_sample(stream, section, seal, error);
     if (ok == 0)
     {
-        apxrep_seal_release(seal);
+        krep_seal_release(seal);
     }
     return ok;
 }
@@ -358,7 +358,7 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
     ok = ok && ENGINE_CHECK((record->rows_differ == 0ull) && (record->roots_differ == 0ull) &&
                                 (record->voxels_differ == 0ull),
                             seal, error, ENGINE_ERROR_LOGIC);
-    apxrep_seal_release(&fresh);
+    krep_seal_release(&fresh);
     return ok;
 }
 

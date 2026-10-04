@@ -142,7 +142,7 @@ Each producer releases what it made (`keymath_key_release`, `key_schedule_releas
 |---|---|---|
 | `tower_lift` | the sample's voxels on the device | every coefficient on the device, as a plain array of exact integers, and the sample's CRC-64 |
 | `compression_encode` | the coefficients and their count | `EngineStream`: the chunks, the bits, each chunk's first bit and the stream's limbs |
-| `apxrep_input_write` / `apxrep_input_read` | `EngineStream` | the .kcr file / `EngineStream` again |
+| `krep_crystal_write` / `krep_crystal_read` | `EngineStream` | the .kcr file / `EngineStream` again |
 | `compression_decode` | `EngineStream` | the coefficients, written into the capacity `tower_capacity` hands out |
 | `tower_lower` | the held coefficients | the rebuilt sample, its CRC-64, and the voxels that differ |
 
@@ -156,7 +156,7 @@ None of these stages knows another exists. The tower does not know its coefficie
 |---|---|
 | no module reaches another; hand-offs are plain structs in `engine_config.h`, composed only in the entry | the rule and the target (the cell_tracking standing rules) |
 | the key chain (`keymath`, `key_schedule`, `cycle`) reaches nothing | proved: `audit_reaching.py` |
-| the codec (`tower`, `compression`, `apxrep`, `entropy_history`) reaches nothing but `crc` | proved: `audit_reaching.py`; `iapx` is gone, composed in the entry |
+| the codec (`tower`, `compression`, `krep`, `entropy_history`) reaches nothing but `crc` | proved: `audit_reaching.py`; `iapx` is gone, composed in the entry |
 | a split that regroups the chain in the entry changes no output | proved for three splits: compression from the tower (.kcr byte identical, set CRC 091daa41e1aceb7e), keymath and key_schedule from the cycle (edges identical), the driver split (edges and score rows identical) |
 | `crc` is a root | by the rule; it is a compile-time constant and pure functions, held to the published check value |
 | the tracker's modules reach nothing | **not so yet**: 19 modules still reach and 18 reach nothing. `score_sample` reaches 14 modules; `binomial_basins`, `flatten` and `score_sample` reach up into `entry`; the rest reach `track` and one another. They are being split next, and each stays listed here until the audit clears it |

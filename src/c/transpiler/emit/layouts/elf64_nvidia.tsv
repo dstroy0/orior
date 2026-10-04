@@ -23,10 +23,14 @@ size	header	64
 #
 # one section header
 field	section.name	0	4
+field	section.type	4	4
 field	section.offset	24	8
 field	section.size	32	8
 field	section.info	44	4
 field	section.align	48	8
+#
+# a section of this type takes no bytes in the file: it is laid out at no length and keeps the size its header gives
+tag	section.type_nobits	8
 #
 # one program header
 field	segment.offset	8	8

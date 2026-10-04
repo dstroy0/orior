@@ -215,8 +215,7 @@ extern "C" int krep_bodies_write(const char *path, const EngineBodyTable *table,
     }
     const unsigned long long counts[3] = {table->frames, table->bodies, table->crc};
     FILE *const out = fopen(path, "wb");
-    int ok = KREP_IO(out != NULL, path, error) &&
-             KREP_IO(krep_head_write(out, KREP_KIND_CONSTRUCTION_SET) != 0, out, error) &&
+    int ok = KREP_IO(out != NULL, path, error) && KREP_IO(krep_head_write(out, KREP_KIND_BODIES) != 0, out, error) &&
              KREP_IO(krep_words_write(out, table->extent, 4u) != 0, table->extent, error) &&
              KREP_IO(krep_words_write(out, counts, 3u) != 0, counts, error) &&
              KREP_IO(krep_words_write(out, table->frame_start, (size_t)table->frames + 1u) != 0, table->frame_start,
@@ -243,8 +242,7 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
     memset(table, 0, sizeof(*table));
     FILE *const back = fopen(path, "rb");
     unsigned long long counts[3] = {0ull, 0ull, 0ull};
-    int ok = KREP_IO(back != NULL, path, error) &&
-             KREP_IO(krep_head_read(back, KREP_KIND_CONSTRUCTION_SET) != 0, back, error) &&
+    int ok = KREP_IO(back != NULL, path, error) && KREP_IO(krep_head_read(back, KREP_KIND_BODIES) != 0, back, error) &&
              KREP_IO(krep_words_read(back, table->extent, 4u) != 0, table->extent, error) &&
              KREP_IO(krep_words_read(back, counts, 3u) != 0, counts, error) &&
              KREP_CHECK((counts[0] == table->extent[0]) && (krep_lanes(table->extent) != 0ull) &&

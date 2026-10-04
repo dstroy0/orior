@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../c/engine/nbody/flatten/flatten.h"
 
-#include "../../../../c/kcmplx/apxrep.h"
 #include "../../../../c/engine/analysis/cycle/cycle.h"
 #include "../../../../c/engine/engine.h"
 #include "../../../../c/engine/nbody/max_tree/max_tree.h"
+#include "../../../../c/types/file_defs/krep/krep.h"
 
 #include <cuda_runtime.h>
 
@@ -43,22 +43,22 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
                                                    count};
     FILE *file = ok ? fopen(path, "wb") : NULL;
     ok = ok && FLATTEN_IO(file != NULL, path, error) &&
-         FLATTEN_IO(apxrep_head_write(file, APXREP_KIND_INPUT) != 0, file, error) &&
-         FLATTEN_IO(apxrep_limbs_write(file, head, FLATTEN_HEAD_LIMBS) != 0, head, error) &&
-         FLATTEN_IO(apxrep_limbs_write(file, layout->bits, MAX_TREE_FIELDS) != 0, layout->bits, error) &&
-         FLATTEN_IO(apxrep_limbs_write(file, layout->offset, MAX_TREE_FIELDS) != 0, layout->offset, error);
+         FLATTEN_IO(krep_head_write(file, KREP_KIND_SHARD) != 0, file, error) &&
+         FLATTEN_IO(krep_limbs_write(file, head, FLATTEN_HEAD_LIMBS) != 0, head, error) &&
+         FLATTEN_IO(krep_limbs_write(file, layout->bits, MAX_TREE_FIELDS) != 0, layout->bits, error) &&
+         FLATTEN_IO(krep_limbs_write(file, layout->offset, MAX_TREE_FIELDS) != 0, layout->offset, error);
     for (unsigned int sample = 0u; ok && (sample < count); sample += 1u)
     {
         const unsigned int length = (unsigned int)strlen(names[sample]);
-        ok = FLATTEN_IO(apxrep_limbs_write(file, &length, 1u) != 0, &length, error) &&
-             FLATTEN_IO(fwrite(names[sample], 1u, length, file) == length, names[sample], error) &&
-             FLATTEN_IO(apxrep_limbs_write(file, orders[sample].smooth, ENGINE_AXES) != 0, orders[sample].smooth,
-                        error) &&
-             FLATTEN_IO(apxrep_limbs_write(file, orders[sample].background, ENGINE_AXES) != 0,
-                        orders[sample].background, error);
+        ok =
+            FLATTEN_IO(krep_limbs_write(file, &length, 1u) != 0, &length, error) &&
+            FLATTEN_IO(fwrite(names[sample], 1u, length, file) == length, names[sample], error) &&
+            FLATTEN_IO(krep_limbs_write(file, orders[sample].smooth, ENGINE_AXES) != 0, orders[sample].smooth, error) &&
+            FLATTEN_IO(krep_limbs_write(file, orders[sample].background, ENGINE_AXES) != 0, orders[sample].background,
+                       error);
     }
-    ok = ok && FLATTEN_IO(apxrep_words_write(file, &bodies, 1u) != 0, &bodies, error) &&
-         FLATTEN_IO(apxrep_limbs_write(file, magnitudes, words) != 0, magnitudes, error);
+    ok = ok && FLATTEN_IO(krep_words_write(file, &bodies, 1u) != 0, &bodies, error) &&
+         FLATTEN_IO(krep_limbs_write(file, magnitudes, words) != 0, magnitudes, error);
     if (file != NULL)
     {
         ok = FLATTEN_IO(fclose(file) == 0, file, error) && ok;
@@ -69,12 +69,12 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
     unsigned int read_bits[MAX_TREE_FIELDS];
     unsigned int read_offset[MAX_TREE_FIELDS];
     ok = ok && FLATTEN_IO(file != NULL, path, error) &&
-         FLATTEN_IO(apxrep_head_read(file, APXREP_KIND_INPUT) != 0, file, error) &&
-         FLATTEN_IO(apxrep_limbs_read(file, read_head, FLATTEN_HEAD_LIMBS) != 0, read_head, error) &&
+         FLATTEN_IO(krep_head_read(file, KREP_KIND_SHARD) != 0, file, error) &&
+         FLATTEN_IO(krep_limbs_read(file, read_head, FLATTEN_HEAD_LIMBS) != 0, read_head, error) &&
          FLATTEN_CHECK(memcmp(read_head, head, sizeof(head)) == 0, read_head, error, ENGINE_ERROR_LOGIC) &&
-         FLATTEN_IO(apxrep_limbs_read(file, read_bits, MAX_TREE_FIELDS) != 0, read_bits, error) &&
+         FLATTEN_IO(krep_limbs_read(file, read_bits, MAX_TREE_FIELDS) != 0, read_bits, error) &&
          FLATTEN_CHECK(memcmp(read_bits, layout->bits, sizeof(read_bits)) == 0, read_bits, error, ENGINE_ERROR_LOGIC) &&
-         FLATTEN_IO(apxrep_limbs_read(file, read_offset, MAX_TREE_FIELDS) != 0, read_offset, error) &&
+         FLATTEN_IO(krep_limbs_read(file, read_offset, MAX_TREE_FIELDS) != 0, read_offset, error) &&
          FLATTEN_CHECK(memcmp(read_offset, layout->offset, sizeof(read_offset)) == 0, read_offset, error,
                        ENGINE_ERROR_LOGIC);
     for (unsigned int sample = 0u; ok && (sample < count); sample += 1u)
@@ -82,22 +82,22 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
         char name[ENGINE_PATH_CAPACITY];
         unsigned int length = 0u;
         FlattenOrders read_orders;
-        ok = FLATTEN_IO(apxrep_limbs_read(file, &length, 1u) != 0, &length, error) &&
+        ok = FLATTEN_IO(krep_limbs_read(file, &length, 1u) != 0, &length, error) &&
              FLATTEN_CHECK(length < sizeof(name), &length, error, ENGINE_ERROR_LOGIC) &&
              FLATTEN_IO(fread(name, 1u, length, file) == length, name, error) &&
              FLATTEN_CHECK((length == strlen(names[sample])) && (memcmp(name, names[sample], length) == 0), name, error,
                            ENGINE_ERROR_LOGIC) &&
-             FLATTEN_IO(apxrep_limbs_read(file, read_orders.smooth, ENGINE_AXES) != 0, read_orders.smooth, error) &&
-             FLATTEN_IO(apxrep_limbs_read(file, read_orders.background, ENGINE_AXES) != 0, read_orders.background,
+             FLATTEN_IO(krep_limbs_read(file, read_orders.smooth, ENGINE_AXES) != 0, read_orders.smooth, error) &&
+             FLATTEN_IO(krep_limbs_read(file, read_orders.background, ENGINE_AXES) != 0, read_orders.background,
                         error) &&
              FLATTEN_CHECK(memcmp(&read_orders, &orders[sample], sizeof(read_orders)) == 0, &read_orders, error,
                            ENGINE_ERROR_LOGIC);
     }
     unsigned long long read_bodies = 0ull;
     ok =
-        ok && FLATTEN_IO(apxrep_words_read(file, &read_bodies, 1u) != 0, &read_bodies, error) &&
+        ok && FLATTEN_IO(krep_words_read(file, &read_bodies, 1u) != 0, &read_bodies, error) &&
         FLATTEN_CHECK(read_bodies == bodies, &read_bodies, error, ENGINE_ERROR_LOGIC) &&
-        FLATTEN_IO(apxrep_limbs_read(file, again, words) != 0, again, error) &&
+        FLATTEN_IO(krep_limbs_read(file, again, words) != 0, again, error) &&
         FLATTEN_CHECK(memcmp(again, magnitudes, words * sizeof(unsigned int)) == 0, again, error, ENGINE_ERROR_LOGIC) &&
         FLATTEN_CHECK(fgetc(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
     if (file != NULL)
@@ -120,15 +120,15 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     const int named = (written > 0) && ((size_t)written < sizeof(path));
     FILE *const file = named ? fopen(path, "rb") : NULL;
     unsigned int head[FLATTEN_HEAD_LIMBS] = {0u, 0u, 0u, 0u, 0u};
-    int ok = FLATTEN_CHECK(named, set, error, ENGINE_ERROR_REQUEST) && FLATTEN_IO(file != NULL, path, error) &&
-             FLATTEN_IO(apxrep_head_read(file, APXREP_KIND_INPUT) != 0, file, error) &&
-             FLATTEN_IO(apxrep_limbs_read(file, head, FLATTEN_HEAD_LIMBS) != 0, head, error) &&
-             FLATTEN_CHECK(head[0] == FLATTEN_FORMAT, &head[0], error, ENGINE_ERROR_REQUEST) &&
-             FLATTEN_CHECK(head[1] == MAX_TREE_FIELDS, &head[1], error, ENGINE_ERROR_LOGIC) &&
-             FLATTEN_IO(apxrep_limbs_read(file, resident->layout.bits, MAX_TREE_FIELDS) != 0, resident->layout.bits,
-                        error) &&
-             FLATTEN_IO(apxrep_limbs_read(file, resident->layout.offset, MAX_TREE_FIELDS) != 0, resident->layout.offset,
-                        error);
+    int ok =
+        FLATTEN_CHECK(named, set, error, ENGINE_ERROR_REQUEST) && FLATTEN_IO(file != NULL, path, error) &&
+        FLATTEN_IO(krep_head_read(file, KREP_KIND_SHARD) != 0, file, error) &&
+        FLATTEN_IO(krep_limbs_read(file, head, FLATTEN_HEAD_LIMBS) != 0, head, error) &&
+        FLATTEN_CHECK(head[0] == FLATTEN_FORMAT, &head[0], error, ENGINE_ERROR_REQUEST) &&
+        FLATTEN_CHECK(head[1] == MAX_TREE_FIELDS, &head[1], error, ENGINE_ERROR_LOGIC) &&
+        FLATTEN_IO(krep_limbs_read(file, resident->layout.bits, MAX_TREE_FIELDS) != 0, resident->layout.bits, error) &&
+        FLATTEN_IO(krep_limbs_read(file, resident->layout.offset, MAX_TREE_FIELDS) != 0, resident->layout.offset,
+                   error);
     resident->layout.total_bits = head[2];
     resident->layout.limbs = head[3];
     resident->samples = head[4];
@@ -141,15 +141,15 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     for (unsigned int sample = 0u; ok && (sample < resident->samples); sample += 1u)
     {
         unsigned int length = 0u;
-        ok = FLATTEN_IO(apxrep_limbs_read(file, &length, 1u) != 0, &length, error) &&
+        ok = FLATTEN_IO(krep_limbs_read(file, &length, 1u) != 0, &length, error) &&
              FLATTEN_CHECK(length < 1024u, &length, error, ENGINE_ERROR_LOGIC);
         resident->names[sample] = ok ? (char *)calloc((size_t)length + 1u, 1u) : NULL;
         FlattenOrders *const orders = &resident->orders[sample];
         ok = ok &&
              FLATTEN_CHECK(resident->names[sample] != NULL, &resident->names[sample], error, ENGINE_ERROR_RESOURCE) &&
              FLATTEN_IO(fread(resident->names[sample], 1u, length, file) == length, resident->names[sample], error) &&
-             FLATTEN_IO(apxrep_limbs_read(file, orders->smooth, ENGINE_AXES) != 0, orders->smooth, error) &&
-             FLATTEN_IO(apxrep_limbs_read(file, orders->background, ENGINE_AXES) != 0, orders->background, error);
+             FLATTEN_IO(krep_limbs_read(file, orders->smooth, ENGINE_AXES) != 0, orders->smooth, error) &&
+             FLATTEN_IO(krep_limbs_read(file, orders->background, ENGINE_AXES) != 0, orders->background, error);
         for (unsigned int axis = 0u; ok && (axis < ENGINE_AXES); axis += 1u)
         {
             ok = FLATTEN_CHECK((orders->background[axis] & 1u) == 0u, &orders->background[axis], error,
@@ -159,13 +159,13 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
         }
     }
     ok =
-        ok && FLATTEN_IO(apxrep_words_read(file, &resident->bodies, 1u) != 0, &resident->bodies, error) &&
+        ok && FLATTEN_IO(krep_words_read(file, &resident->bodies, 1u) != 0, &resident->bodies, error) &&
         FLATTEN_CHECK((resident->layout.limbs != 0u) && (resident->layout.total_bits <= (32u * resident->layout.limbs)),
                       &resident->layout, error, ENGINE_ERROR_LOGIC);
     const size_t words = ok ? (size_t)resident->bodies * resident->layout.limbs : 0u;
     resident->magnitudes = ok ? (unsigned int *)malloc((words + 1u) * sizeof(unsigned int)) : NULL;
     ok = ok && FLATTEN_CHECK(resident->magnitudes != NULL, &resident->magnitudes, error, ENGINE_ERROR_RESOURCE) &&
-         FLATTEN_IO(apxrep_limbs_read(file, resident->magnitudes, words) != 0, resident->magnitudes, error) &&
+         FLATTEN_IO(krep_limbs_read(file, resident->magnitudes, words) != 0, resident->magnitudes, error) &&
          FLATTEN_CHECK(fgetc(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
     if (file != NULL)
     {

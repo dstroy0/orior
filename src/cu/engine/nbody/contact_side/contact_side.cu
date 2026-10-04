@@ -10,19 +10,6 @@ typedef struct
     unsigned int written;
 } ContactSideWriter;
 
-static unsigned long long contact_side_common_unit(unsigned long long first, unsigned long long second)
-{
-    unsigned long long larger = first;
-    unsigned long long smaller = second;
-    while (smaller != 0ull)
-    {
-        const unsigned long long rest = larger % smaller;
-        larger = smaller;
-        smaller = rest;
-    }
-    return larger;
-}
-
 static unsigned int contact_side_put(ContactSideWriter *writer, EngineRecordOperation operation, unsigned int left,
                                      unsigned int right, unsigned int member)
 {
@@ -53,8 +40,8 @@ extern "C" long contact_side_difference_program(const ContactSideDifferenceReque
     {
         return CONTACT_SIDE_ERROR;
     }
-    const unsigned long long unit = contact_side_common_unit(
-        contact_side_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
+    const unsigned long long unit =
+        engine_common_unit(engine_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
     memset(program, 0, CONTACT_SIDE_DIFFERENCE_STEPS * sizeof(EngineRecordStep));
     ContactSideWriter writer = {program, CONTACT_SIDE_DIFFERENCE_STEPS, 0u};
     const unsigned int one_mass =

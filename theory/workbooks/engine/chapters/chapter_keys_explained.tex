@@ -178,7 +178,7 @@ stage & takes & hands on \\
 \endhead
 \texttt{tower\_\allowbreak{}lift} & the sample's voxels on the device & every coefficient on the device, as a plain array of exact integers, and the sample's CRC-64 \\
 \texttt{compression\_\allowbreak{}encode} & the coefficients and their count & \texttt{Engine\allowbreak{}Stream}: the chunks, the bits, each chunk's first bit and the stream's limbs \\
-\texttt{apxrep\_\allowbreak{}input\_\allowbreak{}write} / \texttt{apxrep\_\allowbreak{}input\_\allowbreak{}read} & \texttt{Engine\allowbreak{}Stream} & the .kcr file / \texttt{Engine\allowbreak{}Stream} again \\
+\texttt{krep\_\allowbreak{}crystal\_\allowbreak{}write} / \texttt{krep\_\allowbreak{}crystal\_\allowbreak{}read} & \texttt{Engine\allowbreak{}Stream} & the .kcr file / \texttt{Engine\allowbreak{}Stream} again \\
 \texttt{compression\_\allowbreak{}decode} & \texttt{Engine\allowbreak{}Stream} & the coefficients, written into the capacity \texttt{tower\_\allowbreak{}capacity} hands out \\
 \texttt{tower\_\allowbreak{}lower} & the held coefficients & the rebuilt sample, its CRC-64, and the voxels that differ \\
 \bottomrule
@@ -193,14 +193,14 @@ None of these stages knows another exists. The tower does not know its coefficie
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4463\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5537\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4459\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5541\linewidth-2\tabcolsep\relax}}
 \toprule
 claim & status \\
 \midrule
 \endhead
 no module reaches another; hand-offs are plain structs in \texttt{engine\_\allowbreak{}config.\allowbreak{}h}, composed only in the entry & the rule and the target (the cell\_\allowbreak{}tracking standing rules) \\
 the key chain (\texttt{keymath}, \texttt{key\_\allowbreak{}schedule}, \texttt{cycle}) reaches nothing & proved: \texttt{audit\_\allowbreak{}reaching.\allowbreak{}py} \\
-the codec (\texttt{tower}, \texttt{compression}, \texttt{apxrep}, \texttt{entropy\_\allowbreak{}history}) reaches nothing but \texttt{crc} & proved: \texttt{audit\_\allowbreak{}reaching.\allowbreak{}py}; \texttt{iapx} is gone, composed in the entry \\
+the codec (\texttt{tower}, \texttt{compression}, \texttt{krep}, \texttt{entropy\_\allowbreak{}history}) reaches nothing but \texttt{crc} & proved: \texttt{audit\_\allowbreak{}reaching.\allowbreak{}py}; \texttt{iapx} is gone, composed in the entry \\
 a split that regroups the chain in the entry changes no output & proved for three splits: compression from the tower (.kcr byte identical, set CRC 091daa41e1aceb7e), keymath and key\_\allowbreak{}schedule from the cycle (edges identical), the driver split (edges and score rows identical) \\
 \texttt{crc} is a root & by the rule; it is a compile-time constant and pure functions, held to the published check value \\
 the tracker's modules reach nothing & \textbf{not so yet}: 19 modules still reach and 18 reach nothing. \texttt{score\_\allowbreak{}sample} reaches 14 modules; \texttt{binomial\_\allowbreak{}basins}, \texttt{flatten} and \texttt{score\_\allowbreak{}sample} reach up into \texttt{entry}; the rest reach \texttt{track} and one another. They are being split next, and each stays listed here until the audit clears it \\

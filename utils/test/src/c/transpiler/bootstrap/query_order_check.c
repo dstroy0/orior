@@ -36,15 +36,17 @@ static void check_that(int held, const char *what)
 int main(void)
 {
 #if defined(_WIN32)
-    // the clock, found by asking: the first word of the shared page's head that advances
+    // the clock, found by asking: the first word of the shared page's head that advances inside `turns` reads, and
+    // the order waits on its turns as long
     const unsigned long long page = 0x7ffe0000ull;
+    const unsigned long long turns = 1ull << 26;
     unsigned long long clock = 0ull;
     for (unsigned long long word = 0ull; (word < 16ull) && (clock == 0ull); word += 1ull)
     {
         QueryAsk counts = {0};
         counts.address = page + (word * 4ull);
         counts.qualifier = QUERY_ADVANCES;
-        counts.turns = 1ull << 26;
+        counts.turns = turns;
         clock = (query_ask(&counts) == 1u) ? counts.address : 0ull;
     }
     check_that(clock != 0ull, "a word of the shared page advances, and it is the clock");
@@ -65,6 +67,7 @@ int main(void)
     order.link = link;
     order.links = QUERY_DESCENT_LINKS;
     order.clock = clock;
+    order.turns = turns;
 
     // Held at the size the descent kept. Every pass solved on its own, exactly, and every pair of neighboring links
     // compared in it: a bit a pass, 1 where the link that reads 64 more times costs more. Nothing is summed across

@@ -47,12 +47,12 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         EngineSignum standing_root;
         EngineError probe;
         memset(&probe, 0, sizeof(probe));
-        if ((request->keep != 0u) && apxrep_input_head(iapx_path, &standing, &standing_root, &probe))
+        if ((request->keep != 0u) && krep_crystal_head(iapx_path, &standing, &standing_root, &probe))
         {
             EngineHistory kept;
-            const int read_back = apxrep_history_read(path, &kept, 1u, &probe);
+            const int read_back = krep_history_read(path, &kept, 1u, &probe);
             const int same = read_back && entry_signum_same(&kept.sample, &standing_root);
-            apxrep_history_release(&kept);
+            krep_history_release(&kept);
             if (same)
             {
                 printf("  %-24s laid down already: read back whole, projected from the " ENTRY_CRYSTAL_SUFFIX
@@ -98,9 +98,9 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         EngineHistory read;
         memset(&read, 0, sizeof(read));
         ok = ok && ENGINE_IO(engine_directories_make(path, 0) != 0, path, error) &&
-             apxrep_history_write(path, &history, error) && apxrep_history_read(path, &read, 1u, error) &&
+             krep_history_write(path, &history, error) && krep_history_read(path, &read, 1u, error) &&
              ENGINE_CHECK(entry_history_same(&history, &read) != 0, &read, error, ENGINE_ERROR_LOGIC);
-        apxrep_history_release(&read);
+        krep_history_release(&read);
         if (ok == 0)
         {
             fprintf(stderr, "  %s: the entropy history was not written and read back whole\n", name);
@@ -132,7 +132,7 @@ extern "C" long engine_entropy_cloud(const char *path, unsigned int *windows, un
     }
     EngineHistory history;
     if ((ENGINE_CHECK((windows != NULL) && (cloud != NULL), &cloud, error, ENGINE_ERROR_REQUEST) == 0) ||
-        (apxrep_history_read(path, &history, 0u, error) == 0))
+        (krep_history_read(path, &history, 0u, error) == 0))
     {
         engine_error_frame(error);
         engine_error_keep(error);
@@ -140,7 +140,7 @@ extern "C" long engine_entropy_cloud(const char *path, unsigned int *windows, un
     }
     *windows = (unsigned int)history.windows;
     memcpy(cloud, history.cloud, (size_t)(history.windows * history.windows) * sizeof(unsigned long long));
-    apxrep_history_release(&history);
+    krep_history_release(&history);
     return 0L;
 }
 
@@ -150,7 +150,7 @@ extern "C" long engine_entropy_history_read(const char *path, EngineHistory *his
     {
         return ENGINE_ERROR;
     }
-    if (apxrep_history_read(path, history, 1u, error) == 0)
+    if (krep_history_read(path, history, 1u, error) == 0)
     {
         engine_error_frame(error);
         engine_error_keep(error);
@@ -161,7 +161,7 @@ extern "C" long engine_entropy_history_read(const char *path, EngineHistory *his
 
 extern "C" void engine_entropy_history_release(EngineHistory *history)
 {
-    apxrep_history_release(history);
+    krep_history_release(history);
 }
 
 extern "C" long engine_bodies_write(const char *set, const char *sample, EngineBodyTable *table, EngineError *error)
@@ -180,14 +180,14 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
     table->crc = crc_words(CRC_TABLE, table->words, (size_t)(table->bodies * ENGINE_BODY_WORDS));
     if ((ENGINE_CHECK(engine_sample_path(path, sizeof(path), set, sample, ".bapx") != 0, sample, error,
                       ENGINE_ERROR_REQUEST) == 0) ||
-        (apxrep_bodies_write(path, table, error) == 0))
+        (krep_bodies_write(path, table, error) == 0))
     {
         engine_error_frame(error);
         engine_error_keep(error);
         return ENGINE_ERROR;
     }
     EngineBodyTable back;
-    const int ok = apxrep_bodies_read(path, &back, error);
+    const int ok = krep_bodies_read(path, &back, error);
     const int same =
         (ok != 0) &&
         ENGINE_CHECK((back.bodies == table->bodies) && (back.crc == table->crc) &&
@@ -196,7 +196,7 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
                          (memcmp(back.words, table->words,
                                  (size_t)(table->bodies * ENGINE_BODY_WORDS) * sizeof(unsigned long long)) == 0),
                      &back, error, ENGINE_ERROR_LOGIC);
-    apxrep_bodies_release(&back);
+    krep_bodies_release(&back);
     if (same == 0)
     {
         remove(path);
@@ -216,7 +216,7 @@ extern "C" long engine_bodies_read(const char *set, const char *sample, EngineBo
     char path[ENTRY_PATH_CAPACITY];
     if ((ENGINE_CHECK(engine_sample_path(path, sizeof(path), set, sample, ".bapx") != 0, sample, error,
                       ENGINE_ERROR_REQUEST) == 0) ||
-        (apxrep_bodies_read(path, table, error) == 0))
+        (krep_bodies_read(path, table, error) == 0))
     {
         engine_error_frame(error);
         engine_error_keep(error);
@@ -227,5 +227,5 @@ extern "C" long engine_bodies_read(const char *set, const char *sample, EngineBo
 
 extern "C" void engine_bodies_release(EngineBodyTable *table)
 {
-    apxrep_bodies_release(table);
+    krep_bodies_release(table);
 }

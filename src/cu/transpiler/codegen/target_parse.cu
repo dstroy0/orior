@@ -1,49 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// target_parse.cu: the IR's operands, and where rulesets are found; their lines are read by ruleset_core.h
+// target_parse.cu: where rulesets are found; their lines are read by ruleset_core.h
 #include "target_internal.h"
-
-// 1 where the step reads its operand whole from an earlier step: a local read past its own limbs is not a register
-static int ir_operand(const EngineRecordLayout *layout, unsigned int at, unsigned int operand, unsigned int limbs)
-{
-    return (operand < at) && (limbs != 0u) && (limbs <= layout->step_table[operand].limbs);
-}
-
-int ir_reads_right(unsigned int operation)
-{
-    return (operation == ENGINE_RECORD_PRODUCT) || (operation == ENGINE_RECORD_SUM) ||
-           (operation == ENGINE_RECORD_DIFFERENCE) || (operation == ENGINE_RECORD_LADDER) ||
-           (operation == ENGINE_RECORD_COMPARE) || (operation == ENGINE_RECORD_XOR) ||
-           (operation == ENGINE_RECORD_AND) || (operation == ENGINE_RECORD_QUOTIENT) ||
-           (operation == ENGINE_RECORD_REMAINDER) || (operation == ENGINE_RECORD_GCD) ||
-           (operation == ENGINE_RECORD_EXACT_QUOTIENT);
-}
-
-// 1 where the operation reads a left register: every one but the fields, the constant and the lane's number
-int ir_reads_left(unsigned int operation)
-{
-    return (operation != ENGINE_RECORD_FIELD) && (operation != ENGINE_RECORD_FIELD_SIGNED) &&
-           (operation != ENGINE_RECORD_CONSTANT) && (operation != ENGINE_RECORD_LANE);
-}
-
-// 1 where a compiled program holds the step as it is laid out: its operands are earlier steps, each read whole (a table
-// reads its source's low limb alone, and key_schedule leaves its left_limbs 0), its own limbs lie inside the file, and
-// a field reads a member the program has, a signed field's top bit inside its limbs. A step that fails this leaves the
-// whole program on the interpreter
-int ir_step_valid(const EngineRecordLayout *layout, unsigned int at)
-{
-    const DeviceRecordStep *const step = &layout->step_table[at];
-    const unsigned int operation = step->operation;
-    const int reads_left = ir_reads_left(operation);
-    const int reads_left_all = reads_left && (operation != ENGINE_RECORD_TABLE);
-    const int field = (operation == ENGINE_RECORD_FIELD) || (operation == ENGINE_RECORD_FIELD_SIGNED);
-    return (step->limbs != 0u) && !(reads_left && (step->left >= at)) &&
-           !(reads_left_all && !ir_operand(layout, at, step->left, step->left_limbs)) &&
-           !(ir_reads_right(operation) && !ir_operand(layout, at, step->right, step->right_limbs)) &&
-           (((unsigned long long)step->place + step->limbs) <= (unsigned long long)layout->file_limbs) &&
-           (!field || (step->member < layout->members)) &&
-           ((operation != ENGINE_RECORD_FIELD_SIGNED) ||
-            ((step->right != 0u) && (((step->right - 1u) / 32u) < step->limbs)));
-}
 
 // The rulesets a lane is written in, one a language, each read once a process from its .krs file in
 // src/cu/transpiler/codegen/rulesets, or in the folder $CYCLE_RULESETS names. The format is the comment at the head of

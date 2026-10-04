@@ -40,6 +40,8 @@ _Static_assert(ANCHOR_EXACT_BITS >= 256u,
 typedef char orior_steering_rule_fits_the_width[(ANCHOR_EXACT_BITS >= 256u) ? 1 : -1];
 #endif
 
+void choose_offsets(size_t *offsets, size_t wanted, size_t needle_len);
+
 void anchor_field_census(const uint8_t *corpus, size_t corpus_len, AnchorFieldCensus *census);
 
 void anchor_steer_probe_order(size_t *offsets, size_t count, const AnchorFieldCensus *census, const uint8_t *needle,

@@ -106,9 +106,13 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
     {
         const unsigned long long at = section_table + ((unsigned long long)index * section_entry);
         kept[index].was_at = at;
-        kept[index].size = container_value_read(&pattern[at + places.section_size], places.section_size_width);
+        kept[index].type = container_value_read(&pattern[at + places.section_type], places.section_type_width);
         kept[index].goes_at = container_value_read(&pattern[at + places.section_offset], places.section_offset_width);
-        kept[index].bytes = &pattern[kept[index].goes_at];
+        // a section that takes no bytes in the file is laid out at no length and keeps the size its header gives
+        const int takes_bytes = container_section_takes_bytes(&places, pattern, at, index);
+        kept[index].bytes = takes_bytes ? &pattern[kept[index].goes_at] : pattern;
+        kept[index].size =
+            takes_bytes ? container_value_read(&pattern[at + places.section_size], places.section_size_width) : 0ull;
         kept[index].align = container_value_read(&pattern[at + places.section_align], places.section_align_width);
     }
     char named[256];
@@ -198,7 +202,10 @@ int container_write(const ContainerWrite *args, unsigned char *written, unsigned
         {
             memcpy(&written[kept[index].goes_at], kept[index].bytes, kept[index].size);
             value_put(&header[places.section_offset], places.section_offset_width, kept[index].goes_at);
-            value_put(&header[places.section_size], places.section_size_width, kept[index].size);
+            if (kept[index].type != places.section_type_nobits)
+            {
+                value_put(&header[places.section_size], places.section_size_width, kept[index].size);
+            }
         }
     }
     unsigned char *const code_header = &written[new_sections + ((unsigned long long)code_index * section_entry)];

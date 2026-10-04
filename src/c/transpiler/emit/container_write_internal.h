@@ -19,23 +19,25 @@ typedef struct
 {
     unsigned long long segment_table, section_table, segment_entry, segment_count;
     unsigned long long section_entry, section_count, strings_index;
-    unsigned long long section_name, section_offset, section_size, section_info, section_align;
+    unsigned long long section_name, section_type, section_offset, section_size, section_info, section_align;
     unsigned long long segment_offset, segment_file_size, segment_memory_size;
     unsigned long long symbol_size, symbol_bytes;
     unsigned int segment_table_width, section_table_width, segment_entry_width, segment_count_width;
     unsigned int section_entry_width, section_count_width, strings_index_width;
-    unsigned int section_name_width, section_offset_width, section_size_width, section_info_width;
+    unsigned int section_name_width, section_type_width, section_offset_width, section_size_width, section_info_width;
     unsigned int section_align_width, segment_offset_width, segment_file_width, segment_memory_width;
     unsigned int symbol_size_width;
-    unsigned long long header_bytes, instruction, table_align, table_entry;
+    unsigned long long header_bytes, instruction, table_align, table_entry, section_type_nobits;
     unsigned long long registers_shift, registers_symbol_mask;
     unsigned long long attribute_header, attribute_format_value, attribute_registers, attribute_exits;
 } Places;
 
-// a part of the container as this holds it: where it was, the bytes it takes now and how many, and where it goes
+// a part of the container as this holds it: where it was, its type, the bytes it takes now and how many, and where
+// it goes
 typedef struct
 {
     unsigned long long was_at;
+    unsigned long long type;
     const unsigned char *bytes;
     unsigned long long size;
     unsigned long long align;
@@ -47,6 +49,9 @@ unsigned long long container_value_read(const unsigned char *bytes, unsigned int
 int container_places_read(const ContainerLayout *layout, Places *places);
 
 int container_pattern_holds(const Places *places, const unsigned char *pattern, unsigned long long size);
+
+int container_section_takes_bytes(const Places *places, const unsigned char *pattern, unsigned long long at,
+                                  unsigned long long index);
 
 unsigned long long container_sections_of(const Places *places, const unsigned char *pattern, unsigned int *count,
                                          unsigned long long *strings, unsigned long long *entry);

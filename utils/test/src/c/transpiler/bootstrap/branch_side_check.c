@@ -69,6 +69,9 @@ static void check_branch(QueryAsk *link, unsigned int side, unsigned long long e
     }
 }
 
+// the reads the clock is found inside, and the most one wait for its turn takes
+#define CHECK_CLOCK_TURNS (1ull << 26)
+
 // `link` put through the known order on `clock`, one pass of `repeat` puts, solved exactly
 static void check_solve(const QueryAsk *link, unsigned long long clock, unsigned long long repeat, CheckReading *reading)
 {
@@ -77,6 +80,7 @@ static void check_solve(const QueryAsk *link, unsigned long long clock, unsigned
     order.link = link;
     order.links = CHECK_LINKS;
     order.clock = clock;
+    order.turns = CHECK_CLOCK_TURNS;
     order.repeat = repeat;
     order.passes = 1u;
     query_order_put(&order, s_cost);
@@ -104,7 +108,7 @@ int main(void)
         QueryAsk counts = {0};
         counts.address = page + (word * 4ull);
         counts.qualifier = QUERY_ADVANCES;
-        counts.turns = 1ull << 26;
+        counts.turns = CHECK_CLOCK_TURNS;
         clock = (query_ask(&counts) == 1u) ? counts.address : 0ull;
     }
     check_that(clock != 0ull, "a word of the shared page advances, and it is the clock");
@@ -118,6 +122,7 @@ int main(void)
     sized.link = s_left;
     sized.links = CHECK_LINKS;
     sized.clock = clock;
+    sized.turns = CHECK_CLOCK_TURNS;
     QueryDescent kept;
     unsigned int solved = 0u;
     const unsigned long long repeat = query_descent_size(&sized, &kept, &solved);

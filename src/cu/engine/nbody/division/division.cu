@@ -13,19 +13,6 @@ typedef struct
     unsigned int written;
 } DivisionWriter;
 
-static unsigned long long division_common_unit(unsigned long long first, unsigned long long second)
-{
-    unsigned long long larger = first;
-    unsigned long long smaller = second;
-    while (smaller != 0ull)
-    {
-        const unsigned long long rest = larger % smaller;
-        larger = smaller;
-        smaller = rest;
-    }
-    return larger;
-}
-
 static unsigned int division_put(DivisionWriter *writer, EngineRecordOperation operation, unsigned int left,
                                  unsigned int right, unsigned int member)
 {
@@ -56,7 +43,7 @@ extern "C" long division_program(const DivisionRequest *request, EngineRecordSte
         return DIVISION_ERROR;
     }
     const unsigned long long unit =
-        division_common_unit(division_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
+        engine_common_unit(engine_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
     memset(program, 0, DIVISION_STEPS * sizeof(EngineRecordStep));
     DivisionWriter writer = {program, 0u};
     const unsigned int parent_mass =

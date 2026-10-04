@@ -4,24 +4,16 @@
 // next address in a fresh probe.
 #include "bus_enum_walk.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 
-// the most letters a line an address takes: a 16-letter address, a kind, a read-back word, two spaces and a newline
-#define BUS_ENUM_WALK_LINE 48ull
-static char s_bus_enum_walk_lines[(QUERY_INTERFACE_MOST * BUS_ENUM_WALK_LINE) + 1ull];
-
-#define BUS_ENUM_WALK_CHECK(condition_, evacaddr_, error_, kind_)                                                       \
-    engine_error_check((condition_), (kind_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__,                          \
-                       (const void *)(evacaddr_), (error_))
-
-// the kinds a probe wrote, read into `kinds` from `next` on. How many it answered in order; a line out of order, past
-// the addresses it was given, or not three numbers ends the read where it stands
-static unsigned long long bus_enum_walk_read(const QueryWalk *walk, unsigned long long next, unsigned long long given,
-                                             unsigned int *kinds)
+// the kinds classify_walk wrote, read into `answers`, the kinds, from `next` on. How many it answered in order; a
+// line out of order, past the addresses it was given, or not three numbers ends the read where it stands
+static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *lines, unsigned long long next,
+                                             unsigned long long given, void *answers)
 {
+    unsigned int *const kinds = (unsigned int *)answers;
     unsigned long long read = 0ull;
-    char *at = s_bus_enum_walk_lines;
+    const char *at = lines;
     while (read < given)
     {
         char *end = NULL;
@@ -48,60 +40,29 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, unsigned lon
         {
             break;
         }
+        // a kind is one of the few HostKind values, which an unsigned int holds
         kinds[next + read] = (unsigned int)kind;
         read += 1ull;
     }
     return read;
 }
 
+// the address that ended its probe is answered by the ending: nothing on the part drove it
+static void bus_enum_walk_ended(const QueryWalk *walk, unsigned long long next, InterfaceFault fault, void *answers)
+{
+    (void)walk;
+    (void)fault;
+    ((unsigned int *)answers)[next] = HOST_NOTHING;
+}
+
 int bus_enum_walk(const QueryWalk *walk, unsigned int *kinds, unsigned long long *base, unsigned long long *stride_out,
                   unsigned long long *records, EngineError *error)
 {
-    unsigned long long next = 0ull;
-    while (next < walk->count)
+    const QueryInterfaceDriver driver = {0, bus_enum_walk_read, bus_enum_walk_ended, kinds};
+    unsigned long long probes = 0ull;
+    if (query_interface_run(walk, &driver, &probes, error) == 0)
     {
-        const unsigned long long left = walk->count - next;
-        const unsigned long long given = (left < QUERY_INTERFACE_MOST) ? left : QUERY_INTERFACE_MOST;
-        char from[24];
-        char count[24];
-        char stride[24];
-        snprintf(from, sizeof(from), "%llx", walk->from + (next * walk->stride));
-        snprintf(count, sizeof(count), "%llx", given);
-        snprintf(stride, sizeof(stride), "%llx", walk->stride);
-        // the interface's command is a list of words it does not write to; the cast only meets its declared type
-        char *const command[] = {(char *)walk->program, from, count, stride, NULL};
-        const InterfaceProbe probe = {command, walk->output_path, walk->limit_microseconds};
-        InterfaceAnswer answer = {0};
-        answer.output = s_bus_enum_walk_lines;
-        answer.output_capacity = sizeof(s_bus_enum_walk_lines);
-        if (interface_probe_run(&probe, &answer, error) != 0L)
-        {
-            return -1;
-        }
-        if (!BUS_ENUM_WALK_CHECK(answer.ending != INTERFACE_ENDING_NOT_STARTED, walk, error, ENGINE_ERROR_RESOURCE))
-        {
-            return -1;
-        }
-        const unsigned long long read = bus_enum_walk_read(walk, next, given, kinds);
-        next += read;
-        if ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull))
-        {
-            // a probe that exited clean answered every address it was given
-            if (!BUS_ENUM_WALK_CHECK(read == given, walk, error, ENGINE_ERROR_LOGIC))
-            {
-                return -1;
-            }
-            continue;
-        }
-        // a probe that wrote a line for every address it was given and then ended answered them all, and its
-        // ending is no address's answer
-        if (read == given)
-        {
-            continue;
-        }
-        // the address that ended the probe is answered by the ending: nothing on the part drove it
-        kinds[next] = HOST_NOTHING;
-        next += 1ull;
+        return -1;
     }
     return bus_enum_find(kinds, walk->count, base, stride_out, records);
 }

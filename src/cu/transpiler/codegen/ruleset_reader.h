@@ -109,14 +109,6 @@ struct Ruleset
     std::vector<std::string> building_parameters;
 };
 
-// 1 where the operation reads a right register, and where it reads a left one
-int ir_reads_right(unsigned int operation);
-
-int ir_reads_left(unsigned int operation);
-
-// 1 where a compiled program holds step `at` as it is laid out
-int ir_step_valid(const EngineRecordLayout *layout, unsigned int at);
-
 // form `name` of `rules` appended to `text`, its arguments in the order of its parameters, a construct's scratch
 // taken of `scratch`; `broken` set, and nothing written, where they are not as many as the form takes
 void ruleset_write_taking(const Ruleset *rules, std::string &text, unsigned int name,

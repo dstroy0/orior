@@ -26,6 +26,7 @@ int container_places_read(const ContainerLayout *layout, Places *places)
         layout_field(layout, "header.section_count", &places->section_count, &places->section_count_width) &&
         layout_field(layout, "header.strings_index", &places->strings_index, &places->strings_index_width) &&
         layout_field(layout, "section.name", &places->section_name, &places->section_name_width) &&
+        layout_field(layout, "section.type", &places->section_type, &places->section_type_width) &&
         layout_field(layout, "section.offset", &places->section_offset, &places->section_offset_width) &&
         layout_field(layout, "section.size", &places->section_size, &places->section_size_width) &&
         layout_field(layout, "section.info", &places->section_info, &places->section_info_width) &&
@@ -43,6 +44,8 @@ int container_places_read(const ContainerLayout *layout, Places *places)
     places->instruction = layout_number(layout, "instruction", 0ull);
     places->table_align = layout_number(layout, "table.align", 1ull);
     places->table_entry = layout_number(layout, "table.entry", 8ull);
+    // a layout that names no type that takes no bytes has every section take its bytes
+    places->section_type_nobits = layout_number(layout, "section.type_nobits", ~0ull);
     places->registers_shift = layout_number(layout, "registers.shift", 0ull);
     places->registers_symbol_mask = layout_number(layout, "registers.symbol_mask", 0ull);
     places->attribute_header = layout_number(layout, "attribute.header", 0ull);
@@ -80,6 +83,15 @@ unsigned int container_endings_find(const ContainerLayout *layout, const unsigne
     return found;
 }
 
+// 1 where the section whose header is at `at`, the `index`th, takes bytes in the file: the first section is no
+// section, and one of the type the layout names takes none
+int container_section_takes_bytes(const Places *places, const unsigned char *pattern, unsigned long long at,
+                                  unsigned long long index)
+{
+    return (index != 0ull) && (container_value_read(&pattern[at + places->section_type], places->section_type_width) !=
+                               places->section_type_nobits);
+}
+
 // 1 where a place of `width` bytes at `at` lies inside an entry of `entry` bytes, and its value fits a 64-bit word
 static int place_inside(unsigned long long at, unsigned int width, unsigned long long entry)
 {
@@ -87,8 +99,8 @@ static int place_inside(unsigned long long at, unsigned int width, unsigned long
 }
 
 // 1 where every place the emitter reads in `pattern`, which is `size` bytes, lies inside it: every field inside its
-// header, entry or symbol, both tables, the bytes of every section, and every section's name with its ending inside
-// the names
+// header, entry or symbol, both tables, the bytes of every section that takes bytes in the file, and every section's
+// name with its ending inside the names
 int container_pattern_holds(const Places *places, const unsigned char *pattern, unsigned long long size)
 {
     if ((places->header_bytes > size) ||
@@ -115,6 +127,7 @@ int container_pattern_holds(const Places *places, const unsigned char *pattern, 
     const unsigned long long segments =
         container_value_read(&pattern[places->segment_count], places->segment_count_width);
     if (!place_inside(places->section_name, places->section_name_width, entry) ||
+        !place_inside(places->section_type, places->section_type_width, entry) ||
         !place_inside(places->section_offset, places->section_offset_width, entry) ||
         !place_inside(places->section_size, places->section_size_width, entry) ||
         !place_inside(places->section_info, places->section_info_width, entry) ||
@@ -147,7 +160,8 @@ int container_pattern_holds(const Places *places, const unsigned char *pattern, 
             container_value_read(&pattern[at + places->section_offset], places->section_offset_width);
         const unsigned long long length =
             container_value_read(&pattern[at + places->section_size], places->section_size_width);
-        if ((index != 0ull) && ((offset > size) || (length > (size - offset))))
+        if (container_section_takes_bytes(places, pattern, at, index) &&
+            ((offset > size) || (length > (size - offset))))
         {
             return 0;
         }
@@ -200,6 +214,71 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
                 (unsigned int)(container_value_read(&pattern[at + places.section_info], places.section_info_width) >>
                                places.registers_shift);
         }
+    }
+    return found;
+}
+
+unsigned int container_code_sections(const ContainerLayout *layout, const unsigned char *container,
+                                     unsigned long long size, unsigned long long *offsets, unsigned long long *sizes,
+                                     unsigned int room)
+{
+    Places places;
+    char code[256];
+    // the code name with no part is what every code section's name begins with
+    if (!container_places_read(layout, &places) || !layout_text(layout, "section.code", "", code, sizeof(code)) ||
+        (places.header_bytes > size) ||
+        !place_inside(places.section_table, places.section_table_width, places.header_bytes) ||
+        !place_inside(places.section_entry, places.section_entry_width, places.header_bytes) ||
+        !place_inside(places.section_count, places.section_count_width, places.header_bytes) ||
+        !place_inside(places.strings_index, places.strings_index_width, places.header_bytes))
+    {
+        return 0u;
+    }
+    const unsigned long long table = container_value_read(&container[places.section_table], places.section_table_width);
+    const unsigned long long entry = container_value_read(&container[places.section_entry], places.section_entry_width);
+    const unsigned long long count = container_value_read(&container[places.section_count], places.section_count_width);
+    const unsigned long long names_index =
+        container_value_read(&container[places.strings_index], places.strings_index_width);
+    // every header read below lies inside the table, and the table inside the container
+    if (!place_inside(places.section_name, places.section_name_width, entry) ||
+        !place_inside(places.section_offset, places.section_offset_width, entry) ||
+        !place_inside(places.section_size, places.section_size_width, entry) || (names_index >= count) ||
+        (entry == 0ull) || (table > size) || (count > ((size - table) / entry)))
+    {
+        return 0u;
+    }
+    const unsigned long long names_header = table + (names_index * entry);
+    const unsigned long long names_at =
+        container_value_read(&container[names_header + places.section_offset], places.section_offset_width);
+    const unsigned long long names_size =
+        container_value_read(&container[names_header + places.section_size], places.section_size_width);
+    if ((names_at > size) || (names_size > (size - names_at)))
+    {
+        return 0u;
+    }
+    const unsigned long long length = (unsigned long long)strlen(code);
+    unsigned int found = 0u;
+    for (unsigned long long index = 0ull; index < count; index += 1ull)
+    {
+        const unsigned long long at = table + (index * entry);
+        const unsigned long long name =
+            container_value_read(&container[at + places.section_name], places.section_name_width);
+        if ((name >= names_size) || (length > (names_size - name)) ||
+            (memcmp(&container[names_at + name], code, length) != 0))
+        {
+            continue;
+        }
+        const unsigned long long found_at =
+            container_value_read(&container[at + places.section_offset], places.section_offset_width);
+        const unsigned long long found_size =
+            container_value_read(&container[at + places.section_size], places.section_size_width);
+        if ((found_at > size) || (found_size > (size - found_at)) || (found >= room))
+        {
+            return 0u;
+        }
+        offsets[found] = found_at;
+        sizes[found] = found_size;
+        found += 1u;
     }
     return found;
 }

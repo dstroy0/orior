@@ -202,7 +202,7 @@ CODEGEN_CORE int codegen_operand(const IrProgram *program, unsigned int at, unsi
 }
 
 // 1 where the operation reads a right register, and where it reads a left one: every one but the fields, the constant
-// and the lane's number (ir_reads_right and ir_reads_left, target_parse.cu)
+// and the lane's number
 CODEGEN_CORE int codegen_reads_right(unsigned int operation)
 {
     return (operation == ENGINE_RECORD_PRODUCT) || (operation == ENGINE_RECORD_SUM) ||
@@ -219,7 +219,10 @@ CODEGEN_CORE int codegen_reads_left(unsigned int operation)
            (operation != ENGINE_RECORD_CONSTANT) && (operation != ENGINE_RECORD_LANE);
 }
 
-// 1 where a compiled program holds the step as it is laid out (ir_step_valid, target_parse.cu)
+// 1 where a compiled program holds the step as it is laid out: its operands are earlier steps, each read whole (a table
+// reads its source's low limb alone, and key_schedule leaves its left_limbs 0), its own limbs lie inside the file, and
+// a field reads a member the program has, a signed field's top bit inside its limbs. A step that fails this leaves the
+// whole program on the interpreter
 CODEGEN_CORE int codegen_step_valid(const IrProgram *program, unsigned int at)
 {
     const DeviceRecordStep *const step = &program->steps[at];

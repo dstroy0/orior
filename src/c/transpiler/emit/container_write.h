@@ -51,4 +51,12 @@ unsigned int container_endings_find(const ContainerLayout *layout, const unsigne
 unsigned int container_registers_read(const ContainerLayout *layout, const unsigned char *pattern,
                                       unsigned long long pattern_size, const char *part);
 
+// every code section of `container`, which is `size` bytes, each a section whose name is the layout's code name for
+// some part: the offset of each through `offsets` and its length through `sizes`, which hold `room`. The count found,
+// or 0 where there is none or a header, a name or a section lies past the container's end, or there are more than
+// `room`
+unsigned int container_code_sections(const ContainerLayout *layout, const unsigned char *container,
+                                     unsigned long long size, unsigned long long *offsets, unsigned long long *sizes,
+                                     unsigned int room);
+
 #endif

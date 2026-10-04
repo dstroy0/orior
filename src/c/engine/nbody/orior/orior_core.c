@@ -44,7 +44,7 @@ void orior_counters_reset(void)
  *          before reaching here; this bounds it at the declaration as well, because the engines are
  *          exported and the clamp reads exactly like the guard that would have prevented it.
  */
-static void choose_offsets(size_t *offsets, size_t wanted, size_t needle_len)
+void choose_offsets(size_t *offsets, size_t wanted, size_t needle_len)
 {
     if (needle_len == 0u)
     {

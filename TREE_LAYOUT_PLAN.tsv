@@ -1009,9 +1009,6 @@ src	src/engine/formats/zarr/zarr_read.c	src/c/includes/formats/zarr/zarr_read.c	
 src	-	src/c/includes/oracle/language/families.c	to write	three trees
 src	-	src/c/includes/oracle/language/glosses.c	to write	three trees
 src	-	src/c/includes/oracle/language/typology.c	to write	three trees
-src	src/engine/formats/apxrep/apxrep.h	src/c/kcmplx/apxrep.h	moves	language
-src	-	src/c/kcmplx/apxrep_io.c	to write	three trees
-src	-	src/c/kcmplx/apxrep_sections.c	to write	three trees
 src	src/engine/compiler/bootstrap/ask_order.c	src/c/transpiler/bootstrap/ask_order.c	moves	language
 src	src/engine/compiler/bootstrap/ask_order.h	src/c/transpiler/bootstrap/ask_order.h	moves	language
 src	src/engine/compiler/bootstrap/chain_build.c	src/c/transpiler/bootstrap/chain_build.c	moves	language
@@ -1367,9 +1364,6 @@ src	-	src/cu/includes/formats/zarr/zarr_read.cu	to write	three trees
 src	-	src/cu/includes/oracle/language/families.cu	to write	three trees
 src	-	src/cu/includes/oracle/language/glosses.cu	to write	three trees
 src	-	src/cu/includes/oracle/language/typology.cu	to write	three trees
-src	src/engine/formats/apxrep/apxrep_internal.h	src/cu/kcmplx/apxrep_internal.h	moves	language
-src	src/engine/formats/apxrep/apxrep_io.cu	src/cu/kcmplx/apxrep_io.cu	moves	language
-src	src/engine/formats/apxrep/apxrep_sections.cu	src/cu/kcmplx/apxrep_sections.cu	moves	language
 src	src/engine/long_paths.manifest	src/cu/long_paths.manifest	moves	serves the container
 src	-	src/cu/transpiler/bootstrap/ask_order.cu	to write	three trees
 src	-	src/cu/transpiler/bootstrap/chain_build.cu	to write	three trees
@@ -1720,8 +1714,6 @@ src	src/engine/python/oracle/language/__init__.py	src/python/includes/oracle/lan
 src	src/engine/python/oracle/language/families.py	src/python/includes/oracle/language/families.py	moves	language
 src	src/engine/python/oracle/language/glosses.py	src/python/includes/oracle/language/glosses.py	moves	language
 src	src/engine/python/oracle/language/typology.py	src/python/includes/oracle/language/typology.py	moves	language
-src	-	src/python/kcmplx/apxrep_io.py	to write	three trees
-src	-	src/python/kcmplx/apxrep_sections.py	to write	three trees
 src	-	src/python/transpiler/bootstrap/ask_order.py	to write	three trees
 src	-	src/python/transpiler/bootstrap/chain_build.py	to write	three trees
 src	-	src/python/transpiler/bootstrap/query_ask.py	to write	three trees
@@ -1937,7 +1929,6 @@ test	-	utils/test/src/c/includes/formats/stack/stack_test.c	to write	a test for 
 test	-	utils/test/src/c/includes/formats/tiff/tiff_test.c	to write	a test for each module
 test	-	utils/test/src/c/includes/formats/zarr/zarr_test.c	to write	a test for each module
 test	-	utils/test/src/c/includes/oracle/language/language_test.c	to write	a test for each module
-test	-	utils/test/src/c/kcmplx/kcmplx_test.c	to write	a test for each module
 test	utils/test/engine/compiler/bootstrap/ask_order_check.c	utils/test/src/c/transpiler/bootstrap/ask_order_check.c	moves	language
 test	utils/test/engine/compiler/bootstrap/branch_side_check.c	utils/test/src/c/transpiler/bootstrap/branch_side_check.c	moves	language
 test	utils/test/engine/compiler/bootstrap/chain_check.c	utils/test/src/c/transpiler/bootstrap/chain_check.c	moves	language
@@ -1968,7 +1959,6 @@ test	-	utils/test/src/c/transpiler/codegen/vhdl_construction_set.c	to write	thre
 test	utils/test/engine/compiler/codegen/web_check.c	utils/test/src/c/transpiler/codegen/web_check.c	moves	language
 test	utils/test/engine/compiler/codegen/web_check.sh	utils/test/src/c/transpiler/codegen/web_check.sh	moves	beside the code it runs
 test	-	utils/test/src/c/transpiler/cubin/cubin_test.c	to write	a test for each module
-test	-	utils/test/src/c/transpiler/emit/container_same.c	to write	three trees
 test	-	utils/test/src/c/transpiler/qasm/qasm_exact_test_gates.c	to write	three trees
 test	utils/test/engine/quantum/qasm/qasm_exact_test_internal.h	utils/test/src/c/transpiler/qasm/qasm_exact_test_internal.h	moves	language
 test	-	utils/test/src/c/transpiler/qasm/qasm_exact_test_symbols.c	to write	three trees
@@ -2138,7 +2128,6 @@ test	-	utils/test/src/cu/includes/formats/stack/stack_test.cu	to write	a test fo
 test	-	utils/test/src/cu/includes/formats/tiff/tiff_test.cu	to write	a test for each module
 test	-	utils/test/src/cu/includes/formats/zarr/zarr_test.cu	to write	a test for each module
 test	-	utils/test/src/cu/includes/oracle/language/language_test.cu	to write	a test for each module
-test	-	utils/test/src/cu/kcmplx/kcmplx_test.cu	to write	a test for each module
 test	-	utils/test/src/cu/transpiler/bootstrap/ask_order_check.cu	to write	three trees
 test	-	utils/test/src/cu/transpiler/bootstrap/branch_side_check.cu	to write	three trees
 test	-	utils/test/src/cu/transpiler/bootstrap/chain_check.cu	to write	three trees
@@ -2169,7 +2158,6 @@ test	utils/test/engine/compiler/codegen/vhdl_construction_set.cpp	utils/test/src
 test	utils/test/engine/compiler/codegen/vhdl_construction_set.sh	utils/test/src/cu/transpiler/codegen/vhdl_construction_set.sh	moves	beside the code it runs
 test	-	utils/test/src/cu/transpiler/codegen/web_check.cu	to write	three trees
 test	-	utils/test/src/cu/transpiler/cubin/cubin_test.cu	to write	a test for each module
-test	utils/test/engine/compiler/emit/container_same.cpp	utils/test/src/cu/transpiler/emit/container_same.cpp	moves	language
 test	utils/test/engine/quantum/qasm/bell.qasm	utils/test/src/cu/transpiler/qasm/bell.qasm	moves	beside the code that reads it
 test	utils/test/engine/quantum/qasm/bernstein_vazirani.qasm	utils/test/src/cu/transpiler/qasm/bernstein_vazirani.qasm	moves	beside the code that reads it
 test	utils/test/engine/quantum/qasm/qasm_exact_test_gates.cu	utils/test/src/cu/transpiler/qasm/qasm_exact_test_gates.cu	moves	language
@@ -2318,7 +2306,6 @@ test	-	utils/test/src/python/includes/formats/stack/stack_test.py	to write	a tes
 test	-	utils/test/src/python/includes/formats/tiff/tiff_test.py	to write	a test for each module
 test	-	utils/test/src/python/includes/formats/zarr/zarr_test.py	to write	a test for each module
 test	-	utils/test/src/python/includes/oracle/language/language_test.py	to write	a test for each module
-test	-	utils/test/src/python/kcmplx/kcmplx_test.py	to write	a test for each module
 test	-	utils/test/src/python/transpiler/bootstrap/ask_order_check.py	to write	three trees
 test	-	utils/test/src/python/transpiler/bootstrap/branch_side_check.py	to write	three trees
 test	-	utils/test/src/python/transpiler/bootstrap/chain_check.py	to write	three trees
@@ -2343,7 +2330,6 @@ test	-	utils/test/src/python/transpiler/codegen/ruleset_read_test.py	to write	th
 test	-	utils/test/src/python/transpiler/codegen/vhdl_construction_set.py	to write	three trees
 test	-	utils/test/src/python/transpiler/codegen/web_check.py	to write	three trees
 test	-	utils/test/src/python/transpiler/cubin/cubin_test.py	to write	a test for each module
-test	-	utils/test/src/python/transpiler/emit/container_same.py	to write	three trees
 test	-	utils/test/src/python/transpiler/qasm/qasm_exact_test_gates.py	to write	three trees
 test	-	utils/test/src/python/transpiler/qasm/qasm_exact_test_symbols.py	to write	three trees
 test	-	utils/test/src/python/transpiler/qasm/qasm_self_test.py	to write	three trees
