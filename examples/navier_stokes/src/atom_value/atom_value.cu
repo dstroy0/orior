@@ -358,7 +358,8 @@ SimRational atom_value_linear_tail(AtomValues *values, SimRational z_b)
                            atom_value_less(atom_value_word(1ll, 1ll), h));
 }
 
-SimRational atom_value_square_tail(AtomValues *values, SimRational z)
+// sum_n D_n G_n^+ and sum_n D_n G_n, each over Gamma(2 + 2h)
+static void atom_value_square_sums(AtomValues *values, SimRational z, SimRational *lifted_sum, SimRational *plain_sum)
 {
     const SimRational h = values->h;
     const SimRational one = atom_value_word(1ll, 1ll);
@@ -377,7 +378,8 @@ SimRational atom_value_square_tail(AtomValues *values, SimRational z)
     const SimRational half_power = atom_value_power(values, atom_value_word(2ll, 1ll), sim_rational_negative(h));
     SimRational scale = atom_value_times(half_power, half_power);
     SimRational pochhammer = one;
-    SimRational sum = atom_value_word(0ll, 1ll);
+    SimRational lifted = atom_value_word(0ll, 1ll);
+    SimRational plain = atom_value_word(0ll, 1ll);
     for (unsigned int n = 0u; n < length; n += 1u)
     {
         SimRational weight = atom_value_word(0ll, 1ll);
@@ -392,16 +394,34 @@ SimRational atom_value_square_tail(AtomValues *values, SimRational z)
         const SimRational above = atom_value_above(values, z, atom_value_product(atom_value_polynomial(1u, n), tail_series));
         const SimRational above_lifted =
             atom_value_above(values, z, atom_value_product(atom_value_polynomial(0u, n + 1u), tail_series));
-        const SimRational g = atom_value_add(below, above);
-        const SimRational g_lifted = atom_value_add(below_lifted, above_lifted);
-        sum = atom_value_add(sum, atom_value_times(weight, atom_value_add(atom_value_times(z, g_lifted), g)));
+        plain = atom_value_add(plain, atom_value_times(weight, atom_value_add(below, above)));
+        lifted = atom_value_add(lifted, atom_value_times(weight, atom_value_add(below_lifted, above_lifted)));
         pochhammer = atom_value_times(pochhammer, atom_value_add(atom_value_add(twice_h, atom_value_word(2ll, 1ll)),
                                                                  atom_value_word((long long)n, 1ll)));
         scale = atom_value_times(scale, atom_value_word(1ll, 2ll));
     }
     const SimRational gamma = atom_value_times(atom_value_add(one, twice_h), values->gamma_twice);
-    const SimRational reach = atom_value_power(values, z, sim_rational_negative(h));
-    return atom_value_less(atom_value_over(sum, gamma), atom_value_over(atom_value_times(reach, reach), twice_h));
+    *lifted_sum = atom_value_over(lifted, gamma);
+    *plain_sum = atom_value_over(plain, gamma);
+}
+
+SimRational atom_value_square_tail(AtomValues *values, SimRational z)
+{
+    const SimRational twice_h = atom_value_times(atom_value_word(2ll, 1ll), values->h);
+    SimRational lifted;
+    SimRational plain;
+    atom_value_square_sums(values, z, &lifted, &plain);
+    const SimRational reach = atom_value_power(values, z, sim_rational_negative(values->h));
+    return atom_value_less(atom_value_add(atom_value_times(z, lifted), plain),
+                           atom_value_over(atom_value_times(reach, reach), twice_h));
+}
+
+SimRational atom_value_square_integral(AtomValues *values, SimRational z)
+{
+    SimRational lifted;
+    SimRational plain;
+    atom_value_square_sums(values, z, &lifted, &plain);
+    return lifted;
 }
 
 // the text from `start` up to `stop` read as p/q or p: 1, or 0 where it is not one
@@ -520,6 +540,11 @@ int atom_value_named(AtomValues *values, const std::string &name, SimRational *v
     if (atom_value_between(name, "int_(", ")^inf (z w^2 - z^(-1-2h)) dz", &x))
     {
         *value = atom_value_square_tail(values, x);
+        return 1;
+    }
+    if (atom_value_between(name, "int_(", ")^inf w^2", &x))
+    {
+        *value = atom_value_square_integral(values, x);
         return 1;
     }
     return atom_value_heat_tail(values, name, value);
