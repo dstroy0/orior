@@ -457,10 +457,10 @@ class OnePage(object):
         return self.document[self.number]
 
 
-# Papers read before pdfium's line and the glyph line were let respace a layer line they read alike,
-# whose hand ops are keyed to the layer's spacing: pr eferred in ZenkICSNL60 is preferred on the
-# page. Eight of them no longer build once respaced, and a paper leaves this list when its ops are
-# moved to the page's spacing and its oracle is rebuilt.
+# Papers whose hand ops are keyed to the layer's spacing, where pdfium's line and the glyph line
+# would respace a layer line they read alike: pr eferred in ZenkICSNL60 is preferred on the page.
+# Such a paper does not build once respaced, and leaves this list when its ops are moved to the
+# page's spacing and its oracle is rebuilt.
 LAYER_SPACED = tables.members("LAYER_SPACED")
 # The two letters a font's ToUnicode gives one glyph, and the letter the glyph draws: ə and the
 # Cyrillic ә in one box, in Stewart, Noguchi, Sardinha and Davis's 2011 and 2012 papers.

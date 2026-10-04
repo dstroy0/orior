@@ -102,8 +102,8 @@ PAPERS = os.path.join(ROOT, "build", "papers")
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
 # The drafted page text, not the extraction. This paper's PDF hands back the font's own alphabet,
-# and a corpus built on that is not the language: measured against the hand extraction read off the
-# rendered pages, a third of what this reader used to write was a string the page does not print.
+# and a corpus built on that is not the language: read from the PDF's text, much of what this reader
+# writes is a string the page does not print.
 SOURCE = os.path.join(PAPERS, "2013_Lindley_Lyon.page.txt")
 
 # <spoken by>_<original paper>_<who wrote it down>_Salish_<language without accents>_<year>_<mixed>

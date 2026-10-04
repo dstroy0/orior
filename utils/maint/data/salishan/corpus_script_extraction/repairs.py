@@ -78,7 +78,7 @@ def corrected(pairs):
 
     Both sides of every pair are composed here. A pair is typed into a config file by a person whose
     keyboard may compose an accent or may not, and this grain runs after composed(). A pattern
-    left decomposed matches nothing and fails silently. That cost an afternoon on la-líl təm.
+    left decomposed matches nothing and fails silently.
     """
     held = tuple((unicodedata.normalize("NFC", damaged), unicodedata.normalize("NFC", whole))
                  for damaged, whole in pairs)
