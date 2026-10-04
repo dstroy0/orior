@@ -162,25 +162,9 @@ the workbook.
 
 Pi_0 = sum_(k<n) p_k T_k(eta), and G(p)(eta) is the right side of the datum with the core built on that Pi_0, every
 term valued as in 5. Pi_0 is a fixed point where Y_i = G(p)(eta_i) - p(eta_i) is 0 at n rational nodes inside the
-reach of w's series about 1. Pi_0 enters the core at U_1 and comes back through every product after it. G's values
-are rationals of thousands of digits, and a whole one carried into the next core passes any width: each iterate is
-written to a set number of decimal places, as his data are, and Y at it is exact. The step to the next iterate solves
-J d = -Y on decimals of Y and J, J by divided differences at the first iterate and Broyden's update after.
-
-Measured (`datum_fixed_point`, 4 checks, 1024 limbs) on his 8-parameter F_0 and U_0, order 24, blend terms 12, terms at
-length 24, five modes on the nodes eta = 0, +-0.3, +-0.6, from Pi_0 = 0:
-
-| iterate | places | largest abs Y at the nodes |
-|---------|--------|----------------------------|
-| 0       | -      | 0.176                      |
-| 1       | 3      | 6.9e-4                     |
-| 2       | 4      | 8.3e-5                     |
-| 3       | 6      | 1.2e-6                     |
-| 4       | 8      | 8.0e-9                     |
-| 5       | 10     | 9.0e-11                    |
-
-Pi_0 = -0.1145935217 - 0.0135767167 T_1 + 0.0565850762 T_2 - 0.0070435720 T_3 - 0.0021593181 T_4. Between the nodes,
-at eta = +-0.15 and +-0.45, Y is 2e-5 to 8.5e-5: the part of G five modes do not hold.
+reach of w's series. Pi_0 enters the core at U_1 and comes back through every product after it. Every value is
+integers with their divisors carried beside them, never divided out, and each iterate passes into the next core
+whole: nothing is rounded and nothing is thrown away.
 
 ## 7. The axis heat with every term
 
