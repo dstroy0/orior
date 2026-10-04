@@ -52,7 +52,7 @@ def clean(text):
     probe = os.path.join(room, "candidate.md")
     with io.open(probe, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(text)
-    done = subprocess.run([sys.executable, CHECK, probe], capture_output=True, text=True)
+    done = subprocess.run([sys.executable, CHECK, probe], capture_output=True, text=True, encoding="utf-8", env=dict(os.environ, PYTHONIOENCODING="utf-8"))
     hits = [one.strip() for one in (done.stdout + done.stderr).split("\n")
             if " prose " in one or " BREAK " in one]
     if not hits:

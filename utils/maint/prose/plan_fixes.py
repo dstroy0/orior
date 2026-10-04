@@ -93,7 +93,7 @@ RULE = {
 
 def sites(targets):
     done = subprocess.run([sys.executable, SHOW, "--tsv"] + list(targets),
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8", env=dict(os.environ, PYTHONIOENCODING="utf-8"))
     out = []
     for line in done.stdout.replace("\r", "").split("\n"):
         parts = line.split("\t")

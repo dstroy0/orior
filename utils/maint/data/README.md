@@ -21,11 +21,12 @@ One subject's pipeline, from the archive to a checked corpus. This is the larges
 |---|---|
 | `get_papers.py`, `paper_supervisor.py` | the ICSNL archive, and tracking every paper from index to converted text |
 | `pdf2png.py`, `draft_page_text.py` | a page as an image, and as a first draft, for the papers whose extracted text is not what the page prints |
+| `extract/` | a paper drafted into an oracle table and finished against its page: `oracle.py STEM start` repairs the text layer, sorts it with the English sift and drafts the table, its ops and the per-paper generators and finish contexts, which stay in the closed corpus, finish it, and `residue.py` holds every row to the paper |
 | `hand_extraction/` | the control. Forms read off a page by a person, and the checks that grade a reader against them |
 | `corpus_script_extraction/` | the readers, one per paper |
 | `orior_algorithmic_extraction/` | the sift applied to the same papers |
 | `corpus_derivation.py` | how wrong the corpus could be, from what the checks have seen |
 
-The papers and the hand extractions are not here. They are somebody else's copyright and somebody else's language, and the tools read them under `build/papers` and `build/oracles`.
+The papers, and every text read off their pages, are not here. They are somebody else's copyright and somebody else's language, and they stay in the closed corpus, which the tools reach through `build/papers` or `ANCHOR_SIFT_PRIVATE`. The oracle tables the experiments read are at `examples/Salishan/oracles`, and `extract/workdir.py` names where each of these is.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
