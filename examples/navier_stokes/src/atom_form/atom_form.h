@@ -106,6 +106,12 @@ std::vector<unsigned int> atom_form_slots(const AtomForm &form);
 // 1 where the form holds a term at `slot`
 int atom_form_holds(const AtomForm &form, unsigned int slot);
 
+// the key at `slot`, a slot some form holds
+const AtomKey &atom_form_key_at(unsigned int slot);
+
+// the coefficient at `slot` in lowest terms, 0 where the form holds no term there
+SimRational atom_form_coefficient_at(const AtomForm &form, unsigned int slot);
+
 // the key at `slot` as text: "1", or e^(q) and each atom by its name, ^k where its power passes 1
 std::string atom_form_key_text(unsigned int slot, const std::vector<std::string> &names);
 

@@ -24,25 +24,6 @@
 // The request: matching_functions <cfg>.
 //     bash examples/navier_stokes/run.sh matching_functions examples/navier_stokes/cfg/matching_functions.cfg
 
-// the content matrix from a flat list, `modes` entries a row
-static int matching_functions_rows(const RunCfg *cfg, const char *path, std::vector<std::vector<SimRational>> *rows)
-{
-    const std::string at = path;
-    std::vector<SimRational> weights;
-    unsigned long long modes = 0ull;
-    if (!run_cfg_count(cfg, (at + ".eta_modes").c_str(), &modes) || (modes == 0ull) ||
-        !run_cfg_rationals(cfg, (at + ".weights").c_str(), &weights) || ((weights.size() % modes) != 0u))
-    {
-        return 0;
-    }
-    rows->clear();
-    for (size_t start = 0u; start < weights.size(); start += (size_t)modes)
-    {
-        rows->push_back(std::vector<SimRational>(weights.begin() + (long)start, weights.begin() + (long)(start + modes)));
-    }
-    return 1;
-}
-
 // base^power for a whole power
 static SimRational matching_functions_power(SimRational base, unsigned long long power)
 {
@@ -79,33 +60,16 @@ int main(int count, char **arguments)
     sim_open(&results, capacity);
     static RunCfg cfg;
     static MatchingRequest request;
-    SimRational h;
-    std::vector<SimRational> swirl;
-    std::vector<SimRational> axial;
-    std::vector<SimRational> pressure;
+    static CoreSeries series;
     std::vector<SimRational> etas;
     std::vector<SimRational> checks;
     SimRational printed;
     SimRational unit;
     SimRational residual;
-    unsigned long long order = 0ull;
-    unsigned long long terms = 0ull;
-    unsigned long long orders = 0ull;
     unsigned long long places = 0ull;
     int read =
-        (count == 2) && run_cfg_open(arguments[1], &cfg, &results.line) &&
-        run_cfg_rational(&cfg, "core.anisotropy", &h) && (sim_rational_sign(h) > 0) &&
-        run_cfg_rationals(&cfg, "core.axis.swirl", &swirl) && run_cfg_rationals(&cfg, "core.axis.axial", &axial) &&
-        run_cfg_rationals(&cfg, "core.axis.pressure", &pressure) && run_cfg_count(&cfg, "core.order", &order) &&
-        (order > 0ull) && (order < 4096ull) && run_cfg_rational(&cfg, "join.amplitude", &request.amplitude) &&
-        run_cfg_rational(&cfg, "join.inner", &request.inner) && run_cfg_rational(&cfg, "join.outer", &request.outer) &&
-        (sim_rational_sign(request.inner) > 0) &&
-        (sim_rational_sign(sim_rational_difference(request.outer, request.inner)) > 0) &&
-        matching_functions_rows(&cfg, "content.swirl", &request.swirl_content) &&
-        matching_functions_rows(&cfg, "content.axial", &request.axial_content) &&
-        run_cfg_rationals(&cfg, "blend.cuts", &request.pieces.cuts) && (request.pieces.cuts.size() >= 3u) &&
-        run_cfg_count(&cfg, "blend.terms", &terms) && (terms > 2ull) && run_cfg_count(&cfg, "blend.orders", &orders) &&
-        (orders > 0ull) && run_cfg_rationals(&cfg, "etas", &etas) && run_cfg_rationals(&cfg, "decay_checks", &checks) &&
+        (count == 2) && run_cfg_open(arguments[1], &cfg, &results.line) && matching_read(&cfg, &request, &series) &&
+        run_cfg_rationals(&cfg, "etas", &etas) && run_cfg_rationals(&cfg, "decay_checks", &checks) &&
         run_cfg_rational(&cfg, "his.s_tail", &printed) && run_cfg_rational(&cfg, "his.s_tail_unit", &unit) &&
         (sim_rational_sign(unit) > 0) && run_cfg_rational(&cfg, "core_alone.residual", &residual) &&
         (sim_rational_sign(residual) > 0) && run_cfg_count(&cfg, "report.places", &places) && (places <= 18ull) &&
@@ -134,20 +98,7 @@ int main(int count, char **arguments)
         fprintf(stderr, "matching_functions <cfg>\n");
         return 2;
     }
-    request.pieces.terms = (unsigned int)terms;
-    request.pieces.orders = (unsigned int)orders;
-    request.h = h;
-    request.shape.part = h.numerator;
-    request.shape.whole = h.denominator;
-    EtaFunction swirl_data;
-    EtaFunction axial_data;
-    EtaFunction pressure_data;
-    eta_function_chebyshev(swirl, &swirl_data);
-    eta_function_chebyshev(axial, &axial_data);
-    eta_function_chebyshev(pressure, &pressure_data);
-    static CoreSeries series;
-    core_series_recursion(&request.shape, &swirl_data, &axial_data, &pressure_data, (unsigned int)order, &series);
-    request.series = &series;
+    const SimRational h = request.h;
 
     static AtomBook book;
     // the core alone on the annulus, at the first eta

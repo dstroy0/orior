@@ -9,12 +9,12 @@ SRC="$(cd "$TOP/../src" && pwd)"
 PROGRAM="${1:-}"
 CFG="${2:-}"
 case "$PROGRAM" in
-    axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions) ;;
-    *) echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions <cfg>"; exit 2 ;;
+    axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions|matching_values) ;;
+    *) echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions|matching_values <cfg>"; exit 2 ;;
 esac
-[ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions <cfg>"; exit 2; }
+[ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions|matching_values <cfg>"; exit 2; }
 # the driver's modules, each src/<module>/<module>.cu with its header beside it
-MODULES=(run_cfg report atom_form record witness_cube taylor ode_series eta_function core_series decay_integral blend pressure_datum blend_field matching)
+MODULES=(run_cfg report atom_form record witness_cube taylor ode_series eta_function core_series decay_integral blend pressure_datum blend_field matching atom_value)
 source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 
@@ -39,11 +39,14 @@ case "$(uname -s)" in
             exit 1
         fi
         HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
+        # an exact rational at the widest builds is kilobytes, and a driver holds many on its stack
+        LINK_FLAGS=(-Xlinker /STACK:268435456)
         ;;
     *)
         BINARY="$OUT/$PROGRAM"
         EXTENSION=o
         HOST_FLAGS=(-Xcompiler -fPIC)
+        LINK_FLAGS=()
         ;;
 esac
 
@@ -134,7 +137,7 @@ build_unit "$ROOT/src/$PROGRAM/$PROGRAM.cu" "$OBJECT_DIRECTORY/$PROGRAM.$EXTENSI
 OBJECTS+=("$OBJECT_DIRECTORY/$PROGRAM.$EXTENSION")
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" "${LINK_FLAGS[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $PROGRAM"; exit 1; }
 
 "$BINARY" "$CFG"

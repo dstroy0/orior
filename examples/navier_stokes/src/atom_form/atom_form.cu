@@ -608,6 +608,20 @@ int atom_form_holds(const AtomForm &form, unsigned int slot)
     return (slot < form.magnitude.size()) && (form.magnitude[slot].sign != 0);
 }
 
+const AtomKey &atom_form_key_at(unsigned int slot)
+{
+    return s_atom_slots[slot];
+}
+
+SimRational atom_form_coefficient_at(const AtomForm &form, unsigned int slot)
+{
+    if (!atom_form_holds(form, slot))
+    {
+        return sim_rational(0ll, 1ll);
+    }
+    return atom_form_coefficient(form, slot);
+}
+
 std::string atom_form_key_text(unsigned int slot, const std::vector<std::string> &names)
 {
     const AtomKey &key = s_atom_slots[slot];

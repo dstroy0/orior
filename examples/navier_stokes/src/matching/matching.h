@@ -22,6 +22,7 @@
 
 #include "blend_field.h"
 #include "core_series.h"
+#include "run_cfg.h"
 
 typedef struct
 {
@@ -53,6 +54,11 @@ typedef struct
     // 1 where the fields' values at X_a and X_b were there to take
     int ends;
 } MatchingFunctions;
+
+// the request the cfg gives: core anisotropy, axis swirl, axial and pressure and order, join amplitude, inner and outer,
+// content swirl and axial each as eta_modes and weights, blend cuts, terms and orders; the core series built into
+// `series`, which the request points to. 1, or 0 where a member is missing or out of its range
+int matching_read(const RunCfg *cfg, MatchingRequest *request, CoreSeries *series);
 
 // the six functions at `eta`, -1 < eta < 1
 void matching_at(const MatchingRequest *request, SimRational eta, AtomBook *book, MatchingFunctions *functions);

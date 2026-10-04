@@ -428,6 +428,68 @@ void matching_at(const MatchingRequest *request, SimRational eta, AtomBook *book
         matching_word(1ll, 2ll));
 }
 
+// the content matrix from a flat list, `modes` entries a row
+static int matching_rows(const RunCfg *cfg, const char *path, std::vector<std::vector<SimRational>> *rows)
+{
+    const std::string at = path;
+    std::vector<SimRational> weights;
+    unsigned long long modes = 0ull;
+    if (!run_cfg_count(cfg, (at + ".eta_modes").c_str(), &modes) || (modes == 0ull) ||
+        !run_cfg_rationals(cfg, (at + ".weights").c_str(), &weights) || ((weights.size() % modes) != 0u))
+    {
+        return 0;
+    }
+    rows->clear();
+    for (size_t start = 0u; start < weights.size(); start += (size_t)modes)
+    {
+        rows->push_back(std::vector<SimRational>(weights.begin() + (long)start, weights.begin() + (long)(start + modes)));
+    }
+    return 1;
+}
+
+int matching_read(const RunCfg *cfg, MatchingRequest *request, CoreSeries *series)
+{
+    SimRational h;
+    std::vector<SimRational> swirl;
+    std::vector<SimRational> axial;
+    std::vector<SimRational> pressure;
+    unsigned long long order = 0ull;
+    unsigned long long terms = 0ull;
+    unsigned long long orders = 0ull;
+    const int read =
+        run_cfg_rational(cfg, "core.anisotropy", &h) && (sim_rational_sign(h) > 0) &&
+        run_cfg_rationals(cfg, "core.axis.swirl", &swirl) && run_cfg_rationals(cfg, "core.axis.axial", &axial) &&
+        run_cfg_rationals(cfg, "core.axis.pressure", &pressure) && run_cfg_count(cfg, "core.order", &order) &&
+        (order > 0ull) && (order < 4096ull) && run_cfg_rational(cfg, "join.amplitude", &request->amplitude) &&
+        run_cfg_rational(cfg, "join.inner", &request->inner) && run_cfg_rational(cfg, "join.outer", &request->outer) &&
+        (sim_rational_sign(request->inner) > 0) &&
+        (sim_rational_sign(matching_less(request->outer, request->inner)) > 0) &&
+        matching_rows(cfg, "content.swirl", &request->swirl_content) &&
+        matching_rows(cfg, "content.axial", &request->axial_content) &&
+        run_cfg_rationals(cfg, "blend.cuts", &request->pieces.cuts) && (request->pieces.cuts.size() >= 3u) &&
+        run_cfg_count(cfg, "blend.terms", &terms) && (terms > 2ull) && run_cfg_count(cfg, "blend.orders", &orders) &&
+        (orders > 0ull);
+    if (!read)
+    {
+        return 0;
+    }
+    request->pieces.terms = (unsigned int)terms;
+    request->pieces.orders = (unsigned int)orders;
+    request->h = h;
+    request->shape.part = h.numerator;
+    request->shape.whole = h.denominator;
+    request->blended = 1;
+    EtaFunction swirl_data;
+    EtaFunction axial_data;
+    EtaFunction pressure_data;
+    eta_function_chebyshev(swirl, &swirl_data);
+    eta_function_chebyshev(axial, &axial_data);
+    eta_function_chebyshev(pressure, &pressure_data);
+    core_series_recursion(&request->shape, &swirl_data, &axial_data, &pressure_data, (unsigned int)order, series);
+    request->series = series;
+    return 1;
+}
+
 int matching_short(void)
 {
     return s_sim_rational_wide != 0;
