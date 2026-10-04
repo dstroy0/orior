@@ -176,8 +176,16 @@ def main():
     # The markdown opens with the same heading the chapter now carries, and printing both would set
     # it twice on the page.
     body = body.replace("\\section{Whose words these are}\n\n", "", 1)
-    with open(INDEX, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(body)
+    # Rewritten only where the text changes, and each rewrite printed as "  wrote <path>" for the
+    # research paper's build to stage.
+    old = None
+    if os.path.isfile(INDEX):
+        with open(INDEX, encoding="utf-8") as handle:
+            old = handle.read()
+    if body != old:
+        with open(INDEX, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(body)
+        out.write("  wrote %s\n" % os.path.relpath(INDEX, ROOT).replace(os.sep, "/"))
 
     out.write(
         "  %d tables indexed, %d rows\n" % (len(found), sum(one[1] for one in found))
@@ -187,7 +195,6 @@ def main():
         "  %d name their speakers, %d cite a published source\n"
         % (named, len(found) - named)
     )
-    out.write("  written to %s\n" % os.path.relpath(INDEX, ROOT))
     out.flush()
     return 0
 

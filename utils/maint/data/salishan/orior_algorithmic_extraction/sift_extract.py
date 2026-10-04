@@ -32,6 +32,12 @@ for _category in os.scandir(
 ):
     if _category.is_dir():
         sys.path.insert(0, _category.path)
+# The engine's instrument directory, found by walking up to the repository. english_sift lives in the
+# engine and not beside this file.
+_at = os.path.dirname(os.path.abspath(__file__))
+while (_at != os.path.dirname(_at)) and not os.path.isdir(os.path.join(_at, "src", "python")):
+    _at = os.path.dirname(_at)
+sys.path.insert(0, os.path.join(_at, "src", "python", "engine", "nbody", "orior", "instrument"))
 
 from english_sift import (
     PAGE,
