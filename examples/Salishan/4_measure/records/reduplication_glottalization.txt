@@ -1,0 +1,12 @@
+identical 3/4 split 1/4
+language Halkomelem table BOTH identical 6 split 5 papers 4 reading BOTH
+language Columbian table IDENTICAL identical 1 split 0 papers 1 reading IDENTICAL
+language Nooksack table IDENTICAL identical 2 split 0 papers 1 reading IDENTICAL
+language Nsyilxcən table IDENTICAL identical 14 split 8 papers 6 reading BOTH
+language Nɬeʔkepmxcín table IDENTICAL identical 11 split 3 papers 9 reading IDENTICAL
+language St’át’imcets table IDENTICAL identical 7 split 0 papers 5 reading IDENTICAL
+language Secwepemctsín table SPLIT identical 0 split 2 papers 2 reading SPLIT
+language Squamish table SPLIT identical 3 split 4 papers 1 reading BOTH
+language Twana table SPLIT identical 3 split 1 papers 1 reading IDENTICAL
+language ʔayʔaǰuθəm table SPLIT identical 1 split 11 papers 7 reading SPLIT
+language Upper Chehalis table UNCLEAR identical 1 split 1 papers 2 reading BOTH

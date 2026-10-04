@@ -107,45 +107,12 @@ typedef struct
     unsigned long long p_below[2];
 } GroupSettings;
 
-static std::vector<std::string> group_split(const std::string &line)
-{
-    std::vector<std::string> fields;
-    size_t start = 0u;
-    while (true)
-    {
-        const size_t tab = line.find('\t', start);
-        fields.push_back(line.substr(start, (tab == std::string::npos) ? std::string::npos : tab - start));
-        if (tab == std::string::npos)
-        {
-            return fields;
-        }
-        start = tab + 1u;
-    }
-}
-
 static int group_read(const char *path, GroupSettings *settings, std::vector<GroupLanguage> *languages)
 {
-    FILE *in = fopen(path, "rb");
-    if (in == NULL)
+    std::vector<std::string> lines;
+    if (!stage_lines(path, &lines))
     {
         return 0;
-    }
-    std::string text;
-    char chunk[65536];
-    size_t got = 0u;
-    while ((got = fread(chunk, 1u, sizeof(chunk), in)) > 0u)
-    {
-        text.append(chunk, got);
-    }
-    fclose(in);
-    std::vector<std::string> lines;
-    size_t start = 0u;
-    while (start < text.size())
-    {
-        size_t end = text.find('\n', start);
-        end = (end == std::string::npos) ? text.size() : end;
-        lines.push_back(text.substr(start, end - start));
-        start = end + 1u;
     }
     const char *heads[5] = {"permutations", "seed", "least_shared", "least_meanings", "p_below"};
     unsigned long long *values[4] = {&settings->permutations, &settings->seed, &settings->least_shared,
@@ -156,7 +123,7 @@ static int group_read(const char *path, GroupSettings *settings, std::vector<Gro
     }
     for (size_t at = 0u; at < 5u; at += 1u)
     {
-        const std::vector<std::string> fields = group_split(lines[at]);
+        const std::vector<std::string> fields = stage_split(lines[at]);
         if ((fields.size() < 2u) || (fields[0] != heads[at]))
         {
             return 0;
@@ -178,7 +145,7 @@ static int group_read(const char *path, GroupSettings *settings, std::vector<Gro
     size_t at = 5u;
     while (at < lines.size())
     {
-        const std::vector<std::string> head = group_split(lines[at]);
+        const std::vector<std::string> head = stage_split(lines[at]);
         if ((head.size() != 4u) || (head[0] != "language"))
         {
             return 0;
@@ -194,7 +161,7 @@ static int group_read(const char *path, GroupSettings *settings, std::vector<Gro
             {
                 return 0;
             }
-            const std::vector<std::string> fields = group_split(lines[at]);
+            const std::vector<std::string> fields = stage_split(lines[at]);
             std::vector<GroupForm> forms;
             for (size_t field = 1u; field < fields.size(); field += 1u)
             {
@@ -212,29 +179,6 @@ static int group_read(const char *path, GroupSettings *settings, std::vector<Gro
     return (settings->permutations > 0ull) && (settings->p_below[1] > 0ull);
 }
 
-// a name cut to `width` characters and padded to them, counting a UTF-8 character once and not by its bytes
-static std::string group_shown(const std::string &text, size_t width, int pad)
-{
-    std::string shown;
-    size_t characters = 0u;
-    for (size_t at = 0u; at < text.size(); at += 1u)
-    {
-        const int starts = (((unsigned char)text[at]) & 0xC0u) != 0x80u;
-        if (starts && (characters == width))
-        {
-            break;
-        }
-        characters += (size_t)starts;
-        shown += text[at];
-    }
-    while (pad && (characters < width))
-    {
-        shown += ' ';
-        characters += 1u;
-    }
-    return shown;
-}
-
 // two forms lists match where some form of each agrees on its two classes and the two come from different papers
 static int group_match(const std::vector<GroupForm> &first, const std::vector<GroupForm> &second)
 {
@@ -249,39 +193,6 @@ static int group_match(const std::vector<GroupForm> &first, const std::vector<Gr
         }
     }
     return 0;
-}
-
-// how many bits of a 32-bit word are set, by the halving sums of adjacent fields
-static void group_count_program(StageProgram *program)
-{
-    memset(program, 0, sizeof(*program));
-    const unsigned int word = stage_field(program, 32u);
-    const unsigned int halved = stage_step(program, ENGINE_RECORD_QUOTIENT, word, stage_constant(program, 2ull));
-    const unsigned int odd = stage_step(program, ENGINE_RECORD_AND, halved, stage_constant(program, 0x55555555ull));
-    const unsigned int twos = stage_step(program, ENGINE_RECORD_DIFFERENCE, word, odd);
-    const unsigned int pairs_mask = stage_constant(program, 0x33333333ull);
-    const unsigned int low_twos = stage_step(program, ENGINE_RECORD_AND, twos, pairs_mask);
-    const unsigned int shifted = stage_step(program, ENGINE_RECORD_QUOTIENT, twos, stage_constant(program, 4ull));
-    const unsigned int high_twos = stage_step(program, ENGINE_RECORD_AND, shifted, pairs_mask);
-    const unsigned int fours = stage_step(program, ENGINE_RECORD_SUM, low_twos, high_twos);
-    const unsigned int moved = stage_step(program, ENGINE_RECORD_QUOTIENT, fours, stage_constant(program, 16ull));
-    const unsigned int joined = stage_step(program, ENGINE_RECORD_SUM, fours, moved);
-    const unsigned int bytes = stage_step(program, ENGINE_RECORD_AND, joined, stage_constant(program, 0x0F0F0F0Full));
-    const unsigned int spread = stage_step(program, ENGINE_RECORD_PRODUCT, bytes, stage_constant(program, 0x01010101ull));
-    const unsigned int top = stage_step(program, ENGINE_RECORD_QUOTIENT, spread, stage_constant(program, 1ull << 24u));
-    stage_output(program, stage_step(program, ENGINE_RECORD_AND, top, stage_constant(program, 0xFFull)));
-}
-
-// [m_k >= m] as the quotient of COMPARE(m_k, m) + 2 by 2, and m_k beside it
-static void group_above_program(unsigned int bits, StageProgram *program)
-{
-    memset(program, 0, sizeof(*program));
-    const unsigned int shuffled = stage_field(program, bits);
-    const unsigned int observed = stage_field(program, bits);
-    const unsigned int sign = stage_step(program, ENGINE_RECORD_COMPARE, shuffled, observed);
-    const unsigned int raised = stage_step(program, ENGINE_RECORD_SUM, sign, stage_constant(program, 2ull));
-    stage_output(program, stage_step(program, ENGINE_RECORD_QUOTIENT, raised, stage_constant(program, 2ull)));
-    stage_output(program, stage_step(program, ENGINE_RECORD_SUM, shuffled, stage_constant(program, 0ull)));
 }
 
 // excess + 1 as (m P - S + n P) / (n P), and p as (a + 1) / (P + 1)
@@ -344,54 +255,6 @@ static void group_signed_program(unsigned int bits, StageProgram *program)
     stage_output(program, stage_step(program, ENGINE_RECORD_QUOTIENT, scaled, b));
 }
 
-// the exact sum of each run of `group` lanes of a stage's output, on the device and on the host, held equal
-static int group_sums(SimResults *job, const char *what, const unsigned int *device_out,
-                      const std::vector<unsigned int> &host_out, unsigned long long lanes, unsigned long long group,
-                      unsigned int out_limbs, const DeviceRecordStep *step, std::vector<StageWhole> *sums,
-                      EngineError *error)
-{
-    const unsigned int sum_limbs = ((step->out_bits + stage_bits(stage_whole(group)) + 31u) / 32u) + 1u;
-    const unsigned long long runs = lanes / group;
-    std::vector<unsigned int> device_sums(runs * sum_limbs, 0u);
-    std::vector<unsigned int> host_sums(runs * sum_limbs, 0u);
-    const CycleRecordSumRequest on_device = {device_out, lanes, group, out_limbs, step->out_offset, step->out_bits,
-                                             sum_limbs, device_sums.data(), error};
-    const CycleRecordSumRequest on_host = {host_out.data(), lanes, group, out_limbs, step->out_offset, step->out_bits,
-                                           sum_limbs, host_sums.data(), error};
-    int ok = (cycle_record_sum(&on_device) != CYCLE_ERROR) && (cycle_record_sum_host(&on_host) != CYCLE_ERROR);
-    ok = ok && (memcmp(device_sums.data(), host_sums.data(), device_sums.size() * sizeof(unsigned int)) == 0);
-    sim_check(job, ok, (std::string("the device's sums of ") + what + " equal the host's").c_str());
-    sums->clear();
-    for (unsigned long long run = 0ull; ok && (run < runs); run += 1ull)
-    {
-        sums->push_back(StageWhole(device_sums.begin() + (long long)(run * sum_limbs),
-                                   device_sums.begin() + (long long)((run + 1ull) * sum_limbs)));
-    }
-    return ok;
-}
-
-// lays a stage out over prepared records, sweeps it, and sums one output over runs of `group` lanes
-static int group_summed(SimResults *job, Stage *stage, const std::vector<unsigned int> &records,
-                        unsigned long long lanes, unsigned long long group, const std::vector<unsigned int> &outputs,
-                        std::vector<std::vector<StageWhole>> *sums, EngineError *error)
-{
-    std::vector<unsigned int> out;
-    unsigned int *device_out = NULL;
-    int ok = stage_sweep(job, stage, records, lanes, &out, &device_out, error);
-    sums->assign(outputs.size(), std::vector<StageWhole>());
-    for (size_t at = 0u; ok && (at < outputs.size()); at += 1u)
-    {
-        const DeviceRecordStep *step = &stage->layout.step_table[stage->program.outputs[outputs[at]]];
-        ok = group_sums(job, stage->name, device_out, out, lanes, group, stage->layout.out_limbs, step, &(*sums)[at],
-                        error);
-    }
-    if (device_out != NULL)
-    {
-        cudaFree(device_out);
-    }
-    return ok;
-}
-
 // the sum of each group of values, by rounds of the add program over pairs, and each sum scaled to its mean
 static int group_means(SimResults *job, const std::vector<std::vector<StageRational>> &groups,
                        std::vector<StageRational> *means, std::vector<Stage> *stages, EngineError *error)
@@ -402,7 +265,6 @@ static int group_means(SimResults *job, const std::vector<std::vector<StageRatio
     {
         StageRows rows;
         std::vector<StageRational> widths;
-        std::vector<std::pair<size_t, size_t>> where;
         for (size_t group = 0u; group < held.size(); group += 1u)
         {
             for (size_t at = 0u; (at + 1u) < held[group].size(); at += 2u)
@@ -411,7 +273,6 @@ static int group_means(SimResults *job, const std::vector<std::vector<StageRatio
                                 held[group][at + 1u].den});
                 widths.push_back(held[group][at]);
                 widths.push_back(held[group][at + 1u]);
-                where.push_back({group, at});
             }
         }
         if (rows.empty())
@@ -550,7 +411,7 @@ int main(int count, char **arguments)
     Stage count_stage;
     memset(&count_stage, 0, sizeof(count_stage));
     count_stage.name = "count";
-    group_count_program(&count_stage.program);
+    stage_count_program(0, &count_stage.program);
     const unsigned long long count_lanes = (unsigned long long)pairs.size() * runs * words;
     std::vector<unsigned int> records((size_t)count_lanes, 0u);
     std::vector<size_t> order;
@@ -586,7 +447,7 @@ int main(int count, char **arguments)
         count_lanes * (1ull + (ok ? count_stage.layout.out_limbs : 1u)) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "subgrouping", count, arguments, declared);
     std::vector<std::vector<StageWhole>> counted;
-    ok = ok && group_summed(&job, &count_stage, records, count_lanes, words, std::vector<unsigned int>(1, 0u),
+    ok = ok && stage_summed(&job, &count_stage, records, count_lanes, words, std::vector<unsigned int>(1, 0u),
                             &counted, &error);
     records.clear();
     records.shrink_to_fit();
@@ -596,7 +457,7 @@ int main(int count, char **arguments)
     memset(&above_stage, 0, sizeof(above_stage));
     above_stage.name = "above";
     const unsigned int count_bits = stage_bits(stage_whole(widest));
-    group_above_program(count_bits, &above_stage.program);
+    stage_above_program(count_bits, &above_stage.program);
     ok = ok && stage_lay(&job, &above_stage, &error);
     const unsigned int above_limbs = (above_stage.program.record_bits + 31u) / 32u;
     const unsigned long long above_lanes = (unsigned long long)pairs.size() * shuffles;
@@ -614,7 +475,7 @@ int main(int count, char **arguments)
     }
     std::vector<std::vector<StageWhole>> aboves;
     std::vector<unsigned int> both_outputs = {0u, 1u};
-    ok = ok && group_summed(&job, &above_stage, above_records, above_lanes, shuffles, both_outputs, &aboves, &error);
+    ok = ok && stage_summed(&job, &above_stage, above_records, above_lanes, shuffles, both_outputs, &aboves, &error);
     for (size_t at = 0u; ok && (at < pairs.size()); at += 1u)
     {
         pairs[at].above = aboves[0][at];
@@ -796,8 +657,8 @@ int main(int count, char **arguments)
             const int holds = in(best, group);
             char line[256];
             snprintf(line, sizeof(line), "(%c) %s best Salish partner %s %s", (pass == 0) ? 'a' : 'b',
-                     group_shown(languages[left].name, 18u, 1).c_str(),
-                     group_shown(languages[best].name, 18u, 1).c_str(), holds ? "pass" : "FAIL");
+                     stage_shown(languages[left].name, 18u, 1).c_str(),
+                     stage_shown(languages[best].name, 18u, 1).c_str(), holds ? "pass" : "FAIL");
             lines.push_back(line);
         }
     }
@@ -851,7 +712,7 @@ int main(int count, char **arguments)
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
             printf("   %-5s %s %5zu meanings\n", languages[at].branch.c_str(),
-                   group_shown(languages[at].name, 18u, 1).c_str(), languages[at].meanings.size());
+                   stage_shown(languages[at].name, 18u, 1).c_str(), languages[at].meanings.size());
         }
         printf("\nexcess match rate (observed minus shuffled), shared meanings in brackets\n");
         for (size_t left = 0u; left < languages.size(); left += 1u)
@@ -862,10 +723,10 @@ int main(int count, char **arguments)
                 const size_t right = partner_of[left][partner_orders[left].sorted[place - 1u]];
                 ranked.push_back({right, table[{left, right}]});
             }
-            printf("%-5s %s", languages[left].branch.c_str(), group_shown(languages[left].name, 18u, 1).c_str());
+            printf("%-5s %s", languages[left].branch.c_str(), stage_shown(languages[left].name, 18u, 1).c_str());
             for (size_t at = 0u; (at < ranked.size()) && (at < 5u); at += 1u)
             {
-                printf("  %s %.6s[%zu]", group_shown(languages[ranked[at].first].name, 10u, 0).c_str(),
+                printf("  %s %.6s[%zu]", stage_shown(languages[ranked[at].first].name, 10u, 0).c_str(),
                        pairs[ranked[at].second].excess_text.c_str(), pairs[ranked[at].second].shared);
             }
             printf("\n");

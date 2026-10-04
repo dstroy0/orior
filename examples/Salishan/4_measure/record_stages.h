@@ -12,8 +12,11 @@
 //   compare   the sign of x_num y_den m_den - y_num x_den m_num, +1 where x clears m times y;
 //   gap       (n2 d1 - n1 d2) / (d1 d2), the second value less the first;
 //   mean      (a d + c b) / (2 b d), the mean of two values;
-//   digits    the whole part of a value and its first six digits after the point, by quotient and remainder.
-// An order of values is read from the compare program's signs, every pair compared once.
+//   digits    the whole part of a value and its first six digits after the point, by quotient and remainder;
+//   count     how many bits of a 32-bit word are set, the word ANDed with a mask first where asked;
+//   above     [m_k >= m] and m_k, a shuffle's count against the observed count.
+// An order of values is read from the compare program's signs, every pair compared once. The sums of an output over
+// runs of lanes are taken on the device and on the host and held equal.
 
 #ifndef RECORD_STAGES_H
 #define RECORD_STAGES_H
@@ -485,6 +488,156 @@ static StageRational stage_unit(void)
 static StageRational stage_pair_of(const std::vector<StageWhole> &out)
 {
     return {out[0], out[1]};
+}
+
+// a file's lines, without their line breaks; 0 where it cannot be read
+static int stage_lines(const char *path, std::vector<std::string> *lines)
+{
+    FILE *in = fopen(path, "rb");
+    if (in == NULL)
+    {
+        return 0;
+    }
+    std::string text;
+    char chunk[65536];
+    size_t got = 0u;
+    while ((got = fread(chunk, 1u, sizeof(chunk), in)) > 0u)
+    {
+        text.append(chunk, got);
+    }
+    fclose(in);
+    size_t start = 0u;
+    while (start < text.size())
+    {
+        size_t end = text.find('\n', start);
+        end = (end == std::string::npos) ? text.size() : end;
+        lines->push_back(text.substr(start, end - start));
+        start = end + 1u;
+    }
+    return 1;
+}
+
+// a line's tab-separated fields
+static std::vector<std::string> stage_split(const std::string &line)
+{
+    std::vector<std::string> fields;
+    size_t start = 0u;
+    while (true)
+    {
+        const size_t tab = line.find('\t', start);
+        fields.push_back(line.substr(start, (tab == std::string::npos) ? std::string::npos : tab - start));
+        if (tab == std::string::npos)
+        {
+            return fields;
+        }
+        start = tab + 1u;
+    }
+}
+
+// a name cut to `width` characters and padded to them, counting a UTF-8 character once and not by its bytes
+static std::string stage_shown(const std::string &text, size_t width, int pad)
+{
+    std::string shown;
+    size_t characters = 0u;
+    for (size_t at = 0u; at < text.size(); at += 1u)
+    {
+        const int starts = (((unsigned char)text[at]) & 0xC0u) != 0x80u;
+        if (starts && (characters == width))
+        {
+            break;
+        }
+        characters += (size_t)starts;
+        shown += text[at];
+    }
+    while (pad && (characters < width))
+    {
+        shown += ' ';
+        characters += 1u;
+    }
+    return shown;
+}
+
+// how many bits of a 32-bit word are set, by the halving sums of adjacent fields; where `masked`, the word is
+// ANDed with a second 32-bit field first
+static void stage_count_program(int masked, StageProgram *program)
+{
+    memset(program, 0, sizeof(*program));
+    const unsigned int given = stage_field(program, 32u);
+    const unsigned int word = masked ? stage_step(program, ENGINE_RECORD_AND, given, stage_field(program, 32u)) : given;
+    const unsigned int halved = stage_step(program, ENGINE_RECORD_QUOTIENT, word, stage_constant(program, 2ull));
+    const unsigned int odd = stage_step(program, ENGINE_RECORD_AND, halved, stage_constant(program, 0x55555555ull));
+    const unsigned int twos = stage_step(program, ENGINE_RECORD_DIFFERENCE, word, odd);
+    const unsigned int pairs_mask = stage_constant(program, 0x33333333ull);
+    const unsigned int low_twos = stage_step(program, ENGINE_RECORD_AND, twos, pairs_mask);
+    const unsigned int shifted = stage_step(program, ENGINE_RECORD_QUOTIENT, twos, stage_constant(program, 4ull));
+    const unsigned int high_twos = stage_step(program, ENGINE_RECORD_AND, shifted, pairs_mask);
+    const unsigned int fours = stage_step(program, ENGINE_RECORD_SUM, low_twos, high_twos);
+    const unsigned int moved = stage_step(program, ENGINE_RECORD_QUOTIENT, fours, stage_constant(program, 16ull));
+    const unsigned int joined = stage_step(program, ENGINE_RECORD_SUM, fours, moved);
+    const unsigned int bytes = stage_step(program, ENGINE_RECORD_AND, joined, stage_constant(program, 0x0F0F0F0Full));
+    const unsigned int spread = stage_step(program, ENGINE_RECORD_PRODUCT, bytes, stage_constant(program, 0x01010101ull));
+    const unsigned int top = stage_step(program, ENGINE_RECORD_QUOTIENT, spread, stage_constant(program, 1ull << 24u));
+    stage_output(program, stage_step(program, ENGINE_RECORD_AND, top, stage_constant(program, 0xFFull)));
+}
+
+// [m_k >= m] as the quotient of COMPARE(m_k, m) + 2 by 2, and m_k beside it
+static void stage_above_program(unsigned int bits, StageProgram *program)
+{
+    memset(program, 0, sizeof(*program));
+    const unsigned int shuffled = stage_field(program, bits);
+    const unsigned int observed = stage_field(program, bits);
+    const unsigned int sign = stage_step(program, ENGINE_RECORD_COMPARE, shuffled, observed);
+    const unsigned int raised = stage_step(program, ENGINE_RECORD_SUM, sign, stage_constant(program, 2ull));
+    stage_output(program, stage_step(program, ENGINE_RECORD_QUOTIENT, raised, stage_constant(program, 2ull)));
+    stage_output(program, stage_step(program, ENGINE_RECORD_SUM, shuffled, stage_constant(program, 0ull)));
+}
+
+// the exact sum of each run of `group` lanes of a stage's output, on the device and on the host, held equal
+static int stage_sums(SimResults *job, const char *what, const unsigned int *device_out,
+                      const std::vector<unsigned int> &host_out, unsigned long long lanes, unsigned long long group,
+                      unsigned int out_limbs, const DeviceRecordStep *step, std::vector<StageWhole> *sums,
+                      EngineError *error)
+{
+    const unsigned int sum_limbs = ((step->out_bits + stage_bits(stage_whole(group)) + 31u) / 32u) + 1u;
+    const unsigned long long runs = lanes / group;
+    std::vector<unsigned int> device_sums(runs * sum_limbs, 0u);
+    std::vector<unsigned int> host_sums(runs * sum_limbs, 0u);
+    const CycleRecordSumRequest on_device = {device_out, lanes, group, out_limbs, step->out_offset, step->out_bits,
+                                             sum_limbs, device_sums.data(), error};
+    const CycleRecordSumRequest on_host = {host_out.data(), lanes, group, out_limbs, step->out_offset, step->out_bits,
+                                           sum_limbs, host_sums.data(), error};
+    int ok = (cycle_record_sum(&on_device) != CYCLE_ERROR) && (cycle_record_sum_host(&on_host) != CYCLE_ERROR);
+    ok = ok && (memcmp(device_sums.data(), host_sums.data(), device_sums.size() * sizeof(unsigned int)) == 0);
+    sim_check(job, ok, (std::string("the device's sums of ") + what + " equal the host's").c_str());
+    sums->clear();
+    for (unsigned long long run = 0ull; ok && (run < runs); run += 1ull)
+    {
+        sums->push_back(StageWhole(device_sums.begin() + (long long)(run * sum_limbs),
+                                   device_sums.begin() + (long long)((run + 1ull) * sum_limbs)));
+    }
+    return ok;
+}
+
+// lays a stage out over prepared records, sweeps it, and sums one output over runs of `group` lanes
+static int stage_summed(SimResults *job, Stage *stage, const std::vector<unsigned int> &records,
+                        unsigned long long lanes, unsigned long long group, const std::vector<unsigned int> &outputs,
+                        std::vector<std::vector<StageWhole>> *sums, EngineError *error)
+{
+    std::vector<unsigned int> out;
+    unsigned int *device_out = NULL;
+    int ok = stage_sweep(job, stage, records, lanes, &out, &device_out, error);
+    sums->assign(outputs.size(), std::vector<StageWhole>());
+    for (size_t at = 0u; ok && (at < outputs.size()); at += 1u)
+    {
+        const DeviceRecordStep *step = &stage->layout.step_table[stage->program.outputs[outputs[at]]];
+        ok = stage_sums(job, stage->name, device_out, out, lanes, group, stage->layout.out_limbs, step, &(*sums)[at],
+                        error);
+    }
+    if (device_out != NULL)
+    {
+        cudaFree(device_out);
+    }
+    return ok;
 }
 
 #endif
