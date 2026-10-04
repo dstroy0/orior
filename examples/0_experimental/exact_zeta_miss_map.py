@@ -10,6 +10,26 @@
 #
 #   Usage:  python examples/0_experimental/exact_zeta_miss_map.py <binary> [first] [last] [coarse] [fine] [folder]
 #           python examples/0_experimental/exact_zeta_miss_map.py <binary> e <base> <cells> <heights> <rate> [folder]
+#           python examples/0_experimental/exact_zeta_miss_map.py <binary> carrier <base> <cells> <rate> [folder]
+#           python examples/0_experimental/exact_zeta_miss_map.py <binary> ripple <base> <cells> <rate>
+#           python examples/0_experimental/exact_zeta_miss_map.py <binary> pulse <base> <cells> <rate>
+#           python examples/0_experimental/exact_zeta_miss_map.py <binary> source <base> <cells> <rate>
+#           python examples/0_experimental/exact_zeta_miss_map.py <binary> primes <base> <cells> <rate>
+#
+# With ripple, the misses of the uniform lattice at the rate are locked against the beats ln(n / m) of |F|^2, and F's
+# drag and swell at their dips read against every point's. With pulse, each place F passes near a zero of its own is
+# read against the single pole, its twist a Lorentzian and (swell, twist) a circle, and the misses inside one counted.
+# With source, each pulse's source, the zero of F it passes, is placed, locked against the beats, and the misses and
+# sources set against the density F'/F's prime lines place. With primes, the sources are locked on ln n for every n to
+# N, and the certified zeros of the window read Lambda(x) at every integer past N by Landau, the calls graded by a
+# sieve and proved by Proth's witness where his theorem reaches, and psi(x) summed from them.
+#
+# With carrier, each cell runs once on its fine lattice, and the coarse lattice is placed several ways: the uniform
+# baseline at the rate, the antinode trap where Im(w) crosses zero, the turning points of Z where Z' = 0, a uniform
+# lattice of each trap's own point count, and the {1,1,2} and golden combs at the rate. Each lattice's points a zero,
+# misses a thousand zeros against the pigeonhole floor, pickle width and share under us are read, with the turning
+# points on the wrong side of zero. The coarse lattice chooses which certified points to compare; it is not part of
+# the proof.
 #
 # With e, the same fields at heights an e-fold apart in t: cells from `base`, √e times it, e times it and on, each
 # height's coarse lattice every k-th point of its fine one, k chosen to hold `rate` points a zero at every height, and
@@ -42,7 +62,9 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "proofing"))
 import exact_zeta_turing as tm  # noqa: E402
+import twiddle_proof  # noqa: E402
 
 UNIT = float(1 << tm.SCALE_BITS)
 
@@ -518,9 +540,675 @@ def main_folds(binary, base, count, folds, rate, folder):
     return 0 if failed == 0 else 1
 
 
+def comb_indices(count_fine, step, pattern, shuffle=False, rng=None):
+    """Coarse fine-indices whose gaps cycle through `pattern`, the carrier's partial quotients, scaled to mean `step`.
+    A uniform lattice is the pattern (1,); {1,1,2} is a period-3 kick. With shuffle the gaps are permuted, the
+    carrier's multiset with its order gone, the drawn null. Placement is not part of the proof: every fine point is
+    certified whichever points the coarse lattice keeps."""
+    scale = step * len(pattern) / sum(pattern)
+    letters = [pattern[i % len(pattern)] for i in range((count_fine // max(1, step) + len(pattern)) * 2 + 8)]
+    if shuffle and rng is not None:
+        rng.shuffle(letters)
+    idx, acc = [0], 0.0
+    for length in letters:
+        acc += length * scale
+        j = int(round(acc))
+        if j >= count_fine:
+            break
+        if j > idx[-1]:
+            idx.append(j)
+    return idx
+
+
+def metallic_indices(count_fine, step, n, shuffle=False, rng=None):
+    """Coarse fine-indices of the metallic quasicrystal {n,n,n,...}: the Sturmian word of slope 1 / beta, beta the
+    metallic mean (n + sqrt(n^2 + 4)) / 2, two gaps in ratio beta scaled to mean `step`. n = 1 is golden, n = 2 is
+    silver. With shuffle the word is permuted, the null."""
+    beta = (n + math.sqrt(n * n + 4)) / 2
+    omega = 1.0 / beta
+    short = step / ((1.0 - omega) + beta * omega)
+    long = beta * short
+    count = int(count_fine / short) + 8
+    word = [int(math.floor((i + 1) * omega) - math.floor(i * omega)) for i in range(count)]
+    if shuffle and rng is not None:
+        rng.shuffle(word)
+    idx, acc = [0], 0.0
+    for bit in word:
+        acc += long if bit else short
+        j = int(round(acc))
+        if j >= count_fine:
+            break
+        if j > idx[-1]:
+            idx.append(j)
+    return idx
+
+
+def antinode_indices(fine):
+    """Coarse fine-indices at the antinodes of Z, where Im(w) changes sign: w crosses the real axis and |Z| sits near a
+    lobe peak. A zero is where Re(w) crosses zero, on the imaginary axis, and the two axes alternate as w winds: each
+    zero is trapped between two antinodes. A pair hides only where w wiggles, crossing the imaginary axis twice with no
+    real-axis crossing between. This is the filter built to trap, not to space."""
+    idx = [0]
+    for j in range(1, len(fine)):
+        if (fine[j - 1][3].imag <= 0.0) != (fine[j][3].imag <= 0.0):
+            near = j if abs(fine[j][3].imag) <= abs(fine[j - 1][3].imag) else j - 1
+            if near > idx[-1]:
+                idx.append(near)
+    if idx[-1] != len(fine) - 1:
+        idx.append(len(fine) - 1)
+    return idx
+
+
+def extremum_indices(fine):
+    """Coarse fine-indices at the turning points of Z, where its step changes sign: the zeros of Z' as the fine lattice
+    sees them. Z = 2 |F| cos(phi) with phi = theta + arg F, and Z' = 2 |F| ((ln |F|)' cos(phi) - phi' sin(phi)): the
+    antinode moves off Im(w) = 0 by F's own turning, phi' against theta', and by the swell of its size, (ln |F|)'. By
+    Rolle, Z is monotone between consecutive turning points and holds at most one zero there."""
+    idx = [0]
+    for j in range(1, len(fine) - 1):
+        if (fine[j][2] - fine[j - 1][2] > 0.0) != (fine[j + 1][2] - fine[j][2] > 0.0):
+            idx.append(j)
+    idx.append(len(fine) - 1)
+    return idx
+
+
+def wiggles_of(idx, fine):
+    """Turning points on the wrong side of zero: a positive minimum or a negative maximum of Z. Each is a turn with no
+    zero across it, a pair of critical points past the one each gap between zeros must hold."""
+    count = 0
+    for j in idx[1:-1]:
+        low = fine[j][2] < fine[j - 1][2]
+        if (low and fine[j][2] > 0.0) or (not low and fine[j][2] < 0.0):
+            count += 1
+    return count
+
+
+def uniform_indices(count_fine, points):
+    """A uniform coarse lattice of about `points` indices across the fine lattice, for a density-matched comparison."""
+    step = max(1, count_fine // max(1, points))
+    return list(range(0, count_fine, step))
+
+
+def misses_on(idx, fine):
+    """Each pair the coarse lattice of fine-indices `idx` hides: the two held coarse points it lies between and the two
+    fine zeros. The carrier-stepped form of misses_of, with an explicit index list in place of a uniform lift."""
+    fine_zeros, _ = zeros_of(fine)
+    coarse = [fine[i] for i in idx]
+    _, held = zeros_of(coarse)
+    at, out = 0, []
+    for a, b in zip(held, held[1:]):
+        low, high = idx[a], idx[b]
+        inside = []
+        while at < len(fine_zeros) and fine_zeros[at][1] <= high:
+            if fine_zeros[at][0] >= low:
+                inside.append(fine_zeros[at])
+            at += 1
+        seen = int(coarse[a][0] != coarse[b][0])
+        extra = len(inside) - seen
+        if extra < 2:
+            continue
+        gaps = sorted(range(len(inside) - 1), key=lambda k: inside[k + 1][0] - inside[k][0])
+        taken = set()
+        for k in gaps:
+            if len(taken) // 2 >= extra // 2:
+                break
+            if k in taken or k + 1 in taken:
+                continue
+            taken |= {k, k + 1}
+            out.append((a, b, inside[k], inside[k + 1]))
+    return out
+
+
+def place_on(nu, idx, fine, a, b, first, second):
+    """A miss placed from the center at coarse point a, the carrier-stepped form of place: the dip from the steady arc
+    the last two coarse points turn along, split into along-track and cross-track, in steps of the last coarse chord."""
+    coarse = [fine[i] for i in idx]
+    center = coarse[a][3]
+    behind = coarse[a - 1][3] if a > 0 else center
+    before = coarse[a - 2][3] if a > 1 else behind
+    heading = center - behind
+    turn = heading / abs(heading) if abs(heading) > 0 else 1
+    last = behind - before
+    rate = math.atan2((heading / last).imag, (heading / last).real) if abs(last) > 0 and abs(heading) > 0 else 0.0
+    radius = abs(center)
+    step_a = (idx[a] - idx[a - 1]) if a > 0 else (idx[a + 1] - idx[a])
+    between = range(first[1], second[0] + 1)
+    dip = max(between, key=lambda j: abs(fine[j][2]))
+    u = (dip - idx[a]) / step_a if step_a else 0.0
+    if abs(rate) > 1e-12:
+        arc = (rate / 2) / math.sin(rate / 2)
+        track = (heading * complex(math.cos(rate / 2), math.sin(rate / 2)) * arc *
+                 (complex(math.cos(rate * u), math.sin(rate * u)) - 1) / complex(0, rate))
+    else:
+        track = heading * u
+    d = (fine[dip][3] - center) / turn
+    residual = (fine[dip][3] - center - track) / turn
+    steps = abs(residual) / abs(heading) if abs(heading) > 0 else 0.0
+    ang = math.radians(bearing(residual))
+    return {"nu": nu, "residual_angle": bearing(residual), "residual_steps": steps, "radius": radius,
+            "along": steps * math.cos(ang), "cross": steps * math.sin(ang), "d_steps": abs(d) / abs(heading)
+            if abs(heading) > 0 else 0.0}
+
+
+def pickle_of(misses):
+    """The pickle of a run: the cross-track RMS (the width), the along-track RMS, the aspect, and the share within a
+    step of the arc."""
+    if not misses:
+        return (0.0, 0.0, 0.0, 0.0, 0)
+    n = len(misses)
+    cross = math.sqrt(sum(m["cross"] ** 2 for m in misses) / n)
+    along = math.sqrt(sum(m["along"] ** 2 for m in misses) / n)
+    under = 100.0 * sum(1 for m in misses if m["d_steps"] <= 1.0) / n
+    return (cross, along, cross / along if along else 0.0, under, n)
+
+
+CARRIER_NAMES = ["uniform @ rate", "antinode Im w=0", "uniform @ antinode n", "turning Z'=0", "uniform @ turning n",
+                 "comb 1,1,2 @ rate", "golden @ rate"]
+
+
+def carrier_lattices(fine, step):
+    """The coarse lattices to score, by name: the uniform baseline at the rate, the antinode trap where Im(w) crosses
+    zero, the turning points of Z, each with a uniform lattice of its own point count for a density-matched
+    comparison, and the {1,1,2} and golden combs at the rate for reference."""
+    anti = antinode_indices(fine)
+    turn = extremum_indices(fine)
+    return {
+        "uniform @ rate": comb_indices(len(fine), step, (1,)),
+        "antinode Im w=0": anti,
+        "uniform @ antinode n": uniform_indices(len(fine), len(anti)),
+        "turning Z'=0": turn,
+        "uniform @ turning n": uniform_indices(len(fine), len(turn)),
+        "comb 1,1,2 @ rate": comb_indices(len(fine), step, (1, 1, 2)),
+        "golden @ rate": metallic_indices(len(fine), step, 1),
+    }
+
+
+def main_carrier(binary, base, count, rate, folder):
+    """Cells `base` to base + count - 1 on one fine lattice each. For each coarse lattice, place the misses it hides and
+    report the misses a thousand zeros, the pickle's width and the share under us. The antinode lattice traps a zero
+    between each pair of peaks; the density-matched uniform is the fair baseline for it."""
+    constants = tm.Constants()
+    tally = {name: [] for name in CARRIER_NAMES}
+    points = {name: 0 for name in CARRIER_NAMES}
+    floor = {name: 0 for name in CARRIER_NAMES}
+    zeros_total, failed, wiggles = 0, 0, 0
+    for at in range(base, base + count):
+        z = tm.rises(at)
+        fine_p = math.ceil(math.log2(8 * rate * z))
+        step = max(2, round((1 << fine_p) / (rate * z)))
+        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=1)
+        failed += cell.failed
+        fine = points_of(cell)
+        os.remove(cell.path)
+        zeros = len(zeros_of(fine)[0])
+        zeros_total += zeros
+        for name, idx in carrier_lattices(fine, step).items():
+            tally[name].extend(place_on(at, idx, fine, a, b, x, y) for a, b, x, y in misses_on(idx, fine))
+            points[name] += len(idx)
+            floor[name] += max(0, zeros - (len(idx) - 1))
+            if name == "turning Z'=0":
+                wiggles += wiggles_of(idx, fine)
+        print("  cell %d done, %d fine points, step %d" % (at, len(fine), step), flush=True)
+    print("  %-22s %8s %9s %12s %12s %9s %9s" % ("scheme", "points", "a zero", "miss/1k zero", "floor/1k", "width",
+                                                 "under%"))
+    for name in CARRIER_NAMES:
+        cross, along, aspect, under, n = pickle_of(tally[name])
+        permille = 1000.0 * 2 * n / max(1, zeros_total)
+        print("  %-22s %8d %9.4f %12.3f %12.3f %9.4f %8.2f%%" % (
+            name, points[name], points[name] / max(1, zeros_total), permille,
+            1000.0 * floor[name] / max(1, zeros_total), cross, under))
+    print("  zeros %d; turning points on the wrong side of zero %d (%.3f a thousand zeros); %d host checks failed" % (
+        zeros_total, wiggles, 1000.0 * wiggles / max(1, zeros_total), failed))
+    return 0 if failed == 0 else 1
+
+
+RIPPLE_PAIRS = [(1, 2), (1, 3), (2, 3), (1, 4), (3, 4), (1, 5), (2, 5), (1, 6)]
+RIPPLE_NULLS = [0.5, 0.9, 1.3, 1.9, 2.3]
+
+
+def ripple_at(fine, x2, j):
+    """F's drag and swell at fine point j, each over theta' = ln x: phi' / theta', 1 where F does not turn and below 0
+    where the clock runs back, and (ln |F|)' / theta', the plane lifting. phi is arg w, read across j - 1 to j + 1."""
+    low, high = max(0, j - 1), min(len(fine) - 1, j + 1)
+    w0, w1 = fine[low][3], fine[high][3]
+    dt = 2 * math.pi * (x2[high] - x2[low])
+    clock = 0.5 * math.log(x2[j])
+    if abs(w0) == 0.0 or abs(w1) == 0.0 or dt == 0.0:
+        return 1.0, 0.0
+    turn = w1 / w0
+    return (math.atan2(turn.imag, turn.real) / dt / clock,
+            (math.log(abs(w1)) - math.log(abs(w0))) / dt / clock)
+
+
+def rayleigh(times, omega):
+    """The mean resultant length of the phases omega t over `times`, its direction in degrees, and Rayleigh's z = n R^2,
+    the chance of so tight a lock among uniform phases near exp(-z)."""
+    if not times:
+        return 0.0, 0.0, 0.0
+    c = sum(math.cos(omega * t) for t in times) / len(times)
+    s = sum(math.sin(omega * t) for t in times) / len(times)
+    r = math.hypot(c, s)
+    return r, math.degrees(math.atan2(s, c)) % 360.0, len(times) * r * r
+
+
+def main_ripple(binary, base, count, rate):
+    """Cells `base` to base + count - 1 on one fine lattice each, the uniform coarse lattice at the rate. The misses'
+    times are locked against the beats of |F|^2 = sum over m, n of (m n)^(-1/2) cos(t ln(m / n)), at the frequencies
+    ln(n / m) and at null frequencies between them; F's drag and swell at the misses' dips are read against every fine
+    point's."""
+    constants = tm.Constants()
+    dips, every, failed = [], [], 0
+    for at in range(base, base + count):
+        z = tm.rises(at)
+        fine_p = math.ceil(math.log2(8 * rate * z))
+        step = max(2, round((1 << fine_p) / (rate * z)))
+        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=1)
+        failed += cell.failed
+        fine = points_of(cell)
+        os.remove(cell.path)
+        x2 = [at * at + j * (2 * at + 1) / len(fine) for j in range(len(fine))]
+        for j in range(1, len(fine) - 1, 7):
+            every.append(ripple_at(fine, x2, j))
+        idx = comb_indices(len(fine), step, (1,))
+        for a, b, first, second in misses_on(idx, fine):
+            dip = max(range(first[1], second[0] + 1), key=lambda j: abs(fine[j][2]))
+            drag, swell = ripple_at(fine, x2, dip)
+            dips.append((2 * math.pi * x2[dip], drag, swell, abs(fine[dip][3])))
+        print("  cell %d done, %d misses so far" % (at, len(dips)), flush=True)
+    times = [d[0] for d in dips]
+    print("  misses %d; the lock of their times on each beat of |F|^2" % len(dips))
+    print("  %-14s %10s %9s %10s %9s" % ("beat", "omega", "R", "direction", "z"))
+    for m, n in RIPPLE_PAIRS:
+        omega = math.log(n / m)
+        r, ang, zz = rayleigh(times, omega)
+        print("  %-14s %10.5f %9.4f %10.1f %9.2f" % ("ln(%d/%d)" % (n, m), omega, r, ang, zz))
+    for omega in RIPPLE_NULLS:
+        r, ang, zz = rayleigh(times, omega)
+        print("  %-14s %10.5f %9.4f %10.1f %9.2f" % ("null", omega, r, ang, zz))
+
+    def quantiles(rows, key):
+        values = sorted(key(row) for row in rows)
+        return [values[int(q * (len(values) - 1))] for q in (0.1, 0.5, 0.9)]
+    print("  %-34s %28s %28s" % ("reading", "every point 10/50/90", "the misses' dips 10/50/90"))
+    for label, key_all, key_dip in [
+            ("drag phi' / theta'", lambda r: r[0], lambda d: d[1]),
+            ("|swell| (ln |F|)' / theta'", lambda r: abs(r[1]), lambda d: abs(d[2]))]:
+        print("  %-34s %28s %28s" % (label, " ".join("%9.3f" % v for v in quantiles(every, key_all)),
+                                     " ".join("%9.3f" % v for v in quantiles(dips, key_dip))))
+    back_all = 100.0 * sum(1 for r in every if r[0] < 0.0) / max(1, len(every))
+    back_dip = 100.0 * sum(1 for d in dips if d[1] < 0.0) / max(1, len(dips))
+    print("  clock running back, phi' < 0: every point %.2f%%, the misses' dips %.2f%%" % (back_all, back_dip))
+    print("  %d host checks failed" % failed)
+    return 0 if failed == 0 else 1
+
+
+def pulses_of(fine, x2, reach=4.0, least=4):
+    """The twist pulses F casts off where it passes near a zero of its own, t* = gamma + i delta off the real t axis.
+    There d/dt ln F = 1 / (t - t*): the swell (ln |F|)' = u / (u^2 + delta^2) and the twist (arg F)' = delta /
+    (u^2 + delta^2), u = t - gamma, one pole. The twist is a Lorentzian of height 1 / delta and turn pi, a parabola at
+    its top, and (swell, twist) runs a circle of diameter 1 / delta through the origin; the neighbors and F's curve
+    make it an egg. At each local minimum of |F| with delta = |F| / |F'| at least `least` fine steps and under the
+    clock's own 1 / theta', the pulses past the clock, back or forward, read over `reach` deltas each side: the peak twist
+    times delta, the loop's diameter (x^2 + y^2) / y over 1 / delta at its 10th and 90th percentiles, the swell's lead
+    against its trail, the turn over the window against 2 atan(reach), and the window's fine indices."""
+    out = []
+    dt = 2 * math.pi * (x2[1] - x2[0])
+    for j in range(2, len(fine) - 2):
+        if not (abs(fine[j][3]) < abs(fine[j - 1][3]) and abs(fine[j][3]) <= abs(fine[j + 1][3])):
+            continue
+        clock = 0.5 * math.log(x2[j])
+        w = fine[j][3]
+        f_prime = abs((fine[j + 1][3] - fine[j - 1][3]) / (2 * dt) - complex(0, clock) * w)
+        if f_prime == 0.0:
+            continue
+        delta = abs(w) / f_prime
+        span = int(math.ceil(reach * delta / dt))
+        if delta < least * dt or delta * clock >= 1.0 or j - span < 1 or j + span > len(fine) - 2:
+            continue
+        xs, ys = [], []
+        for k in range(j - span, j + span + 1):
+            turn = fine[k + 1][3] / fine[k - 1][3]
+            twist = math.atan2(turn.imag, turn.real) / (2 * dt) - 0.5 * math.log(x2[k])
+            swell = (math.log(abs(fine[k + 1][3])) - math.log(abs(fine[k - 1][3]))) / (2 * dt)
+            xs.append(swell)
+            ys.append(twist)
+        sign = 1.0 if ys[span] > 0 else -1.0
+        peak = max(sign * y for y in ys)
+        loop = sorted((x * x + y * y) / (sign * y) * delta for x, y in zip(xs, ys) if sign * y > 0.25 * peak)
+        lead, trail = -min(xs[:span + 1]), max(xs[span:])
+        out.append({"j": j, "delta": delta, "clock": clock, "peak": peak * delta, "sign": sign,
+                    "loop_low": loop[len(loop) // 10] if loop else 0.0,
+                    "loop_high": loop[(9 * len(loop)) // 10] if loop else 0.0,
+                    "egg": lead / trail if trail > 0 else 0.0,
+                    "turn": sign * sum(ys) * dt / (2 * math.atan(reach)),
+                    "low": j - span, "high": j + span})
+    return out
+
+
+def main_pulse(binary, base, count, rate):
+    """Cells `base` to base + count - 1 on one fine lattice each: every twist pulse past the clock, read against the
+    single pole, and the misses of the uniform coarse lattice at the rate, each counted inside a pulse or not and read
+    across its two zeros. theta is monotone, and two zeros inside one coarse step want phi = theta + arg F to run back
+    across a level, phi' < 0, or to sweep pi inside the step, phi' at least the rate times theta'; R moves the level
+    by R / (2 |F|), the way left."""
+    constants = tm.Constants()
+    pulses, misses, inside, covered, total, failed = [], 0, 0, 0, 0, 0
+    ways = {"back": 0, "spin": 0, "neither": 0, "neither_most": 0.0}
+    for at in range(base, base + count):
+        z = tm.rises(at)
+        fine_p = math.ceil(math.log2(8 * rate * z))
+        step = max(2, round((1 << fine_p) / (rate * z)))
+        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=1)
+        failed += cell.failed
+        fine = points_of(cell)
+        os.remove(cell.path)
+        x2 = [at * at + j * (2 * at + 1) / len(fine) for j in range(len(fine))]
+        found = pulses_of(fine, x2)
+        pulses.extend(found)
+        marks = bytearray(len(fine))
+        for p in found:
+            marks[p["low"]:p["high"] + 1] = b"\x01" * (p["high"] - p["low"] + 1)
+        covered += sum(marks)
+        total += len(fine)
+        for a, b, first, second in misses_on(comb_indices(len(fine), step, (1,)), fine):
+            dip = max(range(first[1], second[0] + 1), key=lambda j: abs(fine[j][2]))
+            misses += 1
+            inside += marks[dip]
+            drags = [ripple_at(fine, x2, j)[0] for j in range(first[0], second[1] + 1)]
+            if min(drags) < 0.0:
+                ways["back"] += 1
+            elif max(drags) >= rate:
+                ways["spin"] += 1
+            else:
+                ways["neither"] += 1
+                ways["neither_most"] = max(ways["neither_most"], max(drags))
+        print("  cell %d done, %d pulses so far" % (at, len(pulses)), flush=True)
+
+    def q(key):
+        values = sorted(p[key] for p in pulses)
+        return " ".join("%8.3f" % values[int(f * (len(values) - 1))] for f in (0.1, 0.5, 0.9)) if values else "-"
+    back = sum(1 for p in pulses if p["sign"] < 0)
+    print("  pulses past the clock, delta theta' under 1: %d, %d turning against theta and %d with it" % (
+        len(pulses), back, len(pulses) - back))
+    print("  %-40s %26s" % ("against the single pole", "10/50/90"))
+    for p in pulses:
+        p["clock_delta"] = p["delta"] * p["clock"]
+    for label, key in [("delta theta', under 1 past the clock", "clock_delta"), ("peak twist times delta, pole 1", "peak"),
+                       ("loop diameter low over 1/delta, pole 1", "loop_low"),
+                       ("loop diameter high over 1/delta, pole 1", "loop_high"),
+                       ("swell lead over trail, pole 1", "egg"), ("turn over 2 atan(4), pole 1", "turn")]:
+        print("  %-40s %26s" % (label, q(key)))
+    print("  misses %d, inside a pulse %d (%.1f%%); the pulses cover %.2f%% of the fine points" % (
+        misses, inside, 100.0 * inside / max(1, misses), 100.0 * covered / max(1, total)))
+    print("  each miss across its two zeros: the clock runs back %d, spins past %.2f theta' %d, neither %d (the most "
+          "drag among them %.3f theta')" % (ways["back"], rate, ways["spin"], ways["neither"], ways["neither_most"]))
+    print("  %d host checks failed" % failed)
+    return 0 if failed == 0 else 1
+
+
+SOURCE_BANDS = [0.25, 0.5, 1.0, 2.0, 4.0]
+SOURCE_HARMONICS = [2, 3, 4, 6, 10, 20, 40]
+
+
+def harmonic_size(t, k):
+    """|F_k(t)|, F cut to its first k harmonics, the sum over n up to k of n^(-1/2) exp(-i t ln n)."""
+    re = sum(math.cos(t * math.log(n)) / math.sqrt(n) for n in range(1, k + 1))
+    im = sum(math.sin(t * math.log(n)) / math.sqrt(n) for n in range(1, k + 1))
+    return math.hypot(re, im)
+
+
+def mangoldt(n):
+    """Lambda(n): ln p where n is a power of the prime p, else 0."""
+    for p in range(2, n + 1):
+        if n % p == 0:
+            while n % p == 0:
+                n //= p
+            return math.log(p) if n == 1 else 0.0
+    return 0.0
+
+
+def source_density(t, k):
+    """The sources' density read from F'/F cut at k: -(sum over n up to k of Lambda(n) n^(-1/2) cos(t ln n)), the
+    lines log F shares with log zeta for every n up to N."""
+    return -sum(mangoldt(n) * math.cos(t * math.log(n)) / math.sqrt(n) for n in range(2, k + 1))
+
+
+def main_source(binary, base, count, rate):
+    """Cells `base` to base + count - 1 on one fine lattice each. Each local minimum of |F| is a source, a zero of F at
+    t* = gamma + i delta: gamma where |F| is least, |delta| = |F| / |F'|, its side the sign of the twist there. The
+    sources a zero of Z, by delta theta'; their gammas locked on the beats ln(n / m); and F cut to its first k
+    harmonics, its dents read against the misses' dips and the sources past the clock: the share of each in the
+    lowest fifth of |F_k|, a fifth where the harmonics place nothing."""
+    constants = tm.Constants()
+    sources, dips, sample, zeros_total, failed = [], [], [], 0, 0
+    for at in range(base, base + count):
+        z = tm.rises(at)
+        fine_p = math.ceil(math.log2(8 * rate * z))
+        step = max(2, round((1 << fine_p) / (rate * z)))
+        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=1)
+        failed += cell.failed
+        fine = points_of(cell)
+        os.remove(cell.path)
+        zeros_total += len(zeros_of(fine)[0])
+        x2 = [at * at + j * (2 * at + 1) / len(fine) for j in range(len(fine))]
+        dt = 2 * math.pi * (x2[1] - x2[0])
+        for j in range(1, len(fine) - 1):
+            w = fine[j][3]
+            if not (abs(w) < abs(fine[j - 1][3]) and abs(w) <= abs(fine[j + 1][3])):
+                continue
+            clock = 0.5 * math.log(x2[j])
+            f_rel = ((fine[j + 1][3] - fine[j - 1][3]) / (2 * dt) - complex(0, clock) * w) / w if abs(w) else 0j
+            if f_rel == 0j:
+                continue
+            delta = math.copysign(1.0 / abs(f_rel), f_rel.imag)
+            sources.append((2 * math.pi * x2[j], delta, abs(delta) * clock))
+        for j in range(0, len(fine), 64):
+            sample.append(2 * math.pi * x2[j])
+        for a, b, first, second in misses_on(comb_indices(len(fine), step, (1,)), fine):
+            dip = max(range(first[1], second[0] + 1), key=lambda j: abs(fine[j][2]))
+            dips.append(2 * math.pi * x2[dip])
+        print("  cell %d done, %d sources so far" % (at, len(sources)), flush=True)
+    print("  zeros of Z %d, sources %d, %.4f a zero; Langer's count for a sum to ln N, one source each two zeros" % (
+        zeros_total, len(sources), len(sources) / max(1, zeros_total)))
+    print("  %-26s %10s %10s %10s" % ("delta theta' under", "sources", "a zero", "back share"))
+    for band in SOURCE_BANDS:
+        inside = [s for s in sources if s[2] < band]
+        back = sum(1 for s in inside if s[1] < 0)
+        print("  %-26s %10d %10.4f %9.1f%%" % (band, len(inside), len(inside) / max(1, zeros_total),
+                                              100.0 * back / max(1, len(inside))))
+    near = [s[0] for s in sources if s[2] < 1.0]
+    print("  the lock of the sources past the clock, %d, on each beat of |F|^2" % len(near))
+    print("  %-14s %10s %9s %10s %9s" % ("beat", "omega", "R", "direction", "z"))
+    for m, n in RIPPLE_PAIRS:
+        r, ang, zz = rayleigh(near, math.log(n / m))
+        print("  %-14s %10.5f %9.4f %10.1f %9.2f" % ("ln(%d/%d)" % (n, m), math.log(n / m), r, ang, zz))
+    for omega in RIPPLE_NULLS:
+        r, ang, zz = rayleigh(near, omega)
+        print("  %-14s %10.5f %9.4f %10.1f %9.2f" % ("null", omega, r, ang, zz))
+    print("  %-10s %16s %22s %24s" % ("harmonics", "lowest fifth at", "misses in it", "sources past the clock"))
+    for k in SOURCE_HARMONICS:
+        cut = sorted(harmonic_size(t, k) for t in sample)[len(sample) // 5]
+        hit_dips = sum(1 for t in dips if harmonic_size(t, k) <= cut)
+        hit_near = sum(1 for t in near if harmonic_size(t, k) <= cut)
+        print("  %-10d %16.4f %14d (%5.1f%%) %16d (%5.1f%%)" % (
+            k, cut, hit_dips, 100.0 * hit_dips / max(1, len(dips)), hit_near, 100.0 * hit_near / max(1, len(near))))
+    print("  %-10s %16s %22s %24s" % ("lines to", "highest fifth at", "misses in it", "sources past the clock"))
+    for k in SOURCE_HARMONICS:
+        cut = sorted(source_density(t, k) for t in sample)[(4 * len(sample)) // 5]
+        hit_dips = sum(1 for t in dips if source_density(t, k) >= cut)
+        hit_near = sum(1 for t in near if source_density(t, k) >= cut)
+        print("  %-10d %16.4f %14d (%5.1f%%) %16d (%5.1f%%)" % (
+            k, cut, hit_dips, 100.0 * hit_dips / max(1, len(dips)), hit_near, 100.0 * hit_near / max(1, len(near))))
+    print("  %d host checks failed" % failed)
+    return 0 if failed == 0 else 1
+
+
+def sieve_mangoldt(top):
+    """Lambda(n) for every n to `top`, by a sieve: ln p at each power of each prime p, else 0."""
+    out = [0.0] * (top + 1)
+    composite = bytearray(top + 1)
+    for p in range(2, top + 1):
+        if composite[p]:
+            continue
+        composite[p * p::p] = b"\x01" * len(composite[p * p::p])
+        power = p
+        while power <= top:
+            out[power] = math.log(p)
+            power *= p
+    return out
+
+
+def proth_verdict(n):
+    """Proth's certificate for n where his theorem reaches it: ("prime" or "composite", the witness), else None."""
+    _, _, reachable = twiddle_proof.proth_form(n)
+    if not reachable:
+        return None
+    return twiddle_proof.proth_prime(n)
+
+
+def zeros_located(fine, x2):
+    """Each zero of Z on the fine lattice, its t by the chord between the two certified points it lies between."""
+    out = []
+    for a, b in zeros_of(fine)[0]:
+        za, zb = fine[a][2], fine[b][2]
+        ta, tb = 2 * math.pi * x2[a], 2 * math.pi * x2[b]
+        out.append(ta + (tb - ta) * za / (za - zb) if za != zb else (ta + tb) / 2)
+    return out
+
+
+def main_primes(binary, base, count, rate):
+    """Cells `base` to base + count - 1 on one fine lattice each.
+
+    The wave origins: the sources of F, the zeros of the main sum F off the line, locked on ln n for every n to N.
+    log F has zeta's Dirichlet coefficients to N, and the lock is Lambda(n) n^(-1/2), zero at every n not a prime
+    power. This reads back what F was built from, and checks the sources are placed right.
+
+    The primes past N: the zeros of Z in the window [T1, T2], by Landau, sum to -((T2 - T1) / 2 pi) Lambda(x) / sqrt(x)
+    for every x > 1. With a Hann taper w over the window, D(x) = -(4 pi / (T2 - T1)) sqrt(x) sum of w cos(gamma ln x)
+    reads Lambda(x), each integer apart while x is under (T2 - T1) / 4 pi. Each x read past ln 2 / 2 is called a
+    prime power; the calls are graded by the sieve, every one Proth's theorem reaches is proved by its witness, and
+    the sum of D to x is read against psi(x)."""
+    constants = tm.Constants()
+    sources, gammas, failed, top_n = [], [], 0, 0
+    for at in range(base, base + count):
+        z = tm.rises(at)
+        fine_p = math.ceil(math.log2(8 * rate * z))
+        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=1)
+        failed += cell.failed
+        fine = points_of(cell)
+        os.remove(cell.path)
+        x2 = [at * at + j * (2 * at + 1) / len(fine) for j in range(len(fine))]
+        dt = 2 * math.pi * (x2[1] - x2[0])
+        for j in range(1, len(fine) - 1):
+            w = fine[j][3]
+            if not (abs(w) < abs(fine[j - 1][3]) and abs(w) <= abs(fine[j + 1][3])) or abs(w) == 0.0:
+                continue
+            clock = 0.5 * math.log(x2[j])
+            f_rel = ((fine[j + 1][3] - fine[j - 1][3]) / (2 * dt) - complex(0, clock) * w) / w
+            if f_rel != 0j and clock / abs(f_rel) < 1.0:
+                sources.append(2 * math.pi * x2[j])
+        gammas.extend(zeros_located(fine, x2))
+        top_n = max(top_n, at)
+        print("  cell %d done, %d sources and %d zeros so far" % (at, len(sources), len(gammas)), flush=True)
+
+    lam_n = sieve_mangoldt(top_n)
+    print("  the wave origins: %d sources, locked on ln n for n from 2 to N = %d" % (len(sources), top_n))
+    locks = []
+    for n in range(2, top_n + 1):
+        r, ang, zz = rayleigh(sources, math.log(n))
+        locks.append((n, r, ang, zz, lam_n[n] > 0))
+    powers = [k for k in locks if k[4]]
+    others = [k for k in locks if not k[4]]
+    cut = max(k[3] for k in others)
+    print("  prime powers %d: z least %.1f, median %.1f; others %d: z most %.1f, median %.2f" % (
+        len(powers), min(k[3] for k in powers), sorted(k[3] for k in powers)[len(powers) // 2], len(others), cut,
+        sorted(k[3] for k in others)[len(others) // 2]))
+    print("  prime powers locked past every other n: %d of %d; at 180 +- 30 degrees: %d" % (
+        sum(1 for k in powers if k[3] > cut), len(powers), sum(1 for k in powers if abs(k[2] - 180.0) <= 30.0)))
+    ratio = sorted(k[1] / (lam_n[k[0]] / math.sqrt(k[0])) for k in powers)
+    print("  R over Lambda(n) n^(-1/2) across the prime powers, 10/50/90: %.4f %.4f %.4f" % (
+        ratio[len(ratio) // 10], ratio[len(ratio) // 2], ratio[(9 * len(ratio)) // 10]))
+
+    t_low, t_high = min(gammas), max(gammas)
+    span = t_high - t_low
+    reach = int(span / (4 * math.pi))
+    lam = sieve_mangoldt(reach)
+    weights = [math.sin(math.pi * (g - t_low) / span) ** 2 for g in gammas]
+    scale = 4 * math.pi / span
+    print("  the primes past N: %d zeros in [%.3f, %.3f], each integer apart to %d" % (
+        len(gammas), t_low, t_high, reach))
+    reading = [0.0, 0.0]
+    for x in range(2, reach + 1):
+        lx = math.log(x)
+        total = 0.0
+        for g, w in zip(gammas, weights):
+            total += w * math.cos(g * lx)
+        reading.append(-scale * math.sqrt(x) * total)
+        if x % 500 == 0:
+            print("    read to %d" % x, flush=True)
+    bands = [(2, top_n), (top_n + 1, min(reach, 1000)), (1001, min(reach, 2000)), (2001, reach)]
+    print("  %-14s %8s %8s %8s %8s %8s %12s" % ("x", "truth", "called", "right", "false", "missed",
+                                                  "D / Lambda"))
+    for low, high in bands:
+        if low > high:
+            continue
+        truth = [x for x in range(low, high + 1) if lam[x] > 0]
+        called = [x for x in range(low, high + 1) if reading[x] > math.log(2) / 2]
+        right = [x for x in called if lam[x] > 0]
+        ratio = sorted(reading[x] / lam[x] for x in truth)
+        print("  %-14s %8d %8d %8d %8d %8d %12.3f" % ("%d to %d" % (low, high), len(truth), len(called), len(right),
+                                                       len(called) - len(right), len(truth) - len(right),
+                                                       ratio[len(ratio) // 2] if ratio else 0.0))
+    wrong = [x for x in range(2, reach + 1) if (reading[x] > math.log(2) / 2) != (lam[x] > 0)]
+    print("  every wrong call: %s" % ", ".join("%d (D %.3f, Lambda %.3f)" % (x, reading[x], lam[x]) for x in wrong))
+    ratio = sorted(reading[x] / lam[x] for x in range(2, reach + 1) if lam[x] > 0)
+    rest = sorted(abs(reading[x]) for x in range(2, reach + 1) if lam[x] == 0)
+    print("  D / Lambda at the prime powers, 1/10/50/90/99: %s; |D| elsewhere, 50/90/99/most: %s" % (
+        " ".join("%.3f" % ratio[int(f * (len(ratio) - 1))] for f in (0.01, 0.1, 0.5, 0.9, 0.99)),
+        " ".join("%.3f" % rest[int(f * (len(rest) - 1))] for f in (0.5, 0.9, 0.99, 1.0))))
+    proved = {"prime": 0, "composite": 0, "other": 0}
+    disagree = 0
+    for x in range(top_n + 1, reach + 1):
+        if reading[x] <= math.log(2) / 2:
+            continue
+        verdict = proth_verdict(x)
+        if verdict is None:
+            continue
+        kind = verdict[0] if verdict[0] in proved else "other"
+        proved[kind] += 1
+        is_prime = lam[x] > 0 and all(x % p for p in range(2, int(math.isqrt(x)) + 1))
+        if (kind == "prime") != is_prime:
+            disagree += 1
+    print("  calls past N that Proth reaches: %d proved prime, %d proved composite, %d otherwise; "
+          "%d against the sieve" % (proved["prime"], proved["composite"], proved["other"], disagree))
+    print("  %-8s %12s %12s %12s" % ("x", "psi(x)", "sum of D", "x"))
+    for x in [100, 300, 500, 1000, 1500, 2000, 2500, 3000]:
+        if x > reach:
+            continue
+        print("  %-8d %12.2f %12.2f %12d" % (x, sum(lam[2:x + 1]), sum(reading[2:x + 1]), x))
+    print("  %d host checks failed" % failed)
+    return 0 if failed == 0 else 1
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 2 and sys.argv[2] == "primes":
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.exit(main_primes(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), float(sys.argv[5])))
+    if len(sys.argv) > 2 and sys.argv[2] == "source":
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.exit(main_source(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), float(sys.argv[5])))
+    if len(sys.argv) > 2 and sys.argv[2] == "pulse":
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.exit(main_pulse(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), float(sys.argv[5])))
+    if len(sys.argv) > 2 and sys.argv[2] == "ripple":
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.exit(main_ripple(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), float(sys.argv[5])))
     if len(sys.argv) > 2 and sys.argv[2] == "e":
         sys.stdout.reconfigure(line_buffering=True)
         sys.exit(main_folds(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6]),
                             sys.argv[7] if len(sys.argv) > 7 else tempfile.mkdtemp(prefix="miss_folds_")))
+    if len(sys.argv) > 2 and sys.argv[2] == "carrier":
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.exit(main_carrier(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), float(sys.argv[5]),
+                              sys.argv[6] if len(sys.argv) > 6 else tempfile.mkdtemp(prefix="miss_carrier_")))
     sys.exit(main())
