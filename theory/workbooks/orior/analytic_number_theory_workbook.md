@@ -552,6 +552,31 @@ difference `2 ln m`.
 - **The spread at run 1024.** Three windows read below 1, more even than independent angles, and one
   above. Four windows do not make a trend.
 
+**Whole stretches** (`stretch` mode: windows end to end, each seeded at its own first boundary, every
+reading in one tally over the stretch; host equals device at every window, and the stretch's first and
+last boundaries meet the direct sum within the bar, 1,085,531 and 1,003,749 units of `2^-62` at most).
+
+| stretch | windows | each window's spread at run 1024: mean, deviation | below 1 | seconds |
+|---|---|---|---|---|
+| 2 to 65,535 | 64 | 1.1355, 1.0589 | 35 of 64 | 150 |
+| 1,000,000 to 1,016,383 | 16 | 0.8835, 0.5696 | 11 of 16 | 676 |
+
+The spread of independent angles at a run is exponential with mean 1 and deviation 1, below 1 at 63% of
+runs. Over the whole stretch from 2:
+
+| run | 1,024 | 2,048 | 4,096 | 8,192 | 16,384 | 32,768 | 65,534 |
+|---|---|---|---|---|---|---|---|
+| spread | 1.2479 | 1.1934 | 1.5648 | 1.7555 | 0.2116 | 0.7919 | 0.2176 |
+
+and from 1,000,000, at runs 1,024 to 16,384: 0.0953, 0.9871, 0.7426, 0.2707 and 0.1357.
+
+- **Each window spreads as independent angles do.** Over 64 windows the mean is 1.14 against 1, within
+  1.1 of its deviation 0.13, and over 16 at `10^6` it is 0.88 against 1. Three of the four windows read
+  below 1 by the draw.
+- **The whole stretch holds no direction and no extra evenness.** Its spread stays between 0.1 and 1.8
+  out to 65,534 readings: a held direction would grow it as the run, and a sequence more even than
+  independent angles would shrink it as one over the run.
+
 **What it is not.** These are readings of angles at boundaries, in four windows, at the places read.
 Whether the angles are equidistributed, and how evenly, is a question about all `n`, and none of it
 bears on the zeros of `Z` or on the hypothesis.
@@ -1051,8 +1076,9 @@ Every quantity is read in the walker's own frame: a heading that swings carries 
   rises by 0.476 and then 0.482, the sum of `1/n` over the cells between.
 - **What holds still.** The bearing, the distance from the arc and the pull from it hold to within a few
   percent over two e-folds, while the inertia rises by 0.96.
-- **What moves, one way.** The misses' radius over the median falls, and their turn over the median and
-  their share of the largest tenth of turns rise. Three heights do not tell a slow law from noise.
+- **What moves, one way, at three heights.** The misses' radius over the median falls, and their turn
+  over the median and their share of the largest tenth of turns rise. Over nine e-folds, below, the
+  three hold still within their scatter.
 
 **The scatter as the walk's check.** Posit, Doug's:
 - The scatter is the walk's early warning. It shows whether the walk follows the smooth natural
@@ -1094,6 +1120,38 @@ checks failed:
 
 A height's 600 to 2,200 misses read the share under us to about a tenth of a percent. A share of
 99.999% is read from `10^5` misses or more.
+
+**Measured, nine e-folds** (`e` mode from cell 10, 40 cells a height, ten heights from `t = 628` to
+`5.1 e6`, 4.64 to 4.72 points a zero coarse, 5,243 misses, 0 host checks failed):
+
+| | `e^0` | `e^1` | `e^2` | `e^3` | `e^4` | `e^5` | `e^6` | `e^7` | `e^8` | `e^9` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| first cell | 10 | 16 | 27 | 45 | 74 | 122 | 201 | 331 | 546 | 900 |
+| misses a thousand zeros | 2.52 | 3.34 | 3.29 | 3.72 | 3.83 | 3.83 | 4.76 | 4.50 | 4.56 | 4.57 |
+| inertia less the sum of `1/n` | 0.2030 | 0.1365 | 0.0780 | 0.0390 | 0.0181 | 0.0072 | 0.0031 | 0.0010 | 0.0009 | -0.0002 |
+| median radius | 1.234 | 1.236 | 1.240 | 1.247 | 1.257 | 1.263 | 1.268 | 1.275 | 1.281 | 1.288 |
+| misses' radius over the median | 0.515 | 0.463 | 0.470 | 0.523 | 0.448 | 0.483 | 0.446 | 0.457 | 0.467 | 0.483 |
+| misses' turn over the median | 1.207 | 1.230 | 1.260 | 1.234 | 1.247 | 1.254 | 1.216 | 1.237 | 1.229 | 1.219 |
+| misses in the largest tenth of turns | 33.3% | 37.1% | 39.6% | 39.5% | 42.0% | 37.5% | 33.3% | 38.3% | 36.9% | 36.6% |
+| bearing from the heading, median | 33.0° | 34.0° | 34.2° | 35.0° | 37.3° | 37.2° | 36.4° | 36.4° | 35.5° | 36.6° |
+| distance from the arc, steps, median | 0.072 | 0.076 | 0.076 | 0.089 | 0.090 | 0.091 | 0.090 | 0.096 | 0.089 | 0.098 |
+| the pickle's width | 0.016 | 0.042 | 0.039 | 0.043 | 0.067 | 0.039 | 0.071 | 0.115 | 0.090 | 0.092 |
+| the pickle's aspect | 0.105 | 0.313 | 0.287 | 0.296 | 0.393 | 0.230 | 0.414 | 0.479 | 0.439 | 0.391 |
+| under us, within a step | 100% | 100% | 100% | 100% | 100% | 99.537% | 99.559% | 99.190% | 99.312% | 99.173% |
+| far misses over the core's ninetieth | - | - | - | - | - | 5.07 | 5.13 | 6.53 | 4.65 | 3.96 |
+| misses | 21 | 35 | 48 | 81 | 131 | 216 | 454 | 741 | 1,309 | 2,297 |
+
+- **The rows that moved one way at three heights hold still.** The misses' radius over the median,
+  their turn over the median and their share of the largest tenth of turns scatter about 0.47, 1.23
+  and 37% with no direction across nine e-folds. At three heights their moves were the scatter.
+- **The inertia closes on its law.** The mean of `|w|^2` stands 0.20 above the sum of `1/n` at cell 10
+  and within `1 e-3` of it from cell 331 up, the excess falling by a third to two thirds each e-fold.
+- **What drifts, slowly and one way.** The median radius rises by 0.002 to 0.010 an e-fold, steadily
+  over all nine. The misses a thousand zeros rise from 2.5 to 4.6 and stand at 4.5 to 4.8 from `e^6`;
+  the distance from the arc from 0.072 to 0.098; the pickle's width and aspect rise to `e^7` and stand
+  after it.
+- **Under us.** No miss falls past a step below `e^5`, 316 misses; from `e^5` up the share past a step
+  is 0.44% to 0.83%, the far misses 4 to 6.5 times past the core.
 
 **Measured**, the carrier as a sampling grid (`carrier` mode, cells 300 to 309 on one fine lattice each,
 the coarse lattice placed six ways at the same rate, 0 host checks failed). The metallic combs are built
@@ -2293,9 +2351,9 @@ places, `N` and the widths come from the records.
   fractal. Then: it is a coordinate system, a dimension and time. Entry 8
   reads them as the three sides, each side's scaling exponent between cells, and `t`. The vector walk
   over them is wanted, not built.
-- Entry 8's spread of the arrival angles is read in four windows of 1,024 boundaries. More windows,
-  and whole stretches of boundaries, are wanted. The triangle measured past cell 6, against what the
-  omitted curves give there, is wanted.
+- Entry 8's spread of the arrival angles is read in 84 windows of 1,024 boundaries and over two whole
+  stretches, from 2 and from `10^6`. The triangle measured past cell 6, against what the omitted curves
+  give there, is wanted.
 - Computing `zeta(s)` in the critical strip needs complex arithmetic and an accelerated method,
   Riemann-Siegel or Euler-Maclaurin. Entry 4 uses Euler-Maclaurin across the strip, and entry 6
   Riemann-Siegel on the line. Riemann-Siegel off the line, for entry 4's boxes, is not built.
@@ -2319,11 +2377,9 @@ places, `N` and the widths come from the records.
   (7)): reading `w` and its conjugate against a chosen carrier with a drawn null is wanted, not built.
   The prior art, the
   explicit formula as a pairing and Weil positivity, is in [zeta_prior_art.md](zeta_prior_art.md).
-- Entry 16's rows under us, the far misses and the separation are built and not yet run. Nine e-folds,
-  from which a slow law in the drifting rows can be told from noise, are wanted.
 - Riemann-Siegel's bound charges an error `delta` in `theta` at first order, `Im(exp(i theta) F)` not
-  being small; Euler-Maclaurin's charges `|Z| delta^2 / 2` (entry 14). Riemann-Siegel's charge with
-  each point's own `|Im w|`, read from the device, is wanted, not written.
+  being small; Euler-Maclaurin's charges `|Z| delta^2 / 2` (entry 14). Riemann-Siegel's charge is
+  `2.9 e-10` at cell 10 against Gabcke's `1.0 e-3`, and their ratio falls as `nu^-4`.
 - Entry 10 reads `phi_r` for `u < 1/2` and `r < 8`. The Selberg transform of a kernel, `c(r)`, and
   the scattering `pi c(r) zeta(2 i r) / zeta(1 + 2 i r)`, whose poles sit at half the zeros, are
   wanted, not built.

@@ -6,6 +6,7 @@
 # What each wave lands in where it joins the main sum, read at the boundaries t = 2pi n^2 by the device.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_arrival.py [n0 ...]
+#           python examples/0_experimental/exact_zeta_arrival.py stretch <n0> <windows>
 #
 # This reads no corpus. It sits in 0_experimental and is an entry in the analytic number theory workbook, on its
 # rail: it claims nothing about the Riemann hypothesis.
@@ -35,12 +36,16 @@
 # and every boundary's mean is kept. The spread is read as |tally|^2 / (run S^2), an exact rational: run where every
 # reading points one way, and near 1 where they spread like independent angles.
 #
+# With stretch, windows run end to end from n0, each seeded at its own first boundary, and every reading goes into one
+# tally over the whole stretch beside each window's own; the stretch's first and last boundaries are summed directly.
+#
 # Positive control: a window from n0 = 0 against V_n summed directly on the host, every wave's phase from its own
 # logarithm, the gap in units of 2^-62, and every window's first and last boundary the same way. The bar is drawn: the
 # device's V_n meets the direct sum within 2^-40 at every boundary checked.
 
 import array
 import glob
+import math
 import os
 import shutil
 import subprocess
@@ -255,6 +260,46 @@ def main():
     return 1 - every
 
 
+def main_stretch(n0, count):
+    """`count` windows end to end from n0, each seeded at its own first boundary, every reading in one tally over the
+    whole stretch beside each window's own."""
+    out = sys.stdout
+    binary = build()
+    out.write("  a stretch of %d windows from n0 = %d, binary %s\n" % (count, n0, binary))
+    work = os.path.join(ROOT, "build")
+    whole, spreads, every = Tally(), [], 1
+    begun = time.perf_counter()
+    for j in range(count):
+        start = n0 + j * WINDOW
+        top = start + WINDOW
+        values, same, steps, code = run_device(binary, start, top, WINDOW // FLOORS, work)
+        window, digits = Tally(), digits_for(top)
+        for n in range(max(start, 2), top):
+            window.read(n, values[n], digits)
+            whole.read(n, values[n], digits)
+        spreads.append((window.re * window.re + window.im * window.im) / float(window.run << (2 * SCALE_BITS)))
+        every *= same
+        if j in (0, count - 1):
+            n = max(start, 2) if j == 0 else top - 1
+            d = direct(n, digits)
+            gap = max(abs(values[n][0] - d[0]), abs(values[n][1] - d[1]))
+            every *= int(gap < (1 << (SCALE_BITS - BAR_BITS)))
+            out.write("  boundary %d against the direct sum: %d units of 2^-62, within 2^-%d: %s\n"
+                      % (n, gap, BAR_BITS, gap < (1 << (SCALE_BITS - BAR_BITS))))
+    mean = sum(spreads) / count
+    deviation = math.sqrt(sum((v - mean) ** 2 for v in spreads) / count)
+    out.write("  each window's spread at its last boundary: mean %.4f, deviation %.4f, least %.4f, most %.4f, %d of %d"
+              " below 1; independent angles give 1 and 1\n" % (mean, deviation, min(spreads), max(spreads),
+                                                                sum(1 for v in spreads if v < 1), count))
+    first = max(n0, 2)
+    runs = [first + (WINDOW << k) - 1 for k in range(count.bit_length())] + [n0 + count * WINDOW - 1]
+    for n in sorted(set(runs)):
+        if n in whole.means:
+            out.write("  the whole stretch at boundary %d, run %d: %s\n" % (n, whole.means[n][2], spread_at(whole, n, 4)))
+    out.write("  host equals device and both ends within the bar: %s; %.1fs\n" % (bool(every), time.perf_counter() - begun))
+    return 1 - every
+
+
 def spread_at(tally, n, places):
     re, im, run = tally.means[n]
     v = (re * re + im * im) * 10 ** places // (run << (2 * SCALE_BITS))
@@ -262,4 +307,7 @@ def spread_at(tally, n, places):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 3 and sys.argv[1] == "stretch":
+        sys.stdout.reconfigure(line_buffering=True)
+        raise SystemExit(main_stretch(int(sys.argv[2]), int(sys.argv[3])))
     raise SystemExit(main())
