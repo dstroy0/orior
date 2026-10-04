@@ -1077,9 +1077,275 @@ checks failed:
   far misses stand four to nine times past the core: single dots, not a smear.
 
 A height's 600 to 2,200 misses read the share under us to about a tenth of a percent. A share of
-99.999% is read from `10^5` misses or more. The carrier of posit (6), locked to the zeros' rhythm, is
-the next thing that would narrow the width and raise the share; the measurement is the cross-track RMS.
-These rows are built and run; the carrier is not.
+99.999% is read from `10^5` misses or more.
+
+**Measured**, the carrier as a sampling grid (`carrier` mode, cells 300 to 309 on one fine lattice each,
+the coarse lattice placed six ways at the same rate, 0 host checks failed). The metallic combs are built
+as the coarse spacing: the comb `1, 1, 2` as a period-3 gap pattern, golden and silver as the Sturmian
+word of their slope, each against the uniform lattice and a shuffled null.
+
+| scheme | width, cross-track RMS | under us | misses |
+|---|---|---|---|
+| uniform | 0.099 | 97.0% | 166 |
+| comb `1, 1, 2` | 0.263 | 61.9% | 281 |
+| golden `1, 1, 1` | 0.118 | 86.1% | 216 |
+| silver `2, 2, 2` | 0.343 | 40.6% | 372 |
+| null, comb shuffled | 0.149 | 75.4% | 280 |
+| null, golden shuffled | 0.091 | 92.5% | 214 |
+
+- The result is against the posit. As a sampling grid the metallic rhythm widens the pickle and loses
+  misses under us, not narrows it. Every comb catches more misses than the uniform lattice and pushes
+  more past a step. The ordered comb is worse than its own shuffle (0.263 against 0.149; 0.118 against
+  0.091): the rhythm concentrates misses, it does not spread them.
+- The cause is the gap variance: a non-uniform lattice at one mean rate has longer gaps than the
+  uniform one, and a longer coarse gap hides more pairs and defeats the steady arc the placing extends
+  across it. Golden, the flattest comb, is the least hurt; silver and the comb, with the longest gaps,
+  the most.
+- The reading: the carrier is not a sampling grid. Its role as the posits set it, a known reference to
+  read `w` against, is a readout under a lattice chosen to catch zeros, not the lattice itself. The
+  grid wants to be uniform or denser where the dips are, not quasiperiodic.
+
+The share under us is raised by a lattice denser where it misses, the dip-driven control of the open
+list, not by a carrier grid.
+
+**The filter built to trap.** Posit, Doug's: a filter that concentrates misses is built wrong. It is
+to be built to trap the zeros between its peaks.
+- **The construction.** A zero of `Z` is where `Re(w)` crosses `-R/2`, near the imaginary axis; an
+  antinode, `|Z|` near a lobe's peak, is where `Im(w)` crosses zero, the real axis. As `w` winds the two
+  alternate, and a lattice at the `Im(w)` crossings holds a zero between each pair of its peaks.
+- **Measured** (`carrier` mode, cells 300 to 309, 69,789 zeros, 0 host checks failed):
+
+  | lattice | points | hidden zeros a thousand | floor |
+  |---|---|---|---|
+  | uniform at 4.7 points a zero | 327,680 | 4.8 | |
+  | antinode, `Im(w) = 0` | 46,345 | 368 | 336 |
+  | uniform, the antinode's point count | 46,579 | 668 | 333 |
+
+  The floor is the pigeonhole bound: a lattice with fewer intervals than zeros shows at most one zero an
+  interval, and hides at least the zeros less the intervals. At one density the antinode lattice hides
+  9% past its floor, and the uniform lattice twice its floor. The peaks land between the zeros.
+- **Why only 0.66 peaks a zero.** Derived: `Z' = -2 theta' Im(w) + 2 Re(exp(i theta) F') + R'`, with
+  `theta' = (1/2) ln(t / 2 pi)`. `Im(w) = 0` is `Z' = 0` only where the `F'` term is small, and `F'/F` is
+  largest where `|F|` is small, the small radii where the misses gather (entry 16, the radius rows).
+  `w` crosses the imaginary axis 1.5 times for each crossing of the real axis: it does not wind
+  monotonically, `F`'s own rotation running against the carrier's.
+- **The exact filter.** Derived, Rolle: `Z` is monotone between consecutive zeros of `Z'`, and holds at
+  most one zero there. A lattice at the zeros of `Z'` hides no pair, unconditionally, and shows each zero
+  as a sign change between two critical points. `F'` by the multiple evaluation with each charge
+  weighted by `ln k` gives `Z'` on the device.
+- **Prior art.** Lagarias (Acta Arith. 120, 2005, read pp. 1-6, [zeta_prior_art.md](zeta_prior_art.md)):
+  `A_h = Re xi(1/2 + h + i t)` and `B_h = -Im xi(1/2 + h + i t)` have every zero on the line, simple, and
+  interlaced, for `h >= 1/2` unconditionally and for every `h > 0` under RH. Derived, Cauchy-Riemann: as
+  `h -> 0+`, `A_h -> Xi` and `B_h / h -> Xi'`, and the interlacing of `A_h` with `B_h` becomes the
+  interlacing of `Xi`'s zeros with its critical points. Rolle gives one critical point between two
+  zeros at least; exactly one, no wiggle, is the Laguerre-Polya property RH gives `Xi` (from knowledge).
+- **The drag on the clock.** Posit, Doug's: the 9% past the floor is a drag on the carrier's clock not
+  yet in the model, and is to be added. Its candidate is the angular momentum itself, rippling the
+  anisotropic plane as paper ripples on a table.
+  Derived: with `w = |F| exp(i phi)` and `phi = theta + arg F`, `Z = 2 |F| cos(phi)` past `R`, and
+  `Z' = 2 |F| ((ln |F|)' cos(phi) - phi' sin(phi))`. The antinode lattice reads the clock as `theta`
+  alone. Two terms of `F'` move the peak off it: `F`'s own turning, `phi' = theta' + (arg F)'`, the
+  angular momentum, which runs against the carrier where `|F|` is small; and the swell of its size,
+  `(ln |F|)'`, the plane lifting, which sets the peak at `tan(phi) = (ln |F|)' / phi'` in place of
+  `phi = k pi`.
+- **Measured, the trap with the drag added** (`carrier` mode, cells 300 to 309, 69,789 zeros, the
+  turning points of `Z` on the fine lattice, 0 host checks failed):
+
+  | lattice | points | points a zero | hidden zeros a thousand | floor |
+  |---|---|---|---|---|
+  | antinode, `Im(w) = 0` | 46,345 | 0.664 | 368 | 336 |
+  | turning points, `Z' = 0` | 69,807 | 1.0003 | 0 | 0 |
+  | uniform, the turning lattice's point count | 70,294 | 1.007 | 319 | 0 |
+
+  Turning points on the wrong side of zero, a positive minimum or a negative maximum: 0. Between each
+  two zeros `Z` turns once and only once, and the points past one a zero are the cells' ends. The drag
+  is all of it: with `F`'s turning and swell added, the trap holds every zero at one point a zero, where
+  a uniform lattice of the same count hides 319 a thousand.
+- **Bounds.** The turning points are read from the fine lattice, at least 38 points a zero: a turn
+  narrower than a fine step is not seen, and by Rolle the fine lattice hides no pair between its own
+  turning points by construction. The reading is the count, one turn a gap with none wasted. The trap at
+  coarse cost wants `Z'` from `F'` on the device, located without the fine lattice. Exactly one
+  critical point of `Z` between consecutive zeros for large `t` is the form a statement under RH takes,
+  `Z'/Z` decreasing between zeros from the Hadamard product (from knowledge, not read).
+- **The ripples and their waves.** Posit, Doug's: the ripples in the surface account for much of the
+  noise, through their harmonics. A swell of the magnitude is coupled directly to the ball's angular
+  momentum, its twist above all, and casts off sharply peaked waves, parabolic at the top and ovoid in
+  shape.
+  Derived: where `F` passes near a zero of its own, `t* = gamma + i delta` off the real `t` axis,
+  `d/dt ln F = 1 / (t - t*)`. Its real part is the swell, `(ln |F|)' = u / (u^2 + delta^2)` with
+  `u = t - gamma`, and its imaginary part the twist, `(arg F)' = delta / (u^2 + delta^2)`: one pole, the
+  two coupled by Cauchy-Riemann. The twist is a Lorentzian of height `1 / delta`, width `delta` and turn
+  `pi`, a parabola at its top, and `(swell, twist)` runs a circle of diameter `1 / delta` through the
+  origin, a line inverted. `F`'s neighbors and its curve press the circle to an egg. A twist past
+  `theta'`, `delta < 1 / theta'`, runs the clock back.
+- **Measured, the ripples** (`ripple` mode, cells 300 to 309, the 166 misses of the uniform lattice at
+  4.76 points a zero, 0 host checks failed). F's drag and swell at the misses' dips against every
+  seventh fine point:
+
+  | reading | every point, 10 / 50 / 90 | the misses' dips, 10 / 50 / 90 |
+  |---|---|---|
+  | drag, `phi' / theta'` | 0.078 / 0.621 / 1.152 | -0.027 / 0.008 / 0.214 |
+  | swell, `\|(ln \|F\|)'\| / theta'` | 0.049 / 0.281 / 0.962 | 0.229 / 0.782 / 3.076 |
+  | clock running back, `phi' < 0` | 8.77% | 30.72% |
+
+  At the median miss the clock stands still, and the plane swells at 2.8 times its median. The lock of
+  the misses' times on each beat `ln(n / m)` of `|F|^2`, by Rayleigh's `z = n R^2`, the chance of so
+  tight a lock among uniform phases near `exp(-z)`:
+
+  | beat | `R` | direction | `z` |
+  |---|---|---|---|
+  | `ln 2` | 0.108 | 214 | 1.94 |
+  | `ln 3` | 0.299 | 175 | 14.82 |
+  | `ln 3/2` | 0.069 | 283 | 0.79 |
+  | `ln 4` | 0.120 | 148 | 2.39 |
+  | `ln 4/3` | 0.016 | 243 | 0.04 |
+  | `ln 5` | 0.168 | 178 | 4.67 |
+  | `ln 5/2` | 0.031 | 14 | 0.16 |
+  | `ln 6` | 0.102 | 356 | 1.72 |
+  | null, 0.5 / 0.9 / 1.3 / 1.9 / 2.3 | 0.02 to 0.13 | | 0.07 to 2.83 |
+
+  The misses lock on `ln 3`, at 175 degrees, where `cos(t ln 3) = -1` and that beat takes from `|F|`,
+  past any null by a factor of five in `z`, and on `ln 5` at 178 degrees more weakly. `ln 2`, the
+  largest beat, does not lock. Why the odd beats and not `ln 2` is open.
+- **Measured, the waves** (`pulse` mode, the same cells). Each local minimum of `|F|` with
+  `delta = |F| / |F'|` under `1 / theta'` and at least four fine steps, read over four `delta` each side:
+
+  | against the single pole | 10 / 50 / 90 | the pole |
+  |---|---|---|
+  | `delta theta'` | 0.234 / 0.492 / 0.807 | under 1 |
+  | peak twist times `delta` | 0.988 / 0.999 / 1.019 | 1 |
+  | the loop's diameter over `1 / delta`, its low tenth | 0.390 / 0.632 / 0.996 | 1 |
+  | the loop's diameter over `1 / delta`, its high tenth | 0.982 / 1.023 / 1.636 | 1 |
+  | the swell's lead over its trail | 0.648 / 1.001 / 1.542 | 1 |
+  | the turn over the window, over `2 atan(4)` | 0.198 / 1.359 / 1.957 | 1 |
+
+  16,919 pulses pass the clock, 0.24 a zero: 10,236 turn against `theta` and run the clock back, and
+  6,683 turn with it and spin it past twice its rate. The peak twist times `delta` is 1 by identity at a
+  minimum of `|F|`, where the swell is 0 and `|F'/F|` is the twist: the reading says the twist peaks
+  at the minimum, and the top is the pole's parabola. The loop is the egg: at its crown the diameter is
+  the circle's, 1.02, and on its flanks it falls to 0.63, the tails dropping faster than the
+  Lorentzian's. The egg leans either way, the swell's lead over its trail 1.00 at the median and 0.65
+  to 1.54 between the tenths. The turn over the window is wide, the window reaching a zero's spacing
+  and the next pulse inside it.
+  The misses sit in the waves: 125 of the 166 (75.3%) fall inside a pulse, and the pulses cover 31.6%
+  of the fine points.
+- **The program holds, the surface hides.** Posit, Doug's: the cause of the misses is known. The
+  surface's geometry deforms as it is walked, while the fractal program does not change and follows its
+  curves exactly; the deformation of the surface hides the zeros.
+  Derived: `Z = 2 |F| cos(phi) + R`, `phi = theta + arg F`, and `theta` is monotone, `theta' = ln x`.
+  Two zeros inside one coarse step want `phi` to cross a level and run back across it, `phi' < 0`, or to
+  sweep `pi` inside the step, `phi'` at least the rate times `theta'`. `theta` does neither; only the
+  twist of `F` past `theta'` does. `R` moves the level by `R / (2 |F|)`, largest where `|F|` dents, and
+  is the way left.
+- **Measured, each miss across its two zeros** (`pulse` mode, the same cells, the 166 misses):
+
+  | across the two zeros | misses |
+  |---|---|
+  | the clock runs back, `phi' < 0` | 155 |
+  | the clock spins past 4.76 `theta'` | 10 |
+  | neither | 1 |
+
+  165 of the 166 are the surface's twist. The one left reaches 1.50 `theta'` at most between its zeros,
+  the level's move by `R / (2 |F|)` the way derived for it, not yet read.
+- **The sources of the waves.** Posit, Doug's: with the wave's shape known where it is made, its
+  harmonics locate the wave's origin, show whether the origins form a regular interference pattern, and
+  predict where seiches will occur.
+  Derived: each pulse places its source, the zero of `F` at `t* = gamma + i delta`: `gamma` where `|F|`
+  is least, `|delta| = |F| / |F'|` there, its side the sign of the twist. `F` is a sum of exponentials
+  with frequencies `ln n` to `ln N`, near `theta'`, and Langer's count puts its zeros in a strip, about
+  `L ln N / 2 pi` in a length `L`: one source for each two zeros of `Z` (from knowledge, not read). The
+  Dirichlet coefficients of `log F` at `n` are fixed by `F`'s at the divisors of `n`, and `F`'s are
+  `zeta`'s to `N`: `F'/F` carries `-Lambda(n) n^(-1/2)` at the frequency `ln n` for every `n` up to `N`,
+  lines at the prime powers and none elsewhere. This is Landau's formula, read for the zeros of `F` in
+  place of `zeta`'s ([zeta_prior_art.md](zeta_prior_art.md)).
+- **Measured, the sources** (`source` mode, the same cells, 69,789 zeros of `Z`, 0 host checks failed).
+  28,901 sources, 0.414 a zero against Langer's 0.5; a source far from the line leaves no minimum of
+  `|F|` to read. 22,319 sit within `1 / theta'` of the line, 0.320 a zero, 58% of them turning against
+  `theta`. Their `gamma`s locked on each beat:
+
+  | beat | `Lambda(n) n^(-1/2)` | `R` | direction | `z` |
+  |---|---|---|---|---|
+  | `ln 2` | 0.490 | 0.135 | 181.0 | 404 |
+  | `ln 3` | 0.634 | 0.172 | 180.4 | 659 |
+  | `ln 4` | 0.347 | 0.082 | 178.2 | 150 |
+  | `ln 5` | 0.720 | 0.174 | 179.9 | 679 |
+  | `ln 6` | 0 | 0.009 | 355.2 | 1.7 |
+  | `ln 5/2` | 0 | 0.006 | 342.2 | 0.8 |
+  | `ln 3/2` | 0 | 0.034 | 3.8 | 26 |
+  | `ln 4/3` | 0 | 0.022 | 6.1 | 11 |
+  | null, 0.5 / 0.9 / 1.3 / 1.9 / 2.3 | | 0.001 to 0.008 | | 0.04 to 1.4 |
+
+  The sources lock on the prime powers at 180 degrees, Landau's sign, and `R` runs with
+  `Lambda(n) n^(-1/2)`: `ln 3` over `ln 2` is 1.28 against 1.29. `ln 6` does not lock, `Lambda(6) = 0`.
+  `ln 3/2` and `ln 4/3` lock weakly, past the null and two orders under the prime lines: the choice of
+  sources by `delta`, a function of `|F|`, carries `|F|^2`'s beats.
+- **Measured, the seiches.** The sources' density read from `F'/F` cut at `k`,
+  `-(sum over n to k of Lambda(n) n^(-1/2) cos(t ln n))`, against `|F|` cut at its first `k` harmonics;
+  the share of the 166 misses and of the 22,319 sources in the fifth each places highest, a fifth where
+  it places nothing:
+
+  | to `k` | `\|F_k\|` lowest fifth, misses | `F'/F` lines highest fifth, misses | the same, sources |
+  |---|---|---|---|
+  | 3 | 31.9% | 33.1% | 28.2% |
+  | 6 | 27.7% | 38.0% | 31.5% |
+  | 10 | 23.5% | 34.9% | 33.1% |
+  | 20 | 27.1% | 50.0% | 38.9% |
+  | 40 | 39.8% | 63.9% | 43.8% |
+
+  The prime lines place the seiches, and better with each line added: to 40, 64% of the misses fall in
+  the fifth they mark, 3.2 times a fifth. `|F|`'s own harmonics place them barely past a fifth. The
+  lines run to `N`, 300 here, and the reading past 40 is open.
+- **The primes from the waves.** Posit, Doug's: the engine proves primes very fast. That validates the
+  waves' origins, and the harmonics then predict the primes' locations and their distribution. The
+  validator is Proth's witness,
+  [twiddle-proof.md](twiddle-proof.md): `a^((N-1)/2) = -1 mod N` proves `N = k 2^n + 1`, `k < 2^n`,
+  prime in one exponentiation, and a failed witness proves it composite.
+  Derived, the two readings and what each can claim:
+  - The sources of `F` read back `F`'s own coefficients. `log F` has `zeta`'s to `N` by construction,
+    and the primes to `N` found in the sources check that the sources are placed right; they are not a
+    prediction.
+  - The zeros of `Z` are `zeta`'s, certified. By Landau, for every `x > 1` the zeros in a window
+    `[T1, T2]` sum to `sum of x^(i gamma) = -((T2 - T1) / 2 pi) Lambda(x) / sqrt(x)`, its error of order
+    `log T` and not a random walk's. With a Hann taper `w` over the window,
+    `D(x) = -(4 pi / (T2 - T1)) sqrt(x) sum of w cos(gamma ln x)` reads `Lambda(x)`, the integers apart
+    while `x` is under `(T2 - T1) / 4 pi`. Every main sum in the window stops at `N`; a prime past `N`
+    read from the zeros is not in any of them.
+- **Measured, the primes** (`primes` mode, cells 300 to 309, 0 host checks failed).
+  The wave origins: the 22,319 sources within `1 / theta'` of the line locked on `ln n` for every `n`
+  from 2 to `N = 309`. All 80 prime powers lock at 180 degrees within 30, Landau's sign; 69 of them
+  lock past every other `n`, and 11 do not. The other 228 `n` lock at a median `z` of 0.25 and at most
+  30.0, the prime powers at a median of 102.7 and at least 2.3. `R` over `Lambda(n) n^(-1/2)` holds near one constant, 0.158 to
+  0.225 between the tenths, median 0.173.
+  The primes past `N`: the 69,789 certified zeros of `Z` in `[565486.874, 603813.576]` read `D(x)` at
+  every integer to 3,049, and each `x` with `D(x)` past `ln 2 / 2` is called a prime power:
+
+  | `x` | prime powers | called | right | false | missed | `D / Lambda`, median |
+  |---|---|---|---|---|---|---|
+  | 2 to 309, to `N` | 80 | 80 | 80 | 0 | 0 | 1.000 |
+  | 310 to 1,000 | 113 | 113 | 113 | 0 | 0 | 1.000 |
+  | 1,001 to 2,000 | 140 | 140 | 140 | 0 | 0 | 1.000 |
+  | 2,001 to 3,049 | 140 | 141 | 140 | 1 | 0 | 1.000 |
+
+  Past `N`, ten times past it, every prime power is called and one integer that is not: 2,550, `D`
+  0.416, between the twin primes 2,549 and 2,551. There the window parts integers 0.84 of a step apart,
+  and the two lobes add. `D / Lambda` at the prime powers runs 0.998 to 1.002 between the 1st and 99th
+  percentiles; `|D|` elsewhere has a median of 0.001, a 99th percentile of 0.184, and 0.416 at most,
+  at 2,550. The 15 calls
+  past `N` that Proth's theorem reaches carry their certificates, 14 proved prime and 1 proved
+  composite, a prime power, and none of the 15 against the sieve. The distribution, the sum of `D`
+  to `x` against `psi(x)`:
+
+  | `x` | `psi(x)` | sum of `D` |
+  |---|---|---|
+  | 100 | 94.05 | 94.05 |
+  | 500 | 501.65 | 501.68 |
+  | 1,000 | 996.68 | 996.68 |
+  | 2,000 | 1,994.45 | 1,995.07 |
+  | 3,000 | 3,001.09 | 3,002.73 |
+
+  The certified zeros of ten cells place the primes and count them, to an integer's width, to 3,049.
+  Reading `psi` from the zeros is Riemann's explicit formula; the reading here is Landau's, at each
+  integer, from a window of zeros the engine certified itself.
 
 **What it is not.** A map of where the coarse lattice loses zeros, against the fine lattice's count.
 Every zero it places is certified by entry 15's machine. It claims nothing about the hypothesis.
@@ -1108,6 +1374,9 @@ Doug's. Posit.
 8. Once e is replaced by the guaranteed carrier, the Taylor series are no longer infinite processes,
    and the fog of Cantor's completed infinity does not apply. The sharp distinction: the engine does
    not hold all of infinity. It holds all of the unbounded variability in the locale it examines.
+9. The primes are the guarantee dead reckoning runs on: they make the same kind of noise everywhere.
+   Between two primes the line is unboundedly variable, with any number of curves, switchbacks, rises
+   and falls, compressions and expansions. This is the premise of the rail.
 
 What the math bounds of each. Derived unless marked.
 - **(1) The places.** The two crystals of [two_crystals.md](../engine/two_crystals.md) are two
@@ -1255,6 +1524,29 @@ What the math bounds of each. Derived unless marked.
     algebraic, and "every zero" is the uncountable statement. What the exact carrier buys is that every
     remaining uncertainty sits on the measured side and the window, never the ruler, which sharpens the
     drawn null: a structure the shuffle does not account for is the zeros', not the reference's.
+- **(9) The primes are the reckoning, and the variability lives between them.** The premise.
+  - **What is fixed.** `F'/F` carries `-Lambda(n) n^(-1/2)` at the frequency `ln n` for every `n` to
+    `N`, the same weight at every height; only the phase `t ln n` moves, and it is known ahead. The
+    weights are proved, by the sieve and by Proth's witness, never fitted. Each prime is a rotor of its
+    own, and the noise is always of one kind, Bohr's picture of `zeta` as a product over independent
+    rotations, one a prime (from knowledge).
+  - **What varies, globally without bound.** The `ln p` are linearly independent over `Q`, which is
+    unique factorization, and by Kronecker every set of phases `t ln p` comes round again as near as
+    asked: every shape the lines make, curve, switchback, swell, compression, they make somewhere. As
+    `t` grows `N` grows and primes join. In the strip `1/2 < sigma < 1` Voronin's universality makes it
+    every non-vanishing analytic shape on a disc; on the line Selberg's law spreads `log |zeta|` as a
+    Gaussian of variance `(1/2) log log t`, unbounded and slow (both from knowledge, not read).
+  - **What varies, locally bounded.** At a height `F` is a finite sum, its frequencies to `ln N`, and
+    its sources come at about `ln N / 2 pi` a unit of `t`. On any stretch the switchbacks and swells
+    are finite, and the device holds them all: the locale's whole variability, never the totality, as
+    in (8).
+  - **The reckoning.** The prime lines forecast the twist, `phi' ~ theta' - sum of Lambda(n) n^(-1/2)
+    sin(t ln n)`, cheap and fixed, and mark the steps at risk (entry 16, the seiches). On the line the
+    series does not converge, and at a source `F'/F` has a pole no finite set of lines makes: the lines
+    guarantee the kind of noise, not each pulse. The fix at each coarse point, `F'/F` exact on the
+    device, holds what lies between the lines.
+  - **The primes read back from the zeros** (entry 16): the certified zeros of `Z` in one window place
+    every prime power past the window's `N`, by Landau.
 
 What is not derived. "Anisotropic field" and "bring this home" have no definition here to derive from.
 Every structure the field shows is ranked against a drawn null through the same field: GUE draws in

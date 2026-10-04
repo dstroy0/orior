@@ -22,6 +22,13 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
   `log T / T`. The sum over the zeros against the known power `x^rho` is of order `T` when `x` is a
   prime power and small otherwise: the zeros locked to the prime powers. This is the lock-in the
   engine's rail reads in `w = exp(i theta) F`, where `F` carries the prime side.
+- **Landau's lock, read for the zeros of the main sum.** Derived, and measured in the workbook's entry
+  16. The Dirichlet coefficients of `log F` at `n` are fixed by `F`'s at the divisors of `n`, and the
+  main sum `F` has `zeta`'s coefficients to `N`: `F'/F` carries `-Lambda(n) n^(-1/2)` at `ln n` for
+  every `n` up to `N`. The zeros of `F` off the line, the sources of the twist that hides `Z`'s zeros,
+  lock on the prime powers at Landau's sign, `R` in proportion to `Lambda(n) n^(-1/2)`, and not on
+  `ln 6`. Langer's count of the zeros of a sum of exponentials, one for each two zeros of `Z` here, is
+  from knowledge, not read.
 - **Gonek's uniform bound.** Reported. `R <= x log(2 T x) log log(3 x) / T`, uniform in `x` and `T`.
   It makes Landau's formula a usable reference at a finite height, the regime the engine runs in.
 - **Balanzario, Cardenas Romero and Chacon Serna, "A smooth version of Landau's explicit formula"
@@ -53,6 +60,31 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
   a test function on the zeros against its transform on the primes. The "crucial negative sign" in the
   fluctuations is why the zeros read as absorption, a dip, not emission. The engine certifies a
   zero as a sign change of `Z`, a crossing to a null, a dip in this sense.
+
+## Interlacing: two quadratures that trap each other's zeros
+
+- **Lagarias, "Zero Spacing Distributions for Differenced L-Functions" (Acta Arith. 120, 2005,
+  arXiv:math/0601653).** Read, pp. 1-6. For real `h`, `A_h(s) = (1/2)(xi(s + h) + xi(s - h))` and
+  `B_h(s) = (1/2i)(xi(s + h) - xi(s - h))`; on the critical line `A_h = Re xi(1/2 + h + i t)` and
+  `B_h = -Im xi(1/2 + h + i t)`. For `|h| >= 1/2` every zero of each lies on the line, simple, and the
+  two sets interlace; under RH the same holds for every `h != 0`. Their normalized spacings tend to
+  exactly 1: the averaging and differencing crystallize the zeros and remove the GUE statistics.
+  - **De Branges's lemma** (his Lemma 2.2): if `|E(s)| > |E(1 - conj(s))|` for `Re(s) > 1/2`, then with
+    `E = A - i B`, `A` and `B` real on the line, all zeros of `A` and `B` lie on the line and interlace.
+  - **His Lemma 2.1:** `E_h(s) = xi(s + h)` meets that condition for `h >= 1/2`, and under RH for every
+    `h > 0`. The proof runs factor by factor through the Hadamard product, one triangle inequality a
+    zero; a zero with real part `beta` breaks its own factor's inequality once `h < beta - 1/2`.
+  - Section 6 reads `E_h` as a de Branges structure function; `h = 1/2` gives `E(z) = xi(1 - i z)`, which
+    de Branges discussed in 1986. Lagarias credits the results of his section 2 to de Branges's
+    lectures of the late 1980s, and similar results to Haseo Ki. Reported, unread.
+  - **Derived here, Cauchy-Riemann.** `xi(1/2 + h + i t) = Xi(t) - i h Xi'(t) + O(h^2)`, `Xi` real on the
+    line. As `h -> 0+`, `A_h -> Xi` and `B_h / h -> Xi'`: the interlacing of the pair becomes the
+    interlacing of `Xi`'s zeros with its critical points. This is the engine's antinode trap in the
+    limit, a lattice at the critical points holding one zero between each pair of its peaks.
+- **Laguerre-Polya.** From knowledge. RH is equivalent to `Xi` lying in the Laguerre-Polya class, the
+  real entire functions that are limits of real polynomials with only real zeros (Polya). For such a
+  function the zeros of `f` and `f'` interlace, one critical point strictly between two zeros. Rolle
+  alone gives at least one.
 
 ## The quasicrystal program
 
