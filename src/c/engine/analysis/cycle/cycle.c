@@ -329,7 +329,7 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
     {
         // with no index, lane i reads record i of a member, or its one record where it has one
         if (!CYCLE_CHECK((request->in[member] != NULL) && (request->bodies[member] != 0ull) &&
-                             ((request->index != NULL) || (request->count <= request->bodies[member]) ||
+                             ((request->index != NULL) || (request->first + request->count <= request->bodies[member]) ||
                               (request->bodies[member] == 1ull)),
                          &request->in[member], error, ENGINE_ERROR_REQUEST))
         {
@@ -351,8 +351,9 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
         return CYCLE_ERROR;
     }
     int ok = 1;
-    for (unsigned long long lane = 0ull; ok && (lane < request->count); lane += 1ull)
+    for (unsigned long long written = 0ull; ok && (written < request->count); written += 1ull)
     {
+        const unsigned long long lane = request->first + written;
         const unsigned int *atom[ENGINE_RECORD_MEMBERS_MAX];
         for (unsigned int member = 0u; member < layout->members; member += 1u)
         {
@@ -364,7 +365,7 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
                  CYCLE_CHECK(body < request->bodies[member], &request->bodies[member], error, ENGINE_ERROR_REQUEST);
             atom[member] = &request->in[member][(ok ? body : 0ull) * layout->in_limbs[member]];
         }
-        unsigned int *const record = &request->out[lane * layout->out_limbs];
+        unsigned int *const record = &request->out[written * layout->out_limbs];
         memset(record, 0, (size_t)layout->out_limbs * sizeof(unsigned int));
         for (unsigned int at = 0u; ok && (at < layout->steps); at += 1u)
         {

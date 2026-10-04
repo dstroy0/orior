@@ -70,6 +70,9 @@ extern "C"
         unsigned long long count;
         unsigned int *out;
         EngineError *error;
+        // the lane the run starts at: it runs lanes first to first + count - 1, each reading its members and its
+        // number as on the device, and writes their count records to `out` from its start; 0 where it is not set
+        unsigned long long first;
     } CycleRecordHostRequest;
 
     long cycle_record_run_host(const CycleRecordHostRequest *request);
