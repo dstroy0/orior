@@ -146,7 +146,7 @@ shows three members where the first agrees with the second, the second with the 
 neither. Pairwise agreement therefore names no set, and which members share a stem has no answer that does not
 depend on which was asked first. A group needs one of two things written: a representative every member is
 compared against, or a rule that builds the group and says which member it is anchored on. The rule is
-written, with its anchor as the representative (Open 10).
+written, with its anchor as the representative (Open 11).
 
 **`.kdm` grows to whatever specificity a part needs.** It holds as many answers as it has: a general answer
 block, and under it a map specific enough to be optimal on one device and nowhere else. A driver written by
@@ -235,7 +235,121 @@ works there.
 
 ## Open
 
-1. **The writings the part gives are read into nothing.** A writing of one instruction is searched for on the part
+1. **The device engine and this plan disagree where the list below says.** Every file of `src/c/engine`,
+   `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `src/cu/includes`, `src/cu/kcmplx` and the bootstrap, codegen,
+   cubin, emit and interface folders of `src/c/transpiler` is read against this plan, `gnascor.md`, the engine table and
+   the query protocol table. `src/python/engine`, `src/c/types`, `src/c/includes` and the host qasm are read with the
+   other engines. Each entry is fixed in the code or in the document it contradicts.
+   - Defects in the code.
+     - `query_interface_walk` and `bus_enum_walk` write the ending's answer at `next` with no test that `next` is under
+       `walk->count`. A probe that writes every line it was given and then ends unclean, out of time or with a code,
+       puts one entry past the caller's array. Inside a run of batches the same path marks the next batch's first
+       address ended, and that address was never asked.
+     - `chain_child_text` adds what `snprintf` returns to `at` with no test against `room`. Once the text is cut,
+       `room - at` wraps and the next write runs past `text`.
+     - `climb_machine_close` frees every buffer but `device_spiral`, which `climb_machine_spiral` allocates: 14,184
+       bytes of device memory each close.
+     - The host and the device render differ on the byte channel under the minimum. The host reads a stored 0 as an
+       empty cell (`anchor_raster.c`, `anchor_raster_output.c`). A 0 byte that arrives first is lost to the next
+       arrival there, and the device's `atomicMin` keeps it. No test puts a 0 byte through that pair.
+     - `cycle_record_sum_host` and `cycle_record_sum` raise a request error where malloc fails. It is a resource error.
+     - `shift_agreement`'s axis tables hold 8 lengths. The ninth distinct padded length in one process fails every run
+       after it, and no error site says so.
+     - `grow_group_voxels` reads `labels[0]` on an empty volume.
+     - `cubin_registers_read`, `cubin_write` and `container_write` read section offsets out of the pattern with no
+       test against its size, and write the symbol's size into `.symtab` with no bound. `cubin_code_sections` tests
+       every one.
+     - `query_order_to_edge` waits with no bound on a clock that never turns over, and `query_order_run` reads no
+       status from `anchor_exact_multiply` or `anchor_exact_subtract`.
+     - `sass_assemble_lines` keeps 256 labels and `sass_encoding_form` weighs 32 holders, and drops the rest without a
+       word.
+     - `krep_bodies_write` and `krep_forms_write` write two layouts under the one kind `KCS` and the one version.
+     - `precept_applied` and `ladder_answer` read a shift count from its low five bits: a count of 32 answers the
+       word unshifted. The comment beside it says a count at or past the width answers zero.
+     - `sass_target.h` gives the register file as R0 to R239 with R240 on fixed. `sass_target.cu` gives R0 to R237,
+       R238 and R239 to the launch, and returns 238.
+     - The formatter splits the `OPCODES` strings of `machine_ir_types.h` inside their words, and a search for
+       `loop_back` or `program_unit` misses the header.
+     - `cycle_record_arithmetic.h` carries its SPDX line twice. `codegen_device_internal.h` declares `layout_device` on
+       both arms of its `#if`. `run_internal.h` declares the same functions on both platform arms, and the POSIX
+       `run_process_read` and `run_tree` sit in `tessera_run_windows.c`.
+   - Named here and not built, or built and not called.
+     - The run channel. `run_channel.h` declares `run_channel_open`, `run_channel_ask`, `run_channel_close` and
+       `run_channel_carrier`, and nothing defines one of them. `tessera_run` defines a `run_channel_open` and a
+       `run_channel_close` that take other arguments. The channel written under these names cannot link beside it.
+     - No ask reaches a target. `query_ask`, `query_order_put` and the sweeps run on the host alone.
+     - `period_read` is not the stride's source: `bus_enum` reads the stride off the kinds alone.
+     - `engine_lattice_bits` has no caller, and the noise root box is priced only where a caller passes a cost.
+     - `max_tree_probe_levels`, `max_tree_nodes`, `max_tree_pairs` and `max_tree_overlap_sums` are called by tests
+       alone. `max_tree_slide` and `max_tree_overlap` are called only from `slide_score.cu`, which nothing builds.
+     - The device tower runs 5/3 alone. A named lifting ruleset reaches the record floors and not `tower_lift`.
+     - No engine route calls `sass_assemble`, `cubin_write`, `cubin_safe` or `sass_target`. The cubin path is reached
+       from `utils/test` and `utils/maint` alone.
+     - `krep_crystal_*`, `krep_history_*` and `krep_bodies_*` have no caller. The engine writes and reads the `.kcr`
+       through `apxrep_input_write` and `apxrep_input_read`.
+     - `crc.h`'s `CRC_TABLE_DEVICE`, `CRC_ADVANCE_DEVICE`, `crc_pixel`, `crc_apply`, `crc_finish` and its segment
+       constants have no caller.
+     - `src/build_engine.sh` names 51 module folders that are not in the tree (`engine/compiler/cycle`,
+       `engine/nbody/max_tree`, `engine/formats/zarr` and the rest). Its `.cu` glob passes over a missing folder
+       without a word; its portable `.c` loop hands a pattern no file matches to the compiler.
+       `examples/cell_tracking/build_engine.sh` carries the `c/...` folders that are.
+   - Against the method or the engine's boundary.
+     - The engine and the transpiler include each other. `engine_internal.h` and `cycle_shared.h` include
+       `codegen_device.h`, `asm_printer.h`, `c_target.h` and `ptx_target.h`; `asm_printer_internal.h` includes the
+       engine's cycle, keymath and key_schedule; `EngineModule` names QASM and INTERFACE. No module reaches another.
+     - The engine names cells. `schedule.cu` writes `cell_tracking.program`, `spiral_table.h` holds the cell table's
+       1182-step spiral, and `track_driver` sets the globals `g_survey` and `g_schedule_path`.
+     - Numbers written into the machine: the noise detector's bins and windows from one data set's transfer curve in
+       `compression_table.md`; the Rice block, `k` width and escape; the tessera and qasm job times. Nothing asserts
+       that `QASM_FRACTION_BITS` lies from 32 to 63, which `qasm_step_scale` needs.
+     - `tessera_core_wants` reserves the more of standing plus declared and the kept peak, the rule the scheduler
+       document says is not approved. `tessera_core_remember` keeps the last run's peak and not the most: one light
+       run lowers the next reservation.
+     - Modules outside the engine's shape answer a bare -1 or an int with no `EngineError`: `body_overlap`,
+       `heaviest_matching`, `shift_agreement`, `golden_bands`, `residual_survey`, `climb_machine`, `schedule` and
+       `radix_keys`. orior and render keep their own house style. `cubin_write`, `container_write` and `sass_assemble`
+       give their reasons by `printf`.
+     - Six files pass 500 lines: `sass_assemble.c` 989, `sass_machine.c` 550, `cycle_compile.cu` 524,
+       `code_generator.cu` 523, `cycle_record_launch.cu` 511 and `cycle.c` 508.
+   - One thing written twice.
+     - `apxrep_*` and `krep_*` are one code apart from the magic, and every `.kcr` opens with `APXREP`.
+     - `cubin_write.c` and `container_write.c` do one work, and `container_write.h` says there is one emitter.
+     - `query_interface.c` and `bus_enum_walk.c` are one probe driver.
+     - `codegen_reads_right`, `codegen_reads_left` and `codegen_step_valid` repeat `ir_reads_right`, `ir_reads_left`
+       and `ir_step_valid`.
+     - Euclid's gcd stands in `contact_side`, `division` and `fingerprint`; `choose_offsets` in `orior_core.c` and
+       `orior_steer_count.c`; the xorshift in `ladder.h` and `ask_order.c`.
+   - Documents the tree contradicts.
+     - The engine table's item 11 names `emit_core.h`, `emit_text`, `emit_device`, `EMIT_DEVICE` and
+       `emit_device_test`, which are `codegen_device`, `asm_printer` and `CODEGEN_DEVICE`, and puts the emitter in
+       `src/c/engine/analysis/cycle`, where it is `src/cu/transpiler/codegen`. Its 11(f) opens "None of it is built"
+       and its stage 1 is built and proved. Its 11(f) 3 names `src/engine/compiler/interface/cell.{h,c}`.
+     - `codegen_core.h`, `codegen_device.h`, `asm_printer.h`, `key_schedule_core.h` and `keymath_core_affine.h` cite
+       item 11(f)(a). The table's (a) is under item 11.
+     - The engine table's M9 says `krep` writes the `.kcr`. `apxrep` writes it.
+     - CRC-64 guards `EngineProgramBlock`, the `.oapx` and the `.bapx`; the seal guards the `.kcr`.
+       `compression_tower.md` lays a CRC-64 word in the `.kcr`.
+     - This plan's `compiler/bootstrap/...` is `src/c/transpiler/bootstrap/`. `src/README.md`'s "Where things live"
+       names `arithmetic/`, `quantum/`, `compiler/` and `formats/` under the engine. `target_parse.cu` names
+       `engine/compiler/codegen/rulesets`. The orior and render comments name `arithmetic/no_rounding`.
+     - `vertical_time_compression.md` holds LANE and the latch off main. Both are in the tree.
+     - `sass_target.h` says nothing assembles its text, and `sass_assemble_lines` does. `sass_assemble.c` opens with a
+       comment that puts the branch field at bit 32, and `SASS_BRANCH_FIRST` is 34. `ladder.h` names an anchor
+       IDENTITY that is not one; the required anchor is SAME. `tree_number.h` gives 24^13 as 6.4e17, and it is 8.76e17.
+       `target_rulesets.cu` and `ruleset_flat.h` name `rules->errored`, where the field is `error`.
+       `ruleset_core_words.h` cites a `ruleset_split` that is not in the tree. `word_web.h`, `code_generator.h` and
+       `sass_target.cu` carry counts of forms that move when the files do.
+     - `file_types_table.md` has no `.kdm` or `.ksc` and holds `.ksh` and `.ans`, where this plan's six are `.kcr`,
+       `.krs`, `.kcs`, `.knf`, `.kdm` and `.ksc`.
+     - History stands in comments in `orior.h`, `orior_descent.h`, `orior_engines.h`, `orior_field.h`, `orior_field.c`,
+       `orior_steer.c`, `orior_steer_count.c`, `orior_core.h`, `anchor_raster.h`, `anchor_raster_output.c`,
+       `tessera_ledger.c`, `flatten.cu`, `codegen_core.h`, `asm_printer_core_words.h`, `ruleset_core_words.h`,
+       `code_generator.cu` and `prologue_epilogue.h`. `orior_steer_plan.c` states a depth rule `orior_descent.h` calls
+       false, and `orior_descent.h` documents parameters its functions do not take.
+     - The orior files, `anchor_raster.c`, `anchor_raster_output.c`, `anchor_raster_internal.h`, `raster.cu`,
+       `raster_entry.cu` and `raster_cuda_internal.h` carry no SPDX line on line 1.
+
+2. **The writings the part gives are read into nothing.** A writing of one instruction is searched for on the part
    for every precept and every ladder relation, and every arrangement of the `.kdm` is written from them, run and
    read back (the writings searched, below). `L*` is still written by hand. `sass.krs` and `ptx.krs` are read off
    NVIDIA's compiler: `utils/test/src/cu/transpiler/bootstrap/monolith_forms.sh` asks every form the record
@@ -379,28 +493,28 @@ works there.
      the guard NVIDIA keeps from the source.
    - The harness walks the alphabet tree one level where a precept has no word.
 
-2. **`.kdm` holds no cost.** `utils/maint/engine/chain_check.sh` writes one: 3068 arrangements over 27.6M tried, add
+3. **`.kdm` holds no cost.** `utils/maint/engine/chain_check.sh` writes one: 3068 arrangements over 27.6M tried, add
    1202, take 1047, up 411, down 408, and nothing for same, places or product at three nodes. Every cost reads `-`.
    The clock already reads codings against one another in the part's own time, and that reading is thrown away
    instead of kept against a row here. Every row runs on the part (`interface_sass_chains.md`), which leaves each one
    a cubin a reading can be kept against. The safe word stalls each instruction the soonest its result is read, and
    a reading no longer counts nodes alone.
 
-3. **`.krs` has no derived half.** Five are written. None can be completed by asking. A partly written one is the
+4. **`.krs` has no derived half.** Five are written. None can be completed by asking. A partly written one is the
    normal case and not a failure.
 
-4. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 12 words, both typed.
+5. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 12 words, both typed.
    `machines/sm_86` is one run's output read back as an input. These are for checking a derivation against. Nothing
    that derives may read them.
 
-5. **The relations are not asked for everything.** An atomic add has no relation put for it. `count_add` waits on
+6. **The relations are not asked for everything.** An atomic add has no relation put for it. `count_add` waits on
    that, and not on a name a disassembler will not print.
 
-6. **VHDL is a target on the Pi**, built on the `cell_tracking` branch at `bbc464b`, off main. State forms cut the
+7. **VHDL is a target on the Pi**, built on the `cell_tracking` branch at `bbc464b`, off main. State forms cut the
    program into clock states and `vhdl.krs` writes a clocked entity. In progress, uncommitted, and the device
    writes where the host refuses.
 
-7. **Not proved.** Of the matrix's 57 suites, 43 hold every check on the current tree: daemon, web_check, interface,
+8. **Not proved.** Of the matrix's 57 suites, 43 hold every check on the current tree: daemon, web_check, interface,
    interface_sass, interface_ptx, ruleset_read, cubin_safe, record_host, record_c, codegen_device, engine_c,
    exact_divide, exact_transform, max_tree, device_pool, period, python_period, python_periodic_energy, double_fields,
    obsignatio, qasm, record_sum, vhdl_construction_set, record_bitwise, record_coherence, record_divide,
@@ -430,7 +544,7 @@ works there.
    before a cubin is written. A loop ask
    branches by its nature and is held off the part until a rule says when a loop ends.
 
-8. **One face of a set has no suffix.** Its content is settled and Doug names it. It holds the asks put to a
+9. **One face of a set has no suffix.** Its content is settled and Doug names it. It holds the asks put to a
     member and the paths read off them, in that order: every probe and what came back, with costs, refusals
     and censored samples each marked, then the winning path per problem over those same asks. It takes the
     stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map
@@ -440,13 +554,13 @@ works there.
     cache of it. A refused or censored probe appears nowhere in a table of chain costs, and it separates two
     parts that cost the same.
 
-9. **The order of asks is built on the host and nothing emits it to a target.** The order, its solve and the
+10. **The order of asks is built on the host and nothing emits it to a target.** The order, its solve and the
     contention read are proved on the host (M24 in the engine table, Q5, Q7). The device half is open: a container
-    that runs a chain's covered links and reads the part's clock around them, put through the channel in Open 1,
+    that runs a chain's covered links and reads the part's clock around them, put through the channel in Open 2,
     with the censored-sample mark and the reference ask alongside. Its answer carries one bit a check, 128 an ask,
     and never one bit over a set (Q15).
 
-10. **Stem membership has a written rule and nothing reads it.** Two members sharing a stem is the whole basis
+11. **Stem membership has a written rule and nothing reads it.** Two members sharing a stem is the whole basis
     of a set, and pairwise agreement inside a floor cannot decide it. `compiler/bootstrap/stem_group.{h,c}` holds
     an anchored group rule: the members in an order fixed by what they are, the finest floor first, the first
     member with no group anchoring one, and every member with no group that agrees with that anchor joining it.
@@ -457,19 +571,19 @@ works there.
     shuffles. A group is a function of the whole set, and a block written for one is written again when the set
     changes. The open part is the general block in `.kdm` keyed to a group, which nothing writes yet.
 
-11. **One function of 132 runs on the device.** `src/cu/types/integerfloats/double_fields/double_fields.cu` holds
+12. **One function of 132 runs on the device.** `src/cu/types/integerfloats/double_fields/double_fields.cu` holds
     `double_fields.c`'s four functions as one record program, encoded, laid out and loaded by the calls
     `engine_record_encode` makes, swept on the device and run on the host. `double_fields_test.cu` holds it 1:1
     against the C on 4110 lanes, the edges of a double and 4096 drawn words, with merges past every mask: the
     device equals the host word for word, both equal the C on every lane, and a mask one short fails 2049 lanes
     of the exponent and 2056 of the merge. The program is written from the C by hand, and deriving a function's
     program from the function is not built. The record program reaches the part through NVRTC and nvJitLink,
-    scaffolding until the channel in Open 1 carries it. The other 131 functions that compute and the 47 that call
+    scaffolding until the channel in Open 2 carries it. The other 131 functions that compute and the 47 that call
     the operating system are rows in `TREE_LAYOUT_PLAN.tsv`, listed by
     `utils/maint/engine/tree_layout_check.py --write`.
 
 ## Pending Doug
-- The suffix of the face Open 8 describes.
+- The suffix of the face Open 9 describes.
 
 ## Roles
 - Theorist writes the engine table and posits. Send it every hash and measured number.

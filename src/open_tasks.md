@@ -7,7 +7,7 @@ to do and how. An item that is done comes out of this file.
 
 ## Engine work
 
-4. **Every computing function in `cu/` (plan, Open 11).** One of 132 is done (`double_fields`). The rest are rows
+4. **Every computing function in `cu/` (plan, Open 12).** One of 132 is done (`double_fields`). The rest are rows
    in `TREE_LAYOUT_PLAN.tsv`, listed by `python utils/maint/engine/tree_layout_check.py --write`. Each is held
    against NVIDIA's compiler as Q17 and P8 of the query protocol lay out
    (`theory/workbooks/engine/query_protocol_table.md`): the C source and the lane the engine writes for it answer
@@ -15,7 +15,7 @@ to do and how. An item that is done comes out of this file.
    more the forms NVIDIA's compiler wrote are the next slots Q16 asks. The first step is the 16 lane programs
    `sass_lane_needs` writes for the record programs the host oracle runs, each run beside the cubin of its C route.
 
-5. **Open 1: the query-protocol ask on `host_entry.h`, and the run channel made of those asks.** The plan's Open 1
+5. **Open 2: the query-protocol ask on `host_entry.h`, and the run channel made of those asks.** The plan's Open 2
    has the state. Closing it takes NVRTC, nvJitLink and the CUDA runtime out of the loop.
 
 ## Decisions for Doug
