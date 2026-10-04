@@ -6,7 +6,7 @@ Drafted by the anchor_sift engine and read against the page by a person. The eng
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
-from the characters that sit outside that English, and word_web.web() built 590 edges over the
+from the characters that sit outside that English, and word_web.web() built 576 edges over the
 language forms. A person then matched the context: who, kind and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
@@ -24,10 +24,11 @@ Outside the paper's English the engine found these letters and marks: µ á é �
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC.
+sets after a stacked mark is closed, except before an opening quote, then NFC, then 1 page-read
+correction.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
-the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 746
+the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 748
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
 12488 distinct tokens in the paper, 0 language tokens are held by no row.
 
@@ -41,6 +42,7 @@ kind     transcription  an example tier in the orthography
          phonemic       an example tier in a phonemic alphabet
          gloss          the morpheme gloss tier of an example
          translation    the English of an example
+         cited form     a word of the language named in the prose, a note or a table
          language       a language name
          name           a person or a proper name
          note           a paragraph, a context, a table, a footnote or a word that is not the language

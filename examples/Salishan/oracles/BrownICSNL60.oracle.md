@@ -45,7 +45,7 @@ text layer holds as PayPajuθəm, read at 600 dpi.
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 469
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
-11074 distinct tokens in the paper, 0 language tokens are held by no row.
+11182 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example
          line such as (3) line 2, the references, or all for a note about the whole paper
