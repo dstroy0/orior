@@ -28,16 +28,11 @@ import sys
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    The marker climbed to before was build/, which the repository PRODUCES and not CONTAINS.
-    A linked worktree and a never-built clone both lack it. The climb then walked past the root it
-    was looking for into another checkout entirely, and every path derived from it pointed at a
-    different tree than the tool was run from. That lands on a real repository with real files,
-    which is indistinguishable from working.
-
-    A marker infers the root. Git answers it. The climb below is kept only for an exported tree with
-    no git directory, and it looks for src/python, which is TRACKED: a marker the repository
-    contains is present in every checkout of it, and a marker the repository produces is present in
-    none of them until something has already run.
+    A marker the repository produces, such as build/, is absent from a linked worktree and a
+    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
+    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
+    with no git directory, and it looks for src/python, which the repository tracks and every checkout
+    of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
     inherits it answers about that repository and not about the directory it was asked from,
