@@ -1519,6 +1519,93 @@ to be built to trap the zeros between its peaks.
   The 165 runs hold 330 zeros, a pair each. The miss the flag leaves, the Lehmer pair at
   `t = 599943.38`, lies past `T_b = 599924.82`. One cell is short at round 0 with every zero
   certified: Turing's bounds there want the finer lattice, and the rerun closes it.
+- **The margin.** Derived: the cubic through `Z` and `Z'` at a step's ends stands within
+  `h^4 / 384 max |M''''|` of the main sum `M` over the step, and
+  `|M''''| <= 2 sum of n^(-1/2) (A^4 + 6 A^2 theta'' + 4 A |theta'''| + 3 theta''^2 + |theta''''|)`,
+  `A = ln((nu + 1) / n)`. With the bound on `Z`, `Z'`'s error at the ends, `R`'s slope over the step
+  and the roundings, it is the margin: where the cubic stays past it, `Z` holds one sign over the step,
+  a proof and not a rate. On the device the cubic lies in the hull of its four Bezier points
+  `z0, z0 + (h / 3) z0', z1 - (h / 3) z1', z1`, and a step whose four points all clear the margin is
+  clean. A step that is not clean is listed again eight times finer, by pairs with their own `Z'`
+  from the sums of `k^(-1/2) sin(phi)` and `k^(-1/2) ln k sin(phi)`, where the margin is 4096 times
+  smaller, and again inside it where a fine step is not clean. Each halving takes the margin down 16
+  times while the cubic's least value goes to `Z`'s, which ends one of two ways: the step is clean, or
+  `Z`'s sign changes and the pair is found. A double zero alone would not end.
+- **Three flips in one step.** Posit, Doug's: knowing how the plane flips, solve for the momentum
+  three flips in a row would need. Derived: three zeros in a step need `Z'` to change sign twice in it.
+  The cubic's slope `C'` is a quadratic with Bernstein points `z0'`, `(b2 - b1) / (h / 3)` and `z1'`, and
+  `e = M - C_M` has `e'` zero at both ends and, by Rolle's theorem on `e`, once between:
+  `|e'| <= max |M''''| / 6 times 4 h^3 / 27 = (2 / 81) h^3 max |M''''|`. Where all three Bernstein
+  points run the way `Z` crosses past that, with `Z'`'s error, `3 / h` times `Z`'s, and `R`'s slope, `Z'`
+  holds one sign over the step and the crossing is single. `Zh` is what it proves monotone; inside the
+  band where `|Zh|` is within the bound on `Z`, about `1e-6` in `t`, Turing's count stands guard.
+- **Measured, the margin** (cells 300 to 309, 2^15 points a cell, 0 host checks failed). The margin
+  is `2.56e-3` at 2^15 points over cell 300 and `7.6e-6` at 2^18; the hull test flags the same steps as
+  the cubic's least value against the margin, 667 on the host. With the single crossing, steps whose
+  signs change and whose slope does not clear the steepness are flagged too: over cell 300, 25,865
+  steps are clean, 6,573 single and 329 flagged, where the line through the end slopes, its error
+  `h^2 / 8 max |M'''|`, left 1,142 flagged.
+
+  | | the transform alone | the cubic's sign | the margin | the margin, `check` |
+  |---|---|---|---|---|
+  | steps flagged | | 165 | 669 | 3,304 |
+  | points listed | | 1,155 | 6,021 | 29,824 |
+  | zeros found in them | | 330 | 332 | 332 |
+  | spans open after three passes | | | 0 | 1 |
+  | rounds of reruns | 2 | 1 | 0 | 0 |
+  | zeros certified in `(T_a, T_b]` | 55,830 | 55,830 | 55,830 | 55,830 |
+  | time | 73 s, 83 s | 64 s | 69 s | 98 s |
+
+  The margin flags the Lehmer pair's step, and its two zeros are found at 2^18: cell 309 gives 7,100
+  zeros past F where the cubic's sign gave 7,098. Of the crossings listed again, none hides three
+  zeros; one span in cell 304 is still open after three passes, and Turing's count closes over it.
+  Listing the crossings again costs 29 s here and adds no zero, and it runs as a check,
+  `refine check`. Without it the device still reads every crossing: 66,820 of the 69,787 zeros past
+  F, 95.7%, cross a coarse step proven single, and the run takes 67 s.
+- **Measured, `Z'` two ways** (`both` with the listing word 2): `Z'` by the twist and by the pairs' sine
+  sums at the same points differ by at most `8.5e-14`, `5.2e-13` and `5.9e-12` over cells 40, 120 and
+  300, against the sums of their bounds, `4.7e-8`, `9.1e-8` and `5.5e-7`. The two derived bounds on
+  `Z'`'s error hold here with five orders to spare; a difference past them would refute one.
+- **The double zero.** Posit, Doug's: a double zero is the rare case where the ball inverts and rights
+  while the plane itself turns with it; then there is no turning, the angular momentum all in phase.
+  Derived: with `R` set aside, `Z = 2 |F| cos(phi)` and
+  `Z' = 2 |F| (cos(phi) (ln |F|)' - sin(phi) phi')`, `phi' = theta' Re(zeta)`. A double zero is `Z` and
+  `Z'` both 0 at one `t`: `cos(phi) = 0`, the ball edge-on, and `phi' = 0`, `Re(zeta) = 0`, the twist of
+  `F` taking back the whole clock. `L = |F|^2 phi'` is 0 there: the ball and the plane turn together.
+  The swell `w (ln |F|)'` runs along the edge, where `Z` reads it as 0. Two conditions at one `t` are met
+  by no curve in general, only nearly; the Lehmer pair is that near approach, `Re(zeta) = -0.03` and
+  `cos(phi) = -0.048`, and `R` decides it. The halvings a step needs grow as
+  `log_16` of the margin over `|Z|`'s least value, a reading of how near a pair comes to a double zero.
+- **Two gyroscopes.** Posit, Doug's: the plane spins so fast it precesses, and keeps double and triple
+  zeros from happening; the plane and the ball are two gyroscopes, either acting on the other while
+  coupled; the plane's mass is the ball, and its spin is bound by where on the triangle the ball is:
+  at the center it can turn as fast as it likes, and the moment the ball leaves the center the plane
+  is coupled to mass. The triangle's edges stretch as they need to.
+  Derived: the plane's spin is `theta'`, set by `t` alone; the ball's is `(arg F)' = Im(F'/F)`, and the
+  course `phi' = theta' + (arg F)'` couples them. `|(arg F)'| <= |F'| / |F|`: the ball's spin is capped
+  inversely to its mass `|F|`, without a cap where `|F| = 0`, the ball on a source. The clock runs back,
+  `Re(zeta) < 0`, only where the cap passes the plane's spin, `|F| < |F'| / theta'`.
+- **Measured, the gyroscopes** (`transform` with the listing word 2, one cell an e-fold apart):
+
+  | cell | `theta'` | `Re(zeta) < 0` | `\|F\|` 10 / 50 / 90 | `\|F\|` where `Re(zeta) < 0` | `\|F'\| / theta'`, median |
+  |---|---|---|---|---|---|
+  | 300 | 5.705 | 8.58% | 0.39 / 1.27 / 3.83 | 0.20 / 0.61 / 1.48 | 0.761 |
+  | 495 | 6.206 | 8.78% | 0.38 / 1.28 / 3.91 | 0.18 / 0.61 / 1.51 | 0.774 |
+  | 815 | 6.704 | 9.19% | 0.39 / 1.29 / 4.01 | 0.19 / 0.62 / 1.48 | 0.781 |
+
+  Where the clock runs back the ball is at half its usual distance from the center, in every cell:
+  the mass holds the spin. The faster plane does not hold the stalls off here; the share of time the
+  clock runs back rises with `theta'`, and the ball's torque `|F'| / theta'` rises with it, F taking
+  more terms as the cells climb. Across these e-folds the two stay coupled.
+- **The observer outside the sphere.** Posit, Doug's: the 90 degree limit is what an observer outside a
+  sphere would see, watching the ball and the plane inside it, just as an opposing gyroscope works.
+  Derived: on entry 8's sphere each wave `z_n = exp(i theta) n^(-1/2) n^(-it)` turns on its own
+  circle at `theta' - ln n`, its radius fixed, and `Re <z, z'> = sum |z_n|^2 Re(i (theta' - ln n)) = 0`
+  at every `t`: from outside, the point `(z_1, ..., z_nu)` moves at exactly 90 degrees to its radius,
+  always. The deviations, the stall, the swell, the clock run back, are in the shadow
+  `w = sum of z_n`, one complex dimension for `nu`. Each wave is an opposing pair, the plane forward at
+  `theta'` against the wave back at `ln n`, its net `ln(x / n)`; a wave enters at `n = x` balanced, and
+  spins up as `x` passes it.
 
 **What it is not.** A map of where the coarse lattice loses zeros, against the fine lattice's count.
 Every zero it places is certified by entry 15's machine. It claims nothing about the hypothesis.
