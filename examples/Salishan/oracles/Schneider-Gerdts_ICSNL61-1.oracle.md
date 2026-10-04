@@ -43,7 +43,7 @@ to a line, and each row is rebuilt under its line label.
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 960
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
-17248 distinct tokens in the paper, 0 language tokens are held by no row.
+17536 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example
          line such as (3) line 2, the references, or all for a note about the whole paper
