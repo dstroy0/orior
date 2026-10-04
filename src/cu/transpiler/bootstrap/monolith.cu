@@ -90,14 +90,14 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
     MONOLITH_TAG(PRECEPT_NOT);
     monolith_write(out, PRECEPT_NOT, ~monolith_read(in, 0u));
 
-    MONOLITH_TAG(PRECEPT_AND);
-    monolith_write(out, PRECEPT_AND, monolith_read(in, 0u) & monolith_read(in, 1u));
+    MONOLITH_TAG(PRECEPT_BITAND);
+    monolith_write(out, PRECEPT_BITAND, monolith_read(in, 0u) & monolith_read(in, 1u));
 
-    MONOLITH_TAG(PRECEPT_OR);
-    monolith_write(out, PRECEPT_OR, monolith_read(in, 0u) | monolith_read(in, 1u));
+    MONOLITH_TAG(PRECEPT_BITOR);
+    monolith_write(out, PRECEPT_BITOR, monolith_read(in, 0u) | monolith_read(in, 1u));
 
-    MONOLITH_TAG(PRECEPT_XOR);
-    monolith_write(out, PRECEPT_XOR, monolith_read(in, 0u) ^ monolith_read(in, 1u));
+    MONOLITH_TAG(PRECEPT_BITXOR);
+    monolith_write(out, PRECEPT_BITXOR, monolith_read(in, 0u) ^ monolith_read(in, 1u));
 
     MONOLITH_TAG(PRECEPT_NAND);
     monolith_write(out, PRECEPT_NAND, ~(monolith_read(in, 0u) & monolith_read(in, 1u)));
@@ -207,13 +207,13 @@ static __device__ __forceinline__ void monolith_step(unsigned int &word, unsigne
     case PRECEPT_NOT:
         MONOLITH_PREDICATED("@taken not.b32 %0, %0;");
         break;
-    case PRECEPT_AND:
+    case PRECEPT_BITAND:
         MONOLITH_PREDICATED("@taken and.b32 %0, %0, %1;");
         break;
-    case PRECEPT_OR:
+    case PRECEPT_BITOR:
         MONOLITH_PREDICATED("@taken or.b32 %0, %0, %1;");
         break;
-    case PRECEPT_XOR:
+    case PRECEPT_BITXOR:
         MONOLITH_PREDICATED("@taken xor.b32 %0, %0, %1;");
         break;
     case PRECEPT_NAND:

@@ -15,7 +15,7 @@ What is known before meeting anything is relations. `1,1 -> 2` is a relation and
 
 The query protocol is the form every ask takes, and it is what derivation is made of:
 
-    [ ADDRESS ] -> ( QUALIFIER ) -> [ MEASURED COST ] -> BINARY RESULT (1 or 0)
+    [ address ] -> ( qualifier ) -> [ measured cost ] -> binary result (1 or 0)
 
 The address names the target: a memory address, a URI, an API endpoint, an LLM context key, a register. The qualifier is a binary question asked at it, phrased to demand a state validation and never a data payload. The cost bound is the most the target may spend to answer, and no hand writes that field. An ask carrying no bound returns the cost instead of a bit. The spread of those costs is the baseline, and every bound after that is expressed against it.
 
@@ -25,10 +25,10 @@ Two branches resolve to a pair, and the pair to a four-letter mnemonic:
 
 | left branch | right branch | pair state | mnemonic | meaning                                                     |
 | ----------- | ------------ | ---------- | -------- | ----------------------------------------------------------- |
-| LEAD (1)    | VOID (0)     | 1, 0       | CORE     | The primary intent persists; the secondary path dissolved.  |
-| RITE (0)    | LEAD (1)     | 0, 1       | SHIFT    | Focus has migrated from the left domain to the right.       |
-| DUAL (2)    | VOID (0)     | 2, 0       | ECHO     | An amplified state is sustained without new external input. |
-| DUAL (2)    | DUAL (2)     | 2, 2       | NEXUS    | Maximum systemic coherence; both major systems are aligned. |
+| lead (1)    | void (0)     | 1, 0       | core     | The primary intent persists; the secondary path dissolved.  |
+| rite (0)    | lead (1)     | 0, 1       | shift    | Focus has migrated from the left domain to the right.       |
+| dual (2)    | void (0)     | 2, 0       | echo     | An amplified state is sustained without new external input. |
+| dual (2)    | dual (2)     | 2, 2       | nexus    | Maximum systemic coherence; both major systems are aligned. |
 
 ## The transpiler
 
@@ -43,6 +43,6 @@ The transpiler is the record machine's programs written for a part, and the asks
 | [`src/c/transpiler/interface/`](https://github.com/dstroy0/orior/tree/main/src/c/transpiler/interface)     | the cell, a probe runner: a probe asks the target one question in a child process the cell can lose                                                                 |
 | [`src/c/transpiler/qasm/`](https://github.com/dstroy0/orior/tree/main/src/c/transpiler/qasm)               | exact qubit states, read from OpenQASM                                                                                                                              |
 
-The method is to write C source, read the SASS it compiles to, and hold it against what NVIDIA's compiler writes for the same program (Q17). Every slot a `.krs` writes by hand is asked of the part the way `loop_back` is asked of sm_86 (Q16).
+The method is to write C source, read the SASS it compiles to, and hold it against what NVIDIA's compiler writes for the same program (Q17). Every slot a `.krs` writes by hand is asked of the part the way `loop_back_if` is asked of sm_86 (Q16).
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

@@ -6,7 +6,7 @@
 #   ruleset_read_one    one form written, to read what a construct puts out
 #
 #     utils/maint/engine/sass_krs_check.sh
-#     utils/maint/engine/sass_krs_check.sh predicate_xor P0 P1 P2
+#     utils/maint/engine/sass_krs_check.sh predicate_bitxor P0 P1 P2
 #
 # With arguments it writes that one form and stops; with none it assembles them all. The code generator is host code
 # in .cu files compiled as C++, and the cubin writer is C

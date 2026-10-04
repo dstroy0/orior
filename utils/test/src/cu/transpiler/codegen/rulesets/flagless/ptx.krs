@@ -64,191 +64,195 @@ form declare_fixed_wides = \t.reg .b64 \t%launch, %lane_number, %record, %index,
 form declare_members count = \t.reg .b64 \t%member<{count}>;\n
 
 # the lane's opening and close
-form open_launch = \tld.param.u64 \t%launch, [cycle_lane_param_0];\n\tld.param.u64 \t%lane_number, [cycle_lane_param_1];\n\tmov.u32 \t%zero, 0;\n
-form launch_load to offset = \tld.u64 \t{to}, [%launch+{offset}];\n
-form to_global to = \tcvta.to.global.u64 \t{to}, {to};\n
+form launch_open = \tld.param.u64 \t%launch, [cycle_lane_param_0];\n\tld.param.u64 \t%lane_number, [cycle_lane_param_1];\n\tmov.u32 \t%zero, 0;\n
+form launch_load_wide to offset = \tld.u64 \t{to}, [%launch+{offset}];\n
+form cast_global to = \tcvta.to.global.u64 \t{to}, {to};\n
 form shared_open = \tmov.u32 \t%thread, %tid.x;\n\tmov.u32 \t%threads, %ntid.x;\n\tmov.u32 \t%word_base, cycle_words;\n\tadd.u32 \t%sign_base, %word_base, %thread;\n
 form shared_close = \tmad.lo.u32 \t%word_base, %thread, 4, %word_base;\n\tshl.b32 \t%word_stride, %threads, 2;\n
-form guarded_load where to address = \t@{where} ld.global.nc.u32 \t{to}, [{address}];\n
-form guarded_widen where to from = \t@{where} cvt.u64.u32 \t{to}, {from};\n
-form open_error_unless where = \t@!{where} bra \t$Lerror_open;\n
-form error where at = \t@{where} bra \t$Lerror{at};\n
+form global_load_word_if where to address = \t@{where} ld.global.nc.u32 \t{to}, [{address}];\n
+form wide_from_word_if where to from = \t@{where} cvt.u64.u32 \t{to}, {from};\n
+form error_open_unless where = \t@!{where} bra \t$Lerror_open;\n
+form error_if where at = \t@{where} bra \t$Lerror{at};\n
 form label_error_open = $Lerror_open:\n
 form label_error at = $Lerror{at}:\n
-form count_add address = \tred.global.add.u32 \t[{address}], 1;\n
+form global_add_atomic_word address = \tred.global.add.u32 \t[{address}], 1;\n
 form return = \tret;\n
 form step_note at operation = \t// step {at}, operation {operation}\n
 
 # carry chains through a register's limbs: alone for a register of one limb; first, middle and last are constructs,
 # at the end
-form add_alone to left right = \tadd.u32 \t{to}, {left}, {right};\n
-form subtract_alone to left right = \tsub.u32 \t{to}, {left}, {right};\n
+form word_add to left right = \tadd.u32 \t{to}, {left}, {right};\n
+form word_sub to left right = \tsub.u32 \t{to}, {left}, {right};\n
 
 # a word's arithmetic
 form word_copy to from = \tmov.b32 \t{to}, {from};\n
 form word_set to value = \tmov.u32 \t{to}, {value};\n
-form word_and to left right = \tand.b32 \t{to}, {left}, {right};\n
-form word_or to left right = \tor.b32 \t{to}, {left}, {right};\n
-form word_xor to left right = \txor.b32 \t{to}, {left}, {right};\n
-form word_shift_left to from bits = \tshl.b32 \t{to}, {from}, {bits};\n
-form word_shift_right to from bits = \tshr.b32 \t{to}, {from}, {bits};\n
+form word_bitand to left right = \tand.b32 \t{to}, {left}, {right};\n
+form word_bitor to left right = \tor.b32 \t{to}, {left}, {right};\n
+form word_bitxor to left right = \txor.b32 \t{to}, {left}, {right};\n
+form word_shl to from bits = \tshl.b32 \t{to}, {from}, {bits};\n
+form word_shr to from bits = \tshr.b32 \t{to}, {from}, {bits};\n
 form word_funnel_right to low high bits = \tshf.r.clamp.b32 \t{to}, {low}, {high}, {bits};\n
-form word_multiply to left right = \tmul.lo.u32 \t{to}, {left}, {right};\n
-form word_multiply_add to left right added = \tmad.lo.u32 \t{to}, {left}, {right}, {added};\n
-form word_divide to left right = \tdiv.u32 \t{to}, {left}, {right};\n
+form word_mul to left right = \tmul.lo.u32 \t{to}, {left}, {right};\n
+form word_mul_add to left right added = \tmad.lo.u32 \t{to}, {left}, {right}, {added};\n
+form word_div to left right = \tdiv.u32 \t{to}, {left}, {right};\n
 form word_select to chosen otherwise where = \tselp.b32 \t{to}, {chosen}, {otherwise}, {where};\n
 
 # a sign's arithmetic, a signed word of -1, 0 or 1
 form sign_set to value = \tmov.s32 \t{to}, {value};\n
 form sign_select to chosen otherwise where = \tselp.s32 \t{to}, {chosen}, {otherwise}, {where};\n
-form sign_multiply to left right = \tmul.lo.s32 \t{to}, {left}, {right};\n
+form sign_mul to left right = \tmul.lo.s32 \t{to}, {left}, {right};\n
 form sign_absolute to from = \tabs.s32 \t{to}, {from};\n
-form sign_negate to from = \tneg.s32 \t{to}, {from};\n
+form sign_neg to from = \tneg.s32 \t{to}, {from};\n
 
 # tests, each setting a predicate
-form test_nonzero where value = \tsetp.ne.u32 \t{where}, {value}, 0;\n
-form test_zero where value = \tsetp.eq.u32 \t{where}, {value}, 0;\n
-form test_negative where value = \tsetp.lt.s32 \t{where}, {value}, 0;\n
-form test_signed_differ where left right = \tsetp.ne.s32 \t{where}, {left}, {right};\n
-form test_signed_greater where left right = \tsetp.gt.s32 \t{where}, {left}, {right};\n
+form test_word_nonzero where value = \tsetp.ne.u32 \t{where}, {value}, 0;\n
+form test_word_zero where value = \tsetp.eq.u32 \t{where}, {value}, 0;\n
+form test_signed_word_negative where value = \tsetp.lt.s32 \t{where}, {value}, 0;\n
+form test_sign_ne where left right = \tsetp.ne.s32 \t{where}, {left}, {right};\n
+form test_sign_gt where left right = \tsetp.gt.s32 \t{where}, {left}, {right};\n
 form test_wide_nonzero where value = \tsetp.ne.u64 \t{where}, {value}, 0;\n
-form test_wide_equal where left right = \tsetp.eq.u64 \t{where}, {left}, {right};\n
-form test_wide_below where left right = \tsetp.lt.u64 \t{where}, {left}, {right};\n
-form test_wide_below_and where left right also = \tsetp.lt.and.u64 \t{where}, {left}, {right}, {also};\n
-form predicate_xor where left right = \txor.pred \t{where}, {left}, {right};\n
-form predicate_and where left right = \tand.pred \t{where}, {left}, {right};\n
+form test_wide_zero where value = \tsetp.eq.u64 \t{where}, {value}, 0;\n
+form test_wide_eq where left right = \tsetp.eq.u64 \t{where}, {left}, {right};\n
+form test_wide_lt where left right = \tsetp.lt.u64 \t{where}, {left}, {right};\n
+form test_wide_lt_and where left right also = \tsetp.lt.and.u64 \t{where}, {left}, {right}, {also};\n
+err test_word_nonzero_and where value also
+err test_word_nonzero_or where value also
+err test_wide_nonzero_and where value also
+err test_wide_nonzero_or where value also
+form predicate_bitxor where left right = \txor.pred \t{where}, {left}, {right};\n
+form predicate_bitand where left right = \tand.pred \t{where}, {left}, {right};\n
 
 # 64-bit words: addresses, the lane's number and a division's parts
 form wide_from_word to from = \tcvt.u64.u32 \t{to}, {from};\n
 form word_from_wide to from = \tcvt.u32.u64 \t{to}, {from};\n
 form wide_pack to low high = \tmov.b64 \t{to}, {{low}, {high}};\n
 form wide_unpack low high from = \tmov.b64 \t{{low}, {high}}, {from};\n
-form wide_multiply to left right = \tmul.lo.u64 \t{to}, {left}, {right};\n
-form wide_multiply_word to left right = \tmul.wide.u32 \t{to}, {left}, {right};\n
+form wide_mul to left right = \tmul.lo.u64 \t{to}, {left}, {right};\n
+form wide_mul_word to left right = \tmul.wide.u32 \t{to}, {left}, {right};\n
 form wide_add to left right = \tadd.s64 \t{to}, {left}, {right};\n
-form wide_add_unsigned to left right = \tadd.u64 \t{to}, {left}, {right};\n
-form wide_shift_left to from bits = \tshl.b64 \t{to}, {from}, {bits};\n
+form wide_shl to from bits = \tshl.b64 \t{to}, {from}, {bits};\n
 form wide_select to chosen otherwise where = \tselp.b64 \t{to}, {chosen}, {otherwise}, {where};\n
-form wide_divide to left right = \tdiv.u64 \t{to}, {left}, {right};\n
+form wide_div to left right = \tdiv.u64 \t{to}, {left}, {right};\n
 
 # memory: the members' and the tables' words and the record's words
-form global_load to address offset = \tld.global.nc.u32 \t{to}, [{address}+{offset}];\n
-form record_store offset from = \tst.global.u32 \t[%record+{offset}], {from};\n
+form global_load_constant_word to address offset = \tld.global.nc.u32 \t{to}, [{address}+{offset}];\n
+form record_store_word offset from = \tst.global.u32 \t[%record+{offset}], {from};\n
 
 # the states a target that clocks the lane a state at a time cuts it into (vhdl.krs); a PTX lane runs straight
 # through, and has none
-nop states_declare count
+nop declare_states count
 nop state_start state
 nop state_open state
 nop state_next state error
 nop state_exit
-nop dispatch_to error state
+nop state_dispatch error state
 
 # a memory read's address named a state ahead of the read, for a target that reads memory a clock after it is asked
 # (vhdl.krs); a PTX load names its address itself
 nop launch_ask offset
 nop global_ask address offset
-nop guarded_ask where address
-nop count_ask address
+nop global_ask_if where address
+nop global_ask_atomic address
 
 # a loop: its label, and the branch back to it where the predicate holds; a PTX lane branches, and a target that cuts
 # the lane into states goes back a state (state_loop, which PTX has none of)
-form loop_label loop = $Lloop{loop}:\n
-form loop_back loop where = \t@{where} bra \t$Lloop{loop};\n
+form label_loop loop = $Lloop{loop}:\n
+form loop_back_if loop where = \t@{where} bra \t$Lloop{loop};\n
 nop state_loop back where next
 
 # the carry chains as constructs. A sum's carry out is the sum below its left operand, read as 64-bit words, since
 # this ruleset compares 32-bit words only as signed. The middle limb's two carries never both happen: a sum that
 # carried is at most 2^32 - 2, and adding the carry in cannot carry again. Each writes its result through scratch
 # before `to`, which may be one of its operands
-construct add_first to left right
-add_alone {temporary:0} left right
+construct word_add_first to left right
+word_add {temporary:0} left right
 wide_from_word {wide:0} {temporary:0}
 wide_from_word {wide:1} left
-test_wide_below {predicate:0} {wide:0} {wide:1}
+test_wide_lt {predicate:0} {wide:0} {wide:1}
 word_select %carry 1 0 {predicate:0}
 word_copy to {temporary:0}
 end
 
-construct add_middle to left right
-add_alone {temporary:0} left right
+construct word_add_middle to left right
+word_add {temporary:0} left right
 wide_from_word {wide:0} {temporary:0}
 wide_from_word {wide:1} left
-test_wide_below {predicate:0} {wide:0} {wide:1}
-add_alone {temporary:1} {temporary:0} %carry
+test_wide_lt {predicate:0} {wide:0} {wide:1}
+word_add {temporary:1} {temporary:0} %carry
 wide_from_word {wide:1} {temporary:1}
-test_wide_below {predicate:1} {wide:1} {wide:0}
-predicate_xor {predicate:0} {predicate:0} {predicate:1}
+test_wide_lt {predicate:1} {wide:1} {wide:0}
+predicate_bitxor {predicate:0} {predicate:0} {predicate:1}
 word_select %carry 1 0 {predicate:0}
 word_copy to {temporary:1}
 end
 
-construct add_last to left right
-add_alone {temporary:0} left right
-add_alone to {temporary:0} %carry
+construct word_add_last to left right
+word_add {temporary:0} left right
+word_add to {temporary:0} %carry
 end
 
 # a difference's borrow is its left operand below its right. The middle limb's two borrows never both happen: a
 # difference that borrowed is at least 1, and taking the borrow in cannot borrow again
-construct subtract_first to left right
+construct word_sub_first to left right
 wide_from_word {wide:0} left
 wide_from_word {wide:1} right
-test_wide_below {predicate:0} {wide:0} {wide:1}
-subtract_alone to left right
+test_wide_lt {predicate:0} {wide:0} {wide:1}
+word_sub to left right
 word_select %carry 1 0 {predicate:0}
 end
 
-construct subtract_middle to left right
+construct word_sub_middle to left right
 wide_from_word {wide:0} left
 wide_from_word {wide:1} right
-test_wide_below {predicate:0} {wide:0} {wide:1}
-subtract_alone {temporary:0} left right
+test_wide_lt {predicate:0} {wide:0} {wide:1}
+word_sub {temporary:0} left right
 wide_from_word {wide:0} {temporary:0}
 wide_from_word {wide:1} %carry
-test_wide_below {predicate:1} {wide:0} {wide:1}
-predicate_xor {predicate:0} {predicate:0} {predicate:1}
-subtract_alone to {temporary:0} %carry
+test_wide_lt {predicate:1} {wide:0} {wide:1}
+predicate_bitxor {predicate:0} {predicate:0} {predicate:1}
+word_sub to {temporary:0} %carry
 word_select %carry 1 0 {predicate:0}
 end
 
-construct subtract_last to left right
-subtract_alone {temporary:0} left right
-subtract_alone to {temporary:0} %carry
+construct word_sub_last to left right
+word_sub {temporary:0} left right
+word_sub to {temporary:0} %carry
 end
 
-# the subtract chain whose top limb leaves its borrow for borrow_read, each a construct written by another
-construct borrow_alone to left right
-subtract_first to left right
+# the subtract chain whose top limb leaves its borrow for word_borrow_read, each a construct written by another
+construct word_borrow to left right
+word_sub_first to left right
 end
 
-construct borrow_first to left right
-subtract_first to left right
+construct word_borrow_first to left right
+word_sub_first to left right
 end
 
-construct borrow_middle to left right
-subtract_middle to left right
+construct word_borrow_middle to left right
+word_sub_middle to left right
 end
 
-construct borrow_last to left right
-subtract_middle to left right
+construct word_borrow_last to left right
+word_sub_middle to left right
 end
 
-construct borrow_read held where
-subtract_alone held %zero %carry
-test_nonzero where held
+construct word_borrow_read held where
+word_sub held %zero %carry
+test_word_nonzero where held
 end
 
 # a product's low word with a word added, its carry out left in %carry; then the product's high word with that carry
 # taken in
-construct product_low to left right added
-word_multiply {temporary:0} left right
-add_first to {temporary:0} added
+construct word_mul_low to left right added
+word_mul {temporary:0} left right
+word_add_first to {temporary:0} added
 end
 
-construct product_high to left right
-wide_multiply_word {wide:0} left right
+construct word_mul_high to left right
+wide_mul_word {wide:0} left right
 wide_unpack {temporary:0} {temporary:1} {wide:0}
-add_alone to {temporary:1} %carry
+word_add to {temporary:1} %carry
 end
 
 # the program resident around the lane: the kernel the record machine launches, which takes the launch's lanes a round
@@ -271,17 +275,38 @@ err grid_dim_x to
 err grid_dim_y to
 err grid_dim_z to
 err warp_size to
-err parameter_load to offset
+err parameter_load_word to offset
 err parameter_load_wide to offset
-err test_word_below where left right
+err test_word_lt where left right
 err exit_unless where
-err wide_multiply_word_add to left right added
+err wide_mul_word_add to left right added
 err global_load_word to address offset
 err global_load_wide to address offset
+err global_load_byte to address offset
+err global_load_signed_byte to address offset
+err global_load_halfword to address offset
+err global_load_signed_halfword to address offset
 err global_store_wide address offset from
 err wide_from_signed_word to from
-err test_word_geq where left right
+err word_from_byte to from
+err word_from_signed_byte to from
+err word_from_halfword to from
+err word_from_signed_halfword to from
+err test_word_ge where left right
 err exit_if where
-err test_word_leq where left right
-err test_word_neq where left right
-err test_word_identical where left right
+err test_word_le where left right
+err test_word_ne where left right
+err test_word_eq where left right
+err test_word_gt where left right
+err test_signed_word_lt where left right
+err test_signed_word_ge where left right
+err test_signed_word_le where left right
+err test_signed_word_gt where left right
+err test_wide_ne where left right
+err test_wide_le where left right
+err test_wide_gt where left right
+err test_wide_ge where left right
+err test_signed_wide_lt where left right
+err test_signed_wide_le where left right
+err test_signed_wide_gt where left right
+err test_signed_wide_ge where left right

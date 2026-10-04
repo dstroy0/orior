@@ -45,7 +45,7 @@ CODEGEN_CORE void codegen_declare(MachineFunction *lane, unsigned int atoms)
 CODEGEN_CORE void codegen_launch(MachineFunction *lane, MachineOperand to, unsigned int offset)
 {
     codegen_instr1(lane, OPCODE_LAUNCH_ASK, codegen_number(offset));
-    codegen_instr2(lane, OPCODE_LAUNCH_LOAD, to, codegen_number(offset));
+    codegen_instr2(lane, OPCODE_LAUNCH_LOAD_WIDE, to, codegen_number(offset));
 }
 
 // the lane's opening: its launch and number, the record's words no put writes stored as 0, and each member's atom found
@@ -70,51 +70,51 @@ CODEGEN_CORE void codegen_open(MachineFunction *lane, const unsigned int *errors
     const MachineOperand temporary = codegen_register(REGCLASS_TEMPORARY, 0u);
     const MachineOperand wide = codegen_register(REGCLASS_WIDE, 0u);
     // the launch's offsets are a few dozen bytes
-    codegen_instr0(lane, OPCODE_OPEN_LAUNCH);
+    codegen_instr0(lane, OPCODE_LAUNCH_OPEN);
     codegen_launch(lane, record, (unsigned int)offsetof(CycleCompiledLaunch, out));
-    codegen_instr1(lane, OPCODE_TO_GLOBAL, record);
-    codegen_instr3(lane, OPCODE_WIDE_MULTIPLY, wide, lane_number, codegen_immediate(4u * program->out_limbs));
+    codegen_instr1(lane, OPCODE_CAST_GLOBAL, record);
+    codegen_instr3(lane, OPCODE_WIDE_MUL, wide, lane_number, codegen_immediate(4u * program->out_limbs));
     codegen_instr3(lane, OPCODE_WIDE_ADD, record, record, wide);
     // a word no put writes is 0 on every lane, errored or not, and is stored before anything can error
     for (unsigned int word = 0u; word < program->out_limbs; word += 1u)
     {
         if (program->put_last[word] == 0u)
         {
-            codegen_instr2(lane, OPCODE_RECORD_STORE, codegen_number(4u * word), zero);
+            codegen_instr2(lane, OPCODE_RECORD_STORE_WORD, codegen_number(4u * word), zero);
         }
     }
     codegen_launch(lane, index, (unsigned int)offsetof(CycleCompiledLaunch, index));
     codegen_instr2(lane, OPCODE_TEST_WIDE_NONZERO, indexed, index);
-    codegen_instr1(lane, OPCODE_TO_GLOBAL, index);
+    codegen_instr1(lane, OPCODE_CAST_GLOBAL, index);
     for (unsigned int member = 0u; member < program->members; member += 1u)
     {
         const MachineOperand address = codegen_register(REGCLASS_MEMBER, member);
         // with no index, lane i reads record i of a member, or its one record where it has one
         codegen_launch(lane, bodies, (unsigned int)offsetof(CycleCompiledLaunch, bodies) + (8u * member));
-        codegen_instr3(lane, OPCODE_TEST_WIDE_EQUAL, one, bodies, codegen_number(1u));
+        codegen_instr3(lane, OPCODE_TEST_WIDE_EQ, one, bodies, codegen_number(1u));
         codegen_instr4(lane, OPCODE_WIDE_SELECT, body, codegen_number(0u), lane_number, one);
-        codegen_instr3(lane, OPCODE_WIDE_MULTIPLY, wide, lane_number, codegen_immediate(program->members));
-        codegen_instr3(lane, OPCODE_WIDE_ADD_UNSIGNED, wide, wide, codegen_immediate(member));
-        codegen_instr3(lane, OPCODE_WIDE_SHIFT_LEFT, wide, wide, codegen_number(2u));
+        codegen_instr3(lane, OPCODE_WIDE_MUL, wide, lane_number, codegen_immediate(program->members));
+        codegen_instr3(lane, OPCODE_WIDE_ADD, wide, wide, codegen_immediate(member));
+        codegen_instr3(lane, OPCODE_WIDE_SHL, wide, wide, codegen_number(2u));
         codegen_instr3(lane, OPCODE_WIDE_ADD, wide, index, wide);
-        codegen_instr2(lane, OPCODE_GUARDED_ASK, indexed, wide);
-        codegen_instr3(lane, OPCODE_GUARDED_LOAD, indexed, temporary, wide);
-        codegen_instr3(lane, OPCODE_GUARDED_WIDEN, indexed, body, temporary);
+        codegen_instr2(lane, OPCODE_GLOBAL_ASK_IF, indexed, wide);
+        codegen_instr3(lane, OPCODE_GLOBAL_LOAD_WORD_IF, indexed, temporary, wide);
+        codegen_instr3(lane, OPCODE_WIDE_FROM_WORD_IF, indexed, body, temporary);
         if (member == 0u)
         {
-            codegen_instr3(lane, OPCODE_TEST_WIDE_BELOW, ok, body, bodies);
+            codegen_instr3(lane, OPCODE_TEST_WIDE_LT, ok, body, bodies);
         }
         else
         {
-            codegen_instr4(lane, OPCODE_TEST_WIDE_BELOW_AND, ok, body, bodies, ok);
+            codegen_instr4(lane, OPCODE_TEST_WIDE_LT_AND, ok, body, bodies, ok);
         }
         codegen_instr4(lane, OPCODE_WIDE_SELECT, body, body, codegen_number(0u), ok);
         codegen_launch(lane, address, (unsigned int)offsetof(CycleCompiledLaunch, in) + (8u * member));
-        codegen_instr1(lane, OPCODE_TO_GLOBAL, address);
-        codegen_instr3(lane, OPCODE_WIDE_MULTIPLY, wide, body, codegen_immediate(4u * program->in_limbs[member]));
+        codegen_instr1(lane, OPCODE_CAST_GLOBAL, address);
+        codegen_instr3(lane, OPCODE_WIDE_MUL, wide, body, codegen_immediate(4u * program->in_limbs[member]));
         codegen_instr3(lane, OPCODE_WIDE_ADD, address, address, wide);
     }
-    codegen_instr1(lane, OPCODE_OPEN_ERROR_UNLESS, ok);
+    codegen_instr1(lane, OPCODE_ERROR_OPEN_UNLESS, ok);
     // a word whose first put comes at or after a step the lane can leave errored is 0 in the record until its last put
     // stores it, and the error stores only the words it holds in flight
     unsigned int error_first = program->step_count;
@@ -126,21 +126,21 @@ CODEGEN_CORE void codegen_open(MachineFunction *lane, const unsigned int *errors
     {
         if ((program->put_last[word] != 0u) && (program->put_first[word] >= error_first))
         {
-            codegen_instr2(lane, OPCODE_RECORD_STORE, codegen_number(4u * word), zero);
+            codegen_instr2(lane, OPCODE_RECORD_STORE_WORD, codegen_number(4u * word), zero);
         }
     }
     if (tables != 0u)
     {
         const MachineOperand table_address = codegen_physreg(PHYSREG_TABLES);
         codegen_launch(lane, table_address, (unsigned int)offsetof(CycleCompiledLaunch, tables));
-        codegen_instr1(lane, OPCODE_TO_GLOBAL, table_address);
+        codegen_instr1(lane, OPCODE_CAST_GLOBAL, table_address);
     }
     if (places != 0u)
     {
         // a word's address is its place . threads + thread, a sign's 4 places . threads + place . threads + thread
         const MachineOperand sign_base = codegen_physreg(PHYSREG_SIGN_BASE);
         codegen_instr0(lane, OPCODE_SHARED_OPEN);
-        codegen_instr4(lane, OPCODE_WORD_MULTIPLY_ADD, sign_base, codegen_physreg(PHYSREG_THREADS),
+        codegen_instr4(lane, OPCODE_WORD_MUL_ADD, sign_base, codegen_physreg(PHYSREG_THREADS),
                        codegen_immediate(4u * places), sign_base);
         codegen_instr0(lane, OPCODE_SHARED_CLOSE);
     }
@@ -151,9 +151,9 @@ CODEGEN_CORE void codegen_count_error(MachineFunction *lane)
 {
     const MachineOperand wide = codegen_register(REGCLASS_WIDE, 0u);
     codegen_launch(lane, wide, (unsigned int)offsetof(CycleCompiledLaunch, error));
-    codegen_instr1(lane, OPCODE_TO_GLOBAL, wide);
-    codegen_instr1(lane, OPCODE_COUNT_ASK, wide);
-    codegen_instr1(lane, OPCODE_COUNT_ADD, wide);
+    codegen_instr1(lane, OPCODE_CAST_GLOBAL, wide);
+    codegen_instr1(lane, OPCODE_GLOBAL_ASK_ATOMIC, wide);
+    codegen_instr1(lane, OPCODE_GLOBAL_ADD_ATOMIC_WORD, wide);
 }
 
 // the lane's close. A lane that ran every step has stored each record word as its last put wrote it, and returns. A
@@ -170,7 +170,7 @@ CODEGEN_CORE void codegen_close(MachineFunction *lane, const unsigned int *error
     {
         if (program->put_last[word] != 0u)
         {
-            codegen_instr2(lane, OPCODE_RECORD_STORE, codegen_number(4u * word), codegen_zero());
+            codegen_instr2(lane, OPCODE_RECORD_STORE_WORD, codegen_number(4u * word), codegen_zero());
         }
     }
     codegen_instr0(lane, OPCODE_RETURN);
@@ -187,7 +187,7 @@ CODEGEN_CORE void codegen_close(MachineFunction *lane, const unsigned int *error
             // put_last is 1 past the last put's step
             if ((program->put_last[word] > at) && (program->put_first[word] < at))
             {
-                codegen_instr2(lane, OPCODE_RECORD_STORE, codegen_number(4u * word),
+                codegen_instr2(lane, OPCODE_RECORD_STORE_WORD, codegen_number(4u * word),
                                codegen_register(REGCLASS_OUT, word));
             }
         }
@@ -202,7 +202,7 @@ CODEGEN_CORE void codegen_body_open(MachineFunction *lane, int scheduled, unsign
 {
     if (scheduled != 0)
     {
-        codegen_instr1(lane, OPCODE_STATES_DECLARE, codegen_number(states));
+        codegen_instr1(lane, OPCODE_DECLARE_STATES, codegen_number(states));
     }
     codegen_instr0(lane, OPCODE_LANE_BODY);
 }

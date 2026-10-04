@@ -26,9 +26,9 @@ as on a wrong one \cite{src:Kubernetes-probes}.
 The written form is \texttt{@address?predicate(\$bound)}. A pair of asks side by side is a branch
 pair:
 \begin{verbatim}
-Left_Input    = @system.auth?is_active($5ms)
-Right_Input   = @db.user_session?is_valid($12ms)
-Branch_Result = [Left_Input, Right_Input]
+left_input    = @system.auth?is_active($5ms)
+right_input   = @db.user_session?is_valid($12ms)
+branch_result = [left_input, right_input]
 \end{verbatim}
 The figures in the example stand for derived ones. No absolute figure enters a program: a bound
 written by hand fixes a scale the rest of the language never assumes.
@@ -223,9 +223,9 @@ cost a cycle a step or more. Chains that share no link do not contend.
 
 Two branches over one relation are compared link by link through the signed difference at each
 link. A total cannot say which branch holds a link: the total is unchanged when the branches
-trade places, and the question changes sign. The sign at a link reads LEAD or RITE, a difference
-inside the floor reads DUAL, a link neither branch passes reads VOID, and PASS marks where the
-sign changes along the chain. A path that changes branch at a PASS pays for the change as a link
+trade places, and the question changes sign. The sign at a link reads lead or rite, a difference
+inside the floor reads dual, a link neither branch passes reads void, and pass marks where the
+sign changes along the chain. A path that changes branch at a pass pays for the change as a link
 of its own. This comparison is stated and not yet measured.
 
 \section{One ask, many answers}

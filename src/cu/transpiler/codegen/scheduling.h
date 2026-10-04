@@ -11,13 +11,13 @@
 // writes the form makes
 CODEGEN_CORE int codegen_asks(unsigned int form)
 {
-    return (form == OPCODE_LAUNCH_ASK) || (form == OPCODE_GLOBAL_ASK) || (form == OPCODE_GUARDED_ASK) ||
-           (form == OPCODE_COUNT_ASK);
+    return (form == OPCODE_LAUNCH_ASK) || (form == OPCODE_GLOBAL_ASK) || (form == OPCODE_GLOBAL_ASK_IF) ||
+           (form == OPCODE_GLOBAL_ASK_ATOMIC);
 }
 
 CODEGEN_CORE unsigned int codegen_writes(unsigned int form)
 {
-    return ((form == OPCODE_RECORD_STORE) || (form == OPCODE_COUNT_ADD)) ? 1u : 0u;
+    return ((form == OPCODE_RECORD_STORE_WORD) || (form == OPCODE_GLOBAL_ADD_ATOMIC_WORD)) ? 1u : 0u;
 }
 
 // a state begun in the schedule
@@ -86,7 +86,7 @@ CODEGEN_CORE void codegen_schedule_instr(MachineFunction *lane, Schedule *schedu
         lane->broken = 1u;
         return;
     }
-    if (form == OPCODE_LOOP_LABEL)
+    if (form == OPCODE_LABEL_LOOP)
     {
         if ((schedule->ending != 0u) || (schedule->filled != 0u))
         {
@@ -118,8 +118,8 @@ CODEGEN_CORE void codegen_schedule_instr(MachineFunction *lane, Schedule *schedu
     schedule->filled = 1u;
     schedule->maximum = (schedule->chained > schedule->maximum) ? schedule->chained : schedule->maximum;
     schedule->ending =
-        ((form == OPCODE_ERROR) || (form == OPCODE_OPEN_ERROR_UNLESS) || codegen_asks(form)) ? 1u : 0u;
-    if (form == OPCODE_LOOP_BACK)
+        ((form == OPCODE_ERROR_IF) || (form == OPCODE_ERROR_OPEN_UNLESS) || codegen_asks(form)) ? 1u : 0u;
+    if (form == OPCODE_LOOP_BACK_IF)
     {
         const unsigned int loop = item->arguments[0].number;
         const unsigned int begun = (loop < schedule->loop_count) ? schedule->loop_state[loop] : CODEGEN_UNBEGUN;
@@ -149,7 +149,7 @@ CODEGEN_CORE void codegen_schedule_close(MachineFunction *lane, Schedule *schedu
         (schedule->dispatch_count < schedule->dispatch_max) ? schedule->dispatch_count : schedule->dispatch_max;
     for (unsigned int error = 0u; error < recorded; error += 1u)
     {
-        codegen_instr2(lane, OPCODE_DISPATCH_TO, schedule->dispatch_error[error],
+        codegen_instr2(lane, OPCODE_STATE_DISPATCH, schedule->dispatch_error[error],
                        codegen_number(schedule->dispatch_state[error]));
     }
 }

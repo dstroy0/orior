@@ -423,7 +423,7 @@ def table_cells(names, rows):
 
 
 # The two addresses of a branch, which trade places when the branch is read from its other side.
-SIDES = {"LEAD": "RITE", "RITE": "LEAD"}
+SIDES = {"lead": "rite", "rite": "lead"}
 
 
 def check_tables_agree(say):
@@ -441,12 +441,12 @@ def check_tables_agree(say):
     for pair in sorted(set(first) & set(second)):
         if first[pair] == second[pair]:
             continue
-        if first[pair] == "SYNC":
+        if first[pair] == "sync":
             refined.append(pair)
         else:
             contradicted.append(pair)
     say("   where both tables name a transition:")
-    say("     %d agree, %d the second names where the first says SYNC, %d named apart"
+    say("     %d agree, %d the second names where the first says sync, %d named apart"
         % (len(set(first) & set(second)) - len(refined) - len(contradicted), len(refined),
            len(contradicted)))
     for pair in contradicted:
@@ -466,7 +466,7 @@ def check_tables_agree(say):
             other = cells[mirror]
             if other != SIDES.get(name, name):
                 mirrored.append(((past, now), mirror, number, name, other))
-    say("   read from the other side of the branch, LEAD and RITE trading places:")
+    say("   read from the other side of the branch, lead and rite trading places:")
     if not mirrored:
         say("     every transition reads alike")
     for pair, mirror, number, name, other in mirrored:

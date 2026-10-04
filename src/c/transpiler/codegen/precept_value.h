@@ -56,11 +56,11 @@ static unsigned int precept_applied(unsigned char precept, unsigned int left, un
         return left;
     case PRECEPT_NOT:
         return (~left) & PRECEPT_WORD_MASK;
-    case PRECEPT_AND:
+    case PRECEPT_BITAND:
         return left & right;
-    case PRECEPT_OR:
+    case PRECEPT_BITOR:
         return left | right;
-    case PRECEPT_XOR:
+    case PRECEPT_BITXOR:
         return left ^ right;
     case PRECEPT_NAND:
         return (~(left & right)) & PRECEPT_WORD_MASK;

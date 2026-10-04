@@ -4,13 +4,13 @@ Written by `interface_sass_writings.sh` whole on every run. Each word of the wor
 
 | word | precept | form as run | on the part |
 |---|---|---|---|
-| `word_and` | and | `LOP3.LUT R8, R10, R12, RZ, 0xc0, !PT` | gives every case its word |
-| `word_or` | or | `LOP3.LUT R8, R10, R12, RZ, 0xfc, !PT` | gives every case its word |
-| `word_xor` | xor | `LOP3.LUT R8, R10, R12, RZ, 0x3c, !PT` | gives every case its word |
+| `word_bitand` | and | `LOP3.LUT R8, R10, R12, RZ, 0xc0, !PT` | gives every case its word |
+| `word_bitor` | or | `LOP3.LUT R8, R10, R12, RZ, 0xfc, !PT` | gives every case its word |
+| `word_bitxor` | xor | `LOP3.LUT R8, R10, R12, RZ, 0x3c, !PT` | gives every case its word |
 | `word_copy` | mov | `MOV R8, R10` | gives every case its word |
-| `word_shift_left` | shl | `SHF.L.U32 R8, R10, R12, RZ` | does not give every case its word |
-| `word_shift_right` | shr | `SHF.R.U32.HI R8, RZ, R12, R10` | does not give every case its word |
-| `add_alone` | add | `IADD3 R8, R10, R12, RZ` | gives every case its word |
-| `subtract_alone` | sub | `IADD3 R8, R10, -R12, RZ` | gives every case its word |
-| `predicate_xor` | xor | no form | - |
-| `predicate_and` | and | no form | - |
+| `word_shl` | shl | `SHF.L.U32 R8, R10, R12, RZ` | does not give every case its word |
+| `word_shr` | shr | `SHF.R.U32.HI R8, RZ, R12, R10` | does not give every case its word |
+| `word_add` | add | `IADD3 R8, R10, R12, RZ` | gives every case its word |
+| `word_sub` | sub | `IADD3 R8, R10, -R12, RZ` | gives every case its word |
+| `predicate_bitxor` | xor | no form | - |
+| `predicate_bitand` | and | no form | - |

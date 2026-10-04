@@ -39,8 +39,8 @@ static std::string probe_header(int major, int minor)
 }
 
 // the kernel: the header, then an entry of this probe's own that finds its case, loads its eight words into
-// temporaries 0 to 7 through the ruleset's global_load, sets outputs 8 to 11 to 0, runs the body, and stores the
-// outputs through the ruleset's record_store, the record register set to the case's output
+// temporaries 0 to 7 through the ruleset's global_load_constant_word, sets outputs 8 to 11 to 0, runs the body, and
+// stores the outputs through the ruleset's record_store_word, the record register set to the case's output
 static std::string probe_kernel(ProbeWriter *writer, const std::string &header, const std::string &body)
 {
     std::string text = header;
@@ -65,7 +65,7 @@ static std::string probe_kernel(ProbeWriter *writer, const std::string &header, 
     text += "\tmul.wide.u32 \t%interface_wide3, %interface_word1, 16;\n\tadd.s64 \t%interface_wide3, %interface_wide1, %interface_wide3;\n";
     for (unsigned int word = 0u; word < PROBE_IN_WORDS; word += 1u)
     {
-        probe_form(writer, text, "global_load",
+        probe_form(writer, text, "global_load_constant_word",
                    {probe_temporary(writer, word), "%interface_wide2", std::to_string(word * 4u)});
     }
     for (unsigned int word = 0u; word < PROBE_OUT_WORDS; word += 1u)
@@ -76,7 +76,7 @@ static std::string probe_kernel(ProbeWriter *writer, const std::string &header, 
     text += "\tmov.b64 \t" + ruleset_physreg(writer->rules, "record") + ", %interface_wide3;\n";
     for (unsigned int word = 0u; word < PROBE_OUT_WORDS; word += 1u)
     {
-        probe_form(writer, text, "record_store", {std::to_string(word * 4u), probe_temporary(writer, 8u + word)});
+        probe_form(writer, text, "record_store_word", {std::to_string(word * 4u), probe_temporary(writer, 8u + word)});
     }
     text += "$Linterface_done:\n";
     probe_form(writer, text, "return", {});
@@ -151,7 +151,7 @@ static int probe_write(const std::string &text, int major, int minor, const std:
 // The program resident as its own module: an empty lane for the resident's call to reach, then program_unit with
 // the launch's own layout in its 25 parameters. No question covers this part of a program, and no hand
 // should write twice - the resident is 110 instructions of PTX that already runs, and the part's own compiler turns
-// it into SASS that already runs. Asking for that is what the SASS probe does with every other form, and what comes
+// it into SASS that already runs. The SASS probe asks this of every other form, and what comes
 // back is the floor a rearrangement has to beat
 static std::string probe_resident(ProbeWriter *writer, const std::string &header)
 {
@@ -490,7 +490,7 @@ int main(int count, char **arguments)
     if (strcmp(question, "alive") == 0)
     {
         std::string body;
-        probe_form(&writer, body, "add_alone", {t8, t0, probe_temporary(&writer, 1u)});
+        probe_form(&writer, body, "word_add", {t8, t0, probe_temporary(&writer, 1u)});
         return probe_single(&writer, header, body, major, minor);
     }
     if (strcmp(question, "address") == 0)
@@ -499,14 +499,14 @@ int main(int count, char **arguments)
         std::string body;
         probe_form(&writer, body, "word_set", {t0, "16"});
         probe_form(&writer, body, "wide_from_word", {w0, t0});
-        probe_form(&writer, body, "global_load", {t8, w0, "0"});
+        probe_form(&writer, body, "global_load_constant_word", {t8, w0, "0"});
         return probe_single(&writer, header, body, major, minor);
     }
     if (strcmp(question, "misaligned") == 0)
     {
         // the case's own input, one byte in: a 32-bit load from an address that is not a multiple of 4
         std::string body = "\tadd.s64 \t%interface_wide2, %interface_wide2, 1;\n";
-        probe_form(&writer, body, "global_load", {t8, "%interface_wide2", "0"});
+        probe_form(&writer, body, "global_load_constant_word", {t8, "%interface_wide2", "0"});
         return probe_single(&writer, header, body, major, minor);
     }
     if (strcmp(question, "trap") == 0)

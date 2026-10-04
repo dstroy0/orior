@@ -50,6 +50,18 @@ typedef struct
 static SassEqual s_equal[SASS_EQUALS];
 static unsigned int s_equal_count;
 
+// the operations the system writes on the FMA pipe in place of the integer pipe, and the lane each moves in
+#define SASS_PIPES 32u
+typedef struct
+{
+    char operation[SASS_TEXT];
+    char writing[SASS_TEXT];
+    unsigned int least;
+    unsigned int over;
+} SassPipe;
+static SassPipe s_pipe[SASS_PIPES];
+static unsigned int s_pipe_count;
+
 static void sass_text_copy(char *into, const char *from)
 {
     unsigned int at = 0u;
@@ -83,6 +95,39 @@ void sass_equal_take(const char *one, const char *other)
     sass_text_copy(s_equal[s_equal_count].one, one);
     sass_text_copy(s_equal[s_equal_count].other, other);
     s_equal_count += 1u;
+}
+
+int sass_pipe_held(const char *operation, char *writing, unsigned int *least, unsigned int *over)
+{
+    for (unsigned int number = 0u; number < s_pipe_count; number += 1u)
+    {
+        if (strcmp(s_pipe[number].operation, operation) == 0)
+        {
+            sass_text_copy(writing, s_pipe[number].writing);
+            *least = s_pipe[number].least;
+            *over = s_pipe[number].over;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void sass_pipe_take(const char *operation, const char *writing, unsigned int least, unsigned int over)
+{
+    unsigned int number = 0u;
+    while ((number < s_pipe_count) && (strcmp(s_pipe[number].operation, operation) != 0))
+    {
+        number += 1u;
+    }
+    if (number >= SASS_PIPES)
+    {
+        return;
+    }
+    sass_text_copy(s_pipe[number].operation, operation);
+    sass_text_copy(s_pipe[number].writing, writing);
+    s_pipe[number].least = least;
+    s_pipe[number].over = over;
+    s_pipe_count += (number == s_pipe_count) ? 1u : 0u;
 }
 
 void sass_class_count(unsigned int channel, unsigned int answered)
@@ -183,9 +228,16 @@ int sass_class_read(const char *machines, const char *part)
         char other[SASS_TEXT];
         unsigned int word = 0u;
         unsigned int tally = 0u;
+        unsigned int least = 0u;
+        unsigned int over = 0u;
         if (sscanf(line, "equal %191s %191s", one, other) == 2)
         {
             sass_equal_take(one, other);
+            continue;
+        }
+        if (sscanf(line, "pipe %191s %191s %u %u", one, other, &least, &over) == 4)
+        {
+            sass_pipe_take(one, other, least, over);
             continue;
         }
         if (sscanf(line, "count %15s %15s %u", channel_text, class_text, &tally) == 3)
@@ -269,6 +321,17 @@ int sass_class_write(const char *machines, const char *part)
     for (unsigned int number = 0u; number < s_equal_count; number += 1u)
     {
         fprintf(file, "equal %s %s\n", s_equal[number].one, s_equal[number].other);
+    }
+    if (s_pipe_count != 0u)
+    {
+        fprintf(file, "\n# operations the system writes on the FMA pipe in place of the integer pipe: the operation, its\n");
+        fprintf(file, "# writing there, and the lane it moves in, one whose integer pipe holds the first number of\n");
+        fprintf(file, "# operations or more and the second more than its FMA pipe.\n");
+    }
+    for (unsigned int number = 0u; number < s_pipe_count; number += 1u)
+    {
+        fprintf(file, "pipe %s %s %u %u\n", s_pipe[number].operation, s_pipe[number].writing, s_pipe[number].least,
+                s_pipe[number].over);
     }
     const int closed = (fclose(file) == 0);
     printf("interface sass class: %s written, %u questions kept whole\n", path, s_classed_count);

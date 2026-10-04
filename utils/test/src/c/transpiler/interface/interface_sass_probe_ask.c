@@ -220,11 +220,11 @@ static double sass_prefer_time(SassProbe *probe, const SassMachine *machine, con
 unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, unsigned int *asked)
 {
     static const SassPrefer s_prefers[] = {
-        // A move has two codings on this part, and no listing says which to write: the compiler alternates them,
-        // which is a hint that they go to different pipes and neither is free. R0 holds the case's first word
+        // A move has two codings on this part, one on each pipe, and the compiler writes the FMA pipe's where the
+        // integer pipe holds more (sass.ksc's pipe lines); neither is free. R0 holds the case's first word
         {"a move", "MOV R7, R0", "IMAD.MOV.U32 R7, RZ, RZ, R0", 0x0000000bu},
-        // A long operation, which is where this is going: the high word of a 64-bit add. sass.krs writes wide_add
-        // as IADD3 then IADD3.X; the other coding takes the carry with IMAD.X and adds the high word after, three
+        // A long operation, which is where this is going: the high word of a 64-bit add. sass.krs writes
+        // wide_add as IADD3 then IADD3.X; the other coding takes the carry with IMAD.X and adds the high word after, three
         // instructions against two. Both read R0, which the loop never writes. A turn leaves the next one what
         // it found: a body that carries its own answer forward measures a chain 400000 long and not the coding
         {"a wide add's high word", "IADD3 R8, P6, R0, R0, RZ\nIADD3.X R9, R0, R0, RZ, P6, !PT\nMOV R7, R9",
@@ -340,7 +340,7 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
         // is written and the field truncates it; 0x1_00000000 answers 1 against 0
         {"IMAD.MOV.U32 R7, RZ, RZ, 30064771083.hi", 0x00000007u},
         {"IMAD.MOV.U32 R7, RZ, RZ, 4294967296.hi", 0x00000001u},
-        // A 64-bit load, which launch_load wants: a ruleset cannot write [R2.64+{offset}] and [R2.64+{offset}+4],
+        // A 64-bit load, which launch_load_wide wants: a ruleset cannot write [R2.64+{offset}] and [R2.64+{offset}+4],
         // since adding 4 to a parameter is arithmetic and a .krs does none: the pair must come in one
         // instruction. R2 still holds the case's address here, whose two words are 0xb and 0x7
         {"LDG.E.64.CONSTANT R8, [R2.64]\nIMAD.MOV.U32 R7, RZ, RZ, R8", 0x0000000bu},
@@ -353,7 +353,8 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
         {"IMAD.MOV.U32 R8, RZ, RZ, 4294967295\nSTG.E [R4.64+0x8], R8\nLDG.E.U8.CONSTANT R9, [R4.64+0x8]\n"
          "IMAD.MOV.U32 R7, RZ, RZ, R9",
          0x000000ffu},
-        // product_low and product_high, which the compiler fused into one IMAD.WIDE.U32 writing an aligned pair
+        // word_mul_low and word_mul_high, which the compiler fused into one IMAD.WIDE.U32 writing an aligned
+        // pair
         // (form_13: MOV R7, RZ then IMAD.WIDE.U32 R6, R9, R0, R6). The core names the two halves apart: a pair
         // cannot be promised, and each half is asked here on its own: the low is the product's low word plus the
         // addend with its carry kept, and the high is the product's high word plus that carry. 0xffffffff squared
@@ -366,7 +367,7 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
          "IMAD.MOV.U32 R6, RZ, RZ, 4294967295\nIMAD R8, R2, R3, RZ\nIADD3 R8, P6, R8, R6, RZ\n"
          "IMAD.HI.U32 R9, R2, R3, RZ\nIMAD.X R9, RZ, RZ, R9, P6\nIMAD.MOV.U32 R7, RZ, RZ, R9",
          0xffffffffu},
-        // predicate_xor and predicate_and as sass.krs writes them, their scratch in R2, R3 and R6, which the frame
+        // predicate_bitxor and predicate_bitand as sass.krs writes them, their scratch in R2, R3 and R6, which the frame
         // leaves free: R4 and R5 hold the address the answer is stored to and R7 holds the answer. P1 is true, since
         // the case's first word is not zero, and P2 is given the word that makes it true or the zero that does not
         {"ISETP.NE.U32.AND P1, PT, R0, RZ, PT\nISETP.NE.U32.AND P2, PT, RZ, RZ, PT\nSEL R2, RZ, 0x1, P1\n"
@@ -385,7 +386,8 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
          "SEL R2, R6, 0x0, P1\nSEL R3, R6, 0x0, P2\nLOP3.LUT R2, R2, R3, RZ, 0xc0, !PT\n"
          "ISETP.NE.U32.AND P0, PT, R2, RZ, PT\nSEL R7, R0, RZ, P0",
          0x00000000u},
-        // count_add, which the PTX question could only assemble and run: what the reduction leaves is read here,
+        // global_add_atomic_word, which the PTX question could only assemble and run: what the reduction leaves is read
+        // here,
         // where the instructions are ours. The answer's third slot is set to zero, added to twice - once by one out
         // of a register, since the reduction reads no number out of the instruction, and once by the case's first
         // word - and read back. 0 + 1 + 0xb is 0xc, and a reduction that added nothing would answer 0
@@ -393,7 +395,7 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
          "RED.E.ADD.STRONG.GPU [R4.64+0x8], R0\nLDG.E.CONSTANT R7, [R4.64+0x8]",
          0x0000000cu},
         // Which numbers the part keeps for itself. R255 reads zero whatever is written into it, and that alone is
-        // what RZ is: nothing about the file says so, the part does.
+        // what RZ is: the part answers it, and the file does not.
         //
         // The high numbers are a different question and are not asked here. R254 and R238, which sass.krs claims,
         // were asked and the kernel errored on the device both times. Asked again in a kernel written to declare
@@ -472,10 +474,10 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
 }
 
 // The loop each candidate is asked in, written in place of form_0's IADD3. R7 counts the turns up by R2 and R0 counts
-// the case's first word down by R3, both with add_alone, and test_nonzero sets the flag P0 from R0 (sass.krs). R8 and
-// R9 hold an address no code lies at, so that a candidate jumping through them faults in place of starting the kernel
-// over. The candidate is the line after the body: one that comes back to the label on the flag answers the case's
-// first word, and one that falls through answers 1
+// the case's first word down by R3, both with word_add, and test_word_nonzero sets the flag P0 from R0 (sass.krs). R8
+// and R9 hold an address no code lies at, so that a candidate jumping through them faults in place of starting the
+// kernel over. The candidate is the line after the body: one that comes back to the label on the flag answers the
+// case's first word, and one that falls through answers 1
 #define SASS_LOOP_BODY                                                                                                 \
     "IMAD.MOV.U32 R7, RZ, RZ, RZ\n"                                                                                    \
     "IMAD.MOV.U32 R2, RZ, RZ, 0x1\n"                                                                                   \
@@ -577,7 +579,7 @@ static void sass_loop_operand(const char *base, unsigned int kind, unsigned int 
     snprintf(operand, room, "%s%s", s_marks[mark], filled);
 }
 
-// `form` written as the candidate in loop_back's place, guarded by the flag, into `text`: 1, or 0 where one of its
+// `form` written as the candidate in loop_back_if's place, guarded by the flag, into `text`: 1, or 0 where one of its
 // operands is a kind the reader did not know, which no instruction of the form assembles from
 static int sass_loop_candidate(const SassForm *form, char *text, size_t room)
 {
@@ -683,7 +685,7 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
            written, through, kept);
     // The forms that came back, each timed over a long count and read at its least, since a run can only be lengthened
     // by what else the host is doing; and each walked as the instruction that takes a loop back, which the part's
-    // answer checks. The cheapest is the part's loop_back
+    // answer checks. The cheapest is the part's loop_back_if
     double cheapest = 0.0;
     double second = 0.0;
     double spread = 0.0;
@@ -730,8 +732,8 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
         }
         second = ((second == 0.0) || (least < second)) ? least : second;
     }
-    // The cheapest is the part's loop_back where it stands apart from the next by more than any form's own runs stood
-    // apart from each other. A difference under that spread is no reading, and the forms are then one cost
+    // The cheapest is the part's loop_back_if where it stands apart from the next by more than any form's own runs
+    // stood apart from each other. A difference under that spread is no reading, and the forms are then one cost
     if ((chosen != SASS_LOOP_KEPT) && ((second == 0.0) || ((second - cheapest) > spread)))
     {
         printf("interface sass loop back: %s, %.4f ns a turn\n", s_kept[chosen], cheapest / (double)SASS_LOOP_TIMED);

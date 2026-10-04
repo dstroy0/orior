@@ -28,17 +28,17 @@ Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this 
 | 4 | and | 00160 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 4 | and | 00170 | `LOP3.LUT R9, R0, R9, RZ, 0xc0, !PT` | same | same | NVIDIA 0027e5, ours 0627f2 |  | scheduler bits |
 | 4 | and | 00180 | `STG.E.STRONG.SYS term[UR4][R4.64+0xc], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 4 | and | 00170 | `LOP3.LUT R9, R0, R9, RZ, 0xc0, !PT` |  |  |  | `word_and: LOP3.LUT R9, R0, R9, RZ, 0xc0, !PT` | none, leaves in NVIDIA's order |
+| 4 | and | 00170 | `LOP3.LUT R9, R0, R9, RZ, 0xc0, !PT` |  |  |  | `word_bitand: LOP3.LUT R9, R0, R9, RZ, 0xc0, !PT` | none, leaves in NVIDIA's order |
 | 5 | or | 001a0 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 5 | or | 001b0 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 5 | or | 001c0 | `LOP3.LUT R9, R0, R9, RZ, 0xfc, !PT` | same | same | NVIDIA 0027e5, ours 0627f2 |  | scheduler bits |
 | 5 | or | 001d0 | `STG.E.STRONG.SYS term[UR4][R4.64+0x10], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 5 | or | 001c0 | `LOP3.LUT R9, R0, R9, RZ, 0xfc, !PT` |  |  |  | `word_or: LOP3.LUT R9, R0, R9, RZ, 0xfc, !PT` | none, leaves swapped |
+| 5 | or | 001c0 | `LOP3.LUT R9, R0, R9, RZ, 0xfc, !PT` |  |  |  | `word_bitor: LOP3.LUT R9, R0, R9, RZ, 0xfc, !PT` | none, leaves swapped |
 | 6 | xor | 001f0 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 6 | xor | 00200 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 6 | xor | 00210 | `LOP3.LUT R9, R0, R9, RZ, 0x3c, !PT` | same | same | NVIDIA 0027e5, ours 0627f2 |  | scheduler bits |
 | 6 | xor | 00220 | `STG.E.STRONG.SYS term[UR4][R4.64+0x14], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 6 | xor | 00210 | `LOP3.LUT R9, R0, R9, RZ, 0x3c, !PT` |  |  |  | `word_xor: LOP3.LUT R9, R0, R9, RZ, 0x3c, !PT` | none, leaves swapped |
+| 6 | xor | 00210 | `LOP3.LUT R9, R0, R9, RZ, 0x3c, !PT` |  |  |  | `word_bitxor: LOP3.LUT R9, R0, R9, RZ, 0x3c, !PT` | none, leaves swapped |
 | 7 | nand | 00240 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 7 | nand | 00250 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 7 | nand | 00260 | `LOP3.LUT R0, R0, R9, RZ, 0xc0, !PT` | same | same | NVIDIA 0027e4, ours 0627f2 |  | scheduler bits |
@@ -59,12 +59,12 @@ Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this 
 | 10 | shl | 00340 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 10 | shl | 00350 | `SHF.L.W.U32 R9, R9, R0, RZ` | same | same | NVIDIA 0027e5, ours 0427f2 |  | scheduler bits |
 | 10 | shl | 00360 | `STG.E.STRONG.SYS term[UR4][R4.64+0x24], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 10 | shl | 00350 | `SHF.L.W.U32 R9, R9, R0, RZ` |  |  |  | `word_shift_left: SHF.L.U32 R9, R9, R0, RZ` | operation bits apart; NVIDIA's carries .W and ours does not; apart at 1 bits |
+| 10 | shl | 00350 | `SHF.L.W.U32 R9, R9, R0, RZ` |  |  |  | `word_shl: SHF.L.U32 R9, R9, R0, RZ` | operation bits apart; NVIDIA's carries .W and ours does not; apart at 1 bits |
 | 11 | shr | 00380 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 11 | shr | 00390 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 11 | shr | 003a0 | `SHF.R.W.U32.HI R9, RZ, R0, R9` | same | same | NVIDIA 0027e5, ours 0007e3 |  | scheduler bits |
 | 11 | shr | 003b0 | `STG.E.STRONG.SYS term[UR4][R4.64+0x28], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 11 | shr | 003a0 | `SHF.R.W.U32.HI R9, RZ, R0, R9` |  |  |  | `word_shift_right: SHF.R.U32.HI R9, RZ, R0, R9` | operation bits apart; NVIDIA's carries .W and ours does not; apart at 1 bits |
+| 11 | shr | 003a0 | `SHF.R.W.U32.HI R9, RZ, R0, R9` |  |  |  | `word_shr: SHF.R.U32.HI R9, RZ, R0, R9` | operation bits apart; NVIDIA's carries .W and ours does not; apart at 1 bits |
 | 12 | asr | 003d0 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 12 | asr | 003e0 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 12 | asr | 003f0 | `SHF.R.W.S32.HI R9, RZ, R0, R9` | same | same | NVIDIA 0027e5, ours 0007e3 |  | scheduler bits |
@@ -86,12 +86,12 @@ Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this 
 | 15 | add | 004f0 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 15 | add | 00500 | `IMAD.IADD R9, R0, 0x1, R9` | same | same | NVIDIA 0027e5, ours 000fe5 |  | scheduler bits |
 | 15 | add | 00510 | `STG.E.STRONG.SYS term[UR4][R4.64+0x38], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 15 | add | 00500 | `IMAD.IADD R9, R0, 0x1, R9` |  |  |  | `add_alone: IADD3 R9, R0, R9, RZ` | operation bits apart; NVIDIA's carries .IADD and ours does not; apart at 20 bits |
+| 15 | add | 00500 | `IMAD.IADD R9, R0, 0x1, R9` |  |  |  | `word_add: IADD3 R9, R0, R9, RZ` | operation bits apart; NVIDIA's carries .IADD and ours does not; apart at 20 bits |
 | 16 | sub | 00530 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 16 | sub | 00540 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 16 | sub | 00550 | `IMAD.IADD R9, R9, 0x1, -R0` | same | same where the part reads; apart at bit 87 89 90, which the part does not read | NVIDIA 0027e5, ours 0007f1 |  | scheduler bits |
 | 16 | sub | 00560 | `STG.E.STRONG.SYS term[UR4][R4.64+0x3c], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 16 | sub | 00550 | `IMAD.IADD R9, R9, 0x1, -R0` |  |  |  | `subtract_alone: IADD3 R9, R9, -R0, RZ` | operation bits apart; NVIDIA's carries .IADD and ours does not; apart at 24 bits |
+| 16 | sub | 00550 | `IMAD.IADD R9, R9, 0x1, -R0` |  |  |  | `word_sub: IADD3 R9, R9, -R0, RZ` | operation bits apart; NVIDIA's carries .IADD and ours does not; apart at 24 bits |
 | 17 | bra | 00580 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x8]` | same | same | NVIDIA 000752, ours 000751 |  | scheduler bits |
 | 17 | bra | 00590 | `ISETP.NE.AND P0, PT, R0, RZ, PT` | same | same | NVIDIA 0027ed, ours 0007f1 |  | scheduler bits |
 | 17 | bra | 005a0 | `@!P0 BRA 0x640` | `` @!P0 BRA `(0x640) `` | same | NVIDIA 0007f5, ours 0007e0 |  | scheduler bits |
@@ -123,13 +123,13 @@ Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this 
 | 18 | jcc | 00740 | `STG.E.STRONG.SYS term[UR4][R4.64+0x44], R13` | same | same | same |  | none |
 | 18 | jcc | 00750 | `LDG.E.STRONG.SYS R7, term[UR4][R6.64]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 18 | jcc | 00760 | `STG.E.STRONG.SYS term[UR4][R4.64+0x44], R7` | same | same | NVIDIA 0020f2, ours 0000f4 |  | scheduler bits |
-| 18 | jcc | 006e0 | `@P0 BRA 0x770` |  |  |  | `` loop_back on P0: @P0 BRA `(0x6f0) `` | guard the same, operation the same, target its own label's |
+| 18 | jcc | 006e0 | `@P0 BRA 0x770` |  |  |  | `` loop_back_if on P0: @P0 BRA `(0x6f0) `` | guard the same, operation the same, target its own label's |
 
 ## Bits apart
 
 Each instruction whose operation bits are apart from NVIDIA's, both encodings bit by bit with bit 127 first under each byte's top bit; `^` marks an operation bit apart and `.` a scheduler bit apart.
 
-Block 10, shl, `SHF.L.W.U32 R9, R9, R0, RZ`, word_shift_left: SHF.L.U32 R9, R9, R0, RZ
+Block 10, shl, `SHF.L.W.U32 R9, R9, R0, RZ`, word_shl: SHF.L.U32 R9, R9, R0, RZ
 
 ```
          127      119      111      103      95       87       79       71       63       55       47       39       31       23       15       7        
@@ -138,7 +138,7 @@ ours     00001000 01001111 11100100 00000000 00000000 00000000 00000110 11111111
              .               . ...                                 ^                                                                                    
 ```
 
-Block 11, shr, `SHF.R.W.U32.HI R9, RZ, R0, R9`, word_shift_right: SHF.R.U32.HI R9, RZ, R0, R9
+Block 11, shr, `SHF.R.W.U32.HI R9, RZ, R0, R9`, word_shr: SHF.R.U32.HI R9, RZ, R0, R9
 
 ```
          127      119      111      103      95       87       79       71       63       55       47       39       31       23       15       7        
@@ -147,7 +147,7 @@ ours     00000000 00001111 11000110 00000000 00000000 00000001 00010110 00001001
                    .           ..                                  ^                                                                                    
 ```
 
-Block 15, add, `IMAD.IADD R9, R0, 0x1, R9`, add_alone: IADD3 R9, R0, R9, RZ
+Block 15, add, `IMAD.IADD R9, R0, 0x1, R9`, word_add: IADD3 R9, R0, R9, RZ
 
 ```
          127      119      111      103      95       87       79       71       63       55       47       39       31       23       15       7        
@@ -156,7 +156,7 @@ ours     00000000 01001111 11001010 00000000 00000111 11111111 11100000 11111111
                                                        ^^^   ^ ^^^   ^  ^^^^ ^^                                 ^                          ^ ^    ^^ ^  
 ```
 
-Block 16, sub, `IMAD.IADD R9, R9, 0x1, -R0`, subtract_alone: IADD3 R9, R9, -R0, RZ
+Block 16, sub, `IMAD.IADD R9, R9, 0x1, -R0`, word_sub: IADD3 R9, R9, -R0, RZ
 
 ```
          127      119      111      103      95       87       79       71       63       55       47       39       31       23       15       7        

@@ -13,16 +13,16 @@ reading is the conditional entropy of the pair given what a branch reads, H(pair
 
     the tables alone     one name a cell, as the tables print it, over every named cell of the first table
     a bare label         the one label gnascor_read.py decides in the situation
-    the clock's label    the same, with a SYNC passage written as its FUZZ+ and FIZZ+ labels
-    a GRAY trip's state  the same, with FUZZ into GRAY carrying the state left and FIZZ out of it the state reached
+    the clock's label    the same, with a sync passage written as its fuzz+ and fizz+ labels
+    a gray trip's state  the same, with fuzz into gray carrying the state left and fizz out of it the state reached
 
 H(pair) less H(pair | label) is the part of the transition the label keeps.
 
 --repeat puts gnascor_scenario.txt to the host as real asks the given number of times, through the
 gnascor_trace program utils/maint/engine/chain_check.sh builds, and reads every trace back. It reports how many
 cycles read as the scenario implies, how many asks the scenario holds came in past the bound their own run
-derived, how many both-held cycles read BUSY in place of DUAL, how many sides of those cycles come in past the
-BUSY edge alone and both at once against the count two independent sides would give, how many distinct coherence
+derived, how many both-held cycles read busy in place of dual, how many sides of those cycles come in past the
+busy edge alone and both at once against the count two independent sides would give, how many distinct coherence
 clocks the runs print, and the spread of the bound each run derives. A held ask past its bound is a spurious timeout: the bound is
 estimated from a finite sample of the host's costs, and the host can still exceed it. The traces are written
 under build/engine/repeat/.
@@ -82,12 +82,12 @@ def situated(clock_form, gray_form=False):
         for left in SITUATIONS:
             for right in SITUATIONS:
                 label = decide(pair, names, left, right, BOUND, EDGE)
-                if clock_form and label == "SYNC":
-                    label = "FUZZ+%s FIZZ+%s" % pair
-                if gray_form and label == "FUZZ":
-                    label = "FUZZ+%s" % pair[0]
-                if gray_form and label == "FIZZ":
-                    label = "FIZZ+%s" % pair[1]
+                if clock_form and label == "sync":
+                    label = "fuzz+%s fizz+%s" % pair
+                if gray_form and label == "fuzz":
+                    label = "fuzz+%s" % pair[0]
+                if gray_form and label == "fizz":
+                    label = "fizz+%s" % pair[1]
                 bucket = weights.setdefault(label, {})
                 bucket[pair] = bucket.get(pair, 0.0) + share
     return weights
@@ -103,7 +103,7 @@ def labels():
     shared(first)
     pairs = len(candidates_of())
     readings = (("a bare label", False, False), ("the clock's label", True, False),
-                ("the clock's label, a GRAY trip carrying its state", True, True))
+                ("the clock's label, a gray trip carrying its state", True, True))
     for title, clock_form, gray_form in readings:
         weights = situated(clock_form, gray_form)
         lost = entropy_given(weights)
@@ -152,7 +152,7 @@ def repeat(runs):
         cycles = [read_cycle(line) for line in lines if line.strip() and not line.startswith("#")]
         states, read = read_trace(cycles)
         traced = states[BASELINE_CYCLES:]
-        busy += sum(1 for at in both_held if traced[at] == "BUSY")
+        busy += sum(1 for at in both_held if traced[at] == "busy")
         asked = cycles[BASELINE_CYCLES:]
         edge = baseline_of(cycles)
         for at in both_held:
@@ -172,7 +172,7 @@ def repeat(runs):
     bounds.sort()
     print("  %d runs of %d cycles, %d cycles read as other than the scenario implies" % (runs, len(specs), wrong))
     print("  %d of %d held asks came in past the bound their run derived" % (spurious, runs * len(held_sides)))
-    print("  %d of %d both-held cycles read BUSY in place of DUAL" % (busy, runs * len(both_held)))
+    print("  %d of %d both-held cycles read busy in place of dual" % (busy, runs * len(both_held)))
     pairs = runs * len(both_held)
     share = sides_over / (2.0 * pairs)
     print("  %d of %d sides of those cycles past the edge, a share of %.4f; both at once %d, where sides apart from"

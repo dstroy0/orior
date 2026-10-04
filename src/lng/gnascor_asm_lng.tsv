@@ -1,0 +1,87 @@
+mnemonic	table	past	present	past left	past right	present left	present right	left	right	arrow
+core	the branch pair	lead	void	1			0	-	-	
+shift	the branch pair	rite	lead	0			1	-	-	
+echo	the branch pair	dual	void	2			0	-	-	
+nexus	the branch pair	dual	dual	2			2	-	-	
+nexus	the state-transition matrix	dual	dual	1	1	1	1	=	=	->
+drop	the state-transition matrix	dual	lead	1	1	1	0	=	0	->
+sync	the state-transition matrix	dual	rite	1	1	0	1	0	=	->
+drop	the state-transition matrix	dual	void	1	1	0	0	0	0	x>
+sync	the state-transition matrix	dual	busy	1	1	-	-	-	-	*>
+sync	the state-transition matrix	dual	wait	1	1	-	-	-	-	*>
+halt	the state-transition matrix	dual	blok	1	1	-	-	-	-	*>
+fuzz	the state-transition matrix	dual	gray	1	1	-	-	-	-	*>
+join	the state-transition matrix	lead	dual	1	0	1	1	=	1	->
+core	the state-transition matrix	lead	lead	1	0	1	0	=	=	->
+pass	the state-transition matrix	lead	rite	1	0	0	1	0	1	x>
+drop	the state-transition matrix	lead	void	1	0	0	0	0	=	->
+sync	the state-transition matrix	lead	busy	1	0	-	-	-	-	*>
+sync	the state-transition matrix	lead	wait	1	0	-	-	-	-	*>
+halt	the state-transition matrix	lead	blok	1	0	-	-	-	-	*>
+fuzz	the state-transition matrix	lead	gray	1	0	-	-	-	-	*>
+join	the state-transition matrix	rite	dual	0	1	1	1	1	=	->
+back	the state-transition matrix	rite	lead	0	1	1	0	1	0	x>
+surv	the state-transition matrix	rite	rite	0	1	0	1	=	=	->
+drop	the state-transition matrix	rite	void	0	1	0	0	=	0	->
+sync	the state-transition matrix	rite	busy	0	1	-	-	-	-	*>
+sync	the state-transition matrix	rite	wait	0	1	-	-	-	-	*>
+halt	the state-transition matrix	rite	blok	0	1	-	-	-	-	*>
+fuzz	the state-transition matrix	rite	gray	0	1	-	-	-	-	*>
+sprk	the state-transition matrix	void	dual	0	0	1	1	1	1	x>
+wake	the state-transition matrix	void	lead	0	0	1	0	1	=	->
+wake	the state-transition matrix	void	rite	0	0	0	1	=	1	->
+zero	the state-transition matrix	void	void	0	0	0	0	=	=	->
+sync	the state-transition matrix	void	busy	0	0	-	-	-	-	*>
+sync	the state-transition matrix	void	wait	0	0	-	-	-	-	*>
+halt	the state-transition matrix	void	blok	0	0	-	-	-	-	*>
+fuzz	the state-transition matrix	void	gray	0	0	-	-	-	-	*>
+sync	the state-transition matrix	busy	dual	-	-	1	1	-	-	*>
+sync	the state-transition matrix	busy	lead	-	-	1	0	-	-	*>
+sync	the state-transition matrix	busy	rite	-	-	0	1	-	-	*>
+drop	the state-transition matrix	busy	void	-	-	0	0	-	-	*>
+drag	the state-transition matrix	busy	busy	-	-	-	-	-	-	*>
+sync	the state-transition matrix	busy	wait	-	-	-	-	-	-	*>
+jamm	the state-transition matrix	busy	blok	-	-	-	-	-	-	*>
+fuzz	the state-transition matrix	busy	gray	-	-	-	-	-	-	*>
+sync	the state-transition matrix	wait	dual	-	-	1	1	-	-	*>
+sync	the state-transition matrix	wait	lead	-	-	1	0	-	-	*>
+sync	the state-transition matrix	wait	rite	-	-	0	1	-	-	*>
+loss	the state-transition matrix	wait	void	-	-	0	0	-	-	*>
+sync	the state-transition matrix	wait	busy	-	-	-	-	-	-	*>
+hold	the state-transition matrix	wait	wait	-	-	-	-	-	-	*>
+halt	the state-transition matrix	wait	blok	-	-	-	-	-	-	*>
+fuzz	the state-transition matrix	wait	gray	-	-	-	-	-	-	*>
+sync	the state-transition matrix	blok	dual	-	-	1	1	-	-	*>
+sync	the state-transition matrix	blok	lead	-	-	1	0	-	-	*>
+sync	the state-transition matrix	blok	rite	-	-	0	1	-	-	*>
+drop	the state-transition matrix	blok	void	-	-	0	0	-	-	*>
+sync	the state-transition matrix	blok	busy	-	-	-	-	-	-	*>
+sync	the state-transition matrix	blok	wait	-	-	-	-	-	-	*>
+dead	the state-transition matrix	blok	blok	-	-	-	-	-	-	*>
+fuzz	the state-transition matrix	blok	gray	-	-	-	-	-	-	*>
+fizz	the state-transition matrix	gray	dual	-	-	1	1	-	-	*>
+fizz	the state-transition matrix	gray	lead	-	-	1	0	-	-	*>
+fizz	the state-transition matrix	gray	rite	-	-	0	1	-	-	*>
+fizz	the state-transition matrix	gray	void	-	-	0	0	-	-	*>
+fizz	the state-transition matrix	gray	busy	-	-	-	-	-	-	*>
+fizz	the state-transition matrix	gray	wait	-	-	-	-	-	-	*>
+fizz	the state-transition matrix	gray	blok	-	-	-	-	-	-	*>
+surg	the high-energy transition matrix	busy	dual	-	-	1	1	-	-	*>
+vent	the high-energy transition matrix	busy	lead	-	-	1	0	-	-	*>
+vent	the high-energy transition matrix	busy	rite	-	-	0	1	-	-	*>
+drop	the high-energy transition matrix	busy	void	-	-	0	0	-	-	*>
+snap	the high-energy transition matrix	wait	dual	-	-	1	1	-	-	*>
+lead	the high-energy transition matrix	wait	lead	-	-	1	0	-	-	*>
+rite	the high-energy transition matrix	wait	rite	-	-	0	1	-	-	*>
+loss	the high-energy transition matrix	wait	void	-	-	0	0	-	-	*>
+nexus	the high-energy transition matrix	dual	dual	1	1	1	1	=	=	->
+tilt	the high-energy transition matrix	dual	lead	1	1	1	0	=	0	->
+tilt	the high-energy transition matrix	dual	rite	1	1	0	1	0	=	->
+fuse	the high-energy transition matrix	dual	void	1	1	0	0	0	0	x>
+pass	the shift mnemonics	lead	rite	1	0	0	1	0	1	x>
+back	the shift mnemonics	rite	lead	0	1	1	0	1	0	x>
+drop	the physics and error mnemonics	any stable state	void	-	-	0	0	-	-	*>
+loss	the physics and error mnemonics	wait	void	-	-	0	0	-	-	*>
+jamm	the physics and error mnemonics	busy	blok	-	-	-	-	-	-	*>
+sprk	the physics and error mnemonics	void	dual	0	0	1	1	1	1	x>
+halt	the physics and error mnemonics	any state	blok	-	-	-	-	-	-	*>
