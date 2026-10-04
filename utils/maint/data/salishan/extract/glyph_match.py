@@ -110,7 +110,8 @@ def overlap(one, two):
 
 def reference(face):
     """[(advance in thousandths, text, bitmap)] for every mapped glyph of a system face."""
-    font = TTFont(os.path.join(FONTS, face))
+    path, _, number = face.partition("#")
+    font = TTFont(os.path.join(FONTS, path), fontNumber=int(number) if number else -1)
     units = font["head"].unitsPerEm
     glyphset = font.getGlyphSet()
     names = {}

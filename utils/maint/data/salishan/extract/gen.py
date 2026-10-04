@@ -822,7 +822,10 @@ class Paper(object):
                 # A run that the star or a dash above made into a form already cited at the same
                 # place, the bare tqačiʔ of *tqačiʔ on Denzer-King's page 6, is that form. The same
                 # form cited again elsewhere stays, Nater's -nix in Figure 1 and in §1.
-                why = "page %d, in italics%s" % (number, ", " + gloss.group(1) if gloss else "")
+                # A paper that sets its forms upright in a face of their own names it in form_set,
+                # in Lucida Sans Unicode for Mattina's 2008 forms.
+                why = "page %d, %s%s" % (number, getattr(self, "form_set", "in italics"),
+                                         ", " + gloss.group(1) if gloss else "")
                 if run != bare and [where, language, "cited form", run, why] in self.rows:
                     continue
                 self.add(where, language, "cited form", run, why)

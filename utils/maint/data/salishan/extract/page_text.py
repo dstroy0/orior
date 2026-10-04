@@ -177,7 +177,7 @@ OUTLINE_FACES = {"TimesNewRomanPSMT": "times.ttf", "TimesNewRomanPS-BoldMT": "ti
                  "Calibri,BoldItalic": "calibriz.ttf", "Times-Roman": TERMES + "regular.otf",
                  "Times-Bold": TERMES + "bold.otf", "Times-Italic": TERMES + "italic.otf",
                  "Times-BoldItalic": TERMES + "bolditalic.otf", "Helvetica": "arial.ttf",
-                 "CourierNewPSMT": "cour.ttf"}
+                 "CourierNewPSMT": "cour.ttf", "CambriaMath": "cambria.ttc#1"}
 PAPER_OUTLINED = tables.members("PAPER_OUTLINED")
 _FACE_KEYS = {}
 
@@ -198,7 +198,7 @@ def face_keys(face):
     schwa ə of Lucida Sans Unicode, which draws the turned e ǝ alike, in Mattina's 2008 forms, and
     failing that the lowest code point past the private use area."""
     if face not in _FACE_KEYS:
-        font = TTFont(os.path.join("C:/Windows/Fonts", face))
+        font = system_face(face)
         glyphset, units = font.getGlyphSet(), font["head"].unitsPerEm
         drawn = {}
         for point, name in font.getBestCmap().items():
@@ -211,6 +211,13 @@ def face_keys(face):
             keys[key] = chr(points[0])
         _FACE_KEYS[face] = keys
     return _FACE_KEYS[face]
+
+
+def system_face(face):
+    """The system face OUTLINE_FACES names: a file, or a font of a collection by its index after a #,
+    cambria.ttc#1 for Cambria Math."""
+    path, _, number = face.partition("#")
+    return TTFont(os.path.join("C:/Windows/Fonts", path), fontNumber=int(number) if number else -1)
 
 
 def in_cp1252(point):
@@ -983,6 +990,9 @@ def under_rules(page, glyphs):
 # Table 4, hi sk, and of (ii) on her page 12. Each struck letter takes the long stroke overlay.
 # Read in rows mode only.
 PAPER_STRUCK = tables.members("PAPER_STRUCK")
+# Papers that link the words of a gloss with underscores set under the gaps between them, the
+# -take_back and bring_pl_cisl of Mattina's 2008 Tables 12 and 13. Read in rows mode only.
+PAPER_UNDERSCORED = tables.members("PAPER_UNDERSCORED")
 STRIKE_RULE = "̶"
 # Papers that set a spacing acute alone for a stressed vowel left unwritten, Rude's 2012 Nez Perce
 # underlying forms /t´yam/ and /p´qʷn/. Read in rows mode only.
@@ -1484,7 +1494,7 @@ PAPER_SHEARED = tables.members("PAPER_SHEARED")
 def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream_spaces=False,
               ciphers=None, images=None, overset=False, underlined=False, struck=False, tracked=False,
               lifted=None, lone_acute=False, drawn_back=False, mark_base=False, ruled=False,
-              stream_faces=()):
+              stream_faces=(), underscored=False):
     """Each page's lines rebuilt by position: the glyphs grouped by baseline and each row read left
     to right, a space where the page leaves a gap and three where it leaves a column's.
 
@@ -1511,7 +1521,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
     the stream to the rows afterward misses it. Its "lines" holds a defects row to each line given
     a raised letter. With ruled, each ruled grid of a page is read by ruled_tables and set where its
     rows stand, a line to a table row. stream_faces names the faces whose word spaces the stream
-    alone sets, a paper's PAPER_STREAM_FACES entry."""
+    alone sets, a paper's PAPER_STREAM_FACES entry. With underscored, a row of underscores alone
+    joins the row over it."""
     pages = []
     scale = INK_DPI / 72.0
     # The gap an f's overhang leaves before the next letter of its word stays under 0.08 em, of the
@@ -1589,10 +1600,13 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 # stands under the mark, the letter ending nearest before its middle, within 0.4
                 # em on its line, takes it. The comma above right stands past its letter and over
                 # the next, t̕uk̕ʷ in Lyon's (11a) with its middle over the u, and always goes to
-                # the letter before it.
+                # the letter before it. A mark set above takes no letter of the line over it, whose
+                # bottom stands higher than the mark's: the a of also over the l̕ of k+s+ql̕t=mixʷ on
+                # Mattina's page 10.
                 if drawn_back and (not under or mark == "̕"):
                     under = sorted((one for one in glyphs if abs(one[1][1] - box[1]) < size and
-                                    -0.05 * size <= middle - one[1][2] < 0.4 * size and one[1][2] > one[1][0]),
+                                    -0.05 * size <= middle - one[1][2] < 0.4 * size and one[1][2] > one[1][0]
+                                    and not (above and one[1][1] >= box[1])),
                                    key=lambda one: one[1][2])[-1:]
                 target = under[-1] if under else (glyphs[-1] if glyphs else None)
                 if target is not None:
@@ -1694,6 +1708,20 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             nearest = min(beside, key=lambda one: (abs(rows[one][0] - middle), -one))
             rows[nearest][1].extend(members)
             del rows[place]
+        # With underscored, a row of underscores alone is the underscores linking the words of the
+        # row over it, set under that row's baseline in the gaps between its words: the italic
+        # -take_back and bring_pl_cisl in Mattina's Tables 12 and 13. It joins that row where it
+        # stands within an em under its middle. A scanned paper's text layer sets an underscore
+        # where the page underlines a word, the alikw of Bates and Hess's page 1, and keeps it apart.
+        for place in range(len(rows) - 1, 0, -1):
+            middle, members = rows[place]
+            if not underscored or not all(one[0] == "_" for one in members):
+                continue
+            above_middle, above = rows[place - 1]
+            size = sorted(one[2] for one in above)[len(above) // 2]
+            if above_middle - middle < size:
+                above.extend(members)
+                del rows[place]
         # A row of a note's mark alone is the mark raised over the row under it: the * set high
         # after the title Orbital Clitics in Nxaʔamxčín and before the note it opens, Deep gratitude,
         # in Lyon and Czaykowska-Higgins, or a number set smaller than the row's letters. It joins
@@ -2353,7 +2381,8 @@ def main():
                             struck=stem in PAPER_STRUCK, tracked=stem in PAPER_TRACKED,
                             lifted=lifted, lone_acute=stem in PAPER_LONE_ACUTE,
                             drawn_back=stem in PAPER_DRAWN_BACK, mark_base=stem in PAPER_MARK_BASE,
-                            ruled=stem in PAPER_RULED, stream_faces=PAPER_STREAM_FACES.get(stem, ()))
+                            ruled=stem in PAPER_RULED, stream_faces=PAPER_STREAM_FACES.get(stem, ()),
+                            underscored=stem in PAPER_UNDERSCORED)
         # A private-use glyph is written as the letter it draws here too, before the raised letters
         # are read: x̌ʷ in van Eijk's nax̌ʷít sets its ʷ after the private-use x̌.
         mapping = PRIVATE_USE.get(stem, {})
