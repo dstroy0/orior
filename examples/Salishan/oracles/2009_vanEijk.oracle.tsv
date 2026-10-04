@@ -1,8 +1,8 @@
 where	who	kind	form	gloss
-front	Jan P. van Eijk	title	Salish words for ‘black bear’ and ‘grizzly bear’1	page 1
+front	Jan P. van Eijk	title	Salish words for ‘black bear’ and ‘grizzly bear’	page 1, carries footnote 1
 front	Jan P. van Eijk	name	Jan P. van Eijk	author
 front	Jan P. van Eijk	note	First Nations University of Canada	page 1, under Jan P. van Eijk
-front	Jan P. van Eijk	note	Salish languages show a wide variety of names for ‘black bear’ and ‘grizzly bear.’ A number of these are doubtless of great antiquity and some of them may go back to Proto-Salish. However, reconstruction of the proto-forms seems problematic in light of inter-Salish and extra-Salish borrowing and of what appears to be rather massive taboo- driven lexical replacement.	page 1, the abstract
+front	Jan P. van Eijk	note	Salish languages show a wide variety of names for ‘black bear’ and ‘grizzly bear.’ A number of these are doubtless of great antiquity and some of them may go back to Proto-Salish. However, reconstruction of the proto-forms seems problematic in light of inter-Salish and extra-Salish borrowing and of what appears to be rather massive taboo-driven lexical replacement.	page 1, the abstract
 front	Jan P. van Eijk	language	Salish	the family whose words for the two bears the paper compares
 footnote 1	Jan P. van Eijk	note	Thanks are due to Henry Davis, who presented an earlier version of this paper for me at the 44th International Conference on Salish and Neighbouring Languages, held in Pablo, Montana, and to Brent Galloway, Steve Egesdal, John Lyon and Peter Jacobs for providing crucial data and insightful comments. The responsibility for this paper remains my own.	page 1, footnote 1, on the title
 footnote 1	Jan P. van Eijk	name	Galloway	Brent Galloway (1990, 2008, 2009), Samish, Nooksack and Upriver Halkomelem
@@ -102,9 +102,10 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §3	Jan P. van Eijk	note	Comments are given for each language that is listed in section 2, in the order given there.	page 3
 §3	Jan P. van Eijk	note	The Bella Coola (Nuxalk) data are from Nater 1977 and Nater 1990. As is indicated in the 1977 source, both ƛ̕a and nan are borrowings from (northern) Wakashan (cf. Heiltsuk ƛ̕a and nán). Peter Jacobs (p.c.) informs me that nan is the ceremonial rather than the colloquial form for ‘grizzly bear’ in Kwak’wala. Lincoln and Rath 1980 do indeed list a second root, gla-, for ‘grizzly bear’ in Northern Wakashan, but do not indicate wheter this form, or nan, is the ceremonial or colloquial form.	page 3
 §3	Bella Coola	cited form	ƛ̕a	page 3, in the prose
+§3	Bella Coola	cited form	nan	page 3, in the prose
 §3	Heiltsuk	cited form	ƛ̕a	page 3, in the prose
 §3	Heiltsuk	cited form	nán	page 3, in the prose
-§3	Wakashan	cited affix	gla-	page 3, in the prose
+§3	Wakashan	root	gla-	page 3, in the prose
 §3	Jan P. van Eijk	name	Nater	Hank Nater (1977, 1990), Bella Coola
 §3	Jan P. van Eijk	language	Bella Coola	a Salish language of the table
 §3	Jan P. van Eijk	language	Heiltsuk	Wakashan, the source of the Bella Coola forms
@@ -139,7 +140,7 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §3	Jan P. van Eijk	language	Lushootseed	a Salish language of the table
 §3	Jan P. van Eijk	language	Quinault	a Salish language of the table
 §3	Jan P. van Eijk	language	Cowlitz	a Salish language of the table
-§3	Jan P. van Eijk	note	The source of Squamish míx̌aɬ and sƛ̕əɬálm is Kuipers 1967, while s.k̕ʷí-ʔačn is from Kuipers 1969 and commented on there as a ‘rarer synonym of sƛ̕əɬáləm.’ The form s.k̕ʷíyəčən is from Kinkade 1991a and provided to him by Bouchard and Kennedy. For the cognates and proto-form of míx̌aɬ see the section on Comox above. The form sƛ̕əɬáləm is also attested for Lillooet. The forms s.k̕ʷí-ʔačn and s.k̕ʷíyəčən are also attested for Halkomelem (various dialects), Nooksack, Northern Straits (various dialects), Klallam, Shuswap and Thompson. Peter Jacobs has kindly drawn my attention to the fact that Squamish also has the form síʔ-sinƛ̕ (literally ‘eldest sibling’) for grizzly bear, obviously a taboo term. (Kuipers 1967:304 mentions this term as well, but without the translation ‘eldest sibling,’ and with the stress unmarked.) Jacobs also informs me that the Pentlatch form for ‘black bear’ (sx̌ʷəsə́lqin) is related to the Squamish word for ‘mountain goat,’ s.x̌ʷu-x̌ʷsə́-l̕-qn (also listed in Kuipers 1967:371, without the nominalizer s and derived from x̌ʷəs ‘be fat’). Interestingly, Steve Egesdal informs me that among the Flathead “only the most spiritually able men would hunt grizzly (or mountain goat)” (e-mail, 13-04- 2009), providing a grizzly/mountain goat relation that parallels the black bear/mountain goat relation in Squamish/Pentlatch.	page 4
+§3	Jan P. van Eijk	note	The source of Squamish míx̌aɬ and sƛ̕əɬálm is Kuipers 1967, while s.k̕ʷí-ʔačn is from Kuipers 1969 and commented on there as a ‘rarer synonym of sƛ̕əɬáləm.’ The form s.k̕ʷíyəčən is from Kinkade 1991a and provided to him by Bouchard and Kennedy. For the cognates and proto-form of míx̌aɬ see the section on Comox above. The form sƛ̕əɬáləm is also attested for Lillooet. The forms s.k̕ʷí-ʔačn and s.k̕ʷíyəčən are also attested for Halkomelem (various dialects), Nooksack, Northern Straits (various dialects), Klallam, Shuswap and Thompson. Peter Jacobs has kindly drawn my attention to the fact that Squamish also has the form síʔ-sinƛ̕ (literally ‘eldest sibling’) for grizzly bear, obviously a taboo term. (Kuipers 1967:304 mentions this term as well, but without the translation ‘eldest sibling,’ and with the stress unmarked.) Jacobs also informs me that the Pentlatch form for ‘black bear’ (sx̌ʷəsə́lqin) is related to the Squamish word for ‘mountain goat,’ s.x̌ʷu-x̌ʷsə́-l̕-qn (also listed in Kuipers 1967:371, without the nominalizer s and derived from x̌ʷəs ‘be fat’). Interestingly, Steve Egesdal informs me that among the Flathead “only the most spiritually able men would hunt grizzly (or mountain goat)” (e-mail, 13-04-2009), providing a grizzly/mountain goat relation that parallels the black bear/mountain goat relation in Squamish/Pentlatch.	page 4
 §3	Squamish	cited form	míx̌aɬ	page 4, in the prose
 §3	Squamish	cited form	sƛ̕əɬálm	page 4, in the prose
 §3	Squamish	cited form	s.k̕ʷí-ʔačn	page 4, in the prose
@@ -159,14 +160,14 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §3	Halkomelem	cited form	s.pέ:θ	page 4, in the prose, ‘black bear’
 §3	Halkomelem	cited form	x̌əyƛ̕έls	page 4, in the prose, ‘grizzly bear’
 §3	Halkomelem	cited form	k̕ʷí:cəl	page 4, in the prose
-§3	Halkomelem	cited form	s.x̌ə́:ylmət	page 4, in the prose
-§3	Halkomelem	cited form	s.x̌ə́:ylmàt	page 4, in the prose
-§3	Halkomelem	cited form	c.kʷím	page 4, in the prose
-§3	Halkomelem	cited form	c.kʷím-əlqəl	page 4, in the prose
-§3	Halkomelem	cited form	c̕ɛwəyí:ləs	page 4, in the prose, ‘brown bear with a white chest,’
-§3	Halkomelem	cited form	yəqʷ-íl-mət	page 4, in the prose
+§3	Halkomelem	cited form	s.x̌ə́:ylmət	page 4, in the prose, ‘male black bear with white chest spot’
+§3	Halkomelem	cited form	s.x̌ə́:ylmàt	page 4, in the prose, ‘female black bear with white chest spot’
+§3	Halkomelem	cited form	c.kʷím s.pέ:θ	page 4, in the prose, ‘brown bear’
+§3	Halkomelem	cited form	c.kʷím-əlqəl s.pέ:θ	page 4, in the prose, ‘brown bear’
+§3	Halkomelem	cited form	c̕ɛwəyí:ləs	page 4, in the prose, ‘brown bear with a white chest’
+§3	Halkomelem	cited form	yəqʷ-íl-mət	page 4, in the prose, ‘male grizzly bear’
 §3	Halkomelem	cited form	s.yəqʷ-íl-mətxʷ	page 4, in the prose, ‘male grizzly bear’
-§3	Halkomelem	cited form	yəqʷ-íl-mət-əlàt	page 4, in the prose, ‘female grizzly bear,’
+§3	Halkomelem	cited form	yəqʷ-íl-mət-əlàt	page 4, in the prose, ‘female grizzly bear’
 §3	Jan P. van Eijk	note	The Musqueam and Cowichan forms for ‘black bear’ are from Kuipers 2002. For their etyma elsewhere see the note on Upriver Halkomelem above. The Musqueam, Nanaimo and Cowichan forms for ‘grizzly’ are all from Kinkade 1991a, with the original sources given there. All three forms are related to Squamish s.k̕ʷí-ʔačn and the etyma referenced there.	page 5
 §3	Jan P. van Eijk	note	The Nooksack forms s.páʔac and k̕ʷíyačin, k̕ʷiyíčin are from Galloway 2008, while q̓ʷəyíčən for ‘grizzly bear’ is from Kinkade 1991a. The form s.páʔac is related to the etyma referenced under Upriver Halkomelem, while k̕ʷíyačin, k̕ʷiyíčin and q̓ʷəyíčən are related to Squamish s.k̕ʷí-ʔačn and s.k̕ʷíyəčən and their cognates. The presence of q̓ʷ instead of k̕ʷ in q̓ʷəyíčən is puzzling (as it is in the Lummi form).	page 5
 §3	Nooksack	cited form	s.páʔac	page 5, in the prose
@@ -178,7 +179,7 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §3	Northern Straits	cited form	s.čét̕xʷʌn	page 5, in the prose
 §3	Northern Straits	cited form	k’ō′yētcin	page 5, in the prose, ‘grizzly’
 §3	Northern Straits	cited form	nəq̓ix̌	page 5, in the prose
-§3	Northern Straits	cited form	s.peʔəθ	page 5, in the prose
+§3	Northern Straits	cited form	nəq̓ix̌ s.peʔəθ	page 5, in the prose
 §3	Northern Straits	cited form	s.péʔes	page 5, in the prose
 §3	Northern Straits	cited form	s.čétxʷən	page 5, in the prose
 §3	Jan P. van Eijk	name	Montler	Timothy Montler (1991, 2000), Saanich and Klallam
@@ -209,16 +210,17 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §3	Jan P. van Eijk	note	The Cowlitz forms are all from Kinkade 1991a and 2004. The form s.čə́txʷn for ‘black bear’ is related to Sechelt s.čə́txʷn and to the other forms referenced there. Of the forms for ‘grizzly,’ wít̕as does not seem to have any Salish etyma, while .smê΄c is related to Upper Chehalis (Oakville dialect) s.mə́š.	page 6
 §3	Cowlitz	cited form	s.čə́txʷn	page 6, in the prose, ‘black bear’
 §3	Cowlitz	cited form	wít̕as	page 6, in the prose
-§3	Cowlitz	cited form	s.mə́š	page 6, in the prose
 §3	Jan P. van Eijk	note	At this point in time I do not have access to any Tillamook-Siletz forms. Since Kinkade 1991a does not list them, we may presume that, whatever they are, they do not go back to any of the Proto-Salish forms that Kinkade reconstructs.	page 6
 §3	Jan P. van Eijk	language	Tillamook-Siletz	a Salish language of the table
 §3	Jan P. van Eijk	note	The Lillooet forms are from my own research. The form míx̌aɬ for ‘black bear’ is related to the Comox, Squamish and Columbian forms, while s.ƛ̕aɬáləm for ‘grizzly’ is unique to Squamish and Lillooet.	page 6
 §3	Lillooet	cited form	míx̌aɬ	page 6, in the prose, ‘black bear’
 §3	Lillooet	cited form	s.ƛ̕aɬáləm	page 6, in the prose, ‘grizzly’
 §3	Jan P. van Eijk	note	The Shuswap forms are from Kuipers 1974. The form kn-keknm for ‘black bear’ is unique to Shuswap, though possibly related to ken-m ‘to do what/something’ (as noted by Kuipers) and in that case probably originally used as an evasive taboo term. It is also related to keknm-eɬp, the taboo term for ‘grizzly,’ which Kuipers notes as recorded for the Deadman’s Creek dialect. The form s-kʷl-eqs translated as ‘brown bear’ (a type of black bear) and recorded for Deadman’s Creek and Kamloops only. Kuipers analyzes this form as derived from √kʷal ‘yellow, green’ (and -eqs presumably ‘animal skin (?),’ Kuipers 1974:67), the meaning ‘yellow’ obviously referring to the light brown (cinnamon) colour of this bear’s fur. Kuipers also notes that the full form is the origin of the place name Squilax (for which also see Akrigg and Akrigg 1986:286). The form skm̓x̌ís is related to the Okanagan word for ‘black bear,’ s.kmx̌ist, while s.t.kʷy-k̕ʷey is related to Squamish s.k̕ʷí-ʔačn and etyma in the languages listed there.	page 6
+§3	Shuswap	cited form	kn-keknm	page 6, in the prose, ‘black bear’
+§3	Shuswap	cited form	ken-m	page 6, in the prose, ‘to do what/something’
 §3	Shuswap	cited form	keknm-eɬp	page 6, in the prose
 §3	Shuswap	cited form	s-kʷl-eqs	page 6, in the prose
-§3	Shuswap	cited form	√kʷal	page 6, in the prose, ‘yellow, green’
+§3	Shuswap	root	√kʷal	page 6, in the prose, ‘yellow, green’
 §3	Shuswap	cited affix	-eqs	page 6, in the prose
 §3	Shuswap	cited form	skm̓x̌ís	page 6, in the prose
 §3	Okanagan	cited form	s.kmx̌ist	page 6, in the prose
@@ -228,15 +230,16 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §3	Thompson	cited form	s-péʔec	page 6, in the prose, ‘black bear’
 §3	Thompson	cited form	s.t.k̕ʷik̕ʷy-éytxʷ	page 6, in the prose, ‘silvertip grizzly’
 §3	Thompson	cited form	səxʷ-súxʷ	page 6, in the prose
-§3	Thompson	cited form	√súxʷ	page 6, in the prose, ‘secret/ /mysterious.’
+§3	Thompson	root	√súxʷ	page 6, in the prose, ‘secret/ /mysterious’
 §3	Jan P. van Eijk	note	Of the Columbian forms (both from Kinkade 1981), míx̌aɬ is related to Comox and etyma referenced in that section, while s.təm̓tám̓əl̕ is related to Skagit and Snohomish s.təbtábəl̕.	page 6
 §3	Columbian	cited form	míx̌aɬ	page 6, in the prose
 §3	Columbian	cited form	s.təm̓tám̓əl̕	page 6, in the prose
-§3	Jan P. van Eijk	note	The Okanagan forms are both from Mattina 1987, with s.kmxist being related to Shuswap s.km̓xís ‘grizzly,’ and s.mx̌-ikn̓ to forms in Spokane- Kalispel-Flathead, and Coeur d’Alene. Mattina 1987:314 also lists kiʔláwnaʔ for ‘male grizzly bear,’ the source of the name of the town Kelowna. It does not seem to have etyma in other Salish languages, although (as mentioned to me by John Lyon) it may be related to the Kutenai form for ‘grizzly bear,’ which Boas 1918:364 lists as kɬáwɬa.	page 6
-§3	Shuswap	cited form	s.km̓xís	page 6, in the prose, ‘grizzly,’
+§3	Jan P. van Eijk	note	The Okanagan forms are both from Mattina 1987, with s.kmxist being related to Shuswap s.km̓xís ‘grizzly,’ and s.mx̌-ikn̓ to forms in Spokane-Kalispel-Flathead, and Coeur d’Alene. Mattina 1987:314 also lists kiʔláwnaʔ for ‘male grizzly bear,’ the source of the name of the town Kelowna. It does not seem to have etyma in other Salish languages, although (as mentioned to me by John Lyon) it may be related to the Kutenai form for ‘grizzly bear,’ which Boas 1918:364 lists as kɬáwɬa.	page 6
+§3	Okanagan	cited form	s.kmxist	page 6, in the prose
+§3	Shuswap	cited form	s.km̓xís	page 6, in the prose, ‘grizzly’
 §3	Okanagan	cited form	s.mx̌-ikn̓	page 6, in the prose
-§3	Okanagan	cited form	kiʔláwnaʔ	page 6, in the prose, ‘male grizzly bear,’
-§3	Okanagan	cited form	kɬáwɬa	page 6, in the prose
+§3	Okanagan	cited form	kiʔláwnaʔ	page 6, in the prose, ‘male grizzly bear’
+§3	Kutenai	cited form	kɬáwɬa	page 6, in the prose
 §3	Jan P. van Eijk	name	Mattina	Anthony Mattina (1987), Okanagan
 §3	Jan P. van Eijk	language	Coeur d’Alene	a Salish language of the table
 §3	Jan P. van Eijk	language	Kutenai	a neighbor of Okanagan
@@ -245,25 +248,24 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §3	Jan P. van Eijk	note	The Coeur d’Alene forms are retranscribed from Reichard 1939. The form for ‘black bear’ is related to the Spokane and Kalispel forms, while the form for ‘grizzly’ is also attested for Okanagan and Spokane-Kalispel-Flathead.	page 7
 §3	Jan P. van Eijk	name	Reichard	Gladys A. Reichard (1939), Coeur d’Alene
 §4	Jan P. van Eijk	heading	4 Etymologies and diffusion	page 7
-§4	Jan P. van Eijk	note	As the data in section 2, and their discussion in section 3, indicate, there is a bewildering variety of forms for the two types of bear in Salish, with a rather large number being limited to just one or two languages. Two factors account for this variety: (1) borrowing, and (2) taboo replacement. As for the first factor, the Bella Coola forms are obviously borrowed from Wakashan (as mentioned in section 3) and they can immediately be excused from any attempt to include them in the Proto-Salish reconstruction of the forms for ‘black bear’ and ‘grizzly.’ As for the second factor, Shuswap kəknm-eɬp and Squamish síʔ- sinƛ̕ are explicitly recognized as taboo terms for ‘grizzly,’ while kn-keknm for ‘black bear’ probably also falls in that category. There are also many cases where it is not clear which of the two factors apply. For example, if Squamish sƛ̕əɬálm and Lillooet s.ƛ̕aɬáləm do not go back to a Proto-Salish form that is now lost in the other languages, are they borrowed from a now lost substratum or do they go back to a now irretraceable taboo form? Reconstructing the Proto-Salish forms for ‘black bear’ and grizzly bear’ seems therefore a rather daunting undertaking.	page 7
+§4	Jan P. van Eijk	note	As the data in section 2, and their discussion in section 3, indicate, there is a bewildering variety of forms for the two types of bear in Salish, with a rather large number being limited to just one or two languages. Two factors account for this variety: (1) borrowing, and (2) taboo replacement. As for the first factor, the Bella Coola forms are obviously borrowed from Wakashan (as mentioned in section 3) and they can immediately be excused from any attempt to include them in the Proto-Salish reconstruction of the forms for ‘black bear’ and ‘grizzly.’ As for the second factor, Shuswap kəknm-eɬp and Squamish síʔ-sinƛ̕ are explicitly recognized as taboo terms for ‘grizzly,’ while kn-keknm for ‘black bear’ probably also falls in that category. There are also many cases where it is not clear which of the two factors apply. For example, if Squamish sƛ̕əɬálm and Lillooet s.ƛ̕aɬáləm do not go back to a Proto-Salish form that is now lost in the other languages, are they borrowed from a now lost substratum or do they go back to a now irretraceable taboo form? Reconstructing the Proto-Salish forms for ‘black bear’ and grizzly bear’ seems therefore a rather daunting undertaking.	page 7
 §4	Shuswap	cited form	kəknm-eɬp	page 7, in the prose
 §4	Jan P. van Eijk	note	Nevertheless, and as indicated in section 3, Kinkade 1991a reconstructs two forms for each type of bear. We will discuss them here in turn.	page 7
 §4	Jan P. van Eijk	note	For one of the forms of ‘black bear’ Kinkade sets up *míx̌aɬ, attested for both dialects of Comox, and for Squamish, Lillooet and Columbian. Kuipers 2002:70 concurs in reconstructing *míx̌aɬ, but also points out a possible connection to the Okanagan, Spokane-Kalispel-Flathead and Coeur d’Alene forms for ‘grizzly,’ with reference to (Colville) Okanagan √mx̌ ‘to stoop.’ The Okanagan etc. forms then would refer to the grizzly’s head being lowered in relation to the hump on its back (-ikn̓, -éy-čn, etc.). In the case of the black bear the lowering is less pronounced but still noticeable. With regard to the possible connection between bear names and ‘stooping,’ Kuipers also mentions Squamish (ʔə)sqʷúqʷus ‘sneak, have head lowered between shoulders’ and qʷúqʷusam ‘porcupine.’	page 7
-§4	Okanagan	cited form	√mx̌	page 7, in the prose, ‘to stoop.’
+§4	Okanagan	root	√mx̌	page 7, in the prose, ‘to stoop’
 §4	Okanagan	cited affix	-ikn̓	page 7, in the prose
 §4	Okanagan	cited affix	-éy-čn	page 7, in the prose
 §4	Squamish	cited form	(ʔə)sqʷúqʷus	page 7, in the prose, ‘sneak, have head lowered between shoulders’
-§4	Squamish	cited form	qʷúqʷusam	page 7, in the prose, ‘porcupine.’
+§4	Squamish	cited form	qʷúqʷusam	page 7, in the prose, ‘porcupine’
 §4	Jan P. van Eijk	note	Kuipers’s suggestion is also supported by the fact that aɬ in míx̌aɬ may be an old suffix, possibly related to –eɬp in Shuswap kəknm-eɬp or to the Lillooet ‘compound connector’ –aɬ- in, for example, ləp̓-aɬ-k̕ʷúnaʔ ‘buried (and cured) salmon eggs’ (√ləp̓- to bury,’ k̕ʷúnaʔ ‘salmon eggs’). However, if *míx̌aɬ does refer to the stooped profile of the black bear, we would have a description of its appearance that is characteristic of taboo terms, and as such *míx̌aɬ is probably not the earliest Proto-Salish form for ‘black bear.’ (In the same way, Okanagan s.mx̌-ikn̓ ‘grizzly’ and its Spokane-Kalispel-Flathead and Coeur d’Alene cognates, are probably also taboo terms.)	page 8
 §4	Salish	cited form	aɬ	page 8, in the prose
-§4	Shuswap	cited form	–eɬp	page 8, in the prose
+§4	Shuswap	cited affix	–eɬp	page 8, in the prose
 §4	Lillooet	cited affix	–aɬ-	page 8, in the prose
 §4	Lillooet	cited form	ləp̓-aɬ-k̕ʷúnaʔ	page 8, in the prose, ‘buried (and cured) salmon eggs’
-§4	Lillooet	cited affix	√ləp̓-	page 8, in the prose
+§4	Lillooet	root	√ləp̓-	page 8, in the prose
 §4	Lillooet	cited form	k̕ʷúnaʔ	page 8, in the prose, ‘salmon eggs’
 §4	Jan P. van Eijk	note	Finally, Kinkade (1995:34) suggests that míx̌aɬ may be a loan from Lillooet into Comox and Squamish, rather than be a Proto-Salish form, and he comments that “The fact that both Lillooet and Columbian have cognates here suggests that the form is old in Interior Salish.”	page 8
-§4	Proto-Salish	cited form	míx̌aɬ	page 8, in the prose
-§4	Jan P. van Eijk	note	The other Proto-Salish form reconstructed by Kinkade for ‘black bear’ is *s.kə́txʷan̓, with *s.čə́txʷən as the Proto-Central Salish form, attested for Sechelt, the Songish and Lummi dialects of Northern Straits, and Snohomish and the southern dialects of Lushootseed, and *s.kə́txʷan̓ (identical to the Proto- Salish form) as the Proto-Tsamosan Salish form, attested for all languages in that branch, viz., Quinault, Lower Chehalis, Upper Chehalis, and Cowlitz. Kuipers 2002:140 reconstructs *s.kətxʷn as the Proto-Coast-Salish form, but lists only the Sechelt, Lushootseed and (Oakville) Upper Chehalis forms.	page 8
+§4	Jan P. van Eijk	note	The other Proto-Salish form reconstructed by Kinkade for ‘black bear’ is *s.kə́txʷan̓, with *s.čə́txʷən as the Proto-Central Salish form, attested for Sechelt, the Songish and Lummi dialects of Northern Straits, and Snohomish and the southern dialects of Lushootseed, and *s.kə́txʷan̓ (identical to the Proto-Salish form) as the Proto-Tsamosan Salish form, attested for all languages in that branch, viz., Quinault, Lower Chehalis, Upper Chehalis, and Cowlitz. Kuipers 2002:140 reconstructs *s.kətxʷn as the Proto-Coast-Salish form, but lists only the Sechelt, Lushootseed and (Oakville) Upper Chehalis forms.	page 8
 §4	Proto-Salish	cited form	*s.kə́txʷan̓	page 8, in the prose
 §4	Proto-Central Salish	cited form	*s.čə́txʷən	page 8, in the prose
 §4	Proto-Tsamosan Salish	cited form	*s.kə́txʷan̓	page 8, in the prose
@@ -274,37 +276,37 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §4	Jan P. van Eijk	note	The first Proto-Salish form reconstructed by Kinkade for ‘grizzly bear’ is *x̌aywús, attested for Island Comox, Pentlatch, as an older form for Sechelt, for Lower Chehalis (where it means ‘lynx’), one form in Oakville Upper Chehalis (where it means ‘bobcat’), and Tenino Upper Chehalis. Kuipers 2002, however, does not have this or a similar reconstruction for ‘grizzly bear,’ and it is indeed a matter of Salish etymological concern that this item, like *s.kə́txʷan̓ and its reflexes, is limited to the Coast Salish and Tsamosan branches.	page 8
 §4	Jan P. van Eijk	note	Kinkade reconstructs *k̕ʷayá as the second Proto-Salish form for ‘grizzly bear,’ attested for Squamish, all dialects of Halkomelem, Nooksack, all dialects of Northern Straits, Klallam, Shuswap and Thompson. However, Kinkade gives this form a question mark, and this reconstruction is indeed problematic in that it competes with an alternate form given in Kuipers 2002:51, viz., *k̕ʷəy ‘frosty, grizzly.’ This reconstruction, and certainly its two-fold meaning, makes eminent sense in that in most cases where reflexes of *k̕ʷəy are attested in terms for the grizzly, they combine with the suffix for ‘back’ (*-ik(n) in Kuipers 2002:204), the entire complex then referring to the fact that “Grizzlies often show a whitish wash over the shoulders, which is rare in black bears” (Cowan and Guiguet n.d.:290). Where the suffix for ‘back’ is lacking, viz., in the third Shuswap form and the second Thompson form, the form refers to ‘silvertip grizzly,’ i.e., whitish hairtips which are found in a number of grizzlies and gives them the appearance from which they derive their name (cf. Cowan and Guiguet n.d.:295).	page 8
 §4	Proto-Salish	cited form	*k̕ʷayá	page 8, in the prose
-§4	Proto-Salish	cited form	*k̕ʷəy	page 8, in the prose, ‘frosty, grizzly.’
-§4	Proto-Salish	cited form	*-ik(n)	page 8, in the prose
+§4	Proto-Salish	cited form	*k̕ʷəy	page 8, in the prose, ‘frosty, grizzly’
+§4	Proto-Salish	cited affix	*-ik(n)	page 8, in the prose
 §4	Jan P. van Eijk	note	If the forms that Kinkade lists under *k̕ʷayá indeed go back to *k̕ʷəy (instead of *k̕ʷayá) and as such refer to the appearance of the grizzly (i.e., either its over-all grizzly-whitish appearance, or the white wash over its shoulders), these forms too, like s.mx̌-ikn̓ in Okanagan, are probably taboo forms and as such unlikely candidates for Proto-Salish provenance.	page 9
 §4	Jan P. van Eijk	note	As is noted above, the second Nooksack form and the Lummi form for ‘grizzly’ have q̓ʷ where the other dialects and languages have k̕ʷ (in those forms that derive from *k̕ʷayá or *k̕ʷəy). The presence of q̓ʷ could be due to misrecordings, but the fact that the Nooksack form was recorded by Laurence Thompson and the Lummi form by Melville Jacobs (identified as ‘LCT’ and ‘MJ’ by Kinkade) makes this unlikely. Salish velar-uvular correspondences, though rare, do occur (as in *x/x̌am ‘dry,’ Kuipers 2002:118). It is also quite well possible that the forms with q̓ʷ are old borrowings from those dialects that have k̕ʷ, with the latter misheard as q̓ʷ. In this connection one may think of Lillooet k̕ʷúnaʔ ‘salmon roe’ and cognates in Upriver Halkomelem, Lower Chehalis, Thompson and Shuswap, with Lillooet and Upriver Halkomelem showing k̕ʷ and the others q̓ʷ (for details see Kinkade 1995:44). These forms are likely borrowed from Athapaskan q̓uˑnʔ ‘roe’ (Krauss 1985:485), with now extinct Nicola being the most probable source.	page 9
-§4	Proto-Salish	cited form	*x/x̌am	page 9, in the prose, ‘dry,’
+§4	Proto-Salish	cited form	*x/x̌am	page 9, in the prose, ‘dry’
 §4	Athapaskan	cited form	q̓uˑnʔ	page 9, in the prose, ‘roe’
 §4	Jan P. van Eijk	language	Athapaskan	the source of the words for 'roe'
 §4	Jan P. van Eijk	note	In addition to the two proto-forms for ‘bear’ given by Kinkade, Kuipers 2002:222 also reconstructs *s.paʔc as the proto-form for the items in Halkomelem, Songish, Saanich, Samish, Skagit and Thompson (under ‘Local Coast Salish, Lillooet, Thompson Elements’). Kinkade 1995:35 lists this item as a borrowing from Coast Salish into Thompson, through Chilliwack (Upriver) Halkomelem.	page 9
 §4	Proto-Salish	cited form	*s.paʔc	page 9, in the prose
-§4	Jan P. van Eijk	note	Kuipers 2002:225 reconstructs *sƛ̕əɬalm for the shared Squamish- Lillooet term for ‘grizzly’ (also under ‘Local Coast Salish, Lillooet, Thompson Elements’). Kinkade 1995:40 lists this item as a borrowing between these two languages, with the direction of the borrowing being unclear. Kuipers 1967:291 suggests a possible connection between the Squamish item and √ɬal, ɬəl ‘food, livelihood; breath,’ or (less probable, according to Kuipers) s.ƛ̕álqm ‘monster.’ If either of these connections holds, Squamish must be the source of this shared Squamish-Lillooet item, since Lillooet has no plausible internal etyma that would parallel those in Squamish.	page 9
+§4	Jan P. van Eijk	note	Kuipers 2002:225 reconstructs *sƛ̕əɬalm for the shared Squamish-Lillooet term for ‘grizzly’ (also under ‘Local Coast Salish, Lillooet, Thompson Elements’). Kinkade 1995:40 lists this item as a borrowing between these two languages, with the direction of the borrowing being unclear. Kuipers 1967:291 suggests a possible connection between the Squamish item and √ɬal, ɬəl ‘food, livelihood; breath,’ or (less probable, according to Kuipers) s.ƛ̕álqm ‘monster.’ If either of these connections holds, Squamish must be the source of this shared Squamish-Lillooet item, since Lillooet has no plausible internal etyma that would parallel those in Squamish.	page 9
 §4	Proto-Salish	cited form	*sƛ̕əɬalm	page 9, in the prose
-§4	Squamish	cited form	√ɬal	page 9, in the prose
-§4	Squamish	cited form	ɬəl	page 9, in the prose, ‘food, livelihood; breath,’
-§4	Squamish	cited form	s.ƛ̕álqm	page 9, in the prose, ‘monster.’
+§4	Squamish	root	√ɬal	page 9, in the prose
+§4	Squamish	cited form	ɬəl	page 9, in the prose, ‘food, livelihood; breath’
+§4	Squamish	cited form	s.ƛ̕álqm	page 9, in the prose, ‘monster’
 §4	Jan P. van Eijk	note	Kuipers also notes that √ɬal always has the shape ɬal-m when it occurs as a suffix. This leaves open the intriguing possibility that the element ƛ̕ə in sƛ̕əɬálm is a borrowing from Wakashan (as in Bella Coola), the whole complex then meaning something like ‘food from a bear,’ used as a hunter’s taboo.	page 9
-§4	Salish	cited form	ɬal-m	page 9, in the prose
-§4	Salish	cited form	ƛ̕ə	page 9, in the prose
+§4	Squamish	cited form	ɬal-m	page 9, in the prose
+§4	Squamish	cited form	ƛ̕ə	page 9, in the prose
 §4	Jan P. van Eijk	note	Kinkade 1995:41 classes the Skagit and Snohomish term for ‘grizzly bear,’ s.təbtábəl̕ and its Columbian counterpart s.təm̓tám̓əl̕ as a borrowing between these two languages, with the direction of the borrowing being unclear. It is quite well possible that the common ancestor of both forms goes back to Proto-Salish *s-tam ‘what?, something’ (Kuipers 2002:104), in which case we would have yet another taboo term.	page 10
 §4	Proto-Salish	cited form	*s-tam	page 10, in the prose, ‘what?, something’
-§4	Jan P. van Eijk	note	There are also items that are shared between contiguous languages and that are not commented on by Kinkade or Kuipers, because these items are clearly local developments and cannot be plausibly reconstructed for Proto- Salish, nor are they examples of the type of transmontane borrowing that is discussed in Kinkade 1995.	page 10
+§4	Jan P. van Eijk	note	There are also items that are shared between contiguous languages and that are not commented on by Kinkade or Kuipers, because these items are clearly local developments and cannot be plausibly reconstructed for Proto-Salish, nor are they examples of the type of transmontane borrowing that is discussed in Kinkade 1995.	page 10
 §4	Jan P. van Eijk	note	In the first place, there is Southern Lushootseed s.čátqɬəb which has cognates in Twana and in the Oakville dialect of Upper Chehalis. The etymology of this item is unclear.	page 10
 §4	Jan P. van Eijk	note	Another item is Oakville Upper Chehalis s.məš which is related to Cowlitz .smê΄c, the latter recorded by Boas and obviously phonetically identical or near-identical to the Oakville form. No etymological history can be established for this pair.	page 10
 §4	Upper Chehalis	cited form	s.məš	page 10, in the prose
 §4	Jan P. van Eijk	note	Shuswap s.km̓xís for ‘grizzly’ is related to Okanagan s.kmxíst for ‘black bear,’ as noted above. Again, the etymological history of these items is unclear.	page 10
-§4	Okanagan	cited form	s.kmxíst	page 10, in the prose, ‘black bear,’
+§4	Okanagan	cited form	s.kmxíst	page 10, in the prose, ‘black bear’
 §4	Jan P. van Eijk	note	The element qeʔ in Spokane-Kalispel n.ɬám-qeʔ and Coeur d’Alene n.ɬámqeʔ for ‘black bear’ may be an old suffix for ‘head’ (cf. Proto-Salish -qin, Kuipers 2002:208), but beyond this highly speculative possibility nothing else is clear etymologcally.	page 10
 §4	Spokane	cited form	qeʔ	page 10, in the prose
 §4	Spokane	cited form	n.ɬám-qeʔ	page 10, in the prose
 §4	Coeur d’Alene	cited form	n.ɬámqeʔ	page 10, in the prose, ‘black bear’
 §4	Proto-Salish	cited affix	-qin	page 10, in the prose
-§4	Jan P. van Eijk	note	For Okanagan s.mx̌-ikn̓ ‘grizzly’ and its counterparts in Spokane- Kalispel-Flathead and Coeur d’Alene see the discussion above, under s.mx̌-ikn̓.	page 10
+§4	Jan P. van Eijk	note	For Okanagan s.mx̌-ikn̓ ‘grizzly’ and its counterparts in Spokane-Kalispel-Flathead and Coeur d’Alene see the discussion above, under s.mx̌-ikn̓.	page 10
 §4	Jan P. van Eijk	note	The remaining forms, such as Sechelt máyukʷ or Twana c̕íʔwəɬ are limited to one language each, and their etymological history is at this moment untraceable or, as in the case of Shuswap s-kʷl-eqs, the etymology is strictly language-internal.	page 10
 §5	Jan P. van Eijk	heading	5 Conclusions	page 10
 §5	Jan P. van Eijk	note	A few concluding remarks are in order on the multitude of terms for ‘black bear’ and ‘grizzly.’ In the first place, and as observed repeatedly above, this rich variety is probably largely due to taboo replacement. In this connection one may mention the replacement of Proto-Indo-European *arktos ‘bear’ with terms that either mean ‘brown’ (e.g., English bear) or ‘honey-eater’ (Russian medvedʸ) in a number of its daughter languages (Arlotto 1972:201). Such taboo forms are either evasive, as in Shuswap kn-keknm or (probably) Columbian s.təm̓tám̓əl̕ and its Skagit and Snohomish cognates, or they are descriptive, like Okanagan s.mx̌-ikn̓ and its Spokane-Kalispel-Flathead and Coeur d’Alene cognates. Borrowings such as the Bella Coola forms ƛ̕a and nan may also be taboo-driven.	page 10
@@ -314,28 +316,39 @@ table, Coeur d’Alene	Coeur d’Alene	cited form	s.max̌íʔčn̓	page 3, the t
 §6	Jan P. van Eijk	heading	6 Dedication	page 11
 §6	Jan P. van Eijk	note	This paper is dedicated to Brent Galloway, on the occasion of his retirement from First Nations University of Canada, after many years of service to the study and preservation of Salish languages, and to honour the recent publication of his massive two-volume dictionary of Upriver Halkomelem. I hope that my paper reflects at least some of Brent’s unstinting commitment to scrupulous scholarship and meticulous linguistic analysis. Where I have faltered in my paper, I have done so on my own accord, but where I have succeeded it is because I have been led by Brent’s inspiring example.	page 11
 references	Jan P. van Eijk	heading	References	page 11
-references	Jan P. van Eijk	reference	Akrigg, G. P. V., and Helen B. Akrigg. 1986. British Columbia Place Names.	page 11
-references	Jan P. van Eijk	reference	Victoria, B.C.: Sono Nis Press.	page 11
+references	Jan P. van Eijk	reference	Akrigg, G. P. V., and Helen B. Akrigg. 1986. British Columbia Place Names. Victoria, B.C.: Sono Nis Press.	page 11
 references	Jan P. van Eijk	reference	Arlotto, Anthony. 1972. Introduction to Historical Linguistics. Boston: Houghton Mifflin.	page 11
 references	Jan P. van Eijk	reference	Boas, Franz. 1918. Kutenai Tales. Washington: Bureau of American Ethnology Bulletin 59.	page 12
 references	Jan P. van Eijk	reference	Carlson, Barry F., and Pauline Flett. 1989. Spokane Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 6.	page 12
 references	Jan P. van Eijk	reference	Cowan, Ian McT., and Charles J. Guiguet. N.d. The Mammals of British Columbia. Victoria, B.C.: British Columbia Provincial Museum Handbook No. 11.	page 12
 references	Jan P. van Eijk	reference	Driver, Harold E. 1969 (2nd edition). Indians of North America. Chicago and London: University of Chicago Press.	page 12
 references	Jan P. van Eijk	reference	Flathead Culture Committee. 1977. Flathead Culture and Language Materials, Book 1: Flathead Indian Alphabet Pronunciation Drills. (Produced with technical assistance of Anhony Mattina.) St. Ignatius, Montana: Confederated Salish and Kootenai Tribes.	page 12
-references	Jan P. van Eijk	reference	Galloway, Brent D. 1990. A Phonology, Morphology, and Classified Word List for the Samish Dialect of Straits Salish. Mercury Series, Ethnology Service Paper No. 119. Hull, Quebec: Canadian Museum of Civilization. ——. 2008. ‘A Classified English-Nooksack Word List.’ Ms. ——. 2009. Dictionary of Upriver Halkomelem, Volumes I-II. Berkeley/Los Angeles/London: University of California Press.	page 12
+references	Jan P. van Eijk	reference	Galloway, Brent D. 1990. A Phonology, Morphology, and Classified Word List for the Samish Dialect of Straits Salish. Mercury Series, Ethnology Service Paper No. 119. Hull, Quebec: Canadian Museum of Civilization.	page 12
+references	Jan P. van Eijk	reference	——. 2008. ‘A Classified English-Nooksack Word List.’ Ms.	page 12
+references	Jan P. van Eijk	reference	——. 2009. Dictionary of Upriver Halkomelem, Volumes I-II. Berkeley/Los Angeles/London: University of California Press.	page 12
 references	Jan P. van Eijk	reference	Gibson, James A. 1964. ‘Quinault Phonemics.’ M.A. thesis, University of Washington.	page 12
 references	Jan P. van Eijk	reference	Hess, Thom. 1976. Dictionary of Puget Salish. Seattle: University of Washington Press.	page 12
-references	Jan P. van Eijk	reference	Kinkade, M. Dale. 1981. Dictionary of the Moses-Columbia Language.	page 12
-references	Jan P. van Eijk	reference	Nespelem, Washington: Colville Federated Tribes. ——. 1991a. ‘Proto-Salish Mammals: The Data.’ Pp. 233-238 of the Papers for the 26th International Conference on Salish and Neighbouring Languages (August 15-17, University of British Columbia). ——. 1991b. Upper Chehalis Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 7. ——. 1995. ‘Transmontane Lexical Borrowing in Salish.’ Pages 28-46 of the Papers for the 30th International Conference on Salish and eighbouring Languages.(August 10-12, Victoria, B.C.) ——. 2004. Cowlitz Dictionary and Grammatical Sketch. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 7.	page 12
+references	Jan P. van Eijk	reference	Kinkade, M. Dale. 1981. Dictionary of the Moses-Columbia Language. Nespelem, Washington: Colville Federated Tribes.	page 12
+references	Jan P. van Eijk	reference	——. 1991a. ‘Proto-Salish Mammals: The Data.’ Pp. 233-238 of the Papers for the 26th International Conference on Salish and Neighbouring Languages (August 15-17, University of British Columbia).	page 12
+references	Jan P. van Eijk	reference	——. 1991b. Upper Chehalis Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 7.	page 12
+references	Jan P. van Eijk	reference	——. 1995. ‘Transmontane Lexical Borrowing in Salish.’ Pages 28-46 of the Papers for the 30th International Conference on Salish and eighbouring Languages.(August 10-12, Victoria, B.C.)	page 12
+references	Jan P. van Eijk	reference	——. 2004. Cowlitz Dictionary and Grammatical Sketch. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 7.	page 12
 references	Jan P. van Eijk	reference	Krauss, Michael E. 1985. ‘Russian Ikrá ‘Caviar; Calf of Leg’ and Similar Pairs in Athapaskan-Eyak.’ IJAL 51:485-486.	page 12
-references	Jan P. van Eijk	reference	Kuipers, Aert H. 1967. The Squamish Language: Grammar, Texts, Dictionary. The Hague: Mouton. ——. 1969. The Squamish Language: Grammar, Texts, Dictionary, Part II. The Hague: Mouton. ——. 1974. The Shuswap Language: Grammar, Texts, Dictionary. The Hague: Mouton. ——. 2002. Salish Etymological Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 16.	page 12
-references	Jan P. van Eijk	reference	Lincoln, Neville J., and John C. Rath. 1980. North Wakashan Comparative Root List. Mercury Series, Canadian Ethnology Series Paper No. 68. Ottawa: National Museums of Canada Mattina, Anthony. 1987. Colville-Okanagan Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 5.	page 13
+references	Jan P. van Eijk	reference	Kuipers, Aert H. 1967. The Squamish Language: Grammar, Texts, Dictionary. The Hague: Mouton.	page 12
+references	Jan P. van Eijk	reference	——. 1969. The Squamish Language: Grammar, Texts, Dictionary, Part II. The Hague: Mouton.	page 12
+references	Jan P. van Eijk	reference	——. 1974. The Shuswap Language: Grammar, Texts, Dictionary. The Hague: Mouton.	page 12
+references	Jan P. van Eijk	reference	——. 2002. Salish Etymological Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 16.	page 13
+references	Jan P. van Eijk	reference	Lincoln, Neville J., and John C. Rath. 1980. North Wakashan Comparative Root List. Mercury Series, Canadian Ethnology Series Paper No. 68. Ottawa: National Museums of Canada	page 13
+references	Jan P. van Eijk	reference	Mattina, Anthony. 1987. Colville-Okanagan Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 5.	page 13
 references	Jan P. van Eijk	reference	Mitchell, Marjorie R. 1968. ‘A Dictionary of Songish, a Dialect of Straits Salish.’ M.A. thesis, University of Victoria, Victoria, B.C.	page 13
-references	Jan P. van Eijk	reference	Montler, Timothy R. 1991. Saanich, North Straits Salish, Classified Word List. Mercury Series, Ethnology Service Paper No. 119. Hull, Quebec: Canadian Museum of Civilization. ——. 2000. ‘Klallam Classified Word List.’ Posted online at: http://www.ling.unt.edu/montler/Klallam/WordList/	page 13
-references	Jan P. van Eijk	reference	Nater, Hank. 1977. Stem List of the Bella Coola Language. Lisse, The Netherlands: Peter de Ridder Press. ——. 1990. A Concise Nuxalk-English Dictionary. Mercury Series, Ethnology Service Paper No. 115. Hull, Quebec: Canadian Museum of Civilization.	page 13
+references	Jan P. van Eijk	reference	Montler, Timothy R. 1991. Saanich, North Straits Salish, Classified Word List. Mercury Series, Ethnology Service Paper No. 119. Hull, Quebec: Canadian Museum of Civilization.	page 13
+references	Jan P. van Eijk	reference	——. 2000. ‘Klallam Classified Word List.’ Posted online at: http://www.ling.unt.edu/montler/Klallam/WordList/	page 13
+references	Jan P. van Eijk	reference	Nater, Hank. 1977. Stem List of the Bella Coola Language. Lisse, The Netherlands: Peter de Ridder Press.	page 13
+references	Jan P. van Eijk	reference	——. 1990. A Concise Nuxalk-English Dictionary. Mercury Series, Ethnology Service Paper No. 115. Hull, Quebec: Canadian Museum of Civilization.	page 13
 references	Jan P. van Eijk	reference	Reichard, Gladys A. 1939. ‘Stem-List of the Coeur d’Alene Language.’ IJAL 11:92-108.	page 13
 references	Jan P. van Eijk	reference	Rockwell, David. 2008. čɬq̓étkʷ ntx̣ʷétkʷs ʔaˑkinmituk: The Lower Flathead River. Pablo, Montana: Salish Kootenai College Tribal History Project.	page 13
 references	Jan P. van Eijk	reference	Teit, James A. 1900. The Thompson Indians of British Columbia. New York: Memoirs of the American Museum of Natural History, Vol. I, part IV. Reprinted by AMS Press, 1975.	page 13
 references	Jan P. van Eijk	reference	Thompson, Laurence C., and M. Terry Thompson. 1996. Thompson River Salish Dictionary. Missoula, Montana: University of Montana Occasional Papers in Linguistics No. 12.	page 13
 references	Jan P. van Eijk	reference	Timmers, Jan A. 1977. A Classified English-Sechelt Word-List. Lisse, The Netherlands: Peter de Ridder Press.	page 13
-references	Jan P. van Eijk	reference	Vogt, Hans. 1940. The Kalispel Language. Oslo: Det Norske Videnskaps-Akademi. Jan P. van Eijk jvaneijk@firstnationsuniversity.ca	page 13
+references	Jan P. van Eijk	reference	Vogt, Hans. 1940. The Kalispel Language. Oslo: Det Norske Videnskaps-Akademi.	page 13
+references	Jan P. van Eijk	note	Jan P. van Eijk jvaneijk@firstnationsuniversity.ca	page 13, the author's name and address

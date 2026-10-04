@@ -33,12 +33,12 @@ forms keep their sources' letters, ′ for stress, ō and ū, ˑ for length, and
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC, then 11 page-read
+sets after a stacked mark is closed, except before an opening quote, then NFC, then 13 page-read
 corrections.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
-the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 340
-rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 8838
+the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 353
+rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 8826
 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example
@@ -48,6 +48,7 @@ who      the language for an example tier and a cited form; the work cited on an
          the prose, the tables and the notes
 kind     cited form     a word of the language named in the prose, a note or a table
          cited affix    an affix named on its own
+         root           a root named on its own
          language       a language name
          name           a person or a proper name
          note           a paragraph, a context, a table, a footnote or a word that is not the language

@@ -305,7 +305,17 @@ class Paper(object):
         return self.lines[number][1]
 
     def joined(self, numbers):
-        return " ".join(self.text(one) for one in numbers if self.text(one))
+        """The lines' text run together with a space, or with none after a line that ends on a
+        hyphen where the paper sets hyphen_ends_join: a paper set ragged right breaks a line only at
+        a hyphen it prints, taboo- / driven for taboo-driven."""
+        out = ""
+        for one in numbers:
+            text = self.text(one)
+            if not text:
+                continue
+            glue = "" if not out or getattr(self, "hyphen_ends_join", False) and out.endswith("-") else " "
+            out += glue + text
+        return out
 
     def find(self, pattern, start=1, end=None):
         """The first line number from start whose text matches pattern, or None. An end past the

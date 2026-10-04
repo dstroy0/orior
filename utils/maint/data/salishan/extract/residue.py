@@ -655,11 +655,13 @@ CORRECTIONS = {
     # s.čə́ txʷnand on page 4 and s.mə́ šis on page 6, where the table prints s.čə́txʷn whole; each is
     # one word. The glyph rows part s.čét̕xʷʌn after its glottal mark and close the space before a
     # form opening on a period, Cowlitz .smê΄c, and before a bracket after n̓, all of which the
-    # page sets as the layer does.
+    # page sets as the layer does. Page 7 breaks Squamish síʔ-sinƛ̕ after its hyphen at a line's end;
+    # the check cannot join it there, and the word's last piece goes up to the line that opens it.
     "2009_vanEijk": (("nəq̓ix̌s.peʔəθ", "nəq̓ix̌ s.peʔəθ"), ("s.čə́ txʷ", "s.čə́txʷ"), ("əsə́ lqin", "əsə́lqin"),
                      ("s.mə́ š", "s.mə́š"), ("s.kə́ txʷan̓", "s.kə́txʷan̓"), ("s.čét̕ xʷʌn", "s.čét̕xʷʌn"),
                      ("Cowlitz.smê΄c", "Cowlitz .smê΄c"), ("(2).smê΄c", "(2) .smê΄c"),
-                     ("while.smê΄c", "while .smê΄c"), ("txʷan̓(", "txʷan̓ ("), ("wít̕ as", "wít̕as")),
+                     ("while.smê΄c", "while .smê΄c"), ("txʷan̓(", "txʷan̓ ("), ("wít̕ as", "wít̕as"),
+                     ("and Squamish síʔ-", "and Squamish síʔ-sinƛ̕"), ("sinƛ̕ are explicitly", "are explicitly")),
     # Read at 300 dpi: page 12 sets the Squamish cognate of 0233 against the quote opening its gloss,
     # -(a)xʷ'2SG.SUBJ', and the form is parted from the gloss to be a word of its own.
     "Nater-final": (("-(a)xʷ‘2SG.SUBJ’", "-(a)xʷ ‘2SG.SUBJ’"),),
