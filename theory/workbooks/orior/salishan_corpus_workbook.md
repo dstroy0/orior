@@ -30,7 +30,7 @@ quoted below are quoted from the published papers named beside them, as a reader
 | P2 | How does a glottalized resonant fare under reduplication in the five languages left Unclear? | Mellesmoen & Urbanczyk 2021, Table 4 | doubled consonant pairs, glottalization of each copy | the survey's classified languages, its own papers left out | **method agrees 7 of 10 on all 370 tables (7 of 8 on 138); the blanks stay blank** |
 | P3 | Is Nuxalk's reputation for vowelless words in large part spacing, clitics printed apart? | Robertson 2020 (blog comment, read) | obstruent-only tokens in two oral texts, clitics joined and opened | the same text counted both ways | **supported: 0.9% joined, 18.5% opened** |
 | P4 | How common are free obstruent-only words in Nuxalk, and is there more than one made of stops only? | Mellesmoen 2021 against Nater 2024 | Mellesmoen's own definition applied outside both disputants' papers | both disputants' papers excluded | **9.2% of 1332 distinct free words; three stops-only words attested** |
-| P5 | Which branch does Nuxalk share most vocabulary with? | the family's standing puzzle | P0's measure, Nuxalk rows | P0 | **undetermined: 15 to 21 shared meanings per pair** |
+| P5 | Which branch does Nuxalk share most vocabulary with? | the family's standing puzzle | P0's measure, Nuxalk rows | P0 | **not read on all 370 tables: P0 fails** (undetermined on 138) |
 | P6 | Do Southern Interior languages with word-initial glottalized resonants also shift the quality of schwa? | Mellesmoen & Urbanczyk 2021, section 4 | none possible here | none | **not testable on these tables**: it needs phonetic measurement |
 
 ## What the tables hold
@@ -262,6 +262,18 @@ From P0. Nuxalk shares 15 to 21 meanings with each language it can be compared w
 Nɬeʔkepmxcín +0.118, ʔayʔaǰuθəm +0.080, Nsyilxcən -0.036, Secwepemctsín -0.051. Mean with Interior
 +0.011 over three languages, with Central +0.080 over one. At this many meanings a single match moves an
 excess by about 0.05. Undetermined.
+
+## P5 exact, 2026-10-04: all tables
+
+From P0 exact, whose records hold each mean as an exact rational. Nuxalk shares 16 to 54 meanings with
+the eight Salish languages it can be compared with. Its excesses: Lushootseed +0.158 over 19 meanings,
+Halkomelem +0.090 over 33, St'át'imcets +0.078 over 52, Nɬeʔkepmxcín +0.030 over 54, ʔayʔaǰuθəm +0.028
+over 51, Columbian +0.017 over 16, Secwepemctsín +0.010 over 37, Nsyilxcən +0.002 over 51. Mean with
+Interior +0.027224 over five languages, with Central +0.092054 over three. No Tsamosan language holds 40
+meanings.
+
+Not read. P0 fails on all tables, and the Lushootseed pair that fails its criterion (b) is the largest
+of Nuxalk's excesses here.
 
 ## Open, not done
 

@@ -147,3 +147,8 @@ pair Montana Salish | Nsyilxcən shared 50 matched 19 shuffled_sum 2827 above 0 
 (b) ʔayʔaǰuθəm         best Salish partner Northern Straits   pass
 (c) pass
 (d) FAIL
+mean interior pairs 14 excess+1 0x2fb8f81f317bb3ff9ae2a6c4d0fc442572adc7a3eb88ac0000000000000000/0x261681ee6f50c2dd0e13e5cac343989a66622580fb92800000000000000000 excess +0.252957
+mean central pairs 8 excess+1 0x2b1ab5ff44e77822be03bda7e900000000/0x2552b910c24b2e86644e79660000000000 excess +0.154895
+mean interior-central pairs 24 excess+1 0x4721ab5adce4ee52d44fccf48036621e82891192b996349d4292e5d923255f02bfc0e000000000000000000000000000000000/0x42dc4fe479b3570bd52508e2de3659aaf07aebdd654672edf84401f0f9c8b4b085000000000000000000000000000000000000 excess +0.063878
+mean nuxalk-interior pairs 5 excess+1 0xb86a15ae72a49c6500000/0xb386dc9970dd808000000 excess +0.027224
+mean nuxalk-central pairs 3 excess+1 838095240000000/767448000000000 excess +0.092054

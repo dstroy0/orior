@@ -702,6 +702,17 @@ int main(int count, char **arguments)
         }
         fprintf(out, "(c) %s\n", means_hold ? "pass" : "FAIL");
         fprintf(out, "(d) %s\n", failures.empty() ? "pass" : "FAIL");
+        const char *kinds[6] = {"interior", "central", "interior-central", "nuxalk-interior", "nuxalk-central",
+                                "nuxalk-tsamosan"};
+        for (size_t group = 0u; group < groups.size(); group += 1u)
+        {
+            if (!groups[group].empty())
+            {
+                fprintf(out, "mean %s pairs %zu excess+1 %s/%s excess %s\n", kinds[group], groups[group].size(),
+                        stage_text_of(means[group].num).c_str(), stage_text_of(means[group].den).c_str(),
+                        shown[means_at + group].c_str());
+            }
+        }
         fclose(out);
     }
     sim_check(&job, out != NULL, "the records are written out");
