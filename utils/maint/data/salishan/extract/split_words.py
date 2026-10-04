@@ -4,7 +4,7 @@ English words alone and one English word together, rej ections for rejections.
 usage: python split_words.py <stem>
 
 The English is the engine's own, cc_english.txt. A split this finds is one to read off the page
-before it goes into residue.CORRECTIONS.
+before it goes into the CORRECTIONS of the paper's table file.
 """
 import os
 import re

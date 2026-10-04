@@ -16,26 +16,13 @@ import sys
 import pypdfium2 as pdfium
 
 import page_text
+import tables
 
 EDGES = " .,;:!?()[]‘’“”–"
 # A paper that sets its forms upright in a face of their own has that face read as its italics:
 # van Eijk's AboriginalSans against the AboriginalSerif of his prose. Its runs take the letters of
 # the paper's private-use glyphs and write each raised letter as its modifier, as the page text does.
-# Davis and Van Eijk's bird names set the Lillooet forms and the cited forms of the other languages
-# in the same face; their italics are the Latin names of the birds and the titles of the references.
-# Gerdts and Peter's nativized names set the Hul’q’umi’num’ forms upright in Straight, read through
-# the paper's PAPER_CIPHERS entry, and the English words the names come from in italics, with a few
-# forms of the practical orthography, hay ceep q̓a’: both faces are the forms'.
-FORM_FACES = {"2011_van_Eijk": r"AboriginalSans", "2012_Davis_H_vanEijk": r"AboriginalSans", "2013_van_Eijk": r"AboriginalSans",
-              "2011_Gerdts_Peter": r"Straight|Italic", "2011_Urbanczyk": r"Straight|Italic",
-              "2010_Gerdts": r"Straight|Italic",
-              # Tammpere, Birdstone and Wiltschko set a form's ʔ, ɬ and tie upright in TeX-xipa10
-              # inside its italic letters, Niʔ and maʔt͡s: both faces are the forms'.
-              "2012_Tammpere_Birdstone_Wiltschko": r"Ital|xipa",
-              # Denzer-King sets every form in an italic Windows subset named for no face,
-              # TTE2ABAB40t00, read through the paper's PAPER_TOUNICODE entry. The one glyph of
-              # TTE19EDEB0t00 is the upright č of the sound change *k>č on page 10.
-              "2010_Denzer-King": r"Ital|TTE2ABAB40"}
+FORM_FACES = tables.gather("FORM_FACES")
 
 
 def italic_runs(stem, first=1, last=None):
