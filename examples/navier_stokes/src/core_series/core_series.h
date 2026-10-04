@@ -34,6 +34,7 @@ typedef struct
     std::vector<EtaFunction> axial_z;
 } CoreSeries;
 
+// the series built into `series`, whatever it held replaced
 void core_series_recursion(const EtaShape *shape, const EtaFunction *swirl, const EtaFunction *axial,
                            const EtaFunction *pressure, unsigned int order, CoreSeries *series);
 

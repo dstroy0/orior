@@ -27,6 +27,7 @@
 //   int_0^inf e^(-z sigma) sigma^(a-1) (1 + sigma)^(-a) d sigma and the same with sigma^a, a = 2h + n. Each is split
 //   at sigma = 1 as w is; above it, with v = 1 / (1 + sigma), the integrand is v (1 - v)^n or (1 - v)^(n+1) times
 //   (1 - v)^(2h-1) = sum (1 - 2h)_k / k! v^k, and int_1^inf e^(-z sigma) v^j d sigma = e^(-z) 2^(1-j) eps_j(2z).
+// - int_(z_b)^inf w^2 dz = sum_n D_n G_n^+ / Gamma(2 + 2h), the same join with 1/sigma for z_b/sigma + 1/sigma^2.
 
 #include "atom_form.h"
 
@@ -83,6 +84,9 @@ void atom_value_integral(AtomValues *values, SimRational z, SimRational *value, 
 
 // int_(z_b)^inf (z w^2 - z^(-1-2h)) dz
 SimRational atom_value_square_tail(AtomValues *values, SimRational z_b);
+
+// int_(z_b)^inf w^2 dz
+SimRational atom_value_square_integral(AtomValues *values, SimRational z_b);
 
 // int_(z_b)^inf (z w - z^(-h)) dz
 SimRational atom_value_linear_tail(AtomValues *values, SimRational z_b);

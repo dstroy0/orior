@@ -5,6 +5,7 @@
 void core_series_recursion(const EtaShape *shape, const EtaFunction *swirl, const EtaFunction *axial,
                            const EtaFunction *pressure, unsigned int cut, CoreSeries *series)
 {
+    *series = CoreSeries();
     std::vector<EtaFunction> &swirl_slope = series->swirl_slope;
     std::vector<EtaFunction> &axial_slope = series->axial_slope;
     std::vector<EtaFunction> &swirl_z = series->swirl_z;
