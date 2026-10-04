@@ -644,10 +644,11 @@ def run_cell(binary, constants, nu, p, method, level=0, listing=0):
     return cell, bound
 
 
-def run_points(binary, constants, nu, p, js):
+def run_points(binary, constants, nu, p, js, bracketed=False):
     """The certified signs of Z at the points j of cell nu's lattice of 2^p, by pairs at those points alone: each
-    point's sign, S and the flag of the step from the point listed before it, in the order listed. The list is padded
-    with its last point to a whole number of pieces; a point repeated changes no sign."""
+    point's sign, S and the flag of the step from the point listed before it, in the order listed; with `bracketed`,
+    each point's sign, S and theta / pi less and more its bound. The list is padded with its last point to a whole
+    number of pieces; a point repeated changes no sign."""
     piece = 1
     while piece * 2 <= len(js) and piece * 2 * nu < 1 << LANE_BITS:
         piece *= 2
@@ -657,11 +658,11 @@ def run_points(binary, constants, nu, p, js):
     given, taken = os.path.join(folder, "in.bin"), os.path.join(folder, "out.txt")
     with open(given, "wb") as handle:
         array.array("q", (len(listed), min(CHECKED, piece), nu, p, ARTANH_TERMS, COS_TERMS, GAMMA_TERMS, NEWTON_STEPS,
-                          piece, METHODS["points"], ORDER, BETA, E1_TERMS, SINC_TERMS, 0, 0, 2)).tofile(handle)
+                          piece, METHODS["points"], ORDER, BETA, E1_TERMS, SINC_TERMS, 0, 0, 3 if bracketed else 2)).tofile(handle)
         least, third, steep, _ = margin(nu, p, constants, bound, "pairs")
         for v in ([constants.ln2] + constants.gamma + constants.artanh + constants.cosine +
                   [constants.c96, bound, theta_bound, constants.pi_scaled] + constants.fact + constants.sinc +
-                  [least, third, steep]):
+                  ([] if bracketed else [least, third, steep])):
             put(handle, v)
         array.array("q", listed).tofile(handle)
     device(binary, given, taken, "cell %d, %d listed points at 2^%d" % (nu, len(js), p))
@@ -670,7 +671,7 @@ def run_points(binary, constants, nu, p, js):
         for line in handle:
             if line.startswith("point"):
                 values = [int(v, 16) for v in line.split()[1:]]
-                signs.append((values[0], values[1], values[-1]))
+                signs.append((values[0], values[1], values[-2], values[-1]) if bracketed else (values[0], values[1], values[-1]))
             elif line.startswith("host"):
                 failed = sum(1 for v in line.split()[1:] if v != "1")
     os.remove(taken)
