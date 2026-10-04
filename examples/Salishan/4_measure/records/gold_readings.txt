@@ -1,0 +1,64 @@
+margin 1/1
+corpus Comox lines 426 pairs 12136
+corpus English lines 1782 pairs 104377
+corpus Lushootseed lines 219 pairs 3847
+corpus Nsyilxcən lines 738 pairs 54190
+corpus Nuxalk lines 98 pairs 3609
+corpus St'át'imcets lines 371 pairs 18680
+corpus nɬeʔkepmxcín lines 451 pairs 39721
+distance Comox to English = 1608155346 / (2 * 12136 * 104377)
+distance Comox to Lushootseed = 77921880 / (2 * 12136 * 3847)
+distance Comox to Nsyilxcən = 952431832 / (2 * 12136 * 54190)
+distance Comox to Nuxalk = 62743162 / (2 * 12136 * 3609)
+distance Comox to St'át'imcets = 295752816 / (2 * 12136 * 18680)
+distance Comox to nɬeʔkepmxcín = 681420254 / (2 * 12136 * 39721)
+distance English to Lushootseed = 668377120 / (2 * 104377 * 3847)
+distance English to Nsyilxcən = 8868665362 / (2 * 104377 * 54190)
+distance English to Nuxalk = 615449786 / (2 * 104377 * 3609)
+distance English to St'át'imcets = 2699793542 / (2 * 104377 * 18680)
+distance English to nɬeʔkepmxcín = 6486756948 / (2 * 104377 * 39721)
+distance Lushootseed to Nsyilxcən = 259366376 / (2 * 3847 * 54190)
+distance Lushootseed to Nuxalk = 22161538 / (2 * 3847 * 3609)
+distance Lushootseed to St'át'imcets = 111708150 / (2 * 3847 * 18680)
+distance Lushootseed to nɬeʔkepmxcín = 217275882 / (2 * 3847 * 39721)
+distance Nsyilxcən to Nuxalk = 280758828 / (2 * 54190 * 3609)
+distance Nsyilxcən to St'át'imcets = 1485669620 / (2 * 54190 * 18680)
+distance Nsyilxcən to nɬeʔkepmxcín = 2207473628 / (2 * 54190 * 39721)
+distance Nuxalk to St'át'imcets = 102691300 / (2 * 3609 * 18680)
+distance Nuxalk to nɬeʔkepmxcín = 222611532 / (2 * 3609 * 39721)
+distance St'át'imcets to nɬeʔkepmxcín = 1090048926 / (2 * 18680 * 39721)
+distance Comox midpoint = 14400084 / (2 * 6169 * 5967)
+distance English midpoint = 808950864 / (2 * 52597 * 51780)
+distance Lushootseed midpoint = 3960638 / (2 * 1142 * 2705)
+distance Nsyilxcən midpoint = 226482766 / (2 * 24181 * 30009)
+distance Nuxalk midpoint = 1651332 / (2 * 1799 * 1810)
+distance St'át'imcets midpoint = 47881598 / (2 * 10201 * 8479)
+distance nɬeʔkepmxcín midpoint = 238658340 / (2 * 16826 * 22895)
+distance Comox alternating = 7879438 / (2 * 5811 * 6325)
+distance English alternating = 275367080 / (2 * 52148 * 52229)
+distance Lushootseed alternating = 2211324 / (2 * 2069 * 1778)
+distance Nsyilxcən alternating = 84222444 / (2 * 26844 * 27346)
+distance Nuxalk alternating = 1244646 / (2 * 1800 * 1809)
+distance St'át'imcets alternating = 21621764 / (2 * 9942 * 8738)
+distance nɬeʔkepmxcín alternating = 64693770 / (2 * 20937 * 18784)
+verdict Comox to English midpoint 1 1 alternating 1 1
+verdict Comox to Lushootseed midpoint 1 1 alternating 1 1
+verdict Comox to Nsyilxcən midpoint 1 1 alternating 1 1
+verdict Comox to Nuxalk midpoint 1 1 alternating 1 1
+verdict Comox to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Comox to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict English to Lushootseed midpoint 1 1 alternating 1 1
+verdict English to Nsyilxcən midpoint 1 1 alternating 1 1
+verdict English to Nuxalk midpoint 1 1 alternating 1 1
+verdict English to St'át'imcets midpoint 1 1 alternating 1 1
+verdict English to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict Lushootseed to Nsyilxcən midpoint -1 1 alternating 1 1
+verdict Lushootseed to Nuxalk midpoint 1 1 alternating 1 1
+verdict Lushootseed to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Lushootseed to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict Nsyilxcən to Nuxalk midpoint 1 1 alternating 1 1
+verdict Nsyilxcən to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Nsyilxcən to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict Nuxalk to St'át'imcets midpoint 1 1 alternating 1 1
+verdict Nuxalk to nɬeʔkepmxcín midpoint 1 1 alternating 1 1
+verdict St'át'imcets to nɬeʔkepmxcín midpoint 1 1 alternating 1 1

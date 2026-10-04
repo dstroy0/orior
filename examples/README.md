@@ -43,6 +43,7 @@ Where a subject has no script for a stage, the directory is absent. That means n
 | `sound`            | animal and human vocalizations                                         | 1, 3, 4          |
 | `source`           | programming languages, assembly, board layouts                         | 1, 4             |
 | `game_theory`      | games with their own answer key, played boards and impartial games     | 1, 2, 3, 4, 5, 6 |
+| `Salishan`         | the gold standard corpus of Salishan languages, read from hand extractions | 4             |
 
 Start with `any_corpus`. Those scripts do not know what they are reading, and the rest of the work rests on that claim. Each other subject runs the same steps with domain knowledge added at stage one, and some of them can check the answer at stage six.
 
