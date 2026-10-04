@@ -168,6 +168,11 @@ def main():
     sys.stdout.reconfigure(line_buffering=True)
     given = (int(sys.argv[5]), int(sys.argv[6])) if len(sys.argv) > 6 else None
     zeros, n_start, start_nu, end_nu = certified_zeros(binary, first, last, extra, given)
+    return analyse(zeros, n_start, start_nu, end_nu)
+
+
+def analyse(zeros, n_start, start_nu, end_nu):
+    """The readings over the zeros placed from cell start_nu's F, where N is n_start, to cell end_nu's."""
     n_end = n_start + len(zeros)
     u = [theta_pi(s) + 1.0 for s in zeros]
     s_low, s_high = zeros[0], zeros[-1]
