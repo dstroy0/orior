@@ -115,6 +115,10 @@ def main():
         "THE PAGE AND THE TEXT LAYER",
         "",
         wrapped(
+            ("The forms are in NFC. The page is typed and scanned, and its text layer is OCR that holds "
+             "none of the orthography; the check reads the forms against a page text a person "
+             "transcribed from the scan, a line for each printed line. %s" % context.PAGE_NOTES)
+            if getattr(__import__("tables").of(stem), "TRANSCRIBED_FROM_SCAN", False) else
             "The forms are in NFC, and the check puts the text layer through the same repair: the "
             "space the PDF sets after a stacked mark is closed, except before an opening quote, "
             "then NFC%s. %s"

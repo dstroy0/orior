@@ -84,9 +84,11 @@ def paper_repair(stem):
     """The repair every tool here applies to a paper's text before it reads a word of it.
 
     A page read from glyph positions (page_text.py leaves a .rows file beside it) has no inserted
-    spaces, and closing the space after a stacked mark there joins two words, xin̓ te.
+    spaces, and closing the space after a stacked mark there joins two words, xin̓ te. Nor has a
+    page text a person transcribed from a scan.
     """
-    if os.path.isfile(os.path.join(PAGE_TEXT, stem + ".rows")):
+    if os.path.isfile(os.path.join(PAGE_TEXT, stem + ".rows")) or \
+            getattr(tables.of(stem), "TRANSCRIBED_FROM_SCAN", False):
         return sequence(reopened, attached, lettered, composed(),
                         corrected(CORRECTIONS.get(stem, ())))
     return sequence(inserted_space(stem), reopened, attached, lettered, composed(),

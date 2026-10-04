@@ -462,6 +462,9 @@ class OnePage(object):
 # Such a paper does not build once respaced, and leaves this list when its ops are moved to the
 # page's spacing and its oracle is rebuilt.
 LAYER_SPACED = tables.members("LAYER_SPACED")
+# Papers typed and scanned, whose page text a person transcribed from the scan, a line for each line
+# the page prints and each page under its ===== page N ===== marker.
+TRANSCRIBED_FROM_SCAN = tables.members("TRANSCRIBED_FROM_SCAN")
 # The two letters a font's ToUnicode gives one glyph, and the letter the glyph draws: ə and the
 # Cyrillic ә in one box, in Stewart, Noguchi, Sardinha and Davis's 2011 and 2012 papers.
 CLOSEUP_UNJOINED = tables.members("CLOSEUP_UNJOINED")
@@ -2116,6 +2119,10 @@ def join_broken_lines(layer, by_letters, spaced_join=False, columns=None):
 
 def main():
     stem = sys.argv[1]
+    # A typed page scanned to an image has a text layer of OCR that holds none of the orthography.
+    # Its page text is transcribed from the scan by a person, and nothing here reads it again.
+    if stem in TRANSCRIBED_FROM_SCAN:
+        raise SystemExit("%s: the page text is transcribed from the scan, and page_text.py leaves it" % stem)
     document, mended, _ = paper_document(stem)
     # A font that gives letters a space in ToUnicode is read with the letters its program maps.
     # Its rows go under a name of their own, since each reading below replaces page_text.py's rows.
