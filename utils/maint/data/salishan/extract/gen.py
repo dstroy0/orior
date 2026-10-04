@@ -1799,6 +1799,9 @@ class Paper(object):
             out.append("meta authors %s" % self.authors)
         if self.language:
             out.append("meta lang %s" % self.language)
+        # The rest of the context make_md.py writes from: title, byline, volume, whose and letters.
+        for key, value in getattr(self, "meta", {}).items():
+            out.append("meta %s %s" % (key, " ".join(value.split())))
         out.append("removewhere .")
         chain = ("", "")
         for where, who, kind, form, gloss in self.rows:

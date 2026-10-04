@@ -1,0 +1,1072 @@
+where	who	kind	form	gloss
+front	Hank Nater	title	The position of Bella Coola within Salish: bound morphemes	page 1
+front	Hank Nater	name	Hank Nater	author
+front	Hank Nater	note	Hank Nater	page 1, the author line
+front	Hank Nater	note	Abstract: Bella Coola is, etymologically considered, more conservative as regards its bound morphemes (fossilized roots, clitics, affixes) than it is in relation to its non-bound morphemes (particles and verbo-nominals). Here, elements borrowed from North Wakash are low in number, and no morphemes have been copied from (proto-)Athabascan. At the same time, while many Bella Coola fossilized roots, proclitics, deictic enclitics, and suffixes are clearly Salish in origin, both non-deictic enclitics and prefixes are generally not as transparent.	page 1, the abstract
+front	Hank Nater	note	Keywords: Bella Coola language, genetic affiliation, typology, structural conservatism	page 1, the keywords
+front	Hank Nater	note	Papers for the International Conference on Salish and Neighbouring Languages 49, University of British Columbia Working Papers in Linguistics 37, Natalie Weber, Emily Sadlier-Brown, Erin Guntly (eds.), 2014.	page 1, the volume's header
+front	Hank Nater	language	Bella Coola	the language of the paper, Nuxalk
+§1	Hank Nater	heading	1 Introduction	page 1
+§1	Hank Nater	note	This report supplements Nater (2013), which dealt exclusively with Bella Coola non-bound morphemes (particles and verbo-nominals). In that paper, I stated that Bella Coola is affiliated closely with Coastal Salish in terms of significant lexical overlay (i.e. 15% of vocabulary with known origin), and several deictic and phonemic features. These features are: grammatical gender; proximal vs. distal; /t’/ vs. /ƛ’/ (which have merged into /ƛ’/ in the geographically closest Interior Salish languages); absence of velar and pharyngeal resonants; absence of retracted vowels and /l, r/ (while the language has, in North Wakash fashion, continued originally velar /k, k’, x/ as palatals, which have not shifted further (front) to /č, č’, š/). However, Bella Coola differs profoundly from all non-Bella Coola Salish insofar as it is characterized by: absence of distinctive stress (as in the unrelated, but geographically close, Oowekyala (Lincoln & Rath 1980) and southern Dakelh (Nater 1973/1974) languages) and schwa (as in Oowekyala); absence of phonemically distinct glottalized resonants (as in southern Dakelh); innovative verb morphology; lengthy suffix and enclitic strings; a North Wakash- induced rigid PSO syntax and rich enclitical deixis; etymological aspects of particles and verbo-nominals (approx. 21% proto-Salish, 7% pre-Coastal Salish, 3% areal, 17% non-Salish (mainly North Wakash), 52% unknown). I inferred – in consideration of structural attributes, as well as etymological properties and diffusion patterns of its verbo-nominal vocabulary – that Bella Coola began to evolve after a pre-Coastal/Interior Salish split: 	page 1
+footnote	Hank Nater	note	Contact info: hanknater@gmail.com, 139 Poplar Drive, Conklin, AB T0P 1H1	page 1, the footnote on the author's name, its mark the private-use glyph U+F020
+§1	Hank Nater	name	Nater	Hank Nater, the author; Nater (1984, 1990, 1994, 2010, 2013) and his Southern Carrier fieldnotes
+§1	Hank Nater	name	Lincoln	Neville J. Lincoln, with Rath (1980), the North Wakashan comparative root list
+§1	Hank Nater	name	Rath	John C. Rath (2010), the Heiltsuk-English dictionary; with Lincoln (1980)
+§1	Hank Nater	language	Salish	the family Bella Coola belongs to
+§1	Hank Nater	language	Coastal Salish	CS, a branch of Salish
+§1	Hank Nater	language	Interior Salish	a branch of Salish
+§1	Hank Nater	language	proto-Salish	PS, the family's ancestor
+§1	Hank Nater	language	pre-Coastal Salish	pre-CS, the ancestor of Bella Coola and Coastal Salish
+§1	Hank Nater	language	North Wakash	the Wakashan languages north of Bella Coola
+§1	Hank Nater	language	Oowekyala	North Wakash
+§1	Hank Nater	language	Dakelh	southern Dakelh, Athabascan
+§1	Hank Nater	note	proto-Salish	page 2, a printed line of Figure 1
+§1	Hank Nater	note	pre-Coastal Salish Interior Salish	page 2, a printed line of Figure 1
+§1	Hank Nater	note	(Northern, Southern)	page 2, a printed line of Figure 1
+§1	Hank Nater	note	Coastal Salish Bella Coola	page 2, a printed line of Figure 1
+§1	Hank Nater	note	(Central, Tsamosan, Oregon)	page 2, a printed line of Figure 1
+§1	Hank Nater	note	Figure 1 Bella Coola within Salish	page 2, the caption
+§1	Hank Nater	note	In what follows, I contemplate the origins of all Bella Coola bound morphemes: fossilized roots, proclitics, enclitics, prefixes and suffixes.	page 2
+§2	Hank Nater	heading	2 The data, proto-Salish vs. pre-Coastal Salish provenience	page 2
+§2	Hank Nater	note	The Bella Coola bound morpheme database, copied from Nater (1990), lists all fossilized roots, clitics and affixes recorded by myself. Other Salish data are from Kuipers (2002) (all Salish), Kuipers 1967–1969 (Squamish), Kinkade (1991) (Upper Chehalis), Kuipers (1974) (Shuswap), Van Eijk (1985, 2013) (Lillooet). My choice to posit a pre-Coastal Salish provenience for Bella Coola – Coastal Salish cognate pairs is based on the close connection between Bella Coola and Coastal Salish. On the other hand, I consider Bella Coola morphemes with Interior Salish cognates to be of proto-Salish origin, in view of the ancient, and geographically vast, divide between Bella Coola and Interior Salish (which rules out a direct borrowing relation).	page 2
+§2	Hank Nater	name	Kuipers	Aert H. Kuipers (1967, 1969, 1974, 2002), Squamish, Shuswap and the Salish etymological dictionary
+§2	Hank Nater	name	Kinkade	M. Dale Kinkade (1991), the Upper Chehalis dictionary
+§2	Hank Nater	name	Van Eijk	Jan P. van Eijk (1985, 2013), the Lillooet language and dictionary
+§2	Hank Nater	language	Upper Chehalis	Ch, Tsamosan
+§2	Hank Nater	language	Chehalis	Upper Chehalis
+§2	Hank Nater	language	Squamish	Sq, Coastal Salish
+§2	Hank Nater	language	Lillooet	Li, Interior Salish
+§2	Hank Nater	language	Shuswap	Sh, Interior Salish
+§3	Hank Nater	heading	3 Sound correspondence	page 2
+§3	Hank Nater	note	As concerns regular sound matches, note that Bella Coola has been affected by several shifts:	page 2
+§3 (a)	Hank Nater	note	(a) pre-suffix consonant elision (root-suffix and suffix-suffix fusion) (e.g. qluq’s ‘eye’ < *qlu(m)-ǝq’-ǝs < **qlum-aq’-us, sqma ‘chest’ < *sqǝ(p)-mǝn);	page 2
+§3 (a)	Bella Coola	cited form	*qlu(m)-ǝq’-ǝs	page 2, a shift of §3
+§3 (a)	Bella Coola	cited form	**qlum-aq’-us	page 2, a shift of §3
+§3 (a)	Bella Coola	cited form	*sqǝ(p)-mǝn	page 2, a shift of §3
+§3 (b1)	Hank Nater	note	(b1) inversion (e.g. tɬmas ‘Indian paint’ < *tǝmɬ, cipsx ‘fisher’ < *cixǝps);	page 2
+§3 (b1)	Bella Coola	cited form	*tǝmɬ	page 2, a shift of §3
+§3 (b1)	Bella Coola	cited form	*cixǝps	page 2, a shift of §3
+§3 (b1)	Bella Coola	cited form	tɬmas	page 2, a shift of §3, ‘Indian paint’
+§3 (b2)	Hank Nater	note	(b2) metathesis (Nater 1984:112) (e.g. ʔank’pc ‘mouse’ < *k’anp’c, ʔaq’miiχaɬp ‘cottonwood’ < *q’amiʔqa);	page 2
+§3 (b2)	Bella Coola	cited form	*k’anp’c	page 2, a shift of §3
+§3 (b2)	Bella Coola	cited form	*q’amiʔqa	page 2, a shift of §3
+§3 (c)	Hank Nater	note	(c) unstable glottalization (e.g. qʷuc’ik ‘wolverine’ < *q’ʷucik, paaχʷu ‘afraid’ < *p(’)aʔqʷu);	page 2
+§3 (c)	Bella Coola	cited form	*q’ʷucik	page 2, a shift of §3
+§3 (c)	Bella Coola	cited form	*p(’)aʔqʷu	page 2, a shift of §3
+§3 (c)	Bella Coola	cited form	paaχʷu	page 2, a shift of §3, ‘afraid’
+§3 (d)	Hank Nater	note	(d) compensatory lengthening ((*VC’ >) *VʔC > VˑC (Nater 1994:187)) (e.g. snaaχ ‘slave’ < *snaʔq, q’aat ‘small baited hook’ < *q’at’);	page 2
+§3 (d)	Bella Coola	cited form	*VC’	page 2, a shift of §3
+§3 (d)	Bella Coola	cited form	*VʔC	page 2, a shift of §3
+§3 (d)	Bella Coola	cited form	*snaʔq	page 2, a shift of §3
+§3 (d)	Bella Coola	cited form	*q’at’	page 2, a shift of §3
+§3 (d)	Bella Coola	cited form	snaaχ	page 2, a shift of §3, ‘slave’
+§3 (e)	Hank Nater	note	(e) spirantization of *q(ʷ) and vowel lengthening before χ(ʷ) (Nater 1994:188) (e.g. c’yaaχʷ ‘flicker’ (bird) < *c’yaqʷ, ʔaaχqa ‘urinate’ < *ʔaqqan);	page 3
+§3 (e)	Bella Coola	cited form	*q(ʷ)	page 3, a shift of §3
+§3 (e)	Bella Coola	cited form	*c’yaqʷ	page 3, a shift of §3
+§3 (e)	Bella Coola	cited form	*ʔaqqan	page 3, a shift of §3
+§3 (e)	Bella Coola	cited form	ʔaaχqa	page 3, a shift of §3, ‘urinate’
+§3 (f)	Hank Nater	note	(f) mutation of *ǝn# to i# or (via *an#) to a# (e.g. k’ʷucxi ‘maggots’ < *k’ʷǝc’xǝn, nuχʷski ‘soapberries’ < *nuχʷǝs(i)kǝn, q’ʷasta ‘mountain goat wool’ < *q’ʷastǝn ~ *q’ʷastan, ʔixa ‘lower leg, foot’ < *yǝxǝn ~ *yǝxan);	page 3
+§3 (f)	Bella Coola	cited form	*ǝn#	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	*an#	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	*k’ʷǝc’xǝn	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	*nuχʷǝs(i)kǝn	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	*q’ʷastǝn	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	*q’ʷastan	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	*yǝxǝn	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	*yǝxan	page 3, a shift of §3
+§3 (f)	Bella Coola	cited form	nuχʷski	page 3, a shift of §3, ‘soapberries’
+§3 (f)	Bella Coola	cited form	ʔixa	page 3, a shift of §3, ‘lower leg, foot’
+§3 (g)	Hank Nater	note	(g) *#yǝ, *#yi > #ʔi and *#wǝ, *#wu > ʔu# (e.g. ʔimanta ‘nest’ < *yǝman, ʔixa ‘lower leg, foot’ < *yǝxǝn ~ *yǝxan, ʔut’ak ‘vomit’ < *wǝt’…, ʔuq’ʷ ‘drift downstream’ < *wuq’ʷ);	page 3
+§3 (g)	Bella Coola	cited form	*#yǝ	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*#yi	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*#wǝ	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*#wu	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*yǝman	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*yǝxǝn	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*yǝxan	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*wǝt’…	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	*wuq’ʷ	page 3, a shift of §3
+§3 (g)	Bella Coola	cited form	ʔimanta	page 3, a shift of §3, ‘nest’
+§3 (g)	Bella Coola	cited form	ʔixa	page 3, a shift of §3, ‘lower leg, foot’
+§3 (h)	Hank Nater	note	(h) *ns > nc (e.g. ʔica ‘tooth’ < *yǝ-n(ǝ)s-ǝn (for *-ǝn cf. maka ‘testes’ < *m-ak-ǝn, musa ‘face’ < *mǝʔ-us-ǝn (Kuipers 2002: 144-145)), maq’ʷanc ‘heron’ < Kwakiutl maq’ʷṇs).	page 3
+§3 (h)	Kwakiutl	cited form	maq’ʷṇs	page 3, a shift of §3
+§3 (h)	Bella Coola	cited form	*ns	page 3, a shift of §3
+§3 (h)	Bella Coola	cited form	*yǝ-n(ǝ)s-ǝn	page 3, a shift of §3
+§3 (h)	Bella Coola	cited form	*-ǝn	page 3, a shift of §3
+§3 (h)	Bella Coola	cited form	*m-ak-ǝn	page 3, a shift of §3
+§3 (h)	Bella Coola	cited form	*mǝʔ-us-ǝn	page 3, a shift of §3
+§3 (h)	Bella Coola	cited form	ʔica	page 3, a shift of §3, ‘tooth’
+§3	Hank Nater	note	Of these, (d) and (e) underlie a few suffixes, e.g. -aaχ ‘lower part’ < *-aq’, -iiχʷ ‘head’ < *-iqʷ, and (f) has yielded e.g. -alqi ‘neck, nape’ (< *-al-qǝn) and (with (h)) -alic ‘tooth’ (< *-al-ǝns).	page 3
+§3	Bella Coola	cited form	*-aq’	page 3, in the prose
+§3	Bella Coola	cited form	*-iqʷ	page 3, in the prose
+§3	Bella Coola	cited form	*-al-qǝn	page 3, in the prose
+§3	Bella Coola	cited form	*-al-ǝns	page 3, in the prose
+§3	Bella Coola	cited affix	-aaχ	page 3, in the prose, ‘lower part’
+§3	Bella Coola	cited affix	-iiχʷ	page 3, in the prose, ‘head’
+§3	Bella Coola	cited affix	-alqi	page 3, in the prose, ‘neck, nape’
+§3	Bella Coola	cited affix	-alic	page 3, in the prose, ‘tooth’
+§4	Hank Nater	heading	4 Data organization, alphabetical order, abbreviations	page 3
+§4	Hank Nater	note	The data are presented in separate subsections under Section 5, where Bella Coola entries appear in the same order as in Nater (1990) (where /ʷ/ was rendered as w (except before u, where it was omitted), /c/ as ts, /ƛ’/ as tl’, /ɬ/ as lh, /x/ as c, /χ/ as x, the apostrophe was the last “letter” of the alphabet, and /ʔ/ (7) was ignored).	page 3
+§4	Hank Nater	note	Abbreviations used in this report are: Ch = Upper Chehalis, CS = Coastal Salish, Li = Lillooet, PS = proto-Salish, Sh = Shuswap, Sq = Squamish; Ki = Kinkade (1991), Ku67 = Kuipers (1967), Ku69 = Kuipers (1969), Ku74 = Kuipers (1974), Ku02 = Kuipers (2002), VE85 = Van Eijk (1985), VE13 = Van Eijk (2013); CAUS = causative, DEF = definite, DEM = demonstrative, FEM = feminine, IMP = imperative, INDEF = indefinite, ITR = intransitive, OBJ = object, PASS = passive, PL = plural, PRES = present, PROX = proximate, REM = remote, SG = singular, SUBJ = subject, TR = transitive.	page 3, the abbreviations
+§5	Hank Nater	heading	5 The data, entry numbering	page 3
+§5	Hank Nater	note	The data are arranged as follows: Section 5.1 fossilized roots, Section 5.2 proclitics, Section 5.3 enclitics, Section 5.4 prefixes, Section 5.5 suffixes. Entry numbers are the same as in Nater (1990).	page 3
+§5.1	Hank Nater	heading	5.1 Fossilized roots	page 3
+§5.1	Hank Nater	note	I have sixteen fossilized roots on record. They are – like most affixes and clitics – semantically vaguer than free verbo-nominals, and are associated with deixis, location, position or motion.	page 3
+entry 0001	Hank Nater	note	0001 √a ‘distal’ (deictic constituent) cf. 1516 ta˽ (in Section 5.2 below)	page 3, the entry as printed
+entry 0001	Bella Coola	root	√a	page 3, ‘distal’ (deictic constituent)
+entry 0051	Hank Nater	note	0051 √ʔaɬay ‘slight distance’ (deictic) < ʔa-ɬay (cf. Section 5.3, Figure 2, and ɬay ‘increased distance’ (innovative nominal deictic))	page 4, the entry as printed
+entry 0051	Bella Coola	root	√ʔaɬay	page 4, ‘slight distance’ (deictic)
+entry 0051	Bella Coola	cited form	ɬay	page 4, under the entry, ‘increased distance’
+entry 0153	Hank Nater	note	0153 √ʔas, √ʔass (followed by lexical suffix) ‘that which is …’ cf. Sq √ʔac ‘surface’ (Ku67:390)	page 4, the entry as printed
+entry 0153	Bella Coola	root	√ʔas	page 4, (followed by lexical suffix) ‘that which is …’
+entry 0153	Bella Coola	root	√ʔass	page 4, (followed by lexical suffix) ‘that which is …’
+entry 0153	Squamish	cited form	√ʔac	page 4, under the entry, ‘surface’, Ku67:390
+entry 0182	Hank Nater	note	0182 √ʔatu ‘using, in contact with’ (deictic) < ʔa- ‘locative’ + -tu- CAUS	page 4, the entry as printed
+entry 0182	Bella Coola	root	√ʔatu	page 4, ‘using, in contact with’ (deictic)
+entry 0182	Bella Coola	cited affix	ʔa-	page 4, under the entry, ‘locative’
+entry 0189	Hank Nater	note	0189 √ʔaw(a) ‘proximate’ (deictic) *ʔaw ‘follow’ (Ku02:20)	page 4, the entry as printed
+entry 0189	Bella Coola	root	√ʔaw(a)	page 4, ‘proximate’ (deictic)
+entry 0189	Proto-Salish	cited form	*ʔaw	page 4, under the entry, ‘follow’, Ku02:20
+entry 0191	Hank Nater	note	0191 √ʔawxʷ(a) ‘around here’ (deictic) (innovative)	page 4, the entry as printed
+entry 0191	Bella Coola	root	√ʔawxʷ(a)	page 4, ‘around here’ (deictic) (innovative)
+entry 0222	Hank Nater	note	0222 √xɬɬ ‘away from’ 215 x˽ ‘via’ + -ɬɬ ‘separated’	page 4, the entry as printed
+entry 0222	Bella Coola	root	√xɬɬ	page 4, ‘away from’
+entry 0222	Bella Coola	cited affix	-ɬɬ	page 4, under the entry, ‘separated’
+entry 0255	Hank Nater	note	0255 √i ‘proximal’ (constituent of deictics) cf. 1556 ti˽ (in Section 5.2 below)	page 4, the entry as printed
+entry 0255	Bella Coola	root	√i	page 4, ‘proximal’ (constituent of deictics)
+entry 0431	Hank Nater	note	0431 √kʷuɬ (followed by lexical suffix) ‘that which is …, the very …’ (innovative) < kʷuɬ- ‘being very …’ (itself innovative)	page 4, the entry as printed
+entry 0431	Bella Coola	root	√kʷuɬ	page 4, (followed by lexical suffix) ‘that which is …, the very …’
+entry 0431	Bella Coola	cited affix	kʷuɬ-	page 4, under the entry, ‘being very …’
+entry 0683	Hank Nater	note	0683 √m(…a) ‘formative’ pre-CS (Ku02:144: *makn, *mǝqsǝn, *mʔus)	page 4, the entry as printed
+entry 0683	Bella Coola	root	√m(…a)	page 4, ‘formative’
+entry 0683	pre-Coastal Salish	cited form	*makn	page 4, under the entry
+entry 0683	pre-Coastal Salish	cited form	*mǝqsǝn	page 4, under the entry
+entry 0683	pre-Coastal Salish	cited form	*mʔus	page 4, under the entry
+entry 1346	Hank Nater	note	1346 √sqa ‘outside’ *…cq(aʔ) (Ku02:15)	page 4, the entry as printed
+entry 1346	Bella Coola	root	√sqa	page 4, ‘outside’
+entry 1346	Proto-Salish	cited form	*…cq(aʔ)	page 4, under the entry, Ku02:15
+entry 1392	Hank Nater	note	1392 √stxʷ ‘inside’ pre-CS *…stxʷ (Ku02:136)	page 4, the entry as printed
+entry 1392	Bella Coola	root	√stxʷ	page 4, ‘inside’
+entry 1392	pre-Coastal Salish	cited form	*…stxʷ	page 4, under the entry, Ku02:136
+entry 1647	Hank Nater	note	1647 √tpi ‘next, adjacent, side, half’ (innovative)	page 4, the entry as printed
+entry 1647	Bella Coola	root	√tpi	page 4, ‘next, adjacent, side, half’ (innovative)
+entry 1888	Hank Nater	note	1888 √ula (preceded by spatial prefix) ‘over there’ < ʔul-a (cf. 1880 ʔu-, 1 √a, Sq √ʔuy ‘enter’ (Ku67:396))	page 4, the entry as printed
+entry 1888	Bella Coola	root	√ula	page 4, (preceded by spatial prefix) ‘over there’
+entry 1888	Squamish	cited form	√ʔuy	page 4, under the entry, ‘enter’, Ku67:396
+entry 1897	Hank Nater	note	1897 √uli (preceded by spatial prefix) ‘over here’ < ʔul-i (cf. 255 √i and 1888 √ula)	page 4, the entry as printed
+entry 1897	Bella Coola	root	√uli	page 4, (preceded by spatial prefix) ‘over here’
+entry 1924	Hank Nater	note	1924 √ʔus (followed by lexical suffix) ‘directional’ syncretism of 153 √ʔas and 1880 ʔu-	page 4, the entry as printed
+entry 1924	Bella Coola	root	√ʔus	page 4, (followed by lexical suffix) ‘directional’
+§5.1	Hank Nater	note	Of these roots, four (51, 191, 431, 1647) are innovative, two (189 and 1346) go back to PS, and ten have a pre-CS origin.	page 4
+§5.2	Hank Nater	heading	5.2 Proclitics	page 5
+§5.2	Hank Nater	note	Of the twelve proclitics, three are prepositions, six are indefinite articles (often found in combination with the related enclitical definite deictics), two are pre-predicative morphemes, and one is found in several environments.	page 5
+§5.2	Hank Nater	heading	Prepositions	page 5, a class of morpheme under §5.2
+entry 0044	Hank Nater	note	0044 ʔaɬ˽ ‘at’ cf. Ch ʔaɬ (Ki:4)	page 5, the entry as printed
+entry 0044	Bella Coola	cited form	ʔaɬ˽	page 5, ‘at’
+entry 0044	Upper Chehalis	cited form	ʔaɬ	page 5, under the entry, Ki:4
+entry 0215	Hank Nater	note	0215 x˽ ‘via, by means of’ Ch š ‘to, into’ (Ki:129)	page 5, the entry as printed
+entry 0215	Bella Coola	cited form	x˽	page 5, ‘via, by means of’
+entry 0215	Upper Chehalis	cited form	š	page 5, under the entry, ‘to, into’, Ki:129
+entry 1891	Hank Nater	note	1891 ʔuɬ˽ ‘towards’ syncretic form: 44 ʔaɬ˽ + 1880 ʔu-	page 5, the entry as printed
+entry 1891	Bella Coola	cited form	ʔuɬ˽	page 5, ‘towards’
+§5.2	Hank Nater	heading	Articles	page 5, a class of morpheme under §5.2
+entry 295, 572	Hank Nater	note	295, 572 ʔiɬ˽ = ɬa˽ ‘INDEF.FEM.REM.SG’ cf. Sq ɬa ‘DEF.PRES.WEAK.FEM’, ʔaɬi ‘DEF.PRESENT.STRONG.DISTAL.FEM’ (Ku67:137), Ch ɬa- ‘DEF.FEM’ (Ki:365)	page 5, the entry as printed
+entry 295, 572	Bella Coola	cited form	ʔiɬ˽	page 5, ‘INDEF.FEM.REM.SG’
+entry 295, 572	Bella Coola	cited form	ɬa˽	page 5, ‘INDEF.FEM.REM.SG’
+entry 295, 572	Squamish	cited form	ɬa	page 5, under the entry, ‘DEF.PRES.WEAK.FEM’
+entry 295, 572	Squamish	cited form	ʔaɬi	page 5, under the entry, ‘DEF.PRESENT.STRONG.DISTAL.FEM’, Ku67:137
+entry 295, 572	Upper Chehalis	cited form	ɬa-	page 5, under the entry, ‘DEF.FEM’, Ki:365
+entry 1516	Hank Nater	note	1516 ta˽ ‘INDEF.NON.FEM.REM.SG’ cf. Sq ta ‘DEF.PRES.WEAK.PLAIN’ (Ku67:137), Ch tat ‘DEF’ (Ki:136)	page 5, the entry as printed
+entry 1516	Bella Coola	cited form	ta˽	page 5, ‘INDEF.NON.FEM.REM.SG’
+entry 1516	Squamish	cited form	ta	page 5, under the entry, ‘DEF.PRES.WEAK.PLAIN’, Ku67:137
+entry 1556	Hank Nater	note	1556 ti˽ ‘INDEF.NON.FEM.PROX.SG’ Sq ti ‘DEF.PRES.STRONG.PROX.PLAIN’ (Ku67:137), Ch tit ‘DEF.NON.FEM’ (Ki:141)	page 5, the entry as printed
+entry 1556	Bella Coola	cited form	ti˽	page 5, ‘INDEF.NON.FEM.PROX.SG’
+entry 1556	Squamish	cited form	ti	page 5, under the entry, ‘DEF.PRES.STRONG.PROX.PLAIN’, Ku67:137
+entry 1689	Hank Nater	note	1689 ci˽‘INDEF.FEM.PROX.SG’ cf. Sq ci ‘DEF.PRES.STRONG.PROX.FEM’ (Ku67:137), Ch cic ‘DEF.FEM’ (Ki:22)	page 5, the entry as printed
+entry 1689	Bella Coola	cited form	ci˽	page 5, ‘INDEF.FEM.PROX.SG’
+entry 1689	Squamish	cited form	ci	page 5, under the entry, ‘DEF.PRES.STRONG.PROX.FEM’, Ku67:137
+entry 1807	Hank Nater	note	1807 tu˽ ‘INDEF.REM.PL’ syncretic form: 1516 ta˽ + …u… ‘REM.PL’ (cf. ˽tχ vs. ˽tχʷ (1835-37) and t’aχ vs. ˽t’aχʷ (1847-48)	page 5, the entry as printed
+entry 1807	Bella Coola	cited form	tu˽	page 5, ‘INDEF.REM.PL’
+entry 1807	Bella Coola	cited form	…u…	page 5, under the entry, ‘REM.PL’
+entry 1958	Hank Nater	note	1958 wa˽ ‘INDEF.PROX.PL’ cf. 1986 wi- ‘PL’, Li wi˽ ‘PL’ (with proper nouns) (VE85:223)	page 5, the entry as printed
+entry 1958	Bella Coola	cited form	wa˽	page 5, ‘INDEF.PROX.PL’
+entry 1958	Lillooet	cited form	wi˽	page 5, under the entry, ‘PL’
+§5.2	Hank Nater	heading	Pre-predicatives	page 5, a class of morpheme under §5.2
+entry 0381	Hank Nater	note	0381 kamaɬ˽ ‘if’, ‘should … be the case’ ka˽ + *˽maɬ: cf. Sq ˽maɬ ‘well …’ (Ku67:209)	page 5, the entry as printed
+entry 0381	Bella Coola	cited form	kamaɬ˽	page 5, ‘if’, ‘should … be the case’
+entry 0381	Squamish	cited form	˽maɬ	page 5, under the entry, ‘well …’, Ku67:209
+entry 0381	Bella Coola	cited form	*˽maɬ:	page 5, under the entry
+entry 1973	Hank Nater	note	1973 wastu˽ ‘and so’ (innovative)	page 5, the entry as printed
+entry 1973	Bella Coola	cited form	wastu˽	page 5, ‘and so’ (innovative)
+§5.2	Hank Nater	heading	Other	page 6, a class of morpheme under §5.2
+entry 0371	Hank Nater	note	0371 ka˽ ‘hypothetical’: (1) ‘intention, future action’ (pre-predicatively), (2) ‘if’(in subordinate phrases), (3) ‘some, any’ (in nominal constructions) cf. Li ˽ka, ka˽ ‘obligation, expectancy, would, should’ (VE85:233, 249)	page 6, the entry as printed
+entry 0371	Bella Coola	cited form	ka˽	page 6, ‘hypothetical’: (1) ‘intention, future action’ (pre-predicatively), (2) ‘if’(in subordinate phrases), (3) ‘some, any’ (in nominal constructions)
+entry 0371	Lillooet	cited form	˽ka	page 6, under the entry
+entry 0371	Lillooet	cited form	ka˽	page 6, under the entry, ‘obligation, expectancy, would, should’, VE85:233, 249
+§5.2	Hank Nater	note	Of the proclitics, two (1958, 371) have cognates in Lillooet, which is an indication that they have PS origins; 1973 appears to be innovative; the remaining nine, with cognates in CS only, derive from pre-CS.	page 6
+§5.3	Hank Nater	heading	5.3 Enclitics	page 6
+§5.3	Hank Nater	note	Enclitics are divided into five classes: fifteen adverbs (post-predicative elements), two imperative markers, three wh-question markers, two yes-no question markers (used post-predicatively), and twelve deictics.	page 6
+§5.3	Hank Nater	heading	Adverbs	page 6, a class of morpheme under §5.3
+entry 0070	Hank Nater	note	0070 ˽aɬtu ‘gradually’ (innovative)	page 6, the entry as printed
+entry 0070	Bella Coola	cited form	˽aɬtu	page 6, ‘gradually’ (innovative)
+entry 0091	Hank Nater	note	0091 ˽alu, ˽aɬu ‘tentatively’ (innovative)	page 6, the entry as printed
+entry 0091	Bella Coola	cited form	˽alu	page 6, ‘tentatively’ (innovative)
+entry 0091	Bella Coola	cited form	˽aɬu	page 6, ‘tentatively’ (innovative)
+entry 0257	Hank Nater	note	0257 ˽ʔi(t)…k(a) ‘contrastive’ (innovative)	page 6, the entry as printed
+entry 0257	Bella Coola	cited form	˽ʔi(t)…k(a)	page 6, ‘contrastive’ (innovative)
+entry 0427	Hank Nater	note	0427 ˽kʷu ‘attenuative’ (innovative)	page 6, the entry as printed
+entry 0427	Bella Coola	cited form	˽kʷu	page 6, ‘attenuative’ (innovative)
+entry 0440	Hank Nater	note	0440 ˽kʷ ‘quotative’ cf. Li ˽kʷuʔ id. (VE85:234)	page 6, the entry as printed
+entry 0440	Bella Coola	cited form	˽kʷ	page 6, ‘quotative’
+entry 0440	Lillooet	cited form	˽kʷuʔ	page 6, under the entry
+entry 0475	Hank Nater	note	0475 ˽k’ʷ, ˽k’ʷu ‘frequently’ (innovative)	page 6, the entry as printed
+entry 0475	Bella Coola	cited form	˽k’ʷ	page 6, ‘frequently’ (innovative)
+entry 0475	Bella Coola	cited form	˽k’ʷu	page 6, ‘frequently’ (innovative)
+entry 0674	Hank Nater	note	0674 ˽lu, ˽ɬu ‘still, yet’ (innovative)	page 6, the entry as printed
+entry 0674	Bella Coola	cited form	˽lu	page 6, ‘still, yet’ (innovative)
+entry 0674	Bella Coola	cited form	˽ɬu	page 6, ‘still, yet’ (innovative)
+entry 0689	Hank Nater	note	0689 ˽ma ‘maybe, possibly’ (innovative)	page 6, the entry as printed
+entry 0689	Bella Coola	cited form	˽ma	page 6, ‘maybe, possibly’ (innovative)
+entry 0708	Hank Nater	note	0708 ˽mas ‘always, forever’ (innovative)	page 6, the entry as printed
+entry 0708	Bella Coola	cited form	˽mas	page 6, ‘always, forever’ (innovative)
+entry 1455	Hank Nater	note	1455 ˽su ‘surprisingly, unexpectedly’ (innovative)	page 6, the entry as printed
+entry 1455	Bella Coola	cited form	˽su	page 6, ‘surprisingly, unexpectedly’ (innovative)
+entry 1712	Hank Nater	note	1712 ˽ck, ˽cki ‘inferential’ (innovative)	page 6, the entry as printed
+entry 1712	Bella Coola	cited form	˽ck	page 6, ‘inferential’ (innovative)
+entry 1712	Bella Coola	cited form	˽cki	page 6, ‘inferential’ (innovative)
+entry 1746	Hank Nater	note	1746 ˽c’, ˽c’n, ˽c’i ‘now’ (innovative)	page 6, the entry as printed
+entry 1746	Bella Coola	cited form	˽c’	page 6, ‘now’ (innovative)
+entry 1746	Bella Coola	cited form	˽c’n	page 6, ‘now’ (innovative)
+entry 1746	Bella Coola	cited form	˽c’i	page 6, ‘now’ (innovative)
+entry 1751	Hank Nater	note	1751 ˽c’akʷ ‘optative’ (innovative)	page 6, the entry as printed
+entry 1751	Bella Coola	cited form	˽c’akʷ	page 6, ‘optative’ (innovative)
+entry 1810	Hank Nater	note	1810 ˽tu ‘really, indeed’ cf. Li ˽tuʔ ‘definite past’ (VE85:231)	page 6, the entry as printed
+entry 1810	Bella Coola	cited form	˽tu	page 6, ‘really, indeed’
+entry 1810	Lillooet	cited form	˽tuʔ	page 6, under the entry, ‘definite past’, VE85:231
+entry 1824	Hank Nater	note	1824 ˽tuu ‘exactly, definitely’ PS *˽tuʔ, cf. 1810	page 6, the entry as printed
+entry 1824	Bella Coola	cited form	˽tuu	page 6, ‘exactly, definitely’
+entry 1824	Proto-Salish	cited form	*˽tuʔ	page 6, under the entry
+§5.3	Hank Nater	heading	Imperative markers	page 7, a class of morpheme under §5.3
+entry 0349	Hank Nater	note	0349 ˽ʔit ‘imperative’ (innovative)	page 7, the entry as printed
+entry 0349	Bella Coola	cited form	˽ʔit	page 7, ‘imperative’ (innovative)
+entry 0782	Hank Nater	note	0782 ˽na ‘imperative’ (innovative) cf. na ‘there!’, Sq na id. Ku67:312)	page 7, the entry as printed
+entry 0782	Bella Coola	cited form	˽na	page 7, ‘imperative’ (innovative)
+entry 0782	Squamish	cited form	na	page 7, under the entry
+entry 0782	Bella Coola	cited form	na	page 7, under the entry, ‘there!’
+§5.3	Hank Nater	heading	Wh-question markers	page 7, a class of morpheme under §5.3
+entry 0256	Hank Nater	note	0256 ˽ʔi… (probably innovative, but cf. Sh -y(’) in swety’ (beside swet) ‘who?’ (Ku74:261), stem’y (beside stem) ‘what?’ (Ku74:152))	page 7, the entry as printed
+entry 0256	Bella Coola	cited form	˽ʔi…	page 7, its head
+entry 0256	Shuswap	cited form	-y(’)	page 7, under the entry
+entry 0425	Hank Nater	note	0425 ˽ks (innovative)	page 7, the entry as printed
+entry 0425	Bella Coola	cited form	˽ks	page 7, (innovative)
+entry 0547	Hank Nater	note	0547 ˽(ʔ)l… (innovative)	page 7, the entry as printed
+entry 0547	Bella Coola	cited form	˽(ʔ)l…	page 7, (innovative)
+§5.3	Hank Nater	heading	Yes-no question markers	page 7, a class of morpheme under §5.3
+entry 0005	Hank Nater	note	0005 ˽a ‘is … the case?’ cf. Li ˽ha (VE85:237)	page 7, the entry as printed
+entry 0005	Bella Coola	cited form	˽a	page 7, ‘is … the case?’
+entry 0005	Lillooet	cited form	˽ha	page 7, under the entry, VE85:237
+entry 2090	Hank Nater	note	2090 ˽ya ‘eh?, right?’ (innovative, but probably < ya ‘good, right’)	page 7, the entry as printed
+entry 2090	Bella Coola	cited form	˽ya	page 7, ‘eh?, right?’ (innovative, but probably < ya ‘good, right’)
+entry 2090	Bella Coola	cited form	ya	page 7, in the head of the entry, ‘good, right’
+§5.3	Hank Nater	heading	Deictics	page 7, a class of morpheme under §5.3
+entry 0174	Hank Nater	note	0174 ˽ʔac ‘DEM.PL.PROX’	page 7, the entry as printed
+entry 0174	Bella Coola	cited form	˽ʔac	page 7, ‘DEM.PL.PROX’
+entry 0296	Hank Nater	note	0296 ˽ʔiɬ ‘DEF.FEM.REM.SG’ (identical to 295 ʔiɬ˽)	page 7, the entry as printed
+entry 0296	Bella Coola	cited form	˽ʔiɬ	page 7, ‘DEF.FEM.REM.SG’ (identical to 295 ʔiɬ˽)
+entry 0299	Hank Nater	note	0299 ˽ʔiɬaʔiɬ ‘DEM.FEM.REM.SG’	page 7, the entry as printed
+entry 0299	Bella Coola	cited form	˽ʔiɬaʔiɬ	page 7, ‘DEM.FEM.REM.SG’
+entry 1547	Hank Nater	note	1547 ˽tx ‘DEF.NON.FEM.PROX.SG’	page 7, the entry as printed
+entry 1547	Bella Coola	cited form	˽tx	page 7, ‘DEF.NON.FEM.PROX.SG’
+entry 1659	Hank Nater	note	1659 ˽c ‘DEF.PROX.PL’	page 7, the entry as printed
+entry 1659	Bella Coola	cited form	˽c	page 7, ‘DEF.PROX.PL’
+entry 1683	Hank Nater	note	1683 ˽cx ‘DEF.FEM.PROX.SG’	page 7, the entry as printed
+entry 1683	Bella Coola	cited form	˽cx	page 7, ‘DEF.FEM.PROX.SG’
+entry 1756	Hank Nater	note	1756 ˽c’ayx ‘DEM.FEM.PROX.SG’	page 7, the entry as printed
+entry 1756	Bella Coola	cited form	˽c’ayx	page 7, ‘DEM.FEM.PROX.SG’
+entry 1835	Hank Nater	note	1835 ˽tχ ‘DEF.NON.FEM.REM.SG’	page 7, the entry as printed
+entry 1835	Bella Coola	cited form	˽tχ	page 7, ‘DEF.NON.FEM.REM.SG’
+entry 1837	Hank Nater	note	1837 ˽tχʷ ‘DEF.REM.PL’	page 7, the entry as printed
+entry 1837	Bella Coola	cited form	˽tχʷ	page 7, ‘DEF.REM.PL’
+entry 1847	Hank Nater	note	1847 ˽t’aχ ‘DEM.NON.FEM.REM.SG’	page 7, the entry as printed
+entry 1847	Bella Coola	cited form	˽t’aχ	page 7, ‘DEM.NON.FEM.REM.SG’
+entry 1848	Hank Nater	note	1848 ˽t’aχʷ ‘DEM.REM.PL’	page 7, the entry as printed
+entry 1848	Bella Coola	cited form	˽t’aχʷ	page 7, ‘DEM.REM.PL’
+entry 1850	Hank Nater	note	1850 ˽t’ayx ‘DEM.NON.FEM.PROX.SG’	page 7, the entry as printed
+entry 1850	Bella Coola	cited form	˽t’ayx	page 7, ‘DEM.NON.FEM.PROX.SG’
+§5.3	Hank Nater	note	These deictics can be separated into minimal constituents as follows (cf. Nater 1984:44):	page 7
+§5.3	Hank Nater	note	t-/c- ʔiɬ- -(ʔ)a(y)- -ʔiɬ -x *-w- -χ -c	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	174 Ø- -ʔa- -c	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	296 Ø- -ʔiɬ	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	299 ʔiɬ- -a- -ʔiɬ	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1547 t- -x	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1659 Ø- -c	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1683 c- -x	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1756 c- -ʔay- -x	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1835 t- -χ	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1837 t- -χʷ	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1847 t- -ʔa- -χ	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1848 t- -ʔa- -χʷ	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	1850 t- -ʔay- -x	page 8, a printed line of Figure 2
+§5.3	Hank Nater	note	Figure 2 Components of enclitical deictics	page 8, the caption
+§5.3	Hank Nater	note	Of the nine components, -(ʔ)a(y)- ‘DEM’, -c ‘PROX.PL’, and *-w- ‘REM.PL’ (fossilized, cf. t(-)u˽ (1807)) appear to be innovative; ʔiɬ- (= -ʔiɬ) ‘FEM.REM’ and c- ‘FEM.PROX’ (cf. ci˽ (1689)) are pre-CS; t- ‘NON.FEM’ is also found in ti˽ (1556) and ta˽ (1516), and is pre-CS; -x ‘proximal’ versus -χ ‘distal’ may be innovative, but can also be compared with t(-)i˽ (1556) vs. t(-)a˽ (1516), a pre-CS distinction.	page 8
+§5.3	Bella Coola	cited affix	*-w-	page 8, in the prose, ‘REM.PL’
+§5.3	Bella Coola	cited affix	-(ʔ)a(y)-	page 8, in the prose, ‘DEM’
+§5.3	Bella Coola	cited affix	-c	page 8, in the prose, ‘PROX.PL’
+§5.3	Bella Coola	cited affix	c-	page 8, in the prose, ‘FEM.PROX’
+§5.3	Bella Coola	cited affix	t-	page 8, in the prose, ‘NON.FEM’
+§5.3	Bella Coola	cited affix	-x	page 8, in the prose, ‘proximal’
+§5.3	Bella Coola	cited affix	-χ	page 8, in the prose, ‘distal’
+§5.3	Hank Nater	note	Of all enclitics, only three adverbs are of PS origin, while twelve are innovative; both imperative markers are innovative; all three wh-question markers are innovative; one yes-no question marker has a PS origin, and the other one is likely internally derived; of nine deictic components, five (three if we exclude -x and -χ) are innovative, while four (six if -x and -χ are included) are originally pre- CS. In summary: out of 31 entries, four go back to PS, four (or six) have a pre-CS provenience, and 23 (or 21) are innovative.	page 8
+§5.4	Hank Nater	heading	5.4 Prefixes	page 8
+§5.4	Hank Nater	note	There are 43 prefixes. These can be divided into eight categories: reduced articles (three), verbalizers and adjectivizers (fifteen), somatic prefixes (two), grammatical prefixes (nominalizing, dualizing) (three), aspectual (pre- predicatives) (seven), spatial A (with locative bases) (five), spatial B (with non- locative bases) (six), circumfixes (two).	page 8
+§5.4	Hank Nater	heading	Reduced articles	page 9, a class of morpheme under §5.4
+entry 1510	Hank Nater	note	1510 t-, ti- ‘SG.NON.FEM’ cf. 1556 ti˽ (pre-CS)	page 9, the entry as printed
+entry 1510	Bella Coola	cited affix	t-	page 9, ‘SG.NON.FEM’
+entry 1510	Bella Coola	cited affix	ti-	page 9, ‘SG.NON.FEM’
+entry 1658	Hank Nater	note	1658 c-, ci- ‘SG.FEM’ cf. 1689 ci˽ (pre-CS)	page 9, the entry as printed
+entry 1658	Bella Coola	cited affix	c-	page 9, ‘SG.FEM’
+entry 1658	Bella Coola	cited affix	ci-	page 9, ‘SG.FEM’
+entry 1986	Hank Nater	note	1986 wi- ‘PL’ cf. 1958 wa˽ and Li wi˽ ‘PL’ (with proper nouns) (VE85:223) (PS)	page 9, the entry as printed
+entry 1986	Bella Coola	cited affix	wi-	page 9, ‘PL’
+entry 1986	Lillooet	cited form	wi˽	page 9, under the entry, ‘PL’
+§5.4	Hank Nater	heading	Verbalizers and adjectivizers	page 9, a class of morpheme under §5.4
+entry 0130	Hank Nater	note	0130 ʔanus ‘having lost one’s … (relative or spouse)’ originally complex: < 124 ʔanu- ‘out of’ + 1180 s- ‘nominalizer’	page 9, the entry as printed
+entry 0130	Bella Coola	cited affix	ʔanus	page 9, ‘having lost one’s … (relative or spouse)’
+entry 0154	Hank Nater	note	0154 ʔas- ‘have, have brought, use (food, tool, vehicle)’ cf. Li ʔǝs- ‘have, own’ (VE85:61) (cf. 336 ʔis-)	page 9, the entry as printed
+entry 0154	Bella Coola	cited affix	ʔas-	page 9, ‘have, have brought, use (food, tool, vehicle)’
+entry 0154	Lillooet	cited form	ʔǝs-	page 9, under the entry, ‘have, own’, VE85:61
+entry 0156	Hank Nater	note	0156 ʔasi- (with ya good or sx bad) ‘consider the taste of something as …’ (innovative)	page 9, the entry as printed
+entry 0156	Bella Coola	cited affix	ʔasi-	page 9, (with ya good or sx bad) ‘consider the taste of something as …’
+entry 0221	Hank Nater	note	0221 xɬ- ‘have, possess’ (innovative) possibly < 215 x˽ ‘by means of’ + 569 ɬ- ‘additional’	page 9, the entry as printed
+entry 0221	Bella Coola	cited affix	xɬ-	page 9, ‘have, possess’ (innovative)
+entry 0336	Hank Nater	note	0336 ʔis- ‘gather, consume’ cf. Li ʔǝs- ‘have, own’ (VE85:61) (cf. 154 ʔas-)	page 9, the entry as printed
+entry 0336	Bella Coola	cited affix	ʔis-	page 9, ‘gather, consume’
+entry 0336	Lillooet	cited form	ʔǝs-	page 9, under the entry, ‘have, own’, VE85:61
+entry 0347	Hank Nater	note	0347 ʔit- ‘speak the language of …’ (innovative) (but if the original meaning is ‘to use’, cf. following item)	page 9, the entry as printed
+entry 0347	Bella Coola	cited affix	ʔit-	page 9, ‘speak the language of …’ (innovative)
+entry 0348	Hank Nater	note	0348 ʔit- ‘wear, clothing’ (innovative, and cf. preceding item)	page 9, the entry as printed
+entry 0348	Bella Coola	cited affix	ʔit-	page 9, ‘wear, clothing’ (innovative, and cf. preceding item)
+entry 0377	Hank Nater	note	0377 kaɬ-, kas- ‘pursue, collect’ *kal ‘go after, follow’ (Ku02:36)	page 9, the entry as printed
+entry 0377	Bella Coola	cited affix	kaɬ-	page 9, ‘pursue, collect’
+entry 0377	Bella Coola	cited affix	kas-	page 9, ‘pursue, collect’
+entry 0377	Proto-Salish	cited form	*kal	page 9, under the entry, ‘go after, follow’, Ku02:36
+entry 0432	Hank Nater	note	0432 kʷuɬ-, kʷus- ‘having much, being very …’ (innovative)	page 9, the entry as printed
+entry 0432	Bella Coola	cited affix	kʷuɬ-	page 9, ‘having much, being very …’ (innovative)
+entry 0432	Bella Coola	cited affix	kʷus-	page 9, ‘having much, being very …’ (innovative)
+entry 0515	Hank Nater	note	0515 k’iɬ-, k’is- ‘lacking’ North Wakash √k’i(s) ‘not there anymore, deprived of’ (Lincoln & Rath 1980: 246–247)	page 9, the entry as printed
+entry 0515	Bella Coola	cited affix	k’iɬ-	page 9, ‘lacking’
+entry 0515	Bella Coola	cited affix	k’is-	page 9, ‘lacking’
+entry 0515	North Wakash	cited form	√k’i(s)	page 9, under the entry, ‘not there anymore, deprived of’
+entry 1395	Hank Nater	note	1395 sti- ‘asymmetrical’ (innovative)	page 9, the entry as printed
+entry 1395	Bella Coola	cited affix	sti-	page 9, ‘asymmetrical’ (innovative)
+entry 1525	Hank Nater	note	1525 tam- ‘make, construct’ cf. Sq taʔ- ‘undergo’, taʔ-s ‘to make’ (Ku67:263) (and cf. next item?)	page 9, the entry as printed
+entry 1525	Bella Coola	cited affix	tam-	page 9, ‘make, construct’
+entry 1525	Squamish	cited form	taʔ-	page 9, under the entry, ‘undergo’
+entry 1525	Squamish	cited form	taʔ-s	page 9, under the entry, ‘to make’, Ku67:263
+entry 1822	Hank Nater	note	1822 tu:tu- ‘work on something’ (innovative, or cf. tam-?)	page 9, the entry as printed
+entry 1822	Bella Coola	cited affix	tu:tu-	page 9, ‘work on something’ (innovative, or cf. tam-?)
+entry 1911	Hank Nater	note	1911 ʔun- ‘fond of’ (innovative) (possibly inversion of nu- ‘inside’, or < ʔu-n(u)- ‘direction-inside’)	page 9, the entry as printed
+entry 1911	Bella Coola	cited affix	ʔun-	page 9, ‘fond of’ (innovative)
+entry 1911	Bella Coola	cited affix	nu-	page 9, under the entry, ‘inside’
+entry 1911	Bella Coola	cited affix	ʔu-n(u)-	page 9, under the entry, ‘direction-inside’
+entry 1925	Hank Nater	note	1925 ʔus- ‘long for’ (innovative) (possibly < ʔu-s- ‘direction-nominalizer’)	page 10, the entry as printed
+entry 1925	Bella Coola	cited affix	ʔus-	page 10, ‘long for’ (innovative)
+entry 1925	Bella Coola	cited affix	ʔu-s-	page 10, under the entry, ‘direction-nominalizer’
+§5.4	Hank Nater	heading	Somatic prefixes	page 10, a class of morpheme under §5.4
+entry 0433	Hank Nater	note	0433 kʷuɬ-, kʷus- ‘penis’ (innovative, and cf. 432 above)	page 10, the entry as printed
+entry 0433	Bella Coola	cited affix	kʷuɬ-	page 10, ‘penis’ (innovative, and cf. 432 above)
+entry 0433	Bella Coola	cited affix	kʷus-	page 10, ‘penis’ (innovative, and cf. 432 above)
+entry 1912	Hank Nater	note	1912 ʔun- ‘waist, small of back’ (innovative)	page 10, the entry as printed
+entry 1912	Bella Coola	cited affix	ʔun-	page 10, ‘waist, small of back’ (innovative)
+§5.4	Hank Nater	heading	Grammatical prefixes	page 10, a class of morpheme under §5.4
+entry 0569	Hank Nater	note	0569 ɬ- ‘dualis, … and somebody else’ (innovative)	page 10, the entry as printed
+entry 0569	Bella Coola	cited affix	ɬ-	page 10, ‘dualis, … and somebody else’ (innovative)
+entry 1180	Hank Nater	note	1180 s- ‘nominalizer’ (all-Salish)	page 10, the entry as printed
+entry 1180	Bella Coola	cited affix	s-	page 10, ‘nominalizer’ (all-Salish)
+entry 1228	Hank Nater	note	1228 si- ‘paraphraser’ (innovative, but possibly < *s-(ǝ)n- ‘nominalizer-inside’)	page 10, the entry as printed
+entry 1228	Bella Coola	cited affix	si-	page 10, ‘paraphraser’ (innovative, but possibly < *s-(ǝ)n- ‘nominalizer-inside’)
+entry 1228	Bella Coola	cited affix	*s-(ǝ)n-	page 10, in the head of the entry, ‘nominalizer-inside’
+§5.4	Hank Nater	heading	Aspectual prefixes	page 10, a class of morpheme under §5.4
+entry 0045	Hank Nater	note	0045 ʔaɬ-, ʔa- ‘stative-progressive’ (innovative)	page 10, the entry as printed
+entry 0045	Bella Coola	cited affix	ʔaɬ-	page 10, ‘stative-progressive’ (innovative)
+entry 0045	Bella Coola	cited affix	ʔa-	page 10, ‘stative-progressive’ (innovative)
+entry 0261	Hank Nater	note	0261 ʔix- ‘intensive’ (innovative)	page 10, the entry as printed
+entry 0261	Bella Coola	cited affix	ʔix-	page 10, ‘intensive’ (innovative)
+entry 0337	Hank Nater	note	0337 ʔis- ‘intensive’ (innovative)	page 10, the entry as printed
+entry 0337	Bella Coola	cited affix	ʔis-	page 10, ‘intensive’ (innovative)
+entry 0501	Hank Nater	note	0501 k’am- ‘equal, same’ *√k’a/ǝm (followed by lexical suffix) ‘the very …, that which is …’ (Ku02:166)	page 10, the entry as printed
+entry 0501	Bella Coola	cited affix	k’am-	page 10, ‘equal, same’
+entry 0501	Bella Coola	cited form	*√k’a/ǝm	page 10, under the entry
+entry 1318	Hank Nater	note	1318 sm- ‘from the beginning’ (innovative)	page 10, the entry as printed
+entry 1318	Bella Coola	cited affix	sm-	page 10, ‘from the beginning’ (innovative)
+entry 1524	Hank Nater	note	1524 tam- ‘iterative’ (innovative)	page 10, the entry as printed
+entry 1524	Bella Coola	cited affix	tam-	page 10, ‘iterative’ (innovative)
+entry 1637	Hank Nater	note	1637 tm- ‘only’ (innovative)	page 10, the entry as printed
+entry 1637	Bella Coola	cited affix	tm-	page 10, ‘only’ (innovative)
+§5.4	Hank Nater	heading	Spatial A	page 10, a class of morpheme under §5.4
+entry 0004	Hank Nater	note	0004 ʔa- ‘locative’ *ʔa- (Ku02:15,16,17)	page 10, the entry as printed
+entry 0004	Bella Coola	cited affix	ʔa-	page 10, ‘locative’
+entry 0004	Proto-Salish	cited form	*ʔa-	page 10, under the entry, Ku02:15,16,17
+entry 1509	Hank Nater	note	1509 t- ‘locative’ *t-…: Sh t(k)- ‘on’ (Ku74:71), Sq txʷ- ‘direction’ (Ku67:260)	page 10, the entry as printed
+entry 1509	Bella Coola	cited affix	t-	page 10, ‘locative’
+entry 1509	Shuswap	cited form	t(k)-	page 10, under the entry, ‘on’, Ku74:71
+entry 1509	Squamish	cited form	txʷ-	page 10, under the entry, ‘direction’, Ku67:260
+entry 1509	Bella Coola	cited form	*t-…:	page 10, under the entry
+entry 1546	Hank Nater	note	1546 tx- ‘locative’ pre-CS: Sq txʷ- ‘direction’ (Ku67:260), Ch taš ‘at, across, through, around’ (preposition) (Ki:136)	page 10, the entry as printed
+entry 1546	Bella Coola	cited affix	tx-	page 10, ‘locative’
+entry 1546	Squamish	cited form	txʷ-	page 10, under the entry, ‘direction’, Ku67:260
+entry 1546	Upper Chehalis	cited form	taš	page 10, under the entry, ‘at, across, through, around’
+entry 1834	Hank Nater	note	1834 tχ- ‘locative’ (geographical) North Wakash, cf. He tχ… ‘the geographical place of …’ (Rath 2010, line 1661)	page 10, the entry as printed
+entry 1834	Bella Coola	cited affix	tχ-	page 10, ‘locative’ (geographical)
+entry 1834	Heiltsuk	cited form	tχ…	page 10, under the entry, ‘the geographical place of …’
+entry 1880	Hank Nater	note	1880 ʔu- ‘directional’ *ʔu- (Ku02:15,16)	page 11, the entry as printed
+entry 1880	Bella Coola	cited affix	ʔu-	page 11, ‘directional’
+entry 1880	Proto-Salish	cited form	*ʔu-	page 11, under the entry, Ku02:15,16
+§5.4	Hank Nater	heading	Spatial B	page 11, a class of morpheme under §5.4
+entry 0124	Hank Nater	note	0124 ʔanu- ‘through’ (innovative) (possibly < ʔa-nu- ‘locative-inside’)	page 11, the entry as printed
+entry 0124	Bella Coola	cited affix	ʔanu-	page 11, ‘through’ (innovative)
+entry 0124	Bella Coola	cited affix	ʔa-nu-	page 11, under the entry, ‘locative-inside’
+entry 0321	Hank Nater	note	0321 ʔinix- ‘more, in addition’ (innovative) (?cf. 261 ʔix- ‘intensive’)	page 11, the entry as printed
+entry 0321	Bella Coola	cited affix	ʔinix-	page 11, ‘more, in addition’ (innovative)
+entry 0378	Hank Nater	note	0378 kaɬ- ‘under, below’ (innovative)	page 11, the entry as printed
+entry 0378	Bella Coola	cited affix	kaɬ-	page 11, ‘under, below’ (innovative)
+entry 0827	Hank Nater	note	0827 nu- ‘inside’ *n(ǝw)-, nǝxʷ-: cf. Sq n-, nǝxʷ- ‘location’ (Ku67:310), Sh n- ‘at’ (Ku74:58)	page 11, the entry as printed
+entry 0827	Bella Coola	cited affix	nu-	page 11, ‘inside’
+entry 0827	Squamish	cited form	n-	page 11, under the entry
+entry 0827	Squamish	cited form	nǝxʷ-	page 11, under the entry, ‘location’, Ku67:310
+entry 0827	Shuswap	cited form	n-	page 11, under the entry, ‘at’, Ku74:58
+entry 0827	Bella Coola	cited affix	*n(ǝw)-	page 11, under the entry
+entry 1387	Hank Nater	note	1387 stam- ‘together with’ (innovative)	page 11, the entry as printed
+entry 1387	Bella Coola	cited affix	stam-	page 11, ‘together with’ (innovative)
+entry 1926	Hank Nater	note	1926 ʔus- ‘top surface’ *wǝs, *wis ‘high, above’ (Ku02:116)	page 11, the entry as printed
+entry 1926	Bella Coola	cited affix	ʔus-	page 11, ‘top surface’
+entry 1926	Bella Coola	cited form	*wǝs	page 11, under the entry
+entry 1926	Proto-Salish	cited form	*wis	page 11, under the entry, ‘high, above’, Ku02:116
+§5.4	Hank Nater	heading	Circumfixes	page 11, a class of morpheme under §5.4
+entry 0388	Hank Nater	note	0388 (ka)nus-…-m ‘having a … flavor/odor’ (innovative)	page 11, the entry as printed
+entry 1914	Hank Nater	note	1914 ʔunus(i)-…-m ‘go somewhere in order to …’ (innovative) (possibly < ʔun:ʔus(i)-..., cf. 1925 ʔus- long for)	page 11, the entry as printed
+entry 1914	Bella Coola	cited affix	ʔunus(i)-…-m	page 11, ‘go somewhere in order to …’ (innovative)
+§5.4	Hank Nater	note	Of the 41 prefixes and two circumfixes, the reduced articles are Salish (two pre-CS, one PS); of the verbalizers/adjectivizers, four are Salish (one pre-CS, three PS), one is North Wakash, and ten are innovative; both somatic prefixes are innovative; of the grammatical prefixes, one goes back to PS, while two are innovative; of the aspectual prefixes, one goes back to PS, while six are innovative; four spatial A prefixes are Salish (three PS, one pre-CS), and one is North Wakash; of the spatial B prefixes, two have a PS origin, while four are innovative; both circumfixes are innovative.	page 11
+§5.5	Hank Nater	heading	5.5 Suffixes	page 11
+§5.5	Hank Nater	note	Not counting complex (“stringed”) suffixes, I have 130 suffixes on record: thirty of these are pronominal elements (Na84:46–54); six are modifiers (Na84:76–82); 23 are verbal suffixes (Na84:82–104 and 177); 44 are lexical suffixes (Na84: 104– 119); eight are nominalizing (Na84:120–121); the remaining nineteen are formatives (without a clear meaning or function) (Na84:122–124).	page 11
+§5.5	Hank Nater	heading	Pronominal suffixes	page 12, a class of morpheme under §5.5
+§5.5	Hank Nater	heading	Declarative (in)transitive	page 12, a class of morpheme under §5.5
+entry 0133	Hank Nater	note	0133 -ap, -nap ‘2PL.SUBJ’ cf. Sq -ap (Ku67:393), Sh -p (Ku74:281)	page 12, the entry as printed
+entry 0133	Bella Coola	cited affix	-ap	page 12, ‘2PL.SUBJ’
+entry 0133	Bella Coola	cited affix	-nap	page 12, ‘2PL.SUBJ’
+entry 0133	Squamish	cited form	-ap	page 12, under the entry, Ku67:393
+entry 0133	Shuswap	cited form	-p	page 12, under the entry, Ku74:281
+entry 0187	Hank Nater	note	0187 -aw, -naw ‘3PL.SUBJ.ITR’ (innovative)	page 12, the entry as printed
+entry 0187	Bella Coola	cited affix	-aw	page 12, ‘3PL.SUBJ.ITR’ (innovative)
+entry 0187	Bella Coola	cited affix	-naw	page 12, ‘3PL.SUBJ.ITR’ (innovative)
+entry 0297, 570	Hank Nater	note	0297, 570 -(i)ɬ ‘1PL.SUBJ’ derived (cf. ɬmiɬ ‘we’ = Sq nímaɬ (Ku67:313), Li s-nímuɬ (< CS) (VE13:122))	page 12, the entry as printed
+entry 0297, 570	Bella Coola	cited affix	-(i)ɬ	page 12, ‘1PL.SUBJ’
+entry 0297, 570	Squamish	cited form	nímaɬ	page 12, under the entry, Ku67:313
+entry 0297, 570	Lillooet	cited form	s-nímuɬ	page 12, under the entry
+entry 0297, 570	Bella Coola	cited form	ɬmiɬ	page 12, under the entry, ‘we’
+entry 0828	Hank Nater	note	0828 -nu ‘2SG.SUBJ.ITR’ derived (cf. ʔinu ‘thou’ = Sq nǝw (Ku67:311), Li s-núwa (VE13:132))	page 12, the entry as printed
+entry 0828	Bella Coola	cited affix	-nu	page 12, ‘2SG.SUBJ.ITR’
+entry 0828	Squamish	cited form	nǝw	page 12, under the entry, Ku67:311
+entry 0828	Lillooet	cited form	s-núwa	page 12, under the entry, VE13:132
+entry 0828	Bella Coola	cited form	ʔinu	page 12, under the entry, ‘thou’
+entry 1182	Hank Nater	note	1182 -s ‘3SG.SUBJ/POSS’ cf. Sq -s (Ku67:282), Sh -s (Ku74:282)	page 12, the entry as printed
+entry 1182	Bella Coola	cited affix	-s	page 12, ‘3SG.SUBJ/POSS’
+entry 1182	Squamish	cited form	-s	page 12, under the entry, Ku67:282
+entry 1182	Shuswap	cited form	-s	page 12, under the entry, Ku74:282
+entry 1660	Hank Nater	note	1660 -c ‘1SG.SUBJ’ PS ‘1SG.OBJ’ (cf. Sq -c ‘1SG.OBJ’ (Ku67:273), Sh -c(e)m-, -c(e)l- ‘1SG.OBJ’ (Ku74:282), Li -c- ‘1SG.OBJ’ (VE12:420), and cf. ʔnc ‘I’ (= Sq ʔǝns (Ku67:387))	page 12, the entry as printed
+entry 1660	Bella Coola	cited affix	-c	page 12, ‘1SG.SUBJ’
+entry 1660	Squamish	cited form	-c	page 12, under the entry, ‘1SG.OBJ’, Ku67:273
+entry 1660	Shuswap	cited form	-c(e)m-	page 12, under the entry
+entry 1660	Shuswap	cited form	-c(e)l-	page 12, under the entry, ‘1SG.OBJ’, Ku74:282
+entry 1660	Lillooet	cited form	-c-	page 12, under the entry, ‘1SG.OBJ’, VE12:420
+entry 1660	Squamish	cited form	ʔǝns	page 12, under the entry, Ku67:387
+entry 1660	Bella Coola	cited form	ʔnc	page 12, under the entry, ‘I’
+§5.5	Hank Nater	heading	Imperative	page 12, a class of morpheme under §5.5
+entry 0201	Hank Nater	note	0201 -aχʷ, -naχʷ ‘2PL’ derived (*-(n)aw-χ, cf. 187 -aw and 2016 -χ)	page 12, the entry as printed
+entry 0201	Bella Coola	cited affix	-aχʷ	page 12, ‘2PL’
+entry 0201	Bella Coola	cited affix	-naχʷ	page 12, ‘2PL’
+entry 0201	Bella Coola	cited form	*-(n)aw-χ	page 12, under the entry
+entry 2016	Hank Nater	note	2016 -χ ‘2SG’ North Wakash -χa, -χi (Rath 2010 Excel suffix list, line 587)	page 12, the entry as printed
+entry 2016	Bella Coola	cited affix	-χ	page 12, ‘2SG’
+entry 2016	North Wakash	cited form	-χa	page 12, under the entry
+entry 2016	North Wakash	cited form	-χi	page 12, under the entry
+§5.5	Hank Nater	heading	Declarative transitive/causative	page 12, a class of morpheme under §5.5
+entry 0233	Hank Nater	note	0233 -xʷ ‘2SG.SUBJ’ cf. Sq -(a)xʷ ‘2SG.SUBJ’ (Ku67:85), Sh -(e)x ‘2SG.SUBJ.TR’, -ǝxʷ ‘2SG’ (Ku74:284)	page 12, the entry as printed
+entry 0233	Bella Coola	cited affix	-xʷ	page 12, ‘2SG.SUBJ’
+entry 0233	Squamish	cited form	-(a)xʷ	page 12, under the entry, ‘2SG.SUBJ’, Ku67:85
+entry 0233	Shuswap	cited form	-(e)x	page 12, under the entry, ‘2SG.SUBJ.TR’
+entry 0233	Shuswap	cited form	-ǝxʷ	page 12, under the entry, ‘2SG’, Ku74:284
+entry 0260	Hank Nater	note	0260 -i- ‘3SG.OBJ.TR’ modified (probably < PS *-n- ‘transitivizer’, cf. Sq -n-, -nǝxʷ (Ku67:310), Sh -n(t) (Ku74:282))	page 12, the entry as printed
+entry 0260	Bella Coola	cited affix	-i-	page 12, ‘3SG.OBJ.TR’
+entry 0260	Proto-Salish	cited form	*-n-	page 12, under the entry, ‘transitivizer’
+entry 0260	Squamish	cited form	-n-	page 12, under the entry
+entry 0260	Squamish	cited form	-nǝxʷ	page 12, under the entry, Ku67:310
+entry 0260	Shuswap	cited form	-n(t)	page 12, under the entry, Ku74:282
+entry 0899	Hank Nater	note	0899 -p ‘2PL.SUBJ’ cf. 133 -ap	page 12, the entry as printed
+entry 0899	Bella Coola	cited affix	-p	page 12, ‘2PL.SUBJ’
+entry 1511	Hank Nater	note	1511 -t ‘3PL.SUBJ’ pre-CS, cf. Sq -wit ‘3PL’ (Ku67:85)	page 12, the entry as printed
+entry 1511	Bella Coola	cited affix	-t	page 12, ‘3PL.SUBJ’
+entry 1511	Squamish	cited form	-wit	page 12, under the entry, ‘3PL’, Ku67:85
+entry 1558	Hank Nater	note	1558 -ti- ‘3PL.OBJ’ modified (probably < *-tǝn-, cf. 260 -i- and 1527 -tan)	page 12, the entry as printed
+entry 1558	Bella Coola	cited affix	-ti-	page 12, ‘3PL.OBJ’
+entry 1558	Bella Coola	cited affix	*-tǝn-	page 12, under the entry
+entry 1662	Hank Nater	note	1662 -c-, -can- ‘1SG.OBJ.TR’ cf. Sq -c- (Ku67:273), Sh -c(e)m-, -c(e)l- (Ku74:282), Ch -c(al-) (Ki:366) (cf. 1660 -c and 687 -m-)	page 13, the entry as printed
+entry 1662	Bella Coola	cited affix	-c-	page 13, ‘1SG.OBJ.TR’
+entry 1662	Bella Coola	cited affix	-can-	page 13, ‘1SG.OBJ.TR’
+entry 1662	Squamish	cited form	-c-	page 13, under the entry, Ku67:273
+entry 1662	Shuswap	cited form	-c(e)m-	page 13, under the entry
+entry 1662	Shuswap	cited form	-c(e)l-	page 13, under the entry, Ku74:282
+entry 1662	Upper Chehalis	cited form	-c(al-)	page 13, under the entry, Ki:366
+entry 1692	Hank Nater	note	1692 -ci- ‘1sg.subj.tr’ in -ci-nu ‘I … you’ < PS *-ci-n ‘2SGOBJ-1SGSUBJ’ + 828 -nu, cf. Sh -c(i)-n id. (Ku74:48), Ch -ci- ‘2SG.OBJ’ (Ki:366) (cf. 721 -mi-)	page 13, the entry as printed
+entry 1692	Bella Coola	cited affix	-ci-	page 13, ‘1sg.subj.tr’
+entry 1692	Proto-Salish	cited form	*-ci-n	page 13, under the entry, ‘2SGOBJ-1SGSUBJ’
+entry 1692	Shuswap	cited form	-c(i)-n	page 13, under the entry
+entry 1692	Upper Chehalis	cited form	-ci-	page 13, under the entry, ‘2SG.OBJ’, Ki:366
+entry 1692	Bella Coola	cited affix	-ci-nu	page 13, under the entry, ‘I … you’
+entry 1814	Hank Nater	note	1814 -tuɬ- ‘1PL.OBJ.TR’ cf. Ch -tul- (Ki:366) (cf. 762 -muɬ-; for -t- ~ -m- cf. -tinic ~ -minic (1573 and 733 below))	page 13, the entry as printed
+entry 1814	Bella Coola	cited affix	-tuɬ-	page 13, ‘1PL.OBJ.TR’
+entry 1814	Upper Chehalis	cited form	-tul-	page 13, under the entry, Ki:366
+§5.5	Hank Nater	heading	Transitive participial	page 13, a class of morpheme under §5.5
+entry 1512	Hank Nater	note	1512 -t ‘3SG.OBJ’ (the one who … him/her/it) pre-CS *-t- ‘transitivizer’, cf. Sq -t (Ku67:259)	page 13, the entry as printed
+entry 1512	Bella Coola	cited affix	-t	page 13, ‘3SG.OBJ’ (the one who … him/her/it)
+entry 1512	pre-Coastal Salish	cited form	*-t-	page 13, under the entry, ‘transitivizer’
+entry 1512	Squamish	cited form	-t	page 13, under the entry, Ku67:259
+entry 1527	Hank Nater	note	1527 -tan ‘3PL.OBJ’ (the one who … them) cf. Li -tan-i ‘3PL OBJ’ (and 1558 -ti-)	page 13, the entry as printed
+entry 1527	Bella Coola	cited affix	-tan	page 13, ‘3PL.OBJ’ (the one who … them)
+entry 1527	Lillooet	cited form	-tan-i	page 13, under the entry, ‘3PL OBJ’
+§5.5	Hank Nater	heading	Transitive passive	page 13, a class of morpheme under §5.5
+entry 0313	Hank Nater	note	0313 -im ‘3SG’ cf. Sq -…-m ‘passive’ (Ku67:68), Sh -(e)m ‘passive’ (Ku74:281) (cf. 686 -m)	page 13, the entry as printed
+entry 0313	Bella Coola	cited affix	-im	page 13, ‘3SG’
+entry 0313	Squamish	cited form	-…-m	page 13, under the entry, ‘passive’, Ku67:68
+entry 0313	Shuswap	cited form	-(e)m	page 13, under the entry, ‘passive’, Ku74:281
+entry 1531	Hank Nater	note	1531 -tap ‘2pl.tr/caus’ modified (*-t-ap ‘TR/CAUS-2PL ITR’)	page 13, the entry as printed
+entry 1531	Bella Coola	cited affix	-tap	page 13, ‘2pl.tr/caus’
+entry 1531	Bella Coola	cited form	*-t-ap	page 13, under the entry, ‘TR/CAUS-2PL ITR’
+entry 1572	Hank Nater	note	1572 -tiniɬ ‘1PL’ derived (*-tin- + -iɬ, with -tin- copied from -tinic below)	page 13, the entry as printed
+entry 1572	Bella Coola	cited affix	-tiniɬ	page 13, ‘1PL’
+entry 1572	Bella Coola	cited affix	*-tin-	page 13, under the entry
+entry 1573	Hank Nater	note	1573 -tinic ‘1SG’ modified (likely *-t-in- ‘TR-1SG.SUBJ’ + -ic ‘1SG.SUBJ’, cf. 1692 *-ci-n + -nu)	page 13, the entry as printed
+entry 1573	Bella Coola	cited affix	-tinic	page 13, ‘1SG’
+entry 1573	Bella Coola	cited affix	*-t-in-	page 13, under the entry, ‘TR-1SG.SUBJ’
+entry 1573	Bella Coola	cited affix	-ic	page 13, under the entry, ‘1SG.SUBJ’
+entry 1573	Bella Coola	cited form	*-ci-n	page 13, under the entry
+entry 1730	Hank Nater	note	1730 -ct ‘2SG’ *-c-t: cf. Ch -ci- ‘2SG.OBJ’ (Ki:366), Sh -c(i)-t ‘2SG.PASS’ (Ku74:48) (cf. 1692 -ci-)	page 13, the entry as printed
+entry 1730	Bella Coola	cited affix	-ct	page 13, ‘2SG’
+entry 1730	Upper Chehalis	cited form	-ci-	page 13, under the entry, ‘2SG.OBJ’, Ki:366
+entry 1730	Shuswap	cited form	-c(i)-t	page 13, under the entry, ‘2SG.PASS’, Ku74:48
+entry 1730	Bella Coola	cited form	*-c-t:	page 13, under the entry
+§5.5	Hank Nater	heading	Declarative causative	page 13, a class of morpheme under §5.5
+entry 0687	Hank Nater	note	0687 -m-, -man(c)- ‘1SG.OBJ’ cf. Ch -mal- ‘1SG.OBJ’ (Ki:366) (cf. 1662 -c(an)-)	page 13, the entry as printed
+entry 0687	Bella Coola	cited affix	-m-	page 13, ‘1SG.OBJ’
+entry 0687	Bella Coola	cited affix	-man(c)-	page 13, ‘1SG.OBJ’
+entry 0687	Upper Chehalis	cited form	-mal-	page 13, under the entry, ‘1SG.OBJ’, Ki:366
+entry 0721	Hank Nater	note	0721 -mi- ‘1SG.SUBJ’ in -tu-mi-nu ‘I cause you to …’ < pre-CS *-t-umi-n ‘TR-2SG.OBJ-1SG.SUBJ’ + 828 -nu, cf. Sq -…t-umi ‘TR-2SG.OBJ’ (Ku67:88-91), Ch -mi- ‘2SG.OBJ’ (Ki:366) (and cf. 1692 -ci-)	page 14, the entry as printed
+entry 0721	Bella Coola	cited affix	-mi-	page 14, ‘1SG.SUBJ’
+entry 0721	pre-Coastal Salish	cited form	*-t-umi-n	page 14, under the entry, ‘TR-2SG.OBJ-1SG.SUBJ’
+entry 0721	Squamish	cited form	-…t-umi	page 14, under the entry, ‘TR-2SG.OBJ’, Ku67:88-91
+entry 0721	Upper Chehalis	cited form	-mi-	page 14, under the entry, ‘2SG.OBJ’, Ki:366
+entry 0721	Bella Coola	cited affix	-tu-mi-nu	page 14, under the entry, ‘I cause you to …’
+entry 0762	Hank Nater	note	0762 -muɬ- ‘1PL OBJ’ pre-CS, cf. Sq -umuɬ- ‘1PL.OBJ’ (Ku67:395), Ch -mul- ‘1PL.OBJ’ (Ki:366)	page 14, the entry as printed
+entry 0762	Bella Coola	cited affix	-muɬ-	page 14, ‘1PL OBJ’
+entry 0762	Squamish	cited form	-umuɬ-	page 14, under the entry, ‘1PL.OBJ’, Ku67:395
+entry 0762	Upper Chehalis	cited form	-mul-	page 14, under the entry, ‘1PL.OBJ’, Ki:366
+§5.5	Hank Nater	heading	Causative passive	page 14, a class of morpheme under §5.5
+entry 0686	Hank Nater	note	0686 -m ‘3SG’ cf. Sq -…-m ‘passive’ (Ku67:68), Sh -(e)m ‘passive’ (Ku74:281) (cf. 313 -im)	page 14, the entry as printed
+entry 0686	Bella Coola	cited affix	-m	page 14, ‘3SG’
+entry 0686	Squamish	cited form	-…-m	page 14, under the entry, ‘passive’, Ku67:68
+entry 0686	Shuswap	cited form	-(e)m	page 14, under the entry, ‘passive’, Ku74:281
+entry 0732	Hank Nater	note	0732 -miniɬ ‘1PL’ derived (*-min- + -iɬ, with -min- copied from -minic below (cf. 1572 -tiniɬ)	page 14, the entry as printed
+entry 0732	Bella Coola	cited affix	-miniɬ	page 14, ‘1PL’
+entry 0732	Bella Coola	cited affix	*-min-	page 14, under the entry
+entry 0733	Hank Nater	note	0733 -minic ‘1SG’ modified (likely *-m-in- ‘ITR-1SG.SUBJ’ + -ic, cf. 1573 -tinic)	page 14, the entry as printed
+entry 0733	Bella Coola	cited affix	-minic	page 14, ‘1SG’
+entry 0733	Bella Coola	cited affix	*-m-in-	page 14, under the entry, ‘ITR-1SG.SUBJ’
+entry 0756	Hank Nater	note	0756 -mt ‘2SG’ modified (contamination of -m- (as in 687 -m(an)- and 733 -minic) and 1730 -ct)	page 14, the entry as printed
+entry 0756	Bella Coola	cited affix	-mt	page 14, ‘2SG’
+§5.5	Hank Nater	heading	Modifying suffixes	page 14, a class of morpheme under §5.5
+entry 0108	Hank Nater	note	0108 -anaac ‘really, very’ (innovative)	page 14, the entry as printed
+entry 0108	Bella Coola	cited affix	-anaac	page 14, ‘really, very’ (innovative)
+entry 0258	Hank Nater	note	0258 -i, -ii ‘diminutive’ cf. Sh -éy’e ‘not real, for children, small’ (Ku74:285), Li -áz’ ‘playingly, for fun’ (VE13:445)	page 14, the entry as printed
+entry 0258	Bella Coola	cited affix	-i	page 14, ‘diminutive’
+entry 0258	Bella Coola	cited affix	-ii	page 14, ‘diminutive’
+entry 0258	Shuswap	cited form	-éy’e	page 14, under the entry, ‘not real, for children, small’, Ku74:285
+entry 0258	Lillooet	cited form	-áz’	page 14, under the entry, ‘playingly, for fun’, VE13:445
+entry 663	Hank Nater	note	663 -liwa, -liwn-, -lun-, -nul- ‘…like’ *-l-iwan, -l-iwǝn, -l-ǝwǝn ‘essence, spirit’ (cf. Sq -iwan ‘spirit, mind’ (Ku69:96), Li -aliwán’ ‘size, hulk’ (VE13:435))	page 14, the entry as printed
+entry 663	Bella Coola	cited affix	-liwa	page 14, ‘…like’
+entry 663	Bella Coola	cited affix	-liwn-	page 14, ‘…like’
+entry 663	Bella Coola	cited affix	-lun-	page 14, ‘…like’
+entry 663	Bella Coola	cited affix	-nul-	page 14, ‘…like’
+entry 663	Squamish	cited form	-iwan	page 14, under the entry, ‘spirit, mind’, Ku69:96
+entry 663	Lillooet	cited form	-aliwán’	page 14, under the entry, ‘size, hulk’, VE13:435
+entry 663	Bella Coola	cited form	*-l-iwan	page 14, under the entry
+entry 663	Bella Coola	cited affix	-l-ǝwǝn	page 14, under the entry, ‘essence, spirit’
+entry 1301	Hank Nater	note	1301 -sɬ ‘typical of’ (innovative, but possibly < *-ǝs-ɬ ‘face-connected’)	page 14, the entry as printed
+entry 1301	Bella Coola	cited affix	-sɬ	page 14, ‘typical of’ (innovative, but possibly < *-ǝs-ɬ ‘face-connected’)
+entry 1301	Bella Coola	cited form	*-ǝs-ɬ	page 14, in the head of the entry, ‘face-connected’
+entry 1881	Hank Nater	note	1881 -uks ‘plural’ (from Chinook -ukš (Nater 2010))	page 14, the entry as printed
+entry 1881	Bella Coola	cited affix	-uks	page 14, ‘plural’ (from Chinook -ukš (Nater 2010))
+entry 1881	Chinook	cited form	-ukš	page 14, in the head of the entry
+§5.5	Hank Nater	heading	Verbal suffixes	page 14, a class of morpheme under §5.5
+entry 0007	Hank Nater	note	0007 -a ‘performative-intransitive, de-transitivizer’ probably < *-an, cf. Sh -n- ‘transitive’ (Ku74:282), Li -ǝn ‘transitivizer’ (VE13:425), Sq -n ‘transitive’ (Ku67:307) (and cf. 777 -n)	page 14, the entry as printed
+entry 0007	Bella Coola	cited affix	-a	page 14, ‘performative-intransitive, de-transitivizer’
+entry 0007	Shuswap	cited form	-n-	page 14, under the entry, ‘transitive’, Ku74:282
+entry 0007	Lillooet	cited form	-ǝn	page 14, under the entry, ‘transitivizer’, VE13:425
+entry 0007	Squamish	cited form	-n	page 14, under the entry, ‘transitive’, Ku67:307
+entry 0007	Bella Coola	cited form	*-an	page 14, under the entry
+entry 0087	Hank Nater	note	0087 -alst ‘deprivative’ (innovative, but if from *‘solid, crucial’, cf. 671 -lst)	page 15, the entry as printed
+entry 0087	Bella Coola	cited affix	-alst	page 15, ‘deprivative’ (innovative, but if from *‘solid, crucial’, cf. 671 -lst)
+entry 0094	Hank Nater	note	0094 -am ‘to become’ (innovative, but possibly related to 685 -m)	page 15, the entry as printed
+entry 0094	Bella Coola	cited affix	-am	page 15, ‘to become’ (innovative, but possibly related to 685 -m)
+entry 0099	Hank Nater	note	0099 -amxʷ ‘autonomously’ possibly < *-a(l)-mǝxʷ ‘person, individual’, cf. PS *-(al-)mixʷ (Ku02:205-206), and 719 -mx	page 15, the entry as printed
+entry 0099	Bella Coola	cited affix	-amxʷ	page 15, ‘autonomously’
+entry 0099	Proto-Salish	cited form	*-(al-)mixʷ	page 15, under the entry, Ku02:205-206
+entry 0099	Bella Coola	cited form	*-a(l)-mǝxʷ	page 15, under the entry, ‘person, individual’
+entry 0100	Hank Nater	note	0100 -amk ‘additionally’ (innovative)	page 15, the entry as printed
+entry 0100	Bella Coola	cited affix	-amk	page 15, ‘additionally’ (innovative)
+entry 0121	Hank Nater	note	0121 -anm ‘become gradually’ pre-CS, cf. Sq -an(a)m ‘measure, time’ (Ku67:391)	page 15, the entry as printed
+entry 0121	Bella Coola	cited affix	-anm	page 15, ‘become gradually’
+entry 0121	Squamish	cited form	-an(a)m	page 15, under the entry, ‘measure, time’, Ku67:391
+entry 0188	Hank Nater	note	0188 -aw ‘emphatic imperative’ (innovative)	page 15, the entry as printed
+entry 0188	Bella Coola	cited affix	-aw	page 15, ‘emphatic imperative’ (innovative)
+entry 0207	Hank Nater	note	0207 -ayx ‘having been …ed’ (innovative) (possibly < *-alx, see 568 below)	page 15, the entry as printed
+entry 0207	Bella Coola	cited affix	-ayx	page 15, ‘having been …ed’ (innovative)
+entry 0207	Bella Coola	cited form	*-alx	page 15, under the entry
+entry 0259	Hank Nater	note	0259 -i- ‘euphonic vowel’ (innovative)	page 15, the entry as printed
+entry 0259	Bella Coola	cited affix	-i-	page 15, ‘euphonic vowel’ (innovative)
+entry 0565	Hank Nater	note	0565 -layx ‘circumstantial’ (innovative) (if from *-l-alx, cf. 207 above)	page 15, the entry as printed
+entry 0565	Bella Coola	cited affix	-layx	page 15, ‘circumstantial’ (innovative)
+entry 0565	Bella Coola	cited form	*-l-alx	page 15, under the entry
+entry 0568	Hank Nater	note	0568 -lx, -alx ‘inchoative’ *-(i)lx ‘body’, cf. Li -ílx (VE13:434), Sh -ilx (Ku74:283)	page 15, the entry as printed
+entry 0568	Bella Coola	cited affix	-lx	page 15, ‘inchoative’
+entry 0568	Bella Coola	cited affix	-alx	page 15, ‘inchoative’
+entry 0568	Lillooet	cited form	-ílx	page 15, under the entry, VE13:434
+entry 0568	Shuswap	cited form	-ilx	page 15, under the entry, Ku74:283
+entry 0568	Bella Coola	cited form	*-(i)lx	page 15, under the entry, ‘body’
+entry 0659	Hank Nater	note	0659 -lit ‘make the sound of ...’ (innovative, but cf. 347 ʔit-)	page 15, the entry as printed
+entry 0659	Bella Coola	cited affix	-lit	page 15, ‘make the sound of ...’ (innovative, but cf. 347 ʔit-)
+entry 0685	Hank Nater	note	0685 -m ‘medium’ cf. Sq -m ‘ITR’ (Ku67:254), Sh -m ‘ITR’ (Ku74:281)	page 15, the entry as printed
+entry 0685	Bella Coola	cited affix	-m	page 15, ‘medium’
+entry 0685	Squamish	cited form	-m	page 15, under the entry, ‘ITR’, Ku67:254
+entry 0685	Shuswap	cited form	-m	page 15, under the entry, ‘ITR’, Ku74:281
+entry 0696	Hank Nater	note	0696 -maxʷ ‘reciprocal’ cf. Sh -wéxʷ (Ku74:285), Li -atw’áxʷ (VE13:420)	page 15, the entry as printed
+entry 0696	Bella Coola	cited affix	-maxʷ	page 15, ‘reciprocal’
+entry 0696	Shuswap	cited form	-wéxʷ	page 15, under the entry, Ku74:285
+entry 0696	Lillooet	cited form	-atw’áxʷ	page 15, under the entry, VE13:420
+entry 0770	Hank Nater	note	0770 -mut ‘reflexive’ cf. Sq -numut, -nam’ut (Ku67:95) (for -cut ~ -mut, cf. 1662 -can- ~ 687 -man-)	page 15, the entry as printed
+entry 0770	Bella Coola	cited affix	-mut	page 15, ‘reflexive’
+entry 0770	Squamish	cited form	-numut	page 15, under the entry
+entry 0770	Squamish	cited form	-nam’ut	page 15, under the entry, Ku67:95
+entry 0777	Hank Nater	note	0777 -n ‘transitivizer’ cf. Sh -n- ‘transitive’ (Ku74:282), Li -ǝn ‘transitivizer’ (VE13:425), Sq -n ‘transitive’ (Ku67:307) (and cf. 7 -a)	page 15, the entry as printed
+entry 0777	Bella Coola	cited affix	-n	page 15, ‘transitivizer’
+entry 0777	Shuswap	cited form	-n-	page 15, under the entry, ‘transitive’, Ku74:282
+entry 0777	Lillooet	cited form	-ǝn	page 15, under the entry, ‘transitivizer’, VE13:425
+entry 0777	Squamish	cited form	-n	page 15, under the entry, ‘transitive’, Ku67:307
+entry 0778	Hank Nater	note	0778 -n- ‘unintentionally’ cf. Sq -n-, -nǝxʷ ‘transitive non-volitional’ (Ku67:77,310)	page 15, the entry as printed
+entry 0778	Bella Coola	cited affix	-n-	page 15, ‘unintentionally’
+entry 0778	Squamish	cited form	-n-	page 15, under the entry
+entry 0778	Squamish	cited form	-nǝxʷ	page 15, under the entry, ‘transitive non-volitional’, Ku67:77,310
+entry 0805	Hank Nater	note	0805 -nix, -nuxʷ, -nxʷ, -anxʷ ‘accidentally cause …, consider …’ cf. Sq -nǝxʷ ‘transitive non-volitional’ (Ku67:77)	page 15, the entry as printed
+entry 0805	Bella Coola	cited affix	-nix	page 15, ‘accidentally cause …, consider …’
+entry 0805	Bella Coola	cited affix	-nuxʷ	page 15, ‘accidentally cause …, consider …’
+entry 0805	Bella Coola	cited affix	-nxʷ	page 15, ‘accidentally cause …, consider …’
+entry 0805	Bella Coola	cited affix	-anxʷ	page 15, ‘accidentally cause …, consider …’
+entry 0805	Squamish	cited form	-nǝxʷ	page 15, under the entry, ‘transitive non-volitional’, Ku67:77
+entry 0817	Hank Nater	note	0817 -nm ‘habitual’ (-n=nm ‘CAUS.ITR-habitual’) cf. Sq -n-m ‘passive’	page 15, the entry as printed
+entry 0817	Bella Coola	cited affix	-nm	page 15, ‘habitual’ (-n=nm ‘CAUS.ITR-habitual’)
+entry 0817	Squamish	cited form	-n-m	page 15, under the entry, ‘passive’
+entry 1514	Hank Nater	note	1514 -t- ‘intentionally’ cf. Sq -t ‘volitional’ (Ku67:77)	page 15, the entry as printed
+entry 1514	Bella Coola	cited affix	-t-	page 15, ‘intentionally’
+entry 1514	Squamish	cited form	-t	page 15, under the entry, ‘volitional’, Ku67:77
+entry 1643	Hank Nater	note	1643 -tnm ‘CAUS.ITR habitual’ < -t-nm ‘CAUS-habitual’ (see 817 -nm above)	page 16, the entry as printed
+entry 1643	Bella Coola	cited affix	-tnm	page 16, ‘CAUS.ITR habitual’
+entry 1643	Bella Coola	cited affix	-t-nm	page 16, under the entry, ‘CAUS-habitual’
+entry 1737	Hank Nater	note	1737 -cut ‘reflexive’ cf. Sq -t-sut (Ku67:95), Sh -cut (Ku74:282) (cf. 77 -mut)	page 16, the entry as printed
+entry 1737	Bella Coola	cited affix	-cut	page 16, ‘reflexive’
+entry 1737	Squamish	cited form	-t-sut	page 16, under the entry, Ku67:95
+entry 1737	Shuswap	cited form	-cut	page 16, under the entry, Ku74:282
+entry 1809	Hank Nater	note	1809 -tu-, -stu-, -t-, -st- ‘CAUS’ *-(s)-t(u)-, cf. Sh -st- (Ku74:282), Ch -(s)t(u)- (Ki:371,373)	page 16, the entry as printed
+entry 1809	Bella Coola	cited affix	-tu-	page 16, ‘CAUS’
+entry 1809	Bella Coola	cited affix	-stu-	page 16, ‘CAUS’
+entry 1809	Bella Coola	cited affix	-t-	page 16, ‘CAUS’
+entry 1809	Bella Coola	cited affix	-st-	page 16, ‘CAUS’
+entry 1809	Shuswap	cited form	-st-	page 16, under the entry, Ku74:282
+entry 1809	Upper Chehalis	cited form	-(s)t(u)-	page 16, under the entry, Ki:371,373
+entry 1809	Bella Coola	cited affix	*-(s)-t(u)-	page 16, under the entry
+§5.5	Hank Nater	heading	Lexical suffixes	page 16, a class of morpheme under §5.5
+entry 0016	Hank Nater	note	0016 -aaχ, -aaq ‘lower part, back(side)’ pre-CS *-aq’ ‘crotch’ (Ku02:212) (cf. North Wakash -aq ‘crotch’ (Rath 2010 Excel suffix list, line 652))	page 16, the entry as printed
+entry 0016	Bella Coola	cited affix	-aaχ	page 16, ‘lower part, back(side)’
+entry 0016	Bella Coola	cited affix	-aaq	page 16, ‘lower part, back(side)’
+entry 0016	pre-Coastal Salish	cited form	*-aq’	page 16, under the entry, ‘crotch’, Ku02:212
+entry 0016	North Wakash	cited form	-aq	page 16, under the entry, ‘crotch’
+entry 0017	Hank Nater	note	0017 -aaχla ‘berries, juice’ derived (cf. qla ‘water’, qaaχla ‘to drink’)	page 16, the entry as printed
+entry 0017	Bella Coola	cited affix	-aaχla	page 16, ‘berries, juice’
+entry 0017	Bella Coola	cited form	qaaχla	page 16, under the entry, ‘to drink’
+entry 0028	Hank Nater	note	0028 -ak, -aak ‘hand’ *-ak (Ku02:204)	page 16, the entry as printed
+entry 0028	Bella Coola	cited affix	-ak	page 16, ‘hand’
+entry 0028	Bella Coola	cited affix	-aak	page 16, ‘hand’
+entry 0028	Proto-Salish	cited form	*-ak	page 16, under the entry, Ku02:204
+entry 0034	Hank Nater	note	0034 -al- ‘connective’ (constituent of complex suffixes) *-al-: Sq -ay- (Ku67:392), Sh -el- (Ku74:283)	page 16, the entry as printed
+entry 0034	Bella Coola	cited affix	-al-	page 16, ‘connective’ (constituent of complex suffixes)
+entry 0034	Squamish	cited form	-ay-	page 16, under the entry, Ku67:392
+entry 0034	Shuswap	cited form	-el-	page 16, under the entry, Ku74:283
+entry 0034	Bella Coola	cited form	*-al-:	page 16, under the entry
+entry 0046	Hank Nater	note	0046 -aɬ, -aaɬ ‘foot, leg’ possibly PS *-(w)aɬ ‘conveyance’ (Ku02:210 -wil ‘canoe’)	page 16, the entry as printed
+entry 0046	Bella Coola	cited affix	-aɬ	page 16, ‘foot, leg’
+entry 0046	Bella Coola	cited affix	-aaɬ	page 16, ‘foot, leg’
+entry 0046	Proto-Salish	cited form	*-(w)aɬ	page 16, under the entry, ‘conveyance’, Ku02:210 -wil ‘canoe’
+entry 0046	Bella Coola	cited affix	-wil	page 16, under the entry, ‘canoe’
+entry 0052	Hank Nater	note	0052 -aɬɬ, -aaɬɬ ‘throat’ *-aɬ… (Sq -aɬχa ‘neck, throat’ (Ku67:391), Sh -eɬqʷl’t ‘front of neck’ (Ku74:283))	page 16, the entry as printed
+entry 0052	Bella Coola	cited affix	-aɬɬ	page 16, ‘throat’
+entry 0052	Bella Coola	cited affix	-aaɬɬ	page 16, ‘throat’
+entry 0052	Squamish	cited form	-aɬχa	page 16, under the entry, ‘neck, throat’, Ku67:391
+entry 0052	Shuswap	cited form	-eɬqʷl’t	page 16, under the entry, ‘front of neck’, Ku74:283
+entry 0052	Bella Coola	cited form	*-aɬ…	page 16, under the entry
+entry 0076	Hank Nater	note	0076 -alii(x)c ‘tongue’ *-al-i(ʔ)xʷc (Sh -ixʷeʔck (Ku74:284) , Sq -alxʷcaɬ (Ku74:392))	page 16, the entry as printed
+entry 0076	Bella Coola	cited affix	-alii(x)c	page 16, ‘tongue’
+entry 0076	Shuswap	cited form	-ixʷeʔck	page 16, under the entry, Ku74:284
+entry 0076	Squamish	cited form	-alxʷcaɬ	page 16, under the entry, Ku74:392
+entry 0076	Bella Coola	cited form	*-al-i(ʔ)xʷc	page 16, under the entry
+entry 0078	Hank Nater	note	0078 -alic ‘tooth’ *-al-ǝns (Sq -ans (Ku67:122), Sh -en’s (Ku74: 282))	page 16, the entry as printed
+entry 0078	Bella Coola	cited affix	-alic	page 16, ‘tooth’
+entry 0078	Squamish	cited form	-ans	page 16, under the entry, Ku67:122
+entry 0078	Shuswap	cited form	-en’s	page 16, under the entry, Ku74: 282
+entry 0078	Bella Coola	cited form	*-al-ǝns	page 16, under the entry
+entry 0080	Hank Nater	note	0080 -almx ‘breast’ *-al-mǝ(w)x(ʷ) (Sq -ay’amixʷ (Ku67:393), Li -almixʷ (VE13:431)) (cf. 719 -mx, 1900 -ulmx)	page 16, the entry as printed
+entry 0080	Bella Coola	cited affix	-almx	page 16, ‘breast’
+entry 0080	Squamish	cited form	-ay’amixʷ	page 16, under the entry, Ku67:393
+entry 0080	Lillooet	cited form	-almixʷ	page 16, under the entry, VE13:431
+entry 0080	Bella Coola	cited form	*-al-mǝ(w)x(ʷ)	page 16, under the entry
+entry 0083	Hank Nater	note	0083 -alps ‘enveloped’ *-al-ps ‘(neck) all around’, cf. 138 -apsm	page 16, the entry as printed
+entry 0083	Bella Coola	cited affix	-alps	page 16, ‘enveloped’
+entry 0083	Bella Coola	cited form	*-al-ps	page 16, under the entry, ‘(neck) all around’
+entry 0084	Hank Nater	note	0084 -alqi, -alχi ‘neck, nape’ *-al-qǝn (PS *-qin ‘head’ (also ‘hair, top; throat, voice, language’ (Ku02:208)) (cf. North Wakash -qya ‘head, top, hair’ (Rath 2010 Excel suffix list, line 521))	page 16, the entry as printed
+entry 0084	Bella Coola	cited affix	-alqi	page 16, ‘neck, nape’
+entry 0084	Bella Coola	cited affix	-alχi	page 16, ‘neck, nape’
+entry 0084	Proto-Salish	cited form	*-qin	page 16, under the entry, ‘head’
+entry 0084	North Wakash	cited form	-qya	page 16, under the entry, ‘head, top, hair’
+entry 0084	Bella Coola	cited form	*-al-qǝn	page 16, under the entry
+entry 0085	Hank Nater	note	0085 -als ‘surface, side’ *-als ‘rock, round object (rounded surface)’ (Ku02:205) (cf. 671 -lst)	page 16, the entry as printed
+entry 0085	Bella Coola	cited affix	-als	page 16, ‘surface, side’
+entry 0085	Proto-Salish	cited form	*-als	page 16, under the entry, ‘rock, round object (rounded surface)’, Ku02:205
+entry 0088	Hank Nater	note	0088 -altm ‘season’ (hapax) possibly < *-alt-ǝwn (cf. 90 -altwa below)	page 17, the entry as printed
+entry 0088	Bella Coola	cited affix	-altm	page 17, ‘season’ (hapax)
+entry 0088	Bella Coola	cited form	*-alt-ǝwn	page 17, under the entry
+entry 0090	Hank Nater	note	0090 -altwa ‘sky, weather, season’ innovative (? *-alt-wan ‘offspring (of) spirit’, cf. 672 -lt, 663 -liwa)	page 17, the entry as printed
+entry 0090	Bella Coola	cited affix	-altwa	page 17, ‘sky, weather, season’
+entry 0090	Bella Coola	cited form	*-alt-wan	page 17, under the entry, ‘offspring (of) spirit’
+entry 0104	Hank Nater	note	0104 -ams ‘trap, wedge, jaw’ innovative (possibly < *-a(p)-ms (shift (a), see section 3) < **-ap-nǝs ‘under/behind (Ku02:208) …-teeth’, cf. Sh -epne ‘jaw’, -epeʔs-qn ‘chin’ (Ku74:281))	page 17, the entry as printed
+entry 0104	Bella Coola	cited affix	-ams	page 17, ‘trap, wedge, jaw’
+entry 0104	Shuswap	cited form	-epne	page 17, under the entry, ‘jaw’
+entry 0104	Shuswap	cited form	-epeʔs-qn	page 17, under the entry, ‘chin’, Ku74:281
+entry 0104	Bella Coola	cited form	*-a(p)-ms	page 17, under the entry
+entry 0104	Bella Coola	cited form	**-ap-nǝs	page 17, under the entry, ‘under/behind (Ku02:208) …-teeth’
+entry 0106	Hank Nater	note	0106 -an ‘temple, collarbone, corner’ *-anaʔ ‘ear, side’ (Ku02:206), Li n-…-anaʔ ‘surface’ (VE13428)	page 17, the entry as printed
+entry 0106	Bella Coola	cited affix	-an	page 17, ‘temple, collarbone, corner’
+entry 0106	Lillooet	cited form	n-…-anaʔ	page 17, under the entry, ‘surface’, VE13428
+entry 0106	Proto-Salish	cited form	*-anaʔ	page 17, under the entry, ‘ear, side’, Ku02:206
+entry 0118	Hank Nater	note	0118 -ank ‘front, side’ *-anak ‘belly (stomach, anus, buttocks)’, and cf. Colville -ink ‘stomach, inside, side, sidehill’ (Ku02:207)	page 17, the entry as printed
+entry 0118	Bella Coola	cited affix	-ank	page 17, ‘front, side’
+entry 0118	Colville	cited form	-ink	page 17, under the entry, ‘stomach, inside, side, sidehill’, Ku02:207
+entry 0118	Bella Coola	cited form	*-anak	page 17, under the entry, ‘belly (stomach, anus, buttocks)’
+entry 0120	Hank Nater	note	0120 -anɬ ‘side, corner’ < -an-ɬ, cf. 106 -an, 1892 -uɬ	page 17, the entry as printed
+entry 0120	Bella Coola	cited affix	-anɬ	page 17, ‘side, corner’
+entry 0138	Hank Nater	note	0138 -apsm ‘(side of) neck’ *-a(l)ps(m) (Ku02:208)	page 17, the entry as printed
+entry 0138	Bella Coola	cited affix	-apsm	page 17, ‘(side of) neck’
+entry 0138	Proto-Salish	cited form	*-a(l)ps(m)	page 17, under the entry, Ku02:208
+entry 0148	Hank Nater	note	0148 -aq’ʷs, -aaqʷs various meanings (‘eye, berry, soil, wood, fire, water’) *-aq’ʷ-ǝs, *-aq’-ʷus ‘under/behind-surface/fire’ (Ku02:209,212)	page 17, the entry as printed
+entry 0148	Bella Coola	cited affix	-aq’ʷs	page 17, various meanings (‘eye, berry, soil, wood, fire, water’)
+entry 0148	Bella Coola	cited affix	-aaqʷs	page 17, various meanings (‘eye, berry, soil, wood, fire, water’)
+entry 0148	Bella Coola	cited form	*-aq’ʷ-ǝs	page 17, under the entry
+entry 0148	Proto-Salish	cited form	*-aq’-ʷus	page 17, under the entry, ‘under/behind-surface/fire’, Ku02:209,212
+entry 0282	Hank Nater	note	0282 -iiχʷ, -iiqʷ ‘top, head’ pre-CS *-iqʷ (Ku02:212)	page 17, the entry as printed
+entry 0282	Bella Coola	cited affix	-iiχʷ	page 17, ‘top, head’
+entry 0282	Bella Coola	cited affix	-iiqʷ	page 17, ‘top, head’
+entry 0282	pre-Coastal Salish	cited form	*-iqʷ	page 17, under the entry, Ku02:212
+entry 0284	Hank Nater	note	0284 -ik, -iik ‘top, upper surface (roof, table top, back)’ *-ik(n) ‘back’ (Ku02:204)	page 17, the entry as printed
+entry 0284	Bella Coola	cited affix	-ik	page 17, ‘top, upper surface (roof, table top, back)’
+entry 0284	Bella Coola	cited affix	-iik	page 17, ‘top, upper surface (roof, table top, back)’
+entry 0284	Proto-Salish	cited form	*-ik(n)	page 17, under the entry, ‘back’, Ku02:204
+entry 0298	Hank Nater	note	0298 -iɬ, -iiɬ ‘ring-like, cycle, month’ derived (cf. √ʔil ‘go around’ < *yǝl ‘roll, turn over, round’ (Ku02:130))	page 17, the entry as printed
+entry 0298	Bella Coola	cited affix	-iɬ	page 17, ‘ring-like, cycle, month’
+entry 0298	Bella Coola	cited affix	-iiɬ	page 17, ‘ring-like, cycle, month’
+entry 0298	Proto-Salish	cited form	*yǝl	page 17, under the entry, ‘roll, turn over, round’, Ku02:130
+entry 0298	Bella Coola	cited form	√ʔil	page 17, under the entry, ‘go around’
+entry 0490	Hank Nater	note	0490 -k’ʷp ‘fathom’ derived (cf. k’ʷp ‘straight’ < PS *k’ʷǝp (Ku02:49))	page 17, the entry as printed
+entry 0490	Bella Coola	cited affix	-k’ʷp	page 17, ‘fathom’
+entry 0490	Proto-Salish	cited form	*k’ʷǝp	page 17, under the entry, Ku02:49
+entry 0533	Hank Nater	note	0533 -k’mt ‘days’ derived (cf. k’matk ‘stay overnight’, possibly < *k’ǝm ‘grab a handful’ (Ku02:41))	page 17, the entry as printed
+entry 0533	Bella Coola	cited affix	-k’mt	page 17, ‘days’
+entry 0533	Proto-Salish	cited form	*k’ǝm	page 17, under the entry, ‘grab a handful’, Ku02:41
+entry 0552	Hank Nater	note	0552 -(s)la(n)xʷ ‘year’ *-l-anǝxʷ (PS -ánaxʷ (Ku02:207))	page 17, the entry as printed
+entry 0552	Bella Coola	cited affix	-(s)la(n)xʷ	page 17, ‘year’
+entry 0552	Proto-Salish	cited form	-ánaxʷ	page 17, under the entry, Ku02:207
+entry 0552	Bella Coola	cited form	*-l-anǝxʷ	page 17, under the entry
+entry 0565	Hank Nater	note	0565 -layx ‘projection, tubercle’ *-l-alx ‘body’ (cf. Sh -ilx ‘body’ (Ku74:283), Li -ílx, -lǝx ‘body’, -al’xǝn ‘tube’ (VE13:434), Sq -ilš petrified suffix found in ɬχilš ‘stand up’ and q’ʷiílš ‘dance’ (Ku67:399))	page 17, the entry as printed
+entry 0565	Bella Coola	cited affix	-layx	page 17, ‘projection, tubercle’
+entry 0565	Shuswap	cited form	-ilx	page 17, under the entry, ‘body’, Ku74:283
+entry 0565	Lillooet	cited form	-ílx	page 17, under the entry
+entry 0565	Lillooet	cited form	-lǝx	page 17, under the entry, ‘body’
+entry 0565	Lillooet	cited form	-al’xǝn	page 17, under the entry, ‘tube’, VE13:434
+entry 0565	Squamish	cited form	-ilš	page 17, under the entry
+entry 0565	Bella Coola	cited form	*-l-alx	page 17, under the entry, ‘body’
+entry 0565	Squamish	cited form	ɬχilš	page 17, under the entry, ‘stand up’
+entry 0612	Hank Nater	note	0612 -ɬq’ ‘…fold’ derived (cf. ɬq’ ‘to slap’ < North Wakash √λq (Nater 2013:119))	page 18, the entry as printed
+entry 0612	Bella Coola	cited affix	-ɬq’	page 18, ‘…fold’
+entry 0612	North Wakash	cited form	√λq	page 18, under the entry
+entry 0650	Hank Nater	note	0650 -lik ‘surface, appearance’ *-l-ik, cf. 284 -ik	page 18, the entry as printed
+entry 0650	Bella Coola	cited affix	-lik	page 18, ‘surface, appearance’
+entry 0650	Bella Coola	cited form	*-l-ik	page 18, under the entry
+entry 0661	Hank Nater	note	0661 -lic’, -liic ‘sheet, cloth, skin, bark’ *-l-ic’ ~ *-l-iʔc (PS -(al/ul-)ic’aʔ (Ku13:203))	page 18, the entry as printed
+entry 0661	Bella Coola	cited affix	-lic’	page 18, ‘sheet, cloth, skin, bark’
+entry 0661	Bella Coola	cited affix	-liic	page 18, ‘sheet, cloth, skin, bark’
+entry 0661	Proto-Salish	cited form	-(al/ul-)ic’aʔ	page 18, under the entry, Ku13:203
+entry 0661	Bella Coola	cited form	*-l-ic’	page 18, under the entry
+entry 0661	Bella Coola	cited form	*-l-iʔc	page 18, under the entry
+entry 0671	Hank Nater	note	0671 -lst ‘rock, stone’ *-als(t) (Ku02:205)	page 18, the entry as printed
+entry 0671	Bella Coola	cited affix	-lst	page 18, ‘rock, stone’
+entry 0671	Proto-Salish	cited form	*-als(t)	page 18, under the entry, Ku02:205
+entry 0672	Hank Nater	note	0672 -lt ‘offspring’ *-alt, -ǝlt (Ku02:205)	page 18, the entry as printed
+entry 0672	Bella Coola	cited affix	-lt	page 18, ‘offspring’
+entry 0672	Bella Coola	cited form	*-alt	page 18, under the entry
+entry 0681	Hank Nater	note	0681 -lχs, -lqs ‘nose, point’ *-l-qs < PS *-qs (Ku02:208)	page 18, the entry as printed
+entry 0681	Bella Coola	cited affix	-lχs	page 18, ‘nose, point’
+entry 0681	Bella Coola	cited affix	-lqs	page 18, ‘nose, point’
+entry 0681	Proto-Salish	cited form	*-qs	page 18, under the entry, Ku02:208
+entry 0681	Bella Coola	cited form	*-l-qs	page 18, under the entry
+entry 0787	Hank Nater	note	0787 -nalus ‘between, joint’ *-l-anus < PS *-(al-)an-was ‘pair, middle’ (Ku02:210)	page 18, the entry as printed
+entry 0787	Bella Coola	cited affix	-nalus	page 18, ‘between, joint’
+entry 0787	Proto-Salish	cited form	*-(al-)an-was	page 18, under the entry, ‘pair, middle’, Ku02:210
+entry 0787	Bella Coola	cited form	*-l-anus	page 18, under the entry
+entry 0815	Hank Nater	note	0815 -nk ‘base, bottom’ *-anak, -nǝk (see 118 -ank, and cf. 834 -nnak)	page 18, the entry as printed
+entry 0815	Bella Coola	cited affix	-nk	page 18, ‘base, bottom’
+entry 0815	Bella Coola	cited form	*-anak	page 18, under the entry
+entry 0824	Hank Nater	note	0824 -nnak ‘faeces’ *-anak (see 118 -ank, and cf. 815 -nk)	page 18, the entry as printed
+entry 0824	Bella Coola	cited affix	-nnak	page 18, ‘faeces’
+entry 0824	Bella Coola	cited form	*-anak	page 18, under the entry
+entry 1600	Hank Nater	note	1600 -ƛ’ap ‘times’ derived (cf. ƛ’ap ‘to go’, possibly related to Ch √ƛ’áp’a ‘go and see if something is somewhere’ (Ki:73))	page 18, the entry as printed
+entry 1600	Bella Coola	cited affix	-ƛ’ap	page 18, ‘times’
+entry 1600	Upper Chehalis	cited form	√ƛ’áp’a	page 18, under the entry, ‘go and see if something is somewhere’, Ki:73
+entry 1864	Hank Nater	note	1864 -t’q ‘span’ derived (cf. √t’q ‘spread over surface’, possibly < *t’aq’ ‘cross over’ (Ku02:111))	page 18, the entry as printed
+entry 1864	Bella Coola	cited affix	-t’q	page 18, ‘span’
+entry 1864	Proto-Salish	cited form	*t’aq’	page 18, under the entry, ‘cross over’, Ku02:111
+entry 1892	Hank Nater	note	1892 -uɬ, -uuɬ ‘having bulk’ *-wil ‘canoe’ (Ku02:210) (cf. 46 -aɬ)	page 18, the entry as printed
+entry 1892	Bella Coola	cited affix	-uɬ	page 18, ‘having bulk’
+entry 1892	Bella Coola	cited affix	-uuɬ	page 18, ‘having bulk’
+entry 1892	Proto-Salish	cited form	*-wil	page 18, under the entry, ‘canoe’, Ku02:210
+entry 1894	Hank Nater	note	1894 -uɬla, -uuɬla ‘bulk, totality’ < -uɬ-la (cf. 1892 -uɬ, 549 -la)	page 18, the entry as printed
+entry 1894	Bella Coola	cited affix	-uɬla	page 18, ‘bulk, totality’
+entry 1894	Bella Coola	cited affix	-uuɬla	page 18, ‘bulk, totality’
+entry 1899	Hank Nater	note	1899 -ulic’, -uliic ‘(through) hole; clothing’ see 661 -lic’	page 18, the entry as printed
+entry 1899	Bella Coola	cited affix	-ulic’	page 18, ‘(through) hole; clothing’
+entry 1899	Bella Coola	cited affix	-uliic	page 18, ‘(through) hole; clothing’
+entry 1900	Hank Nater	note	1900 -ulmx ‘land, ground’ *-ul-mixʷ (Ku02:205) (cf. 719 -mx)	page 18, the entry as printed
+entry 1900	Bella Coola	cited affix	-ulmx	page 18, ‘land, ground’
+entry 1900	Proto-Salish	cited form	*-ul-mixʷ	page 18, under the entry, Ku02:205
+entry 1929	Hank Nater	note	1929 -us, -uus ‘face, appearance’ *-us ‘face’ (Ku02:209)	page 18, the entry as printed
+entry 1929	Bella Coola	cited affix	-us	page 18, ‘face, appearance’
+entry 1929	Bella Coola	cited affix	-uus	page 18, ‘face, appearance’
+entry 1929	Proto-Salish	cited form	*-us	page 18, under the entry, ‘face’, Ku02:209
+entry 1940	Hank Nater	note	1940 -uc, -uuc, -c ‘orifice, mouth’ *-uc ‘mouth’ (Ku02:203)	page 18, the entry as printed
+entry 1940	Bella Coola	cited affix	-uc	page 18, ‘orifice, mouth’
+entry 1940	Bella Coola	cited affix	-uuc	page 18, ‘orifice, mouth’
+entry 1940	Bella Coola	cited affix	-c	page 18, ‘orifice, mouth’
+entry 1940	Proto-Salish	cited form	*-uc	page 18, under the entry, ‘mouth’, Ku02:203
+§5.5	Hank Nater	heading	Nominalizing suffixes	page 19, a class of morpheme under §5.5
+entry 0027	Hank Nater	note	0027 -aʔiniχʷ ‘… at hunting’ North Wakash -inuχʷ , -iniχʷ ‘expert at, belonging to…’ (Rath 2010 Excel suffix list, line 393)	page 19, the entry as printed
+entry 0027	Bella Coola	cited affix	-aʔiniχʷ	page 19, ‘… at hunting’
+entry 0027	North Wakash	cited form	-inuχʷ	page 19, under the entry
+entry 0027	Bella Coola	cited affix	-iniχʷ	page 19, under the entry, ‘expert at, belonging to…’
+entry 0095	Hank Nater	note	0095 -(a)ma, -(a)mn- ‘tool, instrument’ *-(a)min, -(a)mǝn (cf. Li -mǝn, -amín (VE13:417), Sh -min (Ku74:281), Ch -min, -mn (Ki:357))	page 19, the entry as printed
+entry 0095	Bella Coola	cited affix	-(a)ma	page 19, ‘tool, instrument’
+entry 0095	Bella Coola	cited affix	-(a)mn-	page 19, ‘tool, instrument’
+entry 0095	Lillooet	cited form	-mǝn	page 19, under the entry
+entry 0095	Lillooet	cited form	-amín	page 19, under the entry, VE13:417
+entry 0095	Shuswap	cited form	-min	page 19, under the entry, Ku74:281
+entry 0095	Upper Chehalis	cited form	-min	page 19, under the entry
+entry 0095	Upper Chehalis	cited form	-mn	page 19, under the entry, Ki:357
+entry 0095	Bella Coola	cited form	*-(a)min	page 19, under the entry
+entry 0604	Hank Nater	note	0604 -ɬp, -aɬp ‘tree, plant’ *-aɬp (Ku02:205)	page 19, the entry as printed
+entry 0604	Bella Coola	cited affix	-ɬp	page 19, ‘tree, plant’
+entry 0604	Bella Coola	cited affix	-aɬp	page 19, ‘tree, plant’
+entry 0604	Proto-Salish	cited form	*-aɬp	page 19, under the entry, Ku02:205
+entry 0651	Hank Nater	note	0651 -likʷ, -liikʷ ‘performer of action’ (innovative)	page 19, the entry as printed
+entry 0651	Bella Coola	cited affix	-likʷ	page 19, ‘performer of action’ (innovative)
+entry 0651	Bella Coola	cited affix	-liikʷ	page 19, ‘performer of action’ (innovative)
+entry 0748	Hank Nater	note	0748 -mc ‘(collective) relatives’ (innovative)	page 19, the entry as printed
+entry 0748	Bella Coola	cited affix	-mc	page 19, ‘(collective) relatives’ (innovative)
+entry 0719	Hank Nater	note	0719 -mx ‘population, native’ *-mix(ʷ) ‘person’ (cf. 80 -almx, 1900 -ulmx)	page 19, the entry as printed
+entry 0719	Bella Coola	cited affix	-mx	page 19, ‘population, native’
+entry 0719	Bella Coola	cited form	*-mix(ʷ)	page 19, under the entry, ‘person’
+entry 1517	Hank Nater	note	1517 -ta, -tn-, -sta, -stn- ‘implement’ *-(s)tǝn, cf. Sh -tén, -(ǝ)tn ‘means’ (Ku74:282), Sq -tn ‘implement’ (Ku67:260)	page 19, the entry as printed
+entry 1517	Bella Coola	cited affix	-ta	page 19, ‘implement’
+entry 1517	Bella Coola	cited affix	-tn-	page 19, ‘implement’
+entry 1517	Bella Coola	cited affix	-sta	page 19, ‘implement’
+entry 1517	Bella Coola	cited affix	-stn-	page 19, ‘implement’
+entry 1517	Shuswap	cited form	-tén	page 19, under the entry
+entry 1517	Shuswap	cited form	-(ǝ)tn	page 19, under the entry, ‘means’, Ku74:282
+entry 1517	Squamish	cited form	-tn	page 19, under the entry, ‘implement’, Ku67:260
+entry 1517	Bella Coola	cited form	*-(s)tǝn	page 19, under the entry
+entry 1526	Hank Nater	note	1526 -tam ‘time of …’ (innovative)	page 19, the entry as printed
+entry 1526	Bella Coola	cited affix	-tam	page 19, ‘time of …’ (innovative)
+§5.5	Hank Nater	heading	Formative suffixes	page 19, a class of morpheme under §5.5
+entry 0009	Hank Nater	note	0009 -aakas (in names) North Wakash -kas ‘big, mighty’ (Rath 2010 Excel suffix list, line 359)	page 19, the entry as printed
+entry 0009	Bella Coola	cited affix	-aakas	page 19, (in names)
+entry 0009	North Wakash	cited form	-kas	page 19, under the entry, ‘big, mighty’
+entry 0036	Hank Nater	note	0036 -alas (in nuχalkalas ‘geographical name’) North Wakash -alas ‘materialization of’ (Rath 2010 Excel suffix list, line 622)	page 19, the entry as printed
+entry 0036	Bella Coola	cited affix	-alas	page 19, (in nuχalkalas ‘geographical name’)
+entry 0036	Bella Coola	cited form	nuχalkalas	page 19, in the head of the entry, ‘geographical name’
+entry 0036	North Wakash	cited form	-alas	page 19, under the entry, ‘materialization of’
+entry 0043	Hank Nater	note	0043 -alxʷ ‘pointed’? innovative (or ?cf. Li -alxʷ ‘family’ (VE13:434), Sq -ayǝxʷ ‘formative’ (Ku67:393))	page 19, the entry as printed
+entry 0043	Bella Coola	cited affix	-alxʷ	page 19, ‘pointed’?
+entry 0043	Lillooet	cited form	-alxʷ	page 19, under the entry, ‘family’, VE13:434
+entry 0043	Squamish	cited form	-ayǝxʷ	page 19, under the entry, ‘formative’, Ku67:393
+entry 0075	Hank Nater	note	0075 -ali (in sxali jealous) North Wakash -ali ‘really, very’ (Rath 2010 Excel suffix list, line 623)	page 19, the entry as printed
+entry 0075	Bella Coola	cited affix	-ali	page 19, (in sxali jealous)
+entry 0075	North Wakash	cited form	-ali	page 19, under the entry, ‘really, very’
+entry 0077	Hank Nater	note	0077 -alimck (innovative)	page 19, the entry as printed
+entry 0077	Bella Coola	cited affix	-alimck	page 19, (innovative)
+entry 0089	Hank Nater	note	0089 -alcwa (innovative, but possibly < *-als-wǝn ‘surface-spirit’)	page 19, the entry as printed
+entry 0089	Bella Coola	cited affix	-alcwa	page 19, (innovative, but possibly < *-als-wǝn ‘surface-spirit’)
+entry 0089	Bella Coola	cited form	*-als-wǝn	page 19, in the head of the entry, ‘surface-spirit’
+entry 0107	Hank Nater	note	0107 -ana < North Wakash -ana ? (Rath 2010 Excel suffix list, line 136)	page 19, the entry as printed
+entry 0107	Bella Coola	cited affix	-ana	page 19, < North Wakash -ana ? (Rath 2010 Excel suffix list, line 136)
+entry 0107	North Wakash	cited form	-ana	page 19, in the head of the entry
+entry 0116	Hank Nater	note	0116 -ani < North Wakash -ani ? (Rath 2010 Excel suffix list, line 136)	page 19, the entry as printed
+entry 0116	Bella Coola	cited affix	-ani	page 19, < North Wakash -ani ? (Rath 2010 Excel suffix list, line 136)
+entry 0116	North Wakash	cited form	-ani	page 19, in the head of the entry
+entry 0143	Hank Nater	note	0143 -aqs, -ayqs, -qs (found mostly in names given to women) North Wakash -qs ‘woman, animate’ (Rath 2010 Excel suffix list, line 525)	page 20, the entry as printed
+entry 0143	Bella Coola	cited affix	-aqs	page 20, (found mostly in names given to women)
+entry 0143	Bella Coola	cited affix	-ayqs	page 20, (found mostly in names given to women)
+entry 0143	Bella Coola	cited affix	-qs	page 20, (found mostly in names given to women)
+entry 0143	North Wakash	cited form	-qs	page 20, under the entry, ‘woman, animate’
+entry 0183	Hank Nater	note	0183 -atwala (hapax) (innovative)	page 20, the entry as printed
+entry 0183	Bella Coola	cited affix	-atwala	page 20, (hapax) (innovative)
+entry 0294	Hank Nater	note	0294 -ila < North Wakash -il’a ‘steep’ (Rath 2010 Excel suffix list, line 422)	page 20, the entry as printed
+entry 0294	Bella Coola	cited affix	-ila	page 20, < North Wakash -il’a ‘steep’ (Rath 2010 Excel suffix list, line 422)
+entry 0294	North Wakash	cited form	-il’a	page 20, in the head of the entry, ‘steep’
+entry 0441	Hank Nater	note	0441 -kʷ (innovative)	page 20, the entry as printed
+entry 0441	Bella Coola	cited affix	-kʷ	page 20, (innovative)
+entry 0549	Hank Nater	note	0549 -la (in a few names) North Wakash -la, -ala ‘continuous action, process, state’ (Rath 2010 Excel suffix list, line 317)	page 20, the entry as printed
+entry 0549	Bella Coola	cited affix	-la	page 20, (in a few names)
+entry 0549	North Wakash	cited form	-la	page 20, under the entry
+entry 0549	North Wakash	cited form	-ala	page 20, under the entry, ‘continuous action, process, state’
+entry 0575	Hank Nater	note	0575 -ɬala (in two words referring to birds) North Wakash -ƛala (as in Oowekyala nχƛala ‘have flexible limbs, be double-jointed’ (Rath 2010 Excel suffix list, line 297))	page 20, the entry as printed
+entry 0575	Bella Coola	cited affix	-ɬala	page 20, (in two words referring to birds)
+entry 0575	North Wakash	cited form	-ƛala	page 20, under the entry
+entry 0575	Oowekyala	cited form	nχƛala	page 20, under the entry, ‘have flexible limbs, be double-jointed’
+entry 0669	Hank Nater	note	0669 -lq’ ‘around’ derived (cf. √χlq’ ‘cause something to go around or across something’ < PS *χǝlǝq’ ‘turn, whirl, roll’ (Ku02:125))	page 20, the entry as printed
+entry 0669	Bella Coola	cited affix	-lq’	page 20, ‘around’
+entry 0669	Proto-Salish	cited form	*χǝlǝq’	page 20, under the entry, ‘turn, whirl, roll’, Ku02:125
+entry 1513	Hank Nater	note	1513 -t cf. Li -t, -it, -ut ‘formative’ (VE13:418), Sh -t ‘status form’ (Ku74:54–55)	page 20, the entry as printed
+entry 1513	Bella Coola	cited affix	-t	page 20, its head
+entry 1513	Lillooet	cited form	-t	page 20, under the entry
+entry 1513	Lillooet	cited form	-it	page 20, under the entry
+entry 1513	Lillooet	cited form	-ut	page 20, under the entry, ‘formative’, VE13:418
+entry 1513	Shuswap	cited form	-t	page 20, under the entry, ‘status form’
+entry 1741	Hank Nater	note	1741 -cwa (innovative) (cf. 89 -alcwa)	page 20, the entry as printed
+entry 1741	Bella Coola	cited affix	-cwa	page 20, (innovative) (cf. 89 -alcwa)
+entry 1887	Hank Nater	note	1887 -ul (in sχiƛ’ul = χiƛ’ ‘skinny’) cf. Sq -ul ‘diminutive’, -ulɬ ‘young specimen’ (Ku67:396)	page 20, the entry as printed
+entry 1887	Bella Coola	cited affix	-ul	page 20, (in sχiƛ’ul = χiƛ’ ‘skinny’)
+entry 1887	Squamish	cited form	-ul	page 20, under the entry, ‘diminutive’
+entry 1887	Squamish	cited form	-ulɬ	page 20, under the entry, ‘young specimen’, Ku67:396
+entry 2041	Hank Nater	note	2041 -χin (in two words associated with ‘head’) *-qin ‘head’ (Ku02:208)	page 20, the entry as printed
+entry 2041	Bella Coola	cited affix	-χin	page 20, (in two words associated with ‘head’)
+entry 2041	Proto-Salish	cited form	*-qin	page 20, under the entry, ‘head’, Ku02:208
+§5.5	Hank Nater	note	Of the 30 pronominal suffixes, one (2016) likely has a North Wakash origin; two (187 and 201) are innovative (the latter originally a fusion of 187 and 2016); six (297, 1511, 1814, 1512, 721, 762) appear to stem from pre-CS; the remaining 21 go back to PS. One modifying suffix (258) is of PS descent; another one (663) is pre-CS; one (1881) has been adopted from Chinook; the remaining three modifiers appear to be innovative. Of the 23 verbal suffixes, sixteen are Salish (five pre-CS, eleven PS), while seven are innovative. Of all (44) lexical suffixes, 35 have a PS origin; four go back to pre-CS; four are innovative; one has been derived from North Wakash. Out of eight nominalizing suffixes, one is originally North Wakash; three are innovative; four go back to PS. Among the 19 formative suffixes, nine have a North Wakash origin; six are innovative; four are Salish (three PS, one pre-CS).	page 20
+§6	Hank Nater	heading	6 Concluding notes and observations	page 21
+§6	Hank Nater	note	A number of Bella Coola lexical suffixes have been derived from verbo-nominals: 298 -iɬ ‘round’ < √ʔil, 490 -k’ʷp ‘fathom’ < k’ʷp ‘straight’, 533 -k’mt ‘days’ < k’matk ‘(stay) overnight’, 612 -ɬq’ ‘…fold’ < ɬq’ ‘slap’, 669 -lq’ ‘around’ < √χlq’ ‘cause to go around’, 1600 -ƛ’ap ‘times’ < ƛ’ap ‘go’, 1864 -t’q ‘span’ < √t’q ‘spread’. Similarly, two pronominal suffixes (with no cognates in other Salish) have evolved on the basis of independent pronouns: 828 -nu ‘2SG.TR’ < ʔinu ‘2SG’ and 297 -iɬ ‘1PL’ < ɬmiɬ ‘1PL’.	page 21
+§6	Bella Coola	cited form	-iɬ	page 21, in italics, ‘round’
+§6	Bella Coola	cited form	√ʔil	page 21, in italics
+§6	Bella Coola	cited form	k’ʷp	page 21, in italics, ‘straight’
+§6	Bella Coola	cited form	ɬq’	page 21, in italics, ‘slap’
+§6	Bella Coola	cited form	√χlq’	page 21, in italics, ‘cause to go around’
+§6	Bella Coola	cited form	ƛ’ap	page 21, in italics, ‘go’
+§6	Bella Coola	cited form	ʔinu	page 21, in italics, ‘2SG’
+§6	Bella Coola	cited form	ɬmiɬ	page 21, in italics, ‘1PL’
+§6	Bella Coola	cited form	-nu	page 21, in italics, ‘2SG.TR’
+§6	Hank Nater	note	The two other types of pronominal suffix derivation are fusion (as in -aχʷ ‘2PL.IMP’ from 187 -aw ‘3PL’ + -χ ‘IMP’) and analogy-based patterning (-tiniɬ ‘1PL.PASS’ from -tinic ‘1SG.PASS’ minus -ic plus -iɬ and -miniɬ ‘1PL.PASS.CAUS’ from -minic ‘1SG.PASS.CAUS’ minus -ic plus -iɬ).	page 21
+§6	Bella Coola	cited form	-aχʷ	page 21, in italics, ‘2PL.IMP’
+§6	Bella Coola	cited form	-χ	page 21, in italics, ‘IMP’
+§6	Bella Coola	cited form	-tiniɬ	page 21, in italics, ‘1PL.PASS’
+§6	Bella Coola	cited form	-miniɬ	page 21, in italics, ‘1PL.PASS.CAUS’
+§6	Bella Coola	cited form	-ic	page 21, in italics
+§6	Hank Nater	note	Modified pronominal suffixes typically consist of a petrified morpheme or morpheme string. Such units have been functionally recast and/or expanded with an additional suffix:	page 21
+§6	Hank Nater	note	Contemporary Origin Modification(s)	page 21, a printed line of Figure 3
+§6	Hank Nater	note	-i- ‘3SG.OBJ.TR’ *-n- ‘transitivizer’ *ǝn > i, valency marker >	page 21, a printed line of Figure 3
+§6	Hank Nater	note	argument marker	page 21, a printed line of Figure 3
+§6	Hank Nater	note	-c ‘1SG.SUBJ’ *-c(-) ‘1SG.OBJ’ object > subject	page 21, a printed line of Figure 3
+§6	Hank Nater	note	-ci-nu ‘1SG-2SG’ *-ci-n ‘2SG-1SG’ petrifaction of *-cin, addition	page 21, a printed line of Figure 3
+§6	Hank Nater	note	of -nu ‘2SG’, *-cinnu > -cinu	page 21, a printed line of Figure 3
+§6	Hank Nater	note	-tu-mi-nu	page 21, a printed line of Figure 3
+§6	Hank Nater	note	‘CAUS-1SG-2SG’	page 21, a printed line of Figure 3
+§6	Hank Nater	note	*-t-umi-n	page 21, a printed line of Figure 3
+§6	Hank Nater	note	‘TR-2SG-1SG’	page 21, a printed line of Figure 3
+§6	Hank Nater	note	petrifaction of *-tumin, addition	page 21, a printed line of Figure 3
+§6	Hank Nater	note	of -nu ‘2SG’, *-minnu > -minu,	page 21, a printed line of Figure 3
+§6	Hank Nater	note	…tu… reinterpreted as -tu- ‘CAUS’	page 21, a printed line of Figure 3
+§6	Hank Nater	note	-…inic ‘1SG-PASS’ *-…in ‘1SG.SUBJ’ petrifaction of *-…in, addition	page 21, a printed line of Figure 3
+§6	Hank Nater	note	of -ic ‘1SG’	page 21, a printed line of Figure 3
+§6	Hank Nater	note	Figure 3 Modified pronominal suffixes	page 21, the caption
+§6	Hank Nater	note	There are a few bound morphemes that Bella Coola has in common with Chehalis in particular: the prepositions ʔaɬ˽ (= Ch ʔaɬ) and x˽ (= Ch š); causative -(s)t(u)- (= Ch -(s)t(u)-); allomorphic pairs such as -tuɬ-/-muɬ- ‘1PL.OBJ’ (= Ch -tul-/-mul-), -c(an)-/-m(an)- ‘1SG.OBJ’ (= Ch -c(al-)/-mal-), *-ci-/*-mi- ‘2SG.OBJ’ (= Ch -ci(-)/-mi(-)). Are these elements pre-CS retentions, or do they have a more recent origin? If the latter setting applies, the Bella Coola language has its roots in a region on or near the Olympic peninsula (cf. Nater 2010/2013). Below, I summarize the proportional distribution of the different types of bound morpheme, as well as their provenience in terms of Salish vs. non-Salish vs. unknown origin (“innovative”).	page 21
+§6	Bella Coola	cited form	ʔaɬ	page 21, in italics
+§6	Bella Coola	cited form	š	page 21, in italics
+§6	Bella Coola	cited form	-tuɬ-	page 21, in italics
+§6	Bella Coola	cited form	-muɬ-	page 21, in italics, ‘1PL.OBJ’
+§6	Bella Coola	cited form	-c(al-)	page 21, in italics
+§6	Bella Coola	cited form	-ci(-)	page 21, in italics
+§6	Bella Coola	cited form	-mi(-)	page 21, in italics
+§6	Hank Nater	note	Category Provenience	page 22, a printed line of Figure 4
+§6	Hank Nater	note	root	page 22, a printed line of Figure 4
+§6	Hank Nater	note	proclitic	page 22, a printed line of Figure 4
+§6	Hank Nater	note	enclitic	page 22, a printed line of Figure 4
+§6	Hank Nater	note	prefix	page 22, a printed line of Figure 4
+§6	Hank Nater	note	suffix	page 22, a printed line of Figure 4
+§6	Hank Nater	note	PS	page 22, a printed line of Figure 4
+§6	Hank Nater	note	pre-CS	page 22, a printed line of Figure 4
+§6	Hank Nater	note	non-Salish	page 22, a printed line of Figure 4
+§6	Hank Nater	note	innovative	page 22, a printed line of Figure 4
+§6	Hank Nater	note	root 16 2 10 4	page 22, a printed line of Figure 4
+§6	Hank Nater	note	preposition 3 3	page 22, a printed line of Figure 4
+§6	Hank Nater	note	article 6 1 5	page 22, a printed line of Figure 4
+§6	Hank Nater	note	pre-predicate 2 1 1	page 22, a printed line of Figure 4
+§6	Hank Nater	note	miscellaneous 1 1	page 22, a printed line of Figure 4
+§6	Hank Nater	note	adverb 15 3 12	page 22, a printed line of Figure 4
+§6	Hank Nater	note	imperative 2 2	page 22, a printed line of Figure 4
+§6	Hank Nater	note	wh-? 3 3	page 22, a printed line of Figure 4
+§6	Hank Nater	note	yes-no? 2 1 1	page 22, a printed line of Figure 4
+§6	Hank Nater	note	deictic 9 6 3	page 22, a printed line of Figure 4
+§6	Hank Nater	note	article 3 1 2	page 22, a printed line of Figure 4
+§6	Hank Nater	note	verbalizer 15 3 1 1 10	page 22, a printed line of Figure 4
+§6	Hank Nater	note	somatic 2 2	page 22, a printed line of Figure 4
+§6	Hank Nater	note	grammatical 3 1 2	page 22, a printed line of Figure 4
+§6	Hank Nater	note	aspectual 7 1 6	page 22, a printed line of Figure 4
+§6	Hank Nater	note	spatial A 5 3 1 1	page 22, a printed line of Figure 4
+§6	Hank Nater	note	spatial B 6 2 4	page 22, a printed line of Figure 4
+§6	Hank Nater	note	circumfix 2 2	page 22, a printed line of Figure 4
+§6	Hank Nater	note	pronominal 30 21 6 1 2	page 22, a printed line of Figure 4
+§6	Hank Nater	note	modifying 6 1 1 1 3	page 22, a printed line of Figure 4
+§6	Hank Nater	note	verbal 23 11 5 7	page 22, a printed line of Figure 4
+§6	Hank Nater	note	lexical 44 35 4 1 4	page 22, a printed line of Figure 4
+§6	Hank Nater	note	nominalizing 8 4 1 3	page 22, a printed line of Figure 4
+§6	Hank Nater	note	formative 19 3 1 9 6	page 22, a printed line of Figure 4
+§6	Hank Nater	note	16 12 31 43 130 95 45 15 77	page 22, a printed line of Figure 4
+§6	Hank Nater	note	7% 5% 13% 19% 56% 41% 19% 7% 33%	page 22, a printed line of Figure 4
+§6	Hank Nater	note	Figure 4 Distribution of fossilized roots, clitics, and affixes	page 22, the caption
+§6	Hank Nater	note	The above table shows that affixes (173) play in Bella Coola a greater role than clitics (43), suffixes (130) outnumber prefixes (43), and enclitics (31) outnumber proclitics (12). These hierarchies, in addition to the 60% Salish etymological content, attest to the essentially Salish nature of Bella Coola.	page 22
+§6	Hank Nater	note	Taking into account earlier observations (Nater 2013, repeated in section 1 above) and the findings in this paper, we see that in Bella Coola the degree of borrowing from non-Salish sources varies between different linguistic tiers, with phonology and lexicon having been deeply affected by outside pressure, (morpho- )syntax less so, and morphology being rather conservative: Phonology: significant North Wakash (mainly Oowekyala) influence: velar series preserved as palatal, absence of shwa and stress, extreme obstruent clustering Morphology: some non-Salish impact in affixation, none in clisis Morphosyntax: detailed deixis having evolved under North Wakash pressure Syntax: Salish sentence structure limited to PSO due to North Wakash influence Lexicon: extensive borrowing from North Wakash	page 23
+references	Hank Nater	heading	References	page 23
+references	Hank Nater	reference	Kinkade, M. Dale. (1991). Upper Chehalis Dictionary. Missoula, MT. (University of Montana Occasional Papers in Linguistics 17.)	page 23
+references	Hank Nater	reference	Kuipers, Aert H. (1967). The Squamish Language. The Hague / Paris: Mouton & Co.	page 23
+references	Hank Nater	reference	Kuipers, Aert H. (1969). The Squamish Language II. The Hague / Paris: Mouton & Co.	page 23
+references	Hank Nater	reference	Kuipers, Aert H. (1974). The Shuswap Language. The Hague / Paris: Mouton & Co..	page 23
+references	Hank Nater	reference	Kuipers, Aert H. (2002). Salish Etymological Dictionary. Missoula, MT. (University of Montana Occasional Papers in Linguistics 16.)	page 23
+references	Hank Nater	reference	Lincoln, Neville J. and John C. Rath. (1980). North Wakashan Comparative Root List. Canadian Ethnology Service Paper No. 68. Canadian Museum of Civilization Mercury Series.	page 23
+references	Hank Nater	reference	Nater, Hank. (1973/1974). Southern Carrier fieldnotes. Unpublished pdf.	page 23
+references	Hank Nater	reference	Nater, Hank. (1984). The Bella Coola Language. Canadian Ethnology Service Paper 92. Canadian Museum of Civilization Mercury Series.	page 23
+references	Hank Nater	reference	Nater, Hank. (1990). A Concise Nuxalk-English Dictionary. Canadian Ethnology Service Paper 115. Canadian Museum of Civilization Mercury Series.	page 23
+references	Hank Nater	reference	Nater, Hank. (1994). The Athapaskan component of Nuxalk. International Journal of American Linguistics 60:177–190.	page 24
+references	Hank Nater	reference	Nater, Hank. (2010). Bella Coola /-uks/: diffusion from distant sources. A Festschrift for Thomas A. Hess on the Occasion of his Seventieth Birthday. (Whatcom Museum Publications 21.)	page 24
+references	Hank Nater	reference	Nater, Hank. (2013). How Salish is Bella Coola? In Dunham, Joel, Patrick Littell, and John Lyon (eds.) Papers for the 48th International Conference on Salish and Neighbouring Languages. (University of British Columbia Working Papers in Linguistics 35.)	page 24
+references	Hank Nater	reference	Rath, John C. (2010). Digital Heiltsuk-English Dictionary (version 2.2.1). Heiltsuk Cultural Education Centre. Bella Bella, BC.	page 24
+references	Hank Nater	reference	Van Eijk, Jan P. (1985). The Lillooet Language. Universiteit van Amsterdam. Amsterdam, Netherlands.	page 24
+references	Hank Nater	reference	Van Eijk, Jan P. (2013). Lillooet-English Dictionary. Vancouver, BC. (University of British Columbia Occasional Papers in Linguistics 2.)	page 24

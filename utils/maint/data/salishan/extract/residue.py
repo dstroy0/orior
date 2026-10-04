@@ -649,6 +649,9 @@ CORRECTIONS = {
     "Nater_ICSNL60_resonants": (
         ("", "√"), ("ʕ̞ʕ̞ʷ", "ʕ̞ ʕ̞ʷ"), ("ḥḥʷ", "ḥ ḥʷ"), ("ḥḥw", "ḥ ḥw"), ("čč’", "č č’"),
     ),
+    # Read at 300 dpi: page 12 sets the Squamish cognate of 0233 against the quote opening its gloss,
+    # -(a)xʷ'2SG.SUBJ', and the form is parted from the gloss to be a word of its own.
+    "Nater-final": (("-(a)xʷ‘2SG.SUBJ’", "-(a)xʷ ‘2SG.SUBJ’"),),
     # Read at 300 dpi: the underlying lines of (15d) on page 14 and (18b) on page 15 print qəx̣ tə=ʔasxʷ
     # and ʔə=qʷəl̓ t̓əq̓-aš-uɬ as two words each, over the glosses lots and come; closing the space after
     # the mark below and the mark above runs them together.
