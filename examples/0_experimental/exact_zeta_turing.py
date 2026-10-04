@@ -12,7 +12,8 @@
 #           python examples/0_experimental/exact_zeta_turing.py <binary> [first] [last] [rate] refine [check]
 #
 # For each run of the device it writes the device's input to a file in a temporary directory and reads the device's
-# output back.
+# output back. Every run goes to one process of the binary, started with `serve`, which loads each program onto the
+# device once and runs every later stage with the same program on it.
 #
 # It sits in 0_experimental and is an entry in the analytic number theory workbook, on its rail: it verifies the
 # zeros up to a height it is given and says nothing past it.
@@ -94,6 +95,7 @@
 # Riemann-Siegel's Z within the two bounds.
 
 import array
+import atexit
 import math
 import os
 import subprocess
@@ -453,6 +455,7 @@ class Cell:
         self.steps = [int(v) for v in rows["steps"]]
         self.apart = (int(rows["apart"][0], 16), int(rows["apart"][1])) if "apart" in rows else None
         self.margins = {key: int(rows[key][0], 16) for key in ("clean", "flagged", "single") if key in rows}
+        self.programs = tuple(int(v) for v in rows["programs"])
 
     def sign(self, which):
         return self.at[which][0]
@@ -556,6 +559,56 @@ class Control:
         return p
 
 
+SERVED = {}
+
+
+def serve(binary):
+    """The binary's one process, started with `serve` where it is not running."""
+    served = SERVED.get(binary)
+    if served is None or served.poll() is not None:
+        # the multiple evaluation's longest programs hold frames past the device's stack limit, and are kept as PTX:
+        # built again as C source, they go to NVRTC, which compiles a program of their length far slower than the run
+        served = subprocess.Popen([binary, "serve"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+                                  env=dict(os.environ, CYCLE_RECORD_KEEP_PTX="1"))
+        SERVED[binary] = served
+    return served
+
+
+def stop(binary):
+    """The binary's process ended, its programs released."""
+    served = SERVED.pop(binary, None)
+    if served is not None and served.poll() is None:
+        served.stdin.close()
+        served.wait()
+
+
+atexit.register(lambda: [stop(binary) for binary in list(SERVED)])
+
+
+def device(binary, given, taken, what):
+    """The device's run from the input at `given` to the output at `taken`. A run whose checks fail writes nothing the
+    machine reads; it is run once more in a new process, and both failures are printed."""
+    for attempt in range(2):
+        served = serve(binary)
+        printed, code = [], None
+        try:
+            served.stdin.write(given + "\n" + taken + "\n")
+            served.stdin.flush()
+            for line in served.stdout:
+                if line.startswith("done "):
+                    code = int(line.split()[1])
+                    break
+                printed.append(line)
+        except OSError:
+            code = None
+        if code == 0:
+            return
+        print("".join(printed).strip()[-2000:])
+        print("  %s: the device run failed, attempt %d" % (what, attempt + 1))
+        stop(binary)
+    raise SystemExit("  %s: the device run failed" % what)
+
+
 def run_cell(binary, constants, nu, p, method, level=0, listing=0):
     """Cell nu at 2^p points from the device, its main sum by `method`; by Euler-Maclaurin at widening `level`; with
     `listing`, every point's sign, S, Z and w written out beside the sums, at the path the cell keeps, and with
@@ -582,19 +635,7 @@ def run_cell(binary, constants, nu, p, method, level=0, listing=0):
         if listing == 2:
             for v in margin(nu, p, constants, bound)[:3]:
                 put(handle, v)
-    # the multiple evaluation's longest programs hold frames past the device's stack limit, and are kept as PTX: built
-    # again as C source, they go to NVRTC, which compiles a program of their length far slower than the run
-    # a run whose checks fail writes nothing the machine reads; it is run once more, and both failures are printed
-    for attempt in range(2):
-        ran = subprocess.run([binary, given, taken], capture_output=True, text=True,
-                             env=dict(os.environ, CYCLE_RECORD_KEEP_PTX="1"))
-        if not ran.returncode:
-            break
-        print(ran.stdout.strip()[-2000:])
-        print(ran.stderr.strip()[-2000:])
-        print("  cell %d at 2^%d points: the device run failed, attempt %d" % (nu, p, attempt + 1))
-    if ran.returncode:
-        raise SystemExit("  cell %d at 2^%d points: the device run failed" % (nu, p))
+    device(binary, given, taken, "cell %d at 2^%d points" % (nu, p))
     with open(taken) as handle:
         cell = Cell(nu, p, [line for line in handle if not line.startswith("point")])
     cell.path = taken
@@ -621,16 +662,7 @@ def run_points(binary, constants, nu, p, js):
                   [least, third, steep]):
             put(handle, v)
         array.array("q", listed).tofile(handle)
-    for attempt in range(2):
-        ran = subprocess.run([binary, given, taken], capture_output=True, text=True,
-                             env=dict(os.environ, CYCLE_RECORD_KEEP_PTX="1"))
-        if not ran.returncode:
-            break
-        print(ran.stdout.strip()[-2000:])
-        print(ran.stderr.strip()[-2000:])
-        print("  cell %d, %d listed points at 2^%d: the device run failed, attempt %d" % (nu, len(js), p, attempt + 1))
-    if ran.returncode:
-        raise SystemExit("  cell %d, %d listed points at 2^%d: the device run failed" % (nu, len(js), p))
+    device(binary, given, taken, "cell %d, %d listed points at 2^%d" % (nu, len(js), p))
     signs, failed = [], 0
     with open(taken) as handle:
         for line in handle:
@@ -662,6 +694,29 @@ def ln_upper(q):
 def root_upper_inverse(n):
     """An upper bound on n^(-1/2): 2^20 over the floor of (4^20 n)^(1/2)."""
     return Fraction(1 << 20, math.isqrt(n << 40))
+
+
+FOURTH_BITS = 100
+FOURTH = {}
+
+
+def fourth_bound(nu):
+    """max |M''''| over cell nu, bounded above by 2 sum over n <= nu of n^(-1/2) (A^4 + 6 A^2 theta2 + 4 A theta3 +
+    3 theta2^2 + theta4), A = ln((nu + 1) / n), each term rounded up to a whole number of 2^-FOURTH_BITS; it depends
+    on nu alone and is kept for each nu."""
+    if nu not in FOURTH:
+        t_low = 2 * PI_LOW * nu * nu
+        theta2 = 1 / (2 * t_low) + 1 / (24 * t_low ** 3)
+        theta3 = 1 / (2 * t_low ** 2) + 1 / (8 * t_low ** 4)
+        theta4 = 1 / t_low ** 3 + 1 / (2 * t_low ** 5)
+        grid = 1 << FOURTH_BITS
+        units = 0
+        for n in range(1, nu + 1):
+            a = ln_upper(Fraction(nu + 1, n))
+            term = root_upper_inverse(n) * (a ** 4 + 6 * a * a * theta2 + 4 * a * theta3 + 3 * theta2 ** 2 + theta4)
+            units += -((-term.numerator * grid) // term.denominator)
+        FOURTH[nu] = Fraction(2 * units, grid)
+    return FOURTH[nu]
 
 
 def margin(nu, p, constants, bound, method="transform"):
@@ -698,14 +753,7 @@ def margin(nu, p, constants, bound, method="transform"):
     unit = 1 << SCALE_BITS
     t_low = 2 * PI_LOW * nu * nu
     h = 2 * PI_HIGH * (2 * nu + 1) / Fraction(1 << p)
-    theta2 = 1 / (2 * t_low) + 1 / (24 * t_low ** 3)
-    theta3 = 1 / (2 * t_low ** 2) + 1 / (8 * t_low ** 4)
-    theta4 = 1 / t_low ** 3 + 1 / (2 * t_low ** 5)
-    fourth = Fraction(0)
-    for n in range(1, nu + 1):
-        a = ln_upper(Fraction(nu + 1, n))
-        fourth += root_upper_inverse(n) * (a ** 4 + 6 * a * a * theta2 + 4 * a * theta3 + 3 * theta2 ** 2 + theta4)
-    fourth *= 2
+    fourth = fourth_bound(nu)
     root_low = math.isqrt(nu)
     c0_size = Fraction(sum(abs(g) + 1 for g in constants.gamma), unit)
     remainder_slope = (c0_size / (2 * nu * root_low) + 2 * constants.slope / root_low) / (4 * PI_LOW * nu)
