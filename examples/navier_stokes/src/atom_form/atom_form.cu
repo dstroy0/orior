@@ -452,6 +452,18 @@ SimRational atom_form_constant(const AtomForm &form)
     return atom_form_coefficient(form, found->second);
 }
 
+SimRational atom_form_coefficient_of(const AtomForm &form, unsigned int atom)
+{
+    AtomPower power(atom + 1u, 0u);
+    power[atom] = 1u;
+    const auto found = s_atom_slot_of.find(atom_form_key(sim_rational(0ll, 1ll), power));
+    if ((found == s_atom_slot_of.end()) || !atom_form_holds(form, found->second))
+    {
+        return sim_rational(0ll, 1ll);
+    }
+    return atom_form_coefficient(form, found->second);
+}
+
 size_t atom_form_e_count(const AtomForm &form)
 {
     size_t count = 0u;
