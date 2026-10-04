@@ -514,7 +514,11 @@ def figure_of(papers, readers, path):
     right.legend(loc="lower right", frameon=False, fontsize=8)
 
     figure.tight_layout()
-    figure.savefig(path, format=os.path.splitext(path)[1].lstrip(".") or "svg", dpi=150)
+    # The format is the target's own extension, with a ".new" the caller draws beside it set aside.
+    # The PDF carries no creation date. The same picture is then the same bytes on every run.
+    kind = os.path.splitext(path[:-4] if path.endswith(".new") else path)[1].lstrip(".") or "svg"
+    metadata = {"CreationDate": None} if kind == "pdf" else None
+    figure.savefig(path, format=kind, dpi=150, metadata=metadata)
     plot.close(figure)
     return bare, applied, reader, crossing
 
@@ -824,7 +828,17 @@ def main():
     for label, failures, trials in channels:
         joint *= bound(failures, trials)
 
-    bare, applied, rate, crossing = figure_of(papers, readers, FIGURE)
+    # The figure is drawn beside its target and moved over it only where its bytes differ.
+    drawn = FIGURE + ".new"
+    bare, applied, rate, crossing = figure_of(papers, readers, drawn)
+    figure_changed = True
+    if os.path.isfile(FIGURE):
+        with open(FIGURE, "rb") as one, open(drawn, "rb") as two:
+            figure_changed = one.read() != two.read()
+    if figure_changed:
+        os.replace(drawn, FIGURE)
+    else:
+        os.remove(drawn)
     standing = border_result()
     running, stable = settled(sound, carried)
 
@@ -1205,8 +1219,18 @@ def main():
     # A citation is written as a marker the converter leaves alone and turned into \cite after it,
     # since the converter escapes every backslash.
     body = re.sub(r"\[\[cite:([^\]]+)\]\]", r"\\cite{\1}", body)
-    with open(TARGET, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(body)
+    # Rewritten only where the text changes, and each rewrite printed as "  wrote <path>" for the
+    # research paper's build to stage.
+    old = None
+    if os.path.isfile(TARGET):
+        with open(TARGET, encoding="utf-8") as handle:
+            old = handle.read()
+    if body != old:
+        with open(TARGET, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(body)
+        out.write("  wrote %s\n" % os.path.relpath(TARGET, ROOT).replace(os.sep, "/"))
+    if figure_changed:
+        out.write("  wrote %s\n" % os.path.relpath(FIGURE, ROOT).replace(os.sep, "/"))
 
     out.write(
         "  %d hand extractions, %d of them against a sound source\n"
@@ -1218,7 +1242,6 @@ def main():
             % (label, failures, trials, bound(failures, trials))
         )
     out.write("  joint bound %.3g per line\n" % joint)
-    out.write("  written to %s\n" % os.path.relpath(TARGET, ROOT))
     out.flush()
     return 0
 

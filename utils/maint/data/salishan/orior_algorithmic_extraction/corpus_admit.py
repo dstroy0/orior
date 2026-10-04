@@ -12,8 +12,9 @@
 #
 # What can be asked is whether the corpus stays on its curve. A pure corpus growing on more of the
 # same language adds support slowly and holds its split-half distance roughly level. Tipping in the
-# whole sifted set does neither: Comox goes from 407 cells and D_self 0.196 to 2586 cells and 0.457,
-# which is a second distribution arriving, not more of the first.
+# whole sifted set does neither: a refused corpus's cells and D_self jump together, which is a second
+# distribution arriving, not more of the first. The Salishan research paper gives the figures, which
+# instrument_figures.py measures.
 #
 # So candidates are sorted by distance to the corpus and admitted in batches while D_self stays
 # inside the band the corpus was already in. Admission stops at the first batch that leaves it.

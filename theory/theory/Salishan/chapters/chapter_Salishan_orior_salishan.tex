@@ -1,5 +1,7 @@
 \chapter{The corpus under the instrument}
 
+\input{chapters/figures_orior_salishan}
+
 \section{The permutation-null method on Salishan}
 
 This chapter applies the method of the delta null research paper \cite{src:Quigg-delta-null} to the Salishan papers: it finds the language in a paper, and decides what may join a gold standard corpus.
@@ -21,36 +23,36 @@ That turns the problem around, onto the half that is well resourced. Nobody has 
 
 \subsection{The components}
 
-The measurement reduces a text to its byte-pair histogram, a bigram distribution \cite{src:Shannon-1948}, and compares two texts by the total variation distance between their histograms. A language profile is the histogram of one language's gold standard corpus, in the sense of $n$-gram language identification \cite{src:Cavnar-and-Trenkle-1994}. Each profile carries a split-half distance, the distance between two halves of its own corpus, and a comparison between corpora has to beat it to be read. The measurement has no tuned parameter and no term for any one language.
+The measurement reduces a text to its byte-pair histogram, a bigram distribution \cite{src:Shannon-1948}, and compares two texts by the total variation distance between their histograms. A language profile is the histogram of one language's gold standard corpus, in the sense of $n$-gram language identification \cite{src:Cavnar-and-Trenkle-1994}. Each profile carries a split-half distance, the distance between two halves of its own corpus, and a comparison between corpora has to beat it to be read. The measurement has no tuned parameter and no term for any one language. Every distance, verdict and median below is an exact rational computed on the engine's record machine by \texttt{examples/\allowbreak{}Salishan/\allowbreak{}4\_measure/\allowbreak{}gold\_readings.cu}, and no figure in this chapter is typed by hand: each is written by the check that measures it when the research paper is built.
 
-Around it sit three other components: an automatic extractor written for each of twelve papers, with that paper's repairs and checks; the screening applied to papers with no extractor, together with the dialect border test; and the word web, which joins the forms of every hand extraction by concept, shape and context.
+Around it sit three other components: an automatic extractor written for each of \Extractors{} papers, with that paper's repairs and checks; the screening applied to papers with no extractor, together with the dialect border test; and the word web, which joins the forms of every hand extraction by concept, shape and context.
 
 \subsection{Results}
 
-These results are over the first thirteen hand extractions. Twelve have an automatic extractor, and every language token of those twelve is accounted for:
+These results are over \HandExtractions{} hand extractions. \Extractors{} have an automatic extractor, and every language token of \ExtractorsAccounted{} of those is accounted for:
 
 \begin{itemize}
-\item 13 of 13 papers have a hand extraction;
-\item 12 of 12 papers have every language token accounted for;
-\item 2314 lines of gold standard target language, across six languages.
+\item \HandExtractions{} of \HandExtractions{} papers have a hand extraction;
+\item \ExtractorsAccounted{} of \Extractors{} papers have every language token accounted for;
+\item \GoldLanguageLines{} lines of gold standard target language, across \GoldLanguages{} languages.
 \end{itemize}
 
-The thirteenth, Hilbert and Hess \cite{src:Hilbert-and-Hess-1975}, is read by hand and has no extractor, and it is held ungraded and not counted. The six languages are the ones with a gold standard corpus; two of the thirteen papers are in languages that have no profile.
+The \NoExtractor{} with no extractor, Hilbert and Hess \cite{src:Hilbert-and-Hess-1975} among them, are read by hand, and they are held ungraded and not counted. The \GoldLanguages{} languages are the ones with a gold standard corpus.
 
-There are seven profiles: six languages and English. 20 of the 21 pairs are readable, at distances 0.510 to 0.835 against split-half distances of 0.157 to 0.641. The pair that does not read is Lushootseed against Nsyilxcən, 0.620 apart with the Lushootseed profile's own split-half distance at 0.641.
+There are \GoldProfiles{} profiles: \GoldLanguages{} languages and English. \GoldPairsReadMidpoint{} of the \GoldPairs{} pairs are readable, at distances \GoldPairLeast{} to \GoldPairMost{} against split-half distances of \GoldSplitLeast{} to \GoldSplitMost{}. The pair that does not read is \GoldUnreadLeft{} against \GoldUnreadRight{}, \GoldUnreadDistance{} apart with the \GoldUnreadWider{} profile's own split-half distance at \GoldUnreadSplit{}.
 
-That split-half distance is not the resolution of the estimator at 219 lines. Cutting a corpus at its midpoint measures the order its papers are in: a corpus is its papers concatenated, the cut lands on a paper boundary, and it reports the distance between whichever papers it separates. Lushootseed is two papers in two dialects and two orthographies, and the midpoint puts one on each side. Sampling the halves by alternating puts a mixture on both sides, and the split-half distance falls to 0.305. Every corpus moves the same way, by 1.35 to 3.64 times, and the midpoint figure is the larger every time. A resolution cannot rise when its sample grows, and the midpoint figure does. The split-half distances are therefore sampled by alternating.
+That split-half distance is not the resolution of the estimator at \GoldUnreadWiderLines{} lines. Cutting a corpus at its midpoint measures the order its papers are in: a corpus is its papers concatenated, the cut lands on a paper boundary, and it reports the distance between whichever papers it separates. Lushootseed is two papers in two dialects and two orthographies, and the midpoint puts one on each side. Sampling the halves by alternating puts a mixture on both sides, and the split-half distance falls to \GoldUnreadAlternating{}. Every corpus moves the same way, by \GoldRatioLeast{} to \GoldRatioMost{} times, and the midpoint figure is the larger every time. A resolution cannot rise when its sample grows, and the midpoint figure does. The split-half distances are therefore sampled by alternating.
 
-Read at the alternating split-half distances, all 15 pairs among the six languages separate, Lushootseed against Nsyilxcən included, and six of the 15 change verdict. The 21 above counts the same six languages plus English, which adds six more pairs.
+Read at the alternating split-half distances, all \GoldLanguagePairs{} pairs among the \GoldLanguages{} languages separate, \GoldUnreadLeft{} against \GoldUnreadRight{} included, and \GoldLanguagePairsChanged{} of the \GoldLanguagePairs{} change verdict. The \GoldPairs{} above counts the same \GoldLanguages{} languages plus English.
 
-The papers are a separate question, and the profiles' split-half distances do not decide it. Each paper is judged against its own split-half distance. Of the 106 papers naming a language the profiles cover, 3 are readable, and on all 3 the distributions agree with what the paper's prose says the language is. Of the 103 that are not readable, 8 hold too small a sample to ask, and 95 fail for one reason: the gap between the nearest profile and the runner-up has a median of 0.0247, against a median paper split-half distance of 0.3527. The gap is fourteen times inside the noise.
+The papers are a separate question, and the profiles' split-half distances do not decide it. Each paper is judged against its own split-half distance. Of the \GoldPapers{} papers naming a language the profiles cover, \GoldPapersRead{} are readable, and on \GoldPapersAgreed{} of them the distributions agree with what the paper's prose says the language is. Of the \GoldPapersNotRead{} that are not readable, \GoldPapersSmall{} hold too small a sample to ask, fewer than \GoldPapersLeast{} byte pairs, and \GoldPapersUnread{} fail for one reason: the gap between the nearest profile and the runner-up has a median of \GoldMedianGap{}, against a median paper split-half distance of \GoldMedianSplit{}. The gap is \GoldNoiseTimes{} times inside the noise.
 
 Screened from the papers with no extractor:
 
 \begin{itemize}
-\item 144 papers screened;
-\item 13190 lines nearer the language, and 20361 lines of residual text for a person to review;
-\item 114 of the 144 carry the language their own front matter names.
+\item \SiftPapers{} papers screened;
+\item \SiftNearer{} lines nearer the language, and \SiftResidue{} lines of residual text for a person to review;
+\item \SiftNamed{} of the \SiftPapers{} carry the language their own front matter names.
 \end{itemize}
 
 Admission is decided on each corpus's own growth curve:
@@ -61,21 +63,16 @@ Admission is decided on each corpus's own growth curve:
 \toprule
 Language & Gold standard & Candidates & Admitted & Split-half before & after & Support after \\
 \midrule
-nɬeʔkepmxcín & 451 & 339 & 339 & 0.3098 & 0.3196 & 1249 \\
-St'át'imcets & 371 & 868 & 280 & 0.2768 & 0.3459 & 1520 \\
-Nsyilxcən & 749 & 4898 & 1000 & 0.1571 & 0.1893 & 1322 \\
-Lushootseed & 219 & 1262 & 1262 & 0.6411 & 0.4163 & 2377 \\
-Comox & 426 & 1275 & 0 & 0.1956 & 0.1956 & 407 \\
-Nuxalk & 98 & 1359 & 0 & 0.2536 & 0.2536 & 346 \\
+\AdmissionRows
 \bottomrule
 \end{longtable}
 \normalsize
 
-nɬeʔkepmxcín took every candidate and stayed where it was. Comox and Nuxalk refused all of theirs: adding the whole set to Comox takes its support from 407 cells to 2586 and its split-half distance from 0.196 to 0.457, a second distribution arriving and not more of the first.
+\AdmitRefused{} refused all of theirs: adding the whole set to \WholeName{} takes its support from \WholeCellsBefore{} cells to \WholeCellsAfter{} and its split-half distance from \WholeSplitBefore{} to \WholeSplitAfter{}, a second distribution arriving and not more of the first.
 
-Lushootseed took all 1262, and its split-half distance fell from 0.641 to 0.416. The admission rule is only a ceiling, and a corpus sitting above the band it belongs in admits whatever pulls it down. Here 0.641 is two dialects on opposite sides of the midpoint cut, and 1262 candidates added between them dilute that split without adding anything to the profile. A falling split-half distance can be a boundary being blurred and not a corpus improving.
+Lushootseed took all \AdmitNamedCandidates{}, and its split-half distance fell from \AdmitNamedBefore{} to \AdmitNamedAfter{}. The admission rule is only a ceiling, and a corpus sitting above the band it belongs in admits whatever pulls it down. Here \AdmitNamedBefore{} is two dialects on opposite sides of the midpoint cut, and \AdmitNamedCandidates{} candidates added between them dilute that split without adding anything to the profile. A falling split-half distance can be a boundary being blurred and not a corpus improving.
 
-Seven languages hold candidates and have no hand-read corpus to grow: Halkomelem 739, Montana Salish 136, Twana 72, Secwepemctsín 33, Straits 23, Squamish 17, Upper Chehalis 14.
+\CandidateOnlyCount{} languages hold candidates and have no hand-read corpus to grow: \CandidateOnlyList.
 
 \subsection{What it cannot do}
 
@@ -83,8 +80,8 @@ Support is still climbing on every one of these corpora. None has seen its own a
 
 The screening finds candidates. It does not read them. The corpus is still hand extracted and verified in three passes, for line and for notation, and the screening says where to look.
 
-Growing the Lushootseed profile does not reach the 103 papers. The 95 that are large enough to ask fail because a paper's residual text sits almost the same distance from all six language profiles: the median gap between the nearest and the runner-up is 0.0247, and the median paper split-half distance is 0.3527. Nothing about the profiles' own sizes moves those two numbers past each other.
+Growing the Lushootseed profile does not reach the \GoldPapersNotRead{} papers. The \GoldPapersUnread{} that are large enough to ask fail because a paper's residual text sits almost the same distance from all \GoldLanguages{} language profiles: the median gap between the nearest and the runner-up is \GoldMedianGap{}, and the median paper split-half distance is \GoldMedianSplit{}. Nothing about the profiles' own sizes moves those two numbers past each other.
 
-What the 95 need is a measure that separates the profiles as seen from a mixed residual, which the byte-pair histogram does not. The dialect border section of the chapter \emph{How wrong it could be} gives the first one that does: holding a concept fixed with the word web's gloss edge, flattening the pooled counts to maximum entropy, and testing one run at a time. That recovers a published dialect border inside Lushootseed at a corpus size where the whole-distribution comparison needs 2.9 times more text. It has not been applied to the 95.
+What the \GoldPapersUnread{} need is a measure that separates the profiles as seen from a mixed residual, which the byte-pair histogram does not. The dialect border section of the chapter \emph{How wrong it could be} gives the first one that does: holding a concept fixed with the word web's gloss edge, flattening the pooled counts to maximum entropy, and testing one run at a time. That recovers a published dialect border inside Lushootseed at a corpus size where the whole-distribution comparison needs \BorderNeeds{} times more text. It has not been applied to the \GoldPapersUnread{}.
 
-Two dialects pooled into one profile are still worth splitting, because pooling inflated the split-half distance from 0.305 to 0.641, and it is the same defect in every corpus that holds more than one paper. Splitting them corrects the profiles; it is not a route to the 95.
+Two dialects pooled into one profile are still worth splitting, because pooling inflated the split-half distance from \GoldUnreadAlternating{} to \GoldUnreadSplit{}, and it is the same defect in every corpus that holds more than one paper. Splitting them corrects the profiles; it is not a route to the \GoldPapersUnread{}.
