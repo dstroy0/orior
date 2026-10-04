@@ -82,8 +82,12 @@ def main():
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if command == "start":
         authors, language = rest
-        for tool in ("space_census.py", "stacked_census.py", "page_text.py"):
-            run(tool, stem)
+        # A page text transcribed from a scan is the reading; the tools that read the text layer
+        # have nothing to read there.
+        known = tables.of(stem)
+        if not getattr(known, "TRANSCRIBED_FROM_SCAN", False):
+            for tool in ("space_census.py", "stacked_census.py", "page_text.py"):
+                run(tool, stem)
         run("paper_sift.py", stem, authors, language)
         print(run("draft_check.py", stem).strip().split("\n")[-1])
         if not os.path.exists(path):
