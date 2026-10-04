@@ -1,0 +1,17 @@
+permutations 5000 seed 1998 least_suffixes 3 least_nouns 10
+language Halkomelem suffixes 54 nouns 26 pairs 30 identical 0 kinkade 1 kinkade_sum 350 kinkade_above 350 tail 3 tail_sum 1506 tail_above 33 p 34/5001
+language Lushootseed suffixes 19 nouns 20 pairs 12 identical 0 kinkade 0 kinkade_sum 0 kinkade_above 5000 tail 1 tail_sum 274 tail_above 274 p 275/5001
+language Northern Straits suffixes 22 nouns 10 pairs 1 identical 0 kinkade 0 kinkade_sum 0 kinkade_above 5000 tail 0 tail_sum 0 tail_above 5000 p 5001/5001
+language Nɬeʔkepmxcín suffixes 17 nouns 31 pairs 18 identical 4 kinkade 0 kinkade_sum 0 kinkade_above 5000 tail 0 tail_sum 0 tail_above 5000 p 5001/5001
+language St’át’imcets suffixes 8 nouns 24 pairs 9 identical 3 kinkade 0 kinkade_sum 0 kinkade_above 5000 tail 0 tail_sum 0 tail_above 5000 p 5001/5001
+language Twana suffixes 16 nouns 25 pairs 14 identical 0 kinkade 0 kinkade_sum 0 kinkade_above 5000 tail 1 tail_sum 176 tail_above 176 p 177/5001
+language Upper Chehalis suffixes 3 nouns 16 pairs 0 identical 0 kinkade 0 kinkade_sum 0 kinkade_above 5000 tail 0 tail_sum 0 tail_above 5000 p 5001/5001
+language ʔayʔaǰuθəm suffixes 17 nouns 56 pairs 27 identical 1 kinkade 0 kinkade_sum 269 kinkade_above 5000 tail 1 tail_sum 909 tail_above 835 p 836/5001
+pooled kinkade pairs 111 observed 1 sum 619 largest 3 above 587 p 588/5001
+pooled tail pairs 111 observed 6 sum 2865 largest 5 above 0 p 1/5001
+tail     Halkomelem  məstiməxʷ ~ =məxʷ 'people'
+tail     Halkomelem  xʷəlməxʷ ~ =məxʷ 'people'
+Kinkade  Halkomelem  xʷəlməxʷ ~ =əlməxʷ 'people'
+tail     Lushootseed  sxəyʼus ~ =us 'head'
+tail     Twana  sčka·psəb ~ =psəb 'neck'
+tail     ʔayʔaǰuθəm  moʔos ~ =os 'head'

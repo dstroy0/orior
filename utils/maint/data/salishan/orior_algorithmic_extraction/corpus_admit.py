@@ -12,8 +12,9 @@
 #
 # What can be asked is whether the corpus stays on its curve. A pure corpus growing on more of the
 # same language adds support slowly and holds its split-half distance roughly level. Tipping in the
-# whole sifted set does neither: Comox goes from 407 cells and D_self 0.196 to 2586 cells and 0.457,
-# which is a second distribution arriving, not more of the first.
+# whole sifted set does neither: a refused corpus's cells and D_self jump together, which is a second
+# distribution arriving, not more of the first. The Salishan research paper gives the figures, which
+# instrument_figures.py measures.
 #
 # So candidates are sorted by distance to the corpus and admitted in batches while D_self stays
 # inside the band the corpus was already in. Admission stops at the first batch that leaves it.
@@ -49,16 +50,11 @@ from corpus_growth import candidates_by_language, pure_by_language
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    The marker climbed to before was build/, which the repository PRODUCES and not CONTAINS.
-    A linked worktree and a never-built clone both lack it. The climb then walked past the root it
-    was looking for into another checkout entirely, and every path derived from it pointed at a
-    different tree than the tool was run from. That lands on a real repository with real files,
-    which is indistinguishable from working.
-
-    A marker infers the root. Git answers it. The climb below is kept only for an exported tree with
-    no git directory, and it looks for src/python, which is TRACKED: a marker the repository
-    contains is present in every checkout of it, and a marker the repository produces is present in
-    none of them until something has already run.
+    A marker the repository produces, such as build/, is absent from a linked worktree and a
+    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
+    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
+    with no git directory, and it looks for src/python, which the repository tracks and every checkout
+    of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
     inherits it answers about that repository and not about the directory it was asked from,

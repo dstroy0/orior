@@ -20,7 +20,6 @@
 # here has been found, not read.
 
 import collections
-import glob
 import io
 import os
 import subprocess
@@ -32,12 +31,19 @@ for _category in os.scandir(
 ):
     if _category.is_dir():
         sys.path.insert(0, _category.path)
+# The engine's instrument directory, found by walking up to the repository. english_sift lives in the
+# engine and not beside this file.
+_at = os.path.dirname(os.path.abspath(__file__))
+while (_at != os.path.dirname(_at)) and not os.path.isdir(os.path.join(_at, "src", "python")):
+    _at = os.path.dirname(_at)
+sys.path.insert(0, os.path.join(_at, "src", "python", "engine", "nbody", "orior", "instrument"))
 
 from english_sift import (
     PAGE,
-    PAPERS,
+    READ,
     english_reference,
     language_reference,
+    paper_texts,
     sorted_into,
     surprise,
 )
@@ -47,16 +53,11 @@ from paper_language import attribution, named_in
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    The marker climbed to before was build/, which the repository PRODUCES and not CONTAINS.
-    A linked worktree and a never-built clone both lack it. The climb then walked past the root it
-    was looking for into another checkout entirely, and every path derived from it pointed at a
-    different tree than the tool was run from. That lands on a real repository with real files,
-    which is indistinguishable from working.
-
-    A marker infers the root. Git answers it. The climb below is kept only for an exported tree with
-    no git directory, and it looks for src/python, which is TRACKED: a marker the repository
-    contains is present in every checkout of it, and a marker the repository produces is present in
-    none of them until something has already run.
+    A marker the repository produces, such as build/, is absent from a linked worktree and a
+    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
+    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
+    with no git directory, and it looks for src/python, which the repository tracks and every checkout
+    of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
     inherits it answers about that repository and not about the directory it was asked from,
@@ -98,18 +99,6 @@ def _repository_root():
 ROOT = _repository_root()
 SIFTED = os.path.join(ROOT, "build", "corpora", "sifted")
 
-# The nine that already have a reader. Their output is named and verified and does not belong here.
-READ = {
-    "ICSNL59_Garcia_Hannon_Stacey_final",
-    "HallPhillipsICSNL60",
-    "ICSNL59_LaFontaine_Janzen_final",
-    "Matthewson_Redan_ICSNL61",
-    "AlexanderDavis_ICSNL61",
-    "ICSNL56_DavisJ_2_final-1",
-    "22-Nater-Bella-Coola-tale-10",
-    "19-Lyon_ICSNL50_final-78",
-    "2013_Lindley_Lyon",
-}
 
 
 def found_in(path, english, language):
@@ -161,7 +150,9 @@ def main():
     named = 0
     index = []
     candidates = collections.defaultdict(list)
-    for path in sorted(glob.glob(os.path.join(PAPERS, "*.txt"))):
+    # The nine that already have a reader are left out: their output is named and verified and does not
+    # belong here.
+    for path in paper_texts():
         stem = os.path.basename(path)[:-4]
         if stem in READ:
             continue

@@ -97,14 +97,11 @@ def word_key(word):
     return re.sub(r"[-=~]", "", word)
 
 
-def main():
-    sys.stdout.reconfigure(encoding="utf-8")
-    given = next((one for one in sys.argv[1:] if one not in ("with-survey",)), None)
-    keep_survey = "with-survey" in sys.argv[1:]
-    counts = collections.defaultdict(collections.Counter)
+def comparisons(everything, keep_survey):
+    """Per language, each doubled root once, as (pair, verdicts, paper), in the order the rows give them."""
+    found = collections.defaultdict(list)
     seen = collections.defaultdict(set)
-    papers = collections.defaultdict(set)
-    for row in corpus_rows.rows(given):
+    for row in everything:
         if row.kind not in corpus_rows.FORM_KINDS or row.branch not in ("CS", "NIS", "SIS", "NUX", "TS", "TI"):
             continue
         if row.stem in SURVEY and not keep_survey:
@@ -116,9 +113,21 @@ def main():
             if not verdicts or (pair, tuple(verdicts)) in seen[row.language]:
                 continue
             seen[row.language].add((pair, tuple(verdicts)))
-            papers[row.language].add(row.stem)
+            found[row.language].append((pair, verdicts, row.stem))
+    return found
+
+
+def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    given = next((one for one in sys.argv[1:] if one not in ("with-survey",)), None)
+    keep_survey = "with-survey" in sys.argv[1:]
+    counts = collections.defaultdict(collections.Counter)
+    papers = collections.defaultdict(set)
+    for language, found in comparisons(corpus_rows.rows(given), keep_survey).items():
+        for pair, verdicts, stem in found:
+            papers[language].add(stem)
             for verdict in verdicts:
-                counts[row.language][verdict] += 1
+                counts[language][verdict] += 1
     print("%-18s %-9s %9s %6s %7s %6s  %s" % ("language", "Table 4", "IDENTICAL", "SPLIT", "share", "papers", "reading"))
     for language in sorted(counts, key=lambda one: (TABLE_4.get(one, "~"), one)):
         identical, split = counts[language]["IDENTICAL"], counts[language]["SPLIT"]
