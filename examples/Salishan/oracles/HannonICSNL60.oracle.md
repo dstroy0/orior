@@ -39,10 +39,10 @@ Leipzig conventions and footnote 2 lists the others; from Section 3 on xʷúy̓ 
 
 THE PAGE AND THE TEXT LAYER
 
-The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC, then 12 page-read
-corrections. The page text was read by glyph rows, with the word spaces pdfium sets on tight
-justified lines kept (of the, Section 2 presents). The text layer types the null sign as 0/,
+The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
+same repair: a mark the text sets after a space is put back on its letter, then NFC, then 12
+page-read corrections. The page text was read by glyph rows, with the word spaces pdfium sets on
+tight justified lines kept (of the, Section 2 presents). The text layer types the null sign as 0/,
 repaired to ∅, and the denotation brackets of (22) and (49) as J and K, repaired to ⟦ and ⟧, read at
 300 dpi. The superscript g and the subscript type <l,st> of a denotation are set on the line. (20),
 (21), (23), (24), (29) and (30) print the letter Ø for the null sign, kept as printed. The page

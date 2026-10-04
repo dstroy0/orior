@@ -27,11 +27,11 @@ between slashes.
 
 THE PAGE AND THE TEXT LAYER
 
-The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC. The fonts are CID
-TrueType subsets with no ToUnicode map; their glyphs are named by outline and the paper is read by
-glyph rows. The gloss of tχalpχ in (3), ‘four (things, animals), is printed with no closing quote,
-and the paper numbers its conclusion 5 after 3 Discussion.
+The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
+same repair: a mark the text sets after a space is put back on its letter, then NFC. The fonts are
+CID TrueType subsets with no ToUnicode map; their glyphs are named by outline and the paper is read
+by glyph rows. The gloss of tχalpχ in (3), ‘four (things, animals), is printed with no closing
+quote, and the paper numbers its conclusion 5 after 3 Discussion.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 175
