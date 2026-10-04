@@ -33,6 +33,9 @@ int run_cfg_count(const RunCfg *cfg, const char *path, unsigned long long *value
 // the array of decimal strings at `path` read exactly: 1, or 0 where it is missing, empty or an element does not read
 int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRational> *values);
 
+// the array of whole numbers at `path`: 1, or 0 where it is missing, empty or an element does not read
+int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values);
+
 // the string at `path` as it is written, without escapes read: 1, or 0 where it is missing, empty or not a string
 int run_cfg_text(const RunCfg *cfg, const char *path, std::string *value);
 

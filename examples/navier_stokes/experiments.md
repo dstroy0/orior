@@ -70,17 +70,37 @@ His family, as his code writes it:
 e^(-1/s), psi, the Kummer w, x^h, and A K and A J from axis_heat. Check: the 8 components equal the matching
 combinations of the Taylor coefficients already held, exactly.
 
+Measured (`witness_known`, 5 checks): the trilinear form's 8 terms each have character 1, the product's 2 terms
+character 8, and A K and A J 8 terms each of character 8, every corner holding its own E1(s_b) and e^(-s_b).
+
 ## 2. The axis core
 
 The subject is F, U and Pi over (X, eta, h), the cubes centered at X = 0, eta = 0 and eta = 1. Recorded: the
 difference of the forms at order K and K + 1 for K = 40, 60, 80, and the ratio and root estimates at each order,
 beside his radius of 3.9 to 4.0.
 
+Measured (`core_cubes`, 3 checks, 512 limbs) on his 8-parameter F_0 and U_0 with Pi_0 = 0, which stands in until
+the datum of experiment 6 replaces it; half-edges 1/8, 1/8 and 1/1000 in (X, eta, h):
+
+| cube center (X, eta, h) | largest component change, 40 to 60 | 60 to 80 |
+|-------------------------|------------------------------------|----------|
+| (1/8, 0, 1/100)         | 1.2e-56                            | 2.0e-84  |
+| (1/8, 7/8, 1/100)       | 2.2e-63                            | 3.2e-94  |
+| (1, 0, 1/100)           | 8.2e-30                            | 1.6e-44  |
+
+The change falls by about 1e-15 for each 20 orders at the join, which puts the radius near 6 for these data. Near
+the axis c_0 = c_1, c_2 = c_3, c_4 = c_5 and c_6 = c_7 for Pi: every corner at X = 0 is Pi_0 = 0.
+
 ## 3. The datum against the join's own choices
 
 The subject is the right side of Pi_0 over (X_a, X_b, eta). The answer depends on eta; the X_a and X_b components
 measure how much the join's placement puts into it. A sweep over blend terms, orders and cuts records the
 difference forms.
+
+Measured (`datum_cubes`, 3 checks) about (X_a, X_b, eta) = (1, 2, 1/2), half-edges 1/8: 877 terms over 57 atoms.
+873 terms have character 8. The 4 terms of the exterior tail have character 4, held in c_0, c_2, c_4 and c_6 alone,
+the components with no X_a direction: the tail does not depend on X_a. The part with no atom has c_0 = -0.168,
+c_1 = -0.0074 (X_a), c_2 = -0.0101 (X_b) and c_4 = 0.0218 (eta).
 
 ## 4. The annulus family and the six identities
 
