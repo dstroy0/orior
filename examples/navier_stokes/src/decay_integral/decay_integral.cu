@@ -79,14 +79,37 @@ static SimRational decay_integral_polynomial(const std::vector<SimRational> &val
     return sum;
 }
 
-AtomForm decay_integral_from_zero(unsigned int k, SimRational n, SimRational b, AtomBook *book)
+AtomForm decay_integral_from_zero(int k, SimRational n, SimRational b, AtomBook *book)
 {
     const SimRational x = sim_rational_product(n, sim_rational_reciprocal(b));
+    if (k == -1)
+    {
+        return atom_form_atom(atom_book_id(book, "E1(" + atom_book_rational(x) + ")"));
+    }
+    if (k < -1)
+    {
+        // E_m = r_m e^(-x), r_0 = 1 / x and r_m = (1 - m r_(m+1)) / x, down to m = k + 2; times b^(k+1)
+        const SimRational over = sim_rational_reciprocal(x);
+        SimRational share = over;
+        for (int m = -1; m >= k + 2; m -= 1)
+        {
+            share = sim_rational_product(
+                sim_rational_difference(sim_rational(1ll, 1ll), sim_rational_product(sim_rational(m, 1ll), share)),
+                over);
+        }
+        SimRational lift = sim_rational(1ll, 1ll);
+        for (int step = k + 1; step < 0; step += 1)
+        {
+            lift = sim_rational_product(lift, sim_rational_reciprocal(b));
+        }
+        return atom_form_scaled(atom_form_e(sim_rational_negative(x)), sim_rational_product(lift, share));
+    }
     std::vector<SimRational> a;
     std::vector<SimRational> bb;
-    decay_integral_reduction(k + 2u, &a, &bb);
+    // k is 0 or more here
+    decay_integral_reduction((unsigned int)k + 2u, &a, &bb);
     SimRational lift = b;
-    for (unsigned int step = 0u; step < k; step += 1u)
+    for (int step = 0; step < k; step += 1)
     {
         lift = sim_rational_product(lift, b);
     }
@@ -97,6 +120,31 @@ AtomForm decay_integral_from_zero(unsigned int k, SimRational n, SimRational b, 
     const AtomForm integral_part = atom_form_scaled(atom_form_atom(integral),
                                                     sim_rational_product(lift, decay_integral_polynomial(bb, x)));
     return atom_form_sum(decay_part, integral_part);
+}
+
+SimRational decay_integral_negative_residual(int k, SimRational x)
+{
+    // r and r' from m = 0 down to k + 2: r_0 = 1/x, r_0' = -1/x^2, r_m = (1 - m r_(m+1)) / x,
+    // r_m' = (-m r_(m+1)' x - (1 - m r_(m+1))) / x^2
+    const SimRational over = sim_rational_reciprocal(x);
+    SimRational share = over;
+    SimRational slope = sim_rational_negative(sim_rational_product(over, over));
+    for (int m = -1; m >= k + 2; m -= 1)
+    {
+        const SimRational top = sim_rational_difference(sim_rational(1ll, 1ll), sim_rational_product(sim_rational(m, 1ll), share));
+        const SimRational next_slope = sim_rational_product(
+            sim_rational_difference(sim_rational_negative(sim_rational_product(sim_rational_product(sim_rational(m, 1ll), slope), x)),
+                                    top),
+            sim_rational_product(over, over));
+        share = sim_rational_product(top, over);
+        slope = next_slope;
+    }
+    // (k + 1) r - x r' + x r - 1
+    return sim_rational_difference(
+        sim_rational_sum(sim_rational_difference(sim_rational_product(sim_rational(k + 1, 1ll), share),
+                                                 sim_rational_product(x, slope)),
+                         sim_rational_product(x, share)),
+        sim_rational(1ll, 1ll));
 }
 
 int decay_integral_short(void)

@@ -80,6 +80,9 @@ int atom_form_zero(const AtomForm &form);
 // the coefficient of the term with no atom and e^0
 SimRational atom_form_constant(const AtomForm &form);
 
+// the largest magnitude among the form's coefficients, 0 for the form 0
+SimRational atom_form_largest(const AtomForm &form);
+
 // the coefficient of the term that is the atom `atom` alone, e^0
 SimRational atom_form_coefficient_of(const AtomForm &form, unsigned int atom);
 

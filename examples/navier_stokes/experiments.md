@@ -107,12 +107,19 @@ c_1 = -0.0074 (X_a), c_2 = -0.0101 (X_b) and c_4 = 0.0218 (eta).
 Both sides of each identity as exact forms, the difference reduced in the atoms. Every term left in the difference is
 recorded: those are the terms the identity drops.
 
+Measured (`matching_functions`, 6 checks) on his 8-parameter F_0, U_0 and b_0 = -2.01, with b_1 = 0 standing in
+for the value he does not print and Pi_0 = 0 for the datum: at eta = 0 and 1/2 the six functions are exact forms of
+34 to 291 terms over 31 atoms. With the blend switched off the core alone fills the annulus, and its torque and force
+come out at 1.2e-10 and 3.7e-11, the core series' own truncation at order 24: the boundary terms and the parts taken
+out by parts are right.
+
 ## 5. The fits
 
 His parameters enter the series polynomially and the Jacobian is exact. Exact Gauss-Newton on the six functions,
 the atoms defined by his decimals.
 
-- 5a. The exterior tail, c^2 X_b^(-2h) / (4h) at his values, against 0.99.
+- 5a. The exterior tail, c^2 X_b^(-2h) / (4h) at his values, against 0.99. Measured: it is exactly 2^(-1/50), and
+  two exact comparisons, 0.985^50 2 < 1 < 0.995^50 2, put it within his two places of 0.99.
 - 5b. The 8-parameter optimum. His printed F_0, U_0 and b_0 are put in exactly and b_1 is solved for. Check: the
   root-mean-square converges onto 0.077, and a fit over all 8 lands on his printed coefficients within his places.
 - 5c. The 32-parameter matched core. Check: the forms converge onto every value in the 32-parameter table.
