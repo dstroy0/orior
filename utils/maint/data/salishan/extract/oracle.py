@@ -22,7 +22,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from workdir import FINISH, ORACLES, WORK  # noqa: E402
+from workdir import FINISH, ORACLES, PRIVATE, WORK  # noqa: E402
 import ops  # noqa: E402
 import tables  # noqa: E402
 
@@ -85,9 +85,12 @@ def main():
         # A page text transcribed from a scan is the reading; the tools that read the text layer
         # have nothing to read there.
         known = tables.of(stem)
+        # A paper read by glyph rows (a .rows file beside its page text) is read so again.
+        rows = os.path.isfile(os.path.join(PRIVATE, "pagetext", stem + ".rows"))
         if not getattr(known, "TRANSCRIBED_FROM_SCAN", False):
-            for tool in ("space_census.py", "stacked_census.py", "page_text.py"):
+            for tool in ("space_census.py", "stacked_census.py"):
                 run(tool, stem)
+            run("page_text.py", stem, *(("rows",) if rows else ()))
         run("paper_sift.py", stem, authors, language)
         print(run("draft_check.py", stem).strip().split("\n")[-1])
         if not os.path.exists(path):

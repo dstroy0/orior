@@ -163,14 +163,21 @@ def tounicode_stream(entries):
 # and advance width, hashed. A glyph copied from a system face has the same key as the system face's
 # own glyph, and OUTLINE_FACES names the face to look in for each font; a glyph of a face the system
 # lacks is named in outline_letters.tsv, each outline read by eye off outline_sheet.py's drawing and
-# checked in the decoded text.
+# checked in the decoded text. Adobe's Times-Roman, which Windows lacks, is looked for in TeX Gyre
+# Termes, the clone of its shapes MiKTeX installs; its outlines are no copy, and outline_match.py
+# names those glyphs by raster.
+TERMES = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "MiKTeX", "fonts", "opentype", "public",
+                      "tex-gyre", "texgyretermes-")
 OUTLINE_FACES = {"TimesNewRomanPSMT": "times.ttf", "TimesNewRomanPS-BoldMT": "timesbd.ttf",
                  "TimesNewRomanPS-ItalicMT": "timesi.ttf", "TimesNewRomanPS-BoldItalicMT": "timesbi.ttf",
                  "Arial": "arial.ttf", "DejaVuSans": "DejaVuSans.ttf", "LucidaSansUnicode": "l_10646.ttf",
                  "TimesNewRoman": "times.ttf", "TimesNewRoman,Bold": "timesbd.ttf",
                  "TimesNewRoman,Italic": "timesi.ttf", "TimesNewRoman,BoldItalic": "timesbi.ttf",
                  "Calibri": "calibri.ttf", "Calibri,Bold": "calibrib.ttf", "Calibri,Italic": "calibrii.ttf",
-                 "Calibri,BoldItalic": "calibriz.ttf"}
+                 "Calibri,BoldItalic": "calibriz.ttf", "Times-Roman": TERMES + "regular.otf",
+                 "Times-Bold": TERMES + "bold.otf", "Times-Italic": TERMES + "italic.otf",
+                 "Times-BoldItalic": TERMES + "bolditalic.otf", "Symbol": "symbol.ttf",
+                 "SymbolMT": "symbol.ttf", "Helvetica": "arial.ttf", "CourierNewPSMT": "cour.ttf"}
 PAPER_OUTLINED = tables.members("PAPER_OUTLINED")
 _FACE_KEYS = {}
 
@@ -185,20 +192,31 @@ def outline_key(glyphset, name, advance):
 
 
 def face_keys(face):
-    """{outline key: text} for every glyph a system face's cmap maps, the lowest code point past the
-    private use area where several map to one glyph."""
+    """{outline key: text} for every glyph a system face's cmap maps. Where several code points
+    draw one outline, the right single quote and the modifier apostrophe of Times New Roman, the
+    text is a character Windows-1252 holds, as Word exports, and failing that the lowest code point
+    past the private use area."""
     if face not in _FACE_KEYS:
         font = TTFont(os.path.join("C:/Windows/Fonts", face))
         glyphset, units = font.getGlyphSet(), font["head"].unitsPerEm
-        names = {}
+        drawn = {}
         for point, name in font.getBestCmap().items():
-            names.setdefault(name, []).append(point)
+            key = outline_key(glyphset, name, font["hmtx"][name][0] * 2048 // units)
+            drawn.setdefault(key, []).append(point)
         keys = {}
-        for name, points in names.items():
-            points = sorted(points, key=lambda point: (0xE000 <= point <= 0xF8FF, point))
-            keys.setdefault(outline_key(glyphset, name, font["hmtx"][name][0] * 2048 // units), chr(points[0]))
+        for key, points in drawn.items():
+            points = sorted(points, key=lambda point: (0xE000 <= point <= 0xF8FF, not in_cp1252(point), point))
+            keys[key] = chr(points[0])
         _FACE_KEYS[face] = keys
     return _FACE_KEYS[face]
+
+
+def in_cp1252(point):
+    try:
+        chr(point).encode("cp1252")
+        return True
+    except UnicodeEncodeError:
+        return False
 
 
 def outline_letters():
@@ -1792,6 +1810,13 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                     # apart, where no f inside a word stands more than -0.03 em from its letter.
                     # There the stream's space goes.
                     if previous[0][-1] == "f" and spaced and previous[3] == order - 1 and gap > -0.06 * size:
+                        streamed = True
+                    # Between two glyphs of a face named in stream_faces, the space the stream itself
+                    # carries stands whatever the gap: the italic f of Jules's returned for and off
+                    # for in (55) and (45) reaches back over the space to the letter before it.
+                    if spaced is True and previous[3] == order - 1 and \
+                            any(face in font for face in stream_faces) and \
+                            any(face in previous[2] for face in stream_faces):
                         streamed = True
                     # The box of a stop is narrower than its advance, and a stop with a stop or a
                     # letter after it takes the gap test of U+2019: the stops of built... on Lyon and
