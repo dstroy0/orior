@@ -268,7 +268,11 @@ int agreement_launched(void)
     return (cudaGetLastError() == cudaSuccess) ? 1 : 0;
 }
 
-#define SHIFT_AGREEMENT_TABLES 8u
+// one slot for every power of two from 1 to the longest axis, held at its logarithm: every padded length a run can
+// ask has its slot, and no length is turned away
+#define SHIFT_AGREEMENT_TABLES 24u
+static_assert((1u << (SHIFT_AGREEMENT_TABLES - 1u)) == SHIFT_AGREEMENT_LONGEST_AXIS,
+              "shift_agreement: one table slot for every power of two to the longest axis");
 
 static AxisTables s_axis_tables[SHIFT_AGREEMENT_TABLES];
 
@@ -284,27 +288,20 @@ static unsigned int agreement_reverse(unsigned int position, unsigned int bits)
 
 const AxisTables *axis_tables(unsigned int length)
 {
-    for (unsigned int slot = 0u; slot < SHIFT_AGREEMENT_TABLES; slot += 1u)
+    unsigned int logarithm = 0u;
+    while ((logarithm < SHIFT_AGREEMENT_TABLES) && ((1u << logarithm) < length))
     {
-        if (s_axis_tables[slot].length == length)
-        {
-            return &s_axis_tables[slot];
-        }
+        logarithm += 1u;
     }
-    unsigned int free_slot = SHIFT_AGREEMENT_TABLES;
-    for (unsigned int slot = 0u; (slot < SHIFT_AGREEMENT_TABLES) && (free_slot == SHIFT_AGREEMENT_TABLES); slot += 1u)
-    {
-        free_slot = (s_axis_tables[slot].length == 0u) ? slot : free_slot;
-    }
-    if (free_slot == SHIFT_AGREEMENT_TABLES)
+    // a length that is not a power of two to the longest axis has no slot, and the run errors on it
+    if ((logarithm == SHIFT_AGREEMENT_TABLES) || ((1u << logarithm) != length))
     {
         return NULL;
     }
-    AxisTables *const tables = &s_axis_tables[free_slot];
-    unsigned int logarithm = 0u;
-    while ((1u << logarithm) < length)
+    AxisTables *const tables = &s_axis_tables[logarithm];
+    if (tables->length == length)
     {
-        logarithm += 1u;
+        return tables;
     }
     unsigned int *const host = (unsigned int *)malloc((size_t)length * sizeof(unsigned int));
     tables->negation = (unsigned int *)malloc((size_t)length * sizeof(unsigned int));

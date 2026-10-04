@@ -63,7 +63,7 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_E
 
 DEFINES=(-DBODY_OVERLAP_BUILD_DLL=1 -DHEAVIEST_MATCHING_BUILD_DLL=1
          -DSHIFT_AGREEMENT_BUILD_DLL=1)
-MODULES=(c/includes/formats/stack cu/includes/formats/stack c/kcmplx cu/kcmplx
+MODULES=(c/includes/formats/stack cu/includes/formats/stack c/types/file_defs/krep cu/types/file_defs/krep
          c/engine/analysis/compression cu/engine/analysis/compression c/engine/analysis/tower
          cu/engine/analysis/tower c/engine/runtime/device_pool cu/engine/runtime/device_pool
          c/engine/analysis/entropy_history cu/engine/analysis/entropy_history c/engine/analysis/keymath

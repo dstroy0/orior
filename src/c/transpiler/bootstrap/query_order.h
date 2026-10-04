@@ -34,6 +34,9 @@ typedef struct
     unsigned int links;
     // the address of a counter found by QUERY_ADVANCES, read before and after every ask of the order
     unsigned long long clock;
+    // the most reads one wait for the clock's turn may take, as QUERY_ADVANCES takes its `turns`: a clock that does
+    // not turn inside them refuses the order
+    unsigned long long turns;
     // how many times each covered link is put inside one ask of the order
     unsigned long long repeat;
     // how many times the whole order is put
@@ -41,8 +44,8 @@ typedef struct
 } QueryOrder;
 
 // The order put, every pass's cost of every ask into `cost`, pass by pass: cost[pass * links + ask], which holds
-// `order->passes` times `order->links` of them. 1, or 0 where the link count has no known order or no clock was
-// given
+// `order->passes` times `order->links` of them. 1, or 0 where the link count has no known order, no clock was given,
+// or the clock did not turn inside `order->turns` reads
 int query_order_put(const QueryOrder *order, QueryCost *cost);
 
 // Every link's cost from one pass of the order's costs, exactly: link c costs numerator[c] / denominator, the

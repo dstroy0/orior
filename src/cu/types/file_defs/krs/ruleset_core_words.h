@@ -4,8 +4,8 @@
 #ifndef RULESET_CORE_WORDS_H
 #define RULESET_CORE_WORDS_H
 
-// The .krs reader past opening the file, ported word for word from the host's (target_parse.cu and
-// target_rulesets.cu as they were): the file's lines read against the schema into each bank's, fixed register's and
+// The .krs reader past opening the file, word for word the host's (target_parse.cu and target_rulesets.cu): the
+// file's lines read against the schema into each bank's, fixed register's and
 // form's written form and each construct's lines, and the scratch each form takes (ruleset_scratch). A string the host
 // held is a span of the file or of the texts the reader writes; a list is a span of one list the reader appends to.
 // The device runs it in one thread (codegen_reader.cu), since each line is read against every line before it.
@@ -245,9 +245,9 @@ CODEGEN_CORE void ruleset_core_letter(RulesetCoreRead *read, unsigned char lette
     read->pieces[read->piece_count - 1u].length += 1u;
 }
 
-// the file's span `text` cut at its parameters into `form`, as ruleset_split cuts it: \t, \n and \\ are a tab, a
-// line's end and a backslash, and {p} is parameter p's argument where p is one of the `count` `parameters`, each a span
-// of `parameter_letters`. 0 where a backslash begins no escape the format knows
+// the file's span `text` cut at its parameters into `form`: \t, \n and \\ are a tab, a line's end and a backslash,
+// and {p} is parameter p's argument where p is one of the `count` `parameters`, each a span of `parameter_letters`. 0
+// where a backslash begins no escape the format knows
 CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text, const unsigned char *parameter_letters,
                                     const RulesetCoreSpan *parameters, unsigned int count, RulesetCoreTemplate *form)
 {

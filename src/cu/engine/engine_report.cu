@@ -208,8 +208,8 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         ok = ok && (entry_iapx_encode(device_lanes, extent, &written, &floors, error) != 0);
         written.lane_offset = lane_offset;
         ok = ok && entry_seal_make(device_lanes, &written, &section, &seal, error);
-        const ApxrepInputRequest write = {iapx_path, &written, &section, &seal, error};
-        ok = ok && (apxrep_input_write(&write) != 0);
+        const KrepCrystalRequest write = {iapx_path, &written, &section, &seal, error};
+        ok = ok && (krep_crystal_write(&write) != 0);
         record->crystal_written = ok ? 1ull : 0ull;
 
         EngineStream file;
@@ -220,17 +220,17 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         memset(&back_seal, 0, sizeof(back_seal));
         unsigned long long pixels_differ = 0ull;
         std::vector<unsigned short> rebuilt(ok ? (size_t)lanes : 0u);
-        const ApxrepInputRequest read = {iapx_path, &file, &back, &back_seal, error};
-        ok = ok && apxrep_input_read(&read) &&
+        const KrepCrystalRequest read = {iapx_path, &file, &back, &back_seal, error};
+        ok = ok && krep_crystal_read(&read) &&
              ENGINE_CHECK((memcmp(file.extent, extent, sizeof(extent)) == 0) && (file.chunks == written.chunks) &&
                               (file.bits == written.bits) && (file.lane_offset == written.lane_offset) &&
                               entry_signum_same(&back_seal.roots[ENGINE_SEAL_SAMPLE], &seal.roots[ENGINE_SEAL_SAMPLE]),
                           &file, error, ENGINE_ERROR_LOGIC) &&
              entry_crystal_verify(&file, &back, &back_seal, device_lanes, rebuilt.data(), record, error) &&
              ENGINE_CHECK(entry_side_same(&back.side, &section.side), &back, error, ENGINE_ERROR_LOGIC);
-        apxrep_input_release(&file);
-        apxrep_side_release(&back);
-        apxrep_seal_release(&back_seal);
+        krep_crystal_release(&file);
+        krep_side_release(&back);
+        krep_seal_release(&back_seal);
         cudaFree(device_lanes);
         unsigned long long again[4] = {0ull, 0ull, 0ull, 0ull};
         unsigned short *disk = NULL;
@@ -247,12 +247,12 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         }
         free(disk);
         record->floors = floors;
-        record->crystal_bytes = apxrep_input_bytes(&written, &section, &seal);
+        record->crystal_bytes = krep_crystal_bytes(&written, &section, &seal);
         record->raw_bytes = lanes * 2ull;
         record->root = seal.roots[ENGINE_SEAL_SAMPLE];
         record->pixels_differ = pixels_differ;
-        apxrep_side_release(&section);
-        apxrep_seal_release(&seal);
+        krep_side_release(&section);
+        krep_seal_release(&seal);
         if (ok == 0)
         {
             remove(iapx_path);
@@ -315,19 +315,19 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
         memset(&section, 0, sizeof(section));
         EngineSeal seal;
         memset(&seal, 0, sizeof(seal));
-        const ApxrepInputRequest read = {iapx_path, &file, &section, &seal, error};
+        const KrepCrystalRequest read = {iapx_path, &file, &section, &seal, error};
         const int ok = ENGINE_CHECK(engine_sample_path(iapx_path, sizeof(iapx_path), request->set,
                                                        request->samples[sample], ENTRY_CRYSTAL_SUFFIX) != 0,
                                     request->samples[sample], error, ENGINE_ERROR_REQUEST) &&
-                       apxrep_input_read(&read) &&
+                       krep_crystal_read(&read) &&
                        entry_crystal_verify(&file, &section, &seal, NULL, NULL, record, error);
         const unsigned long long lanes = entry_lanes(file.extent);
         record->placed = 1ull;
-        record->crystal_bytes = apxrep_input_bytes(&file, &section, &seal);
+        record->crystal_bytes = krep_crystal_bytes(&file, &section, &seal);
         record->raw_bytes = lanes * 2ull;
-        apxrep_input_release(&file);
-        apxrep_side_release(&section);
-        apxrep_seal_release(&seal);
+        krep_crystal_release(&file);
+        krep_side_release(&section);
+        krep_seal_release(&seal);
         if (ok == 0)
         {
             continue;
@@ -356,7 +356,7 @@ extern "C" void engine_side_release(EngineSideBytes *side)
     EngineSideSection section;
     memset(&section, 0, sizeof(section));
     section.side = *side;
-    apxrep_side_release(&section);
+    krep_side_release(&section);
     memset(side, 0, sizeof(*side));
 }
 
@@ -384,20 +384,20 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
     memset(&seal, 0, sizeof(seal));
     EngineSampleRecord record;
     memset(&record, 0, sizeof(record));
-    const ApxrepInputRequest read = {iapx_path, &file, &section, &seal, error};
+    const KrepCrystalRequest read = {iapx_path, &file, &section, &seal, error};
     int ok = ENGINE_CHECK(engine_sample_path(iapx_path, sizeof(iapx_path), set, sample, ENTRY_CRYSTAL_SUFFIX) != 0,
                           sample, error, ENGINE_ERROR_REQUEST) &&
-             apxrep_input_read(&read);
+             krep_crystal_read(&read);
     const unsigned long long lanes = ok ? entry_lanes(file.extent) : 0ull;
     unsigned short *const rebuilt = ok ? (unsigned short *)malloc((size_t)lanes * sizeof(unsigned short)) : NULL;
     ok = ok && ENGINE_CHECK(rebuilt != NULL, &rebuilt, error, ENGINE_ERROR_RESOURCE) &&
          entry_crystal_verify(&file, &section, &seal, NULL, rebuilt, &record, error);
-    apxrep_input_release(&file);
-    apxrep_seal_release(&seal);
+    krep_crystal_release(&file);
+    krep_seal_release(&seal);
     if (ok == 0)
     {
         free(rebuilt);
-        apxrep_side_release(&section);
+        krep_side_release(&section);
         ScripturaLine line;
         line.capacity = ENTRY_ROW_TEXT + scriptura_length(sample, ENTRY_PATH_CAPACITY);
         line.out = (char *)malloc((size_t)line.capacity);
@@ -426,7 +426,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
     }
     else
     {
-        apxrep_side_release(&section);
+        krep_side_release(&section);
     }
     return 0L;
 }

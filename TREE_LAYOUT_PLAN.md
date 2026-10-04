@@ -4,8 +4,8 @@
 `evidence/` and of `examples/` has a row in `TREE_LAYOUT_PLAN.tsv`: where it is, where it goes, and why. Every
 function the three host entry points share has a row in each of them, and a row with nothing at it yet says
 what is to be written there.
-**Scope:** 2725 rows: 1660 files `git ls-files` lists under `src/`, `utils/test/`, `evidence/` and `examples/`, the
-2 definitions that come in from `utils/`, and 1063 files to write. `src/import/` is outside this plan.
+**Scope:** 2711 rows: 1655 files `git ls-files` lists under `src/`, `utils/test/`, `evidence/` and `examples/`, the
+2 definitions that come in from `utils/`, and 1054 files to write. `src/import/` is outside this plan.
 
 Nothing is moved by this file. `python utils/maint/engine/tree_layout_check.py` reads the map against the tree
 and names every file the map does not hold, every row whose file is not there, and every file still to write.
@@ -30,7 +30,7 @@ and names every file the map does not hold, every row whose file is not there, a
   `evidence/`'s, in `evidence/sims/r/` and `evidence/sims/matlab/`.
 - Inside a container the categories are the skeleton's. `types/` holds what a value or a file is.
   `includes/` holds what the rest builds on and does not own: arithmetic, codecs, external file formats, and
-  the answers that come from outside the sample. `apxrep/` becomes `kcmplx/`. `engine/` holds analysis,
+  the answers that come from outside the sample. `engine/` holds analysis,
   render, runtime, prg_sch and nbody, with `cycle/`, `keymath/`, `key_schedule/` and `compression/` in
   `engine/analysis/`. `transpiler/` holds the rest of what `compiler/` holds now, and the qasm reader.
 - `types/file_defs/` defines the file types, one directory per suffix `gnascor.md` names, and holds the code
@@ -49,7 +49,7 @@ and names every file the map does not hold, every row whose file is not there, a
 
 ```text
 src/                                                             now   write
-├── c/                                                           261    +177
+├── c/                                                           260    +175
 │   ├── types/                                                    27      +5
 │   │   ├── file_defs/                                             5      +3
 │   │   │   ├── kdm/                                               1        
@@ -91,7 +91,6 @@ src/                                                             now   write
 │   │   │   └── zarr/                                              4        
 │   │   └── oracle/                                                0      +3
 │   │       └── language/                                          0      +3
-│   ├── kcmplx/                                                    1      +2
 │   ├── engine/                                                  104    +118
 │   │   ├── analysis/                                             15     +68
 │   │   │   ├── compression/                                       1      +1
@@ -146,7 +145,7 @@ src/                                                             now   write
 │       ├── emit/                                                  5        
 │       │   └── layouts/                                           1        
 │       └── qasm/                                                 28      +6
-├── cu/                                                          170    +179
+├── cu/                                                          167    +179
 │   ├── types/                                                    10     +14
 │   │   ├── file_defs/                                             9      +3
 │   │   │   ├── kdm/                                               0      +1
@@ -188,7 +187,6 @@ src/                                                             now   write
 │   │   │   └── zarr/                                              0      +2
 │   │   └── oracle/                                                0      +3
 │   │       └── language/                                          0      +3
-│   ├── kcmplx/                                                    3        
 │   ├── engine/                                                   99     +72
 │   │   ├── analysis/                                             50     +34
 │   │   │   ├── compression/                                       1        
@@ -239,7 +237,7 @@ src/                                                             now   write
 │       ├── cubin/                                                 0      +2
 │       ├── emit/                                                  0      +2
 │       └── qasm/                                                  8     +16
-└── python/                                                       97    +215
+└── python/                                                       97    +213
     ├── types/                                                     4     +16
     │   ├── file_defs/                                             0      +6
     │   │   ├── kdm/                                               0      +1
@@ -280,7 +278,6 @@ src/                                                             now   write
     │   │   └── zarr/                                              0      +2
     │   └── oracle/                                                6        
     │       └── language/                                          4        
-    ├── kcmplx/                                                    0      +2
     ├── engine/                                                   51    +110
     │   ├── analysis/                                             39     +37
     │   │   ├── compression/                                       0      +1
@@ -414,7 +411,7 @@ src/sims/                                                        now   write
 
 ```text
 utils/test/src/                                                  now   write
-├── c/                                                            55    +123
+├── c/                                                            55    +121
 │   ├── types/                                                     1     +10
 │   │   ├── file_defs/                                             0      +4
 │   │   │   ├── kdm/                                               0      +1
@@ -455,7 +452,6 @@ utils/test/src/                                                  now   write
 │   │   │   └── zarr/                                              0      +1
 │   │   └── oracle/                                                0      +1
 │   │       └── language/                                          0      +1
-│   ├── kcmplx/                                                    0      +1
 │   ├── engine/                                                   28     +75
 │   │   ├── analysis/                                              3     +49
 │   │   │   ├── compression/                                       0      +1
@@ -498,14 +494,13 @@ utils/test/src/                                                  now   write
 │   │       ├── obsignatio/                                        1      +4
 │   │       ├── schedule/                                          0      +1
 │   │       └── scriptura/                                         1        
-│   └── transpiler/                                               26     +12
+│   └── transpiler/                                               26     +11
 │       ├── bootstrap/                                             9        
 │       ├── cell/                                                 13      +2
 │       ├── codegen/                                               2      +3
 │       ├── cubin/                                                 0      +1
-│       ├── emit/                                                  0      +1
 │       └── qasm/                                                  2      +5
-├── cu/                                                          110    +102
+├── cu/                                                          109    +101
 │   ├── types/                                                     4      +9
 │   │   ├── file_defs/                                             0      +4
 │   │   │   ├── kdm/                                               0      +1
@@ -546,7 +541,6 @@ utils/test/src/                                                  now   write
 │   │   │   └── zarr/                                              0      +1
 │   │   └── oracle/                                                0      +1
 │   │       └── language/                                          0      +1
-│   ├── kcmplx/                                                    0      +1
 │   ├── engine/                                                   78     +48
 │   │   ├── analysis/                                             66     +14
 │   │   │   ├── compression/                                       0      +1
@@ -589,17 +583,16 @@ utils/test/src/                                                  now   write
 │   │       ├── obsignatio/                                        6        
 │   │       ├── schedule/                                          0      +1
 │   │       └── scriptura/                                         0      +1
-│   └── transpiler/                                               28     +19
+│   └── transpiler/                                               27     +19
 │       ├── bootstrap/                                             0      +8
 │       ├── cell/                                                  3      +9
 │       ├── codegen/                                               8      +1
 │       │   └── rulesets/                                          2        
 │       │       └── flagless/                                      2        
 │       ├── cubin/                                                 0      +1
-│       ├── emit/                                                  1        
 │       └── qasm/                                                 16        
 │           └── vectors/                                           8        
-└── python/                                                        8    +153
+└── python/                                                        8    +151
     ├── types/                                                     1     +10
     │   ├── file_defs/                                             0      +4
     │   │   ├── kdm/                                               0      +1
@@ -640,7 +633,6 @@ utils/test/src/                                                  now   write
     │   │   └── zarr/                                              0      +1
     │   └── oracle/                                                0      +1
     │       └── language/                                          0      +1
-    ├── kcmplx/                                                    0      +1
     ├── engine/                                                    7     +87
     │   ├── analysis/                                              5     +47
     │   │   ├── compression/                                       0      +1
@@ -683,12 +675,11 @@ utils/test/src/                                                  now   write
     │       ├── obsignatio/                                        0      +4
     │       ├── schedule/                                          0      +1
     │       └── scriptura/                                         0      +1
-    └── transpiler/                                                0     +30
+    └── transpiler/                                                0     +29
         ├── bootstrap/                                             0      +8
         ├── cell/                                                  0     +11
         ├── codegen/                                               0      +4
         ├── cubin/                                                 0      +1
-        ├── emit/                                                  0      +1
         └── qasm/                                                  0      +5
 ```
 

@@ -45,8 +45,8 @@ static unsigned int precept_leaf(unsigned char leaf, const PreceptCase *given)
     return (place < given->operands) ? given->operand[place] : 0u;
 }
 
-// `precept` applied to two words. A shift takes its count from the low bits of the right word, as every part this
-// has been asked of does, and a count at or past the width answers zero in place of leaving it to the language
+// `precept` applied to two words. A shift takes its count from the low five bits of the right word, as every part
+// this has been asked of does: the count wraps at the width, and a count of 32 answers the word unshifted
 static unsigned int precept_applied(unsigned char precept, unsigned int left, unsigned int right)
 {
     const unsigned int count = right & (PRECEPT_WORD_BITS - 1u);

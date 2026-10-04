@@ -22,28 +22,35 @@ itself depends on it.
 ## Where things live
 
 A module's place depends on whether its request carries a body count. The folders below `nbody/` never see a body.
+The engine's folders are under `c/engine/`, with the device code of each under the same name in `cu/engine/`:
 
-- `formats/` reads and writes the source and stored formats (zarr, tiff, hdf5, nifti, nrrd, dicom, npy, the stack,
-  cfg_json, apxrep, krep), and `codecs/` holds their compressors and the CRC.
-- `arithmetic/` holds exact arithmetic (`no_rounding/`) and the exact decimal and double fields.
 - `analysis/` holds the measures of the lattice itself: the tower, the residual, the period, compression, the entropy
-  history, shift agreement, the noise detector and the rest.
-- `compiler/` holds the record compiler: keymath, key_schedule, the cycle machine, code generation and the cell.
+  history, shift agreement, the noise detector and the rest, and the record compiler's keymath, key_schedule and
+  cycle machine.
 - `runtime/` holds the seal (`obsignatio/`), the device pool, the scheduler, the radix keys, scriptura, and tessera,
   the one daemon per device that admits every process's device jobs
   ([runtime/daemon/README.md](c/engine/runtime/daemon/README.md)).
-- `quantum/` holds the qasm reader and its device code.
 - `nbody/` is defined over n ≥ 1 bodies, n = 1 being its base case. There is no single-body folder, because one body
   is the case n = 1, not a separate machine.
 - `prg_sch/` holds the programs and schedules that compose the two: the cfgs and the n-body program.
   [prg_sch/README.md](c/engine/prg_sch/README.md) is how to write a program for the machine. The tracker's run programs and
   its answer key are cell tracking's own, in `examples/cell_tracking/src/` (`run_cfg`, `run_log`, `answer_key`).
 - `render/` draws any step's state as a sheet or a volume.
+
+What the engine reads, writes and computes with is outside `c/engine/`:
+
+- `c/includes/formats/` reads and writes the source and stored formats (zarr, tiff, hdf5, nifti, nrrd, dicom, npy,
+  the stack, cfg_json), and `c/includes/codecs/` holds their compressors and the CRC. krep, which
+  frames every file the engine writes, and the other file types are in `c/types/file_defs/`.
+- `c/types/integers/` holds exact arithmetic, and `c/types/integerfloats/` the exact decimal and double fields.
+- `c/transpiler/` and `cu/transpiler/` hold code generation, the cubin writer, the bootstrap that asks the part, and
+  the qasm reader with its device code.
 - `sims/` holds the simulations. Each builds a lattice whose answer is known and grades a measurement against it, on
   the device, in exact integers.
 
-`engine_*.cu`, `engine.h` and `engine_config.h` sit at the top. `engine_*.cu` is the entry layer, the only file that
-reaches every module. `engine.h` declares its calls, and `engine_config.h` the types every module shares.
+`cu/engine/engine_*.cu`, `c/engine/engine.h` and `c/engine/engine_config.h` sit at the top. `engine_*.cu` is the entry
+layer, the only file that reaches every module. `engine.h` declares its calls, and `engine_config.h` the types every
+module shares.
 
 # General use
 
@@ -101,7 +108,7 @@ names the first thing that failed, and nothing after it overwrites that.
 | field | holds |
 |---|---|
 | `kind` | `ENGINE_ERROR_REQUEST` (1, the caller asked for something the call errors), `ENGINE_ERROR_RESOURCE` (2, memory, a CUDA call or a file failed; `status` is the CUDA status or `errno`) or `ENGINE_ERROR_LOGIC` (3, a check the engine proves did not hold, such as a rebuilt voxel that differs) |
-| `module` | the `EngineModule` that raised it: engine 0, max_tree 1, flatten 2, decimal_double 3, unit_sweep 4, cycle 5, keymath 6, key_schedule 7, residual 8, grow 9, apxrep 10, compression 11, tower 12, entropy_history 13, zip 14, npy 15, dicom 16, obsignatio 17, tessera 18, period 19, qasm 20, noise_detector 21, device_pool 22, cell 23 |
+| `module` | the `EngineModule` that raised it: engine 0, max_tree 1, flatten 2, decimal_double 3, unit_sweep 4, cycle 5, keymath 6, key_schedule 7, residual 8, grow 9, krep 10, compression 11, tower 12, entropy_history 13, zip 14, npy 15, dicom 16, obsignatio 17, tessera 18, period 19, qasm 20, noise_detector 21, device_pool 22, cell 23 |
 | `site` | the source line of the check that failed |
 | `execaddr` | the return address inside the check, the code that failed |
 | `evacaddr` | the address of the object the check was about |
@@ -157,7 +164,7 @@ For each sample, in the order named, `engine_ingest_set`:
 3. seals it (`runtime/obsignatio`, keyed BLAKE3 at every level): a node per row, plane, volume and lane, a leaf per
    stored chunk, then the stream, the side bytes stored and inflated, the members, and the sample's root over all of
    them;
-4. writes the crystal (`apxrep_input_write`), reads it back, checks every chunk and root against the seal, lowers it
+4. writes the crystal (`krep_crystal_write`), reads it back, checks every chunk and root against the seal, lowers it
    (`tower_lower`), and compares every rebuilt lane with the lanes it lifted;
 5. reads the source again and compares every pixel with the rebuilt lanes.
 
@@ -397,7 +404,7 @@ never touch the device, and they submit nothing.
 | `arithmetic/double_fields/double_fields.{c,h}`, `arithmetic/decimal_double/decimal_double.{c,h}` | 1, 6: a source's floating and decimal fields made exact |
 | `runtime/obsignatio/obsignatio.h`, `runtime/obsignatio/obsignatio_*.cu`, `../../utils/test/src/c/engine/runtime/obsignatio/` | 2 |
 | `src/cu/includes/codecs/crc/crc.h`, `codecs/crc/crc_key.h` | 2, 3: the CRC-64 checks the seal is replacing (stage B) |
-| `formats/apxrep/apxrep.h`, `formats/apxrep/apxrep_*.cu` | 2, 3: frames the crystal, its seal and the other engine files |
+| `src/c/types/file_defs/krep/krep.h`, `src/cu/types/file_defs/krep/krep_*.cu` | 2, 3: frames the crystal, its seal and the other engine files |
 | `analysis/compression/compression.{cu,h}`, `analysis/tower/tower.h`, `analysis/tower/tower_*.cu` | 3: the tower can lay reversible lookup edges between its floors (`TowerEdge`, a permutation of a coefficient's low bits), which `tower_lower` undoes in reverse order. `tower_record_lift` and `tower_record_lower` emit T and T⁻¹ as record floors into a caller's program, one block to a lane, each floor focused from a ruleset of lifting steps (`TowerLiftingStep`); with none named, the ruleset is the kernels' 5/3. The coefficients, the scratch, the flag and the mismatch count are slices of one device pool. Compression's chunk bits, chunk offsets and scan scratch are slices of a second pool, and its stream, sized by the values once they are measured, is a pool of its own. `tower_reserve_bytes` and `compression_reserve_bytes` give a lattice's pool bytes before any device work, which the driver declares |
 | `runtime/device_pool/device_pool.{cu,h}` | 1–6: a job's device buffers as slices of one allocation. A plan lays each slice at the running sum rounded up to 256 bytes, and the pool is that sum rounded up to the 2 MiB page once. The bytes a job declares are then known before any device work. Takes run in the plan's order, a take past the pool errors, and a return gives every slice back |
 | `analysis/residual/residual.{cu,h}`, `analysis/residual_survey/residual_survey.{cu,h}`, `analysis/unit_sweep/unit_sweep.{cu,h}` | 4 |

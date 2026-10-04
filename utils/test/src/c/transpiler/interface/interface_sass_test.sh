@@ -57,7 +57,7 @@ INCLUDES=(-I "$TOP/src/c/engine" -I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$CU
 rm -f "$BINARY" "$PROBE"
 OBJECTS=()
 for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/c/types/file_defs/krs/sass_machine.c" \
-              "$CUBIN/sass_assemble.c" "$CUBIN/cubin_write.c" "$CUBIN/cubin_safe.c" "$TEST/interface_sass_probe_main.c" "$TEST/interface_sass_probe_machine.c" \
+              "$CUBIN/sass_assemble.c" "$CUBIN/cubin_write.c" "$CUBIN/../emit/container_write.c" "$CUBIN/../emit/container_pattern.c" "$CUBIN/../emit/container_layout.c" "$CUBIN/cubin_safe.c" "$TEST/interface_sass_probe_main.c" "$TEST/interface_sass_probe_machine.c" \
               "$TEST/interface_sass_probe_ask.c" "$TEST/../../../../../../src/c/types/file_defs/ksc/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
               "$TEST/interface_sass_probe_read.c" "$TEST/interface_sass_probe_check.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"

@@ -552,8 +552,8 @@ Derived.
 \section{\texorpdfstring{The lane index and the latch}{The lane index and the latch}}
 
 \begin{itemize}
-\item \textbf{The lane index.} Derived from \texttt{cycle.\allowbreak{}cu}: the kernel holds each lane's number as a 64-bit loop variable, and no step reads it. A step that writes it into a register is open on main, and built off main, in PR 15 (\texttt{ENGINE\_\allowbreak{}RECORD\_\allowbreak{}LANE}).
-\item \textbf{The latch.} Derived. The first lane that meets a condition is the minimum over lanes of ℓ where the condition holds, with ∞ where it does not. The minimum is associative, commutative and idempotent. Any grouping returns the same lane as a serial scan from lane 0: a tree of depth ⌈log2 lanes⌉, or a device-wide atomic minimum. The latch is not built on main, and built off main, in PR 15.
+\item \textbf{The lane index.} Derived from \texttt{cycle.\allowbreak{}cu}: the kernel holds each lane's number as a 64-bit loop variable, and no step reads it. The step \texttt{ENGINE\_\allowbreak{}RECORD\_\allowbreak{}LANE} writes it into a register.
+\item \textbf{The latch.} Derived. The first lane that meets a condition is the minimum over lanes of ℓ where the condition holds, with ∞ where it does not. The minimum is associative, commutative and idempotent. Any grouping returns the same lane as a serial scan from lane 0: a tree of depth ⌈log2 lanes⌉, or a device-wide atomic minimum. \texttt{cycle\_\allowbreak{}record\_\allowbreak{}latch} reads it on the device by a tree over each warp and one atomic minimum, and \texttt{cycle\_\allowbreak{}record\_\allowbreak{}latch\_\allowbreak{}host} reads it on the host (\texttt{cycle.\allowbreak{}h}).
 \end{itemize}
 
 \section{\texorpdfstring{Tables}{Tables}}
@@ -575,8 +575,6 @@ Derived.
 \section{\texorpdfstring{Open}{Open}}
 
 \begin{itemize}
-\item \textbf{A lane's own index as a register.} A lane now reads its inputs only from records. An operation giving the lane's number as a value would let one shared atom stand for a whole range of inputs, with the lanes enumerating the range and no input stored per lane.
-\item \textbf{The latch.} A device reduction that returns the first lane whose output meets a condition. Only that lane's index comes back to the host.
 \item \textbf{Depth by tables.} Which rounds' sub-functions fit a 32-bit index, and how much depth that removes.
 \item \textbf{The chained cost apart.} Launch, synchronization and the state's round trip through memory, each measured on its own.
 \item \textbf{The neighbor gather.} For D axes: the halo in the record, or one axis per sweep. Which costs less waits on the chained cost apart. A tile's file under a better order than depth-first is also open.

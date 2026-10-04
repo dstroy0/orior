@@ -38,10 +38,30 @@ typedef struct
     unsigned long long limit_microseconds;
 } QueryWalk;
 
-// `walk` put through the interface, one answer an address into `answers`, which holds `walk->count` of them. Every answer
-// carries its address, its bit and its kind; an address that ended its probe reads QUERY_ENDED with the fault the
-// interface named, and one whose probe ran out of time or exited on its own reads QUERY_ENDED with no fault. The count of probes the walk ran, or 0 with the error raised where the interface itself failed or a probe
-// wrote something other than its lines
+// What one program the interface walks reads and answers. `asks` is 1 where the program takes the qualifier before
+// the span and the turns and word after it, as query_walk does, and 0 where it takes the span alone. `read` reads a
+// probe's lines into `answers` from address `next` on and gives how many it answered in order. `ended` answers address
+// `next`, the one that ended its probe with `fault`
+typedef struct
+{
+    int asks;
+    unsigned long long (*read)(const QueryWalk *walk, const char *lines, unsigned long long next,
+                               unsigned long long given, void *answers);
+    void (*ended)(const QueryWalk *walk, unsigned long long next, InterfaceFault fault, void *answers);
+    void *answers;
+} QueryInterfaceDriver;
+
+// `walk` put through the interface in probes it can lose, each probe's lines read and its ending answered by `driver`,
+// until every address has an answer. The count of probes through `probes`. 1, or 0 with the error raised where the
+// interface itself failed or a probe that exited clean wrote something other than its lines
+int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *driver, unsigned long long *probes,
+                        EngineError *error);
+
+// `walk` put through the interface, one answer an address into `answers`, which holds `walk->count` of them. Every
+// answer carries its address, its bit and its kind; an address that ended its probe reads QUERY_ENDED with the fault
+// the interface named, and one whose probe ran out of time or exited on its own reads QUERY_ENDED with no fault. The
+// count of probes the walk ran, or 0 with the error raised where the interface itself failed or a probe wrote something
+// other than its lines
 unsigned long long query_interface_walk(const QueryWalk *walk, QueryAsk *answers, EngineError *error);
 
 #endif

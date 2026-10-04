@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_engines.h: the steering engines of each arm (orior.h includes the parts in order)
 #ifndef ORIOR_ENGINES_H
 #define ORIOR_ENGINES_H
@@ -30,9 +30,8 @@ extern "C"
      *
      * A CORRECTNESS SUITE CANNOT DETECT AN UNUSED IMPLEMENTATION. An engine that is compiled, graded
      * and never called produces no wrong answer. Every count stays identical and every test keeps
-     * passing. That is not a hypothetical: the AVX2 engine here was built, graded against portable and
-     * benched at 33 times its rate while the planner went on running its own scalar loop, and nothing in
-     * the suite said so.
+     * passing. An engine graded against portable and benched fast can sit beside a planner that runs
+     * its own scalar loop, and nothing in the suite says so.
      *
      * These two counters make the wiring assertable. The claim is not that the engines agree, which the
      * differential already covers, but that the engine the machine carries actually RAN. A test reads

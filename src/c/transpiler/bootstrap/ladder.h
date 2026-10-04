@@ -12,7 +12,7 @@
 // The names below are coherence anchors. That is all they are: they let the compiler say which relations it has
 // found a writing for and compose them into larger ones. A target is never told a name and never asked about one.
 //
-// Two anchors are required. A system that holds IDENTITY and ADD can be given the rest: TAKE is ADD over a
+// Two anchors are required. A system that holds SAME and ADD can be given the rest: TAKE is ADD over a
 // complement, PRODUCT is UP and ADD stacked, and the gates reach one another through rewrites. A system that holds
 // neither cannot be spoken to.
 
@@ -151,7 +151,7 @@ static const LadderQuestion s_ladder_cases[] = {
 //
 // A count for UP and DOWN is read from the low places of the second word, the way precept_value.h reads one. A
 // chain and the relation it is checked against are then asked the same question.
-static int ladder_answer(unsigned int anchor, const unsigned int *word, unsigned int words, unsigned int *answered)
+static inline int ladder_answer(unsigned int anchor, const unsigned int *word, unsigned int words, unsigned int *answered)
 {
     if (words < 2u)
     {
@@ -185,7 +185,7 @@ static int ladder_answer(unsigned int anchor, const unsigned int *word, unsigned
 
 // the words a sweep is put with, from a generator written here so the same words come back on every run and two
 // runs of the builder hold the same chains
-static unsigned int ladder_swept(unsigned int *state)
+static inline unsigned int ladder_swept(unsigned int *state)
 {
     *state ^= *state << 13;
     *state ^= *state >> 17;

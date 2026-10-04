@@ -476,7 +476,7 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     unsigned long long *device_negatives = NULL;
     unsigned long long *totals = (unsigned long long *)malloc(total_bytes);
     unsigned long long *negatives = (unsigned long long *)malloc(negative_bytes);
-    int ok = CYCLE_CHECK((totals != NULL) && (negatives != NULL), request, error, ENGINE_ERROR_REQUEST) &&
+    int ok = CYCLE_CHECK((totals != NULL) && (negatives != NULL), request, error, ENGINE_ERROR_RESOURCE) &&
              CYCLE_STATUS_CHECK(cudaMalloc((void **)&device_totals, total_bytes), &device_totals, error) &&
              CYCLE_STATUS_CHECK(cudaMalloc((void **)&device_negatives, negative_bytes), &device_negatives, error) &&
              CYCLE_STATUS_CHECK(cudaMemset(device_totals, 0, total_bytes), device_totals, error) &&

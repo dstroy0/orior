@@ -2,7 +2,7 @@
 #ifndef CODEGEN_DEVICE_H
 #define CODEGEN_DEVICE_H
 
-// The code generator on the device (engine_table.md item 11(f)(a)): a program's lane written by the device from its
+// The code generator on the device (engine_table.md item 11(a)): a program's lane written by the device from its
 // step table, with no text written on the host. The device lays out what each step reads from outside itself, decides
 // each step's forms a thread a step (codegen_core.h), counted and then written where a scan of the counts puts them,
 // decides the lane's own forms in one thread, lays out the forms as the assembly printer's records (asm_printer.h),

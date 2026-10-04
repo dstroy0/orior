@@ -96,7 +96,7 @@ particular. A chain reading worse as a total can hold the cheapest link for the 
 can see it.
 
 The rest of the protocol, the pair states and the mnemonics the bits resolve to, is in
-[engine/compiler/gnascor.md](c/transpiler/gnascor.md). Every step of it, what backs it and the run behind its
+[src/c/transpiler/gnascor.md](c/transpiler/gnascor.md). Every step of it, what backs it and the run behind its
 status is in the query protocol's own table,
 [theory/workbooks/engine/query_protocol_table.md](../theory/workbooks/engine/query_protocol_table.md). A step
 changes status there and nowhere else.
@@ -158,7 +158,7 @@ with no map yet.
 
 **Everything is learned through the query protocol, and through nothing else.** An ask is
 `[ADDRESS] -> (QUALIFIER) -> [COST] -> BIT`, put with `host_put` and read with `host_read`
-(`compiler/bootstrap/host_entry.h`), with nothing between them and the part. No outside tool is in the loop: no
+(`src/c/transpiler/bootstrap/host_entry.h`), with nothing between them and the part. No outside tool is in the loop: no
 compiler, assembler, disassembler, object reader, vendor runtime or driver library. A word that went through one is
 that tool's answer and not the part's. The SASS probe under `utils/test/src/c/transpiler/interface/` and everything it calls
 (`nvcc`, `nvdisasm`, `cuobjdump`, `interface_ptx_probe`, the vendor runtime) is scaffolding. It is an answer key in the
@@ -236,43 +236,10 @@ works there.
 ## Open
 
 1. **The device engine and this plan disagree where the list below says.** Every file of `src/c/engine`,
-   `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `src/cu/includes`, `src/cu/kcmplx` and the bootstrap, codegen,
-   cubin, emit and interface folders of `src/c/transpiler` is read against this plan, `gnascor.md`, the engine table and
-   the query protocol table. `src/python/engine`, `src/c/types`, `src/c/includes` and the host qasm are read with the
-   other engines. Each entry is fixed in the code or in the document it contradicts.
-   - Defects in the code.
-     - `query_interface_walk` and `bus_enum_walk` write the ending's answer at `next` with no test that `next` is under
-       `walk->count`. A probe that writes every line it was given and then ends unclean, out of time or with a code,
-       puts one entry past the caller's array. Inside a run of batches the same path marks the next batch's first
-       address ended, and that address was never asked.
-     - `chain_child_text` adds what `snprintf` returns to `at` with no test against `room`. Once the text is cut,
-       `room - at` wraps and the next write runs past `text`.
-     - `climb_machine_close` frees every buffer but `device_spiral`, which `climb_machine_spiral` allocates: 14,184
-       bytes of device memory each close.
-     - The host and the device render differ on the byte channel under the minimum. The host reads a stored 0 as an
-       empty cell (`anchor_raster.c`, `anchor_raster_output.c`). A 0 byte that arrives first is lost to the next
-       arrival there, and the device's `atomicMin` keeps it. No test puts a 0 byte through that pair.
-     - `cycle_record_sum_host` and `cycle_record_sum` raise a request error where malloc fails. It is a resource error.
-     - `shift_agreement`'s axis tables hold 8 lengths. The ninth distinct padded length in one process fails every run
-       after it, and no error site says so.
-     - `grow_group_voxels` reads `labels[0]` on an empty volume.
-     - `cubin_registers_read`, `cubin_write` and `container_write` read section offsets out of the pattern with no
-       test against its size, and write the symbol's size into `.symtab` with no bound. `cubin_code_sections` tests
-       every one.
-     - `query_order_to_edge` waits with no bound on a clock that never turns over, and `query_order_run` reads no
-       status from `anchor_exact_multiply` or `anchor_exact_subtract`.
-     - `sass_assemble_lines` keeps 256 labels and `sass_encoding_form` weighs 32 holders, and drops the rest without a
-       word.
-     - `krep_bodies_write` and `krep_forms_write` write two layouts under the one kind `KCS` and the one version.
-     - `precept_applied` and `ladder_answer` read a shift count from its low five bits: a count of 32 answers the
-       word unshifted. The comment beside it says a count at or past the width answers zero.
-     - `sass_target.h` gives the register file as R0 to R239 with R240 on fixed. `sass_target.cu` gives R0 to R237,
-       R238 and R239 to the launch, and returns 238.
-     - The formatter splits the `OPCODES` strings of `machine_ir_types.h` inside their words, and a search for
-       `loop_back` or `program_unit` misses the header.
-     - `cycle_record_arithmetic.h` carries its SPDX line twice. `codegen_device_internal.h` declares `layout_device` on
-       both arms of its `#if`. `run_internal.h` declares the same functions on both platform arms, and the POSIX
-       `run_process_read` and `run_tree` sit in `tessera_run_windows.c`.
+   `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `src/cu/includes` and the bootstrap, codegen, cubin, emit and
+   interface folders of `src/c/transpiler` is read against this plan, `gnascor.md`, the engine table and the query
+   protocol table. `src/python/engine`, `src/c/types`, `src/c/includes` and the host qasm are read with the other
+   engines. Each entry is fixed in the code or in the document it contradicts.
    - Named here and not built, or built and not called.
      - The run channel. `run_channel.h` declares `run_channel_open`, `run_channel_ask`, `run_channel_close` and
        `run_channel_carrier`, and nothing defines one of them. `tessera_run` defines a `run_channel_open` and a
@@ -285,14 +252,14 @@ works there.
      - The device tower runs 5/3 alone. A named lifting ruleset reaches the record floors and not `tower_lift`.
      - No engine route calls `sass_assemble`, `cubin_write`, `cubin_safe` or `sass_target`. The cubin path is reached
        from `utils/test` and `utils/maint` alone.
-     - `krep_crystal_*`, `krep_history_*` and `krep_bodies_*` have no caller. The engine writes and reads the `.kcr`
-       through `apxrep_input_write` and `apxrep_input_read`.
      - `crc.h`'s `CRC_TABLE_DEVICE`, `CRC_ADVANCE_DEVICE`, `crc_pixel`, `crc_apply`, `crc_finish` and its segment
        constants have no caller.
      - `src/build_engine.sh` names 51 module folders that are not in the tree (`engine/compiler/cycle`,
        `engine/nbody/max_tree`, `engine/formats/zarr` and the rest). Its `.cu` glob passes over a missing folder
        without a word; its portable `.c` loop hands a pattern no file matches to the compiler.
-       `examples/cell_tracking/build_engine.sh` carries the `c/...` folders that are.
+       `examples/cell_tracking/build_engine.sh` carries the `c/...` folders that are, and stops at
+       `engine_internal.h`'s `codegen_device.h`, whose folder its include path does not carry.
+       `examples/cell_tracking/build_driver.sh` carries it.
    - Against the method or the engine's boundary.
      - The engine and the transpiler include each other. `engine_internal.h` and `cycle_shared.h` include
        `codegen_device.h`, `asm_printer.h`, `c_target.h` and `ptx_target.h`; `asm_printer_internal.h` includes the
@@ -307,48 +274,16 @@ works there.
        run lowers the next reservation.
      - Modules outside the engine's shape answer a bare -1 or an int with no `EngineError`: `body_overlap`,
        `heaviest_matching`, `shift_agreement`, `golden_bands`, `residual_survey`, `climb_machine`, `schedule` and
-       `radix_keys`. orior and render keep their own house style. `cubin_write`, `container_write` and `sass_assemble`
-       give their reasons by `printf`.
-     - Six files pass 500 lines: `sass_assemble.c` 989, `sass_machine.c` 550, `cycle_compile.cu` 524,
+       `radix_keys`. orior and render keep their own house style. `container_write`, `container_layout` and
+       `sass_assemble` give their reasons by `printf`.
+     - Six files pass 500 lines: `sass_assemble.c` 1002, `sass_machine.c` 550, `cycle_compile.cu` 524,
        `code_generator.cu` 523, `cycle_record_launch.cu` 511 and `cycle.c` 508.
-   - One thing written twice.
-     - `apxrep_*` and `krep_*` are one code apart from the magic, and every `.kcr` opens with `APXREP`.
-     - `cubin_write.c` and `container_write.c` do one work, and `container_write.h` says there is one emitter.
-     - `query_interface.c` and `bus_enum_walk.c` are one probe driver.
-     - `codegen_reads_right`, `codegen_reads_left` and `codegen_step_valid` repeat `ir_reads_right`, `ir_reads_left`
-       and `ir_step_valid`.
-     - Euclid's gcd stands in `contact_side`, `division` and `fingerprint`; `choose_offsets` in `orior_core.c` and
-       `orior_steer_count.c`; the xorshift in `ladder.h` and `ask_order.c`.
    - Documents the tree contradicts.
-     - The engine table's item 11 names `emit_core.h`, `emit_text`, `emit_device`, `EMIT_DEVICE` and
-       `emit_device_test`, which are `codegen_device`, `asm_printer` and `CODEGEN_DEVICE`, and puts the emitter in
-       `src/c/engine/analysis/cycle`, where it is `src/cu/transpiler/codegen`. Its 11(f) opens "None of it is built"
-       and its stage 1 is built and proved. Its 11(f) 3 names `src/engine/compiler/interface/cell.{h,c}`.
-     - `codegen_core.h`, `codegen_device.h`, `asm_printer.h`, `key_schedule_core.h` and `keymath_core_affine.h` cite
-       item 11(f)(a). The table's (a) is under item 11.
-     - The engine table's M9 says `krep` writes the `.kcr`. `apxrep` writes it.
      - CRC-64 guards `EngineProgramBlock`, the `.oapx` and the `.bapx`; the seal guards the `.kcr`.
-       `compression_tower.md` lays a CRC-64 word in the `.kcr`.
-     - This plan's `compiler/bootstrap/...` is `src/c/transpiler/bootstrap/`. `src/README.md`'s "Where things live"
-       names `arithmetic/`, `quantum/`, `compiler/` and `formats/` under the engine. `target_parse.cu` names
-       `engine/compiler/codegen/rulesets`. The orior and render comments name `arithmetic/no_rounding`.
-     - `vertical_time_compression.md` holds LANE and the latch off main. Both are in the tree.
-     - `sass_target.h` says nothing assembles its text, and `sass_assemble_lines` does. `sass_assemble.c` opens with a
-       comment that puts the branch field at bit 32, and `SASS_BRANCH_FIRST` is 34. `ladder.h` names an anchor
-       IDENTITY that is not one; the required anchor is SAME. `tree_number.h` gives 24^13 as 6.4e17, and it is 8.76e17.
-       `target_rulesets.cu` and `ruleset_flat.h` name `rules->errored`, where the field is `error`.
-       `ruleset_core_words.h` cites a `ruleset_split` that is not in the tree. `word_web.h`, `code_generator.h` and
-       `sass_target.cu` carry counts of forms that move when the files do.
+       `compression_tower.md`'s byte table for 44b6_0113de3b lays a CRC-64 word in the `.kcr`, and the table is
+       mended by measuring that file again.
      - `file_types_table.md` has no `.kdm` or `.ksc` and holds `.ksh` and `.ans`, where this plan's six are `.kcr`,
        `.krs`, `.kcs`, `.knf`, `.kdm` and `.ksc`.
-     - History stands in comments in `orior.h`, `orior_descent.h`, `orior_engines.h`, `orior_field.h`, `orior_field.c`,
-       `orior_steer.c`, `orior_steer_count.c`, `orior_core.h`, `anchor_raster.h`, `anchor_raster_output.c`,
-       `tessera_ledger.c`, `flatten.cu`, `codegen_core.h`, `asm_printer_core_words.h`, `ruleset_core_words.h`,
-       `code_generator.cu` and `prologue_epilogue.h`. `orior_steer_plan.c` states a depth rule `orior_descent.h` calls
-       false, and `orior_descent.h` documents parameters its functions do not take.
-     - The orior files, `anchor_raster.c`, `anchor_raster_output.c`, `anchor_raster_internal.h`, `raster.cu`,
-       `raster_entry.cu` and `raster_cuda_internal.h` carry no SPDX line on line 1.
-
 2. **The writings the part gives are read into nothing.** A writing of one instruction is searched for on the part
    for every precept and every ladder relation, and every arrangement of the `.kdm` is written from them, run and
    read back (the writings searched, below). `L*` is still written by hand. `sass.krs` and `ptx.krs` are read off
@@ -387,13 +322,15 @@ works there.
    clock already reads a cost in the part's own time, and that reading is what a bound would be set from. That
    clock runs inside the SASS probe, through the toolkit, and is scaffolding (the method, above): the loop's
    clock is read by an ask put through `host_entry.h` like every other answer. That ask is `query_ask`
-   (`compiler/bootstrap/query_ask.{h,c}`): an address and a qualifier, held, equal or advancing, returning a cost
-   unbound and a bit bound, the cost read off a clock that is itself an address. `query_ask_check.c` holds it to
-   memory the test owns and to the host's interrupt time at a fixed address, found advancing by the ask itself.
+   (`src/c/transpiler/bootstrap/query_ask.{h,c}`): an address and a qualifier, held, equal or advancing, returning
+   a cost unbound and a bit bound, the cost read off a clock that is itself an address. `query_ask_check.c` holds it
+   to memory the test owns and to the host's interrupt time at a fixed address, found advancing by the ask itself.
    That counter steps once a clock interrupt, half a millisecond to a millisecond, and an ask is far shorter: a
    cost read from it is a step or nothing. A bound set from it judges a run of asks and never one. Asks at
-   addresses nothing has said are safe go through `query_interface_walk` (`compiler/bootstrap/query_interface.{h,c}`):
-   the interface runs `query_walk` in a probe, one address after another, and an address that ends the probe is answered by the ending, the walk going on from the next address in a fresh probe. `query_interface_check.c` holds
+   addresses nothing has said are safe go through `query_interface_walk`
+   (`src/c/transpiler/bootstrap/query_interface.{h,c}`): the interface runs `query_walk` in a probe, one address
+   after another, and an address that ends the probe is answered by the ending, the walk going on from the next
+   address in a fresh probe. `query_interface_check.c` holds
    it to address 0, which ends the asker on an address fault, and to the page every Windows process shares,
    which answers reads and ends the asker on a put. Of that page's first sixteen words the walk finds two that
    advance, at 0x8 and 0x14, the interrupt time and the system time of the page's own layout. The run channel finds the part's bus the way firmware enumerates one, and never the way firmware is told
@@ -561,8 +498,8 @@ works there.
     and never one bit over a set (Q15).
 
 11. **Stem membership has a written rule and nothing reads it.** Two members sharing a stem is the whole basis
-    of a set, and pairwise agreement inside a floor cannot decide it. `compiler/bootstrap/stem_group.{h,c}` holds
-    an anchored group rule: the members in an order fixed by what they are, the finest floor first, the first
+    of a set, and pairwise agreement inside a floor cannot decide it. `src/c/transpiler/bootstrap/stem_group.{h,c}`
+    holds an anchored group rule: the members in an order fixed by what they are, the finest floor first, the first
     member with no group anchoring one, and every member with no group that agrees with that anchor joining it.
     Agreement is a conjunction over rows at the coarser floor, and a row one member refused and the other
     measured separates them. `stem_group_check.c` (run by `utils/maint/engine/chain_check.sh`) holds it: the three

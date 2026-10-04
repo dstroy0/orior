@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_steer_plan.c: descent, the recursive plan and the probes
 #include "orior_internal.h"
 
@@ -63,10 +63,11 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     size_t chosen[ANCHOR_STEER_ANCHORS];
     size_t placed = 0u;
 
-    // THE BOUNDED DESCENT. One coarm per level, the level count fixed at `count`, which the guard
-    // above holds at or under ANCHOR_STEER_ANCHORS. No branch in here lets the corpus change how
-    // many levels run, only which offset a level picks. The depth is decided before the program
-    // starts and this loop terminates for the same reason a for loop over a fixed array does.
+    // THE BOUNDED DESCENT. One coarm per level, at most `count` levels, which the guard above holds
+    // at or under ANCHOR_STEER_ANCHORS. The corpus picks a level's offset and, through the destroy
+    // rule below, can end the descent early unless `force_full_depth` is set. The ceiling is decided
+    // before the program starts and this loop terminates for the same reason a for loop over a fixed
+    // array does.
     while (placed < count)
     {
         size_t best_offset = 0u;

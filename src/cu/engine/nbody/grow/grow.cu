@@ -64,11 +64,12 @@ extern "C" void grow_group_voxels(const EngineGroupRequest *request)
         leaf_at_peak[request->peaks[leaf]] = (int)leaf;
     }
     memset(start, 0, ((size_t)request->leaf_count + 2u) * sizeof(unsigned int));
-    unsigned int run_label = labels[0];
-    int run_leaf = leaf_at_peak[run_label];
+    // each pass reads its first run at voxel 0, and an empty volume reads no label
+    unsigned int run_label = 0u;
+    int run_leaf = -1;
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
-        if (labels[voxel] != run_label)
+        if ((voxel == 0u) || (labels[voxel] != run_label))
         {
             run_label = labels[voxel];
             run_leaf = leaf_at_peak[run_label];
@@ -82,11 +83,9 @@ extern "C" void grow_group_voxels(const EngineGroupRequest *request)
     {
         start[leaf + 1u] += start[leaf];
     }
-    run_label = labels[0];
-    run_leaf = leaf_at_peak[run_label];
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
-        if (labels[voxel] != run_label)
+        if ((voxel == 0u) || (labels[voxel] != run_label))
         {
             run_label = labels[voxel];
             run_leaf = leaf_at_peak[run_label];

@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
  *
  * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
@@ -25,7 +25,7 @@
  *
  * HOST AND DEVICE PRODUCE THE SAME BYTES. That is the contract, and it is gradeable and not
  * aspirational: the raster is integer valued throughout. Agreement is exact and a difference of
- * one in one pixel is a defect. This is the same contract arithmetic/no_rounding/arm.h states for the arms, kept for
+ * one in one pixel is a defect. This is the same contract src/c/types/integers/arm.h states for the arms, kept for
  * the same reason.
  *
  * @note Downsampling takes the MINIMUM death level over the alignments mapping to a pixel. Minimum
@@ -161,8 +161,7 @@ extern "C"
      *       compiles without pulling in the limb library it does not use. The two layouts are identical
      *       and anchor_raster_*.c asserts that at compile time.
      * @note Declared above the volume surface below, which names this type in a signature. A structure
-     *       cannot name a type the compiler has not seen, and this header has been reordered once
-     *       already for the same reason.
+     *       cannot name a type the compiler has not seen, and the order of this header holds that.
      */
     typedef struct
     {

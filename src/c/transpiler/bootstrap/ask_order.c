@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ask_order.c: the known order of asks, its solve, and the read of whether the links contend
 #include "ask_order.h"
+#include "ladder.h"
 
 #include "../../types/integers/exact_integer.h"
 
@@ -16,15 +17,6 @@ static unsigned int ask_ones(unsigned int word)
         count += 1u;
     }
     return count;
-}
-
-// the next word of the sweep's generator. A zero state never leaves zero, and the caller keeps it off zero
-static unsigned int ask_swept(unsigned int *state)
-{
-    *state ^= *state << 13;
-    *state ^= *state >> 17;
-    *state ^= *state << 5;
-    return *state;
 }
 
 int ask_order_fits(unsigned int links)
@@ -81,7 +73,8 @@ unsigned int ask_sweep_covers(unsigned int links, unsigned int seed, unsigned in
     state = (state != 0u) ? state : 0x9e3779b9u;
     for (unsigned int at = links; at > 1u; at -= 1u)
     {
-        const unsigned int with = ask_swept(&state) % at;
+        // a zero state never leaves zero, and the state is kept off zero above
+        const unsigned int with = ladder_swept(&state) % at;
         const unsigned char held = order[at - 1u];
         order[at - 1u] = order[with];
         order[with] = held;

@@ -4,7 +4,6 @@
 #ifndef CYCLE_RECORD_ARITHMETIC_H
 #define CYCLE_RECORD_ARITHMETIC_H
 
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "cycle_shared.h"
 
 struct CycleRecordLaunch

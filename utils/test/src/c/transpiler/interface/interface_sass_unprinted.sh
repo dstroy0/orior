@@ -40,7 +40,7 @@ RUNNER="$(ls "$RUN"/*_ptx_probe.exe "$RUN"/*_ptx_probe 2>/dev/null | head -1)"
 
 OBJECTS=()
 for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$KRS_C/sass_machine.c" "$CUBIN/sass_assemble.c" \
-              "$CUBIN/cubin_write.c" "$HERE/interface_sass_probe_unprinted.c"; do
+              "$CUBIN/cubin_write.c" "$CUBIN/../emit/container_write.c" "$CUBIN/../emit/container_pattern.c" "$CUBIN/../emit/container_layout.c" "$HERE/interface_sass_probe_unprinted.c"; do
     object="$OUT/$(basename "$source" .c).o"
     cc -std=c11 -O1 -Wall -I "$TOP/src/c/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$INTERFACE" -I "$KRS_C" \
         -c "$source" -o "$object" || exit 1

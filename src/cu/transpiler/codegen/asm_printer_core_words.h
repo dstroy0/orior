@@ -3,9 +3,9 @@
 #ifndef ASM_PRINTER_CORE_WORDS_H
 #define ASM_PRINTER_CORE_WORDS_H
 
-// asm_printer_ruleset_build's work past the schema and the scratch, ported word for word from the host's
-// (asm_printer_layout.cu and asm_printer_program.cu as they were): every word and part a lane can be written in,
-// numbered in the order the host numbered them, the lists the records' layout reads, the program's steps, fields and
+// asm_printer_ruleset_build's work past the schema and the scratch, word for word the host's (asm_printer_layout.cu
+// and asm_printer_program.cu): every word and part a lane can be written in, numbered in the order the host numbers
+// them, the lists the records' layout reads, the program's steps, fields and
 // tables. The host's map of words becomes a search of the words held, which gives each word the same number. The
 // device runs it in one thread (codegen_rules.cu), since each word's number depends on every word before it;
 // keymath's encoding and key_schedule's layout of the program follow it as they do on the host. The memory is the

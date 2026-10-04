@@ -14,7 +14,7 @@ OUT="$TOP/build/cubin_safe"
 mkdir -p "$OUT"
 
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/cubin_safe_check" "$HERE/cubin_safe_check.c" "$CUB/cubin_safe.c" \
-    "$CUB/cubin_write.c" "$CUB/sass_assemble.c" "$KRS/sass_machine.c" || exit 1
+    "$CUB/cubin_write.c" "$CUB/../emit/container_write.c" "$CUB/../emit/container_pattern.c" "$CUB/../emit/container_layout.c" "$CUB/sass_assemble.c" "$KRS/sass_machine.c" || exit 1
 "$OUT/cubin_safe_check" "$CUB/machines/sm_86" "$@"
 STATUS=$?
 echo "  cubin safe check exit $STATUS"

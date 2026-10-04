@@ -10,8 +10,6 @@
 #define SASS_GUARD_FIRST 12u
 #define SASS_GUARD_BITS 3u
 #define SASS_GUARD_NOT 15u
-// a branch counts its target from the instruction after it, in a signed field that begins at bit 32 and runs into the
-// high word: the one branch the probes read back holds -16, and every bit of it from 32 to 81 is set
 // a branch's distance in four-byte steps from bit 34 to bit 81: bits 32 and 33 below it are the operation's own,
 // as BRA, BRA.U and BRA.DIV show, the same distance with 0, 1 and 2 there
 #define SASS_BRANCH_FIRST 34u
@@ -526,8 +524,15 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
     for (const char *walk = sass_line_take(text, line, sizeof(line)); walk != NULL;
          walk = sass_line_take(walk, line, sizeof(line)))
     {
-        if (sass_line_is_label(line) && (s_labels.count < SASS_LABELS))
+        if (sass_line_is_label(line))
         {
+            // a label past the most one text names, or longer than a name is kept, is refused and not dropped
+            if ((s_labels.count == SASS_LABELS) || (strlen(line) > SASS_LABEL_TOKEN))
+            {
+                printf("  sass_assemble: %s is past the %u labels a text names or the %u letters a name is kept to\n",
+                       line, SASS_LABELS, SASS_LABEL_TOKEN - 1u);
+                return 0u;
+            }
             snprintf(s_labels.name[s_labels.count], SASS_LABEL_TOKEN, "%.*s", (int)(strlen(line) - 1u), line);
             s_labels.address[s_labels.count] = address;
             s_labels.count += 1u;
@@ -759,22 +764,30 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
 {
     SassHolder holders[SASS_HOLDERS];
     unsigned int held = 0u;
-    for (unsigned int number = 0u; (number < machine->forms) && (held < SASS_HOLDERS); number += 1u)
+    for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
-        SassHolder *const holder = &holders[held];
-        holder->form = &machine->form[number];
+        SassHolder holder;
+        holder.form = &machine->form[number];
         unsigned int unplaced = 0u;
-        if (!sass_places_find(holder->form, holder->places, &unplaced))
+        if (!sass_places_find(holder.form, holder.places, &unplaced))
         {
             continue;
         }
         unsigned long long open_low = 0ull;
         unsigned long long open_high = 0ull;
-        holder->open = sass_open_bits(holder->form, holder->places, &open_low, &open_high);
-        if ((((low ^ holder->form->low) & ~open_low) == 0ull) && (((high ^ holder->form->high) & ~open_high) == 0ull))
+        holder.open = sass_open_bits(holder.form, holder.places, &open_low, &open_high);
+        if ((((low ^ holder.form->low) & ~open_low) != 0ull) || (((high ^ holder.form->high) & ~open_high) != 0ull))
         {
-            held += 1u;
+            continue;
         }
+        // a holder past the most the reader weighs is refused and not dropped: the form it would have been is unknown
+        if (held == SASS_HOLDERS)
+        {
+            printf("  sass_assemble: more than %u forms hold the encoding %016llx %016llx\n", SASS_HOLDERS, high, low);
+            return NULL;
+        }
+        holders[held] = holder;
+        held += 1u;
     }
     const SassHolder *found = NULL;
     int found_relocated = 1;

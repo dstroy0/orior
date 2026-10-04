@@ -294,31 +294,41 @@ void chain_shuffle(ChainSet *set, unsigned int seed)
     }
 }
 
+// the place the next write starts once `written` letters were asked at `at`: a write the room cuts short leaves
+// the text ended on its last place, and every write after it writes the ending alone
+static unsigned int chain_written(unsigned int at, unsigned int room, int written)
+{
+    const unsigned int end = room - 1u;
+    // a refused write moves nothing, and a written count is not negative
+    const unsigned int moved = (written > 0) ? (unsigned int)written : 0u;
+    return ((end - at) < moved) ? end : (at + moved);
+}
+
 // the subtree rooted at `child` written into `text` from `at`; the place the next write starts
 static unsigned int chain_child_text(const Chain *chain, unsigned char child, char *text, unsigned int room,
                                      unsigned int at)
 {
     if (child == PRECEPT_ZERO)
     {
-        return at + (unsigned int)snprintf(&text[at], room - at, "zero");
+        return chain_written(at, room, snprintf(&text[at], room - at, "zero"));
     }
     if (child == PRECEPT_ONES)
     {
-        return at + (unsigned int)snprintf(&text[at], room - at, "ones");
+        return chain_written(at, room, snprintf(&text[at], room - at, "ones"));
     }
     if (child >= PRECEPT_ARG)
     {
-        return at + (unsigned int)snprintf(&text[at], room - at, "w%u", (unsigned int)(child - PRECEPT_ARG));
+        return chain_written(at, room, snprintf(&text[at], room - at, "w%u", (unsigned int)(child - PRECEPT_ARG)));
     }
     const PreceptNode *const node = &chain->node[child];
-    at += (unsigned int)snprintf(&text[at], room - at, "%s(", s_precept_text[node->precept]);
+    at = chain_written(at, room, snprintf(&text[at], room - at, "%s(", s_precept_text[node->precept]));
     at = chain_child_text(chain, node->left, text, room, at);
     if (node->right != PRECEPT_NONE)
     {
-        at += (unsigned int)snprintf(&text[at], room - at, ", ");
+        at = chain_written(at, room, snprintf(&text[at], room - at, ", "));
         at = chain_child_text(chain, node->right, text, room, at);
     }
-    return at + (unsigned int)snprintf(&text[at], room - at, ")");
+    return chain_written(at, room, snprintf(&text[at], room - at, ")"));
 }
 
 unsigned int chain_text(const Chain *chain, char *text, unsigned int room)

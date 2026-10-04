@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_field.c: field classes and projections
 #include "orior_internal.h"
 
@@ -192,9 +192,9 @@ int anchor_field_project(const AnchorFieldProjection *args)
 
     if (args->distinct != NULL)
     {
-        // CLASSES AND NOT SLOTS EVER OPENED. A chained field once reported 18 while every position
-        // carried one rank, because the count returned was the number of labels discovery had
-        // opened and not the number surviving the merges. A caller reads this to decide whether
+        // CLASSES AND NOT SLOTS EVER OPENED. The count is the classes surviving the merges and not the
+        // labels discovery opened: a chained field whose every position carries one rank counts one,
+        // however many labels discovery opened on the way. A caller reads this to decide whether
         // a projection is worth running. A healthy number on a collapsed field sends them onto a
         // projection that refutes nothing.
         *args->distinct = classes;

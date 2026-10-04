@@ -135,6 +135,7 @@ extern "C" void climb_machine_close(ClimbMachine *machine)
     cudaFree(machine->device_entry_climber);
     cudaFree(machine->device_scores);
     cudaFree(machine->device_moved);
+    cudaFree(machine->device_spiral);
     cudaFreeHost(machine->pinned_moved);
     cudaFreeHost(machine->pinned_zero);
     if (machine->blocks_done[0] != NULL)

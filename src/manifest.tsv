@@ -32,11 +32,12 @@ word web	engine	src/c/transpiler/codegen/tree_number.h	A tree as one number, so 
 .ksc	derived	src/c/transpiler/cubin/machines/sm_86.ksc	What sm_86 was asked and what came back, by channel and class.
 emitter	engine	src/c/transpiler/emit/container_write.c	One emitter, every container. Reads a layout and writes what it describes. No vendor word in it.
 emitter	engine	src/c/transpiler/emit/container_write.h	What a container is written from.
+emitter	engine	src/c/transpiler/emit/container_pattern.c	A pattern's tables, sections and attributes read where the layout says, each place held inside the pattern.
+emitter	engine	src/c/transpiler/emit/container_write_internal.h	What the container pieces share: the places a layout gives and a part as the emitter holds it.
 emitter	engine	src/c/transpiler/emit/container_layout.c	A layout read from its file and looked up by name.
 emitter	engine	src/c/transpiler/emit/container_layout.h	A container's layout as rows.
-emitter	seed	src/c/transpiler/emit/layouts/elf64_nvidia.tsv	Every offset, width, tag and name the NVIDIA container uses. 34 rows, read off containers its toolchain built.
-emitter	entry	utils/test/src/cu/transpiler/emit/container_same.cpp	The file-driven emitter against the compiled-in one. 8232 bytes each, 0 differing.
-emitter	scaffold	src/c/transpiler/cubin/cubin_write.c	Writes a container by hand, with the layout compiled in. Replaced by emit/. Callers move as they are worked on.
+emitter	seed	src/c/transpiler/emit/layouts/elf64_nvidia.tsv	Every offset, width, tag and name the NVIDIA container uses. 36 rows, read off containers its toolchain built.
+emitter	entry	src/c/transpiler/cubin/cubin_write.c	The one emitter given a cubin: the layout file read from the tree, and each call made in a cubin's terms.
 emitter	scaffold	src/c/transpiler/cubin/sass_assemble.c	Turns text into encodings against a machine held in memory.
 emitter	scaffold	src/c/types/file_defs/krs/sass_machine.c	Holds forms read from a machine file, and reads and writes that file.
 emitter	key	src/c/transpiler/cubin/machines/sm_86	2927 forms one run found. An input to nothing that derives.

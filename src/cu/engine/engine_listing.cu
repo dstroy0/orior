@@ -201,7 +201,7 @@ extern "C" long engine_iapx_head(const char *set, const char *sample, unsigned l
     memset(&stream, 0, sizeof(stream));
     if ((ENGINE_CHECK(engine_sample_path(path, sizeof(path), set, sample, ENTRY_CRYSTAL_SUFFIX) != 0, sample, error,
                       ENGINE_ERROR_REQUEST) == 0) ||
-        (apxrep_input_head(path, &stream, NULL, error) == 0))
+        (krep_crystal_head(path, &stream, NULL, error) == 0))
     {
         engine_error_frame(error);
         engine_error_keep(error);

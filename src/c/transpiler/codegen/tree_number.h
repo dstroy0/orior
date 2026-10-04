@@ -14,7 +14,7 @@
 // string over an alphabet of TREE_SYMBOLS symbols is a number in base TREE_SYMBOLS.
 //
 // The alphabet is the PRECEPT_COUNT precepts and the leaves a word can name: its operands, and the word of zeroes
-// and the word of ones that a rewrite needs and no operand carries. 24 symbols and 13 places is 24^13, or 6.4e17,
+// and the word of ones that a rewrite needs and no operand carries. 24 symbols and 13 places is 24^13, or 8.76e17,
 // which sits inside an unsigned long long. Every tree in either web is one 8-byte number.
 //
 // What this buys is not bytes. web_check measures both and the node lists win at this size - 21 trees hold 32 nodes

@@ -63,7 +63,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/gnascor_trace" "$TOP/utils/maint/engine/g
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/host_entry_check" "$TOP/utils/test/src/c/transpiler/bootstrap/host_entry_check.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/classify_walk.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/c/engine" -I "$TOP/src/cu/engine" -o "$OUT/bus_enum_check" \
-    "$TOP/utils/test/src/c/transpiler/bootstrap/bus_enum_check.c" "$BOOT/bus_enum.c" "$BOOT/bus_enum_walk.c" \
+    "$TOP/utils/test/src/c/transpiler/bootstrap/bus_enum_check.c" "$BOOT/bus_enum.c" "$BOOT/bus_enum_walk.c" "$BOOT/query_interface.c" \
     "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" || exit 1
 WALK="$OUT/query_walk"
 if [ -f "$WALK.exe" ]; then

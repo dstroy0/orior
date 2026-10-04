@@ -76,6 +76,20 @@ extern "C"
         return (unsigned int)((bytes * 0x0101010101010101ULL) >> 56u);
     }
 
+    // the largest unit both counts are whole multiples of, by Euclid's remainders; 0 where both are 0
+    static inline unsigned long long engine_common_unit(unsigned long long first, unsigned long long second)
+    {
+        unsigned long long larger = first;
+        unsigned long long smaller = second;
+        while (smaller != 0ull)
+        {
+            const unsigned long long rest = larger % smaller;
+            larger = smaller;
+            smaller = rest;
+        }
+        return larger;
+    }
+
     static inline bool engine_object_reserve(unsigned int **words, size_t *capacity, size_t wanted, size_t width)
     {
         *capacity += (size_t)(wanted > *capacity) * ((2u * wanted) - *capacity);
@@ -157,8 +171,7 @@ extern "C"
         ENGINE_MODULE_KEY_SCHEDULE = 7,
         ENGINE_MODULE_RESIDUAL = 8,
         ENGINE_MODULE_GROW = 9,
-        ENGINE_MODULE_APXREP = 10,
-        ENGINE_MODULE_KREP = ENGINE_MODULE_APXREP,
+        ENGINE_MODULE_KREP = 10,
         ENGINE_MODULE_COMPRESSION = 11,
         ENGINE_MODULE_TOWER = 12,
         ENGINE_MODULE_ENTROPY_HISTORY = 13,

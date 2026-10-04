@@ -42,10 +42,10 @@ fi
 
 INCLUDES=(-I "$TOP/src/c/engine" -I "$TOP/src/cu/engine" -I "$CUB" -I "$INT" -I "$KRS" -I "$BOOT")
 cc -std=c11 -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_writings" "$HERE/interface_sass_writings.c" \
-    "$CUB/sass_assemble.c" "$CUB/cubin_write.c" "$CUB/cubin_safe.c" "$KRS/sass_machine.c" || exit 1
+    "$CUB/sass_assemble.c" "$CUB/cubin_write.c" "$CUB/../emit/container_write.c" "$CUB/../emit/container_pattern.c" "$CUB/../emit/container_layout.c" "$CUB/cubin_safe.c" "$KRS/sass_machine.c" || exit 1
 # the runner holds every cubin to cubin_safe on the host before the driver is handed it
 cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
-    "$CUB/cubin_safe.c" "$CUB/cubin_write.c" "$CUB/sass_assemble.c" "$KRS/sass_machine.c" \
+    "$CUB/cubin_safe.c" "$CUB/cubin_write.c" "$CUB/../emit/container_write.c" "$CUB/../emit/container_pattern.c" "$CUB/../emit/container_layout.c" "$CUB/sass_assemble.c" "$KRS/sass_machine.c" \
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 # the descent is orior's own, and orior reads exact integers
 cc -std=c11 -O2 -Wall -I "$SIFT" -I "$EXACT" -o "$OUT/gate_descent" \

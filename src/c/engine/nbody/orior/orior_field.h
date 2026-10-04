@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_field.h: fields and their projections (orior.h includes the parts in order)
 #ifndef ORIOR_FIELD_H
 #define ORIOR_FIELD_H
@@ -26,17 +26,16 @@ extern "C"
      *       dimensions, a pointer compared by identity, or a value only its owner can compare. The
      *       engine never learns which. An alphabet that cannot be enumerated or hashed costs it
      *       nothing.
-     * @note THIS ENGINE WAS THE NARROW ONE AND THE REST OF THE TREE WAS NOT. bench_lattice has taken a
-     *       callback since it was written, and the python cascade has never needed bytes either: its
-     *       `survivors` indexes a dict by symbol and `positions_by_symbol` builds that dict from any
-     *       iterable of values. It requires equality and hashability only. A
-     *       crystallography example feeds it element strings and has done so for longer than this note
-     *       has existed. The C entries demanded a `uint8_t *` and were therefore narrower both than the
-     *       proof they implement and than the python engine they are checked against.
-     * @note The two are STILL not equivalent and the difference runs the other way now. A dict key must
-     *       be hashable; this oracle asks only whether two positions are equal. A value that cannot be
-     *       hashed, or whose equality is expensive and whose hash would be a lie, can be searched here
-     *       and cannot be searched there. Anyone grading the two engines against each other should know
+     * @note NO ENGINE HERE IS NARROWER THAN THE PROOF. bench_lattice takes a callback, and the python
+     *       cascade needs no bytes: its `survivors` indexes a dict by symbol and `positions_by_symbol`
+     *       builds that dict from any iterable of values. It requires equality and hashability only,
+     *       and a crystallography example feeds it element strings. A C entry that took only a
+     *       `uint8_t *` would be narrower than the proof it implements and than the python engine it is
+     *       checked against.
+     * @note The two are not equivalent, and the difference runs this way. A dict key must be hashable;
+     *       this oracle asks only whether two positions are equal. A value that cannot be hashed, or
+     *       whose equality is expensive and whose hash would be a lie, can be searched here and cannot
+     *       be searched there. Anyone grading the two engines against each other should know
      *       which fields only one of them can accept.
      * @warning Must be a pure function of the two positions for the duration of a call. The engine
      *          reads the same position more than once and assumes the answer does not move under it.
@@ -130,8 +129,7 @@ extern "C"
      *          AnchorSameAt as used by a descent answers about a CORPUS position against a NEEDLE
      *          position, which are two index spaces. Grouping a field into classes compares two
      *          positions of the FIELD. Passing a descent's oracle here indexes the needle with a field
-     *          position and reads off the end of it. That fault segfaulted the suite, and this signature was
-     *          changed to prevent it.
+     *          position and reads off the end of it. This signature keeps the two apart.
      *
      * WHY PROJECT AT ALL. A probe only has to be a necessary condition of an occurrence. Within one
      * projection, two positions in one class carry one rank. Rank disagreement proves symbol
@@ -154,7 +152,8 @@ extern "C"
      *       later takes rank 255, alignments whose symbols differ can agree on every rank, and the byte
      *       engine's full compare cannot remove them, because on rank fields it compares ranks. The
      *       count is then an upper bound. It never falls below the symbol count, and case 13 in
-     *       utils/test/engine/nbody/orior/test_adversarial_*.c measures it above: 44 against 1 on a 300-class field.
+     *       utils/test/src/c/engine/nbody/orior/test_adversarial_*.c measures it above: 44 against 1 on a
+     *       300-class field.
      * For an exact count past 256 classes, check the rank survivors against the symbols through the oracle, or give the
      * oracle to a descent directly.
      * @warning COSTS UP TO `length` SQUARED ORACLE CALLS AND THAT IS NOT A LOOSE BOUND. Computing the

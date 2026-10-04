@@ -10,6 +10,8 @@
 // for a kernel that takes the same parameters and putting new code in it, in place of laying an ELF out from
 // nothing: everything the writer does not understand is carried over, never invented.
 //
+// The writer is container_write.h's emitter, given a cubin and the cubin's layout file emit/layouts/elf64_nvidia.tsv.
+//
 // The template's own kernel decides what fits: the same name, the same parameters, the same constant bank. Give
 // the writer code that takes other parameters and the cubin loads and reads the wrong parameters.
 
@@ -40,9 +42,10 @@ int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long lo
 unsigned int cubin_exits_find(const unsigned char *code, unsigned long long code_size, unsigned long long exit_low,
                               unsigned int *exits, unsigned int room);
 
-// how many registers a thread of `kernel` holds in `pattern`, which its code section carries in the top byte of its
-// info; 0 where the pattern holds no such kernel
-unsigned int cubin_registers_read(const unsigned char *pattern, const char *kernel);
+// how many registers a thread of `kernel` holds in `pattern`, which is `pattern_size` bytes and whose code section
+// carries the count in the top byte of its info; 0 where the pattern holds no such kernel, or a table, a section or a
+// name lies past its end
+unsigned int cubin_registers_read(const unsigned char *pattern, unsigned long long pattern_size, const char *kernel);
 
 // every code section of `cubin`, which is `size` bytes, each a section named .text.<function>: the offset of each
 // through `offsets` and its length through `sizes`, which hold `room`. The count found, or 0 where there is none or a

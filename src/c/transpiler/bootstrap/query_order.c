@@ -2,19 +2,22 @@
 // query_order.c: the known order of asks put through the query protocol, timed exactly on a clock that is an address
 #include "query_order.h"
 
-// reads of the clock word from now until it next turns over, and the word it turns over to
-static unsigned long long query_order_to_edge(unsigned long long clock, unsigned int *edge)
+// The reads of the clock word from now until it next turns over through `reads`, and the word it turns over to
+// through `edge`. 1, or 0 where the word did not turn inside `turns` reads, at least one read as QUERY_ADVANCES takes
+static int query_order_to_edge(unsigned long long clock, unsigned long long turns, unsigned long long *reads,
+                               unsigned int *edge)
 {
+    const unsigned long long most = (turns > 1ull) ? turns : 1ull;
     const unsigned int was = host_read(clock);
     unsigned int now = was;
-    unsigned long long reads = 0ull;
-    while (now == was)
+    *reads = 0ull;
+    while ((now == was) && (*reads < most))
     {
         now = host_read(clock);
-        reads += 1ull;
+        *reads += 1ull;
     }
     *edge = now;
-    return reads;
+    return (now != was) ? 1 : 0;
 }
 
 // `given`, a count, as an exact integer
@@ -26,15 +29,24 @@ static void query_order_exact(AnchorExactInteger *value, unsigned long long give
     value->sign = (given != 0ull) ? 1 : 0;
 }
 
+// a run's cost multiplies two counts of 64 bits and takes one such product from another: four limbs hold every
+// term, and the exact calls below are given no width they can refuse
+_Static_assert((unsigned long long)(ANCHOR_EXACT_LIMBS) >= 4ull, "a run's cost holds two 64-bit counts multiplied");
+
 // The links `covered` marks, each put `repeat` times, timed on a clock that turns over now and then and read finely by
 // counting. The run starts on a turn of the clock. When it ends, the reads of the clock word until its next turn are
 // counted, and so are the reads across the whole turn after that. The run's cost is the clock's advance from the turn
 // it started on to the turn after it ended, less the tail: the share of the following turn the counted reads cover.
-// That is spanned - tail * turn_span / turn_reads, kept as the rational it is
-static QueryCost query_order_run(const QueryOrder *order, const unsigned char *covered)
+// That is spanned - tail * turn_span / turn_reads, kept as the rational it is, through `cost`. 1, or 0 where the clock
+// did not turn inside the order's turns at one of the three turns the run waits on
+static int query_order_run(const QueryOrder *order, const unsigned char *covered, QueryCost *cost)
 {
+    unsigned long long waited = 0ull;
     unsigned int start = 0u;
-    query_order_to_edge(order->clock, &start);
+    if (query_order_to_edge(order->clock, order->turns, &waited, &start) == 0)
+    {
+        return 0;
+    }
     for (unsigned long long turn = 0ull; turn < order->repeat; turn += 1ull)
     {
         for (unsigned int link = 0u; link < order->links; link += 1u)
@@ -49,13 +61,17 @@ static QueryCost query_order_run(const QueryOrder *order, const unsigned char *c
         }
     }
     unsigned int after = 0u;
-    const unsigned long long tail = query_order_to_edge(order->clock, &after);
+    unsigned long long tail = 0ull;
     unsigned int next = 0u;
-    const unsigned long long turn_reads = query_order_to_edge(order->clock, &next);
+    unsigned long long turn_reads = 0ull;
+    if ((query_order_to_edge(order->clock, order->turns, &tail, &after) == 0) ||
+        (query_order_to_edge(order->clock, order->turns, &turn_reads, &next) == 0))
+    {
+        return 0;
+    }
     // each advance in the clock word's own width, which holds one wrap of the counter
     const unsigned long long spanned = (unsigned long long)(after - start);
     const unsigned long long turn_span = (unsigned long long)(next - after);
-    QueryCost cost;
     AnchorExactInteger left;
     AnchorExactInteger right;
     AnchorExactInteger kept;
@@ -66,9 +82,9 @@ static QueryCost query_order_run(const QueryOrder *order, const unsigned char *c
     query_order_exact(&left, tail);
     query_order_exact(&right, turn_span);
     anchor_exact_multiply(&left, &right, &taken);
-    anchor_exact_subtract(&kept, &taken, &cost.numerator);
-    query_order_exact(&cost.denominator, turn_reads);
-    return cost;
+    anchor_exact_subtract(&kept, &taken, &cost->numerator);
+    query_order_exact(&cost->denominator, turn_reads);
+    return 1;
 }
 
 int query_order_put(const QueryOrder *order, QueryCost *cost)
@@ -89,7 +105,10 @@ int query_order_put(const QueryOrder *order, QueryCost *cost)
                 // ask_order_covers answers 1 or 0
                 covered[link] = (unsigned char)ask_order_covers(order->links, ask, link);
             }
-            cost[(pass * order->links) + ask] = query_order_run(order, covered);
+            if (query_order_run(order, covered, &cost[(pass * order->links) + ask]) == 0)
+            {
+                return 0;
+            }
         }
     }
     return 1;
@@ -177,7 +196,10 @@ int query_order_sweep(const QueryOrder *order, unsigned int seed, unsigned int s
     for (unsigned int ask = 0u; ask < sweeps; ask += 1u)
     {
         ask_sweep_covers(order->links, seed, ask, covered);
-        sweep_cost[ask] = query_order_run(order, covered);
+        if (query_order_run(order, covered, &sweep_cost[ask]) == 0)
+        {
+            return 0;
+        }
     }
     return 1;
 }

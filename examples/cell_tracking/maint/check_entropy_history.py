@@ -17,7 +17,7 @@ def main():
     history_path = os.path.join(set_directory, sample, sample + ".oapx")
     with open(history_path, "rb") as history:
         head = history.read(16)
-        assert head[:8] == b"APXREP\0\0" and head[8:12] == b"OAPX", "not an OAPX apxrep"
+        assert head[:8] == b"KREP\0\0\0\0" and head[8:12] == b"KNF\0", "not a KNF krep"
         extent = struct.unpack("<4Q", history.read(32))
         window, windows, _payload_crc, _cloud_crc = struct.unpack("<4Q", history.read(32))
         _sample_root = history.read(32)

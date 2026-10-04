@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
  *
  * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
@@ -22,7 +22,7 @@
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. There
  * is no tolerance, no reordering that changes an answer, and no fast path that is right most of the
  * time: the value is an integer count of alignments and the two arms agree exactly or one is wrong.
- * That is the contract arithmetic/no_rounding/arm.h states for the exact arms and it is kept here for the same
+ * That is the contract src/c/types/integers/arm.h states for the exact arms and it is kept here for the same
  * reason.
  *
  * @note Asks the processor at run time and not the build. A binary compiled with AVX2 available

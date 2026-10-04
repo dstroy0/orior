@@ -46,7 +46,17 @@ unsigned int container_endings_find(const ContainerLayout *layout, const unsigne
                                     unsigned long long code_size, unsigned long long ending, unsigned int *exits,
                                     unsigned int room);
 
-// how many registers `part` holds in `pattern`, read where the layout says; 0 where the pattern holds no such part
-unsigned int container_registers_read(const ContainerLayout *layout, const unsigned char *pattern, const char *part);
+// how many registers `part` holds in `pattern`, which is `pattern_size` bytes, read where the layout says; 0 where the
+// pattern holds no such part, or a table, a section or a name lies past its end
+unsigned int container_registers_read(const ContainerLayout *layout, const unsigned char *pattern,
+                                      unsigned long long pattern_size, const char *part);
+
+// every code section of `container`, which is `size` bytes, each a section whose name is the layout's code name for
+// some part: the offset of each through `offsets` and its length through `sizes`, which hold `room`. The count found,
+// or 0 where there is none or a header, a name or a section lies past the container's end, or there are more than
+// `room`
+unsigned int container_code_sections(const ContainerLayout *layout, const unsigned char *container,
+                                     unsigned long long size, unsigned long long *offsets, unsigned long long *sizes,
+                                     unsigned int room);
 
 #endif

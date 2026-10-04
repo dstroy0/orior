@@ -1,10 +1,9 @@
-
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // What the raster_cuda_*.cu pieces share: its includes, types and the functions one piece calls in another
 #ifndef RASTER_CUDA_INTERNAL_H
 #define RASTER_CUDA_INTERNAL_H
 
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
  *
  * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
