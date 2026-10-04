@@ -1247,7 +1247,10 @@ def strike_rules(page, glyphs):
         if before and max(before) >= left - 0.1 * size:
             first = min(first, max(max(before), left))
         span = last - first
-        if 0.8 * span <= right - left <= 1.3 * span + 0.1 * through[0][2]:
+        # A rule drawn twice over the same letters, as Lyon's 2008 struck transcriptions are on
+        # page 3, strikes them once.
+        through = [glyph for glyph in through if not glyph[0].endswith(STRIKE_RULE)]
+        if 0.8 * span <= right - left <= 1.3 * span + 0.1 * size:
             for glyph in through:
                 glyph[0] += STRIKE_RULE
             count += len(through)
@@ -1542,6 +1545,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
         overprint = False
         clips = {}
         raised_at, unlifted = {}, {}
+        reach = {}
         if lifted is not None:
             raised_letters(textpage, ciphers=ciphers, found=raised_at, mark_base=mark_base)
             lifted[number] = raised_at
@@ -1557,8 +1561,11 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 deciphered(symbol, textpage, index, ciphers) != " "
             # pdfium sets a space of no width after a mark the stream carries late, x a s ̣ í l̓ for
             # x̣asíl̓ in Mellesmoen's (3d); the gap alone decides whether a word space stands there.
-            # A space pdfium made up is marked "made", one the stream carries True.
-            if symbol == " " and not drawn and not after_mark:
+            # A space pdfium made up is marked "made", one the stream carries True. A space the
+            # stream carries with its width after a mark set on its letter stands: the x̌ and
+            # all-spice of Lyon's 2008 (7).
+            if symbol == " " and not drawn and (not after_mark or textpage.get_charbox(index)[2] -
+                                                textpage.get_charbox(index)[0] > 0.01):
                 space_before = "made" if pdfium_c.FPDFText_IsGenerated(textpage.raw, index) else True
                 space_left = textpage.get_charbox(index)[0]
             after_mark = False
@@ -1611,6 +1618,15 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 target = under[-1] if under else (glyphs[-1] if glyphs else None)
                 if target is not None:
                     target[0] += mark
+                    # The comma above right stands past its letter in an advance of its own, the
+                    # Calibri l̕ of Lyon's 2008 (sgweshúl̕emxw), and where the stream sets no space
+                    # after it and the next glyph keeps its slant, the gap after the letter is
+                    # measured from the mark, the Times ε after it in (hεnq̓ʷεlúl̕εmxʷεn) too. Where
+                    # the slant changes the mark can stand in the word space itself: the italic
+                    # t̕íl̕ before the upright is of Lyon and Czaykowska-Higgins's page 14, the is
+                    # 0.05 em past the mark.
+                    if mark == "̕" and box[2] > target[1][2]:
+                        reach[target[4]] = box[2]
                     # A mark the stream carries after other glyphs, the caron of *t'əx̌ is at the end
                     # of its line in Denzer-King's §3.1, leaves the letter's own space in the stream.
                     if target is not glyphs[-1]:
@@ -1811,7 +1827,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             row_size = max(one[2] for one in members)
             for place, (symbol, box, size, font, order, spaced) in enumerate(members):
                 if previous is not None:
-                    gap = box[0] - previous[1][2]
+                    gap = box[0] - (reach.get(previous[3], previous[1][2])
+                                    if not spaced and italic(font) == italic(previous[2]) else previous[1][2])
                     # A capital set smaller than its row's letters, a word processor's small
                     # capital, keeps the row's letter spacing: the O B L of Sardinha's 2011 glosses
                     # stands 1.1 to 1.3pt apart, 0.16 em of its 7.92pt and 0.13 of the row's 9.84.
