@@ -15,6 +15,11 @@
 #           python examples/0_experimental/exact_zeta_miss_map.py <binary> pulse <base> <cells> <rate>
 #           python examples/0_experimental/exact_zeta_miss_map.py <binary> source <base> <cells> <rate>
 #           python examples/0_experimental/exact_zeta_miss_map.py <binary> primes <base> <cells> <rate>
+#           python examples/0_experimental/exact_zeta_miss_map.py <binary> twist <base> <cells> <rate>
+#
+# With twist, each cell is listed with the device's F'/F: checked against the fine lattice's own differences of w, and
+# each step of the uniform coarse lattice flagged where Newton's step from either end places a source whose pulse
+# passes the clock inside it, the flagged steps' share and the misses they hold read.
 #
 # With ripple, the misses of the uniform lattice at the rate are locked against the beats ln(n / m) of |F|^2, and F's
 # drag and swell at their dips read against every point's. With pulse, each place F passes near a zero of its own is
@@ -57,6 +62,7 @@
 
 import math
 import os
+import random
 import sys
 import tempfile
 
@@ -1190,7 +1196,309 @@ def main_primes(binary, base, count, rate):
     return 0 if failed == 0 else 1
 
 
+def twisted_points_of(path):
+    """A cell listed with the twist: the shift, and each point's sign, Z, w and F'/F = 2^shift exp(i theta) F' / w."""
+    shift, out = 0, []
+    with open(path) as handle:
+        for line in handle:
+            if line.startswith("twist"):
+                shift = int(line.split()[1])
+            elif line.startswith("point"):
+                sign, _, z, re, im, dre, dim = (int(v, 16) for v in line.split()[1:8])
+                w = complex(re / UNIT, im / UNIT)
+                turned = complex(dre / UNIT, dim / UNIT) * (1 << shift)
+                out.append((sign, z / UNIT, w, turned / w if abs(w) else 0j))
+    return shift, out
+
+
+TWIST_REACH = [0.5, 1.0, 2.0]
+TWIST_RULES = ["reach 0.5", "reach 1", "reach 2", "Hermite", "the pole's model", "the pole's own", "pole or Hermite",
+               "every rule"]
+
+
+def model_turns(w, ratio, z, clock, t_end, t_a, t_b, samples=32):
+    """Whether the relational model from one end crosses zero inside the step while the ends agree in sign: F linear
+    through its source, F(t) = F_e (1 + (F'/F)_e (t - t_e)), the carrier turning at theta', and R held, giving
+    Z(t) =2 Re(w_e (1 + (F'/F)_e (t - t_e)) exp(i theta' (t - t_e))) + R_e. Spin, twist, swell and the level R / (2 |F|)
+    each enter against the others; nothing is a threshold."""
+    rest = z - 2 * w.real
+    sign = z > 0.0
+    for k in range(1, samples):
+        u = t_a + (t_b - t_a) * k / samples - t_end
+        value = 2 * (w * (1 + ratio * u) * complex(math.cos(clock * u), math.sin(clock * u))).real + rest
+        if (value > 0.0) != sign:
+            return True
+    return False
+
+
+def hermite_turns(z0, z1, d0, d1, h, samples=32):
+    """Whether the cubic through Z and Z' at a step's two ends, h apart, changes sign inside it while its ends hold
+    one sign: a pair the step can hide, by the spin or by the slide alike."""
+    if (z0 > 0.0) != (z1 > 0.0):
+        return False
+    m0, m1 = d0 * h, d1 * h
+    for k in range(1, samples):
+        s = k / samples
+        value = ((2 * s ** 3 - 3 * s ** 2 + 1) * z0 + (s ** 3 - 2 * s ** 2 + s) * m0 + (-2 * s ** 3 + 3 * s ** 2) * z1 +
+                 (s ** 3 - s ** 2) * m1)
+        if (value > 0.0) != (z0 > 0.0):
+            return True
+    return False
+
+
+def pole_passes(source, clock, rate):
+    """The stretch of t where a single pole at `source` = gamma + i delta passes the clock, or None. Its twist is
+    delta / (u^2 + delta^2), u = t - gamma: below -theta' where delta < 0 and u^2 < |delta| / theta' - delta^2, the
+    clock running back; past (rate - 1) theta' where delta > 0 and u^2 < delta / ((rate - 1) theta') - delta^2, the
+    clock spun a step's pi."""
+    delta = source.imag
+    if delta < 0.0:
+        room = -delta / clock - delta * delta
+    elif rate > 1.0:
+        room = delta / ((rate - 1.0) * clock) - delta * delta
+    else:
+        room = -1.0
+    if room <= 0.0:
+        return None
+    half = math.sqrt(room)
+    return source.real - half, source.real + half
+
+
+def crossings_of(path):
+    """The times a polyline crosses itself: each pair of its segments, not neighbors, that intersect."""
+    def side(a, b, c):
+        return (b.real - a.real) * (c.imag - a.imag) - (b.imag - a.imag) * (c.real - a.real)
+    count = 0
+    for i in range(len(path) - 1):
+        for j in range(i + 2, len(path) - 1):
+            p, q, r, s = path[i], path[i + 1], path[j], path[j + 1]
+            if (side(p, q, r) > 0) != (side(p, q, s) > 0) and (side(r, s, p) > 0) != (side(r, s, q) > 0):
+                count += 1
+    return count
+
+
+def theta_at(t):
+    """theta(t) = (t / 2) ln(t / 2 pi) - t / 2 - pi / 8 + 1 / (48 t), in floating point, for the co-rotating frame."""
+    return 0.5 * t * math.log(t / (2 * math.pi)) - 0.5 * t - math.pi / 8 + 1.0 / (48 * t)
+
+
+def figure_of(fine, x2, low, high, listed=None):
+    """Over fine points low to high: the self-crossings of w's track, the walker's plane, and of F's, the frame that
+    turns with the carrier; the signs the angular momentum L = Im(conj(w) w') = |F|^2 phi' runs through, each run of
+    one sign counted once; and with the device's F'/F, the self-crossings of the phase portrait (Z, Z' / theta'),
+    Z' = 2 Re(w (i theta' + F'/F))."""
+    portrait = []
+    if listed is not None:
+        for j in range(low, high + 1):
+            clock = 0.5 * math.log(x2[j])
+            slope = 2 * (fine[j][3] * complex(listed[j][3].real, listed[j][3].imag + clock)).real
+            portrait.append(complex(fine[j][2], slope / clock))
+    track = [fine[j][3] for j in range(low, high + 1)]
+    frame = [w * complex(math.cos(-theta_at(2 * math.pi * x2[j])), math.sin(-theta_at(2 * math.pi * x2[j])))
+             for w, j in zip(track, range(low, high + 1))]
+    signs = []
+    for k in range(len(track) - 1):
+        moment = (track[k].conjugate() * (track[k + 1] - track[k])).imag
+        if moment != 0.0 and (not signs or signs[-1] != (moment > 0)):
+            signs.append(moment > 0)
+    return (crossings_of(track), crossings_of(frame), "".join("+" if s else "-" for s in signs),
+            crossings_of(portrait))
+
+
+def main_twist(binary, base, count, rate):
+    """Cells `base` to base + count - 1 on one fine lattice each, listed with the device's F'.
+
+    The check: the device's twist and swell, F'/F at each point, against the fine lattice's own differences of w.
+
+    The flag: at each point of the uniform coarse lattice at the rate, Newton's step t* = t - F/F' places the nearest
+    source, exact for a single pole, from that point alone. A coarse step is flagged where a source placed from either
+    end falls inside it with |Im t*| under `reach` / theta', a pulse that can pass the clock. Read: the misses in
+    flagged steps, the share of steps flagged, and the misses a uniform lattice that refines the same share by lot
+    would catch."""
+    constants = tm.Constants()
+    diffs, misses, caught, flagged, steps, failed = [], 0, [0] * len(TWIST_RULES), [0] * len(TWIST_RULES), 0, 0
+    courses, miss_courses, coupling, miss_coupling = [], [], [], []
+    figures, lots, halves, slips = [], [], [], []
+    lot = random.Random(20261003)
+    for at in range(base, base + count):
+        z = tm.rises(at)
+        fine_p = math.ceil(math.log2(8 * rate * z))
+        step = max(2, round((1 << fine_p) / (rate * z)))
+        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=2)
+        failed += cell.failed
+        shift, listed = twisted_points_of(cell.path)
+        os.remove(cell.path)
+        fine = [(s, 0, zz, w) for s, zz, w, _ in listed]
+        x2 = [at * at + j * (2 * at + 1) / len(fine) for j in range(len(fine))]
+        dt = 2 * math.pi * (x2[1] - x2[0])
+        for j in range(1, len(fine) - 1, 97):
+            drag, swell = ripple_at(fine, x2, j)
+            courses.append(abs(math.degrees(math.atan2(swell, drag))))
+            coupling.append(1 + listed[j][3] / complex(0, 0.5 * math.log(x2[j])))
+            w0, w1 = fine[j - 1][3], fine[j + 1][3]
+            if abs(w0) == 0.0 or abs(w1) == 0.0:
+                continue
+            ratio = w1 / w0
+            clock = 0.5 * math.log(x2[j])
+            seen = complex(math.log(abs(w1) / abs(w0)), math.atan2(ratio.imag, ratio.real)) / (2 * dt) - complex(0, clock)
+            diffs.append(abs(listed[j][3] - seen) / clock)
+        # the half twist: at each minimum of |F|, Newton's step places the source, and the device's twist summed over
+        # u in [-3 |delta|, 3 |delta|] is read against the single pass's 2 atan(3) sign(delta)
+        for j in range(1, len(fine) - 1):
+            if not (abs(fine[j][3]) < abs(fine[j - 1][3]) and abs(fine[j][3]) <= abs(fine[j + 1][3])):
+                continue
+            ratio = listed[j][3]
+            if ratio == 0j:
+                continue
+            source = 2 * math.pi * x2[j] - 1.0 / ratio
+            delta = source.imag
+            clock = 0.5 * math.log(x2[j])
+            reach = int(math.ceil(3 * abs(delta) / dt))
+            centre = j + int(round((source.real - 2 * math.pi * x2[j]) / dt))
+            if abs(delta) * clock >= 1.0 or reach < 4 or centre - reach < 0 or centre + reach >= len(fine):
+                continue
+            turn = sum(listed[k][3].imag for k in range(centre - reach, centre + reach + 1)) * dt
+            halves.append((abs(delta) * clock, turn / (2 * math.atan(3.0) * math.copysign(1.0, delta))))
+        idx = comb_indices(len(fine), step, (1,))
+        found = misses_on(idx, fine)
+        for a, b, first, second in found:
+            dip = max(range(first[1], second[0] + 1), key=lambda j: abs(fine[j][2]))
+            drag, swell = ripple_at(fine, x2, dip)
+            miss_courses.append(abs(math.degrees(math.atan2(swell, drag))))
+            # the slip: how far past the level the ball goes, |Z| / (2 |F|) at the dip, where cos(phi) stands, and
+            # the drag there; the zeros' distance apart in fine steps
+            slips.append((abs(fine[dip][2]) / (2 * abs(fine[dip][3])), fine[dip][3].real / abs(fine[dip][3]), drag,
+                          second[0] - first[1], 2 * math.pi * x2[dip],
+                          abs(fine[dip][2] - 2 * fine[dip][3].real) / (2 * abs(fine[dip][3]))))
+            # the coupling zeta = 1 + (F'/F) / (i theta') from the device, least |zeta - 1| is the best grip, across
+            # the miss's two zeros its farthest from 1
+            across = range(first[0], second[1] + 1)
+            miss_coupling.append(max((1 + listed[j][3] / complex(0, 0.5 * math.log(x2[j])) for j in across),
+                                     key=lambda c: abs(c - 1)))
+        spans = [(a, b) for a, b, first, second in found]
+        misses += len(spans)
+        # the figure: each miss's track over its steps and one step each side, against windows as long placed by lot
+        for a, b, first, second in found:
+            low, high = idx[max(a - 1, 0)], idx[min(b + 1, len(idx) - 1)]
+            figures.append(figure_of(fine, x2, low, high, listed))
+        span = 3 * step
+        for _ in range(60):
+            low = lot.randrange(0, len(fine) - span - 1)
+            lots.append(figure_of(fine, x2, low, low + span, listed))
+        marked = [set() for _ in TWIST_RULES]
+        for a in range(len(idx) - 1):
+            steps += 1
+            t_a, t_b = 2 * math.pi * x2[idx[a]], 2 * math.pi * x2[idx[a + 1]]
+            clock = 0.5 * math.log(x2[idx[a]])
+            places = []
+            for j in (idx[a], idx[a + 1]):
+                ratio = listed[j][3]
+                if ratio != 0j:
+                    places.append(2 * math.pi * x2[j] - 1.0 / ratio)
+            hits = [any(t_a <= s.real <= t_b and abs(s.imag) * clock < reach for s in places) for reach in TWIST_REACH]
+            # Z' = 2 Re(w (i theta' + F'/F)), the remainder's own slope left out
+            slopes = [2 * (fine[j][3] * complex(listed[j][3].real, listed[j][3].imag + 0.5 * math.log(x2[j]))).real
+                      for j in (idx[a], idx[a + 1])]
+            hermite = hermite_turns(fine[idx[a]][2], fine[idx[a + 1]][2], slopes[0], slopes[1], t_b - t_a)
+            hits.append(hermite)
+            same = (fine[idx[a]][2] > 0.0) == (fine[idx[a + 1]][2] > 0.0)
+            hits.append(same and any(model_turns(fine[j][3], listed[j][3], fine[j][2], 0.5 * math.log(x2[j]),
+                                                 2 * math.pi * x2[j], t_a, t_b) for j in (idx[a], idx[a + 1])))
+            spans_of = [pole_passes(s, clock, rate) for s in places]
+            pole = any(span is not None and span[0] <= t_b and span[1] >= t_a for span in spans_of)
+            hits.append(pole)
+            hits.append(pole or hermite)
+            hits.append(pole or hermite or hits[4])
+            for r, hit in enumerate(hits):
+                if hit:
+                    flagged[r] += 1
+                    marked[r].add(a)
+        for r in range(len(TWIST_RULES)):
+            caught[r] += sum(1 for a, b in spans if any(k in marked[r] for k in range(a, b)))
+        # each miss the Hermite flag leaves, read across its two zeros: R = Z - 2 Re w, the level R / (2 |F|) the
+        # phase's cosine must reach, the drag and the swell over theta', the step's length in zeros, and the coupling
+        hermite_at = TWIST_RULES.index("Hermite")
+        for a, b, first, second in found:
+            if any(k in marked[hermite_at] for k in range(a, b)):
+                continue
+            couplings = [1 + listed[j][3] / complex(0, 0.5 * math.log(x2[j])) for j in range(first[0], second[1] + 1)]
+            print("    Hermite leaves: steps %d, zeros apart %.3f of a step, zeta from %s to %s" % (
+                b - a, (second[0] - first[1]) / max(1, idx[b] - idx[a]),
+                min(couplings, key=lambda c: c.real), max(couplings, key=lambda c: abs(c - 1))), flush=True)
+            across = range(first[0], second[1] + 1)
+            levels = [(fine[j][2] - 2 * fine[j][3].real) / (2 * abs(fine[j][3])) for j in across]
+            drags = [ripple_at(fine, x2, j) for j in across]
+            print("    left: t %.4f to %.4f, |F| %.4f to %.4f, R / (2 |F|) %.4f to %.4f, cos phi %.4f to %.4f, "
+                  "drag %.3f to %.3f, swell %.3f to %.3f" % (
+                      2 * math.pi * x2[first[0]], 2 * math.pi * x2[second[1]],
+                      min(abs(fine[j][3]) for j in across), max(abs(fine[j][3]) for j in across),
+                      min(levels), max(levels),
+                      min(fine[j][3].real / abs(fine[j][3]) for j in across),
+                      max(fine[j][3].real / abs(fine[j][3]) for j in across),
+                      min(d[0] for d in drags), max(d[0] for d in drags),
+                      min(d[1] for d in drags), max(d[1] for d in drags)), flush=True)
+        print("  cell %d done, shift %d, %d misses so far" % (at, shift, misses), flush=True)
+    diffs.sort()
+    print("  the device's F'/F against the fine lattice's differences, |difference| / theta', 50/90/99/most: %s" % (
+        " ".join("%.5f" % diffs[int(f * (len(diffs) - 1))] for f in (0.5, 0.9, 0.99, 1.0))))
+    print("  %-16s %14s %16s" % ("flag", "steps flagged", "misses caught"))
+    for r, rule in enumerate(TWIST_RULES):
+        print("  %-16s %13.2f%% %9d (%5.1f%%)" % (rule, 100.0 * flagged[r] / max(1, steps), caught[r],
+                                                  100.0 * caught[r] / max(1, misses)))
+    for label, values in (("every point", courses), ("the misses' dips", miss_courses)):
+        values.sort()
+        print("  the course off the tangent, |atan(swell / drag)| in degrees, %s, 10/50/90: %s; past 60: %.1f%%" % (
+            label, " ".join("%.1f" % values[int(f * (len(values) - 1))] for f in (0.1, 0.5, 0.9)),
+            100.0 * sum(1 for v in values if v > 60.0) / max(1, len(values))))
+    print("  the flagged steps by count: %s" % ", ".join("%s %d" % (rule, flagged[r]) for r, rule in enumerate(TWIST_RULES)))
+    for label, values in (("every point", coupling), ("the misses, farthest from 1", miss_coupling)):
+        far = sorted(abs(c - 1) for c in values)
+        print("  the coupling zeta, %s: |zeta - 1| 10/50/90 %s; Re zeta < 0 %.1f%%, |zeta| past %.2f %.1f%%, "
+              "|arg zeta| past 60 degrees %.1f%%" % (
+                  label, " ".join("%.3f" % far[int(f * (len(far) - 1))] for f in (0.1, 0.5, 0.9)),
+                  100.0 * sum(1 for c in values if c.real < 0) / max(1, len(values)), rate,
+                  100.0 * sum(1 for c in values if abs(c) > rate) / max(1, len(values)),
+                  100.0 * sum(1 for c in values if abs(math.degrees(math.atan2(c.imag, c.real))) > 60.0) /
+                  max(1, len(values))))
+    for label, rows in (("the misses", figures), ("windows by lot", lots)):
+        n = max(1, len(rows))
+        patterns = {}
+        for row in rows:
+            patterns[row[2]] = patterns.get(row[2], 0) + 1
+        common = sorted(patterns.items(), key=lambda kv: -kv[1])[:4]
+        print("  the figure, %s (%d): the track crosses itself, in w %.1f%%, in F %.1f%%, in (Z, Z' / theta') %.1f%%; "
+              "L's signs, the most common: %s" % (label, len(rows), 100.0 * sum(1 for r in rows if r[0] > 0) / n,
+                                                  100.0 * sum(1 for r in rows if r[1] > 0) / n,
+                                                  100.0 * sum(1 for r in rows if r[3] > 0) / n,
+                                                  ", ".join("%s %.1f%%" % (k, 100.0 * v / n) for k, v in common)))
+    slips.sort()
+    print("  the slip at each miss's dip, |Z| / (2 |F|), 10/50/90: %s" % " ".join(
+        "%.4f" % slips[int(f * (len(slips) - 1))][0] for f in (0.1, 0.5, 0.9)))
+    for depth, cosine, drag, apart, t, level in slips[:8]:
+        print("    shallowest: t %.4f, slip %.5f, level %.4f, cos(phi) %.4f, drag %.3f, the zeros %d fine steps apart" % (
+            t, depth, level, cosine, drag, apart))
+    shallow, deep = slips[:len(slips) // 4], slips[-(len(slips) // 4):]
+    for label, rows in (("shallowest quarter", shallow), ("deepest quarter", deep)):
+        print("  %s: |cos(phi)| median %.4f, |drag| median %.3f, the zeros apart median %d fine steps, the level "
+              "|R| / (2 |F|) median %.4f, the slip over the level median %.4f" % (
+                  label, sorted(abs(r[1]) for r in rows)[len(rows) // 2], sorted(abs(r[2]) for r in rows)[len(rows) // 2],
+                  sorted(r[3] for r in rows)[len(rows) // 2], sorted(r[5] for r in rows)[len(rows) // 2],
+                  sorted(r[0] / r[5] if r[5] else 0.0 for r in rows)[len(rows) // 2]))
+    for low, high in ((0.0, 0.25), (0.25, 0.5), (0.5, 1.0)):
+        rows = sorted(r for d, r in halves if low <= d < high)
+        if rows:
+            print("  the half twist, |delta| theta' in [%.2f, %.2f): %d passes, the turn over 2 atan(3) sign(delta), "
+                  "10/50/90: %s; the sign of delta's %.1f%%" % (
+                      low, high, len(rows), " ".join("%.3f" % rows[int(f * (len(rows) - 1))] for f in (0.1, 0.5, 0.9)),
+                      100.0 * sum(1 for r in rows if r > 0) / len(rows)))
+    print("  misses %d over %d coarse steps; %d host checks failed" % (misses, steps, failed))
+    return 0 if failed == 0 else 1
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 2 and sys.argv[2] == "twist":
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.exit(main_twist(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), float(sys.argv[5])))
     if len(sys.argv) > 2 and sys.argv[2] == "primes":
         sys.stdout.reconfigure(line_buffering=True)
         sys.exit(main_primes(sys.argv[1], int(sys.argv[3]), int(sys.argv[4]), float(sys.argv[5])))
