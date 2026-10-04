@@ -12,7 +12,7 @@
 #   corpus_derivation.py   the chapter "Corpus derivation" and its figure;
 #   gold_readings.sh       the gold standard corpora and the papers read exactly on the record machine;
 #   instrument_figures.py  the figures of the chapter "The corpus under the instrument".
-# Each prints "  wrote <path>" for every file it rewrites, and build_theory.sh stages those.
+# Each prints "  wrote <path>" for every file it rewrites, and build_theory.sh shows those.
 #
 # The corpora and papers they read are under build/, which is not tracked. Where build/corpora is
 # absent the generated files stand as they are tracked, and this says so and succeeds.

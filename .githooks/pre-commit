@@ -140,16 +140,10 @@ PAPERS=$(git -C "$REPO" diff --cached --name-only -- theory | while read -r path
 done | sort -u)
 pdfs=0
 if [ -n "$PAPERS" ]; then
-    if sh "$REPO/$TOOLS/texbuild/build_theory.sh" $PAPERS; then
+    # A paper's generate.sh is not run here. Generating is the TeX builder's when it is run directly.
+    if THEORY_GENERATE=0 sh "$REPO/$TOOLS/texbuild/build_theory.sh" $PAPERS; then
         for paper in $PAPERS; do
             git -C "$REPO" add -- "theory/$paper/$(basename "$paper").pdf"
-            # The files a paper's generate.sh rewrote go in with the PDF built from them.
-            generated="$REPO/build/theory/$paper/generated.list"
-            if [ -s "$generated" ]; then
-                while read -r path; do
-                    git -C "$REPO" add -- "$path"
-                done < "$generated"
-            fi
         done
     else
         pdfs=1

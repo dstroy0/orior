@@ -177,7 +177,7 @@ def main():
     # it twice on the page.
     body = body.replace("\\section{Whose words these are}\n\n", "", 1)
     # Rewritten only where the text changes, and each rewrite printed as "  wrote <path>" for the
-    # research paper's build to stage.
+    # research paper's build to show.
     old = None
     if os.path.isfile(INDEX):
         with open(INDEX, encoding="utf-8") as handle:

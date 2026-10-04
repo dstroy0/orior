@@ -13,7 +13,9 @@
 # builds clean has its PDF copied next to its main.tex, named after its directory. The PDF of
 # theory/theory/delta_null is theory/theory/delta_null/delta_null.pdf. A paper that fails, or that
 # drops a glyph, leaves the PDF beside its source as it was. A paper with a generate.sh beside its
-# main.tex has it run first, and the files it generates are written where it puts them.
+# main.tex has it run first, and the files it generates are written where it puts them. With
+# THEORY_GENERATE=0 no generate.sh runs and the paper is set from its files as they stand. The
+# pre-commit hook calls this with THEORY_GENERATE=0.
 #
 # A missing glyph is reported by the engine as "Missing character" and is otherwise silent: the
 # letter is dropped from the PDF and the run still succeeds. This script counts them and fails when
@@ -66,17 +68,14 @@ for research_paper in $RESEARCH_PAPERS; do
     fi
     # A paper whose figures are measured carries a generate.sh beside its main.tex, and it runs before
     # the paper is set. The paper is then built from what the checks measure now. A generator prints
-    # "  wrote <path>" for each file it rewrites, and those paths are listed in generated.list for the
-    # pre-commit hook to stage with the PDF. A generator that fails fails its paper.
-    rm -f "$out/generated.list"
-    if [ -f "$src/generate.sh" ]; then
+    # "  wrote <path>" for each file it rewrites, shown here. A generator that fails fails its paper.
+    if [ -f "$src/generate.sh" ] && [ "${THEORY_GENERATE:-1}" != 0 ]; then
         if ! bash "$src/generate.sh" > "$out/generate.log" 2>&1; then
             echo "  $research_paper: generate.sh failed, see $out/generate.log"
             tail -n 5 "$out/generate.log" | sed "s/^/      /"
             STATUS=1
             continue
         fi
-        sed -n 's/^  wrote //p' "$out/generate.log" > "$out/generated.list"
         sed -n 's/^  wrote /      wrote /p' "$out/generate.log"
     fi
     clean=1
