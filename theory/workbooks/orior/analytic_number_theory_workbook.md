@@ -885,8 +885,12 @@ pole `N`'s record, the point's record and a shared record:
 
 At `M = 20` the stage is 1,897 steps, the same program at every cell, `N` a field of its record. The
 verdict reads it in place of the remainder, and the head is taken once, not doubled. `em_bounds` adds
-Johansson's remainder, `theta`'s error through the head and `C`, and the device's arithmetic, carried
-step by step through the reciprocal and each `tau_k`.
+Johansson's remainder, `theta`'s error, and the device's arithmetic, carried step by step through the
+reciprocal and each `tau_k`. Brent's error `delta` in `theta` is one angle at a point, common to the head
+and `C`: the sum is `Re(exp(i (theta + delta)) (zeta - R))`, and `exp(i theta) zeta = Z` is real.
+`delta` moves it by `|Z| (1 - cos(delta)) <= |Z| delta^2 / 2`, `|Z|` at most `2 sqrt(N) + |C| + |R|`.
+Riemann-Siegel's `Z = 2 Re(exp(i theta) F) + R` has no such form: `Im(exp(i theta) F)` is not small,
+and entry 9's bound charges `delta` at first order.
 
 **The walk.** Each point's `Z` is a fix and its bound the error about it, and a point that clears its
 bound is a certified sign. Where the count falls short, each cell with an uncertified point, or every
@@ -894,9 +898,20 @@ cell where none has one, runs again with four times the points and ten more term
 until the count closes or the rounds run out.
 
 **The run.** Cells 1 to 10 at 4 points or more a zero, `M = 20`, `N` from 21 at cell 1 to 255 at cell 10.
-The bound on `Z` is `2.5 e-4` at cell 1, `3.9 e-6` at cell 2 and `6.0 e-10` at cell 10, and every
+The bound on `Z` is `2.3 e-9` at cell 1, `5.9 e-13` at cell 2 and `3.0 e-12` at cell 10, and every
 cell closes in round 0. The certified sign changes in `(6.283185, 760.265422]` number 460, and `N` is held
-to one value at the top, `460 <= N(760.265422) <= 460`, every port check equal, in 305 seconds.
+to one value at the top, `460 <= N(760.265422) <= 460`, every port check equal, in 335 seconds.
+
+| cell | `N` | the bound on `Z`, `delta` at second order | `delta` charged at first order |
+|---|---|---|---|
+| 1 | 21 | `2.283 e-9` | `2.523 e-4` |
+| 2 | 31 | `5.873 e-13` | `3.929 e-6` |
+| 3 | 45 | `7.947 e-14` | `3.847 e-7` |
+| 5 | 85 | `2.952 e-13` | `2.466 e-8` |
+| 10 | 255 | `3.004 e-12` | `6.037 e-10` |
+
+At first order `theta`'s error is nearly the whole bound at every cell; at second order the remainder
+and the device's arithmetic are.
 
 **Controls.**
 - **The house's Z.** Against `em_at`, the exact value by `exact_zeta_zeros.py`'s two routes, the device
@@ -904,7 +919,8 @@ to one value at the top, `460 <= N(760.265422) <= 460`, every port check equal, 
   two of cell 10. The gap at cell 1 is `theta`'s omitted `7 / (5760 t^3)`, entering at second order:
   `exp(i theta) zeta(1/2 + i t) = Z` is real, and an error `delta` in `theta` moves its real part by
   `Z (cos(delta) - 1)`. At `t = 2 pi` that is `0.956 (4.9 e-6)^2 / 2`, `1.1 e-11`, and at `t = 12.17`
-  it is `1.195 (6.7 e-7)^2 / 2`, `2.7 e-13`. The bound charges `delta` at first order.
+  it is `1.195 (6.7 e-7)^2 / 2`, `2.7 e-13`. Both are inside the bound, which charges `delta` at second
+  order.
 - **Riemann-Siegel.** At the same two points of cell 10, entry 9's `Z` through `C_0` differs from this
   one by `9.6 e-4` and `2.5 e-4`, within the two bounds' sum, `1.012 e-3`, nearly all of it Gabcke's.
 - **The port check.** The host's records equal the device's word for word, and its sums equal the
@@ -1888,6 +1904,42 @@ The spikes' weights below `tau` sum to `tau^2 / 2`, GUE's ramp, and none falls b
   to 1.2, `K` less GUE's is +0.023 and +0.014, the shuffled spacings' +0.045 and +0.039; at 1.1 the
   zeros give 1.050 and 1.036.
 
+**At each e-fold height.** Both readings at heights `t` an e-fold apart, cells 41, 67, 110, 182, 300,
+495 and 815, with cells 1000 to 1003. N is held by Turing's method at the cells' F's at all but 815,
+where a run of the machine over cells 814 to 822 holds it in one round, `N = 8,240,626` at cell 815's F
+and `8,394,348` at cell 822's. At every height the zeros placed number N's difference.
+
+| cells | `L` | zeros | `S`'s variance | Selberg's term | pull back | neighbors | trough in `t` | `K` below `ln 2 / L` | the primes' rms, to 0.3 | GUE's rms, to 0.3 | ramp less GUE's |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 42 to 52 | 7.712 | 7,241 | 0.0525 | 0.1035 | -0.486 | -0.360 | 13.86, `k = 17` | 0.0003 | 0.0087 | 0.0900 | -0.0280 |
+| 68 to 78 | 8.586 | 12,530 | 0.0571 | 0.1089 | -0.455 | -0.356 | 13.91, `k = 19` | 0.0002 | 0.0022 | 0.0714 | -0.0237 |
+| 111 to 121 | 9.509 | 22,058 | 0.0617 | 0.1141 | -0.429 | -0.352 | 13.88, `k = 21` | 0.0000 | 0.0007 | 0.0577 | -0.0195 |
+| 183 to 193 | 10.474 | 39,378 | 0.0662 | 0.1190 | -0.407 | -0.352 | 13.80, `k = 23` | 0.0001 | 0.0006 | 0.0446 | -0.0146 |
+| 300 to 310 | 11.441 | 69,789 | 0.0701 | 0.1235 | -0.389 | -0.349 | 14.28, `k = 26` | 0.0001 | 0.0005 | 0.0368 | -0.0118 |
+| 496 to 500 | 12.421 | 49,486 | 0.0738 | 0.1276 | -0.373 | -0.347 | 14.16, `k = 28` | 0.0001 | 0.0004 | 0.0303 | -0.0101 |
+| 815 to 822 | 13.415 | 153,722 | 0.0774 | 0.1315 | -0.359 | -0.345 | 14.05, `k = 30` | 0.0001 | 0.0003 | 0.0251 | -0.0084 |
+| 1000 to 1003 | 13.819 | 83,036 | 0.0788 | 0.1330 | -0.354 | -0.343 | 14.10, `k = 31` | 0.0001 | 0.0005 | 0.0234 | -0.0069 |
+
+The ramp less GUE's is `K` smoothed by `sigma = 0.05` over `tau` from 0.2 to 0.8; the plateau, 1.2 to
+3, stands within 0.07 of 1 at every height, and within 0.012 at cells 815 to 822.
+
+- **The pull back is the spacings' over the slack.** `S`'s step from one zero to the next is
+  `1 - (g_k + g_(k+1)) / 2`, its variance `var(g)(1 + rho) / 2`, `rho` the neighbors' correlation, and
+  the pull back is `-var(g)(1 + rho) / (4 var(S))`: -0.4855 against -0.4859 measured at the lowest
+  height and -0.3590 against -0.3591 at cells 815 to 822. The step's variance rises only from 0.051 to
+  0.056 over six e-folds; `S`'s from 0.0525 to 0.0774. The tension each zero holds stays nearly the
+  same while the slack grows, and the pull each zero weakens as the slack.
+- **The slack grows as `ln L`.** By least squares over the seven heights `S`'s variance is
+  `0.0451 ln L - 0.0397`, against Selberg's `(1 / (2 pi^2)) ln L = 0.0507 ln L`.
+- **The trough stands at 14 in `t` at every height**, 13.80 to 14.28, while `k` runs from 17 to 31 with
+  `L`. At `tau = 14`, `14 ln 2 = 3.09 pi`, `14 ln 3 = 4.90 pi` and `14 ln 5 = 7.17 pi`: the waves of
+  2, 3 and 5 are each near an odd multiple of `pi` together.
+- **No wave longer than `2 pi / ln 2`, at every height.** `K` below `ln 2 / L` is `3 e-4` at most,
+  where GUE's ramp stands at 0.013 to 0.029.
+- **The diagonal of the explicit formula closes with height**, its rms to 0.3 from 0.0087 to 0.0003,
+  and GUE's ramp approaches the zeros from 0.090 to 0.023. The ramp's mean falls short of GUE's by
+  `1.3 / L^2` to `1.8 / L^2` over the heights.
+
 ## The zeros in the engine's field
 
 Doug's. Posit.
@@ -2252,14 +2304,15 @@ places, `N` and the widths come from the records.
 - Whether a non-trivial zero has a closed form in the constructors is a separate question from where
   it sits, and it is not addressed here.
 - Entries 9, 14 and 15 verify `(0, 6295757.960979]`. Cells past 1001 are a field of the same run.
-- The form factor of the zeros on `theta / pi` is read at two heights, from zeros placed on the lattice
-  even in `t` (entry 17). The lattice even in `theta / pi`, each pair's difference carrying the two
-  certified intervals' widths, and the form factor at each e-fold height are wanted, not built.
+- The form factor of the zeros on `theta / pi` is read at seven heights an e-fold apart, from zeros
+  placed on the lattice even in `t` (entry 17). The lattice even in `theta / pi`, and each pair's
+  difference carrying the two certified intervals' widths, are wanted, not built.
 - The drawn null through the same field, GUE draws in place of the zeros or the carrier's phase
   shuffled, against every structure entry 16 reads, is wanted, not built.
-- The metallic carriers in place of e ("The zeros in the engine's field", (6)): the golden `1, 1, 1`,
-  the silver `2, 2, 2` and the `1, 1, 2` comb, the lattices they step, the moments of `w` against each,
-  their beat as the difference, and the shuffled steps as the null, are wanted, not built. Every growth
+- The metallic carriers in place of e ("The zeros in the engine's field", (6)): the lattices the golden
+  `1, 1, 1`, the silver `2, 2, 2` and the `1, 1, 2` comb step are measured as sampling grids against the
+  uniform lattice and their shuffled steps (entry 16). The moments of `w` read against each as a
+  reference, and their beat as the difference, are wanted, not built. Every growth
   constant, `phi`, `1 + sqrt(2)` and `3 + sqrt(10)`, is a Pisot unit, and each comb is a
   one-dimensional Pisot quasicrystal ([zeta_prior_art.md](zeta_prior_art.md)).
 - The two crystals tuned to a known comb and set against each other ("The zeros in the engine's field",
@@ -2268,8 +2321,9 @@ places, `N` and the widths come from the records.
   explicit formula as a pairing and Weil positivity, is in [zeta_prior_art.md](zeta_prior_art.md).
 - Entry 16's rows under us, the far misses and the separation are built and not yet run. Nine e-folds,
   from which a slow law in the drifting rows can be told from noise, are wanted.
-- The bounds charge an error `delta` in `theta` at first order, and `Z` moves by `Z (cos(delta) - 1)`,
-  second order (entry 14). A bound that charges `|Z| delta^2 / 2` is wanted, not written.
+- Riemann-Siegel's bound charges an error `delta` in `theta` at first order, `Im(exp(i theta) F)` not
+  being small; Euler-Maclaurin's charges `|Z| delta^2 / 2` (entry 14). Riemann-Siegel's charge with
+  each point's own `|Im w|`, read from the device, is wanted, not written.
 - Entry 10 reads `phi_r` for `u < 1/2` and `r < 8`. The Selberg transform of a kernel, `c(r)`, and
   the scattering `pi c(r) zeta(2 i r) / zeta(1 + 2 i r)`, whose poles sit at half the zeros, are
   wanted, not built.

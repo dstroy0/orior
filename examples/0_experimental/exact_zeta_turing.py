@@ -361,8 +361,10 @@ def em_bounds(nu, heads, terms):
     N^(1 - 2k), and |R| <= 4 |(s)_2M| / ((2 pi)^(2M) (sigma + 2M - 1) N^(sigma + 2M - 1)) for N >= 2 and sigma + 2M > 1:
     Johansson, arXiv:1309.2877, Theorem 1, at a = 1 with no derivative. It holds at every t, and |(s)_2M| rises with t: the cell's top bounds it.
 
-    theta's error moves Z = sum over n < N of n^(-1/2) cos(theta - t ln n) + Re(exp(i theta) N^(-s) C) by at most
-    the sum of n^(-1/2) and |C| times it. The device's own error is carried step by step: each term of the pair
+    theta's error delta, Brent's, is one angle at a point, common to every term: the sum is Re(exp(i (theta + delta))
+    (zeta - R)), exp(i theta) zeta is Z and real, and the sum is Z cos(delta) less at most |R|. delta moves it by
+    |Z| (1 - cos(delta)) <= |Z| delta^2 / 2, |Z| at most the sum of n^(-1/2), |C| and |R|, and the remainder's bound
+    charges R. The device's own error is carried step by step: each term of the pair
     stage as in `arithmetic`, and through the Euler-Maclaurin stage, t = 2 pi S / 2^p, 1 / (s - 1), and each tau_k
     from tau_(k-1) by r_k, 1 / N, s + 2k - 3, 1 / N and s + 2k - 2, each error grown by the step's factor and a unit a
     division."""
@@ -415,7 +417,7 @@ def em_bounds(nu, heads, terms):
     e_em = Fraction(101, 100) * e_rotated + held * newton_error(heads) + 1
     e_term = e_cos + PI_HIGH * e_q + Fraction(101, 100) * newton_error(heads) + 1
     e_arith = (heads - 1) * e_term + e_em + 2
-    phase = e_theta * (2 * root_heads + held) * unit
+    phase = e_theta ** 2 / 2 * ((2 * root_heads + held) * unit + remainder)
     return math.ceil(e_arith + remainder + phase), math.ceil(e_point + e_theta * unit / PI_LOW)
 
 
