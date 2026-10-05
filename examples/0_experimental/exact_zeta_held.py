@@ -5,8 +5,10 @@
 #
 # Turing's method in held form, exact_zeta_held.cu, driven over one cell of the lattice in u, t = 2 pi u^4: the
 # remainder's curves C_0 to C_K, the logarithm ln u, theta / pi, the main sum, Z's sign at every point and the sign
-# changes, each stage checked against the host word for word and each output held against the exact value it stands
-# for. Gabcke's bound on R_K holds from t = 200, and the cell's nu is 6 or more.
+# changes, and N by Turing's method at a quarter and three quarters of the way across the cell, each stage checked
+# against the host word for word and each output held against the exact value it stands for. Gabcke's bound on R_K
+# holds from t = 200, and the cell's nu is 6 or more; Trudgian's bound on the integral of S holds past t = 168 pi, and
+# the count closes from nu = 10.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_held.py <binary> <nu> <b> <E> <W>
 #
@@ -43,7 +45,9 @@
 # R against exact_zeta_riemann_siegel's remainder_at through C_K at x, the gap written out; the bracket on A against
 # zz's exact 2 artanh(l / D); the house's theta / pi between the device's below and above; the house's main sum and Z
 # through C_K between the device's below and above; the device's sign at every point the one its bracket gives; and
-# the device's count of sign changes the host's over the same signs.
+# the device's count of sign changes the host's over the same signs; the clock's theta / pi below and above about the
+# house's. Where the sign changes between the two points number N's difference there, every zero between them is
+# on the line and simple.
 
 import array
 import math
@@ -218,6 +222,34 @@ def verdict_bound(nu, w, big_e, gammas):
     return gabcke + math.ceil(reads * 2 ** w)
 
 
+def turing_count(stages, first, lanes, b, w):
+    """N at points a = P / 4 and e = 3P / 4 below and above, by Turing's method over the windows below a and past e,
+    and the changes between them. N(t) = theta / pi + 1 + S(t) off the ordinates, and for t_2 > t_1 > 168 pi,
+    |integral of S from t_1 to t_2| <= 2.067 + 0.059 ln t_2 (Trudgian, Improvements to Turing's method, Theorem 2.2).
+    theta rises, and on a step it lies between its ends; c(t), the changes in (T, t], is at least those up to the
+    step's start, and k(t), those in (t, T], at least those from its end. Over a window of h = 2 pi D, D its x^2:
+    N(T) >= 1 + (sum of d_i Theta_i below + sum of d_i k_(i + 1)) / D - B / (2 pi D) below T, and
+    N(T) <= 1 + (sum of d_i Theta_(i + 1) above - sum of d_i c_i) / D + B / (2 pi D) past it. Every sum is the
+    device's."""
+    sums = {name: as_fraction(values[0], exponent) for name, (values, exponent) in stages["turing"]["sums"].items()}
+    a, e, last = lanes // 4, 3 * lanes // 4, lanes - 1
+    pi_low, pi_high = pi_bracket(64)
+
+    def x2(lane):
+        return Fraction((first + lane) ** 4, 16 ** b)
+
+    def trudgian(lane):
+        t = 2 * pi_high * x2(lane)
+        return (Fraction(2067, 1000) + Fraction(59, 1000) * ln_bracket(t.numerator, t.denominator, 32)[1]) / (2 * pi_low)
+
+    below_d, past_d = x2(a) - x2(0), x2(last) - x2(e)
+    low = 1 + (sums["below_theta"] + sums["below_zeros"] - x2(0) * sums["below_count"]) / below_d \
+        - trudgian(a) / below_d
+    high = 1 + (sums["past_theta"] - (x2(last) * sums["past_count"] - sums["past_zeros"])) / past_d \
+        + trudgian(last) / past_d
+    return a, e, low, high, int(sums["between_count"])
+
+
 def put_word(handle, value):
     array.array("q", (value,)).tofile(handle)
 
@@ -339,11 +371,12 @@ def main():
     print("  cell %d: U from %d, %d lanes at 2^-%d; C_0 to C_%d, the coefficients at 2^-%d, %s a curve; ln u by %d terms" %
           (nu, first, lanes, b, TOP, big_e, ", ".join(str(len(row)) for row in gammas), terms))
     host = all(stages[name]["host"] == 1 for name in ("curves", "log", "theta_lower", "theta_upper",
-                                                "term_lower", "term_upper", "verdict", "change"))
+                                                "term_lower", "term_upper", "verdict", "change", "clock", "turing"))
     exact, worst, held, widest = True, Fraction(0), True, Fraction(0)
     inside, theta_width = True, Fraction(0)
     main_inside, main_width = True, Fraction(0)
     z_inside, z_width = True, Fraction(0)
+    clocked = True
     ends = {}
     sums = {**stages["term_lower"]["sums"], **stages["term_upper"]["sums"]}
     # Z below and above from the device's own sums and remainder, and B
@@ -383,6 +416,8 @@ def main():
             spare = Fraction(1, 10 ** (work - 12))
             inside = inside and below - spare <= house <= above + spare
             theta_width = max(theta_width, above - below)
+            clock = read_lane(stages["clock"], lane)
+            clocked = clocked and as_fraction(*clock["low"]) - spare <= house <= as_fraction(*clock["high"]) + spare
             if lane in (0, lanes - 1):
                 ends[lane] = (below, above)
             low_sum = 2 * as_fraction(sums["lower"][0][lane], sums["lower"][1])
@@ -409,7 +444,18 @@ def main():
     print("  the device's sign at every point is the bracket's: %s; decided at %d of %d points; %d sign changes between "
           "neighbors, the device's count %d" % (agree, sum(1 for s in signs if s), lanes, changes, device_changes))
     print("  theta / pi advances by %.6f from the first point to the last" % float(ends[lanes - 1][0] - ends[0][1]))
-    whole = main_inside and z_inside and agree and changes == device_changes
+    a, e, low, high, between = turing_count(stages, first, lanes, b, w)
+    held_n = (math.ceil(low), math.floor(high))
+    print("  the clock's theta / pi at 2^-%d below and above holds the house's at every sampled lane: %s" % (w, clocked))
+    print("  Turing's method: N at point %d at least %.4f and whole, %d; N at point %d at most %.4f and whole, %d" %
+          (a, float(low), held_n[0], e, float(high), held_n[1]))
+    signed = signs[a] != 0 and signs[e] != 0
+    closed = signed and nu >= 10 and between == held_n[1] - held_n[0]
+    print("  %d sign changes between them, %d zeros there: %s" %
+          (between, held_n[1] - held_n[0],
+           "every zero in (t_%d, t_%d] is on the line and simple" % (a, e) if closed else
+           "the count does not close" if nu >= 10 else "Trudgian's bound holds past t = 168 pi, and the cell starts below it"))
+    whole = main_inside and z_inside and agree and changes == device_changes and clocked and (closed or nu < 10)
     return 0 if host and exact and held and inside and whole else 1
 
 

@@ -3,11 +3,11 @@
 // Catalog: EXP-x-035
 //
 // Turing's method in held form over one cell of the lattice in u, t = 2 pi u^4: the remainder, ln u, theta / pi, the
-// main sum, Z's sign and the sign changes, swept on the device as programs of the record machine, one job on the
+// main sum, Z's sign, the sign changes and Turing's sums, swept on the device as programs of the record machine, one job on the
 // device's tessera daemon. Every value is a mantissa in a register and a binary exponent the program holds: a product
 // multiplies the mantissas and adds the exponents, and a power of two is where a mantissa is laid in the record. No
-// value is held at a fixed scale. The one quotient is the phase's read at 2^-W, below and above it, which the
-// verdict asks for.
+// value is held at a fixed scale. The quotients are the phase's and the clock's reads at 2^-W, below and above,
+// which the verdict and the count ask for.
 //
 //   Usage:  exact_zeta_held <input> <output>
 //
@@ -48,6 +48,10 @@
 // side, over one denominator, and Z's sign where the bracket holds no zero. The change stage reads each point's sign
 // against the next, and the device sums the changes over the cell.
 //
+// The count: the clock stage reads theta / pi at every point at 2^-W below and above, and the Turing stage, one lane a
+// step, lays each step's share of the sums of Turing's method over the window below point P / 4 and the one past
+// point 3P / 4, which the device sums over the cell; the driver holds N at the two points from them.
+//
 // The input, little-endian: 64-bit words lanes, checked, nu, b, K, E, L, W, J, then U_0 as a mantissa, then K + 1
 // words J_n, then the mantissas g_(n,j), then the L constants c_k, then theta's nine held constants, Lambda and
 // 2L + 1, then cos's bound B and its J coefficients k_j below, then each pole's ln n below and above and n^(-1/2)
@@ -59,6 +63,7 @@
 // least significant first, the line "host 1" where the host's records over the first `checked` lanes equal the
 // device's word for word, else "host 0", and the line "steps P compiled C". Then the sums, the term stages' over each
 // point and the change stage's over the cell: the line "sum stage output exponent L runs R host H" and a line a run.
+// Then the clock as a stage, and Turing's sums over the cell.
 
 #include "../../src/c/engine/analysis/cycle/cycle.h"
 #include "../../src/c/engine/analysis/key_schedule/key_schedule.h"
@@ -645,6 +650,77 @@ static void held_change_build(HeldStage *stage, const HeldStage *verdict)
     held_output(stage, "change", held_above(program, held_constant(program, 0ull), product), 0);
 }
 
+// the clock at the point: theta / pi read at 2^-W below and above, the quotients of theta's numerators by
+// Qa U^28 2^(4b + 3) less 1 and more 1, from theta's records below and above as members 1 and 2; and U^4 at 4^-2b
+static void held_clock_build(HeldStage *stage, unsigned int b, unsigned int first_bits, const HeldStage *lower,
+                             const HeldStage *upper)
+{
+    HeldProgram *const program = &stage->program;
+    program->shared_bits = 0u;
+    const unsigned int first_field = held_field(program, first_bits);
+    const unsigned int low_field = held_output_field(program, lower, 0u);
+    const unsigned int den_field = held_output_field(program, lower, 1u);
+    const unsigned int high_field = held_output_field(program, upper, 0u);
+    const unsigned int unit = held_step(program, ENGINE_RECORD_PRODUCT, held_read_before(program, den_field),
+                                        held_power(program, 4u * b + 3u), 0u);
+    const unsigned int one = held_constant(program, 1ull);
+    const long long w = -lower->exponents[0] - 4ll * (long long)b - 3ll;
+    held_output(stage, "low",
+                held_step(program, ENGINE_RECORD_DIFFERENCE,
+                          held_step(program, ENGINE_RECORD_QUOTIENT, held_read_before(program, low_field), unit, 0u), one, 0u),
+                -w);
+    held_output(stage, "high",
+                held_step(program, ENGINE_RECORD_SUM,
+                          held_step(program, ENGINE_RECORD_QUOTIENT, held_read_also(program, high_field), unit, 0u), one, 0u),
+                -w);
+    const unsigned int big_u = held_step(program, ENGINE_RECORD_SUM, held_lane(program, b), held_read(program, first_field), 0u);
+    const unsigned int square = held_step(program, ENGINE_RECORD_PRODUCT, big_u, big_u, 0u);
+    held_output(stage, "fourth", held_step(program, ENGINE_RECORD_PRODUCT, square, square, 0u), -4ll * (long long)b);
+}
+
+// Turing's sums over the cell, one lane a step i from point i to i + 1, the change at the step as member 0 and the
+// clock at points i and i + 1 as members 1 and 2, d_i = x^2 at i + 1 less x^2 at i, x^2 = U^4 / 16^b. Below point a,
+// the window under N at point a: d_i Theta_i below, and at a change, U_i^4 and 1. From point e on, the window over N
+// at point e: d_i Theta_(i + 1) above, and at a change, U_(i + 1)^4 and 1. Between them, the changes alone
+static void held_turing_build(HeldStage *stage, unsigned int lane_bits, unsigned long long a, unsigned long long e,
+                              const HeldStage *change, const HeldStage *clock)
+{
+    HeldProgram *const program = &stage->program;
+    program->shared_bits = 0u;
+    const unsigned int change_field = held_output_field(program, change, 0u);
+    program->shared_bits = change->layout.out_limbs * 32u;
+    const unsigned int low_field = held_output_field(program, clock, 0u);
+    const unsigned int high_field = held_output_field(program, clock, 1u);
+    const unsigned int fourth_field = held_output_field(program, clock, 2u);
+    const unsigned int lane = held_lane_below(program, lane_bits);
+    const unsigned int below = held_above(program, held_constant(program, a), lane);
+    const unsigned int past = held_above(program, lane, held_constant(program, e - 1ull));
+    const unsigned int one = held_constant(program, 1ull);
+    const unsigned int between = held_step(program, ENGINE_RECORD_DIFFERENCE,
+                                           held_step(program, ENGINE_RECORD_DIFFERENCE, one, below, 0u), past, 0u);
+    const unsigned int changed = held_read(program, change_field);
+    const unsigned int here = held_read_before(program, fourth_field);
+    const unsigned int next = held_read_also(program, fourth_field);
+    const unsigned int step = held_step(program, ENGINE_RECORD_DIFFERENCE, next, here, 0u);
+    const long long w = -clock->exponents[0];
+    const long long x = clock->exponents[2];
+    const unsigned int changed_below = held_step(program, ENGINE_RECORD_PRODUCT, below, changed, 0u);
+    const unsigned int changed_past = held_step(program, ENGINE_RECORD_PRODUCT, past, changed, 0u);
+    held_output(stage, "below_theta",
+                held_step(program, ENGINE_RECORD_PRODUCT, below,
+                          held_step(program, ENGINE_RECORD_PRODUCT, step, held_read_before(program, low_field), 0u), 0u),
+                x - w);
+    held_output(stage, "below_zeros", held_step(program, ENGINE_RECORD_PRODUCT, changed_below, here, 0u), x);
+    held_output(stage, "below_count", changed_below, 0);
+    held_output(stage, "past_theta",
+                held_step(program, ENGINE_RECORD_PRODUCT, past,
+                          held_step(program, ENGINE_RECORD_PRODUCT, step, held_read_also(program, high_field), 0u), 0u),
+                x - w);
+    held_output(stage, "past_zeros", held_step(program, ENGINE_RECORD_PRODUCT, changed_past, next, 0u), x);
+    held_output(stage, "past_count", changed_past, 0);
+    held_output(stage, "between_count", held_step(program, ENGINE_RECORD_PRODUCT, between, changed, 0u), 0);
+}
+
 static int held_word(FILE *in, long long *value)
 {
     return fread(value, sizeof(long long), 1u, in) == 1u;
@@ -1026,7 +1102,7 @@ int main(int count, char **arguments)
     }
     // the input is read for its form alone: the lane is read at b + 1 bits, a pair's lane below 2^62, and a count is at
     // least what it counts
-    read = read && (header[0] > 0) && (header[1] > 0) && (header[1] <= header[0]) && (header[2] > 0) && (header[3] > 0) &&
+    read = read && (header[0] >= 8) && (header[1] > 0) && (header[1] <= header[0]) && (header[2] > 0) && (header[3] > 0) &&
            (header[3] < 63) && (header[0] <= (2ll << header[3])) && (header[2] < (1ll << 30)) &&
            (header[0] < (1ll << 32)) && (header[4] >= 0) && (header[5] >= 0) && (header[6] >= 2) && (header[7] > 1) &&
            (header[8] > 0);
@@ -1356,6 +1432,47 @@ int main(int count, char **arguments)
         change_stage.summed = {0u};
         declared += held_declared(&change_stage, steps_between);
     }
+    // the clock at every point, and Turing's sums over the windows below point a = P / 4 and past point e = 3P / 4
+    HeldStage clock_stage;
+    held_open_stage(&clock_stage, "clock");
+    if (ok)
+    {
+        held_clock_build(&clock_stage, b, first_bits, &theta_stages[0], &theta_stages[1]);
+        clock_stage.before = &theta_stages[0].records;
+        clock_stage.before_limbs = theta_stages[0].layout.out_limbs;
+        clock_stage.also = &theta_stages[1].records;
+        clock_stage.also_limbs = theta_stages[1].layout.out_limbs;
+        held_open_shared(&clock_stage);
+        held_put(clock_stage.shared.data(), clock_stage.program.field_offset[0], clock_stage.program.field_bits[0], first, 1);
+        ok = held_lay(&job, &clock_stage, &error);
+        declared += held_declared(&clock_stage, lanes);
+    }
+    const unsigned long long window_low = lanes / 4ull;
+    const unsigned long long window_high = 3ull * lanes / 4ull;
+    HeldStage turing_stage;
+    held_open_stage(&turing_stage, "turing");
+    if (ok)
+    {
+        unsigned int step_bits = 1u;
+        while ((steps_between >> step_bits) != 0ull)
+        {
+            step_bits += 1u;
+        }
+        held_turing_build(&turing_stage, step_bits, window_low, window_high, &change_stage, &clock_stage);
+        turing_stage.before = &clock_stage.records;
+        turing_stage.before_limbs = clock_stage.layout.out_limbs;
+        turing_stage.also = &clock_stage.records;
+        turing_stage.also_limbs = clock_stage.layout.out_limbs;
+        ok = held_lay(&job, &turing_stage, &error);
+        turing_stage.index = change_stage.index;
+        for (unsigned long long lane = 0ull; lane < steps_between; lane += 1ull)
+        {
+            turing_stage.index[(size_t)(3ull * lane)] = (unsigned int)lane;
+        }
+        turing_stage.group = steps_between;
+        turing_stage.summed = {0u, 1u, 2u, 3u, 4u, 5u, 6u};
+        declared += held_declared(&turing_stage, steps_between) + steps_between * change_stage.layout.out_limbs * 4ull;
+    }
     ok = ok && sim_job_submit(&job, "exact_zeta_held", count, arguments, declared);
     int same = 1;
     for (unsigned int n = 0u; ok && (n < curves); n += 1u)
@@ -1400,6 +1517,10 @@ int main(int count, char **arguments)
     ok = ok && held_sweep(&job, &verdict_stages[1], lanes, checked, &error);
     ok = ok && ((steps_between == 0ull) || held_sweep(&job, &change_stage, steps_between,
                                                       (steps_between < checked) ? steps_between : checked, &error));
+    ok = ok && held_sweep(&job, &clock_stage, lanes, checked, &error);
+    turing_stage.shared = change_stage.records;
+    ok = ok && held_sweep(&job, &turing_stage, steps_between, (steps_between < checked) ? steps_between : checked, &error);
+    turing_stage.sums_same = turing_stage.sums_same && turing_stage.same && change_stage.same && clock_stage.same;
 
     FILE *out = ok ? fopen(arguments[2], "w") : NULL;
     if (out != NULL)
@@ -1412,6 +1533,8 @@ int main(int count, char **arguments)
         held_write_sums(out, &term_stages[1]);
         held_write(out, &verdict_stage, lanes);
         held_write_sums(out, &change_stage);
+        held_write(out, &clock_stage, lanes);
+        held_write_sums(out, &turing_stage);
         fclose(out);
     }
     sim_check(&job, out != NULL, "the records are written out");
@@ -1432,5 +1555,7 @@ int main(int count, char **arguments)
     held_release(&verdict_stages[0]);
     held_release(&verdict_stages[1]);
     held_release(&change_stage);
+    held_release(&clock_stage);
+    held_release(&turing_stage);
     return sim_close(&job, "exact_zeta_held");
 }
