@@ -6,7 +6,7 @@ Drafted by the anchor_sift engine and read against the page by a person. The eng
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
-from the characters that sit outside that English, and word_web.web() built 245 edges over the
+from the characters that sit outside that English, and word_web.web() built 1015 edges over the
 language forms. A person then matched the context: who, kind and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
@@ -21,9 +21,9 @@ Rullmann et al.’s and Vander Klok’s.
 
 THE LETTERS
 
-Outside the paper's English the engine found these letters and marks: á é í ú ƛ ə ɬ ʔ ʣ ʷ ʼ χ. Data
-are presented in the orthography developed by Hindle and Rigsby (1973) (page 9), set beside its IPA
-in Appendix A; the uvulars are underlined, ḵ, g̱, x̱, the underline set as the macron below.
+Outside the paper's English the engine found these letters and marks: á é í ú ̱. Data are presented
+in the orthography developed by Hindle and Rigsby (1973) (page 9), set beside its IPA in Appendix A;
+the uvulars are underlined, ḵ, g̱, x̱, the underline set as the macron below.
 
 THE PAGE AND THE TEXT LAYER
 

@@ -89,10 +89,6 @@ SimRational term_form_coefficient_of(const TermForm &form, unsigned int term);
 // the number of distinct powers of e the form holds
 size_t term_form_e_count(const TermForm &form);
 
-// the form written term by term, each coefficient with `places`, each term by its name
-void term_form_print(ScripturaLine *line, const TermForm &form, const std::vector<std::string> &names,
-                     unsigned int places);
-
 // the form written whole to `file`, one term per line: numerator/denominator in decimal, e^(q) where q is not 0, and
 // each term by its name, ^k where its power passes 1
 void term_form_write(FILE *file, const TermForm &form, const std::vector<std::string> &names);

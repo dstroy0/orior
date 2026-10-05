@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# Builds a driver on the host and runs it on the cfg named: bash run.sh axis_heat cfg/water_20c.cfg
+# Builds a driver on the host and runs it on the cfg named: bash run.sh core_rule cfg/core_rule.cfg
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,16 +8,14 @@ TOP="$(cd "$ROOT/.." && pwd)"
 SRC="$(cd "$TOP/../src" && pwd)"
 PROGRAM="${1:-}"
 CFG="${2:-}"
-# matching_values runs twice: at the default width it writes every value's residues, then this script runs it again
-# at the width the residues name, given them as a third argument
-RESIDUES="${3:-}"
+PROGRAMS="core_rule|matching_rule"
 case "$PROGRAM" in
-    axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions|matching_values) ;;
-    *) echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions|matching_values <cfg>"; exit 2 ;;
+    core_rule|matching_rule) ;;
+    *) echo "  usage: run.sh $PROGRAMS <cfg>"; exit 2 ;;
 esac
-[ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh axis_heat|axis_series|join_series|join_datum|witness_known|core_cubes|datum_cubes|matching_functions|matching_values <cfg>"; exit 2; }
+[ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh $PROGRAMS <cfg>"; exit 2; }
 # the driver's modules, each src/<module>/<module>.cu with its header beside it
-MODULES=(run_cfg report term_form record witness_cube taylor ode_series eta_function core_series decay_integral blend pressure_datum blend_field matching term_value)
+MODULES=(run_cfg term_form record witness_cube eta_function decay_integral series_rule jet_rule)
 source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 
@@ -63,18 +61,6 @@ INCLUDES=(-I "$SRC/cu/engine" -I "$SIMS_CU" -I "$SCRIPTURA" -I "$NO_ROUNDING" -I
 for module in "${MODULES[@]}"; do
     INCLUDES+=(-I "$ROOT/src/$module")
 done
-# matching_values is a program of the record machine: the imprint, the layout and the run, the code generator beside
-# them, built for this device
-RECORD_DIRECTORIES=("$SRC/cu/engine/analysis/cycle" "$SRC/cu/engine/analysis/keymath" "$SRC/cu/engine/analysis/key_schedule"
-                    "$SRC/cu/transpiler/codegen" "$SRC/cu/transpiler/lstar/parser")
-GENCODE=()
-if [ "$PROGRAM" = matching_values ]; then
-    for directory in "${RECORD_DIRECTORIES[@]}"; do
-        INCLUDES+=(-I "$directory")
-    done
-    CAP="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
-    GENCODE=(-gencode "arch=compute_${CAP:-86},code=sm_${CAP:-86}")
-fi
 
 # the objects are kept per width in one place, and an object is compiled again only where its source, or a header in a
 # directory the build reads, is newer than it
@@ -148,51 +134,14 @@ for module in "${MODULES[@]}"; do
 done
 build_unit "$SIMS_CU/sim_job.cu" "$OBJECT_DIRECTORY/sim_job.$EXTENSION"
 OBJECTS+=("$OBJECT_DIRECTORY/sim_job.$EXTENSION")
-if [ "$PROGRAM" = matching_values ]; then
-    object="$OBJECT_DIRECTORY/cycle.$EXTENSION"
-    build_object "$SRC/cu/engine/analysis/cycle/cycle.c" "$object"
-    OBJECTS+=("$object")
-    for source in "$SRC/cu/engine/analysis/cycle"/cycle*.cu "$SRC/cu/transpiler/codegen"/*.cu \
-                  "$SRC/cu/transpiler/lstar/parser"/*.cu "$SRC/cu/engine/analysis/keymath/keymath.cu" \
-                  "$SRC/cu/engine/analysis/key_schedule/key_schedule.cu"; do
-        object="$OBJECT_DIRECTORY/record_$(basename "$source" .cu).$EXTENSION"
-        if ! current "$source" "$object"; then
-            rm -f "$object"
-            nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object"
-        fi
-        [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-        OBJECTS+=("$object")
-    done
-    # the device's tessera daemon beside the program, which starts it where none answers; the program links the
-    # client objects above
-    source "$TOP/../utils/maint/engine/tessera_build.sh"
-    SCRIPTURA_OBJECTS=()
-    for source in "$SCRIPTURA"/*.c; do
-        SCRIPTURA_OBJECTS+=("$OBJECT_DIRECTORY/$(basename "$source" .c).$EXTENSION")
-    done
-    tessera_build navier_stokes "${SCRIPTURA_OBJECTS[@]}" || exit 1
-fi
 build_unit "$ROOT/src/$PROGRAM/$PROGRAM.cu" "$OBJECT_DIRECTORY/$PROGRAM.$EXTENSION"
 OBJECTS+=("$OBJECT_DIRECTORY/$PROGRAM.$EXTENSION")
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" "${LINK_FLAGS[@]}" "${GENCODE[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" "${LINK_FLAGS[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $PROGRAM"; exit 1; }
 
-if [ "$PROGRAM" = matching_values ] && [ -n "$RESIDUES" ]; then
-    "$BINARY" "$CFG" "$RESIDUES" read
-elif [ "$PROGRAM" = matching_values ]; then
-    RESIDUES="$OUT/matching_values_residues.txt"
-    "$BINARY" "$CFG" "$RESIDUES"
-    STATUS=$?
-    echo "  $PROGRAM exit $STATUS"
-    [ "$STATUS" -eq 0 ] || exit "$STATUS"
-    LIMBS="$(sed -n 's/^limbs //p' "$RESIDUES")"
-    SIM_EXACT_LIMBS="$LIMBS" bash "$ROOT/run.sh" matching_values "$CFG" "$RESIDUES"
-    exit $?
-else
-    "$BINARY" "$CFG"
-fi
+"$BINARY" "$CFG"
 STATUS=$?
 echo "  $PROGRAM exit $STATUS"
 exit "$STATUS"
