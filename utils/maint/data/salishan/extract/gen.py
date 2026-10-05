@@ -686,6 +686,20 @@ class Paper(object):
                             if one.group(1) in self.footnote_marks()), None)
                     if match:
                         spelled[run] = match.group(0)
+                # The italic reader holds no underline, which page_text sets on a paper's letters
+                # as the macron below: gat for g̱at in Matthewson's Gitksan modals. In a paper that
+                # sets italics_underlined, the run is the word the body writes with it, where the
+                # body writes one so and not as read.
+                elif getattr(self, "italics_underlined", False) and \
+                        not re.search(r"(?<![\w’])%s(?![\w’]|%s)" % (re.escape(run), marks), body):
+                    # A letter can take the mark composed, ḵ, or after it, g̱.
+                    loose = "".join(
+                        "(?:%s|%s̱?)" % (unicodedata.normalize("NFC", one + "̱"), re.escape(one))
+                        if one.isalpha() and len(unicodedata.normalize("NFC", one + "̱")) == 1
+                        else re.escape(one) + ("̱?" if one.isalpha() else "") for one in run)
+                    match = re.search(r"(?<![\w’])%s(?![\w’]|%s)" % (loose, marks), body)
+                    if match:
+                        spelled[run] = match.group(0)
             italics = [spelled.get(run, run) for run in self.italics().get(number, ())]
             # Two runs the text sets as one word across an upright tilde are one form, nuχʷ~nχʷ and
             # *spəl~eləm in Nater's old records, or the tilde operator, siwilaayin∼siwilaak'in in
