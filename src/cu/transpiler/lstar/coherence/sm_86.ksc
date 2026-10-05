@@ -16,7 +16,7 @@ class illegal  the question was refused: the system will not take it as it stand
 class folds    the compiler answered but folded the operand the question varied away, so the answer names a form of its own and not the operator
 
 # every question put, counted by the channel it went out on and what came back
-count run      answers  36
+count run      answers  37
 count run      nothing  0
 count run      illegal  0
 count run      folds    0
@@ -72,6 +72,7 @@ run answers fffffff0 LOP3.LUT R7, R0, R7, RZ, 0x03, !PT
 run answers ffffffff IADD3 R6, -R0, RZ, RZ;SHF.R.S32.HI R7, RZ, R7, R6
 run answers 16000000 SHF.R.U64 R7, R0, R7, R0
 run answers fffffaff IADD3 R6, -R0, RZ, RZ;SHF.L.U64.HI R7, R6, R7, R6
+run answers 000000fc register last
 clock nothing 00000000 a move
 clock answers 00000000 a wide add's high word
 clock answers 00000000 doubled
@@ -85,6 +86,9 @@ clock answers 00000000 doubled
 # registers and exits replace the code's.
 field stall 105 4
 field write_barrier 110 3
+field rd 16 8
+field ra 24 8
+field rb 32 8
 container kernel interface_ask
 container pattern 7f454c460201014108000000000000000200be00010000000000000000000000800d000000000000000a0000000000000456000640003800030040000e000100
 container pattern 002e7368737472746162002e737472746162002e73796d746162002e73796d7461625f73686e6478002e6e6f74652e6e762e746b696e666f002e6e6f74652e6e
