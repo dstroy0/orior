@@ -49,6 +49,8 @@ fi
 c++ -std=c++17 -O0 -fwrapv -w -o "$WORK/host_questions" "$WORK/host_questions.cpp" || { echo "  the host questions did not compile"; exit 1; }
 "$WORK/host_questions" > "$WORK/host_answers.txt" || exit 1
 "$BINARY" read "$WORK" "$COHERENCE/Lstar.klq" "$@" || exit 1
+# the parts of nvcc's chains put together by their categories, and the windows nvcc never writes kept as questions
+"$BINARY" permute "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" || exit 1
 # the engine's writing of the stick sifted through what nvcc writes, read off the disassembly and never run
 ENGINE="$STICK/engine"
 if compgen -G "$ENGINE/*.dis" > /dev/null; then

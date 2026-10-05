@@ -4,6 +4,7 @@
 //   klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>
 //   klq_identity read <folder> <Lstar.klq> <ruleset>...
 //   klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
+//   klq_identity permute <nvcc listing> <manifest> <folder>
 //
 // Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
 // links are the slice's identity: each an instruction with its registers read as their kind and its literals as
@@ -214,8 +215,9 @@ static int link_read(const std::string &line, Link *link)
     }
     text = written;
     // the link with each register a mark and each literal operand another, the registers and the literals in the order
-    // written, its spaces one and its numbers decimal. The target of a control transfer is a position in the chain and
-    // is written as its distance in links from the link itself
+    // written, its spaces one and its numbers decimal. The target of an operation that aims at an address of the code is
+    // a position in the chain and is written as its distance in links from the link itself: a barrier's number, a mask
+    // or a count is a literal
     static const std::regex s_reuse("\\.reuse");
     static const std::regex s_spaces("\\s+");
     static const std::regex s_named("\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b");
@@ -230,8 +232,9 @@ static int link_read(const std::string &line, Link *link)
     const size_t operation_first = (plain[0] == '@') ? plain.find(' ') + 1u : 0u;
     const size_t operation_last = plain.find(' ', operation_first);
     const std::string operation_name = plain.substr(operation_first, plain.find_first_of(". ", operation_first) - operation_first);
-    const int transfers = std::any_of(std::begin(s_control_or_wait), std::end(s_control_or_wait),
-                                      [&](const char *control) { return operation_name == control; });
+    static const char *const s_aimed[] = {"BRA", "JMP", "CALL", "BSSY"};
+    const int transfers = std::any_of(std::begin(s_aimed), std::end(s_aimed),
+                                      [&](const char *aimed) { return operation_name == aimed; });
     std::vector<std::string> pieces;
     if (operation_last != std::string::npos)
     {
@@ -728,6 +731,21 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
     return 1;
 }
 
+// 1 where questions `one` and `other` are a slice: their listings the same but for one link a side, the two links
+// naming the same registers and read as different kinds, given through `left` and `right`
+static int slice_found(const Question &one, const Question &other, const Link **left, const Link **right)
+{
+    const std::vector<std::string> first = links_past(one, other);
+    const std::vector<std::string> second = links_past(other, one);
+    if ((first.size() != 1u) || (second.size() != 1u))
+    {
+        return 0;
+    }
+    *left = &one.links.at(first[0]);
+    *right = &other.links.at(second[0]);
+    return ((*left)->registers == (*right)->registers) && ((*left)->kind != (*right)->kind);
+}
+
 static int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder)
 {
     std::vector<Question> questions;
@@ -752,18 +770,14 @@ static int identity_slice(const char *listing, const char *manifest, const char 
     {
         for (size_t other = one + 1u; other < questions.size(); other += 1u)
         {
-            const std::vector<std::string> first = links_past(questions[one], questions[other]);
-            const std::vector<std::string> second = links_past(questions[other], questions[one]);
-            if ((first.size() != 1u) || (second.size() != 1u))
+            const Link *found_left = nullptr;
+            const Link *found_right = nullptr;
+            if (!slice_found(questions[one], questions[other], &found_left, &found_right))
             {
                 continue;
             }
-            const Link &left = questions[one].links.at(first[0]);
-            const Link &right = questions[other].links.at(second[0]);
-            if ((left.registers != right.registers) || (left.kind == right.kind))
-            {
-                continue;
-            }
+            const Link &left = *found_left;
+            const Link &right = *found_right;
             // each slice a line: its two members, each a question and the position of its link in that question's chain,
             // then the identity, the two links in order, the first member writing the first, then each member's context
             const int swapped = right.kind < left.kind;
@@ -1315,8 +1329,197 @@ static int identity_known(const char *listing, const char *manifest, const std::
     return 0;
 }
 
+// the root of `kind` among the categories, each kind joined to the kinds it was found in a slice with
+static std::string category_root(std::map<std::string, std::string> *parent, const std::string &kind)
+{
+    std::string root = kind;
+    while ((*parent)[root] != root)
+    {
+        root = (*parent)[root];
+    }
+    for (std::string walk = kind; walk != root;)
+    {
+        const std::string next = (*parent)[walk];
+        (*parent)[walk] = root;
+        walk = next;
+    }
+    return root;
+}
+
+// a question the permutations put: the window it is asked in at its first occurrence, how often it arises, the link
+// put in and the link it stands for
+struct Permuted
+{
+    unsigned int question;
+    unsigned int link;
+    unsigned int count;
+    std::string window;
+    std::string from;
+    std::string to;
+};
+
+// The parts of nvcc's chains put together by their categories, no part's meaning read: two links a slice sets apart
+// stand for each other, and each link joined to another so, at any remove, is of its category. Each link of each chain
+// is stood for by every other of its category naming as many registers, the registers of the link it stands for given
+// to it, and asked in the window of the link before it and the link after: a window nvcc writes somewhere is known, and
+// one it never writes is a question, held at the first address it arises at with its count. A link put in that rule 2
+// keeps off the part is marked with the rule. <folder>/permutations.txt holds the categories, each with its members at
+// the first address each occurs at, then the questions in the order of their addresses
+static int identity_permute(const char *listing, const char *manifest, const std::string &folder)
+{
+    std::vector<Question> questions;
+    if (!questions_read(listing, manifest, &questions))
+    {
+        return 1;
+    }
+    const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
+    // the first occurrence of every kind of link, and each kind its own category before any slice joins it
+    std::map<std::string, std::pair<unsigned int, unsigned int>> first_kind;
+    std::map<std::string, std::string> parent;
+    for (unsigned int question = 0u; question < questions.size(); question += 1u)
+    {
+        for (unsigned int link = 0u; link < questions[question].chain.size(); link += 1u)
+        {
+            const std::string &kind = questions[question].chain[link].kind;
+            first_kind.insert(std::make_pair(kind, std::make_pair(question, link)));
+            parent.insert(std::make_pair(kind, kind));
+        }
+    }
+    for (size_t one = 0u; one < questions.size(); one += 1u)
+    {
+        for (size_t other = one + 1u; other < questions.size(); other += 1u)
+        {
+            const Link *left = nullptr;
+            const Link *right = nullptr;
+            if (slice_found(questions[one], questions[other], &left, &right))
+            {
+                const std::string left_root = category_root(&parent, left->kind);
+                const std::string right_root = category_root(&parent, right->kind);
+                parent[left_root] = right_root;
+            }
+        }
+    }
+    // each category's members in the order of their first occurrence
+    std::vector<std::pair<std::pair<unsigned int, unsigned int>, std::string>> ordered;
+    for (const auto &kind : first_kind)
+    {
+        ordered.push_back(std::make_pair(kind.second, kind.first));
+    }
+    std::sort(ordered.begin(), ordered.end());
+    std::map<std::string, std::vector<std::string>> categories;
+    std::vector<std::string> roots;
+    for (const auto &kind : ordered)
+    {
+        const std::string root = category_root(&parent, kind.second);
+        if (categories[root].empty())
+        {
+            roots.push_back(root);
+        }
+        categories[root].push_back(kind.second);
+    }
+    std::unordered_map<unsigned long long, Permuted> asked;
+    std::vector<unsigned long long> asked_order;
+    unsigned long long known = 0ull;
+    unsigned long long put = 0ull;
+    for (unsigned int question = 0u; question < questions.size(); question += 1u)
+    {
+        const std::vector<Link> &chain = questions[question].chain;
+        for (unsigned int link = 0u; link < chain.size(); link += 1u)
+        {
+            const std::vector<std::string> &members = categories[category_root(&parent, chain[link].kind)];
+            for (const std::string &member : members)
+            {
+                const std::pair<unsigned int, unsigned int> &at = first_kind.at(member);
+                const Link &source = questions[at.first].chain[at.second];
+                if ((member == chain[link].kind) || (source.named.size() != chain[link].named.size()))
+                {
+                    continue;
+                }
+                Link substitute = source;
+                substitute.named = chain[link].named;
+                substitute.position = chain[link].position;
+                Question window;
+                window.number = questions[question].number;
+                for (unsigned int within = (link == 0u) ? 0u : link - 1u;
+                     within < std::min((unsigned int)chain.size(), link + 2u); within += 1u)
+                {
+                    window.chain.push_back((within == link) ? substitute : chain[within]);
+                }
+                const unsigned int length = (unsigned int)window.chain.size();
+                const unsigned long long identity = window_identities(window, 0u).back();
+                const std::string rendered = window_render(window, 0u, length);
+                put += 1ull;
+                const auto found = held.find(identity);
+                if ((found != held.end()) &&
+                    (window_render(questions[found->second.question], found->second.link, length) == rendered))
+                {
+                    known += 1ull;
+                    continue;
+                }
+                const auto inserted = asked.insert(std::make_pair(
+                    identity, Permuted{question, link, 0u, rendered, chain[link].kind, member}));
+                if (inserted.second)
+                {
+                    asked_order.push_back(identity);
+                }
+                inserted.first->second.count += 1u;
+            }
+        }
+    }
+    const std::string path = folder + "/permutations.txt";
+    FILE *const file = fopen(path.c_str(), "wb");
+    if (file == NULL)
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
+    unsigned int joined = 0u;
+    for (const std::string &root : roots)
+    {
+        const std::vector<std::string> &members = categories[root];
+        if (members.size() < 2u)
+        {
+            continue;
+        }
+        joined += 1u;
+        const std::pair<unsigned int, unsigned int> &first = first_kind.at(members[0]);
+        fprintf(file, "category %s %u\n", address_text(questions, first.first, first.second).c_str(),
+                (unsigned int)members.size());
+        for (const std::string &member : members)
+        {
+            const std::pair<unsigned int, unsigned int> &at = first_kind.at(member);
+            fprintf(file, "member %s %s\n", address_text(questions, at.first, at.second).c_str(), member.c_str());
+        }
+    }
+    unsigned int flagged = 0u;
+    for (const unsigned long long identity : asked_order)
+    {
+        const Permuted &question = asked.at(identity);
+        std::string window = question.window;
+        window.pop_back();
+        std::replace(window.begin(), window.end(), '\n', ';');
+        fprintf(file, "question %s %u\nfrom %s\nto %s\nwindow %s\n",
+                address_text(questions, question.question, question.link).c_str(), question.count,
+                question.from.c_str(), question.to.c_str(), window.c_str());
+        if (rule_broken(question.to))
+        {
+            fprintf(file, "rule 2 %s: its form transfers control or waits\n", question.to.c_str());
+            flagged += 1u;
+        }
+    }
+    fclose(file);
+    printf("  %s: %u kinds of link in %u categories of more than one, %llu windows put, %llu of them nvcc writes, "
+           "%u questions, %u of them kept off the part by rule 2\n",
+           path.c_str(), (unsigned int)first_kind.size(), joined, put, known, (unsigned int)asked_order.size(), flagged);
+    return 0;
+}
+
 int main(int count, char **words)
 {
+    if ((count == 5) && (std::string(words[1]) == "permute"))
+    {
+        return identity_permute(words[2], words[3], words[4]);
+    }
     if ((count >= 5) && (std::string(words[1]) == "known"))
     {
         return identity_known(words[2], words[3], words[4], count - 5, words + 5);
@@ -1332,5 +1535,6 @@ int main(int count, char **words)
     printf("klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>\n");
     printf("klq_identity read <folder> <Lstar.klq> <ruleset>...\n");
     printf("klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
+    printf("klq_identity permute <nvcc listing> <manifest> <folder>\n");
     return 1;
 }
