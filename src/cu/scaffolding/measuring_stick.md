@@ -2,12 +2,12 @@
 
 Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring stick (measuring_stick.py), every function of the CUDA language in a frame of its own, is compiled by nvcc for sm_86 and read here. What the engine builds for each function is held against it, a kernel at parity where the engine's code uses the same operations as nvcc's, each as many times.
 
-- kernels: 913
-- instructions: 43264
-- operations nvcc writes over the stick: 311, of which sass.krs writes 53
+- kernels: 1006
+- instructions: 45135
+- operations nvcc writes over the stick: 326, of which sass.krs writes 56
 
-- kernels the engine answers: 274, of which at parity with nvcc: 161; kernels that put a question: 639
-- the engine's instructions: 4933 in its lanes' text, 4933 read back by nvdisasm, 4933 of them the operation the text wrote
+- kernels the engine answers: 320, of which at parity with nvcc: 163; kernels that put a question: 686
+- the engine's instructions: 5908 in its lanes' text, 5908 read back by nvdisasm, 5908 of them the operation the text wrote
 
 ## The engine against nvcc
 
@@ -289,6 +289,52 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0497 | `gridDim.y` | 12 | 14 | 14 |  |  |
 | 0498 | `gridDim.z` | 12 | 14 | 14 |  |  |
 | 0499 | `warpSize` | 12 | 14 | 14 |  |  |
+| 0913 | `int (a == b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0916 | `int (a != b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0919 | `int (a < b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0922 | `int (a > b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0925 | `int (a <= b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0928 | `int (a >= b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0931 | `int a == 0` | 18 | 18 | 20 |  | LDG.E 2 |
+| 0932 | `int a != 0` | 18 | 18 | 20 |  | LDG.E 2 |
+| 0933 | `int (a != 0) && (c != 0)` | 19 | 20 | 21 |  | LDG.E 1 |
+| 0934 | `int (a != 0) \|\| (c != 0)` | 19 | 19 | 21 | LOP3.LUT 1 | ISETP.NE.AND 1, ISETP.NE.OR 1, LDG.E 1 |
+| 0935 | `int a < 0` | 18 | 18 | 20 | LDG.E.64 1, LOP3.LUT 1, SHF.R.U64 1 | ISETP.GE.AND 1, LDG.E 3, SEL 1 |
+| 0936 | `unsigned int (a == b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0939 | `unsigned int (a != b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0942 | `unsigned int (a < b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0945 | `unsigned int (a > b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0948 | `unsigned int (a <= b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0951 | `unsigned int (a >= b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0954 | `unsigned int a == 0` | 18 | 18 | 20 |  | LDG.E 2 |
+| 0955 | `unsigned int a != 0` | 18 | 18 | 20 |  | LDG.E 2 |
+| 0956 | `unsigned int (a != 0) && (c != 0)` | 19 | 20 | 21 |  | LDG.E 1 |
+| 0957 | `unsigned int (a != 0) \|\| (c != 0)` | 19 | 19 | 21 | LOP3.LUT 1 | ISETP.NE.AND 1, ISETP.NE.OR 1, LDG.E 1 |
+| 0958 | `long long (a == b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0961 | `long long (a != b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0964 | `long long (a < b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.AND.EX 1, ISETP.LT.U32.AND 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.AND.EX 1, ISETP.GE.U32.AND 1, LDG.E 1, MOV 3 |
+| 0967 | `long long (a > b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 3 |
+| 0970 | `long long (a <= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.AND.EX 1, ISETP.LT.U32.AND 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GT.AND.EX 1, ISETP.GT.U32.AND 1, LDG.E 1, MOV 3 |
+| 0973 | `long long (a >= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.GT.AND.EX 1, ISETP.GT.U32.AND 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.AND.EX 1, ISETP.GE.U32.AND 1, LDG.E 1, MOV 3 |
+| 0976 | `long long a == 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
+| 0977 | `long long a != 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
+| 0978 | `long long (a != 0) && (c != 0)` | 19 | 21 | 22 | IMAD.MOV.U32 1 | LDG.E.64 1, MOV 1 |
+| 0979 | `long long (a != 0) \|\| (c != 0)` | 19 | 21 | 22 | IMAD.MOV.U32 1 | LDG.E.64 1, MOV 1 |
+| 0980 | `long long a < 0` | 19 | 17 | 23 | SHF.L.U32 1, SHF.R.U32.HI 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.GE.AND.EX 1, ISETP.GE.U32.AND 1, LDG.E.64 2, MOV 1, SEL 1 |
+| 0981 | `unsigned long long (a == b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0984 | `unsigned long long (a != b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0987 | `unsigned long long (a < b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.AND.EX 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.U32.AND 1, ISETP.GE.U32.AND.EX 1, LDG.E 1, MOV 3 |
+| 0988 | `unsigned long long (a < b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0990 | `unsigned long long (a > b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 3 |
+| 0993 | `unsigned long long (a <= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.AND.EX 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.AND.EX 1, LDG.E 1, MOV 3 |
+| 0996 | `unsigned long long (a >= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.AND.EX 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.U32.AND 1, ISETP.GE.U32.AND.EX 1, LDG.E 1, MOV 3 |
+| 0999 | `unsigned long long a == 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
+| 1000 | `unsigned long long a != 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
+| 1001 | `unsigned long long (a != 0) && (c != 0)` | 19 | 21 | 22 | IMAD.MOV.U32 1 | LDG.E.64 1, MOV 1 |
+| 1002 | `unsigned long long (a != 0) \|\| (c != 0)` | 19 | 21 | 22 | IMAD.MOV.U32 1 | LDG.E.64 1, MOV 1 |
+| 1003 | `int a * b + c` | 17 | 19 | 19 |  |  |
+| 1004 | `unsigned int a * b + c` | 17 | 19 | 19 |  |  |
+| 1005 | `(unsigned long long)a * b + c` | 17 | 20 | 20 | UMOV 1 | IADD3.X 1 |
 
 ## The questions the engine puts
 
@@ -314,6 +360,10 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of (a<<b) through cu.krs | 4 | 0078 |
 | no reading of (a^b) through cu.krs | 4 | 0070 |
 | no reading of (a\|b) through cu.krs | 4 | 0062 |
+| no reading of (unsignedlonglong)(((((a!=b)&&(c!=0u))))?1u:0u) through cu.krs | 4 | 0917 |
+| no reading of (unsignedlonglong)(((((a!=b)\|\|(c!=0u))))?1u:0u) through cu.krs | 4 | 0918 |
+| no reading of (unsignedlonglong)(((((a==b)&&(c!=0u))))?1u:0u) through cu.krs | 4 | 0914 |
+| no reading of (unsignedlonglong)(((((a==b)\|\|(c!=0u))))?1u:0u) through cu.krs | 4 | 0915 |
 | a call or an element nothing here types: atomicAdd | 3 | 0854 |
 | a call or an element nothing here types: atomicAnd | 3 | 0878 |
 | a call or an element nothing here types: atomicCAS | 3 | 0875 |
@@ -336,6 +386,13 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of (signedchar)((int)(signedchar)a@word/(int)(signedchar)b@word) through cu.krs | 2 | 0030 |
 | no reading of (unsignedchar)((unsignedchar)a@word%(unsignedchar)b@word) through cu.krs | 2 | 0041 |
 | no reading of (unsignedchar)((unsignedchar)a@word/(unsignedchar)b@word) through cu.krs | 2 | 0031 |
+| no reading of (unsignedlonglong)(((((a<=b)&&(c!=0u))))?1u:0u) through cu.krs | 2 | 0949 |
+| no reading of (unsignedlonglong)(((((a<=b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0950 |
+| no reading of (unsignedlonglong)(((((a<b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0944 |
+| no reading of (unsignedlonglong)(((((a>=b)&&(c!=0u))))?1u:0u) through cu.krs | 2 | 0952 |
+| no reading of (unsignedlonglong)(((((a>=b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0953 |
+| no reading of (unsignedlonglong)(((((a>b)&&(c!=0u))))?1u:0u) through cu.krs | 2 | 0946 |
+| no reading of (unsignedlonglong)(((((a>b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0947 |
 | no reading of (unsignedlonglong)(((a@word!=0u))?1u:0u) through cu.krs | 2 | 0340 |
 | no reading of (unsignedshort)((unsignedshort)a@word%(unsignedshort)b@word) through cu.krs | 2 | 0043 |
 | no reading of (unsignedshort)((unsignedshort)a@word/(unsignedshort)b@word) through cu.krs | 2 | 0033 |
@@ -441,6 +498,23 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of (unsignedchar)(-(-a@word)) through cu.krs | 1 | 0315 |
 | no reading of (unsignedchar)(-a@word) through cu.krs | 1 | 0257 |
 | no reading of (unsignedlonglong)(((((((c@word!=0u))?(((a@word!=0u))?1u:0u):(((b@word!=0u))?1u:0u))!=0u)))?1u:0u) through cu.krs | 1 | 0444 |
+| no reading of (unsignedlonglong)((((((int)a<(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0920 |
+| no reading of (unsignedlonglong)((((((int)a<(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0921 |
+| no reading of (unsignedlonglong)((((((int)a<=(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0926 |
+| no reading of (unsignedlonglong)((((((int)a<=(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0927 |
+| no reading of (unsignedlonglong)((((((int)a>(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0923 |
+| no reading of (unsignedlonglong)((((((int)a>(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0924 |
+| no reading of (unsignedlonglong)((((((int)a>=(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0929 |
+| no reading of (unsignedlonglong)((((((int)a>=(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0930 |
+| no reading of (unsignedlonglong)((((((longlong)a<(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0965 |
+| no reading of (unsignedlonglong)((((((longlong)a<(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0966 |
+| no reading of (unsignedlonglong)((((((longlong)a<=(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0971 |
+| no reading of (unsignedlonglong)((((((longlong)a<=(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0972 |
+| no reading of (unsignedlonglong)((((((longlong)a>(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0968 |
+| no reading of (unsignedlonglong)((((((longlong)a>(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0969 |
+| no reading of (unsignedlonglong)((((((longlong)a>=(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0974 |
+| no reading of (unsignedlonglong)((((((longlong)a>=(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0975 |
+| no reading of (unsignedlonglong)(((((a<b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0943 |
 | no reading of (unsignedshort)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0337 |
 | no reading of (unsignedshort)(((c@word!=0u))?(unsignedshort)a@word:(unsignedshort)b@word) through cu.krs | 1 | 0448 |
 | no reading of (unsignedshort)(-(-a@word)) through cu.krs | 1 | 0317 |
@@ -452,7 +526,7 @@ Each kernel the engine does not answer, by the question it puts.
 
 | category | kernels | nvcc instructions |
 |---|---|---|
-| operator | 168 | 4156 |
+| operator | 171 | 4214 |
 | compound | 88 | 2540 |
 | unary | 78 | 1334 |
 | conversion | 110 | 1862 |
@@ -470,12 +544,13 @@ Each kernel the engine does not answer, by the question it puts.
 | atomic | 33 | 646 |
 | warp | 17 | 302 |
 | sync | 9 | 172 |
+| test | 90 | 1813 |
 
 ## Operations nvcc writes that no form of sass.krs writes
 
 | operation | kernels it is in | first kernel | its function |
 |---|---|---|---|
-| `IMAD.SHL.U32` | 327 | 0030 | `signed char a / b` |
+| `IMAD.SHL.U32` | 396 | 0030 | `signed char a / b` |
 | `I2F.U64` | 184 | 0008 | `float a + b` |
 | `I2F.F64.U64` | 170 | 0009 | `double a + b` |
 | `BSSY` | 139 | 0036 | `long long a / b` |
@@ -502,21 +577,21 @@ Each kernel the engine does not answer, by the question it puts.
 | `DSETP.GTU.AND` | 37 | 0137 | `double a <= b` |
 | `LEA` | 35 | 0038 | `float a / b` |
 | `IMNMX` | 34 | 0039 | `double a / b` |
-| `ISETP.GT.U32.OR` | 33 | 0038 | `float a / b` |
+| `ISETP.GT.U32.OR` | 34 | 0038 | `float a / b` |
 | `FSETP.GE.AND` | 27 | 0146 | `float a >= b` |
 | `MUFU.RSQ64H` | 26 | 0670 | `double __dsqrt_rn(a)` |
 | `PLOP3.LUT` | 26 | 0038 | `float a / b` |
 | `F2I.FTZ.U32.TRUNC.NTZ` | 25 | 0030 | `signed char a / b` |
 | `I2FP.F32.S32` | 25 | 0392 | `(float)(int)` |
+| `UMOV` | 25 | 0256 | `signed char -a` |
 | `FADD.FTZ` | 24 | 0038 | `float a / b` |
-| `UMOV` | 24 | 0256 | `signed char -a` |
 | `CS2R` | 23 | 0461 | `int r = 0; for (int i = 0; i < b; i++) { r += a; }` |
 | `FSETP.NEU.FTZ.AND` | 23 | 0038 | `float a / b` |
+| `ISETP.EQ.OR` | 21 | 0039 | `double a / b` |
 | `DSETP.NAN.AND` | 20 | 0039 | `double a / b` |
 | `F2F.F32.F64` | 20 | 0443 | `(float)(double)` |
 | `F2I.NTZ` | 20 | 0565 | `int __float2int_rn(a)` |
 | `FSETP.GTU.FTZ.AND` | 20 | 0038 | `float a / b` |
-| `ISETP.EQ.OR` | 19 | 0039 | `double a / b` |
 | `MUFU.EX2` | 19 | 0613 | `float __exp10f(a)` |
 | `DMUL.RP` | 18 | 0039 | `double a / b` |
 | `DSETP.GE.AND` | 18 | 0147 | `double a >= b` |
@@ -524,8 +599,8 @@ Each kernel the engine does not answer, by the question it puts.
 | `BREAK` | 17 | 0619 | `float __fdiv_rd(a, b)` |
 | `FFMA.RZ` | 17 | 0038 | `float a / b` |
 | `FLO.U32` | 17 | 0507 | `int __clz(a)` |
+| `SHF.R.U64` | 16 | 0087 | `unsigned long long a >> b` |
 | `FFMA.RP` | 15 | 0038 | `float a / b` |
-| `SHF.R.U64` | 15 | 0087 | `unsigned long long a >> b` |
 | `DSETP.GT.AND` | 14 | 0127 | `double a > b` |
 | `F2I.U32.TRUNC.NTZ` | 14 | 0031 | `unsigned char a / b` |
 | `FMUL.RZ` | 14 | 0031 | `unsigned char a / b` |
@@ -593,6 +668,8 @@ Each kernel the engine does not answer, by the question it puts.
 | `FSETP.EQ.OR` | 3 | 0739 | `float powf(a, b)` |
 | `FSETP.LEU.OR` | 3 | 0736 | `float fmodf(a, b)` |
 | `IMAD.U32.X` | 3 | 0799 | `double fmod(a, b)` |
+| `ISETP.EQ.OR.EX` | 3 | 0802 | `double pow(a, b)` |
+| `ISETP.LT.OR` | 3 | 0465 | `int r = 0; for (int i = 0; i < b; i++) { if (r > a) { break; } r += i; }` |
 | `LDC` | 3 | 0459 | `int r; switch (b) { case 1: r = a; break; case 100: r = a + 1; break; case 10000: r = a + 2; break; case -7: r = a + 3; break; default: r = 0; break; }` |
 | `LEA.HI.SX32` | 3 | 0462 | `int r = 0; for (int i = 0; i < 8; i++) { r += a >> i; }` |
 | `MUFU.SIN` | 3 | 0650 | `void __sincosf(a, o1, o2)` |
@@ -624,7 +701,8 @@ Each kernel the engine does not answer, by the question it puts.
 | `I2F.S16` | 2 | 0352 | `(float)(signed char)` |
 | `I2F.S64` | 2 | 0412 | `(float)(long long)` |
 | `IMAD.WIDE.U32.X` | 2 | 0518 | `long long __mul64hi(a, b)` |
-| `ISETP.LT.OR` | 2 | 0465 | `int r = 0; for (int i = 0; i < b; i++) { if (r > a) { break; } r += i; }` |
+| `ISETP.GE.OR` | 2 | 0802 | `double pow(a, b)` |
+| `ISETP.GT.OR` | 2 | 0502 | `int r = measuring_stick_recursive(a & 15, b);` |
 | `ISETP.NE.U32.AND.EX` | 2 | 0503 | `int (*f)(int, int) = ((b & 1) != 0) ? measuring_stick_noinline : measuring_stick_other; int r = f(a, b);` |
 | `ISETP.NE.U32.OR` | 2 | 0740 | `float remainderf(a, b)` |
 | `LDL.128` | 2 | 0841 | `double norm(a, o1)` |
@@ -705,9 +783,18 @@ Each kernel the engine does not answer, by the question it puts.
 | `I2F.U64.RZ` | 1 | 0611 | `float __ull2float_rz(a)` |
 | `I2FP.F32.S32.RZ` | 1 | 0587 | `float __int2float_rz(a)` |
 | `IMAD.HI` | 1 | 0519 | `int __mulhi(a, b)` |
-| `ISETP.EQ.OR.EX` | 1 | 0802 | `double pow(a, b)` |
-| `ISETP.GE.OR` | 1 | 0802 | `double pow(a, b)` |
-| `ISETP.GT.OR` | 1 | 0502 | `int r = measuring_stick_recursive(a & 15, b);` |
+| `ISETP.GE.OR.EX` | 1 | 0975 | `long long (a >= b) \|\| (c != 0)` |
+| `ISETP.GE.U32.OR` | 1 | 0953 | `unsigned int (a >= b) \|\| (c != 0)` |
+| `ISETP.GE.U32.OR.EX` | 1 | 0998 | `unsigned long long (a >= b) \|\| (c != 0)` |
+| `ISETP.GT.OR.EX` | 1 | 0969 | `long long (a > b) \|\| (c != 0)` |
+| `ISETP.GT.U32.OR.EX` | 1 | 0992 | `unsigned long long (a > b) \|\| (c != 0)` |
+| `ISETP.LE.OR` | 1 | 0927 | `int (a <= b) \|\| (c != 0)` |
+| `ISETP.LE.OR.EX` | 1 | 0972 | `long long (a <= b) \|\| (c != 0)` |
+| `ISETP.LE.U32.OR` | 1 | 0950 | `unsigned int (a <= b) \|\| (c != 0)` |
+| `ISETP.LE.U32.OR.EX` | 1 | 0995 | `unsigned long long (a <= b) \|\| (c != 0)` |
+| `ISETP.LT.OR.EX` | 1 | 0966 | `long long (a < b) \|\| (c != 0)` |
+| `ISETP.LT.U32.OR` | 1 | 0944 | `unsigned int (a < b) \|\| (c != 0)` |
+| `ISETP.LT.U32.OR.EX` | 1 | 0989 | `unsigned long long (a < b) \|\| (c != 0)` |
 | `LDC.64` | 1 | 0503 | `int (*f)(int, int) = ((b & 1) != 0) ? measuring_stick_noinline : measuring_stick_other; int r = f(a, b);` |
 | `LDG.E.STRONG.SYS` | 1 | 0479 | `int r = (int)*(volatile const unsigned long long *)&in[(4u * thread) + 2u] + a;` |
 | `MATCH.ALL` | 1 | 0892 | `int p; unsigned int r = __match_all_sync(0xffffffffu, a, &p);` |
@@ -1651,3 +1738,96 @@ Each kernel the engine does not answer, by the question it puts.
 | 0910 | sync | `__threadfence_system(); int r = a;` | 19 | BRA 1, CCTL.IVALL 1, ERRBAR 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, MEMBAR.SC.SYS 1, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
 | 0911 | sync | `long long r = (long long)clock() + a;` | 20 | BRA 1, DEPBAR.LE 1, EXIT 2, IADD3 1, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, LEA.HI.X.SX32 1, MOV 2, S2R 2, S2UR 1, SHF.L.U32 1, STG.E.64 1, ULDC.64 1, USHF.R.S32.HI 1 |
 | 0912 | sync | `long long r = clock64() + a;` | 18 | BRA 1, CS2R 1, EXIT 2, IADD3 1, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, LEA.HI.X.SX32 1, MOV 2, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0913 | test | `int (a == b) ? a : b` | 16 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 0914 | test | `int (a == b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.AND 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0915 | test | `int (a == b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.OR 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0916 | test | `int (a != b) ? a : b` | 16 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 0917 | test | `int (a != b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 2, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0918 | test | `int (a != b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.OR 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0919 | test | `int (a < b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.AND 1, ISETP.GE.U32.AND 1, LDG.E 2, S2R 2, SEL 1, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 0920 | test | `int (a < b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0921 | test | `int (a < b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.OR 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0922 | test | `int (a > b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.AND 1, LDG.E 2, S2R 2, SEL 1, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 0923 | test | `int (a > b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0924 | test | `int (a > b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.OR 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0925 | test | `int (a <= b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.AND 1, LDG.E 2, S2R 2, SEL 1, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 0926 | test | `int (a <= b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0927 | test | `int (a <= b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.OR 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0928 | test | `int (a >= b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.AND 1, ISETP.GE.U32.AND 1, LDG.E 2, S2R 2, SEL 1, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 0929 | test | `int (a >= b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.AND 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0930 | test | `int (a >= b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.OR 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0931 | test | `int a == 0` | 18 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0932 | test | `int a != 0` | 18 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0933 | test | `int (a != 0) && (c != 0)` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 2, LDG.E 2, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0934 | test | `int (a != 0) \|\| (c != 0)` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LOP3.LUT 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0935 | test | `int a < 0` | 18 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E.64 1, LOP3.LUT 1, MOV 2, S2R 2, SHF.R.U64 1, STG.E.64 1, ULDC.64 1 |
+| 0936 | test | `unsigned int (a == b) ? a : b` | 16 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, MOV 3, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0937 | test | `unsigned int (a == b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.AND 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0938 | test | `unsigned int (a == b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.OR 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0939 | test | `unsigned int (a != b) ? a : b` | 16 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, MOV 3, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0940 | test | `unsigned int (a != b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 2, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0941 | test | `unsigned int (a != b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.OR 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0942 | test | `unsigned int (a < b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 2, LDG.E 2, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0943 | test | `unsigned int (a < b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0944 | test | `unsigned int (a < b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.U32.OR 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0945 | test | `unsigned int (a > b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.AND 1, LDG.E 2, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0946 | test | `unsigned int (a > b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0947 | test | `unsigned int (a > b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.OR 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0948 | test | `unsigned int (a <= b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.AND 1, LDG.E 2, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0949 | test | `unsigned int (a <= b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.U32.AND 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0950 | test | `unsigned int (a <= b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.U32.OR 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0951 | test | `unsigned int (a >= b) ? a : b` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 2, LDG.E 2, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0952 | test | `unsigned int (a >= b) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 2, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0953 | test | `unsigned int (a >= b) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GE.U32.OR 1, ISETP.NE.AND 1, LDG.E 3, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0954 | test | `unsigned int a == 0` | 18 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0955 | test | `unsigned int a != 0` | 18 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0956 | test | `unsigned int (a != 0) && (c != 0)` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 2, LDG.E 2, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0957 | test | `unsigned int (a != 0) \|\| (c != 0)` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LOP3.LUT 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0958 | test | `long long (a == b) ? a : b` | 15 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0959 | test | `long long (a == b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.AND.EX 1, ISETP.EQ.U32.AND 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0960 | test | `long long (a == b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.OR.EX 1, ISETP.EQ.U32.AND 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0961 | test | `long long (a != b) ? a : b` | 15 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0962 | test | `long long (a != b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0963 | test | `long long (a != b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.OR.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0964 | test | `long long (a < b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.AND.EX 1, ISETP.LT.U32.AND 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0965 | test | `long long (a < b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.AND.EX 1, ISETP.LT.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0966 | test | `long long (a < b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.OR.EX 1, ISETP.LT.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0967 | test | `long long (a > b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.AND.EX 1, ISETP.GT.U32.AND 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0968 | test | `long long (a > b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.AND.EX 1, ISETP.GT.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0969 | test | `long long (a > b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.OR.EX 1, ISETP.GT.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0970 | test | `long long (a <= b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.AND.EX 1, ISETP.LT.U32.AND 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0971 | test | `long long (a <= b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.AND.EX 1, ISETP.LE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0972 | test | `long long (a <= b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.OR.EX 1, ISETP.LE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0973 | test | `long long (a >= b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.AND.EX 1, ISETP.GT.U32.AND 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0974 | test | `long long (a >= b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.AND.EX 1, ISETP.GE.U32.AND 2, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0975 | test | `long long (a >= b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.OR.EX 1, ISETP.GE.U32.AND 2, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0976 | test | `long long a == 0` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0977 | test | `long long a != 0` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0978 | test | `long long (a != 0) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0979 | test | `long long (a != 0) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.OR.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0980 | test | `long long a < 0` | 17 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 1, MOV 3, S2R 2, SHF.L.U32 1, SHF.R.U32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 0981 | test | `unsigned long long (a == b) ? a : b` | 15 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0982 | test | `unsigned long long (a == b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.AND.EX 1, ISETP.EQ.U32.AND 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0983 | test | `unsigned long long (a == b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.EQ.OR.EX 1, ISETP.EQ.U32.AND 1, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0984 | test | `unsigned long long (a != b) ? a : b` | 15 | BRA 1, EXIT 2, IMAD 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0985 | test | `unsigned long long (a != b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0986 | test | `unsigned long long (a != b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.OR.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0987 | test | `unsigned long long (a < b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.AND.EX 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0988 | test | `unsigned long long (a < b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.AND.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0989 | test | `unsigned long long (a < b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.OR.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0990 | test | `unsigned long long (a > b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.AND.EX 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0991 | test | `unsigned long long (a > b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.AND.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0992 | test | `unsigned long long (a > b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.OR.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0993 | test | `unsigned long long (a <= b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.AND.EX 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0994 | test | `unsigned long long (a <= b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.U32.AND 1, ISETP.LE.U32.AND.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0995 | test | `unsigned long long (a <= b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.LE.U32.AND 1, ISETP.LE.U32.OR.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0996 | test | `unsigned long long (a >= b) ? a : b` | 20 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.AND.EX 1, LDG.E.64 2, S2R 2, SEL 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 0997 | test | `unsigned long long (a >= b) && (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 2, ISETP.GE.U32.AND.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0998 | test | `unsigned long long (a >= b) \|\| (c != 0)` | 22 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 2, ISETP.GE.U32.OR.EX 1, ISETP.NE.AND 1, LDG.E 1, LDG.E.64 2, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 0999 | test | `unsigned long long a == 0` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 1000 | test | `unsigned long long a != 0` | 19 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E.64 1, MOV 2, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 1001 | test | `unsigned long long (a != 0) && (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 1002 | test | `unsigned long long (a != 0) \|\| (c != 0)` | 21 | BRA 1, EXIT 2, IMAD 1, IMAD.MOV.U32 2, IMAD.SHL.U32 1, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, ISETP.NE.AND 1, ISETP.NE.OR.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, S2R 2, SEL 1, STG.E.64 1, ULDC.64 1 |
+| 1003 | operator | `int a * b + c` | 19 | BRA 1, EXIT 2, IMAD 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 3, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1004 | operator | `unsigned int a * b + c` | 19 | BRA 1, EXIT 2, IMAD 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 3, MOV 3, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
+| 1005 | operator | `(unsigned long long)a * b + c` | 20 | BRA 1, EXIT 2, IADD3 1, IMAD 1, IMAD.WIDE.U32 3, ISETP.GE.U32.AND 1, LDG.E 2, LDG.E.64 1, MOV 2, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1, UMOV 1 |

@@ -3,6 +3,20 @@ line 1	klq_write	klq	klq <stem>	the bridge between languages, its stem L*
 body	klq_write	key	key <form>	a schema form name, gnascor's and no target's
 body	klq_write	pair	pair <form> <form>	two forms whose sameness the text leaves open
 body	-	case	case <case>	a case put to the pair
-body	-	closed	closed <case>	two operations, and the case that witnessed it
-body	klq_write	open	open <count>	alike on every case asked, and its count of cases alike
+body	klq_identity	identity	identity <address>	two links that set two questions apart, at its most basal carrier's address
+identity	klq_identity	first	first <link>	the link the most basal member writes
+identity	klq_identity	second	second <link>	the link the other member writes
+identity	klq_identity	rule	rule <number> <link>: <reason>	a link the part is not asked as written, the rule it breaks and why
+identity	klq_identity	form	form <side> <form>	a form of the rulesets given whose text writes that side's link
+identity	klq_identity	context	context <address>	the members in one place of their chains' grammar, at its most basal carrier's address
+context	klq_identity	before	[<side>] before <slot> <slot> <link>	the nearest link before that names a register the member's link names, and the slot each names it in
+context	klq_identity	after	[<side>] after <slot> <slot> <link>	the nearest link after that names a register the member's link names, and the slot each names it in
+context	klq_identity	address	address <question>:<position> <question>:<position>	a carrier: each member's question and its link's position in that question's chain
+body	klq_identity	primitive	primitive <address> <count> <link>	a link at the first address it occurs at, its registers, literals and targets parts of their own, and how often it occurs
+body	klq_identity	chain	chain <address> <address> <count> <number>	a question's chain, the first address its whole occurs at, how often it occurs, and the number its contents in their order hash to
+chain	klq_identity	constituents	constituents <address>/<length>...	the chain read as identities that occur at a lower address, each its first address and its length in links
+chain	klq_identity	primitives	primitives <address>...	the primitive of each link of the chain, in order
+chain	klq_identity	operands	operands <value>...	the literal operands and the distances in links of the targets, in the order the chain writes them
+body	klq_identity	closed	closed [<address>] <case>	two operations, and the case that witnessed it
+body	klq_write klq_identity	open	open <count>	alike on every case asked, and its count of cases alike
 any	-	comment	# <text>	a comment

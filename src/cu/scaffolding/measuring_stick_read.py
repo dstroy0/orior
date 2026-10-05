@@ -85,11 +85,9 @@ def engine_read(table, directory):
 
 
 def ruleset_files(path):
-    """the files the SASS ruleset is read from: sass.krs at path, then sm_86.krs and sm_86.kdm in the part's folder,
-    then sass.ksc beside sass.krs"""
-    rulesets = os.path.dirname(path)
-    source = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(rulesets))))
-    machines = os.path.join(source, "c", "transpiler", "cubin", "machines")
+    """the files the SASS ruleset is read from: sass.krs at path, then sm_86.krs and sm_86.kdm beside it, then
+    sass.ksc beside it"""
+    machines = os.path.dirname(path)
     stem = os.path.splitext(path)[0]
     return [path, os.path.join(machines, "sm_86.krs"), os.path.join(machines, "sm_86.kdm"), stem + ".ksc"]
 

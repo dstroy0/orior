@@ -49,7 +49,7 @@ for source in "$TOP/src/cu/scaffolding/sass_machine.c" "$TOP/src/cu/scaffolding/
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, which
 # nothing here runs
-for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu; do
+for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CUBIN/cu_target.cu" "$CUBIN/sass_target.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
@@ -77,5 +77,5 @@ case "$(uname -s)" in
     *) PYTHON=python3 ;;
 esac
 "$PYTHON" "$TEST/measuring_stick_read.py" "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" \
-    "$(cygpath -m "$CODEGEN_CU")/rulesets/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md" \
+    "$(cygpath -m "$TOP/src/cu/transpiler/lstar/coherence")/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md" \
     "$(cygpath -m "$OUT")/engine.tsv" "$(cygpath -m "$OUT")"
