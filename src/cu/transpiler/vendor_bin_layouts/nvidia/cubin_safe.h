@@ -7,17 +7,18 @@
 // of, is read here first with our own reader against the machine file, and goes to the part only where every
 // instruction it reaches holds to these, in order:
 //
-//   1. its scheduler's bits wait on all six barriers and stall at least the soonest its operation's result is read
-//      (sass_operation_schedule), the longest where none is measured or no form holds the instruction: no
-//      instruction reads a result that is not back;
+//   1. its scheduler's bits wait on all six barriers, and where no form holds the instruction, stall the longest. A
+//      stall short of the soonest a result is read gives a wrong answer and never a kernel that does not return, and
+//      the run channel asks below it to find where that soonest lies (sass_operation_schedule);
 //   2. where a form of the machine file holds its encoding, that form neither transfers control nor waits
 //      (sass_operation_control_or_wait), EXIT alone excepted;
 //   3. where no form holds it, its operation key holds forms and no form under the key transfers control or waits.
 //      Whatever its other bits say, it falls through to the next instruction. One instruction at most is held by no
 //      form: the one a probe asks about;
 //   4. an EXIT with no guard is reached: no thread runs off the end of the code;
-//   5. an operation whose result is back in a measured count of cycles sets no barrier. Nothing releases one it sets,
-//      and the next instruction's wait on all six never ends: the kernel never returns.
+//   5. an operation whose result is back in a fixed count of cycles sets no barrier, unless the encoding the system
+//      wrote its form with sets one. Nothing releases one it sets, and the next instruction's wait on all six never
+//      ends: the kernel never returns.
 //
 // The code is read from its first instruction to its first EXIT with no guard, and nothing past it is read, since
 // nothing reaches it: the self branch and the padding after a kernel's last exit are never run. Nothing here changes

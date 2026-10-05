@@ -340,10 +340,10 @@ static void sass_high_write(unsigned long long *high, unsigned int first, unsign
 // form's own encoding sets is set too, except on an operation whose result is back in a measured count of cycles.
 // Nothing releases a barrier such an operation sets, and the next instruction's wait on all six never ends. A barrier
 // no instruction set is already at rest, and waiting on all six costs nothing where none was set
-static void sass_control_safe(const SassForm *form, unsigned long long *high)
+static void sass_control_safe(const SassMachine *machine, const SassForm *form, unsigned long long *high)
 {
     unsigned int soonest = SASS_STALL_LONGEST;
-    const unsigned int schedule = sass_operation_schedule(form->operation, &soonest);
+    const unsigned int schedule = sass_operation_schedule(machine, form->operation, &soonest);
     const int fixed = (schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_LONGEST);
     const int wrote = (schedule == SASS_SCHEDULE_LATE) ||
                       (!fixed && sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST));
@@ -456,7 +456,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     sass_bits_write(low, high, SASS_GUARD_NOT, 1u, (parts.guard[1] == '!') ? 1ull : 0ull);
     if (control == SASS_CONTROL_SAFE)
     {
-        sass_control_safe(form, high);
+        sass_control_safe(machine, form, high);
     }
     return 1;
 }

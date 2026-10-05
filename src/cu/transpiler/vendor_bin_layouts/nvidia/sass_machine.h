@@ -97,12 +97,25 @@ typedef struct
     char text[SASS_MACHINE_TEXT];
 } SassForm;
 
+// the most operations the part has answered a soonest read for
+#define SASS_MACHINE_SOONEST 256u
+
+// one operation's soonest read as the part answered it: the fewest cycles between it and an instruction that reads
+// its result, the most any reader asked of it needed
+typedef struct
+{
+    char operation[SASS_MACHINE_TOKEN];
+    unsigned int stall;
+} SassSoonest;
+
 typedef struct
 {
     char part[SASS_MACHINE_PART];
     unsigned int forms;
     unsigned int refused;
     SassForm form[SASS_MACHINE_FORMS];
+    SassSoonest soonest[SASS_MACHINE_SOONEST];
+    unsigned int soonests;
 } SassMachine;
 
 // `text` read into its parts, whatever it holds: an operand the reader does not know is kept with the kind
@@ -156,10 +169,10 @@ enum SassSchedule
 int sass_barrier_set(unsigned long long high, unsigned int first);
 
 // the schedule of `operation`, its modifiers included, read from its name before the first dot, and through `soonest`
-// the fewest cycles NVIDIA's compiler leaves between a fixed result and the first instruction that reads it, as
-// measured for that operation over the tree's CUDA sources (monolith_scheduler.md). An operation with no measured
-// count, and a late result or a store, leave SASS_STALL_LONGEST there
-unsigned int sass_operation_schedule(const char *operation, unsigned int *soonest);
+// the fewest cycles between a fixed result and an instruction that reads it, as the part answered it for that
+// operation on the run channel and `machine` holds it. An operation the part has not answered for, and a late result
+// or a store, leave SASS_STALL_LONGEST there
+unsigned int sass_operation_schedule(const SassMachine *machine, const char *operation, unsigned int *soonest);
 
 // an instruction kept in `machine` as a form where it holds none of that form yet, `low` and `high` its encoding
 // and `text` the instruction it was seen as; the form it was kept as, or the one already there, through `kept`, whose
@@ -170,7 +183,10 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
 // the form of `parts`, or NULL where the machine holds none
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts);
 
-// the machine written to `path`, and read back from it: 1, or 0 with the reason printed
+// The machine written to `path`, and read back from it: 1, or 0 with the reason printed. A read takes too what the
+// part answered on the run channel from the .ksc beside it, `path` with .ksc after it: each line
+// `run answers <stall> stall <writer> <reader>` is the soonest <reader> reads <writer>'s result, and an operation's
+// soonest read is the largest of its lines. A machine with no .ksc beside it holds none
 int sass_machine_write(const SassMachine *machine, const char *path);
 
 int sass_machine_read(SassMachine *machine, const char *path);

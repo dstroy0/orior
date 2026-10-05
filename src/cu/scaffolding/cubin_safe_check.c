@@ -158,7 +158,7 @@ static void check_cases(void)
         check_verdict("EXIT !PT, which no thread takes", 1u, CUBIN_SAFE_EXIT);
     }
     check_instruction(0u, exit_low, exit_high & ~(0xfull << (SASS_STALL_FIRST - 64u)));
-    check_verdict("an EXIT with no stall", 1u, CUBIN_SAFE_STALL);
+    check_verdict("an EXIT with no stall", 1u, CUBIN_SAFE);
     check_instruction(0u, exit_low, exit_high & ~(0x3full << (SASS_WAIT_FIRST - 64u)));
     check_verdict("an EXIT waiting on nothing", 1u, CUBIN_SAFE_WAIT);
     check_instruction(0u, branch->low, check_safe_high(branch->high));
@@ -168,13 +168,10 @@ static void check_cases(void)
     check_verdict("an IADD3 with no EXIT after it", 1u, CUBIN_SAFE_EXIT);
     check_instruction(1u, exit_low, exit_high);
     check_verdict("an IADD3 then an EXIT", 2u, CUBIN_SAFE);
-    // a fixed result is read no sooner than its operation's measured count, and a stall of that count is enough
-    unsigned int soonest = SASS_STALL_LONGEST;
-    sass_operation_schedule(straight->operation, &soonest);
-    check_instruction(0u, straight->low, check_stalled(check_safe_high(straight->high), soonest));
-    check_verdict("an IADD3 stalled its soonest read, then an EXIT", 2u, CUBIN_SAFE);
-    check_instruction(0u, straight->low, check_stalled(check_safe_high(straight->high), soonest - 1u));
-    check_verdict("an IADD3 stalled a cycle short of its soonest read", 2u, CUBIN_SAFE_STALL);
+    // a stall short of a result's soonest read gives a wrong answer and never a kernel that does not return, and the
+    // run channel asks below it
+    check_instruction(0u, straight->low, check_stalled(check_safe_high(straight->high), 1u));
+    check_verdict("an IADD3 stalled one cycle, then an EXIT", 2u, CUBIN_SAFE);
     // a fixed result's barrier is never released
     check_instruction(0u, straight->low,
                       check_safe_high(straight->high) & ~(7ull << (SASS_WRITE_BARRIER_FIRST - 64u)));

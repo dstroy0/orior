@@ -6,6 +6,7 @@
 //   klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
 //   klq_identity permute <nvcc listing> <manifest> <folder>
 //   klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...
+//   klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...
 //
 // Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
 // links are the slice's identity: each an instruction with its registers read as their kind and its literals as
@@ -35,12 +36,15 @@
 // nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts write
 // its links, and with the rule a link breaks where asking the part as written would end it
 #include "code_generator.h"
+#include "run_channel.h"
 #include "target_internal.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include <algorithm>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <regex>
 #include <set>
@@ -1781,8 +1785,420 @@ static int identity_broken(const char *listing, const char *manifest, const std:
 }
 
 
+// a field of an instruction as the system's .ksc gives it: its first bit and how many bits it takes
+struct StallField
+{
+    unsigned int first;
+    unsigned int bits;
+};
+
+// one question the walk puts: a chain of ours, its code with every stall the longest, and the place of the writer
+// whose stall is turned, the instruction after it reading what it wrote
+struct StallProbe
+{
+    std::string number;
+    std::vector<unsigned char> code;
+    size_t writer;
+};
+
+// the instructions' bits `field` takes at instruction `index` of `code`, sixteen bytes an instruction
+static unsigned long long stall_bits(const std::vector<unsigned char> &code, size_t index, const StallField &field)
+{
+    unsigned long long value = 0ull;
+    for (unsigned int bit = 0u; bit < field.bits; bit += 1u)
+    {
+        const unsigned int at = field.first + bit;
+        value |= (unsigned long long)((code[(index * 16u) + (at / 8u)] >> (at % 8u)) & 1u) << bit;
+    }
+    return value;
+}
+
+// `value` written into the bits `field` takes at instruction `index` of `code`
+static void stall_bits_write(std::vector<unsigned char> *code, size_t index, const StallField &field,
+                             unsigned long long value)
+{
+    for (unsigned int bit = 0u; bit < field.bits; bit += 1u)
+    {
+        const unsigned int at = field.first + bit;
+        unsigned char *const byte = &(*code)[(index * 16u) + (at / 8u)];
+        const unsigned char mask = (unsigned char)(1u << (at % 8u));
+        *byte = (unsigned char)(((value >> bit) & 1ull) ? (*byte | mask) : (*byte & ~mask));
+    }
+}
+
+// the registers an operand names, a pair read whole where it is written .64, as a wide destination is
+static std::set<std::string> stall_registers(const std::string &operand, int wide)
+{
+    static const std::regex s_named("\\b(R|P|UR)([0-9]+)\\b");
+    std::set<std::string> named;
+    for (std::sregex_iterator walk(operand.begin(), operand.end(), s_named); walk != std::sregex_iterator(); ++walk)
+    {
+        named.insert(walk->str());
+        if (wide || (operand.find(".64") != std::string::npos))
+        {
+            named.insert((*walk)[1].str() + std::to_string(std::stoul((*walk)[2].str()) + 1ul));
+        }
+    }
+    return named;
+}
+
+// a link's operation without its guard, and its operands split
+static std::string stall_operation(const Link &link, std::vector<std::string> *operands)
+{
+    std::string text = link.exact;
+    if (text[0] == '@')
+    {
+        text = trimmed(text.substr(text.find_first_of(" \t")));
+    }
+    const size_t space = text.find_first_of(" \t");
+    operands->clear();
+    if (space != std::string::npos)
+    {
+        std::stringstream pieces(text.substr(space));
+        std::string piece;
+        while (std::getline(pieces, piece, ','))
+        {
+            operands->push_back(trimmed(piece));
+        }
+    }
+    return text.substr(0u, space);
+}
+
+// What the link writes: the registers its first operand names, a pair where the operation's result is wide. An address
+// in that place writes nothing, and neither does a link that writes no register
+static std::set<std::string> stall_written(const Link &link)
+{
+    std::vector<std::string> operands;
+    const std::string operation = stall_operation(link, &operands);
+    if (operands.empty() || (operands[0].find('[') != std::string::npos) || (operands[0] == "PT") ||
+        (operands[0] == "RZ"))
+    {
+        return std::set<std::string>();
+    }
+    const int wide = (operation.find(".WIDE") != std::string::npos) || (operation.find(".64") != std::string::npos);
+    return stall_registers(operands[0], wide);
+}
+
+// what the link reads: its guard, and every operand but a first it writes, a register a wide operation reads as data
+// read as its pair
+static std::set<std::string> stall_read(const Link &link)
+{
+    std::vector<std::string> operands;
+    const std::string operation = stall_operation(link, &operands);
+    const int wide = (operation.find(".64") != std::string::npos);
+    std::set<std::string> read;
+    if (link.exact[0] == '@')
+    {
+        read = stall_registers(link.exact.substr(0u, link.exact.find_first_of(" \t")), 0);
+    }
+    const size_t first = (stall_written(link).empty()) ? 0u : 1u;
+    for (size_t at = first; at < operands.size(); at += 1u)
+    {
+        const int data = wide && (operands[at].find('[') == std::string::npos);
+        const std::set<std::string> named = stall_registers(operands[at], data);
+        read.insert(named.begin(), named.end());
+    }
+    return read;
+}
+
+// the fields the system's .ksc gives, by name
+static std::map<std::string, StallField> stall_fields(const char *ksc)
+{
+    std::map<std::string, StallField> fields;
+    std::ifstream file(ksc);
+    std::string line;
+    while (std::getline(file, line))
+    {
+        char name[64];
+        StallField field = {0u, 0u};
+        if (sscanf(line.c_str(), "field %63s %u %u", name, &field.first, &field.bits) == 3)
+        {
+            fields[name] = field;
+        }
+    }
+    return fields;
+}
+
+// The cases a question is put over, spread evenly through the host's: the words of each into `question`, and the
+// host's place of each into `places`
+static void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
+{
+    places->clear();
+    question->cases = RUN_CASES_MOST;
+    for (unsigned int place = 0u; place < RUN_CASES_MOST; place += 1u)
+    {
+        const unsigned int at = (unsigned int)(((unsigned long long)place * IDENTITY_CASES) / RUN_CASES_MOST);
+        const unsigned long long left = s_values[(at / IDENTITY_VALUES) % IDENTITY_VALUES];
+        const unsigned long long right = s_values[at % IDENTITY_VALUES];
+        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffull), (unsigned int)(left >> 32u),
+                                                  (unsigned int)(right & 0xffffffffull), (unsigned int)(right >> 32u),
+                                                  (unsigned int)(at / (IDENTITY_VALUES * IDENTITY_VALUES)), 0u, 0u, 0u};
+        memcpy(question->word[place], words, sizeof(words));
+        places->push_back(at);
+    }
+}
+
+// 1 where the part answers `code` alike with the host on every case it computes, 0 where it answers apart, refuses it
+// or the gate holds it, each counted in `asks`
+static int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
+                       const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
+{
+    question->code = code.data();
+    question->code_size = code.size();
+    // a lane's container declares every register its file holds (sm_86.kdm)
+    question->registers = 255u;
+    *asks += 1ull;
+    if (!run_channel_ask(question))
+    {
+        return 0;
+    }
+    for (unsigned int place = 0u; place < question->cases; place += 1u)
+    {
+        const std::string &expected = host[places[place]];
+        if ((expected != "-") && (std::stoull(expected, nullptr, 16) != question->answered[place]))
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// The soonest each operation's result is read, asked of the part and walked down. Every chain of ours the host also
+// computes is a probe where an instruction that writes a register is read by the very next: with every stall the
+// longest, the chain answers alike with the host, and each stall the walk puts at the writer is truthy while every
+// probe of its pair answers alike and falsy once one answers apart. The walk starts at the longest, which is truthy,
+// and steps down one at a time until a stall is falsy; the soonest is the last truthy one, since a stall longer than
+// a truthy one is truthy too. An instruction that sets a write barrier is read behind the barrier and not behind its
+// stall, and is not walked. Each pair's soonest is written to the .ksc as the part's answer on the run channel,
+// `run answers <stall> stall <writer> <reader>`, in place of those it held, and <folder>/stall.txt holds every pair
+// with its probes and its asks
+static int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                          const char *const *carrier)
+{
+    std::map<std::string, StallField> fields = stall_fields(ksc);
+    if ((fields.count("stall") == 0u) || (fields.count("write_barrier") == 0u))
+    {
+        printf("klq_identity stall: %s gives no stall field or no write barrier field\n", ksc);
+        return 1;
+    }
+    const StallField stall = fields["stall"];
+    const StallField barrier = fields["write_barrier"];
+    const unsigned long long longest = (1ull << stall.bits) - 1ull;
+    const unsigned long long none = (1ull << barrier.bits) - 1ull;
+    std::map<std::string, std::vector<std::string>> host;
+    std::ifstream host_file(answers);
+    std::string line;
+    while (std::getline(host_file, line))
+    {
+        std::stringstream words(line);
+        std::string number;
+        words >> number;
+        std::vector<std::string> case_answers;
+        std::string answer;
+        while (words >> answer)
+        {
+            case_answers.push_back(answer);
+        }
+        if (case_answers.size() == IDENTITY_CASES)
+        {
+            host[number] = case_answers;
+        }
+    }
+    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    {
+        return 1;
+    }
+    static RunQuestion s_question;
+    std::vector<unsigned int> places;
+    stall_cases(&s_question, &places);
+    unsigned long long asks = 0ull;
+    // the probes of each pair, a writer's operation and its reader's
+    std::map<std::pair<std::string, std::string>, std::vector<StallProbe>> pairs;
+    unsigned int chains = 0u;
+    unsigned int unanswered = 0u;
+    for (const auto &held : host)
+    {
+        const std::string base = std::string(engine) + "/" + held.first;
+        std::ifstream listing(base + ".dis");
+        std::ifstream binary(base + ".bin", std::ios::binary);
+        if (!listing || !binary)
+        {
+            continue;
+        }
+        std::vector<unsigned char> code((std::istreambuf_iterator<char>(binary)), std::istreambuf_iterator<char>());
+        std::vector<Link> links;
+        while (std::getline(listing, line))
+        {
+            Link link;
+            const int read = link_read(line, &link);
+            if (read < 0)
+            {
+                break;
+            }
+            if ((read > 0) && !link.position.empty())
+            {
+                links.push_back(link);
+            }
+        }
+        if (links.empty() || ((code.size() % 16u) != 0u) || ((links.size() * 16u) > code.size()))
+        {
+            continue;
+        }
+        for (size_t index = 0u; index < (code.size() / 16u); index += 1u)
+        {
+            stall_bits_write(&code, index, stall, longest);
+        }
+        // a chain is a probe only where, with every stall the longest, the part answers it alike with the host
+        chains += 1u;
+        if (!stall_alike(code, held.second, places, &s_question, &asks))
+        {
+            unanswered += 1u;
+            printf("  %s: not alike at the longest stalls (%s), and no probe\n", held.first.c_str(), s_question.refused);
+            continue;
+        }
+        for (size_t index = 0u; (index + 1u) < links.size(); index += 1u)
+        {
+            const size_t place = (size_t)std::stoul(links[index].position, nullptr, 16) / 16u;
+            if (stall_bits(code, place, barrier) != none)
+            {
+                continue;
+            }
+            const std::set<std::string> written = stall_written(links[index]);
+            const std::set<std::string> read = stall_read(links[index + 1u]);
+            const int reads = std::any_of(written.begin(), written.end(),
+                                          [&](const std::string &name) { return read.count(name) != 0u; });
+            if (!reads)
+            {
+                continue;
+            }
+            std::vector<std::string> operands;
+            const std::pair<std::string, std::string> pair(stall_operation(links[index], &operands),
+                                                           stall_operation(links[index + 1u], &operands));
+            pairs[pair].push_back(StallProbe{held.first, code, place});
+        }
+    }
+    printf("klq_identity stall: %u chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n", chains,
+           unanswered, pairs.size(), run_channel_carrier());
+    // the probes a pair is walked over at most, each from a chain of its own
+    const size_t most = 3u;
+    std::vector<std::string> rows;
+    FILE *const table = fopen((folder + "/stall.txt").c_str(), "wb");
+    if (table == NULL)
+    {
+        printf("klq_identity stall: %s/stall.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
+    for (const auto &pair : pairs)
+    {
+        std::vector<const StallProbe *> probes;
+        std::set<std::string> numbers;
+        for (const StallProbe &probe : pair.second)
+        {
+            if ((probes.size() < most) && numbers.insert(probe.number).second)
+            {
+                probes.push_back(&probe);
+            }
+        }
+        unsigned long long soonest = longest;
+        const unsigned long long before = asks;
+        for (unsigned long long step = longest; step-- > 0ull;)
+        {
+            int truthy = 1;
+            for (const StallProbe *probe : probes)
+            {
+                std::vector<unsigned char> turned = probe->code;
+                stall_bits_write(&turned, probe->writer, stall, step);
+                truthy = truthy && stall_alike(turned, host[probe->number], places, &s_question, &asks);
+                if (!truthy)
+                {
+                    break;
+                }
+            }
+            if (!truthy)
+            {
+                break;
+            }
+            soonest = step;
+        }
+        std::string over;
+        for (const StallProbe *probe : probes)
+        {
+            over += " " + probe->number;
+        }
+        fprintf(table, "%s %s soonest %llu, %llu asks, over%s\n", pair.first.first.c_str(), pair.first.second.c_str(),
+                soonest, asks - before, over.c_str());
+        printf("  %s then %s: soonest %llu (%llu asks)\n", pair.first.first.c_str(), pair.first.second.c_str(), soonest,
+               asks - before);
+        char row[256];
+        snprintf(row, sizeof(row), "run answers %08llx stall %s %s", soonest, pair.first.first.c_str(),
+                 pair.first.second.c_str());
+        rows.push_back(row);
+    }
+    fclose(table);
+    run_channel_close();
+    // the .ksc rewritten: its stall answers replaced, the rows of the run channel's answers counted again
+    std::ifstream in(ksc, std::ios::binary);
+    std::vector<std::string> kept;
+    while (std::getline(in, line))
+    {
+        const std::string plain = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+        if (plain.compare(0u, 12u, "run answers ") == 0)
+        {
+            std::stringstream words(plain);
+            std::string channel;
+            std::string answered;
+            std::string word;
+            std::string asked;
+            words >> channel >> answered >> word >> asked;
+            if (asked == "stall")
+            {
+                continue;
+            }
+        }
+        kept.push_back(plain);
+    }
+    in.close();
+    size_t after = kept.size();
+    for (size_t at = 0u; at < kept.size(); at += 1u)
+    {
+        after = (kept[at].compare(0u, 4u, "run ") == 0) ? (at + 1u) : after;
+    }
+    kept.insert(kept.begin() + (std::ptrdiff_t)after, rows.begin(), rows.end());
+    unsigned int answered = 0u;
+    for (const std::string &kept_line : kept)
+    {
+        answered += (kept_line.compare(0u, 12u, "run answers ") == 0) ? 1u : 0u;
+    }
+    FILE *const out = fopen(ksc, "wb");
+    if (out == NULL)
+    {
+        printf("klq_identity stall: %s could not be written\n", ksc);
+        return 1;
+    }
+    for (const std::string &kept_line : kept)
+    {
+        if (kept_line.compare(0u, 22u, "count run      answers") == 0)
+        {
+            fprintf(out, "count run      answers  %u\n", answered);
+            continue;
+        }
+        fprintf(out, "%s\n", kept_line.c_str());
+    }
+    fclose(out);
+    printf("klq_identity stall: %zu pairs walked over %llu asks, written to %s\n", pairs.size(), asks, ksc);
+    return 0;
+}
+
 int main(int count, char **words)
 {
+    // the carrier's words follow a lone --
+    if ((count >= 8) && (std::string(words[1]) == "stall") && (std::string(words[6]) == "--"))
+    {
+        std::vector<const char *> carrier(words + 7, words + count);
+        carrier.push_back(NULL);
+        return identity_stall(words[2], words[3], words[4], words[5], carrier.data());
+    }
     // the paths of ours are given up to a lone --, the rulesets after it
     if ((count >= 6) && (std::string(words[1]) == "broken"))
     {
@@ -1816,5 +2232,6 @@ int main(int count, char **words)
     printf("klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
     printf("klq_identity permute <nvcc listing> <manifest> <folder>\n");
     printf("klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
+    printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     return 1;
 }

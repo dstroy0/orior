@@ -37,6 +37,12 @@ typedef struct
 // printed, having written nothing
 int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long long room, unsigned long long *size);
 
+// the container a system accepted, read from the container rows of its .ksc at `path`: its bytes into `pattern`,
+// which holds `room`, and the kernel it enters at into `kernel`, which holds `kernel_room`. The bytes read, or 0 where
+// the file holds no such rows, a row does not read as hex, or the bytes do not fit, with the reason printed
+unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, unsigned long long room, char *kernel,
+                                      unsigned int kernel_room);
+
 // the offsets of the exits in `code`, into `exits`, which holds `room` of them: the count found. An exit is the
 // instruction EXIT, whose encoding is taken from `exit_low` masked to the operation's own bits
 unsigned int cubin_exits_find(const unsigned char *code, unsigned long long code_size, unsigned long long exit_low,

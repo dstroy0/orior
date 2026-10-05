@@ -260,29 +260,11 @@ int sass_barrier_set(unsigned long long high, unsigned int first)
     return (unsigned int)((high >> (first - 64u)) & 7ull) != SASS_BARRIER_NONE;
 }
 
-// one operation's measured soonest read, by its whole name
-typedef struct
-{
-    const char *operation;
-    unsigned int soonest;
-} SassSoonest;
-
-unsigned int sass_operation_schedule(const char *operation, unsigned int *soonest)
+unsigned int sass_operation_schedule(const SassMachine *machine, const char *operation, unsigned int *soonest)
 {
     // the names before the first dot NVIDIA's compiler gives a write barrier at every place, or a read barrier
     static const char *const s_late[] = {"LDG", "LDS", "S2R", "S2UR", "F2I", "I2F", "MUFU", "ATOMG"};
     static const char *const s_store[] = {"STG", "STS", "STL", "ST", "RED"};
-    // A wide result is a register pair, and its count is the soonest the pair is read whole, as a load's address:
-    // NVIDIA's compiler stalls an IMAD.WIDE.U32 six cycles before an LDG reads its pair, and the soonest any one
-    // register of the pair is read is too few, the load's address reading a high register not yet back
-    static const SassSoonest s_soonest[] = {
-        {"LOP3.LUT", 4u},      {"IADD3", 4u},         {"IADD3.X", 4u},         {"SHF.R.U32.HI", 4u},
-        {"SHF.L.U32", 4u},     {"SHF.R.S32.HI", 4u},  {"SHF.L.W.U32.HI", 4u},  {"SHF.R.W.U32", 4u},
-        {"SHF.R.W.U32.HI", 4u}, {"SHF.L.U64.HI", 4u}, {"SHF.R.U64", 4u},       {"IMAD", 4u},
-        {"IMAD.MOV.U32", 4u},  {"IMAD.MOV", 4u},      {"IMAD.X", 4u},          {"IMAD.IADD", 4u},
-        {"IMAD.WIDE.U32", 6u}, {"IMAD.HI.U32", 4u},   {"IMNMX.U32", 4u},       {"SEL", 4u},
-        {"MOV", 4u},           {"IMAD.U32", 5u},      {"IMAD.WIDE", 6u},       {"IMAD.WIDE.U32.X", 6u},
-        {"SHF.L.W.U32", 5u},   {"SHF.R.W.S32.HI", 5u}, {"CS2R", 6u}};
     const size_t base = strcspn(operation, ".");
     *soonest = SASS_STALL_LONGEST;
     for (unsigned int at = 0u; at < (sizeof(s_late) / sizeof(s_late[0])); at += 1u)
@@ -299,11 +281,11 @@ unsigned int sass_operation_schedule(const char *operation, unsigned int *soones
             return SASS_SCHEDULE_STORE;
         }
     }
-    for (unsigned int at = 0u; at < (sizeof(s_soonest) / sizeof(s_soonest[0])); at += 1u)
+    for (unsigned int at = 0u; at < machine->soonests; at += 1u)
     {
-        if (strcmp(operation, s_soonest[at].operation) == 0)
+        if (strcmp(operation, machine->soonest[at].operation) == 0)
         {
-            *soonest = s_soonest[at].soonest;
+            *soonest = machine->soonest[at].stall;
         }
     }
     return SASS_SCHEDULE_FIXED;
@@ -480,6 +462,47 @@ static int sass_kinds_read(SassForm *form, const char *column)
     return 1;
 }
 
+// the soonest reads the part answered on the run channel, read from the .ksc beside the machine file at `path` into
+// `machine`: each operation's the largest of its lines. A machine with no .ksc beside it holds none
+static void sass_soonest_read(SassMachine *machine, const char *path)
+{
+    char ksc[1024];
+    snprintf(ksc, sizeof(ksc), "%s.ksc", path);
+    FILE *const file = fopen(ksc, "r");
+    if (file == NULL)
+    {
+        return;
+    }
+    char line[512];
+    while (fgets(line, (int)sizeof(line), file) != NULL)
+    {
+        unsigned int stall = 0u;
+        char writer[SASS_MACHINE_TOKEN];
+        char reader[SASS_MACHINE_TOKEN];
+        if (sscanf(line, "run answers %x stall %63s %63s", &stall, writer, reader) != 3)
+        {
+            continue;
+        }
+        unsigned int at = 0u;
+        while ((at < machine->soonests) && (strcmp(machine->soonest[at].operation, writer) != 0))
+        {
+            at += 1u;
+        }
+        if (at == SASS_MACHINE_SOONEST)
+        {
+            continue;
+        }
+        if (at == machine->soonests)
+        {
+            snprintf(machine->soonest[at].operation, sizeof(machine->soonest[at].operation), "%s", writer);
+            machine->soonest[at].stall = 0u;
+            machine->soonests += 1u;
+        }
+        machine->soonest[at].stall = (stall > machine->soonest[at].stall) ? stall : machine->soonest[at].stall;
+    }
+    fclose(file);
+}
+
 int sass_machine_read(SassMachine *machine, const char *path)
 {
     FILE *const file = fopen(path, "r");
@@ -549,5 +572,6 @@ int sass_machine_read(SassMachine *machine, const char *path)
                machine->forms);
         return 0;
     }
+    sass_soonest_read(machine, path);
     return 1;
 }

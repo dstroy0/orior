@@ -8,8 +8,12 @@
 #
 #     utils/maint/engine/klq_identity.sh
 #     utils/maint/engine/klq_identity.sh sass.krs
+#     utils/maint/engine/klq_identity.sh stall
 #
-# With no arguments the forms are sass.krs's.
+# With no arguments the forms are sass.krs's. Given stall alone, it runs nothing else: the soonest each operation's
+# result is read is walked down on the part over the engine's writing of the stick, every question carried by
+# vendor_bin_layouts/nvidia/cubin_run and held to cubin_safe before the driver sees it, and the answers written to
+# sm_86.ksc. That run reads the host answers an earlier run wrote, and puts questions to the device.
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -19,7 +23,9 @@ mkdir -p "$WORK"
 CODEGEN="$TOP/src/cu/transpiler/codegen"
 PARSER="$TOP/src/cu/transpiler/lstar/parser"
 PROTOCOL="$TOP/src/cu/transpiler/lstar/protocol"
+INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 COHERENCE="$TOP/src/cu/transpiler/lstar/coherence"
+LAYOUTS="$TOP/src/cu/transpiler/vendor_bin_layouts"
 STICK="$TOP/build/measuring_stick"
 [ -f "$STICK/measuring_stick_nvcc.sass" ] || { echo "  no stick: run src/cu/scaffolding/measuring_stick.sh"; exit 1; }
 
@@ -38,8 +44,29 @@ for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/klq_identity.cu"; do
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
+# the run channel and the interface it carries each question through, in C
+for source in "$PROTOCOL/run_channel.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c"; do
+    object="$OUT/$(basename "$source")_identity.o"
+    if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
+        cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -c "$source" -o "$object"
+    fi
+    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
+    OBJECTS+=("$object")
+done
 c++ -o "$BINARY" "${OBJECTS[@]}" -static
 [ -f "$BINARY" ] || { echo "  build failed: klq_identity did not link"; exit 1; }
+
+if [ "$#" -eq 1 ] && [ "$1" = "stall" ]; then
+    [ -f "$WORK/host_answers.txt" ] || { echo "  no host answers: run utils/maint/engine/klq_identity.sh first"; exit 1; }
+    CARRIER="$OUT/cubin_run"
+    cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
+        "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
+        "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" ||
+        { echo "  build failed: cubin_run did not compile"; exit 1; }
+    mkdir -p "$WORK/stall"
+    exec "$BINARY" stall "$STICK/engine" "$WORK/host_answers.txt" "$COHERENCE/sm_86.ksc" "$WORK/stall" -- \
+        "$CARRIER" "$COHERENCE/sm_86" "$COHERENCE/sm_86.ksc"
+fi
 
 if [ "$#" -eq 0 ]; then
     set -- sass.krs
