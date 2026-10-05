@@ -7,7 +7,7 @@ Drafted by the anchor_sift engine and read against the page by a person. The eng
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
-from the characters that sit outside that English, and word_web.web() built 344 edges over the
+from the characters that sit outside that English, and word_web.web() built 64 edges over the
 language forms. A person then matched the context: who, kind and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
@@ -21,9 +21,9 @@ from Mahajan (1997).
 
 THE LETTERS
 
-Outside the paper's English the engine found these letters and marks: á é í ó ú ∅. The Tlingit forms
-are in the practical orthography, x̱, ḵ and g̱ underlined, the acute for high tone; a lowered digit
-is a co-reference index, Bill₁, and ∅ a null pronoun.
+Outside the paper's English the engine found these letters and marks: á é í ó ú ̱ ̶ ḵ ∅. The Tlingit
+forms are in the practical orthography, x̱, ḵ and g̱ underlined, the acute for high tone; a lowered
+digit is a co-reference index, Bill₁, and ∅ a null pronoun.
 
 THE PAGE AND THE TEXT LAYER
 
