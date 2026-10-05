@@ -2,7 +2,7 @@
 // term_form.cu: forms in terms (term_form.h)
 #include "term_form.h"
 
-#include "report.h"
+#include "scriptura.h"
 
 #include <algorithm>
 
@@ -495,47 +495,6 @@ size_t term_form_e_count(const TermForm &form)
         last = &s_term_slots[slot];
     }
     return count;
-}
-
-void term_form_print(ScripturaLine *line, const TermForm &form, const std::vector<std::string> &names,
-                     unsigned int places)
-{
-    if (form.magnitude.empty())
-    {
-        scriptura_character(line, '0');
-        return;
-    }
-    int first = 1;
-    for (unsigned int slot : term_form_held(form))
-    {
-        const TermKey &key = s_term_slots[slot];
-        if (!first)
-        {
-            scriptura_text(line, " + ");
-        }
-        first = 0;
-        report_value(line, term_form_coefficient(form, slot), places);
-        if (sim_rational_sign(key.e) != 0)
-        {
-            scriptura_text(line, " e^(");
-            scriptura_text(line, term_book_rational(key.e).c_str());
-            scriptura_character(line, ')');
-        }
-        for (size_t term = 0u; term < key.power.size(); term += 1u)
-        {
-            if (key.power[term] == 0u)
-            {
-                continue;
-            }
-            scriptura_character(line, ' ');
-            scriptura_text(line, (term < names.size()) ? names[term].c_str() : "term");
-            if (key.power[term] > 1u)
-            {
-                scriptura_character(line, '^');
-                scriptura_decimal(line, key.power[term], 1u);
-            }
-        }
-    }
 }
 
 // one exact integer in decimal, its sign first

@@ -1,0 +1,105 @@
+{
+  "scheme": "navier_stokes.matching_rule.cfg",
+  "version": 1,
+  "report": {
+    "record": "../records/matching_rule.txt"
+  }
+}
+expression X R_theta, 13 terms
+-2 eta h L^-1 F_X0_eta0 U_X0_eta0
+-1 eta h L^-1 F_X0_eta1
+-2 eta L^-1 X U_X0_eta0 F_X1_eta0
+-2 eta L^-1 F_X0_eta0 U_X0_eta0
+1/2 eta L^-1 F_X0_eta1
+1 h L^-1 F_X0_eta0
+1 L^-1 X F_X1_eta0
+1 L^-1 d U_X0_eta0 F_X0_eta1
+1 L^-1 F_X0_eta0
+1 X^(-1) F_X0_eta0 V_X0_eta0
+-2 X F_X2_eta0
+1 V_X0_eta0 F_X1_eta0
+-4 F_X1_eta0
+
+expression the torque's bracket G, 2 terms
+1 X F_X0_eta0 V_X0_eta0
+-2 X^(2) F_X1_eta0
+
+expression the torque's integrand q, 11 terms
+-4 eta h L^-1 X F_X0_eta0 U_X0_eta0
+-1 eta h L^-1 X F_X0_eta1
+-3 eta L^-1 X F_X0_eta0 U_X0_eta0
+1/2 eta L^-1 X F_X0_eta1
+-2 eta L^-1 X^(2) F_X0_eta0 U_X1_eta0
+-2 eta L^-1 X^(2) U_X0_eta0 F_X1_eta0
+1 h L^-1 X F_X0_eta0
+1 L^-1 X d F_X0_eta0 U_X0_eta1
+1 L^-1 X d U_X0_eta0 F_X0_eta1
+1 L^-1 X F_X0_eta0
+1 L^-1 X^(2) F_X1_eta0
+
+expression the torque's g - G_X - q, 0 terms
+0
+
+expression R_z, 16 terms
+-2 eta h L^-1 U_X0_eta0^(2)
+-1 eta h L^-1 U_X0_eta1
+-4 eta h L^-1 Pi_X0_eta0
+-2 eta L^-1 X F_X0_eta0^(2)
+-2 eta L^-1 X U_X0_eta0 U_X1_eta0
+-1 eta L^-1 U_X0_eta0^(2)
+1/2 eta L^-1 U_X0_eta1
+-2 eta L^-1 Pi_X0_eta0
+1 h L^-1 U_X0_eta0
+1 L^-1 X U_X1_eta0
+1 L^-1 d U_X0_eta0 U_X0_eta1
+1 L^-1 d Pi_X0_eta1
+1/2 L^-1 U_X0_eta0
+-2 X U_X2_eta0
+-2 U_X1_eta0
+1 U_X1_eta0 V_X0_eta0
+
+expression the force's bracket G, 5 terms
+-4 eta h L^-1 X Pi_X0_eta0
+-2 eta L^-1 X Pi_X0_eta0
+1 L^-1 X d Pi_X0_eta1
+-2 X U_X1_eta0
+1 U_X0_eta0 V_X0_eta0
+
+expression the force's integrand q, 11 terms
+4 eta h L^-1 X F_X0_eta0^(2)
+-4 eta h L^-1 U_X0_eta0^(2)
+-1 eta h L^-1 U_X0_eta1
+-4 eta L^-1 X U_X0_eta0 U_X1_eta0
+-2 eta L^-1 U_X0_eta0^(2)
+1/2 eta L^-1 U_X0_eta1
+1 h L^-1 U_X0_eta0
+-2 L^-1 X d F_X0_eta0 F_X0_eta1
+1 L^-1 X U_X1_eta0
+2 L^-1 d U_X0_eta0 U_X0_eta1
+1/2 L^-1 U_X0_eta0
+
+expression the force's g - G_X - q, 0 terms
+0
+
+expression F_ext, 1 terms
+1/4 d^(-1 + -1 h) 2^(1/2 + -1 h) w c
+
+expression the exterior's equation on F_ext, 11 terms
+-1/4 h L^-1 X d^(-3 + -1 h) 2^(1/2 + -1 h) w' c
+1/4 h L^-1 X d^(-2 + -1 h) 2^(1/2 + -1 h) w' c
+-1/4 h L^-1 d^(-2 + -1 h) 2^(1/2 + -1 h) w c
+1/2 h L^-1 d^(-1 + -1 h) 2^(1/2 + -1 h) w c
+-1/4 h d^(-2 + -1 h) 2^(1/2 + -1 h) w c
+-1/2 h^(2) L^-1 d^(-2 + -1 h) 2^(1/2 + -1 h) w c
+1/2 h^(2) L^-1 d^(-1 + -1 h) 2^(1/2 + -1 h) w c
+1/8 L^-1 X d^(-3 + -1 h) 2^(1/2 + -1 h) w' c
+1/4 L^-1 d^(-2 + -1 h) 2^(1/2 + -1 h) w c
+-1/8 X d^(-3 + -1 h) 2^(1/2 + -1 h) w' c
+-1/4 d^(-2 + -1 h) 2^(1/2 + -1 h) w c
+
+expression the tail of H, its identity's derivative, 0 terms
+0
+
+expression the tail of S, its identity's derivative, 0 terms
+0
+
