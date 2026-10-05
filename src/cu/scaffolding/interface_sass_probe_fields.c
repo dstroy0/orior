@@ -36,7 +36,8 @@
 #define FIELDS_EXITS 256u
 // the operation bits of an instruction, 0 to 104, and the scheduler's at 105 and above, which this never turns
 #define FIELDS_OPERATION_BITS 105u
-// the registers a thread of every cubin declares, R0 to R254: a register field reaches every number the part holds
+// the registers a thread of every cubin declares, the most a cubin declares: a register field reaches every number
+// the part gives a kernel's code
 #define FIELDS_REGISTERS 255u
 
 static SassMachine s_machine;

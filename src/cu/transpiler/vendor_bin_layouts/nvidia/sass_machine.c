@@ -462,10 +462,12 @@ static int sass_kinds_read(SassForm *form, const char *column)
     return 1;
 }
 
-// the soonest reads the part answered on the run channel, read from the .ksc beside the machine file at `path` into
-// `machine`: each operation's the largest of its lines. A machine with no .ksc beside it holds none
-static void sass_soonest_read(SassMachine *machine, const char *path)
+// what the part answered on the run channel, read from the .ksc beside the machine file at `path` into `machine`: the
+// soonest reads, each operation's the largest of its lines, and the last register a question's code can name. A
+// machine with no .ksc beside it holds no soonest read, and every register
+static void sass_answers_read(SassMachine *machine, const char *path)
 {
+    machine->register_last = SASS_MACHINE_UNANSWERED;
     char ksc[1024];
     snprintf(ksc, sizeof(ksc), "%s.ksc", path);
     FILE *const file = fopen(ksc, "r");
@@ -479,6 +481,12 @@ static void sass_soonest_read(SassMachine *machine, const char *path)
         unsigned int stall = 0u;
         char writer[SASS_MACHINE_TOKEN];
         char reader[SASS_MACHINE_TOKEN];
+        unsigned int last = 0u;
+        if (sscanf(line, "run answers %x register last", &last) == 1)
+        {
+            machine->register_last = last;
+            continue;
+        }
         if (sscanf(line, "run answers %x stall %63s %63s", &stall, writer, reader) != 3)
         {
             continue;
@@ -572,6 +580,6 @@ int sass_machine_read(SassMachine *machine, const char *path)
                machine->forms);
         return 0;
     }
-    sass_soonest_read(machine, path);
+    sass_answers_read(machine, path);
     return 1;
 }

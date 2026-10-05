@@ -397,13 +397,10 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
         // Which numbers the part keeps for itself. R255 reads zero whatever is written into it, and that alone is
         // what RZ is: the part answers it, and the file does not.
         //
-        // The high numbers are a different question and are not asked here. R254 and R238, which sass.krs claims,
-        // were asked and the kernel errored on the device both times. Asked again in a kernel written to declare
-        // 255 registers, every number from R0 to R254 held what was written into it. So how many registers the lane
-        // is given is not the part's answer alone - it is the count the kernel declared, and the part gives exactly
-        // that many. A question spliced into form_0 inherits form_0's count, which is far below 238, and cannot ask
-        // about a number above it. What sass.krs claims of R238, R239 and R254 rests on the lane's own cubin
-        // declaring 255, which is written down where the claim is made
+        // The high numbers are a different question and are not asked here. A kernel is given the registers its
+        // count declares, and a question spliced into form_0 inherits form_0's count, which is far below
+        // the numbers sm_86.kdm pins and cannot ask about one above it. The last register a kernel declaring 255 can
+        // name is asked on the run channel (klq_identity register) and held in sm_86.ksc
         {"MOV R255, 0x5a3c69a5\nIMAD.MOV.U32 R7, RZ, RZ, R255", 0x00000000u},
         // The precepts of the alphabet (precepts.h) the part has never been asked for. Everything above this point
         // was asked because a ruleset wanted it; these are asked because the alphabet has them, and a part that has

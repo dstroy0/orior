@@ -368,6 +368,26 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         printf("  sass_assemble: no form for %s\n", text);
         return 0;
     }
+    // a register past the last the part answers a question's code can name is refused, the high half of a pair
+    // counted as its own register; RZ is no register a thread holds, and is named past every one
+    for (unsigned int place = 0u; place < parts.operands; place += 1u)
+    {
+        const char *const operand = parts.operand[place];
+        const char *const open = strrchr(operand, '[');
+        const char *const named = (parts.kind[place] == SASS_OPERAND_ADDRESS) ? ((open != NULL) ? (open + 1) : NULL)
+                                  : (parts.kind[place] == SASS_OPERAND_REGISTER) ? operand
+                                                                                 : NULL;
+        if ((named == NULL) || (named[0] != 'R') || (strncmp(named, "RZ", 2u) == 0))
+        {
+            continue;
+        }
+        if (sass_register_value(named) > machine->register_last)
+        {
+            printf("  sass_assemble: %s names a register past R%u, the last the part answers code can name\n", text,
+                   machine->register_last);
+            return 0;
+        }
+    }
     SassPlace places[SASS_MACHINE_OPERANDS];
     unsigned int unplaced = 0u;
     if (!sass_places_find(form, places, &unplaced))

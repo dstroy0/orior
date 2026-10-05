@@ -37,9 +37,9 @@
 // the words a run answers: the frame stores R7 as the first and zero as the other three, and a question may store
 // over those three
 #define UNPRINTED_COPIES 4u
-// the registers a thread of every cubin written holds, R0 to R254. A kernel refuses a register number past the count
-// it declares as an illegal instruction, and the pattern declares 10: a register field is asked under a count that
-// holds every number
+// the registers a thread of every cubin written declares, the most a cubin declares. A kernel refuses a register
+// number past the count it declares as an illegal instruction, and the pattern declares 10: a register field is asked
+// under a count that holds every number
 #define UNPRINTED_REGISTERS 255u
 // the bits of the high word that are the operation's, 64 to 104, and not the scheduler's
 #define UNPRINTED_OPERATION_HIGH 0x1ffffffffffull

@@ -108,6 +108,11 @@ typedef struct
     unsigned int stall;
 } SassSoonest;
 
+// the last register a machine holds where the part has not answered which it is: every number is the code's
+#define SASS_MACHINE_UNANSWERED 0xffffffffu
+
+// `register_last` is the last register the part answers a question's code can name, from the .ksc beside the
+// machine file (`run answers <last> register last`), and SASS_MACHINE_UNANSWERED where it holds no answer
 typedef struct
 {
     char part[SASS_MACHINE_PART];
@@ -116,6 +121,7 @@ typedef struct
     SassForm form[SASS_MACHINE_FORMS];
     SassSoonest soonest[SASS_MACHINE_SOONEST];
     unsigned int soonests;
+    unsigned int register_last;
 } SassMachine;
 
 // `text` read into its parts, whatever it holds: an operand the reader does not know is kept with the kind
