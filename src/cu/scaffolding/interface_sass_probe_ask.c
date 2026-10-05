@@ -3,8 +3,8 @@
 // reads what the part's own tools say about it; this one runs the part and reads back what it answers. Nothing else
 // tells an encoding the part executes from one its disassembler merely named
 #include "interface_sass_probe.h"
-#include "cubin_safe.h"
-#include "sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/cubin_safe.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 
 #include <ctype.h>
 #include <stdlib.h>

@@ -518,7 +518,7 @@ reads has changed.
    `SASS_LEARN` set it learns the machine again through the disassembler, bit by bit, and prints nothing the harness
    sees for more than 1800 s: the harness ends it. It alone
    puts cubins our own assembler wrote on the part, and every one is read on the host first: `cubin_safe`
-   (`src/cu/scaffolding/cubin_safe.{h,c}`) holds each instruction a kernel reaches to the safe scheduler word, to
+   (`src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.{h,c}`) holds each instruction a kernel reaches to the safe scheduler word, to
    no branch and no wait, to one instruction at most that no form holds, and to an EXIT every thread takes, and
    both `interface_sass_run` and `interface_sass_probe` refuse a cubin that breaks a rule before the driver sees it.
    `src/cu/scaffolding/cubin_safe_check.sh` holds the gate to one case a rule, 15 checks, 0 failed,

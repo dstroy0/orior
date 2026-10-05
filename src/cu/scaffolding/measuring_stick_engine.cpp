@@ -34,8 +34,8 @@
 // its encodings <out>/NNNN.bin. Nothing goes to a device.
 extern "C"
 {
-#include "sass_assemble.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 #include "interface_sass_probe.h"
 }
 

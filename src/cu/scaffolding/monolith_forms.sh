@@ -73,7 +73,7 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
 done
 # the machine file's reader and our assembler, which every SASS form read is assembled through before it is written, and
 # the system classification the folds this pass finds are written into (interface_sass_probe_class.c)
-for source in "$TOP/src/cu/scaffolding/sass_machine.c" "$TOP/src/cu/scaffolding/sass_assemble.c" \
+for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" \
     "$TOP/src/cu/scaffolding/interface_sass_probe_class.c"; do
     object="$OUT/$(basename "$source").o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then

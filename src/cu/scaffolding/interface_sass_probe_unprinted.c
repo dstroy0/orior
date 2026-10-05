@@ -14,9 +14,9 @@
 // The frame's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
 // into. The frame loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
 #include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
-#include "sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 #include "../transpiler/lstar/interface/interface.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 
 #include <stdio.h>
 #include <stdlib.h>

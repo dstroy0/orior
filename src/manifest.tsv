@@ -38,8 +38,8 @@ emitter	engine	src/cu/transpiler/vendor_bin_layouts/container_layout.c	A layout 
 emitter	engine	src/cu/transpiler/vendor_bin_layouts/container_layout.h	A container's layout as rows.
 emitter	seed	src/cu/transpiler/vendor_bin_layouts/nvidia/elf64_nvidia.tsv	Every offset, width, tag and name the NVIDIA container uses. 36 rows, read off containers its toolchain built.
 emitter	entry	src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c	The one emitter given a cubin: the layout file read from the tree, and each call made in a cubin's terms.
-emitter	scaffold	src/cu/scaffolding/sass_assemble.c	Turns text into encodings against a machine held in memory.
-emitter	scaffold	src/cu/scaffolding/sass_machine.c	Holds forms read from a machine file, and reads and writes that file.
+emitter	scaffold	src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c	Turns text into encodings against a machine held in memory.
+emitter	scaffold	src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c	Holds forms read from a machine file, and reads and writes that file.
 emitter	key	src/cu/transpiler/lstar/coherence/sm_86	2927 forms one run found. An input to nothing that derives.
 code generator	engine	src/cu/transpiler/codegen/code_generator.cu	Decides the forms a program is made of and writes them through a ruleset.
 code generator	engine	src/cu/transpiler/codegen/code_generator.h	What a language declares about itself to be written to.

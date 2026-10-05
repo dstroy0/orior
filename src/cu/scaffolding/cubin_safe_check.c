@@ -7,8 +7,8 @@
 // One line a case and a cubin, and a last line with the checks. Exit 0 where every case gives its rule's verdict, 1
 // where one does not, 2 where the machine file did not read. A cubin's verdict is reported and is no check: a cubin
 // held off the part is the gate doing its work.
-#include "cubin_safe.h"
-#include "sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/cubin_safe.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 
 #include <stdio.h>
 #include <string.h>

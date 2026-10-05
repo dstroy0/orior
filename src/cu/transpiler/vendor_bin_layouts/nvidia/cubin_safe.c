@@ -2,7 +2,7 @@
 // cubin_safe.c: each instruction a kernel reaches read with our own reader and held to the rules in cubin_safe.h
 #include "cubin_safe.h"
 
-#include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
+#include "cubin_write.h"
 #include "sass_assemble.h"
 
 #include <string.h>
