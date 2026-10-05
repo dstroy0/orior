@@ -11,6 +11,12 @@
 # the count closes from nu = 10.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_held.py <binary> <nu> <b> <E> <W>
+#           python examples/0_experimental/exact_zeta_held.py <binary> range <first> <last> <E> <W> <rate>
+#
+# The range runs cells `first` to `last`, each at the least b that gives it `rate` points for each unit theta / pi
+# rises across it, and joins them: N at each cell's point 3P / 4 and the next cell's point P / 4 is held by Turing's
+# method, and the sign changes between them, across the seam where the cell's last sign and the next one's first
+# differ, must number its difference.
 #
 # It sits in 0_experimental and is an entry in the analytic number theory workbook, on its rail; it claims nothing
 # about the Riemann hypothesis.
@@ -358,14 +364,9 @@ def horner(nu, b, big_u, gammas, big_e):
     return total
 
 
-def main():
-    if len(sys.argv) != 6:
-        raise SystemExit("  usage: exact_zeta_held.py <binary> <nu> <b> <E> <W>")
-    binary, nu, b, big_e, w = sys.argv[1], *(int(v) for v in sys.argv[2:6])
+def check_cell(binary, nu, b, big_e, w, gammas, samples):
+    """One cell run and checked, its lines printed; its checks, signs and Turing's count returned."""
     terms = log_terms(*cell(nu, b), w)
-    if nu < 6:
-        raise SystemExit("  Gabcke's bound on R_K holds from t = 200, and cell %d reaches below it" % nu)
-    gammas = curve_coefficients(big_e)
     big_lambda, cs = log_constants(terms)
     stages, first, lanes = run(binary, nu, b, big_e, gammas, cs, w)
     print("  cell %d: U from %d, %d lanes at 2^-%d; C_0 to C_%d, the coefficients at 2^-%d, %s a curve; ln u by %d terms" %
@@ -387,7 +388,7 @@ def main():
     work = digits_of(w) + 20
     pi_work = rs.zz.pi(work)
     digits = big_e * 30103 // 100000
-    sample = sorted(set(range(0, lanes, max(1, lanes // 32))) | {lanes - 1})
+    sample = sorted(set(range(0, lanes, max(1, lanes // samples))) | {lanes - 1})
     for lane in range(lanes):
         big_u = first + lane
         got = read_lane(stages["curves"], lane)
@@ -455,8 +456,64 @@ def main():
           (between, held_n[1] - held_n[0],
            "every zero in (t_%d, t_%d] is on the line and simple" % (a, e) if closed else
            "the count does not close" if nu >= 10 else "Trudgian's bound holds past t = 168 pi, and the cell starts below it"))
-    whole = main_inside and z_inside and agree and changes == device_changes and clocked and (closed or nu < 10)
-    return 0 if host and exact and held and inside and whole else 1
+    whole = main_inside and z_inside and agree and changes == device_changes and clocked
+    sums = stages["turing"]["sums"]
+    return {"checked": host and exact and held and inside and whole, "closed": closed, "signs": signs,
+            "a": a, "e": e, "n": held_n, "between": between,
+            "before": sums["below_count"][0][0], "after": sums["past_count"][0][0]}
+
+
+def rate_bits(nu, rate):
+    """The least b whose cell holds `rate` points or more for each unit theta / pi rises across it, theta / pi read
+    as x^2 (ln x^2 - 1) at x^2 = u^4, the lattice's choice alone."""
+    def clock(s):
+        return s * (math.log(s) - 1)
+    rise = clock((nu + 1) ** 2) - clock(nu * nu)
+    b = 4
+    while cell(nu, b)[1] < rate * rise:
+        b += 1
+    return b
+
+
+def main():
+    if len(sys.argv) == 6:
+        binary, nu, b, big_e, w = sys.argv[1], *(int(v) for v in sys.argv[2:6])
+        if nu < 6:
+            raise SystemExit("  Gabcke's bound on R_K holds from t = 200, and cell %d reaches below it" % nu)
+        got = check_cell(binary, nu, b, big_e, w, curve_coefficients(big_e), 32)
+        return 0 if got["checked"] and (got["closed"] or nu < 10) else 1
+    if len(sys.argv) != 8 or sys.argv[2] != "range":
+        raise SystemExit("  usage: exact_zeta_held.py <binary> <nu> <b> <E> <W>\n"
+                         "         exact_zeta_held.py <binary> range <first> <last> <E> <W> <rate>")
+    binary, first, last, big_e, w, rate = sys.argv[1], *(int(v) for v in sys.argv[3:8])
+    if first < 10 or last < first:
+        raise SystemExit("  Trudgian's bound holds past t = 168 pi, and the first cell is 10 or more")
+    sys.stdout.reconfigure(line_buffering=True)
+    gammas = curve_coefficients(big_e)
+    cells = {}
+    for nu in range(first, last + 1):
+        cells[nu] = check_cell(binary, nu, rate_bits(nu, rate), big_e, w, gammas, 4)
+    # each seam: N at cell nu's point e and cell nu + 1's point a against the changes after e, across the seam
+    # where the last sign and the next cell's first differ, and before a
+    count, closed = 0, all(got["checked"] and got["closed"] for got in cells.values())
+    for nu in range(first, last + 1):
+        got = cells[nu]
+        count += got["between"]
+        if nu < last:
+            ahead = cells[nu + 1]
+            seam = int(got["signs"][-1] * ahead["signs"][0] < 0)
+            across = got["after"] + seam + ahead["before"]
+            meets = across == ahead["n"][0] - got["n"][1]
+            print("  seam %d to %d: %d sign changes from point %d to point %d, N from %d to %d: %s" %
+                  (nu, nu + 1, across, got["e"], ahead["a"], got["n"][1], ahead["n"][0], meets))
+            closed = closed and meets
+            count += across
+    low_n, high_n = cells[first]["n"][0], cells[last]["n"][1]
+    print("  cells %d to %d: %d sign changes from N = %d to N = %d: %s" %
+          (first, last, count, low_n, high_n,
+           "every zero between is on the line and simple" if closed and count == high_n - low_n
+           else "the count does not close"))
+    return 0 if closed and count == high_n - low_n else 1
 
 
 if __name__ == "__main__":
