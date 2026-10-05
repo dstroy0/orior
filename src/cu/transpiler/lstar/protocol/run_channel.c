@@ -148,12 +148,16 @@ int run_channel_ask(RunQuestion *asked)
     char output_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
     char registers[16];
     char launches[16];
+    char threads[16];
+    char blocks[16];
     run_channel_path(code_path, "question.bin");
     run_channel_path(cases_path, "cases.txt");
     run_channel_path(answers_path, "answers.txt");
     run_channel_path(output_path, "carrier.txt");
     snprintf(registers, sizeof(registers), "%u", asked->registers);
     snprintf(launches, sizeof(launches), "%u", asked->launches);
+    snprintf(threads, sizeof(threads), "%u", asked->threads);
+    snprintf(blocks, sizeof(blocks), "%u", asked->blocks);
     remove(answers_path);
     if (!run_channel_write(asked, code_path, cases_path))
     {
@@ -162,7 +166,7 @@ int run_channel_ask(RunQuestion *asked)
         return 0;
     }
     // the interface's command is a list of words it does not write to; the cast only meets its declared type
-    char *command[RUN_CARRIER_WORDS + 6u];
+    char *command[RUN_CARRIER_WORDS + 8u];
     unsigned int words = 0u;
     for (; words < s_channel.words; words += 1u)
     {
@@ -172,9 +176,22 @@ int run_channel_ask(RunQuestion *asked)
     command[words + 1u] = registers;
     command[words + 2u] = cases_path;
     command[words + 3u] = answers_path;
-    // an untimed question is carried with the words it always was, and a timed one with its count of launches after
-    command[words + 4u] = (asked->launches != 0u) ? launches : NULL;
-    command[words + 5u] = NULL;
+    words += 4u;
+    // an untimed question of no shape of its own is carried with the words it always was; a timed one with its count
+    // of launches after, and one with a shape with its count of launches, 0 where it is untimed, and its shape
+    const int shaped = (asked->threads != 0u) || (asked->blocks != 0u);
+    if ((asked->launches != 0u) || shaped)
+    {
+        command[words] = launches;
+        words += 1u;
+    }
+    if (shaped)
+    {
+        command[words] = threads;
+        command[words + 1u] = blocks;
+        words += 2u;
+    }
+    command[words] = NULL;
     const InterfaceProbe probe = {command, output_path, s_channel.limit_microseconds};
     InterfaceAnswer answer = {0};
     answer.output = s_carrier_output;

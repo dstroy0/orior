@@ -62,6 +62,10 @@ typedef struct
     // how many times it is launched again once it answers, those launches timed together on the part's own timer;
     // 0 leaves it untimed
     unsigned int launches;
+    // the threads of a block and the blocks of a launch, every thread given a case, thread t case t of the cases taken
+    // round; where both are 0 it is one block of a carrier's own count
+    unsigned int threads;
+    unsigned int blocks;
     // each case's answer, its two words as one value
     unsigned long long answered[RUN_CASES_MOST];
     // the time the launches took together, in nanoseconds as the part's timer counts them; 0 where it is untimed
