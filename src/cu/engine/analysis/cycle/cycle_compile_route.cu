@@ -152,7 +152,7 @@ static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *re
     const cudaKernel_t ptx = record->kernel;
     const unsigned int ptx_places = record->places;
     const size_t ptx_frame = attributes.localSizeBytes;
-    CTarget &generator = c_target();
+    CodeGenerator &generator = code_generator("c.krs");
     const Ruleset *const rules = generator.ruleset(report);
     const auto began = std::chrono::steady_clock::now();
     const TargetInfo target = cycle_target_info(lane_target);
@@ -372,7 +372,7 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
     const int host = cycle_environment_set("CYCLE_RECORD_HOST_C");
     if ((lto == 0) && (host == 0) && (cycle_environment_set("CYCLE_RECORD_NVRTC") == 0))
     {
-        PtxTarget &generator = ptx_target();
+        CodeGenerator &generator = code_generator("ptx.krs");
         const Ruleset *const rules = generator.ruleset(report);
         const std::string &header = cycle_ptx_header(major, minor, report);
         unsigned int places = 0u;
@@ -413,7 +413,7 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
                                      : "its PTX did not build");
         }
     }
-    CTarget &source_generator = c_target();
+    CodeGenerator &source_generator = code_generator("c.krs");
     const Ruleset *const source_rules = source_generator.ruleset(report);
     const auto began = std::chrono::steady_clock::now();
     unsigned int source_places = 0u;

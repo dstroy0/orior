@@ -1,0 +1,17 @@
+where	who	kind	form	gloss
+head 0	krep_head_write	magic	8 bytes	KREP and four zero bytes
+head 1	krep_head_write	kind	4 bytes	the file's kind
+head 2	krep_head_write	version	1 limb	KREP_VERSION; a file of another version errors on read
+head 3	flatten_write_iapx	format	1 limb	FLATTEN_FORMAT; a file of any other format errors on read
+head 4	flatten_write_iapx	fields	1 limb	MAX_TREE_FIELDS
+head 5	flatten_write_iapx	total_bits	1 limb	the layout's total bits
+head 6	flatten_write_iapx	limbs	1 limb	the layout's limbs
+head 7	flatten_write_iapx	count	1 limb	the samples
+layout 0	flatten_write_iapx	bits	MAX_TREE_FIELDS limbs	each field's bits
+layout 1	flatten_write_iapx	offset	MAX_TREE_FIELDS limbs	each field's offset
+sample 0	flatten_write_iapx	length	1 limb	the sample's name's length, a sample after another
+sample 1	flatten_write_iapx	name	length bytes	the sample's name
+sample 2	flatten_write_iapx	smooth	ENGINE_AXES limbs	the sample's smooth order
+sample 3	flatten_write_iapx	background	ENGINE_AXES limbs	the sample's background order
+tail 0	flatten_write_iapx	bodies	1 word	the bodies
+tail 1	flatten_write_iapx	magnitudes	words limbs	the magnitudes

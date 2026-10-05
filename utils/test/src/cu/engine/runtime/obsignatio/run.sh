@@ -3,7 +3,7 @@
 set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE="$(cd "$TEST/../../../../../../../src/c/engine/runtime/obsignatio" && pwd)"
+MODULE="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 MODULE_CU="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 TOP="$(cd "$MODULE/../../../.." && pwd)"
 SCRIPTURA="$TOP/c/engine/runtime/scriptura"

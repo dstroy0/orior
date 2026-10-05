@@ -1,0 +1,9 @@
+where	who	kind	form	gloss
+any	-	case	1,1->2	a case asked of the part: the operands, then the answer the relation holds
+any	-	pair	[left, right]	a pair resolved to its state
+any	-	cross	lead x> rite, 1,0 x> 0,1	a transition where both sides flip
+any	-	straight line	lead -> void, 1,0 -> 0,0	a transition where the sides do not cross
+any	-	unknown	busy *> dual	the unknown or a superstate: a transition where a side holds no pair bit
+any	-	halt	|	a halt
+any	-	mnemonic	<mnemonic>	a mnemonic written where a transition is, held against its pair
+any	-	sequence	[lead, rite]	a sequence of states, read as one movement

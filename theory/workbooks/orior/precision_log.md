@@ -22,7 +22,7 @@ The constants come from the engine's `no_rounding` module and from the private p
   is 3456 bits and holds 1040 decimal digits. 16 are headroom the constant does not promise (lines
   55 to 60). Schoolbook is correct at this width because Karatsuba crosses over in the thousands of
   limbs and this is a hundred (line 179).
-- Bignum, Python side: `src/python/types/integers/exact.py`. `SCALE_DIGITS = 1024` (line 74),
+- Bignum, Python side: `archive/src/python/types/integers/exact.py`. `SCALE_DIGITS = 1024` (line 74),
   arbitrary precision, the scale the C form is cross-checked against. The two forms must agree on the
   same values or a cross check between them means nothing (`exact_integer.h` line 45).
 - NTT precision constants: pinned in `theory/`, not in `src/`. The proof is

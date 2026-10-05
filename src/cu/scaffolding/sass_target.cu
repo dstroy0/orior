@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "sass_target.h"
+
+// the lane as SASS: sass.krs, how SASS is written, then sm_86.krs and sm_86.kdm, the part's operations and its
+// registers, which a cubin writer assembles, its header the listing's own opening
+SassTarget::SassTarget(void) : CodeGenerator("sass.krs")
+{
+}
+
+// R0 through R237. The part has 255 numbered registers and RZ, of which sass.krs pins the top for the lane's own:
+// R240 up are its fixed registers, and R238 and R239 are the launch the lane was called with, which launch_open moves
+// there and launch_load_wide reads every parameter through. A lane whose banks reach R238 is refused, in place of
+// writing over the address its own parameters come from. This is the file's count and not what a lane can take and stay
+// fast: an SM holds 65536 registers and runs 1536 threads. 42 a thread is full occupancy and every one past that
+// costs residency
+unsigned int SassTarget::register_file_holds(void) const
+{
+    return 238u;
+}
+
+// The resident reaches SASS already built. ptx.krs holds it as PTX that runs, the part's own compiler turns that
+// into SASS that runs, and a program is put together by writing the lane into that cubin's cycle_lane, leaving
+// cycle_program as the compiler wrote it (asked of the part: every instruction of the resident but the empty lane's
+// own comes through a lane going in).
+// sass.krs gives program_unit as an error for that reason, and the form is left out here in place of being asked
+// for
+int SassTarget::program_unit_written(void) const
+{
+    return 0;
+}
+
+SassTarget &sass_target(void)
+{
+    static SassTarget generator;
+    return generator;
+}

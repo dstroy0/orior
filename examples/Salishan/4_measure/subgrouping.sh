@@ -10,17 +10,17 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../.." && pwd)"
-CYCLE="$TOP/src/c/engine/analysis/cycle"
+CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
-CODEGEN="$TOP/src/c/transpiler/codegen"
+CODEGEN="$TOP/src/cu/transpiler/codegen"
 CODEGEN_CU="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU_2="$TOP/src/cu/types/file_defs/krs"
-KEYMATH="$TOP/src/c/engine/analysis/keymath"
+CODEGEN_CU_2="$TOP/src/cu/transpiler/lstar/parser"
+KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
-KEY_SCHEDULE="$TOP/src/c/engine/analysis/key_schedule"
+KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
-NO_ROUNDING="$TOP/src/c/types/integers"
-SCRIPTURA="$TOP/src/c/engine/runtime/scriptura"
+NO_ROUNDING="$TOP/src/cu/types/integers"
+SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
 SIMS_CU="$TOP/src/sims/cu"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"
@@ -58,7 +58,7 @@ for one in $ARCHES; do
     GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
-INCLUDES=(-I "$TOP/src/c/engine" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH"
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH"
           -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA" -I "$SIMS_CU"
           "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"

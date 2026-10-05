@@ -61,7 +61,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for src/python, which the repository tracks and every checkout
+    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -171,15 +171,15 @@ def version_lock(out):
     Returns 1 where they agree, 0 where they do not.
     """
     limbs = constant(
-        "src/c/types/integers/exact_integer.h",
+        "src/cu/types/integers/exact_integer.h",
         r"#define\s+ANCHOR_EXACT_LIMBS\s+(\d+)",
     )
     floor = constant(
-        "src/c/types/integers/exact_integer.h",
+        "src/cu/types/integers/exact_integer.h",
         r"#define\s+ANCHOR_EXACT_DIGITS\s+(\d+)",
     )
     scale = constant(
-        "src/python/types/integers/exact.py", r"^SCALE_DIGITS\s*=\s*(\d+)"
+        "archive/src/python/types/integers/exact.py", r"^SCALE_DIGITS\s*=\s*(\d+)"
     )
 
     if (limbs is None) or (floor is None) or (scale is None):
@@ -318,7 +318,7 @@ def main():
         if not os.path.isfile(DRIVER):
             out.write("\n  no bench_exact at %s\n" % DRIVER)
             out.write(
-                "  cmake -S src/c -B build/engine_c -G Ninja"
+                "  cmake -S src/cu -B build/engine_c -G Ninja"
                 " -DCMAKE_BUILD_TYPE=Release && cmake --build build/engine_c\n\n"
             )
             out.flush()

@@ -3,7 +3,7 @@
 #ifndef TARGET_INTERNAL_H
 #define TARGET_INTERNAL_H
 
-#include "../../types/file_defs/krs/ruleset_flat.h"
+#include "../lstar/parser/ruleset_flat.h"
 #include "ruleset_reader.h"
 #include "target.h"
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "run_cfg.h"
 
-#include "../../../../src/c/includes/formats/cfg_json/cfg_json.h"
-#include "../../../../src/c/engine/engine.h"
+#include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../../../../src/cu/engine/engine.h"
 #include "output.h"
 #include "track.h"
 

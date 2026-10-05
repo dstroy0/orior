@@ -28,9 +28,9 @@ case "$(uname -s)" in
 esac
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -I "$TOP/src/c/types/integers" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -I "$TOP/src/cu/types/integers" -o "$BINARY" \
     "$TEST/exact_divide_test.cu" \
-    "$TOP/src/c/types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c
+    "$TOP/src/cu/types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 
 "$BINARY"

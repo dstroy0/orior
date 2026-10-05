@@ -30,7 +30,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
-$src = Join-Path $root "src\c"
+$src = Join-Path $root "src\cu"
 $build = Join-Path $root "build\engine_c"
 
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {

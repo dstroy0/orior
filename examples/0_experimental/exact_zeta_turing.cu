@@ -101,10 +101,10 @@
 // from Z over the step. A clean step holds no zero. A step is flagged where it is not clean and its ends are not
 // certified signs that change.
 
-#include "../../src/c/engine/analysis/cycle/cycle.h"
-#include "../../src/c/engine/analysis/key_schedule/key_schedule.h"
-#include "../../src/c/engine/analysis/keymath/keymath.h"
-#include "../../src/c/engine/runtime/scriptura/scriptura.h"
+#include "../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
+#include "../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../src/cu/engine/runtime/scriptura/scriptura.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

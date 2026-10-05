@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../src/c/engine/nbody/orior/orior.h"
-#include "../../src/c/includes/codecs/sha256/sha256.h"
+#include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/cu/includes/codecs/sha256/sha256.h"
 
 #include <math.h>
 #include <stddef.h>

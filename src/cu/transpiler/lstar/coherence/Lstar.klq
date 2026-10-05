@@ -1,0 +1,258 @@
+klq L*
+key program_note
+key lane_open
+key lane_body
+key lane_close
+key declare_predicates
+key declare_fixed_predicates
+key declare_file
+key declare_signs
+key declare_out
+key declare_atoms
+key declare_temporaries
+key declare_wides
+key declare_fixed_words
+key declare_fixed_wides
+key declare_members
+key launch_open
+key launch_load_wide
+key cast_global
+key shared_open
+key shared_close
+key global_load_word_if
+key wide_from_word_if
+key error_open_unless
+key error_if
+key label_error_open
+key label_error
+key global_add_atomic_word
+key return
+key step_note
+key word_add
+key word_add_first
+key word_add_middle
+key word_add_last
+key word_sub
+key word_sub_first
+key word_sub_middle
+key word_sub_last
+key word_borrow_read
+key word_copy
+pair word_copy thread_idx_x
+open 0
+pair word_copy warp_size
+open 0
+key word_set
+key word_bitand
+pair word_bitand word_from_byte
+open 0
+key word_bitor
+key word_bitxor
+key word_not
+key word_shl
+key word_shr
+key word_funnel_right
+key signed_word_shr
+pair signed_word_shr word_shr
+open 0
+key word_mul
+key word_mul_add
+pair word_mul_add word_mul
+open 0
+key word_div
+key word_select
+key word_mul_low
+key word_mul_high
+key sign_set
+key sign_select
+key sign_mul
+key sign_absolute
+key sign_neg
+key test_word_nonzero
+key test_word_zero
+pair test_word_zero test_word_nonzero
+open 0
+key test_signed_word_negative
+key test_sign_ne
+key test_sign_gt
+key test_wide_nonzero
+key test_wide_eq
+pair test_wide_eq test_wide_zero
+open 0
+key test_wide_lt
+pair test_wide_lt test_wide_eq
+open 0
+key test_wide_lt_and
+pair test_wide_lt_and test_wide_lt
+open 0
+key predicate_bitxor
+key predicate_bitand
+key wide_from_word
+key word_from_wide
+pair word_from_wide warp_size
+open 0
+key wide_pack
+pair wide_pack wide_from_word
+open 0
+key wide_unpack
+key wide_mul
+key wide_mul_word
+key wide_add
+key wide_shl
+key wide_select
+key wide_div
+key global_load_constant_word
+key record_store_word
+key declare_states
+key state_start
+key state_open
+key state_next
+key state_exit
+key state_dispatch
+key launch_ask
+key global_ask
+key global_ask_if
+key global_ask_atomic
+key label_loop
+key loop_back_if
+key state_loop
+key program_unit
+key kernel_open
+key kernel_close
+key thread_idx_x
+key thread_idx_y
+pair thread_idx_y thread_idx_x
+open 0
+key thread_idx_z
+pair thread_idx_z thread_idx_x
+open 0
+key block_idx_x
+key block_idx_y
+pair block_idx_y block_idx_x
+open 0
+key block_idx_z
+pair block_idx_z block_idx_x
+open 0
+pair block_idx_z block_idx_y
+open 0
+key block_dim_x
+key block_dim_y
+pair block_dim_y block_dim_x
+open 0
+key block_dim_z
+pair block_dim_z block_dim_x
+open 0
+key grid_dim_x
+key grid_dim_y
+pair grid_dim_y grid_dim_x
+open 0
+key grid_dim_z
+pair grid_dim_z grid_dim_x
+open 0
+key warp_size
+key parameter_load_word
+key parameter_load_wide
+key test_word_lt
+key exit_unless
+key wide_mul_word_add
+pair wide_mul_word_add wide_mul_word
+open 0
+key global_load_word
+pair global_load_word global_load_constant_word
+open 0
+key global_load_wide
+pair global_load_wide global_load_word
+open 0
+key global_store_wide
+key wide_from_signed_word
+key test_word_ge
+pair test_word_ge test_word_lt
+open 0
+key exit_if
+key test_word_le
+pair test_word_le test_word_lt
+open 0
+key test_word_ne
+pair test_word_ne test_word_nonzero
+open 0
+pair test_word_ne test_word_lt
+open 0
+key test_word_eq
+pair test_word_eq test_word_zero
+open 0
+pair test_word_eq test_word_lt
+open 0
+key test_word_gt
+pair test_word_gt test_word_lt
+open 0
+key test_signed_word_lt
+pair test_signed_word_lt test_word_lt
+open 0
+pair test_signed_word_lt test_signed_word_negative
+open 0
+key test_signed_word_ge
+pair test_signed_word_ge test_word_ge
+open 0
+key test_signed_word_le
+pair test_signed_word_le test_word_le
+open 0
+key test_signed_word_gt
+pair test_signed_word_gt test_word_gt
+open 0
+key test_wide_ne
+pair test_wide_ne test_word_nonzero
+open 0
+pair test_wide_ne test_wide_eq
+open 0
+key test_wide_le
+pair test_wide_le test_wide_eq
+open 0
+key test_wide_gt
+pair test_wide_gt test_wide_eq
+open 0
+key test_wide_ge
+pair test_wide_ge test_wide_eq
+open 0
+key test_signed_wide_lt
+pair test_signed_wide_lt test_wide_lt
+open 0
+key test_signed_wide_le
+pair test_signed_wide_le test_wide_le
+open 0
+key test_signed_wide_gt
+pair test_signed_wide_gt test_wide_gt
+open 0
+key test_signed_wide_ge
+pair test_signed_wide_ge test_wide_ge
+open 0
+key test_wide_zero
+pair test_wide_zero test_wide_nonzero
+open 0
+key word_from_byte
+key word_from_signed_byte
+key word_from_halfword
+key word_from_signed_halfword
+key global_load_byte
+pair global_load_byte global_load_word
+open 0
+key global_load_signed_byte
+pair global_load_signed_byte global_load_byte
+open 0
+key global_load_halfword
+pair global_load_halfword global_load_word
+open 0
+key global_load_signed_halfword
+pair global_load_signed_halfword global_load_signed_byte
+open 0
+key test_word_nonzero_and
+pair test_word_nonzero_and test_word_nonzero
+open 0
+key test_word_nonzero_or
+pair test_word_nonzero_or test_word_nonzero_and
+open 0
+key test_wide_nonzero_and
+pair test_wide_nonzero_and test_wide_nonzero
+open 0
+key test_wide_nonzero_or
+pair test_wide_nonzero_or test_wide_nonzero_and
+open 0

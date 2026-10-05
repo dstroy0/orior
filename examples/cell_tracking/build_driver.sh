@@ -63,37 +63,37 @@ fi
 EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_EXACT_DIGITS=${EXACT_DIGITS}u")
 echo "  exact integer: $((EXACT_LIMBS * 32)) bits, $EXACT_DIGITS digits, for a question of $QUESTION_LIMBS limbs, from $EXACT_ROOT"
 
-FUNCTIONALS=(cell_tracking/src/run_cfg c/includes/formats/cfg_json cell_tracking/src/run_log
-             c/includes/formats/stack cu/includes/formats/stack c/types/file_defs/krep cu/types/file_defs/krep
-             c/engine/analysis/compression cu/engine/analysis/compression c/engine/analysis/tower
-             cu/engine/analysis/tower c/engine/runtime/device_pool cu/engine/runtime/device_pool
-             c/engine/analysis/entropy_history cu/engine/analysis/entropy_history
-             c/engine/analysis/noise_detector cu/engine/analysis/noise_detector c/engine/runtime/schedule
-             cu/engine/runtime/schedule c/engine/analysis/keymath cu/engine/analysis/keymath
-             c/engine/analysis/key_schedule cu/engine/analysis/key_schedule c/engine/analysis/cycle
-             cu/engine/analysis/cycle c/transpiler/codegen cu/transpiler/codegen cu/types/file_defs/krs
-             c/engine/runtime/radix_keys c/engine/analysis/unit_sweep cu/engine/analysis/unit_sweep
-             c/engine/runtime/obsignatio cu/engine/runtime/obsignatio c/engine/analysis/residual
-             cu/engine/analysis/residual c/engine/nbody/max_tree cu/engine/nbody/max_tree c/engine/nbody/flatten
-             cu/engine/nbody/flatten cell_tracking/src/track c/engine/analysis/golden_bands
-             cu/engine/analysis/golden_bands cell_tracking/src/answer_key c/engine/analysis/residual_survey
-             cu/engine/analysis/residual_survey c/engine/nbody/grow cu/engine/nbody/grow
-             c/engine/analysis/shift_agreement cu/engine/analysis/shift_agreement c/engine/nbody/climb_machine
-             cu/engine/nbody/climb_machine c/engine/nbody/body_overlap cu/engine/nbody/body_overlap
-             c/engine/nbody/fingerprint cu/engine/nbody/fingerprint c/engine/nbody/print_pair
-             cu/engine/nbody/print_pair c/engine/nbody/velocity cu/engine/nbody/velocity c/engine/nbody/division
-             cu/engine/nbody/division c/engine/nbody/marginal cu/engine/nbody/marginal
-             c/engine/nbody/contact_side cu/engine/nbody/contact_side c/engine/nbody/box_history
-             cu/engine/nbody/box_history c/engine/nbody/heaviest_matching c/types/integerfloats/double_fields cu/types/integerfloats/double_fields
-             c/types/integerfloats/decimal_double c/engine/runtime/scriptura cell_tracking/src/relate_frames
+FUNCTIONALS=(cell_tracking/src/run_cfg cu/includes/formats/cfg_json cell_tracking/src/run_log
+             cu/includes/formats/stack cu/engine/parser
+             cu/engine/analysis/compression cu/engine/analysis/tower
+             cu/engine/runtime/device_pool
+             cu/engine/analysis/entropy_history
+             cu/engine/analysis/noise_detector cu/engine/runtime/schedule
+             cu/engine/analysis/keymath
+             cu/engine/analysis/key_schedule cu/engine/analysis/cycle
+             cu/transpiler/codegen cu/transpiler/lstar/parser
+             cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep
+             cu/engine/runtime/obsignatio cu/engine/analysis/residual
+             cu/engine/nbody/max_tree cu/engine/nbody/flatten
+             cell_tracking/src/track cu/engine/analysis/golden_bands
+             cell_tracking/src/answer_key cu/engine/analysis/residual_survey
+             cu/engine/nbody/grow
+             cu/engine/analysis/shift_agreement cu/engine/nbody/climb_machine
+             cu/engine/nbody/body_overlap
+             cu/engine/nbody/fingerprint cu/engine/nbody/print_pair
+             cu/engine/nbody/velocity cu/engine/nbody/division
+             cu/engine/nbody/marginal
+             cu/engine/nbody/contact_side cu/engine/nbody/box_history
+             cu/engine/nbody/heaviest_matching cu/types/integerfloats/double_fields
+             cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura cell_tracking/src/relate_frames
              cell_tracking/src/group_objects cell_tracking/src/link_objects cell_tracking/src/bodies
              cell_tracking/src/score_sample cell_tracking/src/coherence cell_tracking/src/peaks
              cell_tracking/src/scan cell_tracking/src/sort cell_tracking/src/divide cell_tracking/src/faces
              cell_tracking/src/output 00_blob_viz_tools/view/vis_png
              cell_tracking/src/track_driver)
-INGEST=(c/includes/formats/zarr c/includes/codecs/zstd c/includes/codecs/inflate c/includes/codecs/deflate c/includes/codecs/lz4
-        c/includes/codecs/snappy c/includes/codecs/blosc c/includes/formats/tiff c/includes/formats/hdf5 c/includes/codecs/zip
-        c/includes/formats/dicom c/includes/formats/npy c/includes/formats/nrrd c/includes/formats/nifti)
+INGEST=(cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate cu/includes/codecs/deflate cu/includes/codecs/lz4
+        cu/includes/codecs/snappy cu/includes/codecs/blosc cu/includes/formats/tiff cu/includes/formats/hdf5 cu/includes/codecs/zip
+        cu/includes/formats/dicom cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti)
 FUNCTIONALS+=("${INGEST[@]}")
 FUNCTIONAL_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/../../cu/includes/codecs/crc" -I "$ENGINE/runtime/daemon")
 FUNCTIONAL_SOURCES=("$ENGINE/../../cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
@@ -107,9 +107,9 @@ for functional in "${FUNCTIONALS[@]}"; do
 done
 
 PORTABLE_OBJECTS=()
-for portable in c/engine/nbody/body_overlap c/engine/analysis/shift_agreement c/includes/formats/cfg_json \
-                c/engine/nbody/max_tree c/engine/analysis/cycle c/engine/nbody/heaviest_matching c/engine/nbody/marginal \
-                c/types/integerfloats/double_fields c/types/integerfloats/decimal_double c/engine/runtime/scriptura \
+for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/includes/formats/cfg_json \
+                cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
+                cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
                 "${INGEST[@]}"; do
     for source in "$(build_path "$portable")"/*.c; do
         name="$(basename "$source" .c)"
@@ -170,7 +170,7 @@ for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_sel
         *)
             cc -std=c11 -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" -c "$ENGINE/runtime/daemon/$name.c" -o "$OBJECT" ;;
     esac
-    [ -f "$OBJECT" ] || { echo "  build failed: c/engine/runtime/daemon/$name.c did not compile"; exit 1; }
+    [ -f "$OBJECT" ] || { echo "  build failed: cu/engine/runtime/daemon$name.c did not compile"; exit 1; }
     case "$name" in
         tessera_client_*) TESSERA_CLIENT_OBJECTS+=("$OBJECT") ;;
         tessera_paths|tessera_frame|tessera_self) TESSERA_CLIENT_OBJECTS+=("$OBJECT"); TESSERA_DAEMON_OBJECTS+=("$OBJECT") ;;

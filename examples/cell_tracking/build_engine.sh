@@ -63,22 +63,22 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_E
 
 DEFINES=(-DBODY_OVERLAP_BUILD_DLL=1 -DHEAVIEST_MATCHING_BUILD_DLL=1
          -DSHIFT_AGREEMENT_BUILD_DLL=1)
-MODULES=(c/includes/formats/stack cu/includes/formats/stack c/types/file_defs/krep cu/types/file_defs/krep
-         c/engine/analysis/compression cu/engine/analysis/compression c/engine/analysis/tower
-         cu/engine/analysis/tower c/engine/runtime/device_pool cu/engine/runtime/device_pool
-         c/engine/analysis/entropy_history cu/engine/analysis/entropy_history c/engine/analysis/keymath
-         cu/engine/analysis/keymath c/engine/analysis/key_schedule cu/engine/analysis/key_schedule
-         c/engine/analysis/cycle cu/engine/analysis/cycle c/engine/runtime/radix_keys c/engine/analysis/unit_sweep
-         cu/engine/analysis/unit_sweep c/engine/runtime/obsignatio cu/engine/runtime/obsignatio
-         c/engine/analysis/residual cu/engine/analysis/residual c/engine/nbody/max_tree cu/engine/nbody/max_tree
-         c/engine/nbody/flatten cu/engine/nbody/flatten c/engine/nbody/grow cu/engine/nbody/grow
-         c/types/integerfloats/double_fields cu/types/integerfloats/double_fields c/types/integerfloats/decimal_double c/engine/runtime/scriptura
-         c/engine/nbody/body_overlap cu/engine/nbody/body_overlap c/engine/nbody/heaviest_matching
-         c/engine/analysis/shift_agreement cu/engine/analysis/shift_agreement c/engine/analysis/period
-         cu/engine/analysis/period)
-INGEST=(c/includes/formats/cfg_json c/includes/formats/zarr c/includes/codecs/zstd c/includes/codecs/inflate c/includes/codecs/deflate
-        c/includes/codecs/lz4 c/includes/codecs/snappy c/includes/codecs/blosc c/includes/formats/tiff c/includes/formats/hdf5
-        c/includes/codecs/zip c/includes/formats/dicom c/includes/formats/npy c/includes/formats/nrrd c/includes/formats/nifti)
+MODULES=(cu/includes/formats/stack cu/engine/parser
+         cu/engine/analysis/compression cu/engine/analysis/tower
+         cu/engine/runtime/device_pool
+         cu/engine/analysis/entropy_history cu/engine/analysis/keymath
+         cu/engine/analysis/key_schedule
+         cu/engine/analysis/cycle cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep
+         cu/engine/runtime/obsignatio
+         cu/engine/analysis/residual cu/engine/nbody/max_tree
+         cu/engine/nbody/flatten cu/engine/nbody/grow
+         cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura
+         cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching
+         cu/engine/analysis/shift_agreement cu/engine/analysis/period
+         )
+INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate cu/includes/codecs/deflate
+        cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc cu/includes/formats/tiff cu/includes/formats/hdf5
+        cu/includes/codecs/zip cu/includes/formats/dicom cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti)
 MODULES+=("${INGEST[@]}")
 MODULE_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/../../cu/includes/codecs/crc")
 MODULE_SOURCES=("$ENGINE/../../cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
@@ -90,9 +90,9 @@ for module in "${MODULES[@]}"; do
     done
 done
 PORTABLE_OBJECTS=()
-for portable in c/engine/nbody/body_overlap c/engine/nbody/heaviest_matching c/engine/analysis/shift_agreement \
-                c/engine/nbody/max_tree c/engine/analysis/cycle c/types/integerfloats/double_fields \
-                c/types/integerfloats/decimal_double c/engine/runtime/scriptura "${INGEST[@]}"; do
+for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
+                cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/types/integerfloats/double_fields \
+                cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura "${INGEST[@]}"; do
     for source in "$(build_path "$portable")"/*.c; do
         name="$(basename "$source" .c)"
         OBJECT="$OUT/${name}_portable.o"

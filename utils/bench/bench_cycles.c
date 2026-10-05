@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../../src/c/engine/nbody/orior/orior.h"
-#include "../../src/c/includes/codecs/sha256/sha256.h"
+#include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/cu/includes/codecs/sha256/sha256.h"
 
 #if defined(__x86_64__) || defined(__i386__)
 #include <x86intrin.h>

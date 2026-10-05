@@ -7,7 +7,7 @@
     python utils/maint/engine/gnascor_measure.py --repeat <runs>
 
 --labels counts, in bits, how much of a transition a label leaves recoverable. A transition is its pair, the
-state left and the state reached. Each pair the tables in src/c/transpiler/gnascor.md name is put through every
+state left and the state reached. Each pair the tables in src/cu/transpiler/gnascor.md name is put through every
 situation gnascor_read.py decides a label in, every pair weighted alike and every situation alike within it. The
 reading is the conditional entropy of the pair given what a branch reads, H(pair | label), taken four ways:
 

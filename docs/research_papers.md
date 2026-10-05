@@ -9,7 +9,7 @@ The research is twenty research papers under [`theory/`](https://github.com/dstr
 sh utils/maint/texbuild/build_theory.sh
 ```
 
-To read the code instead of the argument, start with [`src/python/README.md`](https://github.com/dstroy0/orior/blob/main/src/python/README.md), then [`src/README.md`](https://github.com/dstroy0/orior/blob/main/src/README.md), then [`examples/README.md`](https://github.com/dstroy0/orior/blob/main/examples/README.md), then [`examples/any_corpus/`](https://github.com/dstroy0/orior/tree/main/examples/any_corpus).
+To read the code instead of the argument, start with [`archive/src/python/README.md`](https://github.com/dstroy0/orior/blob/main/archive/src/python/README.md), then [`src/README.md`](https://github.com/dstroy0/orior/blob/main/src/README.md), then [`examples/README.md`](https://github.com/dstroy0/orior/blob/main/examples/README.md), then [`examples/any_corpus/`](https://github.com/dstroy0/orior/tree/main/examples/any_corpus).
 
 ## Workbooks
 

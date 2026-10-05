@@ -1,0 +1,6 @@
+where	who	kind	form	gloss
+line 1	klq_write	klm	klm <language>	the language this map keys to the bridge
+body	klq_write	key	key <name> <form>	a name the language gives, keyed to the bridge
+body	klq_write	breaks	breaks <name> <name>	one text with another name in the language, and two keys in the bridge
+body	klq_write	kind	kind <name> <kind>	given in the language as another kind of form, nop, err or construct
+any	-	comment	# <text>	a comment

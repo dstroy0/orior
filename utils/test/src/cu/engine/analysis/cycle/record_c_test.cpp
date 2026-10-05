@@ -2,17 +2,17 @@
 //
 // The record machine's lane as C source checked against the host oracle word for word, off the device (engine_table.md
 // item 11(f), C a language of the register lane). record_test's programs, drawn from the same stream in the same
-// order (record_image.h), are encoded, laid out and run by cycle_record_run_host; each is written as C by CTarget
-// (codegen/rulesets/c.krs) into one translation unit with a host shim ahead of it, which writes what NVRTC gives a
-// device's C (__device__, __shared__, threadIdx, blockDim, atomicAdd) for one thread, and a bench after it, which
-// reads the memory image, turns its byte offsets into the host's addresses, runs every lane and writes the errors and
+// order (record_image.h), are encoded, laid out and run by cycle_record_run_host; each is written as C by
+// code_generator("c.krs") (lstar/coherence/c.krs) into one translation unit with a host shim ahead of it, which writes
+// what NVRTC gives a device's C (__device__, __shared__, threadIdx, blockDim, atomicAdd) for one thread, and a bench
+// after it, which reads the memory image, turns its byte offsets into the host's addresses, runs every lane and writes the errors and
 // the records. The host's C++ compiler builds it and it runs in a work folder, and its records are compared with the
 // host's word for word. Its lines give the same input digests as the host test's. Each lane of at most
 // RECORD_C_TEXT_BYTES_MAX bytes is written again as the device writes it, on the host: the core's forms laid out as the
 // assembly printer's records and written by the host oracle (asm_printer.h), checked against the code generator's text
 // byte for byte.
 #include "asm_printer.h"
-#include "c_target.h"
+#include "code_generator.h"
 #include "record_image.h"
 
 #include <stddef.h>
@@ -198,7 +198,7 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
     {
         inputs ^= host_digest(atoms[member], bodies[member] * layout->in_limbs[member]);
     }
-    CTarget &generator = c_target();
+    CodeGenerator &generator = code_generator("c.krs");
     const TargetInfo target = {0ull, 0, 0, 0, 0, ""};
     unsigned int places = 0u;
     unsigned int live = 0u;

@@ -35,10 +35,10 @@
 // "host 1" where the host's records over the first `checked` lanes equal the device's word for word, else "host 0",
 // and the line "steps P compiled C".
 
-#include "../../src/c/engine/analysis/cycle/cycle.h"
-#include "../../src/c/engine/analysis/key_schedule/key_schedule.h"
-#include "../../src/c/engine/analysis/keymath/keymath.h"
-#include "../../src/c/engine/runtime/scriptura/scriptura.h"
+#include "../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
+#include "../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../src/cu/engine/runtime/scriptura/scriptura.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

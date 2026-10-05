@@ -43,7 +43,7 @@ WANTED = [
     # English or to the translation. This is the control that separates them.
     (100, "english_1623_shakespeare.txt", "English, Indo-European Germanic, 1623"),
     # Not a Latin script. The byte is the wrong symbol width for it. Section 4.13.05 measures it
-    # after src/python/includes/formats/representation/text/symbols.py re-slices it, which is where the
+    # after archive/src/python/includes/formats/representation/text/symbols.py re-slices it, which is where the
     # re-seating this used to name separately ended up.
     (36248, "greek_iliad.txt", "Greek, Indo-European Hellenic, Greek script"),
     # Section 4.13.07 failed to find an epic register in the Greek Iliad, where an epithet declines

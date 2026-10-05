@@ -12,12 +12,10 @@
 // printer, must be the code generator's. The test is one job on the device's tessera daemon, submitted before its first
 // device work.
 #include "../../engine/analysis/cycle/record_image.h"
-#include "c_target.h"
+#include "code_generator.h"
 #include "codegen_device.h"
-#include "ptx_target.h"
 #include "ruleset_reader.h"
 #include "sim.h"
-#include "vhdl_target.h"
 
 #include <cuda_runtime.h>
 
@@ -231,7 +229,8 @@ static void device_run(void *context, const HostProgram *program, int reuse, uns
     {
         key_schedule_record_release(&device_layout);
     }
-    CodeGenerator *const generators[DEVICE_TEST_LANGUAGES] = {&ptx_target(), &c_target(), &vhdl_target()};
+    CodeGenerator *const generators[DEVICE_TEST_LANGUAGES] = {&code_generator("ptx.krs"), &code_generator("c.krs"),
+                                                              &code_generator("vhdl.krs")};
     const char *const languages[DEVICE_TEST_LANGUAGES] = {"PTX", "C", "VHDL"};
     for (unsigned int language = 0u; language < DEVICE_TEST_LANGUAGES; language += 1u)
     {
@@ -300,9 +299,9 @@ int main(int count, char **arguments)
     if (admitted != 0)
     {
         record_image_programs(&results, device_run);
-        device_bootstrap(&results, &ptx_target(), "PTX");
-        device_bootstrap(&results, &c_target(), "C");
-        device_bootstrap(&results, &vhdl_target(), "VHDL");
+        device_bootstrap(&results, &code_generator("ptx.krs"), "PTX");
+        device_bootstrap(&results, &code_generator("c.krs"), "C");
+        device_bootstrap(&results, &code_generator("vhdl.krs"), "VHDL");
     }
     sim_job_release(&job);
     sim_flush(&job);

@@ -1,7 +1,7 @@
 # The algorithm
 
 **Purpose:** State the one construction every reading here is made of, and what it does not do.
-**Scope:** `src/python/`, `examples/`
+**Scope:** `archive/src/python/`, `examples/`
 
 Measure how far something sits from the most disordered arrangement of its own parts. (Shannon's information entropy)
 
@@ -31,9 +31,9 @@ The basic construction, Identity:Null Permutation, runs through all six parts. R
 | `sift`           | the sound filter, a necessary condition over any index set                                         |
 | `oracle`         | agreement with ground truth that somebody else published                                           |
 
-Each part is an import name in [`src/python/manifest.tsv`](https://github.com/dstroy0/orior/blob/main/src/python/manifest.tsv), beside `instrument` and `render`. One row a name: the name a program imports, and the path under `src/python/` that answers it. A program puts `src/python/` on its path and imports `manifest` first. Everything downstream of `representation` sees points and values and is blind to what an object is. One instrument reads both. Seven subjects have their own directories under `representation`, the only part that knows a domain exists: `atom`, `game`, `particle`, `picture`, `sound`, `structure` and `text`. `representation.constants` derives the natural constants, each by two routes agreeing.
+Each part is an import name in [`archive/src/python/manifest.tsv`](https://github.com/dstroy0/orior/blob/main/archive/src/python/manifest.tsv), beside `instrument` and `render`. One row a name: the name a program imports, and the path under `archive/src/python/` that answers it. A program puts `archive/src/python/` on its path and imports `manifest` first. Everything downstream of `representation` sees points and values and is blind to what an object is. One instrument reads both. Seven subjects have their own directories under `representation`, the only part that knows a domain exists: `atom`, `game`, `particle`, `picture`, `sound`, `structure` and `text`. `representation.constants` derives the natural constants, each by two routes agreeing.
 
-[`src/python/README.md`](https://github.com/dstroy0/orior/blob/main/src/python/README.md) is the map. [`examples/`](https://github.com/dstroy0/orior/tree/main/examples) runs the same six names end to end on real corpora, one stage directory per part.
+[`archive/src/python/README.md`](https://github.com/dstroy0/orior/blob/main/archive/src/python/README.md) is the map. [`examples/`](https://github.com/dstroy0/orior/tree/main/examples) runs the same six names end to end on real corpora, one stage directory per part.
 
 ## No bounding, no tuning
 
@@ -45,7 +45,7 @@ A number picked to make a result come out is not a measurement. This work does n
 
 ## The detector and the measure are not the same reading
 
-The engine carries many readers, one per file under [`src/python/engine/analysis/measure/`](https://github.com/dstroy0/orior/tree/main/src/python/engine/analysis/measure) and [`src/python/engine/analysis/reference/`](https://github.com/dstroy0/orior/tree/main/src/python/engine/analysis/reference), and the examples run each on a corpus. Two of them are mistaken for each other more than any others, and reporting one as the other is an error.
+The engine carries many readers, one per file under [`archive/src/python/engine/analysis/measure/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/analysis/measure) and [`archive/src/python/engine/analysis/reference/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/analysis/reference), and the examples run each on a corpus. Two of them are mistaken for each other more than any others, and reporting one as the other is an error.
 
 The shift agreement detector reads a period or an offset, from how often a shift agrees with itself. The permutation null measure reads how far an object sits from a shuffle of its own parts, and its bit form reads the exact invariances that survive the shuffle. A number from one is not a number from the other.
 

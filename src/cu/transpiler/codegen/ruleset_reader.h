@@ -2,7 +2,7 @@
 #ifndef RULESET_READER_H
 #define RULESET_READER_H
 
-// What the code generator's base (target_*.cu) and each language that inherits it (ptx_target.cu, c_target.cu) share,
+// What the code generator's base (target_*.cu) and the code generator of each ruleset (code_generator.cu) share,
 // and no caller outside the code generator reads: a ruleset as read, the schema a language reads it against, and the
 // writer a language writes its forms with
 
@@ -24,8 +24,8 @@ struct RulesetName
 #define REGCLASS_WRITTEN(name_, text_) {text_, 1u},
 #define PHYSREG_WRITTEN(name_, text_) {text_, 0u},
 
-// what a code generator asks of its ruleset: the file it is read from, the toolchain and the header the code
-// generator's path builds with, and the forms, banks and fixed registers the code generator names
+// what a code generator asks of its ruleset: the file it is read from, the toolchain and the header its path builds
+// with, NULL where it takes those the file names, and the forms, banks and fixed registers the code generator names
 struct RulesetSchema
 {
     const char *file;
@@ -93,7 +93,8 @@ struct RulesetFold
 };
 
 // a ruleset read from its file against its code generator's schema: where it was read, and why it errored where it
-// was; its own name, the toolchain that builds its text and where its header comes from; each bank's written form of a
+// was; its own name, the toolchain that builds its text and where its header comes from, and the shared, write_ports
+// and part lines it gives, each empty where it gives none; each bank's written form of a
 // register, each fixed register's written form, and each form, by their places in the schema; and which of them the
 // file gave, to find one given twice or left out
 struct Ruleset
@@ -106,6 +107,9 @@ struct Ruleset
     std::string name;
     std::string toolchain;
     std::string header;
+    std::string shared;
+    std::string write_ports;
+    std::string part;
     std::vector<InstrTemplate> banks;
     std::vector<std::string> fixed;
     std::vector<InstrTemplate> forms;

@@ -1,0 +1,160 @@
+krs 1
+# The operations of sm_86 as SASS writes them, read by the SASS code generator after sass.krs and before the
+# ruleset lines of sm_86.kdm: the part's base operations, its carry chains through a register's limbs, and the
+# constructs over them. How SASS is written is sass.krs's, the part's registers, widths, loads and stores are
+# sm_86.kdm's, and the forms the system folds are sass.ksc's. Every form below whose text is an instruction was read
+# out of a probe's own listing, as sass.krs says.
+#
+#  - A carry is a predicate, not a flag: IADD3 leaves it in the predicate it names, IADD3.X takes it back, and a
+#    chain's last limb either keeps it (word_sub_middle) or drops it (word_add_last).
+#  - A 64-bit form is two instructions, and holds only where its destination is neither of its sources: the first
+#    instruction has written half the destination before the second reads them. A form's text can take no scratch to
+#    stand between, so the writer gives a destination apart.
+#
+# What this file writes as a construct, because the part has the operation and no question ever made the compiler
+# write it: predicate_bitxor and predicate_bitand. The compiler folded both into the ISETP that set the operand
+# (ISETP.NE.U32.XOR P1, PT, R0, RZ, P0), so neither ever stood alone in a listing. Each is written out of forms
+# the listings give, which is what a construct is for.
+#
+# What this file does not write, each form left empty where it stands, with what the probes did see:
+#  - word_div and wide_div. The part has no integer divide. For 32 bits the compiler writes a 14-instruction
+#    reciprocal (I2F.U32.RP, MUFU.RCP, F2I.FTZ.U32.TRUNC.NTZ, IMAD.HI.U32, ...) over four scratch registers, and for
+#    64 bits a CALL.ABS.NOINC to __cuda_sm20_div_u64, a function the cubin must hold. A form's text can take no
+#    scratch, and only a construct can, whose lines must be forms this schema names.
+
+# a branch to a label where a predicate holds, or does not
+form error_open_unless where = \t@!{where} BRA \t`(.L_error_open);\n
+form error_if where at = \t@{where} BRA \t`(.L_error{at});\n
+
+# carry chains through a register's limbs (word_add; word_add_first, word_add_middle, word_add_last: 96 bits; word_sub;
+# word_sub_first, word_sub_middle, word_sub_last: 96 bits; word_sub_first, word_borrow_read; word_sub_first,
+# word_sub_middle, word_sub_middle, word_borrow_read: 96 bits). A subtraction adds the right's negation, and takes its
+# borrow back as ~right. A chain that leaves its borrow for word_borrow_read ends on a word_sub_middle, which keeps it
+form word_add to left right = \tIADD3 \t{to}, {left}, {right}, RZ;\n
+form word_add_first to left right = \tIADD3 \t{to}, P6, {left}, {right}, RZ;\n
+form word_add_middle to left right = \tIADD3.X \t{to}, P6, {left}, {right}, RZ, P6, !PT;\n
+form word_add_last to left right = \tIMAD.X \t{to}, {left}, 0x1, {right}, P6;\n
+form word_sub to left right = \tIADD3 \t{to}, {left}, -{right}, RZ;\n
+form word_sub_first to left right = \tIADD3 \t{to}, P6, {left}, -{right}, RZ;\n
+form word_sub_middle to left right = \tIADD3.X \t{to}, P6, {left}, ~{right}, RZ, P6, !PT;\n
+form word_sub_last to left right = \tIMAD.X \t{to}, {left}, 0x1, ~{right}, P6;\n
+# the carry is 1 where the chain did not borrow, so -1 with it added is 0 there and all ones where it did
+form word_borrow_read borrow where = \tIMAD.X \t{borrow}, RZ, 0x1, ~RZ, P6;\n\tISETP.NE.U32.AND \t{where}, PT, {borrow}, RZ, PT;\n
+
+# a word's arithmetic (word_copy, word_set; word_bitand, word_bitor, word_bitxor; word_shl, word_shr;
+# word_funnel_right; word_mul, word_mul_add; word_select, test_word_nonzero). A bitwise operation is one LOP3
+# over a lookup of its three inputs: 0xc0 is a and b, 0xfc a or b, and 0x3c a xor b
+form word_copy to from = \tMOV \t{to}, {from};\n
+# a word set to a number is the move of it
+construct word_set to value
+word_copy to value
+end
+form word_bitand to left right = \tLOP3.LUT \t{to}, {left}, {right}, RZ, 0xc0, !PT;\n
+form word_bitor to left right = \tLOP3.LUT \t{to}, {right}, {left}, RZ, 0xfc, !PT;\n
+form word_bitxor to left right = \tLOP3.LUT \t{to}, {right}, {left}, RZ, 0x3c, !PT;\n
+form word_not to from = \tLOP3.LUT \t{to}, RZ, {from}, RZ, 0x33, !PT;\n
+# a funnel shift of the pair (high, low) by the amount clamped to the width: a plain shift names RZ for the half it
+# does not have, and .HI takes the result's high word
+form word_shl to from bits = \tSHF.L.U32 \t{to}, {from}, {bits}, RZ;\n
+form word_shr to from bits = \tSHF.R.U32.HI \t{to}, RZ, {bits}, {from};\n
+form word_funnel_right to low high bits = \tSHF.R.U32 \t{to}, {low}, {bits}, {high};\n
+form signed_word_shr to from bits = \tSHF.R.S32.HI \t{to}, RZ, {bits}, {from};\n
+form word_mul to left right = \tIMAD \t{to}, {left}, {right}, RZ;\n
+err word_div to left right
+form word_select to chosen otherwise where = \tSEL \t{to}, {chosen}, {otherwise}, {where};\n
+# The two halves of a word product, which carry between them: the low is the product's low word plus the addend,
+# keeping its carry in P6, and the high is the product's high word plus that carry. The compiler wrote the pair as
+# one IMAD.WIDE.U32 into an aligned pair (form_13: MOV R7, RZ then IMAD.WIDE.U32 R6, R9, R0, R6), which needs the
+# two destinations to be a pair; the core names them apart, so each is written on its own out of instructions every
+# listing gave. Asked of the part, 0xffffffff squared plus 0xffffffff: the low answers 0 and the high
+# 0xffffffff, as the question says
+form word_mul_low to left right added = \tIMAD \tR254, {left}, {right}, RZ;\n\tIADD3 \t{to}, P6, R254, {added}, RZ;\n
+form word_mul_high to left right = \tIMAD.HI.U32 \tR254, {left}, {right}, RZ;\n\tIMAD.X \t{to}, R254, 0x1, RZ, P6;\n
+
+# a sign's arithmetic, a signed word of -1, 0 or 1 (sign_set, sign_select; sign_mul, sign_absolute, sign_neg)
+form sign_set to value = \tIMAD.MOV.U32 \t{to}, RZ, RZ, {value};\n
+# a sign's chosen word may be a number, -1 or 1, and SEL reads its first operand from a register, so it is moved
+# through R254 first
+form sign_select to chosen otherwise where = \tMOV \tR254, {chosen};\n\tSEL \t{to}, R254, {otherwise}, {where};\n
+construct sign_mul to left right
+word_mul to left right
+end
+form sign_absolute to from = \tIABS \t{to}, {from};\n
+form sign_neg to from = \tIMAD.MOV \t{to}, RZ, RZ, -{from};\n
+
+# tests, each setting a predicate (test_word_nonzero, test_word_zero, test_signed_word_negative; test_sign_ne, test_sign_gt;
+# test_wide_nonzero, test_wide_eq, test_wide_lt, test_wide_lt_and). One ISETP compares two words, ands its
+# last operand into the answer, and .U32 reads them unsigned; a wide comparison is the low words compared, then the
+# high words compared with .EX, which takes the low answer as its last operand. The listings gave ISETP.NE.U32.AND,
+# ISETP.NE.AND, ISETP.GT.AND, ISETP.GE.AND, ISETP.GE.U32.AND, ISETP.LT.U32.AND and the .EX of NE, GE and LT, because
+# the compiler read zero and below off the negations of NE and GE. Three definitions below no listing holds:
+# ISETP.EQ.U32.AND, ISETP.EQ.U32.AND.EX and ISETP.LT.AND. They are not guessed from the others. The comparison sits
+# in bits 76 to 78, unsigned in 73 and .EX in 72, and the probe's widening round turns each bit of a comparison the
+# listings did hold and asks the disassembler what comes back: EQ.U32.AND is bit 78 of GE.U32.AND, EQ.U32.AND.EX is
+# bit 78 of GE.U32.AND.EX, and LT.AND is bit 73 of LT.U32.AND. The part answers for all three
+form test_word_nonzero where value = \tISETP.NE.AND \t{where}, PT, {value}, RZ, PT;\n
+form test_word_zero where value = \tISETP.EQ.AND \t{where}, PT, {value}, RZ, PT;\n
+form test_signed_word_negative where value = \tISETP.LT.AND \t{where}, PT, {value}, RZ, PT;\n
+form test_wide_nonzero where value = \tISETP.NE.U32.AND \tP6, PT, {value}, RZ, PT;\n\tISETP.NE.AND.EX \t{where}, PT, {value}.hi, RZ, PT, P6;\n
+form test_wide_zero where value = \tISETP.EQ.U32.AND \tP6, PT, {value}, RZ, PT;\n\tISETP.EQ.AND.EX \t{where}, PT, {value}.hi, RZ, PT, P6;\n
+form test_wide_eq where left right = \tISETP.EQ.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.EQ.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_wide_lt where left right = \tISETP.LT.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.LT.U32.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+# The two operations over predicates alone, each a construct: the part has one (PLOP3.LUT), and no question ever made
+# the compiler write it, because it folded both into the ISETP that set the operand. So both go the long way, through
+# the words a predicate selects, over forms every listing did give. An exclusive or is the cheaper of the two: it does
+# not care that SEL reads its first operand from a register and so can only be given RZ, which selects 1 where the
+# predicate is false, because negating both inputs leaves an exclusive or alone. An and is not, so it pays one MOV to
+# hold the 1 and selects the predicates themselves
+construct predicate_bitxor where left right
+word_select {temporary:0} RZ 1 left
+word_select {temporary:1} RZ 1 right
+word_bitxor {temporary:0} {temporary:0} {temporary:1}
+test_word_nonzero where {temporary:0}
+end
+construct predicate_bitand where left right
+word_set {temporary:0} 1
+word_select {temporary:1} {temporary:0} 0 left
+word_select {temporary:2} {temporary:0} 0 right
+word_bitand {temporary:1} {temporary:1} {temporary:2}
+test_word_nonzero where {temporary:1}
+end
+
+# 64-bit words, each two registers (wide_mul, wide_mul_word; wide_add; wide_shl, wide_select; wide_div). A wide
+# product sums its two cross products in R254 before it writes both halves of the word product into the pair, so
+# that the pair's write reads no operand it has overwritten, and adds the sum into the high half after it
+form wide_mul to left right = \tIMAD \tR254, {left}.hi, {right}, RZ;\n\tIMAD \tR254, {left}, {right}.hi, R254;\n\tIMAD.WIDE.U32 \t{to}, {left}, {right}, RZ;\n\tIADD3 \t{to}.hi, {to}.hi, R254, RZ;\n
+form wide_mul_word to left right = \tIMAD.WIDE.U32 \t{to}, {left}, {right}, RZ;\n
+form wide_add to left right = \tIADD3 \t{to}, P6, {left}, {right}, RZ;\n\tIADD3.X \t{to}.hi, {left}.hi, {right}.hi, RZ, P6, !PT;\n
+# the high half reads both halves of the value shifted, and is written before the low half overwrites it
+form wide_shl to from bits = \tSHF.L.U64.HI \t{to}.hi, {from}, {bits}, {from}.hi;\n\tSHF.L.U32 \t{to}, {from}, {bits}, RZ;\n
+# the lane's opening selects a wide 0 as the chosen word, and SEL reads its first operand from a register, so each half
+# is moved through R254 first, as sign_select moves its own
+form wide_select to chosen otherwise where = \tMOV \tR254, {chosen};\n\tSEL \t{to}, R254, {otherwise}, {where};\n\tMOV \tR254, {chosen}.hi;\n\tSEL \t{to}.hi, R254, {otherwise}.hi, {where};\n
+err wide_div to left right
+
+form loop_back_if loop where = \t@{where} BRA \t`(.L_loop{loop});\n
+form test_word_lt where left right = \tISETP.LT.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_word_ge where left right = \tISETP.GE.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_word_le where left right = \tISETP.LE.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_word_ne where left right = \tISETP.NE.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_word_eq where left right = \tISETP.EQ.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_word_gt where left right = \tISETP.GT.U32.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_signed_word_lt where left right = \tISETP.LT.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_signed_word_ge where left right = \tISETP.GE.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_signed_word_le where left right = \tISETP.LE.AND \t{where}, PT, {left}, {right}, PT;\n
+form test_signed_word_gt where left right = \tISETP.GT.AND \t{where}, PT, {left}, {right}, PT;\n
+# a sign is a signed word, and compares as one
+construct test_sign_ne where left right
+test_word_ne where left right
+end
+construct test_sign_gt where left right
+test_signed_word_gt where left right
+end
+form test_wide_ne where left right = \tISETP.NE.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.NE.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_wide_le where left right = \tISETP.LE.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.LE.U32.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_wide_gt where left right = \tISETP.GT.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.GT.U32.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_wide_ge where left right = \tISETP.GE.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.GE.U32.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_signed_wide_lt where left right = \tISETP.LT.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.LT.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_signed_wide_le where left right = \tISETP.LE.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.LE.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_signed_wide_gt where left right = \tISETP.GT.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.GT.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+form test_signed_wide_ge where left right = \tISETP.GE.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.GE.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n

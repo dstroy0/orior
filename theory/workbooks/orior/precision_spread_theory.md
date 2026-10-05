@@ -7,7 +7,7 @@ the identities among them, and `examples/0_experimental/exact_identities_spread_
 runs the mathematical case.
 
 Names are chosen to avoid meanings already in use in this tree: `closure` is taken for the transitive closure of the equality oracle
-(`src/c/engine/nbody/orior/orior.h`), `coherence` for lag-agreement structure
+(`src/cu/engine/nbody/orior/orior.h`), `coherence` for lag-agreement structure
 (`theory/workbooks/orior/chapters/chapter_orior_workbook.tex` and `bench_coherence.c`), `topology`
 for the induced `tau_Sigma` on the symbol carrier (`theory/theory/delta_null`, chapter terms), `span`
 for a length scale (delta null's block-span sweep and the engine workbook's span table), and the
@@ -118,7 +118,7 @@ physics has one hub, the Rydberg energy `R_inf`, from which every hydrogen-like 
 `E(n,Z) = -R_inf Z^2/n^2` and radius `r(n,Z) = a0 n^2/Z` follows by an exact rational identity in the
 hub. Game theory decides minimum Shannon entropy with no logs by `prod p_i^{p_i} = 2^{-H}`,
 cleared to integers through the least common multiple of the share denominators, and an entropy order
-becomes an exact rational comparison (`src/python/includes/formats/representation/game/rules.py`, `measure/outcome_entropy.py`). Removable uncertainty in this regime is zero.
+becomes an exact rational comparison (`archive/src/python/includes/formats/representation/game/rules.py`, `measure/outcome_entropy.py`). Removable uncertainty in this regime is zero.
 
 **Regime B, counting.** Quantities are exact integers or rationals by their nature, and identities
 propagate exactly with nothing to raise: the multiplier is one. Chemistry carries the
@@ -140,7 +140,7 @@ completeness floor of its own, separate from the deposit: a right-angle gate, `R
 at `crystal.py`, admits a cell to the exact path only where every angle is within `0.01` of 90, and
 a census over 8885 COD entries refused 4411 of them, family-dependent (garnet 97.5 percent admitted,
 feldspar 2.9 percent), measured by `maint/analysis/survey/crystal_gate_census.py` (note: `crystal.py` is
-`src/python/includes/formats/representation/structure/crystal.py`, and
+`archive/src/python/includes/formats/representation/structure/crystal.py`, and
 the census script imports from that tree). Two further
 judgment-picked parameters, `EXACT_TILES = 4` and a harmonic-family cap of 2, sit in the period reader
 and can decide which period is reported. Their effect is unmeasured,

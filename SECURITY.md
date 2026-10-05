@@ -1,7 +1,7 @@
 # Security
 
 **Purpose:** Know what this repository is responsible for, what it is not, and where to report something.
-**Scope:** `src/c/engine/`, `src/c/transpiler/`, `src/cu/`, `src/python/`, `utils/maint/`, and the ports under `src/engine/`
+**Scope:** `src/cu/engine/`, `src/cu/transpiler/`, `src/cu/`, `archive/src/python/`, `utils/maint/`, and the ports under `src/engine/`
 
 ## What is here
 
@@ -9,7 +9,7 @@ A search kernel in C11, a driver that times it, Python tools that fetch and read
 
 ## The kernel
 
-`src/c/engine/nbody/orior/orior_core.c` holds four search arms and a dispatcher.
+`src/cu/engine/nbody/orior/orior_core.c` holds four search arms and a dispatcher.
 
 **Every arm is sound and none is defensive.** A subset of a pattern's points is a necessary condition. No arm can lose a true occurrence. That is a proof, and nothing in the code tests for it. What no arm does is validate its arguments: `corpus`, `needle` and their lengths are used as given, with no null test and no overflow test on `corpus_len` or `needle_len`. It is bench code called from a driver that builds its own inputs.
 

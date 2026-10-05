@@ -1,0 +1,9 @@
+where	who	kind	form	gloss
+line 1	kdm_write	kdm	kdm <part>	the part this map is of
+body	kdm_write	arrangement	<operator>\t<nodes>\t<chain>\t<cost>\t<runs>	an arrangement of primitives that produces an operator, and what it costs this part; a cost is an exact rational, numerator/denominator in the part's clock count, and a cost of - over 0 runs has not been timed on anything
+tail	-	fixed	fixed <name> = <text>	a line of the ruleset read after sass.krs and its part's .krs
+tail	-	form	form <name> <parameter>... = <text>	a line of the ruleset read after sass.krs and its part's .krs
+tail	-	err	err <name> <parameter>...	a line of the ruleset read after sass.krs and its part's .krs
+tail	-	nop	nop <name> <parameter>...	a line of the ruleset read after sass.krs and its part's .krs
+tail	-	pipe	pipe <operation> <writing> <first> <second>	an operation the system writes on the FMA pipe in place of the integer pipe: the operation, its writing there, and the lane it moves in, one whose integer pipe holds the first number of operations or more and the second more than its FMA pipe
+any	-	comment	# <text>	a comment

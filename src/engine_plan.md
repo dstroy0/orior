@@ -96,7 +96,7 @@ particular. A chain reading worse as a total can hold the cheapest link for the 
 can see it.
 
 The rest of the protocol, the pair states and the mnemonics the bits resolve to, is in
-[src/c/transpiler/gnascor.md](c/transpiler/gnascor.md). Every step of it, what backs it and the run behind its
+[src/cu/transpiler/gnascor.md](cu/transpiler/gnascor.md). Every step of it, what backs it and the run behind its
 status is in the query protocol's own table,
 [theory/workbooks/engine/query_protocol_table.md](../theory/workbooks/engine/query_protocol_table.md). A step
 changes status there and nowhere else.
@@ -127,13 +127,24 @@ Finished work lives in the engine table, `theory/workbooks/engine/engine_table.m
     .knf   Kolmogorov noise floor
     .kdm   Kolmogorov device map
     .ksc   Kolmogorov system classification
+    .klq   Kolmogorov language query
+    .klm   Kolmogorov language map
 
 Doug names these. Do not add one.
 
-**The stem is the join and the suffix is the face.** Files sharing a stem are one member's set, whatever the
-stem happens to be. `pair.kdm` and `pair.knf` are a pair's map and that map's floor. `set.kcr`, `set.kcs` and
+**A file is named `<concept or thing>.<filetype>`.** The stem is the concept or thing and the suffix is its
+type. `sass.krs` is how to write SASS and `sm_86.krs` is the ops ruleset for sm_86, grouped with `sm_86.kdm`; `sass.ksc`, `ptx.ksc`
+and `avx.ksc` follow the same pattern. Files sharing a stem are one member's set, whatever the stem happens to be. `pair.kdm` and `pair.knf` are a pair's map and that map's floor. `set.kcr`, `set.kcs` and
 `set.knf` are one set's crystal, the set that reconstructs it, and its floor. Nothing outside the filename
 binds them, and no member is required to carry every face: a member holds as many as it has answers for.
+
+**`Lstar.klq` is the bridge between languages.** Its stem is `L*`, the map from gnascor to every target, and it
+holds the questions put across languages and what came back: each pair of forms whose sameness the text leaves
+open, the cases asked, and the verdict, closed as two operations with the case that witnessed it or open with its
+count of cases alike. It is keyed by the schema's form names, which are gnascor's and no target's. A language
+attaches to it by its `.klm`, `cu.klm` and `sass.klm`: the language's forms keyed to the operations it answered
+for, grouped by stem with the language's other files. A map from one language to another is read through the
+bridge, `cu.klm` to `Lstar.klq` to `sass.klm`, and a language nobody has met attaches the same way.
 
 A floor is conceptual and not a fixed quantity, which leaves its definition open to `L*` and lets each member
 carry the floor its own set needs. Two members' floors are therefore not comparable by default. That is
@@ -158,9 +169,9 @@ with no map yet.
 
 **Everything is learned through the query protocol, and through nothing else.** An ask is
 `[ADDRESS] -> (QUALIFIER) -> [COST] -> BIT`, put with `host_put` and read with `host_read`
-(`src/c/transpiler/bootstrap/host_entry.h`), with nothing between them and the part. No outside tool is in the loop: no
+(`src/cu/transpiler/lstar/protocol/host_entry.h`), with nothing between them and the part. No outside tool is in the loop: no
 compiler, assembler, disassembler, object reader, vendor runtime or driver library. A word that went through one is
-that tool's answer and not the part's. The SASS probe under `utils/test/src/c/transpiler/interface/` and everything it calls
+that tool's answer and not the part's. The SASS probe under `utils/test/src/cu/transpiler/lstar/interface/` and everything it calls
 (`nvcc`, `nvdisasm`, `cuobjdump`, `interface_ptx_probe`, the vendor runtime) is scaffolding. It is an answer key in the
 sense `precepts.h` is one: it may be read to form a question, and to check a derivation after it has run. It is
 never a channel a derivation runs through, never where the work resumes, and never a place to find again what the
@@ -233,12 +244,49 @@ Build the compiler and run it live. A test that takes forty minutes is not a dev
 run. The device is the first target because it is the hard one; every other language falls out of a compiler that
 works there.
 
+**The transpiler is never made a compiler.** It reads a program through one ruleset and writes it through another,
+form for form, by the place each form holds in the schema. Nothing is added to it that a compiler's back end does:
+no pattern read off source text, no type promotion, no folding by heuristic, no instruction chosen by hand, no pass
+that rewrites what a form wrote. What the transpiler does not know is asked of the part through the query protocol
+and written into the files, and never written into the transpiler as a pass.
+
+**Files separate concerns, not data.** Each file holds one concern, and its stem names the concept or thing:
+`<target>.krs` is how to write the target; `<part>.krs` is the part's operations, its base operations, its chains
+through a register's limbs and every operation the part has of its own; `<part>.kdm` is the device map, the part's
+registers, widths, loads, stores and pipes; `<target>.ksc` is what the system said, its classes and its folds. No
+operation is defined twice, and no form's name defines an operation again for a width or a sign.
+
+**An entry names its relation on its own line.** A reader reads a file as a dictionary of entries: no entry waits on
+another, no file is read before another, and no line's place in its file decides what it means.
+
+**Absurdities are found in layers, and the layers are a web.** Each file is read alone first and its absurdities
+found there. Then the relations between the files a target reads together, then the whole set against the schema,
+then the map from one target's set to another's, each layer built on the one before. The first look at a set is an
+experiment: the files loaded in Python and held against each other until the absurdities show. What the experiments
+find is then the reader's own logic (`ruleset_core_relation.h`), which reads any combination of files, knows no
+target, and holds no container of the standard library: its memory is the caller's, sized from the files.
+
+**A relation is witnessed or open.** A relation is witnessed where every set holding its entries holds it, and it
+is then a verdict on whatever part of a set is read. A relation of absence holds only of a whole set, and no set is
+known to be whole: it is open, and never a verdict.
+
+**The query protocol is taught the absurdities.** The text witnesses that two names are one operation, and only the
+part witnesses that they are two. What the text leaves open is put to the part as a slot's forms are, in the
+descent's order: the first case apart closes a pair as two operations, and a pair alike on every case asked stays
+open with its count of cases (Q19, P10 in the query protocol table). Its questions and answers are written to
+`Lstar.klq`, and each language's operations read off them to that language's `.klm`. A finding goes into the query protocol or into
+the files. It never goes into the engine's tooling under `utils/maint` or `utils/test`, which reads the engine and is
+not where the engine learns.
+
+**A check runs once, when a piece of work is done.** Not while it is being written, and not again until something it
+reads has changed.
+
 ## Open
 
-1. **The device engine and this plan disagree where the list below says.** Every file of `src/c/engine`,
+1. **The device engine and this plan disagree where the list below says.** Every file of `src/cu/engine`,
    `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `src/cu/includes` and the bootstrap, codegen, cubin, emit and
-   interface folders of `src/c/transpiler` is read against this plan, `gnascor.md`, the engine table and the query
-   protocol table. `src/python/engine`, `src/c/types`, `src/c/includes` and the host qasm are read with the other
+   interface folders of `src/cu/transpiler` is read against this plan, `gnascor.md`, the engine table and the query
+   protocol table. `archive/src/python/engine`, `src/cu/types`, `src/cu/includes` and the host qasm are read with the other
    engines. Each entry is fixed in the code or in the document it contradicts.
    - Named here and not built, or built and not called.
      - The run channel. `run_channel.h` declares `run_channel_open`, `run_channel_ask`, `run_channel_close` and
@@ -286,7 +334,7 @@ works there.
 2. **The writings the part gives are read into nothing.** A writing of one instruction is searched for on the part
    for every precept and every ladder relation, and every arrangement of the `.kdm` is written from them, run and
    read back (the writings searched, below). `L*` is still written by hand. `sass.krs` and `ptx.krs` are read off
-   NVIDIA's compiler: `utils/test/src/cu/transpiler/bootstrap/monolith_forms.sh` asks every form the record
+   NVIDIA's compiler: `src/cu/scaffolding/monolith_forms.sh` asks every form the record
    programs' lanes decide in one program between tags, a question holding a number asked again with another,
    builds it once and reads each block back into a form. `ptx.krs` is read off the PTX of questions in `c.krs`'s
    text; `sass.krs` is read off the listing of questions in `ptx.krs`'s own text, put to `ptxas` as inline PTX, a
@@ -321,13 +369,13 @@ works there.
    clock already reads a cost in the part's own time, and that reading is what a bound would be set from. That
    clock runs inside the SASS probe, through the toolkit, and is scaffolding (the method, above): the loop's
    clock is read by an ask put through `host_entry.h` like every other answer. That ask is `query_ask`
-   (`src/c/transpiler/bootstrap/query_ask.{h,c}`): an address and a qualifier, held, equal or advancing, returning
+   (`src/cu/transpiler/lstar/protocol/query_ask.{h,c}`): an address and a qualifier, held, equal or advancing, returning
    a cost unbound and a bit bound, the cost read off a clock that is itself an address. `query_ask_check.c` holds it
    to memory the test owns and to the host's interrupt time at a fixed address, found advancing by the ask itself.
    That counter steps once a clock interrupt, half a millisecond to a millisecond, and an ask is far shorter: a
    cost read from it is a step or nothing. A bound set from it judges a run of asks and never one. Asks at
    addresses nothing has said are safe go through `query_interface_walk`
-   (`src/c/transpiler/bootstrap/query_interface.{h,c}`): the interface runs `query_walk` in a probe, one address
+   (`src/cu/transpiler/lstar/protocol/query_interface.{h,c}`): the interface runs `query_walk` in a probe, one address
    after another, and an address that ends the probe is answered by the ending, the walk going on from the next
    address in a fresh probe. `query_interface_check.c` holds
    it to address 0, which ends the asker on an address fault, and to the page every Windows process shares,
@@ -352,16 +400,16 @@ works there.
    known order, its solve and the descent running over them, and NVRTC, nvJitLink and the CUDA runtime leave
    the loop once a writing is put to a record and its bit read back.
 
-   The monolith (`src/cu/transpiler/bootstrap/monolith.cu`) is what our compiler is held against: one program,
+   The monolith (`src/cu/transpiler/lstar/protocol/monolith.cu`) is what our compiler is held against: one program,
    built once by NVIDIA's compiler, holding every base precept between tags, its listing the answer key and its
-   costs read on the part by `monolith_run`. `utils/test/src/cu/transpiler/bootstrap/monolith_emit.sh` holds
+   costs read on the part by `monolith_run`. `src/cu/scaffolding/monolith_emit.sh` holds
    every block against our reader, our assembler and the word our compiler writes it with, and writes
    `monolith_differences.md` whole on every run. Wherever the machine file holds a form, our reader and
    assembler give NVIDIA's operation bits exactly. What stands between our compiler and NVIDIA's writing is a
    state error that compounds layer on layer, and it is fixed from the root up, each fix read off the record:
    - Machine file. The fields the disassembler hides are in it: the descriptor register, the field that renames
      the operation, the field whose 0 drops the operand, and the operand a form holds and does not print, which
-     keeps the bits its form was seen with. `utils/test/src/c/transpiler/interface/interface_sass_unprinted.sh`
+     keeps the bits its form was seen with. `src/cu/scaffolding/interface_sass_unprinted.sh`
      asks the part what each value of such a field does and writes `interface_sass_unprinted.md` whole. A
      predicate the same operation leaves out of its text at PT, as a load's at bits 64 to 67, is that operand's
      run and its form's own bits where the text drops it; the load's holds its number inverted, and the part
@@ -383,7 +431,7 @@ works there.
      32-bit or shared address that nothing the question holds backs. All 40 were reached by turning bits. NVIDIA's
      compiler writes an atomic for an atomic on `.global` through a 64-bit pointer, and its 64-bit add holds the
      descriptor register at 64 to 69 and two bits it refuses otherwise at 70 and 71, no register. The forms with no
-     result to read are not asked. `utils/test/src/c/transpiler/interface/interface_sass_fields.sh` turns each
+     result to read are not asked. `src/cu/scaffolding/interface_sass_fields.sh` turns each
      operation bit of every form `sass.krs` uses and runs it on the part, its result moved to R8, its sources to
      registers holding distinct values and a predicate it sets read through `SEL`, and writes
      `interface_sass_fields.md` whole. A turned bit is put to the part only where its operation key holds forms in
@@ -396,7 +444,7 @@ works there.
      operations. Our safe word sets its barriers from that schedule and stalls each instruction the soonest its
      operation's result is read, the longest where the krs measures no count (`sass_operation_schedule`), and
      `cubin_safe` holds every instruction it reads to that stall.
-   - Writings searched on the part. `utils/test/src/c/transpiler/interface/interface_sass_writings.sh` puts every
+   - Writings searched on the part. `src/cu/scaffolding/interface_sass_writings.sh` puts every
      form of the machine file that writes a register from registers, predicates and numbers alone, 745 of 2928, in
      place of the frame's IADD3, each through the gate, and runs it on the part over 256 cases at once: the ladder's
      two-word cases, the words a width turns on against the counts a shift turns on, and words drawn as
@@ -470,10 +518,10 @@ works there.
    `SASS_LEARN` set it learns the machine again through the disassembler, bit by bit, and prints nothing the harness
    sees for more than 1800 s: the harness ends it. It alone
    puts cubins our own assembler wrote on the part, and every one is read on the host first: `cubin_safe`
-   (`src/c/transpiler/cubin/cubin_safe.{h,c}`) holds each instruction a kernel reaches to the safe scheduler word, to
+   (`src/cu/scaffolding/cubin_safe.{h,c}`) holds each instruction a kernel reaches to the safe scheduler word, to
    no branch and no wait, to one instruction at most that no form holds, and to an EXIT every thread takes, and
    both `interface_sass_run` and `interface_sass_probe` refuse a cubin that breaks a rule before the driver sees it.
-   `utils/test/src/c/transpiler/cubin/cubin_safe_check.sh` holds the gate to one case a rule, 15 checks, 0 failed,
+   `src/cu/scaffolding/cubin_safe_check.sh` holds the gate to one case a rule, 15 checks, 0 failed,
    and finds 105 of the 106 cubins a fields run left safe, the one refused holding no code section.
    `interface_sass_fields.sh` puts 7360 turned-bit cubins over the 75 forms to the part through the gate in 26
    minutes: the gate refuses none, no pass hangs, and the 590 bits whose key holds a branch or a wait are skipped
@@ -497,7 +545,7 @@ works there.
     and never one bit over a set (Q15).
 
 11. **Stem membership has a written rule and nothing reads it.** Two members sharing a stem is the whole basis
-    of a set, and pairwise agreement inside a floor cannot decide it. `src/c/transpiler/bootstrap/stem_group.{h,c}`
+    of a set, and pairwise agreement inside a floor cannot decide it. `src/cu/transpiler/lstar/protocol/stem_group.{h,c}`
     holds an anchored group rule: the members in an order fixed by what they are, the finest floor first, the first
     member with no group anchoring one, and every member with no group that agrees with that anchor joining it.
     Agreement is a conjunction over rows at the coarser floor, and a row one member refused and the other

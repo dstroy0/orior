@@ -123,7 +123,7 @@ CHECKED = {
 }
 SEARCHED = ["src", "utils"]
 SCHEMA = "src/cu/transpiler/codegen/machine_ir_types.h"
-GNASCOR = "src/c/transpiler/gnascor.md"
+GNASCOR = "src/cu/transpiler/gnascor.md"
 HOL_BITS = ("8", "16", "32", "64")
 # the operators the high order language writes as C writes them, with no word of its own
 HOL_AS_C = {
@@ -298,6 +298,14 @@ def ruleset_words(path, text):
             use(tokens[1], where)
         inside = tokens[0] == "construct" or (inside and tokens[0] != "end")
     return used
+
+
+def ruleset_lines(text):
+    """The lines of a .kdm or a .ksc a ruleset reads, every other line left blank so each keeps its number."""
+    kept = []
+    for line in text.split("\n"):
+        kept.append(line if line.split()[:1] in (["bank"], ["fixed"], ["form"], ["err"], ["nop"]) else "")
+    return "\n".join(kept)
 
 
 def ksc_words(path, text):
@@ -604,6 +612,9 @@ def main():
     for path in files_ending(".ksc"):
         for word, where in ksc_words(path, read(path)).items():
             used.setdefault(word, where)
+    for path in files_ending(".ksc") + files_ending(".kdm"):
+        for word, where in ruleset_words(path, ruleset_lines(read(path))).items():
+            used.setdefault(word, where)
     for word, where in sorted(used.items()):
         if word not in held:
             defects.append(f"{word} is used at {where} and no table holds it")
@@ -622,7 +633,7 @@ def main():
             findings.append("{} is a {} word nothing in the tree uses".format(row["word"], row["kind"]))
 
     forms = []
-    for line in read("src/cu/transpiler/codegen/rulesets/cu.krs").split("\n"):
+    for line in read("src/cu/transpiler/lstar/coherence/cu.krs").split("\n"):
         if line.startswith("form "):
             name, text = line[len("form ") :].split("=", 1)
             forms.append((name.split()[0], text))

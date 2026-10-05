@@ -3,12 +3,12 @@
 #define TARGET_H
 
 // The code generator: a record program's lane written as text for its target, in that target's ruleset
-// (codegen/rulesets). It decides what each step does and the ruleset writes it. It reads no device and loads no
+// (lstar/coherence). It decides what each step does and the ruleset writes it. It reads no device and loads no
 // library: the record machine (cycle/cycle_{sweep,launch}.cu) picks the language, and compiles, links, caches and
-// launches what the code generator writes. This header is the base every language inherits; each language's class is in
-// its own header
+// launches what the code generator writes. This header is the base every language inherits; each language is its
+// ruleset's file (code_generator.h)
 
-#include "../../../c/engine/engine_config.h"
+#include "../../engine/engine_config.h"
 
 #include <functional>
 #include <string>
@@ -49,8 +49,8 @@ struct CycleCompiledLaunch
 };
 
 // what a lane is written for, which its first line names: the target, by the hash of its text (the device, the kind
-// of link and the prelude), the device's compute capability, NVRTC's version, and the prelude a lane as C source opens
-// with
+// of link and the prelude), the device's compute capability, NVRTC's version, and the prelude a lane whose ruleset's
+// header is the prelude opens with
 struct TargetInfo
 {
     unsigned long long block_hash;
@@ -73,8 +73,8 @@ struct RulesetSchema;
 
 // The code generator's base: what every language shares, and no language. It reads a language's ruleset from its .krs
 // file against the schema the language gives it (the file, the toolchain and header its path builds with, and the
-// forms, banks and fixed registers its code generator writes), and writes forms in it. A language is a class that
-// inherits it, in a file of its own (ptx_target.h, c_target.h), and writes a program's lane in its ruleset
+// forms, banks and fixed registers its code generator writes), and writes forms in it. A language is the code
+// generator of its ruleset's file (code_generator.h), which writes a program's lane in that ruleset
 class Target
 {
   public:
@@ -84,6 +84,9 @@ class Target
 
     // the language's ruleset, read once a process; NULL where it errors, `report` saying which on stderr
     const Ruleset *ruleset(int report);
+
+    // the schema the language reads its ruleset against, read or not
+    const RulesetSchema *schema(void) const;
 
     // the folds of the classification beside the ruleset read again, for a pass that has just written it
     void folds_read(void);

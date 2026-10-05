@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../../../c/engine/nbody/flatten/flatten.h"
+#include "flatten.h"
 
-#include "../../../../c/engine/analysis/cycle/cycle.h"
-#include "../../../../c/engine/engine.h"
-#include "../../../../c/engine/nbody/max_tree/max_tree.h"
-#include "../../../../c/types/file_defs/krep/krep.h"
+#include "../../analysis/cycle/cycle.h"
+#include "../../engine.h"
+#include "../max_tree/max_tree.h"
+#include "../../parser/krep.h"
 
 #include <cuda_runtime.h>
 
@@ -25,12 +25,6 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 
 #define FLATTEN_IO(condition_, evacaddr_, error_)                                                                      \
     engine_io_check((condition_), ENGINE_MODULE_FLATTEN, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
-
-// The flattened file's format word, first in its head. Format 2 records each sample's orders after its name, and a file
-// of any other format errors on read.
-#define FLATTEN_FORMAT 2u
-
-#define FLATTEN_HEAD_LIMBS 5u
 
 static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, char *const *names,
                               const FlattenOrders *orders, unsigned int count, const unsigned int *magnitudes,

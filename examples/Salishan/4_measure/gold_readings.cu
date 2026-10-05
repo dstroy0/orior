@@ -49,10 +49,10 @@
 //   5. every distance lies in [0, 1], its numerator at most its denominator;
 //   6. the records are written out.
 
-#include "../../../src/c/engine/analysis/cycle/cycle.h"
-#include "../../../src/c/engine/analysis/key_schedule/key_schedule.h"
-#include "../../../src/c/engine/analysis/keymath/keymath.h"
-#include "../../../src/c/engine/runtime/scriptura/scriptura.h"
+#include "../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
+#include "../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../src/cu/engine/runtime/scriptura/scriptura.h"
 #include "sim.h"
 
 #include "record_stages.h"

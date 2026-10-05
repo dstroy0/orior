@@ -2485,7 +2485,7 @@ which entry 6's triangle sweeps on the device. Every point in a pass is independ
 and a pass is one sweep: each part below is a sweep over lanes, each reads the records the last
 pass wrote, and each writes verdict fields the next one reads. A program is a list of record steps;
 keymath imprints it, the scheduler lays it out, the record compiler emits it for the device, and it
-runs as a tessera job ([prg_sch/README.md](../../../src/c/engine/prg_sch/README.md)). The same
+runs as a tessera job ([prg_sch/README.md](../../../src/cu/engine/prg_sch/README.md)). The same
 program on the host, from the exact integer library, is its port check. The rows use the engine table's columns, and the M numbers are its
 parts ([engine_table.md](../engine/engine_table.md)). No scale is written into the program: the
 places, `N` and the widths come from the records.

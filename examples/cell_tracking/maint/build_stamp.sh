@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-# The engine is the repository's own, at src/c/engine: every build reads it there, and a tree without it fails
+# The engine is the repository's own, at src/cu/engine: every build reads it there, and a tree without it fails
 # here, before anything compiles
-ENGINE="$(cd "$TOP/.." && pwd)/src/c/engine"
+ENGINE="$(cd "$TOP/.." && pwd)/src/cu/engine"
 if [ ! -f "$ENGINE/engine_config.h" ]; then
     echo "  build failed: no engine at $ENGINE"
     exit 1
 fi
 
-# a build's path: c/..., cu/... and sims/... are the engine's, under src/, and anything else the project's
+# a build's path: cu/..., cu/... and sims/... are the engine's, under src/, and anything else the project's
 build_path()
 {
     case "$1" in

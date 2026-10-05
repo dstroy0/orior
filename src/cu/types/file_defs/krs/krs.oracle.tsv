@@ -1,0 +1,17 @@
+where	who	kind	form	gloss
+line 1	-	krs	krs 1	its first line is krs 1
+head	-	ruleset	ruleset <name>	the target this file describes
+head	-	toolchain	toolchain <name>	what turns the text into a program the target loads
+head	-	header	header <name>	where the text's opening lines come from
+head	-	shared	shared 1	the lane holds the file and its signs in the thread block's shared memory
+head	-	write_ports	write_ports <count>	the memory writes the text makes in one state, unbounded where not given
+head	-	part	part <name>	the part whose <name>.krs and <name>.kdm are read after this file
+body	-	bank	bank <name> = <text>	a bank of registers, {n} the register's number in it
+body	-	fixed	fixed <name> = <text>	one register every lane holds throughout
+body	-	form	form <name> <parameter>... = <text>	the language writes this, and the text is how
+body	-	nop	nop <name> <parameter>...	the language needs no instruction here, or has no such thing at all
+body	-	err	err <name> <parameter>...	the operation is an error on this language
+body	-	construct	construct <name> <parameter>...	a form built from more basic ones, its lines to end, each a form or a construct and its arguments
+body	-	end	end	the end of a construct's lines
+any	-	comment	# <text>	a line that begins with # is a comment
+any	-	blank		a blank line is nothing

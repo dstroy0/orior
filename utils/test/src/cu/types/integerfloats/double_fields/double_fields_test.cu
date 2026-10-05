@@ -7,11 +7,11 @@
 // and drawn words; a merge's request carries words past every mask: the masking is asked as well. The test is
 // one job on the device's tessera daemon.
 #include "codegen_device.h"
-#include "../../../../../../../src/c/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/c/types/integerfloats/double_fields/double_fields.h"
-#include "../../../../../../../src/c/engine/analysis/key_schedule/key_schedule.h"
-#include "../../../../../../../src/c/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/c/engine/runtime/scriptura/scriptura.h"
+#include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/cu/types/integerfloats/double_fields/double_fields.h"
+#include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
+#include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
 #include "sim.h"
 #include <cuda_runtime.h>
 #include <stdlib.h>

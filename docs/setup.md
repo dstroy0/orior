@@ -1,7 +1,7 @@
 # Setup
 
 **Purpose:** Get the engine building and the examples running, and know what each dependency is actually for.
-**Scope:** `src/c/`, `examples/`, `utils/maint/`.
+**Scope:** `src/cu/`, `examples/`, `utils/maint/`.
 
 Nothing here needs a GPU, a service, or a network connection except the fetchers, and those are named below.
 
@@ -40,7 +40,7 @@ On Windows use `utils/maint/engine/build_engine.ps1`, the same two forms. It imp
 Drive the configure yourself with CMake directly for the lower-level path:
 
 ```sh
-cmake -S src/c -B build/engine_c -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S src/cu -B build/engine_c -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build/engine_c
 ```
 
@@ -49,9 +49,9 @@ That produces the benches and the tests. `bench_lattice` needs C99 `_Complex` an
 The search kernel builds with no build system at all, if that is all you want. It is four portable sources and two include paths:
 
 ```sh
-gcc -std=c11 -Isrc/c/engine/nbody/orior -Isrc/c/types/integers your_program.c \
-    src/c/engine/nbody/orior/orior_*.c src/c/engine/nbody/orior/scan.c \
-    src/c/types/integers/exact_integer_*.c src/c/types/integers/arm.c
+gcc -std=c11 -Isrc/cu/engine/nbody/orior -Isrc/cu/types/integers your_program.c \
+    src/cu/engine/nbody/orior/orior_*.c src/cu/engine/nbody/orior/scan.c \
+    src/cu/types/integers/exact_integer_*.c src/cu/types/integers/arm.c
 ```
 
 ## The research papers

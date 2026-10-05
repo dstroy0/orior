@@ -22,11 +22,11 @@ source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 
 SIMS_CU="$SRC/sims/cu"
-SCRIPTURA="$SRC/c/engine/runtime/scriptura"
-NO_ROUNDING="$SRC/c/types/integers"
-CFG_JSON="$SRC/c/includes/formats/cfg_json"
-DAEMON_DIRECTORY="$SRC/c/engine/runtime/daemon"
-OBSIGNATIO="$SRC/c/engine/runtime/obsignatio"
+SCRIPTURA="$SRC/cu/engine/runtime/scriptura"
+NO_ROUNDING="$SRC/cu/types/integers"
+CFG_JSON="$SRC/cu/includes/formats/cfg_json"
+DAEMON_DIRECTORY="$SRC/cu/engine/runtime/daemon"
+OBSIGNATIO="$SRC/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$SRC/cu/engine/runtime/obsignatio"
 
 case "$(uname -s)" in
@@ -58,17 +58,15 @@ WIDTH=()
 if [ -n "${SIM_EXACT_LIMBS:-}" ]; then
     WIDTH=(-DANCHOR_EXACT_LIMBS="${SIM_EXACT_LIMBS}u")
 fi
-INCLUDES=(-I "$SRC/c/engine" -I "$SIMS_CU" -I "$SCRIPTURA" -I "$NO_ROUNDING" -I "$CFG_JSON"
+INCLUDES=(-I "$SRC/cu/engine" -I "$SIMS_CU" -I "$SCRIPTURA" -I "$NO_ROUNDING" -I "$CFG_JSON"
           -I "$DAEMON_DIRECTORY" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
 for module in "${MODULES[@]}"; do
     INCLUDES+=(-I "$ROOT/src/$module")
 done
 # matching_values is a program of the record machine: the imprint, the layout and the run, the code generator beside
 # them, built for this device
-RECORD_DIRECTORIES=("$SRC/c/engine/analysis/cycle" "$SRC/cu/engine/analysis/cycle" "$SRC/c/engine/analysis/keymath"
-                    "$SRC/cu/engine/analysis/keymath" "$SRC/c/engine/analysis/key_schedule"
-                    "$SRC/cu/engine/analysis/key_schedule" "$SRC/c/transpiler/codegen" "$SRC/cu/transpiler/codegen"
-                    "$SRC/cu/types/file_defs/krs")
+RECORD_DIRECTORIES=("$SRC/cu/engine/analysis/cycle" "$SRC/cu/engine/analysis/keymath" "$SRC/cu/engine/analysis/key_schedule"
+                    "$SRC/cu/transpiler/codegen" "$SRC/cu/transpiler/lstar/parser")
 GENCODE=()
 if [ "$PROGRAM" = matching_values ]; then
     for directory in "${RECORD_DIRECTORIES[@]}"; do
@@ -152,10 +150,10 @@ build_unit "$SIMS_CU/sim_job.cu" "$OBJECT_DIRECTORY/sim_job.$EXTENSION"
 OBJECTS+=("$OBJECT_DIRECTORY/sim_job.$EXTENSION")
 if [ "$PROGRAM" = matching_values ]; then
     object="$OBJECT_DIRECTORY/cycle.$EXTENSION"
-    build_object "$SRC/c/engine/analysis/cycle/cycle.c" "$object"
+    build_object "$SRC/cu/engine/analysis/cycle/cycle.c" "$object"
     OBJECTS+=("$object")
     for source in "$SRC/cu/engine/analysis/cycle"/cycle*.cu "$SRC/cu/transpiler/codegen"/*.cu \
-                  "$SRC/cu/types/file_defs/krs"/*.cu "$SRC/cu/engine/analysis/keymath/keymath.cu" \
+                  "$SRC/cu/transpiler/lstar/parser"/*.cu "$SRC/cu/engine/analysis/keymath/keymath.cu" \
                   "$SRC/cu/engine/analysis/key_schedule/key_schedule.cu"; do
         object="$OBJECT_DIRECTORY/record_$(basename "$source" .cu).$EXTENSION"
         if ! current "$source" "$object"; then

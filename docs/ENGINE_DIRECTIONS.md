@@ -1,7 +1,7 @@
 # Directions the engine's own proofs already license
 
 **Purpose:** Collect the capabilities that follow from what the engine has already proved, and the Laplacian construction that replaces its planning cost with a determinant.
-**Scope:** `src/c/engine/nbody/orior/orior.h`, `src/c/engine/nbody/orior/orior_*.c`
+**Scope:** `src/cu/engine/nbody/orior/orior.h`, `src/cu/engine/nbody/orior/orior_*.c`
 
 ## Contents
 
@@ -191,7 +191,7 @@ destroy rule catches what the prediction missed, and the gap between them is mea
 The header states planning cost as a worst case and does not measure it. `anchor_steer_sweep_probes`
 performs about `wanted * needle_len^2 * max_length^2 * alignments / sample_stride` byte comparisons
 at worst, which exceeds the scan it plans for on any but a short needle
-([`orior_descent.h:325-332`](https://github.com/dstroy0/orior/blob/main/src/c/engine/nbody/orior/orior_descent.h#L325-L332)). That is the engine's
+([`orior_descent.h:325-332`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L325-L332)). That is the engine's
 sharpest open cost problem, and the determinant removes its dominant factor.
 
 Scoring a candidate today walks the alignments. Scoring a candidate by determinant walks a `k` by `k`

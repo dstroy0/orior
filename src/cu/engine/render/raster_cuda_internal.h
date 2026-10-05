@@ -39,7 +39,7 @@
 
 extern "C"
 {
-#include "../../../c/engine/render/anchor_raster.h"
+#include "anchor_raster.h"
 }
 
 /** @brief Death level step in the gray ramp. Matches ANCHOR_RASTER_STEP in anchor_raster_internal.h. */

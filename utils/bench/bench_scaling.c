@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../src/c/engine/nbody/orior/orior.h"
+#include "../../src/cu/engine/nbody/orior/orior.h"
 #include "bench_corpora.h"
 
 #if !ORIOR_COUNT_READS

@@ -1,0 +1,26 @@
+where	who	kind	form	gloss
+head 0	krep_head_write	magic	8 bytes	KREP and four zero bytes
+head 1	krep_head_write	kind	4 bytes	the file's kind
+head 2	krep_head_write	version	1 limb	KREP_VERSION; a file of another version errors on read
+head 3	krep_crystal_write	extent	4 words	the stream's extent
+head 4	krep_crystal_write	chunks	1 word	the stream's chunks
+head 5	krep_crystal_write	bits	1 word	the stream's bits
+head 6	krep_crystal_write	lane_offset	1 word	the stream's lane offset
+head 7	krep_crystal_write	leaves	1 word	the side section's leaves
+head 8	krep_crystal_write	side_bytes	1 word	the side section's bytes
+head 9	krep_crystal_write	packed_bytes	1 word	the packed bytes, 0 where there are no leaves
+head 10	krep_crystal_write	names_bytes	1 word	the names' bytes
+head 11	krep_crystal_write	lane_nodes	1 word	the seal's lane nodes
+seal 0	krep_seal_write	roots	ENGINE_SEAL_ROOTS signums	the seal's roots
+seal 1	krep_seal_write	lane_nodes	lane_nodes signums	the seal's lane nodes
+seal 2	krep_seal_write	chunk_leaves	chunks signums	the seal's chunk leaves
+stream 0	krep_crystal_write	offsets	chunks words	the stream's offsets
+stream 1	krep_crystal_write	stream	(bits + 31) / 32 limbs	the stream
+side 0	krep_crystal_write	packed	packed_bytes bytes	where leaves is not 0, the packed section
+side 1	krep_members_write	pixel_at	leaves words	each member's pixel
+side 2	krep_members_write	pixel_kept	leaves words	each member's pixel kept
+side 3	krep_members_write	byte_start	leaves + 1 words	where each member's bytes begin
+side 4	krep_members_write	name_start	leaves + 1 words	where each member's name begins
+side 5	krep_members_write	member_crc	leaves words	each member's CRC
+side 6	krep_members_write	member_bytes	leaves words	each member's bytes
+side 7	krep_members_write	names	name_start[leaves] bytes	the members' names

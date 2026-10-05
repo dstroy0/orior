@@ -1,9 +1,9 @@
 # The sift
 
 **Purpose:** Say what the search kernel guarantees, how to build it, what each grader answers, and how it draws what it saw.
-**Scope:** `src/c/engine/nbody/orior/`, `utils/test/src/`, `utils/bench/`
+**Scope:** `src/cu/engine/nbody/orior/`, `utils/test/src/`, `utils/bench/`
 
-[`src/c/engine/nbody/orior/orior_*.c`](https://github.com/dstroy0/orior/tree/main/src/c/engine/nbody/orior) holds the search and the steering that places its probes. With the portable scan beside it and the exact integer arithmetic under [`src/c/types/integers/`](https://github.com/dstroy0/orior/tree/main/src/c/types/integers), it builds and runs with a C11 compiler alone, four sources and no build system ([Setup](setup.md#the-c-engine)). The Python in [`src/python/engine/nbody/orior/sift/`](https://github.com/dstroy0/orior/tree/main/src/python/engine/nbody/orior/sift) implements the same construction, shares no code with it, and the two are checked against each other by agreeing on counts.
+[`src/cu/engine/nbody/orior/orior_*.c`](https://github.com/dstroy0/orior/tree/main/src/cu/engine/nbody/orior) holds the search and the steering that places its probes. With the portable scan beside it and the exact integer arithmetic under [`src/cu/types/integers/`](https://github.com/dstroy0/orior/tree/main/src/cu/types/integers), it builds and runs with a C11 compiler alone, four sources and no build system ([Setup](setup.md#the-c-engine)). The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/nbody/orior/sift) implements the same construction, shares no code with it, and the two are checked against each other by agreeing on counts.
 
 **It is a sound filter.** A subset of a pattern's points is a necessary condition. No arrangement of anchors can lose a true occurrence. That is a proof, using no order, no dimension and no alphabet ([Why the count is exact](ENGINE_PROOF.md)). The measurement beside it: across 35 rows of corpora, needle lengths and strides, no search ever reported fewer occurrences than exist. Errors are one directional. A discrepancy is always an over-count and is detectable without knowing the answer.
 

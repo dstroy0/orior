@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../../../c/engine/analysis/compression/compression.h"
+#include "compression.h"
 
-#include "../../../../c/engine/runtime/device_pool/device_pool.h"
+#include "../../runtime/device_pool/device_pool.h"
 
 #include <cub/cub.cuh>
 #include <cuda_runtime.h>

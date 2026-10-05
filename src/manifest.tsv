@@ -13,46 +13,46 @@
 #   scaffold   holds the work up while it is built, and comes out when it is done.
 #
 # item	kind	path	what it does
-relations	engine	src/c/transpiler/bootstrap/ladder.h	The relations known before meeting anything, the anchors that name them, and the cases the ladder climbs by. 1,1 -> 2 and no writing of it.
-relations	engine	src/c/transpiler/codegen/precept_value.h	A tree over the alphabet applied to words, so a tree states what a target must answer.
-relations	entry	utils/test/src/c/transpiler/bootstrap/chain_check.c	How much of a relation the ladder's own cases decide. 507 arrangements fit them and are not it.
-alphabet	key	src/c/transpiler/codegen/precepts.h	18 precepts and 9 rewrites, typed. What a derived alphabet is checked against.
-word web	key	src/c/transpiler/codegen/word_web.h	12 of the schema's 99 words as trees, typed. What a derived web is checked against.
-word web	engine	src/c/transpiler/codegen/tree_number.h	A tree as one number, so two trees compare without a walk.
-.krs	seed	src/cu/transpiler/codegen/rulesets/sass.krs	gnascor to sm_86. Written by hand. 69 forms, 23 nop, 5 err, 2 construct.
-.krs	seed	src/cu/transpiler/codegen/rulesets/ptx.krs	gnascor to PTX. Written by hand. 88 forms, 11 nop, 0 err.
-.krs	seed	src/cu/transpiler/codegen/rulesets/c.krs	gnascor to C. Written by hand. 83 forms, 16 nop.
-.krs	seed	src/cu/transpiler/codegen/rulesets/vhdl.krs	gnascor to VHDL. Written by hand. 94 forms, 5 nop.
-.krs	seed	src/cu/transpiler/codegen/rulesets/yosys.krs	gnascor to Yosys. Written by hand. 5 forms.
-.kdm	engine	src/c/transpiler/bootstrap/chain_build.c	Every arrangement of primitives that produces a relation, found by walking them and running each.
-.kdm	engine	src/c/transpiler/bootstrap/chain_build.h	What an arrangement is and what a set of them holds.
+relations	engine	src/cu/transpiler/lstar/protocol/ladder.h	The relations known before meeting anything, the anchors that name them, and the cases the ladder climbs by. 1,1 -> 2 and no writing of it.
+relations	engine	src/cu/transpiler/codegen/precept_value.h	A tree over the alphabet applied to words, so a tree states what a target must answer.
+relations	entry	utils/test/src/cu/transpiler/lstar/protocol/chain_check.c	How much of a relation the ladder's own cases decide. 507 arrangements fit them and are not it.
+alphabet	key	src/cu/transpiler/codegen/precepts.h	18 precepts and 9 rewrites, typed. What a derived alphabet is checked against.
+word web	key	src/cu/transpiler/codegen/word_web.h	12 of the schema's 99 words as trees, typed. What a derived web is checked against.
+word web	engine	src/cu/transpiler/codegen/tree_number.h	A tree as one number, so two trees compare without a walk.
+.krs	seed	src/cu/transpiler/lstar/coherence/sass.krs	gnascor to sm_86. Written by hand. 69 forms, 23 nop, 5 err, 2 construct.
+.krs	seed	src/cu/transpiler/lstar/coherence/ptx.krs	gnascor to PTX. Written by hand. 88 forms, 11 nop, 0 err.
+.krs	seed	src/cu/transpiler/lstar/coherence/c.krs	gnascor to C. Written by hand. 83 forms, 16 nop.
+.krs	seed	src/cu/transpiler/lstar/coherence/vhdl.krs	gnascor to VHDL. Written by hand. 94 forms, 5 nop.
+.krs	seed	src/cu/transpiler/lstar/coherence/yosys.krs	gnascor to Yosys. Written by hand. 5 forms.
+.kdm	engine	src/cu/transpiler/lstar/protocol/chain_build.c	Every arrangement of primitives that produces a relation, found by walking them and running each.
+.kdm	engine	src/cu/transpiler/lstar/protocol/chain_build.h	What an arrangement is and what a set of them holds.
 .kdm	entry	utils/maint/engine/kdm_write.c	Writes a part's .kdm from the relations. 3068 chains, no cost.
 .kdm	entry	utils/maint/engine/chain_check.sh	Builds and runs the two things that work off the relations alone.
-.kdm	derived	src/c/transpiler/cubin/machines/sm_86.kdm	3068 arrangements over the 7 anchors. Every cost reads - until the part times one.
-.ksc	derived	src/c/transpiler/cubin/machines/sm_86.ksc	What sm_86 was asked and what came back, by channel and class.
-emitter	engine	src/c/transpiler/emit/container_write.c	One emitter, every container. Reads a layout and writes what it describes. No vendor word in it.
-emitter	engine	src/c/transpiler/emit/container_write.h	What a container is written from.
-emitter	engine	src/c/transpiler/emit/container_pattern.c	A pattern's tables, sections and attributes read where the layout says, each place held inside the pattern.
-emitter	engine	src/c/transpiler/emit/container_write_internal.h	What the container pieces share: the places a layout gives and a part as the emitter holds it.
-emitter	engine	src/c/transpiler/emit/container_layout.c	A layout read from its file and looked up by name.
-emitter	engine	src/c/transpiler/emit/container_layout.h	A container's layout as rows.
-emitter	seed	src/c/transpiler/emit/layouts/elf64_nvidia.tsv	Every offset, width, tag and name the NVIDIA container uses. 36 rows, read off containers its toolchain built.
-emitter	entry	src/c/transpiler/cubin/cubin_write.c	The one emitter given a cubin: the layout file read from the tree, and each call made in a cubin's terms.
-emitter	scaffold	src/c/transpiler/cubin/sass_assemble.c	Turns text into encodings against a machine held in memory.
-emitter	scaffold	src/c/types/file_defs/krs/sass_machine.c	Holds forms read from a machine file, and reads and writes that file.
-emitter	key	src/c/transpiler/cubin/machines/sm_86	2927 forms one run found. An input to nothing that derives.
+.kdm	derived	src/cu/transpiler/lstar/coherence/sm_86.kdm	3068 arrangements over the 7 anchors. Every cost reads - until the part times one.
+.ksc	derived	src/cu/transpiler/lstar/coherence/sm_86.ksc	What sm_86 was asked and what came back, by channel and class.
+emitter	engine	src/cu/scaffolding/container_write.c	One emitter, every container. Reads a layout and writes what it describes. No vendor word in it.
+emitter	engine	src/cu/scaffolding/container_write.h	What a container is written from.
+emitter	engine	src/cu/scaffolding/container_pattern.c	A pattern's tables, sections and attributes read where the layout says, each place held inside the pattern.
+emitter	engine	src/cu/scaffolding/container_write_internal.h	What the container pieces share: the places a layout gives and a part as the emitter holds it.
+emitter	engine	src/cu/scaffolding/container_layout.c	A layout read from its file and looked up by name.
+emitter	engine	src/cu/scaffolding/container_layout.h	A container's layout as rows.
+emitter	seed	src/cu/scaffolding/layouts/elf64_nvidia.tsv	Every offset, width, tag and name the NVIDIA container uses. 36 rows, read off containers its toolchain built.
+emitter	entry	src/cu/scaffolding/cubin_write.c	The one emitter given a cubin: the layout file read from the tree, and each call made in a cubin's terms.
+emitter	scaffold	src/cu/scaffolding/sass_assemble.c	Turns text into encodings against a machine held in memory.
+emitter	scaffold	src/cu/scaffolding/sass_machine.c	Holds forms read from a machine file, and reads and writes that file.
+emitter	key	src/cu/transpiler/lstar/coherence/sm_86	2927 forms one run found. An input to nothing that derives.
 code generator	engine	src/cu/transpiler/codegen/code_generator.cu	Decides the forms a program is made of and writes them through a ruleset.
 code generator	engine	src/cu/transpiler/codegen/code_generator.h	What a language declares about itself to be written to.
-target	engine	src/cu/transpiler/codegen/sass_target.cu	sm_86 as a language: its ruleset, its register file, whether it writes its own resident.
-target	engine	src/cu/transpiler/codegen/ptx_target.h	PTX as a language.
-target	engine	src/cu/transpiler/codegen/c_target.h	C as a language.
-target	engine	src/cu/transpiler/codegen/vhdl_target.h	VHDL as a language.
-lane needs	entry	utils/maint/engine/sass_lane_needs.cpp	Every form a real program asks of a ruleset, and every line of it the assembler refuses. 0 refused.
-krs check	entry	utils/maint/engine/sass_krs_check.sh	Every form a ruleset writes, assembled. 63 forms, 0 refused.
-probe	scaffold	utils/test/src/c/transpiler/interface/interface_sass_probe_machine.c	Builds a machine by widening and sweeping, asking a disassembler for names.
-probe	scaffold	utils/test/src/c/transpiler/interface/interface_sass_probe_ask.c	36 questions put in the part's own code, each with the answer a person worked out.
-probe	scaffold	utils/test/src/c/transpiler/interface/interface_sass_probe_cubin.c	A cubin written from text, with one the toolchain built standing as the pattern.
-probe	scaffold	utils/test/src/c/transpiler/interface/interface_sass_probe_check.c	One kernel's text found in what a toolchain printed, and every form assembled again and read back.
-probe	scaffold	src/c/types/file_defs/ksc/interface_sass_probe_class.c	Writes the .ksc: which questions answer, return nothing, or are illegal alone.
-probe	scaffold	utils/test/src/c/transpiler/interface/interface_sass_probe_read.c	Runs the disassembler through the cell and reads what it printed.
+target	engine	src/cu/scaffolding/sass_target.cu	sm_86 as a language: its ruleset, its register file, whether it writes its own resident.
+target	engine	src/cu/scaffolding/ptx_target.h	PTX as a language.
+target	engine	src/cu/scaffolding/c_target.h	C as a language.
+target	engine	src/cu/scaffolding/vhdl_target.h	VHDL as a language.
+lane needs	entry	src/cu/scaffolding/sass_lane_needs.cpp	Every form a real program asks of a ruleset, and every line of it the assembler refuses. 0 refused.
+krs check	entry	src/cu/scaffolding/sass_krs_check.sh	Every form a ruleset writes, assembled. 63 forms, 0 refused.
+probe	scaffold	src/cu/scaffolding/interface_sass_probe_machine.c	Builds a machine by widening and sweeping, asking a disassembler for names.
+probe	scaffold	src/cu/scaffolding/interface_sass_probe_ask.c	36 questions put in the part's own code, each with the answer a person worked out.
+probe	scaffold	src/cu/scaffolding/interface_sass_probe_cubin.c	A cubin written from text, with one the toolchain built standing as the pattern.
+probe	scaffold	src/cu/scaffolding/interface_sass_probe_check.c	One kernel's text found in what a toolchain printed, and every form assembled again and read back.
+probe	scaffold	src/cu/scaffolding/interface_sass_probe_class.c	Writes the .ksc: which questions answer, return nothing, or are illegal alone.
+probe	scaffold	src/cu/scaffolding/interface_sass_probe_read.c	Runs the disassembler through the cell and reads what it printed.
 plan	engine	src/engine_plan.md	What is open. Finished work goes to the engine table.

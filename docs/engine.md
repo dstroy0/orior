@@ -1,9 +1,9 @@
 # The engine
 
 **Purpose:** Say what the engine is made of, what each part does today, and where its record is.
-**Scope:** `src/c/`, `src/cu/`, `src/sims/`
+**Scope:** `src/cu/`, `src/cu/`, `src/sims/`
 
-The engine is the machine every measurement runs on, in C under [`src/c/`](https://github.com/dstroy0/orior/tree/main/src/c), its device code under [`src/cu/`](https://github.com/dstroy0/orior/tree/main/src/cu), and its simulations under [`src/sims/`](https://github.com/dstroy0/orior/tree/main/src/sims). [engine_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/engine_table.md) holds it part by part: what each part computes, the exact algebra it holds to, what it does today, what it wants, every hypothesis tried, its status, and the next move.
+The engine is the machine every measurement runs on, in C under [`src/cu/`](https://github.com/dstroy0/orior/tree/main/src/cu), its device code under [`src/cu/`](https://github.com/dstroy0/orior/tree/main/src/cu), and its simulations under [`src/sims/`](https://github.com/dstroy0/orior/tree/main/src/sims). [engine_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/engine_table.md) holds it part by part: what each part computes, the exact algebra it holds to, what it does today, what it wants, every hypothesis tried, its status, and the next move.
 
 **The engine is optimized for no scale.** A size, a spacing, an order, a window, a width, a cell or a voxel count is never written into the machine. Each comes in with the request or is read from the data. The machine is exact at every scale its words can hold, and where a word is too narrow it says so (a request error, or `needed_bits`) and never rounds.
 
@@ -64,7 +64,7 @@ The k-files are the faces the compiler reads and writes.
 | `.g`   | gnascor high order language             | semantic plain language, plus the shortcut operators |
 | `.gsm` | gnascor assembly language               | the same program with the switch thrown              |
 
-**The stem is the join and the suffix is the face.** Files sharing a stem are one member's set, whatever the stem happens to be. `pair.kdm` and `pair.knf` are a pair's map and that map's floor. `set.kcr`, `set.kcs` and `set.knf` are one set's crystal, the set that reconstructs it, and its floor. Nothing outside the filename binds them, and no member is required to carry every face.
+**A file is named `<concept or thing>.<filetype>`.** The stem is the concept or thing and the suffix is its type. `sass.krs` is how to write SASS and `sm_86.krs` is the ops ruleset for sm_86, grouped with `sm_86.kdm`; `sass.ksc`, `ptx.ksc` and `avx.ksc` follow the same pattern. Files sharing a stem are one member's set, whatever the stem happens to be. `pair.kdm` and `pair.knf` are a pair's map and that map's floor. `set.kcr`, `set.kcs` and `set.knf` are one set's crystal, the set that reconstructs it, and its floor. Nothing outside the filename binds them, and no member is required to carry every face.
 
 **`.kcr`**, the crystal, read front to back: head (12 words), the seal (6 roots, every lane node, every chunk leaf), offsets and stream, the deflated side bytes, the member tables and names, EOF. Every file the machine writes is proved by reading it back: pixels voxel for voxel against a second read of the source, and every part by its seal. Integer lifting is exactly invertible.
 
@@ -111,6 +111,6 @@ The engine carries a large set of transforms, maps that put the object into anot
 
 **The image transform program.** [`theory/theory/image_transforms`](https://github.com/dstroy0/orior/tree/main/theory/theory/image_transforms) is a research paper of exact image transforms: translation, rotation with scale and perspective, observed motion, and waves on a surface. Translation is built, and it is the number-theoretic transform above. The rest are stated in the research paper and not yet implemented in the tree, and the research paper says which is which.
 
-The full set lives one per file under `src/python/` and in the C renderer, and the workbook records what each has been shown to do. A defensible count is eleven invertible transform families, or seventeen if every render layout is counted on its own, beside several one-way maps.
+The full set lives one per file under `archive/src/python/` and in the C renderer, and the workbook records what each has been shown to do. A defensible count is eleven invertible transform families, or seventeen if every render layout is counted on its own, beside several one-way maps.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

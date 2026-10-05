@@ -2,7 +2,7 @@
 #ifndef SCAN_H
 #define SCAN_H
 
-#include "../../../../src/c/engine/engine.h"
+#include "../../../../src/cu/engine/engine.h"
 
 #ifdef __cplusplus
 extern "C"
