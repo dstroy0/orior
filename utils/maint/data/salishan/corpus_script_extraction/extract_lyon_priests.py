@@ -262,9 +262,8 @@ def four_line_words(block):
         # the next word's own first line stands in that place, and reading it as a gloss puts every
         # word after it a slot early. A word gloss is English and carries none of the damaged
         # orthography, and that separates you.all and priest from yaQyá;;Qt and t@twít.
-        # Closing early on a single-letter line was tried, on the reasoning that l, p and t are
-        # proclitics and never an English gloss. It cost 331 lines and eight blocks. A single letter
-        # does stand in that slot often enough to matter, and the rule is not there.
+        # A single-letter line does not close a block early, though l, p and t are proclitics and
+        # never an English gloss: a single letter stands in that slot often enough to matter.
         if (slot == 3) and any(carries_orthography(one) for one in line.split()):
             close()
             slot = 0

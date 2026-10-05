@@ -8,7 +8,8 @@ in the closed corpus, and the tools read them there:
               outline and line tables the tools read and write;
   GENERATORS  each paper's generator, at PRIVATE/generators, and FINISH each paper's finish
               context, at PRIVATE/finish. Both import the tools from SALISHAN_TOOLS, which
-              importing this sets to the tools' own directory;
+              importing this sets to the tools' own directory. Each paper's tables are at
+              PRIVATE/tables, read through tables.py;
   WORK        what a command remakes: a paper's engine draft, its alphabet, word web and residue
               tables, the oracles a rerun saves to compare against, and the crops read to settle a
               glyph. SALISHAN_WORK when it is set, and otherwise salishan_work beside CORPUS;

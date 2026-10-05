@@ -132,10 +132,9 @@ def write_unsorted(path, paper, rows):
     line found by comparison, which carries its page instead.
 
     A tab-separated file with a header on its first line and the same number of fields on every
-    line. Nothing else. This used to open with seven lines of prose behind a hash, and csvlint has
-    no comment syntax. Every one of these files failed it. The prose that was there is in this
-    module's own header, where a person reading the code finds it, and the reason column carries
-    the two cases into the data.
+    line. Nothing else: csvlint has no comment syntax, and prose behind a hash fails it. The prose
+    is in this module's own header, where a person reading the code finds it, and the reason column
+    carries the two cases into the data.
     """
     ordered = sorted(rows, key=lambda one: (one[0], one[1]))
     with open(path, "w", encoding="utf-8", newline="") as handle:

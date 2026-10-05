@@ -7,7 +7,7 @@ Drafted by the anchor_sift engine and read against the page by a person. The eng
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
-from the characters that sit outside that English, and word_web.web() built 1999 edges over the
+from the characters that sit outside that English, and word_web.web() built 1998 edges over the
 language forms. A person then matched the context: who, kind and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
@@ -39,10 +39,10 @@ Leipzig conventions and footnote 2 lists the others; from Section 3 on xʷúy̓ 
 
 THE PAGE AND THE TEXT LAYER
 
-The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC, then 12 page-read
-corrections. The page text was read by glyph rows, with the word spaces pdfium sets on tight
-justified lines kept (of the, Section 2 presents). The text layer types the null sign as 0/,
+The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
+same repair: a mark the text sets after a space is put back on its letter, then NFC, then 12
+page-read corrections. The page text was read by glyph rows, with the word spaces pdfium sets on
+tight justified lines kept (of the, Section 2 presents). The text layer types the null sign as 0/,
 repaired to ∅, and the denotation brackets of (22) and (49) as J and K, repaired to ⟦ and ⟧, read at
 300 dpi. The superscript g and the subscript type <l,st> of a denotation are set on the line. (20),
 (21), (23), (24), (29) and (30) print the letter Ø for the null sign, kept as printed. The page
@@ -52,7 +52,7 @@ sets its context with no Context: label.
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 531
 rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the
-11978 distinct tokens in the paper, 0 language tokens are held by no row.
+12106 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example
          line such as (3) line 2, the references, or all for a note about the whole paper

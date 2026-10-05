@@ -1,0 +1,383 @@
+where	who	kind	form	gloss
+front	John Lyon	title	Parsing Lawrence Nicodemus’ Snchitsu’umshtsn File Card Collection	page 1
+front	John Lyon	name	John Lyon	author
+front	John Lyon	note	University of British Columbia	page 1, under John Lyon
+front	John Lyon	note	This paper describes my analysis of a recently uncovered collection of file cards from the late Lawrence Nicodemus, one of the last fluent speakers of Snchitsu’umshtsn (Coeur d’Alene Salish). The inference is that these hand-written file cards were used during the compilation of what would become Nicodemus’s 1975 Coeur d’Alene-English dictionary Snchitsu’umshtsn. I transcribe Coeur d’Alene material into Northwest (NW) orthography, complete a morphological analysis, and arrange entries by lexical root. Multiple transcriptions on the original cards, including strikethroughs, are retained in the new document. There are a total of 4986 cards in the collection, most of them with Coeur d’Alene material written on one side, and an English transcription on the other. 3843 (77%) of the cards have matches in the published dictionary. 1143 (23%) of the cards do not and many of these may be otherwise unattested.	page 1, the abstract
+front	John Lyon	language	Coeur d’Alene	Snchitsu’umshtsn, a Southern Interior Salish language, spoken in the panhandle area of Northern Idaho
+§1	John Lyon	heading	1 Introduction	page 1
+§1	John Lyon	note	Snchitsu’umshtsn (Coeur d’Alene) is a Southern Interior Salish language, spoken in the panhandle area of Northern Idaho.	page 1
+§1	Coeur d’Alene	cited form	Snchitsu’umshtsn	page 1, in PhGothic or in italics
+§1	John Lyon	note	Lawrence Nicodemus, one of the last fluent speakers of the language, passed away in 2004. He worked with Gladys Reichard during the period leading up to her published grammar of the language (Reichard, 1938). Nicodemus developed many teaching materials for the Coeur d’Alene language, and it was his hope that the language would continue to be spoken. In 1975, he published a two-volume English-Coeur d’Alene and Coeur d’Alene-English dictionary, as well as a language primer with audio cassettes. A copy of these materials was given to every family in the tribe. Among his many other accomplishments, he wrote a history of tribal families, and a compendium of historical place names covering the original territory of the Snchitsu’umsh.	page 1
+§1	John Lyon	name	Lawrence Nicodemus	one of the last fluent speakers of Snchitsu’umshtsn, whose file cards the paper parses; author of the 1975 dictionary
+§1	John Lyon	name	Gladys Reichard	worked with Nicodemus during the period leading up to her published grammar of the language (Reichard, 1938)
+§1	John Lyon	note	Dr. Raymond Brinkman, director of Hnqwa’qwe’eln (the Coeur d’Alene Language Program) in Plummer, Idaho, uncovered a collection of file cards in the house of the late Lawrence Nicodemus. Recognizing that these cards were rapidly deteriorating, he put the cards into a box for safekeeping, until such time as a proper analysis could be carried out. The cards likely served as the initial database of what would become Nicodemus’s 1975 Coeur d’Alene-English dictionary Snchitsu’umshtsn.	page 1
+§1	Coeur d’Alene	cited form	Hnqwa’qwe’eln	page 1, in PhGothic or in italics
+§1	John Lyon	name	Raymond Brinkman	director of Hnqwa’qwe’eln (the Coeur d’Alene Language Program) in Plummer, Idaho, who uncovered the file cards
+§1	John Lyon	note	There are a total of 4986 cards in the collection. Most of them have Coeur d’Alene material written on one side and an English transcription on the other (70.2%, n=3496), although some have both English and Coeur d’Alene transcriptions on the same side (29.8%, n=1490).	page 2
+§1	John Lyon	note	Perhaps the most interesting fact of this collecting is that while 3843 (77%) of the cards have matches in the published dictionary, 1143 (23%) of the cards do not. It is not entirely clear why Nicodemus left these cards out of his dictionary, but it is possible that many of the cards from this 23% contain material that does not occur elsewhere. It is important that this new material be made accessible.	page 2
+§1	John Lyon	note	Some examples of analyzed entries without matches in the dictionary are shown below, and will suffice to give the reader an idea of what kind of material is in the collection. Nicodemus’s original card transcriptions are at the end of each example, in parentheses:	page 2
+(1)	Coeur d’Alene	transcription	s+xʷúp+xʷup	page 2, the form
+(1)	John Lyon	translation	a flying squirrel, lit. spread spread	page 2, the gloss
+(1)	Coeur d’Alene	transcription	sxúpxup	page 2, Nicodemus’s original card transcription, in parentheses
+(2)	Coeur d’Alene	transcription	s+ʕin	page 2, the form
+(2)	John Lyon	translation	catbird	page 2, the gloss
+(2)	Coeur d’Alene	transcription	sRin	page 2, Nicodemus’s original card transcription, in parentheses
+(3)	Coeur d’Alene	transcription	s+gʷeš=úl’emxʷ	page 2, the form
+(3)	John Lyon	translation	rake, combing the ground, harrowing; lit. comb-ground-what	page 2, the gloss
+(3)	Coeur d’Alene	transcription	sgweshúl̕emxw	page 2, Nicodemus’s original card transcription, in parentheses
+§1	John Lyon	note	Nicodemus often includes morpheme-by-morpheme translations of the Coeur d’Alene material, as in (1) and (3). Although I have found no occurrence of either (1) or (3) in any other extant materials, the lexical roots in (1) and (3) (xʷúp ‘spread’ and gweš ‘comb’) are represented by other related entries in the dictionary. Total reduplication of the root xʷúp in (1) is not attested in the dictionary however, and neither are there entries in the dictionary which indicate that gweš may be suffixed by =úl̕emxʷ ‘ground’. (2) can be found in Reichard’s 1939 Stem List, but not in Nicodemus’s 1975 dictionary. I know of no other examples of the root ʕin in (2), and I am only assuming that the initial /s/ is a nominalizer.	page 2
+§1	Coeur d’Alene	cited form	xʷúp	page 2, in PhGothic or in italics, ‘spread’
+§1	Coeur d’Alene	cited form	gweš	page 2, in PhGothic or in italics, ‘comb’
+§1	Coeur d’Alene	cited form	=úl̕emxʷ	page 2, in PhGothic or in italics, ‘ground’
+§1	Coeur d’Alene	cited form	ʕin	page 2, in PhGothic or in italics
+§1	John Lyon	note	Preliminaries aside, the major contributions which this collection makes to our understanding of Coeur d’Alene are:	page 2
+§1	John Lyon	note	1. How to derive more complex forms from roots and stems which are otherwise scantily represented in the 1975 dictionary.	page 2, an item of the list
+§1	John Lyon	note	2. How Nicodemus’s orthographical practices evolved over time.	page 2, an item of the list
+§1	John Lyon	note	I now move onto a more detailed analysis of the collection.	page 2
+§2	John Lyon	heading	2 Project Goals	page 2
+§2	John Lyon	note	The major goal of this project is to organize the information in the file cards into a format which is useful to linguists, anthropologists, and the language community. I analyze the Coeur d’Alene material from each card to the level of the morpheme, identify the lexical root of the entry, and group the entry with others sharing the same lexical root. The current document is a dictionary, approximately 95 pages, which is similar in format to Lyon & Greene-Wood (2007).	page 2
+§2	John Lyon	note	Secondary goals include analyzing discrepancies between file card transcriptions and transcriptions of the same lexical items in Nicodemus (1975). Discrepancies are highlighted in this document, so that the researcher may quickly ascertain what changes, if any, Nicodemus made during the course of his dictionary project. Another goal is to determine what the overlap is between the file card collection and the 1975 dictionary. Entries which were not included in any form in the 1975 dictionary are highlighted, because these entries would presumably be of higher interest to those scholars searching for data which may not be gleaned from other sources. My final goal is that no information be lost from the collection itself. This entails that all of Nicodemus’ transcriptions be retained, even those with strike-throughs. Retaining multiple transcriptions, in a probable chronological order, helps to show how his thinking about written Coeur d’Alene changed over time.	page 3
+§3	John Lyon	heading	3 Orthography	page 3
+§3	John Lyon	note	To illustrate how retaining multiple transcriptions can help show how written Coeur d’Alene was changed over time, consider (4) which is taken from the final revised document:	page 3
+(4)	Coeur d’Alene	transcription	hn+xʷél+xʷl+n	page 3, the form
+(4)	John Lyon	translation	lifestyle, life, way of life, culture, electro-chemistry, vital capacity; lit. means of keeping alive	page 3, the gloss
+(4)	Coeur d’Alene	transcription	henxwälxwelen	page 3, Nicodemus’s original card transcription, in parentheses
+(4)	Coeur d’Alene	transcription	h̶n̶x̶ʷé̶l̶x̶ʷl̶n̶	page 3, Nicodemus’s original card transcription, in parentheses, struck through
+(4)	Coeur d’Alene	transcription	h̶n̶k̶ʷe̶l̶k̶ʷl̶n̶	page 3, Nicodemus’s original card transcription, in parentheses, struck through
+(4)	Coeur d’Alene	transcription	hnkhwélkhwe̶ln	page 3, Nicodemus’s original card transcription, in parentheses, struck through
+(4)	Coeur d’Alene	transcription	hnkhwelkhwln	page 3, Nicodemus’s original card transcription, in parentheses
+(4)	Coeur d’Alene	transcription	hnkhwélkhwln	page 3, Nicodemus’s original card transcription, in parentheses
+§3	John Lyon	note	This example is actually a composite of six different file cards with the same lexical form, but differing English and Coeur d’Alene transcriptions. Two of the six Coeur d’Alene transcriptions (in parentheses) are completely struck through in both the file cards and the new document, while one has only a vowel struck through. The reader can quickly see that the final transcription, identical to that found in the 1975 dictionary, differs only from the preceding one in having a stress mark. The fourth transcription differs only from the fifth in that the final {e} 1 vowel, also in the first transcription, is struck through because it is a schwa. Nicodemus decided not to write non-phonemic vowels in the dictionary. We can also see that at some point, Nicodemus decided to write velar fricative /x/ as digraph {kh}, departing from Reichard’s more phonetic script, illustrated by the first transcription. In addition, phonemic vowel /ä/ becomes {e}. By assuming a gradual change in writing practices, with Reichard’s orthography representing the initial point and Nicodemus (1975) the final point, it is possible to arrange transcriptions in a probable chronological order. But what sorts of generalizations can we make concerning the orthographical changes?	page 3
+footnote 1	John Lyon	note	Curly brackets indicate an orthographical representation.	page 3, footnote 1
+§3	John Lyon	note	In general Nicodemus was changing from the orthography used by Reichard to a less phonetic, more practical one. The idea is that students could rely on there knowledge of English character/sound correspondences to construct an internal representation of Coeur d’Alene character/sound correspondences, thereby facilitating the learning process.	page 3
+§3	John Lyon	note	Nicodemus may also have favored Latin characters over a phonetic script because they could more easily be typed on a typewriter. Supporting this hypothesis is the fact that all umlaut vowels are simplified (e.g. {ää} becomes {ee}), and velar and uvular fricatives become digraphs (e.g. {x̣} becomes {qh}). An exception to this tendency might be Nicodemus’s preference in representing the lateral fricative as {ł} rather than the digraph {lh}. On second thought, however, {ł} may be produced on a typewriter by typing “l”, then backing up and typing a back-slash “/” over the “l”. While a student would have to learn the sound corresponding to {ł}, it may also have avoided possible confusion over whether {lh} is a sequence of sounds, or a single sound. Ease of typing may have also motivated Nicodemus to mark stress by means of an underscore, rather than an acute accent.	page 4
+§3	John Lyon	note	There is a unique card in the collection, which is a partial representation of his transcription algorithm. This is shown below as Figure 1.	page 4
+Figure 1	John Lyon	note	Fig 1. Nicodemus’ Transcription Algorithm Card entitled “Change Letters”. Reichard characters (on the left) are translated to Nicodemus 1975 characters (on the right).	page 4, the caption under a figure the text layer does not hold
+§3	John Lyon	note	Figure 1 does not represent all of the orthographical changes apparent from the collection, but is a relatively accurate picture of how the Reichard orthography (on the left in each column) was changed to Nicodemus’s practical orthography (on the right).	page 4
+§3	John Lyon	note	Figure 1 glosses over various intermediate orthographical stages, such as in the third transcription of (4), which although struck through, indicates either that Nicodemus considered writing the velar fricative as a stop {k} at some point in time (and there are transcriptions in other entries which support this analysis), or else that he identified the entry as having the lexical root kʷel, rather than xʷel. There seems to be a mistake in Figure 1, however, since uvular fricative /x̣w/ is usually transcribed as {qhw}, not {khw}. There are more than a few entries, in both the dictionary and the file card collection, where it is not clear whether a fricative or stop consonant is uvular or velar. While it is unlikely that these confusions may be traced directly to the card in Figure 1, it might indicate that Nicodemus was unsure how some forms should be represented orthographically.	page 4
+§3	Coeur d’Alene	cited form	kʷel	page 4, in PhGothic or in italics
+§3	Coeur d’Alene	cited form	xʷel	page 4, in PhGothic or in italics
+§3	John Lyon	note	As an example of cards containing characters from an ‘intermediate’ orthography, consider Figure 2 below. (The double-arrow indicates that both sides of one card are represented.)	page 5
+Figure 2	John Lyon	note	Fig 2. Typewritten (left)/Bitar’s handwriting(?)(right).	page 5, the caption under a figure the text layer does not hold
+§3	John Lyon	note	The typewritten side of Figure 2, especially, exemplifies the deteriorating state of the cards. On the other side of the card, {X} is used to designate a uvular fricative. In other cases, {X} is used to designate /k/. {K}/ {k}, and {X}/{x} are used somewhat ambiguously for both uvular and velar fricatives and stops. {K} and {X} seem to occur more frequently word initially, as if they are simply capitalized forms of the usual character. It seems unlikely that these cases of orthographic ambiguity are mistakes, since there are many instances and they are systematic in the sense that any given root with such an ambiguity usually has more than one entry with the same choice of character. For transcriptions which include characters like {X}, that can reliably be said to represent /x̣/ or /qh/ (as written by Reichard and Nicodemus respectively), I have assumed that {X} is intermediate in the sense that it was perhaps considered by Nicodemus as being a suitable character to represent a Coeur d’Alene sound, and was later rejected in favor of a digraph.	page 5
+§4	John Lyon	heading	4 Methodology and Organization	page 5
+§4	John Lyon	note	The original cards were scanned and copied by Dr. Brinkman in Spokane and mailed to Vancouver where I began my work on the project. I entered all English and Coeur d’Alene material on the cards into separate columns in an MS Excel Spreadsheet. In a third column, I transcribed the Coeur d’Alene material into standard NW orthography. I then created a fourth column in which I entered corresponding dictionary transcriptions from Lyon & Green-Wood (2007), if available (77% of the cases), because the work of morphological parsing had already been done. This fourth column was left blank for those cards without corresponding entries in the dictionary (23% of cases). A flowchart representing how I arrived at a matching dictionary entry, and a morphological parsing, from a file card is shown below in Figure 3.	page 5
+Figure 3	John Lyon	note	transcribe	page 6, a line of the figure
+Figure 3	Coeur d’Alene	transcription	u+šiʔ+míš tel’ tč+ʔésel	page 6, a line of the figure
+Figure 3	John Lyon	note	look for match in the	page 6, a line of the figure
+Figure 3	John Lyon	note	dictionary	page 6, a line of the figure
+Figure 3	Coeur d’Alene	transcription	u+šiʔ+míš tel’ tč+ʔésel	page 6, a line of the figure
+Figure 3	John Lyon	translation	either.	page 6, a line of the figure
+Figure 3	John Lyon	note	(ushi’mish te’l tch’esel (lit. one or the other of two persons), n.)	page 6, a line of the figure
+Figure 3	John Lyon	note	Fig 3. A sample analysis (77% of cases proceeded in this manner)	page 6, the figure's caption
+§4	John Lyon	note	A fifth column contained the root skeleton of the entry, or in other words, the consonants minus any vowels. Lyon & Green-Wood (2007) includes further information concerning the rationale behind using root skeletons as an organizing base.	page 6
+§4	John Lyon	note	For the remaining 23% of the cards which have no matches in the dictionary, I manually parsed my NW transcription, first isolating what I believed to be the lexical root, and then looking for semantic correspondences with similar entries in Lyon & Greene-wood (2007). If such correspondences were found, I then entered the root skeleton into the fifth column. All entries were later sorted by root skeleton and then the entire collection was exported to MS Word. Because I sorted by root skeleton, entries with matches in the dictionary (77%) were sorted alongside of entries with no matches (23%). I immediately rendered the latter group into bold type.	page 6
+§4	John Lyon	note	Starting at the beginning of the sorted list, I proceeded through the document, collapsing together lines with the same lexical form, retaining all Coeur d’Alene transcriptions in a probably chronological order, and grouping together multiple English glosses; all into one composite entry. Entries like (4) are a typical result. Different font styles highlight contrasts between the file card collection and Nicodemus’s published dictionary. Bold type indicates file card entries (or extra characters) not found in the published dictionary, as in the entry for (1), shown below as (5) as it actually occurs in the document:	page 6
+(5)	Coeur d’Alene	transcription	s+xʷúp+xʷup	page 6, the form
+(5)	John Lyon	translation	a flying squirrel, lit. spread spread	page 6, the gloss
+(5)	Coeur d’Alene	transcription	sxúpxup	page 6, Nicodemus’s original card transcription, in parentheses
+§4	John Lyon	note	Roughly one quarter of the document is in bold type. Grey, highlighted type indicates material found in the dictionary, but not in the file card collection. In (6), for example, the card for ‘whistle’ has no English gloss in the file card collection, but only in the dictionary, therefore it occurs in grey highlighted type.	page 6
+(6)	Coeur d’Alene	transcription	xʷit	page 7, the form
+(6)	John Lyon	translation	whistle	page 7, the gloss
+(6)	Coeur d’Alene	transcription	khwit	page 7, Nicodemus’s original card transcription, in parentheses
+§4	John Lyon	note	Double underlines are used when individual characters do not correspond between file card and dictionary entries. These cases include velar/uvular consonant mismatches, stress discrepancies, and vowel changes. In (7), the dictionary entry shows stress marked on the final syllable, while the file card entry shows stress marked on the initial syllable. Both vowels are therefore doubly-underlined to alert the researcher to the discrepancy.	page 7
+(7)	Coeur d’Alene	transcription	u+x̌ʷal’+á tax̌+táx̌	page 7, the form
+(7)	John Lyon	translation	all-spice; it is like pepper	page 7, the gloss
+(7)	Coeur d’Alene	transcription	úkeletaqhtáqh	page 7, Nicodemus’s original card transcription, in parentheses
+§4	John Lyon	note	As can be seen from examples (5-7), entries in the document are arranged in the following order, following Lyon & Greene-wood (2008):	page 7
+§4	John Lyon	note	1. dictionary entry (or manual parsing) in NW orthography	page 7, an item of the list
+§4	Coeur d’Alene	transcription	p’ixʷ	page 7, an item of the list
+§4	John Lyon	note	2. English gloss	page 7, an item of the list
+§4	John Lyon	translation	agleam	page 7, an item of the list
+§4	John Lyon	note	3. (file card transcription(s));	page 7, an item of the list
+§4	Coeur d’Alene	transcription	pixʷ	page 7, an item of the list
+§4	John Lyon	note	Composite entries with the same lexical root are grouped together under the same root header, as shown in Figure 4, which illustrates all the file card entries with the lexical root p’ixʷ ‘agleam’:	page 7
+§4	Coeur d’Alene	cited form	p’ixʷ	page 7, in PhGothic or in italics, ‘agleam’
+Figure 4	Coeur d’Alene	root	p’xʷ₂	page 7, the root
+Figure 4	Coeur d’Alene	transcription	p’íxʷ	page 7, the form
+Figure 4	John Lyon	translation	agleam	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	pixʷ	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	u· p’íxʷ	page 7, the form
+Figure 4	John Lyon	translation	it is bright	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	uᵘpíxʷ	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	ec+p’íxʷ	page 7, the form
+Figure 4	John Lyon	translation	brilliant, adj.; lit. it gives light	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	ätspíxw	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	s+p’íʔxʷ	page 7, the form
+Figure 4	John Lyon	translation	brilliance	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	sp̓i'xw	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	p’xʷ+mín+n	page 7, the form
+Figure 4	John Lyon	translation	candle, lamp, lit. lighter	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	p̓eywmínn	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	p̶̓k̶w̶m̶i̶n̶̓n̶	page 7, Nicodemus’s original card transcription, in parentheses, struck through
+Figure 4	Coeur d’Alene	transcription	p̶̓u̶k̶h̶w̶e̶m̶	page 7, Nicodemus’s original card transcription, in parentheses, struck through
+Figure 4	Coeur d’Alene	transcription	p̓ukhwminn	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	s+p’éxʷ=enč	page 7, the form
+Figure 4	John Lyon	translation	hog fennel root, yellow root	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	sp̓äxwänch	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	hn+p’íʔ+p’eʔxʷ=us	page 7, the form
+Figure 4	John Lyon	translation	bedazzle; lit. light got in his eyes	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	hεnp̓í'pä'xus	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	hn+p’eʔxʷ+t+l=íw’es	page 7, the form
+Figure 4	John Lyon	translation	aglow- it was all aglow with light	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	hεnp̓ä'xʷtεlíw̓äs	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	p[’]íxʷ+m-stu-s	page 7, the form
+Figure 4	John Lyon	translation	brighten, v.; lit. he made it bright	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	píxumstus	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	elu+s+p’íʔxʷ	page 7, the form
+Figure 4	John Lyon	translation	aphotic; lit. without light	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	äluspí'xʷ	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	Coeur d’Alene	transcription	s+p’úʔxʷ e· níč=elt	page 7, the form
+Figure 4	John Lyon	translation	son of light	page 7, the gloss
+Figure 4	Coeur d’Alene	transcription	sp̓íkʷ ee nichel̕t	page 7, Nicodemus’s original card transcription, in parentheses
+Figure 4	John Lyon	note	Fig 4. Example root header.	page 7, the figure's caption
+§4	John Lyon	note	Within any given root header, ‘simpler’ forms are generally listed before more ‘complex’ forms. This means that intransitive forms occur before transitives, entries without lexical suffixes occur before entries with lexical suffixes, and entries with single roots occur before compound, multi-root entries.	page 7
+§4	John Lyon	note	The same parsing conventions which I used in Lyon & Greene-Wood (2007) are used in this document: a “+” indicates a derivational morpheme boundary, a “-” an inflectional boundary, and a “=” a lexical suffix boundary. Square brackets are taken directly from Lyon & Greene-wood (2008), and indicate that we had made changes to the content of Nicodemus’s 1975 transcription. It is interesting that in many cases, evidence from file cards supports these bracketed changes.	page 7
+§4	John Lyon	note	There are a few interesting points to note concerning Figure 4. For example, in /p’xʷ+mín+n/, the file card transcription most closely resembling the dictionary transcription was actually struck through. The final transcription for the form includes the vowel /u/, while another (what I’m considering an ‘earlier’ transcription) contains an anomalous sequence /ey/.	page 8
+§4	Coeur d’Alene	cited form	p’xʷ+mín+n	page 8, in PhGothic or in italics
+§4	John Lyon	note	Interesting perhaps to ethnobotanists is the fact that for /s+p’éxʷ=enč/, the file card collection tells us that this form is known in English not only as ‘yellow root’, but also ‘hog fennel root’.	page 8
+§4	Coeur d’Alene	cited form	s+p’éxʷ=enč	page 8, in PhGothic or in italics
+§4	John Lyon	note	Finally, the entry glossed as ‘son of light’ has multiple discrepancies, including quality of the root vowel, and glottalization of /l/. Also, the dictionary transcription for this entry includes a glottal stop infix in the root, while the file card does not. There is also a somewhat common stop/fricative mismatch. All of these points are of interest to the linguist, and while some may be mistakes or otherwise insignificant, others may warrant further investigation. As such it is worthwhile to keep track of all these discrepancies. The next section provides a closer look at a few specific file cards.	page 8
+§5	John Lyon	heading	5 Example Card Entries	page 8
+§5	John Lyon	note	There are at least 3 distinct handwritings in the collection, including some typewritten cards. One handwriting has been identified by Brinkman (p.c.) as belonging to Nicodemus, and one may perhaps belong to Joe Bitar (see Figure 2), an assistant who worked with Nicodemus during the compilation of his dictionary. Another, more feminine, script has yet to be positively identified. Nicodemus’s handwriting is most likely that shown below in Figure 5 (Brinkman, p.c.):	page 8
+§5	John Lyon	name	Joe Bitar	an assistant who worked with Nicodemus during the compilation of his dictionary
+Figure 5	John Lyon	note	Fig 5. Nicodemus’ handwriting.	page 8, the caption under a figure the text layer does not hold
+§5	John Lyon	note	Parentheses in the Cr transcription in Figure 5 indicate that the lexical suffix =ált ‘offspring’ may be truncated, and =mš ‘tribe’ is entirely optional in this form. (8) below shows how the form in Figure 5 appears in the final document.	page 8
+§5	Coeur d’Alene	cited form	=ált	page 8, in PhGothic or in italics, ‘offspring’
+§5	Coeur d’Alene	cited form	=mš	page 8, in PhGothic or in italics, ‘tribe’
+(8)	Coeur d’Alene	transcription	ya+s+t’m=ált=mš	page 8, the form
+(8)	John Lyon	translation	he killed a bison, he killed the buffalo	page 8, the gloss
+(8)	Coeur d’Alene	transcription	yastema'letensh	page 8, Nicodemus’s original card transcription, in parentheses
+(8)	Coeur d’Alene	transcription	yastem̓á(ltεmsh)	page 8, Nicodemus’s original card transcription, in parentheses
+§5	John Lyon	note	The Cr transcription in Figure 5 corresponds to the second transcription in (8). The first Cr transcription in (5) is taken from a different file card with the same lexical form. The initial consonant of the lexical root t’em occurs without glottalization both in Figure 5 as well as in the first transcription in (8), and so the glottalization in the dictionary transcription has been highlighted to alert the reader to the discrepancy. In the first Cr transcription in (5), /l/ in the suffix =alt is written as being glottalized /l’/, and /m/ in the suffix =mš is written as an {n}. These are both rendered in bold type.	page 8
+§5	Coeur d’Alene	cited form	t’em	page 8, in PhGothic or in italics
+§5	Coeur d’Alene	cited form	=alt	page 8, in PhGothic or in italics
+§5	John Lyon	note	Strikethroughs are quite common, and we may infer a variety of reasons for these cases. One example is shown below as Figure 6.	page 9
+Figure 6	John Lyon	note	Fig 6. Typewritten/Nicodemus’ handwriting.	page 9, the caption under a figure the text layer does not hold
+§5	John Lyon	note	It is likely that the first transcription in Figure 6 was crossed out as a result of a misplaced glottalization mark. The intended glottalization mark indicates an inchoative infix. All such strikethroughs have been retained in the final document. (9) shows how Figure 6 appears in the final document:	page 9
+(9)	Coeur d’Alene	transcription	s+xʷiʔt-s	page 9, the form
+(9)	John Lyon	translation	h/s is getting a scolding, h/s is getting a verbal lashing, h/s is getting it	page 9, the gloss
+(9)	Coeur d’Alene	transcription	s̶x̶w̶i̶t̶’s̶	page 9, Nicodemus’s original card transcription, in parentheses, struck through
+(9)	Coeur d’Alene	transcription	sxwi't-s	page 9, Nicodemus’s original card transcription, in parentheses
+§5	John Lyon	note	Comparing (9) with Figure 6, we see that there were multiple file cards each with the same Cr transcription, but different English glosses. When lexical entries are represented by more than one card, each card sometimes differs only in the orthography used in the transcription, and sometimes in handwriting.	page 9
+§5	John Lyon	note	Figure 7 illustrates a compound term meaning ‘archaeology’:	page 9
+Figure 7	John Lyon	note	Fig 7. Feminine handwriting. Cr written in Reichard orthography.	page 9, the caption under a figure the text layer does not hold
+§5	John Lyon	note	The Cr transcription in Figure 7 is written entirely in the Reichard orthography.	page 9
+§5	John Lyon	note	Figure 8 below shows a compound entry, written in Nicodemus’s handwriting:	page 9
+Figure 8	John Lyon	note	Fig 8. Nicodemus’ handwriting, Reichard orthography	page 9, the caption under a figure the text layer does not hold
+§5	John Lyon	note	Figure 9 below shows how extra grammatical information is sometimes included in the English gloss.	page 9
+Figure 9	John Lyon	note	Fig 9. Feminine handwriting. Reichard’s orthography.	page 9, the caption under a figure the text layer does not hold
+§6	John Lyon	heading	6 Examples Not Found in dictionary	page 10
+§6	John Lyon	note	Of the 1143 cards (23%) without matches, 838 (16.8%) can be linked with certainty to existing roots in the dictionary. In these cases, what we end up with is a greater knowledge of what kinds of derivational processes these lexical roots can participate in. A case in point is (10) given below.	page 10
+(10)	John Lyon	note	Dictionary:	page 10
+(10)	Coeur d’Alene	root	√tm₅	page 10, the root
+(10)	Coeur d’Alene	transcription	tum	page 10, under Dictionary:
+(10)	John Lyon	translation	pump, suck (e.g. through a tube).	page 10, under Dictionary:
+(10)	John Lyon	note	(tum (stem), vt.)	page 10, under Dictionary:
+(10)	John Lyon	note	File card entries with √tm₅ not in dictionary:	page 10
+(10)	Coeur d’Alene	transcription	ii-túm-emsh	page 10, under File card entries with √tm₅ not in dictionary:
+(10)	John Lyon	translation	h/s is pumping	page 10, under File card entries with √tm₅ not in dictionary:
+(10)	Coeur d’Alene	transcription	ii-túm=kwä'	page 10, under File card entries with √tm₅ not in dictionary:
+(10)	John Lyon	translation	h/s is pumping water	page 10, under File card entries with √tm₅ not in dictionary:
+§6	John Lyon	note	While we might expect continuative morphology (written above as ii-) to be able to attach to any given root, we can now say with certainty that for the lexical root tum ‘pump, suck’, this is in fact the case. In other words, we know that a fluent speaker of the language actually produced these forms, and therefore we know a bit more about how to ‘make words’ out of these roots. The same holds for (11):	page 10
+§6	Coeur d’Alene	cited form	ii-	page 10, in PhGothic or in italics
+§6	Coeur d’Alene	cited form	tum	page 10, in PhGothic or in italics, ‘pump, suck’
+(11)	John Lyon	note	Dictionary:	page 10
+(11)	Coeur d’Alene	root	√tr₃	page 10, the root
+(11)	Coeur d’Alene	transcription	tor–s	page 10, under Dictionary:
+(11)	John Lyon	translation	beckon (with the eye).	page 10, under Dictionary:
+(11)	John Lyon	note	(tor...s (stem), vt.)	page 10, under Dictionary:
+(11)	John Lyon	note	File cards with √tr₃ not in dictionary:	page 10
+(11)	Coeur d’Alene	transcription	tórsments	page 10, under File cards with √tr₃ not in dictionary:
+(11)	John Lyon	translation	h/s beckoned h/h w/ the eye(s)	page 10, under File cards with √tr₃ not in dictionary:
+§6	John Lyon	note	This example shows that the lexical stem tor-s ‘beckon with the eye’ may be transitivized.	page 10
+§6	Coeur d’Alene	cited form	tor-s	page 10, in PhGothic or in italics, ‘beckon with the eye’
+§6	John Lyon	note	The remaining 305 (6.2%) of the 1143 cards without matches may have either tenuous connections to roots represented in the dictionary, or else are unrelated to forms occurring in the dictionary. In this latter group belong entries such as (2) above which occur in Reichard’s Stem List, but have no related forms. More examples of entries in the collection which also occur in Reichard’s Stem List but not in the dictionary are listed in (12) below:	page 10
+(12)	Coeur d’Alene	transcription	t+qem+íš	page 10, the form
+(12)	John Lyon	translation	snowbird	page 10, the gloss
+(12)	Coeur d’Alene	transcription	tqemísh	page 10, Nicodemus’s original card transcription, in parentheses
+(12)	Coeur d’Alene	transcription	s+q’ʷé+q’ʷ(=)alqʷ	page 10, the form
+(12)	John Lyon	translation	prarie grouse, prarie chicken	page 10, the gloss
+(12)	Coeur d’Alene	transcription	sq̓εq̓walqw	page 10, Nicodemus’s original card transcription, in parentheses
+(12)	Coeur d’Alene	transcription	t’qał=cn=alqʷ	page 10, the form
+(12)	John Lyon	translation	white fir	page 10, the gloss
+(12)	Coeur d’Alene	transcription	t̕qałtsnalqʷ	page 10, Nicodemus’s original card transcription, in parentheses
+(12)	Coeur d’Alene	transcription	s+t’íyeʔ=łc’eʔ	page 10, the form
+(12)	John Lyon	translation	caribou	page 10, the gloss
+(12)	Coeur d’Alene	transcription	st̕íyä'lht̕sä'	page 10, Nicodemus’s original card transcription, in parentheses
+(12)	Coeur d’Alene	transcription	wapato	page 10, the form
+(12)	John Lyon	translation	potatoes that grow in Yakima & Nez Perce country	page 10, the gloss
+(12)	Coeur d’Alene	transcription	wapato	page 10, Nicodemus’s original card transcription, in parentheses
+(12)	Coeur d’Alene	transcription	s+xʷa·y=ápaʔ=qn	page 10, the form
+(12)	John Lyon	translation	red willow (?)	page 10, the gloss
+(12)	Coeur d’Alene	transcription	sxwaayápa'qen	page 10, Nicodemus’s original card transcription, in parentheses
+(12)	Coeur d’Alene	transcription	cuxʷ+cuxʷ+s+xʷey=ípeʔ	page 10, the form
+(12)	John Lyon	translation	rosehips	page 10, the gloss
+(12)	Coeur d’Alene	transcription	tsuxwtsuxwsxweyípä'	page 10, Nicodemus’s original card transcription, in parentheses
+§6	John Lyon	note	I estimate that perhaps 150 (approximately 3%) of the collection may be found in Reichard’s Stem List, but not in the dictionary. Finally, there are 28 forms which do not contain lexical roots as such, but are rather prefixes, suffixes, exclamatives, child’s speak, or conjunctions. These are listed in an appendix.	page 11
+§6	John Lyon	note	A few more examples should suffice to show how much we stand to learn concerning derivational processes in certain roots. Consider Figure 10:	page 11
+Figure 10	Coeur d’Alene	root	tn	page 11, the root
+Figure 10	Coeur d’Alene	transcription	ten	page 11, the form
+Figure 10	John Lyon	translation	pull line (stem)	page 11, the gloss
+Figure 10	Coeur d’Alene	transcription	tän	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 10	Coeur d’Alene	transcription	u·+ten	page 11, the form
+Figure 10	John Lyon	translation	be tight (stem)	page 11, the gloss
+Figure 10	Coeur d’Alene	transcription	(uu-)tän	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 10	Coeur d’Alene	transcription	ten+p	page 11, the form
+Figure 10	John Lyon	translation	become tight (as rawhide) (stem)	page 11, the gloss
+Figure 10	Coeur d’Alene	transcription	tän(-p)	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 10	Coeur d’Alene	transcription	tén+m+ncut	page 11, the form
+Figure 10	John Lyon	translation	resist; lit. pull-cause; he pulled himself away; fish pulled on the line; lit. he (fish) caused himself to pull	page 11, the gloss
+Figure 10	Coeur d’Alene	transcription	tänmentsut	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 10	Coeur d’Alene	transcription	u+č+ten=ceʔ	page 11, the form
+Figure 10	John Lyon	translation	he is wearing skin-tight clothes	page 11, the gloss
+Figure 10	Coeur d’Alene	transcription	uchtäntsä'	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 10	Coeur d’Alene	transcription	tén+m-stu-s	page 11, the form
+Figure 10	John Lyon	translation	h/s pulled it/him/her	page 11, the gloss
+Figure 10	Coeur d’Alene	transcription	tänemstus	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 10	John Lyon	note	Fig 10. The file card collection adds much to our knowledge of how forms may be derived from these stems.	page 11, the figure's caption
+§6	John Lyon	note	Some root headers in the dictionary have little more than a stem. In the dictionary, we have only the entries /ten/ and /ten+p/ representing ten ‘pull line’. The file card collection gives us much more knowledge about word formation involving this particular root. Figure 11 is also enlightening in this respect:	page 11
+§6	Coeur d’Alene	cited form	ten+p	page 11, in PhGothic or in italics
+§6	Coeur d’Alene	cited form	ten	page 11, in PhGothic or in italics
+Figure 11	Coeur d’Alene	root	xʷp₁	page 11, the root
+Figure 11	Coeur d’Alene	transcription	xʷep	page 11, the form
+Figure 11	John Lyon	translation	flatten out blanket, spread (stem)	page 11, the gloss
+Figure 11	Coeur d’Alene	transcription	xwäp	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 11	Coeur d’Alene	transcription	u·xʷú·p	page 11, the form
+Figure 11	John Lyon	translation	h/s spread out, h/s stretched out	page 11, the gloss
+Figure 11	Coeur d’Alene	transcription	uuxú…p	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 11	Coeur d’Alene	transcription	s+xʷúp+xʷup	page 11, the form
+Figure 11	John Lyon	translation	a flying squirrel, lit. spread spread	page 11, the gloss
+Figure 11	Coeur d’Alene	transcription	sxúpxup	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 11	Coeur d’Alene	transcription	s+xʷup+xʷup+s+xʷiy=ípeʔ	page 11, the form
+Figure 11	John Lyon	translation	Unidentified animal-probably related to the flying squirrel	page 11, the gloss
+Figure 11	Coeur d’Alene	transcription	sxupxupsxwiyípä'	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 11	Coeur d’Alene	transcription	s+xʷép+m+šeš	page 11, the form
+Figure 11	John Lyon	translation	development, n., lit. unfolding, unrolling	page 11, the gloss
+Figure 11	Coeur d’Alene	transcription	sxwäpεmcac	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 11	Coeur d’Alene	transcription	xʷup+m=aʔx̌n+m	page 11, the form
+Figure 11	John Lyon	translation	h/s stretched out h/h arm	page 11, the gloss
+Figure 11	Coeur d’Alene	transcription	Xupma'Xenem	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 11	Coeur d’Alene	transcription	xʷép+m-st-m	page 11, the form
+Figure 11	John Lyon	translation	develop, v., lit. it was unfolded	page 11, the gloss
+Figure 11	Coeur d’Alene	transcription	xwäpεmstεm	page 11, Nicodemus’s original card transcription, in parentheses
+Figure 11	John Lyon	note	Fig 11. The “flying squirrel” header	page 11, the figure's caption
+§6	John Lyon	note	The ‘flying squirrel’ entries represent, I think, genuinely new material. Also of interest in Figure 11 is the glottal stop in the lexical suffix for “arm” in h/s stretched out h/h arm, which only occurs once in the dictionary for the entry he bent his arms. This could mark the inchoative, but would be unexpected since it usually occurs in roots instead of suffixes.	page 11
+§7	John Lyon	heading	7 Challenges and Further Questions	page 11
+§7	John Lyon	note	There are a number of challenges which I faced in preparing this document. Some challenges relevant to this paper include questions of how to analyze entries such as those in (13).	page 11
+(13)	Coeur d’Alene	transcription	pes+pes+p+ól	page 11, the form
+(13)	John Lyon	translation	he is easily amazed, he is easily frightened	page 11, the gloss
+(13)	Coeur d’Alene	transcription	pespespól	page 11, Nicodemus’s original card transcription, in parentheses
+(13)	Coeur d’Alene	transcription	pes+pes=nigʷ	page 11, the form
+(13)	John Lyon	translation	type of snake	page 11, the gloss
+(13)	Coeur d’Alene	transcription	pespesnígw	page 11, Nicodemus’s original card transcription, in parentheses
+(13)	Coeur d’Alene	transcription	s+pes=áyeʔ	page 11, the form
+(13)	John Lyon	translation	folly, error	page 11, the gloss
+(13)	Coeur d’Alene	transcription	spesáyä'	page 11, Nicodemus’s original card transcription, in parentheses
+§7	John Lyon	note	The analysis of the entries glossed as ‘type of snake’ and ‘folly, error’ are elusive because it is not clear what the identity of the morphemes which come after the root are. Although =nigʷ and =áye7 are in an environment which might suggest that they are lexical suffixes, there are no other occurrences of these suffixes with which I may substantiate this claim. I am reasonably sure that the lexical root in both of these entries is pes ‘amaze, surprise’ in part because of the forms themselves, but also because one can easily imagine how snakes and errors may both be ‘surprising’. These two reasons are not sufficient to prove that these entries have lexical roots which are unquestionably identical to that which I am assuming, and so I flag these in the document, since they require further research.	page 12
+§7	Coeur d’Alene	cited form	=nigʷ	page 12, in PhGothic or in italics
+§7	Coeur d’Alene	cited form	=áye7	page 12, in PhGothic or in italics
+§7	Coeur d’Alene	cited form	pes	page 12, in PhGothic or in italics, ‘amaze, surprise’
+§7	John Lyon	note	A major question which remains unanswered at this point is the following: Why were so many entries left out of the dictionary? We may never know the answer to this question, but for at least some of the 23% without matches in the dictionary, I can offer some conjecture. Alongside of the entry for ‘bride’ in (14) below, we have an entry glossed as ‘he slapped his wife’ which did not make it into the dictionary.	page 12
+(14)	Coeur d’Alene	transcription	s+míʔyem	page 12, the form
+(14)	John Lyon	translation	bride	page 12, the gloss
+(14)	Coeur d’Alene	transcription	smíy̓äm	page 12, Nicodemus’s original card transcription, in parentheses
+(14)	Coeur d’Alene	transcription	t’uqʷ+eł+s+míʔyam	page 12, the form
+(14)	John Lyon	translation	he slapped his wife	page 12, the gloss
+(14)	Coeur d’Alene	transcription	t̕uqwälhsmíy̓am	page 12, Nicodemus’s original card transcription, in parentheses
+§7	John Lyon	note	It takes no rocket scientist to imagine what moral misgivings Nicodemus may have had about including such an entry in a dictionary which was to become an important, often-consulted language resource for his people.	page 12
+§7	John Lyon	note	Example (15) shows a nearly complete inflectional paradigm having to do with skinning animals and scalping which were left out of the dictionary. Scalping has obvious negative historical connotations, but it is harder to see why any entries related to skinning animals might have been omitted.	page 12
+(15)	Coeur d’Alene	transcription	cekʷ	page 12, the form
+(15)	John Lyon	translation	drag, pull	page 12, the gloss
+(15)	Coeur d’Alene	transcription	tsekw	page 12, Nicodemus’s original card transcription, in parentheses
+(15)	Coeur d’Alene	transcription	iʔ‿t+cukʷ+cuk=ílxʷ+m	page 12, the form
+(15)	John Lyon	translation	you(s) are skinning the animals	page 12, the gloss
+(15)	Coeur d’Alene	transcription	i'ttsukwtsukwílxum	page 12, Nicodemus’s original card transcription, in parentheses
+(15)	Coeur d’Alene	transcription	i‿t+cukʷ=ílxʷ+m-s	page 12, the form
+(15)	John Lyon	translation	he is skinning the animal	page 12, the gloss
+(15)	Coeur d’Alene	transcription	ittsukwílXums	page 12, Nicodemus’s original card transcription, in parentheses
+(15)	Coeur d’Alene	transcription	s+t+cukʷ=ílxʷ+m-s	page 12, the form
+(15)	John Lyon	translation	he is skinning the animal	page 12, the gloss
+(15)	Coeur d’Alene	transcription	sttsukwílXums	page 12, Nicodemus’s original card transcription, in parentheses
+(15)	Coeur d’Alene	transcription	s+t+cákʷ=qn	page 12, the form
+(15)	John Lyon	translation	scalp; lit. t-pull-head; that which is pulled off the surface of the head	page 12, the gloss
+(15)	Coeur d’Alene	transcription	sttsákwqen	page 12, Nicodemus’s original card transcription, in parentheses
+§7	John Lyon	note	The reasons I have put forth for the exclusion of (14) and (15) from the dictionary are very speculative, however, and for the vast majority of entries without dictionary matches, there seems to be no clear reason why one would want to leave them out. Did Nicodemus question their grammaticality? Were they omitted by mistake? Were there size constraints on the dictionary, or time constraints on the project? These are all questions which I have no answer for.	page 12
+§7	John Lyon	note	Another major question which arises from this work is whether Nicodemus really resolved all of the stress (16), vowel (17), and glottalization (18) discrepancies which are apparent from comparing file card and corresponding dictionary entries.	page 12
+(16)	Coeur d’Alene	transcription	u+x̌ʷel’+é t+tm’íxʷ	page 13, the form
+(16)	John Lyon	translation	bestial; lit. it is like an animal	page 13, the gloss
+(16)	Coeur d’Alene	transcription	úx̩älä tεtmíxʷ	page 13, Nicodemus’s original card transcription, in parentheses
+(16)	Coeur d’Alene	transcription	hn+cun+cún’m’eʔ+n’	page 13, the form
+(16)	John Lyon	translation	college; lit. school	page 13, the gloss
+(16)	Coeur d’Alene	transcription	hntsún̓tsun̓m̓e'n̓	page 13, Nicodemus’s original card transcription, in parentheses
+(16)	Coeur d’Alene	transcription	sya+dax̌+él’+s+či+čeʔ	page 13, the form
+(16)	John Lyon	translation	cattle driver; cowboy; lit lit. one whose business is to drive cattle	page 13, the gloss
+(16)	Coeur d’Alene	transcription	syadaXäl̕schíchä'	page 13, Nicodemus’s original card transcription, in parentheses
+(16)	Coeur d’Alene	transcription	gʷeč=qan=áʔst	page 13, the form
+(16)	John Lyon	translation	Wenatchee; lit. he saw over a rock, cliff, precipice	page 13, the gloss
+(16)	Coeur d’Alene	transcription	gwéchqene'st	page 13, Nicodemus’s original card transcription, in parentheses
+(16)	Coeur d’Alene	transcription	Gwéchqene'st	page 13, Nicodemus’s original card transcription, in parentheses
+(17)	Coeur d’Alene	transcription	cen+kʷínxʷ=cn-t-se-s	page 13, the form
+(17)	John Lyon	translation	he answered me	page 13, the gloss
+(17)	Coeur d’Alene	transcription	tsankwínxwtsεntsäs	page 13, Nicodemus’s original card transcription, in parentheses
+(17)	Coeur d’Alene	transcription	miš	page 13, the form
+(17)	John Lyon	translation	destitute, adj.; lit. he is w/o what he needs	page 13, the gloss
+(17)	Coeur d’Alene	transcription	mεc	page 13, Nicodemus’s original card transcription, in parentheses
+(17)	Coeur d’Alene	transcription	p’asq’ʷ	page 13, the form
+(17)	John Lyon	translation	collapse, crumple (stem)	page 13, the gloss
+(17)	Coeur d’Alene	transcription	p̓usq̓w	page 13, Nicodemus’s original card transcription, in parentheses
+(17)	Coeur d’Alene	transcription	hn+q’a+q’m’=íy’eʔ+n	page 13, the form
+(17)	John Lyon	translation	fishing place	page 13, the gloss
+(17)	Coeur d’Alene	transcription	hnq̓o̶q̓m̓íye'n̓	page 13, Nicodemus’s original card transcription, in parentheses, struck through
+(17)	Coeur d’Alene	transcription	hnq̓eq̓m̓íye'n̓	page 13, Nicodemus’s original card transcription, in parentheses
+(18)	Coeur d’Alene	transcription	tax̌+tax̌+q=iłp	page 13, the form
+(18)	John Lyon	translation	black birch	page 13, the gloss
+(18)	Coeur d’Alene	transcription	taktakq̓iłp	page 13, Nicodemus’s original card transcription, in parentheses
+(18)	Coeur d’Alene	transcription	ye+c’óp	page 13, the form
+(18)	John Lyon	translation	be suddenly tight (stem)	page 13, the gloss
+(18)	Coeur d’Alene	transcription	yetsóp	page 13, Nicodemus’s original card transcription, in parentheses
+(18)	Coeur d’Alene	transcription	hn+c’éxʷ+t	page 13, the form
+(18)	John Lyon	translation	stream, creek, channel	page 13, the gloss
+(18)	Coeur d’Alene	transcription	hntsékut	page 13, Nicodemus’s original card transcription, in parentheses
+(18)	Coeur d’Alene	transcription	hntsékhut	page 13, Nicodemus’s original card transcription, in parentheses
+(18)	Coeur d’Alene	transcription	c’lx̌ʷ+mín+n	page 13, the form
+(18)	John Lyon	translation	claw; lit. m.o. scratching	page 13, the gloss
+(18)	Coeur d’Alene	transcription	t̕slkumin'n	page 13, Nicodemus’s original card transcription, in parentheses
+§7	John Lyon	note	In other words, the issue that comes to mind concerning (16-18) is whether both pronunciations are acceptable, or just one.	page 13
+§7	John Lyon	note	There are also other complications related to vowel transcriptions. According to the transcription key, Nicodemus changed all vowels written as {ä} to {e} in the dictionary, and deleted all vowels written as {ε}. This was not categorical however:	page 13
+(19a)	Coeur d’Alene	transcription	hn+q’ʷl=úl’umxʷ+n	page 13, the form
+(19a)	John Lyon	translation	bakery; lit. place for baking (bread)	page 13, the gloss
+(19a)	Coeur d’Alene	transcription	hεnq̓ʷεlúl̕εmxʷεn	page 13, Nicodemus’s original card transcription, in parentheses
+(19a)	Coeur d’Alene	transcription	hnq̓welú'lemkhwn	page 13, Nicodemus’s original card transcription, in parentheses
+(19a)	Coeur d’Alene	transcription	hnq̓wlú'lumkhwn	page 13, Nicodemus’s original card transcription, in parentheses
+(19b)	Coeur d’Alene	transcription	sya+n+q’ʷl=úl’mxʷ	page 13, the form
+(19b)	John Lyon	translation	baker; lit. one whose occupation is to bake (bread) in the ground	page 13, the gloss
+(19b)	Coeur d’Alene	transcription	syanq̓ʷεlúl̕εmxʷ	page 13, Nicodemus’s original card transcription, in parentheses
+(19c)	Coeur d’Alene	transcription	hn+łen’=úlemxʷ	page 13, the form
+(19c)	John Lyon	translation	the opposite side of the canyon	page 13, the gloss
+(19c)	Coeur d’Alene	transcription	henlhä'núlemxw	page 13, Nicodemus’s original card transcription, in parentheses
+§7	John Lyon	note	In (19a), the suffix =úl̕umxʷ ‘ground’ retains the same second /u/ vowel in both the dictionary entry and the ‘final’ file card entry. In a related form with the same suffix (19b) however, the suffix form is never transcribed with a second /u/. Ivy Doak (p.c.) has indicated that Nicodemus replaced {ε} (schwa) with {u} if they were near labials, otherwise {ε} was deleted, but this practice seems not to have been consistent, as shown by (19b).	page 13
+§7	Coeur d’Alene	cited form	=úl̕umxʷ	page 13, in PhGothic or in italics, ‘ground’
+§7	John Lyon	name	Ivy Doak	p.c. on Nicodemus’s replacement of {ε}
+§7	John Lyon	note	One final orthographic change adopted by Nicodemus was his choice to represent what Reichard (1938:529) wrote as superscript ‘echo vowels’, simply as long vowels. In a minority of cases, the superscript vowel is written with a different graph than the preceding, non-superscript vowel, as in (20). These were nevertheless collapsed into one long vowel by Nicodemus. Is there a loss of phonetic detail accompanying Nicodemus’s transcription?	page 13
+(20)	Coeur d’Alene	transcription	sye·+xʷúy	page 14, the form
+(20)	John Lyon	translation	ambassador, delegate, n.; lit. one who goes to a place for other	page 14, the gloss
+(20)	Coeur d’Alene	transcription	syeᵃ̈kúy	page 14, Nicodemus’s original card transcription, in parentheses
+(20)	Coeur d’Alene	transcription	syääxúy	page 14, Nicodemus’s original card transcription, in parentheses
+§7	John Lyon	note	On a related note, it would be interesting to try and address the question of whether or not Nicodemus’s choice to change the orthography was at all related to phonetic change occurring in the language as the number of speakers decreased, or whether these changes were implemented solely for reasons of learnability.	page 14
+§7	John Lyon	note	To conclude, I have often been asked why I chose a root based dictionary, rather than based on stems or other morphological units or lexical classes. My answer is that by organizing forms by non-compositional roots, it more clearly illlustrates the apparent regularities which derivational forms like lexical suffixes contribute to the meanings of roots during the process of stem formation. While a stem-based dictionary might also be useful, especially to the language community, such basic semantic connections as those shared at the root level would not be as transparent given such an organization. Also, in order to accurately show the overlap between Lyon & Greene-Wood (2007) and the present collection, it seemed appropriate to follow the same format.	page 14
+references	John Lyon	heading	References	page 14
+references	John Lyon	reference	Brinkman, Ray (2006). Personal communication.	page 14
+references	John Lyon	reference	Czaykowska-Higgins and Kinkade, M. Dale (1998). Salish Languages and Linguistics: Theoretical and Descriptive Perspectives. Berlin: Morton De Gruyter.	page 14
+references	John Lyon	reference	Doak, Ivy (1997). Coeur d'Alene Grammatical Relations. Doctoral dissertation, University of Texas.	page 14
+references	John Lyon	reference	Greene, Becky (2004). An Edition of Snchitsu'umshtsn: Volume I: A Root Dictionary. Masters thesis, University of Montana.	page 14
+references	John Lyon	reference	Kuipers, Aert (2002). Salish Etymological Dictionary. UMOPL 16.	page 14
+references	John Lyon	reference	Lyon, John (2005). An Edition of Snchitsu'umshtsn: Volume II: A Root Dictionary. Masters thesis, University of Montana.	page 14
+references	John Lyon	reference	Lyon, John & Greene-wood, Rebecca (2007). An Edition of Lawrence Nicodemus’s Coeur d’Alene Dictionary. UMOPL 20.	page 14
+references	John Lyon	reference	Mattina, Anthony (2005). Okanagan and Salishan Languages. Encyclopedia of Linguistics. Ed. Philipp Strazny. New York: Routledge. 2 Volumes.	page 14
+references	John Lyon	reference	Nicodemus, Lawrence (1960's and 1970's). Handwritten file cards.	page 14
+references	John Lyon	reference	Nicodemus, Lawrence (1975). Snchitsu'umshtsn: Coeur d'Alene-English Dictionary: Volumes I and II. Spokane: University Press.	page 14
+references	John Lyon	reference	Reichard, Gladys A. (1938). Coeur d'Alene. Handbook of American Indian Languages vol 3. Ed. Franz Boas. New York: J.J. Augustin.	page 14
+references	John Lyon	reference	Reichard, Gladys A. (1939). Stem-list of the Coeur d’Alene language. International Journal of American Linguistics.10(2,3):92-108.	page 14
+end	John Lyon	note	John Lyon	page 14, the author's address, under the references
+end	John Lyon	note	johnlyon@interchange.ubc.ca	page 14, the author's address, under the references

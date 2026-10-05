@@ -119,11 +119,10 @@ SOURCE = os.path.join(PAPERS, "1983_Hilbert.txt")
 
 # <spoken by>_<original paper>_<who wrote it down>_Salish_<language without accents>_<year>_<mixed>
 #
-# The speaker comes first because the speaker is who the corpus is of. The name that used to sit in
-# that slot here was Vi Hilbert's, and she wrote this paper: the twenty-one examples
-# in it were said by her aunt Susie Sampson Peter of the Upper Skagit and by Martha LaMont, recorded
-# by Leon Metcalf between 1950 and 1958 and by Thom Hess in 1963, and transcribed and translated by
-# Hilbert afterward. Nothing in the old name said so.
+# The speaker comes first because the speaker is who the corpus is of. Vi Hilbert wrote this paper,
+# and the slot is not hers: the twenty-one examples in it were said by her aunt Susie Sampson Peter
+# of the Upper Skagit and by Martha LaMont, recorded by Leon Metcalf between 1950 and 1958 and by
+# Thom Hess in 1963, and transcribed and translated by Hilbert afterward.
 TARGET = os.path.join(
     CORPORA,
     "SusieSampsonPeter-MarthaLaMont_PokingFunInLushootseed_Hilbert"
@@ -355,7 +354,7 @@ def main():
             "# damaged: ? stands for the glottal stop, ~ and J and G for the schwa,\n"
         )
         handle.write(
-            "# V and v for labialization. A repair table was tried and could not be\n"
+            "# V and v for labialization. A repair table for it cannot be\n"
         )
         handle.write(
             "# tested: of 103 damaged tokens, 0 are attested in six modern Lushootseed\n"

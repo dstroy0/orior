@@ -12,17 +12,13 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from workdir import WORK  # noqa: E402
+import tables  # noqa: E402
 OUT = os.path.join(WORK, "bisect")
-PAPERS = (
-    ("Kelly_Huijsmans_McCarthy_ICSNL61-1", "Rachel Kelly, Marianne Huijsmans and Mary McCarthy", "ʔayʔaǰuθəm"),
-    ("Lyon_ICSNL61-1", "John Lyon", "nsyilxcn"),
-    ("Mellesmoen_Trotter_ICSNL61", "Gloria Mellesmoen and Bailey Trotter", "ʔayʔaǰuθəm"),
-    ("Phillips_et_al_ICSNL61-1", "Bev Phillips, Brent Hall, Lisa Matthewson and Danica Reid", "nɬeʔkepmxcín"),
-    ("Pincott_ICSNL61-1", "Ethan Pincott", "Secwepemctsín"),
-    ("Reisinger_ICSNL61-1", "D. K. E. Reisinger", "ʔayʔaǰuθəm"),
-    ("Robertson_ICSNL61-1", "David Douglas Robertson", "Nicola"),
-    ("Schneider-Gerdts_ICSNL61-1", "Lauren Schneider and Donna B. Gerdts", "Hul’q’umi’num’"),
-)
+# The papers it runs, each with the authors and language its table file sets.
+PAPERS = tuple((stem, tables.of(stem).AUTHORS, tables.of(stem).LANG) for stem in (
+    "Kelly_Huijsmans_McCarthy_ICSNL61-1", "Lyon_ICSNL61-1", "Mellesmoen_Trotter_ICSNL61",
+    "Phillips_et_al_ICSNL61-1", "Pincott_ICSNL61-1", "Reisinger_ICSNL61-1", "Robertson_ICSNL61-1",
+    "Schneider-Gerdts_ICSNL61-1"))
 VARIANTS = {
     "closing_ahead": [('verdict == "english" and closing_ahead(at_line))):', 'False)):')],
     "empty body": [("if opened and opened.group(2).strip() and re.match(", "if opened and re.match(")],

@@ -69,8 +69,9 @@ def check(stem):
     glosses = [form for _, kind, form in rows if kind == "gloss"]
     translations = [form for _, kind, form in rows if kind == "translation"]
     # A translation may open on the closing quote where the page misprints it, U+2019(S)he/they/we
-    # hunted you (SG).’ in Sobolak's (7).
-    quoted = re.compile(r"^[?#*]*\s*[‘’“'\"]")
+    # hunted you (SG).’ in Sobolak's (7), or on a font's turned comma, ʻHe₁ loves Bill₁ʼs mother.ʼ in
+    # Cable's (52a).
+    quoted = re.compile(r"^[?#*]*\s*[‘’“ʻ'\"]")
     # A translation under a label in straight quotes, Intended: 'I bought the white one. ' in
     # Forbes's adjectives, stands as LABELED_QUOTE's label stands over curly ones.
     # Its label may open lower-case, attempt at: ‘The child almost got lost.’ in Turner's (45).
@@ -83,9 +84,10 @@ def check(stem):
         bare = TEMPLATE.sub("", form) if kind == "segmentation" else form
         # A sentence wrapped to a second pair of lines, stéxw=t’u7 q’ix. over really hard in
         # Davis's count-mass paper, can gloss its tail in lexical words alone under a labeled
-        # gloss of the same example.
+        # gloss of the same example; so can a segmented sentence, ts’im kyaa tust over inside car
+        # that in Matthewson's (65).
         label = LABEL.match(where).group(1)
-        wrapped = index >= 2 and [one[1] for one in rows[index - 2:index]] == ["gloss", "transcription"] and \
+        wrapped = index >= 2 and rows[index - 2][1] == "gloss" and rows[index - 1][1] in ("transcription", "segmentation") and \
             all(LABEL.match(one[0]).group(1) == label for one in rows[index - 2:index]) and \
             passes(rows[index - 2][2])
         # A gloss of lexical morphemes alone under a form with as many breaks, shut-mouth under

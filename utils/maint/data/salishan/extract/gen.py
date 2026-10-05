@@ -1,10 +1,8 @@
 """The shared half of a paper's generator: its lines, its paragraph starts, its footnotes, its
 references, and the ops file the rows become.
 
-A generator used to carry all of this itself, copied from the paper before and edited, and most of
-the time a paper took went into the copy. A paper's own generator now imports this module and
-states only what is the paper's: which lines are headings, how its examples are laid out, which
-names and languages it holds.
+A paper's own generator imports this module and states only what is the paper's: which lines are
+headings, how its examples are laid out, which names and languages it holds.
 
     import gen
     paper = gen.Paper("ICSNL56_Zenk_final")
@@ -248,8 +246,11 @@ def row_sizes(stem):
 # number, 9yɩm- /yəm-/; a table row has a space there. It may open on a phonemic or morphological
 # form, 3 /ʔəm/ → [ʔam], 5 {C1V1-C1ə-}. A note may be a bracketed address alone, 6
 # <http://academic.uprm.edu/~sbischoff/COLRC/texts/> in Bischoff et al. It may open on an accented
-# capital, 1Áístainskiaakii in Aistainskiaakii et al.
-MARK = re.compile(r"^(\d{1,2}|[*∗†‡§])(?:\s*(?=[A-ZÀ-ÖØ-Þ‘’“(\[\dʔ/{<])|(?=[a-zɐ-ʯ]))")
+# capital, 1Áístainskiaakii in Aistainskiaakii et al., or on a letter of Latin Extended-B,
+# 58ƛ̓əxʷənt in Lyon's 2011 paper, whose notes run past 99, 100There is no true scope interaction.
+# A mark stands a space before a digit: a line of a note that opens on a year, 1987: 329) in Davis
+# and Brown's note 18, opens on no mark.
+MARK = re.compile(r"^(\d{1,3}|[*∗†‡§])(?:\s*(?=[A-ZÀ-ÖØ-Þ‘’“(\[ʔ/{<])|\s+(?=\d)|(?=[a-zƀ-ʯ]))")
 # The marks of a note on the title.
 TITLE_MARKS = "∗*†"
 
@@ -322,6 +323,17 @@ class Paper(object):
             glue = "" if not out or closes else " "
             out += glue + text
         return out
+
+    def on(self, lines, form):
+        """form, held to the page: lines is the line number it stands on, or the first and last of
+        the lines it runs over, and the page text there holds it with its line ends run together by
+        a space or by none. A form the page text no longer holds there stops the generator."""
+        first, last = (lines, lines) if isinstance(lines, int) else lines
+        texts = [self.text(one) for one in range(first, last + 1)]
+        flat = " ".join(form.split())
+        if flat in " ".join(texts) or flat in "".join(texts):
+            return form
+        raise SystemExit("line %s does not hold %s" % (lines, form))
 
     def find(self, pattern, start=1, end=None):
         """The first line number from start whose text matches pattern, or None. An end past the
@@ -452,13 +464,16 @@ class Paper(object):
         A symbol mark counts only on the pages of symbols_on, where a note on the title stands.
         The volume's header, set small wherever the page puts it, is left out, and so are the
         lines of skip. The numbers run from the paper's first_footnote, 1 where it sets none: 2 in
-        Mellesmoen and Andreotti, whose title carries a mark 1 with no note. A paper's
+        Mellesmoen and Andreotti, whose title carries a mark 1 with no note. A paper's unnoted_marks
+        are the marks in the body with no note under them, which the count steps over: 56 in Lyon's
+        2011 paper, after The bear(s) like(s) the saskatoons. in (68a). A paper's
         body_size_notes, where it names them, are the lines of a note set at the body size and read
         as small ones: Black's note 4, under the rule at the foot of page 4."""
         small = self.small_lines() | set(getattr(self, "body_size_notes", ()))
         running = self.running_numbers_set()
         header = self.volume_header()
         found, expect, current = {}, getattr(self, "first_footnote", 1), None
+        unnoted = set(getattr(self, "unnoted_marks", ()))
         by_page = {}
         for number in range(1, self.last + 1):
             if self.lines[number][2] or not self.text(number) or number in running or number in header \
@@ -532,6 +547,8 @@ class Paper(object):
                     found[current] = ([number], page)
                     if current.isdigit():
                         expect += 1
+                        while expect in unnoted:
+                            expect += 1
                 elif current:
                     found[current][0].append(number)
                 elif page in symbols_on and not SUB.match(self.text(number)) and any(
@@ -677,6 +694,20 @@ class Paper(object):
                             if one.group(1) in self.footnote_marks()), None)
                     if match:
                         spelled[run] = match.group(0)
+                # The italic reader holds no underline, which page_text sets on a paper's letters
+                # as the macron below: gat for g̱at in Matthewson's Gitksan modals. In a paper that
+                # sets italics_underlined, the run is the word the body writes with it, where the
+                # body writes one so and not as read.
+                elif getattr(self, "italics_underlined", False) and \
+                        not re.search(r"(?<![\w’])%s(?![\w’]|%s)" % (re.escape(run), marks), body):
+                    # A letter can take the mark composed, ḵ, or after it, g̱.
+                    loose = "".join(
+                        "(?:%s|%s̱?)" % (unicodedata.normalize("NFC", one + "̱"), re.escape(one))
+                        if one.isalpha() and len(unicodedata.normalize("NFC", one + "̱")) == 1
+                        else re.escape(one) + ("̱?" if one.isalpha() else "") for one in run)
+                    match = re.search(r"(?<![\w’])%s(?![\w’]|%s)" % (loose, marks), body)
+                    if match:
+                        spelled[run] = match.group(0)
             italics = [spelled.get(run, run) for run in self.italics().get(number, ())]
             # Two runs the text sets as one word across an upright tilde are one form, nuχʷ~nχʷ and
             # *spəl~eləm in Nater's old records, or the tilde operator, siwilaayin∼siwilaak'in in
@@ -813,7 +844,10 @@ class Paper(object):
                 # A run that the star or a dash above made into a form already cited at the same
                 # place, the bare tqačiʔ of *tqačiʔ on Denzer-King's page 6, is that form. The same
                 # form cited again elsewhere stays, Nater's -nix in Figure 1 and in §1.
-                why = "page %d, in italics%s" % (number, ", " + gloss.group(1) if gloss else "")
+                # A paper that sets its forms upright in a face of their own names it in form_set,
+                # in Lucida Sans Unicode for Mattina's 2008 forms.
+                why = "page %d, %s%s" % (number, getattr(self, "form_set", "in italics"),
+                                         ", " + gloss.group(1) if gloss else "")
                 if run != bare and [where, language, "cited form", run, why] in self.rows:
                     continue
                 self.add(where, language, "cited form", run, why)
@@ -1577,8 +1611,9 @@ class Paper(object):
             # A line that carries on a sentence the paragraph left open, the speaker utters / (26)
             # while still seeing the bear, is prose even with the next number in sequence. A stop
             # can carry a footnote's mark, the human series:4, set a space off in Forbes's (34b). 13.
+            # The mark can run to three digits, the examples in (134):110 of Lyon's 2011 paper.
             carries_on = paragraph and number not in starts and \
-                not re.search(r"[.:;!?)\]’”][*∗†]?(?: ?\d{1,2}(?:,\d{1,2})*)?\s*$", self.text(paragraph[-1])) and \
+                not re.search(r"[.:;!?)\]’”][*∗†]?(?: ?\d{1,3}(?:,\d{1,3})*)?\s*$", self.text(paragraph[-1])) and \
                 all(self.text(one).strip() for one in range(paragraph[-1] + 1, number)
                     if one not in skip and one not in running)
             if opened and opened.group(1).isdigit() and int(opened.group(1)) > state.get("highest", 0) and \
@@ -1815,6 +1850,23 @@ class Paper(object):
         form = " ".join(form.split())
         if form:
             self.rows.append([where, who, kind, form, gloss])
+
+    def keep(self, row, lines=None):
+        """A row a person read off the page, its fields as they stand, a row of four having no gloss,
+        and its form held to lines where lines is given."""
+        if lines is not None:
+            self.on(lines, row[3])
+        self.rows.append(list(row))
+
+    def write_oracle(self, header):
+        """Write the oracle of the rows keep() took, under header, with no ops file: the oracle is the
+        rows as they stand, and check_papers.sh runs no finish over it."""
+        target = os.path.join(ORACLES, self.stem + ".oracle.tsv")
+        with open(target, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write("\t".join(header) + "\n")
+            for row in self.rows:
+                handle.write("\t".join(row) + "\n")
+        print("%s: %d rows" % (target, len(self.rows)), file=sys.stderr)
 
     def ops(self):
         out = []

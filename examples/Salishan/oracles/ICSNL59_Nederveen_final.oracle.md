@@ -23,11 +23,12 @@ Outside the paper's English the engine found these letters and marks: á è é �
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC.
+sets after a stacked mark is closed, except before an opening quote, then NFC, then 4 page-read
+corrections.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 437
-rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 9162
+rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 9242
 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example

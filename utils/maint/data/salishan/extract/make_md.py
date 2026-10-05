@@ -14,7 +14,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from workdir import ORACLES, WORK  # noqa: E402
+from workdir import ORACLES, PRIVATE, WORK  # noqa: E402
 
 from finish import load_context  # noqa: E402
 
@@ -115,6 +115,16 @@ def main():
         "THE PAGE AND THE TEXT LAYER",
         "",
         wrapped(
+            ("The forms are in NFC. The page is typed and scanned, and its text layer is OCR that holds "
+             "none of the orthography; the check reads the forms against a page text a person "
+             "transcribed from the scan, a line for each printed line. %s" % context.PAGE_NOTES)
+            if getattr(__import__("tables").of(stem), "TRANSCRIBED_FROM_SCAN", False) else
+            "The forms are in NFC, and the check puts the page text, read from the glyph positions, "
+            "through the same repair: a mark the text sets after a space is put back on its letter, "
+            "then NFC%s. %s"
+            % (", then %d page-read correction%s" % (len(corrections), "" if len(corrections) == 1 else "s")
+               if corrections else "", context.PAGE_NOTES)
+            if os.path.isfile(os.path.join(PRIVATE, "pagetext", stem + ".rows")) else
             "The forms are in NFC, and the check puts the text layer through the same repair: the "
             "space the PDF sets after a stacked mark is closed, except before an opening quote, "
             "then NFC%s. %s"

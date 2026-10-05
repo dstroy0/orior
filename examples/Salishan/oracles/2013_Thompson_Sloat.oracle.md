@@ -7,7 +7,7 @@ Drafted by the anchor_sift engine and read against the page by a person. The eng
 line of the text layer with english_sift.sorted_into, first against its English reference and the
 pure corpus, then against this paper's own English laid over that reference. What the paper's
 English did not account for became the example tiers and the cited forms. The alphabet was taken
-from the characters that sit outside that English, and word_web.web() built 224 edges over the
+from the characters that sit outside that English, and word_web.web() built 180 edges over the
 language forms. A person then matched the context: who, kind and gloss for each row, the names,
 places and languages, and the notations, read off the page. This file is the control. The reader in
 corpus_script_extraction is checked against it, and where they disagree the reader is wrong until
@@ -29,9 +29,9 @@ dot above for glottalization, ċ and ẏ.
 
 THE PAGE AND THE TEXT LAYER
 
-The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC, then 20 page-read
-corrections.
+The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
+same repair: a mark the text sets after a space is put back on its letter, then NFC, then 20
+page-read corrections.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 613

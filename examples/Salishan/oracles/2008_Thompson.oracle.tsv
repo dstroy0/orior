@@ -1,0 +1,217 @@
+where	who	kind	form	gloss
+front	James J Thompson	title	Control constructions as a sub-class of nominalized clauses in Upriver Halkomelem	page 1, carries footnote *
+front	James J Thompson	name	James J Thompson	author
+front	James J Thompson	note	UBC, Dept of Linguistics	page 1, under James J Thompson
+front	James J Thompson	note	My goal in this paper is to provide syntactic evidence for a control construction in Upriver Halkomelem. This construction involves a nominalized clause complement that exhibits properties unique to this context. Taking obligatory coreference between a matrix and embedded argument as the initial indicator of a control construction, I show that two additional diagnostics also distinguish it from non-control nominalized clauses, namely, the inability of the nominalized clause to prepose and restrictions on the use of auxiliaries.	page 1, the abstract
+front	James J Thompson	language	Upriver Halkomelem	Central/Coast Salish: BC
+footnote *	James J Thompson	note	My deepest gratitude goes to Dr. Elizabeth Herrling for sharing her time and knowledge with me, and for always telling the truth about my cooking. Thanks also to Jason Brown, Strang Burton, Henry Davis, Donna Gerdts, Tom Hukari, Peter Jacobs, Hotze Rullmann, the Thesis Anonymous Group, the Audience of ICSNL 43, the staff at the Stol: ō Shxweli, and especially Martina Wiltschko.	page 1, footnote *, on the title
+footnote *	James J Thompson	name	Elizabeth Herrling	thanked for sharing her time and knowledge, footnote *
+footnote *	James J Thompson	name	Jason Brown	thanked, footnote *
+footnote *	James J Thompson	name	Strang Burton	thanked, footnote *
+footnote *	James J Thompson	name	Henry Davis	thanked, footnote *
+footnote *	James J Thompson	name	Donna Gerdts	thanked, footnote *
+footnote *	James J Thompson	name	Tom Hukari	thanked, footnote *
+footnote *	James J Thompson	name	Peter Jacobs	thanked, footnote *; Jacobs (1992), Squamish
+footnote *	James J Thompson	name	Hotze Rullmann	thanked, footnote *
+footnote *	James J Thompson	name	Martina Wiltschko	thanked, footnote *; Wiltschko (2006)
+§1	James J Thompson	heading	1 Introduction	page 1
+§1	James J Thompson	note	The study of control has provided a rich and often hotly contested territory for exploring some of the fundamental properties of natural language. Topics such as clause structure and clausal embedding, anaphoric dependencies, and the morpho-syntax of inflectional categories are just a few of these. While an early focus on Germanic languages shaped theoretical approaches that centered on non-finite clauses, a burgeoning cross-linguistic study has shown that a variety of clause types are utilized throughout the languages of the world in instantiating the control relation. In this report, I examine the control relation as it is instantiated in Upriver Halkomelem (Central/Coast Salish: BC). The default form for embedding in this language is the nominalized clause, and as I show below, the control construction is among the contexts in which it is used. The purpose of this study is to show that the nominalized clause used in this construction is syntactically distinct from nominalized clauses that are not involved in a control context.	page 1
+§1	James J Thompson	language	Halkomelem	the language of the examples
+§1	James J Thompson	note	In section 2, I provide some theoretical background on control, using Halkomelem examples to highlight the salient properties. I then move on in the same section to introduce nominalized clauses, the embedded clause into which the control relation can be established in the language. Section 3 consists of the two further properties that uniquely identify control constructions, namely the inability of the nominalized clause to prepose, and restrictions on the availability of auxiliaries in the embedded clause. The questions raised by my observations are posed as future research in section 4, while section 5 is the summary and conclusion.	page 1
+§2	James J Thompson	heading	2 Theoretical and empirical background	page 2
+§2	James J Thompson	note	I briefly lay out in this section some basic theoretical assumptions about control constructions before going into the basic morpho-syntactic facts of Upriver Halkomelem nominalized clauses.	page 2
+§2.1	James J Thompson	heading	2.1 Theoretical background: what is control?	page 2
+§2.1	James J Thompson	note	A substantial literature within the Principles and Parameters framework on the subject of control has yielded several classes of analyses. Perhaps the most fundamental distinction is between those that propose some sort of restructuring, whereby an embedded clause is argued to be or become a subjectless VP (cf. Wurmbrand 1998:Appendix 2), and those that argue for clausal projection(s) above the level of VP (e.g. Rosenbaum 1967, Chomsky 1973, Chomsky and Lasnik 1977, 1993, Hornstein 1999, Landau, 2000). Given that the control construction in Upriver Halkomelem involves the nominalized clause, which contains functional material that is generated outside of VP, I will not assume a restructuring analysis here. Rather, I take a bi-clausal structure as a starting point, represented schematically in the template below.	page 2
+(1) line 1	James J Thompson	note	Bi-clausal control construction in Upriver Halkomelem	page 2, the caption
+(1) line 2	James J Thompson	note	[matrix clause [nominalized clause]]	page 2, a line of the template
+§2.1	James J Thompson	note	Throughout the class of analyses that assume a bi-clausal structure, the common thread is the dependence of the embedded clause on the matrix clause. The aspect of this dependence that has received the most attention, and for which the construction is named, is the obligatory coreference between a matrix and embedded argument, each bearing a theta-role assigned in their respective clause. The following Halkomelem examples illustrate this. Subject control is shown first - the matrix subject controls the reference of the embedded subject. This can be seen in the (b) examples, where different subject agreement in the matrix and embedded clause leads to ungrammaticality.	page 2
+(2a) line 1	Upriver Halkomelem	transcription	[tsel t á-t [kw'-el-s xwemxál-em]]	page 2
+(2a) line 2	Upriver Halkomelem	gloss	[1sgS try-tr [deth-1sgposs-nom run-itr]]	page 2
+(2a) line 3	James J Thompson	translation	I tried to run.	page 2
+(2b) line 1	Upriver Halkomelem	transcription	*[tsel t á-t [kw'-s-es xwemxál-em]]	page 2
+(2b) line 2	Upriver Halkomelem	gloss	[1sgS try-tr [deth-nom-3poss run-itr]]	page 2
+(2b) line 3	James J Thompson	translation	~ I tried for him to run.	page 2
+(3a) line 1	Upriver Halkomelem	transcription	[tsel iyó-thet [kw'-el-s xwemxál-em]]	page 3
+(3a) line 2	Upriver Halkomelem	gloss	[1sgS start-refl [deth-1sgposs-nom run-itr]]	page 3
+(3a) line 3	James J Thompson	translation	I started running/to run.	page 3
+(3b) line 1	Upriver Halkomelem	transcription	*[tsel iyó-thet [kw'-s-es xwemxál-em]]	page 3
+(3b) line 2	Upriver Halkomelem	gloss	[1sgS start-refl [deth-nom-3poss run-itr]]	page 3
+(3b) line 3	James J Thompson	translation	~ I started him running.	page 3
+§2.1	James J Thompson	note	These next examples show object control, where the matrix object is the controller. Attempting to use possessive agreement that could not match up with the matrix object results in ungrammaticality, as shown in the (b) examples.	page 3
+(4a) line 1	Upriver Halkomelem	transcription	[tsel tseshá-t te swíyeqe [kw'-s lám-s]]	page 3
+(4a) line 2	Upriver Halkomelem	gloss	[1sgS order-tr det man [deth-nom go-3poss]]	page 3
+(4a) line 3	James J Thompson	translation	I told the man to go.	page 3
+(4b) line 1	Upriver Halkomelem	transcription	*[tsel tseshá-t te swíyeqe [kw'-á'-s lám]]	page 3
+(4b) line 2	Upriver Halkomelem	gloss	[1sgS order-tr det man [deth-2sgposs-nom go]]	page 3
+(4b) line 3	James J Thompson	translation	~ I told the man for you to go.	page 3
+(5a) line 1	Upriver Halkomelem	transcription	[tsel híqw-t the slháli [kw'-s	page 3
+(5a) line 2	Upriver Halkomelem	gloss	[1sgS invite-tr detf woman [deth-nom	page 3
+(5a) line 3	Upriver Halkomelem	transcription	mi-s ye ímex-ósem]]	page 3
+(5a) line 4	Upriver Halkomelem	gloss	come-3poss asp walk-??]]	page 3
+(5a) line 5	James J Thompson	translation	I invited the woman to go for a walk.	page 3
+(5b) line 1	Upriver Halkomelem	transcription	*[tsel híqw-t the slháli [kw'-a'-s	page 3
+(5b) line 2	Upriver Halkomelem	gloss	[1sgS invite-tr detf woman [deth-2sgposs-nom	page 3
+(5b) line 3	Upriver Halkomelem	transcription	ye ímex-ósem]]	page 3
+(5b) line 4	Upriver Halkomelem	gloss	asp walk-??]]	page 3
+(5b) line 5	James J Thompson	translation	~ I invited the woman for you to walk	page 3
+§2.1	James J Thompson	note	Although there are many accounts of obligatory control that treat it as a fundamentally semantic phenomena (e.g. Culicover and Wilkins 1986, Williams 1994, Culicover and Jackendoff 2001), I approach the discussion from a syntactic perspective. That is to say, I am interested in the syntactic consequences of this relation. The two diagnostics presented in section 3 justify this approach, showing that both in terms of external and internal syntax, control constructions can be distinguished from non-control constructions.	page 3
+§2.2	James J Thompson	heading	2.2 Empirical background: what are nominalized clauses?	page 3
+§2.2	James J Thompson	note	Nominalized clauses, one of four clause types in Halkomelem, are the default form for embedding in the language. The other three types - indicative, subjunctive, and relative - differ from nominalized clauses and each other in terms of both internal and external syntax. As its name indicates, the construction under review displays both nominal and clausal properties. Like the other clauses, nominalized clauses admit the full range of transitive morphology on the predicate, and the same object agreement. Auxiliaries are also possible in nominalized clauses, though one of the diagnostics presented in this paper addresses restrictions on their use in control contexts. On the other hand, this clause type is distinguished from indicative, subjunctive, and most relative clauses by the presence of a nominalizer, use of the possessive agreement morphology to index the subject, and the overwhelming tendency to be introduced by a determiner, all characteristic of nominal projections. The following table summarizes the distribution of nominal and clausal properties.	page 3
+(6) line 1	James J Thompson	note	Properties of nominalized clauses	page 4, the caption
+(6) line 2	James J Thompson	note	Nominal	page 4, the column's head
+(6) line 3	James J Thompson	note	Introduced by determiner	page 4, a cell under Nominal
+(6) line 4	James J Thompson	note	Possessive agreement for subjects.	page 4, a cell under Nominal
+(6) line 5	James J Thompson	note	Nominalizer	page 4, a cell under Nominal
+(6) line 6	James J Thompson	note	Clausal	page 4, the column's head
+(6) line 7	James J Thompson	note	Auxiliaries possible	page 4, a cell under Clausal
+(6) line 8	James J Thompson	note	Same object agreement as indicative clauses	page 4, a cell under Clausal
+(6) line 9	James J Thompson	note	Transitive morphology	page 4, a cell under Clausal
+§2.2	James J Thompson	note	There are some robust generalizations that can be stated about the distribution of the pieces laid out in (6). The determiner must precede the nominalizer, which in turn must precede the auxiliaries, if any are present. Assuming that a nominalized clause contains a verbal projection line at least as high as the auxiliary, the following linear template captures this.	page 4
+(7) line 1	James J Thompson	note	Linear template for UH nominalized clause	page 4, the caption
+(7) line 2	James J Thompson	note	[DP deth [NP nom [IP auxl [AspP auxd [V/AP predicate [...comp...]]]]]]	page 4, a line of the template, carries footnote 1
+footnote 1	James J Thompson	note	The labels for the different constituents should be taken as preliminary suggestions.	page 4, footnote 1
+§2.2	James J Thompson	note	The initial element in this template is the hypothetical determiner, the only one available in the Upriver Halkomelem nominalized clause. However, the examples below show that the determiner can be preceded by elements like tl'o (a focus marker), and yelh or qeyalh, which establish a temporal/aspectual relation between the matrix and embedded clauses.	page 4
+(8) line 1	Upriver Halkomelem	transcription	tsel xwemá-x te xálh	page 4
+(8) line 2	Upriver Halkomelem	gloss	1sgS open-tr det door	page 4
+(8) line 3	Upriver Halkomelem	transcription	[tl’e-kw'-s-es kw’ákw’es]	page 4
+(8) line 4	Upriver Halkomelem	gloss	[foc-deth-nom-3poss get.hot]	page 4
+(8) line 5	James J Thompson	translation	I opened the door because it got hot	page 4
+(9) line 1	Upriver Halkomelem	transcription	tsel le áyel [yélh-0-s-es xwemá-x-es	page 5
+(9) line 2	Upriver Halkomelem	gloss	1sgS auxd leave [inc-detn-nom-3poss open-tr-3erg	page 5
+(9) line 3	Upriver Halkomelem	transcription	te pús te xálh]	page 5
+(9) line 4	Upriver Halkomelem	gloss	det cat det door]	page 5
+(9) line 5	James J Thompson	translation	I left before the cat opened the door	page 5
+(10) line 1	Upriver Halkomelem	transcription	ch-úlh me áyel [qeyálh-0-s-es	page 5
+(10) line 2	Upriver Halkomelem	gloss	1sgS-already auxd leave [before-detn-nom-3poss	page 5
+(10) line 3	Upriver Halkomelem	transcription	me lhémexw]	page 5
+(10) line 4	Upriver Halkomelem	gloss	auxd rain]	page 5
+(10) line 5	James J Thompson	translation	I left before it started raining	page 5
+§2.2	James J Thompson	note	The question raised by these examples is whether we ought to add another layer to the clause or insert these elements into the structure as it is. In other words, should they be treated as modifiers or heads, as shown in the partial templates below.	page 5
+(11a) line 1	James J Thompson	note	[NC [tl'o/yelh/qeyalh deth] [?P nom [IP ... - modifier	page 5, a line of the template
+(11b) line 1	James J Thompson	note	[XP tl'o/yelh/qeyalh [NC deth [?P nom [IP ... - head	page 5, a line of the template
+§2.2	James J Thompson	note	These elements do not add anything to the interpretation of the utterance that could not have been gathered from context – the relevant interpretations are available in their absence. But those interpretations are obligatory when the elements are present. Their presence does not seem to alter the distribution of the clause either. These observations encourage treating them as modifiers, rather than as heads. However, they are also apparently capable of appearing as predicates which take nominalized clause complements, as shown below.	page 5
+(12) line 1	Upriver Halkomelem	transcription	tl'ó-0-s-es me q'ól-thet tútl'ò	page 5
+(12) line 2	Upriver Halkomelem	gloss	foc-detn-nom-3poss come return-refl 3emph	page 5
+(12) line 3	James J Thompson	translation	That's why he came back	page 5
+(13) line 1	Upriver Halkomelem	transcription	yélh-0-al-s a la kw’ekw’í	page 5
+(13) line 2	Upriver Halkomelem	gloss	inc-detn-1sgposs-nom fact auxd climb.cont	page 5
+(13) line 3	James J Thompson	translation	I started climbing.	page 5
+(14) line 1	Upriver Halkomelem	transcription	qeyálh-0-s-es la t'óqw'	page 5
+(14) line 2	Upriver Halkomelem	gloss	before-detn-nom-3poss auxd go.home	page 5
+(14) line 3	James J Thompson	translation	He just went home.	page 5
+§2.2	James J Thompson	note	If indeed the adverbials are here acting as predicates, that would mean that they are at least able to appear as heads in their own right. I will assume for the moment that they are in each case what they appear to be – modifiers in the contexts represented in (8-10) and heads in those in (12-14).	page 5
+§2.2	James J Thompson	note	Kroeber (1999:100) apparently considers the nominalizer in this context2 to be a clitic, attaching to the left-most element of the verbal projection. I believe that at least for Upriver Halkomelem, the nominalizer's position does not vary, but is instead base-generated at it's left-most surface position regardless of the presence of overt material between it and the VP. This is consistent with the facts and allows for the simplest statement about its distribution. I am assuming for the moment that the nominalizer heads an NP, this to accommodate the internal facts such as possessive agreement and selection by a determiner. I am not, however, committed to this analysis. I am, for instance, open to the idea that the projection headed by the nominalizer is higher up along the nominal projection line. Assuming, as argued in Schueler (2004), that the nominal and verbal projection lines are parallel structures, and that nominalization maps from a position in the verbal line to the corresponding one in the nominal line, the presence of the upper, locative auxiliaries in Upriver Halkomelem nominalized clauses suggests that the nominalizer attaches above a fair amount of verbal structure and the result is one of the larger nominal constituents.	page 6
+footnote 2	James J Thompson	note	The nominalizer involved in a subset of relative clauses has a different distribution, unable to appear to the left of the leftmost set of auxiliaries, and is therefore given a different treatment.	page 6, footnote 2
+§2.2	James J Thompson	note	The distribution of possessive agreement is more complicated than the other pieces, as it is variable across person and number splits. In linear terms, the distributions are as follows (cf. Galloway 1993:179-181, Kroeber 1999:102-103). 1st and 2nd singular agreement appears between the nominalizer and the determiner. 1st and 2nd plural agreement prefers to encliticize to the predicate but can also appear encliticized to the nominalizer. 3rd person agreement, which is unspecified for number, is the most mobile of the lot, able to encliticize to the either auxiliary if present, as well as either position available to 1st/2nd pl. Laying this out on the template just given yields the following picture.	page 6
+(15) line 1	James J Thompson	note	Location of possessive agreement by person/number	page 6, the caption
+(15) line 2	James J Thompson	note	[NC deth [?P nom [IP auxl [AspP auxd [V/AP predicate [...comp...]]]]]]	page 6, a line of the template
+(15) line 3	James J Thompson	note	| | | | |	page 6, the bars and labels under the template
+(15) line 4	James J Thompson	note	1/2sg 1/2pl/3 3 3 1/2pl/3	page 6, the bars and labels under the template
+footnote 3	James J Thompson	note	These are to be distinguished from the directional auxiliaries, lam and ami. They are phonologically stronger than the locative auxiliaries, and have a different distribution, as shown in the template in (7) above.	page 8, footnote 3
+§2.2	James J Thompson	note	I do not have anything constructive to say about how these facts can be accounted for. While I assume there is some mechanism responsible for placing the agreement clitics, I am not prepared to speculate on the nature of that mechanism.	page 6
+§3	James J Thompson	heading	3 Two diagnostics for control constructions	page 7
+§3	James J Thompson	note	This section is for the main empirical contribution of the paper. The first diagnostic I discuss is the inability of control nominalized clauses to prepose, or occur to the left of the predicate complex of the matrix clause. The second diagnostic involves the sensitivity of embedded auxiliaries to the control/non-control distinction.	page 7
+§3.1	James J Thompson	heading	3.1 The preposing diagnostic	page 7
+§3.1	James J Thompson	note	The examples below show that, unlike nominalized clauses used as complements of non-control predicates or as a modifier (temporal, rationale/purpose, etc.), those that are the complement of a control predicate are unable to occur to at the left edge of the sentence.	page 7
+(16) line 1	Upriver Halkomelem	transcription	[NC kw'-el-s t'ít'el-em] éy-st-exw-tsel	page 7
+(16) line 2	Upriver Halkomelem	gloss	[NC deth-1sgposs-nom sing.cont-itr] good-caus-3O-1sgS	page 7
+(16) line 3	James J Thompson	translation	I like singing	page 7
+(16) line 4	Upriver Halkomelem	transcription	éystexwtsel [NC kw'els t'ít'elem]	page 7, set after cf., the sentence in its order
+(17) line 1	Upriver Halkomelem	transcription	[NC kw'-a'-s me kwetxwíl-em]	page 7
+(17) line 2	Upriver Halkomelem	gloss	[NC deth-2sgposs-nom auxd enter-itr]	page 7
+(17) line 3	Upriver Halkomelem	transcription	tsel ts'lhám-eth-óme	page 7
+(17) line 4	Upriver Halkomelem	gloss	1sgs hear-tr-2sgO	page 7
+(17) line 5	James J Thompson	translation	I heard you come in	page 7
+(17) line 6	Upriver Halkomelem	transcription	tsel ts'lhámethóme [NC kw'a's me kwetxwílem]	page 7, set after cf., the sentence in its order
+(18) line 1	Upriver Halkomelem	transcription	[NC kw'-a'-s a xwexwá] tsel t'ám-et	page 7
+(18) line 2	Upriver Halkomelem	gloss	[NC deth-2sgposs-nom fact hungry] 1sgS guess-tr	page 7
+(18) line 3	James J Thompson	translation	I guessed you were hungry	page 7
+(18) line 4	Upriver Halkomelem	transcription	tsel t'ámet [NC kw'a's a xwexwá]	page 7, set after cf., the sentence in its order
+§3.1	James J Thompson	note	In each of these three examples, the nominalized clause occurs to the left of the matrix predicate. The following examples show that the same is not true in control contexts.	page 7
+(19) line 1	Upriver Halkomelem	transcription	*[NC kw'-el-s a le áyel] tsel t'á-t	page 7
+(19) line 2	Upriver Halkomelem	gloss	[NC deth-1sgposs-nom fact auxd leave] 1sgS try-tr	page 7
+(19) line 3	James J Thompson	translation	~ I tried to leave	page 7
+(19) line 4	Upriver Halkomelem	transcription	tsel t'át [NC kw'els a le áyel]	page 7, set after cf., the sentence in its order
+(20) line 1	Upriver Halkomelem	transcription	*[NC kw'-el-s ímex] tsel iyó-thet	page 7
+(20) line 2	Upriver Halkomelem	gloss	[NC deth-1sgposs-nom walk 1sgS start-refl	page 7
+(20) line 3	James J Thompson	translation	~ I started to walk	page 7
+(20) line 4	Upriver Halkomelem	transcription	tsel iyóthet [NC kw'els ímex]	page 7, set after cf., the sentence in its order
+(21) line 1	Upriver Halkomelem	transcription	*[NC kw'-s le-s áyél tútl'ò] tsel tsesh-át	page 8
+(21) line 2	Upriver Halkomelem	gloss	[NC deth-nom auxd-3poss leave 3sg] 1sgS order-tr	page 8
+(21) line 3	James J Thompson	translation	~ I ordered him to leave	page 8
+(21) line 4	Upriver Halkomelem	transcription	tsel tseshát [NC kw's les áyél tútl'ò]	page 8, set after cf., the sentence in its order
+§3.1	James J Thompson	note	This same diagnostic was shown in Jacobs (1992:51,61-62) to divide nominalized clauses in Squamish (Coast Salish) into two classes as well - complements and adjuncts - where only the latter are able to prepose. Only a subset of the complement NCs are sensitive to this diagnostic in Upriver Halkomelem.	page 8
+§3.1	James J Thompson	language	Squamish	Coast Salish; Jacobs (1992) divides its nominalized clauses into two classes
+§3.1	James J Thompson	note	This restriction can be understood as a consequence of the dependency relations between the embedded and matrix clauses. As already pointed out, the embedded subject is obligatorily coreferent with a matrix argument, and evidence will be presented below suggesting that embedded auxiliaries are dependent on the matrix auxiliary. Both of these relations are indicative of a tighter, asymmetrical relation between clauses than is found in non-control cases. The distributional restriction is in line with Williams (1997) General Pattern of Anaphoric Dependence, which states roughly that a dependent term must be either to the right of or subordinate to its antecedent.	page 8
+§3.2	James J Thompson	heading	3.2 Sensitivity of auxiliaries	page 8
+§3.2	James J Thompson	note	The data for this section show a far more subtle discrimination than the preposing test. Upriver Halkomelem's locative auxiliaries3, ?i and li, can freely appear in nominalized clauses when they are embedded under non-control predicates. It has been pointed out that these auxiliaries are implicated in the temporal interpretation of the indicative clauses in which they occur (Wiltschko 2006)4. Wiltschko also points out, in the same article, that the presence of auxiliaries in embedded nominalized clauses has a related effect on interpretation. This can be seen in the examples below.	page 8
+footnote 4	James J Thompson	note	The exact mechanism by which this is achieved is not relevant to the present discussion, but is interesting in its own right.	page 8, footnote 4
+(22) line 1	Upriver Halkomelem	transcription	tsel mélq-eles kw'-el-s í-lh	page 8
+(22) line 2	Upriver Halkomelem	gloss	1sgS forget-lct deth-1sgposs-nom auxl-past	page 8
+(22) line 3	Upriver Halkomelem	transcription	tl éqwel-t te héyqw	page 8
+(22) line 4	Upriver Halkomelem	gloss	put.out-tr det fire	page 8
+(22) line 5	James J Thompson	translation	I forgot that I put out the fire	page 8
+(23) line 1	Upriver Halkomelem	transcription	tsel mélq-eles kw'-el-s tl éqwel-t	page 9
+(23) line 2	Upriver Halkomelem	gloss	1sgS forget-lct deth-1sgposs-nom put.out-tr	page 9
+(23) line 3	Upriver Halkomelem	transcription	te héyqw	page 9
+(23) line 4	Upriver Halkomelem	gloss	det fire	page 9
+(23) line 5	James J Thompson	translation	I forgot to put out the fire	page 9
+§3.2	James J Thompson	note	In the first example, the presence of an auxiliary results in a factive interpretation, with an embedded event that took place at a point in time. Its absence in the second however, results in an embedded event that has not taken place and so is not anchored in time/space.	page 9
+§3.2	James J Thompson	note	Given the observation in section 2.1 that embedded clauses have been found cross-linguistically to display temporal dependence on the matrix clause in control contexts, I predict that the presence of auxiliaries ought to be restricted in those nominalized clauses. The following data show that this is indeed the case. In the first set, which were elicited first, the auxiliaries are simply not allowed.	page 9
+(24) line 1	Upriver Halkomelem	transcription	*tsel t á-t kw'-el-s lí xwemxál-em	page 9
+(24) line 2	Upriver Halkomelem	gloss	1sgS try-tr deth-1sgposs-nom auxl run-itr	page 9
+(24) line 3	James J Thompson	translation	~ I tried to run	page 9, carries footnote 5
+footnote 5	James J Thompson	note	A version with ilh was accepted during this elicitation, and given an emphatic interpretation (I DID try to run).	page 9, footnote 5
+(24) line 4	Upriver Halkomelem	transcription	tsel t át kw'els xwemxálem	page 9, set after cf., the sentence in its order
+(25) line 1	Upriver Halkomelem	transcription	*tsel iyó-thet kw'-el-s í-lh	page 9
+(25) line 2	Upriver Halkomelem	gloss	1sgS start-refl deth-1sgposs-nom auxl-past	page 9
+(25) line 3	Upriver Halkomelem	transcription	xwemxál-em	page 9
+(25) line 4	Upriver Halkomelem	gloss	run-itr	page 9
+(25) line 5	James J Thompson	translation	~ I started running	page 9
+(25) line 6	Upriver Halkomelem	transcription	tsel iyóthet kw'els xwemxálem	page 9, set after cf., the sentence in its order
+§3.2	James J Thompson	note	However, on revisiting the issue in further elicitation, a more subtle picture emerged. This time, auxiliaries were allowed, but, crucially for my story, not both of them. The proximate auxiliary is able to appear, as shown in these examples.	page 9
+(26) line 1	Upriver Halkomelem	transcription	tsel t á-t kw'-el-s í-lh lép-ex	page 9
+(26) line 2	Upriver Halkomelem	gloss	1sgS try-tr deth-1sgposs-nom auxl-past eat-tr	page 9
+(26) line 3	James J Thompson	translation	I tried to eat it before	page 9
+(27) line 1	Upriver Halkomelem	transcription	tsel tsésha-th-óme kw'-á'-s	page 9
+(27) line 2	Upriver Halkomelem	gloss	1sgS order-tr-2sgO deth-2sgposs-nom	page 9
+(27) line 3	Upriver Halkomelem	transcription	í-lh ítet	page 9
+(27) line 4	Upriver Halkomelem	gloss	auxl-past sleep	page 9
+(27) line 5	James J Thompson	translation	I was telling you to go to sleep	page 9
+§3.2	James J Thompson	note	The distal auxiliary though, is still banned from this construction.	page 10
+(28) line 1	Upriver Halkomelem	transcription	* tsel iyó-thet kw'-el-s	page 10
+(28) line 2	Upriver Halkomelem	gloss	1sgS start-refl comp-1sgposs-nom	page 10
+(28) line 3	Upriver Halkomelem	transcription	lí xwemxál-em	page 10
+(28) line 4	Upriver Halkomelem	gloss	auxl run-itr	page 10
+(28) line 5	James J Thompson	translation	I just started running	page 10
+§3.2	James J Thompson	note	There are two things to point out with regards to these examples. The first is that the auxiliary inventory is still restricted in control contexts. So in terms of availability, auxiliaries provide a diagnostic for distinguishing between control and non-control contexts.	page 10
+§3.2	James J Thompson	note	The second point to make has to do with the apparent lack of an effect on interpretation. Recall, from examples (22, 23), that there was a significant difference in the interpretations of the embedded clause, conditioned by the presence/absence of an auxiliary. Such minimal pairs do not exist in control contexts - where the auxiliary is permitted, it has no discernible impact on the interpretation of the embedded clause. Once again, the control case is distinct from the non-control case.	page 10
+§4	James J Thompson	heading	4 Future research	page 10
+§4	James J Thompson	note	This study is still lacking a formal analysis. My goal is to devise one that will tie these three facts together the obligatory coreference of two arguments across a (nominalized) clause boundary, the presence of auxiliaries restricted to the proximate, and the inability of these nominalized clauses to prepose. As was mentioned in the theoretical background section, control constructions involve an embedded clause that is dependent in some ways on the matrix clause. My working hypothesis, then, is that each of these three facts is a manifestation of that dependence.	page 10
+§4	James J Thompson	note	Consider first the auxiliaries. As discussed in Ritter and Wiltschko (to appear)6, in certain matrix contexts, the proximate auxiliary gives rise to present tense interpretations. It in effect says that the event described takes place 'here', understood temporally. Conversely, the distal auxiliary gives rise to non-present interpretations - the event happened 'there'. The auxiliary picture in control contexts can be explained by assuming that the embedded auxiliary is anaphoric on the matrix clause. On this hypothesis, proximate and distal would be determined in relation to the matrix clause setting. If the location of the event in a control nominalized clause is dependent on the location of the matrix event (in time or space, I think they are extensionally equivalent in this case), then the prediction must be that only the proximate auxiliary is possible. Of course there are other pieces of evidence necessary to cement this claim. The most pressing need is to establish the generalizations for those cases of embedded nominalized clauses where both auxiliaries are possible. The very clear prediction is that if the events of each clause have the same location, the distal auxiliary should not be possible, and that if they have a different location, the proximate auxiliary should not be possible. I do not have the data at the moment to verify this however.	page 10
+footnote 6	James J Thompson	note	Suttles (2004:508) raises a similar point for Musqueam, a sub-dialect of Downriver Halkomelem.	page 10, footnote 6
+footnote 6	James J Thompson	language	Musqueam	a sub-dialect of Downriver Halkomelem, Suttles (2004)
+footnote 6	James J Thompson	language	Downriver Halkomelem	the dialect Musqueam belongs to
+§4	James J Thompson	note	Aside from the already dismissed restructuring family of accounts, all of the syntactic accounts of control involve a dependency relation between a matrix and an embedded argument position. Whether this dependence is characterized in terms of movement or agreement, it uniformly involves the structural subordination of the clause containing the dependent term to the clause containing its antecedent. Assuming the argument presented above for anaphoric IP domain material in just these cases, there are now two reasons for maintaining a particular syntactic configuration between the matrix and embedded clauses. Whatever the mechanism is that enforces this configuration, it is possibly responsible for ensuring that the nominalized clause cannot prepose in the context of control.	page 11
+§5	James J Thompson	heading	5 Conclusion	page 11
+§5	James J Thompson	note	In this paper, I have shown that a cluster of three properties combine to distinguish a particular construction from superficially similar ones. I have shown that cases identified as control in virtue of an obligatory coreference relation between two theta-role bearing arguments across a clause boundary display two additional characteristics unique to that context. The first of these was a straightforwardly syntactic constraint on the ability of nominalized clauses to occur to the left of the predicate - those involved in a control construction can not, while nominalized clauses elsewhere are free to do so. It was suggested that this could be a reflex of a general constraint to keep a dependent term (here, the controlled argument or possibly the embedded auxiliary) to the right of or below its antecedent (the matrix controller or auxiliary). The second is a more subtle arrangement, involving the role and place of auxiliaries in control vs. non- control contexts. It was shown that, when they are allowed at all, the only auxiliary permitted in a control nominalized clause is the proximate auxiliary. This in itself distinguishes control from non-control contexts, and so achieves its purpose with respect to the aims set out at the beginning of the paper.	page 11
+references	James J Thompson	heading	References	page 11
+references	James J Thompson	reference	Chomsky, Noam. 1973. Conditions on transformations. Festschrift for Morris Halle: 232-86. New York: Holt, Rinehart, and Winston.	page 11
+references	James J Thompson	reference	Chomsky, Noam and Howard Lasnik. 1977. Filters and control. Linguistic Inquiry 8:425-504.	page 11
+references	James J Thompson	reference	− 1993. The theory of principles and parameters [reprinted; Chomsky 1995:13-127]	page 11
+references	James J Thompson	reference	Culicover, Peter and Ray Jackendoff. 2001. Control is not movement. Linguistic Inquiry 32:493-512.	page 11
+references	James J Thompson	reference	Culicover, Peter and Wendy Wilkins. 1986. Control, PRO, and the projection principle. Language 62:120-52.	page 11
+references	James J Thompson	reference	Galloway, Brent. 1993. A grammar of Upriver Halkomelem. Berkeley: University of California Press.	page 12
+references	James J Thompson	reference	Hornstein, Norbert. 1999. Movement and control. Linguistic Inquiry 30:69-96.	page 12
+references	James J Thompson	reference	Jackendoff, Ray and Peter Culicover. 2003. The semantic basis of control in English. Language 79:517-56.	page 12
+references	James J Thompson	reference	Jacobs, Peter. 1992. Subordinate clauses in Squamish. Ma. thesis, University of Oregon.	page 12
+references	James J Thompson	reference	Kroeber, Paul. 1999. The Salish language family. Lincoln: University of Nebraska Press.	page 12
+references	James J Thompson	reference	Landau, Idan. 2000. Elements of control: Structure and meaning in infinitival constructions. Dordrecht: Kluwer Academic.	page 12
+references	James J Thompson	reference	Ritter, Elizabeth and Martina Wiltschko. Location and person as alternatives to tense. to appear in Natural Language and Linguistic Theory.	page 12
+references	James J Thompson	reference	Rosenbaum, Peter. 1967. The grammar of English predicate constructions. Cambridge, MA: MIT Press.	page 12
+references	James J Thompson	reference	Schueler, David. 2004. Extended projection, categorization, and the English morpheme -ing. Proceedings of WECOL 2004.	page 12
+references	James J Thompson	reference	Suttles, Wayne. 2004. Musqueam reference grammar. Vancouver: UBC Press.	page 12
+references	James J Thompson	reference	Williams, Edwin. 1994. Thematic structure in syntax.	page 12
+references	James J Thompson	reference	− 1997. Blocking and anaphora. Linguistic Inquiry 28:4, 577-639.	page 12
+references	James J Thompson	reference	Wiltschko, Martina. 2006. Inlocatives in Upriver Halkomelem. UBCWPL 18 Proceedings for ICSNL 41: 286-310.	page 12
+references	James J Thompson	reference	Wurmbrand, Susi. 1998. Infinitives. PhD diss. MIT.	page 12

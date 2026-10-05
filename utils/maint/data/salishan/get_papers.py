@@ -9,9 +9,9 @@
 #   python maint/data/salishan/get_papers.py --convert   convert PDFs already on disk
 #   python maint/data/salishan/get_papers.py --list      print what would be fetched
 #
-# The rest of the pipeline needs build/papers/, and the instructions used to be "download the PDFs,
-# convert each to text, and name the text file after the PDF". That is three chances to get it wrong
-# before anything runs, and one of them is silent.
+# The rest of the pipeline needs build/papers/. Downloading the PDFs, converting each to text and
+# naming the text file after the PDF by hand is three chances to get it wrong before anything runs,
+# and one of them is silent.
 #
 # THE ENCODING, AND WHY IT DECIDES THE REST
 #
@@ -103,15 +103,14 @@ INDEX = "https://lingpapers.sites.olt.ubc.ca/icsnl-volumes/"
 # guide to harvesting an academic archive asks for. The site's robots.txt disallows only wp-admin,
 # wp-login, the cache and trackbacks.
 #
-# IT IS NO LONGER WHAT OPENS THE DOOR
+# IT IS NOT WHAT OPENS THE DOOR
 #
-# This used to be the whole mechanism: a request with no user agent got an interstitial page and a
-# request naming itself got the file. On 2026-09-09 both get the same 31 KB page. UBC now serves
-# the index and every PDF under a browser verification check that says it is there to stop
-# automated traffic, and it is answered by running JavaScript, not by saying who you are.
+# UBC serves the index and every PDF under a browser verification check that says it is there to
+# stop automated traffic, and it is answered by running JavaScript, not by saying who you are. A
+# request with this string and a request with none get the same verification page.
 #
-# So this string is still correct and still worth sending, and it no longer gets past anything. A
-# check meant to be passed by a person is that person's to pass. The way to fetch in bulk from here
+# So this string is correct and worth sending, and it gets past nothing. A check meant to be passed
+# by a person is that person's to pass. The way to fetch in bulk from here
 # is to ask the archive, at the address above, and the address is in this string for that reason.
 AGENT = (
     "Salishan-corpus-tools/1.0 (+https://github.com/dstroy0/orior; "
@@ -174,8 +173,8 @@ def unmapped_fonts(source):
     page prints cítxʷsəlx uɬ ti nyʕip and the text holds cítxws@lx uì ’ti ny ’Qip, with the ejective
     mark in front of its letter instead of over it.
 
-    Missing ToUnicode on its own is not the fault, and testing for that alone called 141 of 146
-    papers unreadable. Arial and Times omit it constantly, because a standard encoding already says
+    Missing ToUnicode on its own is not the fault, and testing for that alone calls nearly every
+    paper unreadable. Arial and Times omit it constantly, because a standard encoding already says
     what the codes are and every extractor knows that table.
     """
     import pypdf
@@ -344,11 +343,10 @@ def main():
     every = index_of(session)
     out.write("  %d papers listed at %s\n\n" % (len(every), INDEX))
 
-    # An index with nothing in it is never an empty archive. On 2026-09-09 the site answered every
-    # address, the index page and each PDF alike, with a 31 KB browser verification page: UBC put a
-    # bot check in front of the whole host. Reporting zero and carrying on would have walked the
-    # whole list reporting each paper as not in the index, which reads as an archive that lost its
-    # contents. --all would have printed 846 of those.
+    # An index with nothing in it is never an empty archive. It is the host answering every address,
+    # the index page and each PDF alike, with its browser verification page. Reporting zero and
+    # carrying on would walk the whole list reporting each paper as not in the index, which reads
+    # as an archive that lost its contents.
     if not every:
         out.write(
             "  the index page listed no papers at all, which is not what an archive with\n"

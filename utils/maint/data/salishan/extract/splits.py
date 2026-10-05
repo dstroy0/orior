@@ -5,7 +5,7 @@ usage: python splits.py <stem>
 A pair of neighboring tokens is a candidate where the two joined make a word the same paper prints
 whole somewhere else: Secwepemcts ín beside Secwepemctsín. The repair runs first, and a split the
 repair already closes is not listed. Each candidate prints with how often the paper holds the
-whole word, for a person to read against the page before it goes into CORRECTIONS.
+whole word, for a person to read against the page before it goes into the CORRECTIONS of the paper's table file.
 """
 import collections
 import sys

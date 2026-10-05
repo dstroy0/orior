@@ -35,16 +35,16 @@ and the appendix ⦰.
 THE PAGE AND THE TEXT LAYER
 
 The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC. The text layer sets a
-space after a glottalized letter and before the dot below, ƛ̓ uʔ for ƛ̓uʔ and x ̣iyms for x̣iyms;
-the page text is closed up from the glyph positions. Example (3) runs over a page break under
-footnote 2, and (7)'s translation over a line after which footnote 3's mark stands. (14) opens on
-its whole sentence set on one line and prints its second transcription line twice, and (13) has no
-line of English word by word; each is kept as printed.
+sets after a stacked mark is closed, except before an opening quote, then NFC, then 2 page-read
+corrections. The text layer sets a space after a glottalized letter and before the dot below, ƛ̓ uʔ
+for ƛ̓uʔ and x ̣iyms for x̣iyms; the page text is closed up from the glyph positions. Example (3)
+runs over a page break under footnote 2, and (7)'s translation over a line after which footnote 3's
+mark stands. (14) opens on its whole sentence set on one line and prints its second transcription
+line twice, and (13) has no line of English word by word; each is kept as printed.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 368
-rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 6690
+rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 6711
 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example

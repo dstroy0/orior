@@ -6,10 +6,9 @@
 #
 #   Usage:  from paper_config import PAPERS, marks_for, repair_for, speakers_for
 #
-# Three files used to carry parts of this and they drifted. hand_extraction/papers.py held the
-# alphabets, coverage_check.py held the same alphabets written out a second time as literals, and
-# refs.md held the list of speakers by hand. A paper added to one and not the others was a paper the
-# coverage check read with the wrong alphabet and reported as fully covered.
+# The alphabets and the speakers are written here and nowhere else. A second copy drifts: a paper
+# added to one copy and not the other is a paper the coverage check reads with the wrong alphabet
+# and reports as fully covered.
 #
 # WHO SPOKE IT COMES FIRST
 #

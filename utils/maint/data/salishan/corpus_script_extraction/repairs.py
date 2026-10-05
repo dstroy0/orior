@@ -78,7 +78,7 @@ def corrected(pairs):
 
     Both sides of every pair are composed here. A pair is typed into a config file by a person whose
     keyboard may compose an accent or may not, and this grain runs after composed(). A pattern
-    left decomposed matches nothing and fails silently. That cost an afternoon on la-líl təm.
+    left decomposed matches nothing and fails silently.
     """
     held = tuple((unicodedata.normalize("NFC", damaged), unicodedata.normalize("NFC", whole))
                  for damaged, whole in pairs)
@@ -96,7 +96,7 @@ def sequence(*steps):
     Order matters in one place and it is worth naming. The spaces close while the marks whose space
     was inserted are still separate characters, and composition runs last. Composing a with a
     combining acute into á first takes that acute out of the marks a space can follow, and the space
-    it was holding open stays behind. Running composition first cost 164 of one paper's forms.
+    it was holding open stays behind.
     """
     def repaired(line):
         for step in steps:
