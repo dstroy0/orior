@@ -1,40 +1,64 @@
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
  * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
  *
- * The site's palette and the landing page. mkdocs.yml names the palette "custom", and these
- * variables are what custom resolves to, one set per scheme.
+ * The site's palette, its type and the landing page. mkdocs.yml names the palette "custom", and
+ * these variables are what custom resolves to, one set per scheme. mkdocs.yml loads the faces.
  */
 
+/* Ink is the header and the hero, signal marks what is exact, and the link colour is the one
+ * colour a reader acts on. */
 :root {
-  --orior-teal: #14b8a6;
-  --orior-indigo: #4f46e5;
-  --orior-ink: #0f172a;
-  --orior-radius: 0.6rem;
+  --orior-ink: #121833;
+  --orior-ink-2: #1b2347;
+  --orior-signal: #f2b33d;
+  --orior-signal-deep: #b67a06;
+  --orior-head-font: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --orior-radius: 0.5rem;
 }
 
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color: #0f172a;
-  --md-primary-fg-color--light: #1e293b;
-  --md-primary-fg-color--dark: #020617;
-  --md-primary-bg-color: #f8fafc;
-  --md-accent-fg-color: #0d9488;
-  --md-typeset-a-color: #0f766e;
+  --md-default-bg-color: #fbfbfc;
+  --md-default-fg-color: #161b33;
+  --md-default-fg-color--light: rgba(22, 27, 51, 0.68);
+  --md-default-fg-color--lighter: rgba(22, 27, 51, 0.36);
+  --md-default-fg-color--lightest: rgba(22, 27, 51, 0.1);
+  --md-primary-fg-color: var(--orior-ink);
+  --md-primary-fg-color--light: var(--orior-ink-2);
+  --md-primary-fg-color--dark: #0b1026;
+  --md-primary-bg-color: #f4f5fa;
+  --md-accent-fg-color: #2f45d6;
+  --md-typeset-a-color: #2f45d6;
+  --md-code-bg-color: #f0f1f6;
+  --md-code-fg-color: #232a4d;
+  --orior-tint: #eef0f7;
 }
 
 [data-md-color-scheme="slate"] {
-  --md-hue: 225;
-  --md-default-bg-color: #0b1020;
-  --md-primary-fg-color: #0b1020;
-  --md-primary-fg-color--light: #111827;
-  --md-primary-fg-color--dark: #050814;
-  --md-accent-fg-color: #2dd4bf;
-  --md-typeset-a-color: #5eead4;
+  --md-hue: 230;
+  --md-default-bg-color: #0f1430;
+  --md-default-fg-color: #e4e7f2;
+  --md-default-fg-color--light: rgba(228, 231, 242, 0.7);
+  --md-default-fg-color--lighter: rgba(228, 231, 242, 0.4);
+  --md-default-fg-color--lightest: rgba(228, 231, 242, 0.1);
+  --md-primary-fg-color: #0b1026;
+  --md-primary-fg-color--light: var(--orior-ink);
+  --md-primary-fg-color--dark: #070a1a;
+  --md-accent-fg-color: var(--orior-signal);
+  --md-typeset-a-color: #9fb1ff;
+  --md-code-bg-color: #171e40;
+  --md-code-fg-color: #dfe3f5;
+  --orior-tint: #161d3d;
 }
 
-/* Header and tabs: one dark band, with a hairline of the gradient under it. */
+/* Header and tabs: one ink band, with a signal rule under it. */
 .md-header {
-  border-bottom: 2px solid transparent;
-  border-image: linear-gradient(90deg, var(--orior-teal), var(--orior-indigo)) 1;
+  border-bottom: 2px solid var(--orior-signal);
+  box-shadow: none;
+}
+
+.md-header[data-md-state="shadow"],
+.md-header--shadow {
+  box-shadow: 0 0.6rem 1.2rem -1rem rgba(11, 16, 38, 0.6);
 }
 
 .md-tabs {
@@ -42,13 +66,30 @@
 }
 
 .md-tabs__link {
+  font-family: var(--orior-head-font);
   font-weight: 500;
-  opacity: 0.75;
+  letter-spacing: 0.01em;
+  opacity: 0.72;
 }
 
 .md-tabs__link--active,
 .md-tabs__link:hover {
   opacity: 1;
+  color: #ffffff;
+}
+
+.md-tabs__link--active {
+  box-shadow: inset 0 -2px 0 var(--orior-signal);
+}
+
+.md-header__title {
+  font-family: var(--orior-head-font);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.md-search__form {
+  border-radius: var(--orior-radius);
 }
 
 /* Where the page links show as a row, they sit in the header row itself, centered on the page, and
@@ -69,22 +110,26 @@
     pointer-events: none;
   }
 
+  /* The row spans the bar, so it takes no clicks itself: only the page links in it do, and the logo,
+   * the scheme toggle, the search and the repository link under it stay reachable. */
   .md-tabs__list {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 2.4rem;
     margin: 0;
-    pointer-events: auto;
+    pointer-events: none;
   }
 
   .md-tabs__item {
     height: auto;
     padding: 0 0.6rem;
+    pointer-events: auto;
   }
 
   .md-tabs__link {
     margin-top: 0;
+    padding: 0.3rem 0;
   }
 
   .md-header__title {
@@ -102,6 +147,10 @@
 }
 
 /* The foot of the page: one centered line, the copyright, the credit and the repository link. */
+.md-footer-meta {
+  background-color: var(--md-primary-fg-color--dark);
+}
+
 .md-footer-meta__inner {
   justify-content: center;
   align-items: center;
@@ -139,82 +188,188 @@
   vertical-align: baseline;
 }
 
-/* The page heading and each section heading are centered. */
-.md-typeset h1,
-.md-typeset h2 {
-  text-align: center;
-}
-
-/* Body type. */
+/* Body type: a serif for reading at length, set beside the serif of the math. */
 .md-typeset {
-  font-size: 0.78rem;
-  line-height: 1.7;
+  font-size: 0.84rem;
+  line-height: 1.72;
+  font-feature-settings: "kern", "liga", "onum";
 }
 
-.md-typeset h1 {
-  font-weight: 700;
-  letter-spacing: -0.02em;
+/* Headings in the sans, tight and heavy. The page heading and each section heading are centered. */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  font-family: var(--orior-head-font);
   color: var(--md-default-fg-color);
 }
 
-.md-typeset h2 {
+.md-content .md-typeset h1,
+.md-content .md-typeset h2 {
+  text-align: center;
+}
+
+.md-content .md-typeset h1 {
+  font-size: 2.1em;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.md-content .md-typeset h2 {
+  margin-top: 2.2em;
+  font-size: 1.45em;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/* The rule under a section heading is short and centered under it, in the signal colour. */
+.md-content .md-typeset h2::after {
+  content: "";
+  display: block;
+  width: 2.2rem;
+  height: 2px;
+  margin: 0.55rem auto 0;
+  background-color: var(--orior-signal);
+}
+
+.md-typeset h3 {
+  font-size: 1.12em;
   font-weight: 650;
   letter-spacing: -0.01em;
-  padding-bottom: 0.3rem;
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset a {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  transition: text-decoration-color 0.15s ease;
+}
+
+.md-typeset a:hover {
+  text-decoration-color: currentColor;
+}
+
+.md-typeset .headerlink,
+.md-typeset .md-button,
+.md-typeset .grid.cards a,
+.md-typeset .md-content__button {
+  text-decoration: none;
+}
+
+.md-typeset :focus-visible,
+.md-header :focus-visible,
+.md-nav :focus-visible {
+  outline: 2px solid var(--orior-signal);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .md-typeset code {
-  border-radius: 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.82em;
 }
 
-/* Tables: rounded, quiet header, readable rows. */
-.md-typeset table:not([class]) {
+.md-typeset pre > code {
   border-radius: var(--orior-radius);
-  overflow: hidden;
-  border: 1px solid var(--md-default-fg-color--lightest);
-  font-size: 0.72rem;
 }
 
-.md-typeset table:not([class]) th {
-  background-color: var(--md-default-fg-color--lightest);
+.md-typeset blockquote {
+  border-left: 3px solid var(--orior-signal);
+  color: var(--md-default-fg-color--light);
+}
+
+/* The side navigation and the table of contents, in the heading face. */
+.md-nav {
+  font-family: var(--orior-head-font);
+}
+
+.md-nav__title {
+  font-weight: 700;
+  color: var(--md-default-fg-color);
+}
+
+.md-nav__link--active {
   font-weight: 600;
 }
 
-.md-typeset table:not([class]) tr:hover {
-  background-color: color-mix(in srgb, var(--md-accent-fg-color) 6%, transparent);
+.md-nav--secondary .md-nav__link--active {
+  color: var(--md-typeset-a-color);
 }
 
-/* The landing page. */
+/* Tables: an ink rule above and below, a quiet head, readable rows. */
+.md-typeset table:not([class]) {
+  border: none;
+  border-top: 2px solid var(--md-default-fg-color);
+  border-bottom: 2px solid var(--md-default-fg-color);
+  border-radius: 0;
+  font-size: 0.74rem;
+}
+
+.md-typeset table:not([class]) th {
+  font-family: var(--orior-head-font);
+  font-weight: 600;
+  background-color: transparent;
+  border-bottom: 1px solid var(--md-default-fg-color--lighter);
+}
+
+.md-typeset table:not([class]) td {
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset table:not([class]) td:first-child code {
+  white-space: nowrap;
+}
+
+.md-typeset table:not([class]) tr:hover {
+  background-color: var(--orior-tint);
+  box-shadow: none;
+}
+
+/* Admonitions take the page's palette. */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: var(--orior-radius);
+  box-shadow: none;
+  font-size: 0.78rem;
+}
+
+/* The landing page. The hero is the ink band the header opens into, and orior.js draws a lattice
+ * across it: in order at the left, shuffled more and more toward the right. */
 .orior-hero {
   position: relative;
-  margin: 0 0 2.5rem;
-  padding: 3.5rem 2.5rem 3rem;
-  border-radius: 1rem;
-  color: #f8fafc;
-  background:
-    radial-gradient(60rem 30rem at 110% -20%, rgba(79, 70, 229, 0.55), transparent 60%),
-    radial-gradient(40rem 24rem at -10% 120%, rgba(20, 184, 166, 0.45), transparent 60%),
-    linear-gradient(135deg, #0b1020 0%, #111a33 100%);
-  box-shadow: 0 1.5rem 3rem -1.5rem rgba(15, 23, 42, 0.6);
+  margin: 0 0 2.6rem;
+  padding: 4rem 2.5rem 3.4rem;
+  border-radius: 0.9rem;
+  color: #f4f5fa;
+  background-color: var(--orior-ink);
+  background-image: radial-gradient(70% 90% at 50% 45%, var(--orior-ink) 35%, rgba(18, 24, 51, 0) 100%);
   overflow: hidden;
+  isolation: isolate;
 }
 
-.orior-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 1.6rem 1.6rem;
-  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
-  pointer-events: none;
+/* On the dark page the hero sits a step darker than the page, inside a hairline. */
+[data-md-color-scheme="slate"] .orior-hero {
+  background-color: #090d22;
+  background-image: radial-gradient(70% 90% at 50% 45%, #090d22 35%, rgba(9, 13, 34, 0) 100%);
+  box-shadow: inset 0 0 0 1px rgba(228, 231, 242, 0.09);
 }
 
 .orior-hero > * {
   position: relative;
   z-index: 1;
+}
+
+.md-typeset .orior-hero > .orior-lattice {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 /* The hero reads centered: the name and the lede on one line, the text and the buttons under them. */
@@ -228,12 +383,42 @@
   flex-wrap: wrap;
   justify-content: center;
   align-items: baseline;
-  column-gap: 1rem;
-  margin: 0 0 0.8rem;
+  column-gap: 1.1rem;
+  margin: 0 0 1.1rem;
 }
 
 /* While the line beside the name comes together, each letter is its own box, and the beam is a thin
  * rule brightest at its head. orior.js adds both and takes both away when the line is home. */
+.orior-word {
+  white-space: nowrap;
+}
+
+/* The name and the line are held unseen from the first paint until orior.js takes them, so the page
+ * never shows them plain and then hides them. Where the script does not run they appear when the
+ * hold runs out. */
+@keyframes orior-hold {
+  from {
+    visibility: hidden;
+  }
+
+  to {
+    visibility: visible;
+  }
+}
+
+.md-typeset .orior-title h1,
+.md-typeset .orior-title .orior-lede {
+  animation: orior-hold 0s linear 1.6s both;
+}
+
+/* A letter in its own box is set without the kerning or the ligatures of the text around it, so the
+ * line is set the same way throughout: the letters land where the plain text puts them. */
+.md-typeset .orior-title .orior-lede {
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "kern" 0, "liga" 0, "clig" 0, "calt" 0;
+}
+
 .orior-part {
   display: inline-block;
   will-change: transform;
@@ -246,8 +431,8 @@
   border-radius: 1px;
   transform-origin: left center;
   transform: scaleX(0);
-  background: linear-gradient(90deg, rgba(94, 234, 212, 0), #5eead4 70%, #ffffff);
-  box-shadow: 0 0 10px 1px rgba(94, 234, 212, 0.75);
+  background: linear-gradient(90deg, rgba(242, 179, 61, 0), #f2b33d 70%, #ffffff);
+  box-shadow: 0 0 10px 1px rgba(242, 179, 61, 0.7);
   pointer-events: none;
 }
 
@@ -257,21 +442,26 @@
 }
 
 .md-typeset .orior-title .orior-lede::before {
-  content: "|";
-  margin-right: 1rem;
-  color: #64748b;
-  font-weight: 400;
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-right: 1.1rem;
+  vertical-align: -0.18em;
+  background-color: var(--orior-signal);
 }
 
 .md-typeset .orior-hero h1 {
   margin: 0 0 0.8rem;
-  font-size: 3.2rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  background: linear-gradient(90deg, #5eead4, #a5b4fc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: 4.2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.055em;
+  color: #ffffff;
+}
+
+.md-typeset .orior-hero h1::after {
+  display: none;
 }
 
 .md-typeset .orior-hero .headerlink {
@@ -280,99 +470,182 @@
 
 .md-typeset .orior-lede {
   max-width: 36rem;
-  font-size: 1.15rem;
+  font-family: var(--orior-head-font);
+  font-size: 1.2rem;
   font-weight: 500;
-  line-height: 1.5;
-  color: #e2e8f0;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: #e6e9f5;
 }
 
 .md-typeset .orior-hero p:not(.orior-lede) {
-  max-width: 38rem;
-  margin-left: auto;
-  margin-right: auto;
-  color: #94a3b8;
+  max-width: 34rem;
+  margin: 0 auto 1.6rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #b9c0dc;
 }
 
 .md-typeset .orior-hero .md-button {
-  margin: 0.6rem calc(0.2rem + 7.5px) 0;
-  border-radius: 999px;
-  color: #e2e8f0;
-  border-color: rgba(226, 232, 240, 0.35);
+  margin: 0.35rem 0.25rem 0;
+  padding: 0.5em 1.1em;
+  border: 1px solid rgba(230, 233, 245, 0.28);
+  border-radius: 0.4rem;
+  font-family: var(--orior-head-font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #e6e9f5;
+  background-color: rgba(18, 24, 51, 0.55);
+  backdrop-filter: blur(2px);
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .md-typeset .orior-hero .md-button:hover {
-  border-color: #5eead4;
-  background-color: rgba(94, 234, 212, 0.12);
-  color: #fff;
+  border-color: var(--orior-signal);
+  background-color: rgba(242, 179, 61, 0.1);
+  color: #ffffff;
 }
 
 .md-typeset .orior-hero .md-button--primary {
-  border: none;
-  color: #0b1020;
-  background: linear-gradient(90deg, #5eead4, #a5b4fc);
+  border-color: var(--orior-signal);
+  color: var(--orior-ink);
+  background-color: var(--orior-signal);
 }
 
 .md-typeset .orior-hero .md-button--primary:hover {
-  color: #0b1020;
-  filter: brightness(1.08);
+  color: var(--orior-ink);
+  background-color: #ffc95c;
 }
 
-/* What came back: one measured number per tile, the number large and what it counts under it. */
+/* What came back: one measured number per tile, the number large and what it counts under it. The
+ * tiles are columns of a table more than cards, so they share rules and no box. */
 .orior-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.8rem;
-  margin: 1.2rem 0 2rem;
+  column-gap: 1.6rem;
+  row-gap: 1.4rem;
+  margin: 1.4rem 0 2.4rem;
 }
 
 .orior-stats > div {
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--md-default-fg-color--lightest);
-  border-top: 3px solid var(--md-accent-fg-color);
-  border-radius: var(--orior-radius);
-  background-color: color-mix(in srgb, var(--md-accent-fg-color) 4%, transparent);
+  padding: 0.7rem 0 0;
+  border-top: 2px solid var(--md-default-fg-color);
 }
 
 .md-typeset .orior-stats strong {
   display: block;
-  font-size: 1.35rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-  color: var(--md-typeset-a-color);
+  font-family: var(--orior-head-font);
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--md-default-fg-color);
 }
 
 .md-typeset .orior-stats span {
   display: block;
-  margin-top: 0.3rem;
-  font-size: 0.68rem;
-  line-height: 1.45;
+  margin-top: 0.4rem;
+  font-size: 0.74rem;
+  line-height: 1.5;
   color: var(--md-default-fg-color--light);
 }
 
-/* Cards: lift on hover, accent hairline. */
-.md-typeset .grid.cards > ul > li {
+/* Cards: a tinted panel, the title in the heading face, and the whole panel is the link. The link's
+ * box is stretched over the card, so a click anywhere on it goes where the link goes; the border
+ * takes the signal colour under the pointer and around the focused link. */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+  position: relative;
+  border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: var(--orior-radius);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  background-color: var(--orior-tint);
+  box-shadow: none;
+  transition: border-color 0.15s ease;
 }
 
-.md-typeset .grid.cards > ul > li:hover {
-  transform: translateY(-2px);
-  border-color: var(--md-accent-fg-color);
-  box-shadow: 0 0.8rem 1.6rem -1rem rgba(13, 148, 136, 0.55);
+.md-typeset .grid.cards > ul > li:has(a):hover,
+.md-typeset .grid.cards > ul > li:has(a:focus-visible),
+.md-typeset .grid > .card:has(a):hover {
+  border-color: var(--orior-signal);
+  box-shadow: none;
+}
+
+.md-typeset .grid.cards > ul > li a::after,
+.md-typeset .grid > .card a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.md-typeset .grid.cards > ul > li a:focus-visible,
+.md-typeset .grid > .card a:focus-visible {
+  outline: none;
+}
+
+/* The links in a card read as part of it: the title in the ink of the text, the link under it in
+ * the heading face, quieter, with its arrow in the signal colour. */
+.md-typeset .grid.cards a,
+.md-typeset .grid.cards a:hover {
+  color: var(--md-default-fg-color);
+  text-decoration: none;
+}
+
+/* A title set on two lines, its second line centered under its first. */
+.md-typeset .grid.cards a.orior-stacked {
+  display: inline-block;
+  vertical-align: top;
+  text-align: center;
+}
+
+.md-typeset .grid.cards > ul > li > p:last-child > a:only-child {
+  font-family: var(--orior-head-font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--md-default-fg-color--light);
+  transition: color 0.15s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover > p:last-child > a:only-child {
+  color: var(--md-default-fg-color);
+}
+
+.md-typeset .grid.cards > ul > li > p:last-child > a:only-child .twemoji {
+  color: var(--orior-signal-deep);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .grid.cards > ul > li > p:last-child > a:only-child .twemoji {
+  color: var(--orior-signal);
+}
+
+.md-typeset .grid.cards > ul > li > hr {
+  margin: 0.6rem 0;
+  border-bottom-color: var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .grid.cards strong {
+  font-family: var(--orior-head-font);
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .md-typeset .grid.cards .lg {
-  color: var(--md-accent-fg-color);
+  color: var(--orior-signal-deep);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .grid.cards .lg {
+  color: var(--orior-signal);
 }
 
 /* Purpose and Scope lines at the head of a page read as a header band. */
 .md-typeset h1 + p:not(.orior-lede) {
-  padding: 0.7rem 0.9rem;
-  border-left: 3px solid var(--md-accent-fg-color);
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--orior-signal);
   border-radius: 0 var(--orior-radius) var(--orior-radius) 0;
-  background-color: color-mix(in srgb, var(--md-accent-fg-color) 7%, transparent);
-  font-size: 0.72rem;
+  background-color: var(--orior-tint);
+  font-size: 0.76rem;
+  line-height: 1.6;
 }
 
 /* The landing page opens on the hero, with no source button beside it. */
@@ -382,15 +655,33 @@
 
 @media screen and (max-width: 44.9375em) {
   .orior-hero {
-    padding: 2.2rem 1.4rem 2rem;
+    padding: 2.6rem 1.2rem 2.2rem;
     border-radius: 0.6rem;
   }
 
   .md-typeset .orior-hero h1 {
-    font-size: 2.4rem;
+    font-size: 3rem;
+  }
+
+  .md-typeset .orior-title .orior-lede::before {
+    display: none;
   }
 
   .orior-stats {
     grid-template-columns: repeat(2, 1fr);
+    column-gap: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .orior-title h1,
+  .md-typeset .orior-title .orior-lede {
+    animation: none;
+  }
+
+  .md-typeset a,
+  .md-typeset .orior-hero .md-button,
+  .md-typeset .grid.cards > ul > li {
+    transition: none;
   }
 }

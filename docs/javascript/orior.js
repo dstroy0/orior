@@ -95,22 +95,32 @@ function oriorPour(name, done) {
 }
 
 // Split the line into one box per letter and pile the letters in rows that narrow toward the top,
-// each turned at random. The place of a letter in the line is where its box sits, and the pile is an
-// offset from it: taking the offset away puts the letter home.
+// each turned at random. The letters of a word sit together in one unbreaking run, so the line
+// wraps where the plain text wraps, between words. The place of a letter in the line is where its
+// box sits, and the pile is an offset from it: taking the offset away puts the letter home.
 function oriorPile(line) {
   const text = line.textContent;
   line.setAttribute("aria-label", text);
   line.textContent = "";
   const letters = [];
+  let word = null;
   for (const ch of text) {
+    if (ch === " ") {
+      line.appendChild(document.createTextNode(" "));
+      word = null;
+      continue;
+    }
+    if (!word) {
+      word = document.createElement("span");
+      word.className = "orior-word";
+      word.setAttribute("aria-hidden", "true");
+      line.appendChild(word);
+    }
     const box = document.createElement("span");
     box.className = "orior-part";
-    box.setAttribute("aria-hidden", "true");
-    box.textContent = ch === " " ? " " : ch;
-    line.appendChild(box);
-    if (ch !== " ") {
-      letters.push(box);
-    }
+    box.textContent = ch;
+    word.appendChild(box);
+    letters.push(box);
   }
   const em = parseFloat(getComputedStyle(line).fontSize);
   const lineBox = line.getBoundingClientRect();
@@ -175,9 +185,9 @@ function oriorAssemble(name, pile) {
     last = Math.max(last, delay);
     box.animate(
       [
-        { transform: box.oriorHeap, opacity: 0.55, color: ink, textShadow: "0 0 0 rgba(94, 234, 212, 0)" },
-        { color: "#5eead4", textShadow: "0 0 0.6em rgba(94, 234, 212, 0.8)", opacity: 1, offset: 0.2 },
-        { transform: "translate(0, 0) rotate(0deg)", opacity: 1, color: ink, textShadow: "0 0 0 rgba(94, 234, 212, 0)" }
+        { transform: box.oriorHeap, opacity: 0.55, color: ink, textShadow: "0 0 0 rgba(242, 179, 61, 0)" },
+        { color: "#f2b33d", textShadow: "0 0 0.6em rgba(242, 179, 61, 0.8)", opacity: 1, offset: 0.2 },
+        { transform: "translate(0, 0) rotate(0deg)", opacity: 1, color: ink, textShadow: "0 0 0 rgba(242, 179, 61, 0)" }
       ],
       { duration: ORIOR_PART_MS, delay, easing: "cubic-bezier(0.2, 1.3, 0.4, 1)", fill: "both" }
     );
@@ -189,16 +199,114 @@ function oriorAssemble(name, pile) {
   }, Math.max(last + ORIOR_PART_MS, ORIOR_BEAM_MS / 0.75) + 50);
 }
 
+// The lattice behind the hero: a square grid of points, each moved off its place by an amount that
+// is zero at the left and grows toward the right, so the band reads from a pattern to its shuffled
+// copy. A point in place is drawn in the signal colour and a moved one fades to the ink's blue. The
+// draw is seeded, so every load draws the same lattice, and it holds still.
+const ORIOR_LATTICE_STEP = 22;
+const ORIOR_LATTICE_SEED = 1729;
+
+function oriorRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let mixed = state;
+    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function oriorLattice(hero) {
+  let canvas = hero.querySelector(":scope > .orior-lattice");
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    canvas.className = "orior-lattice";
+    canvas.setAttribute("aria-hidden", "true");
+    hero.prepend(canvas);
+  }
+  const box = hero.getBoundingClientRect();
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = Math.round(box.width * scale);
+  canvas.height = Math.round(box.height * scale);
+  const pen = canvas.getContext("2d");
+  pen.setTransform(scale, 0, 0, scale, 0, 0);
+  pen.clearRect(0, 0, box.width, box.height);
+  const draw = oriorRandom(ORIOR_LATTICE_SEED);
+  const step = ORIOR_LATTICE_STEP;
+  for (let y = step / 2; y < box.height; y += step) {
+    for (let x = step / 2; x < box.width; x += step) {
+      const across = x / box.width;
+      const loose = Math.max(0, Math.min(1, (across - 0.3) / 0.7));
+      const shift = loose * loose * step * 2.4;
+      const turn = draw() * Math.PI * 2;
+      const reach = draw();
+      const px = x + Math.cos(turn) * shift * reach;
+      const py = y + Math.sin(turn) * shift * reach;
+      const kept = 1 - loose;
+      const red = Math.round(242 * kept + 120 * loose);
+      const green = Math.round(179 * kept + 140 * loose);
+      const blue = Math.round(61 * kept + 220 * loose);
+      const alpha = 0.26 + 0.26 * kept;
+      pen.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha.toFixed(3)})`;
+      pen.beginPath();
+      pen.arc(px, py, 1.3 + 0.4 * kept, 0, Math.PI * 2);
+      pen.fill();
+    }
+  }
+}
+
+// The pile is measured from where each letter sits, so it waits for the face the line is set in,
+// for at most ORIOR_FONT_WAIT_MS. A face that comes later than that moves the letters, and the line
+// is set right again when it is set back to plain text.
+const ORIOR_FONT_WAIT_MS = 700;
+
+function oriorFontsReady(node) {
+  const style = getComputedStyle(node);
+  const wanted = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const loaded = document.fonts ? document.fonts.load(wanted).catch(() => null) : Promise.resolve();
+  const waited = new Promise((resolve) => window.setTimeout(resolve, ORIOR_FONT_WAIT_MS));
+  return Promise.race([loaded, waited]);
+}
+
+let oriorLatticeWait = 0;
+window.addEventListener("resize", () => {
+  window.clearTimeout(oriorLatticeWait);
+  oriorLatticeWait = window.setTimeout(() => {
+    const hero = document.querySelector(".orior-hero");
+    if (hero) {
+      oriorLattice(hero);
+    }
+  }, 150);
+});
+
 document$.subscribe(() => {
+  const hero = document.querySelector(".orior-hero");
+  if (hero) {
+    oriorLattice(hero);
+  }
   const name = document.querySelector(".orior-title h1");
-  if (!name || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (!name) {
     return;
   }
   const line = document.querySelector(".orior-title .orior-lede");
-  const pile = line ? oriorPile(line) : null;
-  oriorPour(name, () => {
-    if (pile) {
-      oriorAssemble(name, pile);
+  const release = () => {
+    name.style.animation = "none";
+    if (line) {
+      line.style.animation = "none";
     }
+  };
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    release();
+    return;
+  }
+  oriorFontsReady(line || name).then(() => {
+    const pile = line ? oriorPile(line) : null;
+    oriorPour(name, () => {
+      if (pile) {
+        oriorAssemble(name, pile);
+      }
+    });
+    release();
   });
 });

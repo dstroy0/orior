@@ -34,37 +34,37 @@ Orior finds the pattern in anything, from a crystal to a language to a file. It 
 
     ---
 
-    Run the measure on something of your own, and know which of the six parts you are calling.
+    Setting up the engine to solve your problem
 
--   :material-code-braces:{ .lg .middle } __[The language: gnascor](gnascor.md)__
+-   :material-code-braces:{ .lg .middle } __[The engine/transpiler's language:<br>gnascor](gnascor.md){ .orior-stacked }__
 
     ---
 
-    The internal language, the query protocol every ask takes, and the transpiler.
+    The query protocol for the ruleset L*, relational gsm, higher order language g formats, constructs, and file definitions
 
 -   :material-filter-variant:{ .lg .middle } __[The sift](sift.md)__
 
     ---
 
-    A sound filter: no arrangement of anchors can lose a true occurrence.
+    No arrangement of anchors can lose a true occurrence
 
 -   :material-check-decagram:{ .lg .middle } __[Why the count is exact](ENGINE_PROOF.md)__
 
     ---
 
-    The proofs that every probe set returns the exact count, and that the descent terminates.
+    The proofs that every set returns their exact count, and self-terminates
 
 -   :material-book-open-variant:{ .lg .middle } __[Where to start reading](research_papers.md)__
 
     ---
 
-    The twenty research papers, each with what it holds.
+    Theory & Research
 
 -   :material-account-voice:{ .lg .middle } __[The conditions of use](condition_of_use.md)__
 
     ---
 
-    Whose language this is, what is held closed, naming a writer, the scan of a patient, and systems you do not own.
+    Be excellent to one another
 
 </div>
 
@@ -81,7 +81,7 @@ sh utils/maint/texbuild/build_theory.sh                             # the resear
 
 ## What is here
 
-Some of this will read as too much. Nothing here asks to be believed: every result names the file that holds it and the run that checks it, every one was measured against a null that could have said no, and every claim the work took back is kept beside the measurement that took it back. Most of the parts are old, and they are named as old.
+Nothing here asks to be believed: every result is traceable, every validated measurement could have failed but did not, and every claim the work took back is kept in its workbook. Most of the parts of this work are old and named as such. Their arrangements being glued together in orior using exact arithmetic with no exceptions even where the original authors allowed them or did not have access to vector calculus is what sets this work apart.
 
 <div class="grid cards" markdown>
 
@@ -89,7 +89,7 @@ Some of this will read as too much. Nothing here asks to be believed: every resu
 
     ---
 
-    Every number is an integer of whatever width it needs. Nothing is rounded, and a value too wide for its word is refused instead of cut. A big number library holds the same integers; this engine never leaves them.
+    No rounding. No exceptions. Arbitrary precision throughout. No value is too large. A value too wide for its word is refused on compilation.
 
     [:octicons-arrow-right-24: The engine](engine.md)
 
