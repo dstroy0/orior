@@ -235,6 +235,18 @@ SYNC = [
 
 OPERAND_NAMES = ["a", "b", "c", "e"]
 
+# the tests asked where their predicate is read: each comparison over a and b of one type selected on, and-ed with
+# c != 0 and or-ed with it, and the tests of a against zero alone and joined with c != 0, a < 0 on the signed types
+TESTED = [I, U, LL, ULL]
+TEST_OPERATORS = ["==", "!=", "<", ">", "<=", ">="]
+ZERO_TESTS = ["a == 0", "a != 0", "(a != 0) && (c != 0)", "(a != 0) || (c != 0)"]
+# a product with an addend, each with its operands' types and its result's
+MULTIPLY_ADD = [
+    ("int a * b + c", [I, I, I], I, "a * b + c"),
+    ("unsigned int a * b + c", [U, U, U], U, "a * b + c"),
+    ("(unsigned long long)a * b + c", [U, U, ULL], ULL, "(unsigned long long)a * b + c"),
+]
+
 
 def read(type_name, at):
     """the operand at in[4 . thread + at] turned to `type_name` as a cast does"""
@@ -356,6 +368,17 @@ def build():
     for text in SYNC:
         result = text.split(" r = ")[0].split(";")[-1].strip()
         stick.add("sync", text, stick.operands([I, I]) + " " + text + " " + written(result))
+    for t in TESTED:
+        for operator in TEST_OPERATORS:
+            test = "(a " + operator + " b)"
+            stick.expression("test", t + " " + test + " ? a : b", [t, t, I], t, test + " ? a : b")
+            for joined in ("&&", "||"):
+                expression = test + " " + joined + " (c != 0)"
+                stick.expression("test", t + " " + expression, [t, t, I], "bool", expression)
+        for expression in ZERO_TESTS + (["a < 0"] if not t.startswith("unsigned") else []):
+            stick.expression("test", t + " " + expression, [t, t, I], "bool", expression)
+    for text, types, result, expression in MULTIPLY_ADD:
+        stick.expression("operator", text, types, result, expression)
     return stick
 
 

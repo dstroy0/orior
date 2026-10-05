@@ -38,6 +38,17 @@ count clock    folds    0
 # itself, with no compiler and no disassembler standing between.
 compile folds 00000000 word_mul: the system folds the pow2 put for left
 compile folds 00000000 word_set: the system folds the word_used_once put for value
+compile folds 00000000 sign_select: the system folds the number put for otherwise
+compile folds 00000000 sign_set: the system folds the number put for value
+compile folds 00000000 test_sign_ne: the system folds the number put for right
+compile folds 00000000 wide_add: the system folds the number put for right
+compile folds 00000000 wide_mul: the system folds the number put for right
+compile folds 00000000 wide_select: the system folds the number put for otherwise
+compile folds 00000000 wide_unpack: the system folds the register put for low
+compile folds 00000000 word_copy: the system folds the register put for to
+compile folds 00000000 word_mul: the system folds the number put for right
+compile folds 00000000 word_set: the system folds the number put for value
+compile folds 00000000 word_shl: the system folds the number put for bits
 compile folds 00000000 block_dim_x: the system folds the register put for to
 compile folds 00000000 global_load_wide: the system folds the offset put for address
 compile folds 00000000 global_load_word: the system folds the offset put for address
@@ -57,17 +68,6 @@ compile folds 00000000 test_word_lt: the system folds the complement put for whe
 compile folds 00000000 test_word_zero: the system folds the complement put for where
 compile folds 00000000 wide_from_signed_word: the system folds the register put for from
 compile folds 00000000 wide_from_word: the system folds the register put for from
-compile folds 00000000 sign_select: the system folds the number put for otherwise
-compile folds 00000000 sign_set: the system folds the number put for value
-compile folds 00000000 test_sign_ne: the system folds the number put for right
-compile folds 00000000 wide_add: the system folds the number put for right
-compile folds 00000000 wide_mul: the system folds the number put for right
-compile folds 00000000 wide_select: the system folds the number put for otherwise
-compile folds 00000000 wide_unpack: the system folds the register put for low
-compile folds 00000000 word_copy: the system folds the register put for to
-compile folds 00000000 word_mul: the system folds the number put for right
-compile folds 00000000 word_set: the system folds the number put for value
-compile folds 00000000 word_shl: the system folds the number put for bits
 
 # writings the system answers alike: an operation written where the ruleset holds the other, each
 # giving the same machine code. A reading in one is the ruleset's form in the other.
