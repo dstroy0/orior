@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs klq_identity over the measuring stick (klq_identity.cu): the stick's questions sliced into
 # identities, the integer questions computed on the host over every case, and each identity's verdict written to
-# Lstar.klq after its keys, beside the forms of the rulesets given. Reads the stick measuring_stick.sh last wrote. No
-# device.
+# Lstar.klq after its keys, beside the forms of the rulesets given, and the engine's writing of the stick sifted
+# through what nvcc writes to build/engine/identity/known.txt. Reads the stick measuring_stick.sh and
+# measuring_stick_engine.sh last wrote. No device.
 #
 #     utils/maint/engine/klq_identity.sh
 #     utils/maint/engine/klq_identity.sh sass.krs
@@ -47,4 +48,9 @@ fi
 # the host computes each question as its C says, signed arithmetic wrapping as the part's does
 c++ -std=c++17 -O0 -fwrapv -w -o "$WORK/host_questions" "$WORK/host_questions.cpp" || { echo "  the host questions did not compile"; exit 1; }
 "$WORK/host_questions" > "$WORK/host_answers.txt" || exit 1
-"$BINARY" read "$WORK" "$COHERENCE/Lstar.klq" "$@"
+"$BINARY" read "$WORK" "$COHERENCE/Lstar.klq" "$@" || exit 1
+# the engine's writing of the stick sifted through what nvcc writes, read off the disassembly and never run
+ENGINE="$STICK/engine"
+if compgen -G "$ENGINE/*.dis" > /dev/null; then
+    "$BINARY" known "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE"/*.dis
+fi
