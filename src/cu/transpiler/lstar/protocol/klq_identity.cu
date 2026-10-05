@@ -3,6 +3,7 @@
 //
 //   klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>
 //   klq_identity read <folder> <Lstar.klq> <ruleset>...
+//   klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
 //
 // Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
 // links are the slice's identity: each an instruction with its registers read as their kind and its literals as
@@ -63,6 +64,16 @@ static const char *const s_control_or_wait[] = {"BRA",   "BRX",  "JMP",      "JM
                                                 "EXIT",  "BSSY", "BSYNC",    "BREAK", "BMOV", "WARPSYNC",
                                                 "YIELD", "BAR",  "DEPBAR",   "NANOSLEEP", "BPT", "RTT",
                                                 "KILL",  "RPCMOV", "RETIRE", "PMTRIG"};
+
+// 1 where the link, as written or read as its kind, transfers control or waits, which cubin_safe.h's rule 2 keeps off
+// the part, EXIT alone excepted
+static int rule_broken(const std::string &link)
+{
+    const size_t guarded = (link[0] == '@') ? link.find(' ') + 1u : 0u;
+    const std::string operation = link.substr(guarded, link.find_first_of(". ", guarded) - guarded);
+    return (operation != "EXIT") && std::any_of(std::begin(s_control_or_wait), std::end(s_control_or_wait),
+                                                [&](const char *control) { return operation == control; });
+}
 
 // a link of a listing: as nvcc wrote it, its registers as written, with its registers read as their kind, and its
 // position in the chain, the address nvcc wrote beside it, and each register it names with the slot it names it in: g
@@ -154,7 +165,8 @@ static std::string trimmed(const std::string &text)
     return (first == std::string::npos) ? std::string() : text.substr(first, last - first + 1u);
 }
 
-// the line of a listing as a link, or 0 where it is no instruction or is the branch to itself past the last exit
+// the line of a listing as a link: 1, 0 where it is no instruction, or -1 where it is the branch to itself past the
+// last exit, after which nothing of the chain is reached
 static int link_read(const std::string &line, Link *link)
 {
     static const std::regex s_address("/\\*([0-9a-f]{4,})\\*/");
@@ -172,7 +184,7 @@ static int link_read(const std::string &line, Link *link)
     if (addressed && std::regex_match(text, self, s_self) &&
         (std::stoull(self[1].str(), nullptr, 16) == std::stoull(address[1].str(), nullptr, 16)))
     {
-        return 0;
+        return -1;
     }
     const std::string written = text;
     link->slots.clear();
@@ -288,6 +300,7 @@ static int questions_read(const char *listing, const char *manifest, std::vector
     }
     static const std::regex s_function("Function : measuring_stick_([0-9]+)");
     std::string line;
+    int ended = 1;
     while (std::getline(file, line))
     {
         std::smatch function;
@@ -298,10 +311,13 @@ static int questions_read(const char *listing, const char *manifest, std::vector
             question.category = named[question.number].first;
             question.text = named[question.number].second;
             questions->push_back(question);
+            ended = 0;
             continue;
         }
         Link link;
-        if (!questions->empty() && link_read(line, &link))
+        const int read = ended ? 0 : link_read(line, &link);
+        ended = ended || (read < 0);
+        if (read > 0)
         {
             // a link written more than once in a listing is held at its most basal position
             questions->back().exact[link.exact] += 1u;
@@ -595,7 +611,8 @@ static std::string address_text(const std::vector<Question> &questions, unsigned
 // <folder>/chains.txt holds the primitives in the order of their addresses, each with its count and its link, then for
 // each question its chain: the identity of the whole at its address and its count, the constituents, each an address
 // and a length, the primitives, and the operands
-static int chains_write(const std::vector<Question> &questions, const std::string &folder)
+// every window of every question's chain, each identity at its first occurrence with its count
+static std::unordered_map<unsigned long long, Occurrence> windows_held(const std::vector<Question> &questions)
 {
     std::unordered_map<unsigned long long, Occurrence> held;
     for (unsigned int question = 0u; question < questions.size(); question += 1u)
@@ -609,6 +626,12 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
             }
         }
     }
+    return held;
+}
+
+static int chains_write(const std::vector<Question> &questions, const std::string &folder)
+{
+    const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
     const std::string path = folder + "/chains.txt";
     FILE *const file = fopen(path.c_str(), "wb");
     if (file == NULL)
@@ -800,7 +823,7 @@ static std::vector<std::regex> form_links(const std::string &text)
     while (std::getline(lines, line))
     {
         Link link;
-        if (!link_read(line, &link))
+        if (link_read(line, &link) != 1)
         {
             continue;
         }
@@ -1040,10 +1063,7 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
         number += 1u;
         for (const std::string &side : sides)
         {
-            const size_t guarded = (side[0] == '@') ? side.find(' ') + 1u : 0u;
-            const std::string operation = side.substr(guarded, side.find_first_of(". ", guarded) - guarded);
-            if (std::any_of(std::begin(s_control_or_wait), std::end(s_control_or_wait),
-                            [&](const char *control) { return operation == control; }))
+            if (rule_broken(side))
             {
                 fprintf(file, "rule 2 %s: its form transfers control or waits\n", side.c_str());
                 flagged += 1u;
@@ -1128,8 +1148,179 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
     return 0;
 }
 
+// the chains of a candidate file: one for each function its listing names, or the whole file as one chain named for
+// its stem where it names none
+static void candidates_read(const std::string &path, std::vector<Question> *candidates)
+{
+    std::ifstream file(path);
+    static const std::regex s_function("Function : ([A-Za-z0-9_]+)");
+    const size_t slash = path.find_last_of("/\\");
+    const std::string stem = path.substr((slash == std::string::npos) ? 0u : slash + 1u);
+    const size_t first = candidates->size();
+    std::string line;
+    int ended = 0;
+    while (std::getline(file, line))
+    {
+        std::smatch function;
+        if (std::regex_search(line, function, s_function))
+        {
+            Question candidate;
+            candidate.number = function[1].str();
+            candidates->push_back(candidate);
+            ended = 0;
+            continue;
+        }
+        Link link;
+        const int read = ended ? 0 : link_read(line, &link);
+        ended = ended || (read < 0);
+        if (read > 0)
+        {
+            if (candidates->size() == first)
+            {
+                Question candidate;
+                candidate.number = stem.substr(0u, stem.find('.'));
+                candidates->push_back(candidate);
+            }
+            candidates->back().chain.push_back(link);
+        }
+    }
+}
+
+// Each candidate chain sifted through the identities nvcc's chains hold, before anything of it is put to the part:
+// its whole known at an address, or read as the longest known windows from each link, with every link whose primitive
+// nvcc never writes and every two links side by side nvcc never writes so, each known apart. A part unknown that rule 2
+// keeps off the part is marked with the rule. <folder>/known.txt holds a candidate a group of lines
+static int identity_known(const char *listing, const char *manifest, const std::string &folder, int count,
+                          char **paths)
+{
+    std::vector<Question> questions;
+    if (!questions_read(listing, manifest, &questions))
+    {
+        return 1;
+    }
+    const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
+    std::vector<Question> candidates;
+    for (int at = 0; at < count; at += 1)
+    {
+        candidates_read(paths[at], &candidates);
+    }
+    const std::string path = folder + "/known.txt";
+    FILE *const file = fopen(path.c_str(), "wb");
+    if (file == NULL)
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
+    // the first occurrence of a window where nvcc's chains hold it, its constituents the same link for link
+    const auto known = [&](const Question &candidate, unsigned int link, unsigned int length,
+                           unsigned long long identity) -> const Occurrence *
+    {
+        const auto found = held.find(identity);
+        if ((found == held.end()) || (window_render(questions[found->second.question], found->second.link, length) !=
+                                      window_render(candidate, link, length)))
+        {
+            return nullptr;
+        }
+        return &found->second;
+    };
+    unsigned int wholes = 0u;
+    unsigned int permutations = 0u;
+    unsigned int strangers = 0u;
+    unsigned int unknown_primitives = 0u;
+    unsigned int unknown_pairs = 0u;
+    unsigned int flagged = 0u;
+    for (const Question &candidate : candidates)
+    {
+        if (candidate.chain.empty())
+        {
+            continue;
+        }
+        const unsigned int links = (unsigned int)candidate.chain.size();
+        const std::vector<unsigned long long> from_first = window_identities(candidate, 0u);
+        const Occurrence *const whole = known(candidate, 0u, links, from_first.back());
+        char number[17];
+        snprintf(number, sizeof(number), "%016llx", from_first.back());
+        fprintf(file, "candidate %s %s %s\n", candidate.number.c_str(), number,
+                (whole == nullptr) ? "unknown" : ("known " + address_text(questions, whole->question, whole->link)).c_str());
+        if (whole != nullptr)
+        {
+            wholes += 1u;
+            continue;
+        }
+        std::string read;
+        for (unsigned int link = 0u; link < links;)
+        {
+            const std::vector<unsigned long long> identities = window_identities(candidate, link);
+            unsigned int length = 0u;
+            for (unsigned int longest = (unsigned int)identities.size(); (longest > 0u) && (length == 0u); longest -= 1u)
+            {
+                const Occurrence *const first = known(candidate, link, longest, identities[longest - 1u]);
+                if (first != nullptr)
+                {
+                    read += " " + address_text(questions, first->question, first->link) + "/" + std::to_string(longest);
+                    length = longest;
+                }
+            }
+            if (length == 0u)
+            {
+                read += " ?" + candidate.chain[link].position;
+                length = 1u;
+            }
+            link += length;
+        }
+        fprintf(file, "constituents%s\n", read.c_str());
+        unsigned int unknown_here = 0u;
+        for (unsigned int link = 0u; link < links; link += 1u)
+        {
+            const std::vector<unsigned long long> identities = window_identities(candidate, link);
+            const int alone = known(candidate, link, 1u, identities[0]) != nullptr;
+            const int paired = ((link + 1u) < links) ? (known(candidate, link, 2u, identities[1]) != nullptr) : 1;
+            const int next_alone =
+                ((link + 1u) < links) ? (known(candidate, link + 1u, 1u, window_identities(candidate, link + 1u)[0]) != nullptr) : 0;
+            const Link &written = candidate.chain[link];
+            const std::string rule = rule_broken(written.exact) ? " rule 2: its form transfers control or waits" : "";
+            if (!alone)
+            {
+                fprintf(file, "unknown %s %s%s\n", written.position.c_str(), window_render(candidate, link, 1u).c_str(),
+                        rule.c_str());
+                unknown_primitives += 1u;
+                unknown_here += 1u;
+                flagged += rule.empty() ? 0u : 1u;
+            }
+            // two links each known alone and never written side by side
+            if (alone && next_alone && !paired)
+            {
+                std::string pair = window_render(candidate, link, 2u);
+                std::replace(pair.begin(), pair.end(), '\n', ';');
+                fprintf(file, "unpaired %s %s\n", written.position.c_str(), pair.c_str());
+                unknown_pairs += 1u;
+                unknown_here += 1u;
+            }
+        }
+        if (unknown_here == 0u)
+        {
+            permutations += 1u;
+        }
+        else
+        {
+            strangers += 1u;
+        }
+    }
+    fclose(file);
+    printf("  %s: %u candidates, %u known whole, %u not known whole but every link and every two side by side known, "
+           "%u with a part nvcc never writes\n",
+           path.c_str(), (unsigned int)candidates.size(), wholes, permutations, strangers);
+    printf("  parts unknown: %u links, %u of them kept off the part by rule 2, %u pairs side by side\n",
+           unknown_primitives, flagged, unknown_pairs);
+    return 0;
+}
+
 int main(int count, char **words)
 {
+    if ((count >= 5) && (std::string(words[1]) == "known"))
+    {
+        return identity_known(words[2], words[3], words[4], count - 5, words + 5);
+    }
     if ((count == 6) && (std::string(words[1]) == "slice"))
     {
         return identity_slice(words[2], words[3], words[4], words[5]);
@@ -1140,5 +1331,6 @@ int main(int count, char **words)
     }
     printf("klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>\n");
     printf("klq_identity read <folder> <Lstar.klq> <ruleset>...\n");
+    printf("klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
     return 1;
 }
