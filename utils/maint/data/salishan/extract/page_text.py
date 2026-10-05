@@ -1005,6 +1005,10 @@ PAPER_DRAWN_BACK = tables.members("PAPER_DRAWN_BACK")
 # mode only.
 PAPER_MARK_BASE = tables.members("PAPER_MARK_BASE")
 MARK_BASES = "’'ʼ"
+# Papers whose stream sets a mark ahead of the letter it stands over: the comma above of Lyon's
+# 2011 k̓ʷúl̓-nt-n, which TIPA draws before the k and before the l. A mark with no letter under it
+# yet waits for the page's glyphs, and the letter under its middle takes it. Read in rows mode only.
+PAPER_MARKS_AHEAD = tables.members("PAPER_MARKS_AHEAD")
 # Papers that set an index as a lowered digit, Bill₁ and ∅₁ in Cable's co-reference examples, which
 # the glyph rows read as a plain one. Read in rows mode only.
 PAPER_SUBSCRIPTED = tables.members("PAPER_SUBSCRIPTED")
@@ -1497,7 +1501,7 @@ PAPER_SHEARED = tables.members("PAPER_SHEARED")
 def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream_spaces=False,
               ciphers=None, images=None, overset=False, underlined=False, struck=False, tracked=False,
               lifted=None, lone_acute=False, drawn_back=False, mark_base=False, ruled=False,
-              stream_faces=(), underscored=False):
+              stream_faces=(), underscored=False, marks_ahead=False):
     """Each page's lines rebuilt by position: the glyphs grouped by baseline and each row read left
     to right, a space where the page leaves a gap and three where it leaves a column's.
 
@@ -1525,7 +1529,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
     a raised letter. With ruled, each ruled grid of a page is read by ruled_tables and set where its
     rows stand, a line to a table row. stream_faces names the faces whose word spaces the stream
     alone sets, a paper's PAPER_STREAM_FACES entry. With underscored, a row of underscores alone
-    joins the row over it."""
+    joins the row over it. With marks_ahead, a mark with no letter under it waits for the letter
+    the stream sets after it."""
     pages = []
     scale = INK_DPI / 72.0
     # The gap an f's overhang leaves before the next letter of its word stays under 0.08 em, of the
@@ -1542,6 +1547,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
         after_mark = False
         tie = False
         late = set()
+        waiting = []
         overprint = False
         clips = {}
         raised_at, unlifted = {}, {}
@@ -1615,6 +1621,10 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                                     -0.05 * size <= middle - one[1][2] < 0.4 * size and one[1][2] > one[1][0]
                                     and not (above and one[1][1] >= box[1])),
                                    key=lambda one: one[1][2])[-1:]
+                if marks_ahead and not under:
+                    waiting.append((mark, middle, box, size, above))
+                    after_mark = True
+                    continue
                 target = under[-1] if under else (glyphs[-1] if glyphs else None)
                 if target is not None:
                     target[0] += mark
@@ -1672,6 +1682,17 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             space_before = False
             if box[2] > box[0]:
                 last = box
+        # An italic letter leans right, its top a quarter of its rise past its foot: the comma over
+        # the italic l of sl̓ax̌ts on page 20 of Lyon's 2011 paper stands right of the l's upright box
+        # and over the l's top. A waiting mark is measured against the letter's box shifted by that
+        # lean at the mark's height.
+        def lean(one, box):
+            return 0.25 * (box[1] - one[1][1]) if italic(one[3]) else 0
+        for mark, middle, box, size, above in waiting:
+            under = [one for one in glyphs if one[1][0] + lean(one, box) <= middle <= one[1][2] + lean(one, box)
+                     and abs(one[1][1] - box[1]) < size and not (above and one[1][1] >= box[1])]
+            if under:
+                under[-1][0] += mark
         for letters, box, size in image_glyphs(document[number], images, number):
             glyphs.append([letters, box, size, "image", len(glyphs), False])
         if overset:
@@ -1740,7 +1761,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 del rows[place]
         # A row of a note's mark alone is the mark raised over the row under it: the * set high
         # after the title Orbital Clitics in Nxaʔamxčín and before the note it opens, Deep gratitude,
-        # in Lyon and Czaykowska-Higgins, or a number set smaller than the row's letters. It joins
+        # in Lyon and Czaykowska-Higgins, or a number set smaller than the row's letters. So is a
+        # row of primes set smaller, the w′′ of y(w′′) = x(w′′)] closing Lyon's 2011 (129). It joins
         # that row where it stands within an em of it.
         for place in range(len(rows) - 2, -1, -1):
             middle, members = rows[place]
@@ -1748,7 +1770,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             size = sorted(one[2] for one in below)[len(below) // 2]
             text = "".join(one[0] for one in members)
             if not (re.fullmatch(r"[*∗†‡]{1,3}", text) or
-                    re.fullmatch(r"\d{1,2}(?:,?\d{1,2}){0,2}", text) and max(one[2] for one in members) < 0.85 * size):
+                    re.fullmatch(r"\d{1,2}(?:,?\d{1,2}){0,2}|′+", text) and
+                    max(one[2] for one in members) < 0.85 * size):
                 continue
             if middle - below_middle < size:
                 below.extend(members)
@@ -2399,7 +2422,7 @@ def main():
                             lifted=lifted, lone_acute=stem in PAPER_LONE_ACUTE,
                             drawn_back=stem in PAPER_DRAWN_BACK, mark_base=stem in PAPER_MARK_BASE,
                             ruled=stem in PAPER_RULED, stream_faces=PAPER_STREAM_FACES.get(stem, ()),
-                            underscored=stem in PAPER_UNDERSCORED)
+                            underscored=stem in PAPER_UNDERSCORED, marks_ahead=stem in PAPER_MARKS_AHEAD)
         # A private-use glyph is written as the letter it draws here too, before the raised letters
         # are read: x̌ʷ in van Eijk's nax̌ʷít sets its ʷ after the private-use x̌.
         mapping = PRIVATE_USE.get(stem, {})

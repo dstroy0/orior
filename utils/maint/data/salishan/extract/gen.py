@@ -246,8 +246,11 @@ def row_sizes(stem):
 # number, 9yɩm- /yəm-/; a table row has a space there. It may open on a phonemic or morphological
 # form, 3 /ʔəm/ → [ʔam], 5 {C1V1-C1ə-}. A note may be a bracketed address alone, 6
 # <http://academic.uprm.edu/~sbischoff/COLRC/texts/> in Bischoff et al. It may open on an accented
-# capital, 1Áístainskiaakii in Aistainskiaakii et al.
-MARK = re.compile(r"^(\d{1,2}|[*∗†‡§])(?:\s*(?=[A-ZÀ-ÖØ-Þ‘’“(\[\dʔ/{<])|(?=[a-zɐ-ʯ]))")
+# capital, 1Áístainskiaakii in Aistainskiaakii et al., or on a letter of Latin Extended-B,
+# 58ƛ̓əxʷənt in Lyon's 2011 paper, whose notes run past 99, 100There is no true scope interaction.
+# A mark stands a space before a digit: a line of a note that opens on a year, 1987: 329) in Davis
+# and Brown's note 18, opens on no mark.
+MARK = re.compile(r"^(\d{1,3}|[*∗†‡§])(?:\s*(?=[A-ZÀ-ÖØ-Þ‘’“(\[ʔ/{<])|\s+(?=\d)|(?=[a-zƀ-ʯ]))")
 # The marks of a note on the title.
 TITLE_MARKS = "∗*†"
 
@@ -461,13 +464,16 @@ class Paper(object):
         A symbol mark counts only on the pages of symbols_on, where a note on the title stands.
         The volume's header, set small wherever the page puts it, is left out, and so are the
         lines of skip. The numbers run from the paper's first_footnote, 1 where it sets none: 2 in
-        Mellesmoen and Andreotti, whose title carries a mark 1 with no note. A paper's
+        Mellesmoen and Andreotti, whose title carries a mark 1 with no note. A paper's unnoted_marks
+        are the marks in the body with no note under them, which the count steps over: 56 in Lyon's
+        2011 paper, after The bear(s) like(s) the saskatoons. in (68a). A paper's
         body_size_notes, where it names them, are the lines of a note set at the body size and read
         as small ones: Black's note 4, under the rule at the foot of page 4."""
         small = self.small_lines() | set(getattr(self, "body_size_notes", ()))
         running = self.running_numbers_set()
         header = self.volume_header()
         found, expect, current = {}, getattr(self, "first_footnote", 1), None
+        unnoted = set(getattr(self, "unnoted_marks", ()))
         by_page = {}
         for number in range(1, self.last + 1):
             if self.lines[number][2] or not self.text(number) or number in running or number in header \
@@ -541,6 +547,8 @@ class Paper(object):
                     found[current] = ([number], page)
                     if current.isdigit():
                         expect += 1
+                        while expect in unnoted:
+                            expect += 1
                 elif current:
                     found[current][0].append(number)
                 elif page in symbols_on and not SUB.match(self.text(number)) and any(
@@ -1603,8 +1611,9 @@ class Paper(object):
             # A line that carries on a sentence the paragraph left open, the speaker utters / (26)
             # while still seeing the bear, is prose even with the next number in sequence. A stop
             # can carry a footnote's mark, the human series:4, set a space off in Forbes's (34b). 13.
+            # The mark can run to three digits, the examples in (134):110 of Lyon's 2011 paper.
             carries_on = paragraph and number not in starts and \
-                not re.search(r"[.:;!?)\]’”][*∗†]?(?: ?\d{1,2}(?:,\d{1,2})*)?\s*$", self.text(paragraph[-1])) and \
+                not re.search(r"[.:;!?)\]’”][*∗†]?(?: ?\d{1,3}(?:,\d{1,3})*)?\s*$", self.text(paragraph[-1])) and \
                 all(self.text(one).strip() for one in range(paragraph[-1] + 1, number)
                     if one not in skip and one not in running)
             if opened and opened.group(1).isdigit() and int(opened.group(1)) > state.get("highest", 0) and \

@@ -103,8 +103,10 @@ def italic_runs(stem, first=1, last=None):
                 while end < count and not symbols[end].isspace():
                     end += 1
                 faces = [inside[index] for index in range(start, end) if index in inside]
+                # Two faces set as often go to the one the word opens on: the k of Lyon's 2011 k̓ʷúl-n
+                # is italic and its comma above slanted TeX-xipa, the k̓ the stream sets apart.
                 if faces:
-                    most = max(set(faces), key=faces.count)
+                    most = max(faces, key=faces.count)
                     for index in range(start, end):
                         if index in inside and not symbols[index].isdigit():
                             inside[index] = most
