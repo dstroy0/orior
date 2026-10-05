@@ -216,8 +216,8 @@ def main():
         elif carries_language(trimmed):
             rows.append(("T", number, "3", "transcription", trimmed))
         else:
-            # Nothing fired. This branch used to be absent. A line inside the text that was neither
-            # quoted, nor glossed, nor holding one of Nater's symbols left without a word.
+            # Nothing fired. Without this branch a line inside the text that is neither quoted, nor
+            # glossed, nor holding one of Nater's symbols leaves without a word.
             rows.append(("N", number, "3", UNCLASSIFIED, trimmed))
 
     # Every line of the paper no section reached, added to the record as unclassified. The

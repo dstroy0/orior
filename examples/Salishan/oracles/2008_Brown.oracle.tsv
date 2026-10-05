@@ -1,0 +1,207 @@
+where	who	kind	form	gloss
+front	Jason Brown	title	An unexpected gap in Gitksan consonant cluster phonotactics	page 1, carries footnote *
+front	Jason Brown	name	Jason Brown	author
+front	Jason Brown	note	University of British Columbia	page 1, under Jason Brown
+front	Jason Brown	note	This short paper outlines the consonant cluster phonotactics of Gitksan (Tsimshianic) by attempting a summary of the generalizations presented in Rigsby (1986). The phonotactics of word-initial bi- and tri-consonantal clusters are discussed, and a stop + sonorant sequence gap is identified. This gap is unexpected, since fricative+sonorant sequences are tolerated by the language. This gap is discussed in the contexts of both sonority and perceptual similarity.	page 1, the abstract
+front	Jason Brown	language	Gitksan	Interior Tsimshianic
+footnote *	Jason Brown	note	Thanks to my Gitksan teachers Barbara Sennott and Doreen Jensen. Thanks also to Henry Davis, Gunnar Hansson, and Douglas Pulleyblank for discussion of the ideas presented here. This paper has also benefited from much discussion with Bruce Rigsby. All errors are my own.	page 1, footnote *, on the title
+footnote *	Jason Brown	name	Barbara Sennott	the author's Gitksan teacher
+footnote *	Jason Brown	name	Doreen Jensen	the author's Gitksan teacher
+footnote *	Jason Brown	name	Henry Davis	discussed the ideas presented here
+footnote *	Jason Brown	name	Gunnar Hansson	discussed the ideas presented here
+footnote *	Jason Brown	name	Douglas Pulleyblank	discussed the ideas presented here
+footnote *	Jason Brown	name	Bruce Rigsby	Rigsby (1986), Gitksan grammar; discussed the paper with the author
+§1	Jason Brown	heading	1 Introduction	page 1
+§1	Jason Brown	note	While many languages of the world are very limited in what kind of consonant clusters are tolerated by their phonologies, many other languages allow extensive clustering of consonants. Gitksan, an Interior Tsimshianic language of British Columbia, Canada, allows relatively extensive clustering of consonants. Word-initial position, which is the focus of the present study, yields many combinations of possible consonant sequences in the language. For example, in word-initial bi-consonantal clusters, stops can be sequenced before fricatives, and they can even be sequenced before stops. Fricatives exhibit a similar distribution, where they can be sequenced before both stops and fricatives. Curiously, sonorant consonants can be sequenced after fricatives (fricative + sonorant) in word-initial position, but there is a gap corresponding to stop + sonorant sequences. This gap extends beyond word-initial position: there are no stop + sonorant sequences present in the language (i.e. this type of sequence is missing in word-initial, word-medial, and word-final positions). This gap is unexpected, given that fricative + sonorant sequences are tolerated in the language.	page 1
+§1	Jason Brown	language	Tsimshianic	the family of Gitksan
+§1	Jason Brown	note	This paper is structured as follows: Section 2 lays out the general phonotactics of consonant clusters in the language, focusing on word-initial position. This includes discussion of initial bi- and tri-consonantal clusters. This section also discusses the stop + sonorant consonant gap. Section 3 provides a discussion, where aspects of sonority and perceptual similarity are entertained as possible explanations for this gap.	page 1
+§2	Jason Brown	heading	2 Consonant cluster phonotactics	page 2
+§2	Jason Brown	note	This section aims to outline the phonotactic patterns found in word initial consonant clusters in Gitksan. The generalizations presented here are a summary of the observations made in Rigsby (1986) (some of these generalizations are also discussed in lesser detail in Wickstrom 1974). The generalizations presented are as follows: first the general properties and restrictions of word-initial consonants are discussed, followed by both bi- consonantal and tri-consonantal word-initial consonant clusters.	page 2
+§2.1	Jason Brown	heading	2.1. General phonotactics for word-initial position	page 2
+§2.1	Jason Brown	note	In his observations about word-initial segments, Rigsby (1986) notes that any consonant except /l’/, /p’/, /x/, and /xʷ/ can occur as a singleton word- initial consonant. The absence of the velar fricatives falls out squarely from a generalized restriction in the language. There is an alternation whereby /x/ and /xʷ/ alternate with the glides /j/ and /w/ when in prevocalic position, which is illustrated in (1) below.	page 2
+§2.1	Jason Brown	notation	/l’/	page 2, a sound between slashes
+§2.1	Jason Brown	notation	/p’/	page 2, a sound between slashes
+§2.1	Jason Brown	notation	/x/	page 2, a sound between slashes
+§2.1	Jason Brown	notation	/xʷ/	page 2, a sound between slashes
+§2.1	Jason Brown	notation	/j/	page 2, a sound between slashes
+§2.1	Jason Brown	notation	/w/	page 2, a sound between slashes
+(1) line 1	Gitksan	transcription	waːx	page 2
+(1) line 2	Jason Brown	translation	‘paddle’	page 2
+(1) line 3	Gitksan	transcription	waːjin	page 2
+(1) line 4	Jason Brown	translation	‘your (sg.) paddle’	page 2
+(1) line 5	Gitksan	transcription	muxʷ	page 2
+(1) line 6	Jason Brown	translation	‘ear’	page 2
+(1) line 7	Gitksan	transcription	muwin	page 2
+(1) line 8	Jason Brown	translation	‘your (sg.) ear’	page 2
+§2.1	Jason Brown	note	In this case, the restriction is one that generally holds in prevocalic position for these segments, and is not special to word-initial contexts.	page 2
+§2.1	Jason Brown	note	The absence of ejective /p’/ in word-initial position is more than likely due to its overall rarity in the lexicon. For instance, in the Gitksan Lexical Database compiled by the author (cf. Brown 2008), there are a total of 6 instances of [p’] out of a number of 1601 entries (including morphemes and words). This contrast with /p/, where there are 48 instances word initially (as the prevocalic allophone [b]). Thus, since /p’/ is rare to begin with, the non- existence of this particular segment in initial position is not surprising. The lack of /l’/ in this position is somewhat surprising, due to the high numbers of this segment in word medial and final positions (31 total occurrences in the database, which is comparable to the other glottalized sonorants in non-word-initial position). There seems to be no principled reason behind this gap at this point, so it will here be considered accidental (and not a systematic gap). Finally, identical consonant sequences are prohibited (i.e. no geminates), a restriction that is reinforced in roots (Brown 2008).	page 2
+§2.1	Jason Brown	notation	[p’]	page 2, a sound in brackets
+§2.1	Jason Brown	notation	/p/	page 2, a sound between slashes
+§2.1	Jason Brown	notation	[b]	page 2, a sound in brackets
+§2.1	Jason Brown	note	In terms of legal word-initial clusters, according to Rigsby, there can be either bi- or tri-consonantal clusters. Sonorants and glottalised segments occur as rightmost members:	page 2
+(2) line 1	Jason Brown	note	Singleton initial	page 2, a column's head
+(2) line 2	Jason Brown	note	In a cluster	page 2, a column's head
+(2) line 3	Gitksan	transcription	laqs	page 2
+(2) line 4	Jason Brown	translation	‘wash (one’s body)’	page 2
+(2) line 5	Gitksan	transcription	χlilst	page 2
+(2) line 6	Jason Brown	translation	‘to cough’	page 2
+(2) line 7	Gitksan	transcription	malkʷ	page 2
+(2) line 8	Jason Brown	translation	‘burn (up)’	page 2
+(2) line 9	Gitksan	transcription	χmeɬatxʷ	page 2
+(2) line 10	Jason Brown	translation	‘bile’	page 2
+(2) line 11	Gitksan	transcription	neːq	page 2
+(2) line 12	Jason Brown	translation	‘hoof’	page 2
+(2) line 13	Gitksan	transcription	snaχ	page 2
+(2) line 14	Jason Brown	translation	‘thornberry’	page 2
+§2.1	Jason Brown	note	Rigsby (1986) makes the observation that sonorants are always flanked by a vowel. Thus, there are no cases of sonorant + sonorant sequences, nor of sonorant + obstruent sequences.	page 3
+§2.1	Jason Brown	note	The properties of word-initial bi- and tri-consonantal clusters are outlined below in sections 2.2. and 2.3, respectively.	page 3
+§2.2	Jason Brown	heading	2.2 Initial bi-consonantal clusters	page 3
+§2.2	Jason Brown	note	Rigsby (1986) notes some manner restrictions present in word-initial bi-consonantal clusters. The first, which was mentioned above, is that the cluster must begin with an obstruent, specifically a stop or a fricative. There is also a more specific restriction, whereby if a fricative such as [χ] [s] or [ɬ] is the first member of a cluster, then it must be followed by either a stop, fricative, sonorant, or glottal stop.	page 3
+§2.2	Jason Brown	notation	[χ]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[s]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[ɬ]	page 3, a sound in brackets
+§2.2	Jason Brown	note	In addition to these manner restrictions exist place restrictions. Stops that are found in these clusters include [p] or [t]. [p] can participate in the following sequences: [pt-] [pts’-] [ph-]. If the first member of the cluster is [t], it can precede either a dorsal glottalised stop, a dorsal fricative, or laryngeal [h]1, but not plain stops. Plain dorsal stops [k], [kʷ], and [q] are absent in all initial clusters, and dorsal fricatives [x] [xʷ] are only followed by stops and non-dorsal fricatives	page 3
+§2.2	Jason Brown	notation	[p]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[t]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[pt-]	page 3, a sequence in brackets
+§2.2	Jason Brown	notation	[pts’-]	page 3, a sequence in brackets
+§2.2	Jason Brown	notation	[ph-]	page 3, a sequence in brackets
+§2.2	Jason Brown	notation	[h]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[k]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[kʷ]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[q]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[x]	page 3, a sound in brackets
+§2.2	Jason Brown	notation	[xʷ]	page 3, a sound in brackets
+footnote 1	Jason Brown	note	Rigsby (1986) analyzes the small set of aspirated stops in the language as stop+h sequences. This analysis is reflected here.	page 3, footnote 1
+§2.2	Jason Brown	note	The inventory of all permissible word-initial bi-consonantal clusters in Gitksan is provided in (3) below. It should be noted here that the stop + sonorant sequence type is missing from this inventory.	page 3
+(3) line 1	Jason Brown	note	Inventory of permissible word-initial bi-consonant clusters (summation of Rigsby 1986)	page 4, the title of the table
+(3) line 2	Jason Brown	note	Sequence	page 4, a column's head
+(3) line 3	Jason Brown	note	Example	page 4, a column's head
+(3) line 4	Jason Brown	note	Stop+Stop	page 4, the sequence type
+(3) line 5	Gitksan	transcription	pdoʔo	page 4
+(3) line 6	Jason Brown	translation	‘door’	page 4
+(3) line 7	Gitksan	transcription	pts’aj̰txʷ	page 4
+(3) line 8	Jason Brown	translation	‘comb one’s hair’	page 4
+(3) line 9	Gitksan	transcription	tk’iɬxʷ	page 4
+(3) line 10	Jason Brown	translation	‘child’	page 4
+(3) line 11	Gitksan	transcription	tk’u	page 4
+(3) line 12	Jason Brown	translation	‘around (pvb)’	page 4
+(3) line 13	Gitksan	transcription	tq’a	page 4
+(3) line 14	Jason Brown	translation	‘skin, hide’	page 4
+(3) line 15	Jason Brown	note	Stop+Fricative	page 4, the sequence type
+(3) line 16	Gitksan	transcription	tχalpχ	page 4
+(3) line 17	Jason Brown	translation	‘four (things, animals)	page 4
+(3) line 18	Gitksan	transcription	tχaː	page 4
+(3) line 19	Jason Brown	translation	‘entirely, all’	page 4
+(3) line 20	Gitksan	transcription	thoːst	page 4
+(3) line 21	Jason Brown	translation	‘belongings, gear’	page 4
+(3) line 22	Jason Brown	note	Stop + Sonorant	page 4, the sequence type
+(3) line 23	Jason Brown	note	* * *	page 4, no example, the gap
+(3) line 24	Jason Brown	note	Fricative+Stop	page 4, the sequence type
+(3) line 25	Gitksan	transcription	sgan	page 4
+(3) line 26	Jason Brown	translation	‘pitch’	page 4
+(3) line 27	Gitksan	transcription	sq’eːχxʷ	page 4
+(3) line 28	Jason Brown	translation	‘dark’	page 4
+(3) line 29	Gitksan	transcription	xbaːw̰	page 4
+(3) line 30	Jason Brown	translation	‘jaw’	page 4
+(3) line 31	Gitksan	transcription	xʷdax	page 4
+(3) line 32	Jason Brown	translation	‘be hungry’	page 4
+(3) line 33	Gitksan	transcription	χdax	page 4
+(3) line 34	Jason Brown	translation	‘eat with (someone)’	page 4
+(3) line 35	Jason Brown	note	Fricative+Fricative	page 4, the sequence type
+(3) line 36	Gitksan	transcription	xsiːp	page 4
+(3) line 37	Jason Brown	translation	‘(fine) sand’	page 4
+(3) line 38	Gitksan	transcription	xʷsit	page 4
+(3) line 39	Jason Brown	translation	‘fall, autumn’	page 4
+(3) line 40	Gitksan	transcription	χɬaːɬ	page 4
+(3) line 41	Jason Brown	translation	‘red willow’	page 4
+(3) line 42	Jason Brown	note	Fricative+Sonorant	page 4, the sequence type
+(3) line 43	Gitksan	transcription	smax	page 4
+(3) line 44	Jason Brown	translation	‘meat, flesh, black bear’	page 4
+(3) line 45	Gitksan	transcription	sm’intsxʷ	page 4
+(3) line 46	Jason Brown	translation	‘a winter game’	page 4
+(3) line 47	Gitksan	transcription	sjan	page 4
+(3) line 48	Jason Brown	translation	‘be tainted, affected’	page 4
+(3) line 49	Gitksan	transcription	sj̰un	page 4
+(3) line 50	Jason Brown	translation	‘glacier’	page 4
+(3) line 51	Jason Brown	note	Fricative+ʔ	page 4, the sequence type
+(3) line 52	Gitksan	transcription	sʔin	page 4
+(3) line 53	Jason Brown	translation	‘bottom’	page 4
+(3) line 54	Gitksan	transcription	χʔanaːx	page 4
+(3) line 55	Jason Brown	translation	‘eat some bread’	page 4
+(3) line 56	Jason Brown	note	Fricative+h	page 4, the sequence type
+(3) line 57	Gitksan	transcription	χhun	page 4
+(3) line 58	Jason Brown	translation	‘eat some salmon’	page 4
+§2.3	Jason Brown	heading	2.3 Initial tri-consonantal clusters	page 4
+§2.3	Jason Brown	note	As with the initial bi-consonantal clusters, there are manner restrictions with initial tri-consonantal clusters. Rigsby (1986) notes that tri-consonantal clusters almost always begin with fricatives, specifically the dorsal fricatives /x/ or /χ/. In addition, the second member is typically one of the coronal fricatives /s/ and /ɬ/. These clusters can have a stop, fricative, sonorant, or glottal stop as the right-most member. The inventory of permissible word-initial tri- consonantal clusters in Gitksan is given in (4), where it can again be noted that stop+sonorant sequences are completely absent, just as in bi-consonantal clusters.	page 4
+§2.3	Jason Brown	notation	/χ/	page 4, a sound between slashes
+§2.3	Jason Brown	notation	/s/	page 4, a sound between slashes
+§2.3	Jason Brown	notation	/ɬ/	page 4, a sound between slashes
+(4) line 1	Jason Brown	note	Inventory of permissible word-initial tri-consonantal clusters (summation of Rigsby 1986)	page 5, the title of the table
+(4) line 2	Jason Brown	note	Sequence	page 5, a column's head
+(4) line 3	Jason Brown	note	Example	page 5, a column's head
+(4) line 4	Jason Brown	note	Fricative+Fricative+Stop	page 5, the sequence type
+(4) line 5	Gitksan	transcription	xsɢoːq	page 5
+(4) line 6	Jason Brown	translation	‘be first’	page 5
+§2.3	Jason Brown	note	Since the stop + sonorant gap is prevalent in these initial clusters, this aspect of the phonology will be further explored below.	page 5
+§2.4	Jason Brown	heading	2.4 Stop + sonorant sequences	page 5
+§2.4	Jason Brown	note	A generalization that can be drawn about both the bi- and tri- consonantal clusters is that stop + sonorant sequences are not allowed as a permissible sequence. In fact, stop + sonorant sequences are lacking across the ENTIRE LEXICON. There is no independent set of factors that will conspire to achieve this banned configuration. (The most promising area in this regard is affixation. For instance, stop-final stems could be suffixed with sonorant-initial suffixes. However, in these cases, epenthesis repairs these clusters).	page 5
+§2.4	Jason Brown	note	There are to my knowledge two exceptions to the stop + sonorant ban, both of which receive a straightforward analysis. One exception is [libleːt] ‘priest’ with the stop+sonorant sequence [bl] word-internally. This form is a loanword (ultimately from French), and is now archaic; none of my consultants recognized this form. The other exception is [gloq], which can be loosely translated as ‘shame’. Bruce Rigsby (personal communication) suggests that [gloq] may be derived from the form [tɬ’aq’], and perhaps ultimately from Coast Tsimshian [dloq’]. Rigsby notes that [tɬ’aq’] has a nominal or deverbative sense, and which signifies the inner lower lip, perhaps also the inner membrane of the lips and the eyelid and bottom cover (the pointing of the lower lip is a gesture of shame). Thus, reanalysis of the [tɬ’] phoneme (which is rare in the language) or a foreign [dl] sequence by more recent generations may have resulted in the present existence of the stop + sonorant sequence [gl].	page 5
+§2.4	Gitksan	cited form	[libleːt]	page 5, in brackets, ‘priest’, a loanword from French, with [bl] inside the word
+§2.4	Jason Brown	notation	[bl]	page 5, a sequence in brackets
+§2.4	Gitksan	cited form	[gloq]	page 5, in brackets, ‘shame’
+§2.4	Gitksan	cited form	[tɬ’aq’]	page 5, in brackets, the form [gloq] may be derived from, the inner lower lip, a nominal or deverbative sense
+§2.4	Coast Tsimshian	cited form	[dloq’]	page 5, in brackets, the Coast Tsimshian form [gloq] may come from
+§2.4	Jason Brown	notation	[tɬ’]	page 5, a sequence in brackets
+§2.4	Jason Brown	notation	[dl]	page 5, a sequence in brackets
+§2.4	Jason Brown	notation	[gl]	page 5, a sequence in brackets
+§2.4	Jason Brown	language	Coast Tsimshian	Tsimshianic; its [dloq’] and its reduplication
+§2.4	Jason Brown	language	French	the source of the loanword [libleːt] ‘priest’
+§2.4	Jason Brown	note	Beside these genuine exceptions, there are many apparent exceptions to the stop+sonorant gap, which are presented in (5) below.	page 5
+(5) line 1	Gitksan	phonetic	[gʷla]	page 5
+(5) line 2	Jason Brown	translation	‘blanket’	page 5
+(5) line 3	Gitksan	phonetic	[gʷneːqxʷ]	page 5
+(5) line 4	Jason Brown	translation	‘to be cold’	page 5
+(5) line 5	Gitksan	phonetic	[gʷn’a]	page 5
+(5) line 6	Jason Brown	translation	‘to ask for, beg’	page 5
+(5) line 7	Gitksan	phonetic	[gʷn’us]	page 5
+(5) line 8	Jason Brown	translation	‘newborn baby’	page 5
+§2.4	Jason Brown	note	These are only apparent exceptions, and can be shown to have an underlying vowel intervening between the stop and sonorant. Evidence for this comes from the behavior of these words under pluralization. One (relatively marginal) pluralization strategy in the language is an ablaut process whereby a short vowel becomes a long vowel. As it happens, almost all of the forms in (5) are pluralized using this strategy:	page 5
+(6) line 1	Jason Brown	note	singular	page 6, a column's head
+(6) line 2	Jason Brown	note	plural	page 6, a column's head
+(6) line 3	Gitksan	transcription	gʷla	page 6
+(6) line 4	Gitksan	transcription	gʷiːla	page 6
+(6) line 5	Gitksan	transcription	gʷneːqxʷ	page 6
+(6) line 6	Gitksan	transcription	gʷiːneːqxʷ	page 6
+(6) line 7	Gitksan	transcription	gʷn’a	page 6
+(6) line 8	Gitksan	transcription	gʷiːn’a	page 6
+§2.4	Jason Brown	note	Since the plural forms have a long vowel, it is reasonable to posit a short vowel in the singular forms. The examples in (6) indicate that the underlying representations of these words have a short [i] between the stop and sonorant, as in (7):	page 6
+§2.4	Jason Brown	notation	[i]	page 6, a sound in brackets
+(7) line 1	Gitksan	phonemic	/gʷila/	page 6
+(7) line 2	Jason Brown	translation	‘blanket’	page 6
+(7) line 3	Gitksan	phonemic	/gʷineːqxʷ/	page 6
+(7) line 4	Jason Brown	translation	‘to be cold’	page 6
+(7) line 5	Gitksan	phonemic	/gʷin’a/	page 6
+(7) line 6	Jason Brown	translation	‘to ask for, beg’	page 6
+(7) line 7	Gitksan	phonemic	/gʷin’us/	page 6
+(7) line 8	Jason Brown	translation	‘newborn baby’	page 6
+§2.4	Jason Brown	note	Furthermore, when consultants are asked to pronounce these words with a slower or monitored tempo, the vowel re-appears. Thus, the forms in (5) are surface forms, and the stop + sonorant sequences are the result of a fast-speech vowel deletion. This is reminiscent of schwa deletion in English (Zwicky 1972, Hooper 1978, Davidson 2006), where the fast-speech deletion of a schwa results in surface consonant clusters that defy the general phonotactics of the language (for instance, derived initial stop-stop clusters like pt- from words like potato).	page 6
+§2.4	Gitksan	cited form	pt-	page 6, in italics
+§2.4	Jason Brown	language	English	its schwa deletion in fast speech
+§2.4	Jason Brown	note	Given this, these forms are not true exceptions to the generalization that stop + sonorant sequences are absent from the language.	page 6
+§3	Jason Brown	heading	3 Discussion	page 6
+§3	Jason Brown	note	The stop+sonorant gap in consonant clusters is a peculiar one, especially since (to my knowledge) this type of gap is not reported for other languages. One potential explanation could be based in something like the Sonority Sequencing Principle (cf. Clements 1990), which states that syllable peaks will be highest in sonority and syllable margins will be lowest, with the closer a consonant is to a peak, the higher the sonority (with sonority determined by a sonority hierarchy). Clements (1990) notes that large sonority differences are preferred in onsets, while small sonority differences are preferred in codas. It may be the case that in Gitksan, having a stop-sonorant sequence may be dispreferred to having a higher sonority rise, such as a stop-vowel sequence. Given this sonority approach to word-initial clusters, the problem surrounding Gitksan immediately presents itself: Why would stop + sonorant be ruled out, and frictative + sonorant, with a smaller difference in sonority, be acceptable? Or, for that matter, why would a sonority plateau (such as a fricative + fricative sequence), or even a sonority fall (such as a fricative + stop sequence) be tolerated more than a stop + sonorant sequence? Simple appeals to sonority are not the answer here.	page 6
+§3	Jason Brown	note	Another, more promising possibility is that the gap is due to some diachronic pressure associated with perceptual factors. Following Fleishhacker (2005), I entertain the idea that similarity is what is responsible for the gap. Fleishhacker claims that stop + sonorant clusters are oftentimes subject to skipping and intrusion in reduplication and loanword adaptation. The reason for this is due to similarity with a base form and pressures from other phonotactic constraints. For example, Fleishhacker uses the example of pa sounding more like pra than pira in experimental contexts, and how in loanword adaptation, we tend to find pa substituted for pra, and not pira. This is supported by evidence from alliteration, loanword adaptation, reduplication2, puns, etc. If this analysis is correct for the stop + sonorant gap in Gitksan, where stop + sonorant sequences are more highly confusable with stop + vowel sequences, then this extends Fleishhacker’s observations into the lexicon. In other words, this perceptual bias can be a morpheme structure constraint, since there is nothing in the theory to rule this out. This is in itself problematic, as the analysis depends on perceptual similarity between two forms, or two correspondents. The Gitksan restriction is static, and not isolated to reduplication or loanword adaptation. So the question is, Are different candidates being compared? Are the possible (hypothetical) outputs ba and bla too similar to each other, with the distinction between b-bl being absolutely neutralized? The immediate diachronic question that follows is: Is this traceable as a case of historical merger? Only experimentation and detailed historical reconstruction will tell here. With lack of overt evidence in the lexicon, tapping into speakers’ judgments/intuitions and re-tracing the history of the language will be the only ways to tell.	page 7
+footnote 2	Jason Brown	note	Incidentally, Fleishhacker cites Coast Tsimshian reduplication as evidence for this perceptual account.	page 7, footnote 2
+§5	Jason Brown	heading	5 Conclusion	page 7
+§5	Jason Brown	note	This paper has explored the initial consonant clusters of Gitksan, where the discussion in Rigsby (1986) concerning the inventory of possible bi- consonantal and tri-consonantal clusters was summarized. It was shown that there is an unexpected gap in these word-initial clusters (and in consonant sequences generally in the language): stop + sonorant sequences are completely absent. It was shown that this gap presents a problem for sonority-based accounts of syllable structure and consonant clusters, and instead, it was proposed that a perceptual account may be more desirable.	page 7
+references	Jason Brown	heading	References	page 7
+references	Jason Brown	reference	Brown, Jason. 2008. Theoretical aspects of Gitksan phonology. Ph.D. thesis, University of British Columbia.	page 7
+references	Jason Brown	reference	Clements, G.N. 1990. The role of the sonority cycle in core syllabification. In J. Kingston & M.E. Beckman (eds.), Papers in laboratory phonology I. Cambridge: Cambridge University Press, pp. 283-333.	page 8
+references	Jason Brown	reference	Davidson, Lisa. 2006. Schwa elision in fast speech: segmental deletion or gestural overlap? Phonetica 63:79-112.	page 8
+references	Jason Brown	reference	Fleishhacker, Heidi. 2005. Similarity in phonology: Evidence from reduplication and loan adaptation. Ph.D. dissertation, UCLA.	page 8
+references	Jason Brown	reference	Hooper, Joan B. 1978. Constraints on schwa-deletion in American English. In J. Fisiak (ed.), Recent Developments in Historical Phonology. The Hague: Mouton. pp. 183-207.	page 8
+references	Jason Brown	reference	Rigsby, Bruce. 1986. Gitksan grammar. Ms, University of Queensland.	page 8
+references	Jason Brown	reference	Wickstrom, Ronald. 1974. A phonology of Gitksan, with emphasis on glottalization. MA thesis, University of Victoria.	page 8
+references	Jason Brown	reference	Zwicky, Arnold. 1972. Note on a phonological hierarchy in English. In R. Stockwell & R. Macaulay (eds.), Linguistic change and generative theory. Bloomington: Indiana University Press, pp. 275-301.	page 8
+end	Jason Brown	note	Jason Brown jcb@interchange.ubc.ca	page 8, the author's name and e-mail address

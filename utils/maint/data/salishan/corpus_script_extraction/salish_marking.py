@@ -33,8 +33,8 @@ MARKED = "ʔʕɬłƛəχ"
 # APPL, INCEPT, 1SG.POSS, D/C, NMLZ. Finding one in a line that should hold a word is how a reader
 # tells that it has lost its place in a block.
 #
-# USE IT INSIDE A READER THAT KNOWS ITS OWN PAPER, NEVER CORPUS WIDE. It used to say that none of
-# these orthographies writes a word that way, and that is false. Nater writes his roots and his
+# USE IT INSIDE A READER THAT KNOWS ITS OWN PAPER, NEVER CORPUS WIDE. Some of these
+# orthographies do write a word that way. Nater writes his roots and his
 # headwords in capitals, which is his convention and not a label: √ALATS', ALH7ALHTSIM, S7AYK'S.
 # Kim writes reduplication templates the same way, CVC-CV́C and C1VC2-C1V́C2X.
 #

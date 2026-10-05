@@ -27,8 +27,10 @@
 // The pole stage, one lane a k <= nu: ln k and k^(-1/2), and for the multiple evaluation each pole's place, weight
 // and charge.
 //
-// The point stage, one lane a point: theta / pi = s ln s - s - 1/8 + 1 / (96 pi^2 s); x = s s^(-1/2); C_0(z),
-// z = 1 - 2 (x - nu), by Horner's rule over its Taylor coefficients; x^(-1/2); and (-1)^(nu - 1) x^(-1/2) C_0.
+// The point stage, one lane a point: theta / pi = s ln s - s - 1/8 + 1 / (96 pi^2 s) + 7 / (46080 pi^4 s^3) +
+// 31 / (2580480 pi^6 s^5); x = s s^(-1/2); each C_n(z), z = 1 - 2 (x - nu), by Horner's rule over its Taylor
+// coefficients; x^(-1/2); and R = (-1)^(nu - 1) x^(-1/2) times the sum over n below the curve count of C_n(z) x^(-n),
+// by Horner's rule in 1 / x.
 //
 // The pair stage, one lane a pair (j, k), lane (j - start) nu + k - 1, reads its pole's record and its point's record
 // through the index: the phase over pi, theta / pi - 2 s ln k, taken modulo 2 into [-1, 1) by a wrap, which leaves
@@ -36,7 +38,7 @@
 // It runs in pieces of points from `start` up, and the sum over each point's nu lanes is the main sum's half.
 //
 // The verdict stage, one lane a point, reads the sums, the point records and the shared record as its three members:
-// Z = 2 sum + (-1)^(nu - 1) x^(-1/2) C_0, its sign where |Z| exceeds the bound, else 0, theta / pi less and more its
+// Z = 2 sum + R, its sign where |Z| exceeds the bound, else 0, theta / pi less and more its
 // bound, and each times the step of S, 2 nu + 1, the same at every point and from the cell's last point to the next
 // cell's point 0; and w = exp(i theta) F, its real part the main sum's half, its imaginary part the multiple
 // evaluation's and 0 by pairs.
@@ -68,9 +70,11 @@
 // The input, little-endian: 64-bit words points (2^p), checked, nu, p, L, K, J, Newton steps, piece, method, the
 // expansions' order, beta, E, R, for method 3 Euler-Maclaurin's N and M, else 0 and 0, and 1 where every point is
 // to be listed, 2 where every point is to be listed with Z' and each step's flag, by the multiple evaluation or at
-// the listed points, else 0, then the constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least
-// significant first, and a 64-bit sign word: ln 2, the J coefficients of C_0, the L constants 1 / (2k + 1) of artanh,
-// the K constants of cos, 1 / (96 pi^2), the bound on Z, the bound on theta / pi, pi, the E constants 1 / (n + 1)! of
+// the listed points, 3 where every point is to be listed with theta / pi less and more its bound, else 0, and the
+// curve count C, then the constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least
+// significant first, and a 64-bit sign word: ln 2, the J coefficients of each of C_0 to C_(C - 1) in turn, the L
+// constants 1 / (2k + 1) of artanh, the K constants of cos, 1 / (96 pi^2), 7 / (46080 pi^4), 31 / (2580480 pi^6),
+// the bound on Z, the bound on theta / pi, pi, the E constants 1 / (n + 1)! of
 // E1, the R constants of S, for method 3 the M - 1 ratios r_k for k from 2 to M, with the listing word 2 h / 3 and
 // the margin, every one at 2^62, and for method 4 the listed points j, one 64-bit word each.
 //
@@ -80,7 +84,8 @@
 // host's checks of every stage and sum, each 1 where they equal the device's word for word, the steps of each
 // program, with both methods the most the two Z differ by and the point it falls at, and where the input asks, each
 // point's sign, S, Z and w, with the twist the shift and each point's exp(i theta) F' / 2^shift, and with the
-// listing word 2 the flag of the step that ends at the point.
+// listing word 2 the flag of the step that ends at the point, and with the listing word 3 theta / pi less and more
+// its bound.
 //
 // The twist: the pole stage again with a and every charge times -i ln k / 2^shift, 2^shift at least ln nu, and the
 // multiple evaluation over those poles gives F' / 2^shift at every point, F' = dF/dt. The poles and the weighted poles
@@ -648,13 +653,15 @@ static void turing_pole_build(TuringStage *stage, unsigned int newton, const Tur
     stage->outputs.push_back(turing_op(program, ENGINE_RECORD_QUOTIENT, turing_negate(program, charge.im), big_p));
 }
 
-// the point stage: shared fields sign, nu^2 2^p, 2 nu + 1, nu, then the logarithm's, 1 / (96 pi^2), then C_0's.
+// the point stage: shared fields sign, nu^2 2^p, 2 nu + 1, nu, then the logarithm's, 1 / (96 pi^2), theta's two
+// constants of s^-3 and s^-5, then the curves' coefficients, `curves` runs of gamma.size() / curves, C_0's first.
 // Where `listed`, point j is read from member 1, a record a point, in place of the lane, and S is given last. With the
 // multiple evaluation or where `sloped`, ln s is given after theta / pi and cos theta and sin theta, where they are
 static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int newton, const TuringConstant &ln2,
                                const std::vector<TuringConstant> &artanh, const TuringConstant &c96,
-                               const std::vector<TuringConstant> &gamma, const TuringOsConstants *os, int listed,
-                               int sloped)
+                               const TuringConstant &c3, const TuringConstant &c5,
+                               const std::vector<TuringConstant> &gamma, unsigned int curves,
+                               const TuringOsConstants *os, int listed, int sloped)
 {
     TuringProgram *const program = &stage->program;
     const unsigned int sign_field = turing_field(program, 2u);
@@ -664,6 +671,8 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
     TuringLogFields fields;
     turing_log_fields(program, &fields, ln2, artanh);
     const unsigned int c96_field = turing_field(program, c96.bits);
+    const unsigned int c3_field = turing_field(program, c3.bits);
+    const unsigned int c5_field = turing_field(program, c5.bits);
     std::vector<unsigned int> gamma_field;
     for (size_t k = 0u; k < gamma.size(); k += 1u)
     {
@@ -674,7 +683,7 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
     const unsigned int big_s = turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 0u),
                                          turing_op(program, ENGINE_RECORD_PRODUCT, lane, turing_read(program, step_field, 0u)));
 
-    // theta / pi = S ln(S / 2^p) / 2^p - S / 2^p - 1/8 + 2^p / (96 pi^2 S)
+    // theta / pi = S ln(S / 2^p) / 2^p - S / 2^p - 1/8 + 2^p / (96 pi^2 S) + c3 / s^3 + c5 / s^5
     const unsigned int log = turing_log(program, big_s, p, 2u * turing_nu_bits + 1u, &fields);
     const unsigned int leading = turing_op(program, ENGINE_RECORD_QUOTIENT,
                                            turing_op(program, ENGINE_RECORD_PRODUCT, big_s, log), turing_power(program, p));
@@ -685,7 +694,12 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
                                          big_s);
     const unsigned int less = turing_op(program, ENGINE_RECORD_DIFFERENCE, leading, square);
     const unsigned int eighth = turing_op(program, ENGINE_RECORD_DIFFERENCE, less, turing_constant(program, 1ull << (TURING_SCALE_BITS - 3u)));
-    const unsigned int theta = turing_op(program, ENGINE_RECORD_SUM, eighth, small);
+    const unsigned int reciprocal = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_power(program, TURING_SCALE_BITS + p), big_s);
+    const unsigned int reciprocal2 = turing_scaled(program, reciprocal, reciprocal);
+    const unsigned int odd = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, turing_read(program, c5_field, 0u), reciprocal2),
+                                       turing_read(program, c3_field, 0u));
+    const unsigned int further = turing_scaled(program, turing_scaled(program, odd, reciprocal2), reciprocal);
+    const unsigned int theta = turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_SUM, eighth, small), further);
 
     // x = S s^(-1/2) / 2^p, below 2^(62 + 16), and z = 1 - 2 (x - nu) in [-1, 1]
     const unsigned int inverse = turing_root(program, big_s, p, turing_nu_bits, newton);
@@ -700,13 +714,22 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
     const unsigned int z = turing_op(program, ENGINE_RECORD_WRAP,
                                      turing_op(program, ENGINE_RECORD_DIFFERENCE, lifted, turing_op(program, ENGINE_RECORD_SUM, x, x)),
                                      TURING_SCALE_BITS + 2u);
-    unsigned int acc = turing_read(program, gamma_field[gamma_field.size() - 1u], 0u);
-    for (size_t k = gamma_field.size() - 1u; k > 0u; k -= 1u)
-    {
-        acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, z), turing_read(program, gamma_field[k - 1u], 0u));
-    }
+    // each C_n(z) by Horner's rule over its coefficients, and their sum over x^n by Horner's rule in 1 / x, from C_K
     const unsigned int root = turing_root(program, x, TURING_SCALE_BITS, turing_nu_bits / 2u, newton);
-    const unsigned int held = turing_scaled(program, acc, root);
+    const unsigned int over_x = turing_scaled(program, root, root);
+    const size_t per = gamma_field.size() / curves;
+    unsigned int total = 0u;
+    for (size_t n = curves; n > 0u; n -= 1u)
+    {
+        const size_t base = (n - 1u) * per;
+        unsigned int acc = turing_read(program, gamma_field[base + per - 1u], 0u);
+        for (size_t k = per - 1u; k > 0u; k -= 1u)
+        {
+            acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, z), turing_read(program, gamma_field[base + k - 1u], 0u));
+        }
+        total = (n == curves) ? acc : turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, total, over_x), acc);
+    }
+    const unsigned int held = turing_scaled(program, total, root);
     stage->outputs.push_back(turing_op(program, ENGINE_RECORD_PRODUCT, held, turing_read(program, sign_field, 0u)));
     stage->outputs.push_back(theta);
     if (os != NULL)
@@ -2987,9 +3010,9 @@ static int turing_job(const char *input, const char *output)
     char job_capacity[SIM_LINE_CAPACITY];
     sim_open(&job, job_capacity);
     FILE *in = fopen(input, "rb");
-    long long header[17] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    long long header[18] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     int read = (in != NULL);
-    for (unsigned int at = 0u; read && (at < 17u); at += 1u)
+    for (unsigned int at = 0u; read && (at < 18u); at += 1u)
     {
         read = turing_word(in, &header[at]);
     }
@@ -3009,8 +3032,8 @@ static int turing_job(const char *input, const char *output)
            (header[10] >= 2) && (header[11] >= 2) &&
            ((header[9] == 0) || em_header || listed_header || (header[11] < header[3])) &&
            (header[12] >= 2) && (header[13] >= 2) && (!em_header || ((header[14] >= 2) && (header[15] >= 2))) &&
-           (header[16] >= 0) && (header[16] <= 2) &&
-           ((header[16] < 2) || (header[9] == 1) || (header[9] == 2) || (header[9] == 4));
+           (header[16] >= 0) && (header[16] <= 3) &&
+           ((header[16] != 2) || (header[9] == 1) || (header[9] == 2) || (header[9] == 4)) && (header[17] >= 1);
     const unsigned long long points = read ? (unsigned long long)header[0] : 0ull;
     const unsigned long long checked = read ? (unsigned long long)header[1] : 0ull;
     const unsigned long long nu = read ? (unsigned long long)header[2] : 0ull;
@@ -3026,6 +3049,8 @@ static int turing_job(const char *input, const char *output)
     // listed points, by the pairs' sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi)
     const int sloped = read && (header[16] == 2);
     const int twisted = sloped && ((header[9] == 1) || (header[9] == 2));
+    // with the listing word 3, each point's theta / pi less and more its bound after its w
+    const int bracketed = read && (header[16] == 3);
     const unsigned int shift = read ? turing_bits_of((unsigned long long)turing_bits_of((unsigned long long)header[2])) : 0u;
     // the width every value is wrapped to: the floor, or 60 + l where the multiple evaluation's top level
     // l = p - beta asks more
@@ -3050,9 +3075,10 @@ static int turing_job(const char *input, const char *output)
         os_bits = (turing_bits_of(near) + 1u > os_bits) ? turing_bits_of(near) + 1u : os_bits;
         turing_os_lane_bits = (os_bits > TURING_OS_LANE_FLOOR) ? os_bits : TURING_OS_LANE_FLOOR;
     }
-    TuringConstant ln2, c96, bound, theta_bound;
+    TuringConstant ln2, c96, c3, c5, bound, theta_bound;
     TuringOsConstants os;
-    std::vector<TuringConstant> gamma(read ? (size_t)header[6] : 0u), artanh(read ? (size_t)header[4] : 0u),
+    const unsigned int curves = read ? (unsigned int)header[17] : 1u;
+    std::vector<TuringConstant> gamma(read ? (size_t)(header[6] * header[17]) : 0u), artanh(read ? (size_t)header[4] : 0u),
         cosine(read ? (size_t)header[5] : 0u);
     os.fact.resize(read ? (size_t)header[12] : 0u);
     os.sinc.resize(read ? (size_t)header[13] : 0u);
@@ -3069,7 +3095,8 @@ static int turing_job(const char *input, const char *output)
     {
         read = turing_read_constant(in, &cosine[k]);
     }
-    read = read && turing_read_constant(in, &c96) && turing_read_constant(in, &bound) &&
+    read = read && turing_read_constant(in, &c96) && turing_read_constant(in, &c3) && turing_read_constant(in, &c5) &&
+           turing_read_constant(in, &bound) &&
            turing_read_constant(in, &theta_bound) && (bound.sign > 0) && (theta_bound.sign >= 0) &&
            turing_read_constant(in, &os.pi);
     for (size_t k = 0u; read && (k < os.fact.size()); k += 1u)
@@ -3164,7 +3191,7 @@ static int turing_job(const char *input, const char *output)
     }
     unsigned int field = 0u;
 
-    turing_point_build(&point, p, newton, ln2, artanh, c96, gamma, with_os, listed_run, pairs_sloped);
+    turing_point_build(&point, p, newton, ln2, artanh, c96, c3, c5, gamma, curves, with_os, listed_run, pairs_sloped);
     turing_seal(&point);
     point.in_limbs[0] = (unsigned int)point.shared.size();
     point.in_limbs[1] = listed_run ? j_limbs : 0u;
@@ -3179,6 +3206,8 @@ static int turing_job(const char *input, const char *output)
         turing_put_field(&point, field++, artanh[k].magnitude, artanh[k].sign);
     }
     turing_put_field(&point, field++, c96.magnitude, c96.sign);
+    turing_put_field(&point, field++, c3.magnitude, c3.sign);
+    turing_put_field(&point, field++, c5.magnitude, c5.sign);
     for (size_t k = 0u; k < gamma.size(); k += 1u)
     {
         turing_put_field(&point, field++, gamma[k].magnitude, gamma[k].sign);
@@ -3749,6 +3778,10 @@ static int turing_job(const char *input, const char *output)
             if (sloped)
             {
                 turing_write_output(out, &margined, margin_records, lane, 1u);
+            }
+            for (unsigned int at = 2u; bracketed && (at < 4u); at += 1u)
+            {
+                turing_write_output(out, &verdict, verdicts, lane, at);
             }
             fprintf(out, "\n");
         }

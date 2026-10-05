@@ -552,6 +552,31 @@ difference `2 ln m`.
 - **The spread at run 1024.** Three windows read below 1, more even than independent angles, and one
   above. Four windows do not make a trend.
 
+**Whole stretches** (`stretch` mode: windows end to end, each seeded at its own first boundary, every
+reading in one tally over the stretch; host equals device at every window, and the stretch's first and
+last boundaries meet the direct sum within the bar, 1,085,531 and 1,003,749 units of `2^-62` at most).
+
+| stretch | windows | each window's spread at run 1024: mean, deviation | below 1 | seconds |
+|---|---|---|---|---|
+| 2 to 65,535 | 64 | 1.1355, 1.0589 | 35 of 64 | 150 |
+| 1,000,000 to 1,016,383 | 16 | 0.8835, 0.5696 | 11 of 16 | 676 |
+
+The spread of independent angles at a run is exponential with mean 1 and deviation 1, below 1 at 63% of
+runs. Over the whole stretch from 2:
+
+| run | 1,024 | 2,048 | 4,096 | 8,192 | 16,384 | 32,768 | 65,534 |
+|---|---|---|---|---|---|---|---|
+| spread | 1.2479 | 1.1934 | 1.5648 | 1.7555 | 0.2116 | 0.7919 | 0.2176 |
+
+and from 1,000,000, at runs 1,024 to 16,384: 0.0953, 0.9871, 0.7426, 0.2707 and 0.1357.
+
+- **Each window spreads as independent angles do.** Over 64 windows the mean is 1.14 against 1, within
+  1.1 of its deviation 0.13, and over 16 at `10^6` it is 0.88 against 1. Three of the four windows read
+  below 1 by the draw.
+- **The whole stretch holds no direction and no extra evenness.** Its spread stays between 0.1 and 1.8
+  out to 65,534 readings: a held direction would grow it as the run, and a sequence more even than
+  independent angles would shrink it as one over the run.
+
 **What it is not.** These are readings of angles at boundaries, in four windows, at the places read.
 Whether the angles are equidistributed, and how evenly, is a question about all `n`, and none of it
 bears on the zeros of `Z` or on the hypothesis.
@@ -885,8 +910,12 @@ pole `N`'s record, the point's record and a shared record:
 
 At `M = 20` the stage is 1,897 steps, the same program at every cell, `N` a field of its record. The
 verdict reads it in place of the remainder, and the head is taken once, not doubled. `em_bounds` adds
-Johansson's remainder, `theta`'s error through the head and `C`, and the device's arithmetic, carried
-step by step through the reciprocal and each `tau_k`.
+Johansson's remainder, `theta`'s error, and the device's arithmetic, carried step by step through the
+reciprocal and each `tau_k`. Brent's error `delta` in `theta` is one angle at a point, common to the head
+and `C`: the sum is `Re(exp(i (theta + delta)) (zeta - R))`, and `exp(i theta) zeta = Z` is real.
+`delta` moves it by `|Z| (1 - cos(delta)) <= |Z| delta^2 / 2`, `|Z|` at most `2 sqrt(N) + |C| + |R|`.
+Riemann-Siegel's `Z = 2 Re(exp(i theta) F) + R` has no such form: `Im(exp(i theta) F)` is not small,
+and entry 9's bound charges `delta` at first order.
 
 **The walk.** Each point's `Z` is a fix and its bound the error about it, and a point that clears its
 bound is a certified sign. Where the count falls short, each cell with an uncertified point, or every
@@ -894,9 +923,20 @@ cell where none has one, runs again with four times the points and ten more term
 until the count closes or the rounds run out.
 
 **The run.** Cells 1 to 10 at 4 points or more a zero, `M = 20`, `N` from 21 at cell 1 to 255 at cell 10.
-The bound on `Z` is `2.5 e-4` at cell 1, `3.9 e-6` at cell 2 and `6.0 e-10` at cell 10, and every
+The bound on `Z` is `2.3 e-9` at cell 1, `5.9 e-13` at cell 2 and `3.0 e-12` at cell 10, and every
 cell closes in round 0. The certified sign changes in `(6.283185, 760.265422]` number 460, and `N` is held
-to one value at the top, `460 <= N(760.265422) <= 460`, every port check equal, in 305 seconds.
+to one value at the top, `460 <= N(760.265422) <= 460`, every port check equal, in 335 seconds.
+
+| cell | `N` | the bound on `Z`, `delta` at second order | `delta` charged at first order |
+|---|---|---|---|
+| 1 | 21 | `2.283 e-9` | `2.523 e-4` |
+| 2 | 31 | `5.873 e-13` | `3.929 e-6` |
+| 3 | 45 | `7.947 e-14` | `3.847 e-7` |
+| 5 | 85 | `2.952 e-13` | `2.466 e-8` |
+| 10 | 255 | `3.004 e-12` | `6.037 e-10` |
+
+At first order `theta`'s error is nearly the whole bound at every cell; at second order the remainder
+and the device's arithmetic are.
 
 **Controls.**
 - **The house's Z.** Against `em_at`, the exact value by `exact_zeta_zeros.py`'s two routes, the device
@@ -904,7 +944,8 @@ to one value at the top, `460 <= N(760.265422) <= 460`, every port check equal, 
   two of cell 10. The gap at cell 1 is `theta`'s omitted `7 / (5760 t^3)`, entering at second order:
   `exp(i theta) zeta(1/2 + i t) = Z` is real, and an error `delta` in `theta` moves its real part by
   `Z (cos(delta) - 1)`. At `t = 2 pi` that is `0.956 (4.9 e-6)^2 / 2`, `1.1 e-11`, and at `t = 12.17`
-  it is `1.195 (6.7 e-7)^2 / 2`, `2.7 e-13`. The bound charges `delta` at first order.
+  it is `1.195 (6.7 e-7)^2 / 2`, `2.7 e-13`. Both are inside the bound, which charges `delta` at second
+  order.
 - **Riemann-Siegel.** At the same two points of cell 10, entry 9's `Z` through `C_0` differs from this
   one by `9.6 e-4` and `2.5 e-4`, within the two bounds' sum, `1.012 e-3`, nearly all of it Gabcke's.
 - **The port check.** The host's records equal the device's word for word, and its sums equal the
@@ -1035,8 +1076,9 @@ Every quantity is read in the walker's own frame: a heading that swings carries 
   rises by 0.476 and then 0.482, the sum of `1/n` over the cells between.
 - **What holds still.** The bearing, the distance from the arc and the pull from it hold to within a few
   percent over two e-folds, while the inertia rises by 0.96.
-- **What moves, one way.** The misses' radius over the median falls, and their turn over the median and
-  their share of the largest tenth of turns rise. Three heights do not tell a slow law from noise.
+- **What moves, one way, at three heights.** The misses' radius over the median falls, and their turn
+  over the median and their share of the largest tenth of turns rise. Over nine e-folds, below, the
+  three hold still within their scatter.
 
 **The scatter as the walk's check.** Posit, Doug's:
 - The scatter is the walk's early warning. It shows whether the walk follows the smooth natural
@@ -1078,6 +1120,38 @@ checks failed:
 
 A height's 600 to 2,200 misses read the share under us to about a tenth of a percent. A share of
 99.999% is read from `10^5` misses or more.
+
+**Measured, nine e-folds** (`e` mode from cell 10, 40 cells a height, ten heights from `t = 628` to
+`5.1 e6`, 4.64 to 4.72 points a zero coarse, 5,243 misses, 0 host checks failed):
+
+| | `e^0` | `e^1` | `e^2` | `e^3` | `e^4` | `e^5` | `e^6` | `e^7` | `e^8` | `e^9` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| first cell | 10 | 16 | 27 | 45 | 74 | 122 | 201 | 331 | 546 | 900 |
+| misses a thousand zeros | 2.52 | 3.34 | 3.29 | 3.72 | 3.83 | 3.83 | 4.76 | 4.50 | 4.56 | 4.57 |
+| inertia less the sum of `1/n` | 0.2030 | 0.1365 | 0.0780 | 0.0390 | 0.0181 | 0.0072 | 0.0031 | 0.0010 | 0.0009 | -0.0002 |
+| median radius | 1.234 | 1.236 | 1.240 | 1.247 | 1.257 | 1.263 | 1.268 | 1.275 | 1.281 | 1.288 |
+| misses' radius over the median | 0.515 | 0.463 | 0.470 | 0.523 | 0.448 | 0.483 | 0.446 | 0.457 | 0.467 | 0.483 |
+| misses' turn over the median | 1.207 | 1.230 | 1.260 | 1.234 | 1.247 | 1.254 | 1.216 | 1.237 | 1.229 | 1.219 |
+| misses in the largest tenth of turns | 33.3% | 37.1% | 39.6% | 39.5% | 42.0% | 37.5% | 33.3% | 38.3% | 36.9% | 36.6% |
+| bearing from the heading, median | 33.0° | 34.0° | 34.2° | 35.0° | 37.3° | 37.2° | 36.4° | 36.4° | 35.5° | 36.6° |
+| distance from the arc, steps, median | 0.072 | 0.076 | 0.076 | 0.089 | 0.090 | 0.091 | 0.090 | 0.096 | 0.089 | 0.098 |
+| the pickle's width | 0.016 | 0.042 | 0.039 | 0.043 | 0.067 | 0.039 | 0.071 | 0.115 | 0.090 | 0.092 |
+| the pickle's aspect | 0.105 | 0.313 | 0.287 | 0.296 | 0.393 | 0.230 | 0.414 | 0.479 | 0.439 | 0.391 |
+| under us, within a step | 100% | 100% | 100% | 100% | 100% | 99.537% | 99.559% | 99.190% | 99.312% | 99.173% |
+| far misses over the core's ninetieth | - | - | - | - | - | 5.07 | 5.13 | 6.53 | 4.65 | 3.96 |
+| misses | 21 | 35 | 48 | 81 | 131 | 216 | 454 | 741 | 1,309 | 2,297 |
+
+- **The rows that moved one way at three heights hold still.** The misses' radius over the median,
+  their turn over the median and their share of the largest tenth of turns scatter about 0.47, 1.23
+  and 37% with no direction across nine e-folds. At three heights their moves were the scatter.
+- **The inertia closes on its law.** The mean of `|w|^2` stands 0.20 above the sum of `1/n` at cell 10
+  and within `1 e-3` of it from cell 331 up, the excess falling by a third to two thirds each e-fold.
+- **What drifts, slowly and one way.** The median radius rises by 0.002 to 0.010 an e-fold, steadily
+  over all nine. The misses a thousand zeros rise from 2.5 to 4.6 and stand at 4.5 to 4.8 from `e^6`;
+  the distance from the arc from 0.072 to 0.098; the pickle's width and aspect rise to `e^7` and stand
+  after it.
+- **Under us.** No miss falls past a step below `e^5`, 316 misses; from `e^5` up the share past a step
+  is 0.44% to 0.83%, the far misses 4 to 6.5 times past the core.
 
 **Measured**, the carrier as a sampling grid (`carrier` mode, cells 300 to 309 on one fine lattice each,
 the coarse lattice placed six ways at the same rate, 0 host checks failed). The metallic combs are built
@@ -1849,6 +1923,254 @@ point, over the device's `Z`.
   gap's spread is the same in both, and the field holds the count only through how each gap holds to
   the others.
 
+**The form factor, `S` the difference of the two clocks.** `exact_zeta_form_factor.py` takes the same
+zeros on `u` and reads `K(tau) = |sum of e(tau u_n)|^2 / M`, `e(x) = exp(2 pi i x)`. With
+`D(u) = n(u) - (u - a)` over `[a, b]` about the zeros, `S` less a constant, integration by parts gives
+
+`sum of e(tau u_n) = integral of e(tau u) + D(b) e(tau b) - 2 pi i tau (integral of D e(tau u))`,
+
+so `K` is `(2 pi tau)^2` times the power of `S` at `tau`, the ends aside. Both sides, the second exact
+over each line of `D` between zeros, agree to `8.4 e-15` of the sum at cells 300 to 310 and `5.6 e-14`
+at cells 1000 to 1003, at ten `tau` from 0.03 to 2.5. `K` is read smoothed by a Gaussian of width
+`sigma` in `tau`, from every pair of zeros within `1 / sigma` of each other. It is set against GUE's
+`min(|tau|, 1)` smoothed the same, and against the diagonal of the explicit formula: a spike of weight
+`Lambda(x)^2 / (x L^2)` at `tau = ln x / L`, `L = ln(t / 2 pi)`, for each prime power `x` up to `e^L`.
+The spikes' weights below `tau` sum to `tau^2 / 2`, GUE's ramp, and none falls below `ln 2 / L`.
+
+| `sigma = 0.01` | cells 300 to 310, `L = 11.441` | cells 1000 to 1003, `L = 13.819` |
+|---|---|---|
+| below `ln 2 / L - 3 sigma`: `K`'s mean, GUE's | 0.0001, 0.0171 | 0.0001, 0.0129 |
+| from there to 0.3: `K`'s mean, GUE's | 0.1438, 0.1650 | 0.1424, 0.1600 |
+| from there to 0.3: rms from the primes, from GUE | 0.0005, 0.0368 | 0.0005, 0.0234 |
+| 0.3 to 0.9: rms from the primes, from GUE | 0.0031, 0.0174 | 0.0040, 0.0089 |
+| 0.3 to 0.9: the two halves' difference, rms | 0.0068 | 0.0164 |
+| `K` at `ln 2 / L`, the spike of 2 alone | 0.0734 at 0.060, 0.0733 | 0.0513 at 0.050, 0.0513 |
+| the shuffled spacings' `K` at 0 | 0.1756 | 0.1745 |
+
+- **Below `tau = 1` the form factor is the primes'.** Every spike stands where `ln x / L` puts it with
+  the weight `Lambda(x)^2 / (x L^2)` gives it, to an rms of 0.0005 up to 0.3 and 0.003 to 0.004 up to
+  0.9. The diagonal holds closer than the two halves of the zeros hold to each other: each half's `L`
+  stands apart, and every spike moves with it. GUE's ramp is the spikes' average and misses each one.
+- **No wave is longer than `2 pi / ln 2`.** Below `ln 2 / L` the form factor is 0 to `10^-4`, where
+  GUE's ramp stands at 0.013 to 0.017 and the shuffled spacings' at 0.17. In `t` that is a period of
+  `2 pi / ln 2 = 9.06`, 16.5 zeros at cells 300 to 310 and 19.9 at cells 1000 to 1003. It is the drum's
+  lowest mode: past it `S` holds no slack, and the number variance stops growing.
+- **The ramp's mean falls short of GUE's by less at the greater height.** Smoothed by `sigma = 0.05`,
+  over `tau` from 0.2 to 0.8, `K` less GUE's is -0.0118 at cells 300 to 310 and -0.0069 at cells 1000
+  to 1003. Over 1.2 to 3, the plateau, it is +0.0004 and +0.0013, at most 0.035 and 0.023 off.
+- **Near `tau = 1` the zeros stand above GUE's, and the shuffled spacings stand further above.** Over 0.8
+  to 1.2, `K` less GUE's is +0.023 and +0.014, the shuffled spacings' +0.045 and +0.039; at 1.1 the
+  zeros give 1.050 and 1.036.
+
+**At each e-fold height.** Both readings at heights `t` an e-fold apart, cells 41, 67, 110, 182, 300,
+495 and 815, with cells 1000 to 1003. N is held by Turing's method at the cells' F's at all but 815,
+where a run of the machine over cells 814 to 822 holds it in one round, `N = 8,240,626` at cell 815's F
+and `8,394,348` at cell 822's. At every height the zeros placed number N's difference.
+
+| cells | `L` | zeros | `S`'s variance | Selberg's term | pull back | neighbors | trough in `t` | `K` below `ln 2 / L` | the primes' rms, to 0.3 | GUE's rms, to 0.3 | ramp less GUE's |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 42 to 52 | 7.712 | 7,241 | 0.0525 | 0.1035 | -0.486 | -0.360 | 13.86, `k = 17` | 0.0003 | 0.0087 | 0.0900 | -0.0280 |
+| 68 to 78 | 8.586 | 12,530 | 0.0571 | 0.1089 | -0.455 | -0.356 | 13.91, `k = 19` | 0.0002 | 0.0022 | 0.0714 | -0.0237 |
+| 111 to 121 | 9.509 | 22,058 | 0.0617 | 0.1141 | -0.429 | -0.352 | 13.88, `k = 21` | 0.0000 | 0.0007 | 0.0577 | -0.0195 |
+| 183 to 193 | 10.474 | 39,378 | 0.0662 | 0.1190 | -0.407 | -0.352 | 13.80, `k = 23` | 0.0001 | 0.0006 | 0.0446 | -0.0146 |
+| 300 to 310 | 11.441 | 69,789 | 0.0701 | 0.1235 | -0.389 | -0.349 | 14.28, `k = 26` | 0.0001 | 0.0005 | 0.0368 | -0.0118 |
+| 496 to 500 | 12.421 | 49,486 | 0.0738 | 0.1276 | -0.373 | -0.347 | 14.16, `k = 28` | 0.0001 | 0.0004 | 0.0303 | -0.0101 |
+| 815 to 822 | 13.415 | 153,722 | 0.0774 | 0.1315 | -0.359 | -0.345 | 14.05, `k = 30` | 0.0001 | 0.0003 | 0.0251 | -0.0084 |
+| 1000 to 1003 | 13.819 | 83,036 | 0.0788 | 0.1330 | -0.354 | -0.343 | 14.10, `k = 31` | 0.0001 | 0.0005 | 0.0234 | -0.0069 |
+
+The ramp less GUE's is `K` smoothed by `sigma = 0.05` over `tau` from 0.2 to 0.8; the plateau, 1.2 to
+3, stands within 0.07 of 1 at every height, and within 0.012 at cells 815 to 822.
+
+- **The pull back is the spacings' over the slack.** `S`'s step from one zero to the next is
+  `1 - (g_k + g_(k+1)) / 2`, its variance `var(g)(1 + rho) / 2`, `rho` the neighbors' correlation, and
+  the pull back is `-var(g)(1 + rho) / (4 var(S))`: -0.4855 against -0.4859 measured at the lowest
+  height and -0.3590 against -0.3591 at cells 815 to 822. The step's variance rises only from 0.051 to
+  0.056 over six e-folds; `S`'s from 0.0525 to 0.0774. The tension each zero holds stays nearly the
+  same while the slack grows, and the pull each zero weakens as the slack.
+- **The slack grows as `ln L`.** By least squares over the seven heights `S`'s variance is
+  `0.0451 ln L - 0.0397`, against Selberg's `(1 / (2 pi^2)) ln L = 0.0507 ln L`.
+- **The trough stands at 14 in `t` at every height**, 13.80 to 14.28, while `k` runs from 17 to 31 with
+  `L`. At `tau = 14`, `14 ln 2 = 3.09 pi`, `14 ln 3 = 4.90 pi` and `14 ln 5 = 7.17 pi`: the waves of
+  2, 3 and 5 are each near an odd multiple of `pi` together.
+- **No wave longer than `2 pi / ln 2`, at every height.** `K` below `ln 2 / L` is `3 e-4` at most,
+  where GUE's ramp stands at 0.013 to 0.029.
+- **The diagonal of the explicit formula closes with height**, its rms to 0.3 from 0.0087 to 0.0003,
+  and GUE's ramp approaches the zeros from 0.090 to 0.023. The ramp's mean falls short of GUE's by
+  `1.3 / L^2` to `1.8 / L^2` over the heights.
+
+## Entry 18: the demon's arms over the certified zeros, in exact integers
+
+`exact_zeta_demon.py` runs the identity:null permutation of
+[noise_sieve_tower.md](../engine/noise_sieve_tower.md) on the curves entry 17 reads. Every value is an
+integer, and no number in a verdict is chosen.
+
+**The zeros as intervals.** With the listing word 3 the device writes each point's `theta / pi` less
+its bound and more it, integers at `2^-62` about `1.7 e-12` apart. `theta / pi` rises. A zero between
+two certified points `a` and `b` of opposite sign therefore has `u = theta / pi + 1` between `a`'s lower
+bracket and `b`'s upper, plus 1. Each zero stands at the midpoint of its interval, an integer at
+`2^-64`, and every curve is read from those integers.
+
+**The steering.** Each pair of zeros within 8 of each other has its difference as an interval. The pair
+is decided where that interval lies in one eighth of `u`, and it straddles where the interval meets two.
+A zero in a straddling pair is listed again 16 times finer between its two certified points, by pairs
+with the brackets, and takes the interval about its one change of sign there, for up to three rounds.
+A zero whose two points stand in different cells keeps its interval. N is held at both ends, the zeros
+placed number N's difference, and both ends of each interval rise from each zero to the next.
+
+| cells | zeros | straddling, round 0 | round 1 | round 2 | after round 3 | pairs decided | widest interval of `u` | host checks failed |
+|---|---|---|---|---|---|---|---|---|
+| 68 to 78 | 12,530 | 12,530 | 5,552 | 504 | 80 | 93,724 | 0.005145 | 0 |
+| 300 to 310 | 69,789 | 69,789 | 39,253 | 3,492 | 277 | 523,065 | 0.052951 | 0 |
+| 815 to 822 | 153,722 | 153,722 | 72,920 | 5,878 | 376 | 1,152,646 | 0.005257 | 0 |
+
+At every round every zero listed again takes a narrower interval.
+
+**The arms.** Arm a shuffles the gaps' order with every gap kept, and `S` is drawn as a walk. Arm b
+shuffles the gaps within each run of 64, which holds `S` at every 64th zero. Each arm takes 31 draws. A
+point of a curve stands above background where no draw reaches it. Its reach is the fewer of the draws
+at or above it and at or below it, and the verdict is whether the reach is 0. Where the real value is
+one of 32 alike, reach 0 comes at a rate of 2 in 32 a point. At every height the identity permutation
+gives back every real value, and every draw keeps each run's gaps.
+
+- **`S`'s correlation stands outside both arms.** At every lag from 1 to 48 and every height, no draw
+  of arm a reaches it; arm a's means stand near 1. Arm b's means fall as the walk held at both ends of
+  a run gives, 0.25 at lag 25 and 0.027 at lag 48 at cells 815 to 822. No draw of arm b reaches the real
+  at any lag but 40 and 46 at cells 68 to 78. At cells 815 to 822 the real is -0.616 at lag 30, the
+  trough of entry 17.
+- **The pull back and the neighbors' correlation stand outside both arms**, reach 0 at every height:
+
+| cells | `S`'s pull back | arm a's mean | arm b's mean | neighbors' correlation | arm a's mean | arm b's mean |
+|---|---|---|---|---|---|---|
+| 68 to 78 | -0.4543 | -0.0003 | -0.0223 | -0.3557 | 0.0011 | -0.0168 |
+| 300 to 310 | -0.3881 | -0.0000 | -0.0220 | -0.3481 | 0.0004 | -0.0147 |
+| 815 to 822 | -0.3587 | -0.0000 | -0.0224 | -0.3443 | -0.0003 | -0.0150 |
+
+- **The number variance stands below every draw.** The real is 0.31 to 0.49 at every `L` from 1 to 256
+  and every height. Arm a grows as `L`, to 40 to 43 at `L = 256`. Arm b stands at 3.8 to 4.0 from
+  `L = 64`, the walk held at every 64th zero. No draw reaches the real but one of arm a at `L = 1` at
+  cells 68 to 78.
+- **The pair counts, by eighths of `u`.** Each eighth's real count lies between the pairs whose
+  interval lies in it and those whose interval meets it, at every height. An eighth is marked where no
+  draw reaches any count the intervals allow.
+  - Below every draw of both arms, marked: 0.25 to 1.625 at cells 300 to 310 and 815 to 822, and 0.5
+    to 1.375 at cells 68 to 78. In `[0.875, 1)` the real is 0.1285, 0.1279 and 0.1262 a zero, against
+    arm a's 0.1386, 0.1379 and 0.1359.
+  - Above every draw of arm a, marked: 1.75 to 2 at cells 300 to 310 and 815 to 822, then below from
+    2.125 to 2.375.
+  - From 2 to 8, of 48 eighths, arm a marks 10, 11 and 8 at the three heights and arm b 8, 10 and 7.
+    Reach 0 at 2 in 32 an eighth gives 3 of 48 where the eighths are independent, and a mark asks more
+    than reach 0.
+
+The gaps alone draw none of these curves at any height. Arm b keeps the gaps and `S` at every 64th
+zero, and still reaches none of them, at every lag but two.
+
+**The carriers.** `exact_zeta_carrier.py` lays four carriers on `theta / pi` from each cell's first
+point, one mark a unit: the uniform comb, the `1, 1, 2` comb and the golden and silver Sturmian words of
+entry 16. The word's letter `k` is `floor((k + 1) / beta) - floor(k / beta)`, with `floor(k / beta) =
+(isqrt(k^2 (n^2 + 4)) - k n) // 2`. A mark is read at the first listed point whose `theta / pi` less its
+bound reaches it, by integer comparison, and for the Sturmian words by `A >= 0` and `A^2 >= (n^2 + 4)
+B^2` with `A` and `B` integers. The moments of `w` at the marks: the inertia `|w|^2`, `w`, `w^2`, and
+from each mark to the next the coherence `Re(conj(w_k) w_(k+1))` and the angular momentum
+`Im(conj(w_k) w_(k+1))`. Arm a shuffles the carrier's steps. Arm b shifts the carrier by `d / 32` of its
+mean step, `d` from 1 to 31. Over cells 300 to 309, 69,792 to 69,797 marks a carrier, with 0 host checks
+failed. The uniform comb's arm a gives it back, as it must, and its reach in arm a is 31.
+
+| carrier | inertia | `Re w^2` | `Im w^2` | coherence | angular momentum |
+|---|---|---|---|---|---|
+| uniform | 6.2991, b 8 | 0.0166, b 14 | 0.1586, b 1 | -0.5745, b 13 | 3.6009, b 11 |
+| `1, 1, 2` | 6.3175, a 8, b 11 | 0.1019, a 0, b 5 | -0.0656, a 0, b 0 | 0.4949, a 7, b 14 | 3.2512, a 5, b 0 |
+| golden | 6.3049, a 13, b 0 | 0.0839, a 0, b 7 | -0.0285, a 2, b 12 | -0.1906, a 12, b 1 | 3.3300, a 9, b 12 |
+| silver | 6.2910, a 9, b 0 | 0.0012, a 11, b 0 | -0.0753, a 0, b 0 | 0.9421, a 10, b 0 | 2.8981, a 14, b 0 |
+
+Each value is followed by its reach in each arm.
+
+- **The inertia is the sum of `1/n` at every carrier**, 6.29 to 6.32 over cells whose `nu` gives 6.28
+  to 6.31.
+- **`w` averages to 0 at every carrier**, within 0.0032.
+- **`w^2` returns the carrier's own phase.** The mean of `F^2` is 1, the `k = 1` wave. At the marks
+  `w^2` therefore follows `exp(2 i theta)`, one turn a unit of `theta / pi`. One mark a unit holds that phase at
+  each carrier's own places mod 1. The shift turns the phase through a whole turn over its 31 draws:
+  the uniform comb's `w^2` is 0.159 in modulus where arm b's mean is 0.005. The shuffle spreads the
+  places mod 1: no draw reaches the `1, 1, 2` comb's `w^2`, golden's `Re w^2` or silver's `Im w^2`.
+  These moments read the carrier's rhythm on `theta`'s clock. The zeros enter them only through `F`.
+- **The beats, golden less each other carrier.** Golden less uniform: `Re w^2` 0.0673, reach 0 in arm a;
+  `Im w^2` -0.1871, the inertia 0.0058 and the coherence 0.3840, each reach 0 in arm b. Golden less
+  silver: the inertia, `Re w`, the coherence and the angular momentum each reach 0 in arm b. Golden
+  less the `1, 1, 2` comb: the angular momentum reaches 0 in arm b.
+
+**The lattice even in `theta / pi`.** In `carrier` mode the miss map now places the coarse lattice at
+the first fine points whose `theta / pi` less its bound reaches each step, by integer comparison. Over
+cells 300 to 309 at 4.7 points a zero, against entry 16's schemes on the same fine lattices:
+
+| scheme | points | a zero | misses a thousand zeros | width | under us |
+|---|---|---|---|---|---|
+| uniform in `t` | 327,680 | 4.6954 | 4.757 | 0.0977 | 97.59% |
+| even in `theta / pi` | 328,009 | 4.7001 | 4.671 | 0.0896 | 98.77% |
+| golden | 327,690 | 4.6955 | 6.047 | 0.1233 | 85.78% |
+| `1, 1, 2` | 327,690 | 4.6955 | 8.053 | 0.2638 | 61.92% |
+
+At 0.1% more points the lattice even in `theta / pi` misses 1.8% fewer zeros, with a narrower width and
+more misses under us. Over a cell `theta`'s rate `ln(t / 2 pi) / 2` changes little, and the lattice even
+in `t` is near it. Of 69,788 zeros, 0 turning points stand on the wrong side of a zero.
+
+## Entry 19: the remainder through `C_10` and `theta` through its `t^-5` term, in the verdict
+
+**What the bound stands on.** Gabcke's thesis, Satz 3.2.2 (p. 55): for `t >= 200`,
+`|R_K(t)| < d_K t^(-(2K + 3) / 4)`, with `R_K = Z - 2 sum over n <= N of n^(-1/2) cos(theta - t ln n) -
+(-1)^(N - 1) a^(-1/2) sum over n <= K of C_n(z) a^(-n)`, `a = (t / 2 pi)^(1/2)`, (3.26). By (b), with the
+power series of the `C_n`: `d_0` to `d_9` = 0.127, 0.053, 0.011, 0.031, 0.017, 0.061, 0.661, 9.2, 130 and
+1,837, optimal for `K <= 4`. By (a), without them, `d_10` = 25,966. The ratio of two bounds,
+`d_K' / d_K t^(-(K' - K) / 2)`, falls as `t` rises. The least of the eleven at `t = 200` is therefore the
+least at every `t` past it, and it is `K = 10`, since `25966 / 1837 = 14.135` is below `200^(1/2)`. The
+same thesis, introduction, (4) and (5): `theta = (t/2) log(t / 2 pi) - t/2 - pi/8 + 1/(48 t) +
+7/(5760 t^3) + 31/(80640 t^5) + R_theta`, `|R_theta| < 1 / (3322 t^7)` for `t >= 10`. Below `t = 10` the
+bound on `theta` is Brent's past `1/(48 t)`, with the two terms after it added.
+
+**On the device.** The point stage gives `theta / pi` with `7 / (46080 pi^4 s^3) + 31 / (2580480 pi^6 s^5)`
+beside its terms, from `1 / s` held at `2^62`. It reads each of `C_0` to `C_10` by Horner's rule over its
+56 Taylor coefficients, and the remainder `(-1)^(nu - 1) x^(-1/2)` times their sum over `x^n` by Horner's
+rule in `1 / x`. The input gives the curve count, and every width is set from it. Each curve's
+coefficients sum below 1 in size, `C_10`'s to `3.1 e-5`, and every coefficient past the 57th of any
+curve is below `2^-72`. The device's error on the sum is carried step by step in `arithmetic`. The
+margin's slope of `R` is the sum over the curves of `(n + 1/2) |C_n| x^(-n - 3/2) + 2 |C_n'| x^(-n - 1/2)`,
+over `4 pi x`.
+
+**The run.**
+
+| cells | method | zeros | `N` at the top | rounds | seconds | host checks failed |
+|---|---|---|---|---|---|---|
+| 10 to 30 | pairs | 4,763 | 5,223 | 1 | 101 | 0 |
+| 10 to 300 | pairs | 936,221 | 936,681 | 2 | 632 | 0 |
+| 1 to 10 | Euler-Maclaurin | 460 | 460 | 0 | 387 | 0 |
+| 299 to 311 | both | 76,916 | 1,013,597 | 2 | 127 | 0 |
+
+Every count equals entries 9 and 14, and cells 10 to 30 equal Odlyzko's table.
+
+| cell | bound on `Z`, `C_0` and Brent's `theta` | bound on `Z`, `C_0` to `C_10` and Gabcke's `theta` |
+|---|---|---|
+| 10, pairs | `1.0 e-3` | `2.3 e-12` |
+| 127, pairs | `2.2 e-5` | `3.7 e-10` |
+| 300, pairs | `6.2 e-6` | `4.9 e-9` |
+| 300, the multiple evaluation | | `1.8 e-8` |
+| 1, Euler-Maclaurin | `2.3 e-9` | `3.7 e-9` |
+| 2, Euler-Maclaurin | `5.9 e-13` | `3.2 e-14` |
+
+- **The bound is the device's arithmetic from cell 127 up.** At cell 10 Gabcke's `R_10` is
+  `2.1 e-12` of the `2.3 e-12`; at cells 127 and 300 the bound equals entry 9's arithmetic,
+  `3.7 e-10` and `4.9 e-9`. `theta`'s charge at cell 10 is `1.2 e-22`.
+- **The house's `Z` meets the device's closer.** At cell 10 the two stand `1.2 e-15` and `1.3 e-15`
+  apart, where the `7 / (5760 t^3)` of `theta` left them `1.5 e-11` apart. By Euler-Maclaurin at cell 1
+  they stand `6.4 e-18` and `1.1 e-18` apart.
+- **The counts' rounds hold as they were.** Over cells 10 to 300 round 0 certifies 933,687 zeros against
+  933,683, with the same 252 cells short. A cell falls short where its lattice steps over a close pair,
+  and a bound `10^3` to `10^8` times smaller does not place a point between them.
+- **Cell 1's bound rises.** Its foot is `t = 2 pi`, below Gabcke's `t >= 10`, and Brent's bound with the
+  two added terms is 1.3 times Brent's alone, charged at second order. From cell 2 Gabcke's holds.
+
+**What it is not.** The tail of each curve's Taylor series past its 56 coefficients is not bounded here
+by a proof; its terms past the 57th are below `2^-72`. Past `K = 10` Gabcke gives no bound, and `R` to the
+series' own least term needs one.
+
 ## The zeros in the engine's field
 
 Doug's. Posit.
@@ -2170,16 +2492,16 @@ places, `N` and the widths come from the records.
 
 | part | the algebra it holds to | does | wants | tried, and what it gave | status | next |
 |---|---|---|---|---|---|---|
-| **Z1. The constants** | `ln n = k ln 2 + 2 artanh((n - 2^k) / (n + 2^k))` and `ln n = j ln 3 + 2 artanh((n - 3^j) / (n + 3^j))`, each a floor at its scale, and the two agreeing through `naturals._agree`. pi by Machin and Euler the same way. Each constant is held as its real and its operator: the floor at its places and the series that gives the next place. Across a cell, `ln(x / m) = ln(nu / m) + A` for every `m`, with `x = nu + l / 2^b` and `A = 2 artanh(l / D)`, `D = nu 2^(b+1) + l`: one series a lane, and `ln(nu / m)` the cell's constant. The first `L` terms of `A` are `2 l S / (Lambda D^(2L - 1))`, `Lambda` the least common multiple of the odd numbers below `2L` and `S` an integer by Horner's rule in `l^2`; every term is positive and below `(l / D)^2` times the one before it, and the tail is below `2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2))`. | `ln n` on the host, in `representation.constants.naturals`, each `(n, digits)` asked once. `A` on the device, in `exact_zeta_lobes.cu`'s log stage, one lane a point of the cell: each lane holds `l S`, `D^(2L - 1)`, `l^(2L + 1)` and `D^2 - l^2`, four integers that bracket `A` exactly, the constants `Lambda / (2k + 1)` read from the record. | `ln n` and pi as record programs (M10) at the places the record carries, each with its second route and their agreement written as a field. The device has pi as `pi_tower` (M19), bracketed by Machin, and `A` across a cell, bracketed by its tail. A deeper pass extends a constant's series from the terms it holds. | The run to `t = 123` asks `ln n` for every `n` up to 128 at up to 36 digits, and both routes agree on every one: exit 0. On the device at `nu = 2`, `b = 9`, 513 lanes: the host's run of the log stage equals the device's word for word over 64 lanes, and the house `ln` lies inside the bracket at every lane checked. At `L = 48` the stage is 295 steps, the bracket `10^-69.5` wide at the cell's far end, where `l / D = 1/5`, and `10^-323` at its first lane; at `L = 56` the registers pass the file's 256 limbs and the layout refuses. The field `nu 2^b` is read at `nu`'s own bits, and every power of `D` is as wide as that field. | `ln n` host only; `A` built and run | `ln(nu / m)` for every `m` up to `nu` as a device stage; a reference point nearer each lane, its own `A` from the same stage, to make `l / D` smaller than the register file's 48 terms allow |
-| **Z2. The powers** | `n^-s = exp(-sigma ln n) (cos(t ln n) - i sin(t ln n))`, and its derivative `-ln n n^-s`. exp by `x = r - k ln 2` with `0 < r <= ln 2`, a Taylor series in `r`, then a shift by `k` either way. cos and sin by taking whole turns of `2 pi` off, then one series. Every term is a floor at places plus `GUARD`, twenty digits. | On the host, one `(point, n)` at a time. | One lane per `(point, n)`, `n` from 1 to `2N`, the point and its places read from its record. A series runs while its term is nonzero: a lane whose term reads zero adds zero, and the sweep ends where the sum of every lane's term field is zero. The record machine's operations carry it (M10: product, sum, difference, absolute, compare, and the divisions). | On the host every power at sixteen places plus the guard is 120 bits, which four 32-bit limbs hold, 128 bits. The exact limb arithmetic is a power-of-two count of 32-bit limbs, and its width doubles with no ceiling (`exact_integer_widths.h`). | not built | exp, cos and sin as record programs over one sweep of lanes |
-| **Z3. The sum and its tail** | Euler-Maclaurin cut at `N`: the head, the sum of `n^-s` for `n < N`, then `C N^-s`, with `C = N / (s - 1) + 1/2 + sum over k from 1 to N of B_2k / (2k)! s(s+1)...(s+2k-2) N^(1-2k)`, an exact complex rational. `C'` is carried beside it through the derivative of the rising product. Two routes, at `N` and `2N`, share the powers. Each of the eight values, `zeta` and `zeta'` from each route, real and imaginary, is read toward zero: its sign times the floor of its size, the guard dropped. On the device `C` is carried at a fixed scale `S` as `tau_1 = s / 12N` and `tau_k = tau_(k-1) (s + 2k - 3)(s + 2k - 2) rho_k`, `rho_k = B_2k (2k - 2)! / (B_(2k-2) (2k)! N^2)`. Every term sits near the scale, each `tau` wrapped to a width from a bound on it. | `C` on the device for entry 6's triangle: `exact_zeta_tail.cu`, one lane a point, 35 steps a term, the shared record holding `S`, `S / 2` and every `rho_k S`. The head, `C'` and entry 4's walk stay on the host. | `B_2k / (2k)!` built once on the host and read by every lane as a table (M10's table). The head as an exact sum over a point's lanes. `C` and `C'` per point at the power-of-two width the record names, doubled where the value needs more: a lane too narrow refuses as a request error (M12) and never rounds. | `C` and `C'` measured on the host: about 340 bits at `N = 8`, about 2,160 at `N = 32`, and 6,733 to 6,871 at `N = 64` with `t` at sixteen places. Each takes the power-of-two width that holds it: 16 limbs, 512 bits, at `N = 8`; 128 limbs, 4,096 bits, at `N = 32`; and 256 limbs, 8,192 bits, at `N = 64`. The exact rational spends 98 percent of a value's time in gcd reductions, 3.5 of 3.57 seconds at `t = 190` and 21 places. On the device, at `N` from 1 to 64 over 128 points, the records equal the host's run of the same program word for word at every `N`, and `C` meets the exact rational at its own relative precision, 3 parts in `10^37` at `N = 64`. At `N = 64` the program is 2,224 steps in a file of 92 limbs, and 128 lanes sweep in 5.5 milliseconds once it is compiled; a launch costs about 0.4 seconds of its own. Fed by it, Euler-Maclaurin meets the host's to one unit at 21 places. | `C` built and run | the head's powers (Z2) in the same job, and both routes in one launch |
-| **Z4. The point verdicts** | Four fields per point: `agree = NOT(Re one - Re two) NOT(Im one - Im two)`, and `COMPARE` of `Re zeta` with 0, of `Im zeta` with 0, and of `|Re zeta|` with `|Im zeta|`. A point is decided where the product of `agree` and the three absolute signs is nonzero. Its eighth of a turn is `2q + ((1 - sign_size) / 2 + q) % 2`, with `q = (1 - sign_im) + (1 - sign_re sign_im) / 2`. An undecided point is asked again at `places (1 + agree)` and `N (2 - agree)`. | On the host, in `Steering.sweep`. | A record per point, holding the point's two pairs, its places, `N`, the four values and the four verdicts, written by the sweep and read by the next. `COMPARE`, product and absolute are record operations (M10). The points asked again are compacted from the field `NOT(decided)` by a sum over it. | The run to `t = 123` writes 56,570 values, the deepest at sixteen places and the widest at `N = 64`. | host only | the record's layout, and the compaction as one sweep |
+| **Z1. The constants** | `ln n = k ln 2 + 2 artanh((n - 2^k) / (n + 2^k))` and `ln n = j ln 3 + 2 artanh((n - 3^j) / (n + 3^j))`, each a floor at its scale, and the two agreeing through `naturals._agree`. pi by Machin and Euler the same way. Each constant is held as its real and its operator: the floor at its places and the series that gives the next place. Across a cell, `ln(x / m) = ln(nu / m) + A` for every `m`, with `x = nu + l / 2^b` and `A = 2 artanh(l / D)`, `D = nu 2^(b+1) + l`: one series a lane, and `ln(nu / m)` the cell's constant. The first `L` terms of `A` are `2 l S / (Lambda D^(2L - 1))`, `Lambda` the least common multiple of the odd numbers below `2L` and `S` an integer by Horner's rule in `l^2`; every term is positive and below `(l / D)^2` times the one before it, and the tail is below `2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2))`. | `ln n` on the host, in `representation.constants.naturals`, each `(n, digits)` asked once. `A` on the device, in `exact_zeta_lobes.cu`'s log stage, one lane a point of the cell: each lane holds `l S`, `D^(2L - 1)`, `l^(2L + 1)` and `D^2 - l^2`, four integers that bracket `A` exactly, the constants `Lambda / (2k + 1)` read from the record. | `ln n` and pi as record programs (M10) at the places the record carries, each with its second route and their agreement written as a field. The device has pi as `pi_tower` (M19), bracketed by Machin, and `A` across a cell, bracketed by its tail. A deeper pass extends a constant's series from the terms it holds. | The run to `t = 123` asks `ln n` for every `n` up to 128 at up to 36 digits, and both routes agree on every one: exit 0. On the device at `nu = 2`, `b = 9`, 513 lanes: the host's run of the log stage equals the device's word for word over 64 lanes, and the house `ln` lies inside the bracket at every lane checked. At `L = 48` the stage is 295 steps, the bracket `10^-69.5` wide at the cell's far end, where `l / D = 1/5`, and `10^-323` at its first lane; at `L = 56` the registers pass the file's 256 limbs and the layout refuses. The field `nu 2^b` is read at `nu`'s own bits, and every power of `D` is as wide as that field. | `ln n` on the host for the boxes; on the line, `ln k` on the device in entry 9's pole stage, once a `k`; `A` built and run | a reference point nearer each lane, its own `A` from the same stage, to make `l / D` smaller than the register file's 48 terms allow |
+| **Z2. The powers** | `n^-s = exp(-sigma ln n) (cos(t ln n) - i sin(t ln n))`, and its derivative `-ln n n^-s`. exp by `x = r - k ln 2` with `0 < r <= ln 2`, a Taylor series in `r`, then a shift by `k` either way. cos and sin by taking whole turns of `2 pi` off, then one series. Every term is a floor at places plus `GUARD`, twenty digits. | On the host, one `(point, n)` at a time. | One lane per `(point, n)`, `n` from 1 to `2N`, the point and its places read from its record. A series runs while its term is nonzero: a lane whose term reads zero adds zero, and the sweep ends where the sum of every lane's term field is zero. The record machine's operations carry it (M10: product, sum, difference, absolute, compare, and the divisions). | On the host every power at sixteen places plus the guard is 120 bits, which four 32-bit limbs hold, 128 bits. The exact limb arithmetic is a power-of-two count of 32-bit limbs, and its width doubles with no ceiling (`exact_integer_widths.h`). | on the line, cos and sin on the device in entry 9's pair stage, the phase over pi taken modulo 2 and cos by its power series, sin as `cos(phi - pi / 2)`; exp not built | exp, for the boxes off the line |
+| **Z3. The sum and its tail** | Euler-Maclaurin cut at `N`: the head, the sum of `n^-s` for `n < N`, then `C N^-s`, with `C = N / (s - 1) + 1/2 + sum over k from 1 to N of B_2k / (2k)! s(s+1)...(s+2k-2) N^(1-2k)`, an exact complex rational. `C'` is carried beside it through the derivative of the rising product. Two routes, at `N` and `2N`, share the powers. Each of the eight values, `zeta` and `zeta'` from each route, real and imaginary, is read toward zero: its sign times the floor of its size, the guard dropped. On the device `C` is carried at a fixed scale `S` as `tau_1 = s / 12N` and `tau_k = tau_(k-1) (s + 2k - 3)(s + 2k - 2) rho_k`, `rho_k = B_2k (2k - 2)! / (B_(2k-2) (2k)! N^2)`. Every term sits near the scale, each `tau` wrapped to a width from a bound on it. | `C` on the device for entry 6's triangle: `exact_zeta_tail.cu`, one lane a point, 35 steps a term, the shared record holding `S`, `S / 2` and every `rho_k S`. The head, `C'` and entry 4's walk stay on the host. | `B_2k / (2k)!` built once on the host and read by every lane as a table (M10's table). The head as an exact sum over a point's lanes. `C` and `C'` per point at the power-of-two width the record names, doubled where the value needs more: a lane too narrow refuses as a request error (M12) and never rounds. | `C` and `C'` measured on the host: about 340 bits at `N = 8`, about 2,160 at `N = 32`, and 6,733 to 6,871 at `N = 64` with `t` at sixteen places. Each takes the power-of-two width that holds it: 16 limbs, 512 bits, at `N = 8`; 128 limbs, 4,096 bits, at `N = 32`; and 256 limbs, 8,192 bits, at `N = 64`. The exact rational spends 98 percent of a value's time in gcd reductions, 3.5 of 3.57 seconds at `t = 190` and 21 places. On the device, at `N` from 1 to 64 over 128 points, the records equal the host's run of the same program word for word at every `N`, and `C` meets the exact rational at its own relative precision, 3 parts in `10^37` at `N = 64`. At `N = 64` the program is 2,224 steps in a file of 92 limbs, and 128 lanes sweep in 5.5 milliseconds once it is compiled; a launch costs about 0.4 seconds of its own. Fed by it, Euler-Maclaurin meets the host's to one unit at 21 places. | `C` built and run; on the line the head and `C` on the device in entry 14's stages | `C'` beside `C`, and both routes in one launch, for the boxes off the line |
+| **Z4. The point verdicts** | Four fields per point: `agree = NOT(Re one - Re two) NOT(Im one - Im two)`, and `COMPARE` of `Re zeta` with 0, of `Im zeta` with 0, and of `|Re zeta|` with `|Im zeta|`. A point is decided where the product of `agree` and the three absolute signs is nonzero. Its eighth of a turn is `2q + ((1 - sign_size) / 2 + q) % 2`, with `q = (1 - sign_im) + (1 - sign_re sign_im) / 2`. An undecided point is asked again at `places (1 + agree)` and `N (2 - agree)`. | On the host, in `Steering.sweep`. | A record per point, holding the point's two pairs, its places, `N`, the four values and the four verdicts, written by the sweep and read by the next. `COMPARE`, product and absolute are record operations (M10). The points asked again are compacted from the field `NOT(decided)` by a sum over it. | The run to `t = 123` writes 56,570 values, the deepest at sixteen places and the widest at `N = 64`. | host only for the boxes; on the line, entry 9's verdict stage certifies each sign on the device | the record's layout, and the compaction as one sweep |
 | **Z5. The edge verdicts** | Per half of an edge: `NOT(places_a - places_c)`, the chord `COMPARE(min(|zeta_a|^2, |zeta_c|^2), |zeta_c - zeta_a|^2)`, and at each end `COMPARE(|zeta|^2 10^(2q), |zeta'|^2 |c - a|^2)`. The turn from `a` to `c` is `(d_c - d_a + 4) % 8 - 4`, and the edge's turns read end to end and through the midpoint agree or not. A settled edge is the product of the positive verdicts. A negative verdict puts the midpoint into the path, a zero doubles the places, and unequal places ask both ends at the deeper. | On the host, in `Steering.count`. | One lane per half edge, reading the two point records at its ends. The places each point is asked at next, and the midpoints put into the path, written as fields and compacted by a sum over them. The turns summed per box, an exact sum over the box's lanes. | The quadrant alone counts `[24, 32]` and `[32, 40]` empty, and the chord alone counts `[98, 102]` empty (entry 4). With the step verdict every box below `t = 123` counts as the published table has it. | host only | the half edge as a record program reading two records |
-| **Z6. The walk and the placing** | An empty box doubles the step, a box counting one is a zero, a crowded box splits into halves. Each zero is placed one bit per pass by the lower square centred on the line counting one. | On the host, in `Steering.walk` and `Steering.place`. | Nothing on the device past Z1 to Z5. The host reads the counts per box from the device and writes the next pass's boxes; each pass is one sweep of Z2 to Z5. | Forty zeros below `t = 123`, each placed by sixteen bits, each bracket holding the published ordinate: exit 0, five minutes on the host. | host only | the host loop over device passes |
-| **Z7. The job** | One device, one daemon; a job declares its bytes, is admitted on its standing, and its peak is kept under its signum (M14). | The program runs on the host and asks the device nothing. | The program as a tessera job, beside the sims: `sim_job_submit` before its first device allocation and `sim_job_release` at its end. The signum is the host BLAKE3 of the program's name and arguments, the height and the bits. The declaration is the bytes of a pass, read from the records the last pass wrote: the points asked, times `2N` lanes, times the width at places plus the guard, and the records. Growth past it is told back, and the next run with the same signum is asked against the kept peak. | none | not built | the job's submit and release around the host loop, with the declaration read from the records |
-| **Z8. The phase** | `theta(t)` by Stirling's series after a shift of `M`, two routes at `M = K = N` and `2N` (entry 5). Each `arg(1/4 + k + it/2)` is an arctangent of a rational by Euler's series and by the Taylor series about `1/2`, agreeing. The Gram index at a point is `theta` over pi, decided where `theta` reads strictly between `i pi` and `(i + 1) pi`. | On the host, in `exact_zeta_gram.py`, each `(p, q, digits)` arctangent asked once. | One lane per `(point, k)`, `k` below the shift, each an arctangent series run while its term is nonzero, as Z2's series run. The Stirling terms per point as Z3's tail is, from the same table of `B_2k / (2k)!`. The index and its two verdicts written to the point's record, and the midpoint's index read by the next pass to cut a bracket. | To `t = 285`, 5,198 values of `theta`, none deeper than eight places, none wider than `N = 4`. | host only | the arctangent series as a record program beside Z1's |
-| **Z9. Riemann-Siegel** | `Z = 2 sum over n <= N of n^(-1/2) cos(theta - t ln n) + R`, with `t = 2pi u^4`, `N = floor(u^2)`, `p = u^2 - N`, and `R` from `c_0` to `c_5` (entry 6). `Psi` as two power series about `p`, its derivatives `r_j / d^(j+1)` by products, every term carried times `d^16 pi^10`. Across a cell, with `x = u^2 = nu + l / 2^b` and `z = 1 - 2p`, each `C_n(z)` is the sum over `j` of `g_(n,j) z^j`, read by Horner's rule, and over the common denominator `X^K`, `X = nu 2^b + l`, curve `n` of `R x^(1/2)` is the integer `s H_n 2^(b n) X^(K - n)` at its own binary exponent, `s = (-1)^(nu - 1)`. | `Z` on the host, in `exact_zeta_riemann_siegel.py`. The curves of `R`, `C_0` to `C_K`, on the device, in `exact_zeta_lobes.cu`'s curve stage, one lane a point of the cell: each value a mantissa in a register and a binary exponent the program holds, each `g_(n,j)` laid in the record `b (J_n - 1 - j)` bits up, and `nu` and the sign read from the record. | One lane per `(point, n)`, `n` up to `N`, each a Z2 power. The two series of `Psi` per point, sixteen coefficients each, as one record, and the `r_j` recurrence over it. The table of `c_k` read by every lane as Z3's Bernoulli table is. | To `t = 285`, 470 values of `Z`, the deepest at 64 places, the main sum at most six terms, the walk and the signs in seven seconds. Measured on the host at `u` = 1.2 and 2.6: the values take 138 to 195 bits at 1 to 8 places, 8 limbs, and 348 to 381 at 64 places, 16 limbs; their products take 391 to 517 bits, 16 or 32 limbs, and 1,019 to 1,075 at 64 places, 32 or 64 limbs. On the device at `nu` = 2 and 3, `b = 9`, `K = 3`, 513 lanes, the coefficients `g` at `2^-256`, 121 to 126 of them a curve: `R` meets the host's `remainder_at` to 60 places at every lane checked, and the host's run equals the device's word for word over 64 lanes. The stage is 1,504 steps, its lanes sweep in 4.6 milliseconds, and it compiles in about three minutes, kept: a second cell reuses it, `nu` being a field of the record. | `R`'s curves built and run; the main sum host only | the main sum per lane: its phase `2 pi x^2 (ln(nu / m) + A) - pi (x^2 + 1/8)` from Z1's `A`, and cos by the power series of that phase |
-| **Z10. Turing's method** | `N(t) = theta(t) / pi + 1 + S(t)` off the ordinates, and for `t_2 > t_1 > 168 pi`, `|integral of S from t_1 to t_2| <= 2.067 + 0.059 log t_2` (Trudgian, Improvements to Turing's method, Math. Comp. 80 (2011), Theorem 2.2). On a lattice `t_i = 2 pi x_i^2`: a sign of `Z` is certified where `|Z| exceeds its bound`, and two certified points of opposite sign hold a zero between them. On `[t_i, t_(i+1)]`, `theta` lies between its values at the ends, since it increases, and the count of certified zeros past `T` is at most `N(t) - N(T)`. Integrating gives `N(T) <= 1 + (B + sum of dt_i (theta(t_(i+1)) / pi - c_i)) / H` over a window after `T` and `N(T) >= 1 + (sum of dt_i (d_(i+1) + theta(t_i) / pi) - B) / H` over a window before it, with `B` Trudgian's bound. Where `N(T_b) - N(T_a)` is at most the certified count between, every zero in `(T_a, T_b]` is a certified sign change: on the line, and simple. `Z = 2 sum over m <= nu of m^(-1/2) cos(theta - t ln m) + (-1)^(nu - 1) x^(-1/2) C_0 + E` with `|E| <= 0.127 t^(-3/4)` for `t >= 200` (Gabcke, as Hiary, Patel and Yang, An improved explicit estimate for zeta(1/2 + it), Lemma 2.1, state it), and `theta(t) = (t/2) log(t / (2 pi e)) - pi/8 + 1/(48 t) + E_theta` with `|E_theta| <= (7/5760 + pi/960) t^(-3) + exp(-pi t) / 2` (Brent, On asymptotic approximations to the log-Gamma and Riemann-Siegel theta functions, Theorems 5 and 6). | The pole, point, pair, verdict and count stages on the device, in `exact_zeta_turing.cu`, at `2^-62`, with the sums over each point's terms and over each cell's ranges by `cycle_record_sum`; the main sum by pairs or by the multiple evaluation of Odlyzko and Schonhage, whose leaf multipoles, shifts up, across and down, near field, evaluation and transform are ten more stages; below `168 pi`, `Z` by Euler-Maclaurin, whose tail `N^(-s) C` is one more stage; the machine one level up in `exact_zeta_turing.py`, which joins each cell's sums to its neighbors', holds `N` at every cell, and refines a cell that falls short. | The automata, each fixed in width and checked against the host word for word: `ln k` and `k^(-1/2)` once a pole; `theta / pi` and `(-1)^(nu - 1) x^(-1/2) C_0` once a point; `k^(-1/2) cos(phi_k)` a pair, read through the index; the certified sign and the stepped brackets of `theta / pi` a point; the zeros a point. The machine one level up runs them cell by cell, joins the cells' sums into the two integrals over the lattice, and halts with the count proven, or runs a cell again on a finer lattice where a count does not close. | Over cells 10 to 300, on a lattice even in `t` with 4 points or more a zero and two rounds four times finer where a count falls short, every zero in `(760.265422, 565486.677646]` is a certified sign change, 936,221 of them, with `N` held to one value at both ends and every port check equal, in 939 seconds (entry 9). By the multiple evaluation, cells 10 to 127 give the same 139,676 zeros and the same `N`, its `Z` within `1.3 e-15` of the pairs' on cells 10 to 12, and a cell at `nu = 3,000` in 5.6 seconds against 12.6 by pairs. Below, by Euler-Maclaurin and Johansson's bound on its remainder, which holds at every `t`, cells 1 to 10 give 460 certified sign changes in `(6.283185, 760.265422]`, all of `N(760.265422)`, in 305 seconds (entry 14). Above, cells 299 to 1001 by the multiple evaluation, each on the lattice of least expected cost to close and every width set from the input, give every zero in `(565486.677646, 6295757.960979]` as a certified sign change, 11,906,477, with `N(6295757.960979) = 12,843,158`, in 3,840 seconds and four rounds (entry 15). | built and run, three ways | the lattice even in `theta / pi`; the form factor of the certified zeros on it |
+| **Z6. The walk and the placing** | An empty box doubles the step, a box counting one is a zero, a crowded box splits into halves. Each zero is placed one bit per pass by the lower square centred on the line counting one. | On the host, in `Steering.walk` and `Steering.place`. | Nothing on the device past Z1 to Z5. The host reads the counts per box from the device and writes the next pass's boxes; each pass is one sweep of Z2 to Z5. | Forty zeros below `t = 123`, each placed by sixteen bits, each bracket holding the published ordinate: exit 0, five minutes on the host. | host only for the boxes; on the line, entry 9's machine is the host loop over device passes | the boxes' walk over device passes |
+| **Z7. The job** | One device, one daemon; a job declares its bytes, is admitted on its standing, and its peak is kept under its signum (M14). | The program runs on the host and asks the device nothing. | The program as a tessera job, beside the sims: `sim_job_submit` before its first device allocation and `sim_job_release` at its end. The signum is the host BLAKE3 of the program's name and arguments, the height and the bits. The declaration is the bytes of a pass, read from the records the last pass wrote: the points asked, times `2N` lanes, times the width at places plus the guard, and the records. Growth past it is told back, and the next run with the same signum is asked against the kept peak. | none | built for entry 9's program: `sim_job_submit` before its first device allocation and `sim_job_release` at its end | the boxes' program as a job, with the declaration read from the records |
+| **Z8. The phase** | `theta(t)` by Stirling's series after a shift of `M`, two routes at `M = K = N` and `2N` (entry 5). Each `arg(1/4 + k + it/2)` is an arctangent of a rational by Euler's series and by the Taylor series about `1/2`, agreeing. The Gram index at a point is `theta` over pi, decided where `theta` reads strictly between `i pi` and `(i + 1) pi`. | On the host, in `exact_zeta_gram.py`, each `(p, q, digits)` arctangent asked once. | One lane per `(point, k)`, `k` below the shift, each an arctangent series run while its term is nonzero, as Z2's series run. The Stirling terms per point as Z3's tail is, from the same table of `B_2k / (2k)!`. The index and its two verdicts written to the point's record, and the midpoint's index read by the next pass to cut a bracket. | To `t = 285`, 5,198 values of `theta`, none deeper than eight places, none wider than `N = 4`. | host only for Stirling's series after a shift; on the line, `theta / pi` on the device in entry 9's point stage by Brent's series, bracketed by his bound | the arctangent series as a record program beside Z1's |
+| **Z9. Riemann-Siegel** | `Z = 2 sum over n <= N of n^(-1/2) cos(theta - t ln n) + R`, with `t = 2pi u^4`, `N = floor(u^2)`, `p = u^2 - N`, and `R` from `c_0` to `c_5` (entry 6). `Psi` as two power series about `p`, its derivatives `r_j / d^(j+1)` by products, every term carried times `d^16 pi^10`. Across a cell, with `x = u^2 = nu + l / 2^b` and `z = 1 - 2p`, each `C_n(z)` is the sum over `j` of `g_(n,j) z^j`, read by Horner's rule, and over the common denominator `X^K`, `X = nu 2^b + l`, curve `n` of `R x^(1/2)` is the integer `s H_n 2^(b n) X^(K - n)` at its own binary exponent, `s = (-1)^(nu - 1)`. | `Z` on the host, in `exact_zeta_riemann_siegel.py`. The curves of `R`, `C_0` to `C_K`, on the device, in `exact_zeta_lobes.cu`'s curve stage, one lane a point of the cell: each value a mantissa in a register and a binary exponent the program holds, each `g_(n,j)` laid in the record `b (J_n - 1 - j)` bits up, and `nu` and the sign read from the record. | One lane per `(point, n)`, `n` up to `N`, each a Z2 power. The two series of `Psi` per point, sixteen coefficients each, as one record, and the `r_j` recurrence over it. The table of `c_k` read by every lane as Z3's Bernoulli table is. | To `t = 285`, 470 values of `Z`, the deepest at 64 places, the main sum at most six terms, the walk and the signs in seven seconds. Measured on the host at `u` = 1.2 and 2.6: the values take 138 to 195 bits at 1 to 8 places, 8 limbs, and 348 to 381 at 64 places, 16 limbs; their products take 391 to 517 bits, 16 or 32 limbs, and 1,019 to 1,075 at 64 places, 32 or 64 limbs. On the device at `nu` = 2 and 3, `b = 9`, `K = 3`, 513 lanes, the coefficients `g` at `2^-256`, 121 to 126 of them a curve: `R` meets the host's `remainder_at` to 60 places at every lane checked, and the host's run equals the device's word for word over 64 lanes. The stage is 1,504 steps, its lanes sweep in 4.6 milliseconds, and it compiles in about three minutes, kept: a second cell reuses it, `nu` being a field of the record. | `R`'s curves built and run; the main sum on the device in entry 9's pair stage, one lane a `(point, k)`, and by the multiple evaluation; `R` through `C_10` in the verdict, under Gabcke's bound on `R_10` (entry 19) | `R` to the series' own least term, with a bound past Gabcke's `K = 10` |
+| **Z10. Turing's method** | `N(t) = theta(t) / pi + 1 + S(t)` off the ordinates, and for `t_2 > t_1 > 168 pi`, `|integral of S from t_1 to t_2| <= 2.067 + 0.059 log t_2` (Trudgian, Improvements to Turing's method, Math. Comp. 80 (2011), Theorem 2.2). On a lattice `t_i = 2 pi x_i^2`: a sign of `Z` is certified where `|Z| exceeds its bound`, and two certified points of opposite sign hold a zero between them. On `[t_i, t_(i+1)]`, `theta` lies between its values at the ends, since it increases, and the count of certified zeros past `T` is at most `N(t) - N(T)`. Integrating gives `N(T) <= 1 + (B + sum of dt_i (theta(t_(i+1)) / pi - c_i)) / H` over a window after `T` and `N(T) >= 1 + (sum of dt_i (d_(i+1) + theta(t_i) / pi) - B) / H` over a window before it, with `B` Trudgian's bound. Where `N(T_b) - N(T_a)` is at most the certified count between, every zero in `(T_a, T_b]` is a certified sign change: on the line, and simple. `Z = 2 sum over m <= nu of m^(-1/2) cos(theta - t ln m) + (-1)^(nu - 1) x^(-1/2) sum over n <= 10 of C_n(z) x^(-n) + R_10` with `|R_10| < 25966 t^(-23/4)` for `t >= 200`, the least of Gabcke's bounds there (his thesis, Satz 3.2.2), and `theta(t) = (t/2) log(t / (2 pi e)) - pi/8 + 1/(48 t) + 7/(5760 t^3) + 31/(80640 t^5) + E_theta` with `|E_theta| < 1 / (3322 t^7)` for `t >= 10` (the same thesis, introduction, (5)); below `t = 10`, Brent's `(7/5760 + pi/960) t^(-3) + exp(-pi t) / 2` past `1/(48 t)` (On asymptotic approximations to the log-Gamma and Riemann-Siegel theta functions, Theorems 5 and 6), with the two terms after it. | The pole, point, pair, verdict and count stages on the device, in `exact_zeta_turing.cu`, at `2^-62`, with the sums over each point's terms and over each cell's ranges by `cycle_record_sum`; the main sum by pairs or by the multiple evaluation of Odlyzko and Schonhage, whose leaf multipoles, shifts up, across and down, near field, evaluation and transform are ten more stages; below `168 pi`, `Z` by Euler-Maclaurin, whose tail `N^(-s) C` is one more stage; the machine one level up in `exact_zeta_turing.py`, which joins each cell's sums to its neighbors', holds `N` at every cell, and refines a cell that falls short. | The automata, each fixed in width and checked against the host word for word: `ln k` and `k^(-1/2)` once a pole; `theta / pi` and `(-1)^(nu - 1) x^(-1/2)` times the sum of `C_0` to `C_10` over `x^n` once a point; `k^(-1/2) cos(phi_k)` a pair, read through the index; the certified sign and the stepped brackets of `theta / pi` a point; the zeros a point. The machine one level up runs them cell by cell, joins the cells' sums into the two integrals over the lattice, and halts with the count proven, or runs a cell again on a finer lattice where a count does not close. | Over cells 10 to 300, on a lattice even in `t` with 4 points or more a zero and two rounds four times finer where a count falls short, every zero in `(760.265422, 565486.677646]` is a certified sign change, 936,221 of them, with `N` held to one value at both ends and every port check equal, in 939 seconds (entry 9). By the multiple evaluation, cells 10 to 127 give the same 139,676 zeros and the same `N`, its `Z` within `1.3 e-15` of the pairs' on cells 10 to 12, and a cell at `nu = 3,000` in 5.6 seconds against 12.6 by pairs. Below, by Euler-Maclaurin and Johansson's bound on its remainder, which holds at every `t`, cells 1 to 10 give 460 certified sign changes in `(6.283185, 760.265422]`, all of `N(760.265422)`, in 305 seconds (entry 14). Above, cells 299 to 1001 by the multiple evaluation, each on the lattice of least expected cost to close and every width set from the input, give every zero in `(565486.677646, 6295757.960979]` as a certified sign change, 11,906,477, with `N(6295757.960979) = 12,843,158`, in 3,840 seconds and four rounds (entry 15). With the listing word 3 each point's `theta / pi` less and more its bound is written, each zero is an exact interval of `u`, and each pair's difference carries the two intervals' widths; the lattice even in `theta / pi` is placed by integer comparison against them (entry 18). | built and run, three ways | Turing's two integrals on the lattice even in `theta / pi` |
 | **Z12. The slope** | `F' = sum over k of -i ln k k^(-1/2) exp(-i t ln k)`: the multiple evaluation over the poles weighted by `-i ln k / 2^c`, `2^c >= ln nu`, gives `F' / 2^c`. `Z' = 2 (Re(exp(i theta) F') - theta' Im(exp(i theta) F))`, `theta' = ln s / 2` within `1 / (48 t^2)`. By pairs, `Z' = 2 (sum of k^(-1/2) ln k sin(phi) - theta' sum of k^(-1/2) sin(phi))`. | The weighted pole stage, a second multiple evaluation, the twist and slope stages, in `exact_zeta_turing.cu` with the listing word 2; at listed points the pair stage's two sine sums. | `F` and `F'` from one multiple evaluation, each expansion carrying both charge sets over one tree, one index and one set of twiddles; the weighted poles from the first pole records. | The two `Z'` differ by `5.9 e-12` at most over cell 300 against bounds summing to `5.5 e-7` (entry 16). The twist's evaluation takes 1.43 s of a cell's run at `2^15`, its programs loaded again. As two sets of one evaluation, a cell at `2^15` takes 0.33 to 0.39 s inside the binary, every output equal to the two evaluations' (entry 17). | built and run, `F` and `F'` as two sets of one evaluation | the weighted poles from the first pole records |
 | **Z13. The margin** | The cubic `C` through `Z` and `Z'` at a step's ends lies in the hull of `z0, z0 + (h / 3) z0', z1 - (h / 3) z1', z1`; `|M - C_M| <= h^4 / 384 max |M''''|`, and with the bounds on `Z`, `Z'` and `R'` the margin: a step whose hull clears it holds no zero. `|M' - C_M'| <= (2 / 81) h^3 max |M''''|` by Rolle's theorem, and a crossing whose slope's three Bernstein points clear the steepness is single. | The margin stage, one lane a step, on every run with the listing word 2; `refine` lists again only the runs it cannot close, eight times finer, to three levels; `refine check` the crossings too. | The rate of the coarse lattice chosen as a cost, its points against the steps the margin flags; the band within the bound on `Z` about a crossing, where `Zh`'s monotony says nothing of `Z`'s, closed by a bound on `Z`'s own slope. | Cells 300 to 309: 25,865 clean, 6,573 single and 329 flagged over cell 300; 55,830 certified at round 0 with no rerun, in 67 s; with `check`, 98 s and no crossing holding three zeros (entry 16). | built and run | the rate as a cost (Z14) |
 | **Z14. The run** | The programs depend on the widths alone, set from `nu`'s bits, `s`'s, `p` and `beta`; `nu`, `2 nu + 1` and `2 nu^2` are parameters. Across a cell `s = nu^2 (1 + e)`, `e < 3 / nu`, and `ln s`, `x` and `x^(-1/2)` are series in `e` over the cell's constants `ln nu`, `nu` and `nu^(-1/2)`. | One process for every cell and refine pass, `exact_zeta_turing serve`, each program loaded once under its steps, fields, members and outputs, and the host's checks on threads beside the device over the records their lanes read, in parts; the margin's bound once a `nu`; the point stage's `ln s` over 33 folds and 21 terms and two Newton roots from folded seeds | The point stage's logarithm and roots as series in `e`; the coarse rate from the cost with the margin's flags. | `seconds` over cell 300 at `2^15` with `F'`: 4.98 s inside, 3.35 s loading the programs onto the device, 0.02 s of it the imprint and layout, 0.67 s the host's checks, the rest 0.96 s. Cell 1000 at `2^17`: 3.81, 2.43, 0.61 and 0.77 s. 600 listed points by pairs, 2.32 s. The margin's bound, 0.15 s at `nu = 300` and 1.25 s at `nu = 1000` a call. In one process: cells 301 to 305 load no program and take 1.07 to 1.86 s inside, 0.69 to 1.31 s of it the host's checks; `refine` over cells 300 to 309, 34 s against 67 s, the same 55,830 zeros. With the checks beside the device, cells 301 to 305 take 0.58 to 0.64 s inside and `refine` over cells 300 to 309 28 s. With the checks in parts on half the cores and the margin's bound kept for each `nu`, 600 listed points take 0.23 s and `refine` over cells 300 to 309 14 s (entry 17). | one process, the checks beside the device and the bound once a `nu` built and run | the point stage's logarithm and roots as series in `e` |
@@ -2192,9 +2514,9 @@ places, `N` and the widths come from the records.
   device; the rest is not built.
 - Entry 5 reads `theta` and the Gram points on the host, and Z8 above is its device part, not built.
 - Entry 6 reads `Z` on the host. Of Z9, its device part, `R`'s curves run across a cell, and entry
-  9's term and point stages give `Z` through `C_0` at every point of a cell. Every `C_n` is built
-  (entry 7), and `R` still stops at `c_5`: `R` to the series' own least term, and the exact remainder
-  in place of the series, are wanted, not built.
+  9's term and point stages give `Z` through `C_10` at every point of a cell, under Gabcke's bound on
+  `R_10` (entry 19). Every `C_n` is built (entry 7), and the host's `R` stops at `c_5`. `R` to the
+  series' own least term, and the exact remainder in place of the series, are wanted, not built.
 - Entry 7's zeros of `C_n` are read on grids, and a count proven complete on `0 < z < 1` is wanted,
   not built. What grows in triangle cell 5, six times cell 4's time, is not yet read.
 - Asked of the triangle: the fractal has at least three terms and perhaps five, perhaps all of x, y,
@@ -2202,9 +2524,9 @@ places, `N` and the widths come from the records.
   fractal. Then: it is a coordinate system, a dimension and time. Entry 8
   reads them as the three sides, each side's scaling exponent between cells, and `t`. The vector walk
   over them is wanted, not built.
-- Entry 8's spread of the arrival angles is read in four windows of 1,024 boundaries. More windows,
-  and whole stretches of boundaries, are wanted. The triangle measured past cell 6, against what the
-  omitted curves give there, is wanted.
+- Entry 8's spread of the arrival angles is read in 84 windows of 1,024 boundaries and over two whole
+  stretches, from 2 and from `10^6`. The triangle measured past cell 6, against what the omitted curves
+  give there, is wanted.
 - Computing `zeta(s)` in the critical strip needs complex arithmetic and an accelerated method,
   Riemann-Siegel or Euler-Maclaurin. Entry 4 uses Euler-Maclaurin across the strip, and entry 6
   Riemann-Siegel on the line. Riemann-Siegel off the line, for entry 4's boxes, is not built.
@@ -2213,25 +2535,27 @@ places, `N` and the widths come from the records.
 - Whether a non-trivial zero has a closed form in the constructors is a separate question from where
   it sits, and it is not addressed here.
 - Entries 9, 14 and 15 verify `(0, 6295757.960979]`. Cells past 1001 are a field of the same run.
-- The lattice even in `theta / pi`, the form factor of the certified zeros on it, its ramp from `F`'s
-  primes and its plateau from the zeros, at each e-fold height, are wanted, not built. Each pair's
-  difference carries the two certified intervals' widths, and the lattice is finer than the spacing
-  the form factor resolves.
-- The drawn null through the same field, GUE draws in place of the zeros or the carrier's phase
-  shuffled, against every structure entry 16 reads, is wanted, not built.
-- The metallic carriers in place of e ("The zeros in the engine's field", (6)): the golden `1, 1, 1`,
-  the silver `2, 2, 2` and the `1, 1, 2` comb, the lattices they step, the moments of `w` against each,
-  their beat as the difference, and the shuffled steps as the null, are wanted, not built. Every growth
-  constant, `phi`, `1 + sqrt(2)` and `3 + sqrt(10)`, is a Pisot unit, and each comb is a
-  one-dimensional Pisot quasicrystal ([zeta_prior_art.md](zeta_prior_art.md)).
+- The form factor of the zeros on `theta / pi` is read at seven heights an e-fold apart (entry 17).
+  The pair counts by eighths, each pair's difference carrying the two certified intervals' widths, are
+  read against the demon's arms at three heights (entry 18). The form factor from the zeros' intervals,
+  in place of their midpoints, is wanted, not built.
+- The drawn null through the same field: the demon's arms, the gaps shuffled and shuffled within runs,
+  run on `S`'s curves and the pair counts (entry 18), and the carriers' steps shuffled and shifted
+  against `w`'s moments. GUE draws in place of the zeros, and the arms against every structure entry 16
+  reads at the misses, are wanted, not built.
+- The metallic carriers in place of e ("The zeros in the engine's field", (6)): the lattices the golden
+  `1, 1, 1`, the silver `2, 2, 2` and the `1, 1, 2` comb step are measured as sampling grids against the
+  uniform lattice and their shuffled steps (entry 16), and the moments of `w` against each, with their
+  beat, at one mark a unit (entry 18). The same at the rate of the miss map's coarse lattices is
+  wanted, not built. Every growth constant, `phi`, `1 + sqrt(2)` and `3 + sqrt(10)`, is a Pisot unit,
+  and each comb is a one-dimensional Pisot quasicrystal ([zeta_prior_art.md](zeta_prior_art.md)).
 - The two crystals tuned to a known comb and set against each other ("The zeros in the engine's field",
-  (7)): reading `w` and its conjugate against a chosen carrier with a drawn null is wanted, not built.
-  The prior art, the
-  explicit formula as a pairing and Weil positivity, is in [zeta_prior_art.md](zeta_prior_art.md).
-- Entry 16's rows under us, the far misses and the separation are built and not yet run. Nine e-folds,
-  from which a slow law in the drifting rows can be told from noise, are wanted.
-- The bounds charge an error `delta` in `theta` at first order, and `Z` moves by `Z (cos(delta) - 1)`,
-  second order (entry 14). A bound that charges `|Z| delta^2 / 2` is wanted, not written.
+  (7)): `w` and its conjugate, as `w^2`, against four carriers with a drawn null (entry 18). At one mark
+  a unit `w^2` returns the carrier's own phase. The prior art, the explicit formula as a pairing and
+  Weil positivity, is in [zeta_prior_art.md](zeta_prior_art.md).
+- Riemann-Siegel's bound charges an error `delta` in `theta` at first order, `Im(exp(i theta) F)` not
+  being small; Euler-Maclaurin's charges `|Z| delta^2 / 2` (entry 14). With `theta` through its `t^-5`
+  term the charge is `1.2 e-22` at cell 10 (entry 19).
 - Entry 10 reads `phi_r` for `u < 1/2` and `r < 8`. The Selberg transform of a kernel, `c(r)`, and
   the scattering `pi c(r) zeta(2 i r) / zeta(1 + 2 i r)`, whose poles sit at half the zeros, are
   wanted, not built.

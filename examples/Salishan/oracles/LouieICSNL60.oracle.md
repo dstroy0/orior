@@ -40,18 +40,18 @@ təq-ipa[n]-t-əm=k̓ʷa.
 
 THE PAGE AND THE TEXT LAYER
 
-The forms are in NFC, and the check puts the text layer through the same repair: the space the PDF
-sets after a stacked mark is closed, except before an opening quote, then NFC, then 13 page-read
-corrections. The glossed lines set each word over its segmentation and gloss, read here by glyph
-rows at a 0.112 em word space; the text layer, which sets each column on lines of its own, settled
-the tokens the rows read differently, cedar.shakes, NEG ???, <STAT>, and the ‘ of ‘And, which the
-glyph stream puts after the A. (101) prints Freddie's words as said in quotes. (56) and (76) print
-no time. A footnote mark on a word, gɩǰɛ.2, is noted in the gloss; after a dash, na—6 and hiɬ-10, it
-stays on the word. Footnote 13 prints sәnpoliyan with a Cyrillic ә.
+The forms are in NFC, and the check puts the page text, read from the glyph positions, through the
+same repair: a mark the text sets after a space is put back on its letter, then NFC, then 13
+page-read corrections. The glossed lines set each word over its segmentation and gloss, read here by
+glyph rows at a 0.112 em word space; the text layer, which sets each column on lines of its own,
+settled the tokens the rows read differently, cedar.shakes, NEG ???, <STAT>, and the ‘ of ‘And,
+which the glyph stream puts after the A. (101) prints Freddie's words as said in quotes. (56) and
+(76) print no time. A footnote mark on a word, gɩǰɛ.2, is noted in the gloss; after a dash, na—6 and
+hiɬ-10, it stays on the word. Footnote 13 prints sәnpoliyan with a Cyrillic ә.
 
 anchor_sift's hand_extraction/oracle_check.py was run on this table through residue.py, leaving out
 the notation and symbol note rows, whose form is a label and not a string the paper prints. Of 519
-rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 7404
+rows asked, 0 hold a form the repaired paper does not, and 0 a form the repair took out. Of the 7488
 distinct tokens in the paper, 0 language tokens are held by no row.
 
 where    the paper's locator: the title, the front matter, a section, a footnote, an example

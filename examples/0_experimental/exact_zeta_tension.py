@@ -135,14 +135,14 @@ def number_variance(positions, length, samples):
     return m, sum((c - m) ** 2 for c in counts) / samples
 
 
-def main():
-    binary, first, last = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-    extra = int(sys.argv[4]) if len(sys.argv) > 4 else 2
-    sys.stdout.reconfigure(line_buffering=True)
+def certified_zeros(binary, first, last, extra, given=None):
+    """The zeros from the first F where N is held to the last, every one placed: (zeros in s, N at the first F, the
+    first F's cell, the last's). `given` is N at cells first and last's F, where a run of the machine closes over
+    them."""
     constants = tm.Constants()
     cells, points = listed_points(binary, constants, first, last, extra)
-    if len(sys.argv) > 6:
-        start_nu, end_nu, n_start, n_end = first, last, int(sys.argv[5]), int(sys.argv[6])
+    if given:
+        start_nu, end_nu, (n_start, n_end) = first, last, given
         print("  cells %d to %d, %d points; N at the two F's as given" % (first, last, len(points)))
     else:
         held = {nu: (math.ceil(tm.below(cells[nu], cells[nu - 1])), math.floor(tm.above(cells[nu], cells[nu + 1])))
@@ -159,6 +159,21 @@ def main():
     zeros = place_zeros(binary, constants, cells, points, start, end, n_end - n_start, extra)
     if len(zeros) != n_end - n_start:
         raise SystemExit("  the zeros placed, %d, do not number N's difference, %d" % (len(zeros), n_end - n_start))
+    return zeros, n_start, start_nu, end_nu
+
+
+def main():
+    binary, first, last = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+    extra = int(sys.argv[4]) if len(sys.argv) > 4 else 2
+    sys.stdout.reconfigure(line_buffering=True)
+    given = (int(sys.argv[5]), int(sys.argv[6])) if len(sys.argv) > 6 else None
+    zeros, n_start, start_nu, end_nu = certified_zeros(binary, first, last, extra, given)
+    return analyse(zeros, n_start, start_nu, end_nu)
+
+
+def analyse(zeros, n_start, start_nu, end_nu):
+    """The readings over the zeros placed from cell start_nu's F, where N is n_start, to cell end_nu's."""
+    n_end = n_start + len(zeros)
     u = [theta_pi(s) + 1.0 for s in zeros]
     s_low, s_high = zeros[0], zeros[-1]
     spacing = 2 * math.pi * (s_high - s_low) / (len(zeros) - 1)

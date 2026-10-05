@@ -23,6 +23,7 @@
 
 import io
 import os
+import re
 import subprocess
 import sys
 import unicodedata
@@ -371,24 +372,14 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
     # write: the word is one word.
     welds = {}
     previous = ""
+    wrapping = False
 
-    # The same line joining coverage_check.py already applies, applied here too.
-    #
-    # This check joined a line to the one under it only where the first ended in a hyphen. A PDF
-    # that breaks a word with no hyphen leaves two fragments and this check saw two words. A form
-    # the reader wrote whole then read as a form the paper does not hold. 2012_Robertson's epigraph
-    # splits across two lines with no hyphen and could not be repaired at all.
-    #
-    # line_breaks.joined is the repair coverage_check has used all along, and its own header says
-    # both sides have to go through the same transformation or a join the reader makes and the check
-    # does not reports every welded word as a hole. The two checks were reading different text.
-    #
-    # Applied only where the paper's own config asks for it, the gate coverage_check has:
-    # `if "line joins" in repairs`. Running it as a measurement over all twenty papers first took
-    # the disagreement count from 441 to 2287. line_breaks.py is written for one paper's defect and
-    # welds words in the nineteen that do not have it, inventing forms nobody wrote. The repair is
-    # right for 2012_Robertson and wrong everywhere else, and a shared transformation applied
-    # unconditionally is a different error from the one it was fixing.
+    # The line joining coverage_check.py applies, applied here too, and only where the paper's own
+    # config asks for it, the gate coverage_check has: `if "line joins" in repairs`. A PDF that breaks
+    # a word with no hyphen leaves two fragments, 2012_Robertson's epigraph, and line_breaks.joined
+    # welds them. Both checks read the same text, or every word one welds and the other does not reads
+    # as a hole. line_breaks.py is written for one paper's defect, and in a paper without it, it
+    # welds words nobody wrote.
     with open(path, encoding="utf-8", errors="replace") as handle:
         raw = [one.rstrip("\n") for one in handle]
     lines = joined_lines(raw)[0] if line_joins else [one.rstrip() for one in raw]
@@ -401,7 +392,7 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
         # It runs after the repair. Composing a with a combining acute into á first takes that
         # acute out of the set of marks whose following space gets closed, and the repair then
         # misses every word the PDF split at an accent. The repair ends in NFC for the same
-        # reason; without that, 164 of one paper's forms came back as destroyed by the repair.
+        # reason.
         line = repair(line.rstrip()) if repair else line.rstrip()
         line = unicodedata.normalize("NFC", line)
         reach = [line]
@@ -412,6 +403,30 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
             tail = previous.split()[-1]
             reach.append("%s%s" % (tail, line.lstrip()))
             reach.append("%s%s" % (tail[:-1], line.lstrip()))
+        elif re.search(r"(?:https?://|www\.)\S*$", previous) and re.match(r"[a-z&]", line.lstrip()):
+            # A web address the line's end breaks with no hyphen, muckleshoot08m. / html.
+            reach.append("%s%s" % (previous.split()[-1], line.lstrip()))
+        # The same two readings of a hyphen closing a table cell whose column wraps to the line
+        # below, a line holding fewer cells, the cells parted by runs of spaces: la̱-kin-te-he-me-sa-
+        # over num in Dawson's word list. The wrapped half is offered against the head of each cell.
+        if wrapping:
+            for cell in re.split(r"\s{3,}", previous.strip())[:-1]:
+                if cell.endswith("-"):
+                    tail = cell.split()[-1]
+                    for head in re.split(r"\s{3,}", line.strip()):
+                        if head:
+                            reach.append("%s%s" % (tail, head.split()[0]))
+                            reach.append("%s%s" % (tail[:-1], head.split()[0]))
+        cells = re.split(r"\s{3,}", line.strip())
+        following = lines[number].strip() if number < len(lines) else ""
+        wrapping = (len(cells) > 1 and bool(following) and not following.startswith("=====")
+                    and len(re.split(r"\s{3,}", following)) < len(cells))
+        cell_ends = set()
+        if wrapping:
+            count = 0
+            for cell in cells[:-1]:
+                count += len(cell.split())
+                cell_ends.add(count - 1)
         previous = line
         for at, one in enumerate(reach):
             tokens = one.split()
@@ -422,10 +437,11 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
                 #
                 # It stays in the lookup all the same, because the page does print those
                 # characters at that place. Lyon's interlinear arrives one token per line,
-                # every token in it is the last on its line, and dropping them outright lost
-                # an-, a-ks- and ʔakɬ-, which are forms the paper prints on their own.
+                # every token in it is the last on its line, and dropping them outright would
+                # lose an-, a-ks- and ʔakɬ-, which are forms the paper prints on their own. A
+                # wrapped cell's half is dropped the same way.
                 wrapped = (
-                    (at == 0) and (where == (len(tokens) - 1)) and token.endswith("-")
+                    (at == 0) and ((where == (len(tokens) - 1)) or (where in cell_ends)) and token.endswith("-")
                 )
                 # The token itself, its slash-separated halves, and it joined to the tokens
                 # after it. The last of those is for the PDFs that break a word before a
@@ -458,7 +474,7 @@ def source_forms(path, repair=None, pieces=2, line_joins=False):
                     # The join is offered with and without a footnote marker on the end of it.
                     # n-t̓ə k̓[ʷ]-t̓í k̓[ʷ]-ləx2 is one word carrying a 2 and the row holds the
                     # word, while (s)K ékets’a7 ends in the letter van Eijk writes the glottal
-                    # stop with and the row holds the 7. Offering only the stripped form lost
+                    # stop with and the row holds the 7, and only the stripped form would lose
                     # the second one.
                     joined = bare("".join(run))
                     if not joined:

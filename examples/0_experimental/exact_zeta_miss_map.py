@@ -30,7 +30,9 @@
 # sieve and proved by Proth's witness where his theorem reaches, and psi(x) summed from them.
 #
 # With carrier, each cell runs once on its fine lattice, and the coarse lattice is placed several ways: the uniform
-# baseline at the rate, the antinode trap where Im(w) crosses zero, the turning points of Z where Z' = 0, a uniform
+# baseline at the rate, the lattice even in theta / pi at the rate, each point the first fine one whose theta / pi
+# less its bound reaches its mark, from the listing word 3, the antinode trap where Im(w) crosses zero, the turning
+# points of Z where Z' = 0, a uniform
 # lattice of each trap's own point count, and the {1,1,2} and golden combs at the rate. Each lattice's points a zero,
 # misses a thousand zeros against the pigeonhole floor, pickle width and share under us are read, with the turning
 # points on the wrong side of zero. The coarse lattice chooses which certified points to compare; it is not part of
@@ -65,6 +67,7 @@ import os
 import random
 import sys
 import tempfile
+from fractions import Fraction
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -708,11 +711,31 @@ def pickle_of(misses):
     return (cross, along, cross / along if along else 0.0, under, n)
 
 
-CARRIER_NAMES = ["uniform @ rate", "antinode Im w=0", "uniform @ antinode n", "turning Z'=0", "uniform @ turning n",
-                 "comb 1,1,2 @ rate", "golden @ rate"]
+CARRIER_NAMES = ["uniform @ rate", "theta / pi even @ rate", "antinode Im w=0", "uniform @ antinode n", "turning Z'=0",
+                 "uniform @ turning n", "comb 1,1,2 @ rate", "golden @ rate"]
 
 
-def carrier_lattices(fine, step):
+def lows_of(cell):
+    """Each listed point's theta / pi less its bound, an integer at 2^-62, from the listing word 3."""
+    with open(cell.path) as handle:
+        return [int(line.split()[6], 16) for line in handle if line.startswith("point")]
+
+
+def theta_indices(lows, rate):
+    """The lattice even in theta / pi at `rate` points a unit: the first fine point whose theta / pi less its bound
+    reaches the cell's first point's plus k / rate, for each k in turn, by integer comparison alone; `rate` read as
+    the exact decimal it is written as."""
+    exact = Fraction(str(rate))
+    num, den = exact.numerator, exact.denominator
+    unit, origin, out, k = 1 << tm.SCALE_BITS, lows[0], [], 0
+    for j, low in enumerate(lows):
+        reached = int((low - origin) * num >= k * unit * den)
+        out += [j] * reached
+        k += reached * ((low - origin) * num // (unit * den) + 1 - k)
+    return out
+
+
+def carrier_lattices(fine, step, lows, rate):
     """The coarse lattices to score, by name: the uniform baseline at the rate, the antinode trap where Im(w) crosses
     zero, the turning points of Z, each with a uniform lattice of its own point count for a density-matched
     comparison, and the {1,1,2} and golden combs at the rate for reference."""
@@ -720,6 +743,7 @@ def carrier_lattices(fine, step):
     turn = extremum_indices(fine)
     return {
         "uniform @ rate": comb_indices(len(fine), step, (1,)),
+        "theta / pi even @ rate": theta_indices(lows, rate),
         "antinode Im w=0": anti,
         "uniform @ antinode n": uniform_indices(len(fine), len(anti)),
         "turning Z'=0": turn,
@@ -742,13 +766,13 @@ def main_carrier(binary, base, count, rate, folder):
         z = tm.rises(at)
         fine_p = math.ceil(math.log2(8 * rate * z))
         step = max(2, round((1 << fine_p) / (rate * z)))
-        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=1)
+        cell, _ = tm.run_cell(binary, constants, at, fine_p, "transform", listing=3)
         failed += cell.failed
-        fine = points_of(cell)
+        fine, lows = points_of(cell), lows_of(cell)
         os.remove(cell.path)
         zeros = len(zeros_of(fine)[0])
         zeros_total += zeros
-        for name, idx in carrier_lattices(fine, step).items():
+        for name, idx in carrier_lattices(fine, step, lows, rate).items():
             tally[name].extend(place_on(at, idx, fine, a, b, x, y) for a, b, x, y in misses_on(idx, fine))
             points[name] += len(idx)
             floor[name] += max(0, zeros - (len(idx) - 1))

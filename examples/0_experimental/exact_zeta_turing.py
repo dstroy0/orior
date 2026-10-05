@@ -40,11 +40,14 @@
 #
 # THE BOUND ON Z
 #
-# Z = 2 sum + (-1)^(nu - 1) x^(-1/2) C_0 + E, |E| <= 0.127 t^(-3/4) for t >= 200: Gabcke's bound, as Hiary, Patel and
-# Yang state it (An improved explicit estimate for zeta(1/2 + it), Lemma 2.1). theta is
-# (t/2) log(t / (2 pi e)) - pi/8 + 1/(48 t) + E_theta, |E_theta| <= (7/5760 + pi/960) t^(-3) + exp(-pi t) / 2
-# (Brent, On asymptotic approximations to the log-Gamma and Riemann-Siegel theta functions, Theorems 5 and 6), and
-# an error in theta moves Z by at most 2 sum of m^(-1/2) <= 4 nu^(1/2) times it. The device's own error, a unit of
+# Z = 2 sum + (-1)^(nu - 1) x^(-1/2) sum over n <= K of C_n(z) x^(-n) + R_K, and for t >= 200,
+# |R_K| < d_K t^(-(2K + 3) / 4): Gabcke's bounds, Satz 3.2.2 of his thesis (Neue Herleitung und explizite
+# Restabschätzung der Riemann-Siegel-Formel, Göttingen 1979), d_0 = 0.127 up to d_10 = 25966, in GABCKE. K's bound is the
+# least of them, and every C_n to it runs on the device. theta is (t/2) log(t / (2 pi e)) - pi/8 + 1/(48 t) +
+# 7/(5760 t^3) + 31/(80640 t^5) + E_theta, |E_theta| < 1 / (3322 t^7) for t >= 10 (the same thesis, introduction,
+# (4) and (5)); below t = 10, Brent's bound past 1/(48 t), (7/5760 + pi/960) t^(-3) + exp(-pi t) / 2 (On asymptotic
+# approximations to the log-Gamma and Riemann-Siegel theta functions, Theorems 5 and 6), with the two terms after it.
+# An error in theta moves Z by at most 2 sum of m^(-1/2) <= 4 nu^(1/2) times it. The device's own error, a unit of
 # 2^-62 a division and a unit a constant, is bounded step by step in `arithmetic`, and the multiple evaluation's, its
 # truncation with it, in `transform_error`. A sign of Z is certified where |Z| exceeds the sum of the three.
 #
@@ -134,6 +137,12 @@ PI_HIGH = Fraction(314159266, 100000000)
 LN_TWO_HIGH = Fraction(693148, 1000000)
 SUMS = ("low_before", "low_after", "high_upto", "high_after", "zeros_upto", "zeros_after", "zeros_q_upto",
         "zeros_q_after", "zeros_p_upto", "zeros_p_after", "loose")
+# Gabcke, Satz 3.2.2, for t >= 200: |R_K(t)| < d_K t^(-(2K + 3) / 4), by (b) for K <= 9 and by (a) for K = 10
+GABCKE = (Fraction(127, 1000), Fraction(53, 1000), Fraction(11, 1000), Fraction(31, 1000), Fraction(17, 1000),
+          Fraction(61, 1000), Fraction(661, 1000), Fraction(92, 10), Fraction(130), Fraction(1837), Fraction(25966))
+# the curves C_0 to C_K, K the one whose bound is least at t = 200: d_K' / d_K t^(-(K' - K) / 2) falls as t rises,
+# and the least there is the least at every t past it
+CURVES = 1 + min(range(len(GABCKE)), key=lambda k: GABCKE[k] ** 4 / Fraction(200) ** (2 * k + 3))
 
 
 def floor_at_scale(value):
@@ -146,9 +155,14 @@ class Constants:
 
     def __init__(self):
         self.pi = naturals._pi_machin(WORK)
-        decimal = SCALE_BITS * 30103 // 100000 + 61 * GAMMA_TERMS // 100 + 40
-        gamma = rs.Curve(decimal).gamma(0, GAMMA_TERMS)
-        self.gamma = [rs.compare(g, 0) * ((abs(g) << SCALE_BITS) // 10 ** decimal) for g in gamma]
+        decimal = SCALE_BITS * 30103 // 100000 + 61 * GAMMA_TERMS // 100 + 3 * CURVES + 40
+        curve = rs.Curve(decimal)
+        self.curves = [[rs.compare(g, 0) * ((abs(g) << SCALE_BITS) // 10 ** decimal) for g in curve.gamma(n, GAMMA_TERMS)]
+                       for n in range(CURVES)]
+        self.gamma = [g for row in self.curves for g in row]
+        # each curve's size and slope on [-1, 1] from its coefficients at 2^62, with their error
+        self.sizes = [Fraction(sum(abs(g) + 1 for g in row), 1 << SCALE_BITS) for row in self.curves]
+        self.slopes = [Fraction(sum(n * (abs(g) + 1) for n, g in enumerate(row)), 1 << SCALE_BITS) for row in self.curves]
         self.ln2 = floor_at_scale(zz._ln_by_two(2, WORK))
         self.artanh = [(1 << SCALE_BITS) // (2 * k + 1) for k in range(ARTANH_TERMS)]
         self.cosine = []
@@ -157,7 +171,8 @@ class Constants:
             self.cosine.append((1 - 2 * (k % 2)) * floor_at_scale(power // math.factorial(2 * k)))
             power = power * self.pi * self.pi // (WORK * WORK)
         self.c96 = (1 << (SCALE_BITS + 2 * (SCALE_BITS + GUARD_BITS))) // (96 * self.pi * self.pi)
-        self.slope = slope(self)
+        self.c3 = (7 << (SCALE_BITS + 4 * (SCALE_BITS + GUARD_BITS))) // (46080 * self.pi ** 4)
+        self.c5 = (31 << (SCALE_BITS + 6 * (SCALE_BITS + GUARD_BITS))) // (2580480 * self.pi ** 6)
         self.pi_scaled = floor_at_scale(self.pi)
         self.fact = [(1 << SCALE_BITS) // math.factorial(n + 1) for n in range(E1_TERMS)]
         self.sinc = []
@@ -207,11 +222,6 @@ def newton_error(v):
     return max(-(-(scale - rho) * (1 << SCALE_BITS) // scale), up) + 1
 
 
-def slope(constants):
-    """A bound on |C_0'| over [-1, 1] from its Taylor coefficients at 2^62, with their error."""
-    return Fraction(sum(n * (abs(g) + 1) for n, g in enumerate(constants.gamma)), 1 << SCALE_BITS)
-
-
 def unit_errors():
     """e_ln, the error on a folded logarithm, and e_cos, on cos(pi s) by Horner's rule, in units of 2^-62.
 
@@ -234,24 +244,35 @@ def unit_errors():
     return e_ln, e_cos + 1
 
 
-def arithmetic(nu, c0_slope):
+def arithmetic(nu, constants):
     """The device's error on Z and on theta / pi over cell nu, in units of 2^-62, from its steps.
 
-    Every value a product is taken back from is below 12 times 2^62 in size: the partial sums of C_0 below 1.01 and
-    Newton's y (3 - w y^2) below 3, besides those of unit_errors.
+    Every value a product is taken back from is below 12 times 2^62 in size: the partial sums of each curve below its
+    size, the sizes summing below 1.2, and Newton's y (3 - w y^2) below 3, besides those of unit_errors.
 
     ln k and ln s each carry e_ln; theta / pi = S ln s / 2^p - s - 1/8 + 2^p / (96 pi^2 S) carries s e_ln and three
-    floors; the pair's 2 s ln k carries 2 s e_ln and a floor. x = S s^(-1/2) / 2^p carries s times the root's error
-    and a floor, z twice that, and x^(-1/2), from the x the device holds, half of it more."""
+    floors, and its terms in 1 / s^3 and 1 / s^5, 1 / s within a unit and below 1, eight more; the pair's 2 s ln k
+    carries 2 s e_ln and a floor. x = S s^(-1/2) / 2^p carries s times the root's error and a floor, z twice that, and
+    x^(-1/2), from the x the device holds, half of it more. Each C_n by Horner's rule carries three units a
+    coefficient and one more, and z's error times its slope; 1 / x, the root's square, twice the root's error and a
+    floor. The sum over n of C_n x^(-n), by Horner's rule in 1 / x from C_K, carries at each step the sum before it
+    times 1 / x, below 1 / nu, that sum's size times the error of 1 / x, a floor and the curve's own error; and R,
+    that sum times x^(-1/2), its size times the root's error, the sum's error and a floor."""
     s_top = (nu + 1) ** 2
+    unit = 1 << SCALE_BITS
     e_ln, e_cos = unit_errors()
-    e_theta = s_top * e_ln + 4
+    e_theta = s_top * e_ln + 12
     e_q = e_theta + 2 * s_top * e_ln + 1
     e_term = e_cos + PI_HIGH * e_q + Fraction(101, 100) * newton_error(nu) + 1
     e_x = s_top * newton_error(s_top) + 1
-    e_gamma = 3 * GAMMA_TERMS + 1 + 2 * e_x * c0_slope
     e_root = newton_error(nu + 1) + e_x / 2 + 1
-    e_held = e_gamma + Fraction(101, 100) * e_root + 1
+    e_over = 2 * e_root + 1
+    e_sum, size = Fraction(0), Fraction(0)
+    for n in reversed(range(CURVES)):
+        e_curve = 3 * GAMMA_TERMS + 1 + 2 * e_x * constants.slopes[n]
+        e_sum = e_sum * (Fraction(1, nu) + e_over / unit) + size * e_over + 1 + e_curve
+        size = size / nu + constants.sizes[n]
+    e_held = e_sum + size * e_root + 1
     return 2 * nu * e_term + e_held, e_theta, e_held
 
 
@@ -361,8 +382,11 @@ def em_bounds(nu, heads, terms):
     N^(1 - 2k), and |R| <= 4 |(s)_2M| / ((2 pi)^(2M) (sigma + 2M - 1) N^(sigma + 2M - 1)) for N >= 2 and sigma + 2M > 1:
     Johansson, arXiv:1309.2877, Theorem 1, at a = 1 with no derivative. It holds at every t, and |(s)_2M| rises with t: the cell's top bounds it.
 
-    theta's error moves Z = sum over n < N of n^(-1/2) cos(theta - t ln n) + Re(exp(i theta) N^(-s) C) by at most
-    the sum of n^(-1/2) and |C| times it. The device's own error is carried step by step: each term of the pair
+    theta's error delta, theta_error's, is one angle at a point, common to every term: the sum is
+    Re(exp(i (theta + delta)) (zeta - R)), exp(i theta) zeta is Z and real, and the sum is Z cos(delta) less at most
+    |R|. delta moves it by |Z| (1 - cos(delta)) <= |Z| delta^2 / 2, |Z| at most the sum of n^(-1/2), |C| and |R|,
+    and the remainder's bound
+    charges R. The device's own error is carried step by step: each term of the pair
     stage as in `arithmetic`, and through the Euler-Maclaurin stage, t = 2 pi S / 2^p, 1 / (s - 1), and each tau_k
     from tau_(k-1) by r_k, 1 / N, s + 2k - 3, 1 / N and s + 2k - 2, each error grown by the step's factor and a unit a
     division."""
@@ -378,13 +402,11 @@ def em_bounds(nu, heads, terms):
         square *= (j + sigma) ** 2 + t_high ** 2
     square /= (2 * PI_LOW) ** (4 * terms) * (2 * terms - sigma) ** 2 * Fraction(heads) ** (4 * terms - 1)
     remainder = Fraction(root_ceiling(square * unit * unit, 2) + 1)
-    # theta by Brent at the cell's foot, exp(-x) below 1 over exp's first 40 Taylor terms
-    x = PI_LOW * t_low
-    e_theta = (Fraction(7, 5760) + PI_HIGH / 960) / t_low ** 3 + 1 / (
-        2 * sum(x ** k / math.factorial(k) for k in range(40)))
+    # theta at the cell's foot
+    e_theta = theta_error(t_low)
     # the size of C, and the device's error on it
     e_ln, e_cos = unit_errors()
-    e_point = s_top * e_ln + 4
+    e_point = s_top * e_ln + 12
     e_q = e_point + 2 * s_top * e_ln + 1
     e_cs = e_cos + PI_HIGH * e_q
     e_t = 2 * s_top + 2
@@ -415,24 +437,37 @@ def em_bounds(nu, heads, terms):
     e_em = Fraction(101, 100) * e_rotated + held * newton_error(heads) + 1
     e_term = e_cos + PI_HIGH * e_q + Fraction(101, 100) * newton_error(heads) + 1
     e_arith = (heads - 1) * e_term + e_em + 2
-    phase = e_theta * (2 * root_heads + held) * unit
+    phase = e_theta ** 2 / 2 * ((2 * root_heads + held) * unit + remainder)
     return math.ceil(e_arith + remainder + phase), math.ceil(e_point + e_theta * unit / PI_LOW)
 
 
+def theta_error(t_low):
+    """The most theta stands from the device's five terms, through 31 / (80640 t^5), at t >= t_low: Gabcke's
+    1 / (3322 t^7) from t = 10 (his thesis, introduction, (4) and (5)), and below it Brent's bound on theta past
+    1 / (48 t) with the two terms after it added."""
+    if t_low >= 10:
+        return 1 / (3322 * t_low ** 7)
+    x = PI_LOW * t_low
+    # exp(-x) below 1 over exp's first 40 Taylor terms
+    brent = (Fraction(7, 5760) + PI_HIGH / 960) / t_low ** 3 + 1 / (2 * sum(x ** k / math.factorial(k) for k in range(40)))
+    return brent + Fraction(7, 5760) / t_low ** 3 + Fraction(31, 80640) / t_low ** 5
+
+
 def analytic(nu):
-    """Gabcke's bound and theta's on Z, and theta's on theta / pi, over cell nu, in units of 2^-62."""
+    """Gabcke's bound on R_K and theta's on Z, and theta's on theta / pi, over cell nu, in units of 2^-62."""
     t_low = 2 * PI_LOW * nu * nu
     unit = Fraction(1 << SCALE_BITS)
-    gabcke = root_ceiling((Fraction(127, 1000) * unit) ** 4 / t_low ** 3, 4)
-    e_theta = (Fraction(7, 5760) + PI_HIGH / 960) / t_low ** 3 + Fraction(1, 1 << 200)
+    k = CURVES - 1
+    gabcke = root_ceiling((GABCKE[k] * unit) ** 4 / t_low ** (2 * k + 3), 4)
+    e_theta = theta_error(t_low)
     phase = 4 * root_ceiling(Fraction(nu), 2) * e_theta * unit
     return gabcke + phase, e_theta * unit / PI_LOW
 
 
-def bounds(nu, c0_slope, p, method):
+def bounds(nu, constants, p, method):
     """The bound on Z and on theta / pi over cell nu at 2^p points, whole units of 2^-62: the pairs' arithmetic, or
     the multiple evaluation's where it gives the verdict."""
-    e_arith, e_q, e_held = arithmetic(nu, c0_slope)
+    e_arith, e_q, e_held = arithmetic(nu, constants)
     if method != "pairs":
         e_arith = transform_error(nu, p, e_q, e_held)
     e_z, e_theta = analytic(nu)
@@ -622,14 +657,16 @@ def run_cell(binary, constants, nu, p, method, level=0, listing=0):
     if method == "em":
         bound, theta_bound = em_bounds(nu, heads, terms)
     else:
-        bound, theta_bound = bounds(nu, constants.slope, p, method)
+        bound, theta_bound = bounds(nu, constants, p, method)
     folder = tempfile.mkdtemp(prefix="turing_")
     given, taken = os.path.join(folder, "in.bin"), os.path.join(folder, "out.txt")
     with open(given, "wb") as handle:
         array.array("q", (1 << p, min(CHECKED, piece), nu, p, ARTANH_TERMS, COS_TERMS, GAMMA_TERMS, NEWTON_STEPS,
-                          piece, METHODS[method], ORDER, BETA, E1_TERMS, SINC_TERMS, heads, terms, listing)).tofile(handle)
+                          piece, METHODS[method], ORDER, BETA, E1_TERMS, SINC_TERMS, heads, terms, listing,
+                          CURVES)).tofile(handle)
         for v in ([constants.ln2] + constants.gamma + constants.artanh + constants.cosine +
-                  [constants.c96, bound, theta_bound, constants.pi_scaled] + constants.fact +
+                  [constants.c96, constants.c3, constants.c5, bound, theta_bound, constants.pi_scaled] +
+                  constants.fact +
                   constants.sinc + (em_ratios(terms) if method == "em" else [])):
             put(handle, v)
         if listing == 2:
@@ -642,24 +679,27 @@ def run_cell(binary, constants, nu, p, method, level=0, listing=0):
     return cell, bound
 
 
-def run_points(binary, constants, nu, p, js):
+def run_points(binary, constants, nu, p, js, bracketed=False):
     """The certified signs of Z at the points j of cell nu's lattice of 2^p, by pairs at those points alone: each
-    point's sign, S and the flag of the step from the point listed before it, in the order listed. The list is padded
-    with its last point to a whole number of pieces; a point repeated changes no sign."""
+    point's sign, S and the flag of the step from the point listed before it, in the order listed; with `bracketed`,
+    each point's sign, S and theta / pi less and more its bound. The list is padded with its last point to a whole
+    number of pieces; a point repeated changes no sign."""
     piece = 1
     while piece * 2 <= len(js) and piece * 2 * nu < 1 << LANE_BITS:
         piece *= 2
     listed = list(js) + [js[-1]] * ((-len(js)) % piece)
-    bound, theta_bound = bounds(nu, constants.slope, p, "pairs")
+    bound, theta_bound = bounds(nu, constants, p, "pairs")
     folder = tempfile.mkdtemp(prefix="turing_")
     given, taken = os.path.join(folder, "in.bin"), os.path.join(folder, "out.txt")
     with open(given, "wb") as handle:
         array.array("q", (len(listed), min(CHECKED, piece), nu, p, ARTANH_TERMS, COS_TERMS, GAMMA_TERMS, NEWTON_STEPS,
-                          piece, METHODS["points"], ORDER, BETA, E1_TERMS, SINC_TERMS, 0, 0, 2)).tofile(handle)
+                          piece, METHODS["points"], ORDER, BETA, E1_TERMS, SINC_TERMS, 0, 0, 3 if bracketed else 2,
+                          CURVES)).tofile(handle)
         least, third, steep, _ = margin(nu, p, constants, bound, "pairs")
         for v in ([constants.ln2] + constants.gamma + constants.artanh + constants.cosine +
-                  [constants.c96, bound, theta_bound, constants.pi_scaled] + constants.fact + constants.sinc +
-                  [least, third, steep]):
+                  [constants.c96, constants.c3, constants.c5, bound, theta_bound, constants.pi_scaled] +
+                  constants.fact + constants.sinc +
+                  ([] if bracketed else [least, third, steep])):
             put(handle, v)
         array.array("q", listed).tofile(handle)
     device(binary, given, taken, "cell %d, %d listed points at 2^%d" % (nu, len(js), p))
@@ -668,7 +708,7 @@ def run_points(binary, constants, nu, p, js):
         for line in handle:
             if line.startswith("point"):
                 values = [int(v, 16) for v in line.split()[1:]]
-                signs.append((values[0], values[1], values[-1]))
+                signs.append((values[0], values[1], values[-2], values[-1]) if bracketed else (values[0], values[1], values[-1]))
             elif line.startswith("host"):
                 failed = sum(1 for v in line.split()[1:] if v != "1")
     os.remove(taken)
@@ -755,12 +795,13 @@ def margin(nu, p, constants, bound, method="transform"):
     h = 2 * PI_HIGH * (2 * nu + 1) / Fraction(1 << p)
     fourth = fourth_bound(nu)
     root_low = math.isqrt(nu)
-    c0_size = Fraction(sum(abs(g) + 1 for g in constants.gamma), unit)
-    remainder_slope = (c0_size / (2 * nu * root_low) + 2 * constants.slope / root_low) / (4 * PI_LOW * nu)
+    # |dR/dx| <= sum over n of (n + 1/2) |C_n| x^(-n - 3/2) + 2 |C_n'| x^(-n - 1/2), and dx/dt = 1 / (4 pi x)
+    remainder_slope = sum(((n + Fraction(1, 2)) * constants.sizes[n] / nu + 2 * constants.slopes[n]) / (nu ** n * root_low)
+                          for n in range(CURVES)) / (4 * PI_LOW * nu)
     root = root_ceiling(Fraction(nu), 2)
     clock_top = ln_upper(nu + 1)
     e_ln, _ = unit_errors()
-    e_pairs, e_q, e_held = arithmetic(nu, constants.slope)
+    e_pairs, e_q, e_held = arithmetic(nu, constants)
     if method == "transform":
         e_w = (transform_error(nu, p, e_q, e_held) - e_held) / 2
         shift = nu.bit_length().bit_length()
@@ -913,7 +954,7 @@ def control(cell):
         device = Fraction(z, 1 << SCALE_BITS)
         s = (cell.nu ** 2 << cell.p) + j * (2 * cell.nu + 1)
         x = naturals._integer_sqrt(s * 10 ** (2 * places) >> cell.p)
-        main, remainder = rs.rs_cut_at((cell.nu, rs.zz.pair(x - cell.nu * 10 ** places, places), places), 0)
+        main, remainder = rs.rs_cut_at((cell.nu, rs.zz.pair(x - cell.nu * 10 ** places, places), places), CURVES - 1)
         house = Fraction(main + remainder, 10 ** places)
         print("    s = %d^2 + %d (2 %d + 1) / 2^%d  device Z %.15f  house Z %.15f  apart %.3e" %
               (cell.nu, j, cell.nu, cell.p, float(device), float(house), abs(float(device - house))))
@@ -966,7 +1007,7 @@ def main_em(binary, first, last, rate):
     control_em(cells[first])
     print("  steps of the pole, point, pair, verdict and count programs, then Euler-Maclaurin's: %s" %
           cells[first].steps)
-    rs_bound, _ = bounds(last, constants.slope, cells[last].p, "pairs")
+    rs_bound, _ = bounds(last, constants, cells[last].p, "pairs")
     em_bound, _ = em_bounds(last, em_heads(last, em_terms(0)), em_terms(0))
     control_em(cells[last], above_cells[last], rs_bound + em_bound)
 

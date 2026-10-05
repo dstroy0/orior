@@ -134,12 +134,10 @@ FIGURE = os.path.join(CHAPTERS, "corpus-derivation.pdf")
 # measuring the source. Its disagreements say nothing about the table and it contributes no
 # trials to the bound. The references chapter in theory/theory/Salishan names each and says what happened.
 #
-# ORTHOGRAPHY_ABSENT is read from papers.py and not restated here. It used to be, as the single stem
-# 1975_Hilbert_Hess, and the other four in that tuple were counted into the bound as though their
-# tables disagreed with their papers. oracle_check errors instead of counting those same five and prints why.
-# The two tools were reading one fact two ways and the bound published in the chapter carried
-# 1864 and 216 failures that the check next door declines to report at all. That is the
-# drift reported() warns about further down, arriving in the exclusion set instead of in the count.
+# ORTHOGRAPHY_ABSENT is read from papers.py and not restated here. oracle_check errors instead of
+# counting those papers and prints why, and a copy restated here would count them into the bound as
+# though their tables disagreed with their papers: one fact read two ways, the drift reported()
+# warns about further down, arriving in the exclusion set instead of in the count.
 UNSOUND = set(NOT_FAITHFUL) | set(ORTHOGRAPHY_ABSENT) | {"2012_Robertson"}
 
 # The rule of three. With no failures in trials, the true rate is under this with 95 percent
