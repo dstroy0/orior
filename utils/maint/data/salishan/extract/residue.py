@@ -180,10 +180,13 @@ def quoted_sources(path, repair=None, pieces=2, line_joins=False):
     """
     held, printed, welds = read_sources(path, repair, pieces, line_joins)
     # A footnote mark after the closing quote, ‘I want’16: the last word of the gloss is the token.
+    # Where the ’ is a letter, the glottal stop of gwalg̱a’30 in Matthewson's (119a), a row holds the
+    # whole token, and the word without it is offered as a weld of that token.
     for token, number in list(held.items()):
         marked = re.match(r"^(.+)'\d{1,2}$", token)
         if marked:
             held.setdefault(marked.group(1), number)
+            welds.setdefault(marked.group(1), set()).add(token)
     for token in list(printed):
         marked = re.match(r"^(.+)'\d{1,2}$", token)
         if marked:
