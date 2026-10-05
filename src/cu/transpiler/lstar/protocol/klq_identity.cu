@@ -5,6 +5,7 @@
 //   klq_identity read <folder> <Lstar.klq> <ruleset>...
 //   klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
 //   klq_identity permute <nvcc listing> <manifest> <folder>
+//   klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...
 //
 // Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
 // links are the slice's identity: each an instruction with its registers read as their kind and its literals as
@@ -844,11 +845,83 @@ static std::vector<std::regex> form_links(const std::string &text)
         std::string pattern;
         static const std::regex s_special("[.^$|()\\[\\]*+?\\\\]");
         const std::string escaped = std::regex_replace(link.kind, s_special, "\\$&");
+        // an offset added to an address is not written where it is 0: the parameter after a + is there or not
+        static const std::regex s_offset("\\\\\\+\\{[a-z_]+\\}");
         static const std::regex s_parameter("\\{[a-z_]+\\}(\\\\\\.hi)?");
-        pattern = std::regex_replace(escaped, s_parameter, "[^,]+");
+        pattern = std::regex_replace(std::regex_replace(escaped, s_offset, "(\\+[^,\\]]+)?"), s_parameter, "[^,]+");
         links.push_back(std::regex("^" + pattern + "$"));
     }
     return links;
+}
+
+// the forms of each ruleset given, each name with the links its text writes; 0 where a ruleset could not be read
+static int forms_read(int count, char **files, std::vector<std::pair<std::string, std::vector<std::regex>>> *forms)
+{
+    for (int given = 0; given < count; given += 1)
+    {
+        HeldSet set;
+        const RulesetSchema *const schema = code_generator(files[given]).schema();
+        std::string paths[RULESET_PATHS_MAX];
+        const unsigned int paths_count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
+        RulesetFlat flat;
+        ruleset_flat_schema(schema, &flat);
+        std::string error;
+        if (ruleset_relations_read(paths, paths_count, &flat.schema, &set.memory, &set.relations, &error) == 0)
+        {
+            printf("  %s could not be opened\n", error.c_str());
+            return 0;
+        }
+        for (unsigned int at = 0u; at < set.relations.entry_count; at += 1u)
+        {
+            const RulesetCoreEntry *const entry = &set.relations.entries[at];
+            if (entry->kind != RULESET_CORE_ENTRY_FORM)
+            {
+                continue;
+            }
+            const std::string name((const char *)&set.relations.text[entry->name.first], entry->name.length);
+            const std::string text((const char *)&set.relations.text[entry->text.first], entry->text.length);
+            forms->push_back(std::make_pair(name, form_links(text)));
+        }
+        // a pipe row chooses between an operation and its writing on the other pipe: a link of either was placed by
+        // the row's choice, whichever way it went
+        for (unsigned int at = 0u; at < paths_count; at += 1u)
+        {
+            std::ifstream file(paths[at]);
+            std::string line;
+            while (std::getline(file, line))
+            {
+                std::stringstream words(line);
+                std::string head;
+                std::string operation;
+                std::string writing;
+                if ((words >> head >> operation >> writing) && (head == "pipe"))
+                {
+                    static const std::regex s_special("[.^$|()\\[\\]*+?\\\\]");
+                    const std::string either = std::regex_replace(operation, s_special, "\\$&") + "|" +
+                                               std::regex_replace(writing, s_special, "\\$&");
+                    forms->push_back(std::make_pair("pipe:" + operation + ":" + writing,
+                                                    std::vector<std::regex>{std::regex("^(@!?P )?(" + either + ")( .*)?$")}));
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+// the names of the forms whose texts write `kind`, joined by spaces, or - where none does
+static std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms,
+                                 const std::string &kind)
+{
+    std::string names;
+    for (const auto &form : forms)
+    {
+        if (std::any_of(form.second.begin(), form.second.end(),
+                        [&](const std::regex &one) { return std::regex_match(kind, one); }))
+        {
+            names += (names.empty() ? "" : " ") + form.first;
+        }
+    }
+    return names.empty() ? std::string("-") : names;
 }
 
 // a member of a slice: its question and the position of its link in that question's chain
@@ -1017,33 +1090,10 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
               [](const std::pair<std::string, std::vector<Carrier>> &one,
                  const std::pair<std::string, std::vector<Carrier>> &other)
               { return carrier_before(one.second[0], other.second[0]); });
-    // the forms of each ruleset given, each name with the links its text writes
     std::vector<std::pair<std::string, std::vector<std::regex>>> forms;
-    for (int given = 0; given < count; given += 1)
+    if (!forms_read(count, files, &forms))
     {
-        HeldSet set;
-        const RulesetSchema *const schema = code_generator(files[given]).schema();
-        std::string paths[RULESET_PATHS_MAX];
-        const unsigned int paths_count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
-        RulesetFlat flat;
-        ruleset_flat_schema(schema, &flat);
-        std::string error;
-        if (ruleset_relations_read(paths, paths_count, &flat.schema, &set.memory, &set.relations, &error) == 0)
-        {
-            printf("  %s could not be opened\n", error.c_str());
-            return 1;
-        }
-        for (unsigned int at = 0u; at < set.relations.entry_count; at += 1u)
-        {
-            const RulesetCoreEntry *const entry = &set.relations.entries[at];
-            if (entry->kind != RULESET_CORE_ENTRY_FORM)
-            {
-                continue;
-            }
-            const std::string name((const char *)&set.relations.text[entry->name.first], entry->name.length);
-            const std::string text((const char *)&set.relations.text[entry->text.first], entry->text.length);
-            forms.push_back(std::make_pair(name, form_links(text)));
-        }
+        return 1;
     }
     std::ifstream held(klq);
     std::stringstream kept;
@@ -1514,8 +1564,179 @@ static int identity_permute(const char *listing, const char *manifest, const std
     return 0;
 }
 
+// what one form's writing came to over every question: the questions it parts in, its links nvcc writes elsewhere in
+// the question, and its links of ours alone, of a kind nvcc writes nothing of there
+struct FormApart
+{
+    std::set<std::string> questions;
+    unsigned int moved;
+    unsigned int alone;
+};
+
+// The answer and ours, question by question. nvcc's chain for a question of the stick is the answer; ours is the
+// disassembly of what the transpiler wrote for it, derived from the rulesets alone, and the rulesets are what the L*
+// query gave. The two chains are aligned link by link on their kinds, the longest run in common kept in order, and
+// where they part each link of ours is placed apart (nvcc writes its kind elsewhere in the question) or ours alone
+// (nvcc writes nothing of its kind there), each with the forms of the rulesets whose texts write it, and each link of
+// nvcc's with nothing of ours is written with the address its window first occurs at. A form whose writing parts from
+// the answer names an entry the query derived wrong. <folder>/broken.txt holds a question a group of lines, then each
+// form apart with its count of questions, links moved and links of ours alone, the most questions first
+static int identity_broken(const char *listing, const char *manifest, const std::string &folder,
+                           const std::vector<std::string> &ours_paths, int count, char **files)
+{
+    std::vector<Question> questions;
+    if (!questions_read(listing, manifest, &questions))
+    {
+        return 1;
+    }
+    std::vector<std::pair<std::string, std::vector<std::regex>>> forms;
+    if (!forms_read(count, files, &forms))
+    {
+        return 1;
+    }
+    std::map<std::string, size_t> numbered;
+    for (size_t at = 0u; at < questions.size(); at += 1u)
+    {
+        numbered[questions[at].number] = at;
+    }
+    std::vector<Question> ours;
+    for (const std::string &path : ours_paths)
+    {
+        candidates_read(path, &ours);
+    }
+    const std::string path = folder + "/broken.txt";
+    FILE *const file = fopen(path.c_str(), "wb");
+    if (file == NULL)
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
+    std::map<std::string, FormApart> apart;
+    unsigned int alike = 0u;
+    unsigned int parted = 0u;
+    unsigned int unanswered = 0u;
+    for (const Question &mine : ours)
+    {
+        const auto found = numbered.find(mine.number);
+        if ((found == numbered.end()) || mine.chain.empty())
+        {
+            unanswered += 1u;
+            continue;
+        }
+        const Question &answer = questions[found->second];
+        const size_t rows = mine.chain.size();
+        const size_t columns = answer.chain.size();
+        // the longest run of kinds the two chains hold in common, in order
+        std::vector<std::vector<unsigned int>> common(rows + 1u, std::vector<unsigned int>(columns + 1u, 0u));
+        for (size_t row = rows; row-- > 0u;)
+        {
+            for (size_t column = columns; column-- > 0u;)
+            {
+                common[row][column] = (mine.chain[row].kind == answer.chain[column].kind)
+                                          ? common[row + 1u][column + 1u] + 1u
+                                          : std::max(common[row + 1u][column], common[row][column + 1u]);
+            }
+        }
+        std::vector<size_t> mine_only;
+        std::vector<size_t> answer_only;
+        for (size_t row = 0u, column = 0u; (row < rows) || (column < columns);)
+        {
+            if ((row < rows) && (column < columns) && (mine.chain[row].kind == answer.chain[column].kind))
+            {
+                row += 1u;
+                column += 1u;
+            }
+            else if ((column < columns) && ((row == rows) || (common[row][column + 1u] >= common[row + 1u][column])))
+            {
+                answer_only.push_back(column);
+                column += 1u;
+            }
+            else
+            {
+                mine_only.push_back(row);
+                row += 1u;
+            }
+        }
+        if (mine_only.empty() && answer_only.empty())
+        {
+            alike += 1u;
+            fprintf(file, "question %s alike %u\n", mine.number.c_str(), (unsigned int)rows);
+            continue;
+        }
+        parted += 1u;
+        fprintf(file, "question %s apart %u %u %u\n", mine.number.c_str(), (unsigned int)rows, (unsigned int)columns,
+                common[0][0]);
+        std::multiset<std::string> answer_kinds;
+        for (const size_t column : answer_only)
+        {
+            answer_kinds.insert(answer.chain[column].kind);
+        }
+        for (const size_t row : mine_only)
+        {
+            const Link &link = mine.chain[row];
+            const auto elsewhere = answer_kinds.find(link.kind);
+            const int moved = elsewhere != answer_kinds.end();
+            if (moved)
+            {
+                answer_kinds.erase(elsewhere);
+            }
+            const std::string names = forms_writing(forms, link.kind);
+            fprintf(file, "%s %s %s form %s\n", moved ? "moved" : "ours", link.position.c_str(), link.kind.c_str(),
+                    names.c_str());
+            std::stringstream split(names);
+            std::string name;
+            while (split >> name)
+            {
+                FormApart &form = apart[name];
+                form.questions.insert(mine.number);
+                form.moved += moved ? 1u : 0u;
+                form.alone += moved ? 0u : 1u;
+            }
+        }
+        for (const size_t column : answer_only)
+        {
+            fprintf(file, "theirs %s:%s %s\n", answer.number.c_str(), answer.chain[column].position.c_str(),
+                    answer.chain[column].kind.c_str());
+        }
+    }
+    std::vector<std::pair<std::string, FormApart>> ranked(apart.begin(), apart.end());
+    std::sort(ranked.begin(), ranked.end(),
+              [](const std::pair<std::string, FormApart> &one, const std::pair<std::string, FormApart> &other)
+              {
+                  return (one.second.questions.size() != other.second.questions.size())
+                             ? (one.second.questions.size() > other.second.questions.size())
+                             : (one.first < other.first);
+              });
+    for (const auto &form : ranked)
+    {
+        fprintf(file, "apart %s %u %u %u\n", form.first.c_str(), (unsigned int)form.second.questions.size(),
+                form.second.moved, form.second.alone);
+    }
+    fclose(file);
+    printf("  %s: %u of ours, %u alike link for link, %u apart, %u with no answer; %u forms write a link apart\n",
+           path.c_str(), (unsigned int)ours.size(), alike, parted, unanswered, (unsigned int)ranked.size());
+    for (size_t at = 0u; (at < ranked.size()) && (at < 8u); at += 1u)
+    {
+        printf("    %s: %u questions, %u moved, %u ours alone\n", ranked[at].first.c_str(),
+               (unsigned int)ranked[at].second.questions.size(), ranked[at].second.moved, ranked[at].second.alone);
+    }
+    return 0;
+}
+
 int main(int count, char **words)
 {
+    // the paths of ours are given up to a lone --, the rulesets after it
+    if ((count >= 6) && (std::string(words[1]) == "broken"))
+    {
+        std::vector<std::string> ours_paths;
+        int at = 5;
+        for (; (at < count) && (std::string(words[at]) != "--"); at += 1)
+        {
+            ours_paths.push_back(words[at]);
+        }
+        at += (at < count) ? 1 : 0;
+        return identity_broken(words[2], words[3], words[4], ours_paths, count - at, words + at);
+    }
     if ((count == 5) && (std::string(words[1]) == "permute"))
     {
         return identity_permute(words[2], words[3], words[4]);
@@ -1536,5 +1757,6 @@ int main(int count, char **words)
     printf("klq_identity read <folder> <Lstar.klq> <ruleset>...\n");
     printf("klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
     printf("klq_identity permute <nvcc listing> <manifest> <folder>\n");
+    printf("klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
     return 1;
 }

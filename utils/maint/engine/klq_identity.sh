@@ -54,5 +54,7 @@ c++ -std=c++17 -O0 -fwrapv -w -o "$WORK/host_questions" "$WORK/host_questions.cp
 # the engine's writing of the stick sifted through what nvcc writes, read off the disassembly and never run
 ENGINE="$STICK/engine"
 if compgen -G "$ENGINE/*.dis" > /dev/null; then
-    "$BINARY" known "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE"/*.dis
+    "$BINARY" known "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE"/*.dis || exit 1
+    # ours held against the answer question by question, each place they part traced to the forms that wrote it
+    "$BINARY" broken "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE"/*.dis -- "$@"
 fi
