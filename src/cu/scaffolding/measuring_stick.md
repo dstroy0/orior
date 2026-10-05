@@ -6,8 +6,8 @@ Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring
 - instructions: 45135
 - operations nvcc writes over the stick: 326, of which sass.krs writes 56
 
-- kernels the engine answers: 320, of which at parity with nvcc: 163; kernels that put a question: 686
-- the engine's instructions: 5908 in its lanes' text, 5908 read back by nvdisasm, 5908 of them the operation the text wrote
+- kernels the engine answers: 340, of which at parity with nvcc: 167; kernels that put a question: 666
+- the engine's instructions: 6282 in its lanes' text, 6282 read back by nvdisasm, 6282 of them the operation the text wrote
 
 ## The engine against nvcc
 
@@ -205,14 +205,34 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0289 | `unsigned int !a` | 16 | 18 | 18 |  |  |
 | 0290 | `long long !a` | 16 | 19 | 19 |  |  |
 | 0291 | `unsigned long long !a` | 16 | 19 | 19 |  |  |
-| 0294 | `signed char ++a` | 15 | 18 | 16 | IMAD.MOV.U32 2, LDG.E 1, LEA 1, SHF.R.S32.HI 1 | LDG.E.S8 1, MOV 2 |
-| 0295 | `unsigned char ++a` | 15 | 18 | 16 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 1, LOP3.LUT 1 | LDG.E.U8 1, MOV 1, SHF.L.U32 1 |
-| 0296 | `short ++a` | 15 | 18 | 16 | IMAD.MOV.U32 2, LDG.E 1, LEA 1, SHF.R.S32.HI 1 | LDG.E.S16 1, MOV 2 |
-| 0297 | `unsigned short ++a` | 15 | 18 | 16 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 1, LOP3.LUT 1 | LDG.E.U16 1, MOV 1, SHF.L.U32 1 |
-| 0298 | `int ++a` | 14 | 17 | 16 | IADD3 1 |  |
-| 0299 | `unsigned int ++a` | 14 | 17 | 16 | IADD3 1 |  |
-| 0300 | `long long ++a` | 13 | 17 | 15 | IADD3 1, IADD3.X 1 |  |
-| 0301 | `unsigned long long ++a` | 13 | 17 | 15 | IADD3 1, IADD3.X 1 |  |
+| 0294 | `signed char ++a` | 17 | 18 | 18 | IMAD.MOV.U32 1, LDG.E 1, LEA 1, SHF.L.U32 1, SHF.R.S32.HI 1 | IADD3 1, IMAD.SHL.U32 1, LDG.E.S8 1, MOV 1, PRMT 1 |
+| 0295 | `unsigned char ++a` | 17 | 18 | 18 | LDG.E 1 | LDG.E.U8 1 |
+| 0296 | `short ++a` | 17 | 18 | 18 | IMAD.MOV.U32 1, LDG.E 1, LEA 1, SHF.L.U32 1, SHF.R.S32.HI 1 | IADD3 1, IMAD.SHL.U32 1, LDG.E.S16 1, MOV 1, PRMT 1 |
+| 0297 | `unsigned short ++a` | 17 | 18 | 18 | LDG.E 1 | LDG.E.U16 1 |
+| 0298 | `int ++a` | 15 | 17 | 17 |  |  |
+| 0299 | `unsigned int ++a` | 15 | 17 | 17 |  |  |
+| 0300 | `long long ++a` | 15 | 17 | 19 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0301 | `unsigned long long ++a` | 15 | 17 | 19 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0304 | `signed char a++` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, PRMT 1 |
+| 0305 | `unsigned char a++` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LOP3.LUT 1 |
+| 0306 | `short a++` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, PRMT 1 |
+| 0307 | `unsigned short a++` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LOP3.LUT 1 |
+| 0308 | `int a++` | 15 | 16 | 17 |  | IADD3 1 |
+| 0309 | `unsigned int a++` | 15 | 16 | 17 |  | IADD3 1 |
+| 0310 | `long long a++` | 15 | 15 | 19 | SHF.L.U32 1 | IADD3 1, IADD3.X 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0311 | `unsigned long long a++` | 15 | 15 | 19 | SHF.L.U32 1 | IADD3 1, IADD3.X 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0314 | `signed char --a` | 17 | 18 | 18 | IMAD.MOV.U32 1, LDG.E 1, LEA 1, SHF.L.U32 1, SHF.R.S32.HI 1 | IADD3 1, IMAD.SHL.U32 1, LDG.E.S8 1, MOV 1, PRMT 1 |
+| 0315 | `unsigned char --a` | 17 | 18 | 18 | LDG.E 1 | LDG.E.U8 1 |
+| 0316 | `short --a` | 17 | 18 | 18 | IMAD.MOV.U32 1, LDG.E 1, LEA 1, SHF.L.U32 1, SHF.R.S32.HI 1 | IADD3 1, IMAD.SHL.U32 1, LDG.E.S16 1, MOV 1, PRMT 1 |
+| 0317 | `unsigned short --a` | 17 | 18 | 18 | LDG.E 1 | LDG.E.U16 1 |
+| 0318 | `int --a` | 15 | 17 | 17 |  |  |
+| 0319 | `unsigned int --a` | 15 | 17 | 17 |  |  |
+| 0324 | `signed char a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, PRMT 1 |
+| 0325 | `unsigned char a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LOP3.LUT 1 |
+| 0326 | `short a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, PRMT 1 |
+| 0327 | `unsigned short a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LOP3.LUT 1 |
+| 0328 | `int a--` | 15 | 16 | 17 |  | IADD3 1 |
+| 0329 | `unsigned int a--` | 15 | 16 | 17 |  | IADD3 1 |
 | 0344 | `(bool)(signed char)` | 17 | 19 | 18 | ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E.U8 1 | ISETP.NE.AND 1, LDG.E.S8 1 |
 | 0345 | `(unsigned char)(signed char)` | 15 | 16 | 16 |  |  |
 | 0346 | `(short)(signed char)` | 16 | 16 | 17 |  | PRMT 1 |
@@ -344,14 +364,12 @@ Each kernel the engine does not answer, by the question it puts.
 |---|---|---|
 | a value of type float | 207 | 0008 |
 | a value of type double | 191 | 0009 |
-| an expression that ends before its operand | 16 | 0304 |
 | a call or an element nothing here types: atomicMax | 4 | 0869 |
 | a call or an element nothing here types: atomicMin | 4 | 0865 |
 | a call or an element nothing here types: max | 4 | 0534 |
 | a call or an element nothing here types: min | 4 | 0530 |
 | a statement nothing here reads: int r; | 4 | 0456 |
 | no reading of (((c@word!=0u))?a:b) through cu.krs | 4 | 0449 |
-| no reading of (-(-a)) through cu.krs | 4 | 0318 |
 | no reading of (-a) through cu.krs | 4 | 0260 |
 | no reading of (a%b) through cu.krs | 4 | 0045 |
 | no reading of (a&b) through cu.krs | 4 | 0054 |
@@ -360,6 +378,7 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of (a<<b) through cu.krs | 4 | 0078 |
 | no reading of (a^b) through cu.krs | 4 | 0070 |
 | no reading of (a\|b) through cu.krs | 4 | 0062 |
+| no reading of (stick_kept_0-(unsignedlonglong)1u) through cu.krs | 4 | 0320 |
 | no reading of (unsignedlonglong)(((((a!=b)&&(c!=0u))))?1u:0u) through cu.krs | 4 | 0917 |
 | no reading of (unsignedlonglong)(((((a!=b)\|\|(c!=0u))))?1u:0u) through cu.krs | 4 | 0918 |
 | no reading of (unsignedlonglong)(((((a==b)&&(c!=0u))))?1u:0u) through cu.krs | 4 | 0914 |
@@ -371,6 +390,7 @@ Each kernel the engine does not answer, by the question it puts.
 | a call or an element nothing here types: atomicOr | 3 | 0881 |
 | a call or an element nothing here types: atomicXor | 3 | 0884 |
 | a call or an element nothing here types: atomicSub | 2 | 0859 |
+| a name nothing here types: const | 2 | 0485 |
 | a statement nothing here reads: double o1[4] = {(double)in[(4u * thread) + 0u], (double)in[(4u * thread) + 1u], (double)in[(4u * thread) + 2u], (double)in[(4u * thread) + 3u]} | 2 | 0841 |
 | a statement nothing here reads: float o1[4] = {(float)in[(4u * thread) + 0u], (float)in[(4u * thread) + 1u], (float)in[(4u * thread) + 2u], (float)in[(4u * thread) + 3u]} | 2 | 0818 |
 | no reading of (((a@word!=0u))?1u:0u) through cu.krs | 2 | 0338 |
@@ -397,7 +417,6 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of (unsignedshort)((unsignedshort)a@word%(unsignedshort)b@word) through cu.krs | 2 | 0043 |
 | no reading of (unsignedshort)((unsignedshort)a@word/(unsignedshort)b@word) through cu.krs | 2 | 0033 |
 | no reading of (~a) through cu.krs | 2 | 0282 |
-| a call or an element nothing here types: * | 1 | 0479 |
 | a call or an element nothing here types: __activemask | 1 | 0890 |
 | a call or an element nothing here types: __all_sync | 1 | 0887 |
 | a call or an element nothing here types: __any_sync | 1 | 0888 |
@@ -443,6 +462,7 @@ Each kernel the engine does not answer, by the question it puts.
 | a call or an element nothing here types: __umulhi | 1 | 0527 |
 | a call or an element nothing here types: __urhadd | 1 | 0528 |
 | a call or an element nothing here types: __usad | 1 | 0529 |
+| a call or an element nothing here types: `*` | 1 | 0479 |
 | a call or an element nothing here types: abs | 1 | 0538 |
 | a call or an element nothing here types: atomicDec | 1 | 0874 |
 | a call or an element nothing here types: atomicInc | 1 | 0873 |
@@ -454,8 +474,6 @@ Each kernel the engine does not answer, by the question it puts.
 | a call or an element nothing here types: measuring_stick_noinline | 1 | 0500 |
 | a call or an element nothing here types: measuring_stick_recursive | 1 | 0502 |
 | a name nothing here types: blockIdx.x | 1 | 0490 |
-| a name nothing here types: constunsignedchar | 1 | 0486 |
-| a name nothing here types: constunsignedint | 1 | 0485 |
 | a name nothing here types: threadIdx.x | 1 | 0487 |
 | a statement nothing here reads: __shared__ int s[256]; | 1 | 0474 |
 | a statement nothing here reads: __syncthreads(); | 1 | 0904 |
@@ -487,15 +505,12 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of ((((a!=0u)&&((int)((int)b/(int)a)>(int)1u)))?1u:0u) through cu.krs | 1 | 0472 |
 | no reading of (short)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0336 |
 | no reading of (short)(((c@word!=0u))?(short)a@word:(short)b@word) through cu.krs | 1 | 0447 |
-| no reading of (short)(-(-a@word)) through cu.krs | 1 | 0316 |
 | no reading of (short)(-a@word) through cu.krs | 1 | 0258 |
 | no reading of (signedchar)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0334 |
 | no reading of (signedchar)(((c@word!=0u))?(signedchar)a@word:(signedchar)b@word) through cu.krs | 1 | 0445 |
-| no reading of (signedchar)(-(-a@word)) through cu.krs | 1 | 0314 |
 | no reading of (signedchar)(-a@word) through cu.krs | 1 | 0256 |
 | no reading of (unsignedchar)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0335 |
 | no reading of (unsignedchar)(((c@word!=0u))?(unsignedchar)a@word:(unsignedchar)b@word) through cu.krs | 1 | 0446 |
-| no reading of (unsignedchar)(-(-a@word)) through cu.krs | 1 | 0315 |
 | no reading of (unsignedchar)(-a@word) through cu.krs | 1 | 0257 |
 | no reading of (unsignedlonglong)(((((((c@word!=0u))?(((a@word!=0u))?1u:0u):(((b@word!=0u))?1u:0u))!=0u)))?1u:0u) through cu.krs | 1 | 0444 |
 | no reading of (unsignedlonglong)((((((int)a<(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0920 |
@@ -517,7 +532,6 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of (unsignedlonglong)(((((a<b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0943 |
 | no reading of (unsignedshort)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0337 |
 | no reading of (unsignedshort)(((c@word!=0u))?(unsignedshort)a@word:(unsignedshort)b@word) through cu.krs | 1 | 0448 |
-| no reading of (unsignedshort)(-(-a@word)) through cu.krs | 1 | 0317 |
 | no reading of (unsignedshort)(-a@word) through cu.krs | 1 | 0259 |
 | sass.krs's exit_if assembles with no reading of its operands | 1 | 0470 |
 | sass.krs's wide_from_word_if assembles with no reading of its operands | 1 | 0455 |
