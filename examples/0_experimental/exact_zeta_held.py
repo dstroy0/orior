@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: EXP-x-035
 #
-# The point stage of Turing's method in held form, exact_zeta_held.cu, driven over one cell of the lattice in u,
-# t = 2 pi u^4: the remainder's curves C_0 to C_K, the logarithm ln u and theta / pi, one lane a point, each stage
-# checked against the host word for word and each output held against the exact value it stands for.
+# Turing's method in held form, exact_zeta_held.cu, driven over one cell of the lattice in u, t = 2 pi u^4: the
+# remainder's curves C_0 to C_K, the logarithm ln u, theta / pi, the main sum, Z's sign at every point and the sign
+# changes, each stage checked against the host word for word and each output held against the exact value it stands
+# for. Gabcke's bound on R_K holds from t = 200, and the cell's nu is 6 or more.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_held.py <binary> <nu> <b> <E> <W>
 #
@@ -15,7 +16,7 @@
 # THE CELL
 #
 # Lane l stands at u = U / 2^b, U = U_0 + l, U_0 the least U with U^2 >= nu 4^b, over every U with U^2 < (nu + 1) 4^b.
-# x = U^2 / 4^b, z = 1 - 2 (x - nu) = Zt / 4^b, Zt = (2 nu + 1) 4^b - 2 U^2, and x^(-1/2) = 2^b / U: each exact.
+# x = U^2 / 4^b, z = 1 - 2 (x - nu) = Zt / 4^b, Zt = 4^b - 2 (U^2 - nu 4^b), and x^(-1/2) = 2^b / U: each exact.
 #
 # THE CURVES
 #
@@ -31,9 +32,18 @@
 # whose alternating partial sums stand on either side of each, and ln(U_0 / 2^b) by artanh, its rest bounded. A's
 # series takes the fewest terms whose rest falls below 2^-(W+4) at the cell's last lane.
 #
+# THE MAIN SUM AND THE VERDICT
+#
+# Each pole n to nu holds ln n and n^(-1/2) below and above at 2^-W, and cos's series in (pi m 2^-W)^2 its first J
+# coefficients pi^(2j) / (2j)! below at 2^-W, with B bounding the rest and the coefficients' reads together. Z's
+# bracket is the device's doubled sums and R, with Gabcke's bound d_K t^(-(2K + 3) / 4) at t = 2 pi nu^2 and the
+# curves' coefficient reads on either side.
+#
 # Checks: the device's integers are the exact values of Horner's rule over the coefficients given, at every lane;
 # R against exact_zeta_riemann_siegel's remainder_at through C_K at x, the gap written out; the bracket on A against
-# zz's exact 2 artanh(l / D); the house's theta / pi between the device's below and above.
+# zz's exact 2 artanh(l / D); the house's theta / pi between the device's below and above; the house's main sum and Z
+# through C_K between the device's below and above; the device's sign at every point the one its bracket gives; and
+# the device's count of sign changes the host's over the same signs.
 
 import array
 import math
@@ -165,6 +175,49 @@ def theta_constants(first, b, w, terms):
     return out + [big_lambda, 2 * terms + 1]
 
 
+def cos_constants(w):
+    """cos(pi m 2^-W) by its first J terms, k_j = pi^(2j) / (2j)!: J the fewest whose rest, below the first term left
+    out, (pi / 2)^(2J) / (2J)! at m 2^-W <= 1/2, falls below 2^-W; each k_j below at 2^-W, K_j; and B, above at 2^-W
+    the rest and every read k_j - K_j 2^-W times (1/4)^j, y 2^-2W at most 1/4."""
+    pi_low, pi_high = pi_bracket(w + 16)
+    unit, terms = 2 ** w, 1
+    while (pi_high / 2) ** (2 * terms) / math.factorial(2 * terms) >= Fraction(1, unit):
+        terms += 1
+    low = [math.floor(pi_low ** (2 * j) / math.factorial(2 * j) * unit) for j in range(terms)]
+    reads = sum((pi_high ** (2 * j) / math.factorial(2 * j) - Fraction(k, unit)) / 4 ** j for j, k in enumerate(low))
+    bound = math.ceil(((pi_high / 2) ** (2 * terms) / math.factorial(2 * terms) + reads) * unit)
+    return terms, bound, low
+
+
+def pole_constants(nu, w):
+    """Each pole n to nu: ln n below and above and n^(-1/2) below and above, at 2^-W."""
+    unit, out = 2 ** w, []
+    for n in range(1, nu + 1):
+        low, high = ln_bracket(n, 1, w + 4)
+        root = math.isqrt(unit * unit // n)
+        out += [math.floor(low * unit), math.ceil(high * unit), root, root + 1]
+    return out
+
+
+def root_ceiling(value, k):
+    """The least integer r with r^k >= value, for value >= 0."""
+    r = max(0, int(round(float(value) ** (1.0 / k))) - 2)
+    while Fraction(r) ** k < value:
+        r += 1
+    return r
+
+
+def verdict_bound(nu, w, big_e, gammas):
+    """B, the verdict's bound above at 2^-W: G = d_K t^(-(2K + 3) / 4) at most d_K (2 pi nu^2)^(-(2K + 3) / 4) over
+    the cell, the least integer whose fourth power holds d_K^4 2^(4W) / (2 pi nu^2)^(2K + 3) with pi below; and E_r,
+    the curves' coefficient reads: each coefficient held, and each of the eight past the last that read 0, within
+    2 2^-E of Gabcke's, |z| <= 1 and x^(-n - 1/2) <= nu^-n / isqrt(nu)."""
+    pi_low, _ = pi_bracket(w + 16)
+    gabcke = root_ceiling(GABCKE[TOP] ** 4 * Fraction(2 ** (4 * w)) / (2 * pi_low * nu * nu) ** (2 * TOP + 3), 4)
+    reads = sum(Fraction(2 * (len(row) + 8), 2 ** big_e * nu ** n * math.isqrt(nu)) for n, row in enumerate(gammas))
+    return gabcke + math.ceil(reads * 2 ** w)
+
+
 def put_word(handle, value):
     array.array("q", (value,)).tofile(handle)
 
@@ -182,11 +235,11 @@ def run(binary, nu, b, big_e, gammas, cs, w):
     first, lanes = cell(nu, b)
     folder = tempfile.mkdtemp(prefix="held_")
     given, taken = os.path.join(folder, "in.bin"), os.path.join(folder, "out.txt")
+    cos_terms, bound, k_low = cos_constants(w)
     with open(given, "wb") as handle:
-        for word in (lanes, min(CHECKED, lanes), nu, b, TOP, big_e, len(cs), w):
+        for word in (lanes, min(CHECKED, lanes), nu, b, TOP, big_e, len(cs), w, cos_terms):
             put_word(handle, word)
         put_mantissa(handle, first)
-        put_mantissa(handle, (2 * nu + 1) * 4 ** b)
         for row in gammas:
             put_word(handle, len(row))
         for row in gammas:
@@ -195,6 +248,8 @@ def run(binary, nu, b, big_e, gammas, cs, w):
         for c in cs:
             put_mantissa(handle, c)
         for v in theta_constants(first, b, w, len(cs)):
+            put_mantissa(handle, v)
+        for v in [bound] + k_low + pole_constants(nu, w) + [verdict_bound(nu, w, big_e, gammas)]:
             put_mantissa(handle, v)
     ran = subprocess.run([binary, given, taken], capture_output=True, text=True)
     if ran.returncode:
@@ -224,6 +279,16 @@ def parse(path, lanes):
                 at += 1
             stages[name] = {"outputs": outputs, "rows": rows, "host": int(lines[at].split()[1])}
             at += 2
+        elif head and head[0] == "sum":
+            name, field, exponent, limbs, runs = head[1], head[2], int(head[3]), int(head[4]), int(head[6])
+            values = []
+            for row in lines[at + 1: at + 1 + runs]:
+                word = sum(int(x, 16) << (32 * i) for i, x in enumerate(row.split()))
+                values.append(word - (1 << (32 * limbs)) if word >> (32 * limbs - 1) else word)
+            stage = stages.setdefault(name, {"host": 1})
+            stage.setdefault("sums", {})[field] = (values, exponent)
+            stage["host"] = stage["host"] and int(head[8])
+            at += 1 + runs
         else:
             at += 1
     return stages
@@ -266,16 +331,26 @@ def main():
         raise SystemExit("  usage: exact_zeta_held.py <binary> <nu> <b> <E> <W>")
     binary, nu, b, big_e, w = sys.argv[1], *(int(v) for v in sys.argv[2:6])
     terms = log_terms(*cell(nu, b), w)
-    if nu < 2:
-        raise SystemExit("  Gabcke's bound on theta holds from t = 10, and cell %d reaches below it" % nu)
+    if nu < 6:
+        raise SystemExit("  Gabcke's bound on R_K holds from t = 200, and cell %d reaches below it" % nu)
     gammas = curve_coefficients(big_e)
     big_lambda, cs = log_constants(terms)
     stages, first, lanes = run(binary, nu, b, big_e, gammas, cs, w)
     print("  cell %d: U from %d, %d lanes at 2^-%d; C_0 to C_%d, the coefficients at 2^-%d, %s a curve; ln u by %d terms" %
           (nu, first, lanes, b, TOP, big_e, ", ".join(str(len(row)) for row in gammas), terms))
-    host = all(stages[name]["host"] == 1 for name in ("curves", "log", "theta_lower", "theta_upper"))
+    host = all(stages[name]["host"] == 1 for name in ("curves", "log", "theta_lower", "theta_upper",
+                                                "term_lower", "term_upper", "verdict", "change"))
     exact, worst, held, widest = True, Fraction(0), True, Fraction(0)
     inside, theta_width = True, Fraction(0)
+    main_inside, main_width = True, Fraction(0)
+    z_inside, z_width = True, Fraction(0)
+    ends = {}
+    sums = {**stages["term_lower"]["sums"], **stages["term_upper"]["sums"]}
+    # Z below and above from the device's own sums and remainder, and B
+    slack = Fraction(verdict_bound(nu, w, big_e, gammas), 2 ** w)
+    rests = [remainder(read_lane(stages["curves"], lane)) for lane in range(lanes)]
+    z_low = [2 * as_fraction(sums["lower"][0][lane], sums["lower"][1]) + rests[lane] - slack for lane in range(lanes)]
+    z_high = [2 * as_fraction(sums["upper"][0][lane], sums["upper"][1]) + rests[lane] + slack for lane in range(lanes)]
     work = digits_of(w) + 20
     pi_work = rs.zz.pi(work)
     digits = big_e * 30103 // 100000
@@ -308,13 +383,34 @@ def main():
             spare = Fraction(1, 10 ** (work - 12))
             inside = inside and below - spare <= house <= above + spare
             theta_width = max(theta_width, above - below)
+            if lane in (0, lanes - 1):
+                ends[lane] = (below, above)
+            low_sum = 2 * as_fraction(sums["lower"][0][lane], sums["lower"][1])
+            high_sum = 2 * as_fraction(sums["upper"][0][lane], sums["upper"][1])
+            house_main, house_r = (Fraction(v, 10 ** work) for v in rs.rs_cut_at((nu, p, work), TOP))
+            main_inside = main_inside and low_sum - spare <= house_main <= high_sum + spare
+            main_width = max(main_width, high_sum - low_sum)
+            z_inside = z_inside and z_low[lane] - spare <= house_main + house_r <= z_high[lane] + spare
+            z_width = max(z_width, z_high[lane] - z_low[lane])
+    signs = [read_lane(stages["verdict"], lane)["sign"][0] for lane in range(lanes)]
+    agree = signs == [1 if low > 0 else -1 if high < 0 else 0 for low, high in zip(z_low, z_high)]
+    changes = sum(1 for a, c in zip(signs, signs[1:]) if a * c < 0)
+    device_changes = stages["change"]["sums"]["change"][0][0]
     print("  the host's records %s the device's word for word" % ("equal" if host else "differ from"))
     print("  every lane's curves are Horner's rule over the coefficients given, exactly: %s" % exact)
     print("  R against remainder_at through C_%d at %d lanes: %.3e apart at most" % (TOP, len(sample), float(worst)))
     print("  every bracket on A holds zz's 2 artanh(l / D): %s, the rest at most %.3e" % (held, float(widest)))
     print("  theta / pi held below and above at %d lanes, the house's theta / pi between at each: %s, the widest %.3e"
           % (len(sample), inside, float(theta_width)))
-    return 0 if host and exact and held and inside else 1
+    print("  2 sum over n to nu of n^(-1/2) cos(pi phi_n) held below and above, the house's main sum between at each: "
+          "%s, the widest %.3e" % (main_inside, float(main_width)))
+    print("  Z held below and above with Gabcke's bound on R_%d and the coefficient reads, the house's Z through C_%d "
+          "between at each: %s, the widest %.3e" % (TOP, TOP, z_inside, float(z_width)))
+    print("  the device's sign at every point is the bracket's: %s; decided at %d of %d points; %d sign changes between "
+          "neighbors, the device's count %d" % (agree, sum(1 for s in signs if s), lanes, changes, device_changes))
+    print("  theta / pi advances by %.6f from the first point to the last" % float(ends[lanes - 1][0] - ends[0][1]))
+    whole = main_inside and z_inside and agree and changes == device_changes
+    return 0 if host and exact and held and inside and whole else 1
 
 
 if __name__ == "__main__":
