@@ -25,8 +25,8 @@ theme:
     repo: fontawesome/brands/github
   favicon: assets/favicon.svg
   font:
-    text: Inter
-    code: JetBrains Mono
+    text: Source Serif 4
+    code: IBM Plex Mono
   features:
     - navigation.instant
     - navigation.instant.progress
@@ -81,12 +81,17 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
+# MathJax loads beside the page and not in front of it, so nothing after it waits on the download.
 extra_javascript:
   - javascript/mathjax.js
-  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+  - path: https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+    async: true
   - javascript/orior.js
 
+# The heading face is fetched beside the site's stylesheet, not from inside it, so the two load
+# together.
 extra_css:
+  - https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&display=swap
   - stylesheets/orior.css
 
 extra:
