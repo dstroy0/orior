@@ -14,7 +14,7 @@ OUT="$TOP/build/cubin_safe"
 mkdir -p "$OUT"
 
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/cubin_safe_check" "$HERE/cubin_safe_check.c" "$TOP/src/cu/scaffolding/cubin_safe.c" \
-    "$TOP/src/cu/scaffolding/cubin_write.c" "$TOP/src/cu/scaffolding/container_write.c" "$TOP/src/cu/scaffolding/container_pattern.c" "$TOP/src/cu/scaffolding/container_layout.c" "$TOP/src/cu/scaffolding/sass_assemble.c" "$TOP/src/cu/scaffolding/sass_machine.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP/src/cu/scaffolding/sass_assemble.c" "$TOP/src/cu/scaffolding/sass_machine.c" || exit 1
 "$OUT/cubin_safe_check" "$TOP/src/cu/transpiler/lstar/coherence/sm_86" "$@"
 STATUS=$?
 echo "  cubin safe check exit $STATUS"

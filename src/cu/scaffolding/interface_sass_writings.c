@@ -24,7 +24,7 @@
 #include "../transpiler/codegen/precept_value.h"
 #include "../transpiler/codegen/word_web.h"
 #include "cubin_safe.h"
-#include "cubin_write.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
 #include "sass_assemble.h"
 #include "sass_machine.h"
 

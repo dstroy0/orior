@@ -2,12 +2,12 @@
 // cubin_write.c: a cubin written by the one emitter, from the layout of the ELF a CUDA toolchain writes
 #include "cubin_write.h"
 
-#include "container_write.h"
+#include "../container_write.h"
 
 #include <stdio.h>
 #include <string.h>
 
-// the layout of a cubin, in emit/layouts beside this file's folder in the tree it was built from, read once a
+// the layout of a cubin, in the folder of this file in the tree it was built from, read once a
 // process; NULL where it could not be read, with the reason printed
 static const ContainerLayout *cubin_layout(void)
 {
@@ -22,7 +22,7 @@ static const ContainerLayout *cubin_layout(void)
         // the folder is __FILE__ up to and with its last slash, and a file named with no folder is in this one
         const int folder = (slash != NULL) ? (int)((slash - file) + 1) : 0;
         char path[1024];
-        snprintf(path, sizeof(path), "%.*slayouts/elf64_nvidia.tsv", folder, file);
+        snprintf(path, sizeof(path), "%.*self64_nvidia.tsv", folder, file);
         s_read = container_layout_read(&s_layout, path) ? 1 : -1;
     }
     return (s_read == 1) ? &s_layout : NULL;

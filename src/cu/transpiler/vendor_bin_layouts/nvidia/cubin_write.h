@@ -10,7 +10,7 @@
 // for a kernel that takes the same parameters and putting new code in it, in place of laying an ELF out from
 // nothing: everything the writer does not understand is carried over, never invented.
 //
-// The writer is container_write.h's emitter, given a cubin and the cubin's layout file emit/layouts/elf64_nvidia.tsv.
+// The writer is container_write.h's emitter, given a cubin and the cubin's layout file elf64_nvidia.tsv beside it.
 //
 // The template's own kernel decides what fits: the same name, the same parameters, the same constant bank. Give
 // the writer code that takes other parameters and the cubin loads and reads the wrong parameters.

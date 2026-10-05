@@ -19,7 +19,7 @@
 // writes <folder>/list.txt and the cubins it names; interface_sass_run runs that list and writes the answers, which a
 // later pass reads back against the form's runs. The frame opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
-#include "cubin_write.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
 #include "sass_assemble.h"
 #include "../transpiler/lstar/interface/interface.h"
 #include "sass_machine.h"

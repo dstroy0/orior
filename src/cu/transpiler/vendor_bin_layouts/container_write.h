@@ -7,7 +7,8 @@
 // There is no emitter for one format and another for the next. The work is the same wherever code has to be handed
 // to a system: take a container that system already accepts, put the code in, put in the few attributes the code
 // decides, and lay the parts out again. Which byte holds the count of sections, what an attribute's tag is, what
-// the code's part is called - all of that is rows in a file (container_layout.h, emit/layouts/).
+// the code's part is called - all of that is rows in a file (container_layout.h), one folder beside this file for
+// each format.
 //
 // A pattern is a container the target already accepted. Everything in it the emitter does not understand is
 // carried over and never invented. A partly known layout is therefore enough to work with: the rows that are
