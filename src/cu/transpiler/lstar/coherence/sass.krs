@@ -1,0 +1,108 @@
+krs 1
+# NVIDIA SASS for sm_86, the machine code the device runs, read back by the cell's probes
+# (utils/test/engine/compiler/interface/interface_sass_probe*.c). The format is the comment at the head of ptx.krs. Every form below
+# whose text is an instruction was read out of a probe's own listing: interface_ptx_probe assembles each membership
+# question's kernel, written from ptx.krs, into a cubin, nvdisasm lists it, and what a question's listing holds past
+# the frame's is its forms' machine code. The comment over each group names the question it was read from; a form
+# whose instruction no question gave says so where it stands.
+#
+# This file is how SASS is written: how a register, a predicate, a label and the program's text around the lane are
+# written. The part's operations are sm_86.krs's, its registers, widths, loads and stores sm_86.kdm's, both in
+# src/cu/transpiler/lstar/coherence and read after this file, and the forms the system folds are sass.ksc's, read
+# last.
+#
+# What this file names that no listing prints, each one this file's own:
+#  - .hi, the second register of a 64-bit pair. nvdisasm names that register itself (R3 for the pair at R2), and
+#    whatever assembles this text resolves {r}.hi the same way. A form that needs both halves of a 64-bit value has no
+#    other way to name the high one, because a ruleset writes a register from its number alone.
+#  - An immediate and an offset are written in decimal, as the code generator gives them, where a listing prints hex.
+ruleset sass
+toolchain cubin
+header probe_nvdisasm
+part sm_86
+
+# the lane's registers, all of them the one file
+bank file = R{n}
+bank sign = R{n}
+bank out = R{n}
+bank atom = R{n}
+bank temporary = R{n}
+# the low register of a 64-bit pair; its high half is written {r}.hi
+bank wide = R{n}
+bank predicate = P{n}
+bank member = R{n}
+# a word's value written into a form, in decimal
+bank immediate = {n}
+
+# the program's text around the lane. A listing's own opening is its .target and .elftype, which the header carries,
+# and each function is a section of its own
+form program_note steps major minor compiler_major compiler_minor block = // a record program of {steps} steps, for sm_{major}{minor}, NVRTC {compiler_major}.{compiler_minor}, as SASS for the target {block}\n
+form lane_open = \n\t.section\t.text.cycle_lane,"ax",@progbits\n\t.align\t128\n\t.type\t\tcycle_lane,@function\ncycle_lane:\n
+form lane_body = \n
+form lane_close = .L_lane_end:\n\t.size\t\tcycle_lane,(.L_lane_end - cycle_lane)\n
+
+# the lane's declarations: SASS has none, and how many registers the lane holds is the ELF's
+nop declare_predicates count
+nop declare_fixed_predicates
+nop declare_file count
+nop declare_signs count
+nop declare_out count
+nop declare_atoms count
+nop declare_temporaries count
+nop declare_wides count
+nop declare_fixed_words
+nop declare_fixed_wides
+nop declare_members count
+
+form label_error_open = .L_error_open:\n
+form label_error at = .L_error{at}:\n
+# the lane is a function the resident calls, and returns through the address a call leaves in R20
+form return = \tRET.ABS.NODEC R20 0x0;\n
+form step_note at operation = \t// step {at}, operation {operation}\n
+
+# the states a target that clocks the lane a state at a time cuts it into (vhdl.krs); a SASS lane runs straight
+# through, as a PTX one does, and has none
+nop declare_states count
+nop state_start state
+nop state_open state
+nop state_next state error
+nop state_exit
+nop state_dispatch error state
+
+# a memory read's address named a state ahead of the read (vhdl.krs); a SASS load names its address itself
+nop launch_ask offset
+nop global_ask address offset
+nop global_ask_if where address
+nop global_ask_atomic address
+
+form label_loop loop = .L_loop{loop}:\n
+nop state_loop back where next
+
+# The program resident around the lane: the kernel the record machine launches. This file gives it as an error and
+# that is the answer, not a gap waiting on one.
+#
+# The resident is the same for every program. Its 25 arguments are byte offsets into the engine's own structures and
+# the commands and states it reads, all of them fixed at build time, and nothing in it depends on the lane it calls.
+# ptx.krs holds it as 110 instructions of PTX that run, and the part's own compiler turns those into 248 SASS
+# instructions that run. Deriving it again here would throw both away.
+#
+# So a SASS program is built the other way round: the resident's cubin is the pattern, and the lane is written into
+# its cycle_lane in place of the empty one it was compiled with, leaving cycle_program exactly as the part's compiler
+# wrote it. Asked of the part, 247 of the resident's 248 instructions come through a lane being written in,
+# the one that did not being the empty lane's own.
+#
+# What the part's compiler emitted is also the floor: a rearrangement of the resident has to beat it in the part's
+# own clock before it is worth having. There is room to look for - the form below is 5855 bytes of text against 3520
+# bytes of encodings, which is a transcription and carries no compression at all - and the way to take it is to
+# rearrange against that floor, never to start from nothing
+err program_unit launch_bytes count_offset hot_offset block_offset number_offset ttl_offset checkin_every_offset next_offset start_offset finished_offset checkins_offset owner_at command_at state_at offset_at step_at launch_time_at exectime_at checkin_at checkin_time_at run_command stop_command done_state stopped_state yielded_state
+
+# a kernel of its own, as nvcc writes one for sm_86 (measuring_stick.md): the stack pointer and the memory descriptor
+# opening it, its exit and the self branch closing it, the thread's and the block's numbers read from the special
+# registers, the sizes and every parameter read from the constant bank, the parameters at the target's base, 0x160.
+# The block's second and third numbers, the same in every thread of it, are read into a uniform register and moved
+# from there; UR4 and UR5 hold the memory descriptor kernel_open sets, and the uniform register is the next pair's
+form kernel_open = \tMOV \tR1, c[0x0][0x28];\n\tULDC.64 \tUR4, c[0x0][0x118];\n
+form kernel_close = \tEXIT;\n.L_kernel_close:\n\tBRA \t`(.L_kernel_close);\n
+form exit_unless where = \t@!{where} EXIT;\n
+form exit_if where = \t@{where} EXIT;\n

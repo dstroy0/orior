@@ -14,7 +14,7 @@ set -eu
 
 here=$(dirname "$0")
 root=$(cd "$here/../../.." && pwd)
-src="$root/src/c"
+src="$root/src/cu"
 build="$root/build/engine_c"
 
 run_graders=1

@@ -2,10 +2,10 @@
 #ifndef SIM_H
 #define SIM_H
 
-#include "../../c/engine/engine_config.h"
+#include "../../cu/engine/engine_config.h"
 
-#include "../../c/types/integers/exact_integer.h"
-#include "../../c/engine/runtime/scriptura/scriptura.h"
+#include "../../cu/types/integers/exact_integer.h"
+#include "../../cu/engine/runtime/scriptura/scriptura.h"
 
 #include <cuda_runtime.h>
 

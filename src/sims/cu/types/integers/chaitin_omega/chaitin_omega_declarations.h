@@ -35,9 +35,9 @@
 //   Omega <= the halted mass + the open mass + the closed mass past L,
 //
 // both exact dyadics, and each bit the two share is a bit of Omega.
-#include "../../../../../c/engine/analysis/cycle/cycle.h"
-#include "../../../../../c/engine/analysis/key_schedule/key_schedule.h"
-#include "../../../../../c/engine/analysis/keymath/keymath.h"
+#include "../../../../../cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../cu/engine/analysis/key_schedule/key_schedule.h"
+#include "../../../../../cu/engine/analysis/keymath/keymath.h"
 #include "sim.h"
 
 #include <cub/cub.cuh>

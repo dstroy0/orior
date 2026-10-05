@@ -2,7 +2,7 @@
 #ifndef PEAKS_H
 #define PEAKS_H
 
-#include "../../../../src/c/engine/engine_config.h"
+#include "../../../../src/cu/engine/engine_config.h"
 
 #ifdef __cplusplus
 extern "C"

@@ -7,10 +7,10 @@
 
 // The record program compiled. Nothing hand-written is linked with it: the language's own forms write every record
 // operation into the lane and the resident kernel that runs the lanes after it (program_unit), and one text is the
-// whole program. A program is written first as PTX (PtxTarget::program): each step unrolled at its widths into
+// whole program. A program is written first as PTX (code_generator("ptx.krs")): each step unrolled at its widths into
 // straight-line assembly over registers the lane holds, a step that loops on its values a loop of the same forms, and
 // nvJitLink assembles and links it alone, with no compiler between. Where the lane cannot be written so, or its
-// PTX does not build, the lane is C source instead (CTarget::program), the same lane in c.krs with its file and
+// PTX does not build, the lane is C source instead (code_generator("c.krs")), the same lane in c.krs with its file and
 // signs in the thread block's shared memory, file_limbs the most it holds live at once, compiled by NVRTC as
 // relocatable code and linked alone the same way. A program of any length builds either way. A thread block holds as
 // many threads as its shared memory fits of the C lane's places; a PTX lane takes none. The interpreter above stays the

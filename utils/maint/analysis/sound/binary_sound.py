@@ -7,7 +7,7 @@
 #   Usage:  python utils/maint/analysis/sound/binary_sound.py [<stem> ...]
 #
 # Reads build/audio/ and writes build/sound/<stem>.bits.tsv, one row per 10 ms frame: the time, the
-# segment field, and the prosody field. src/python/includes/formats/representation/sound/perceived_sound.py
+# segment field, and the prosody field. archive/src/python/includes/formats/representation/sound/perceived_sound.py
 # carries the method and says why it has the shape it has.
 #
 # A GENERIC TOOL, AND THE CORPUS IS WHAT IS WITHHELD
@@ -64,7 +64,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for src/python, which the repository tracks and every checkout
+    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that

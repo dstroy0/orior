@@ -130,7 +130,7 @@ The words "the question does not arise" come from [steering.md](../orior/steerin
 
 - **Truth 1, checked.** The answer path is total: the sweep is a bounded loop, the descent terminates (Theorem 5), and the count is exact at every instant (Theorem 3).
 - **Truth 2, checked.** `steer_descend` refuses malformed input before any work (`orior.c`), and the survivors-length refusal is marked FAILS CLOSED (`orior.c`).
-- **Truth 3, a reading, pending Doug's confirmation.** Each question lives in a space that is finite for its `n`, where halting is decidable, and the family of spaces has no bound. `Atom` is `{ const unsigned short *lanes; unsigned long long depth; unsigned long long height; unsigned long long width; }` (`src/c/engine/engine_config.h`). The steer depth is capped at `ANCHOR_STEER_ANCHORS`, which is 4 (`orior.c`).
+- **Truth 3, a reading, pending Doug's confirmation.** Each question lives in a space that is finite for its `n`, where halting is decidable, and the family of spaces has no bound. `Atom` is `{ const unsigned short *lanes; unsigned long long depth; unsigned long long height; unsigned long long width; }` (`src/cu/engine/engine_config.h`). The steer depth is capped at `ANCHOR_STEER_ANCHORS`, which is 4 (`orior.c`).
 - **The tower, a reading.** The power tower of posit 2 reads as tetration, `n↑↑k` in Knuth's notation. Every finite height is a finite number, the height has no bound, and the infinite tower diverges for every integer `n` of at least 2.
 
 ### The projection

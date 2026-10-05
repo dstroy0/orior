@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../../src/c/engine/nbody/orior/orior.h"
+#include "../../../src/cu/engine/nbody/orior/orior.h"
 
 typedef struct
 {

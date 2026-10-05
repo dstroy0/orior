@@ -2,7 +2,7 @@
 // codegen_reader.cu: a ruleset's .krs file read, and its scratch laid out, on the device, and held to the host's
 #include "codegen_device.h"
 #include "codegen_device_internal.h"
-#include "../../types/file_defs/krs/ruleset_flat.h"
+#include "../lstar/parser/ruleset_flat.h"
 
 // 1 where two templates are the same: their pieces and slots
 static int ruleset_same_templates(const std::vector<InstrTemplate> &left, const std::vector<InstrTemplate> &right)
@@ -43,6 +43,7 @@ int ruleset_same(const Ruleset *left, const Ruleset *right)
 {
     return (left->schema == right->schema) && (left->path == right->path) && (left->error == right->error) &&
            (left->name == right->name) && (left->toolchain == right->toolchain) && (left->header == right->header) &&
+           (left->shared == right->shared) && (left->write_ports == right->write_ports) && (left->part == right->part) &&
            ruleset_same_templates(left->banks, right->banks) && (left->fixed == right->fixed) &&
            ruleset_same_templates(left->forms, right->forms) &&
            ruleset_same_constructs(left->constructs, right->constructs) && (left->bank_given == right->bank_given) &&

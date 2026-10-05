@@ -27,8 +27,8 @@
  *       repeated position and counts it once.
  */
 
-#include "../../../c/types/integers/arm.h"
-#include "../../../c/types/integers/arm_cuda.h"
+#include "arm.h"
+#include "arm_cuda.h"
 
 #include <cuda_runtime.h>
 

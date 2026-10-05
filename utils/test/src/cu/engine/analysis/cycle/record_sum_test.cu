@@ -12,10 +12,10 @@
 // - every field at its most negative and at its most positive, the sums' two ends.
 // A request whose sums cannot hold the run's total, whose count is not a whole number of runs, or whose run passes
 // 2^32 records errors on both routes before a record is read. The test is one job on the device's tessera daemon.
-#include "../../../../../../../src/c/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/c/engine/analysis/key_schedule/key_schedule.h"
-#include "../../../../../../../src/c/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/c/engine/runtime/scriptura/scriptura.h"
+#include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
+#include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

@@ -36,7 +36,7 @@ class Truth(object):
                 for parent, children in self.successors().items() if len(children) > 1}
 
 
-SPELLINGS = {"uint64": "Q", "int64": "q"}
+FORMAT_CHARACTERS = {"uint64": "Q", "int64": "q"}
 
 
 def read_array(root):
@@ -46,8 +46,8 @@ def read_array(root):
     chunk = meta["chunk_grid"]["configuration"]["chunk_shape"]
     names = [codec["name"] for codec in meta["codecs"]]
     little = meta["codecs"][0]["configuration"]["endian"] == "little"
-    spelled = SPELLINGS.get(meta["data_type"])
-    if (spelled is None) or (names not in (["bytes"], ["bytes", "zstd"])) or (shape[1:] != chunk[1:]):
+    format_character = FORMAT_CHARACTERS.get(meta["data_type"])
+    if (format_character is None) or (names not in (["bytes"], ["bytes", "zstd"])) or (shape[1:] != chunk[1:]):
         raise ValueError("%s: an array this reader does not take: %s, codecs %s, chunks %s over %s"
                          % (root, meta["data_type"], names, chunk, shape))
     separator = meta["chunk_key_encoding"]["configuration"]["separator"]
@@ -65,7 +65,7 @@ def read_array(root):
             raw = handle.read()
         if "zstd" in names:
             raw = zstd.decompress(raw)
-        values = struct.unpack(("<" if little else ">") + spelled * (chunk[0] * width), raw)
+        values = struct.unpack(("<" if little else ">") + format_character * (chunk[0] * width), raw)
         rows.extend(values[:min(chunk[0], shape[0] - first) * width])
     return rows, width
 

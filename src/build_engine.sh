@@ -42,11 +42,11 @@ echo "  architectures: $ARCHES"
 
 rm -f "$LIBRARY"
 
-EXACT_ROOT="${ANCHOR_EXACT_ROOT:-$TOP/src/c/types/integers}"
-RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$TOP/src/c/engine"/engine_config_*.h)"
+EXACT_ROOT="${ANCHOR_EXACT_ROOT:-$TOP/src/cu/types/integers}"
+RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$TOP/src/cu/engine"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 QUESTION_LIMBS=$((RESIDUAL_LIMBS + 1))
-RECORD_LIMBS="$(sed -n 's/^#define ENGINE_RECORD_LIMBS_MAX \([0-9]*\)u.*/\1/p' "$TOP/src/c/engine"/engine_config_*.h)"
+RECORD_LIMBS="$(sed -n 's/^#define ENGINE_RECORD_LIMBS_MAX \([0-9]*\)u.*/\1/p' "$TOP/src/cu/engine"/engine_config_*.h)"
 [ -n "$RECORD_LIMBS" ] || { echo "  build failed: no ENGINE_RECORD_LIMBS_MAX in engine_config_*.h"; exit 1; }
 [ "$RECORD_LIMBS" -gt "$QUESTION_LIMBS" ] && QUESTION_LIMBS="$RECORD_LIMBS"
 FITTED_LIMBS=1
@@ -63,14 +63,14 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_E
 
 DEFINES=(-DBODY_OVERLAP_BUILD_DLL=1 -DHEAVIEST_MATCHING_BUILD_DLL=1
          -DSHIFT_AGREEMENT_BUILD_DLL=1)
-MODULES=(engine/formats/stack cu/includes/formats/stack c/types/file_defs/krep cu/types/file_defs/krep
+MODULES=(engine/formats/stack cu/includes/formats/stack cu/engine/parser
          engine/analysis/compression cu/engine/analysis/compression engine/analysis/tower
          cu/engine/analysis/tower engine/runtime/device_pool cu/engine/runtime/device_pool
          engine/analysis/entropy_history cu/engine/analysis/entropy_history engine/analysis/noise_detector
          cu/engine/analysis/noise_detector engine/runtime/schedule cu/engine/runtime/schedule
          engine/compiler/keymath cu/engine/analysis/keymath engine/compiler/key_schedule
          cu/engine/analysis/key_schedule engine/compiler/cycle cu/engine/analysis/cycle
-         engine/compiler/codegen cu/transpiler/codegen cu/types/file_defs/krs engine/runtime/radix_keys
+         engine/compiler/codegen cu/transpiler/codegen cu/transpiler/lstar/parser engine/runtime/radix_keys
          engine/analysis/unit_sweep cu/engine/analysis/unit_sweep engine/runtime/obsignatio
          cu/engine/runtime/obsignatio engine/analysis/residual cu/engine/analysis/residual
          engine/nbody/max_tree cu/engine/nbody/max_tree engine/nbody/flatten cu/engine/nbody/flatten
@@ -88,7 +88,7 @@ INGEST=(engine/formats/cfg_json engine/formats/zarr engine/codecs/zstd engine/co
         engine/codecs/lz4 engine/codecs/snappy engine/codecs/blosc engine/formats/tiff engine/formats/hdf5
         engine/codecs/zip engine/formats/dicom engine/formats/npy engine/formats/nrrd engine/formats/nifti)
 MODULES+=("${INGEST[@]}")
-MODULE_INCLUDES=(-I "$TOP/src/c/engine" -I "$TOP/src/cu/engine" -I "$TOP/src/c/includes/codecs/crc" -I "$TOP/src/cu/includes/codecs/crc")
+MODULE_INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc")
 MODULE_SOURCES=("$TOP/src/cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
     MODULE_INCLUDES+=(-I "$TOP/src/$module")

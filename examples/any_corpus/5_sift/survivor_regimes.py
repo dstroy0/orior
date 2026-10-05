@@ -44,12 +44,12 @@ import sys
 
 
 def repository_root():
-    """The directory holding src/python/engine/nbody/orior/sift, found by walking up from this file."""
+    """The directory holding archive/src/python/engine/nbody/orior/sift, found by walking up from this file."""
     here = os.path.dirname(os.path.abspath(__file__))
     while not os.path.isdir(os.path.join(here, "src", "python", "engine", "nbody", "orior", "sift")):
         parent = os.path.dirname(here)
         if parent == here:
-            raise SystemExit("survivor_regimes.py: no src/python/engine/nbody/orior/sift above %s" % __file__)
+            raise SystemExit("survivor_regimes.py: no archive/src/python/engine/nbody/orior/sift above %s" % __file__)
         here = parent
     return here
 

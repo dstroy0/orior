@@ -8,18 +8,17 @@
 // nvJitLink, the cache and a program compiled. A kernel stays in the file that launches it; a compiled program's
 // kernel is its own text's (program_unit)
 
-#include "../../../../c/engine/analysis/cycle/cycle.h"
+#include "cycle.h"
 
 // the CRC that seals a program's block, and the signum that names its program
 #include "../../../includes/codecs/crc/crc.h"
-#include "../../../../c/engine/runtime/obsignatio/obsignatio.h"
+#include "../../runtime/obsignatio/obsignatio.h"
 
 // the code generator, which writes a program's lane as PTX or C source for the target named here, and the launch it
 // reads; and its assembly printer, which the device runs to write the lane's text again
 #include "../../../transpiler/codegen/asm_printer.h"
-#include "../../../transpiler/codegen/c_target.h"
+#include "../../../transpiler/codegen/code_generator.h"
 #include "../../../transpiler/codegen/codegen_device.h"
-#include "../../../transpiler/codegen/ptx_target.h"
 
 #include <cooperative_groups.h>
 #include <cuda_runtime.h>

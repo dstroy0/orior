@@ -68,9 +68,9 @@
 
 #include "sim.h"
 
-#include "../../../../../c/engine/analysis/cycle/cycle.h"
-#include "../../../../../c/engine/analysis/key_schedule/key_schedule.h"
-#include "../../../../../c/engine/analysis/keymath/keymath.h"
+#include "../../../../../cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../cu/engine/analysis/key_schedule/key_schedule.h"
+#include "../../../../../cu/engine/analysis/keymath/keymath.h"
 
 #include <chrono>
 #include <csignal>

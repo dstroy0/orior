@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../../../c/includes/formats/stack/stack.h"
+#include "stack.h"
 
 #include <cuda_runtime.h>
 

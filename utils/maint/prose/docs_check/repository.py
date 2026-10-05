@@ -20,8 +20,8 @@ import subprocess
 REPOSITORY = os.path.dirname(os.path.abspath(__file__))
 # Walks up to the repository instead of counting directories to it. A count breaks every path here
 # the moment anything moves.
-while (REPOSITORY != os.path.dirname(REPOSITORY)) and not os.path.isdir(
-    os.path.join(REPOSITORY, "src", "python")
+while (REPOSITORY != os.path.dirname(REPOSITORY)) and not os.path.isfile(
+    os.path.join(REPOSITORY, "repotools.toml")
 ):
     REPOSITORY = os.path.dirname(REPOSITORY)
 

@@ -4,7 +4,7 @@
 // exact division (a multiply by the divisor's inverse and a mask) returns the quotient of every product and errors
 // what leaves a remainder; the gcd divides both values and leaves coprime cofactors.
 
-#include "../../../../../../src/c/types/integers/exact_integer.h"
+#include "../../../../../../src/cu/types/integers/exact_integer.h"
 
 #include <cstdio>
 #include <cstring>

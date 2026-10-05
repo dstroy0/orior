@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../../../src/c/engine/nbody/max_tree/max_tree.h"
+#include "../../../../src/cu/engine/nbody/max_tree/max_tree.h"
 
 typedef struct
 {

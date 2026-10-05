@@ -1,0 +1,10 @@
+where	who	kind	form	gloss
+any	-	continued line	\ then a newline	a line continued onto the next, the two deleted
+any	-	comment	// to the end of the line, /* */ across lines	read as one space
+any	-	preprocessor	#include, #define, #undef, #if, #ifdef, #ifndef, #elif, #else, #endif, #line, #error, #pragma	the preprocessor
+any	-	use	use <file>.gsm	a .gsm file brought into .g, which the preprocessor writes as __gsm__(<file>.gsm)
+any	-	gsm block	__gsm__(...)	the switch into .gsm: the text inside, or the .gsm file it names
+any	-	address	@<name>.<name>	an address
+any	-	qualifier	?<identifier>	a qualifier, called at the address
+any	-	cost bound	($...)	a cost bound after the qualifier
+any	-	statement	C11 declarations and statements	everything outside __gsm__(...) is the high order face

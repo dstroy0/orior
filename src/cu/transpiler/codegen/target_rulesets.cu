@@ -2,7 +2,6 @@
 // target_rulesets.cu: rulesets read, loaded and written
 #include "target_internal.h"
 
-#include <fstream>
 #include <map>
 
 // the ruleset at `path` read whole into `rules` against its schema: 1 where its first line is krs 1, every entry holds,
@@ -55,17 +54,21 @@ static std::vector<std::string> ruleset_words(const std::string &line)
 std::vector<std::string> ruleset_parameters(const Ruleset *rules, const std::string &form)
 {
     std::vector<std::string> names;
-    std::ifstream ruleset(rules->path);
-    std::string line;
-    while (std::getline(ruleset, line))
+    std::string text;
+    std::string error;
+    ruleset_text(rules->schema, rules->path, &text, &error);
+    size_t at = 0u;
+    while (at < text.size())
     {
-        const std::vector<std::string> words = ruleset_words(line);
+        const size_t end = (text.find('\n', at) == std::string::npos) ? text.size() : text.find('\n', at);
+        const std::vector<std::string> words = ruleset_words(text.substr(at, end - at));
+        at = end + 1u;
         const int named = (words.size() >= 2u) && (words[1] == form) &&
                           ((words[0] == "form") || (words[0] == "err") || (words[0] == "nop") ||
                            (words[0] == "construct"));
-        for (size_t at = 2u; (named != 0) && (at < words.size()) && (words[at] != "="); at += 1u)
+        for (size_t word = 2u; (named != 0) && (word < words.size()) && (words[word] != "="); word += 1u)
         {
-            names.push_back(words[at]);
+            names.push_back(words[word]);
         }
         if (named != 0)
         {
@@ -120,8 +123,8 @@ void ruleset_folds_read(Ruleset *rules)
     fclose(file);
 }
 
-// a ruleset read once a process into `rules` from its schema's file; NULL where it errors. A ruleset naming
-// another toolchain or header than its code generator's path builds with errors with the rest
+// a ruleset read once a process into `rules` from its schema's file; NULL where it errors. Where the schema names a
+// toolchain and header, a ruleset naming others errors with the rest
 static const Ruleset *ruleset_load(Ruleset *rules, const RulesetSchema *schema, int report)
 {
     if (rules->tried != 0)
@@ -131,7 +134,8 @@ static const Ruleset *ruleset_load(Ruleset *rules, const RulesetSchema *schema, 
     rules->tried = 1;
     rules->schema = schema;
     rules->ready = ruleset_read(rules, ruleset_folder() + "/" + schema->file);
-    if ((rules->ready != 0) && ((rules->toolchain != schema->toolchain) || (rules->header != schema->header)))
+    if ((rules->ready != 0) && (schema->toolchain != NULL) &&
+        ((rules->toolchain != schema->toolchain) || (rules->header != schema->header)))
     {
         rules->ready = 0;
         rules->error =
@@ -166,6 +170,11 @@ Target::~Target()
 const Ruleset *Target::ruleset(int report)
 {
     return ruleset_load(rules, rules->schema, report);
+}
+
+const RulesetSchema *Target::schema(void) const
+{
+    return rules->schema;
 }
 
 const Ruleset *Target::ready(void) const

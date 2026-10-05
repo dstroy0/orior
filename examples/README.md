@@ -11,7 +11,7 @@ examples/<subject>/<stage>/<file>.py
 
 The subject says what kind of corpus it reads. The stage says which step of the reading it does. So `language/4_measure/cross_corpus.py` performs a measurement on text.
 
-Every script sits at that depth, and not one counts parent directories to locate the repository. They start at their own directory and walk up until they find `src/python`. Counting parent directories breaks when a file moves: its distance from the root changes, its imports fail, and the breakage does not show up until somebody runs the script.
+Every script sits at that depth, and not one counts parent directories to locate the repository. They start at their own directory and walk up until they find `archive/src/python`. Counting parent directories breaks when a file moves: its distance from the root changes, its imports fail, and the breakage does not show up until somebody runs the script.
 
 ## Stages
 
@@ -47,7 +47,7 @@ Where a subject has no script for a stage, the directory is absent. That means n
 
 Start with `any_corpus`. Those scripts do not know what they are reading, and the rest of the work rests on that claim. Each other subject runs the same steps with domain knowledge added at stage one, and some of them can check the answer at stage six.
 
-Four directories sit outside the subject and stage layout. `0_experimental` holds work that does not yet fit a subject or a stage. `00_blob_viz_tools` is the viewers, a Python generator plus an HTML template each, documented in its own README. `proofing` is the precision work the ledger rests on, the pi-digit reading and the device and host arithmetic engines. `cell_tracking` is a full implementation with its own build scripts, configs, source and tests, not a walk through a corpus.
+Five directories sit outside the subject and stage layout. `0_experimental` holds work that does not yet fit a subject or a stage. `00_blob_viz_tools` is the viewers, a Python generator plus an HTML template each, documented in its own README. `proofing` is the precision work the ledger rests on, the pi-digit reading and the device and host arithmetic engines. `cell_tracking` is a full implementation with its own build scripts, configs, source and tests, not a walk through a corpus. `qasm` is the exact qubit states read from OpenQASM, with its own build scripts, source and tests.
 
 The proofs of the posits the ledger cites are not under `examples/`. They are in `evidence/proofs/posits/`.
 

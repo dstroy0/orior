@@ -10,7 +10,8 @@
 #include "machine_ir.h"
 
 // the carry chains: the add chain, the subtract chain, and the subtract chain whose top limb leaves its borrow for
-// codegen_borrowed to read
+// codegen_borrowed to read. The borrow chain is the subtract chain's first and middle alone: a register of one limb
+// leaves its borrow as the first limb of a longer one does, and the top limb as a middle one does
 CODEGEN_CORE CarryChain codegen_add_chain(void)
 {
     const CarryChain chain = {OPCODE_WORD_ADD, OPCODE_WORD_ADD_FIRST, OPCODE_WORD_ADD_MIDDLE, OPCODE_WORD_ADD_LAST};
@@ -26,8 +27,8 @@ CODEGEN_CORE CarryChain codegen_subtract_chain(void)
 
 CODEGEN_CORE CarryChain codegen_borrow_chain(void)
 {
-    const CarryChain chain = {OPCODE_WORD_BORROW, OPCODE_WORD_BORROW_FIRST, OPCODE_WORD_BORROW_MIDDLE,
-                              OPCODE_WORD_BORROW_LAST};
+    const CarryChain chain = {OPCODE_WORD_SUB_FIRST, OPCODE_WORD_SUB_FIRST, OPCODE_WORD_SUB_MIDDLE,
+                              OPCODE_WORD_SUB_MIDDLE};
     return chain;
 }
 

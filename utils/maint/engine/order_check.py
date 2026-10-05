@@ -476,7 +476,7 @@ def check_tables_agree(say):
     say("   A pair named apart in the two tables is two candidates, and the asks that read the")
     say("   transition decide between them in that situation: a bit excludes, a magnitude ranks.")
     say("   A transition and its mirror named apart is a direction, which the part is asked for:")
-    say("   utils/test/src/c/transpiler/bootstrap/branch_side_check.c reads whether a side leaves a mark.")
+    say("   utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c reads whether a side leaves a mark.")
     return len(contradicted), len(mirrored)
 
 def main():

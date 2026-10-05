@@ -1,0 +1,8 @@
+where	who	kind	form	gloss
+line 1	klq_write	klq	klq <stem>	the bridge between languages, its stem L*
+body	klq_write	key	key <form>	a schema form name, gnascor's and no target's
+body	klq_write	pair	pair <form> <form>	two forms whose sameness the text leaves open
+body	-	case	case <case>	a case put to the pair
+body	-	closed	closed <case>	two operations, and the case that witnessed it
+body	klq_write	open	open <count>	alike on every case asked, and its count of cases alike
+any	-	comment	# <text>	a comment

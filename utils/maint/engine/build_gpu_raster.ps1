@@ -21,10 +21,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
-$render = Join-Path $root "src\c\engine\render"
+$render = Join-Path $root "src\cu\engine\render"
 $render_cu = Join-Path $root "src\cu\engine\render"
-$exact = Join-Path $root "src\c\types\integers"
-$sift = Join-Path $root "src\c\engine\nbody\orior"
+$exact = Join-Path $root "src\cu\types\integers"
+$sift = Join-Path $root "src\cu\engine\nbody\orior"
 $bench = Join-Path $root "utils\bench"
 $out = Join-Path $root "build\engine_gpu"
 

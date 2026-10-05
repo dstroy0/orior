@@ -58,19 +58,17 @@
     form_(WORD_SUB_FIRST, "word_sub_first", 3u)           \
     form_(WORD_SUB_MIDDLE, "word_sub_middle", 3u)         \
     form_(WORD_SUB_LAST, "word_sub_last", 3u)             \
-    form_(WORD_BORROW, "word_borrow", 3u)                           \
-    form_(WORD_BORROW_FIRST, "word_borrow_first", 3u)               \
-    form_(WORD_BORROW_MIDDLE, "word_borrow_middle", 3u)             \
-    form_(WORD_BORROW_LAST, "word_borrow_last", 3u)                 \
     form_(WORD_BORROW_READ, "word_borrow_read", 2u)                 \
     form_(WORD_COPY, "word_copy", 2u)                               \
     form_(WORD_SET, "word_set", 2u)                                 \
     form_(WORD_BITAND, "word_bitand", 3u)                                 \
     form_(WORD_BITOR, "word_bitor", 3u)                                   \
     form_(WORD_BITXOR, "word_bitxor", 3u)                                 \
+    form_(WORD_NOT, "word_not", 2u)                                       \
     form_(WORD_SHL, "word_shl", 3u)                   \
     form_(WORD_SHR, "word_shr", 3u)                 \
     form_(WORD_FUNNEL_RIGHT, "word_funnel_right", 4u)               \
+    form_(SIGNED_WORD_SHR, "signed_word_shr", 3u)                   \
     form_(WORD_MUL, "word_mul", 3u)                       \
     form_(WORD_MUL_ADD, "word_mul_add", 4u)               \
     form_(WORD_DIV, "word_div", 3u)                           \

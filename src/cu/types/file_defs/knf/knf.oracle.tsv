@@ -1,0 +1,12 @@
+where	who	kind	form	gloss
+head 0	krep_head_write	magic	8 bytes	KREP and four zero bytes
+head 1	krep_head_write	kind	4 bytes	the file's kind
+head 2	krep_head_write	version	1 limb	KREP_VERSION; a file of another version errors on read
+body 0	krep_history_write	extent	4 words	the history's extent
+body 1	krep_history_write	window	1 word	ENGINE_HISTORY_WINDOW
+body 2	krep_history_write	windows	1 word	the history's windows
+body 3	krep_history_write	payload_crc	1 word	the payload's CRC
+body 4	krep_history_write	cloud_crc	1 word	the cloud's CRC
+body 5	krep_history_write	sample	1 signum	the history's sample
+body 6	krep_history_write	cloud	windows * windows words	the cloud
+body 7	krep_history_write	history	krep_history_words words	the history, the noise as identity

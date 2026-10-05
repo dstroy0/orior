@@ -3,7 +3,7 @@
 **Purpose:** Hold the settled parts of the first-move-advantage work apart from the open ones. Work picked
 up later then re-derives neither. **Scope:**
 `examples/game_theory/6_oracle/first_move_advantage.py`, over the game backend in
-`src/python/includes/formats/representation/game/` and the sift in `src/python/engine/nbody/orior/sift/`.
+`archive/src/python/includes/formats/representation/game/` and the sift in `archive/src/python/engine/nbody/orior/sift/`.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
 
@@ -20,7 +20,7 @@ still imports `from representation.game import chess, rules`, and `kpk_value_of_
 
 Does the side that moves first have an advantage? The move-sequence tree is the wrong place to read
 it: it is unbounded, and a bounded search folds a horizon into the number, which this subject refuses
-(`src/python/includes/formats/representation/game/rules.py`, the UNRESOLVED discipline). The question is put as
+(`archive/src/python/includes/formats/representation/game/rules.py`, the UNRESOLVED discipline). The question is put as
 a magnitude instead.
 
 ## The windicator
@@ -31,7 +31,7 @@ rests at 0 when no winning path survives. A winning path bottoms out where the o
 move, which is checkmate as the backend already reports it. The two windicators are separate state,
 one per player. This is the orior construction named for a game: exact rationals are the exact
 measure, a move keeping only some branches-to-win is the necessary-condition sift over
-`src/python/engine/nbody/orior/sift/anchors.py`, and refusing to fold the horizon is the no-bounding rule.
+`archive/src/python/engine/nbody/orior/sift/anchors.py`, and refusing to fold the horizon is the no-bounding rule.
 
 ## Taming the infinite movers with the field's own rule
 
@@ -144,7 +144,7 @@ in a material class, computed by retrograde induction from terminals and correct
 draw rules that make value depend on the path.
 
 - **Nodes and edges.** A node is the backend state (board, side to move, castling rights, en passant
-  square). Edges are legal moves from `src/python/includes/formats/representation/game/chess.py`.
+  square). Edges are legal moves from `archive/src/python/includes/formats/representation/game/chess.py`.
 - **Terminals.** No legal move is a loss for the mover if the king is in check (checkmate) and a draw
   if not (stalemate). Insufficient material is a draw. These are the base cases of the induction.
 - **Irreversible moves partition the graph.** A pawn move or a capture resets both the repetition

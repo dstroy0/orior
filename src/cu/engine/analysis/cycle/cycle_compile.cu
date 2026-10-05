@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile.cu: a program's C source built by the host's compiler, and run resident on the host
 //
-// CYCLE_RECORD_HOST_C=1 builds each lane written as C source (CTarget::program) with the host's C++ compiler in
+// CYCLE_RECORD_HOST_C=1 builds each lane written as C source (code_generator("c.krs")) with the host's C++ compiler in
 // place of NVRTC: the lane and its resident (program_unit) under a host prelude that reads the CUDA names they use
 // with each host thread a thread block of one thread. The text is compiled to a shared library in the cache folder,
 // kept there by its text, and loaded; its resident, cycle_program, runs the lanes on the host's threads, as many as

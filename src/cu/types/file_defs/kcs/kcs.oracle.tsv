@@ -1,0 +1,8 @@
+where	who	kind	form	gloss
+head 0	krep_head_write	magic	8 bytes	KREP and four zero bytes
+head 1	krep_head_write	kind	4 bytes	the file's kind
+head 2	krep_head_write	version	1 limb	KREP_VERSION; a file of another version errors on read
+body 0	krep_forms_write	forms	1 word	the forms, at most KREP_FORMS_MAX
+body 1	krep_forms_write	name_words	1 word	the name words, at most KREP_FORMS_MAX
+body 2	krep_forms_write	crc	1 word	the CRC-64 of the words
+body 3	krep_forms_write	words	forms + name_words words	each form's cost as the target measured it, then the forms' names, each ended by a zero byte and the last word padded with zeros

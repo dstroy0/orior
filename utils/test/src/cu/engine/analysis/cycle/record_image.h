@@ -7,7 +7,7 @@
 // run; the memory image a lane runs over, laid out as the device lays out its launch; and the files a lane's bench
 // reads the image from and writes its records to. It compiles as C++
 
-#include "../../../../c/engine/analysis/cycle/record_programs.h"
+#include "record_programs.h"
 #include "target.h"
 
 #include <stddef.h>

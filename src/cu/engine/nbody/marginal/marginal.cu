@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../../../c/engine/nbody/marginal/marginal.h"
+#include "marginal.h"
 
 #include <cuda_runtime.h>
 

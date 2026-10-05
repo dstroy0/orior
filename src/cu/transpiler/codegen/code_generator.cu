@@ -19,8 +19,8 @@ static const RulesetName s_regclass_names[REGCLASS_COUNT] = {REGCLASSES(REGCLASS
 
 static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRITTEN)};
 
-// The record program as a register lane, in any language whose ruleset writes the lane's forms (PTX's is
-// ptx.krs): each step unrolled at its widths into straight-line text over registers the lane holds itself. The
+// The record program as a register lane, in any language whose ruleset writes the lane's forms: each step
+// unrolled at its widths into straight-line text over registers the lane holds itself. The
 // file is a bank by place and its signs another, as key_schedule laid them out; the record's words are a bank, laid out
 // by each put and each stored once the last put that lays it out has run; the atoms' words are a bank, each loaded
 // at its first reader. What a compiler would loop over a register's limbs is written out here limb by limb from
@@ -38,10 +38,10 @@ static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRIT
 // top. The text is the whole program, and nothing hand-written is linked with it.
 
 // Where each bank begins in the register file, and how many registers one of its own takes. A language whose
-// registers are virtual (PTX's %v and %t, C's arrays, VHDL's variables) gives every bank a namespace of its own and
-// leaves this zero; a language with one register file (SASS) has every bank in that file, and a bank numbered from 0
-// like every other collides with them. The banks are laid end to end from the counts the lane declares, and a bank
-// whose registers are 64 bits takes two of the file's for each of its own.
+// registers are virtual gives every bank a namespace of its own and leaves this zero; a language with one register
+// file has every bank in that file, and a bank numbered from 0 like every other collides with them. The banks are
+// laid end to end from the counts the lane declares, and a bank whose registers are 64 bits takes two of the file's for
+// each of its own.
 struct RegisterFile
 {
     unsigned int at[REGCLASS_COUNT];
@@ -266,24 +266,54 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
     return (unsigned int)maximum + CODEGEN_KEPT_WORDS + (2u * program->members);
 }
 
-// each language's schema, kept for the process: the lane's forms, banks and fixed registers, and the file, the
-// toolchain and the header the language names. A deque keeps each where it was laid out as more are laid out
+// each ruleset's schema, kept for the process: the lane's forms, banks and fixed registers, and the file. The toolchain
+// and the header are the file's own. A deque keeps each where it was laid out as more are laid out
 static std::deque<RulesetSchema> s_ruleset_schemas;
 
 static std::mutex s_ruleset_schemas_mutex;
 
-static const RulesetSchema *code_generator_schema(const char *file, const char *toolchain, const char *header)
+static const RulesetSchema *code_generator_schema(const char *file)
 {
     const std::lock_guard<std::mutex> lock(s_ruleset_schemas_mutex);
-    s_ruleset_schemas.push_back({file, toolchain, header, s_opcode_names, OPCODE_COUNT, s_regclass_names,
-                                 REGCLASS_COUNT, s_physreg_names, PHYSREG_COUNT});
+    s_ruleset_schemas.push_back({file, NULL, NULL, s_opcode_names, OPCODE_COUNT, s_regclass_names, REGCLASS_COUNT,
+                                 s_physreg_names, PHYSREG_COUNT});
     return &s_ruleset_schemas.back();
 }
 
-CodeGenerator::CodeGenerator(const char *file, const char *toolchain, const char *header, unsigned int write_ports,
-                             int shared)
-    : Target(code_generator_schema(file, toolchain, header)), write_ports(write_ports), shared(shared)
+CodeGenerator::CodeGenerator(const char *file) : Target(code_generator_schema(file))
 {
+}
+
+// the code generators a process holds, one a ruleset file, each kept where it was made
+static std::map<std::string, CodeGenerator *> s_code_generators;
+
+static std::mutex s_code_generators_mutex;
+
+CodeGenerator &code_generator(const char *file)
+{
+    const std::lock_guard<std::mutex> lock(s_code_generators_mutex);
+    CodeGenerator *&generator = s_code_generators[std::string(file)];
+    if (generator == NULL)
+    {
+        generator = new CodeGenerator(file);
+    }
+    return *generator;
+}
+
+// the memory writes the ruleset's text makes in one state, its line write_ports, SCHEDULE_UNBOUNDED where it gives
+// none or is not read
+static unsigned int code_generator_write_ports(const Ruleset *rules)
+{
+    if ((rules == NULL) || rules->write_ports.empty())
+    {
+        return SCHEDULE_UNBOUNDED;
+    }
+    unsigned int ports = 0u;
+    for (const char digit : rules->write_ports)
+    {
+        ports = (ports * 10u) + (unsigned int)(digit - '0');
+    }
+    return ports;
 }
 
 // A program's lane and its resident as the core decides them, into `items` in the text's order: the note, the header's
@@ -373,8 +403,8 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
         // a 64-bit temporary takes two words
         step_words[at] = lane.temps + (2u * lane.wides);
     }
-    // the lane calls nothing; it holds places in shared memory only where its language lays out the file there
-    *places = (shared != 0) ? layout->file_limbs : 0u;
+    // the lane calls nothing; it holds places in shared memory only where its ruleset gives shared 1
+    *places = (rules->shared == "1") ? layout->file_limbs : 0u;
     const unsigned int place_count = *places;
     const unsigned int *const error = errors.data();
     const unsigned int tables = lane.tables;
@@ -518,6 +548,6 @@ ScheduleCosts CodeGenerator::schedule_costs(const ScheduleModel &model) const
     }
     costs.budget = model.budget;
     costs.writes = model.writes;
-    costs.ports = write_ports;
+    costs.ports = code_generator_write_ports(ready());
     return costs;
 }

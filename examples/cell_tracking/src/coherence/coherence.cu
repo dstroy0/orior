@@ -2,8 +2,8 @@
 #include "coherence.h"
 
 #include "answer_key.h"
-#include "../../../../src/c/engine/runtime/radix_keys/radix_keys.h"
-#include "../../../../src/c/engine/analysis/shift_agreement/shift_agreement.h"
+#include "../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
+#include "../../../../src/cu/engine/analysis/shift_agreement/shift_agreement.h"
 #include "track.h"
 #include "vis_png.h"
 

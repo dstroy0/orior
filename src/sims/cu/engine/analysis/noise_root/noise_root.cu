@@ -6,9 +6,9 @@
 // every yank returns the box exactly.
 #include "sim_camera.h"
 
-#include "../../../../../c/engine/analysis/compression/compression.h"
-#include "../../../../../c/engine/analysis/noise_detector/noise_detector.h"
-#include "../../../../../c/engine/analysis/tower/tower.h"
+#include "../../../../../cu/engine/analysis/compression/compression.h"
+#include "../../../../../cu/engine/analysis/noise_detector/noise_detector.h"
+#include "../../../../../cu/engine/analysis/tower/tower.h"
 
 #define ROOT_KEY 0x524F4F544E4Full
 

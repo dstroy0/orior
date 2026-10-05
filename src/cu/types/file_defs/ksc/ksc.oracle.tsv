@@ -1,0 +1,10 @@
+where	who	kind	form	gloss
+line 1	interface_sass_probe_class	ksc	ksc <system>	the system this file classifies
+body	interface_sass_probe_class	channel	channel <channel> <text>	the channels this system answers on
+body	interface_sass_probe_class	class	class <answer> <text>	what an answer can be
+body	interface_sass_probe_class	count	count <channel> <answer> <number>	every question put, counted by the channel it went out on and what came back
+body	interface_sass_probe_class	<channel>	<channel> <answer> <word> <question>	every question the system was asked in its own code, one a line: the channel, what came back, the word it answered, and the question
+body	interface_sass_probe_class	equal	equal <writing> <writing>	writings the system answers alike: an operation written where the ruleset holds the other, each giving the same machine code
+body	interface_sass_probe_class	compile	compile folds <word> <form>: the system folds the <kind> put for <parameter>	a form the system folds into one instruction of its own
+body	interface_sass_probe_class	form	form <name> <parameter>... = <text>	a fold as the ruleset beside this file reads it after its own lines and its part's
+any	-	comment	# <text>	a comment
