@@ -1,0 +1,899 @@
+where	who	kind	form	gloss
+front	Henry Davis and Jason Brown	title	On A'-Dependencies in Gitksan	page 1
+front	Henry Davis and Jason Brown	name	Henry Davis	author
+front	Henry Davis and Jason Brown	name	Jason Brown	author
+front	Henry Davis and Jason Brown	note	University of British Columbia and University of Auckland	page 1, under Jason Brown
+front	Henry Davis and Jason Brown	note	On first examination, the syntax of WH-questions in Gitksan (Interior Tsimshianic) shows a pattern characteristic of the Pacific Northwest Sprachbund: an initial, predicative WH- phrase takes an argument DP, which may be simple (in identificational contexts) or complex: in the latter case the DP appears to be a ‘headless’ (pro-headed) relative clause containing a – possibly long range – A'-dependency. However, closer investigation reveals a rather more complex picture. To start with, Gitksan WH-phrases show up unexpectedly in intermediate positions in long-range dependencies (thus resembling cases of ‘copy-movement’) and – as in English, but not other Pacific NW language families – clause-initially in both headed and ‘headless’ relatives. Furthermore, though focus movement shows an identical morphological profile to WH-questions, and also involves a (possibly long-range) A'- dependency, it crucially does not allow intermediate or clause- initial WH-phrases. These facts support the following conclusions: first, WH-pronouns undergo overt movement in Gitksan relative clauses to clause-initial position; and second, focusing in Gitksan does not involve relativization (as would be predicted by an ‘indirect movement’ analysis), but direct movement of the focused constituent to clause-initial position. The result is that the surface similarities between Gitksan A'- dependencies and their counterparts in other NW Coast languages conceal different underlying syntactic mechanisms; a result which highlights both the superficiality of shared characteristics in the NW Sprachbund and the more profound structural differences which they conceal. 1 This research would have been impossible without the help of Gitksan consultants Mr. Vincent Gogag and particularly Mrs. Barbara Sennott, whose tireless dedication to her language is an inspiration to us. We would also like to thank Lisa Matthewson, Alyssa Satterwhite, Savanna van der Zwan and audiences at the 45th ICSNL in Eugene, Oregon and at UBC. Our work has been supported by SSHRC grant #410-2008-2535 and a UBC Arts Undergraduate Research Award to the first author, and by a Jacobs Fund grant to the second author. We take full responsibility for errors of fact or interpretation. 43	page 1, the abstract
+footnote 1	Henry Davis and Jason Brown	note	This research would have been impossible without the help of Gitksan consultants Mr. Vincent Gogag and particularly Mrs. Barbara Sennott, whose tireless dedication to her language is an inspiration to us. We would also like to thank Lisa Matthewson, Alyssa Satterwhite, Savanna van der Zwan and audiences at the 45th ICSNL in Eugene, Oregon and at UBC. Our work has been supported by SSHRC grant #410-2008-2535 and a UBC Arts Undergraduate Research Award to the first author, and by a Jacobs Fund grant to the second author. We take full responsibility for errors of fact or interpretation.	page 1, footnote 1
+footnote 1	Henry Davis and Jason Brown	name	Vincent Gogag	Gitksan consultant, note 1
+footnote 1	Henry Davis and Jason Brown	name	Barbara Sennott	Gitksan consultant, note 1
+footnote 1	Henry Davis and Jason Brown	name	Lisa Matthewson	thanked, note 1
+footnote 1	Henry Davis and Jason Brown	name	Alyssa Satterwhite	thanked, note 1
+footnote 1	Henry Davis and Jason Brown	name	Savanna van der Zwan	thanked, note 1
+front	Henry Davis and Jason Brown	language	Gitksan	Tsimshianic, the language of the paper
+§1	Henry Davis and Jason Brown	heading	1 Introduction	page 2
+§1	Henry Davis and Jason Brown	note	This paper examines the syntax of A'-dependencies in Gitksan (Interior Tsimshianic, henceforward IT).2 While both major grammars of IT (Rigsby 1986 on Gitksan and Tarpent 1987 on Nisgha) provide information on the morphology and core syntax of A’-dependencies, and Hunt (1993) contains some important preliminary findings on long-range dependencies, this is the first in-depth comparison of the syntax of the three major types of A'-dependency in IT: WH- questions, relative clauses, and focus constructions.	page 2
+footnote 2	Henry Davis and Jason Brown	note	Together with Nisgha, Gitksan forms the Interior branch of the Tsimshianic language family, spoken in NW British Columbia along the watersheds of the Nass and Skeena rivers. Nisgha and Gitksan are mutually intelligible, and have in the past been treated as dialects of the same language, ‘Nass-Gitksan’. However, these days, for political and cultural reasons, it is the usual practice to treat them as separate languages (see Rigsby 1986, 1989). Gitksan itself has two major dialect groups, one in the west, referred to as Gyanimx̱, the other in the East, referred to as Gitxsanimx̱. Since the entire language (excluding Nisgha) also goes by the latter term, we retain the linguistic name ‘Gitksan’ here in order to avoid confusion.	page 2, footnote 2
+§1	Henry Davis and Jason Brown	language	Nisgha	with Gitksan the Interior branch of the Tsimshianic language family, footnote 2
+§1	Henry Davis and Jason Brown	note	After presenting some background information on the basic syntax and morphology of the language in 2.1, and introducing WH-questions in 2.2, in Section 3 we lay out an analysis in which all three types of A'-dependency contain a relative clause. According to this analysis, familiar from research on other NW languages, WH-questions and focus structures consist of a base- generated nominal predicate and a DP argument: the latter may be simple, giving rise to identificational structures, or may contain a relative clause, in which movement of a null operator creates a (possibly long-distance) A'-dependency. Under this ‘indirect movement’ analysis, there is no direct WH-movement or focus movement: instead, all movement-related properties derive from an A'- dependency inside the relative clause which serves as argument to the nominal predicate.3	page 2
+footnote 3	Henry Davis and Jason Brown	note	We avoid the term ‘cleft’ in favour of ‘indirect movement’, because we reserve the former for what Kroeber (1999), discussing Salish, describes as ‘introduced clefts’: that is structures in which a focused argument is introduced by a clefting particle. Though (introduced) clefts are themselves a type of indirect movement structure, they need to be distinguished from the cases we are discussing here, which lack an introductory particle and feature a bare nominal predicate. IT does have clefts, introduced by the third person singular Series III pronoun ‘nit. For present purposes, we set them aside; they are an important topic for future investigation.	page 2, footnote 3
+footnote 3	Gitksan	cited form	‘nit	page 2, in italics
+§1	Henry Davis and Jason Brown	note	We show that there is considerable evidence for the indirect movement analysis of both WH-questions and focus movement structures in IT: first, bare nominal predicates are independently attested; second, as shown in 3.2, WH- words are nouns; third, the A’-extraction morphology characteristic of relativization also shows up in WH-questions and focusing structures; and fourth, all three types of dependency show the same typical A'-movement profile: they form long-distance dependencies which are subject to standard island constraints.	page 2
+§1	Henry Davis and Jason Brown	note	However, in Section 4 we present some previously unreported observations which are quite puzzling for the indirect movement account. In particular, Gitksan appears to have an analogue of ‘copy movement’, in which WH-words in long-range questions show up optionally in intermediate COMP positions, in addition to their normal sentence-initial position. This is unexpected on the indirect movement account of WH-questions, where the initial predicative WH-phrase is base-generated externally to the relative clause containing the A'- dependency: since the WH-phrase itself does not move, it is hard to see how it can leave an intermediate copy.	page 3
+§1	Henry Davis and Jason Brown	note	A solution to the problem posed by copy movement is provided by another new observation, which we present in 4.2: in Gitksan, WH-pronouns occur in clause-internal fronted positions in relative clauses. Though WH-words are particularly frequent in ‘headless’ relatives, they are also optionally present in headed relatives, showing that they cannot themselves be relative clause heads, but instead play the role of relative pronouns: that is, they undergo direct WH- movement within the relative clause.	page 3
+§1	Henry Davis and Jason Brown	note	Given the existence of WH-relative pronouns, we show in 4.3 that the copy movement properties of long-distance dependencies can be accounted for without abandoning the indirect movement account of WH-questions: the intermediate WH-phrases are copies of the WH-relative pronoun within the relative clause, not of the external predicative WH-phrase.	page 3
+§1	Henry Davis and Jason Brown	note	In Section 4.4, we reveal a further important finding: while relative clauses and WH-questions may contain WH-relative pronouns, focus-movement structures may not. This indicates that focus movement is direct, not indirect: a surprising conclusion both within the grammar of Gitksan (since in other respects, focus movement parallels WH-questions and relative clauses) and more broadly, for the typology of A'-dependencies across the NW Sprachbund, where indirect movement is the rule for focusing structures. We then reconsider in 4.5 the possibility that WH-questions might also involve a direct dependency, concluding tentatively that they can be formed either by indirect or by direct movement.	page 3
+§1	Henry Davis and Jason Brown	note	We conclude by considering two issues which arise from our investigation. First, the existence of an English-like WH-relative pronoun in a grammar so unlike that of English in so many other respects raises inevitable questions about the possibility of English influence on what Tarpent (1987) refers to as ‘younger fluent speakers’ (YFS). Though we are sceptical as to whether English influence alone could account for the particular pattern of A'- dependencies we find in Gitksan, we observe that the distribution of WH-relative pronouns parallels that of the particle hli/hla, termed ‘definite’ by Rigsby (1986: 399) and ‘restrictive’ by Tarpent (1987: 471); we consider the possibility that the WH-relative pronoun may have partially replaced hli/hla in the grammars of YFS.	page 3
+§1	Gitksan	cited form	hli/hla	page 3, in italics
+§1	Henry Davis and Jason Brown	note	Finally, we consider the implications of our findings for the relationship of Tsimshianic languages to the rest of the NW Sprachbund (see Beck 2000, 2002). Our conclusion here is that superficial similarities between A'- dependencies across unrelated language families in the Sprachbund (where focusing, relativization and WH-questions appear to follow an identical pattern) conceal important underlying differences.	page 3
+§2	Henry Davis and Jason Brown	heading	2 Background	page 4
+§2	Henry Davis and Jason Brown	note	In this section, we provide some necessary preliminaries to the main investigation. In 2.1 we give a brief overview of major relevant features of IT clausal syntax, drawing largely on the work of Rigsby (1986), Tarpent (1987), and Hunt (1993), before providing an introduction to the basic morphosyntax of WH-questions in 2.2.	page 4
+§2.1	Henry Davis and Jason Brown	heading	2.1 A very brief overview of the IT clause	page 4
+§2.1	Henry Davis and Jason Brown	note	Clausal syntax in IT syntax is organized around a fundamental split between what we will refer to as independent and dependent clauses, following Rigsby (1986). The distinction roughly corresponds to a main/subordinate clause distinction, though dependent clauses are sometimes used as main clauses in narrative contexts, and are generally viewed as the ‘unmarked’ member of the pair; a better analogy is probably to the independent and conjunct modes in Algonquian (see Cook 2008 and references therein). Inflectional morphology in the two clause-types is organized quite differently, though there is overlap in the elements involved, and in both types, morphological alignment is thoroughly ergative. There are three sets of pronouns, sharply distinguished by morphological type as well as distribution.	page 4
+§2.1	Henry Davis and Jason Brown	note	Series I pronouns are ergative clitics which precede the main predicate in transitive dependent clauses. Series II pronouns are suffixes which occur in both independent and dependent clauses but with different functions: in independent clauses, they are ergative, whilst in dependent clauses they are absolutive. In addition, they serve as possessors in NP and as the objects of prepositions. Series III pronouns are independent words, which occur mainly in independent clauses as absolutives. See Appendix II.B for a summary of these patterns.	page 4
+§2.1	Henry Davis and Jason Brown	note	The distribution of pronominal inflection also interacts with a somewhat mysterious morpheme -(y)ə variously referred to as ‘transitive’ (Rigsby 1986), ‘control’ (Tarpent 1987), and ‘ergative’ (Hunt 1993), which surfaces in transitive independent clauses between the verb stem and Series II pronominal suffixes; as such, it is in complementary distribution with Series I pronominals, which only occur in dependent clauses. The analysis of this element is controversial, but need not particularly concern us here: see the references above.	page 4
+§2.1	Henry Davis and Jason Brown	note	Oblique arguments as well as non-clausal adjuncts are introduced by prepositions, generally the all-purpose preposition a-, which has suppletive pronominal forms beginning with lo-. For an inventory of the pronoun series and a summary of their distribution see Appendix II.B.	page 4
+§2.1	Gitksan	cited form	a-	page 4, in italics
+§2.1	Gitksan	cited form	lo-	page 4, in italics
+§2.1	Henry Davis and Jason Brown	note	A second major component of IT morphosyntax is the connective system. Connectives are semantically vacuous determiner-like elements which introduce all non-clausal arguments as well as certain subordinate clauses. They come in two flavours, whose distribution is determined by a distinction between determinate and non-determinate marking (the term is from Tarpent 1987: 165).	page 4
+§2.1	Henry Davis and Jason Brown	note	Determinates include proper names, the WH-pronoun naa ‘who, someone’, demonstratives and (at least historically) Series III (independent) pronouns; non-determinates include everything else. Determinate marking is complex, because it consists of two elements, a suffix -s, which attaches to the predicate (though it is associated syntactically with the following argument) and a (typically) proclitic t (singular) or dip (plural).4 Determinate t deletes after -s, so the two never co-occur when associated with the same argument: -s, however, is limited to environments immediately following a Series II pronominal suffix on the predicate, so t shows up elsewhere. There is disagreement in the literature over whether -s, t or both should count as connectives: Rigsby (1986) identifies both as connectives, Tarpent characterizes -s as the connective and t/dip as determinate markers, and Hunt (1993) claims that t/dip are the connectives and -s is a case marker. We will not attempt to choose between these options here: we simply gloss -s as ‘proper noun’ (PN) and t/dip as ‘determinate markers’ (DM).	page 5
+footnote 4	Henry Davis and Jason Brown	note	Rigsby, Tarpent and Hunt all treat -s as an enclitic rather than a suffix. However, -s is always morphologically bound to the lexical head immediately preceding the determinate nominal with which it is associated, and therefore shows none of the variable positioning typical of clitics. In contrast, the common noun connective =hl attaches indiscriminately to the previous prosodic word, showing typical clitic-like behaviour. Though they do not give explicit reasons, Rigsby, Tarpent and Hunt are likely basing their analysis of -s as an enclitic on the fact that it follows the evidential markers =g̱at and =(y)ima(a) in the verb- string. These markers attach to the first predicative element in the clause (either an auxiliary or the main predicate), and therefore meet the morphological criteria for clitic- hood. By transitivity, if evidentials are enclitics, so should -s be. However, this conclusion only follows on the assumption that all clitics must attach outside all affixes; if the two may be interspersed, then morpheme order does not directly reflect morphological status, and -s can be treated as suffix even though it follows bona fide clitics in the verb string.	page 5, footnote 4
+footnote 4	Gitksan	cited form	=g̱at	page 5, in italics
+footnote 4	Gitksan	cited form	=(y)ima(a)	page 5, in italics
+§2.1	Gitksan	cited form	naa	page 5, in italics, ‘who, someone’
+§2.1	Gitksan	cited form	t	page 5, in italics
+§2.1	Gitksan	cited form	dip	page 5, in italics
+§2.1	Gitksan	cited form	-s	page 5, in italics
+§2.1	Gitksan	cited form	t/dip	page 5, in italics
+§2.1	Henry Davis and Jason Brown	note	In contrast to determinates, all non-determinates are marked by a simple enclitic =hl, which like -s, attaches to the previous prosodic word, but is otherwise unrestricted in its distribution; the same enclitic =hl is also used in absolutive extraction environments and to introduce certain kinds of dependent clause. The distribution and shape of connectives are summarized in Appendices II.C and II.D.	page 5
+§2.1	Gitksan	cited form	=hl	page 5, in italics
+§2.1	Henry Davis and Jason Brown	note	Finally, word order in IT is characterized by quite rigid Predicate- Subject-Object-Adjunct order, with one minor exception, involving Series III object pronouns in transitive clauses, which at least in the speech of older speakers typically precede overt nominal subjects (see Appendix II.E).	page 5
+§2.2	Henry Davis and Jason Brown	heading	2.2 Basic Description of IT WH-words	page 5
+§2.2	Henry Davis and Jason Brown	note	The morphosyntax of WH-questions in IT is described by Rigsby (1986: 296-302) and Tarpent (1987: 319-330). In both Gitksan and Nisgha, there are three basic WH-pronouns:5	page 5
+footnote 5	Henry Davis and Jason Brown	note	A fourth WH-pronoun, gax̱gwi/gax̱gu/ax̱gwi/dax̱gwi ‘when’ is built from the word for ‘what’: see Rigsby (1986: 301), Tarpent (1987: 374).	page 6, footnote 5
+footnote 5	Gitksan	cited form	gax̱gwi/gax̱gu/ax̱gwi/dax̱gwi	page 6, in italics, ‘when’
+(1a) line 1	Gitksan	transcription	naa	page 6
+(1a) line 2	Henry Davis and Jason Brown	translation	‘who, someone’6	page 6
+footnote 6	Henry Davis and Jason Brown	note	Examples are given in the practical orthography devised by Bruce Rigsby and Lonnie Hindle in the 1970s and now used by all literate Gitksan speakers (see Hindle and Rigsby 1973). A conversion chart to the APA is provided in Appendix I.	page 6, footnote 6
+(1b) line 1	Gitksan	transcription	(a)gu/gwi	page 6
+(1b) line 2	Henry Davis and Jason Brown	translation	‘what, something’7	page 6
+footnote 7	Henry Davis and Jason Brown	note	The different forms for ‘what’ possibly reflect a dialect division. While Rigsby (1986: 301) lists all of the forms in (1) for Gitksan, one of our consultants (from the Eastern dialect area) prefers (a)gwi, while the other (from the Western dialect area) uses (a)gu, which is also the form given by Tarpent 1987: 320) for Nisgha. The a- accretion on these forms (which is frequently omitted in WH-questions) is of obscure provenance; Tarpent (1987: 567) treats it as a prefix, but one whose meaning is so diffuse as to be virtually undefinable.	page 6, footnote 7
+footnote 7	Gitksan	cited form	(a)gwi	page 6, in italics
+footnote 7	Gitksan	cited form	(a)gu	page 6, in italics
+(1c) line 1	Gitksan	transcription	(hi)nda	page 6
+(1c) line 2	Henry Davis and Jason Brown	translation	‘where, which, how, somewhere, somehow’8	page 6
+footnote 8	Henry Davis and Jason Brown	note	The form hinda is the one used by both our consultants. Though it is not reported in Rigsby (1986) or Tarpent (1987), it is given as an alternate form for ‘where’ in Hindle and Rigsby (1973: 50).	page 6, footnote 8
+footnote 8	Gitksan	cited form	hinda	page 6, in italics
+§2.2	Henry Davis and Jason Brown	note	There is an important difference in argument-marking status between naa, which is determinate, and thus may be introduced by the determinate markers t (singular) and dip (plural), and the other WH-pronouns, which are non- determinate and are therefore introduced by =hl in appropriate contexts.	page 6
+§2.2	Henry Davis and Jason Brown	note	The equivalents of other WH-phrases are built by combining these basic WH-words with various subordinators, including wil, wilaa, and g̱an (see (10) – (13) below for examples).	page 6
+§2.2	Gitksan	cited form	wil	page 6, in italics
+§2.2	Gitksan	cited form	wilaa	page 6, in italics
+§2.2	Gitksan	cited form	g̱an	page 6, in italics
+§2.2	Henry Davis and Jason Brown	note	The canonical use of WH-pronouns is in information questions, where the WH-word is obligatorily clause-initial. There are two basic types of information question, which we refer to as simple and complex. Simple questions consist of an initial WH-word followed by a referential expression, typically a proper name, independent (Series III) pronoun, or demonstrative, as shown in (2)- (4) respectively:	page 6
+(2) line 1	Gitksan	transcription	Hinda t Tyler?	page 6
+(2) line 2	Gitksan	gloss	where DM Tyler9	page 6
+footnote 9	Henry Davis and Jason Brown	note	Abbreviations are as follows: I = Series I person marker, II = Series II person marker, III = Series III person marker, AFF = affirmative, ATT = attributive, AX = A (transitive subject) extraction marker, CN = common noun connective, CNTR = contrastive, COMP = complementizer, DM = determinate, DIST = distal, EMP = emphatic, FUT = future, IRR = irrealis, PL = plural, PN = proper noun connective, PREP = preposition, REL = relative, RSTR = restrictive, SG = singular, SX = S (intransitive subject) extraction marker, T = ‘T’ suffix, TRA = transitive, YNQ = yes-no question. A dash (-) marks an affix boundary and an equals sign (=) a clitic boundary.	page 6, footnote 9
+(2) line 3	Henry Davis and Jason Brown	translation	‘Where is Tyler?’	page 6
+(3) line 1	Gitksan	transcription	Naa (t) ‘niin?	page 7
+(3) line 2	Gitksan	gloss	who (DM) 2SG.III	page 7
+(3) line 3	Henry Davis and Jason Brown	translation	‘Who are you?’10	page 7
+footnote 10	Henry Davis and Jason Brown	note	The consultant who volunteered this sentence remarked that “Today, they would leave the t out.”	page 7, footnote 10
+(4) line 1	Gitksan	transcription	Gwi tust?	page 7
+(4) line 2	Gitksan	gloss	what that	page 7
+(4) line 3	Henry Davis and Jason Brown	translation	‘What is that?’	page 7
+§2.2	Henry Davis and Jason Brown	note	As can be inferred from the translations of (2)-(4), simple questions are used to ask about the identity or location of individuals.	page 7
+§2.2	Henry Davis and Jason Brown	note	Complex WH-questions are information questions in which a sentence- initial WH-element triggers distinctive extraction morphology on its clausal sister. There is a three-way contrast in extraction morphology, depending on whether an object, an intransitive subject, or a transitive subject has been extracted.11	page 7
+footnote 11	Henry Davis and Jason Brown	note	See Appendix II.F for a summary of extraction-related morphology.	page 7, footnote 11
+§2.2	Henry Davis and Jason Brown	note	In object extraction cases, the clause from which extraction has taken place remains in the independent order, as can be seen from the absence of a pre- predicative Series I clitic and the presence of transitive marking on the predicate in (5). Object extraction is further marked simply by the CN connective =hl preceding the clause from which extraction has taken place:	page 7
+(5a) line 1	Gitksan	transcription	Gwihl gubis John?12	page 7
+footnote 12	Henry Davis and Jason Brown	note	The verb in this example (and any other ending in the proper noun suffix -s) actually contains a deleted third person Series II suffix -t. The morphophonology of this suffix is quite opaque: it deletes immediately before -s and the connective =hl, so it only shows up when the latter are either non-adjacent to it or absent. See Tarpent (1987) and Hunt (1993: 116) for discussion. In order to maintain a reasonably transparent morpheme-by- morpheme gloss, we do not represent the 3SG.II suffix unless it surfaces overtly; nothing in the present article hinges on its distribution.	page 7, footnote 12
+footnote 12	Gitksan	cited form	-t	page 7, in italics
+(5a) line 2	Gitksan	gloss	what=CN eat-TRA-PN John	page 7
+(5a) line 3	Henry Davis and Jason Brown	translation	‘What did John eat?’	page 7
+(5b) line 1	Gitksan	transcription	Gwihl ga’an?	page 7
+(5b) line 2	Gitksan	gloss	what=CN see-TRA-2SG.II	page 7
+(5b) line 3	Henry Davis and Jason Brown	translation	‘What did you see?’	page 7
+§2.2	Henry Davis and Jason Brown	note	Intransitive subject extraction is similarly marked by =hl, with the addition of a suffixed -Vt on the predicate (the vowel is a schwa whose value is determined by the preceding consonant). The correct analysis of this suffix has been the subject of much debate, which we do not address here: we simply gloss it as SX for ‘S- extraction’. See Tarpent (1987), Hunt (1993) and Peterson (2006) for competing analyses. Examples are given in (6):	page 7
+(6a) line 1	Gitksan	transcription	Naahl limit?13	page 8
+footnote 13	Henry Davis and Jason Brown	note	One of our consultants pronounces this word as limixit (the stem is limx).	page 8, footnote 13
+footnote 13	Gitksan	cited form	limixit	page 8, in italics
+footnote 13	Gitksan	cited form	limx	page 8, in italics
+(6a) line 2	Gitksan	gloss	who=CN sing-SX	page 8
+(6a) line 3	Henry Davis and Jason Brown	translation	‘Who sang?’	page 8
+(6a) line 4	Henry Davis and Jason Brown	citation	(cf. Rigsby 1986: 303)	page 8, the tag or source at the right of the translation
+(6b) line 1	Gitksan	transcription	Dip naahl simgigadidist	page 8
+(6b) line 2	Gitksan	gloss	PL.DM who=CN chief(PL)-SX-AFF	page 8
+(6b) line 3	Henry Davis and Jason Brown	translation	‘Who are the chiefs?’	page 8
+§2.2	Henry Davis and Jason Brown	note	Transitive subject extraction is marked by a proclitic sequence an-t (sometimes t-an or just an, though these are not used by our consultants: see Rigsby 1986: 288), which introduces the clause containing the extraction site. The sequence consists of a complementizer-like element an and a t which is most likely the third person Series I clitic; however, we simply gloss the whole sequence as AX (where A stands for a transitive subject). The clause itself is dependent, as can be seen from the lack of transitive marking on the verb. Examples are given in (7).	page 8
+§2.2	Gitksan	cited form	an-t	page 8, in italics
+§2.2	Gitksan	cited form	t-an	page 8, in italics
+§2.2	Gitksan	cited form	an	page 8, in italics
+(7a) line 1	Gitksan	transcription	Naa [ant guphl suusiit]?14	page 8
+footnote 14	Henry Davis and Jason Brown	note	The word for ‘potato’ differs between dialects: suusiit is the Eastern form, as used here, sgusiit the Western version (also used by Nisgha speakers: see Tarpent 1987: 90). Note that our Eastern dialect consultant pronounces the word with a long u, unlike the dictionary entry in Hindle and Rigsby (1973: 37).	page 8, footnote 14
+footnote 14	Gitksan	cited form	sgusiit	page 8, in italics
+footnote 14	Gitksan	cited form	u	page 8, in italics
+(7a) line 2	Gitksan	gloss	who [AX eat=CN potato]	page 8
+(7a) line 3	Henry Davis and Jason Brown	translation	‘Who ate the potato?’	page 8
+(7b) line 1	Gitksan	transcription	Naa [ant ga’ahl ‘ul]	page 8
+(7b) line 2	Gitksan	gloss	who [AX see=CN bear]	page 8
+(7b) line 3	Henry Davis and Jason Brown	translation	‘Who saw the bear?’	page 8
+§2.2	Henry Davis and Jason Brown	note	‘Which’ questions are formed from (hi)nda plus a nominal restriction, accompanied (in the speech of one of our consultants) by the restricting element alp’a:15	page 8
+footnote 15	Henry Davis and Jason Brown	note	As far as we are aware, this is the first time this element has been documented: there is no mention of it in Rigsby, Tarpent or Hunt. It is only used by our Eastern dialect consultant.	page 8, footnote 15
+§2.2	Gitksan	cited form	(hi)nda	page 8, in italics
+§2.2	Gitksan	cited form	alp’a	page 8, in italics
+(8) line 1	Gitksan	transcription	Hindahl alp’a suusiithl gubis John	page 8
+(8) line 2	Gitksan	gloss	where=CN RSTR potato=CN eat-TRA-PN John	page 8
+(8) line 3	Henry Davis and Jason Brown	translation	‘Which potato did John eat?’	page 8
+§2.2	Henry Davis and Jason Brown	note	‘How many/much’ questions are also formed with (hi)nda, together with a measure word modifying the restriction:	page 8
+(9) line 1	Gitksan	transcription	Hindahl g̱abiihl suusiithl gubis John?	page 9
+(9) line 2	Gitksan	gloss	where=CN so.many=CN potato=CN eat-TRA-PN John	page 9
+(9) line 3	Henry Davis and Jason Brown	translation	‘How many potatoes did John eat?’	page 9
+§2.2	Henry Davis and Jason Brown	note	Adjunct questions (i.e., questions involving constituents with functions other than S, A, and O) always involve a subordinator, most frequently the complementizer wil (win in the Western dialect), which induces dependent order inflection in the following clause.16 The use of these complementizers is illustrated in (10)-(13) below, showing ‘where’, ‘how’, ‘why’, and ‘when’ questions:	page 9
+footnote 16	Henry Davis and Jason Brown	note	We use ‘adjunct’ here in its standard sense; this is not to be confused with the usage of Tarpent (1987) who adopts a version of the Pronominal Argument Hypothesis for Nisgha, according to which Series I and Series II pronouns are arguments, and therefore any covalued nominals must be treated as adjuncts. We do not adopt Tarpent’s analysis here: see Hunt (1993) for counter-arguments from Gitksan.	page 9, footnote 16
+§2.2	Gitksan	cited form	win	page 9, in italics
+(10a) line 1	Gitksan	transcription	Hinda wil ‘nim yin?	page 9
+(10a) line 2	Gitksan	gloss	where COMP want go-2SG.II	page 9
+(10a) line 3	Henry Davis and Jason Brown	translation	‘Where do you want to go?’	page 9
+(10b) line 1	Gitksan	transcription	Hinda wilt gubis Johnhl suusiit?	page 9
+(10b) line 2	Gitksan	gloss	where COMP=3SG.I eat-TRA-PN John=CN potato	page 9
+(10b) line 3	Henry Davis and Jason Brown	translation	‘Where did John eat the potato?’	page 9
+(11) line 1	Gitksan	transcription	Hinda wilaat gups Johnhl suusiit?	page 9
+(11) line 2	Gitksan	gloss	where COMP2=3SG.I eat-PN John=CN potato	page 9
+(11) line 3	Henry Davis and Jason Brown	translation	‘How did John eat the potato?’	page 9
+(12) line 1	Gitksan	transcription	Hindahl wilt g̱an wilt guphl suusiit	page 9
+(12) line 2	Gitksan	gloss	where=CN COMP=3SG.I reason COMP=3SG.I eat=CN potato	page 9
+(12) line 3	Henry Davis and Jason Brown	translation	‘Why did he eat the potato?’	page 9
+(13) line 1	Gitksan	transcription	Dax̱gwi wilt gups Johnhl suusiit?	page 9
+(13) line 2	Gitksan	gloss	when COMP=3SG.I eat-PN John=CN potato	page 9
+(13) line 3	Henry Davis and Jason Brown	translation	‘When did John eat the potato?’	page 9
+§2.2	Henry Davis and Jason Brown	note	The use of the all-purpose complementizer wil also characterizes WH- questions involving indirect objects. In (14) we give WH-questions with the verb gi’nam ‘give’, which, like other ditransitives in Gitksan, realizes its theme argument as direct object and its goal argument as a prepositional object, marked by the all-purpose preposition a-.	page 9
+§2.2	Gitksan	cited form	gi’nam	page 9, in italics, ‘give’
+(14a) line 1	Gitksan	transcription	Gwihl gi’namin as Alyssa?	page 9
+(14a) line 2	Gitksan	gloss	what=CN give-2SG.II PREP-PN Alyssa	page 9
+(14a) line 3	Henry Davis and Jason Brown	translation	‘What did you give to Alyssa?’	page 9
+(14b) line 1	Gitksan	transcription	Naam wil gi’namhl gwila?	page 10
+(14b) line 2	Gitksan	gloss	who=2SG.I COMP give=CN blanket	page 10
+(14b) line 3	Henry Davis and Jason Brown	translation	‘Who did you give a blanket to?’	page 10
+§2.2	Henry Davis and Jason Brown	note	It is important to point out that exactly the same extraction patterns which characterize WH-questions in Gitksan and Nisgha also hold for both relative clauses and focusing structures; for this reason, in fact, Rigsby (1986: 296) terms complex WH-questions ‘focus constituent questions’. In (15-17), we give focused answers which match the questions in (5a), (6) and (7) respectively, and which exhibit the same extraction morphology.17	page 10
+footnote 17	Henry Davis and Jason Brown	note	Rigsby (1986: 302) and Hunt (1993: 248) both claim that the only felicitous response to a complex (‘focus constituent’) question is one where a phrase in focus position matches the focused WH-constituent. We have not found this to be the case for either of our consultants. Indeed, one of them strongly prefers ordinary declarative clauses over focus constituent clauses as answers to WH-questions.	page 10, footnote 17
+(15) line 1	Gitksan	transcription	Suusiithl gubis John.	page 10
+(15) line 2	Gitksan	gloss	potato=CN eat-TRA-PN John	page 10
+(15) line 3	Henry Davis and Jason Brown	translation	‘It was a potato that John ate.’	page 10
+(16) line 1	Gitksan	transcription	Tylerhl limit.	page 10
+(16) line 2	Gitksan	gloss	Tyler=CN sing-SX	page 10
+(16) line 3	Henry Davis and Jason Brown	translation	‘It was Tyler who sang.’	page 10
+(16) line 4	Henry Davis and Jason Brown	citation	(Rigsby 1986: 303)	page 10, the tag or source at the right of the translation
+(17) line 1	Gitksan	transcription	(t) John ant guphl suusiit.	page 10
+(17) line 2	Gitksan	gloss	(DM) John [AX eat=CN potato]	page 10
+(17) line 3	Henry Davis and Jason Brown	translation	‘It was John that ate a potato.’	page 10
+§2.2	Henry Davis and Jason Brown	note	And in (18)-(20) we give relative clauses based on (5a)-(7a), again, exhibiting identical extraction morphology.	page 10
+(18) line 1	Gitksan	transcription	Ixstahl suusiithl gubis John.	page 10
+(18) line 2	Gitksan	gloss	tasty=CN potato=CN eat-TRA-PN John	page 10
+(18) line 3	Henry Davis and Jason Brown	translation	‘The potato John ate was tasty.’	page 10
+(19) line 1	Gitksan	transcription	Wilaayinhl gathl limita.	page 10
+(19) line 2	Gitksan	gloss	know-TRA-2SG.II=CN man=CN sing-SX=YNQ	page 10
+(19) line 3	Henry Davis and Jason Brown	translation	‘Do you know the man who sang?’	page 10
+(20) line 1	Gitksan	transcription	Ga’a’yhl gat ant guphl suusiit.	page 10
+(20) line 2	Gitksan	gloss	see-TRA-1SG.II=CN man AX eat=CN potato	page 10
+(20) line 3	Henry Davis and Jason Brown	translation	‘I saw the man that ate the potato.’	page 10
+§2.2	Henry Davis and Jason Brown	note	With these facts in mind, we are now are in a position to make a first pass at a syntactic analysis of WH-questions.	page 10
+§3	Henry Davis and Jason Brown	heading	3 WH-words as nominal predicates: the indirect movement analysis	page 11
+§3	Henry Davis and Jason Brown	note	In this section, we lay out an indirect movement account of WH-questions in IT. This analysis is based on the following claims:	page 11
+§3	Henry Davis and Jason Brown	note	(i) WH-words are nouns.	page 11
+§3	Henry Davis and Jason Brown	note	(ii) In simple WH-questions, WH-words head nominal predicates whose subjects are DPs.	page 11
+§3	Henry Davis and Jason Brown	note	(iii) In complex WH-questions, WH-phrases are predicated of a subject DP which contains a relative clause. A'-movement of a null operator takes place within the relative clause contained in the complex DP subject.	page 11
+§3	Henry Davis and Jason Brown	note	(iv) ‘Focus movement’ works in exactly the same way as complex WH- questions.	page 11
+§3	Henry Davis and Jason Brown	note	We provide evidence for each of these claims in the following four subsections; bear in mind, however, that the conclusions we reach at the end of the section will be revised rather drastically in the next.	page 11
+§3.1	Henry Davis and Jason Brown	heading	3.1 WH-words are nouns	page 11
+§3.1	Henry Davis and Jason Brown	note	There are two principal pieces of evidence for the claim in (i) that WH-words are, as Tarpent (1987: 319) puts it, ‘nouns with indefinite meaning and specialized properties’. The first is that WH-words with indefinite meaning may occur freely in argument positions, preceded by an appropriate connective/determinate marker (t/dip in the case of naa, =hl in the case of (a)gwi/gu) and usually (but not always) accompanied by the domain-widening element ligi ‘about, any’.	page 11
+§3.1	Gitksan	cited form	(a)gwi/gu	page 11, in italics
+§3.1	Gitksan	cited form	ligi	page 11, in italics, ‘about, any’
+(21a) line 1	Gitksan	transcription	Neema ga’ahl ligit18 naaya?	page 11
+footnote 18	Henry Davis and Jason Brown	note	The t which occurs between ligi and naa is the singular determinate marker (see Tarpent 1987: 329); recall that naa patterns as a determinate noun, as opposed to (a)gu/gwi, which lacks t in the same environment and patterns otherwise as a non-determinate noun.	page 11, footnote 18
+footnote 18	Gitksan	cited form	(a)gu/gwi	page 11, in italics
+(21a) line 2	Gitksan	gloss	NEG=2SG.I see=CN any=DM who=YNQ	page 11
+(21a) line 3	Henry Davis and Jason Brown	translation	‘Did you see anyone?’	page 11
+(21a) line 4	Henry Davis and Jason Brown	note	(Literally ‘Did you not see anyone?’)	page 11, at the right of the translation
+(21b) line 1	Gitksan	transcription	Neediin ga’ahl ligit naa.	page 11
+(21b) line 2	Gitksan	gloss	NEG=CNTR=1SG.I see=CN any=DM who	page 11
+(21b) line 3	Henry Davis and Jason Brown	translation	‘I didn’t see anyone.’	page 11
+(21c) line 1	Gitksan	transcription	Ee’a, ga’a’yhl ligit naa.	page 11
+(21c) line 2	Gitksan	gloss	yes see-1SG.II=CN any=DM who	page 11
+(21c) line 3	Henry Davis and Jason Brown	translation	‘Yes, I saw someone.’	page 11
+§3.1	Henry Davis and Jason Brown	note	Note that unlike English anyone, anything, the WH-indefinites (ligit) naa and (ligi) (a)gu/gwi are not polarity items: they occur in non-affective environments in all argument positions, including intransitive (22) and transitive (23) subject positions:	page 12
+§3.1	Gitksan	cited form	(ligit) naa	page 12, in italics
+§3.1	Gitksan	cited form	(ligi) (a)gu/gwi	page 12, in italics
+(22) line 1	Gitksan	transcription	‘Witxwhl ligit naa.	page 12
+(22) line 2	Gitksan	gloss	come=CN any=DM who	page 12
+(22) line 3	Henry Davis and Jason Brown	translation	‘Someone came.’	page 12
+(23) line 1	Gitksan	transcription	Ga’ahl ligit naa ‘nii’y.	page 12
+(23) line 2	Gitksan	gloss	see=CN any=DM who 1SG.III	page 12
+(23) line 3	Henry Davis and Jason Brown	translation	‘Someone saw me.’	page 12
+§3.1	Henry Davis and Jason Brown	note	Second, like other nouns, WH-words may be directly modified by adjectives (see Tarpent 1987: 321):	page 12
+(24a) line 1	Gitksan	transcription	Gwihl dii da’witxwin?	page 12
+(24a) line 2	Gitksan	gloss	what CNTR bring-2SG.II	page 12
+(24a) line 3	Henry Davis and Jason Brown	translation	‘What did you bring?’	page 12
+(24b) line 1	Gitksan	transcription	Da’witxwi’yhl ixsta-m ligi agwi.	page 12
+(24b) line 2	Gitksan	gloss	bring-1SG.II=CN good.tasting-ATT any what	page 12
+(24b) line 3	Henry Davis and Jason Brown	translation	‘I brought something tasty.	page 12, printed without its closing quote
+(25a) line 1	Gitksan	transcription	Iit19 naahl dii da’witxwin?	page 12
+footnote 19	Henry Davis and Jason Brown	note	The determinate marker t here is encliticized to the conjunction ii ‘and then’, but syntactically associated with naa. This is significant in that it indicates that naa is non- predicative here: t is never associated with a (main) predicate. For discussion, see 4.5 below.	page 12, footnote 19
+footnote 19	Gitksan	cited form	ii	page 12, in italics, ‘and then’
+(25a) line 2	Gitksan	gloss	and=DM who CNTR bring-2SG.II	page 12
+(25a) line 3	Henry Davis and Jason Brown	translation	‘And who did you bring?’	page 12
+(25b) line 1	Gitksan	transcription	Da’witxw’yhl simgit ligit naa.	page 12
+(25b) line 2	Gitksan	gloss	bring-1SG.II=CN important any=DM who	page 12
+(25b) line 3	Henry Davis and Jason Brown	translation	‘I brought someone important.’	page 12
+§3.1	Henry Davis and Jason Brown	note	We conclude that Tarpent’s characterization of WH-words as nouns is correct.	page 12
+§3.2	Henry Davis and Jason Brown	heading	3.2 WH-Phrases may be predicative	page 12
+§3.2	Henry Davis and Jason Brown	note	Recall that like other languages in the Pacific NW Sprachbund, IT languages are predicate-initial. Since in WH-questions, WH-phrases are always clause-initial (there is no interrogative WH-in-situ in Gitksan), an analytical possibility arises which should be quite familiar to students of NW Coast languages: namely, that WH-phrases are simply specialized predicate nominals whose range is represented by their DP arguments (see Jelinek 1998 and Davis 2008 for two versions of this approach to Salish WH-questions).	page 12
+§3.2	Henry Davis and Jason Brown	note	The most compelling evidence for this hypothesis is to be found in simple questions such as those in (2-4) above. Recall that these questions consist of an initial WH-phrase followed by a determinate element: that is, a proper name, independent pronoun, or demonstrative. Now, at least two of the three sets of determinates (proper names and independent pronouns) have a crucial property: they cannot serve as main predicates in Gitksan.20 This is shown below:	page 13
+footnote 20	Henry Davis and Jason Brown	note	For at least one of our consultants, this is (surprisingly) not always true of the third class of determinates: demonstratives. Either (i) or (ii) is acceptable:	page 13, footnote 20
+footnote 20 (i) line 1	Gitksan	transcription	Os tustist.	page 13
+footnote 20 (i) line 2	Gitksan	gloss	dog that=AFF	page 13
+footnote 20 (i) line 3	Henry Davis and Jason Brown	translation	‘That is a dog.’	page 13
+footnote 20 (ii) line 1	Gitksan	transcription	Tusthl osist.	page 13
+footnote 20 (ii) line 2	Gitksan	gloss	that=CN dog=AFF	page 13
+footnote 20 (ii) line 3	Henry Davis and Jason Brown	translation	‘That is a dog.’	page 13
+footnote 20	Henry Davis and Jason Brown	note	On the other hand, the same consultant rejects the equivalent of (ii) with the plural demonstrative dipust, as shown in the contrast between (iii) and (iv) below:	page 13, footnote 20
+footnote 20	Gitksan	cited form	dipust	page 13, in italics
+footnote 20 (iii) line 1	Gitksan	transcription	Gitxsan dipusdist.	page 13
+footnote 20 (iii) line 2	Gitksan	gloss	Gitksan those=AFF	page 13
+footnote 20 (iii) line 3	Henry Davis and Jason Brown	translation	‘Those are Gitksan people.’	page 13
+footnote 20 (iv) line 1	Gitksan	transcription	* Dipusthl Gitxsanist	page 13
+footnote 20 (iv) line 2	Gitksan	gloss	those=CN Gitksan=AFF	page 13
+footnote 20	Henry Davis and Jason Brown	note	It’s hard to know what to make of this pattern. It is certainly unexpected for demonstratives to function as nominal predicates, since they are usually taken to be the most directly referential of all nominal expressions; in Salish languages, for example, which are notoriously flexible in terms of what can serve as predicate or argument, demonstratives are the least likely elements to function as predicates.	page 13, footnote 20
+(26a) line 1	Gitksan	transcription	Si’moogit t Cathy	page 13
+(26a) line 2	Gitksan	gloss	chief DM=Cathy	page 13
+(26a) line 3	Henry Davis and Jason Brown	translation	‘Cathy is a chief.’	page 13
+(26b) line 1	Gitksan	transcription	* Cathyhl si’moogit	page 13
+(26b) line 2	Gitksan	gloss	Cathy=CN chief	page 13
+(27a) line 1	Gitksan	transcription	Si’moogit ‘nidist	page 13
+(27a) line 2	Gitksan	gloss	chief 3SG.III=AFF	page 13
+(27a) line 3	Henry Davis and Jason Brown	translation	‘S/he is a chief.’	page 13
+(27b) line 1	Gitksan	transcription	* ‘nithl si’moogidist	page 13
+(27b) line 2	Gitksan	gloss	3SG.III=CN chief=AFF	page 13
+§3.2	Henry Davis and Jason Brown	note	In simple identificational sentences such as those in (26a)-(27a), predicates can be distinguished from arguments in two ways. First the predicate always precedes its argument; and second, the argument but not the predicate may be introduced by a connective (t in the case of determinates). Based on these criteria, it can be seen that in (26b)-(27b), the determinate element may only occupy an argument position.	page 13
+§3.2	Henry Davis and Jason Brown	note	The implication of this finding for the simple WH-questions in (2)-(4) is clear: since they consist of an initial WH-phrase and a determinate element, and the latter must be an argument, the WH-phrase in these cases must be the predicate.	page 14
+§3.2	Henry Davis and Jason Brown	note	What about simple WH-questions with ‘non-determinates’ (that is, nominals which take the ‘common noun’ connector =hl)? Unlike determinates, non-determinate nouns can freely act as predicates: Rigsby (1986: 284) gives the following pair of examples involving a pair of non-determinate nouns alternating between predicate and argument position.	page 14
+(28a) line 1	Gitksan	transcription	Hlgutk’ihlxwhl gat.	page 14
+(28a) line 2	Gitksan	gloss	small-child=CN male	page 14
+(28a) line 3	Henry Davis and Jason Brown	translation	‘The boy is a child.’	page 14
+(28b) line 1	Gitksan	transcription	Gathl hlgutk’ihlxw.	page 14
+(28b) line 2	Gitksan	gloss	male=CN small-child	page 14
+(28b) line 3	Henry Davis and Jason Brown	translation	‘The child is a boy.’ 21	page 14
+footnote 21	Henry Davis and Jason Brown	note	Although (at least according to Rigsby’s translations) there is a meaning difference between (28a) and (28b), it does not arise from the connective =hl on the argument, which is semantically vacuous. It is possible that the difference is an artifact of translation, or it could be an information structural effect arising from word order. We will not attempt to choose between these possibilities here.	page 14, footnote 21
+§3.2	Henry Davis and Jason Brown	note	However, as observed above, WH-nominals must be in initial position in WH- questions. Therefore, it is a reasonable assumption, given that in simple WH- questions with determinates the initial element is the predicate, that in simple questions with non-determinate subjects the initial WH-element is also predicative. This makes a prediction: since by assumption determinate markers do not occur on predicates, it should be ungrammatical for a determinate marker to precede initial naa in simple questions. This prediction is borne out:	page 14
+(29a) line 1	Gitksan	transcription	(*t) naahl si’moogidist?	page 14
+(29a) line 2	Gitksan	gloss	(*DM) who=CN chief=AFF	page 14
+(29a) line 3	Henry Davis and Jason Brown	translation	‘Who’s a chief?’	page 14
+(29b) line 1	Gitksan	transcription	(*dip) naahl simgigadist?	page 14
+(29b) line 2	Gitksan	gloss	(*PL.DM) who=CN chief(PL)=AFF	page 14
+(29b) line 3	Henry Davis and Jason Brown	translation	‘Who are the chiefs?’	page 14
+§3.2	Henry Davis and Jason Brown	note	We conclude (confirming a speculation in Rigsby 1986: 302) that in simple WH-questions, WH-phrases are nominal predicates.	page 14
+§3.3	Henry Davis and Jason Brown	heading	3.3 Complex WH-Questions are simply WH-questions with a complex subject	page 15
+§3.3	Henry Davis and Jason Brown	note	Recall from Section 2.2 above that complex WH-questions can be distinguished from simple WH-questions in IT by their distinctive morphological profile. Since this profile is also characteristic of relativization, there is an obvious way in which the two types of question can be unified: in both cases, the WH-phrase itself is predicative, but whereas the subject of simple WH-questions is an ordinary (determinate or indeterminate) nominal, the subject of complex WH-questions contains a relative clause. This provides a ready solution to an apparent contradiction: whereas the WH-phrase itself is base-generated as a nominal predicate (so that there is no English-style WH-movement), complex WH-questions in Gitksan can otherwise be shown to exhibit typical characteristics of WH-movement (or more broadly, A'-movement): they may occur long-distance and are sensitive to island constraints.	page 15
+§3.3	Henry Davis and Jason Brown	note	As first observed by Hunt (1993: 121), long-range WH-extraction is possible in Gitksan over bridge predicates.22 Intransitive subjects, objects, and transitive subjects may all undergo long-range movement, as shown in (30b), (31b), and (31c) respectively. (The extraction site is marked by underlining, for ease of interpretation.)	page 15
+footnote 22	Henry Davis and Jason Brown	note	For ease of exposition, we uniformly employ the predicate (h)an’ig̱oots ‘think’, more literally ‘(according to) one’s heart’ as the “bridge” in long distance extraction cases. This predicate is actually a nominal, so the question might arise as to whether long range extraction is possible only over predicate nominals. It is not: we have examples of long range extraction with ga’a ‘see’ and he ‘say’, (see (56) and (58) in section 4.1 below), as well as da’aḵ(hl)xw ‘be able to’, and anooḵ ‘permit’, as shown (i)-(ii) below. All of these are verbs.	page 15, footnote 22
+footnote 22	Gitksan	cited form	(h)an’ig̱oots	page 15, in italics, ‘think’
+footnote 22	Gitksan	cited form	ga’a	page 15, in italics, ‘see’
+footnote 22	Gitksan	cited form	he	page 15, in italics, ‘say’
+footnote 22	Gitksan	cited form	da’aḵ(hl)xw	page 15, in italics, ‘be able to’
+footnote 22	Gitksan	cited form	anooḵ	page 15, in italics, ‘permit’
+footnote 22 (i) line 1	Gitksan	transcription	Gwihl da’aḵxws James dim da’witxwit?	page 15
+footnote 22 (i) line 2	Gitksan	gloss	what be.able-PN James FUT bring-TRA-3SG.II	page 15
+footnote 22 (i) line 3	Henry Davis and Jason Brown	translation	‘What was James able to bring?’	page 15
+footnote 22 (ii) line 1	Gitksan	transcription	Gwihl anoog̱an dim da’witxws James?	page 15
+footnote 22 (ii) line 2	Gitksan	gloss	what=CN allow-TRA-2SG.II FUT bring-PN James	page 15
+footnote 22 (ii) line 3	Henry Davis and Jason Brown	translation	‘What did you allow James to bring?’	page 15
+(30a) line 1	Gitksan	transcription	Ha’nig̱oots James dim limxs Tyler.	page 15
+(30a) line 2	Gitksan	gloss	think-PN James FUT sing-PN Tyler	page 15
+(30a) line 3	Henry Davis and Jason Brown	translation	‘James thinks Tyler sang.’	page 15
+(30a) line 4	Henry Davis and Jason Brown	note	(Literally: ‘James’s heart is that Tyler sang.’)	page 15, at the right of the translation
+(30b) line 1	Gitksan	transcription	Naahl ha’nig̱oots James dim limit?	page 15
+(30b) line 2	Gitksan	gloss	who=CN think-PN James [FUT sing-SX ___]	page 15
+(30b) line 3	Henry Davis and Jason Brown	translation	‘Who does James think sang?’	page 15
+(31a) line 1	Gitksan	transcription	Ha’nig̱oots James jit gups Tylerhl anaax.	page 15
+(31a) line 2	Gitksan	gloss	think-PN James IRR=3SG.I eat-PN Tyler=CN bread	page 15
+(31a) line 3	Henry Davis and Jason Brown	translation	‘James thinks Tyler ate the bread.’	page 15
+(31a) line 4	Henry Davis and Jason Brown	note	(Literally: ‘James’s heart is that Tyler ate the bread.’)	page 15, at the right of the translation
+(31b) line 1	Gitksan	transcription	Gwihl ha’nig̱oots James ji gubis Tyler?	page 16
+(31b) line 2	Gitksan	gloss	what=CN think-PN James [IRR eat-TRA-PN Tyler ___]	page 16
+(31b) line 3	Henry Davis and Jason Brown	translation	‘What does James think Tyler ate?’	page 16
+(31c) line 1	Gitksan	transcription	Naahl ha’nig̱oots James ji ant guphl anaax?	page 16
+(31c) line 2	Gitksan	gloss	who=CN think-PN James [IRR AX eat=CN ___ bread]	page 16
+(31c) line 3	Henry Davis and Jason Brown	translation	‘Who does James think ate the bread?’	page 16
+§3.3	Henry Davis and Jason Brown	note	And as also first observed by Hunt (1993: 121) with respect to the Adjunct Island Condition, long-range WH-movement is subject to strong island effects. In (32)-(34) below we show the effects of the Coordinate Structure Constraint, the Complex Noun Phrase Constraint, and the Adjunct Island Condition; the constituent which corresponds to the island is bracketed.	page 16
+(32a) line 1	Gitksan	transcription	Gubis Henryhl [smax g̱anhl miyup].	page 16
+(32a) line 2	Gitksan	gloss	eat-TRA-PN Henry=CN meat and=CN rice	page 16
+(32a) line 3	Henry Davis and Jason Brown	translation	‘Henry ate meat and rice.’	page 16
+(32b) line 1	Gitksan	transcription	* Gwihl gubis Henryhl [smax g̱an?	page 16
+(32b) line 2	Gitksan	gloss	what=CN eat-TRA-PN Henry=CN [meat and __]	page 16
+(32b) line 3	Henry Davis and Jason Brown	translation	* ‘What did Henry eat meat and?’23	page 16
+footnote 23	Henry Davis and Jason Brown	note	There is an interesting wrinkle in the data on Coordinate Structure Constraint (CSC) violations. The ungrammatical example in (32b) involves extraction of a right conjunct, stranding the conjunction g̱an phrase-finally; but left conjunct extraction is grammatical, as shown in (i).	page 16, footnote 23
+footnote 23 (i) line 1	Gitksan	transcription	Gwihl gubis Henry g̱anhl miyup.	page 16
+footnote 23 (i) line 2	Gitksan	gloss	what=CN eat-TRA-PN Henry [__ and=CN rice]	page 16
+footnote 23 (i) line 3	Henry Davis and Jason Brown	translation	‘What did Henry eat and rice?’	page 16
+footnote 23	Henry Davis and Jason Brown	note	This accords with observations of Tarpent (1987: 451), who notes that in focus constructions in Nisgha, only the first (left) conjunct of a coordinated expression is fronted, as in the following sentence she cites from Boas (1902):	page 16, footnote 23
+footnote 23 (ii) line 1	Nisgha	transcription	Ksax̱ haxwadakwhl dii jabit, g̱anhl hawil.	page 16
+footnote 23 (ii) line 2	Nisgha	gloss	only bow=CN CNTR make-TRA-3SG.II [__ and=CN arrow]	page 16
+footnote 23 (ii) line 3	Henry Davis and Jason Brown	translation	‘He did nothing but make bows and arrows.’	page 16
+footnote 23	Henry Davis and Jason Brown	note	Tarpent also observes that YFS allow the whole coordinated expression to be fronted, perhaps under English influence. In any case, it is clear that g̱an does not work in exactly the same way as English ‘and’: an interesting topic for further investigation, but not one which directly bears on the issue at hand, given that right conjunct extraction is ungrammatical, as predicted by the CSC. See also Hunt (1993: 62).	page 16, footnote 23
+(33a) line 1	Gitksan	transcription	Guwis Johnhl smax hla ant jagwis Bill.	page 16
+(33a) line 2	Gitksan	gloss	shoot-TRA-PN John=CN [bear REL AX kill-T-PN Bill]	page 16
+(33a) line 3	Henry Davis and Jason Brown	translation	‘John shot the bear that killed Bill.’ 24	page 16
+footnote 24	Henry Davis and Jason Brown	note	The morpheme glossed -T- here characterizes a number of transitive verbs stems ending in a long vowel as well as stems derived by various prefixes (Tarpent 1987: 725-30). In independent clauses, it surfaces as -di-, and in dependent clauses as -(y)i-/-(y)a- (i.e., schwa); its form thus overlaps with and its distribution parallels the ‘transitive’ morpheme -(y)i-/-(y)a-, but it cannot be reduced to the latter, at least synchronically. Tarpent (1987: 634) comments that “In fact, unravelling the conditions of its occurrence and the guises under which it occurs is probably the thorniest problem of Nisgha morphological analysis.” We will not attempt to unravel this problem here.	page 16, footnote 24
+footnote 24	Gitksan	cited form	-di-	page 16, in italics
+footnote 24	Gitksan	cited form	-(y)i-/-(y)a-	page 16, in italics
+(33b) line 1	Gitksan	transcription	* Naahl guwis Johnhl [smax hla ant	page 17
+(33b) line 2	Gitksan	gloss	who=CN shoot-TRA-PN John=CN [bear REL AX	page 17
+(33b) line 3	Gitksan	transcription	jagwis?	page 17
+(33b) line 4	Gitksan	gloss	kill-T-PN __]	page 17
+(33b) line 5	Henry Davis and Jason Brown	translation	* ‘Who did John shoot the bear that killed?’	page 17
+(33b) line 6	Henry Davis and Jason Brown	speaker comment	Consultant’s comment: “Jagwis who?”	page 17, under the example, the consultant not named
+(34a) line 1	Gitksan	transcription	Ha’w t James wilt boog̱abaag̱as	page 17
+(34a) line 2	Gitksan	gloss	go.home DM James [COMP=3SG.I kiss-PN	page 17
+(34a) line 3	Gitksan	transcription	Jane t Bill]	page 17
+(34a) line 4	Gitksan	gloss	Jane DM Bill].	page 17
+(34a) line 5	Henry Davis and Jason Brown	translation	‘James left because Jane kissed Bill.’	page 17
+(34b) line 1	Gitksan	transcription	* Naahl ha’ws James wilt boog̱abaag̱as Jane?	page 17
+(34b) line 2	Gitksan	gloss	who=CN leave-PN James [COMP=3SG.I kiss-PN Jane __]	page 17
+(34b) line 3	Henry Davis and Jason Brown	translation	* ‘Who did James leave because Jane kissed?’	page 17
+§3.3	Henry Davis and Jason Brown	note	Clearly, then, there is movement in complex WH-questions in Gitksan; but according to the indirect movement account, the moving element is not the WH-word itself, but a (null) operator inside a (headless) relative clause, which is in turn embedded inside the DP subject of the predicative WH-phrase. In other words, the structure of a complex WH-question should be represented by the indirect movement schema in (35a), not the direct movement schema in (35b):	page 17
+(35a) line 1	Henry Davis and Jason Brown	note	[IP WH-PRED [DP pro [CP Oi [IP … ti…]]]]	page 17, set as an example
+(35b) line 1	Henry Davis and Jason Brown	note	[CPWHi [IP… ti…]]	page 17, set as an example
+§3.3	Henry Davis and Jason Brown	note	The schema in (35a) makes a number of further predictions. First, Gitksan should independently allow ‘headless’ (or more likely, pro-headed) relative clauses. Second, complex WH-questions should be possible with headed relative clauses in the subject position of the WH-predicate. And third, (non-WH) relative clauses should show the same diagnostic properties of ‘WH-movement’ as those that characterize complex WH-questions.	page 17
+§3.3	Henry Davis and Jason Brown	note	As far as the first prediction is concerned, ‘headless’ relative clauses are reported by both Tarpent for Nisgha and Hunt for Gitksan. The following examples from Hunt (1993: 224) have been confirmed by our consultants:	page 17
+(36) line 1	Gitksan	transcription	Hlaa (gukws) bakwhl g̱a’aadit.	page 17
+(36) line 2	Gitksan	gloss	now (back) return=CN fish(PL)-SX	page 17
+(36) line 3	Henry Davis and Jason Brown	translation	‘The ones who went fishing have come back.’	page 17
+(37) line 1	Gitksan	transcription	Ga’a’yhl jabit.	page 18
+(37) line 2	Gitksan	gloss	see-1SG.II=CN make-TRA-3SG.II	page 18
+(37) line 3	Henry Davis and Jason Brown	translation	‘I saw what s/he made.’	page 18
+(38) line 1	Gitksan	transcription	Ga’a’y ant jagwihl smax.	page 18
+(38) line 2	Gitksan	gloss	see-1SG.II AX kill-T=CN bear	page 18
+(38) line 3	Henry Davis and Jason Brown	translation	‘I saw the one who killed the bear.’	page 18
+§3.3	Henry Davis and Jason Brown	note	The second prediction also holds up: headed relative clauses are possible as the arguments of WH-predicates:	page 18
+(39) line 1	Gitksan	transcription	Naahl t’ihlxw-um haanaḵ’hl daa’whlit?	page 18
+(39) line 2	Gitksan	gloss	who=CN [young-ATT women=CN [leave-SX]]	page 18
+(39) line 3	Henry Davis and Jason Brown	translation	‘Who are the young women that left?’	page 18
+(40) line 1	Gitksan	transcription	Gwihl alp’a smaxhl gubis John?	page 18
+(40) line 2	Gitksan	gloss	what=CN RSTR [meat=CN [eat-TRA-PN John]]	page 18
+(40) line 3	Henry Davis and Jason Brown	translation	What (exactly) is the meat that John ate?’	page 18, printed without its opening quote
+(41) line 1	Gitksan	transcription	Naahl gat ant jagwihl smax?	page 18
+(41) line 2	Gitksan	gloss	who=CN [man [AX kill-T=CN bear]]	page 18
+(41) line 3	Henry Davis and Jason Brown	translation	‘Who is the man that killed the bear?’	page 18
+§3.3	Henry Davis and Jason Brown	note	And again as predicted, relativization shows the same set of movement properties as ‘WH-movement’. Long-range relativization is possible over a bridge predicate:	page 18
+(42) line 1	Gitksan	transcription	Wilaayinhl hanaḵ’hl ha’nig̱oots Jameshl	page 18
+(42) line 2	Gitksan	gloss	know-TRA-2SG.II=CN woman=CN think-PN James=CN	page 18
+(42) line 3	Gitksan	transcription	limita?	page 18
+(42) line 4	Gitksan	gloss	sing-SX=YNQ	page 18
+(42) line 5	Henry Davis and Jason Brown	translation	‘Do you know the woman who James thinks sang?’	page 18
+(43) line 1	Gitksan	transcription	‘Nithl anaax tunhl ha’nig̱oots James dim	page 18
+(43) line 2	Gitksan	gloss	3SG.III=CN bread this=CN think-PN James FUT	page 18
+(43) line 3	Gitksan	transcription	gubis Tyler.	page 18
+(43) line 4	Gitksan	gloss	eat-TRA-PN Tyler.	page 18
+(43) line 5	Henry Davis and Jason Brown	translation	‘This is the bread that James thinks Tyler will eat.’	page 18
+(44) line 1	Gitksan	transcription	‘Nithl gat tunhl ha’nig̱oots James dim	page 18
+(44) line 2	Gitksan	gloss	3SG.III=CN man this=CN think-PN James FUT	page 18
+(44) line 3	Gitksan	transcription	ant guphl anaax.	page 18
+(44) line 4	Gitksan	gloss	AX eat=CN bread	page 18
+(44) line 5	Henry Davis and Jason Brown	translation	‘This is the man who James thinks ate the bread.’	page 18
+§3.3	Henry Davis and Jason Brown	note	Moreover, long-range relativization is subject to the same range of island effects as long-range WH-movement. In (45)-(47) below we show the effects of the Coordinate Structure Constraint, the Complex Noun Phrase Constraint, and the Adjunct Island Condition, respectively.	page 19
+(45a) line 1	Gitksan	transcription	‘Nithl smax g̱anhl miyup dim gubis Henry.	page 19
+(45a) line 2	Gitksan	gloss	3SG.III=CN meat and=CN rice FUT eat-TRA-PN Henry	page 19
+(45a) line 3	Henry Davis and Jason Brown	translation	‘This is the meat and rice Henry will eat.’	page 19
+(45b) line 1	Gitksan	transcription	* ‘Nithl miyup dim gubis Henry smax g̱an.	page 19
+(45b) line 2	Gitksan	gloss	3SG.III=CN rice FUT eat-TRA-PN Henry [meat and ___]	page 19
+(45b) line 3	Henry Davis and Jason Brown	translation	* ‘This is the rice Henry will eat meat and.’	page 19
+(46a) line 1	Gitksan	transcription	Guwis Johnhl smax hla ant jagwis Bill.	page 19
+(46a) line 2	Gitksan	gloss	shoot-TRA-PN John=CN bear REL AX kill-T-PN Bill	page 19
+(46a) line 3	Henry Davis and Jason Brown	translation	‘John shot the bear that killed Bill.’	page 19
+(46b) line 1	Gitksan	transcription	* Wilaayinhl gathl guwis Johnhl	page 19
+(46b) line 2	Gitksan	gloss	know-TRA-2SG.II=CN man=CN shoot-TRA-PN John=CN	page 19
+(46b) line 3	Gitksan	transcription	smax hla ant jagwis?	page 19
+(46b) line 4	Gitksan	gloss	bear [REL AX kill-T-PN ___]	page 19
+(46b) line 5	Henry Davis and Jason Brown	translation	* ‘Do you know the man that John shot the bear that killed?	page 19, printed without its closing quote
+(46b) line 6	Henry Davis and Jason Brown	speaker comment	Consultant’s comment: ‘Incomplete.’	page 19, under the example, the consultant not named
+(47a) line 1	Gitksan	transcription	Ha’w t James wilt boog̱abaag̱as	page 19
+(47a) line 2	Gitksan	gloss	go.home DM James COMP=3SG.I kiss-PN	page 19
+(47a) line 3	Gitksan	transcription	Jane t Bill.	page 19
+(47a) line 4	Gitksan	gloss	Jane DM Bill	page 19
+(47a) line 5	Henry Davis and Jason Brown	translation	‘James left because Jane kissed Bill.’	page 19
+(47b) line 1	Gitksan	transcription	* Wilaayinhl gathl ha’ws James	page 19
+(47b) line 2	Gitksan	gloss	know-TRA-2SG.II=CN man=CN go.home-PN James	page 19
+(47b) line 3	Gitksan	transcription	wilt boog̱abaag̱as Jane?	page 19
+(47b) line 4	Gitksan	gloss	[COMP=3SG.I kiss-PN Jane ___]	page 19
+(47b) line 5	Henry Davis and Jason Brown	translation	* ‘Do you know the man that James left because Jane kissed?’	page 19
+§3.3	Henry Davis and Jason Brown	note	All in all, then, a strong case can be made that complex WH-questions have the same structure as simple WH-questions: a base-generated WH-predicate takes a DP argument as its range. The only difference is that in the complex cases, the DP argument contains a relative clause, in which (possibly long-range) movement of an empty operator has taken place.	page 19
+§3.4	Henry Davis and Jason Brown	heading	3.4 ‘Focus movement’ works like ‘WH-movement’	page 19
+§3.4	Henry Davis and Jason Brown	note	The last component of a unified indirect movement account of A'- dependencies in Gitksan involves focusing structures. The basic idea here is simple: ‘focus movement’ works just like ‘WH-movement’, with a base- generated nominal predicate taking a complex DP containing a relative clause as its argument.	page 19
+§3.4	Henry Davis and Jason Brown	note	In support of this hypothesis, note first of all that focus movement shows the same extraction morphology as both WH-movement and relativization (see (5)-(7) above). Furthermore, like WH-movement and relativization, focus movement operates at long range, and shows island sensitivity. Long-range focus movement over a bridge predicate is shown in (48)-(50):	page 20
+(48) line 1	Gitksan	transcription	Tylerhl ha’nig̱oots James ji limit.	page 20
+(48) line 2	Gitksan	gloss	Tyler=CN think-PN James [IRR sing-SX ___]	page 20
+(48) line 3	Henry Davis and Jason Brown	translation	‘It is Tyler who James thinks sang.’	page 20
+(49) line 1	Gitksan	transcription	anaaxhl ha’nig̱oots James ji gubis Tyler.	page 20
+(49) line 2	Gitksan	gloss	bread=CN think-PN James [IRR eat-TRA-PN Tyler ___]	page 20
+(49) line 3	Henry Davis and Jason Brown	translation	‘It is bread that James thinks that Tyler ate.’	page 20
+(50) line 1	Gitksan	transcription	Tylerhl ha’nig̱oots James ji ant guphl anaax	page 20
+(50) line 2	Gitksan	gloss	Tyler=CN think-PN James [IRR AX eat=CN ___ bread]	page 20
+(50) line 3	Henry Davis and Jason Brown	translation	‘It is Tyler who James thinks ate the bread.’	page 20
+§3.4	Henry Davis and Jason Brown	note	Island effects with long-range focus movement are given in (51)-(53), which show Coordinate Structure Constraint effects, Complex Noun Phrase Constraint effects, and Adjunct Island Condition effects, respectively.	page 20
+(51a) line 1	Gitksan	transcription	Smax g̱anhl miyuphl dim gubis Henry.	page 20
+(51a) line 2	Gitksan	gloss	meat and=CN rice=CN FUT eat-TRA-PN Henry	page 20
+(51a) line 3	Henry Davis and Jason Brown	translation	‘It is meat and rice that Henry will eat.’	page 20
+(51b) line 1	Gitksan	transcription	* Miyuphl dim gubis Henryhl smax g̱an.	page 20
+(51b) line 2	Gitksan	gloss	rice=CN FUT eat-TRA-PN Henry=CN [meat and ___]	page 20
+(51b) line 3	Henry Davis and Jason Brown	translation	* ‘It is rice Henry will eat meat and.’	page 20
+(52a) line 1	Gitksan	transcription	Guwis Johnhl smax hla ant jagwis Bill.	page 20
+(52a) line 2	Gitksan	gloss	shoot-TRA-PN John=CN bear [REL AX kill-T-PN Bill]	page 20
+(52a) line 3	Henry Davis and Jason Brown	translation	‘John shot the bear that killed Bill.’	page 20
+(52b) line 1	Gitksan	transcription	* Billhl guwis Johnhl smax	page 20
+(52b) line 2	Gitksan	gloss	Bill=CN shoot-TRA-PN John=CN bear	page 20
+(52b) line 3	Gitksan	transcription	[hla ant jagwis.	page 20
+(52b) line 4	Gitksan	gloss	[REL AX kill-T-PN ___]	page 20
+(52b) line 5	Henry Davis and Jason Brown	translation	* ‘It was Bill that John shot the bear that killed.’	page 20
+(53a) line 1	Gitksan	transcription	Ha’w t James wilt boog̱abaag̱as	page 21
+(53a) line 2	Gitksan	gloss	go.home DM James COMP=3SG.I kiss-PN	page 21
+(53a) line 3	Gitksan	transcription	Jane t Bill.	page 21
+(53a) line 4	Gitksan	gloss	Jane DM Bill	page 21
+(53a) line 5	Henry Davis and Jason Brown	translation	‘James left because Jane kissed Bill.’	page 21
+(53b) line 1	Gitksan	transcription	* Billhl ha’ws James wilt	page 21
+(53b) line 2	Gitksan	gloss	who=CN leave-PN James COMP=3SG.I	page 21
+(53b) line 3	Gitksan	transcription	boog̱abaag̱as Jane.	page 21
+(53b) line 4	Gitksan	gloss	kiss-PN Jane	page 21
+(53b) line 5	Henry Davis and Jason Brown	translation	* It was Bill that James left because Jane kissed.’	page 21, printed without its opening quote
+§3.4	Henry Davis and Jason Brown	note	Given this parallel behaviour, it appears that focus movement, too, can be treated as a subcase of the indirect movement strategy.	page 21
+§3.5	Henry Davis and Jason Brown	heading	3.5 Interim summary	page 21
+§3.5	Henry Davis and Jason Brown	note	We have now made the case for an indirect movement account of all three A'-dependencies in IT. Under such an account, there is really only a single case of A'-movement, which holds between an empty operator and the gap it controls inside a relative clause. Interrogative WH-phrases and focused phrases are both predicate nominals which embed this dependency within their DP argument: thus there is no WH-movement or focus-movement per se, and all A'- dependencies are reduced to relativization.	page 21
+§3.5	Henry Davis and Jason Brown	note	In spite of its apparent success, however, in the next section we present data from Gitksan that pose a series of challenges for the indirect movement account, and that will ultimately cause us to introduce some major revisions to our analysis of A'-dependencies in IT.	page 21
+§4	Henry Davis and Jason Brown	heading	4 Gitksan has direct movement, too!	page 21
+§4	Henry Davis and Jason Brown	note	The organization of this section is as follows. We begin in 4.1 by showing that in long-distance WH-questions, additional copies of the clause- initial WH-phrase sometimes show up unexpectedly in intermediate COMP positions. In 4.2 we present another unexpected finding: WH-phrases are available in both headed and headless relative clauses, forcing us to the conclusion that, like European languages but quite unlike other NW coast language families, Gitksan has WH-relative pronouns. However, taken together, these findings actually allow us to rescue the indirect movement account: as we show in 4.3, if we simply replace the empty operator in the relative clause with a WH-operator which may be optionally spelled out in intermediate COMP positions, we can account for the WH-copy pattern while maintaining that there is no direct relationship between the predicative WH-phrase in absolute initial position and the WH-relative pronouns inside its DP argument.	page 21
+§4	Henry Davis and Jason Brown	note	A more serious challenge to the indirect movement account arises, however, when we attempt to extend this analysis to focus structures in 4.4. It turns out that in contrast to WH-questions, WH-relative pronouns are never allowed in focus movement cases, showing that focus cannot be assimilated to the indirect movement strategy, but must be derived by direct A'-movement.	page 21
+§4	Henry Davis and Jason Brown	note	An interesting issue now arises: if direct A'-movement is permitted for focused arguments in Gitksan, then there should be no principled reason why direct WH-movement should not also be permitted. In 4.5, we use the distribution of the determinate markers t and dip on clause-initial naa ‘who’(which recall, acts as a determinate noun) to argue that WH-questions in fact make use of both indirect and direct A'-movement strategies.	page 22
+§4.1	Henry Davis and Jason Brown	heading	4.1 The ‘WH-copy’ pattern	page 22
+§4.1	Henry Davis and Jason Brown	note	Recall that one of the main components of the indirect movement analysis of A'-dependencies in IT is the lack of actual WH movement: instead, a null operator moves inside the relative clause, and the clause-initial WH- predicate is predicated of the whole relative clause, as in (54) (repeated from (35a) above).	page 22
+(54) line 1	Henry Davis and Jason Brown	note	[IP WH-PRED [DP pro [CP Oi [IP … ti…]]]]	page 22, set as an example
+§4.1	Henry Davis and Jason Brown	note	Now, it should be clear that under this analysis, we don’t expect to find WH- phrases inside the relative clause (unless, of course, they are indefinite pronouns licensed independently of the WH-question: see 3.1 above). But curiously, this is exactly what we do (optionally) find in Gitksan:	page 22
+(55) line 1	Gitksan	transcription	Gwihl han’ig̱oots Jameshl (gwihl) gubis Tyler?	page 22
+(55) line 2	Gitksan	gloss	what=CN think-PN James=CN [(what=CN) eat-TRA-PN Tyler ___]	page 22
+(55) line 3	Henry Davis and Jason Brown	translation	‘What does James think Tyler ate?’	page 22
+(56) line 1	Gitksan	transcription	Gwihl ga’as Maryhl (gwihl) gubis John?	page 22
+(56) line 2	Gitksan	gloss	what=CN see-PN Mary=CN [(what=CN) eat-TRA-PN John ___]	page 22
+(56) line 3	Henry Davis and Jason Brown	translation	‘What did Mary see John eat?’	page 22
+(57) line 1	Gitksan	transcription	Hinda wilt ga’as Mary (hinda) wilaa	page 22
+(57) line 2	Gitksan	gloss	where COMP-3SG.I see-PN Mary [(where) COMP	page 22
+(57) line 3	Gitksan	transcription	daa’whls John?	page 22
+(57) line 4	Gitksan	gloss	leave-PN John ___]	page 22
+(57) line 5	Henry Davis and Jason Brown	translation	‘Where did Mary see John go?’	page 22
+§4.1	Henry Davis and Jason Brown	note	And we can get multiple copies in cases of long-range extraction, too:	page 22
+(58) line 1	Gitksan	transcription	naahl anhes Tyler a=hl (naahl) ga’as	page 22
+(58) line 2	Gitksan	gloss	who=CN say-PN Tyler PREP=CN [(who=CN) see-PN	page 22
+(58) line 3	Gitksan	transcription	John a=hl naa ant t’is Bill?	page 22
+(58) line 4	Gitksan	gloss	John PREP=CN [who AX punch-PN ____ Bill]]	page 22
+(58) line 5	Henry Davis and Jason Brown	translation	‘Who did Tyler say that John saw hit Bill?’	page 22
+§4.1	Henry Davis and Jason Brown	note	Notice that the ‘WH-copies’ here are not in argument positions, and are thus not separate instances of indefinite WH-words. Rather, they are in the left periphery of CP, exactly where we would expect to find them in cases of copy-movement of a WH-phrase inside the clausal remnant of WH-movement.	page 23
+§4.1	Henry Davis and Jason Brown	note	Now, recall that the initial WH-phrase under the indirect movement account is outside of the relative clause in which movement takes place. This immediately raises the question of how the operator in the relative clause (by assumption, not a WH-phrase) is able to copy the WH-features of the WH-PRED down into the relative clause, or alternatively, of how a WH-phrase is able to escape out of the relative clause into predicate position without violating various well-motivated constraints on movement, including the Complex Noun Phrase Constraint, which we have already seen is uniformly respected in A'- dependencies in Gitksan.	page 23
+§4.1	Henry Davis and Jason Brown	note	We take it neither operation is possible. In other words, we now have evidence against the indirect movement account; and, by assumption, for the direct movement account. But in the last section, we saw quite strong evidence for indirect movement: we are thus left with conflicting types of evidence for both the direct and indirect accounts of WH-questions.	page 23
+§4.1	Henry Davis and Jason Brown	note	However, it turns out that a further unexpected finding can help us to resolve this paradox: Gitksan has WH-relative pronouns.	page 23
+§4.2	Henry Davis and Jason Brown	heading	4.2 WH-relatives in Gitksan	page 23
+§4.2	Henry Davis and Jason Brown	note	Though to our knowledge it has not been reported before for IT, our consultants allow WH-pronouns to appear in clause-initial position in both headed and ‘headless’ relative clauses. Cases of headed relatives with WH- pronouns are given in (59)-(61).25	page 23
+footnote 25	Henry Davis and Jason Brown	note	One of our consultants disprefers the use of overt WH-pronouns in headed relatives, particularly when these are object-centred, and will often delete the nominal head, yielding a headless object-centred relative. The same consultant prefers WH-pronouns in headless relatives.	page 23, footnote 25
+(59) line 1	Gitksan	transcription	Ixstahl suusiithl agwihl gubis John.	page 23
+(59) line 2	Gitksan	gloss	tasty=CN [potato=CN [what eat-TRA-PN John ___]]	page 23
+(59) line 3	Henry Davis and Jason Brown	translation	‘The potato which John ate was tasty.’	page 23
+(60) line 1	Gitksan	transcription	Wilaayinhl gathl naahl limita.	page 23
+(60) line 2	Gitksan	gloss	know-TRA-SG.II=CN [man=CN [who=CN sing-SX ___]]=YNQ	page 23
+(60) line 3	Henry Davis and Jason Brown	translation	‘Do you know the man who sang?’	page 23
+(61) line 1	Gitksan	transcription	Ga’a’yhl gat naa ant guphl suusiit.	page 23
+(61) line 2	Gitksan	gloss	see-TRA-1SG.II=CN [man [who AX eat=CN ___ potato]]	page 23
+(61) line 3	Henry Davis and Jason Brown	translation	‘I saw the man who ate the potato.’	page 23
+§4.2	Henry Davis and Jason Brown	note	Headless relative clauses with WH-pronouns are given in (62)-(64), corresponding to the non-WH headless relatives in (36)-(38) above:	page 23
+(62) line 1	Gitksan	transcription	Hlaa guxws bakwhl naahl g̱a’iwit.	page 24
+(62) line 2	Gitksan	gloss	now back come=CN [who=CN PL-fish.with.rod-SX]	page 24
+(62) line 3	Henry Davis and Jason Brown	translation	‘The ones who went fishing have come back.’	page 24
+(63) line 1	Gitksan	transcription	Ga’a’yhl guhl jabit.	page 24
+(63) line 2	Gitksan	gloss	see-1SG.II=CN [what=CN make-TRA-3SG.II]	page 24
+(63) line 3	Henry Davis and Jason Brown	translation	‘I saw what s/he made.’	page 24
+(63) line 4	Henry Davis and Jason Brown	speaker comment	Consultant’s comment: ‘Better’ [than without gu].	page 24, under the example, the consultant not named
+(64) line 1	Gitksan	transcription	Ga’a’y naa ant jagwihl smax.	page 24
+(64) line 2	Gitksan	gloss	see-1SG.II [who AX kill-T=CN bear]	page 24
+(64) line 3	Henry Davis and Jason Brown	translation	‘I saw the one who killed the bear.’	page 24
+(64) line 4	Henry Davis and Jason Brown	speaker comment	Consultant’s comment: ‘Better with naa than without.’	page 24, under the example, the consultant not named
+§4.2	Henry Davis and Jason Brown	note	We conclude that WH-words in Gitksan can act as relative pronouns, quite unlike their equivalents in any other language family in the NW Sprachbund, but in a fashion very reminiscent of WH-pronouns in European languages.	page 24
+§4.2	Henry Davis and Jason Brown	note	Not entirely so, however: WH-pronouns in European languages are most plausibly analyzed as determiners, as shown, for example, by their ability to take nominal restrictions in e.g., which man, what problem. On the other hand, as shown for example by their ability to take adjectival modifiers and determiners, WH-pronouns in IT are nouns (see 3.1 above).26	page 24
+footnote 26	Henry Davis and Jason Brown	note	This raises the question of how ‘which’ questions are constructed in IT: see (8) above for an example from Gitksan, formed with the WH-word (hi)nda ‘where, how, which’ and a nominal restriction. There are a number of possible ways to analyze structures such as this: one is to treat (hi)nda as an adjectival modifier rather than a head, as appears to be the case for parallel structures in Salish (Davis 2008). More work is needed here.	page 24, footnote 26
+§4.2	Henry Davis and Jason Brown	note	This difference is an interesting one, but does not jeopardize our main point that Gitksan has WH-relative pronouns. In fact, the difference can easily be accommodated to a standard theory of WH-movement via a simple lexical parameter. Assuming (as is usual) that what moves in a WH-dependency is a WH-phrase (more specifically, a DP), the parameter simply says that in European languages, the WH-feature is carried on the head of DP, whereas in Gitksan, it is carried on the head of NP. Assuming further that the WH-feature must be spelled out, European languages will end up with an overt WH-determiner and a possibly null NP restriction, and Gitksan will end up with a possibly null (non-WH) determiner and an overt WH-nominal.27	page 24
+footnote 27	Henry Davis and Jason Brown	note	With respect to the second claim, note that the determinate markers t and dip (the IT equivalents of determiners) do optionally show up on the determinate WH-pronoun naa in fronted positions (see 4.5 below). The common noun connective =hl, however, never surfaces on the non-determinate WH-pronouns (a)gu/(a)gwi and (hi)nda in fronted position. This is most likely due to the fact that =hl is strictly an enclitic, and cannot surface without a host to its left, whereas the morphophonological status of the determinate markers is more ambiguous: t may procliticize to a following noun, and dip may not be a clitic at all. Note also that whereas the determinate markers carry semantic information (singular versus plural), the common noun connective is semantically vacuous, and can be deleted without any loss of information.	page 24, footnote 27
+footnote 27	Gitksan	cited form	(a)gu/(a)gwi	page 24, in italics
+§4.2	Henry Davis and Jason Brown	note	Note further that on standard approaches to the interpretation of relative clauses, the identity requirement that holds between the head of a restrictive relative and the moved element within the relative clause is between NPs, not between DPs. It is thus entirely natural for the WH-feature to be associated with N, as in Gitksan, rather than D, as in English. The usual assumption about English relatives (on the ‘matching’ analysis: Safir 1999, Bhatt 2002, Hulsey and Sauerland 2006) is that an NP moves to the left periphery of the relative clause, where it must match the external head of the relative clause. This analysis is schematized below, where movement is represented by a strike-through and matching by bolding:	page 25
+(65) line 1	Henry Davis and Jason Brown	note	[the [potato [[DWH pro] [John ate [D̶W̶H̶ p̶r̶o̶]]]]]	page 25, set as an example
+§4.2	Henry Davis and Jason Brown	note	The role of the WH-determiner in English is to trigger movement within the relative clause: semantically, the determiner is vacuous, and either has to be deleted (as in the treatment in Heim and Kratzer 1998) or reconstructed into the position of the trace (as in Sauerland 1998, 2002).	page 25
+§4.2	Henry Davis and Jason Brown	note	Continuing to treat Gitksan WH-pronouns as nouns, the equivalent structure in Gitksan will be as in (66):	page 25
+(66) line 1	Gitksan	transcription	[hl [suusiit [[D gwiWH] hl [gubis John [D̶ g̶w̶i̶W̶H̶]]]]]	page 25
+(66) line 2	Gitksan	gloss	[=CN [potato [[D what]=CN [eat-TRA-PN John [D what]]]]]	page 25
+(66) line 3	Henry Davis and Jason Brown	translation	‘the potato John ate’	page 25
+§4.2	Henry Davis and Jason Brown	note	In this structure, a +WH DP moves to a left peripheral position in the relative clause, exactly as in English. From there, an identity relationship is established between the head noun suusiit ‘potato’ and the WH-pronoun gwi ‘what, something’, meeting the same matching requirement as the head noun ‘potato’ and the empty NP pro in the English case in (65) above. The difference between the two structures is simply in the location of the WH-feature: on the D in English, on the N in Gitksan.28	page 25
+footnote 28	Henry Davis and Jason Brown	note	There is an interesting corollary to this analysis: since the identity relation between the head noun and the moved element within the relative clause is anaphoric, the prediction is that Gitksan relative clauses must be of the ‘matching’ type rather than of the ‘raising’ type (see Sauerland 1998, 2002, Bhatt 2002, Hulsey and Sauerland 2006 for the distinction). Furthermore, if ‘matching’ itself is construed as a form of NP ellipsis, NP ellipsis in Gitksan must be interpreted as a form of pronominal anaphora (Hardt 1993) rather than as deletion under identity (Merchant 2001).	page 25, footnote 28
+§4.2	Gitksan	cited form	suusiit	page 25, in italics, ‘potato’
+§4.2	Gitksan	cited form	gwi	page 25, in italics, ‘what, something’
+§4.2	Henry Davis and Jason Brown	note	We conclude that Gitksan has WH-relative pronouns of category N. Given that relative pronouns as a class are typologically unusual, and more or less geographically restricted to Europe (cf. Comrie and Kuteva 2011), this is a surprising and interesting finding, which we will return to briefly in 5.1.	page 25
+§4.3	Henry Davis and Jason Brown	heading	4.3 WH-copying as relative pronoun copying	page 26
+§4.3	Henry Davis and Jason Brown	note	It turns out that the existence of WH-relative pronouns also gives us a straightforward way of dealing with apparent cases of WH-copying in questions, without abandoning the indirect movement hypothesis. This is because we can now reanalyze the ‘WH-copy’ as a spell-out of the WH-relative pronoun inside the relative clause.	page 26
+(67a) line 1	Henry Davis and Jason Brown	note	without copy	page 26, over the example
+(67a) line 2	Gitksan	transcription	Naahl ga’anhl daa’whlit?	page 26
+(67a) line 3	Gitksan	gloss	who=CN see-2SG.II=CN [leave-SX ___]	page 26
+(67a) line 4	Henry Davis and Jason Brown	translation	‘Who did you see leave?’	page 26
+(67a) line 5	Henry Davis and Jason Brown	note	(More literally, ‘Who was it that you saw leave?’)	page 26, at the right of the translation
+(67b) line 1	Henry Davis and Jason Brown	note	with copy	page 26, over the example
+(67b) line 2	Gitksan	transcription	Naahl ga’anhl ahl naahl daa’whlit?	page 26
+(67b) line 3	Gitksan	gloss	who=CN see-2SG.II=CN PREP=CN [who=CN leave-SX ___]	page 26
+(67b) line 4	Henry Davis and Jason Brown	translation	‘Who did you see who left?’	page 26
+(67b) line 5	Henry Davis and Jason Brown	note	(More literally: ‘Who was it that you saw who left?’)	page 26, at the right of the translation
+§4.3	Henry Davis and Jason Brown	note	Under this analysis, there is still no direct dependency between the initial, predicative WH-pronoun and the WH-relative pronoun spelled out inside its argument. This predicts that the two should be able to co-occur: and this is indeed the case, as seen in (67b) above and in (68)-(70) below:	page 26
+(68) line 1	Gitksan	transcription	Naahl t’ihlxwum haanaḵ’ naahl saksit?	page 26
+(68) line 2	Gitksan	gloss	who=CN [young-ATT women [who=CN left(PL)-SX ___]]	page 26
+(68) line 3	Henry Davis and Jason Brown	translation	‘Who are the young women who left?’	page 26
+(69) line 1	Gitksan	transcription	Naahl gat naa ant jagwihl smax?	page 26
+(69) line 2	Gitksan	gloss	who=CN [man [who AX kill-T=CN ____ bear]]	page 26
+(69) line 3	Henry Davis and Jason Brown	translation	‘Who is the person who killed the bear?’	page 26
+(70) line 1	Gitksan	transcription	Gwihl alp’a wineexhl gwihl gubis John?	page 26
+(70) line 2	Gitksan	gloss	what=CN [RSTR food=CN [what=CN eat=PN John ____]]	page 26
+(70) line 3	Henry Davis and Jason Brown	translation	‘Which foods exactly are the ones which John ate?’	page 26
+§4.3	Henry Davis and Jason Brown	note	Note that these examples all involve headed relative clauses, with the head intervening between the initial, predicative WH-phrase and the second, relative clause-internal one. Employing headless relative clauses in this structure would yield sequences of string-adjacent identical WH-phrases (naahl naahl, gwihl gwihl), which are judged ungrammatical, presumably because of a ‘haplological’ filter blocking such sequences.	page 26
+§4.3	Gitksan	cited form	naahl naahl	page 26, in italics
+§4.3	Gitksan	cited form	gwihl gwihl	page 26, in italics
+§4.4	Henry Davis and Jason Brown	heading	4.4 Focus movement	page 27
+§4.4	Henry Davis and Jason Brown	note	Given our revised indirect movement analysis of WH-questions in Gitksan, in which a WH-predicate is base-generated in initial position and a WH- relative pronoun moves inside its argument, and assuming that ‘focus movement’ and ‘WH-movement’ are structurally parallel, we make another prediction: we should expect to find WH-pronouns in the clausal remnant of focus structures, just as we do in WH-questions.	page 27
+§4.4	Henry Davis and Jason Brown	note	We do not. WH-pronouns are ungrammatical in cases of focus movement, as shown in (71)-(73).	page 27
+(71) line 1	Gitksan	transcription	Savannahl (*naahl) etxwis Henry.	page 27
+(71) line 2	Gitksan	gloss	Savanna=CN [(*who=CN) call-TRA-PN Henry ___]	page 27
+(71) line 3	Henry Davis and Jason Brown	translation	‘It was Savanna who Henry called.’	page 27
+(72) line 1	Gitksan	transcription	Alyssahl (*naahl) yoḵxwit.	page 27
+(72) line 2	Gitksan	gloss	Alyssa=CN [(*who=CN) eat-SX ___]	page 27
+(72) line 3	Henry Davis and Jason Brown	translation	‘It was Alyssa who ate.’	page 27
+(73) line 1	Gitksan	transcription	Henry (*naa) ant etxws Savanna gi.	page 27
+(73) line 2	Gitksan	gloss	Henry [(*who) AX call-PN ___ Savanna=DIST]	page 27
+(73) line 3	Henry Davis and Jason Brown	translation	‘It was Henry that called Savanna.’	page 27
+(73) line 4	Henry Davis and Jason Brown	speaker comment	Speaker’s comment on the version with naa: ‘No – the whole sentence doesn’t say what you say in English.’	page 27, under the example, the consultant not named
+§4.4	Henry Davis and Jason Brown	note	In fact, we should have anticipated this discovery. Recall from 3.2 that certain nouns (notably proper names and pronouns) cannot be predicative. This means that indirect movement is not an option for cases with a proper name in initial position: yet they are still grammatical. There is only one remaining alternative: for at least these cases, focus movement must be direct.	page 27
+§4.4	Henry Davis and Jason Brown	note	Further support for this contention is provided by the distribution of the determinate markers t (singular) and dip (plural). These markers, by hypothesis, occur only on arguments, never predicates: yet they show up on focused proper names, as shown in (74):	page 27
+(74a) line 1	Gitksan	transcription	T John (*naa) ant guphl suusiit.	page 27
+(74a) line 2	Gitksan	gloss	DM John [(*who) AX eat=CN ___ potato]	page 27
+(74a) line 3	Henry Davis and Jason Brown	translation	‘It was John who ate the potato.’	page 27
+(74b) line 1	Gitksan	transcription	Dip John (*naa) ant guphl suusiit.	page 27
+(74b) line 2	Gitksan	gloss	PL.DM John [(*who) AX eat=CN ___ potato]	page 27
+(74b) line 3	Henry Davis and Jason Brown	translation	‘It was John and them who ate the potato.’29	page 27
+footnote 29	Henry Davis and Jason Brown	note	When used with a singular noun, dip forms an associative plural, translated here as ‘x and them’. See Tarpent (1982).	page 27, footnote 29
+§4.4	Henry Davis and Jason Brown	note	Another argument can be constructed based on nominal predicates with a proper name or Series III pronoun as argument. Recall that these are cases of ‘asymmetrical predication’: the non-determinate noun must be the predicate, as shown in the (a) cases in (75)-(76) below, because the determinate noun cannot be, as shown by the ungrammaticality of the (b) cases. What is interesting for the question under discussion is the grammaticality of the (c) cases, which have the determinate in initial position, and display (intransitive subject) extraction marking on the non-determinate noun.	page 28
+(75a) line 1	Gitksan	transcription	Simgigat dip Bill g̱an Fred.	page 28
+(75a) line 2	Gitksan	gloss	chief(PL) PL.DM Bill and Fred	page 28
+(75a) line 3	Henry Davis and Jason Brown	translation	‘Bill and Fred are chiefs.’	page 28
+(75b) line 1	Gitksan	transcription	* Dip Bill g̱an Fred simgigat.	page 28
+(75b) line 2	Gitksan	gloss	PL.DM Bill and Fred chief(PL)	page 28
+(75c) line 1	Gitksan	transcription	Dip Bill g̱an Fred simgigadit.	page 28
+(75c) line 2	Gitksan	gloss	PL.DM Bill and Fred [chief(PL)-SX ___]	page 28
+(75c) line 3	Henry Davis and Jason Brown	translation	‘It’s Bill and Fred who are chiefs.’	page 28
+(76a) line 1	Gitksan	transcription	Simgigat ‘niidiidist	page 28
+(76a) line 2	Gitksan	gloss	chief(PL) 3PL.III=AFF	page 28
+(76a) line 3	Henry Davis and Jason Brown	translation	‘Bill and Fred are chiefs.’	page 28
+(76b) line 1	Gitksan	transcription	* ‘Niidiit simgigadist.	page 28
+(76b) line 2	Gitksan	gloss	3PL.III chief(PL) =AFF	page 28
+(76c) line 1	Gitksan	transcription	‘niidiit simgigadidist.	page 28
+(76c) line 2	Gitksan	gloss	3PL.III [chief(PL)-SX ____]=AFF	page 28
+(76c) line 3	Henry Davis and Jason Brown	translation	‘It’s them who are chiefs.’	page 28
+§4.4	Henry Davis and Jason Brown	note	The (c) cases are only readily derivable by direct movement. The predicate in these cases is still simgigat ‘chiefs’, and the extraction marking indicates that its argument, the proper name/pronoun, has been fronted by focus movement to a clause-initial but non-predicative position.	page 28
+§4.4	Gitksan	cited form	simgigat	page 28, in italics, ‘chiefs’
+§4.4	Henry Davis and Jason Brown	note	We conclude that focus movement in Gitksan must be direct, not indirect, and therefore that A'-dependencies in IT employ both direct and indirect movement strategies. In the next section we return once again to our examination of WH-questions in order explore the consequences of this new finding for our previous analysis of questions as indirect movement structures.	page 28
+§4.5	Henry Davis and Jason Brown	heading	4.5 Can WH-questions involve direct movement?	page 28
+§4.5	Henry Davis and Jason Brown	note	Given the necessity for a direct movement account of focused arguments, the possibility now re-emerges of a direct movement account of WH- questions. Notice that such a direct movement strategy cannot replace an indirect one: we have seen enough evidence that at least some WH-questions must be analyzed as cases of indirect movement. Rather, we need to consider the possibility that WH-questions exploit both strategies.	page 28
+§4.5	Henry Davis and Jason Brown	note	In this light, consider the following examples:	page 29
+(77a) line 1	Gitksan	transcription	(*Dip) naahl simgigadist	page 29
+(77a) line 2	Gitksan	gloss	(*PL.DM) who=CN chief(PL)=AFF	page 29
+(77a) line 3	Henry Davis and Jason Brown	translation	‘Who are the chiefs?’	page 29
+(77b) line 1	Gitksan	transcription	Dip naahl simgigadidist	page 29
+(77b) line 2	Gitksan	gloss	PL.DM who=CN [chief(PL)-SX ___]=AFF	page 29
+(77b) line 3	Henry Davis and Jason Brown	translation	‘Who are the chiefs?’	page 29
+§4.5	Henry Davis and Jason Brown	note	These cases are precisely parallel to the non-WH cases of nominal predication in (75)-(76) above. The (a) case shows the WH-word naa acting as a predicate nominal: as such it cannot be preceded by the plural determinate marker dip. In contrast, when subject extraction (SX) morphology is attached to the predicate nominal ‘chiefs’ in (b), dip naa can front directly, like a focused argument. Tarpent (1987: 477) gives a number of parallel examples from Nisgha where initial naa is preceded by a determinate marker: and in every case, the predicate is suffixed with subject extraction morphology.	page 29
+§4.5	Gitksan	cited form	dip naa	page 29, in italics
+§4.5	Henry Davis and Jason Brown	note	We tentatively conclude that both indirect and direct movement strategies are employed in IT WH-questions. However, more work here is clearly in order.	page 29
+§5	Henry Davis and Jason Brown	heading	5 Implications	page 29
+§5	Henry Davis and Jason Brown	note	In this final section, we address two issues that arise from our investigation. The first, alluded to above in 4.2, is the surprising finding that relativization in Gitksan shows a ‘Standard Average European’ (SAE) pattern, and the possibility that it derives from the influence of English. The second is the place of the IT pattern of A'-dependencies within the Pacific NW Sprachbund.	page 29
+§5.1	Henry Davis and Jason Brown	heading	5.1 English influence and relativization in IT	page 29
+§5.1	Henry Davis and Jason Brown	note	Before proceeding further, let us anticipate one possible question about our findings with respect to relativization in Gitksan. These findings are robust, and have been independently corroborated by two expert first language speakers of Gitksan, from either end of the territory, who grew up with the language, speak it with friends and relatives to this day, and had never met each other before working with us. There is no question, then, of the relativization pattern we have described being the product of imperfect acquisition.	page 29
+§5.1	Henry Davis and Jason Brown	note	Furthermore, one should always be suspicious of claims that a particular English-like pattern in an unrelated language must be due to the direct influence of English. In our experience with first language speakers of several First Nations languages of British Columbia, all of whom are fluent in English, we have found the influence of English on their first languages to be confined largely to lexical replacement within structures independently sanctioned by the grammars themselves.	page 29
+§5.1	Henry Davis and Jason Brown	note	This does, however, raise an interesting possibility for the source of WH-relativization in Gitksan. Though WH-relatives are not mentioned in the literature on IT, and – as far as we can tell – are not attested in textual material, the literature does mention another element which behaves (amongst other things) suspiciously like a relative pronoun.30 This is the particle hla/hli, glossed by Rigsby (1986: 399) as ‘definite’ and Tarpent (1987: 471) as ‘restrictive’. (We have glossed it as REL in several examples above). Both authors mention that the particle is used by their consultants semi-obligatorily to introduce object-centred relative clauses, and Tarpent also gives an example (based on Boas 1902) where hli introduces a subject-centred relative. Examples of relatives with hli/hla are given below:	page 30
+footnote 30	Henry Davis and Jason Brown	note	Note that in his grammar of Sm’algyax (Coast Tsimshian), Dunn (1995: 68) states bluntly that ‘The relative pronoun is naa.’ He then gives the following example:	page 30, footnote 30
+footnote 30	Henry Davis and Jason Brown	language	Sm’algyax	Coast Tsimshian, footnote 30
+footnote 30 (i) line 1	Sm’algyax	transcription	Naa dmt inbaa’n boot.	page 30
+footnote 30 (i) line 2	Sm’algyax	gloss	REL FUT=3SG.I run boat	page 30
+footnote 30 (i) line 3	Henry Davis and Jason Brown	translation	‘He is the one who will run the boat.’	page 30
+footnote 30	Henry Davis and Jason Brown	note	However, the naa in this example does not appear to be acting as a relative pronoun, but rather as a non-interrogative predicative pronominal. More investigation is needed.	page 30, footnote 30
+§5.1	Gitksan	cited form	hla/hli	page 30, in italics
+§5.1	Gitksan	cited form	hli	page 30, in italics
+(78) line 1	Gitksan	transcription	Mahldi’y loodit dim guwis Johnhl	page 30
+(78) line 2	Gitksan	gloss	tell-T-TRA-1SG.II PREP-3PL.II FUT shoot-PN John=CN	page 30
+(78) line 3	Gitksan	transcription	smax hli ga’an.	page 30
+(78) line 4	Gitksan	gloss	[bear [REL see-TRA-2SG.II ___]]	page 30
+(78) line 5	Henry Davis and Jason Brown	translation	‘I told them John shot the bear you saw.’	page 30
+(78) line 6	Henry Davis and Jason Brown	citation	(Rigsby 1986: 407)	page 30, the tag or source at the right of the translation
+(79) line 1	Gitksan	transcription	Wilaayin hlit an guuhl hlguhlgwina?	page 30
+(79) line 2	Gitksan	gloss	know-TRA-2SG.II [REL=3SG.I AX take=CN ___ child-2SG.II]=YNQ	page 30
+(79) line 3	Henry Davis and Jason Brown	translation	‘Do you know who took the child?’	page 30
+(79) line 4	Henry Davis and Jason Brown	citation	(Tarpent 1987: 473)	page 30, the tag or source at the right of the translation
+(80) line 1	Gitksan	transcription	Guwis Johnhl smax hla ant jagwis Bill.	page 30
+(80) line 2	Gitksan	gloss	shoot-TRA-PN John=CN [bear [REL AX kill-T-PN ___ Bill]]	page 30
+(80) line 3	Henry Davis and Jason Brown	translation	‘John shot the bear that killed Bill.’	page 30
+(81) line 1	Gitksan	transcription	Wilaayis Johnhl gyat hla jakwdihl smax gi	page 30
+(81) line 2	Gitksan	gloss	know-TRA=PN John=CN [man [REL kill-T-TRA=CN ___ bear DIST]	page 30
+(81) line 3	Henry Davis and Jason Brown	translation	‘John knew the man who the bear killed.’	page 30
+§5.1	Henry Davis and Jason Brown	note	Aside from its use in relatives, hla/hli has a number of other functions, including as a marker of alienable possession, as a nominalizer, and – in combination with the complementizer daa – as a marker of temporal adjunct clauses. It is likely that historically it was a general purpose nominalizer, whose original function has fragmented into the separate uses that we see in contemporary IT.31 For our purposes, however, what is relevant is that one of these uses is as a relative pronoun. This tells us that, possibly prior to the innovation of WH-relative pronouns, IT already had structural precursors, in the form of hli/hla relative pronouns; and it is these structural precursors which we hypothesize might have allowed relexification by WH-pronouns to yield the current system.	page 30
+footnote 31	Henry Davis and Jason Brown	note	It is also quite plausibly the source of the non-determinate connective =hl, which has no cognate in Coast Tsimshian (unlike the determinate markers).	page 31, footnote 31
+§5.1	Gitksan	cited form	daa	page 30, in italics
+§5.1	Henry Davis and Jason Brown	note	The above remarks are speculative, and further work needs to be done to establish the current distribution of hli/hla, particularly in relation to WH-relative pronouns. Nonetheless, the major point still holds that IT did not simply graft an English construction onto an otherwise non-English syntax: it already had a close structural analogue to the English system of WH-relatives, which allowed it to adapt its own WH-words to function as WH-relative pronouns.	page 31
+§5.2	Henry Davis and Jason Brown	heading	5.2 A'-dependencies in IT and the NW Sprachbund	page 31
+§5.2	Henry Davis and Jason Brown	note	Finally, we turn to the issue of how the IT system of A'-dependencies as elucidated here fits more generally into the picture of A'-dependencies across the NW Sprachbund. Of particular relevance here is Beck’s (2002) ‘trial balloon’ (his description) which constitutes the first attempt to assess the Tsimshianic family from the point of view of its position within the ‘Central NW Coast’ (CNW) sub- area of the Pacific NW Sprachbund. The latter includes the Chimakuan, Wakashan and Salish families, which though clearly unrelated (at least in the case of Wakashan and Salish) share a number of superficial properties in common, including predicate-initial word order, extensive use of non-verbal predicates with ‘headless’ relative clauses, and large inventories of lexical suffixes.	page 31
+§5.2	Henry Davis and Jason Brown	note	Interestingly, Beck identifies what we have referred to as indirect movement as one way in which Tsimshianic resembles other language families of the sub-area: he notes the existence in Nisgha of structures consisting of	page 31
+§5.2	Henry Davis and Jason Brown	note	… a nominal predicate and a subject formed from a subordinate clause introduced by a determiner. These structures seem to follow a pattern familiar from a number of CNW languages in which a rhematic element is made the sentential predicate, irrespective of its lexical class, and the topical portion of the sentence is realized as subject (Beck 2002: 42)	page 31, a block quotation
+§5.2	Henry Davis and Jason Brown	note	As far as it goes, this observation is accurate: as we have seen, IT allows nominal predicates to take (headed and headless) relative clauses as arguments. But it glosses over some rather fundamental differences in the mechanisms responsible for indirect movement.	page 31
+§5.2	Henry Davis and Jason Brown	note	In Salish, for example, relative pronouns are systematically absent, and relativization is effected by the movement of determiners within the relative clause (Davis 2010). Furthermore, both WH-questions and focus structures are always indirect (Davis 2008), whereas, as we have seen, IT makes use of a direct movement strategy for focus as well as optionally for WH-questions.	page 31
+§5.2	Henry Davis and Jason Brown	note	A'-movement in Northern Wakashan is quite distinct from both IT and Salish. Only subjects are accessible to relativization, questioning and focusing, unlike anywhere else in the CNW area (Anderson 1984); and neither relative pronouns nor determiners appear to play any part in the mechanics of A'-movement, in spite of a notoriously elaborate determiner system. And as for Southern Wakashan, it is not at all clear that it actually has A'-movement (Davis and Sawai 2001).	page 32
+§5.2	Henry Davis and Jason Brown	note	While many of the details have yet to be worked out, the overall picture is clear: superficial similarities in the typology of A'-movement across the CNW area only partly conceal quite drastic differences in underlying syntactic mechanisms.	page 32
+§5.2	Henry Davis and Jason Brown	note	More generally, as work progresses and deepens on the individual language families within the Pacific NW Sprachbund, it is becoming increasingly clear just how different they are; in many ways, in fact, it is remarkable how little language families which have enjoyed such a long period of apparently continuous contact have grown to resemble each other.	page 32
+§6	Henry Davis and Jason Brown	heading	6 Conclusion	page 32
+§6	Henry Davis and Jason Brown	note	While we have left many issues unresolved, we hope to have made some progress in this paper in elucidating the syntax of A'-dependencies in IT. Our principal findings are the following:	page 32
+§6	Henry Davis and Jason Brown	note	(i) Relative clauses in Gitksan involve clause-internal A'-movement of a WH-phrase, which may be spelled out CP-initially in both headed and ‘headless’ relatives.	page 32
+§6	Henry Davis and Jason Brown	note	(ii) Long-range WH-movement within relative clauses can optionally also spell out a WH-copy in intermediate [SPEC, C] positions.	page 32
+§6	Henry Davis and Jason Brown	note	(iii) There are two A'-movement strategies in Gitksan: an indirect one, where a base-generated nominal takes a DP argument containing a relative clause, and a direct one, where a focused DP moves directly to a clause-initial position.	page 32
+§6	Henry Davis and Jason Brown	note	(iv) Focus movement structures only employ the direct strategy.	page 32
+§6	Henry Davis and Jason Brown	note	(v) WH-questions may involve either the direct or indirect movement strategy.	page 32
+§6	Henry Davis and Jason Brown	note	We believe these results are of some significance for the study of Tsimshianic, for the place of Tsimshianic within the Pacific NW Sprachbund, and more generally for the typology of A'-dependencies. Within Tsimshianic, the discovery of European-like WH-relative dependencies is a new one, as is the distinction between direct and indirect movement structures, particularly as it relates to focus movement. For the NW Sprachbund, the results of our investigation reinforce the superficial nature of syntactic resemblances between geographically contiguous but unrelated language families. On the other hand, from a wider perspective, we would like to emphasize that the system of A'-dependencies we have been exploring in IT has fundamental affinities with WH-movement structures in better-known but geographically remote and genetically distant languages – evidence, we would suggest, of the operation of deeper (and universal) principles of grammatical organization.	page 32
+references	Henry Davis and Jason Brown	heading	References	page 33
+references	Henry Davis and Jason Brown	reference	Anderson, Stephen R. 1984. Kwakwala syntax and the Government-Binding theory. In Eung-Do Cook and Donna B. Gerdts (eds.) The Syntax of Native American Languages (Syntax and Semantics 16), 21-75. Orlando: Academic Press.	page 33
+references	Henry Davis and Jason Brown	reference	Beck, David. 2000. Grammatical convergence and the genesis of diversity in the Northwest Coast Sprachbund. Anthropological Linguistics 42:2: 147-213.	page 33
+references	Henry Davis and Jason Brown	reference	–––––– 2002. Tsimshianic from a Central Northwest areal perspective I. In S. Gessner and S. Oh (eds.), ICSNL XXXV: The 37th International Conference on Salish and Neighbouring Languages, 35–60. Vancouver: UBC Working Papers in Linguistics.	page 33
+references	Henry Davis and Jason Brown	reference	Bhatt, Rajesh 2002. The raising analysis of relative clauses: evidence from adjectival modification. Natural Language Semantics 10: 43-90.	page 33
+references	Henry Davis and Jason Brown	reference	Boas, Franz 1902. Tsimshian Texts. Washington: Bureau of American Ethnology. Bulletin 27.	page 33
+references	Henry Davis and Jason Brown	reference	Comrie, Bernard and Kuteva, Tania 2011. Relativization on subjects. In Matthew S. Dryer and Martin Haspelmath (eds.), The World Atlas of Language Structures Online. Munich: Max Planck Digital Library, chapter 122. Available online at http://wals.info/chapter/122. (Accessed on 2011-06-07.)	page 33
+references	Henry Davis and Jason Brown	reference	Cook, Clare 2008. The Syntax and Semantics of Clause-typing in Plains Cree. Ph.D. dissertation, University of British Columbia.	page 33
+references	Henry Davis and Jason Brown	reference	Davis, Henry 2008. WH-in-situ: Japanese meets Salish. In Michiko Takeuchi (ed.) Kanagawa University Studies in Language Special Issue: Individual Languages and Language Variation: 17-58. Yokohama: Kanagawa University Center for Language Studies.	page 33
+references	Henry Davis and Jason Brown	reference	–––––– 2010. A unified analysis of relative clauses in St’át’imcets. Northwest Journal of Linguistics 4.1: 1-43.	page 33
+references	Henry Davis and Jason Brown	reference	–––––– and Naomi Sawai 2001. WH-movement as noun incorporation in Nuu- chah-nulth. In K. Megerdoomian and L. Bar-el (eds.), Proceedings of the Twentieth West Coast Conference on Formal Linguistics: 123-136. Somerville, MD: Cascadilla Press.	page 33
+references	Henry Davis and Jason Brown	reference	Dunn, John Asher 2005. Sm’algyax: A Reference Dictionary and Grammar for the Coast Tsimshian Language. Seattle: University of Washington Press.	page 33
+references	Henry Davis and Jason Brown	reference	Hardt, Daniel 1993. Verb Phrase Ellipsis: Form, Meaning and Processing. Ph.D. dissertation, University of Pennsylvania.	page 33
+references	Henry Davis and Jason Brown	reference	Heim, Irene and Angelika Kratzer 1998. Semantics in Generative Grammar. Oxford: Blackwell.	page 34
+references	Henry Davis and Jason Brown	reference	Hindle, Lonnie and Bruce Rigsby 1973. A short practical dictionary of the Gitksan language. Northwest Anthropological Research Notes 7.1: 1-60.	page 34
+references	Henry Davis and Jason Brown	reference	Hulsey, Sarah, and Uli Sauerland 2006. Sorting out relative clauses. Natural Language Semantics 14: 111-137.	page 34
+references	Henry Davis and Jason Brown	reference	Hunt, Katharine 1993. Clause Structure, Agreement, and Case in Gitksan. Ph.D. dissertation, University of British Columbia.	page 34
+references	Henry Davis and Jason Brown	reference	Jelinek, Eloise. 1998. Wh-Clefts in Lummi. Papers for ICSNL 33: 257-265. Seattle: University of Washington.	page 34
+references	Henry Davis and Jason Brown	reference	Kroeber, Paul 1999. The Salish Language Family: Reconstructing Syntax. Lincoln, Nebraska: University of Nebraska Press.	page 34
+references	Henry Davis and Jason Brown	reference	Merchant, Jason 2001. The Syntax of Silence: Sluicing, Islands, and Identity in Ellipsis. New York: Oxford University Press.	page 34
+references	Henry Davis and Jason Brown	reference	Peterson, Tyler 2006. Phi-determiners, agreement and Case in Interior Tsimshianic. Generals Paper, University of British Columbia.	page 34
+references	Henry Davis and Jason Brown	reference	Rigsby, Bruce J. 1986. Gitksan Grammar. Ms., University of Queensland, Australia.	page 34
+references	Henry Davis and Jason Brown	reference	–––––– 1989. A later view of Gitskan Syntax. In Mary Ritchie Key and Henry Hoenigswald (eds.), General and Amerindian Ethnolinguistics, 245-260. Berlin: Mouton de Gruyter.	page 34
+references	Henry Davis and Jason Brown	reference	Safir, Kenneth 1999. Vehicle change and reconstruction in A-bar chains. Linguistic Inquiry 30: 587-620.	page 34
+references	Henry Davis and Jason Brown	reference	Sauerland, Uli 1998. The Meaning of Chains. Ph.D. dissertation, Massachusetts Institute of Technology.	page 34
+references	Henry Davis and Jason Brown	reference	–––––– 2002. Unpronounced heads in relative clauses. In Kerstin Schwabe and Susanne Winkler (eds.), The Interfaces, Deriving and Interpreting Omitted Structures, 205–226. Amsterdam: John Benjamins.	page 34
+references	Henry Davis and Jason Brown	reference	Tarpent, Marie-Lucie 1982. A Tsimshian English expression: “Them Fred”. In B. Hoffer. S.P. Jasper & G. Bartelt (eds.), Essays in American Indian English, 113-119. Trinity University, San Antonio, Texas.	page 34
+references	Henry Davis and Jason Brown	reference	–––––– 1987. A Grammar of the Nisgha Language. Ph.D. dissertation, University of Victoria.	page 34
+§Appendix I	Henry Davis and Jason Brown	heading	Appendix I: Conversion chart from the Hindle and Rigsby practical orthography to APA	page 34
+§Appendix I	Henry Davis and Jason Brown	note	Note that the Hindle-Rigsby orthography is broadly phonetic rather than phonemic: it distinguishes voiced and voiceless stops, for example, which are non-contrastive in IT (the voiced allophones occur before vowels). Likewise, schwa is realized as i, a, and sometimes u, depending on its consonantal environment. See Rigsby (1986: 122-132) for exposition. For our (syntactic) purposes, the practical orthography is quite adequate, and so for reasons of space we have not included an additional phonemic line when glossing examples.	page 34
+§Appendix I	Gitksan	cited form	i	page 34, in italics
+§Appendix I	Gitksan	cited form	a	page 34, in italics
+§Appendix I	Henry Davis and Jason Brown	note	Orth. APA Orth. APA Orth. APA Orth. APA Orth. APA	page 35, heads the columns
+§Appendix I	Gitksan	transcription	a	page 35, under Orth.
+§Appendix I	Gitksan	transcription	a	page 35, under APA
+§Appendix I	Gitksan	transcription	hl	page 35, under Orth.
+§Appendix I	Gitksan	transcription	ɬ	page 35, under APA
+§Appendix I	Gitksan	transcription	l	page 35, under Orth.
+§Appendix I	Gitksan	transcription	l	page 35, under APA
+§Appendix I	Gitksan	transcription	s	page 35, under Orth.
+§Appendix I	Gitksan	transcription	s	page 35, under APA
+§Appendix I	Gitksan	transcription	x	page 35, under Orth.
+§Appendix I	Gitksan	transcription	x	page 35, under APA
+§Appendix I	Gitksan	transcription	aa	page 35, under Orth.
+§Appendix I	Gitksan	transcription	a:	page 35, under APA
+§Appendix I	Gitksan	transcription	i	page 35, under Orth.
+§Appendix I	Gitksan	transcription	ə	page 35, under APA
+§Appendix I	Gitksan	transcription	‘l	page 35, under Orth.
+§Appendix I	Gitksan	transcription	l’	page 35, under APA
+§Appendix I	Gitksan	transcription	t	page 35, under Orth.
+§Appendix I	Gitksan	transcription	t	page 35, under APA
+§Appendix I	Gitksan	transcription	x̱	page 35, under Orth.
+§Appendix I	Gitksan	transcription	χ	page 35, under APA
+§Appendix I	Gitksan	transcription	b	page 35, under Orth.
+§Appendix I	Gitksan	transcription	b	page 35, under APA
+§Appendix I	Gitksan	transcription	ii	page 35, under Orth.
+§Appendix I	Gitksan	transcription	i:	page 35, under APA
+§Appendix I	Gitksan	transcription	m	page 35, under Orth.
+§Appendix I	Gitksan	transcription	m	page 35, under APA
+§Appendix I	Gitksan	transcription	t’	page 35, under Orth.
+§Appendix I	Gitksan	transcription	t’	page 35, under APA
+§Appendix I	Gitksan	transcription	xw	page 35, under Orth.
+§Appendix I	Gitksan	transcription	xʷ	page 35, under APA
+§Appendix I	Gitksan	transcription	d	page 35, under Orth.
+§Appendix I	Gitksan	transcription	d	page 35, under APA
+§Appendix I	Gitksan	transcription	j	page 35, under Orth.
+§Appendix I	Gitksan	transcription	ʣ	page 35, under APA
+§Appendix I	Gitksan	transcription	’m	page 35, under Orth.
+§Appendix I	Gitksan	transcription	m’	page 35, under APA
+§Appendix I	Gitksan	transcription	tl’	page 35, under Orth.
+§Appendix I	Gitksan	transcription	ƛ’	page 35, under APA
+§Appendix I	Gitksan	transcription	y	page 35, under Orth.
+§Appendix I	Gitksan	transcription	y	page 35, under APA
+§Appendix I	Gitksan	transcription	e	page 35, under Orth.
+§Appendix I	Gitksan	transcription	e	page 35, under APA
+§Appendix I	Gitksan	transcription	k	page 35, under Orth.
+§Appendix I	Gitksan	transcription	k	page 35, under APA
+§Appendix I	Gitksan	transcription	n	page 35, under Orth.
+§Appendix I	Gitksan	transcription	n	page 35, under APA
+§Appendix I	Gitksan	transcription	ts	page 35, under Orth.
+§Appendix I	Gitksan	transcription	c	page 35, under APA
+§Appendix I	Gitksan	transcription	’y	page 35, under Orth.
+§Appendix I	Gitksan	transcription	y’	page 35, under APA
+§Appendix I	Gitksan	transcription	ee	page 35, under Orth.
+§Appendix I	Gitksan	transcription	e:	page 35, under APA
+§Appendix I	Gitksan	transcription	k’	page 35, under Orth.
+§Appendix I	Gitksan	transcription	k’	page 35, under APA
+§Appendix I	Gitksan	transcription	‘n	page 35, under Orth.
+§Appendix I	Gitksan	transcription	n’	page 35, under APA
+§Appendix I	Gitksan	transcription	ts’	page 35, under Orth.
+§Appendix I	Gitksan	transcription	c’	page 35, under APA
+§Appendix I	Gitksan	transcription	‘	page 35, under Orth.
+§Appendix I	Gitksan	transcription	ʔ	page 35, under APA
+§Appendix I	Gitksan	transcription	g	page 35, under Orth.
+§Appendix I	Gitksan	transcription	g	page 35, under APA
+§Appendix I	Gitksan	transcription	ḵ	page 35, under Orth.
+§Appendix I	Gitksan	transcription	q	page 35, under APA
+§Appendix I	Gitksan	transcription	o	page 35, under Orth.
+§Appendix I	Gitksan	transcription	o	page 35, under APA
+§Appendix I	Gitksan	transcription	u	page 35, under Orth.
+§Appendix I	Gitksan	transcription	u	page 35, under APA
+§Appendix I	Gitksan	transcription	g̱	page 35, under Orth.
+§Appendix I	Gitksan	transcription	G	page 35, under APA
+§Appendix I	Gitksan	transcription	ḵ’	page 35, under Orth.
+§Appendix I	Gitksan	transcription	q’	page 35, under APA
+§Appendix I	Gitksan	transcription	oo	page 35, under Orth.
+§Appendix I	Gitksan	transcription	o:	page 35, under APA
+§Appendix I	Gitksan	transcription	uu	page 35, under Orth.
+§Appendix I	Gitksan	transcription	u:	page 35, under APA
+§Appendix I	Gitksan	transcription	gw	page 35, under Orth.
+§Appendix I	Gitksan	transcription	gʷ	page 35, under APA
+§Appendix I	Gitksan	transcription	kw	page 35, under Orth.
+§Appendix I	Gitksan	transcription	kʷ	page 35, under APA
+§Appendix I	Gitksan	transcription	p	page 35, under Orth.
+§Appendix I	Gitksan	transcription	p	page 35, under APA
+§Appendix I	Gitksan	transcription	w	page 35, under Orth.
+§Appendix I	Gitksan	transcription	w	page 35, under APA
+§Appendix I	Gitksan	transcription	h	page 35, under Orth.
+§Appendix I	Gitksan	transcription	h	page 35, under APA
+§Appendix I	Gitksan	transcription	kw’	page 35, under Orth.
+§Appendix I	Gitksan	transcription	k’w	page 35, under APA
+§Appendix I	Gitksan	transcription	p’	page 35, under Orth.
+§Appendix I	Gitksan	transcription	p’	page 35, under APA
+§Appendix I	Gitksan	transcription	‘w	page 35, under Orth.
+§Appendix I	Gitksan	transcription	w’	page 35, under APA
+§Appendix II	Henry Davis and Jason Brown	heading	Appendix II: Basic clausal morphosyntax of Gitksan/Nisgha	page 35
+§Appendix II	Henry Davis and Jason Brown	note	The following draws primarily on Rigsby (1986), Tarpent (1987), and Hunt (1993).	page 35
+§Appendix II.A	Henry Davis and Jason Brown	heading	II.A Basic verb morphology	page 35
+§Appendix II.A	Henry Davis and Jason Brown	note	[Proclitics [[[Preverbs [(Redup) Root]] Valence-marking] Pronominal suffixes] Enclitics]	page 35
+§Appendix II.B	Henry Davis and Jason Brown	heading	II.B Pronoun Series	page 35
+§Appendix II.B	Henry Davis and Jason Brown	note	SERIES I (PREVERBAL CLITICS)*	page 35, the table's caption
+§Appendix II.B	Henry Davis and Jason Brown	note	SINGULAR PLURAL	page 35, the table's column heads
+§Appendix II.B	Henry Davis and Jason Brown	note	FIRST PERSON	page 35, the row's head
+§Appendix II.B	Gitksan	cited form	=n, ni=, na=	page 35, FIRST PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	dip	page 35, FIRST PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	SECOND PERSON	page 35, the row's head
+§Appendix II.B	Gitksan	cited form	=m, mi=, ma=	page 35, SECOND PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	=m, mi=, ma=...=sim	page 35, SECOND PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	THIRD PERSON	page 35, the row's head
+§Appendix II.B	Gitksan	cited form	t	page 35, THIRD PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	t	page 35, THIRD PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	* The position of Series I clitics relative to preverbal elements is complex: sometimes they act as proclitics and at other times as enclitics. See Rigsby (1986: 279).	page 35, under the table
+§Appendix II.B	Henry Davis and Jason Brown	note	SERIES II (SUFFIXES)	page 35, the table's caption
+§Appendix II.B	Henry Davis and Jason Brown	note	SINGULAR PLURAL	page 35, the table's column heads
+§Appendix II.B	Henry Davis and Jason Brown	note	FIRST PERSON	page 35, the row's head
+§Appendix II.B	Gitksan	cited form	-‘y	page 35, FIRST PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	-‘m	page 35, FIRST PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	SECOND PERSON	page 35, the row's head
+§Appendix II.B	Gitksan	cited form	-n	page 35, SECOND PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	-si’m	page 35, SECOND PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	THIRD PERSON	page 35, the row's head
+§Appendix II.B	Gitksan	cited form	-t*	page 35, THIRD PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	-diit**	page 35, THIRD PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	*3rd person singular -t deletes immediately preceding PN -s	page 35, under the table
+§Appendix II.B	Henry Davis and Jason Brown	note	*3rd person plural -diit replaces the ‘transitive’ morpheme -(y)i- in independent order transitive verbs.	page 35, under the table
+§Appendix II.B	Gitksan	cited form	-diit	page 35, in italics
+§Appendix II.B	Gitksan	cited form	-(y)i-	page 35, in italics
+§Appendix II.B	Henry Davis and Jason Brown	note	SERIES III (INDEPENDENT PRONOUNS)	page 36, the table's caption
+§Appendix II.B	Henry Davis and Jason Brown	note	SINGULAR PLURAL	page 36, the table's column heads
+§Appendix II.B	Henry Davis and Jason Brown	note	FIRST PERSON	page 36, the row's head
+§Appendix II.B	Gitksan	cited form	‘nii’y	page 36, FIRST PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	‘nuu’m	page 36, FIRST PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	SECOND PERSON	page 36, the row's head
+§Appendix II.B	Gitksan	cited form	‘niin	page 36, SECOND PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	‘nisi’m	page 36, SECOND PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	THIRD PERSON	page 36, the row's head
+§Appendix II.B	Gitksan	cited form	‘nit	page 36, THIRD PERSON, SINGULAR
+§Appendix II.B	Gitksan	cited form	‘nidiit	page 36, THIRD PERSON, PLURAL
+§Appendix II.B	Henry Davis and Jason Brown	note	DISTRIBUTION OF PRONOUN SERIES	page 36, the table's caption
+§Appendix II.B	Henry Davis and Jason Brown	note	SERIES III* SERIES II** SERIES I	page 36, the table's column heads
+§Appendix II.B	Henry Davis and Jason Brown	note	independent intransitive	page 36, the row's head
+§Appendix II.B	Henry Davis and Jason Brown	note	S	page 36, independent intransitive, SERIES III*
+§Appendix II.B	Henry Davis and Jason Brown	note	-	page 36, independent intransitive, SERIES II**
+§Appendix II.B	Henry Davis and Jason Brown	note	-	page 36, independent intransitive, SERIES I
+§Appendix II.B	Henry Davis and Jason Brown	note	independent transitive***	page 36, the row's head
+§Appendix II.B	Henry Davis and Jason Brown	note	O	page 36, independent transitive***, SERIES III*
+§Appendix II.B	Henry Davis and Jason Brown	note	A	page 36, independent transitive***, SERIES II**
+§Appendix II.B	Henry Davis and Jason Brown	note	-	page 36, independent transitive***, SERIES I
+§Appendix II.B	Henry Davis and Jason Brown	note	dependent intransitive	page 36, the row's head
+§Appendix II.B	Henry Davis and Jason Brown	note	-	page 36, dependent intransitive, SERIES III*
+§Appendix II.B	Henry Davis and Jason Brown	note	S	page 36, dependent intransitive, SERIES II**
+§Appendix II.B	Henry Davis and Jason Brown	note	-	page 36, dependent intransitive, SERIES I
+§Appendix II.B	Henry Davis and Jason Brown	note	dependent transitive (except 3pl. A)	page 36, the row's head
+§Appendix II.B	Henry Davis and Jason Brown	note	-	page 36, dependent transitive (except 3pl. A), SERIES III*
+§Appendix II.B	Henry Davis and Jason Brown	note	O	page 36, dependent transitive (except 3pl. A), SERIES II**
+§Appendix II.B	Henry Davis and Jason Brown	note	A	page 36, dependent transitive (except 3pl. A), SERIES I
+§Appendix II.B	Henry Davis and Jason Brown	note	dependent transitive (3pl. A only)	page 36, the row's head
+§Appendix II.B	Henry Davis and Jason Brown	note	O	page 36, dependent transitive (3pl. A only), SERIES III*
+§Appendix II.B	Henry Davis and Jason Brown	note	-	page 36, dependent transitive (3pl. A only), SERIES II**
+§Appendix II.B	Henry Davis and Jason Brown	note	A	page 36, dependent transitive (3pl. A only), SERIES I
+§Appendix II.B	Henry Davis and Jason Brown	note	* Also used whenever a pronoun is focused.	page 36, under the table
+§Appendix II.B	Henry Davis and Jason Brown	note	** Also mark possessors, prepositional objects	page 36, under the table
+§Appendix II.B	Henry Davis and Jason Brown	note	*** independent transitive verbs are suffixed with a ‘transitivizing’ morpheme -(y)i-/-(y)a- before SERIES II A suffixes (except 3PL). The same morpheme appears in object extraction contexts: see section 5 below.	page 36, under the table
+§Appendix II.C	Henry Davis and Jason Brown	heading	II.C -s Marking	page 36
+§Appendix II.C	Henry Davis and Jason Brown	note	DISTRIBUTION OF -s WITH PROPER NOUNS*	page 36, the table's caption
+§Appendix II.C	Henry Davis and Jason Brown	note	independent intransitive	page 36, the row's head
+§Appendix II.C	Henry Davis and Jason Brown	note	-	page 36, independent intransitive
+§Appendix II.C	Henry Davis and Jason Brown	note	independent transitive	page 36, the row's head
+§Appendix II.C	Henry Davis and Jason Brown	note	A	page 36, independent transitive
+§Appendix II.C	Henry Davis and Jason Brown	note	dependent intransitive	page 36, the row's head
+§Appendix II.C	Henry Davis and Jason Brown	note	S	page 36, dependent intransitive
+§Appendix II.C	Henry Davis and Jason Brown	note	dependent transitive	page 36, the row's head
+§Appendix II.C	Henry Davis and Jason Brown	note	immediately adjacent PN (A or O)	page 36, dependent transitive
+§Appendix II.C	Henry Davis and Jason Brown	note	*Only following 3rd person Series II pronoun on predicate; determinate t deletes following -s	page 36, under the table
+§Appendix II.C	Henry Davis and Jason Brown	note	‘Hunt’s Condition’ (Hunt 1993: 200): /s/ case is assigned to an NP iff	page 36
+§Appendix II.C	Henry Davis and Jason Brown	note	(i) it is adjacent to a lexical head and	page 36
+§Appendix II.C	Henry Davis and Jason Brown	note	(ii) it is coreferent with the Series II suffix on that head	page 36
+§Appendix II.D	Henry Davis and Jason Brown	heading	II.D Argument marking	page 37
+§Appendix II.D	Henry Davis and Jason Brown	note	DETERMINATE/NON-DETERMINATE MARKING*	page 37, the table's caption
+§Appendix II.D	Henry Davis and Jason Brown	note	Non-Determinate Determinate Subject Determinate Object	page 37, the table's column heads
+§Appendix II.D	Henry Davis and Jason Brown	note	independent intransitive	page 37, the row's head
+§Appendix II.D	Henry Davis and Jason Brown	note	=hl NP	page 37, independent intransitive, Non-Determinate
+§Appendix II.D	Henry Davis and Jason Brown	note	t/dip NP**	page 37, independent intransitive, Determinate Subject
+§Appendix II.D	Henry Davis and Jason Brown	note	-	page 37, independent intransitive, Determinate Object
+§Appendix II.D	Henry Davis and Jason Brown	note	independent transitive	page 37, the row's head
+§Appendix II.D	Henry Davis and Jason Brown	note	=hl NP	page 37, independent transitive, Non-Determinate
+§Appendix II.D	Henry Davis and Jason Brown	note	=s NP	page 37, independent transitive, Determinate Subject
+§Appendix II.D	Henry Davis and Jason Brown	note	=s NP (if 1st/2nd person subject) t /dip NP (otherwise)	page 37, independent transitive, Determinate Object
+§Appendix II.D	Henry Davis and Jason Brown	note	dependent intransitive	page 37, the row's head
+§Appendix II.D	Henry Davis and Jason Brown	note	=hl NP	page 37, dependent intransitive, Non-Determinate
+§Appendix II.D	Henry Davis and Jason Brown	note	=s NP	page 37, dependent intransitive, Determinate Subject
+§Appendix II.D	Henry Davis and Jason Brown	note	-	page 37, dependent intransitive, Determinate Object
+§Appendix II.D	Henry Davis and Jason Brown	note	dependent transitive	page 37, the row's head
+§Appendix II.D	Henry Davis and Jason Brown	note	=hl NP	page 37, dependent transitive, Non-Determinate
+§Appendix II.D	Henry Davis and Jason Brown	note	=s NP	page 37, dependent transitive, Determinate Subject
+§Appendix II.D	Henry Davis and Jason Brown	note	=s NP (if 1st/2nd person subject) t/dip NP (otherwise)	page 37, dependent transitive, Determinate Object
+§Appendix II.D	Henry Davis and Jason Brown	note	* ‘Determinates’ include names of people and animals, demonstratives (transparently in Nisgha; less so in Gitksan), and historically independent pronouns, which get no connective in contemporary IT.	page 37, under the table
+§Appendix II.D	Henry Davis and Jason Brown	note	** The determinate marker t sometimes procliticizes to the following nominal.	page 37, under the table
+§Appendix II.E	Henry Davis and Jason Brown	heading	II.E Clausal Word Order	page 37
+§Appendix II.E	Henry Davis and Jason Brown	note	PREDICATE ((> ERGATIVE) > ABSOLUTIVE) (> OBLIQUE)	page 37
+§Appendix II.E	Henry Davis and Jason Brown	note	• There is only one exception to this otherwise rigid sequence: in a transitive clause with an independent (Series III) absolutive pronoun and an ergative nominal, either (i) or (ii) is available:	page 37
+§Appendix II.E	Henry Davis and Jason Brown	note	(i) PREDICATE > ABSOLUTIVE PRONOUN > ERGATIVE (> OBLIQUE)	page 37
+§Appendix II.E	Henry Davis and Jason Brown	note	(ii) PREDICATE > ERGATIVE > ABSOLUTIVE PRONOUN (> OBLIQUE)	page 37
+§Appendix II.E	Henry Davis and Jason Brown	note	• According to Rigsby (1986: 263), (i) is the older, more conservative pattern, which is being replaced by younger speakers with (ii), presumably by analogy with the canonical word order for transitive clauses.	page 37
+§Appendix II.F	Henry Davis and Jason Brown	heading	II.F Extraction Morphology	page 38
+§Appendix II.F	Henry Davis and Jason Brown	note	extracted A extracted S extracted O extracted OBL	page 38, the table's column heads
+§Appendix II.F	Henry Davis and Jason Brown	note	preceding predicate	page 38, the row's head
+§Appendix II.F	Gitksan	cited form	=t an*, an=t	page 38, preceding predicate, extracted A
+§Appendix II.F	Gitksan	cited form	=hl	page 38, preceding predicate, extracted S
+§Appendix II.F	Gitksan	cited form	=hl	page 38, preceding predicate, extracted O
+§Appendix II.F	Henry Davis and Jason Brown	note	wil + Series I (A)	page 38, preceding predicate, extracted OBL
+§Appendix II.F	Henry Davis and Jason Brown	note	on predicate	page 38, the row's head
+§Appendix II.F	Henry Davis and Jason Brown	note	Series II marking O	page 38, on predicate, extracted A
+§Appendix II.F	Gitksan	cited form	-it, -at	page 38, on predicate, extracted S
+§Appendix II.F	Henry Davis and Jason Brown	note	Series II marking A	page 38, on predicate, extracted O
+§Appendix II.F	Henry Davis and Jason Brown	note	Series II marking (S or O)	page 38, on predicate, extracted OBL
+§Appendix II.F	Henry Davis and Jason Brown	note	* Dispreferred by Gitksan speakers; apparently more freely available in Nisgha.	page 38, under the table
+end	Henry Davis and Jason Brown	note	Henry.Davis@ubc.ca	page 38, the authors' addresses
+end	Henry Davis and Jason Brown	note	jason.brown@auckland.ac.nz	page 38, the authors' addresses
