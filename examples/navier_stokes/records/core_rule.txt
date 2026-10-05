@@ -1,0 +1,61 @@
+{
+  "scheme": "navier_stokes.core_rule.cfg",
+  "version": 1,
+  "report": {
+    "record": "../records/core_rule.txt"
+  }
+}
+expression theta, the system's coefficient of X^k, 6 parts
+(1 + 1 k + 1 h) L^-1 F[k]
+(1/2 eta + -1 eta h) L^-1 F'[k]
+(-4 + -6 k + -2 k^2) F[k + 1]
+(-2 eta + -2 eta i + -2 eta h) L^-1 sum_i F[i] U[k - i]
+(1 + 1 i) sum_i F[i] v[k - i]
+(1 + -1 eta^2) L^-1 sum_i F'[i] U[k - i]
+
+expression theta, the rule's left side less its right, 6 parts
+(-1 + -1 k + -1 h) L^-1 F[k]
+(-1/2 eta + 1 eta h) L^-1 F'[k]
+(4 + 6 k + 2 k^2) F[k + 1]
+(2 eta + 2 eta i + 2 eta h) L^-1 sum_i F[i] U[k - i]
+(-1 + -1 i) sum_i F[i] v[k - i]
+(-1 + 1 eta^2) L^-1 sum_i F'[i] U[k - i]
+
+expression z, the system's coefficient of X^k, 8 parts
+(1/2 + 1 k + 1 h) L^-1 U[k]
+(1/2 eta + -1 eta h) L^-1 U'[k]
+(-2 + -4 k + -2 k^2) U[k + 1]
+(-2 eta + -2 eta k + -4 eta h) L^-1 P[k]
+(1 + -1 eta^2) L^-1 P'[k]
+(-1 eta + -1 eta k + -2 eta h) L^-1 sum_i U[i] U[k - i]
+(1 + -1 eta^2) L^-1 sum_i U[i] U'[k - i]
+(1 i) sum_i U[i] v[k - i]
+
+expression z, the rule's left side less its right, 8 parts
+(-1/2 + -1 k + -1 h) L^-1 U[k]
+(-1/2 eta + 1 eta h) L^-1 U'[k]
+(2 + 4 k + 2 k^2) U[k + 1]
+(2 eta + 2 eta k + 4 eta h) L^-1 P[k]
+(-1 + 1 eta^2) L^-1 P'[k]
+(1 eta + 1 eta k + 2 eta h) L^-1 sum_i U[i] U[k - i]
+(-1 + 1 eta^2) L^-1 sum_i U[i] U'[k - i]
+(-1 i) sum_i U[i] v[k - i]
+
+expression v0, the system's coefficient of X^k, 3 parts
+(-1 eta + -2 eta k + -2 eta h) L^-1 U[k]
+(1 + -1 eta^2) L^-1 U'[k]
+(1 + 1 k) v[k]
+
+expression v0, the rule's left side less its right, 3 parts
+(-1 eta + -2 eta k + -2 eta h) L^-1 U[k]
+(1 + -1 eta^2) L^-1 U'[k]
+(1 + 1 k) v[k]
+
+expression Pi, the system's coefficient of X^k, 2 parts
+(1 + 1 k) P[k + 1]
+(-1) sum_i F[i] F[k - i]
+
+expression Pi, the rule's left side less its right, 2 parts
+(1 k) P[k]
+(-1) sum_i F[i] F[k - i - 1]
+

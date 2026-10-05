@@ -1,177 +1,101 @@
-# Experiments: reproducing Duraiswami's matched core
+# Experiments: Duraiswami's matched core, exactly
 
-The goal is to show that our system and Duraiswami's matched core (arXiv 2609.17642, Section 7) are the same
-solution. Our forms converge onto his printed numbers, or to within the places he printed them with, as the series
-order and the blend's terms grow:
-
-All of his runs here take h = 0.01, c = 0.2, X_a = 1 and X_b = 2.
-
-The exterior tail of S, c^2 X_b^(-2h) / (4h), is 0.99. It needs no fit.
-
-The 8-parameter optimum: F_0 and U_0 in span(T_0, T_1, T_2) of eta, and the annulus return flow
-(b_0 + b_1 eta) psi(X):
-
-| quantity               | his value                     |
-|------------------------|-------------------------------|
-| F_0                    | 0.244 + 0.034 eta - 0.058 T_2 |
-| U_0                    | 0.450 + 0.004 eta - 0.034 T_2 |
-| b_0                    | -2.01                         |
-| b_1                    | not printed                   |
-| root-mean-square       | 0.077                         |
-| with 13 parameters     | 0.039                         |
-
-The 32-parameter matched core: F_0 and U_0 to T_4 (10), annulus axial content 2 x 6 (12) and annulus swirl content
-2 x 5 (10):
-
-| quantity                 | his value | where            |
-|--------------------------|-----------|------------------|
-| F_0 at eta = 0           | 0.336     | X = 0            |
-| U_0 at eta = 0           | 0.452     | X = 0            |
-| F_0 at eta = 1           | 0.214     | X = 0            |
-| return flow              | -2.06     | the annulus      |
-| largest abs U            | 0.60 / 1.9 | core / annulus  |
-| root-mean-square         | 1.2e-3    | the six functions |
-| worst                    | 3.7e-3    | the six functions |
-| pressure datum           | 5e-13     | consistency      |
-
-His family, as his code writes it:
-
-- F_0 and U_0 are Chebyshev sums in eta.
-- The annulus axial content is psi_b(X; X_a, X_v) times sum over j, k of U_jk T_j(s_v) T_k(eta), with
-  s_v = 2 (X - X_a) / (X_v - X_a) - 1. The swirl content is psi_b(X; X_a, X_b) times sum over j, k of F_jk T_j(s_b)
-  T_k(eta). psi_b = e^(4 - 1/(s (1 - s))) on 0 < s < 1, which is ode_series_bump.
-- The six matching functions of eta are the net torque X tau_theta(X_b), the net force sqrt(X) tau_z(X_b), M(inf),
-  J(inf), S(inf) with the exterior tail taken off, and int_0^inf (H - H_pow) dX.
+The matched core of Duraiswami (arXiv 2609.17642, Section 7) is the leading-order system of OpenAI 2026, eq. (4.13),
+in the paper's profile variables, solved from data on the axis and joined to the heat exterior by a blend psi. The
+goal is to show that the system, the family and the six matching functions held here are the paper's, as exact
+relations, with no number in the comparison.
 
 ## Rules for every experiment
 
-- Every value is an exact form: rational coefficients times rational powers of one held e times held terms.
-- The terms (E1, w(z_c) and w'(z_c), rho, the tail integral) are never evaluated. Where a form meets one of his
-  decimals, his decimals define the terms: the term values his printed numbers imply are solved for exactly, and
-  his other printed numbers are the check. They agree, or the disagreement is recorded.
-- A subject is measured by 8 witnesses at the corners of a cube around it. The 8 corner forms give the 8 components:
-  the value, 3 edge differences, 3 face differences and 1 body difference, each a whole form.
-- For each term, the number of the 8 components it needs is recorded as its character and is not interpreted.
-- A check passes or fails only where the answer is exact: a residual is 0 or it is not. Everything else is recorded.
-- Every whole form, all 8 corners, is written to `records/`, tracked and committed with the work.
+- Nothing infinite is summed. A series is held as the rule that gives its coefficient of order k, and a coefficient
+  is computed only where one is asked for. No series is cut at an order, no sum is taken to a length, and no value is
+  written to a number of places.
+- A function that is not a polynomial, the core's fields as functions of X, psi, w, E1 and e^(-1/s) among them, is a
+  held term carried with the exact relations that define it, and is never evaluated.
+- A check passes or fails only where the answer is exact: an identity reduces to 0 or it does not. An identity over
+  the orders of a series is checked at a general order k, never for k up to a bound.
+- No printed decimal of the paper enters. The paper's numbers are rounded, and a comparison with them is not exact.
+- Every form and every reduction is written whole to `records/`, tracked and committed with the work.
 
-## 0. Ground work
+## 0. What the tree holds
 
-- 0a. Dense magnitude arrays. A form is one array of exact integers over a shared index, the power of e and then
-  the term powers, with one denominator per form. Check: join_datum, join_series and axis_heat give the same forms
-  term for term as the map. Recorded: entries and bits per entry.
-- 0b. Module objects built once per width and linked into each driver, each rebuilt only where its source or a
-  header it reads is newer.
-- 0c. The witness cube module: a subject of 3 rational parameters, a center and a half-edge from the cfg, the 8
-  corner forms, the 8 components, and each term's count. The record writer writes every form whole.
+`term_form` holds exact forms in held terms, e at a rational power. `eta_function` holds exact functions of eta over
+powers of L = 1 - 2 h eta^2. `decay_integral` writes int_0^b s^k e^(-n/s) ds as two terms. `witness_cube`, `record`
+and `run_cfg` measure, write and read.
 
-## 1. The cube on subjects already known
+## 1. Series held by their rule
 
-e^(-1/s), psi, the Kummer w, x^h, and A K and A J from axis_heat. Check: the 8 components equal the matching
-combinations of the Taylor coefficients already held, exactly.
+A series in X is the sum over k of its entries a_k X^k. An expression in the entries at a general order k is a sum of
+parts. A part is a factor times one entry at k plus a fixed shift, or a Cauchy product: the sum over i of a factor
+times one entry at i and one at k + c - i, an entry at a negative order being 0. A factor is a polynomial in eta, h,
+k and i over a power of L, and an entry carries a derivative in eta of its field. Each expression is held in one
+normal form, and two are equal exactly when their difference is 0.
 
-Measured (`witness_known`, 5 checks): the trilinear form's 8 terms each have character 1, the product's 2 terms
-character 8, and A K and A J 8 terms each of character 8, every corner holding its own E1(s_b) and e^(-s_b).
+The operations are X f, d/dX, X d/dX, the product of two series, a shift of k, and the eta operators L^-1, eta,
+d = 1 - eta^2 and d/deta.
 
-## 2. The axis core
+Check (`core_rule`): d/dX (f g) - (f' g + f g'), X d/dX (f g) - (X f' g + f X g'), d/deta (f g) - (f_eta g + f g_eta)
+and d/deta (L^-1 f) - L^-1 f_eta - 4 h eta L^-2 f are 0 at a general k.
 
-The subject is F, U and Pi over (X, eta, h), the cubes centered at X = 0, eta = 0 and eta = 1. Recorded: the
-difference of the forms at order K and K + 1 for K = 40, 60, 80, and the ratio and root estimates at each order,
-beside his radius of 3.9 to 4.0.
+## 2. The core at every order
 
-Measured (`core_cubes`, 3 checks, 512 limbs) on his 8-parameter F_0 and U_0 with Pi_0 = 0, which stands in until
-the datum of experiment 6 replaces it; half-edges 1/8, 1/8 and 1/1000 in (X, eta, h):
+The system of OpenAI 2026, eq. (4.13), in the paper's variables with nu = 1, A = 1/2 + h and D = 1/2 - h:
 
-| cube center (X, eta, h) | largest component change, 40 to 60 | 60 to 80 |
-|-------------------------|------------------------------------|----------|
-| (1/8, 0, 1/100)         | 1.2e-56                            | 2.0e-84  |
-| (1/8, 7/8, 1/100)       | 2.2e-63                            | 3.2e-94  |
-| (1, 0, 1/100)           | 8.2e-30                            | 1.6e-44  |
+    T_{-(A+1/2)} F + v0 (X F_X + F) + U Z_{-(A+1/2)} F - 2 (X F)_XX = 0,
+    T_{-A} U + X v0 U_X + U Z_{-A} U + Z_{-2A} Pi - 2 (X U_X)_X = 0,
+    (X v0)_X = L^-1 (2 A eta U - d U_eta + 2 eta X U_X),   Pi_X = F^2,
+    T_b f = L^-1 (-b f + D eta f_eta + X f_X),   Z_b f = L^-1 (2 b eta f + d f_eta - 2 eta X f_X),
 
-The change falls by about 1e-15 for each 20 orders at the join, which puts the radius near 6 for these data. Near
-the axis c_0 = c_1, c_2 = c_3, c_4 = c_5 and c_6 = c_7 for Pi: every corner at X = 0 is Pi_0 = 0.
+and the rule of the paper's eqs. (17) and (18) for F_(k+1), U_(k+1), v_k and P_(k+1).
 
-## 3. The datum against the join's own choices
+Check (`core_rule`): the coefficient of X^k of each of the four equations, taken from the system by the operations of
+1, equals the rule's at a general k: the rule solves the system at every order at once. With one part of the rule
+changed it does not. The rule takes F_0 and P_0 even in eta and U_0 odd to F_k and P_k even and U_k odd at every k.
 
-The subject is the right side of Pi_0 over (X_a, X_b, eta). The answer depends on eta; the X_a and X_b components
-measure how much the join's placement puts into it. A sweep over blend terms, orders and cuts records the
-difference forms.
+## 3. Held functions and their relations
 
-Measured (`datum_cubes`, 3 checks) about (X_a, X_b, eta) = (1, 2, 1/2), half-edges 1/8: 877 terms over 57 terms.
-873 terms have character 8. The 4 terms of the exterior tail have character 4, held in c_0, c_2, c_4 and c_6 alone,
-the components with no X_a direction: the tail does not depend on X_a. The part with no term has c_0 = -0.168,
-c_1 = -0.0074 (X_a), c_2 = -0.0101 (X_b) and c_4 = 0.0218 (eta).
+F, U, v0 and Pi as functions of (X, eta), psi, w, E1 and e^(-1/s) are held terms, each with the relations that define
+it: the system of 2, psi' = psi (1 - 2 s) / (s (1 - s))^2, Kummer's equation for w, and E1' = -e^(-x) / x. An integral
+of a product of held functions is a held term of its own, with its derivative and the relation integration by parts
+gives.
 
-## 4. The annulus family and the six identities
+An expression is held in one normal form (`jet_rule`): eta^2 is written as 1 - d, the powers of X, d and 2 are held
+with exponents a + b h, and every derivative a relation reaches is written through it.
 
-Both sides of each identity as exact forms, the difference reduced in the terms. Every term left in the difference is
-recorded: those are the terms the identity drops.
+Check (`matching_rule`): the exterior F_ext = (c / sqrt 2) (2d)^(-1-h) w(X / (2d)), with Kummer's equation for w,
+solves T_{-(A+1/2)} F - 2 (X F)_XX = 0 exactly, and X F_ext does not.
 
-Measured (`matching_functions`, 6 checks) on his 8-parameter F_0, U_0 and b_0 = -2.01, with b_1 = 0 standing in
-for the value he does not print and Pi_0 = 0 for the datum: at eta = 0 and 1/2 the six functions are exact forms of
-34 to 291 terms over 31 terms. With the blend switched off the core alone fills the annulus, and its torque and force
-come out at 1.2e-10 and 3.7e-11, the core series' own truncation at order 24: the boundary terms and the parts taken
-out by parts are right.
+## 4. The six matching functions
 
-## 5. The fits
+The net torque X tau_theta(X_b), the net force sqrt(X) tau_z(X_b), M(inf), J(inf), S(inf) with the exterior tail taken
+off, and int_0^inf (H - H_pow) dX, each an exact form in the held terms of 3.
 
-His parameters enter the series polynomially and the Jacobian is exact. Exact Gauss-Newton on the six functions,
-the terms defined by his decimals.
+Check (`matching_rule`): with V = X v0 and Pi held by V_X = L^-1 (2 A eta U - d U_eta + 2 eta X U_X) and Pi_X = F^2,
+the torque int X R_theta and the force int R_z each equal a boundary bracket and a local integrand for any F and U,
+and with one part changed they do not. The tail of H, int (z w - z^(-h)) dz = (z^2 (w' - w) + z^(1-h)) / (h - 1), the
+tail of S, int X F_ext^2 dX = -c^2 X^(-2h) / (4h) + (c^2 / 2) (2d)^(-2h) int (z w^2 - z^(-1-2h)) dz, and
+int H_pow dX = sqrt 2 c X^(1-h) / (1 - h) hold with Kummer's equation, and the tail of H with h - 2 in place of h - 1
+does not. No order of the core and no length of a blend enters.
 
-- 5a. The exterior tail, c^2 X_b^(-2h) / (4h) at his values, against 0.99. Measured: it is exactly 2^(-1/50), and
-  two exact comparisons, 0.985^50 2 < 1 < 0.995^50 2, put it within his two places of 0.99.
-- Term values. Every term is written in the few independent numbers it is made of, and each of those is the limit
-  of its own exact sequence of rationals, taken to more and more terms; a form's value at each length is exact, and
-  the values are recorded as they converge:
-  - e^q = e^m e^f by the exponential series, m the whole part of q, and rho(c) = 1 / (1 + e^ratio) from it.
-  - 2^(-1/2), 2^(-h) and (3/2)^(-h) by the binomial series, x^p = sum (p)_k / k! (1 - 1/x)^k.
-  - E1(x) = e^(-x) eps_1(x), eps_1 by its continued fraction; eps_n = e^x E_n by eps_(n+1) = (1 - x eps_n) / n.
-  - w(1) and w'(1) from Gamma(1 + h) w(z) = int_0^inf e^(-zt) t^h (1 + t)^(-h) dt split at t = 1: below,
-    (1 + t)^(-h) by its binomial series in (1 - t) / 2 and e^(-zt) by its series, each term a beta integral; above,
-    t^h (1 + t)^(-h) = (1 - 1/(1 + t))^h by its binomial series, each term e^(-z) 2^(1-k) eps_k(2z). Gamma(1 + h) is
-    int_0^1 by its series and Gamma(1 + h, 1) by its continued fraction. Every other w(z_c) and w'(z_c) is w's own
-    series about 1 summed at z_c.
-  - The tail of H is no new number: (z^2 w' - z^2 w)' = (h - 1) z w gives
-    int_(z_b)^inf (z w - z^(-h)) dz = (z_b^2 (w'(z_b) - w(z_b)) + z_b^(1-h)) / (1 - h).
-  - The tail of S: the two integrals of w joined in sigma = t + s and expanded in u = sigma / (1 + sigma) give
-    int_(z_b)^inf (z w^2 - z^(-1-2h)) dz = sum_n D_n (z_b G_n^+ + G_n) / Gamma(2 + 2h) - z_b^(-2h) / (2h), every D_n
-    rational and every G_n an integral split at sigma = 1 as w's is (term_value.h).
+## 5. The pressure datum
 
-  Measured (`matching_values`, 1024 limbs) on the forms of experiment 4, his 8-parameter F_0, U_0 and b_0 = -2.01,
-  b_1 = 0 and Pi_0 = 0, at lengths 16, 24 and 32. Gamma(1 + h) comes out 0.994325851, w(1) = 0.994015508 and
-  w'(1) = -0.999925858. At z = 1/2 and z = 5/4, w and w' by the series about 1 and by the integral agree to 8 places.
-  The six functions at length 32:
+The datum Pi_0 = G(Pi_0) is stated as a relation on a held function Pi_0 of eta, never taken by steps. Whether it has
+exactly one solution is the lemma of the workbook's chapter on terms to put back, and waits on the space it names.
 
-  | eta | torque      | force       | M(inf)      | J(inf)      | S(inf)      | H          |
-  |-----|-------------|-------------|-------------|-------------|-------------|------------|
-  | 0   | -0.0289574  | 0.00876772  | 0.109920    | -0.102630   | -0.0404458  | -0.0699486 |
-  | 1/2 | 0.0129802   | -0.359788   | -0.0682000  | -0.187081   | 0.0284819   | -0.0684166 |
+## 6. The paper's system against this one
 
-  Each value moves by no more than 8e-7 from length 16 to 24 and 4e-9 from 24 to 32. At length 32 each is an exact
-  rational of up to 5000 digits, and the record holds them whole. These are not yet his 0.077: Pi_0 waits on the
-  fixed point of experiment 6, b_1 is not solved for, and his eta grid is the Chebyshev points with eta = +-1, where
-  the exterior's form is singular.
-- 5b. The 8-parameter optimum. His printed F_0, U_0 and b_0 are put in exactly and b_1 is solved for. Check: the
-  root-mean-square converges onto 0.077, and a fit over all 8 lands on his printed coefficients within his places.
-- 5c. The 32-parameter matched core. Check: the forms converge onto every value in the 32-parameter table.
+The paper's text (arXiv 2609.17642v1) holds the operators T_b and Z_b of its (3), the system (4), the rule (17) and
+(18) with the products of lower orders named and not written, the heat exterior E = c X^(-A) H(2d/X) as the solution
+of T_{-(A+1/2)} F - 2 (X F)_XX = 0, the stresses tau_theta = X^-1 int x R_theta and tau_z = (2X)^(-1/2) int R_z, and
+the exterior pressure -int F_ext^2. The family of axis data and annulus content and the fits are in its code, not its
+text.
 
-## 6. The Pi_0 fixed point
-
-Y = G(p) - p and DG(p) at the polynomial p as exact forms on the Chebyshev basis. Z waits on the ellipse space in
-the workbook.
-
-Pi_0 = sum_(k<n) p_k T_k(eta), and G(p)(eta) is the right side of the datum with the core built on that Pi_0, every
-term valued as in 5. Pi_0 is a fixed point where Y_i = G(p)(eta_i) - p(eta_i) is 0 at n rational nodes inside the
-reach of w's series. Pi_0 enters the core at U_1 and comes back through every product after it. Every value is
-integers with their divisors carried beside them, never divided out, and each iterate passes into the next core
-whole: nothing is rounded and nothing is thrown away.
-
-## 7. The axis heat with every term
-
-The dissipation with the axial shear and the radial strain, integrated on the full core. The difference from
-Proposition 20's swirl-only result is recorded term by term. Cubes over (q, h, Pr) centered on his run's values
-and on water at 20 C.
+Check (`core_rule`): the system of 2 is the paper's (3) and (4) term for term. The paper's (17) and (18) as printed
+hold -(A + 1/2) F_k and -A U_k inside L^-1, where its own (3) gives +(A + 1/2) and +A: they differ from (3) and (4) at
+order k by exactly 2 (A + 1/2) L^-1 F_k and 2 A L^-1 U_k, and the rule of 2 is what (3) and (4) give. With
+H(Z) = Z^(-1-h) U(1 + h, 2, 1/Z), the paper's exterior is F_ext of 3, and `matching_rule` checks that it solves the
+equation the paper names.
 
 ## Order
 
-0, then 1, then 2 and 3, then 4, then 5 and 6, then 7.
+0, then 1, then 2, then 3, then 4, then 5 and 6.
