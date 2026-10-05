@@ -82,10 +82,13 @@ static int run_channel_write(const RunQuestion *asked, const char *code_path, co
     return (fclose(cases) == 0) && code_written;
 }
 
-// the line the carrier wrote, read into `asked`: the outcome it names, and each case's answer where it answered
+// the lines the carrier wrote, read into `asked`: the outcome the first names, each case's answer where it answered,
+// and where the question is timed, the time the second gives. A timed question the carrier gives no time for answered
+// nothing worth reading
 static void run_channel_read(RunQuestion *asked, const char *answers_path)
 {
     asked->outcome = RUN_NOTHING;
+    asked->nanoseconds = 0ull;
     FILE *const answers = fopen(answers_path, "rb");
     if ((answers == NULL) || (fgets(s_answer_line, sizeof(s_answer_line), answers) == NULL))
     {
@@ -96,6 +99,11 @@ static void run_channel_read(RunQuestion *asked, const char *answers_path)
         }
         return;
     }
+    char timed_line[64];
+    unsigned int launches = 0u;
+    const int timed = (fgets(timed_line, sizeof(timed_line), answers) != NULL) &&
+                      (sscanf(timed_line, "timed %u %llu", &launches, &asked->nanoseconds) == 2) &&
+                      (launches == asked->launches);
     fclose(answers);
     s_answer_line[strcspn(s_answer_line, "\r\n")] = '\0';
     if (strncmp(s_answer_line, "answered", 8u) != 0)
@@ -117,6 +125,11 @@ static void run_channel_read(RunQuestion *asked, const char *answers_path)
         }
         at = after;
     }
+    if ((asked->launches != 0u) && !timed)
+    {
+        snprintf(asked->refused, sizeof(asked->refused), "the carrier gave no time for %u launches", asked->launches);
+        return;
+    }
     asked->outcome = RUN_ANSWERED;
 }
 
@@ -134,11 +147,13 @@ int run_channel_ask(RunQuestion *asked)
     char answers_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
     char output_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
     char registers[16];
+    char launches[16];
     run_channel_path(code_path, "question.bin");
     run_channel_path(cases_path, "cases.txt");
     run_channel_path(answers_path, "answers.txt");
     run_channel_path(output_path, "carrier.txt");
     snprintf(registers, sizeof(registers), "%u", asked->registers);
+    snprintf(launches, sizeof(launches), "%u", asked->launches);
     remove(answers_path);
     if (!run_channel_write(asked, code_path, cases_path))
     {
@@ -147,7 +162,7 @@ int run_channel_ask(RunQuestion *asked)
         return 0;
     }
     // the interface's command is a list of words it does not write to; the cast only meets its declared type
-    char *command[RUN_CARRIER_WORDS + 5u];
+    char *command[RUN_CARRIER_WORDS + 6u];
     unsigned int words = 0u;
     for (; words < s_channel.words; words += 1u)
     {
@@ -157,7 +172,9 @@ int run_channel_ask(RunQuestion *asked)
     command[words + 1u] = registers;
     command[words + 2u] = cases_path;
     command[words + 3u] = answers_path;
-    command[words + 4u] = NULL;
+    // an untimed question is carried with the words it always was, and a timed one with its count of launches after
+    command[words + 4u] = (asked->launches != 0u) ? launches : NULL;
+    command[words + 5u] = NULL;
     const InterfaceProbe probe = {command, output_path, s_channel.limit_microseconds};
     InterfaceAnswer answer = {0};
     answer.output = s_carrier_output;

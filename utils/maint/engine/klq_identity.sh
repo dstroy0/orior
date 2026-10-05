@@ -36,12 +36,17 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER")
 BINARY="$OUT/klq_identity"
 rm -f "$BINARY"
 OBJECTS=()
+# an object is built again where it is missing, or where its source or a header of the folders it reads is newer
+stale() {
+    [ ! -f "$2" ] || [ "$1" -nt "$2" ] ||
+        [ -n "$(find "$CODEGEN" "$PARSER" "$PROTOCOL" "$INTERFACE" "$TOP/src/cu/engine" -name '*.h' -newer "$2" -print -quit)" ]
+}
 for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/klq_identity.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;
     esac
     object="$OUT/$(basename "$source")_identity.o"
-    if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
+    if stale "$source" "$object"; then
         c++ -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$source" -o "$object"
     fi
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
@@ -50,7 +55,7 @@ done
 # the run channel and the interface it carries each question through, in C
 for source in "$PROTOCOL/run_channel.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c"; do
     object="$OUT/$(basename "$source")_identity.o"
-    if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
+    if stale "$source" "$object"; then
         cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -c "$source" -o "$object"
     fi
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }

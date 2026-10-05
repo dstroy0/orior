@@ -4,7 +4,7 @@
 // NVIDIA's driver (run_channel.h), and a question is carried in a process of its own, so a part that refuses one
 // takes this process with it and nothing else.
 //
-//     cubin_run <machine file> <ksc> <code> <registers> <cases> <answers>
+//     cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches>]
 //
 // The code is the question's machine code, sixteen bytes an instruction. The .ksc's container rows hold the container
 // (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
@@ -14,6 +14,11 @@
 //     answered <answer>...      each case's two words as one value in hex, in the order of the cases
 //     skipped <verdict> <name>  cubin_safe held it off the part, and the driver never saw it
 //     refused <error>           the driver or the part would not take it
+//
+// Given a count of launches, a question that answered is launched that many times more, and a second line gives the
+// time they took together on the part's own timer, which the driver's events stamp (cubin_run_timed):
+//
+//     timed <launches> <nanoseconds>
 //
 // The driver is reached by name and by its own entry points, and nothing of its vendor's toolchain is compiled
 // against. Exit 0 where a line was written, 2 where the files, the machine or the driver were not reached.
@@ -62,6 +67,11 @@ typedef struct
     CubinRunStatus (*synchronize)(void);
     CubinRunStatus (*copy_out)(void *, CubinRunAddress, size_t);
     CubinRunStatus (*error_name)(CubinRunStatus, const char **);
+    CubinRunStatus (*event_create)(void **, unsigned int);
+    CubinRunStatus (*event_record)(void *, void *);
+    CubinRunStatus (*event_synchronize)(void *);
+    CubinRunStatus (*event_elapsed)(float *, void *, void *);
+    CubinRunStatus (*event_destroy)(void *);
 } CubinRunDriver;
 
 static SassMachine s_machine;
@@ -156,16 +166,55 @@ static int cubin_run_driver(CubinRunDriver *driver)
     *(void **)&driver->synchronize = cubin_run_entry(library, "cuCtxSynchronize");
     *(void **)&driver->copy_out = cubin_run_entry(library, "cuMemcpyDtoH_v2");
     *(void **)&driver->error_name = cubin_run_entry(library, "cuGetErrorName");
+    *(void **)&driver->event_create = cubin_run_entry(library, "cuEventCreate");
+    *(void **)&driver->event_record = cubin_run_entry(library, "cuEventRecord");
+    *(void **)&driver->event_synchronize = cubin_run_entry(library, "cuEventSynchronize");
+    *(void **)&driver->event_elapsed = cubin_run_entry(library, "cuEventElapsedTime");
+    *(void **)&driver->event_destroy = cubin_run_entry(library, "cuEventDestroy_v2");
     return (driver->init != NULL) && (driver->device_get != NULL) && (driver->context_retain != NULL) &&
            (driver->context_set != NULL) && (driver->module_load != NULL) && (driver->function_get != NULL) &&
            (driver->allocate != NULL) && (driver->copy_in != NULL) && (driver->clear != NULL) &&
            (driver->launch != NULL) && (driver->synchronize != NULL) && (driver->copy_out != NULL) &&
-           (driver->error_name != NULL);
+           (driver->error_name != NULL) && (driver->event_create != NULL) && (driver->event_record != NULL) &&
+           (driver->event_synchronize != NULL) && (driver->event_elapsed != NULL) && (driver->event_destroy != NULL);
 }
 
-// the container in s_container loaded and its kernel run over every case, each case's two words into s_answers: 0, or
-// the status the driver gave
-static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel)
+// `launches` launches of `function` over `arguments` timed together, between two events the part stamps from its own
+// timer, the time in nanoseconds into `nanoseconds`: 0, or the status the driver gave. The timer is the part's and
+// not the host's, and counts the same whatever clock the part's multiprocessors run at
+static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *function, void **arguments,
+                                      unsigned int launches, unsigned long long *nanoseconds)
+{
+    void *start = NULL;
+    void *stop = NULL;
+    float milliseconds = 0.0f;
+    CubinRunStatus status = driver->event_create(&start, 0u);
+    status = (status == 0) ? driver->event_create(&stop, 0u) : status;
+    status = (status == 0) ? driver->event_record(start, NULL) : status;
+    for (unsigned int launch = 0u; (status == 0) && (launch < launches); launch += 1u)
+    {
+        status = driver->launch(function, 1u, 1u, 1u, CUBIN_RUN_THREADS, 1u, 1u, 0u, NULL, arguments, NULL);
+    }
+    status = (status == 0) ? driver->event_record(stop, NULL) : status;
+    status = (status == 0) ? driver->event_synchronize(stop) : status;
+    status = (status == 0) ? driver->event_elapsed(&milliseconds, start, stop) : status;
+    // the driver gives the time as milliseconds in a float; a nanosecond is a millionth of one
+    *nanoseconds = (unsigned long long)((double)milliseconds * 1000000.0);
+    if (start != NULL)
+    {
+        driver->event_destroy(start);
+    }
+    if (stop != NULL)
+    {
+        driver->event_destroy(stop);
+    }
+    return status;
+}
+
+// the container in s_container loaded and its kernel run over every case, each case's two words into s_answers, and
+// where `launches` is not 0, that many launches after it timed into `nanoseconds`: 0, or the status the driver gave
+static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel, unsigned int launches,
+                                       unsigned long long *nanoseconds)
 {
     int device = 0;
     void *context = NULL;
@@ -191,16 +240,20 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
                            : status;
     status = (status == 0) ? driver->synchronize() : status;
     status = (status == 0) ? driver->copy_out(s_answers, out, out_bytes) : status;
+    *nanoseconds = 0ull;
+    status = ((status == 0) && (launches != 0u)) ? cubin_run_timed(driver, function, arguments, launches, nanoseconds)
+                                                 : status;
     return status;
 }
 
 int main(int count, char **words)
 {
-    if (count != 7)
+    if ((count != 7) && (count != 8))
     {
-        fprintf(stderr, "cubin_run <machine file> <ksc> <code> <registers> <cases> <answers>\n");
+        fprintf(stderr, "cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches>]\n");
         return 2;
     }
+    const unsigned int launches = (count == 8) ? (unsigned int)strtoul(words[7], NULL, 10) : 0u;
     char kernel[256];
     const unsigned long long pattern_size = cubin_pattern_read(words[2], s_pattern, sizeof(s_pattern), kernel,
                                                                sizeof(kernel));
@@ -246,7 +299,8 @@ int main(int count, char **words)
         fclose(answers);
         return 2;
     }
-    const CubinRunStatus status = cubin_run_launch(&driver, kernel);
+    unsigned long long nanoseconds = 0ull;
+    const CubinRunStatus status = cubin_run_launch(&driver, kernel, launches, &nanoseconds);
     if (status != 0)
     {
         const char *name = NULL;
@@ -261,6 +315,10 @@ int main(int count, char **words)
         fprintf(answers, " %llx", ((unsigned long long)s_answers[place][1] << 32u) | s_answers[place][0]);
     }
     fprintf(answers, "\n");
+    if (launches != 0u)
+    {
+        fprintf(answers, "timed %u %llu\n", launches, nanoseconds);
+    }
     fclose(answers);
     return 0;
 }

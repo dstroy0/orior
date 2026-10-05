@@ -59,8 +59,13 @@ typedef struct
     // the cases it is run over, a thread a case, and how many
     unsigned int word[RUN_CASES_MOST][RUN_IN_WORDS];
     unsigned int cases;
+    // how many times it is launched again once it answers, those launches timed together on the part's own timer;
+    // 0 leaves it untimed
+    unsigned int launches;
     // each case's answer, its two words as one value
     unsigned long long answered[RUN_CASES_MOST];
+    // the time the launches took together, in nanoseconds as the part's timer counts them; 0 where it is untimed
+    unsigned long long nanoseconds;
     unsigned int outcome;
     // what the carrier said where the outcome is not RUN_ANSWERED
     char refused[128];
