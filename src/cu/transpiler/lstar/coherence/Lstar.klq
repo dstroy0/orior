@@ -39,10 +39,10 @@ key word_sub_last
 key word_borrow_read
 key word_copy
 pair word_copy thread_idx_x
-closed 0451:00f0 0,0,1->0
+closed 0987:0110 1,0,0->0
 unknown_coherence
 pair word_copy warp_size
-closed 0451:00f0 0,0,1->0
+closed 0967:0110 0,8000000000000000,0->0
 unknown_coherence
 key word_set
 key word_bitand
@@ -57,12 +57,12 @@ key word_shr
 key word_funnel_right
 key signed_word_shr
 pair signed_word_shr word_shr
-closed 0000:00e0 0,80,0->ffffffffffffff80
-modifier_coherence
+closed 0390:00b0 80000000,0,0->ffffffff80000000
+frame_coherence
 key word_mul
 key word_mul_add
 pair word_mul_add word_mul
-closed 0026:00d0 100000000,1,0->100000000
+closed 1003:00d0 0,0,1->1
 unknown_coherence
 key word_div
 key word_select
@@ -76,7 +76,7 @@ key sign_neg
 key test_word_nonzero
 key test_word_zero
 pair test_word_zero test_word_nonzero
-closed 0148:00c0 1,0,0->0
+closed 0287:00b0 0,0,0->1
 negation_coherence
 key test_signed_word_negative
 key test_sign_ne
@@ -99,7 +99,7 @@ key predicate_bitand
 key wide_from_word
 key word_from_wide
 pair word_from_wide warp_size
-closed 0451:00f0 0,0,1->0
+closed 0964:00f0 0,0,0->0
 unknown_coherence
 key wide_pack
 pair wide_pack wide_from_word
@@ -184,36 +184,36 @@ open 259776
 qualifier_coherence
 key global_load_wide
 pair global_load_wide global_load_word
-closed 0006:00a0 100000000,0,0->100000000
+closed 0282:00a0 100000000,0,0->fffffffeffffffff
 frame_coherence
 key global_store_wide
 key wide_from_signed_word
 key test_word_ge
 pair test_word_ge test_word_lt
-closed 0109:00c0 0,0,0->0
+closed 0143:00c0 0,0,0->1
 negation_coherence
 key exit_if
 key test_word_le
 pair test_word_le test_word_lt
-closed 0949:00d0 0,0,1->1
+closed 0994:00d0 0,0,1->1
 modifier_coherence
 key test_word_ne
 pair test_word_ne test_word_nonzero
 open 0
 unknown_coherence
 pair test_word_ne test_word_lt
-closed 0088:00c0 1,0,0->0
+closed 0288:00b0 1,0,0->0
 modifier_coherence
 key test_word_eq
 pair test_word_eq test_word_zero
 open 0
 unknown_coherence
 pair test_word_eq test_word_lt
-closed 0914:00d0 0,0,1->1
+closed 0938:00d0 0,0,0->1
 modifier_coherence
 key test_word_gt
 pair test_word_gt test_word_lt
-closed 0119:00c0 0,1,0->0
+closed 0133:00c0 0,1,0->1
 modifier_coherence
 key test_signed_word_lt
 pair test_signed_word_lt test_word_lt
@@ -224,22 +224,22 @@ open 0
 unknown_coherence
 key test_signed_word_ge
 pair test_signed_word_ge test_word_ge
-closed 0108:00c0 0,80,0->0
+closed 0142:00c0 0,80000000,0->1
 frame_coherence
 key test_signed_word_le
 pair test_signed_word_le test_word_le
-closed 0926:00d0 0,80000000,1->0
+closed 0927:00d0 0,80000000,0->0
 frame_coherence
 key test_signed_word_gt
 pair test_signed_word_gt test_word_gt
-closed 0118:00c0 0,80,0->1
+closed 0130:00c0 0,8000,0->0
 frame_coherence
 key test_wide_ne
 pair test_wide_ne test_word_nonzero
 open 0
 unknown_coherence
 pair test_wide_ne test_wide_eq
-closed 0094:00c0 0,0,0->1
+closed 0105:00c0 0,0,0->0
 negation_coherence
 key test_wide_le
 pair test_wide_le test_wide_eq
@@ -247,19 +247,19 @@ closed 0994:00d0 0,1,1->1
 modifier_coherence
 key test_wide_gt
 pair test_wide_gt test_wide_eq
-closed 0125:00c0 0,0,0->0
+closed 0135:00c0 0,0,0->1
 modifier_coherence
 key test_wide_ge
 pair test_wide_ge test_wide_eq
-closed 0115:00c0 1,0,0->0
+closed 0145:00c0 1,0,0->1
 modifier_coherence
 key test_signed_wide_lt
 pair test_signed_wide_lt test_wide_lt
-closed 0965:00d0 0,8000000000000000,1->0
+closed 0966:00d0 0,8000000000000000,0->0
 frame_coherence
 key test_signed_wide_le
 pair test_signed_wide_le test_wide_le
-closed 0971:00d0 0,8000000000000000,1->0
+closed 0972:00d0 0,8000000000000000,0->0
 frame_coherence
 key test_signed_wide_gt
 pair test_signed_wide_gt test_wide_gt
@@ -267,11 +267,11 @@ closed 0124:00c0 0,8000000000000000,0->1
 frame_coherence
 key test_signed_wide_ge
 pair test_signed_wide_ge test_wide_ge
-closed 0114:00c0 0,8000000000000000,0->0
+closed 0144:00c0 0,8000000000000000,0->1
 frame_coherence
 key test_wide_zero
 pair test_wide_zero test_wide_nonzero
-closed 0154:00c0 1,0,0->0
+closed 0337:00b0 0,0,0->0
 negation_coherence
 key word_from_byte
 key word_from_signed_byte
@@ -279,31 +279,31 @@ key word_from_halfword
 key word_from_signed_halfword
 key global_load_byte
 pair global_load_byte global_load_word
-closed 0073:00b0 1,100,0->1
+closed 0325:00a0 100,0,0->0
 frame_coherence
 key global_load_signed_byte
 pair global_load_signed_byte global_load_byte
-closed 0080:00a0 80,1,0->ffffffffffffffc0
+closed 0355:00a0 80,0,0->ffffffffffffff80
 frame_coherence
 key global_load_halfword
 pair global_load_halfword global_load_word
-closed 0075:00b0 1,80000000,0->1
+closed 0367:00a0 7fffffff,0,0->ffff
 frame_coherence
 key global_load_signed_halfword
 pair global_load_signed_halfword global_load_signed_byte
-closed 0082:00a0 80,0,0->80
+closed 0268:00a0 80,0,0->80
 frame_coherence
 key test_word_nonzero_and
 pair test_word_nonzero_and test_word_nonzero
-closed 0148:00d0 1,0,0->0
+closed 0151:00d0 1,0,0->0
 qualifier_coherence
 key test_word_nonzero_or
 pair test_word_nonzero_or test_word_nonzero_and
-closed 0158:00d0 0,1,0->1
+closed 0160:00d0 0,1,0->1
 modifier_coherence
 key test_wide_nonzero_and
 pair test_wide_nonzero_and test_wide_nonzero
-closed 0154:00e0 1,0,0->0
+closed 0155:00e0 1,0,0->0
 qualifier_coherence
 key test_wide_nonzero_or
 pair test_wide_nonzero_or test_wide_nonzero_and
@@ -317,7 +317,7 @@ key wide_not
 key wide_shr
 key signed_wide_shr
 pair signed_wide_shr wide_shr
-closed 0086:00c0 8000000000000000,1,0->c000000000000000
+closed 0254:00c0 8000000000000000,1,0->c000000000000000
 frame_coherence
 text_identity int (((a == b) ? 1 : 0) != 0) = int (a == b)
 open 648

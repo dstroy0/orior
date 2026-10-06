@@ -59,6 +59,7 @@ extern "C"
 #include <functional>
 #include <iterator>
 #include <map>
+#include <random>
 #include <regex>
 #include <set>
 #include <sstream>
@@ -3261,6 +3262,40 @@ static int identity_text(const char *engine, const char *answers, const char *ks
     return 0;
 }
 
+// The way an ask enters the part, its vector: the registers it declares, the lanes it is put over, a case a lane, and
+// the operands of a case its code loads. An ask is put at the least magnitude, the registers its chain names as
+// `mark`, the engine's high water mark. Where the part refuses it there and answers it declaring every register its
+// file holds, the fewest it answers at is walked between the two, and the ask stands at the fewest; where the part
+// refuses it at both, the refusal is not the registers', and it stands refused. 1 where the part answers it alike with
+// the host on every case it computes, 0 otherwise, its registers in `question`
+static int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
+                        const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks,
+                        unsigned int mark)
+{
+    const unsigned int most = 255u;
+    question->registers = ((mark != 0u) && (mark < most)) ? mark : most;
+    const int least_alike = question_alike(code, host, places, question, asks);
+    if ((question->outcome == RUN_ANSWERED) || (question->registers == most))
+    {
+        return least_alike;
+    }
+    const unsigned int least = question->registers;
+    question->registers = most;
+    const int most_alike = question_alike(code, host, places, question, asks);
+    if (question->outcome != RUN_ANSWERED)
+    {
+        return most_alike;
+    }
+    const auto answers_declaring = [&](long long count) -> int {
+        question->registers = (unsigned int)count;
+        question_alike(code, host, places, question, asks);
+        return (question->outcome == RUN_ANSWERED) ? 1 : 0;
+    };
+    // the ask at the fewest is in R once the walk has put it, and is read from there
+    question->registers = (unsigned int)walk_halved(answers_declaring, (long long)most, (long long)least);
+    return question_alike(code, host, places, question, asks);
+}
+
 // The bridge's pairs put to the part, `pair <form> <form>` in Lstar.klq: two forms whose sameness the text leaves
 // open. A pair is put in a carrier, a chain of ours the host computes that holds one form's text as sass.krs writes it:
 // the form's arguments are read off the chain's lines, the other form is written in its place with the arguments of
@@ -3301,6 +3336,17 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         const std::vector<CarrierLink> links = carrier_read(chain.second, &cases_defined);
         flows[chain.first] = std::make_pair(links, cases_defined);
     }
+    // each carrier's vector at its least: the registers its chain names, then the operands of a case it loads
+    std::map<std::string, std::pair<unsigned int, unsigned int>> magnitudes;
+    for (const auto &flow : flows)
+    {
+        magnitudes[flow.first] =
+            std::make_pair(chain_registers(engine, flow.first),
+                           (unsigned int)carrier_operands_loaded(flow.second.first, flow.second.second).size());
+    }
+    // the seed the order of the links of one magnitude is drawn from, KLQ_SEED where it is given
+    const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
+    std::mt19937 drawn(seed);
     std::vector<std::string> bridge;
     std::string line;
     std::ifstream held_bridge(klq, std::ios::binary);
@@ -3380,6 +3426,22 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 found_links.push_back(std::make_pair(&chain, *link_found));
             }
         }
+        // the links in the order of their carriers' vectors, the least first, and links of one magnitude in an order
+        // drawn from the pass's seed
+        std::stable_sort(found_links.begin(), found_links.end(), [&](const auto &left, const auto &right) {
+            return magnitudes[left.first->first] < magnitudes[right.first->first];
+        });
+        for (size_t first = 0u; first < found_links.size();)
+        {
+            size_t last = first;
+            while ((last < found_links.size()) &&
+                   (magnitudes[found_links[last].first->first] == magnitudes[found_links[first].first->first]))
+            {
+                last += 1u;
+            }
+            std::shuffle(found_links.begin() + (long)first, found_links.begin() + (long)last, drawn);
+            first = last;
+        }
         unsigned int alike_cases = 0u;
         int answered = 0;
         for (const auto &found_link : found_links)
@@ -3446,7 +3508,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             char address[32];
             snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * link);
             const std::vector<std::string> &expected = host[chain.first];
-            const int alike = stall_alike(code, expected, places, &s_question, &asks);
+            const int alike = vector_alike(code, expected, places, &s_question, &asks, magnitudes[chain.first].first);
             if (s_ask_trace != NULL)
             {
                 fprintf(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
@@ -3471,7 +3533,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         fprintf(s_ask_log, " %s", given[name].c_str());
                     }
                 }
-                fprintf(s_ask_log, "\n");
+                fprintf(s_ask_log, "\nvector registers %u lanes %u operands %u seed %lu\n", s_question.registers,
+                        s_question.cases, magnitudes[chain.first].second, seed);
                 fflush(s_ask_log);
             }
             if (alike)

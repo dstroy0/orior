@@ -8,13 +8,14 @@
 // up to its first `.`. Each put of one form in the other's place that the part answered is read off the cases it
 // answered apart on and the carrier it was put in. A case word decides the cases apart where two cases apart in that
 // word alone answer one alike and the other apart. Each operand of the link is followed back through the carrier to
-// the case words it reads (carrier_flow.h). A pair apart where a case word decides it that an
-// operand only the form it stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms
-// name the same operands, apart where a case word the link reads decides it, is a modifier's, and a frame's where it
-// is alike on every case whose operands every frame reads as themselves. A pair of forms of a flag
-// that name the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair
-// answered alike at every put is a qualifier's. A pair this log reads into no set keeps the set line the bridge held beneath it, and one
-// that holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one
+// the case words it reads (carrier_flow.h). A pair apart where a case word decides it that a flag only the form it
+// stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms name the same operands,
+// apart where a case word the link reads decides it, is a modifier's, and a frame's where it is alike on every case
+// whose operands every frame reads as themselves. A pair of forms of a flag that name the same operands, apart whatever
+// the link reads, is a negation's: the two members of one node. A pair answered alike at every put is a qualifier's.
+// A pair the part answered apart in this log that no test reads into a set is written unknown_coherence. A pair the
+// log holds no answer of keeps the set line the bridge held beneath it, and one that holds none is written
+// unknown_coherence: no answer has read it into a set, and it is a member of every one
 #include "carrier_flow.h"
 
 #include <stdio.h>
@@ -156,6 +157,16 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
         qualifier |= ((qualifying.count(operand) != 0u) && (qualified.count(operand) == 0u)) ? 1 : 0;
         link_read |= ((qualified.count(operand) != 0u) || (qualifying.count(operand) != 0u)) ? 1 : 0;
     }
+    // a qualifier is a condition, a flag: an operand only one form names that carries a value, the value copied or
+    // the addend added, is the value the result is made of and qualifies nothing
+    for (const std::string &operand : only)
+    {
+        for (const std::string &named : carrier_registers(operand))
+        {
+            qualifier &= (named[0] == 'P') ? 1 : 0;
+        }
+        qualifier &= carrier_registers(operand).empty() ? 0 : 1;
+    }
     if (qualifier)
     {
         return "qualifier_coherence";
@@ -216,6 +227,7 @@ int main(int argc, char **argv)
     std::vector<std::vector<std::vector<std::string>>> case_sets;
     std::vector<LoggedPut> puts;
     std::string came_back;
+    int block_answered = 0;
     std::string line;
     static const std::regex s_put("^pair (\\S+) in place of (\\S+) at (\\S+)$");
     while (std::getline(log, line))
@@ -233,15 +245,23 @@ int main(int argc, char **argv)
         }
         else if (line.rfind("ask ", 0u) == 0u)
         {
+            // a put walks its registers over several asks, and what the part answered of every case is the same at
+            // every count it answered at: the put keeps an answered ask's cases over one read from R or refused
             std::stringstream words(line);
             std::string kind;
             std::string number;
-            words >> kind >> number >> came_back;
+            std::string ask_came_back;
+            words >> kind >> number >> ask_came_back;
+            const int answered = (ask_came_back != "recorded") && (ask_came_back != "refused");
+            came_back = (answered || !block_answered) ? ask_came_back : came_back;
+            block_answered |= answered ? 1 : 0;
         }
         else if (std::regex_match(line, found, s_put))
         {
             puts.push_back(LoggedPut{found[2].str(), found[1].str(), found[3].str(), std::string(), std::string(), {},
                                      came_back, case_sets.empty() ? 0u : case_sets.size() - 1u});
+            came_back.clear();
+            block_answered = 0;
         }
         else if (!puts.empty() && (line.rfind("from ", 0u) == 0u))
         {
@@ -281,10 +301,7 @@ int main(int argc, char **argv)
         apart_held[key] = 1;
         const std::string set =
             case_sets.empty() ? std::string() : put_decoded(put, case_sets[put.cases_at], argv[2]);
-        if (!set.empty())
-        {
-            decoded[key] = set;
-        }
+        decoded[key] = set.empty() ? std::string("unknown_coherence") : set;
     }
     for (const auto &held : alike_held)
     {

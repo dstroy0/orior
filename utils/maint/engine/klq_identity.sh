@@ -29,7 +29,8 @@
 # the part, and its verdict is written beneath it in Lstar.klq. Given pair alone, each pair of forms in Lstar.klq is
 # put to the part, one form standing in for the other in a chain of ours, and its verdict written beneath it. Where
 # KLQ_TRACE names the trace, the log beside it is read by klq_decoder, and the set of our coherence each pair is read
-# into is written beneath its verdict.
+# into is written beneath its verdict. Each pair is put at its carriers' least vector first, the registers the chain
+# names, and carriers of one magnitude are tried in an order drawn from KLQ_SEED, 1 where it is not given.
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"

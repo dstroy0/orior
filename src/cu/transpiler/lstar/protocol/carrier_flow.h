@@ -167,6 +167,23 @@ static inline std::vector<CarrierLink> carrier_read(const std::string &text, lon
     return links;
 }
 
+// the operands of a case `links` loads, by their place in the case
+static inline std::set<unsigned long long> carrier_operands_loaded(const std::vector<CarrierLink> &links,
+                                                                   long cases_defined)
+{
+    std::set<unsigned long long> loaded;
+    for (size_t at = 0u; at < links.size(); at += 1u)
+    {
+        const CarrierLink &link = links[at];
+        if (link.loads && (cases_defined >= 0) &&
+            (carrier_definition(links, link.address_register, (long)at) == cases_defined))
+        {
+            loaded.insert(link.offset / s_carrier_operand_bytes);
+        }
+    }
+    return loaded;
+}
+
 // 1 where the form `form_text`, its instructions cut at `;` and the first at link `at` of `links`, carries the cases:
 // one of its instructions loads an operand of a case, or reads a register an operand of a case reaches that no earlier
 // instruction of the form writes
