@@ -10,8 +10,9 @@
 // word alone answer one alike and the other apart. Each operand of the link is followed back through the carrier to
 // the case words it reads (carrier_flow.h). A pair apart where a case word decides it that an
 // operand only the form it stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms
-// name the same operands, apart where a case word the link reads decides it, is a modifier's. A pair answered alike at
-// every put is a qualifier's. A pair this log reads into no set keeps the set line the bridge held beneath it, and one
+// name the same operands, apart where a case word the link reads decides it, is a modifier's. A pair of forms of a flag
+// that name the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair
+// answered alike at every put is a qualifier's. A pair this log reads into no set keeps the set line the bridge held beneath it, and one
 // that holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one
 #include "carrier_flow.h"
 
@@ -142,10 +143,6 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
         line_at += 1;
     }
     const std::set<unsigned long long> deciding = operands_deciding(cases, put.came_back);
-    if (deciding.empty())
-    {
-        return std::string();
-    }
     // a case word the carrier reads after the link decides the cases apart beside the words the link reads, and is
     // read by neither side of the pair
     int qualifier = 0;
@@ -153,11 +150,22 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
     for (const unsigned long long operand : deciding)
     {
         qualifier |= ((qualifying.count(operand) != 0u) && (qualified.count(operand) == 0u)) ? 1 : 0;
-        link_read |= (qualified.count(operand) != 0u) ? 1 : 0;
+        link_read |= ((qualified.count(operand) != 0u) || (qualifying.count(operand) != 0u)) ? 1 : 0;
     }
     if (qualifier)
     {
         return "qualifier_coherence";
+    }
+    // two forms of a flag apart whatever the link reads, every case apart or apart where only words the link does not
+    // read decide it, are the two members of one node, each the other's negation
+    int flags = !form_written.empty();
+    for (const std::string &written : form_written)
+    {
+        flags &= (!written.empty() && (written[0] == 'P')) ? 1 : 0;
+    }
+    if (only.empty() && !link_read && flags)
+    {
+        return "negation_coherence";
     }
     return (only.empty() && link_read) ? "modifier_coherence" : std::string();
 }
@@ -330,9 +338,9 @@ int main(int argc, char **argv)
     {
         printf("  %s: %s\n", held.first.c_str(), held.second.c_str());
     }
-    printf("klq_decoder: %u puts read, %u qualifier_coherence, %u modifier_coherence, %u unknown_coherence, written to "
-           "%s\n",
+    printf("klq_decoder: %u puts read, %u qualifier_coherence, %u modifier_coherence, %u negation_coherence, %u "
+           "unknown_coherence, written to %s\n",
            (unsigned int)puts.size(), counted["qualifier_coherence"], counted["modifier_coherence"],
-           counted["unknown_coherence"], argv[3]);
+           counted["negation_coherence"], counted["unknown_coherence"], argv[3]);
     return 0;
 }

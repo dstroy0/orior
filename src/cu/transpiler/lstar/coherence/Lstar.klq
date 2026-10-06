@@ -77,7 +77,7 @@ key test_word_nonzero
 key test_word_zero
 pair test_word_zero test_word_nonzero
 closed 0148:00c0 1,0,0->0
-unknown_coherence
+negation_coherence
 key test_signed_word_negative
 key test_sign_ne
 key test_sign_gt
@@ -191,7 +191,7 @@ key wide_from_signed_word
 key test_word_ge
 pair test_word_ge test_word_lt
 closed 0109:00c0 0,0,0->0
-unknown_coherence
+negation_coherence
 key exit_if
 key test_word_le
 pair test_word_le test_word_lt
@@ -240,7 +240,7 @@ open 0
 unknown_coherence
 pair test_wide_ne test_wide_eq
 closed 0094:00c0 0,0,0->1
-unknown_coherence
+negation_coherence
 key test_wide_le
 pair test_wide_le test_wide_eq
 closed 0994:00d0 0,1,1->1
@@ -272,7 +272,7 @@ modifier_coherence
 key test_wide_zero
 pair test_wide_zero test_wide_nonzero
 closed 0154:00c0 1,0,0->0
-unknown_coherence
+negation_coherence
 key word_from_byte
 key word_from_signed_byte
 key word_from_halfword
