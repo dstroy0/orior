@@ -7,6 +7,10 @@
 //   klq_identity permute <nvcc listing> <manifest> <folder>
 //   klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...
 //   klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...
+//   klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...
+//   klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...
+//   klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...
+//   klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> -- <carrier>...
 //
 // Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
 // links are the slice's identity: each an instruction with its registers read as their kind and its literals as
@@ -411,7 +415,7 @@ static std::vector<std::string> links_past(const Question &one, const Question &
 static int question_integer(const Question &question)
 {
     static const std::set<std::string> s_categories = {"operator", "compound", "unary", "conversion", "conditional",
-                                                       "statement", "test", "pressure"};
+                                                       "statement", "test", "pressure", "text_identity"};
     return s_categories.count(question.category) && (question.text.find("float") == std::string::npos) &&
            (question.text.find("double") == std::string::npos) && (question.text.find("__") == std::string::npos);
 }
@@ -1115,7 +1119,7 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
     }
     std::ifstream held(klq);
     std::stringstream kept;
-    while (std::getline(held, line) && (line.rfind("identity ", 0u) != 0u))
+    while (std::getline(held, line) && (line.rfind("slice_identity ", 0u) != 0u))
     {
         kept << line << "\n";
     }
@@ -1140,7 +1144,7 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
         const size_t tab = identity.first.find('\t');
         const std::string sides[2] = {identity.first.substr(0u, tab), identity.first.substr(tab + 1u)};
         // an identity's address is its most basal carrier's
-        fprintf(file, "identity %s\nfirst %s\nsecond %s\n", carrier_text(identity.second[0]).c_str(), sides[0].c_str(),
+        fprintf(file, "slice_identity %s\nfirst %s\nsecond %s\n", carrier_text(identity.second[0]).c_str(), sides[0].c_str(),
                 sides[1].c_str());
         number += 1u;
         for (const std::string &side : sides)
@@ -2075,6 +2079,9 @@ static void record_open(const char *ksc)
 // apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
 static FILE *s_ask_trace = NULL;
 
+// the host's place of the first case the last ask answered apart at, from the part or from the record
+static unsigned int s_apart_at = 0xffffffffu;
+
 // The host's answer to a case as a bracket [down, up] around the exact value at the result's width, and whether the
 // part's answer `answered` falls in it: 1 where it does, 0 where it does not, and -1 where the host gives no bracket.
 // An integer case is a bracket of one word, `down`, and holds where the part answers that word. A floating case is a
@@ -2127,6 +2134,7 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
         question->outcome = (held.answer == "answers") ? RUN_ANSWERED : (held.answer == "illegal") ? RUN_ILLEGAL : RUN_NOTHING;
         snprintf(question->refused, sizeof(question->refused), "%s", held.refusal.c_str());
         const int alike = (held.answer == "answers") && (held.word == 0xffffffffu);
+        s_apart_at = (held.answer == "answers") ? held.word : 0xffffffffu;
         if (s_ask_trace != NULL)
         {
             fprintf(s_ask_trace, "ask %llu: recorded %s %08x %s\n", *asks, held.answer.c_str(), held.word, key.c_str());
@@ -2169,6 +2177,7 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
             {
                 s_record[key] = AskRecorded{"answers", places[place], ""};
             }
+            s_apart_at = places[place];
             return 0;
         }
     }
@@ -3050,8 +3059,168 @@ static int identity_queue(const char *engine, const char *answers, const char *k
     return (all["0"] == 0u) ? 0 : 1;
 }
 
+// a case of the host, its operands and its third, as an identity's verdict writes it
+static std::string case_text(unsigned int at)
+{
+    const unsigned int third = at / (IDENTITY_VALUES * IDENTITY_VALUES);
+    const unsigned int left = (at / IDENTITY_VALUES) % IDENTITY_VALUES;
+    const unsigned int right = at % IDENTITY_VALUES;
+    char written[96];
+    snprintf(written, sizeof(written), "%llx,%llx,%x", s_values[left], s_values[right], third);
+    return written;
+}
+
+// The bridge's identities between texts held on the part (P13, the identities). Each side of
+// `text_identity <text> = <text>` is a question of the sides' stick, its chain the engine's and its answers the host's,
+// found by its text in the sides' manifest. An identity closes at the first case the host answers its two sides apart
+// on, the texts then two meanings, and at the first case the part answers a side apart from the host on, the sides
+// then not held to each other there. Where the host answers the two sides alike on every case it computes them on and
+// the part answers each as the host does, the identity is open with its count of cases, every case both sides are
+// computed on. A side with no chain, no host answer, or that the part refuses or the gate holds is not asked, and its
+// identity is open with 0. Each identity's verdict is written beneath it in the bridge in place of the one it held
+static int identity_text(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                         const char *klq, const char *manifest, const char *const *carrier)
+{
+    std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
+    std::map<std::string, std::string> numbered;
+    std::ifstream listed(manifest, std::ios::binary);
+    std::string line;
+    while (std::getline(listed, line))
+    {
+        line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+        const size_t first_tab = line.find('\t');
+        const size_t second_tab = line.find('\t', first_tab + 1u);
+        if ((first_tab != std::string::npos) && (second_tab != std::string::npos))
+        {
+            numbered[line.substr(second_tab + 1u)] = line.substr(0u, first_tab);
+        }
+    }
+    std::vector<std::string> bridge;
+    std::ifstream held(klq, std::ios::binary);
+    while (std::getline(held, line))
+    {
+        bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
+    }
+    held.close();
+    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    {
+        return 1;
+    }
+    record_open(ksc);
+    static RunQuestion s_question;
+    std::vector<unsigned int> places;
+    stall_cases(&s_question, &places);
+    unsigned long long asks = 0ull;
+    // a side put to the part: 1 where it answers as the host does on every case, 0 where it answers one apart, its
+    // place in s_apart_at, and -1 where it is not asked
+    const auto side_alike = [&](const std::string &number) -> int {
+        std::vector<unsigned char> code;
+        std::vector<Link> links;
+        if ((host.count(number) == 0u) || !chain_code_read(engine, number, &code, &links))
+        {
+            return -1;
+        }
+        const int alike = stall_alike(code, host[number], places, &s_question, &asks);
+        return alike ? 1 : (s_question.outcome == RUN_ANSWERED) ? 0 : -1;
+    };
+    std::vector<std::string> written;
+    unsigned int open = 0u;
+    unsigned int closed = 0u;
+    unsigned int unasked = 0u;
+    for (size_t at = 0u; at < bridge.size(); at += 1u)
+    {
+        const std::string &entry = bridge[at];
+        const int verdict_line = (entry.rfind("open ", 0u) == 0u) || (entry.rfind("closed ", 0u) == 0u);
+        if (verdict_line && !written.empty() && (written.back().rfind("text_identity ", 0u) == 0u))
+        {
+            continue;
+        }
+        written.push_back(entry);
+        if (entry.rfind("text_identity ", 0u) != 0u)
+        {
+            continue;
+        }
+        const std::string sides = entry.substr(14u);
+        const size_t equals = sides.find(" = ");
+        const std::string one = (equals == std::string::npos) ? sides : sides.substr(0u, equals);
+        const std::string other = (equals == std::string::npos) ? std::string() : sides.substr(equals + 3u);
+        const std::string first = (numbered.count(one) != 0u) ? numbered[one] : std::string();
+        const std::string second = (numbered.count(other) != 0u) ? numbered[other] : std::string();
+        std::string verdict = "open 0";
+        if (!first.empty() && !second.empty() && (host.count(first) != 0u) && (host.count(second) != 0u))
+        {
+            unsigned int alike = 0u;
+            std::string apart;
+            for (const unsigned int place : places)
+            {
+                const std::string &left = host[first][place];
+                const std::string &right = host[second][place];
+                if ((left == "-") || (right == "-"))
+                {
+                    continue;
+                }
+                if (left != right)
+                {
+                    apart = "closed " + case_text(place) + "->" + left + "," + right;
+                    break;
+                }
+                alike += 1u;
+            }
+            const int first_alike = apart.empty() ? side_alike(first) : -1;
+            const unsigned int first_apart = s_apart_at;
+            const int second_alike = (apart.empty() && (first_alike >= 0)) ? side_alike(second) : -1;
+            const unsigned int second_apart = s_apart_at;
+            if (!apart.empty())
+            {
+                verdict = apart;
+            }
+            else if ((first_alike == 0) || (second_alike == 0))
+            {
+                const unsigned int place = (first_alike == 0) ? first_apart : second_apart;
+                verdict = "closed " + case_text(place) + "->" + host[first][place] + ", the part apart on " +
+                          ((first_alike == 0) ? one : other);
+            }
+            else if ((first_alike == 1) && (second_alike == 1))
+            {
+                verdict = "open " + std::to_string(alike);
+            }
+        }
+        open += (verdict.rfind("open ", 0u) == 0u) && (verdict != "open 0") ? 1u : 0u;
+        closed += (verdict.rfind("closed ", 0u) == 0u) ? 1u : 0u;
+        unasked += (verdict == "open 0") ? 1u : 0u;
+        if (s_ask_trace != NULL)
+        {
+            fprintf(s_ask_trace, "text_identity %s [%s %s]: %s\n", sides.c_str(), first.c_str(), second.c_str(),
+                    verdict.c_str());
+            fflush(s_ask_trace);
+        }
+        written.push_back(verdict);
+    }
+    run_channel_close();
+    FILE *const file = fopen(klq, "wb");
+    if (file == NULL)
+    {
+        printf("klq_identity text_identity: %s could not be written\n", klq);
+        return 1;
+    }
+    for (const std::string &kept : written)
+    {
+        fprintf(file, "%s\n", kept.c_str());
+    }
+    fclose(file);
+    printf("klq_identity text_identity: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open,
+           closed, unasked, klq);
+    return 0;
+}
+
 int main(int count, char **words)
 {
+    if ((count >= 10) && (std::string(words[1]) == "text_identity") && (std::string(words[8]) == "--"))
+    {
+        std::vector<const char *> carrier(words + 9, words + count);
+        carrier.push_back(NULL);
+        return identity_text(words[2], words[3], words[4], words[5], words[6], words[7], carrier.data());
+    }
     if ((count >= 9) && (std::string(words[1]) == "queue") && (std::string(words[7]) == "--"))
     {
         std::vector<const char *> carrier(words + 8, words + count);
@@ -3124,6 +3293,8 @@ int main(int count, char **words)
     printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...\n");
+    printf("klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> -- "
+           "<carrier>...\n");
     printf("klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");
     return 1;
 }

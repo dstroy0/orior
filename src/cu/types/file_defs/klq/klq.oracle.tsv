@@ -3,12 +3,13 @@ line 1	klq_write	klq	klq <stem>	the bridge between languages, its stem L*
 body	klq_write	key	key <form>	a schema form name, gnascor's and no target's
 body	klq_write	pair	pair <form> <form>	two forms whose sameness the text leaves open
 body	-	case	case <case>	a case put to the pair
-body	klq_identity	identity	identity <address>	two links that set two questions apart, at its most basal carrier's address
-identity	klq_identity	first	first <link>	the link the most basal member writes
-identity	klq_identity	second	second <link>	the link the other member writes
-identity	klq_identity	rule	rule <number> <link>: <reason>	a link the part is not asked as written, the rule it breaks and why
-identity	klq_identity	form	form <side> <form>	a form of the rulesets given whose text writes that side's link
-identity	klq_identity	context	context <address>	the members in one place of their chains' grammar, at its most basal carrier's address
+body	klq_identity	text_identity	text_identity <text> = <text>	two texts of one meaning, each a function as the stick's manifest writes it, held alike on the part over every case: open with its count of cases alike, closed at the first case they answer apart
+body	klq_identity	slice_identity	slice_identity <address>	two links that set two questions apart, at its most basal carrier's address
+slice_identity	klq_identity	first	first <link>	the link the most basal member writes
+slice_identity	klq_identity	second	second <link>	the link the other member writes
+slice_identity	klq_identity	rule	rule <number> <link>: <reason>	a link the part is not asked as written, the rule it breaks and why
+slice_identity	klq_identity	form	form <side> <form>	a form of the rulesets given whose text writes that side's link
+slice_identity	klq_identity	context	context <address>	the members in one place of their chains' grammar, at its most basal carrier's address
 context	klq_identity	before	[<side>] before <slot> <slot> <link>	the nearest link before that names a register the member's link names, and the slot each names it in
 context	klq_identity	after	[<side>] after <slot> <slot> <link>	the nearest link after that names a register the member's link names, and the slot each names it in
 context	klq_identity	address	address <question>:<position> <question>:<position>	a carrier: each member's question and its link's position in that question's chain

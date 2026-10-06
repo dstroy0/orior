@@ -12,11 +12,15 @@
 // from the language to the bridge on its own line: a name one text with another in the language, which the bridge
 // holds as two keys (breaks), and a name given as another kind than a form (kind). No name of a language collapses
 // onto the bridge, which witnesses no two names one text. A name the schema does not name has no key, and is open
+//
+// The bridge's identities between texts, `text_identity <text> = <text>` with their verdicts, are no ruleset's: each
+// is kept as the bridge held it and written after the keys
 #include "code_generator.h"
 #include "target_internal.h"
 
 #include <stdio.h>
 
+#include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -172,6 +176,23 @@ int main(int argc, char **argv)
         }
     }
     const std::string path = folder + "/Lstar.klq";
+    // the identities between texts the bridge holds, each with its verdict, kept whole: no ruleset writes them, and
+    // they are written again after the keys as they were read
+    std::vector<std::string> identities;
+    std::ifstream held_bridge(path, std::ios::binary);
+    std::string line;
+    int in_identity = 0;
+    while (std::getline(held_bridge, line))
+    {
+        line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+        const int verdict = (line.rfind("open ", 0u) == 0u) || (line.rfind("closed ", 0u) == 0u);
+        in_identity = (line.rfind("text_identity ", 0u) == 0u) || (in_identity && verdict);
+        if (in_identity)
+        {
+            identities.push_back(line);
+        }
+    }
+    held_bridge.close();
     FILE *const bridge = fopen(path.c_str(), "wb");
     if (bridge == NULL)
     {
@@ -202,8 +223,13 @@ int main(int argc, char **argv)
             }
         }
     }
+    for (const std::string &kept_line : identities)
+    {
+        fprintf(bridge, "%s\n", kept_line.c_str());
+    }
     fclose(bridge);
-    printf("  %s: %u keys, %u pairs open, %u pairs of names the schema does not name\n", path.c_str(), written,
-           (unsigned int)pairs.size(), unkeyed);
+    printf("  %s: %u keys, %u pairs open, %u pairs of names the schema does not name, %u lines of identities between "
+           "texts kept\n",
+           path.c_str(), written, (unsigned int)pairs.size(), unkeyed, (unsigned int)identities.size());
     return failed;
 }
