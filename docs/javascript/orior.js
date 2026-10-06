@@ -185,9 +185,9 @@ function oriorAssemble(name, pile) {
     last = Math.max(last, delay);
     box.animate(
       [
-        { transform: box.oriorHeap, opacity: 0.55, color: ink, textShadow: "0 0 0 rgba(242, 179, 61, 0)" },
-        { color: "#f2b33d", textShadow: "0 0 0.6em rgba(242, 179, 61, 0.8)", opacity: 1, offset: 0.2 },
-        { transform: "translate(0, 0) rotate(0deg)", opacity: 1, color: ink, textShadow: "0 0 0 rgba(242, 179, 61, 0)" }
+        { transform: box.oriorHeap, opacity: 0.55, color: ink, textShadow: "0 0 0 rgba(111, 220, 180, 0)" },
+        { color: "#6fdcb4", textShadow: "0 0 0.6em rgba(111, 220, 180, 0.8)", opacity: 1, offset: 0.2 },
+        { transform: "translate(0, 0) rotate(0deg)", opacity: 1, color: ink, textShadow: "0 0 0 rgba(111, 220, 180, 0)" }
       ],
       { duration: ORIOR_PART_MS, delay, easing: "cubic-bezier(0.2, 1.3, 0.4, 1)", fill: "both" }
     );
@@ -201,10 +201,26 @@ function oriorAssemble(name, pile) {
 
 // The lattice behind the hero: a square grid of points, each moved off its place by an amount that
 // is zero at the left and grows toward the right, so the band reads from a pattern to its shuffled
-// copy. A point in place is drawn in the signal colour and a moved one fades to the ink's blue. The
-// draw is seeded, so every load draws the same lattice, and it holds still.
+// copy. A point in place is drawn in the signal colour, and a moved one passes through the link blue
+// to violet. The draw is seeded, so every load draws the same lattice, and it holds still.
 const ORIOR_LATTICE_STEP = 22;
 const ORIOR_LATTICE_SEED = 1729;
+
+// Signal green, link blue and violet, in the order a point meets them as it moves off its place.
+const ORIOR_LATTICE_STOPS = [
+  [111, 220, 180],
+  [138, 184, 255],
+  [180, 156, 255],
+];
+
+function oriorShade(loose) {
+  const along = loose * (ORIOR_LATTICE_STOPS.length - 1);
+  const low = Math.min(Math.floor(along), ORIOR_LATTICE_STOPS.length - 2);
+  const part = along - low;
+  return ORIOR_LATTICE_STOPS[low].map((from, at) =>
+    Math.round(from + (ORIOR_LATTICE_STOPS[low + 1][at] - from) * part)
+  );
+}
 
 function oriorRandom(seed) {
   let state = seed >>> 0;
@@ -244,10 +260,8 @@ function oriorLattice(hero) {
       const px = x + Math.cos(turn) * shift * reach;
       const py = y + Math.sin(turn) * shift * reach;
       const kept = 1 - loose;
-      const red = Math.round(242 * kept + 120 * loose);
-      const green = Math.round(179 * kept + 140 * loose);
-      const blue = Math.round(61 * kept + 220 * loose);
-      const alpha = 0.26 + 0.26 * kept;
+      const [red, green, blue] = oriorShade(loose);
+      const alpha = 0.36 + 0.16 * kept;
       pen.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha.toFixed(3)})`;
       pen.beginPath();
       pen.arc(px, py, 1.3 + 0.4 * kept, 0, Math.PI * 2);
