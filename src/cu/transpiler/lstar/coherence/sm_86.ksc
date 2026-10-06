@@ -16,9 +16,9 @@ class illegal  the question was refused: the system will not take it as it stand
 class folds    the compiler answered but folded the operand the question varied away, so the answer names a form of its own and not the operator
 
 # every question put, counted by the channel it went out on and what came back
-count run      answers  819
+count run      answers  815
 count run      nothing  0
-count run      illegal  577
+count run      illegal  11
 count run      folds    0
 count decode   answers  87298
 count decode   nothing  257
@@ -118,104 +118,61 @@ run answers 000000ff curve 1014 128
 run answers 000000ff curve 1014 256
 run answers 00000020 curve 1014 threads
 run answers 000000fc register last
-run illegal 00000000 ask 0056595e051e9609 255 0 0 8786cfcd63ae10d1 30d7beb6a5b3d6bd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0062e90c0beaca23 255 0 0 8786cfcd63ae10d1 b9cc5bd908c09945 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 006e3756549c66cd 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45
 run answers ffffffff ask 00aafab457b91719 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
 run answers ffffffff ask 00c1b9141aa8d5a8 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
-run illegal 00000000 ask 00f88d4498ab5e19 255 0 0 8786cfcd63ae10d1 b5d8f88456417029 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 011ba6989a2757e9 255 0 0 8786cfcd63ae10d1 6c8016f5f6040415 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 017cc29b803be381 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0190aa1fcf686ad4 255 0 0 8786cfcd63ae10d1 d864045a8bf2dd7d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 01b65d247f46d282 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
-run illegal 00000000 ask 031c4523df70e478 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0352477ba56c9a99 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 035cbf778f417eac 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d
 run answers ffffffff ask 03a3ab3bc8554666 255 0 0 8786cfcd63ae10d1 77eda38657688891
 run answers ffffffff ask 043b6b5124da5ee3 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95
 run answers ffffffff ask 04c04413602e42a9 255 0 0 8786cfcd63ae10d1 456062552342d645
-run illegal 00000000 ask 054e3fa59057cca3 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 05e3c1c64bec0886 255 0 0 8786cfcd63ae10d1 73472102cb58fa54
 run answers ffffffff ask 05f1185a75d7bb37 255 0 0 8786cfcd63ae10d1 57091fa377476019
-run illegal 00000000 ask 0604fc9094334828 255 0 0 8786cfcd63ae10d1 c792c71030dcf385 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 061b3d1f711b5d18 255 0 0 8786cfcd63ae10d1 858d7bbc17e989cd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 06354e7d1579110a 255 0 0 8786cfcd63ae10d1 0b65c69cef6dda4d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 064af315a5f4ce78 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
 run answers ffffffff ask 064cea3cf4f89dc8 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
 run answers ffffffff ask 066bafece977c8c0 255 0 0 8786cfcd63ae10d1 45186009230be39d
 run answers ffffffff ask 0686fc90f2212754 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
-run illegal 00000000 ask 06966c05ec87e956 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 06ace4c28f225e32 255 0 0 8786cfcd63ae10d1 157169b1a57a6649
 run answers 00000001 ask 06d4433afede5c1e 255 0 0 8786cfcd63ae10d1 07e9a0fca9663265
 run answers ffffffff ask 06ea0526b1c0dbbc 255 0 0 8786cfcd63ae10d1 c2926ac58ec82f25
-run illegal 00000000 ask 06eb11753825498d 255 0 0 8786cfcd63ae10d1 3e21ce179238691c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0715466b4e64c519 255 0 0 8786cfcd63ae10d1 20c07239de1335d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 07403a1a3653a834 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
 run answers ffffffff ask 075c7944f3945048 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
 run answers ffffffff ask 07bc5d170d110b68 255 0 0 8786cfcd63ae10d1 94312d505e95117d
 run answers ffffffff ask 07bde07d89414036 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
-run illegal 00000000 ask 07dab64c563563a6 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 07ff6580d2e12a98 255 0 0 8786cfcd63ae10d1 22921b39e3d75875
 run answers ffffffff ask 090973ea4754dbd4 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 0932712a96d0dc96 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
 run answers ffffffff ask 09541d7c8e4880ba 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
 run answers ffffffff ask 09645bc6e7ee70e0 255 0 0 8786cfcd63ae10d1 d660e111b91d2cb5
-run illegal 00000000 ask 098a20d02029d878 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 09fa93eee4a4cd4e 255 0 0 8786cfcd63ae10d1 20c07239de1335d5
-run illegal 00000000 ask 0a3b3b48b51f2549 255 0 0 8786cfcd63ae10d1 d26be45f244a422d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0a834755493d5356 255 0 0 8786cfcd63ae10d1 7dad240f46101535 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0a8494400a95e914 255 0 0 8786cfcd63ae10d1 13aee4d1b7dddbc1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0ab1582e3df0005d 255 0 0 8786cfcd63ae10d1 584678d47f519a19
 run answers ffffffff ask 0b4aa39b2dc34552 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4
 run answers 00000150 ask 0b4aa39b2dc34552 255 0 0 8786cfcd63ae10d1 d9affb0162732234
 run answers ffffffff ask 0b81122aeb4c45d6 255 0 0 8786cfcd63ae10d1 6994424641253594
-run illegal 00000000 ask 0bb6a2e3591a864a 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0bd52496e3c91a46 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0bddbd300bb0c535 255 0 0 8786cfcd63ae10d1 a67728924bf1857d
-run illegal 00000000 ask 0be4e74a8ac0f733 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0be562abee508cd0 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
-run illegal 00000000 ask 0c00ca2fcd4e2b83 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0c06ce61af9febf6 255 0 0 8786cfcd63ae10d1 2e33658a01c80371 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0c501ddd2dbd4dd2 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4
 run answers ffffffff ask 0c65d0167bc4c858 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6005
-run illegal 00000000 ask 0c867c283961a5cd 255 0 0 8786cfcd63ae10d1 157169b1a57a6649 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0ca1fe505c68c4b6 255 0 0 8786cfcd63ae10d1 9da584cdcb889065 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0cb7bbcc7d63b1e7 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers ffffffff ask 0cb9f45ef57009c8 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 0cfe2f946bdda2b5 255 0 0 8786cfcd63ae10d1 a67728924bf1857d
 run answers ffffffff ask 0d81b52c270aab8b 255 0 0 8786cfcd63ae10d1 17d816e2e70e9b15
 run answers ffffffff ask 0dcdbecdfb15d266 255 0 0 8786cfcd63ae10d1 cc10e8c9653a9175
-run illegal 00000000 ask 0dce80b20e2da7d2 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0dffa1f80d7b1b89 255 0 0 8786cfcd63ae10d1 52d5c2ae428436ad refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0e2287fce144705e 255 0 0 8786cfcd63ae10d1 3d065ada90986005
-run illegal 00000000 ask 0e2fb3404202c4af 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0e4dd41ba0ff0e91 255 0 0 8786cfcd63ae10d1 ef3ac012912b1551
 run answers ffffffff ask 0e7580178a14cd75 255 0 0 8786cfcd63ae10d1 eba034ce47e76c31
 run answers ffffffff ask 0e8df75ccf45d2b2 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
 run answers ffffffff ask 0e98c974d96daf3a 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
-run illegal 00000000 ask 0ea789b7e9c76183 255 0 0 8786cfcd63ae10d1 343722621eab0f33 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0eeb7cbccea9aa72 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0f0f73049eeae354 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d
-run illegal 00000000 ask 0f3bd971e70d9805 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0f51ab7e2792f14f 255 0 0 8786cfcd63ae10d1 12492052ebd59d85 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0f5c68d1c2ce8de8 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask 0f6092c09f6877c7 255 0 0 8786cfcd63ae10d1 0734f6fea166e615
-run illegal 00000000 ask 0f69da306997cd3f 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 0f70d47fbc8c2f0f 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0fd19c18f86d30c5 255 0 0 8786cfcd63ae10d1 21aaee5e4782d945
-run illegal 00000000 ask 100ba3704157deb8 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 104c72bdc37eefea 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1069e496656b9bd4 255 0 0 8786cfcd63ae10d1 1035267d15e1626b
 run answers ffffffff ask 1109e3c72049f719 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
-run illegal 00000000 ask 11a5449d347bd350 255 0 0 8786cfcd63ae10d1 7dad240f46101535 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 11bb9660dd904f58 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 11cf73600baad518 255 0 0 8786cfcd63ae10d1 7adb1730387baae5
-run illegal 00000000 ask 1216d00ddb6bf069 255 0 0 8786cfcd63ae10d1 bc1615cfa97af3e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 00000012 ask 122fef23f9eb1cf8 255 0 0 8786cfcd63ae10d1 aba7c592e56be0c5
 run answers ffffffff ask 1235ee124b149ea1 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
-run illegal 00000000 ask 124eaaaf8c2fccdd 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 12709d29e5ca45f9 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 1270a3120d319646 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1282ce03790efff4 255 0 0 8786cfcd63ae10d1 d9affb0162732234
 run answers ffffffff ask 12b80a2e164b2ed9 255 0 0 8786cfcd63ae10d1 4d75db63b61e48d1
 run answers ffffffff ask 12be0c164a248824 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
@@ -223,63 +180,39 @@ run answers ffffffff ask 1302415927400c78 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89
 run answers ffffffff ask 131d5136e1734ca0 255 0 0 8786cfcd63ae10d1 2f1008ab37790844
 run answers ffffffff ask 135b38fa2ad41489 255 0 0 8786cfcd63ae10d1 aba7c592e56be0c5
 run answers 00000001 ask 135b38fa2ad41489 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5
-run illegal 00000000 ask 1388a03a60997ea0 255 0 0 8786cfcd63ae10d1 92621cbee857f9db refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 139a9d0b9c41d40d 255 0 0 8786cfcd63ae10d1 deacd87dfa45eff1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 13c3bdda84ee83a1 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
 run answers ffffffff ask 13c4ea7dcc9f5b44 255 0 0 8786cfcd63ae10d1 d26be45f244a422d
-run illegal 00000000 ask 13f07c18d9d1d80f 255 0 0 8786cfcd63ae10d1 77f49c902a6e6085 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 1467d88c91885f53 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
+run answers 00000000 ask 142f4227656d6482 255 0 0 8786cfcd63ae10d1 85c5171c213185e5
 run answers ffffffff ask 148a065d2c641474 255 0 0 8786cfcd63ae10d1 d9affb0162732234
 run answers ffffffff ask 149748fc1d3cb9b0 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3
 run answers ffffffff ask 14dd888b1bc929f2 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
-run illegal 00000000 ask 14e17008ce873d31 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 14f8278207173c83 255 0 0 8786cfcd63ae10d1 e80692bc6e4a8075 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 151f04700c50e875 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 155c87f169e9bd7c 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
-run illegal 00000000 ask 156aa3cc0b50e1f2 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 15d2ce2a4c2eebf8 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
-run illegal 00000000 ask 160b62151a156b75 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 1621a6540dd91171 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 164725d240e3214c 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
 run answers ffffffff ask 16a5b07dd86defb7 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask 1701e95d46b310bd 255 0 0 8786cfcd63ae10d1 da35d90c917d2fa5
 run answers ffffffff ask 172d12bc10798042 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
 run answers ffffffff ask 179e9dbea9f5f64b 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773
-run illegal 00000000 ask 17a77f3eb819c35a 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 17a92b2345f1ec56 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc
 run answers ffffffff ask 17b1a3e4b0c692c1 255 0 0 8786cfcd63ae10d1 96af7ec7cb131d41
-run illegal 00000000 ask 181f2e7544a96dc4 255 0 0 8786cfcd63ae10d1 7412d9fd66bae261 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 18455f50e0a11b6f 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
 run answers ffffffff ask 18504804a4f1a75b 255 0 0 8786cfcd63ae10d1 21aaee5e4782d945
 run answers ffffffff ask 1850ef562fd967ae 255 0 0 8786cfcd63ae10d1 07e9a0fca9663265
 run answers ffffffff ask 18b26956042d9214 255 0 0 8786cfcd63ae10d1 db6052284c532d85
-run illegal 00000000 ask 18bb3f1eb5ca368f 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask 18c1105afef59406 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask 1918816d212f9de9 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask 191c070cfba70f58 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb
-run illegal 00000000 ask 1926382088b16a93 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 192d41ed7534936b 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
-run illegal 00000000 ask 194892897073bb6e 255 0 0 8786cfcd63ae10d1 456062552342d645 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 194b6b3092ce2020 255 0 0 8786cfcd63ae10d1 c91919f9f2b5b015
-run illegal 00000000 ask 19ab0ea94bc3b139 255 0 0 8786cfcd63ae10d1 0f01d798c1d2330d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 19cdb4c340e36124 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 19d32f191a7b006f 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
 run answers ffffffff ask 1a70de4496e5d251 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d
-run illegal 00000000 ask 1a948ef708d500d3 255 0 0 8786cfcd63ae10d1 0cff690e2011a5dd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 1aaf0f54e98ff5ee 255 0 0 8786cfcd63ae10d1 858d7bbc17e989cd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1b0a9fba85260810 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd
-run illegal 00000000 ask 1b442a66a6fe4e1b 255 0 0 8786cfcd63ae10d1 8434f799cdffec69 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 1ba5777e145b7801 255 0 0 8786cfcd63ae10d1 ba71b117839113ac refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 1bbcfd6db4c85d32 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1c28172816b7ed08 255 0 0 8786cfcd63ae10d1 4bc2afea5c10ddc3
 run answers ffffffff ask 1c29eabe0637adb4 255 0 0 8786cfcd63ae10d1 53100b8f6b981159
-run illegal 00000000 ask 1c35c0ca92377687 255 0 0 8786cfcd63ae10d1 767fde5d7c4edc7d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1c3c8f403ee5b777 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 1c52c34d5428b118 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
-run illegal 00000000 ask 1cb81d92544025e9 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1ce16e62d8ed234e 255 0 0 8786cfcd63ae10d1 73472102cb58fa54
 run answers ffffffff ask 1cf428a6b81c7a0e 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec
-run illegal 00000000 ask 1d2b956811b55452 255 0 0 8786cfcd63ae10d1 2315ef25ab3c63b6 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1d790b60d0cccc6d 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5
 run answers ffffffff ask 1dfcb5da09e30433 255 0 0 8786cfcd63ae10d1 2e33658a01c80371
 run illegal 00000000 ask 1e246517717e74ea 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
@@ -287,283 +220,157 @@ run answers ffffffff ask 1e3100267abeeab2 255 0 0 8786cfcd63ae10d1 85c5171c21318
 run answers ffffffff ask 1ee959f63931bf60 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259
 run answers ffffffff ask 1eff0e6ac80cb64b 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask 1f01ddd67b87a5f4 255 0 0 8786cfcd63ae10d1 81f93cffc677a1dd
-run illegal 00000000 ask 1f0254e3581ac833 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 1f7a26992b7e4581 255 0 0 8786cfcd63ae10d1 703d27dbbba1886d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1fb58df638e96d64 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
-run illegal 00000000 ask 1fb7e4c757f5469f 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 1fb8e74d33dff970 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
-run illegal 00000000 ask 1fc5f946cffae0a7 255 0 0 8786cfcd63ae10d1 864efac930fa432d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 2015f3c342957d11 255 0 0 8786cfcd63ae10d1 3dac3d242e51a9e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2036ac4b5c0a0a98 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
-run illegal 00000000 ask 204e250fefe1f749 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 20977f676c25eabd 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 20b8318a10646ef9 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 21062cb802ac41a9 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 2108d223037f8b43 255 0 0 8786cfcd63ae10d1 8ac91d1714ea3a65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 210d3c3158d04e59 255 0 0 8786cfcd63ae10d1 1aef9f104974045d
-run illegal 00000000 ask 2124b00e52a84011 255 0 0 8786cfcd63ae10d1 f8062f79b05ee405 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 213a3387222f02eb 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 214de3e65c2c1536 255 0 0 8786cfcd63ae10d1 241b5609ad63a965 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 21c8a0ea2332c534 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
-run illegal 00000000 ask 222daae96d8665ef 255 0 0 8786cfcd63ae10d1 07e9a0fca9663265 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2285af01f5ab7d2e 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145
 run answers 00000010 ask 2285af01f5ab7d2e 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5
 run answers ffffffff ask 22c5674913a3d790 255 0 0 8786cfcd63ae10d1 744c1d66448115d5
 run answers ffffffff ask 22cfad59a952d216 255 0 0 8786cfcd63ae10d1 20e2094d31902109
 run answers ffffffff ask 22ddc8292b7b6934 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c
-run illegal 00000000 ask 22e0dcec52f8392d 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 231ec15cfef06a7f 255 0 0 8786cfcd63ae10d1 703d27dbbba1886d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 232cc34716ffb3f3 255 0 0 8786cfcd63ae10d1 c7f6ab741d381f85
 run answers ffffffff ask 235ccd2b99fcaf7f 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
 run answers ffffffff ask 2366e3d6fc60ab94 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac
 run answers ffffffff ask 2376167662f22a47 255 0 0 8786cfcd63ae10d1 7412d9fd66bae261
-run illegal 00000000 ask 23a3a011d2531917 255 0 0 8786cfcd63ae10d1 8c6ecdf21e861235 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 23b45d8a430af0c2 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 23fde260ff5237df 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
-run illegal 00000000 ask 2409efe9abee3de3 255 0 0 8786cfcd63ae10d1 32795f135db4d3dd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 24a592429c3b98f3 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 24c5dda51d91e6a0 255 0 0 8786cfcd63ae10d1 c91919f9f2b5b015
 run answers ffffffff ask 24e196e998e5081b 255 0 0 8786cfcd63ae10d1 7e960eae3e02b6ad
 run answers ffffffff ask 24eeb5fc28984212 255 0 0 8786cfcd63ae10d1 249c629be01ffc65
 run answers ffffffff ask 24fa538f46741b5d 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5
-run illegal 00000000 ask 2532b4723a33e8a9 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2536430858766ed8 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
-run illegal 00000000 ask 25580a25c4a2bd4c 255 0 0 8786cfcd63ae10d1 456062552342d645 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 258bb229392c1cdf 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
 run answers ffffffff ask 25ab67a46520e386 255 0 0 8786cfcd63ae10d1 73472102cb58fa54
 run answers ffffffff ask 25c89a19cd9e1ffb 255 0 0 8786cfcd63ae10d1 2fc271347814833d
-run illegal 00000000 ask 25f43ddd5306069e 255 0 0 8786cfcd63ae10d1 bcfc78e8813ad2ad refused CUDA_ERROR_ILLEGAL_ADDRESS
+run answers 000000fd ask 2643c620993768cb 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
 run answers ffffffff ask 265b6a5e6fae27f5 255 0 0 8786cfcd63ae10d1 c792c71030dcf385
 run answers ffffffff ask 267c85c462722712 255 0 0 8786cfcd63ae10d1 249c629be01ffc65
-run illegal 00000000 ask 26b84fecfde1d550 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 26c30744447bd269 255 0 0 8786cfcd63ae10d1 864efac930fa432d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 273c910927827e36 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65
 run answers ffffffff ask 285bbd693d2fd515 255 0 0 8786cfcd63ae10d1 7dad240f46101535
+run answers 00000144 ask 289289e63582bde0 255 0 0 8786cfcd63ae10d1 4a1433812e64b341
 run answers 00000005 ask 28ad93a47357b09e 255 0 0 8786cfcd63ae10d1 bc1615cfa97af3e5
-run illegal 00000000 ask 28bfd4f16a20d65a 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 28d28c7f9a403829 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a
 run answers ffffffff ask 28e33a6a37eff24e 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
 run answers ffffffff ask 2936c3ebb46bd517 255 0 0 8786cfcd63ae10d1 faff065bf0835f0f
 run answers ffffffff ask 2950fc4589602c91 255 0 0 8786cfcd63ae10d1 69064c8db93b7ea5
-run illegal 00000000 ask 295ae53c8cea7b83 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 29686fbde41d7d73 255 0 0 8786cfcd63ae10d1 73472102cb58fa54 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 297236aeaf3d4971 255 0 0 8786cfcd63ae10d1 a6e7abc147e24c2c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2991b5a6bb391d11 255 0 0 8786cfcd63ae10d1 69064c8db93b7ea5
 run answers ffffffff ask 29adb02ee192e1ef 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55
 run answers ffffffff ask 29bb5b5a62c6dca4 255 0 0 8786cfcd63ae10d1 3d065ada90986005
-run illegal 00000000 ask 29c3e6d2e8b8b653 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 29e2c6a99992eed0 255 0 0 8786cfcd63ae10d1 703d27dbbba1886d
-run illegal 00000000 ask 29e9d54948987dc6 255 0 0 8786cfcd63ae10d1 78f8c03869767b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 29efb83a1b69e7f9 255 0 0 8786cfcd63ae10d1 c71a3b98fa5bbfc5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2a0fa0ae8e9e3209 255 0 0 8786cfcd63ae10d1 584678d47f519a19
-run illegal 00000000 ask 2a5c89dbe336539f 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2a785f2564cdd49b 255 0 0 8786cfcd63ae10d1 c792c71030dcf385
 run answers ffffffff ask 2ad45e5b64c893f4 255 0 0 8786cfcd63ae10d1 7a1af9b4d4f2d8a4
 run answers ffffffff ask 2adecc0dc33a1191 255 0 0 8786cfcd63ae10d1 69064c8db93b7ea5
 run answers ffffffff ask 2b06b0cd28f1b8ac 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4
 run answers ffffffff ask 2b1dd00300ca7074 255 0 0 8786cfcd63ae10d1 7a1af9b4d4f2d8a4
-run illegal 00000000 ask 2b6e582fd41225a9 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2b7d6f45503c2618 255 0 0 8786cfcd63ae10d1 ef4c0092b6fc2879
 run answers ffffffff ask 2b9e3b52da282468 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5
-run illegal 00000000 ask 2c05eafa622e1c07 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2c17572bb07436de 255 0 0 8786cfcd63ae10d1 3d065ada90986005
 run answers ffffffff ask 2c1c120452af3abc 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
-run illegal 00000000 ask 2c3679e85640d7d6 255 0 0 8786cfcd63ae10d1 1aef9f104974045d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 2c4d39f0b0f4fea2 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2c6dc47023b8d7ee 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
-run illegal 00000000 ask 2c93e324c66b4f25 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 2cb22c3489024205 255 0 0 8786cfcd63ae10d1 249c629be01ffc65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2ce298fde9b7bdd3 255 0 0 8786cfcd63ae10d1 d3ccda22ec4ced7d
-run illegal 00000000 ask 2d7a1c22d6ac8d54 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2da7b7c97b1d6c68 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd
-run illegal 00000000 ask 2db4219f94a04969 255 0 0 8786cfcd63ae10d1 0711855a632eafd5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2dcec0f7cee03951 255 0 0 8786cfcd63ae10d1 0b65c69cef6dda4d
-run illegal 00000000 ask 2deb5a754a92bf6b 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 2e5cdb0fc009b243 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_LAUNCH_FAILED
-run illegal 00000000 ask 2ee3ba3cd1961169 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 2f383743c9d8f6b0 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
-run illegal 00000000 ask 2fa69b2bc92773e5 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 2fee88fe4aaf8487 255 0 0 8786cfcd63ae10d1 7aa722ead1172205 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 30032b00afd86097 255 0 0 8786cfcd63ae10d1 7a1af9b4d4f2d8a4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3053e0164d7240b8 255 0 0 8786cfcd63ae10d1 a90fb041674c41c5
-run illegal 00000000 ask 3138b3998557245e 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 319be3fd090e3414 255 0 0 8786cfcd63ae10d1 69064c8db93b7ea5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 31c1ab4e412094e8 255 0 0 8786cfcd63ae10d1 94312d505e95117d
 run answers ffffffff ask 31cd153f2c05c5d7 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535
-run illegal 00000000 ask 31d2b540fa03e6f5 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 31fe78c451114ee4 255 0 0 8786cfcd63ae10d1 bcfc78e8813ad2ad refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 3297418bad736386 255 0 0 8786cfcd63ae10d1 a67728924bf1857d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 32a5fb7527cad228 255 0 0 8786cfcd63ae10d1 eba034ce47e76c31 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 32b54415d1231ba8 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac
 run answers ffffffff ask 3362976677a5ecc0 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec
-run illegal 00000000 ask 3371b7b043c164cd 255 0 0 8786cfcd63ae10d1 54e78495207669f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 338d453f77b08397 255 0 0 8786cfcd63ae10d1 faff065bf0835f0f
-run illegal 00000000 ask 340fcf76741ee896 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 346e28ed329a82f1 255 0 0 8786cfcd63ae10d1 4873b0ce9cd0e19f refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3480bea4792343be 255 0 0 8786cfcd63ae10d1 6c8016f5f6040415
-run illegal 00000000 ask 3488a0ed10931908 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 34cbb8011b3da5f3 255 0 0 8786cfcd63ae10d1 a520250bff9463d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3507adfd885c58c1 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3
 run answers ffffffff ask 354c72a9fb7aed5f 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
-run illegal 00000000 ask 35683715b7c02e8c 255 0 0 8786cfcd63ae10d1 456062552342d645 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 35cc076a1f915a48 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 36109ad7f6ef4d84 255 0 0 8786cfcd63ae10d1 a520250bff9463d5
-run illegal 00000000 ask 363958728aec46d0 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 366db2df06048318 255 0 0 8786cfcd63ae10d1 b9cc5bd908c09945
-run illegal 00000000 ask 367cba8704094ebf 255 0 0 8786cfcd63ae10d1 6c8016f5f6040415 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 36836cc5178fa990 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
-run illegal 00000000 ask 36ea1d634c3260d9 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 36f3e54468dbb912 255 0 0 8786cfcd63ae10d1 0f01d798c1d2330d
-run illegal 00000000 ask 371b9eccb33ad0c2 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 378dd37060ad9fbc 255 0 0 8786cfcd63ae10d1 12492052ebd59d85
 run answers ffffffff ask 37adcbcf583cc051 255 0 0 8786cfcd63ae10d1 4b7adda9d4cbd9eb
 run answers ffffffff ask 37e3cd4e0456a199 255 0 0 8786cfcd63ae10d1 4a5e2e5fcdac1e7d
-run illegal 00000000 ask 37f4db8f40bd4fb1 255 0 0 8786cfcd63ae10d1 ebf19fce01ee7fe5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 37f92822fc2e100e 255 0 0 8786cfcd63ae10d1 a6cadde1086c497b
-run illegal 00000000 ask 385a76f15bebfeb5 255 0 0 8786cfcd63ae10d1 7a1af9b4d4f2d8a4 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 389ada0a9d194136 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 38f9f474f5c0ffc7 255 0 0 8786cfcd63ae10d1 0734f6fea166e615
-run illegal 00000000 ask 390cb9e368938fa8 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 392077873bde807d 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
-run illegal 00000000 ask 393da56fc4d4e1a2 255 0 0 8786cfcd63ae10d1 726ffecc34d32881 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 395c81c0626433e9 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 39921dfce36bede0 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 39ae13285509cad4 255 0 0 8786cfcd63ae10d1 d3ccda22ec4ced7d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3a7e6115ddddc836 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
-run illegal 00000000 ask 3a990427d0259aa9 255 0 0 8786cfcd63ae10d1 ef4c0092b6fc2879 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3aadb08e278a4fa0 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259
-run illegal 00000000 ask 3af2614dfdea4cfd 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 3b161569b3720203 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3bb0bcfbccc0306f 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55
-run illegal 00000000 ask 3bb92ba43a7aefcd 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3be96f9e8f6e95b2 255 0 0 8786cfcd63ae10d1 8efd949f9545e2d5
 run answers ffffffff ask 3c6f4888d8b35740 255 0 0 8786cfcd63ae10d1 a6e7abc147e24c2c
-run illegal 00000000 ask 3c7fdd49c90bff77 255 0 0 8786cfcd63ae10d1 744c1d66448115d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3ca87d4202b13817 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55
 run answers ffffffff ask 3cda69ff4226ad96 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
 run answers ffffffff ask 3cf200fc263f3b06 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
-run illegal 00000000 ask 3d05a7d7e951277c 255 0 0 8786cfcd63ae10d1 4a5e2e5fcdac1e7d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3d237797ce8467bc 255 0 0 8786cfcd63ae10d1 8434f799cdffec69
-run illegal 00000000 ask 3d61239de24554a7 255 0 0 8786cfcd63ae10d1 707eb21c32e9a9e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run answers 00000001 ask 3d80983dbe15311e 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
-run illegal 00000000 ask 3db18cf93f939d03 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3dc6b01d8e3d64a6 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
 run answers ffffffff ask 3dcadc76f5757504 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask 3dd0274ddc271cf2 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers ffffffff ask 3e01887c0d532440 255 0 0 8786cfcd63ae10d1 0cff690e2011a5dd
 run answers ffffffff ask 3e364d0a3c8b1d17 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55
 run answers ffffffff ask 3e5b5f213a9ba5f2 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25
-run illegal 00000000 ask 3e891002334e7589 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3ec983b494bc80f4 255 0 0 8786cfcd63ae10d1 81f93cffc677a1dd
 run answers ffffffff ask 3f109e758259d5d2 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4
 run answers ffffffff ask 3f2bcc99a14f8cc1 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
 run answers ffffffff ask 3fb7e62fb2904d52 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
-run illegal 00000000 ask 3fdd14cc89a89434 255 0 0 8786cfcd63ae10d1 3b8869f71ecab5ed refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 3feb477aa0728880 255 0 0 8786cfcd63ae10d1 f43572d7faaff9ad
-run illegal 00000000 ask 400a4611f5688ae0 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask 400bff521a828076 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 40513d1b3bfa40e4 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
-run illegal 00000000 ask 4073707401baf63f 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 40770edecf6a3fae 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5
-run illegal 00000000 ask 40819ac972823d22 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 41021ea95714dbf2 255 0 0 8786cfcd63ae10d1 343722621eab0f33
 run answers ffffffff ask 414b1b4dedf284da 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
 run answers ffffffff ask 41726bbcb2c994be 255 0 0 8786cfcd63ae10d1 161cc9836b253025
 run answers ffffffff ask 4199a476687c2a62 255 0 0 8786cfcd63ae10d1 54e78495207669f1
 run answers ffffffff ask 41a0c11daa3184f3 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
 run answers ffffffff ask 41ccab52b00a41ff 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
-run illegal 00000000 ask 41d94729c917b1e1 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 42310b157918ab74 255 0 0 8786cfcd63ae10d1 7a1af9b4d4f2d8a4
-run illegal 00000000 ask 423a1b177b11feba 255 0 0 8786cfcd63ae10d1 7412d9fd66bae261 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4286096d66e92e53 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
-run illegal 00000000 ask 42afaa7df64c2b33 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 42d95b364d66cf60 255 0 0 8786cfcd63ae10d1 f8062f79b05ee405
 run answers ffffffff ask 4300605ff0c07174 255 0 0 8786cfcd63ae10d1 2f1008ab37790844
 run answers ffffffff ask 432e89b515958694 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac
-run illegal 00000000 ask 433a51c318d08cd4 255 0 0 8786cfcd63ae10d1 0b65c69cef6dda4d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 436e679f3daf9fbf 255 0 0 8786cfcd63ae10d1 161cc9836b253025 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 43a04fa1d44e2620 255 0 0 8786cfcd63ae10d1 2e33658a01c80371 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 43a14a83ec14bfc2 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
-run illegal 00000000 ask 445097675d7b0ab3 255 0 0 8786cfcd63ae10d1 b5d8f88456417029 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 453ae5456e493bef 255 0 0 8786cfcd63ae10d1 067e45de1f63425c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 457e8cae9ec11024 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
-run illegal 00000000 ask 458947c185edf7a9 255 0 0 8786cfcd63ae10d1 b9cc5bd908c09945 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 458c1bcdf97d80c7 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 459410e06269afd2 255 0 0 8786cfcd63ae10d1 57091fa377476019
-run illegal 00000000 ask 45a805ad7894f4d6 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 45ba268d9556239b 255 0 0 8786cfcd63ae10d1 82e085dbdb819b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4604f3b7b10714b2 255 0 0 8786cfcd63ae10d1 157169b1a57a6649
-run illegal 00000000 ask 46312eec0d949634 255 0 0 8786cfcd63ae10d1 78f8c03869767b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 4636906a520e3a05 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4646ed9d983ee9b4 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c
-run illegal 00000000 ask 465021fea9582cd8 255 0 0 8786cfcd63ae10d1 4b7adda9d4cbd9eb refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 466b1f52524387aa 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask 46b327c1190a24c0 255 0 0 8786cfcd63ae10d1 a6e7abc147e24c2c
 run answers ffffffff ask 46bfa5570c4fe448 255 0 0 8786cfcd63ae10d1 20c07239de1335d5
 run answers ffffffff ask 46c998f35611a222 255 0 0 8786cfcd63ae10d1 f8062f79b05ee405
-run answers 00000001 ask 46de1ac02d05964d 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 46e0e4a3aab33484 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
-run illegal 00000000 ask 4742127aa35c0529 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 474a86f581009c74 255 0 0 8786cfcd63ae10d1 d9affb0162732234
-run illegal 00000000 ask 475ea21b2686004f 255 0 0 8786cfcd63ae10d1 d26be45f244a422d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4793ef9fedaead38 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
 run answers ffffffff ask 4799df274f3473e6 255 0 0 8786cfcd63ae10d1 2dfc1874fef34759
-run illegal 00000000 ask 47c934ac05197e30 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 47d28c74559fdec4 255 0 0 8786cfcd63ae10d1 26dfd63cb78667a5
 run answers ffffffff ask 47d92d90ccdeb6b4 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
 run answers ffffffff ask 481c48b91093fbac 255 0 0 8786cfcd63ae10d1 bf635e0376d30714
-run illegal 00000000 ask 481fe7b5e9e8662b 255 0 0 8786cfcd63ae10d1 c71a3b98fa5bbfc5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4874afabdc86c8b8 255 0 0 8786cfcd63ae10d1 a90fb041674c41c5
-run illegal 00000000 ask 4884a35d418f8825 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 48aba3eb4ced5af9 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed
-run illegal 00000000 ask 48c2b6d04d9611d3 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 48ccb1107ceccb75 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 491bf9d5e8c74472 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
 run answers ffffffff ask 4921c290ff09b188 255 0 0 8786cfcd63ae10d1 110fe21681f5fe75
 run answers ffffffff ask 492827f81ea1c132 255 0 0 8786cfcd63ae10d1 db6052284c532d85
-run illegal 00000000 ask 492a3198be9e871d 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 49448865eaf1bc19 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
 run answers ffffffff ask 49a056af687542b8 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
-run illegal 00000000 ask 4a53ca720d173def 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 4af5ecee7ddf3843 255 0 0 8786cfcd63ae10d1 1cd93dcff9e80c35 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask 4aff768833204c5d 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask 4b53581ab35a35b6 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
-run illegal 00000000 ask 4b5b9e1166bb6b49 255 0 0 8786cfcd63ae10d1 8c5c9ff830be6c2b refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4bbdc7ff89b37680 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
-run illegal 00000000 ask 4c6174564790334f 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4cd1553b02ca8600 255 0 0 8786cfcd63ae10d1 f43572d7faaff9ad
-run illegal 00000000 ask 4cd23aa0e41dda97 255 0 0 8786cfcd63ae10d1 ffc057fdceac8e79 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 4cf94472bcbed860 255 0 0 8786cfcd63ae10d1 1aef9f104974045d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4d0f782ab94ab247 255 0 0 8786cfcd63ae10d1 7412d9fd66bae261
 run answers ffffffff ask 4d1e20b949f7a7d8 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64
 run answers ffffffff ask 4d6a11fdd697f2cb 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
-run illegal 00000000 ask 4d6a867d0633505d 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4db051e1e4fc9036 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
-run illegal 00000000 ask 4dba237145ec1381 255 0 0 8786cfcd63ae10d1 1cd93dcff9e80c35 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4dd64c0b5e808d40 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec
 run answers ffffffff ask 4de7bd74683cf602 255 0 0 8786cfcd63ae10d1 cbd8a035b7e781c9
 run answers ffffffff ask 4e5b8f6c337ba1a4 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run answers ffffffff ask 4e5f3f5973ea6ea0 255 0 0 8786cfcd63ae10d1 c91919f9f2b5b015
-run illegal 00000000 ask 4e74aed7207e683b 255 0 0 8786cfcd63ae10d1 52d5c2ae428436ad refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 4e936a70cd0182b5 255 0 0 8786cfcd63ae10d1 161cc9836b253025 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4ed0d1b731557cd8 255 0 0 8786cfcd63ae10d1 32795f135db4d3dd
 run answers ffffffff ask 4f208a428559cc54 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
-run illegal 00000000 ask 4f23834ebdf61e57 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4f554338d2cd2afa 255 0 0 8786cfcd63ae10d1 26dfd63cb78667a5
 run answers ffffffff ask 4f6b2d975b554c38 255 0 0 8786cfcd63ae10d1 45186009230be39d
 run answers ffffffff ask 4fc85fe3764bd098 255 0 0 8786cfcd63ae10d1 7adb1730387baae5
-run illegal 00000000 ask 4fd0b8de69515f51 255 0 0 8786cfcd63ae10d1 d660e111b91d2cb5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 4fd9c7cbc98c4d34 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
-run illegal 00000000 ask 5093d519a376fbaa 255 0 0 8786cfcd63ae10d1 192daaa07bdfaaa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 50cc5c537a78c143 255 0 0 8786cfcd63ae10d1 4bc2afea5c10ddc3 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 510043bb50bc741b 255 0 0 8786cfcd63ae10d1 c2926ac58ec82f25 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 51573979fabf3d82 255 0 0 8786cfcd63ae10d1 cbd8a035b7e781c9
-run illegal 00000000 ask 5168022a2d80d843 255 0 0 8786cfcd63ae10d1 85c5171c213185e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 51df8fd8e42bc6b7 255 0 0 8786cfcd63ae10d1 d864045a8bf2dd7d
 run answers ffffffff ask 51f10223853ef148 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
 run answers ffffffff ask 52461bb77b77ca7e 255 0 0 8786cfcd63ae10d1 3d065ada90986005
-run illegal 00000000 ask 525d88c79c1ade76 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 527ba143f031e6d3 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5284a4dea33e3d6e 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5
 run answers ffffffff ask 528f3b7abc72f068 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
 run answers ffffffff ask 52e599aa1b99ef10 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
@@ -571,42 +378,25 @@ run answers ffffffff ask 52fc69430345b1f5 255 0 0 8786cfcd63ae10d1 eba034ce47e76
 run answers ffffffff ask 5341f9c1ae608798 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
 run answers ffffffff ask 5354eb1d90e55e97 255 0 0 8786cfcd63ae10d1 faff065bf0835f0f
 run answers ffffffff ask 535d25b0a1918c0e 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f
-run illegal 00000000 ask 53ab4a03adfbcbe5 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 53d2e1141be715e7 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 53e502217d20a38f 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 53eae695ec5fda0c 255 0 0 8786cfcd63ae10d1 2fc271347814833d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 540ab3cd1f9ba45f 255 0 0 8786cfcd63ae10d1 c792c71030dcf385
-run illegal 00000000 ask 542df422bfda14d0 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5454539d1f85eb9e 255 0 0 8786cfcd63ae10d1 c792c71030dcf385 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 549b6e3689245984 255 0 0 8786cfcd63ae10d1 cfab2fd4d67deabd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 54a02a8962ca58ba 255 0 0 8786cfcd63ae10d1 f8062f79b05ee405
 run answers ffffffff ask 54ca82a9f4aeb2cb 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773
-run illegal 00000000 ask 554d4b72545e3402 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5556205361f455fb 255 0 0 8786cfcd63ae10d1 30d7beb6a5b3d6bd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask 558bc51c590f57d2 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask 55bcd332a61e1591 255 0 0 8786cfcd63ae10d1 858d7bbc17e989cd
-run illegal 00000000 ask 55cca3a7c2bc8644 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 55fb67b32ffcec8d 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 563bdacd21712fb8 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask 566e125565753e5b 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
 run answers ffffffff ask 567463da76ebae28 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
 run answers ffffffff ask 569e61aaaf2e7f9d 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259
 run answers ffffffff ask 56bc15ae747d155e 255 0 0 8786cfcd63ae10d1 3d065ada90986005
-run illegal 00000000 ask 56d085cac4777641 255 0 0 8786cfcd63ae10d1 767fde5d7c4edc7d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5715da52b780c252 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask 575330efbb550b97 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
-run illegal 00000000 ask 578570761dfc7383 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 57a91f1ae130a90e 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9
 run answers ffffffff ask 57adf1201e0c1fb4 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc
 run answers ffffffff ask 57c8c2fac6e4e60c 255 0 0 8786cfcd63ae10d1 f63df2c4cdf7bea5
 run answers ffffffff ask 5822c381b400bcd0 255 0 0 8786cfcd63ae10d1 1cd93dcff9e80c35
 run answers ffffffff ask 586be83cb9bd6b86 255 0 0 8786cfcd63ae10d1 73472102cb58fa54
-run illegal 00000000 ask 586cc276a6fc8ef0 255 0 0 8786cfcd63ae10d1 da35d90c917d2fa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 58817d729c600cfb 255 0 0 8786cfcd63ae10d1 2551c92cf0650585 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 58b42b52b2568579 255 0 0 8786cfcd63ae10d1 94312d505e95117d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 58f9a31a9d0d10b8 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
 run answers ffffffff ask 59037247f8a440d4 255 0 0 8786cfcd63ae10d1 1035267d15e1626b
-run illegal 00000000 ask 59057d010f6e7ae3 255 0 0 8786cfcd63ae10d1 ef4c0092b6fc2879 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 590f4f7108378041 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3
 run answers ffffffff ask 595975899cccbf80 255 0 0 8786cfcd63ae10d1 82e085dbdb819b15
 run answers ffffffff ask 59d9e58c41eaec04 255 0 0 8786cfcd63ae10d1 63b871c4eacb53b9
@@ -614,68 +404,40 @@ run answers ffffffff ask 5a2709451b6a35d9 255 0 0 8786cfcd63ae10d1 1aef9f1049740
 run answers ffffffff ask 5a39474ee0b06404 255 0 0 8786cfcd63ae10d1 63b871c4eacb53b9
 run answers ffffffff ask 5a3e352ebae4ce52 255 0 0 8786cfcd63ae10d1 f63df2c4cdf7bea5
 run answers ffffffff ask 5a3e3a9af41ce0a6 255 0 0 8786cfcd63ae10d1 52d5c2ae428436ad
-run illegal 00000000 ask 5a82503c548798ed 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5a996f6f2e5ea05c 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5b26dc1b77238454 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5b33fc88b8c3dc98 255 0 0 8786cfcd63ae10d1 b9cc5bd908c09945
-run illegal 00000000 ask 5b5bb01c1f03dc20 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5b690c5a04341f40 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5b9bcf0aba78b178 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
-run illegal 00000000 ask 5c27fd5adf2b7e26 255 0 0 8786cfcd63ae10d1 4d75db63b61e48d1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5ce42373a7809c11 255 0 0 8786cfcd63ae10d1 ef3ac012912b1551
 run answers 00000012 ask 5cff980159716752 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask 5d04628a78d41a98 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run answers ffffffff ask 5d43853646461411 255 0 0 8786cfcd63ae10d1 ef3ac012912b1551
-run illegal 00000000 ask 5d755df15832d516 255 0 0 8786cfcd63ae10d1 92621cbee857f9db refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5d76974efb43cced 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5d8e55fba7723fa6 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
 run answers ffffffff ask 5d9282550eaa5004 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
-run illegal 00000000 ask 5dbb7810a6ee9200 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5dce4a324cf0fa59 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5de32b5829465231 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5df615a2fd22627c 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
 run answers ffffffff ask 5e601e605ce86432 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
-run illegal 00000000 ask 5e7ba37382b40146 255 0 0 8786cfcd63ae10d1 4a5e2e5fcdac1e7d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 5ebf39ff556725b0 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 5f94e7a46b3f5a18 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 5fb2ed58b9a76380 255 0 0 8786cfcd63ae10d1 f43572d7faaff9ad
-run illegal 00000000 ask 5fc2a9c76f6b1a57 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 605d91684de5d5eb 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 606540d06d10b8f2 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 606fc01d264e4041 255 0 0 8786cfcd63ae10d1 9da584cdcb889065
 run answers ffffffff ask 608a8fda31d4ed04 255 0 0 8786cfcd63ae10d1 161cc9836b253025
-run illegal 00000000 ask 608aef42d6b12d49 255 0 0 8786cfcd63ae10d1 77eda38657688891 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 60e64659df273c28 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d
 run answers ffffffff ask 60f01b8c6048e6f2 255 0 0 8786cfcd63ae10d1 067e45de1f63425c
 run answers ffffffff ask 60fe8a32d8bd4572 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
 run answers ffffffff ask 61107297d063dcd4 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d
-run illegal 00000000 ask 6147a78acbf05fe4 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6147c106df9eaede 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 61b594be8edfb458 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb
 run answers ffffffff ask 61b9d0b5d43ae36c 255 0 0 8786cfcd63ae10d1 ba71b117839113ac
 run illegal 00000000 ask 61d689124d2e99b4 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask 629e915a39b6adff 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
 run answers ffffffff ask 62a0c80af34fd7de 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
 run answers ffffffff ask 62aaf526c6427b84 255 0 0 8786cfcd63ae10d1 63b871c4eacb53b9
-run illegal 00000000 ask 630ddaf5c631d5e0 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 634e2162baafa2ec 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 634fe5d750e88019 255 0 0 8786cfcd63ae10d1 1035267d15e1626b refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6358da341ef3ebfb 255 0 0 8786cfcd63ae10d1 5ff620375ef4d3c9 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 637653e5e1319b34 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc
-run illegal 00000000 ask 637da004bfffda08 255 0 0 8786cfcd63ae10d1 c2171aef1d9d1265 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 63c85ba0b1efb098 255 0 0 8786cfcd63ae10d1 ef4c0092b6fc2879
 run answers ffffffff ask 6408d88dc69ceba2 255 0 0 8786cfcd63ae10d1 f8062f79b05ee405
 run answers ffffffff ask 6423474b925f8561 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65
-run illegal 00000000 ask 6429aa8f69f1fa1f 255 0 0 8786cfcd63ae10d1 bf635e0376d30714 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 642c6122739092ff 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
 run answers ffffffff ask 6471936176005787 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers ffffffff ask 650f05328aa79b17 255 0 0 8786cfcd63ae10d1 1a2ef0a58beee9e5
-run illegal 00000000 ask 6510f6cd718bcb4d 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 656d2948b7781540 255 0 0 8786cfcd63ae10d1 20c07239de1335d5
 run answers ffffffff ask 6578f5f68c5f4514 255 0 0 8786cfcd63ae10d1 db6052284c532d85
-run illegal 00000000 ask 65cd311a847f601e 255 0 0 8786cfcd63ae10d1 7e960eae3e02b6ad refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 65e450eb35ecd7cc 255 0 0 8786cfcd63ae10d1 584678d47f519a19
-run illegal 00000000 ask 661caffab05a0b6c 255 0 0 8786cfcd63ae10d1 aba7c592e56be0c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6630d9dc6d333000 255 0 0 8786cfcd63ae10d1 82e085dbdb819b15
 run answers ffffffff ask 678e481dc33a4e14 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 67989c1c5b455b4b 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
@@ -684,61 +446,30 @@ run answers ffffffff ask 67b07b2e07823178 255 0 0 8786cfcd63ae10d1 8c5c9ff830be6
 run answers 00000001 ask 6856086f5935a9c3 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c
 run answers ffffffff ask 6864bcd69479d50a 255 0 0 8786cfcd63ae10d1 bde32aeee5b8b2c5
 run answers ffffffff ask 687371954224cc24 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
-run illegal 00000000 ask 68980d56850600a0 255 0 0 8786cfcd63ae10d1 c792c71030dcf385 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 68b8805e577b2a29 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 68bfde24b73ffbb7 255 0 0 8786cfcd63ae10d1 3e21ce179238691c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 690261d80f499e3e 255 0 0 8786cfcd63ae10d1 6c8016f5f6040415
-run illegal 00000000 ask 690e4d8a98180e2a 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6936f60cd94c3b35 255 0 0 8786cfcd63ae10d1 5ff620375ef4d3c9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 69400714602399ed 255 0 0 8786cfcd63ae10d1 73472102cb58fa54 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 694647f6a3931e6f 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6967fc8d81aa1db8 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
-run illegal 00000000 ask 69bbc70cef637e7f 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 69c1a47ae1232e24 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 69c78758974adfdf 255 0 0 8786cfcd63ae10d1 1201763a1f7f08ad refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6ae4e13814bfcae1 255 0 0 8786cfcd63ae10d1 343722621eab0f33 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6b69445f2c4296b5 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6be227bcf9fa1289 255 0 0 8786cfcd63ae10d1 45186009230be39d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6bef17f6dc4b3845 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6bf6fa5245a9c51e 255 0 0 8786cfcd63ae10d1 ef3ac012912b1551 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6c1534cc22865334 255 0 0 8786cfcd63ae10d1 53100b8f6b981159
-run illegal 00000000 ask 6c937746ddffec77 255 0 0 8786cfcd63ae10d1 54e78495207669f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6c97538e53740ef5 255 0 0 8786cfcd63ae10d1 192daaa07bdfaaa5
 run answers ffffffff ask 6ce5c697632c82d8 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64
-run illegal 00000000 ask 6d10f1359c082464 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6d420bc474ebb78d 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45
 run answers ffffffff ask 6da471b73c4afbd7 255 0 0 8786cfcd63ae10d1 13aee4d1b7dddbc1
 run answers ffffffff ask 6e078a595881af94 255 0 0 8786cfcd63ae10d1 db6052284c532d85
-run illegal 00000000 ask 6e0ef345cbd2a978 255 0 0 8786cfcd63ae10d1 21aaee5e4782d945 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6e2523568d4df3f5 255 0 0 8786cfcd63ae10d1 192daaa07bdfaaa5
-run illegal 00000000 ask 6ed0d17944a8a153 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 6eeca2448de90288 255 0 0 8786cfcd63ae10d1 634b62b9412683e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6f243cc2e2658a00 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
 run answers ffffffff ask 6f2e068f15595058 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6005
-run illegal 00000000 ask 6f4b9b09d0eeaae2 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6f88eb99a088c23e 255 0 0 8786cfcd63ae10d1 161cc9836b253025
-run illegal 00000000 ask 6fa5544386b6ce09 255 0 0 8786cfcd63ae10d1 b3be35a4cd75cbf5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 6fc27fca27aeeed3 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9
-run illegal 00000000 ask 709d4798f9c3f678 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 70de97b12df9d819 255 0 0 8786cfcd63ae10d1 a520250bff9463d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 00000012 ask 70f4cbb00da165c0 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
 run answers ffffffff ask 7117ba489e0d8c5d 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1
-run illegal 00000000 ask 714936968e0ff0a5 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 718a044ce95908f4 255 0 0 8786cfcd63ae10d1 81f93cffc677a1dd
 run answers ffffffff ask 71b0aebafe4c9c32 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc
 run answers ffffffff ask 71b8a8019e73cc48 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
-run illegal 00000000 ask 71e5cf109da04179 255 0 0 8786cfcd63ae10d1 d9affb0162732234 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 72d0908fec3cd35a 255 0 0 8786cfcd63ae10d1 21aaee5e4782d945 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 72f99e59fb90ee63 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95
-run illegal 00000000 ask 732087cb53e98b77 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7366773bb8cae166 255 0 0 8786cfcd63ae10d1 767fde5d7c4edc7d
-run illegal 00000000 ask 739327e0a3bbf25b 255 0 0 8786cfcd63ae10d1 4c5a3cc43bde1365 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 73bc7f74276dc648 255 0 0 8786cfcd63ae10d1 2315ef25ab3c63b6 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 73f30b7c37360c76 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c
 run answers ffffffff ask 7444b365669701cb 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95
 run answers ffffffff ask 7447ae8e342f5498 255 0 0 8786cfcd63ae10d1 b9cc5bd908c09945
 run answers 00000019 ask 7482e53a8af038b1 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed
-run illegal 00000000 ask 74a3005d61e2c599 255 0 0 8786cfcd63ae10d1 fa8de9f2dc10a0a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 74f99fad7b348572 255 0 0 8786cfcd63ae10d1 067e45de1f63425c
 run answers 00000144 ask 74f99fad7b348572 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4
 run answers 00000150 ask 74f99fad7b348572 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac
@@ -747,29 +478,17 @@ run answers ffffffff ask 75ee46e7d98e109c 255 0 0 8786cfcd63ae10d1 5ff620375ef4d
 run answers ffffffff ask 75ef0a4d6a320e94 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac
 run answers ffffffff ask 75fd05ad7361b909 255 0 0 8786cfcd63ae10d1 a6cadde1086c497b
 run answers ffffffff ask 761d31b8d25f5941 255 0 0 8786cfcd63ae10d1 8434f799cdffec69
-run answers 00000100 ask 761e4ecd8ead4380 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 762c070b36f75727 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65
-run illegal 00000000 ask 76795c89d35b320a 255 0 0 8786cfcd63ae10d1 0a5386ac83a967a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 76863031e37d87c6 255 0 0 8786cfcd63ae10d1 e71ff10be1a561d9 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 76c6e4408295d334 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c
-run illegal 00000000 ask 77b3c9f41b091c03 255 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 77d667a1bd1e1213 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9
-run illegal 00000000 ask 77dec898c1646d0f 255 0 0 8786cfcd63ae10d1 edee772de512e8f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 7819bdb036bad4c0 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7845bf495d164d18 255 0 0 8786cfcd63ae10d1 7adb1730387baae5
-run illegal 00000000 ask 7850789b6d21a71d 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 78911be07bd4caa8 255 0 0 8786cfcd63ae10d1 192daaa07bdfaaa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 78a629b63ced6c32 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
-run illegal 00000000 ask 78e7fa31ac5dc279 255 0 0 8786cfcd63ae10d1 bde32aeee5b8b2c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 78f9f391bb6ef4f6 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25
 run answers ffffffff ask 791f3c9cbb7c60c4 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask 792365353b02c674 255 0 0 8786cfcd63ae10d1 9ca47865b57eee05
-run illegal 00000000 ask 793bf5bb63c90243 255 0 0 8786cfcd63ae10d1 157169b1a57a6649 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 797d8bf251705438 255 0 0 8786cfcd63ae10d1 b3be35a4cd75cbf5
 run answers ffffffff ask 79e4514962bd1daa 255 0 0 8786cfcd63ae10d1 fa8de9f2dc10a0a5
-run illegal 00000000 ask 7a388f5edf8a3e75 255 0 0 8786cfcd63ae10d1 a594133d669aae5d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7a85316aa60760d8 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6005
-run illegal 00000000 ask 7a94ca460fe97f0a 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7a9a7c8c2fb616b4 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
 run answers ffffffff ask 7ac7d1f9a8b124a4 255 0 0 8786cfcd63ae10d1 e80692bc6e4a8075
 run answers ffffffff ask 7af09b2e5117c582 255 0 0 8786cfcd63ae10d1 cbd8a035b7e781c9
@@ -778,198 +497,109 @@ run answers ffffffff ask 7b337ac812b70066 255 0 0 8786cfcd63ae10d1 864efac930fa4
 run answers ffffffff ask 7b5d15825a424d84 255 0 0 8786cfcd63ae10d1 e80692bc6e4a8075
 run answers ffffffff ask 7bd92a12297f52ba 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045
 run answers ffffffff ask 7c1e0692f996c56e 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5
-run illegal 00000000 ask 7c27ce3c2c9ab281 255 0 0 8786cfcd63ae10d1 744c1d66448115d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 7c532b0d91959ac3 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7c5749fd93a671bb 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
 run answers ffffffff ask 7c83462487160bc8 255 0 0 8786cfcd63ae10d1 b5d8f88456417029
-run illegal 00000000 ask 7c90d7d63fd4acdf 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 7c96098e7f6d9e79 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 7caa04499b3a43e7 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7cf68764f7ea140e 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f
-run illegal 00000000 ask 7d14ae4ec9dd4207 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 7d1845c8190d90e8 255 0 0 8786cfcd63ae10d1 634b62b9412683e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 7d20664e68090257 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7d4dff1e0c5a2130 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3
-run illegal 00000000 ask 7d5cc88a46e84cc4 255 0 0 8786cfcd63ae10d1 c7f6ab741d381f85 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 7da2b15693239e10 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7dca2160e0bb6f28 255 0 0 8786cfcd63ae10d1 1201763a1f7f08ad
-run illegal 00000000 ask 7e838118a04a4a43 255 0 0 8786cfcd63ae10d1 6994424641253594 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 7f729cdfbef72b19 255 0 0 8786cfcd63ae10d1 4a5e2e5fcdac1e7d
 run answers ffffffff ask 7ff7780224f99851 255 0 0 8786cfcd63ae10d1 7ff543a22ec54125
 run answers ffffffff ask 7ffb9d25da7f8757 255 0 0 8786cfcd63ae10d1 13aee4d1b7dddbc1
-run illegal 00000000 ask 800b2a914c58ff35 255 0 0 8786cfcd63ae10d1 2f1008ab37790844 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 80475980eb756551 255 0 0 8786cfcd63ae10d1 4b7adda9d4cbd9eb
 run answers ffffffff ask 8055f11958713cf3 255 0 0 8786cfcd63ae10d1 3b8869f71ecab5ed
 run answers ffffffff ask 807c34eba2297ef6 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c
 run answers ffffffff ask 80adec37f85c1728 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d
 run answers ffffffff ask 80b7c16a797dc1f2 255 0 0 8786cfcd63ae10d1 067e45de1f63425c
 run answers ffffffff ask 80d81875e998b7d4 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d
-run illegal 00000000 ask 8199ff3c28b03c31 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 81bd4c680da2dc03 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 81e5ee05f478d875 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55
-run illegal 00000000 ask 81e90bb4e6a44f5f 255 0 0 8786cfcd63ae10d1 45186009230be39d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 81f5ba6c22b7a2b4 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 820f10b88357b6dd 255 0 0 8786cfcd63ae10d1 584678d47f519a19
 run answers ffffffff ask 829a3b7ba26591f8 255 0 0 8786cfcd63ae10d1 8c5c9ff830be6c2b
 run answers ffffffff ask 829fff4b3ccf72c8 255 0 0 8786cfcd63ae10d1 20c07239de1335d5
-run illegal 00000000 ask 82ba4c154a67dd09 255 0 0 8786cfcd63ae10d1 a90fb041674c41c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 82d894ad1f6cdbad 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535
 run answers ffffffff ask 8332da556304570c 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d
 run answers ffffffff ask 835e5e81535f17ef 255 0 0 8786cfcd63ae10d1 5c1895d02ec8cde9
 run answers ffffffff ask 837abb4f89712196 255 0 0 8786cfcd63ae10d1 3dac3d242e51a9e5
 run answers ffffffff ask 839ce080bd319bdd 255 0 0 8786cfcd63ae10d1 584678d47f519a19
 run answers ffffffff ask 83b1e3cbe302066f 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b
-run illegal 00000000 ask 8403b59c34695893 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 840b4c36a3e652b8 255 0 0 8786cfcd63ae10d1 b3be35a4cd75cbf5
 run answers ffffffff ask 84224693e103a2d2 255 0 0 8786cfcd63ae10d1 18828f2a1db80005
 run answers ffffffff ask 842d9f5c9bfe3f3f 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
-run illegal 00000000 ask 844ae99e4742720d 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 845000d4efa91984 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask 846664755946c0ad 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535
-run illegal 00000000 ask 849003e68d8b1599 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 84a3d6423b3eec3c 255 0 0 8786cfcd63ae10d1 12492052ebd59d85
-run illegal 00000000 ask 84e443af69aba735 255 0 0 8786cfcd63ae10d1 07e9a0fca9663265 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8501103f7a902946 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
-run illegal 00000000 ask 85067f8c68f75ce3 255 0 0 8786cfcd63ae10d1 9ca47865b57eee05 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 854d9604f6cb7e1e 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
-run illegal 00000000 ask 85788ee02ca5af62 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 857b051010e74979 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 85afa8462d79e7fc 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
-run illegal 00000000 ask 85d3bcffa3a56cce 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 85f989e3ff84f946 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 8606b96f18402d5c 255 0 0 8786cfcd63ae10d1 1a2ef0a58beee9e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8652bad563b8adb8 255 0 0 8786cfcd63ae10d1 45186009230be39d
 run answers ffffffff ask 86906e4c9aaf5bd0 255 0 0 8786cfcd63ae10d1 744c1d66448115d5
 run answers ffffffff ask 86caf2e095c4e89d 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
-run illegal 00000000 ask 86e675ff5c87fbf8 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 871ba1e9e45d35c0 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 871f3f6f7142ef66 255 0 0 8786cfcd63ae10d1 7aa722ead1172205
 run answers ffffffff ask 87c27d36a0fc1d68 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask 87fcea4012525f2e 255 0 0 8786cfcd63ae10d1 0711855a632eafd5
-run illegal 00000000 ask 88455a9b6538a1e3 255 0 0 8786cfcd63ae10d1 22921b39e3d75875 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 884b013000798566 255 0 0 8786cfcd63ae10d1 2dfc1874fef34759
 run answers ffffffff ask 88aa62f29f3efd66 255 0 0 8786cfcd63ae10d1 2dfc1874fef34759
-run illegal 00000000 ask 88ee2e9a5ca79cb8 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 88f8c220b1fd9144 255 0 0 8786cfcd63ae10d1 0734f6fea166e615 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 895863fde2a312ae 255 0 0 8786cfcd63ae10d1 4b7adda9d4cbd9eb refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 89a807a98e79ec7a 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 89b9da383b05473c 255 0 0 8786cfcd63ae10d1 7e960eae3e02b6ad refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 89e005678b49edf2 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
-run illegal 00000000 ask 8a562c3749baf7da 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask 8a647294a2a0d58e 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 8a80f030a631483a 255 0 0 8786cfcd63ae10d1 0734f6fea166e615 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8ad0d66fe19424f4 255 0 0 8786cfcd63ae10d1 c71a3b98fa5bbfc5
-run illegal 00000000 ask 8b3469deeb59de71 255 0 0 8786cfcd63ae10d1 85c5171c213185e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8b809c262ea5f7c0 255 0 0 8786cfcd63ae10d1 4873b0ce9cd0e19f
-run illegal 00000000 ask 8b8e6e8d2edb8cc3 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 8bcd5ed29a2d8ff0 255 0 0 8786cfcd63ae10d1 e71ff10be1a561d9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 8bd9ca9335a09d91 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 8c1fe43fcd47c966 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8c3ad8357f4d64c2 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
 run answers ffffffff ask 8c48bbe99b7c0cf6 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask 8c7b11835412a13b 255 0 0 8786cfcd63ae10d1 662ba18589e655a5
 run answers ffffffff ask 8c9283c415216338 255 0 0 8786cfcd63ae10d1 a90fb041674c41c5
 run answers ffffffff ask 8cba1a1bb0493336 255 0 0 8786cfcd63ae10d1 ffc057fdceac8e79
-run illegal 00000000 ask 8ce8966d65a2ed9d 255 0 0 8786cfcd63ae10d1 4c5a3cc43bde1365 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8d00c1cca7f3ce26 255 0 0 8786cfcd63ae10d1 52d5c2ae428436ad
 run answers ffffffff ask 8d63bdf99cf4dd41 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
 run answers ffffffff ask 8dcc15ac39ad4fef 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b
-run illegal 00000000 ask 8e2ab5a8f737349f 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8e5dd661ba03d78e 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f
-run illegal 00000000 ask 8ec33bce49dbf241 255 0 0 8786cfcd63ae10d1 744c1d66448115d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 8ec806f0184dfe33 255 0 0 8786cfcd63ae10d1 f8062f79b05ee405 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8ef18dc1d6cec241 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
-run illegal 00000000 ask 8ef968ed67f528bd 255 0 0 8786cfcd63ae10d1 707eb21c32e9a9e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8f08de3e54537ae6 255 0 0 8786cfcd63ae10d1 77eda38657688891
 run answers ffffffff ask 8f0c55f8d2fb5a5d 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259
-run illegal 00000000 ask 8f13c6257b7097e3 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8f55328cd56eb45e 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
 run answers ffffffff ask 8f5933089f888948 255 0 0 8786cfcd63ae10d1 20c07239de1335d5
 run answers ffffffff ask 8f59781bd408ff45 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
-run illegal 00000000 ask 8f6553379032cfd9 255 0 0 8786cfcd63ae10d1 4bc2afea5c10ddc3 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 8f710736b739f6e2 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
 run answers ffffffff ask 8fca3b90c38bb800 255 0 0 8786cfcd63ae10d1 82e085dbdb819b15
-run illegal 00000000 ask 8ff09d542a4c5148 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 902103811117226b 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask 904ed693fc0ec7a6 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
 run answers ffffffff ask 905302ed6346d804 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask 90cb2c2ddacd3bc0 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad
-run illegal 00000000 ask 90d7655e346d281f 255 0 0 8786cfcd63ae10d1 63b871c4eacb53b9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 912f3b7f07055c19 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 91993a0765b8563d 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
-run illegal 00000000 ask 91bf81ccbe9f71f1 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 91e5e4a87f650d09 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 000000fc ask 91ff6794eef530ac 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25
-run illegal 00000000 ask 923a7fa2fff6f4b1 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 927205577126c08c 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 92736df10e43eb80 255 0 0 8786cfcd63ae10d1 f43572d7faaff9ad
 run answers ffffffff ask 9277b1b569ba70e0 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
 run answers ffffffff ask 929bc38c65a2263e 255 0 0 8786cfcd63ae10d1 6c8016f5f6040415
-run illegal 00000000 ask 92b97f8fb419609e 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9300b5e064c05354 255 0 0 8786cfcd63ae10d1 7ff543a22ec54125 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9318e0e64bf00153 255 0 0 8786cfcd63ae10d1 d3ccda22ec4ced7d
 run answers ffffffff ask 933e6c52d70cc8a8 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d
-run illegal 00000000 ask 93471e4c2e1ce133 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 938e1fa5dd92f32e 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9396ce46043be1d9 255 0 0 8786cfcd63ae10d1 c2171aef1d9d1265
 run answers ffffffff ask 93c570eb22385b3d 255 0 0 8786cfcd63ae10d1 c792c71030dcf385
 run answers ffffffff ask 944e819538422974 255 0 0 8786cfcd63ae10d1 81f93cffc677a1dd
-run illegal 00000000 ask 94a5f9ef9df33e21 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 94af79677397c1c7 255 0 0 8786cfcd63ae10d1 ebf19fce01ee7fe5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 94b9f248ebebd52c 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
-run illegal 00000000 ask 94f16c6bb9a2ab60 255 0 0 8786cfcd63ae10d1 2e33658a01c80371 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 958ad22ea6c82f13 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 95ae968078dedb34 255 0 0 8786cfcd63ae10d1 53100b8f6b981159
 run answers ffffffff ask 95c0807dddaca26a 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
 run answers ffffffff ask 96a8c69dc701bec0 255 0 0 8786cfcd63ae10d1 0cff690e2011a5dd
-run illegal 00000000 ask 96d4cfa84ab81a3c 255 0 0 8786cfcd63ae10d1 7ff543a22ec54125 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 976a6dfdbfed6489 255 0 0 8786cfcd63ae10d1 f77ce2bc857945c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 977b08e85c092042 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 97cd0c59156360a2 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84
 run answers ffffffff ask 97cd4f64bd5108e6 255 0 0 8786cfcd63ae10d1 cc10e8c9653a9175
 run answers ffffffff ask 97d429624c9218c8 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045
-run illegal 00000000 ask 9806c7b2e589db16 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 984a33f671bcf029 255 0 0 8786cfcd63ae10d1 7adb1730387baae5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 987ae013afa8d914 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 988d31996110ec8e 255 0 0 8786cfcd63ae10d1 584678d47f519a19
-run illegal 00000000 ask 98d80cc8a27671d3 255 0 0 8786cfcd63ae10d1 94312d505e95117d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 99812a0f0de971b3 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
 run answers ffffffff ask 9995c11a5c54c61c 255 0 0 8786cfcd63ae10d1 8c6ecdf21e861235
-run illegal 00000000 ask 9a386dffeb4f997a 255 0 0 8786cfcd63ae10d1 3b8869f71ecab5ed refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9a3ff1a8f9fe56de 255 0 0 8786cfcd63ae10d1 161cc9836b253025
-run illegal 00000000 ask 9acc5a08909538b0 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9ad0dc95336e1232 255 0 0 8786cfcd63ae10d1 8efd949f9545e2d5
-run illegal 00000000 ask 9b204985f08747ec 255 0 0 8786cfcd63ae10d1 38dd1be41d947515 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9b39574208d887f1 255 0 0 8786cfcd63ae10d1 0cff690e2011a5dd refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9bd31da9836bd2c1 255 0 0 8786cfcd63ae10d1 cc10e8c9653a9175 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9bdb877341992c98 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
-run illegal 00000000 ask 9c09cd79dc7507d7 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9c287d25d646a5b8 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
-run illegal 00000000 ask 9c2e4eb981360599 255 0 0 8786cfcd63ae10d1 2dfc1874fef34759 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9c7a7351644bbbeb 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 00000005 ask 9d1cd255395807ca 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 9d3ac11642cad06a 255 0 0 8786cfcd63ae10d1 662ba18589e655a5
 run answers ffffffff ask 9d440ac6288e9450 255 0 0 8786cfcd63ae10d1 8ac91d1714ea3a65
 run answers ffffffff ask 9d64105b87e757cb 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773
-run illegal 00000000 ask 9e1366c8d1130c99 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9e5660e43956ba91 255 0 0 8786cfcd63ae10d1 858d7bbc17e989cd
 run answers ffffffff ask 9e9dc8222b280976 255 0 0 8786cfcd63ae10d1 a520250bff9463d5
-run illegal 00000000 ask 9edefee7d03fc4c3 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9f108e4c62efa4a7 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9f3f612dc05de807 255 0 0 8786cfcd63ae10d1 8efd949f9545e2d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9f50e4b98227c020 255 0 0 8786cfcd63ae10d1 241b5609ad63a965 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9f7e2917ef798ae2 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask 9fa3014b82d4de44 255 0 0 8786cfcd63ae10d1 96af7ec7cb131d41 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 9fa6472fb7c90ad8 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64
 run answers ffffffff ask 9ffe44a820856f38 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask a02071e978e18c99 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
 run answers ffffffff ask a05aed01918fe4fd 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
-run illegal 00000000 ask a084fa7340ca79db 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a092e66e6565e4e0 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
 run answers ffffffff ask a0b601a5d4b5fa47 255 0 0 8786cfcd63ae10d1 584678d47f519a19
-run illegal 00000000 ask a0c8e53217b571e7 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a0e545f58f6f5d8b 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa
-run illegal 00000000 ask a12c0a3b1539e830 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a13d8ff1fc0f2900 255 0 0 8786cfcd63ae10d1 ebf19fce01ee7fe5
 run answers ffffffff ask a144a7b82e34d58b 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa
 run answers ffffffff ask a1480e6cb05bdf0e 255 0 0 8786cfcd63ae10d1 77f49c902a6e6085
@@ -978,64 +608,38 @@ run answers ffffffff ask a209e235bf5cc8bd 255 0 0 8786cfcd63ae10d1 1f156c5074e43
 run answers ffffffff ask a22eb5c5d2c7f740 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad
 run answers 00000145 ask a22eb5c5d2c7f740 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
 run answers ffffffff ask a278c9bd1de8cb8b 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa
-run illegal 00000000 ask a29bdd6265390f7e 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a2c096f6aea2dad9 255 0 0 8786cfcd63ae10d1 1aef9f104974045d
-run illegal 00000000 ask a32b1131833a0327 255 0 0 8786cfcd63ae10d1 0f01d798c1d2330d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a33fb7cfee6c75ca 255 0 0 8786cfcd63ae10d1 da35d90c917d2fa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a3637363b57d5338 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
-run illegal 00000000 ask a383a896c75dfb2f 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a397b1fdf936adbd 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
-run illegal 00000000 ask a3f2008e73177c8e 255 0 0 8786cfcd63ae10d1 57091fa377476019 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a4106be64fbc240d 255 0 0 8786cfcd63ae10d1 8434f799cdffec69 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a414ebb0d42c9466 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145
 run answers ffffffff ask a4792899f3105448 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
-run illegal 00000000 ask a480121da7b04537 255 0 0 8786cfcd63ae10d1 3dac3d242e51a9e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a4890c41841983cb 255 0 0 8786cfcd63ae10d1 9da5fe633d957ba5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a4b83c8ddf167163 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6005 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a4d011c35b21c882 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d
 run answers ffffffff ask a510d50a2f5198fb 255 0 0 8786cfcd63ae10d1 cfab2fd4d67deabd
 run answers ffffffff ask a5418786c5204136 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5
-run illegal 00000000 ask a546e95d68f7655f 255 0 0 8786cfcd63ae10d1 ba71b117839113ac refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a59c26849497318b 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
-run illegal 00000000 ask a59cd170d7dbeb2d 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a5b4922590f48d59 255 0 0 8786cfcd63ae10d1 4d75db63b61e48d1
-run illegal 00000000 ask a5c373d827b9e189 255 0 0 8786cfcd63ae10d1 63b871c4eacb53b9 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a5ce54b872fc9c01 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
 run answers ffffffff ask a60e9b095df68283 255 0 0 8786cfcd63ae10d1 2315ef25ab3c63b6
 run answers ffffffff ask a613f3e82fba0559 255 0 0 8786cfcd63ae10d1 4d75db63b61e48d1
 run answers ffffffff ask a62bf0955190fc0e 255 0 0 8786cfcd63ae10d1 584678d47f519a19
 run answers ffffffff ask a66ca025048ab3b7 255 0 0 8786cfcd63ae10d1 7dad240f46101535
 run answers 0000005b ask a682e2fefc4aab02 255 0 0 8786cfcd63ae10d1 c71a3b98fa5bbfc5
-run illegal 00000000 ask a6a8b312ad2f510a 255 0 0 8786cfcd63ae10d1 c2171aef1d9d1265 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a6e28fb363cb6018 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
-run illegal 00000000 ask a7216a08d5b753b2 255 0 0 8786cfcd63ae10d1 eba034ce47e76c31 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a79439b72d2e391a 255 0 0 8786cfcd63ae10d1 7ff543a22ec54125 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a79ccdfe021375c4 255 0 0 8786cfcd63ae10d1 d26be45f244a422d
-run illegal 00000000 ask a7b1c29b4c215381 255 0 0 8786cfcd63ae10d1 8c6ecdf21e861235 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a7b5717714d439d3 255 0 0 8786cfcd63ae10d1 5765a1b7e9f3a6c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a7b8e7eb096fd0b2 255 0 0 8786cfcd63ae10d1 6994424641253594
 run answers ffffffff ask a82f1a82ffbe164f 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
-run illegal 00000000 ask a84e7a275b953d0f 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a84e9be061d5205d 255 0 0 8786cfcd63ae10d1 c2926ac58ec82f25 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask a853c7c237403aa3 255 0 0 8786cfcd63ae10d1 7adb1730387baae5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask a87138d7fe5109f8 255 0 0 8786cfcd63ae10d1 8c5c9ff830be6c2b
 run answers ffffffff ask a8a0da4c258e81a9 255 0 0 8786cfcd63ae10d1 5ff620375ef4d3c9
 run answers ffffffff ask a9094dceb986e541 255 0 0 8786cfcd63ae10d1 9da584cdcb889065
 run answers ffffffff ask a9bcea4b3997fb4f 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
 run answers ffffffff ask a9e7dafc3b3728e8 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25
 run answers ffffffff ask aa19f43dcb618284 255 0 0 8786cfcd63ae10d1 edee772de512e8f1
-run illegal 00000000 ask aa4313edf654232d 255 0 0 8786cfcd63ae10d1 f63df2c4cdf7bea5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask aabaaa11f1e69eb7 255 0 0 8786cfcd63ae10d1 20e2094d31902109 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask aad63368b9dddf94 255 0 0 8786cfcd63ae10d1 4bc2afea5c10ddc3
-run illegal 00000000 ask aae8b97aa08c6fe9 255 0 0 8786cfcd63ae10d1 32795f135db4d3dd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask aafc443570c9958c 255 0 0 8786cfcd63ae10d1 067e45de1f63425c
 run answers ffffffff ask ab263e53d68ae44e 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
-run illegal 00000000 ask ab49fa45ef5df295 255 0 0 8786cfcd63ae10d1 db6052284c532d85 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 00000000 ask ab628357a2029068 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145
-run illegal 00000000 ask ab82b4c16a081230 255 0 0 8786cfcd63ae10d1 faff065bf0835f0f refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ac065ada925389b4 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
 run answers 00000000 ask ac065ada925389b4 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
-run illegal 00000000 ask ac0b029c79a46912 255 0 0 8786cfcd63ae10d1 38dd1be41d947515 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ac2cde0a50fe5e58 255 0 0 8786cfcd63ae10d1 32795f135db4d3dd
 run answers ffffffff ask ac48661c80947ad2 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers 00000010 ask ac48661c80947ad2 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045
@@ -1043,35 +647,17 @@ run answers ffffffff ask ac6a626360250ac7 255 0 0 8786cfcd63ae10d1 7412d9fd66bae
 run answers ffffffff ask aca2663f59d590a2 255 0 0 8786cfcd63ae10d1 f8062f79b05ee405
 run answers ffffffff ask ad2c09b93ee0e964 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask ad31e65c21f2dc4b 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95
-run illegal 00000000 ask ad7605ad96f46353 255 0 0 8786cfcd63ae10d1 cbd8a035b7e781c9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ad83f0c15e8c9dda 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ad9d09a7c1350b06 255 0 0 8786cfcd63ae10d1 73472102cb58fa54
 run answers ffffffff ask adb9fcb0b2871216 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65
 run answers ffffffff ask aebfb6245bccc14b 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95
 run answers ffffffff ask aed791c3839e9c8a 255 0 0 8786cfcd63ae10d1 30d7beb6a5b3d6bd
-run answers 00000001 ask af11090af0ea3a90 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask af2e36ae11756f82 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
-run illegal 00000000 ask af3fc452a3ee6103 255 0 0 8786cfcd63ae10d1 a90fb041674c41c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask af6add0ddd23d623 255 0 0 8786cfcd63ae10d1 f63df2c4cdf7bea5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask afcb4e7fdd5606d1 255 0 0 8786cfcd63ae10d1 4b7adda9d4cbd9eb
-run illegal 00000000 ask b006e537a2e7aeb6 255 0 0 8786cfcd63ae10d1 2e33658a01c80371 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b07d9a0a142cc009 255 0 0 8786cfcd63ae10d1 edee772de512e8f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b082533c3abae2ca 255 0 0 8786cfcd63ae10d1 faff065bf0835f0f refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b08fd363a4ce789e 255 0 0 8786cfcd63ae10d1 ba71b117839113ac
-run illegal 00000000 ask b0b1e75053a10442 255 0 0 8786cfcd63ae10d1 c792c71030dcf385 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b17ff1a0770df41d 255 0 0 8786cfcd63ae10d1 22921b39e3d75875 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b1844613f925d382 255 0 0 8786cfcd63ae10d1 5765a1b7e9f3a6c5
 run answers ffffffff ask b1964bf468aae72e 255 0 0 8786cfcd63ae10d1 0711855a632eafd5
 run answers ffffffff ask b1db011629abffb8 255 0 0 8786cfcd63ae10d1 f77ce2bc857945c5
-run illegal 00000000 ask b1f0c78ebc05e891 255 0 0 8786cfcd63ae10d1 18828f2a1db80005 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b1fa4abebf0849e9 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b20d8cfa669ab38e 255 0 0 8786cfcd63ae10d1 17d816e2e70e9b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b21b38ad5e5f5139 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b226b50dbc6534e3 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b24a36bbd220cc02 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
-run illegal 00000000 ask b25a6f8dbe2f6b83 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b27b02eec23ac1e9 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b2ea6691af2058c8 255 0 0 8786cfcd63ae10d1 9da584cdcb889065 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b3130499ed84d5c6 255 0 0 8786cfcd63ae10d1 707eb21c32e9a9e5
 run answers ffffffff ask b31cd74e4e1528ef 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
 run answers ffffffff ask b35a1e789625b6c2 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64
@@ -1083,193 +669,108 @@ run answers ffffffff ask b389f1834b526ed1 255 0 0 8786cfcd63ae10d1 0b65c69cef6dd
 run answers ffffffff ask b398990e3e353fd4 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d
 run answers ffffffff ask b3c2cc9f38236b78 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
 run answers ffffffff ask b44b93925a65e637 255 0 0 8786cfcd63ae10d1 7dad240f46101535
-run illegal 00000000 ask b49880b940f04290 255 0 0 8786cfcd63ae10d1 17723b2bc7875a95 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b4a33c386e641260 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc
-run illegal 00000000 ask b4c9c01032736b84 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b5018454f2553abe 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
 run answers ffffffff ask b50bc62fbf74ca1e 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c
 run answers 00000154 ask b50bc62fbf74ca1e 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec
 run answers ffffffff ask b519fdda84fe7fc0 255 0 0 8786cfcd63ae10d1 4873b0ce9cd0e19f
 run answers ffffffff ask b524129b8dbe0173 255 0 0 8786cfcd63ae10d1 c7f6ab741d381f85
-run illegal 00000000 ask b5748bbe184f095f 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b57e17829bb0dafa 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b58ac6a84ba20c1c 255 0 0 8786cfcd63ae10d1 17d816e2e70e9b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b5aa64b022b8499d 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask b5ca63e581d91af8 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
-run illegal 00000000 ask b5ca872b4cea3315 255 0 0 8786cfcd63ae10d1 77f49c902a6e6085 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b5d1e17ef547cff4 255 0 0 8786cfcd63ae10d1 2f1008ab37790844
 run answers ffffffff ask b5d9635a943fcb37 255 0 0 8786cfcd63ae10d1 7dad240f46101535
-run illegal 00000000 ask b5eace5a8015eb43 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b5f299a042891ef5 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55
-run illegal 00000000 ask b5fe2495e3b4d4a9 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b62e2f66969b5435 255 0 0 8786cfcd63ae10d1 9ca47865b57eee05 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask b69d085cd4826787 255 0 0 8786cfcd63ae10d1 cc10e8c9653a9175 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b6a1180aebba5494 255 0 0 8786cfcd63ae10d1 db6052284c532d85
 run answers ffffffff ask b6a24c05a3a9a804 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25
 run answers ffffffff ask b6b28e126e0fc6a6 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5
-run illegal 00000000 ask b78db36df9a93937 255 0 0 8786cfcd63ae10d1 744c1d66448115d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b794b2372e983ba2 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84
-run illegal 00000000 ask b7dcde51c41f7abd 255 0 0 8786cfcd63ae10d1 6994424641253594 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b822794b33c1673e 255 0 0 8786cfcd63ae10d1 161cc9836b253025
 run answers ffffffff ask b82ee9e6d0e49f2d 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535
-run illegal 00000000 ask b89dbcd3b795951f 255 0 0 8786cfcd63ae10d1 3d065ada90986005 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b8f2e8f5c9b148b9 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask b8f8ebb47d7ae2d6 255 0 0 8786cfcd63ae10d1 6994424641253594
-run illegal 00000000 ask b9291e7a95f1d83e 255 0 0 8786cfcd63ae10d1 cfab2fd4d67deabd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask b999b6fdd5b9dd08 255 0 0 8786cfcd63ae10d1 110fe21681f5fe75
 run answers ffffffff ask b9ab2128e56e66cc 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers ffffffff ask b9b4f4b2a4a72855 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
-run illegal 00000000 ask ba2b56d7d15891d9 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ba610d6770dd5091 255 0 0 8786cfcd63ae10d1 ffc057fdceac8e79 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ba93ed32e9f1c96f 255 0 0 8786cfcd63ae10d1 4873b0ce9cd0e19f refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask baed9d8fda3f97e9 255 0 0 8786cfcd63ae10d1 4a1433812e64b341 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask bb8419cb7864f7a8 255 0 0 8786cfcd63ae10d1 1201763a1f7f08ad
 run answers ffffffff ask bbd351f8c5a9aa92 255 0 0 8786cfcd63ae10d1 249c629be01ffc65
 run answers ffffffff ask bc0eb32b67c90be9 255 0 0 8786cfcd63ae10d1 456062552342d645
-run illegal 00000000 ask bc19d6a10f643ea7 255 0 0 8786cfcd63ae10d1 81f93cffc677a1dd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask bc6423ae25109e79 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed
-run illegal 00000000 ask bc7bd13710dd2e6f 255 0 0 8786cfcd63ae10d1 bc1615cfa97af3e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask bcd4425b54fd2ae8 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask bcda4ba4409e328a 255 0 0 8786cfcd63ae10d1 5ff620375ef4d3c9
-run illegal 00000000 ask bd20e898a2766d7f 255 0 0 8786cfcd63ae10d1 662ba18589e655a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask bd6f68dedbe1f695 255 0 0 8786cfcd63ae10d1 3d065ada90986005 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask bd80b8081791c211 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
-run illegal 00000000 ask bd9f1bfaed85cc58 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask be065d222d4e8220 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205
 run answers ffffffff ask bea19e2f30c1fdd8 255 0 0 8786cfcd63ae10d1 bc1615cfa97af3e5
 run answers ffffffff ask beeb460f073f8048 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84
-run illegal 00000000 ask bf108f9af5e3157b 255 0 0 8786cfcd63ae10d1 bde32aeee5b8b2c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask bfd5e4c6484d955c 255 0 0 8786cfcd63ae10d1 864efac930fa432d
 run answers ffffffff ask c02292dfaac4bffd 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
-run illegal 00000000 ask c03b85adb626e8eb 255 0 0 8786cfcd63ae10d1 b3be35a4cd75cbf5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c07fe61923aebd47 255 0 0 8786cfcd63ae10d1 0734f6fea166e615
 run answers ffffffff ask c08e18c0e93019be 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run answers ffffffff ask c0dee8ad4458ea34 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
-run illegal 00000000 ask c1141c82f73856f5 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c16a500307ba1375 255 0 0 8786cfcd63ae10d1 192daaa07bdfaaa5
-run illegal 00000000 ask c1a958ba05d1af7e 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask c1f448003e6b1a41 255 0 0 8786cfcd63ae10d1 bf635e0376d30714 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c20107abd49baad2 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
-run illegal 00000000 ask c2ca91dee6d63c25 255 0 0 8786cfcd63ae10d1 e80692bc6e4a8075 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c2ec9656d2323f44 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045
-run illegal 00000000 ask c300b4c3eaa2a4a3 255 0 0 8786cfcd63ae10d1 f43572d7faaff9ad refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask c3206e4e1458db08 255 0 0 8786cfcd63ae10d1 0a5386ac83a967a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask c323b853981bdd73 255 0 0 8786cfcd63ae10d1 c91919f9f2b5b015 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c328edfd18b9b72b 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5
-run illegal 00000000 ask c35f0a579cb871bb 255 0 0 8786cfcd63ae10d1 53100b8f6b981159 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c3615fab3be9c9a4 255 0 0 8786cfcd63ae10d1 e80692bc6e4a8075
-run illegal 00000000 ask c3819a45d9f6a81e 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask c3f8c9f6c6ad91a4 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c4433bf8648087f1 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
 run answers 00000001 ask c4433bf8648087f1 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
-run illegal 00000000 ask c44816707ffe800a 255 0 0 8786cfcd63ae10d1 13aee4d1b7dddbc1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c46827fabdc25a5e 255 0 0 8786cfcd63ae10d1 bf635e0376d30714
 run answers ffffffff ask c4f92257e17f414c 255 0 0 8786cfcd63ae10d1 584678d47f519a19
-run illegal 00000000 ask c567432cb42cb2f4 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c57db8c53477d571 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
-run illegal 00000000 ask c59c2bbff39bbade 255 0 0 8786cfcd63ae10d1 7ff543a22ec54125 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask c59ffd5e37046ae7 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask c5e37644a9097259 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask c699a43f49056c5a 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
 run answers ffffffff ask c6bc831d308d6d34 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
 run answers 00000012 ask c796d4791d7a4ac4 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers 00000000 ask c796d4791d7a4ac4 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
-run illegal 00000000 ask c7d5a775a516e03f 255 0 0 8786cfcd63ae10d1 26dfd63cb78667a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c7e40a1ec5e2d38f 255 0 0 8786cfcd63ae10d1 726ffecc34d32881
 run answers ffffffff ask c7f144ba15c1219a 255 0 0 8786cfcd63ae10d1 0cff690e2011a5dd
-run illegal 00000000 ask c80d5c522a918f3f 255 0 0 8786cfcd63ae10d1 584678d47f519a19 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask c8533a1e83b38647 255 0 0 8786cfcd63ae10d1 1035267d15e1626b refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c85c568a60d9021e 255 0 0 8786cfcd63ae10d1 ba71b117839113ac
 run answers 00000005 ask c898ebf93be044e2 255 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425
-run illegal 00000000 ask c8aa369c897cf814 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask c8de36333290e096 255 0 0 8786cfcd63ae10d1 20e2094d31902109
 run answers ffffffff ask c8ec5f2df0444c03 255 0 0 8786cfcd63ae10d1 2315ef25ab3c63b6
 run answers ffffffff ask c9222f01c09968e1 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
 run answers ffffffff ask c938abcf195941ed 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
-run illegal 00000000 ask c9517befb8a6128f 255 0 0 8786cfcd63ae10d1 20c07239de1335d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 00000012 ask c954f468d7c1f609 255 0 0 8786cfcd63ae10d1 aba7c592e56be0c5
-run illegal 00000000 ask cabe6306f932a7ee 255 0 0 8786cfcd63ae10d1 634b62b9412683e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask cb31b9cd3184a717 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask cb4ac35efb5ac113 255 0 0 8786cfcd63ae10d1 deacd87dfa45eff1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 0000001e ask cbda7be555188f64 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3
-run illegal 00000000 ask cbe888299d0ae5fb 255 0 0 8786cfcd63ae10d1 77eda38657688891 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask cc42efe9f66b44f9 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask cc4b717d763aab6f 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef880b
 run answers ffffffff ask cca400ba48361f4b 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
-run illegal 00000000 ask ccb7f1719d1ca673 255 0 0 8786cfcd63ae10d1 db6052284c532d85 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask cd2d677fcb180a64 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
 run answers ffffffff ask cd6753101952509b 255 0 0 8786cfcd63ae10d1 7e960eae3e02b6ad
-run illegal 00000000 ask cdbd3dcd54a71ea7 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_LAUNCH_FAILED
-run illegal 00000000 ask cdfa634950b15369 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6005 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ce05b1c05d63f5c0 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ce070a24905e53f9 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ce5aba7db28de3ed 255 0 0 8786cfcd63ae10d1 20e2094d31902109 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ce82fb006994d7ae 255 0 0 8786cfcd63ae10d1 0711855a632eafd5
-run illegal 00000000 ask ce905eeb7356c16d 255 0 0 8786cfcd63ae10d1 1201763a1f7f08ad refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ce9ceebf4aa3f37c 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ceaa36be85aa20fb 255 0 0 8786cfcd63ae10d1 cfab2fd4d67deabd
 run answers ffffffff ask ceb498214d5707e4 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
 run answers ffffffff ask cef5dc8c2aaa4a82 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
 run answers 00000121 ask cf952737c5f6d8ea 255 0 0 8786cfcd63ae10d1 5ff620375ef4d3c9
 run answers ffffffff ask cf952737c5f6d8ea 255 0 0 8786cfcd63ae10d1 8434f799cdffec69
-run illegal 00000000 ask cf9f217427b4cfe9 255 0 0 8786cfcd63ae10d1 9da5fe633d957ba5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask cfeddc175b389555 255 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run answers 00000001 ask d01fa6d9b8bab00a 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
-run illegal 00000000 ask d0854246a11d64a2 255 0 0 8786cfcd63ae10d1 2fc271347814833d refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d093b43be1fbee6b 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
-run illegal 00000000 ask d1594bc693dab735 255 0 0 8786cfcd63ae10d1 81f93cffc677a1dd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d17b07f28d6337ec 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
-run illegal 00000000 ask d1e33777a571c6c8 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d1f7b74ad4a0de31 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d21a1fdaedd9609f 255 0 0 8786cfcd63ae10d1 fea8f5482a733534 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run answers 00000100 ask d23c85813185e327 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask d24a7a9de0d07f1c 255 0 0 8786cfcd63ae10d1 2551c92cf0650585
-run illegal 00000000 ask d2dfe301fc32fba3 255 0 0 8786cfcd63ae10d1 18828f2a1db80005 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers 0000005a ask d3197b5b1289c893 255 0 0 8786cfcd63ae10d1 e71ff10be1a561d9
 run answers ffffffff ask d34413b074952aeb 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
 run answers ffffffff ask d38a727d51584678 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
 run answers ffffffff ask d3ef3af54f4bec6f 255 0 0 8786cfcd63ae10d1 e71ff10be1a561d9
-run illegal 00000000 ask d3f1501151821c17 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d3fe2c6a51440fdb 255 0 0 8786cfcd63ae10d1 fa8de9f2dc10a0a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d434eca3e3fd2b34 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask d435988bf4ea04d8 255 0 0 8786cfcd63ae10d1 32795f135db4d3dd
 run answers ffffffff ask d462bf70e125b260 255 0 0 8786cfcd63ae10d1 d660e111b91d2cb5
-run illegal 00000000 ask d464acdd989c8ef5 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d4947ac8c8f9e3d3 255 0 0 8786cfcd63ae10d1 d9affb0162732234 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d516e2e5ee012d65 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d5328f9809c6ad04 255 0 0 8786cfcd63ae10d1 edee772de512e8f1
-run illegal 00000000 ask d53574a29c49c933 255 0 0 8786cfcd63ae10d1 d660e111b91d2cb5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d53c44aaa72709d8 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb
 run answers ffffffff ask d59a4f7e3b2c7326 255 0 0 8786cfcd63ae10d1 52d5c2ae428436ad
-run illegal 00000000 ask d5fd4b0804d04836 255 0 0 8786cfcd63ae10d1 78f8c03869767b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d68ee52b60aa03d4 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55 refused CUDA_ERROR_ILLEGAL_ADDRESS
+run answers 00000144 ask d65a4ab14a649aab 255 0 0 8786cfcd63ae10d1 4a1433812e64b341
 run answers ffffffff ask d6bb4b231a32b280 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
 run answers ffffffff ask d6c4b5fe8c30d3c7 255 0 0 8786cfcd63ae10d1 584678d47f519a19
-run illegal 00000000 ask d6d20916cea4fddf 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d6ed7e14f54474ba 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d72233b143518302 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d7365a2737151f40 255 0 0 8786cfcd63ae10d1 4873b0ce9cd0e19f
 run answers ffffffff ask d7a26befe78c1fe6 255 0 0 8786cfcd63ae10d1 77eda38657688891
 run answers ffffffff ask d7a344e762d09bde 255 0 0 8786cfcd63ae10d1 bf635e0376d30714
 run answers ffffffff ask d808aaca9352f221 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
 run answers ffffffff ask d83ccd7f6f5c5d11 255 0 0 8786cfcd63ae10d1 858d7bbc17e989cd
 run answers ffffffff ask d85b4b113f5ea215 255 0 0 8786cfcd63ae10d1 38dd1be41d947515
-run illegal 00000000 ask d85fb693a741d5ef 255 0 0 8786cfcd63ae10d1 0711855a632eafd5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d893b0e3de1b3eda 255 0 0 8786cfcd63ae10d1 a6cadde1086c497b refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d8c0919296afbdd6 255 0 0 8786cfcd63ae10d1 6994424641253594
-run illegal 00000000 ask d8f26a2a10c1e45d 255 0 0 8786cfcd63ae10d1 12492052ebd59d85 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask d91401d145df5c16 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask d9859e49baea08a9 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a
 run answers ffffffff ask d9e5000c59af80a9 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a
-run illegal 00000000 ask d9f46b1d3f551f94 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask da885e6d2b83e356 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask da9c5e29ca6d60df 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask daa6cfe3ed33f91d 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
-run illegal 00000000 ask dad5a36140348e96 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask db192211496376a9 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a
 run answers ffffffff ask db6e885e26ec1ed8 255 0 0 8786cfcd63ae10d1 662ba18589e655a5
 run answers ffffffff ask db750d25884e9b56 255 0 0 8786cfcd63ae10d1 6994424641253594
-run illegal 00000000 ask db8c02eb268ed237 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask dc2a2df2044745df 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask dc349fac270dde1d 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers 00000154 ask dc4ab857adb85b5e 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
@@ -1278,48 +779,28 @@ run answers ffffffff ask dc520e6a394187ae 255 0 0 8786cfcd63ae10d1 4a1433812e64b
 run answers ffffffff ask dc602e2ca7bfab56 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask dc9be8396e3205e8 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask dc9cb556c53dc9d8 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
-run illegal 00000000 ask dcaeb45c06ad6810 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask dceb5b26acb8e798 255 0 0 8786cfcd63ae10d1 ef3ac012912b1551 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask dd42c402cd0218ea 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ddb99353e4f2da30 255 0 0 8786cfcd63ae10d1 b3be35a4cd75cbf5
-run illegal 00000000 ask dde188e5359253e0 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask de6aad71b9087973 255 0 0 8786cfcd63ae10d1 2e33658a01c80371
 run illegal 00000000 ask de84b81bf93f5738 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask dedf43d89edb5676 255 0 0 8786cfcd63ae10d1 9da5fe633d957ba5
-run illegal 00000000 ask df22fdc2578e0b0e 255 0 0 8786cfcd63ae10d1 634b62b9412683e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask df32a891fc68cb38 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
 run answers ffffffff ask df703ef86c322330 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c
 run answers ffffffff ask df8bfb5498e1a6f5 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55
-run illegal 00000000 ask df9364d4e7ba2731 255 0 0 8786cfcd63ae10d1 82e085dbdb819b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e03c030fa815d9aa 255 0 0 8786cfcd63ae10d1 4c5a3cc43bde1365
 run answers ffffffff ask e04dc9c5e473327b 255 0 0 8786cfcd63ae10d1 cfab2fd4d67deabd
 run answers ffffffff ask e12737236406e728 255 0 0 8786cfcd63ae10d1 1201763a1f7f08ad
-run illegal 00000000 ask e13917a1bd22ff9e 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e22c5ab06766c94a 255 0 0 8786cfcd63ae10d1 662ba18589e655a5
-run illegal 00000000 ask e244fd5bcd78dc2a 255 0 0 8786cfcd63ae10d1 d864045a8bf2dd7d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e250b722370abc0f 255 0 0 8786cfcd63ae10d1 f77ce2bc857945c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e2bac066fc6bd872 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d
-run illegal 00000000 ask e2c0338b845573f6 255 0 0 8786cfcd63ae10d1 c7f6ab741d381f85 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e2f8c3e73b14e5a4 255 0 0 8786cfcd63ae10d1 78f8c03869767b65 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e30c51dcbe540cb1 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e36c3c06a2dfff2b 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e388a0d84778acb1 255 0 0 8786cfcd63ae10d1 f43572d7faaff9ad refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e3a0a3a8cb52cd00 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
 run answers ffffffff ask e3f0195c4f639c8e 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad
-run illegal 00000000 ask e3f8e20c69b002f5 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run illegal 00000000 ask e4a692a141685ee9 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e4d65f1340ce03e0 255 0 0 8786cfcd63ae10d1 4d75db63b61e48d1 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e4dc1e6333bc4575 255 0 0 8786cfcd63ae10d1 eba034ce47e76c31
 run answers ffffffff ask e50daf9fd70cf3c1 255 0 0 8786cfcd63ae10d1 9da584cdcb889065
 run answers ffffffff ask e553239bcb5c8761 255 0 0 8786cfcd63ae10d1 2fc271347814833d
-run illegal 00000000 ask e59f240176e39dca 255 0 0 8786cfcd63ae10d1 aba7c592e56be0c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e62ec9fd76ee85ef 255 0 0 8786cfcd63ae10d1 4a1433812e64b341 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e67c060399da7184 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask e6c5a06773071cd1 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d
 run answers ffffffff ask e6ccda97f2714e5f 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask e6d8f141183eeaea 255 0 0 8786cfcd63ae10d1 2e33658a01c80371
-run illegal 00000000 ask e6e5151425ad67d9 255 0 0 8786cfcd63ae10d1 110fe21681f5fe75 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask e71ed8a19b203b91 255 0 0 8786cfcd63ae10d1 c91919f9f2b5b015 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e73bb6d528209b26 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
 run answers ffffffff ask e75363bba1cfc397 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55
 run answers ffffffff ask e75d0c3db5cc4f1f 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
@@ -1328,110 +809,59 @@ run answers ffffffff ask e7f63a9f700c6536 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f
 run answers ffffffff ask e899ef545cf575a2 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
 run answers ffffffff ask e8bf8af01e9824b6 255 0 0 8786cfcd63ae10d1 ffc057fdceac8e79
 run answers ffffffff ask e941bca907aae982 255 0 0 8786cfcd63ae10d1 e80692bc6e4a8075
-run illegal 00000000 ask e99395f179876c6e 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ea1bf1b93352d5d0 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ea326b83f7f8a5ba 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
 run answers ffffffff ask ea3acf5c553c9aeb 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
 run answers ffffffff ask ea5532cf8334c3a2 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84
-run illegal 00000000 ask ea5c1f42536e6275 255 0 0 8786cfcd63ae10d1 53100b8f6b981159 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask eaa51983cad7417d 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask eb4ec10707e55ca4 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ec6950911c6485c8 255 0 0 8786cfcd63ae10d1 a520250bff9463d5
-run illegal 00000000 ask ec6ddfa0c77922ae 255 0 0 8786cfcd63ae10d1 1a2ef0a58beee9e5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ec6e204bf523b3c1 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3
-run illegal 00000000 ask ec81b3b003551750 255 0 0 8786cfcd63ae10d1 5c1895d02ec8cde9 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ec8877ff148872d2 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4
 run answers ffffffff ask ecb98a8a87e6c92a 255 0 0 8786cfcd63ae10d1 2e33658a01c80371
-run illegal 00000000 ask ece9f21c14b76753 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ecf50d5de44ce564 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
-run illegal 00000000 ask ecfb2f28b4512357 255 0 0 8786cfcd63ae10d1 a594133d669aae5d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ed3010cc7cba0e7b 255 0 0 8786cfcd63ae10d1 2dfc1874fef34759 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask edb78376bb62e7c8 255 0 0 8786cfcd63ae10d1 21aaee5e4782d945 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask ee3c8698231397dd 255 0 0 8786cfcd63ae10d1 7aa722ead1172205 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ee516e0190a31ae8 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd
-run illegal 00000000 ask ee83eaea7b876381 255 0 0 8786cfcd63ae10d1 fea8f5482a733534 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ef02b919ddf3a5db 255 0 0 8786cfcd63ae10d1 d3ccda22ec4ced7d
 run answers ffffffff ask ef12f49423578841 255 0 0 8786cfcd63ae10d1 96af7ec7cb131d41
 run answers ffffffff ask ef3eee51158c733a 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
-run illegal 00000000 ask ef4befca253f8b84 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ef6dc67bacf8ea14 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac
-run illegal 00000000 ask ef7c35f1c09e64c2 255 0 0 8786cfcd63ae10d1 5c1895d02ec8cde9 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ef7e05e65a222bb4 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
-run illegal 00000000 ask ef9a58bcef367d95 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f0365baf954c1ac4 255 0 0 8786cfcd63ae10d1 d26be45f244a422d
-run illegal 00000000 ask f0785d9dc89f61f7 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f11f5bfb0a1025ae 255 0 0 8786cfcd63ae10d1 456062552342d645 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f12fe8aa3627b796 255 0 0 8786cfcd63ae10d1 d3ccda22ec4ced7d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f1d5abda7f8bd201 255 0 0 8786cfcd63ae10d1 8ac91d1714ea3a65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f2109b9dc57f76ee 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5
 run answers ffffffff ask f2111a35f2a57658 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64
-run illegal 00000000 ask f24ec7c21570ee22 255 0 0 8786cfcd63ae10d1 96af7ec7cb131d41 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f25ae5b14c2ec78b 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask f2b381ef5e9a2784 255 0 0 8786cfcd63ae10d1 edee772de512e8f1
 run answers ffffffff ask f2f628df47b11c62 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
 run answers ffffffff ask f2f6663830efad24 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
-run illegal 00000000 ask f330edef31ebf42e 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f3399c8f5894e2d9 255 0 0 8786cfcd63ae10d1 0a5386ac83a967a5
 run answers ffffffff ask f34fe1ecfc35f0b2 255 0 0 8786cfcd63ae10d1 8efd949f9545e2d5
-run illegal 00000000 ask f38096f35b7a3327 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f42d4611cd46a553 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f47b74e9726d7a35 255 0 0 8786cfcd63ae10d1 8efd949f9545e2d5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f4c2607f132f3974 255 0 0 8786cfcd63ae10d1 d9affb0162732234
 run answers ffffffff ask f4ec4909b8075b74 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask f4fea4e68620711a 255 0 0 8786cfcd63ae10d1 a6e7abc147e24c2c
-run illegal 00000000 ask f513270114ee895e 255 0 0 8786cfcd63ae10d1 21aaee5e4782d945 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f522ee15fa27c9d7 255 0 0 8786cfcd63ae10d1 2f1008ab37790844 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f52c638f4fcd6485 255 0 0 8786cfcd63ae10d1 26dfd63cb78667a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f58d58542261b216 255 0 0 8786cfcd63ae10d1 399f941cccac5f51 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f5a1c70b210b31b6 255 0 0 8786cfcd63ae10d1 69064c8db93b7ea5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f5b878d854e1701e 255 0 0 8786cfcd63ae10d1 cc10e8c9653a9175
-run answers 00000001 ask f62be3609d41fb14 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask f639eea741f56dc4 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5
-run answers 00000001 ask f6831c3de8bd00a8 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
-run illegal 00000000 ask f68738582d60897d 255 0 0 8786cfcd63ae10d1 2551c92cf0650585 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f6cb303aef834f93 255 0 0 8786cfcd63ae10d1 a6e7abc147e24c2c refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f6d6511cdf8e6508 255 0 0 8786cfcd63ae10d1 110fe21681f5fe75
-run illegal 00000000 ask f6e104907277bba2 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f6e44249fe17b52a 255 0 0 8786cfcd63ae10d1 4c5a3cc43bde1365
 run answers 00000012 ask f707e8061c816d61 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
 run answers ffffffff ask f75ebe86abadb067 255 0 0 8786cfcd63ae10d1 7ff543a22ec54125
 run answers ffffffff ask f7b062a666fc0a97 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
 run answers ffffffff ask f815161d76574e70 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5
-run illegal 00000000 ask f81c18b3c87b7a97 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f88b82bb22dd47e8 255 0 0 8786cfcd63ae10d1 a67728924bf1857d refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f89f00990b87f099 255 0 0 8786cfcd63ae10d1 067e45de1f63425c refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask f8d56827ef8ddaec 255 0 0 8786cfcd63ae10d1 a6cadde1086c497b refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f8f4207932be7dcf 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
-run illegal 00000000 ask f95aa248133af3c3 255 0 0 8786cfcd63ae10d1 8c5c9ff830be6c2b refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask f9936192c0a72bf3 255 0 0 8786cfcd63ae10d1 c7f6ab741d381f85
 run answers ffffffff ask f9a5d158289cf50b 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa
 run answers ffffffff ask f9c109caa84b00eb 255 0 0 8786cfcd63ae10d1 a6cadde1086c497b
-run illegal 00000000 ask f9e0cc9bd6b6a619 255 0 0 8786cfcd63ae10d1 5765a1b7e9f3a6c5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask fa3ba7afd582f2ce 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9
 run answers ffffffff ask fa9d33763b8812b2 255 0 0 8786cfcd63ae10d1 f63df2c4cdf7bea5
-run illegal 00000000 ask fb06028a9bc3d3a3 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask fb833405bb48ce00 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
 run answers ffffffff ask fbacdfc644e0d403 255 0 0 8786cfcd63ae10d1 2315ef25ab3c63b6
 run answers ffffffff ask fbfd1b4b635bf7dc 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask fc184965984def9b 255 0 0 8786cfcd63ae10d1 bcfc78e8813ad2ad
-run illegal 00000000 ask fc7c35f42ac0e789 255 0 0 8786cfcd63ae10d1 cbd8a035b7e781c9 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask fc9bd7dadec03bff 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask fcdae558f6aba7d4 255 0 0 8786cfcd63ae10d1 726ffecc34d32881 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask fd26f3da49789cb2 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc
-run illegal 00000000 ask fd3eb917216eee73 255 0 0 8786cfcd63ae10d1 110fe21681f5fe75 refused CUDA_ERROR_ILLEGAL_ADDRESS
-run illegal 00000000 ask fd8e260cb85af239 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask fdba902641cc0ce8 255 0 0 8786cfcd63ae10d1 94312d505e95117d
 run answers ffffffff ask fdfc2125377e3a60 255 0 0 8786cfcd63ae10d1 d660e111b91d2cb5
-run illegal 00000000 ask fe7145aea0cb6963 255 0 0 8786cfcd63ae10d1 249c629be01ffc65 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask fe84916509fe58c8 255 0 0 8786cfcd63ae10d1 d9affb0162732234
 run answers ffffffff ask fea4e37dd2421217 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask feaa204f628fb924 255 0 0 8786cfcd63ae10d1 e80692bc6e4a8075
-run illegal 00000000 ask feab9fd74a8469c9 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask fee808e128fa526c 255 0 0 8786cfcd63ae10d1 deacd87dfa45eff1
 run answers ffffffff ask ff268be4d40a6754 255 0 0 8786cfcd63ae10d1 1035267d15e1626b
-run illegal 00000000 ask ff66848bce4d5af1 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask ff7bb7a72dae66d4 255 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425
-run illegal 00000000 ask fff226875cf9d8f8 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545 refused CUDA_ERROR_ILLEGAL_ADDRESS
 clock nothing 00000000 a move
 clock answers 00000000 a wide add's high word
 clock answers 00000000 doubled

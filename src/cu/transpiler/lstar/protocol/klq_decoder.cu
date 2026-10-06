@@ -8,26 +8,23 @@
 // up to its first `.`. Each put of one form in the other's place that the part answered is read off the cases it
 // answered apart on and the carrier it was put in. A case word decides the cases apart where two cases apart in that
 // word alone answer one alike and the other apart. Each operand of the link is followed back through the carrier to
-// the case words it reads: a register to the nearest link before that writes it, a load through the register the
-// carrier's first load reads to the operand its offset names. A pair apart where a case word decides it that an
+// the case words it reads (carrier_flow.h). A pair apart where a case word decides it that an
 // operand only the form it stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms
 // name the same operands, apart where a case word the link reads decides it, is a modifier's. A pair answered alike at
 // every put is a qualifier's. A pair this log reads into no set keeps the set line the bridge held beneath it, and one
 // that holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one
-#include "run_channel.h"
+#include "carrier_flow.h"
 
 #include <stdio.h>
 
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <regex>
 #include <set>
 #include <sstream>
 #include <string>
 #include <vector>
-
-// the bytes of one operand of a case: two words of the run channel
-static const unsigned long long s_operand_bytes = 2ull * sizeof(unsigned int);
 
 // one put of a form in another's place, as the log holds it
 struct LoggedPut
@@ -44,41 +41,10 @@ struct LoggedPut
     size_t cases_at;
 };
 
-// one link of a carrier: the register it writes, the registers it reads, and the register and offset it loads through
-struct CarrierLink
-{
-    std::string written;
-    std::vector<std::string> read;
-    int loads;
-    std::string address_register;
-    unsigned long long offset;
-};
-
-// `text` with the space at either end taken off
-static std::string trimmed(const std::string &text)
-{
-    const size_t first = text.find_first_not_of(" \t\r\n");
-    const size_t last = text.find_last_not_of(" \t\r\n");
-    return (first == std::string::npos) ? std::string() : text.substr(first, last - first + 1u);
-}
-
-// `text` cut at each `separator`
-static std::vector<std::string> pieces(const std::string &text, char separator)
-{
-    std::vector<std::string> cut;
-    std::stringstream reading(text);
-    std::string piece;
-    while (std::getline(reading, piece, separator))
-    {
-        cut.push_back(piece);
-    }
-    return cut;
-}
-
 // the first word of a link's text up to its first `.`, its guard passed over
 static std::string operation_stem(const std::string &text)
 {
-    std::stringstream words(trimmed(text));
+    std::stringstream words(carrier_trimmed(text));
     std::string word;
     words >> word;
     if (!word.empty() && (word[0] == '@'))
@@ -86,99 +52,6 @@ static std::string operation_stem(const std::string &text)
         words >> word;
     }
     return word.substr(0u, word.find('.'));
-}
-
-// the registers `operand` names, each by the name its pair's low register goes by
-static std::vector<std::string> registers_named(const std::string &operand)
-{
-    static const std::regex s_register("\\b(U?R[0-9]+|P[0-9]+)");
-    std::vector<std::string> named;
-    for (std::sregex_iterator found(operand.begin(), operand.end(), s_register), end; found != end; ++found)
-    {
-        named.push_back((*found)[1].str());
-    }
-    return named;
-}
-
-// a link's text read as the register its first operand writes, the registers the rest read, and a memory operand
-// after the first read as a load through its register at its offset
-static CarrierLink link_read(const std::string &text)
-{
-    static const std::regex s_memory("\\[(U?R[0-9]+)(\\.64)?(\\+([0-9a-fA-Fx]+))?\\]");
-    CarrierLink link{std::string(), {}, 0, std::string(), 0ull};
-    std::string rest = trimmed(text);
-    if (!rest.empty() && (rest[0] == '@'))
-    {
-        const size_t space = rest.find_first_of(" \t");
-        for (const std::string &guard : registers_named(rest.substr(0u, space)))
-        {
-            link.read.push_back(guard);
-        }
-        rest = trimmed(rest.substr(space));
-    }
-    const size_t space = rest.find_first_of(" \t");
-    rest = (space == std::string::npos) ? std::string() : rest.substr(space);
-    rest = rest.substr(0u, rest.find(';'));
-    const std::vector<std::string> operands = pieces(rest, ',');
-    for (size_t at = 0u; at < operands.size(); at += 1u)
-    {
-        std::smatch memory;
-        if (std::regex_search(operands[at], memory, s_memory) && (at > 0u))
-        {
-            link.loads = 1;
-            link.address_register = memory[1].str();
-            link.offset = memory[4].matched ? std::stoull(memory[4].str(), nullptr, 0) : 0ull;
-        }
-        const std::vector<std::string> named = registers_named(operands[at]);
-        for (size_t each = 0u; each < named.size(); each += 1u)
-        {
-            if ((at == 0u) && (each == 0u) && memory.empty())
-            {
-                link.written = named[each];
-                continue;
-            }
-            link.read.push_back(named[each]);
-        }
-    }
-    return link;
-}
-
-// the nearest link of `links` before `before` that writes `register_name`, and -1 where none does
-static long definition_of(const std::vector<CarrierLink> &links, const std::string &register_name, long before)
-{
-    for (long at = before - 1; at >= 0; at -= 1)
-    {
-        if (links[(size_t)at].written == register_name)
-        {
-            return at;
-        }
-    }
-    return -1;
-}
-
-// the case operands `register_name` reads at link `before` of `links`, the cases loaded through the register written
-// at `cases_defined`
-static std::set<unsigned long long> operands_read(const std::vector<CarrierLink> &links, const std::string &register_name,
-                                                 long before, long cases_defined)
-{
-    std::set<unsigned long long> read;
-    const long defined = definition_of(links, register_name, before);
-    if (defined < 0)
-    {
-        return read;
-    }
-    const CarrierLink &link = links[(size_t)defined];
-    if (link.loads && (definition_of(links, link.address_register, defined) == cases_defined))
-    {
-        read.insert(link.offset / s_operand_bytes);
-        return read;
-    }
-    for (const std::string &source : link.read)
-    {
-        const std::set<unsigned long long> further = operands_read(links, source, defined, cases_defined);
-        read.insert(further.begin(), further.end());
-    }
-    return read;
 }
 
 // the case operands that decide which cases of `cases` came back apart in `came_back`
@@ -225,18 +98,9 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
     {
         return std::string();
     }
-    std::vector<CarrierLink> links;
-    std::string line;
     long cases_defined = -2;
-    while (std::getline(carrier, line))
-    {
-        links.push_back(link_read(line));
-        const CarrierLink &read = links.back();
-        if (read.loads && (cases_defined == -2))
-        {
-            cases_defined = definition_of(links, read.address_register, (long)links.size() - 1);
-        }
-    }
+    const std::vector<CarrierLink> links = carrier_read(
+        std::string((std::istreambuf_iterator<char>(carrier)), std::istreambuf_iterator<char>()), &cases_defined);
     const long at = (long)(std::stoul(put.address.substr(colon + 1u), nullptr, 16) / 16u);
     const std::set<std::string> only(put.only.begin(), put.only.end());
     std::set<unsigned long long> qualifying;
@@ -245,16 +109,17 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
     // form's own and followed no further
     std::set<std::string> form_written;
     long line_at = at;
-    for (const std::string &form_line : pieces(put.from_text, ';'))
+    for (const std::string &form_line : carrier_pieces(put.from_text, ';'))
     {
-        if (trimmed(form_line).empty())
+        if (carrier_trimmed(form_line).empty())
         {
             continue;
         }
-        const CarrierLink link = link_read(form_line);
-        if (link.loads && (definition_of(links, link.address_register, line_at) == cases_defined))
+        const CarrierLink link = carrier_link_read(form_line);
+        if (link.loads && (cases_defined >= 0) &&
+            (carrier_definition(links, link.address_register, line_at) == cases_defined))
         {
-            qualified.insert(link.offset / s_operand_bytes);
+            qualified.insert(link.offset / s_carrier_operand_bytes);
         }
         for (const std::string &source : link.read)
         {
@@ -262,11 +127,11 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
             {
                 continue;
             }
-            const std::set<unsigned long long> read = operands_read(links, source, line_at, cases_defined);
+            const std::set<unsigned long long> read = carrier_operands_read(links, source, line_at, cases_defined);
             int named_only = 0;
             for (const std::string &operand : only)
             {
-                for (const std::string &named : registers_named(operand))
+                for (const std::string &named : carrier_registers(operand))
                 {
                     named_only |= (named == source) ? 1 : 0;
                 }
@@ -328,9 +193,9 @@ int main(int argc, char **argv)
         if (line.rfind("cases ", 0u) == 0u)
         {
             std::vector<std::vector<std::string>> cases;
-            for (const std::string &written : pieces(line.substr(6u), ' '))
+            for (const std::string &written : carrier_pieces(line.substr(6u), ' '))
             {
-                cases.push_back(pieces(written, ','));
+                cases.push_back(carrier_pieces(written, ','));
             }
             case_sets.push_back(cases);
         }

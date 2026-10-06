@@ -41,6 +41,7 @@
 // every case asked stays open with its count of cases. A case the host's C would trap on or leave undefined is asked of
 // nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts write
 // its links, and with the rule a link breaks where asking the part as written would end it
+#include "carrier_flow.h"
 #include "code_generator.h"
 #include "run_channel.h"
 #include "target_internal.h"
@@ -3291,6 +3292,15 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             texts[held.first] = std::string((std::istreambuf_iterator<char>(chain)), std::istreambuf_iterator<char>());
         }
     }
+    // every carrier's links, read for what each writes, reads and loads, and the link writing the register its cases
+    // are loaded through
+    std::map<std::string, std::pair<std::vector<CarrierLink>, long>> flows;
+    for (const auto &chain : texts)
+    {
+        long cases_defined = -2;
+        const std::vector<CarrierLink> links = carrier_read(chain.second, &cases_defined);
+        flows[chain.first] = std::make_pair(links, cases_defined);
+    }
     std::vector<std::string> bridge;
     std::string line;
     std::ifstream held_bridge(klq, std::ios::binary);
@@ -3393,6 +3403,14 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             const std::string after = chain.second.substr((size_t)(found.position(0) + found.length(0)));
             if (written_register.empty() ||
                 !std::regex_search(after, std::regex("(^|[^A-Za-z0-9_])" + written_register + "([^0-9]|$)")))
+            {
+                continue;
+            }
+            // a link of the carrier's own, the thread's index, the case's index, the bound or an address, moves the case
+            // every thread reads: a form is put only where its link carries the cases (carrier_flow.h)
+            const auto &flow = flows[chain.first];
+            const long link_at = (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
+            if (!carrier_form_carries(flow.first, flow.second, found.str(0), link_at))
             {
                 continue;
             }

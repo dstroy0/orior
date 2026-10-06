@@ -39,10 +39,10 @@ key word_sub_last
 key word_borrow_read
 key word_copy
 pair word_copy thread_idx_x
-closed 0001:00e0 0,1,0->1
+closed 0451:00f0 0,0,1->0
 unknown_coherence
 pair word_copy warp_size
-closed 0000:0080 0,1,0->1
+closed 0451:00f0 0,0,1->0
 unknown_coherence
 key word_set
 key word_bitand
@@ -62,7 +62,7 @@ modifier_coherence
 key word_mul
 key word_mul_add
 pair word_mul_add word_mul
-closed 0000:0040 0,1,0->1
+closed 0026:00d0 100000000,1,0->100000000
 unknown_coherence
 key word_div
 key word_select
@@ -99,7 +99,7 @@ key predicate_bitand
 key wide_from_word
 key word_from_wide
 pair word_from_wide warp_size
-closed 0000:0080 0,1,0->1
+closed 0451:00f0 0,0,1->0
 unknown_coherence
 key wide_pack
 pair wide_pack wide_from_word
@@ -133,20 +133,20 @@ key kernel_close
 key thread_idx_x
 key thread_idx_y
 pair thread_idx_y thread_idx_x
-closed 0000:0030 0,1,0->1
+open 0
 unknown_coherence
 key thread_idx_z
 pair thread_idx_z thread_idx_x
-closed 0000:0030 0,1,0->1
+open 0
 unknown_coherence
 key block_idx_x
 key block_idx_y
 pair block_idx_y block_idx_x
-closed 0000:0020 100000000,7f,0->7f
+open 0
 unknown_coherence
 key block_idx_z
 pair block_idx_z block_idx_x
-closed 0000:0020 100000000,7f,0->7f
+open 0
 unknown_coherence
 pair block_idx_z block_idx_y
 open 0
@@ -190,7 +190,7 @@ key global_store_wide
 key wide_from_signed_word
 key test_word_ge
 pair test_word_ge test_word_lt
-closed 0000:0050 0,1,0->1
+closed 0109:00c0 0,0,0->0
 unknown_coherence
 key exit_if
 key test_word_le
