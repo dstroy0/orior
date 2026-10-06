@@ -1,0 +1,59 @@
+# The orior app
+
+One window for the engine. **Run** starts every build, ingest, run, render, sim, viewer, stage pipeline
+and test suite in the tree, shows their output as it arrives, and opens each page a viewer writes in a
+window of its own. **Edit** is the editor for `.g`, `.gsm` and the k-files, with each file type's
+definition beside the file. In a file of `src/cu/transpiler/lstar/coherence/` the bridge shows
+beside it as well: for the key under the cursor, its pairs and their verdicts in `Lstar.klq`, its
+name in each `.klm`, and each ruleset's entry of that name.
+
+The app reads all of it from the tree each time:
+
+| what | read from |
+| --- | --- |
+| the builds | every `build*.sh` under `src/`, `utils/maint/engine/`, `utils/maint/texbuild/` and each example |
+| the protocol | every `klq_*.sh` under `utils/maint/engine/` |
+| ingest, the run parts, render | `examples/cell_tracking/src/track_driver/track_driver.cu`, its usage text |
+| the sims | the `case` in `src/sims/run.sh` |
+| the other runs | `examples/navier_stokes/run.sh` and its cfgs, `examples/qasm/run.sh` and its circuits |
+| the viewers | every `build_*_view.py` under `examples/` |
+| the stages and the pipelines | `examples/<subject>/<n>_<stage>/*.py` |
+| the tests | every `run.sh` under `utils/test/` and each example's `test/` |
+| the languages and file types | `src/lng/*.tsv` and `src/cu/types/file_defs/*/*.oracle.tsv` |
+
+A job's description is the opening comment or docstring of its own file.
+
+## Running it
+
+It needs Rust 1.77 or later to build. Every line of the page is in `src/`, written for this tree,
+and the window loads those files as they are. None of the page comes from outside the tree.
+
+```
+cd src/ui/src-tauri
+cargo run
+```
+
+The installers come from the Tauri command, which cargo installs once:
+
+```
+cargo install tauri-cli --version "^2" --locked
+cd src/ui/src-tauri
+cargo tauri build
+```
+
+They land under `src-tauri/target/release/bundle/`, for the platform the build runs on.
+
+| platform | also needs |
+| --- | --- |
+| Windows | WebView2, which Windows 10 and 11 carry, and Git for Windows for the bash the scripts run in |
+
+On Windows the window starts with `--disable-direct-composition`, set in `tauri.conf.json`. With
+direct composition on, a window whose page moves holds to 60 frames a second whatever the display's
+rate, and stalls for up to half a second every few seconds. The first three features that line
+turns off are the ones the window turns off when it is given no line of its own.
+| macOS | the Xcode command line tools |
+| Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
+
+The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIOR_BASH` and
+`ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
+ones to use.

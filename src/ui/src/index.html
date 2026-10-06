@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational -->
+<html lang="en" data-scheme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>orior</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <span class="mark" aria-hidden="true">Σ</span>
+      <span class="name">orior</span>
+      <nav class="modes" role="tablist">
+        <button role="tab" data-mode="run" aria-selected="true">Run</button>
+        <button role="tab" data-mode="edit" aria-selected="false">Edit</button>
+      </nav>
+      <span class="pulse" id="pulse"></span>
+      <span class="tree" id="tree-path"></span>
+      <button class="scheme" id="scheme" type="button" aria-label="Light"></button>
+    </header>
+
+    <main class="shell">
+      <section class="mode" id="mode-run" data-active="true">
+        <aside class="side">
+          <input class="filter" id="job-filter" type="search" placeholder="Search" spellcheck="false" />
+          <div class="jobs" id="jobs"></div>
+        </aside>
+        <div class="stage" id="job-stage"></div>
+      </section>
+
+      <section class="mode" id="mode-edit" data-active="false">
+        <aside class="side">
+          <input class="filter" id="file-filter" type="search" placeholder="Search" spellcheck="false" />
+          <div class="files" id="files"></div>
+        </aside>
+        <div class="desk">
+          <div class="tabs" id="tabs" role="tablist"></div>
+          <div class="editor" id="editor"></div>
+          <div class="binary" id="binary" hidden></div>
+        </div>
+        <aside class="defs" id="defs"></aside>
+      </section>
+
+      <section class="loading" id="loading">
+        <canvas class="lattice" aria-hidden="true"></canvas>
+        <canvas class="eye" aria-hidden="true"></canvas>
+      </section>
+
+      <section class="open" id="open-tree" hidden>
+        <canvas class="lattice" aria-hidden="true"></canvas>
+        <div class="open-body">
+          <h1>orior</h1>
+          <p id="open-said"></p>
+          <button class="primary" id="open-button" type="button">Open</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1516 @@
+/* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+ *
+ * The app in the docs site's palette. Ink is the bar, signal marks what is exact and what succeeded,
+ * the link color is what a reader acts on, violet answers the pointer, and rose is a failure, the
+ * one color the site has no use for. Dark is the scheme the app opens in.
+ */
+
+:root {
+  --ink: #1d1850;
+  --ink-2: #261f5e;
+  --head: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --text: "Source Serif 4", Georgia, serif;
+  --code: "IBM Plex Mono", Consolas, monospace;
+  --radius: 0.4rem;
+  --side: 19rem;
+  --defs: 23rem;
+}
+
+[data-scheme="dark"] {
+  --bg: #131331;
+  --surface: #1c1940;
+  --well: #1b1b3d;
+  --deep: #0f0d2e;
+  --fg: #e4e3f5;
+  --fg-2: rgba(228, 227, 245, 0.7);
+  --fg-3: rgba(228, 227, 245, 0.4);
+  --line: rgba(228, 227, 245, 0.1);
+  --signal: #6fdcb4;
+  --link: #8ab8ff;
+  --hover: #b49cff;
+  --fail: #ff8fa3;
+  --ed-bg: #131331;
+  --ed-fg: #e4e3f5;
+  --ed-num: #5e5b8a;
+  --ed-current: #1c1940;
+  --ed-sel: #3a3380;
+  --ed-sel-idle: #2a2560;
+  --ed-caret: #6fdcb4;
+  --ed-guide: #24214f;
+  --ed-same: rgba(164, 140, 255, 0.2);
+  --ed-match: rgba(111, 220, 180, 0.22);
+  --ed-match-on: rgba(111, 220, 180, 0.45);
+  --ed-widget: #1c1940;
+  --ed-widget-line: #2f2a66;
+  --ed-mini-sel: rgba(90, 80, 190, 0.55);
+  --ed-mini-match: rgba(111, 220, 180, 0.7);
+  --ed-mini-slider: rgba(228, 227, 245, 0.08);
+  --ed-mini-slider-on: rgba(228, 227, 245, 0.16);
+  --t-comment: #6e6b99;
+  --t-keyword: #a48cff;
+  --t-type: #6fdcb4;
+  --t-predefined: #8ab8ff;
+  --t-tag: #8ab8ff;
+  --t-attribute: #c9b8ff;
+  --t-number: #c9c2ff;
+  --t-number-cost: #6fdcb4;
+  --t-string: #9fe3c8;
+  --t-variable: #a8c8ff;
+  --t-operator: #d6d4ee;
+  --t-delimiter: #9e9bc4;
+  --t-strong: #e4e3f5;
+  --t-emphasis: #c9b8ff;
+  color-scheme: dark;
+}
+
+[data-scheme="light"] {
+  --bg: #fbfbfe;
+  --surface: #efeef9;
+  --well: #f0eff8;
+  --deep: #1d1850;
+  --fg: #17163a;
+  --fg-2: rgba(23, 22, 58, 0.68);
+  --fg-3: rgba(23, 22, 58, 0.4);
+  --line: rgba(23, 22, 58, 0.1);
+  --signal: #0f7a53;
+  --link: #3346d3;
+  --hover: #0f7a53;
+  --fail: #b4233c;
+  --ed-bg: #fbfbfe;
+  --ed-fg: #17163a;
+  --ed-num: #a6a4c4;
+  --ed-current: #f0eff8;
+  --ed-sel: #dcd8f5;
+  --ed-sel-idle: #e8e6f6;
+  --ed-caret: #0f7a53;
+  --ed-guide: #e6e4f2;
+  --ed-same: rgba(91, 63, 209, 0.12);
+  --ed-match: rgba(15, 122, 83, 0.16);
+  --ed-match-on: rgba(15, 122, 83, 0.34);
+  --ed-widget: #efeef9;
+  --ed-widget-line: #d6d3ee;
+  --ed-mini-sel: rgba(91, 63, 209, 0.3);
+  --ed-mini-match: rgba(15, 122, 83, 0.6);
+  --ed-mini-slider: rgba(23, 22, 58, 0.07);
+  --ed-mini-slider-on: rgba(23, 22, 58, 0.14);
+  --t-comment: #8a88a8;
+  --t-keyword: #5b3fd1;
+  --t-type: #0f7a53;
+  --t-predefined: #3346d3;
+  --t-tag: #3346d3;
+  --t-attribute: #6a4fc9;
+  --t-number: #6a4fc9;
+  --t-number-cost: #0f7a53;
+  --t-string: #116b4b;
+  --t-variable: #2c3fb8;
+  --t-operator: #3d3b66;
+  --t-delimiter: #6b6990;
+  --t-strong: #17163a;
+  --t-emphasis: #6a4fc9;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* A hidden element stays hidden whatever display its class gives it. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 var(--head);
+  overflow: hidden;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--hover);
+  outline-offset: 1px;
+}
+
+/* The bar is the ink of the site's header, underlined in signal the way the site's is. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  height: 2.9rem;
+  padding: 0 1rem;
+  background: var(--ink);
+  color: #f3f2fb;
+  border-bottom: 2px solid #6fdcb4;
+  flex: none;
+}
+
+.mark {
+  font-size: 1.15rem;
+  color: #6fdcb4;
+}
+
+.name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.modes {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: 0.6rem;
+}
+
+.modes button {
+  border: 0;
+  background: none;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  color: rgba(243, 242, 251, 0.72);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modes button:hover {
+  color: #b49cff;
+}
+
+.modes button[aria-selected="true"] {
+  color: #ffffff;
+  box-shadow: inset 0 -2px 0 #6fdcb4;
+  border-radius: 0;
+}
+
+/* The status block's reading: runs going and files still being read, in signal. */
+.pulse {
+  display: flex;
+  gap: 0.9rem;
+  margin-left: auto;
+  font: 12px var(--code);
+  color: #6fdcb4;
+  white-space: nowrap;
+}
+
+.pulse button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pulse button:hover {
+  text-decoration: underline;
+}
+
+.pulse:empty + .tree {
+  margin-left: auto;
+}
+
+.tree {
+  margin-left: 1.2rem;
+  font: 12.5px var(--code);
+  color: rgba(243, 242, 251, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 45vw;
+}
+
+.scheme {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  color: rgba(243, 242, 251, 0.8);
+  font-size: 1rem;
+}
+
+.scheme:hover {
+  color: #b49cff;
+}
+
+.shell {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.mode {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+.mode[data-active="true"] {
+  display: flex;
+}
+
+.side {
+  width: var(--side);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  min-height: 0;
+}
+
+.filter {
+  margin: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.filter::placeholder {
+  color: var(--fg-3);
+}
+
+.jobs,
+.files {
+  flex: 1;
+  overflow: auto;
+  padding: 0 0.5rem 1rem;
+}
+
+/* A group is a heading and its jobs. The heading is the group's own name from the catalog, set in
+ * the heading face and never in capitals. */
+.group > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.55rem 0.5rem 0.3rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.group > summary .count {
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--fg-3);
+}
+
+.group > summary:hover {
+  color: var(--hover);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 0.28rem 0.5rem 0.28rem 0.9rem;
+  border-radius: var(--radius);
+  font: 12.5px/1.45 var(--code);
+  color: var(--fg-2);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item:hover {
+  color: var(--hover);
+  background: var(--line);
+}
+
+.item[aria-current="true"] {
+  color: var(--fg);
+  background: var(--bg);
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.item .live {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: var(--signal);
+  vertical-align: middle;
+}
+
+/* The job: what it is, what it takes, and what it said. */
+.stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.job-head {
+  padding: 1.2rem 1.6rem 0.4rem;
+}
+
+.job-head h2 {
+  margin: 0;
+  font: 600 1.05rem/1.35 var(--code);
+  word-break: break-all;
+}
+
+.job-head .file {
+  margin-top: 0.2rem;
+  font: 12.5px var(--code);
+}
+
+.job-head .file a {
+  color: var(--link);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.job-head .file a:hover {
+  color: var(--hover);
+  text-decoration: underline;
+}
+
+.job-head p {
+  margin: 0.6rem 0 0;
+  max-width: 78ch;
+  font: 15px/1.6 var(--text);
+  color: var(--fg-2);
+}
+
+.params {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.55rem 0.9rem;
+  align-items: center;
+  padding: 0.9rem 1.6rem 0.2rem;
+  max-width: 60rem;
+}
+
+.params label {
+  font: 12.5px var(--code);
+  color: var(--fg-2);
+}
+
+.params label.needed::after {
+  content: " *";
+  color: var(--signal);
+}
+
+.params input[type="text"],
+.params select {
+  width: 100%;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--well);
+  font: 13px var(--code);
+}
+
+.pick {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.pick input {
+  flex: 1;
+}
+
+.pick .secondary {
+  padding: 0.25rem 0.8rem;
+  font-size: 13px;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.choices label:hover {
+  border-color: var(--hover);
+}
+
+.choices input {
+  accent-color: var(--signal);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 1.6rem 0.9rem;
+}
+
+.primary,
+.secondary {
+  padding: 0.42rem 1.05rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  border: 1px solid var(--signal);
+  background: var(--signal);
+  color: #131331;
+}
+
+[data-scheme="light"] .primary {
+  color: #ffffff;
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}
+
+.secondary {
+  border: 1px solid var(--line);
+  background: none;
+}
+
+.secondary:hover {
+  border-color: var(--hover);
+  color: var(--hover);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+  filter: none;
+}
+
+.said {
+  font: 12.5px var(--code);
+  color: var(--fail);
+}
+
+/* The output well. A command line is the link color, an error stream is dimmer, and the end line
+ * is signal on 0 and rose on anything else. */
+.console {
+  flex: 1;
+  min-height: 0;
+  margin: 0 1.6rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.console-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  flex: none;
+}
+
+.console-head .run {
+  border: 1px solid transparent;
+  background: none;
+  border-radius: var(--radius);
+  padding: 0.1rem 0.5rem;
+  font: 12px var(--code);
+  color: var(--fg-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.console-head .run[aria-current="true"] {
+  border-color: var(--line);
+  color: var(--fg);
+}
+
+.console-head .run.ok {
+  color: var(--signal);
+}
+
+.console-head .run.failed {
+  color: var(--fail);
+}
+
+.console-head .views {
+  margin-left: auto;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.console-head .views button {
+  border: 1px solid var(--link);
+  background: none;
+  color: var(--link);
+  border-radius: var(--radius);
+  padding: 0.1rem 0.55rem;
+  font: 12px var(--code);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.console-head .views button:hover {
+  color: var(--hover);
+  border-color: var(--hover);
+}
+
+.lines {
+  flex: 1;
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  overflow: auto;
+  font: 12.5px/1.55 var(--code);
+  white-space: pre-wrap;
+  word-break: break-word;
+  tab-size: 4;
+}
+
+.lines .command {
+  color: var(--link);
+}
+
+.lines .stderr {
+  color: var(--fg-2);
+}
+
+.lines .end.ok {
+  color: var(--signal);
+}
+
+.lines .end.failed {
+  color: var(--fail);
+}
+
+/* With no job open the stage is the lattice, the site's hero: points in place in signal, passing
+ * through the link blue to violet as they move. */
+.empty {
+  flex: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--deep);
+}
+
+.lattice {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.empty-body,
+.open-body {
+  position: relative;
+  text-align: center;
+  color: #f3f2fb;
+}
+
+.empty-body h1,
+.open-body h1 {
+  margin: 0;
+  font: 700 clamp(3rem, 7vw, 5.5rem) / 1 var(--head);
+  letter-spacing: -0.04em;
+}
+
+.empty-body p,
+.open-body p {
+  margin: 0.8rem auto 1.2rem;
+  max-width: 48ch;
+  font: 15px/1.6 var(--text);
+  color: #bcb8e0;
+}
+
+/* The eye over the lattice while a tree is read. */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: var(--deep);
+  transition: opacity 0.35s ease;
+}
+
+.loading[data-leaving="true"] {
+  opacity: 0;
+}
+
+.loading .eye {
+  position: relative;
+  width: min(40rem, 72vw);
+  aspect-ratio: 16 / 9;
+}
+
+.open {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--deep);
+  overflow: hidden;
+}
+
+/* The editor's desk: tabs over the editor, or over the binary view where a file is not text. */
+.desk {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+  min-height: 2.3rem;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.4rem 0 0.85rem;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: none;
+  font: 12.5px var(--code);
+  color: var(--fg-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: inset 0 2px 0 var(--signal);
+}
+
+.tab .dirty {
+  color: var(--hover);
+}
+
+.tab .close {
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  border-radius: var(--radius);
+  padding: 0 0.3rem;
+  cursor: pointer;
+}
+
+.tab .close:hover {
+  color: var(--hover);
+}
+
+.editor {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The bridge panel: a key's pairs and verdicts, its names in each map, its entries in each ruleset. */
+.bridge {
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.bridge-tools {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.6rem;
+}
+
+.bridge-key {
+  margin: 0.6rem 0 0.4rem;
+  font: 600 13.5px var(--code);
+}
+
+.bridge-pair {
+  margin: 0.35rem 0;
+  padding: 0.35rem 0.5rem;
+  border-left: 2px solid var(--line);
+  font: 12.5px/1.5 var(--code);
+}
+
+.bridge-note {
+  padding-left: 0.8rem;
+  color: var(--fg-2);
+}
+
+.bridge-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: baseline;
+  margin: 0.2rem 0;
+  font: 12.5px/1.5 var(--code);
+}
+
+.bridge-map .lang {
+  min-width: 6.5rem;
+  color: var(--fg-3);
+}
+
+.bridge-line {
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.bridge-line:hover {
+  color: var(--hover);
+  text-decoration: underline;
+}
+
+.bridge-line.kind {
+  color: var(--fg-2);
+}
+
+.verdict {
+  margin-left: 0.6rem;
+  padding: 0 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 11.5px;
+}
+
+.verdict-open {
+  background: var(--ed-same);
+  color: var(--t-keyword);
+}
+
+.verdict-closed {
+  background: var(--ed-match);
+  color: var(--signal);
+}
+
+.verdict-none {
+  color: var(--fg-3);
+}
+
+.bridge-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.2rem 0.35rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bridge-item:hover {
+  background: var(--line);
+}
+
+.bridge-item code {
+  font: 12.5px var(--code);
+}
+
+.bridge-item small {
+  color: var(--fg-3);
+  font: 11px var(--code);
+  white-space: nowrap;
+}
+
+.bridge-quiet {
+  color: var(--fg-3);
+  font: 12.5px var(--code);
+}
+
+/* The editor. Its rows, marks and carets sit in one scrolling space, the gutter and the minimap
+ * either side of it, and the status line under all three. */
+.ed {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 84px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: var(--ed-bg);
+  color: var(--ed-fg);
+  font: 13px/20px var(--code);
+  font-variant-ligatures: none;
+  overflow: hidden;
+}
+
+.ed[data-empty="true"] > * {
+  visibility: hidden;
+}
+
+.ed-gutter {
+  position: relative;
+  overflow: hidden;
+  color: var(--ed-num);
+  user-select: none;
+  cursor: default;
+}
+
+.ed-num {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  padding-right: 20px;
+  text-align: right;
+}
+
+.ed-num.on {
+  color: var(--ed-fg);
+}
+
+.ed-fold {
+  position: absolute;
+  right: 4px;
+  width: 12px;
+  text-align: center;
+  color: var(--fg-3);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.ed-gutter:hover .ed-fold,
+.ed-fold.shut {
+  opacity: 1;
+}
+
+.ed-fold:hover {
+  color: var(--hover);
+}
+
+.ed-scroll {
+  position: relative;
+  overflow: auto;
+  cursor: text;
+}
+
+.ed-space {
+  position: relative;
+  min-height: 100%;
+}
+
+.ed-under,
+.ed-text,
+.ed-over {
+  position: absolute;
+  inset: 0 auto auto 0;
+}
+
+.ed-text {
+  white-space: pre;
+}
+
+.ed-row {
+  position: absolute;
+  left: 10px;
+  height: 20px;
+  white-space: pre;
+}
+
+.ed-band > div,
+.ed-over > div {
+  position: absolute;
+}
+
+.ed-current {
+  background: var(--ed-current);
+}
+
+.ed[data-focus="false"] .ed-current {
+  background: none;
+}
+
+.ed-guide {
+  background: var(--ed-guide);
+}
+
+.ed-same {
+  background: var(--ed-same);
+  border-radius: 2px;
+}
+
+.ed-match {
+  background: var(--ed-match);
+  border-radius: 2px;
+}
+
+.ed-match.on {
+  background: var(--ed-match-on);
+  box-shadow: 0 0 0 1px var(--signal);
+}
+
+.ed-stop {
+  box-shadow: inset 0 -2px 0 var(--hover);
+  min-width: 2px;
+}
+
+.ed-sel {
+  background: var(--ed-sel);
+}
+
+.ed-sel.idle {
+  background: var(--ed-sel-idle);
+}
+
+.ed-pair {
+  box-shadow: inset 0 0 0 1px var(--ed-caret);
+}
+
+.ed-caret {
+  background: var(--ed-caret);
+  animation: ed-blink 1.06s steps(1) infinite;
+}
+
+.ed-caret:not(.main) {
+  opacity: 0.8;
+}
+
+.ed[data-focus="false"] .ed-caret,
+.ed:not([data-focus]) .ed-caret {
+  display: none;
+}
+
+@keyframes ed-blink {
+  50% {
+    visibility: hidden;
+  }
+}
+
+.ed[data-typing] .ed-caret {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ed-caret {
+    animation: none;
+  }
+}
+
+.ed-folded {
+  margin-left: 0.5ch;
+  padding: 0 0.4ch;
+  border-radius: 3px;
+  background: var(--ed-same);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.ed-input {
+  position: absolute;
+  width: 1px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  opacity: 0;
+  background: transparent;
+  color: transparent;
+  font: inherit;
+  white-space: pre;
+  z-index: 2;
+}
+
+.ed[data-composing="true"] .ed-input {
+  width: auto;
+  min-width: 2ch;
+  opacity: 1;
+  color: var(--ed-fg);
+  background: var(--ed-bg);
+  box-shadow: inset 0 -1px 0 var(--ed-caret);
+}
+
+.ed-mini {
+  width: 84px;
+  height: 100%;
+  border-left: 1px solid var(--line);
+  cursor: default;
+}
+
+.ed-status {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+  padding: 0 0.9rem;
+  min-height: 1.6rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg-2);
+  font: 11.5px var(--code);
+}
+
+.ed-status button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ed-status button:hover {
+  color: var(--hover);
+}
+
+.ed-status .gap {
+  flex: 1;
+}
+
+/* Tokens. Every class a grammar gives is t-<kind>, and t-<kind>-<part> beneath it. */
+.t-comment {
+  color: var(--t-comment);
+  font-style: italic;
+}
+
+.t-keyword {
+  color: var(--t-keyword);
+}
+
+.t-type {
+  color: var(--t-type);
+}
+
+.t-predefined {
+  color: var(--t-predefined);
+}
+
+.t-tag {
+  color: var(--t-tag);
+}
+
+.t-attribute {
+  color: var(--t-attribute);
+}
+
+.t-number {
+  color: var(--t-number);
+}
+
+.t-number-cost {
+  color: var(--t-number-cost);
+}
+
+.t-string {
+  color: var(--t-string);
+}
+
+.t-variable {
+  color: var(--t-variable);
+}
+
+.t-operator {
+  color: var(--t-operator);
+}
+
+.t-delimiter {
+  color: var(--t-delimiter);
+}
+
+.t-strong {
+  color: var(--t-strong);
+  font-weight: 600;
+}
+
+.t-emphasis {
+  color: var(--t-emphasis);
+  font-style: italic;
+}
+
+/* The panels over the editor: find, go to line, hover and completion. */
+.ed-find,
+.ed-goto,
+.ed-hover,
+.ed-suggest {
+  position: absolute;
+  z-index: 4;
+  background: var(--ed-widget);
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(10, 8, 40, 0.35);
+  font: 12.5px var(--code);
+}
+
+.ed-find,
+.ed-goto {
+  top: 0;
+  right: 104px;
+  padding: 0.35rem;
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.ed-find[data-bad="true"] .ed-find-query:first-of-type {
+  box-shadow: inset 0 0 0 1px var(--fail);
+}
+
+.ed-find-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ed-find-row.replace {
+  margin-top: 0.3rem;
+  padding-left: 1.6rem;
+}
+
+.ed-find-query {
+  width: 15rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  background: var(--ed-bg);
+  color: var(--ed-fg);
+  font: inherit;
+}
+
+.ed-find-query:focus {
+  outline: none;
+  border-color: var(--hover);
+}
+
+.ed-find button {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.3rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--fg-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ed-find button:hover {
+  background: var(--line);
+  color: var(--ed-fg);
+}
+
+.ed-find-option[aria-pressed="true"] {
+  background: var(--ed-sel);
+  color: var(--ed-fg);
+  box-shadow: inset 0 0 0 1px var(--hover);
+}
+
+.ed-find-count {
+  min-width: 5.5rem;
+  padding: 0 0.35rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+.ed-hover {
+  max-width: 36rem;
+  max-height: 18rem;
+  overflow: auto;
+  padding: 0.45rem 0.7rem;
+  font: 13.5px/1.5 var(--text);
+}
+
+.ed-hover p {
+  margin: 0.3rem 0;
+}
+
+.ed-hover code,
+.ed-suggest-detail code {
+  font: 12.5px var(--code);
+  color: var(--t-type);
+}
+
+.ed-hover hr {
+  border: 0;
+  border-top: 1px solid var(--ed-widget-line);
+  margin: 0.45rem 0;
+}
+
+.ed-suggest {
+  display: flex;
+  align-items: flex-start;
+  max-width: 46rem;
+}
+
+.ed-suggest-list {
+  min-width: 16rem;
+  max-width: 26rem;
+  padding: 0.2rem 0;
+}
+
+.ed-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 22px;
+  padding: 0 0.55rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ed-item[aria-selected="true"] {
+  background: var(--ed-sel);
+}
+
+.ed-item b {
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.ed-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ed-item-detail {
+  color: var(--fg-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12rem;
+}
+
+.ed-kind {
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  background: var(--t-keyword);
+}
+
+.ed-kind.k-type {
+  background: var(--t-type);
+}
+
+.ed-kind.k-state {
+  background: var(--t-type);
+  border-radius: 50%;
+}
+
+.ed-kind.k-operator {
+  background: var(--t-predefined);
+}
+
+.ed-suggest-detail {
+  width: 18rem;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0.4rem 0.7rem;
+  border-left: 1px solid var(--ed-widget-line);
+  font: 13px/1.5 var(--text);
+  white-space: pre-wrap;
+}
+
+.ed-suggest-detail p {
+  margin: 0.2rem 0 0.4rem;
+}
+
+.binary {
+  flex: 1;
+  overflow: auto;
+  padding: 1.1rem 1.4rem;
+  font: 12.5px/1.55 var(--code);
+}
+
+.binary h3 {
+  margin: 0 0 0.6rem;
+  font: 700 0.95rem var(--head);
+}
+
+.binary .head {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.binary .head .bad {
+  color: var(--fail);
+}
+
+.binary pre {
+  margin: 0;
+  color: var(--fg-2);
+}
+
+.binary pre b {
+  color: var(--signal);
+  font-weight: 500;
+}
+
+/* The tree of files. */
+.node {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 0.16rem 0.5rem;
+  border-radius: var(--radius);
+  font: 12.5px/1.5 var(--code);
+  color: var(--fg-2);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node:hover {
+  color: var(--hover);
+  background: var(--line);
+}
+
+.node.dir {
+  color: var(--fg);
+}
+
+.node.known {
+  color: var(--link);
+}
+
+.node[aria-current="true"] {
+  background: var(--bg);
+  box-shadow: inset 2px 0 0 var(--signal);
+  color: var(--fg);
+}
+
+/* The definitions beside the editor: the open file type's oracle table, row by row. */
+.defs {
+  width: var(--defs);
+  flex: none;
+  overflow: auto;
+  padding: 1rem 1.1rem 1.4rem;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+}
+
+.defs h3 {
+  margin: 0;
+  font: 700 0.98rem var(--head);
+}
+
+.defs .source {
+  display: block;
+  margin: 0.15rem 0 0.7rem;
+  font: 12px var(--code);
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.defs .source:hover {
+  color: var(--hover);
+  text-decoration: underline;
+}
+
+.defs .header {
+  margin: 0 0 0.9rem;
+  font: 14px/1.55 var(--text);
+  color: var(--fg-2);
+}
+
+.defs .where {
+  margin: 0.9rem 0 0.25rem;
+  font: 600 0.82rem var(--head);
+  color: var(--fg-3);
+}
+
+.row {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  border-left: 2px solid transparent;
+}
+
+.row[data-lit="true"] {
+  background: var(--bg);
+  border-left-color: var(--signal);
+}
+
+.row code {
+  display: block;
+  font: 12.5px/1.45 var(--code);
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.row span {
+  display: block;
+  margin-top: 0.12rem;
+  font: 13.5px/1.45 var(--text);
+  color: var(--fg-2);
+}
+
+.row small {
+  display: block;
+  margin-top: 0.1rem;
+  font: 11.5px var(--code);
+  color: var(--fg-3);
+}
+
+.defs .filter {
+  margin: 0.4rem 0 0.6rem;
+  width: 100%;
+}
+
+.defs .none {
+  font: 14px/1.55 var(--text);
+  color: var(--fg-3);
+}
+
+@media (max-width: 1200px) {
+  :root {
+    --defs: 18rem;
+    --side: 16rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .item .live {
+    animation: live 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes live {
+  50% {
+    opacity: 0.35;
+  }
+}

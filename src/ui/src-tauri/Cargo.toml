@@ -1,0 +1,23 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+
+[package]
+name = "orior-ui"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
+rust-version = "1.77"
+
+[lib]
+name = "orior_ui_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dunce = "1"
