@@ -386,6 +386,19 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
     return (nibbles == 0u) ? exact_record_constant(program, 1ull) : power;
 }
 
+unsigned int exact_record_two_to(ExactRecordProgram *program, unsigned int exponent, unsigned int exponent_bits)
+{
+    const unsigned int one = exact_record_constant(program, 1ull);
+    unsigned int power = one;
+    for (unsigned int bit = 0u; bit < exponent_bits; bit += 1u)
+    {
+        const unsigned int set = exact_record_bit(program, exponent, bit);
+        const unsigned int factor = exact_record_select(program, set, exact_record_power_two(program, 1u << bit), one);
+        power = (bit == 0u) ? factor : exact_record_product(program, power, factor);
+    }
+    return power;
+}
+
 unsigned int exact_record_bits_of(unsigned long long value)
 {
     unsigned int bits = 0u;

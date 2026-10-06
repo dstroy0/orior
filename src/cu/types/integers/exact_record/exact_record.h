@@ -143,6 +143,11 @@ extern "C"
     unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long long base, unsigned int exponent,
                                        unsigned int exponent_bits);
 
+    // 2^exponent, the exponent a register known in [0, 2^exponent_bits): the product over its bits j of 2^(2^j) where
+    // bit j is set, its register 2^exponent_bits and twice exponent_bits bits wide at most, where power_of's table
+    // rows make it wider
+    unsigned int exact_record_two_to(ExactRecordProgram *program, unsigned int exponent, unsigned int exponent_bits);
+
     // ---- widths ----
 
     // the bits of v, 0 for 0
