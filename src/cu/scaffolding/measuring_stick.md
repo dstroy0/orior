@@ -2,12 +2,12 @@
 
 Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring stick (measuring_stick.py), every function of the CUDA language in a frame of its own, is compiled by nvcc for sm_86 and read here. What the engine builds for each function is held against it, a kernel at parity where the engine's code uses the same operations as nvcc's, each as many times.
 
-- kernels: 1006
-- instructions: 45135
+- kernels: 1016
+- instructions: 55072
 - operations nvcc writes over the stick: 326, of which sass.krs writes 56
 
-- kernels the engine answers: 340, of which at parity with nvcc: 167; kernels that put a question: 666
-- the engine's instructions: 6282 in its lanes' text, 6282 read back by nvdisasm, 6282 of them the operation the text wrote
+- kernels the engine answers: 350, of which at parity with nvcc: 167; kernels that put a question: 666
+- the engine's instructions: 16122 in its lanes' text, 16122 read back by nvdisasm, 16122 of them the operation the text wrote
 
 ## The engine against nvcc
 
@@ -355,6 +355,16 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 1003 | `int a * b + c` | 17 | 19 | 19 |  |  |
 | 1004 | `unsigned int a * b + c` | 17 | 19 | 19 |  |  |
 | 1005 | `(unsigned long long)a * b + c` | 17 | 20 | 20 | UMOV 1 | IADD3.X 1 |
+| 1006 | `8 values over 8 rounds` | 94 | 93 | 96 | LEA 6 | IMAD 6, LOP3.LUT 3 |
+| 1007 | `16 values over 8 rounds` | 174 | 169 | 176 | LEA 14 | IMAD 14, LOP3.LUT 7 |
+| 1008 | `32 values over 8 rounds` | 334 | 321 | 336 | LEA 30 | IMAD 30, LOP3.LUT 15 |
+| 1009 | `48 values over 8 rounds` | 494 | 473 | 496 | LEA 46 | IMAD 46, LOP3.LUT 23 |
+| 1010 | `64 values over 8 rounds` | 654 | 625 | 656 | LEA 62 | IMAD 62, LOP3.LUT 31 |
+| 1011 | `96 values over 8 rounds` | 974 | 929 | 976 | LEA 94 | IMAD 94, LOP3.LUT 47 |
+| 1012 | `128 values over 8 rounds` | 1294 | 1234 | 1296 | LEA 126, MOV 1 | IMAD 126, LOP3.LUT 63 |
+| 1013 | `160 values over 8 rounds` | 1614 | 1695 | 1616 | IADD3 158, LEA 158 | IMAD 158, LOP3.LUT 79 |
+| 1014 | `192 values over 8 rounds` | 1934 | 2031 | 1936 | IADD3 190, LEA 190 | IMAD 190, LOP3.LUT 95 |
+| 1015 | `224 values over 8 rounds` | 2254 | 2367 | 2256 | IADD3 222, LEA 222 | IMAD 222, LOP3.LUT 111 |
 
 ## The questions the engine puts
 
@@ -559,6 +569,7 @@ Each kernel the engine does not answer, by the question it puts.
 | warp | 17 | 302 |
 | sync | 9 | 172 |
 | test | 90 | 1813 |
+| pressure | 10 | 9937 |
 
 ## Operations nvcc writes that no form of sass.krs writes
 
@@ -584,12 +595,12 @@ Each kernel the engine does not answer, by the question it puts.
 | `FADD` | 69 | 0008 | `float a + b` |
 | `LEA.HI` | 54 | 0524 | `unsigned int __uhadd(a, b)` |
 | `FSETP.GT.AND` | 48 | 0031 | `unsigned char a / b` |
+| `LEA` | 45 | 0038 | `float a / b` |
 | `DSETP.NEU.AND` | 43 | 0097 | `double a == b` |
 | `MUFU.RCP64H` | 41 | 0039 | `double a / b` |
 | `MUFU.RSQ` | 41 | 0038 | `float a / b` |
 | `FSETP.GTU.AND` | 39 | 0039 | `double a / b` |
 | `DSETP.GTU.AND` | 37 | 0137 | `double a <= b` |
-| `LEA` | 35 | 0038 | `float a / b` |
 | `IMNMX` | 34 | 0039 | `double a / b` |
 | `ISETP.GT.U32.OR` | 34 | 0038 | `float a / b` |
 | `FSETP.GE.AND` | 27 | 0146 | `float a >= b` |
@@ -1845,3 +1856,13 @@ Each kernel the engine does not answer, by the question it puts.
 | 1003 | operator | `int a * b + c` | 19 | BRA 1, EXIT 2, IMAD 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 3, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
 | 1004 | operator | `unsigned int a * b + c` | 19 | BRA 1, EXIT 2, IMAD 2, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 3, MOV 3, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1 |
 | 1005 | operator | `(unsigned long long)a * b + c` | 20 | BRA 1, EXIT 2, IADD3 1, IMAD 1, IMAD.WIDE.U32 3, ISETP.GE.U32.AND 1, LDG.E 2, LDG.E.64 1, MOV 2, S2R 2, SHF.L.U32 1, STG.E.64 1, ULDC.64 1, UMOV 1 |
+| 1006 | pressure | `8 values over 8 rounds` | 93 | BRA 1, EXIT 2, IADD3 8, IMAD 59, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 6, LOP3.LUT 4, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1007 | pressure | `16 values over 8 rounds` | 169 | BRA 1, EXIT 2, IADD3 16, IMAD 115, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 14, LOP3.LUT 8, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1008 | pressure | `32 values over 8 rounds` | 321 | BRA 1, EXIT 2, IADD3 32, IMAD 227, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 30, LOP3.LUT 16, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1009 | pressure | `48 values over 8 rounds` | 473 | BRA 1, EXIT 2, IADD3 48, IMAD 339, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 46, LOP3.LUT 24, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1010 | pressure | `64 values over 8 rounds` | 625 | BRA 1, EXIT 2, IADD3 64, IMAD 451, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 62, LOP3.LUT 32, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1011 | pressure | `96 values over 8 rounds` | 929 | BRA 1, EXIT 2, IADD3 96, IMAD 675, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 94, LOP3.LUT 48, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1012 | pressure | `128 values over 8 rounds` | 1234 | BRA 1, EXIT 2, IADD3 128, IMAD 899, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 126, LOP3.LUT 64, MOV 3, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1013 | pressure | `160 values over 8 rounds` | 1695 | BRA 1, EXIT 2, IADD3 318, IMAD 1123, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 158, LOP3.LUT 80, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1014 | pressure | `192 values over 8 rounds` | 2031 | BRA 1, EXIT 2, IADD3 382, IMAD 1347, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 190, LOP3.LUT 96, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |
+| 1015 | pressure | `224 values over 8 rounds` | 2367 | BRA 1, EXIT 2, IADD3 446, IMAD 1571, IMAD.WIDE.U32 2, ISETP.GE.U32.AND 1, LDG.E 2, LEA 222, LOP3.LUT 112, MOV 2, S2R 2, SHF.L.U32 1, SHF.R.S32.HI 1, STG.E.64 1, ULDC.64 1 |

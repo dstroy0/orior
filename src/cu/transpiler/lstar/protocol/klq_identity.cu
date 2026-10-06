@@ -408,7 +408,7 @@ static std::vector<std::string> links_past(const Question &one, const Question &
 static int question_integer(const Question &question)
 {
     static const std::set<std::string> s_categories = {"operator", "compound", "unary", "conversion", "conditional",
-                                                       "statement", "test"};
+                                                       "statement", "test", "pressure"};
     return s_categories.count(question.category) && (question.text.find("float") == std::string::npos) &&
            (question.text.find("double") == std::string::npos) && (question.text.find("__") == std::string::npos);
 }
@@ -806,6 +806,14 @@ static int identity_slice(const char *listing, const char *manifest, const char 
         }
     }
     fclose(file);
+    // a task of register pressure slices with nothing, and the host computes it for the run channel's curve
+    for (const Question &question : questions)
+    {
+        if ((question.category == "pressure") && question_integer(question))
+        {
+            asked.insert(question.number);
+        }
+    }
     printf("  %s: %u questions, %u slices, %u identities\n", path.c_str(), (unsigned int)questions.size(), slices,
            (unsigned int)identities.size());
     if (!chains_write(questions, folder))

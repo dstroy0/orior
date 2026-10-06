@@ -248,6 +248,21 @@ MULTIPLY_ADD = [
 ]
 
 
+# tasks of growing register pressure, each its count of values held at once and its rounds over them
+PRESSURE = [(8, 8), (16, 8), (32, 8), (48, 8), (64, 8), (96, 8), (128, 8), (160, 8), (192, 8), (224, 8)]
+
+
+def pressure_text(values, rounds):
+    """`values` ints held at once over int a and int b: each a plus its own number, then every round each times the
+    next plus b, every value live through every round, and r every value taken together one statement a value"""
+    names = ["v" + str(at) for at in range(values)]
+    text = [f"int {name} = a + {at + 1};" for at, name in enumerate(names)]
+    for _ in range(rounds):
+        text += [f"{name} = ({name} * {names[(at + 1) % values]}) + b;" for at, name in enumerate(names)]
+    text += ["int r = v0;"] + [f"r = r ^ {name};" for name in names[1:]]
+    return " ".join(text)
+
+
 def read(type_name, at):
     """the operand at in[4 . thread + at] turned to `type_name` as a cast does"""
     return "(" + type_name + ")in[(4u * thread) + " + str(at) + "u]"
@@ -379,6 +394,9 @@ def build():
             stick.expression("test", t + " " + expression, [t, t, I], "bool", expression)
     for text, types, result, expression in MULTIPLY_ADD:
         stick.expression("operator", text, types, result, expression)
+    for values, rounds in PRESSURE:
+        stick.add("pressure", str(values) + " values over " + str(rounds) + " rounds",
+                  stick.operands([I, I]) + " " + pressure_text(values, rounds) + " " + written(I))
     return stick
 
 
