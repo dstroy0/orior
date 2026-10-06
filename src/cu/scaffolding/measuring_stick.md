@@ -7,7 +7,7 @@ Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring
 - operations nvcc writes over the stick: 326, of which sass.krs writes 58
 
 - kernels the engine answers: 452, of which at parity with nvcc: 204; kernels that put a question: 564
-- the engine's instructions: 18179 in its lanes' text, 18179 read back by nvdisasm, 18179 of them the operation the text wrote
+- the engine's instructions: 18177 in its lanes' text, 18177 read back by nvdisasm, 18177 of them the operation the text wrote
 
 ## The engine against nvcc
 
@@ -343,7 +343,7 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0419 | `(int)(unsigned long long)` | 14 | 16 | 16 |  |  |
 | 0420 | `(unsigned int)(unsigned long long)` | 14 | 16 | 16 |  |  |
 | 0421 | `(long long)(unsigned long long)` | 13 | 15 | 15 |  |  |
-| 0444 | `c ? a : b over bool` | 24 | 27 | 29 | IMAD.MOV.U32 2, LOP3.LUT 1 | ISETP.NE.AND 1, MOV 2, SEL 2 |
+| 0444 | `c ? a : b over bool` | 22 | 27 | 27 | IMAD.MOV.U32 2, LOP3.LUT 1 | MOV 2, SEL 1 |
 | 0445 | `c ? a : b over signed char` | 21 | 22 | 22 | IMAD.MOV.U32 1, LDG.E.U16 2 | LDG.E.S8 2, SEL 1 |
 | 0446 | `c ? a : b over unsigned char` | 21 | 21 | 22 | LDG.E 2 | LDG.E.U8 2, SEL 1 |
 | 0447 | `c ? a : b over short` | 21 | 22 | 22 | IMAD.MOV.U32 1, LDG.E.U16 2 | LDG.E.S16 2, SEL 1 |

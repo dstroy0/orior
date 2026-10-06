@@ -327,7 +327,9 @@ struct StickParameter
 // An expression written out with every conversion C makes in it, the place in s_types of the type it gives, and 1
 // where its value is never negative, a number or a flag's select of 1 and 0, so that widening it signed or unsigned
 // gives one value. Where `low_bits` is not 0, `low` is a text whose low `low_bits` bits are the value's own and which
-// leaves out conversions those bits do not need: a narrowing reads no more of its operand than that
+// leaves out conversions those bits do not need: a narrowing reads no more of its operand than that. `zero_one` is 1
+// where the value is a word that holds 0 or 1 alone. A flag tested off such a word keeps it in `word`, of type
+// `word_type`: the flag read back as a word is that word, [select(p, 1, 0) != 0] = p
 struct StickTyped
 {
     std::string text;
@@ -335,6 +337,9 @@ struct StickTyped
     int nonnegative = 0;
     std::string low;
     unsigned int low_bits = 0u;
+    int zero_one = 0;
+    std::string word;
+    int word_type = -1;
 };
 
 // what a round asks of nvcc's listing about one kernel: each form that moved a word of the constant bank, and the
@@ -981,10 +986,14 @@ class StickKernel
         }
     }
 
-    // `name`, a bool, held as the flag `flag` reads as, read where the name is read
+    // `name`, a bool, held as the flag `flag` reads as, read where the name is read, with the word of 0 and 1 it is
+    // tested off where it is one
     void hold_flag(const std::string &name, const StickTyped &flag)
     {
-        flags[name] = StickTyped{"(" + flag.text + ")", flag.type};
+        StickTyped held{"(" + flag.text + ")", flag.type};
+        held.word = flag.word;
+        held.word_type = flag.word_type;
+        flags[name] = held;
     }
 
     // `name` read as `value`, written where the name is read and only as much of it as is read there
@@ -1020,13 +1029,23 @@ class StickKernel
         const int flag = stick_type_bare("bool");
         if (to == flag)
         {
-            return combined(value, "!=", StickTyped{number_text(0u), stick_type_bare("int"), 1});
+            StickTyped tested = combined(value, "!=", StickTyped{number_text(0u), stick_type_bare("int"), 1});
+            tested.word = (value.zero_one != 0) ? value.text : std::string();
+            tested.word_type = (value.zero_one != 0) ? value.type : -1;
+            return tested;
+        }
+        if ((value.type == flag) && !value.word.empty())
+        {
+            StickTyped word{value.word, value.word_type, 1};
+            word.zero_one = 1;
+            return converted(word, to);
         }
         if (value.type == flag)
         {
-            return converted(StickTyped{"((" + value.text + ")?" + number_text(1u) + ":" + number_text(0u) + ")",
-                                        stick_type_bare("unsignedint"), 1},
-                             to);
+            StickTyped selected{"((" + value.text + ")?" + number_text(1u) + ":" + number_text(0u) + ")",
+                                stick_type_bare("unsignedint"), 1};
+            selected.zero_one = 1;
+            return converted(selected, to);
         }
         const unsigned int from_bits = s_types[value.type].bits;
         const unsigned int to_bits = s_types[to].bits;
@@ -1039,6 +1058,7 @@ class StickKernel
             StickTyped narrowed{stick_cast(to) + low, to, (s_types[to].is_signed == 0) ? 1 : 0};
             narrowed.low = low;
             narrowed.low_bits = to_bits;
+            narrowed.zero_one = value.zero_one;
             return narrowed;
         }
         if (stick_held_bits(from_bits) == stick_held_bits(to_bits))
@@ -1046,15 +1066,20 @@ class StickKernel
             StickTyped same{value.text, to, value.nonnegative};
             same.low = value.low;
             same.low_bits = value.low_bits;
+            same.zero_one = value.zero_one;
             return same;
         }
         if (to_bits > from_bits)
         {
             const int sign = (s_types[value.type].is_signed != 0) && (value.nonnegative == 0);
-            return StickTyped{((sign != 0) ? "(unsignedlonglong)(longlong)(int)" : "(unsignedlonglong)") + value.text,
-                              to, value.nonnegative};
+            StickTyped widened{((sign != 0) ? "(unsignedlonglong)(longlong)(int)" : "(unsignedlonglong)") + value.text,
+                               to, value.nonnegative};
+            widened.zero_one = value.zero_one;
+            return widened;
         }
-        return StickTyped{stick_cast(to) + value.text, to};
+        StickTyped cut{stick_cast(to) + value.text, to};
+        cut.zero_one = value.zero_one;
+        return cut;
     }
 
     // 1 where `name` is held
@@ -1527,7 +1552,10 @@ class StickKernel
         {
             return StickTyped{"", -1};
         }
-        return StickTyped{"((" + flag.text + ")?" + left.text + ":" + right.text + ")", common};
+        // a select between two words of 0 and 1 holds 0 or 1
+        StickTyped selected{"((" + flag.text + ")?" + left.text + ":" + right.text + ")", common};
+        selected.zero_one = (left.zero_one != 0) && (right.zero_one != 0);
+        return selected;
     }
 
     // the binary operators that bind at `lowest` or tighter, each left to right over what binds tighter still
@@ -1788,7 +1816,9 @@ class StickKernel
         const int type = (wide != 0) ? stick_type_bare((unsigned_one != 0) ? "unsignedlonglong" : "longlong")
                          : ((unsigned_one != 0) || (number > 0x7FFFFFFFull)) ? stick_type_bare("unsignedint")
                                                                              : stick_type_bare("int");
-        return StickTyped{number_text((unsigned int)number), type, 1};
+        StickTyped written{number_text((unsigned int)number), type, 1};
+        written.zero_one = (number <= 1ull);
+        return written;
     }
     // each wide that is the pair a word begins, by the wide's name, and the words so held
     std::map<std::string, std::string> ties;

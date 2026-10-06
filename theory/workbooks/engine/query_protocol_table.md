@@ -408,3 +408,13 @@ Each pool is learned as L* learns a language (P11): an ask a case, and K_c in pl
 | all | 1016 | 452 | 441 | 441 |
 
 Every bound of P11 is a row of this table. A category with no answerer, the floating ones and the intrinsics, holds nothing. built-in is written and not held: the host computes no built-in. None is apart. Every question held answers without error, and every other question stays gray.
+
+**A floating category's answerer.** The host gives a floating question no single answer, only what exact arithmetic gives. For two operands of width w, the exact value v of the operation is computed on exact numbers, and its two neighbors of width w bracket it, down(k) ≤ v ≤ up(k). The ask is a relation over the bracket:
+
+  `f(k) ∈ {down(k), up(k)} ?`
+
+- A part's answer outside the bracket is apart, a wrong operation on every part.
+- Inside it, which end the part takes is the part's own rule. Read across the cases, the ends it takes give its rounding, to the nearer with ties to even or toward 0, and no rounding is written by hand.
+- A v the bracket holds exactly, down(k) = up(k), is a case with one answer and gates as an integer case does.
+- The exact double is a mantissa and an exponent, m · 2^e, each lane its own exponent. Its sum, difference and product are exact, and its cut to width w keeps both ends (`edouble_record`, `src/cu/types/integerfloats/edouble`).
+- **Theory.** The floating categories hold nothing until the stick's floating questions are put this way.
