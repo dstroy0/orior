@@ -66,7 +66,7 @@ done
 c++ -o "$BINARY" "${OBJECTS[@]}" -static
 [ -f "$BINARY" ] || { echo "  build failed: klq_identity did not link"; exit 1; }
 
-if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
+if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" = "alike" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
     [ -f "$WORK/host_answers.txt" ] || { echo "  no host answers: run utils/maint/engine/klq_identity.sh first"; exit 1; }
     CARRIER="$OUT/cubin_run"
     cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \

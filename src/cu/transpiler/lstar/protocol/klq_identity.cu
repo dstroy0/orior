@@ -1978,6 +1978,97 @@ static void stall_cases(RunQuestion *question, std::vector<unsigned int> *places
     }
 }
 
+// a 64-bit FNV-1a hash of `size` bytes at `bytes`, carried on from `hash`
+static unsigned long long record_hash(const void *bytes, size_t size, unsigned long long hash)
+{
+    const unsigned char *const at = (const unsigned char *)bytes;
+    for (size_t place = 0u; place < size; place += 1u)
+    {
+        hash = (hash ^ at[place]) * 0x100000001b3ull;
+    }
+    return hash;
+}
+
+// The record of the run channel's asks, the part's .ksc rows
+//
+//     run <answer> <word> ask <code> <registers> <threads> <blocks> <cases> <host> [<refusal>]
+//
+// each ask by the hashes of its code, of its cases and of the host's answers to them, and the registers and the shape
+// it is put with, which together fix what it comes to. The word is the host's place of the first case apart, or
+// ffffffff where every case is alike, and 0 where the part refused it or left nothing. An ask the record holds is not
+// put again. A timed ask is put every time, each time a sample of its own, and an ask the gate holds is the host's
+// and recorded nowhere. The record is read when a mode opens the run channel and written back when it ends
+struct AskRecorded
+{
+    std::string answer;
+    unsigned int word;
+    std::string refusal;
+};
+static std::map<std::string, AskRecorded> s_record;
+static std::string s_record_ksc;
+static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows);
+
+// the record written back to the .ksc it was read from, every ask a row in the order of its keys
+static void record_close(void)
+{
+    if (s_record_ksc.empty())
+    {
+        return;
+    }
+    std::vector<std::string> rows;
+    for (const auto &recorded : s_record)
+    {
+        char word[16];
+        snprintf(word, sizeof(word), "%08x", recorded.second.word);
+        rows.push_back("run " + recorded.second.answer + " " + word + " ask " + recorded.first +
+                       (recorded.second.refusal.empty() ? "" : (" " + recorded.second.refusal)));
+    }
+    if (!ksc_answers_write(s_record_ksc.c_str(), "ask", rows))
+    {
+        printf("  the record could not be written to %s\n", s_record_ksc.c_str());
+    }
+    s_record_ksc.clear();
+}
+
+// the record read from `ksc`, written back to it when the program ends
+static void record_open(const char *ksc)
+{
+    s_record.clear();
+    s_record_ksc = ksc;
+    std::ifstream in(ksc, std::ios::binary);
+    std::string line;
+    while (std::getline(in, line))
+    {
+        line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+        std::stringstream words(line);
+        std::string channel;
+        std::string answer;
+        std::string word;
+        std::string asked;
+        words >> channel >> answer >> word >> asked;
+        if ((channel != "run") || (asked != "ask"))
+        {
+            continue;
+        }
+        std::string key;
+        std::string part;
+        for (unsigned int at = 0u; (at < 6u) && (words >> part); at += 1u)
+        {
+            key += ((at == 0u) ? "" : " ") + part;
+        }
+        std::string refusal;
+        std::getline(words, refusal);
+        refusal = (!refusal.empty() && (refusal[0] == ' ')) ? refusal.substr(1u) : refusal;
+        s_record[key] = AskRecorded{answer, (unsigned int)std::stoul(word, nullptr, 16), refusal};
+    }
+    static int s_registered = 0;
+    if (s_registered == 0)
+    {
+        atexit(record_close);
+        s_registered = 1;
+    }
+}
+
 // The trace of every ask, where KLQ_TRACE names a file: the ask's number, the code's size, the registers, the shape
 // and the launches it is put with and its count of cases, then what came back: alike, apart with the first case
 // apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
@@ -1997,6 +2088,33 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
     question->code = code.data();
     question->code_size = code.size();
     *asks += 1ull;
+    // the ask's key in the record, and what the record holds of it
+    unsigned long long hosted = 0xcbf29ce484222325ull;
+    for (unsigned int place = 0u; place < question->cases; place += 1u)
+    {
+        hosted = record_hash(host[places[place]].c_str(), host[places[place]].size() + 1u, hosted);
+    }
+    char keyed[160];
+    snprintf(keyed, sizeof(keyed), "%016llx %u %u %u %016llx %016llx",
+             record_hash(code.data(), code.size(), 0xcbf29ce484222325ull), question->registers, question->threads,
+             question->blocks, record_hash(question->word, sizeof(question->word[0]) * question->cases, 0xcbf29ce484222325ull),
+             hosted);
+    const std::string key = keyed;
+    const int recordable = !s_record_ksc.empty() && (question->launches == 0u);
+    const auto recorded = recordable ? s_record.find(key) : s_record.end();
+    if (recorded != s_record.end())
+    {
+        const AskRecorded &held = recorded->second;
+        question->outcome = (held.answer == "answers") ? RUN_ANSWERED : (held.answer == "illegal") ? RUN_ILLEGAL : RUN_NOTHING;
+        snprintf(question->refused, sizeof(question->refused), "%s", held.refusal.c_str());
+        const int alike = (held.answer == "answers") && (held.word == 0xffffffffu);
+        if (s_ask_trace != NULL)
+        {
+            fprintf(s_ask_trace, "ask %llu: recorded %s %08x %s\n", *asks, held.answer.c_str(), held.word, key.c_str());
+            fflush(s_ask_trace);
+        }
+        return alike;
+    }
     if (s_ask_trace != NULL)
     {
         fprintf(s_ask_trace, "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases: ",
@@ -2009,6 +2127,11 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
         {
             fprintf(s_ask_trace, "outcome %u, %s\n", question->outcome, question->refused);
             fflush(s_ask_trace);
+        }
+        if (recordable && ((question->outcome == RUN_ILLEGAL) || (question->outcome == RUN_NOTHING)))
+        {
+            s_record[key] = AskRecorded{(question->outcome == RUN_ILLEGAL) ? "illegal" : "nothing", 0u,
+                                        question->refused};
         }
         return 0;
     }
@@ -2023,8 +2146,16 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
                         expected.c_str(), question->answered[place]);
                 fflush(s_ask_trace);
             }
+            if (recordable)
+            {
+                s_record[key] = AskRecorded{"answers", places[place], ""};
+            }
             return 0;
         }
+    }
+    if (recordable)
+    {
+        s_record[key] = AskRecorded{"answers", 0xffffffffu, ""};
     }
     if (s_ask_trace != NULL)
     {
@@ -2111,9 +2242,9 @@ static unsigned int chain_registers(const char *engine, const std::string &numbe
     return (file >> registers) ? registers : 0u;
 }
 
-// The .ksc rewritten with `rows` in place of every answer of the run channel it held to the question `asked`, the rows
-// put after its last row of the run channel and its count of the run channel's answers taken again. 1, or 0 where the
-// .ksc could not be written
+// The .ksc rewritten with `rows` in place of every row of the run channel it held to the question `asked`, whatever
+// came back, the rows put after its last row of the run channel and its counts of the run channel taken again. 1, or
+// 0 where the .ksc could not be written
 static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows)
 {
     std::ifstream in(ksc, std::ios::binary);
@@ -2122,7 +2253,7 @@ static int ksc_answers_write(const char *ksc, const std::string &asked, const st
     while (std::getline(in, line))
     {
         const std::string plain = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
-        if (plain.compare(0u, 12u, "run answers ") == 0)
+        if (plain.compare(0u, 4u, "run ") == 0)
         {
             std::stringstream words(plain);
             std::string channel;
@@ -2144,10 +2275,14 @@ static int ksc_answers_write(const char *ksc, const std::string &asked, const st
         after = (kept[at].compare(0u, 4u, "run ") == 0) ? (at + 1u) : after;
     }
     kept.insert(kept.begin() + (std::ptrdiff_t)after, rows.begin(), rows.end());
-    unsigned int answered = 0u;
+    std::map<std::string, unsigned int> counted;
     for (const std::string &kept_line : kept)
     {
-        answered += (kept_line.compare(0u, 12u, "run answers ") == 0) ? 1u : 0u;
+        std::stringstream words(kept_line);
+        std::string channel;
+        std::string answered;
+        words >> channel >> answered;
+        counted[answered] += (channel == "run") ? 1u : 0u;
     }
     FILE *const out = fopen(ksc, "wb");
     if (out == NULL)
@@ -2156,9 +2291,14 @@ static int ksc_answers_write(const char *ksc, const std::string &asked, const st
     }
     for (const std::string &kept_line : kept)
     {
-        if (kept_line.compare(0u, 22u, "count run      answers") == 0)
+        std::stringstream words(kept_line);
+        std::string count_word;
+        std::string channel;
+        std::string answered;
+        words >> count_word >> channel >> answered;
+        if ((count_word == "count") && (channel == "run"))
         {
-            fprintf(out, "count run      answers  %u\n", answered);
+            fprintf(out, "count run      %-8s %u\n", answered.c_str(), counted[answered]);
             continue;
         }
         fprintf(out, "%s\n", kept_line.c_str());
@@ -2194,6 +2334,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
+    record_open(ksc);
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -2369,6 +2510,7 @@ static int identity_register(const char *engine, const char *answers, const char
     {
         return 1;
     }
+    record_open(ksc);
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -2570,6 +2712,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
+    record_open(ksc);
     FILE *const table = fopen((folder + "/curve.txt").c_str(), "wb");
     if (table == NULL)
     {
@@ -2734,8 +2877,63 @@ static int identity_curve(const char *engine, const char *answers, const char *k
     return 0;
 }
 
+// Every chain of ours the host computes put to the part as the engine writes it, over every case the host computes it
+// on, in a container declaring every register its file holds: alike where the part answers it as the host does on
+// every case, apart where it answers one case otherwise, refused where it will not take it, and held where the gate
+// keeps it off the part. <folder>/alike.txt holds each chain with what it came to
+static int identity_alike(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                          const char *const *carrier)
+{
+    std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
+    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    {
+        return 1;
+    }
+    record_open(ksc);
+    FILE *const table = fopen((folder + "/alike.txt").c_str(), "wb");
+    if (table == NULL)
+    {
+        printf("klq_identity alike: %s/alike.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
+    static RunQuestion s_question;
+    std::vector<unsigned int> places;
+    stall_cases(&s_question, &places);
+    unsigned long long asks = 0ull;
+    std::map<std::string, unsigned int> came;
+    for (const auto &held : host)
+    {
+        std::vector<unsigned char> code;
+        std::vector<Link> links;
+        if (!chain_code_read(engine, held.first, &code, &links))
+        {
+            continue;
+        }
+        const int alike = stall_alike(code, held.second, places, &s_question, &asks);
+        const std::string verdict = alike ? "alike"
+                                    : (s_question.outcome == RUN_ANSWERED) ? "apart"
+                                    : (s_question.outcome == RUN_HELD)     ? "held"
+                                                                           : "refused";
+        came[verdict] += 1u;
+        fprintf(table, "%s %s%s%s\n", held.first.c_str(), verdict.c_str(), alike ? "" : " ",
+                alike ? "" : s_question.refused);
+    }
+    fclose(table);
+    run_channel_close();
+    printf("klq_identity alike: %llu asks, %u alike, %u apart, %u refused, %u held\n", asks, came["alike"],
+           came["apart"], came["refused"], came["held"]);
+    return (came["apart"] == 0u) ? 0 : 1;
+}
+
 int main(int count, char **words)
 {
+    if ((count >= 8) && (std::string(words[1]) == "alike") && (std::string(words[6]) == "--"))
+    {
+        std::vector<const char *> carrier(words + 7, words + count);
+        carrier.push_back(NULL);
+        return identity_alike(words[2], words[3], words[4], words[5], carrier.data());
+    }
     // the carrier's words follow a lone --
     if ((count >= 8) && (std::string(words[1]) == "stall") && (std::string(words[6]) == "--"))
     {
@@ -2801,6 +2999,7 @@ int main(int count, char **words)
     printf("klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
     printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
+    printf("klq_identity alike <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");
     return 1;
 }

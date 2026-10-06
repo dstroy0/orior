@@ -427,7 +427,7 @@ Every set below is open. No set is known whole (P10), and an entry added is aske
 - **The cases.** K_c for each category, grown by the descent (Collapse 4).
 - **The identities.** I, relations between texts. Each is witnessed by the text, and both its sides are held to each other on the part over K (P10).
 - **The compositions.** Chains of forms, a category whose cases are its links' cases (Q19).
-- **The record.** R, every ask with its answer, the part and the size it was read on (Q9, Q10). An ask R holds is not put again.
+- **The record.** R, every ask with its answer, the part and the size it was read on (Q9, Q10). An ask R holds is not put again. Its rows sit in the part's `.ksc` (`ksc.oracle.tsv`), each keyed by the hashes of its code, its cases and the host's answers to them, and the registers and shape it is put with. Its word is the host's place of the first case apart, `ffffffff` where every case is alike. A timed ask is a sample of its own and put every time, and an ask the gate holds never reaches the part and has no row.
 
 | answerer | relation | read by |
 |---|---|---|
@@ -463,4 +463,5 @@ The last row is the stick's memory, atomic, warp and sync questions, 72 of them.
 
 A process runs again only where an entry it reads has changed. A new category, case or identity is one more pool on the queue.
 
-- **Theory.** No set past the categories and R's start, `KLQ_TRACE`, is built.
+- **Measured**, R (`bash utils/maint/engine/klq_identity.sh alike`, every chain the engine writes and the host computes put over all 648 cases): 441 chains, 441 alike, 0 apart, held in 282 rows of `sm_86.ksc`, a row for each distinct ask. Put again, all 441 asks are read from R and none reaches the part. The register walk's 29 asks that reach the part are read from R the same way.
+- **Theory.** The brackets, the one walk, I, K_c and the scheduler.
