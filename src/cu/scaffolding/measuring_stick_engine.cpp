@@ -828,6 +828,8 @@ class StickKernel
     std::string question;
     unsigned int forms;
     StickAsked asked;
+    // the count of registers the kernel names, its high water mark once assign() has given them
+    unsigned int registers_held = 0u;
 
     // `expression` read and written into a register, its value; empty where it is not read, `question` then saying why
     StickValue value(const std::string &expression)
@@ -1119,13 +1121,44 @@ class StickKernel
         {
             given[tie.first] = given[tie.second];
         }
-        // the high water mark is the count of registers the kernel holds, which may not reach the ruleset's fixed ones
-        // past the registers the system's file holds for a kernel's own
-        const unsigned int holds = sass_target().register_file_holds();
-        if ((holds != 0u) && (high_water > holds))
+        // A register a form names by its own number past the high water mark is the form's own, and is moved to just
+        // past the mark, the second register of a pair and the pair it begins kept even, the mark rising over it: the
+        // kernel's registers lie next to each other, and it declares the mark. A number the text names before the
+        // kernel's names are given is a form's, since every register of the kernel's own is named by %r or %w
+        const std::regex pinned("\\bR([0-9]+)(\\.hi)?\\b");
+        std::map<unsigned int, int> pinned_pairs;
+        for (std::sregex_iterator found(text.begin(), text.end(), pinned), end; found != end; ++found)
         {
-            ask("a kernel of more registers at once than the file holds: " + std::to_string(high_water) + " past " +
-                std::to_string(holds));
+            const unsigned int number = (unsigned int)std::stoul((*found)[1].str());
+            if (number >= high_water)
+            {
+                pinned_pairs[number] = pinned_pairs[number] || (*found)[2].matched;
+            }
+        }
+        std::map<unsigned int, unsigned int> moved_to;
+        for (const auto &pin : pinned_pairs)
+        {
+            high_water += ((pin.second != 0) && ((high_water % 2u) != 0u)) ? 1u : 0u;
+            moved_to[pin.first] = high_water;
+            high_water += (pin.second != 0) ? 2u : 1u;
+        }
+        std::string moved_text;
+        size_t moved_last = 0u;
+        for (std::sregex_iterator found(text.begin(), text.end(), pinned), end; found != end; ++found)
+        {
+            const unsigned int number = (unsigned int)std::stoul((*found)[1].str());
+            moved_text += text.substr(moved_last, (size_t)found->position() - moved_last);
+            moved_text += (moved_to.count(number) != 0u) ? ("R" + std::to_string(moved_to[number]) + (*found)[2].str())
+                                                         : found->str();
+            moved_last = (size_t)found->position() + found->str().size();
+        }
+        text = moved_text + text.substr(moved_last);
+        registers_held = high_water;
+        // the mark may not pass the last register the part answers a kernel's code can name
+        if ((machine->register_last != SASS_MACHINE_UNANSWERED) && (high_water > (machine->register_last + 1u)))
+        {
+            ask("a kernel of more registers at once than the part gives code: " + std::to_string(high_water) +
+                " past " + std::to_string(machine->register_last + 1u));
         }
         std::string written;
         size_t last = 0u;
@@ -2674,6 +2707,7 @@ int main(int argc, char **argv)
         }
         std::ofstream(out + "/" + source.number + ".bin", std::ios::binary)
             .write((const char *)code.data(), (std::streamsize)code.size());
+        std::ofstream(out + "/" + source.number + ".registers", std::ios::binary) << kernel.registers_held << "\n";
         fprintf(table, "%s\tanswered\t%u\t%u\t\n", source.number.c_str(), kernel.forms, count);
         answered += 1u;
     }

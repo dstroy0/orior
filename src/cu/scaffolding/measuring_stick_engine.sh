@@ -62,7 +62,7 @@ c++ -o "$OUT/measuring_stick_engine" "${OBJECTS[@]}" -static -lpthread || exit 1
 # folds it finds into sass.ksc beside sass.krs; nvdisasm reads each kernel's encodings back as the part's own
 # disassembler reads them. The assembler's refusals of the readings it gates go to assembler.log
 cd "$TOP" || exit 1
-rm -f "$OUT"/*.sass "$OUT"/*.bin "$OUT"/*.dis
+rm -f "$OUT"/*.sass "$OUT"/*.bin "$OUT"/*.dis "$OUT"/*.registers
 STICK="$(cygpath -m "${BUILD_OUT:-$TOP/build/measuring_stick}")"
 "$OUT/measuring_stick_engine" "$STICK/measuring_stick.cu" "$STICK/measuring_stick_nvcc.sass" "$(cygpath -m "$OUT")" \
     > "$OUT/assembler.log" || exit 1
