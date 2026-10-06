@@ -70,6 +70,41 @@ extern "C"
     void edouble_record_floor_ceiling(ExactRecordProgram *program, unsigned int n, unsigned int d, unsigned int *floor,
                                       unsigned int *ceiling);
 
+    // ---- held values: every value between down 2^e and up 2^e, down <= up ----
+
+    // an exact value, both ends its mantissa
+    EdoubleRecordHeld edouble_record_held_of(EdoubleRecord value);
+
+    EdoubleRecordHeld edouble_record_held_negate(ExactRecordProgram *program, EdoubleRecordHeld value);
+
+    // the ends' sums, exact, for exponents known to differ by less than 2^spread_bits
+    EdoubleRecordHeld edouble_record_held_sum(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
+                                              unsigned int spread_bits);
+
+    EdoubleRecordHeld edouble_record_held_difference(ExactRecordProgram *program, EdoubleRecordHeld a,
+                                                     EdoubleRecordHeld b, unsigned int spread_bits);
+
+    // the least and the most of the four corner products, exact, whatever the signs
+    EdoubleRecordHeld edouble_record_held_product(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b);
+
+    // both ends cut by one shift, the larger end's: the lower end's floor and the upper end's ceiling below 2^width in
+    // size, for both ends known below 2^(width + 2^range_bits - 1); each end's register given width + 2 bits
+    EdoubleRecordHeld edouble_record_held_cut(ExactRecordProgram *program, EdoubleRecordHeld value, unsigned int width,
+                                              unsigned int range_bits);
+
+    // a / b for b holding no 0 and both of b's ends below 2^divisor_bits: the least floor and the most ceiling of the
+    // four corners m_a 2^s / m_b, s = width + divisor_bits, at e_a - e_b - s
+    EdoubleRecordHeld edouble_record_held_quotient(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
+                                                   unsigned int width, unsigned int divisor_bits);
+
+    // 1 where every value a holds lies above every value b holds: a's lower end above b's upper, exact
+    unsigned int edouble_record_held_above(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
+                                           unsigned int spread_bits);
+
+    // value 2^power for a constant power, exact: the exponent moved
+    EdoubleRecordHeld edouble_record_held_times_two_to(ExactRecordProgram *program, EdoubleRecordHeld value,
+                                                       long long power);
+
 #ifdef __cplusplus
 }
 #endif

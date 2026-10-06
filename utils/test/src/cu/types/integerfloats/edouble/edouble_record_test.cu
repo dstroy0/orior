@@ -7,6 +7,11 @@
 // - the cut of a b to 8 bits: its ends below and above a b, one unit apart or equal where a b is whole there, each at
 //   most 2^8;
 // - a / b to 10 bits past b: its ends below and above a / b, one unit apart or equal where the quotient is whole.
+// A second program holds a = [m_a, m_a + d_a] 2^e_a and b likewise, b holding no 0:
+// - the held sum's ends the exact sums, and the held product's the least and the most corner;
+// - the held cut the lower end's floor and the upper end's ceiling, each at most 2^8;
+// - every corner quotient inside the held quotient, each end within one unit of one;
+// - held above, a's lower end over b's upper.
 // The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
@@ -25,7 +30,8 @@
 
 #define EDOUBLE_TEST_LANES 4096u
 
-#define EDOUBLE_TEST_OUTPUTS 11u
+// the most outputs a program here gives
+#define EDOUBLE_TEST_OUTPUTS 13u
 
 // every exponent here, the quotient's included, lies above -64: a value times 2^64 is an integer
 #define EDOUBLE_TEST_LIFT 64u
@@ -187,6 +193,26 @@ static int edouble_run(EdoubleResults *results, ExactRecordProgram *program, con
         scriptura_decimal(&results->line, (unsigned long long)error.module, 1u);
         scriptura_text(&results->line, ", site ");
         scriptura_decimal(&results->line, (unsigned long long)error.site, 1u);
+        const char *const at = (const char *)error.evacaddr;
+        const char *const first_step = (const char *)program->steps;
+        const char *const first_output = (const char *)outputs;
+        if ((at >= first_step) && (at < first_step + ((size_t)program->count * sizeof(EngineRecordStep))))
+        {
+            const unsigned int step = (unsigned int)((size_t)(at - first_step) / sizeof(EngineRecordStep));
+            scriptura_text(&results->line, ", step ");
+            scriptura_decimal(&results->line, (unsigned long long)step, 1u);
+            scriptura_text(&results->line, " operation ");
+            scriptura_decimal(&results->line, (unsigned long long)program->steps[step].operation, 1u);
+            scriptura_text(&results->line, " left ");
+            scriptura_decimal(&results->line, (unsigned long long)program->steps[step].left, 1u);
+            scriptura_text(&results->line, " right ");
+            scriptura_decimal(&results->line, (unsigned long long)program->steps[step].right, 1u);
+        }
+        else if ((at >= first_output) && (at < first_output + ((size_t)output_count * sizeof(unsigned int))))
+        {
+            scriptura_text(&results->line, ", output ");
+            scriptura_decimal(&results->line, (unsigned long long)((size_t)(at - first_output) / sizeof(unsigned int)), 1u);
+        }
         scriptura_character(&results->line, '\n');
         return 0;
     }
@@ -246,6 +272,175 @@ static int edouble_order(const AnchorExactInteger *left, const AnchorExactIntege
     return anchor_exact_compare(left, right);
 }
 
+// S(m, e) S(n, f) against S(o, g) 2^64: the order of (m 2^e)(n 2^f) and o 2^g
+static int edouble_order_product(const AnchorExactInteger *m, long long e, const AnchorExactInteger *n, long long f,
+                                 const AnchorExactInteger *o, long long g, int *order)
+{
+    AnchorExactInteger left_one;
+    AnchorExactInteger left_two;
+    AnchorExactInteger left;
+    AnchorExactInteger right_one;
+    AnchorExactInteger right;
+    const int ok = edouble_lifted(m, e, &left_one) && edouble_lifted(n, f, &left_two) &&
+                   (anchor_exact_multiply(&left_one, &left_two, &left) == ANCHOR_EXACT_OK) &&
+                   edouble_lifted(o, g, &right_one) && edouble_lifted(&right_one, 0ll, &right);
+    *order = ok ? anchor_exact_compare(&left, &right) : 0;
+    return ok;
+}
+
+// held values: a = [m_a, m_a + d_a] 2^e_a and b likewise, m signed 10 bits, d 3 bits and e signed 3 bits, b holding
+// no 0; their held sum, product, cut, quotient and order
+static void edouble_held_case(EdoubleResults *results)
+{
+    ExactRecordProgram program;
+    exact_record_open(&program);
+    EdoubleRecordHeld held[2];
+    for (unsigned int side = 0u; side < 2u; side += 1u)
+    {
+        const unsigned int m = exact_record_read(&program, exact_record_field(&program, 10u), 0u);
+        const unsigned int d = exact_record_read_unsigned(&program, exact_record_field(&program, 3u), 0u);
+        const unsigned int e = exact_record_read(&program, exact_record_field(&program, 3u), 0u);
+        held[side].down = m;
+        held[side].up = exact_record_sum(&program, m, d);
+        held[side].exponent = e;
+    }
+    const EdoubleRecordHeld sum = edouble_record_held_sum(&program, held[0], held[1], 3u);
+    const EdoubleRecordHeld product = edouble_record_held_product(&program, held[0], held[1]);
+    const EdoubleRecordHeld cut = edouble_record_held_cut(&program, product, 8u, 5u);
+    const EdoubleRecordHeld quotient = edouble_record_held_quotient(&program, held[0], held[1], 10u, 11u);
+    const unsigned int outputs[13] = {sum.down,      sum.up,        sum.exponent, product.down,  product.up,
+                                      product.exponent, cut.down,   cut.up,       cut.exponent,  quotient.down,
+                                      quotient.up,   quotient.exponent, edouble_record_held_above(&program, held[0], held[1], 3u)};
+    for (unsigned int lane = 0u; lane < EDOUBLE_TEST_LANES; lane += 1u)
+    {
+        unsigned int atom = edouble_random();
+        const long long mb = edouble_field(atom, 16u, 10u);
+        const long long db = (long long)((atom >> 26u) & 7u);
+        // b holding 0 is moved to [1, 1 + d]
+        if ((mb <= 0) && ((mb + db) >= 0))
+        {
+            atom = (atom & ~(0x3FFu << 16u)) | (1u << 16u);
+        }
+        s_atoms[lane] = atom;
+    }
+    const int same = edouble_run(results, &program, outputs, 13u);
+    edouble_check(results, same, "held: one program, device = host word for word over 4096 lanes");
+    unsigned int sums = 0u;
+    unsigned int products = 0u;
+    unsigned int cuts = 0u;
+    unsigned int quotients = 0u;
+    unsigned int ordered = 0u;
+    for (unsigned int lane = 0u; (same != 0) && (lane < EDOUBLE_TEST_LANES); lane += 1u)
+    {
+        const AnchorExactInteger *const read = &s_read[(size_t)lane * 13u];
+        long long m[2];
+        long long top[2];
+        long long e[2];
+        for (unsigned int side = 0u; side < 2u; side += 1u)
+        {
+            m[side] = edouble_field(s_atoms[lane], 16u * side, 10u);
+            top[side] = m[side] + (long long)((s_atoms[lane] >> ((16u * side) + 10u)) & 7u);
+            e[side] = edouble_field(s_atoms[lane], (16u * side) + 13u, 3u);
+        }
+        AnchorExactInteger small;
+        AnchorExactInteger lifted[2][2];
+        int ok = 1;
+        for (unsigned int side = 0u; side < 2u; side += 1u)
+        {
+            edouble_small(&small, m[side]);
+            ok = ok && edouble_lifted(&small, e[side], &lifted[side][0]);
+            edouble_small(&small, top[side]);
+            ok = ok && edouble_lifted(&small, e[side], &lifted[side][1]);
+        }
+        // the sum's ends, exact
+        {
+            AnchorExactInteger want;
+            AnchorExactInteger got;
+            int held_sum = ok;
+            for (unsigned int end = 0u; end < 2u; end += 1u)
+            {
+                held_sum = held_sum && (anchor_exact_add(&lifted[0][end], &lifted[1][end], &want) == ANCHOR_EXACT_OK) &&
+                           edouble_lifted(&read[end], edouble_word(&read[2]), &got) && anchor_exact_equal(&want, &got);
+            }
+            sums += (unsigned int)held_sum;
+        }
+        // the product's ends: the least and the most corner, exact
+        long long corner_least = 0;
+        long long corner_most = 0;
+        for (unsigned int corner = 0u; corner < 4u; corner += 1u)
+        {
+            const long long value = ((corner / 2u) ? top[0] : m[0]) * ((corner % 2u) ? top[1] : m[1]);
+            corner_least = (corner == 0u) ? value : ((value < corner_least) ? value : corner_least);
+            corner_most = (corner == 0u) ? value : ((value > corner_most) ? value : corner_most);
+        }
+        const long long product_at = edouble_word(&read[5]);
+        products += (unsigned int)(ok && (product_at == (e[0] + e[1])) && (edouble_word(&read[3]) == corner_least) &&
+                                   (edouble_word(&read[4]) == corner_most));
+        // the cut: the floor of the product's lower end and the ceiling of its upper at 2^k, each at most 2^8
+        {
+            const long long k = edouble_word(&read[8]) - product_at;
+            const long long down = edouble_word(&read[6]);
+            const long long up = edouble_word(&read[7]);
+            const long long unit = (k >= 0 && k < 62) ? (1ll << k) : 0;
+            int held_cut = ok && (unit != 0);
+            held_cut = held_cut && (down * unit <= corner_least) && (corner_least < (down + 1) * unit);
+            held_cut = held_cut && ((up - 1) * unit < corner_most) && (corner_most <= up * unit);
+            held_cut = held_cut && (down >= -256) && (up <= 256);
+            cuts += (unsigned int)held_cut;
+        }
+        // the quotient: every corner a_i / b_j inside it, and its ends one unit in from them fall outside one corner
+        {
+            const long long at = edouble_word(&read[11]);
+            AnchorExactInteger ends[2];
+            AnchorExactInteger moved[2];
+            AnchorExactInteger one;
+            edouble_small(&one, 1);
+            int held_quotient = ok && (anchor_exact_add(&read[9], &one, &moved[0]) == ANCHOR_EXACT_OK) &&
+                                (anchor_exact_subtract(&read[10], &one, &moved[1]) == ANCHOR_EXACT_OK);
+            ends[0] = read[9];
+            ends[1] = read[10];
+            int down_tight = 0;
+            int up_tight = 0;
+            for (unsigned int corner = 0u; held_quotient && (corner < 4u); corner += 1u)
+            {
+                AnchorExactInteger numerator;
+                AnchorExactInteger divisor;
+                edouble_small(&numerator, (corner / 2u) ? top[0] : m[0]);
+                edouble_small(&divisor, (corner % 2u) ? top[1] : m[1]);
+                const int positive = (divisor.sign > 0);
+                int low = 0;
+                int high = 0;
+                int low_moved = 0;
+                int high_moved = 0;
+                held_quotient = held_quotient &&
+                                edouble_order_product(&ends[0], at, &divisor, e[1], &numerator, e[0], &low) &&
+                                edouble_order_product(&ends[1], at, &divisor, e[1], &numerator, e[0], &high) &&
+                                edouble_order_product(&moved[0], at, &divisor, e[1], &numerator, e[0], &low_moved) &&
+                                edouble_order_product(&moved[1], at, &divisor, e[1], &numerator, e[0], &high_moved);
+                // with b's corner above 0, down b <= a <= up b; below 0 the order turns
+                held_quotient = held_quotient && (positive ? ((low <= 0) && (high >= 0)) : ((low >= 0) && (high <= 0)));
+                down_tight = down_tight || (positive ? (low_moved > 0) : (low_moved < 0));
+                up_tight = up_tight || (positive ? (high_moved < 0) : (high_moved > 0));
+            }
+            quotients += (unsigned int)(held_quotient && down_tight && up_tight);
+        }
+        // a above b: a's lower end above b's upper
+        {
+            const int above = anchor_exact_compare(&lifted[0][0], &lifted[1][1]) > 0;
+            ordered += (unsigned int)(ok && (edouble_word(&read[12]) == (above ? 1ll : 0ll)));
+        }
+    }
+    edouble_check(results, (same != 0) && (sums == EDOUBLE_TEST_LANES), "held: the sum's ends are the exact sums");
+    edouble_check(results, (same != 0) && (products == EDOUBLE_TEST_LANES),
+                  "held: the product's ends are the least and the most corner, exact");
+    edouble_check(results, (same != 0) && (cuts == EDOUBLE_TEST_LANES),
+                  "held: the cut gives the lower end's floor and the upper end's ceiling, each at most 2^8");
+    edouble_check(results, (same != 0) && (quotients == EDOUBLE_TEST_LANES),
+                  "held: every corner quotient lies inside, and each end is within one unit of one");
+    edouble_check(results, (same != 0) && (ordered == EDOUBLE_TEST_LANES), "held: above is a's lower end over b's upper");
+    exact_record_close(&program);
+}
+
 int main(int count, char **arguments)
 {
     EdoubleResults results;
@@ -277,7 +472,7 @@ int main(int count, char **arguments)
         const EdoubleRecordHeld cut = edouble_record_cut(&program, product, EDOUBLE_TEST_CUT, EDOUBLE_TEST_CUT_RANGE);
         const EdoubleRecordHeld quotient =
             edouble_record_quotient(&program, a, b, EDOUBLE_TEST_QUOTIENT, EDOUBLE_TEST_DIVISOR);
-        const unsigned int outputs[EDOUBLE_TEST_OUTPUTS] = {product.mantissa,
+        const unsigned int outputs[11] = {product.mantissa,
                                                             product.exponent,
                                                             sum.mantissa,
                                                             sum.exponent,
@@ -298,7 +493,7 @@ int main(int count, char **arguments)
             }
             s_atoms[lane] = ((lane % 16u) == 0u) ? ((atom & 0xFFFF0000u) | (atom >> 16u)) : atom;
         }
-        const int same = edouble_run(&results, &program, outputs, EDOUBLE_TEST_OUTPUTS);
+        const int same = edouble_run(&results, &program, outputs, 11u);
         edouble_check(&results, same, "one program, device = host word for word over 4096 lanes");
         unsigned int exact_product = 0u;
         unsigned int exact_sum = 0u;
@@ -307,7 +502,7 @@ int main(int count, char **arguments)
         unsigned int quotient_held = 0u;
         for (unsigned int lane = 0u; (same != 0) && (lane < EDOUBLE_TEST_LANES); lane += 1u)
         {
-            const AnchorExactInteger *const read = &s_read[(size_t)lane * EDOUBLE_TEST_OUTPUTS];
+            const AnchorExactInteger *const read = &s_read[(size_t)lane * 11u];
             const long long ma = edouble_field(s_atoms[lane], 0u, 12u);
             const long long ea = edouble_field(s_atoms[lane], 12u, 4u);
             const long long mb = edouble_field(s_atoms[lane], 16u, 12u);
@@ -379,6 +574,7 @@ int main(int count, char **arguments)
         edouble_check(&results, (same != 0) && (quotient_held == EDOUBLE_TEST_LANES),
                       "a / b to 10 bits past b lies below and above it, one unit apart or equal where whole");
         exact_record_close(&program);
+        edouble_held_case(&results);
     }
     sim_job_release(&job);
     sim_flush(&job);
