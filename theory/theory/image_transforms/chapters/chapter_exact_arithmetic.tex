@@ -55,7 +55,7 @@ small prime keeps this transform clear of that boundary.
 
 Exactness has a stated bound. Each coefficient is a sum of products \(a(v)\, b(v + \ell)\). For binary
 views it counts agreeing positions and is at most the transform length. The transform length divides
-\(p - 1\) and so is below \(p\) for any valid prime, which makes a binary view exact with no separate
+\(p - 1\) and so is below \(p\) for any valid prime, and a binary view is then exact with no separate
 precondition: no residue is ever reduced. Weighting the views can breach \(p\). The bound becomes
 the sum of the weight products, and past \(p\) a single prime counts modulo itself, silently, the same
 fault one level up from a wrong constant. The remedy is a prime above the largest coefficient, or the
@@ -64,7 +64,7 @@ view is embedded on each axis in a period of at least twice its extent less one 
 alias, and the transform is separable, one axis at a time. The construction holds in any number of
 dimensions.
 
-The peak is then an integer, and ties among lags are broken by a rule, not by rounding: the shortest
+The peak is then an integer, and ties among lags are broken by a rule instead of by rounding: the shortest
 lag by a weighted squared length whose weights carry the view's anisotropy, then a fixed index order.
 
 \section{Rotation without angles}
@@ -87,7 +87,7 @@ more than any change to the linker does, wherever the view moves by as much as t
 because in that regime most of every object's apparent step belongs to the view.
 
 \textbf{Second.} A view that orbits its subject leaves a residual after the best translation that is
-structured, not scattered: parallax that varies with depth, or a turn that varies with distance from
+structured instead of scattered: parallax that varies with depth, or a turn that varies with distance from
 an axis. The residual of the translation stage is the measurement that says the next transform is
 needed.
 

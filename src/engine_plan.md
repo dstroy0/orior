@@ -54,7 +54,7 @@ baseline built without marking them reads low. And a baseline taken once goes st
 changes. The reference ask is therefore put alongside the real one and measured in the same conditions, the
 same way the emission order is shuffled to leave nothing to tell measurement from work by.
 
-**What the baseline buys is chain slicing.** A chain carries a cost and one number for a whole chain names no
+**The baseline buys chain slicing.** A chain carries a cost and one number for a whole chain names no
 part of it. Put the unbound ask at many cuts of the chain and the per-link costs come out of the readings
 together, each one measured in the same conditions as the rest. A chain is then a profile and not a total, and
 the expensive link is named instead of inferred.
@@ -250,7 +250,7 @@ no pattern read off source text, no type promotion, no folding by heuristic, no 
 that rewrites what a form wrote. What the transpiler does not know is asked of the part through the query protocol
 and written into the files, and never written into the transpiler as a pass.
 
-**Files separate concerns, not data.** Each file holds one concern, and its stem names the concept or thing:
+**Files separate concerns instead of data.** Each file holds one concern, and its stem names the concept or thing:
 `<target>.krs` is how to write the target; `<part>.krs` is the part's operations, its base operations, its chains
 through a register's limbs and every operation the part has of its own; `<part>.kdm` is the device map, the part's
 registers, widths, loads, stores and pipes; `<target>.ksc` is what the system said, its classes and its folds. No

@@ -155,7 +155,7 @@ def repaired_english(text):
     For a gloss, a translation, a commentary, an acknowledgment, or any line the reader has already
     decided is English. Here a capital at the front of a word is left alone, which repaired_prose
     cannot do: a line that might still hold Paks or Qip needs that capital repaired, and a line
-    already known to be English does not. Knowing which line is which makes the difference, and
+    already known to be English does not. Knowing which line is which decides it, and
     it comes from the reader's own structure. Nothing the token carries decides it.
     """
     out = []
@@ -175,7 +175,7 @@ def repaired_prose(text):
     the language cited inside an English sentence still needs its characters back.
 
     What this does not save is an English word in ordinary case: Pierre and Quilchena are repaired
-    here and come out wrong. That is deliberate. Paks, Pitx, Pums, Qant and Qip are words of the
+    here and come out wrong. Paks, Pitx, Pums, Qant and Qip are words of the
     language in the same shape, and measured against the attested-form oracle a rule that skipped
     the shape lost ten real words to save eighteen English ones. The language wins that trade.
     """

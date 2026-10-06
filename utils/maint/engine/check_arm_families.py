@@ -82,7 +82,7 @@ def main():
     )
 
     # Fails closed. An empty family is a scan that read the wrong directory or a move that took the
-    # arms with it, not a match.
+    # arms with it, and never a match.
     if not scan_sets:
         problems.append(
             "scan family is empty; no scan_<set> file under " + str(SCAN_DIR)

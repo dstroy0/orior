@@ -39,6 +39,7 @@
 import re
 
 from .index import folded
+from .quoting import NAMED_SPAN
 from .scan import runs
 
 # The character, what to call it, and what to write instead. The em dash is absent because
@@ -58,6 +59,12 @@ SUSPECT = (
 # The opening half of the pair. A run holding one is writing a gloss or a quotation, so the closing
 # halves in it are that convention's and not a word processor's.
 PAIRED = "‘"
+
+# A closing single quote standing where English puts an apostrophe: before the tail of a contraction
+# or a possessive (doesn't, Lyon's, they're), or after the s of a plural possessive (the papers'). A
+# run with no such site holds the mark only as a letter, at the head of a form or beside a consonant
+# (’qsápi, c’tQap@nwíxw, /k’/), and ASCII-ising those rewrites the transcription.
+APOSTROPHE = re.compile(r"(?<=[A-Za-z])’(?=(?:s|t|re|ve|ll|d|m)\b)|(?<=[A-Za-z]s)’(?![A-Za-z])")
 
 # A run whose subject is the mark rather than the sentence around it. Each arm names what the
 # character is DOING, the same way BRITISH_SUBJECT names a word about writing instead of a country:
@@ -84,9 +91,12 @@ def smart_quotes(lines, path=None, ledger=None):
     one edit and not four.
     """
     found = []
-    for text, offsets in runs(lines):
+    for said, offsets in runs(lines):
+        # A backticked span cites a form as the source writes it, quote marks and all, as it does
+        # for a banned token. Blanked to its own length so the offsets still line up.
+        text = NAMED_SPAN.sub(lambda span: " " * len(span.group(0)), said)
         held = [one for one in SUSPECT if one[0] in text]
-        if PAIRED in text:
+        if PAIRED in text or not APOSTROPHE.search(text):
             held = [one for one in held if one[0] != "’"]
         if not held:
             continue

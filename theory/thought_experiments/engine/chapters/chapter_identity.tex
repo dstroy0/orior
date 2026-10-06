@@ -3,7 +3,7 @@
 
 \section{\texorpdfstring{Identity}{Identity}}
 
-An instance is identified by what it carries, not by what it computes. At spawn, the instance draws a secret from a source of randomness and derives its keys from that secret, with its lineage as the derivation's context: its parent's identity and its place in the parent's series, by the extract-and-expand derivation of RFC 5869~\cite{src:RFC5869}. It proves its identity by signing a fresh challenge with its key, for example with the stateless hash-based signature of FIPS 205~\cite{src:FIPS-205}. A fresh challenge keeps an old answer from being replayed.
+An instance is identified by what it carries instead of by what it computes. At spawn, the instance draws a secret from a source of randomness and derives its keys from that secret, with its lineage as the derivation's context: its parent's identity and its place in the parent's series, by the extract-and-expand derivation of RFC 5869~\cite{src:RFC5869}. It proves its identity by signing a fresh challenge with its key, for example with the stateless hash-based signature of FIPS 205~\cite{src:FIPS-205}. A fresh challenge keeps an old answer from being replayed.
 
 Lineage, which spawn made which, is written at spawn. It is not inferred from what an instance produces.
 

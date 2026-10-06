@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/0_experimental/ntt_twiddle_certificate.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. A number theoretic transform is exact only if its modulus is prime, its stated generator is
 # a primitive root, and the root it builds twiddles from has order exactly the transform length. Each
 # of those is a constant, and a constant taken on trust is a silent wrong answer waiting: the twiddle
@@ -24,7 +24,7 @@
 # it. That is the paper's central result reproduced here (theory/theory/cryptography/twiddle_constants/main.tex, its section on a root of half the order and the only test that catches it).
 #
 # No bounding: no threshold is set here. Every verdict is an exact integer equality or inequality on
-# unbounded Python integers, and the wrong cases are drawn, not described.
+# unbounded Python integers, and the wrong cases are drawn instead of described.
 
 import io
 import sys
@@ -49,7 +49,7 @@ def distinct_prime_factors(number):
     """The distinct primes dividing `number`, by trial division. Exact and unbounded.
 
     The moduli here are at most 64 bits. P-1 factors in well under a second by trial division and
-    needs nothing heavier. The primitive-root test below needs only the distinct primes, not their
+    needs nothing heavier. The primitive-root test below needs only the distinct primes and none of their
     multiplicities.
     """
     factors = set()
@@ -94,7 +94,7 @@ def proth_certifies_prime(witness, candidate):
     """Whether `witness` proves `candidate` prime by Proth's theorem.
 
     Proth's theorem: for N = k * 2^n + 1 with k odd and 2^n > k, N is prime iff some a satisfies
-    a^((N-1)/2) == -1 (mod N). One witness meeting that congruence is a proof, not evidence.
+    a^((N-1)/2) == -1 (mod N). One witness meeting that congruence is a proof instead of evidence.
     """
     return pow(witness, (candidate - 1) // 2, candidate) == candidate - 1
 

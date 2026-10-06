@@ -7,7 +7,7 @@
 // device lays out its launch (record_image.h), its lanes run by the emitted cycle_program_unit as the device's resident
 // kernel runs them, and its records compared with the host's word for word; synthesis takes the program unit whole. Its
 // lines give the same input digests as the host test's. A program whose lane the code generator does not write is
-// counted as not supported, not as held or failed. Where a construction set is given, each program's lane is refined by
+// counted as not supported instead of held or failed. Where a construction set is given, each program's lane is refined by
 // it (engine_table M23): split at the budgets the loop proposes, each schedule checked against the host, and the least
 // cost among those that pass kept.
 #include "../engine/parser/krep.h"

@@ -4,7 +4,7 @@
 # Catalog: GAM-6-002
 #
 # The first move, read as a per-player winning-path entropy, and why the exact answer is a
-# tablebase, not a search.
+# tablebase instead of a search.
 #
 #   Usage:  python examples/game_theory/6_oracle/first_move_advantage.py
 #
@@ -198,7 +198,7 @@ def sampled_windicator(state, target, depth, trials, seed):
         halfmove = 0
         history = {}
         # Check the verdict at every ply 0..depth, matching the enumerator, which reads the horizon
-        # node too. A win landing on the last move must be counted, not dropped.
+        # node too. A win landing on the last move must be counted instead of dropped.
         for step in range(depth + 1):
             verdict = tournament_verdict(current, halfmove, history)
             if verdict is not None:
@@ -311,7 +311,7 @@ def main():
     print(
         "The value of the move is V(side to move) - V(if the other side moved). It is POSITIVE where\n"
         "a tempo helps and NEGATIVE in zugzwang, where being forced to move loses -- so first-move\n"
-        "advantage is a property measured per position, not a constant. The windicator is the\n"
+        "advantage is a property measured per position instead of a constant. The windicator is the\n"
         "instrument. Proving the sign for a whole ending is an exact retrograde solve over the\n"
         "coalesced position graph -- a repetition-aware tablebase -- which is named in the workbook as\n"
         "the open work and is not folded into a number here. Bare kings above is the tractable control\n"

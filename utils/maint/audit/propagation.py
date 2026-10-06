@@ -1,4 +1,4 @@
-"""Trace one flipped bit through every interior value, not just to the boundary.
+"""Trace one flipped bit through every interior value as well as to the boundary.
 
 Every other measurement in this tree reads the digest: the state after N rounds, the
 boundary of the computation. That is the right shape for a physical system, where the interior

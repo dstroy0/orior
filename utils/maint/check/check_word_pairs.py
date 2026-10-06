@@ -78,7 +78,7 @@ def main():
         print("  %10d %14.0f %14.0f %10.4f" % (delay, left, right, ratio))
 
     print("\n  Equal delay means equal position in the chain: a ratio away from one is the")
-    print("  asymmetry of the two halves, not anything the cone imposes. At round one both")
+    print("  asymmetry of the two halves instead of anything the cone imposes. At round one both")
     print("  a and e are T1 plus a constant, but different constants: the difference is carry")
     print("  geometry.")
     return 0

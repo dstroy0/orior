@@ -1,6 +1,6 @@
 """Does the field ever gain structure, or only lose it?
 
-Reading color saturation as construction and desaturation as destruction makes a sharp prediction:
+Reading color saturation as construction and desaturation as destruction predicts sharply:
 a hash should destroy structure and never build it. The total field power should fall at every
 round and rise at none. A rise would be a construction event and would want explaining.
 
@@ -82,7 +82,7 @@ def main():
         print("\n  At the floor, past round %d: %d rises in %d steps, against the %.1f that chance"
               % (FLOOR_FROM, rises_floor, steps_floor, steps_floor / 2.0))
         print("  predicts. Each round is an independent seed: these are draws wandering around")
-        print("  a floor, not structure being built.")
+        print("  a floor instead of structure being built.")
 
     if decrements:
         mean = sum(decrements) / len(decrements)

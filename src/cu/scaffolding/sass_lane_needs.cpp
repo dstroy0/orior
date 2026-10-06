@@ -6,7 +6,7 @@
 // sass.krs leaves 33 of its forms empty, and filling all 33 is not the work: the work is the lane emitted to SASS.
 // So the record programs the host oracle runs are laid out and decided for the SASS generator, and every form the
 // core decides is counted. A form the lane never decides is not a blocker whatever the ruleset says about it, and a
-// form it decides that the ruleset leaves empty is exactly what stands between here and a lane. No device, no
+// form it decides that the ruleset leaves empty stands between here and a lane. No device, no
 // toolchain, and nothing is written: decide() only says which forms a lane is made of.
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
 
@@ -57,7 +57,7 @@ static int s_machine_read;
 
 // Each line of `lane` assembled, and the first that the assembler refuses printed. A lane the generator writes is
 // not a lane the part runs: a form the ruleset leaves empty writes nothing and breaks nothing. The text comes
-// back whole with its holes in it, and only the assembler says whether what is left is machine code
+// back whole with its holes in it, and only the assembler says whether the remainder is machine code
 static unsigned int lane_assembles(const std::string &lane, unsigned int *refused, std::string *first)
 {
     static unsigned char code[64];

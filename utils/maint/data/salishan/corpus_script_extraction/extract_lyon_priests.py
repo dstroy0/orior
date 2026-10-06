@@ -10,7 +10,7 @@
 # could be read at all. Its font wrote plain letters in place of the orthography. The text arrives as
 # iP naPì ʼqwQaylqs where it should read iʔ naʔɬ ʼqwʕaylqs.
 #
-# The mapping was tested, not assumed. font_substitution.py applies a candidate table to the damaged
+# The mapping was tested instead of assumed. font_substitution.py applies a candidate table to the damaged
 # tokens and counts how many become forms attested in Lyon's recent papers on the same language, whose
 # extraction kept its characters. Before the mapping, 1 token of 3599 was attested. After it, 811. The
 # same table tested on the other damaged Lyon paper moved 2 of 4332 to 965. A wrong mapping cannot do
@@ -106,7 +106,7 @@ ROOT = _repository_root()
 PAPERS = os.path.join(ROOT, "build", "papers")
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# The drafted page text, not the extraction. This paper's PDF hands back the font's own alphabet,
+# The drafted page text instead of the extraction. This paper's PDF hands back the font's own alphabet,
 # and a corpus built on that is not the language. draft_page_text.py writes it back into the
 # orthography and this reader applies no substitution of its own.
 SOURCE = os.path.join(PAPERS, "19-Lyon_ICSNL50_final-78.page.txt")
@@ -228,7 +228,7 @@ def four_line_words(block):
 
     A third breaks it and cannot be handled: a word given no English gloss takes three lines instead
     of four, and block 44 opens with one. Nothing in the lines themselves marks it, and every word
-    after it lands a slot early. That is caught, not repaired. An uppercase category label belongs
+    after it lands a slot early. That is caught and not repaired. An uppercase category label belongs
     to a gloss and cannot stand in a spoken word or its segmentation. Finding one in either of those
     slots is proof the count has slipped, and the caller is told.
 
@@ -280,7 +280,7 @@ def four_line_words(block):
             close()
             slot = 0
     close()
-    # Tested on a run of capitals, not on the label list. The list matches on word boundaries and
+    # Tested on a run of capitals instead of on the label list. The list matches on word boundaries and
     # there is none inside 3POSS. A block whose gloss line read father-3POSS passed the check and
     # put that into the ingestion stream as something somebody said.
     slipped = any(

@@ -350,7 +350,7 @@ static int probe_single(ProbeWriter *writer, const std::string &header, const st
 
 // the cubin at `path` loaded and its kernel interface_ask run over one case, whose input words are `arguments`: the four
 // output words printed. Exit 0 where the device answers, 3 where it errors on the run, 4 where it will not load
-// Every clock the part will name, asked of it, not assumed. A part is a clocked thing and everything it does
+// Every clock the part will name, asked of it instead of assumed. A part is a clocked thing and everything it does
 // is transitions at some rate: what rates it has is a question it can answer, and the answer is the unit every
 // cost is read in. The part's own clock register is not needed for that, and is not in the machine: the host's clock
 // times a run from outside (probe_cubin_run), and these say what one tick is worth

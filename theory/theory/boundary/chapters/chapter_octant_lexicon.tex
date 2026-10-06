@@ -40,7 +40,7 @@ degree & coefficients & rank & blind & least singular value \\
 \end{tabular}
 \end{center}
 
-Against a 256-bit lit set, a reading to degree eight recovers \(81\) directions and is blind in \(175\). The map reaches the rank its coefficient count allows at every degree below the source count. The shortfall in coefficients accounts for the blindness on its own. No sample size, no precision and no number of beams changes it.
+Against a 256-bit lit set, a reading to degree eight recovers \(81\) directions and is blind in \(175\). The map reaches the rank its coefficient count allows at every degree below the source count. The shortfall in coefficients accounts for the blindness on its own. Neither sample size, precision nor the number of beams changes it.
 
 The eight-letter alphabet here is rank \(8\), seven free numbers once the weight is fixed, blind in \(248\) of \(256\) directions.
 
@@ -147,7 +147,7 @@ On the working state the delta does neither: it falls, and it crosses the floor 
 
 Sixty-four rounds write sixty-four distinct signatures, a coherence of \(100\%\), with no collisions. This is not evidence that the letters carry meaning.
 
-A signature is eight counts over one weight, and distinctness follows from the counts. At half weight each octant's count of about \(32\) points is hypergeometric with variance about \(7.0\), \(32 \cdot \tfrac14 \cdot 224/255\). Two independent counts agree with probability about \(0.106\), seven free letters agree with probability about \(1.5 \times 10^{-7}\), and the \(2{,}016\) pairs among \(64\) signatures expect about \(3 \times 10^{-4}\) collisions~\cite{src:Feller-1968}. Seven free numbers separate sixty-four arbitrary states nearly always, whether or not the seven carry anything about the source, and any count of distinct signatures quoted without the rank beside it is quoting that arithmetic.
+A signature is eight counts over one weight, and distinctness follows from the counts. At half weight each octant's count of about \(32\) points is hypergeometric with variance about \(7.0\), \(32 \cdot \tfrac14 \cdot 224/255\). Two independent counts agree with probability about \(0.106\), seven free letters agree with probability about \(1.5 \times 10^{-7}\), and the \(2{,}016\) pairs among \(64\) signatures expect about \(3 \times 10^{-4}\) collisions~\cite{src:Feller-1968}. Seven free numbers separate sixty-four arbitrary states nearly always, whether the seven carry anything about the source, and any count of distinct signatures quoted without the rank beside it is quoting that arithmetic.
 
 It is computed because the complement would have been informative. A collision is a null permutation, a move this reading cannot see. None occurs, which rules that out and establishes nothing beyond it.
 

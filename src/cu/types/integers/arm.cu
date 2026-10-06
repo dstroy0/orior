@@ -113,7 +113,7 @@ __device__ static int device_magnitude_add(const unsigned int *left, const unsig
     for (unsigned int at = 0u; at < ANCHOR_EXACT_LIMBS; at++)
     {
         const unsigned long long total = (unsigned long long)left[at] + (unsigned long long)right[at] + carry;
-        // Explicit narrowing to a limb. The high half is the carry and is kept, not discarded.
+        // Explicit narrowing to a limb. The high half is the carry and is kept.
         result[at] = (unsigned int)(total & 0xFFFFFFFFull);
         carry = total >> 32;
     }
@@ -382,7 +382,7 @@ static size_t arm_agreement(const AnchorExactInteger *positions, const uint64_t 
 /**
  * @brief The arm as a driver sees it. Static storage. Returning its address is safe.
  *
- * @note equal and compare are the portable ones on purpose. One comparison is far too small to be
+ * @note equal and compare are the portable ones. One comparison is far too small to be
  *       worth a bus crossing, and only the whole sweep is handed to the device.
  */
 static const AnchorExactArm CUDA_ARM = {

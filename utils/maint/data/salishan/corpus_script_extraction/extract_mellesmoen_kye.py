@@ -16,7 +16,7 @@
 #
 # This is the whole difficulty of the paper and the reason a reader built on characters alone would
 # poison the corpus. A tableau prints five candidate forms of one word and the analysis rejects four
-# of them. An input in slashes is an abstraction the analysis posits, not a form anybody said. A
+# of them. An input in slashes is an abstraction the analysis posits instead of a form anybody said. A
 # starred form in Appendix B is there precisely because the language does not have it. Every one of
 # those carries the same characters as a real word, sits in the same paragraph, and would pass any
 # test built on the alphabet.
@@ -641,7 +641,7 @@ def read_paper(lines):
     appendix = ""
     # The dialect the last section heading named, carried in a list so flush() can read it. §3 is
     # headed Northern Lushootseed stress pattern and §4 Southern Lushootseed stress pattern, and
-    # every subsection under each of them is about that dialect whether or not it says again.
+    # every subsection under each of them is about that dialect whether it says again.
     heading_dialect = [""]
 
     def flush():

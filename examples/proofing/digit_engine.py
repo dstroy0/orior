@@ -8,7 +8,7 @@ WHAT WAS MISSING
 
 `natural_constants.py` computes pi, the roots, the golden angle, the harmonic unit and SHA-256's own
 tables at any precision asked for. Every one of them bottoms out on a series summed one term at a
-time, and the shape of that summation stops them, not the size of the answer.
+time, and the shape of that summation stops them. The size of the answer does not.
 
 MEASURED. `pi_machin` takes 0.002 s at a thousand places and 0.045 s at four thousand. The Gregory
 series does a term per digit of output and each term costs a division at the full working precision.
@@ -98,7 +98,7 @@ def product(left, right):
     tool that called it changed the arithmetic of every other tool in the same process, from
     anywhere, with no trace in the result. A run could not then be described without knowing the
     call order, and a sweep that read as a device tool spent a whole night on the host without ever
-    saying so. That is a monkeypatch whatever it is called, and it is gone, not guarded.
+    saying so. That is a monkeypatch whatever it is called, and it is gone instead of guarded.
     """
     return left * right
 

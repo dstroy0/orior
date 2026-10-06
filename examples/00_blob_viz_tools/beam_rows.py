@@ -314,7 +314,7 @@ def _oblique():
     print("  concluded the beam must read less. The chord is the wrong measure and the reason is")
     print("  the geometry of where the sources are:")
     print("")
-    print("    THE SOURCES SIT ON A SHELL, NOT THROUGHOUT A BALL. What a beam reads is time spent")
+    print("    THE SOURCES SIT ON A SHELL INSTEAD OF THROUGHOUT A BALL. What a beam reads is time spent")
     print("    NEAR THE SHELL, and a grazing ray is nearly tangent to it. It runs alongside many")
     print("    sources at once. A ray through the center crosses the shell twice, briefly, and")
     print("    spends the rest of its chord in an interior where nothing sits.")

@@ -83,7 +83,7 @@ FAMILIES_FILE = os.path.join(CACHE, "families.tsv")
 
 # Entries whose expansion is larger than this are read for their asymmetric unit only and counted
 # apart. A cell with 192 operations over 400 sites is 76800 placements, and the cost is in the
-# expansion and not in the reading. Declared here as an input, not applied quietly: the count of
+# expansion and not in the reading. Declared here as an input instead of applied quietly: the count of
 # entries it holds back is printed.
 MOST_PLACEMENTS = 200000
 

@@ -8,8 +8,8 @@
 #   Usage:  python examples/crystallography/5_sift/lattice_breaks_the_product_rule.py [entries]
 #
 # An anchor is a condition copied out of the pattern. Any position genuinely holding the pattern
-# satisfies every anchor and correctness cannot turn on which anchors were chosen. What the choice
-# moves is how many false candidates survive, and the usual estimate of that is the product of the
+# satisfies every anchor and correctness cannot turn on which anchors were chosen. The choice
+# moves how many false candidates survive, and the usual estimate of that is the product of the
 # anchors' own rates: three anchors on elements occurring at half the sites each should leave an
 # eighth of the positions standing.
 #

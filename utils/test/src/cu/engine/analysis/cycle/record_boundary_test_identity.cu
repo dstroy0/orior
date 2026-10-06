@@ -348,7 +348,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
     boundary_check(results, draws_one_to_one == draws_total,
                    "the crystal is a one-to-one identity: T(pi x) = T(x) exactly when pi x = x");
     // a structured lane is not promised to be identified: a shallow ramp under +-1024 is mostly noise, and its
-    // shuffles have little arrangement to destroy. What the null bounds is the rate; each structured class must
+    // shuffles have little arrangement to destroy. The null bounds the rate; each structured class must
     // stand far past it
     boundary_check(results,
                    ((double)identified[0] > ceiling) && ((double)identified[1] > ceiling) &&

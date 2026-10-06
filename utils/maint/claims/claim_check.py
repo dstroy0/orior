@@ -221,7 +221,7 @@ def stem(word):
 
 
 def words(text, tex):
-    """The words of a block that say what it is about: four or more letters, not a loose word."""
+    """The words of a block that say what it is about: four or more letters, and never a loose word."""
     return {stem(word) for word in re.findall(r"[a-z]{4,}", plain(text, tex)) if word not in LOOSE}
 
 

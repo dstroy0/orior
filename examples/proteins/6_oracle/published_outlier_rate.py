@@ -80,7 +80,7 @@ SEARCH = "https://search.rcsb.org/rcsbsearch/v2/query?json=%s"
 ENTRY = "https://data.rcsb.org/rest/v1/core/entry/%s"
 
 # Seconds between requests that actually reach the archive. A cached read waits for nothing. RCSB is
-# a large service and asks for courtesy, not silence; half a second is well inside what it invites.
+# a large service and asks for courtesy instead of silence; half a second is well inside what it invites.
 PAUSE = 0.5
 
 # Attempts before a reached request is given up on, with a growing wait between. A dropped connection
@@ -130,7 +130,7 @@ def cached_json(name, url, out, timeout=180):
                 body = response.read().decode("utf-8", "replace")
             break
         except urllib.error.HTTPError as trouble:
-            # A 404 is an answer, not a dropped line: this entry has no such document. Do not retry.
+            # A 404 is an answer instead of a dropped line: this entry has no such document. Do not retry.
             out.write("      %s: %s\n" % (name, trouble))
             return None, True
         except Exception as trouble:

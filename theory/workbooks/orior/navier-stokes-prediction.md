@@ -12,7 +12,7 @@ Only the announcement page, `openai.com/index/navier-stokes-solution/`, read. Fr
 - The mechanism described in prose: "a vortex, a spinning swirl of fluid, that spirals inward and
   gets increasingly elongated, like spaghetti. This central region shrinks while it speeds up in such
   a way that its energy still stays finite."
-- The nonlinear terms "must both become" balanced in a precise way, leaving a smooth external force
+- The nonlinear terms "must both become" balanced precisely, leaving a smooth external force
   while the velocity grows without bound.
 
 **Not read: the writeup, the Lean formalization, or any scaling exponent.** No figure was inspected

@@ -16,7 +16,7 @@ PER HASH
 
 A block is the expected outcome of difficulty times 2^32 hashes. The leak per block divided by
 that is the leak per hash. It is a very small number and it is the honest intensive quantity: the
-network pays this much collision entropy for every hash it computes, and it is paid whether or not
+network pays this much collision entropy for every hash it computes, and it is paid whether
 anybody is reading.
 """
 
@@ -84,7 +84,7 @@ print("=" * 78)
 print("  2. THE FLUCTUATION, AGAINST WHAT SAMPLING ALONE PRODUCES")
 print("=" * 78)
 print()
-# The floor here is drawn, not derived. An earlier version of this file computed it analytically -
+# The floor here is drawn instead of derived. An earlier version of this file computed it analytically -
 # chi-square's variance carried through the logarithm - and that expression gave 0.0582 where the
 # true floor is 0.1022, understating it by nearly half. Shuffling the values holds the pooled
 # distribution exactly fixed and destroys only the time ordering. Every window it produces is a
@@ -121,7 +121,7 @@ print("    separation        %+.2f sd    p = %.4f"
 print()
 if _above <= 0.05 * len(_draws):
     print("    -> the leak moves by more than sampling explains. The conventions themselves")
-    print("       are changing across this span, not merely being sampled differently.")
+    print("       are changing across this span instead of merely being sampled differently.")
 else:
     print("    -> the scatter is what sampling produces. The conventions are steady and the")
     print("       window-to-window wander carries no information.")
@@ -149,7 +149,7 @@ if slope_se and abs(slope / slope_se) >= 3.0:
     print("    -> the leak is %s. Whatever sets these conventions is spreading or retiring." % direction)
 else:
     print("    -> no trend this corpus can resolve. 48 days is short for a deployment cycle;")
-    print("       this wants years, not weeks.")
+    print("       this wants years instead of weeks.")
 
 print()
 print("    the series, oldest first:")
@@ -189,6 +189,6 @@ if usable:
     print("    is given away every %s seconds, which is about %d minutes."
           % (format(seconds_per_bit, ","), seconds_per_bit // 60))
     print()
-    print("    That is the intensive quantity stated so it can be read: the cost is enormous")
-    print("    per bit because a block is enormous, and the leak is paid whether or not")
+    print("    That is the intensive quantity stated so it can be read: the cost is large")
+    print("    per bit because a block is large, and the leak is paid whether")
     print("    anybody is reading it.")

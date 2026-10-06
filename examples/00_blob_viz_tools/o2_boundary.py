@@ -19,7 +19,7 @@ from the target alone and never looks at any nonce.
 THE ANSWER TO THE DIFFERENCE is the angle between F_r and T. A true winner's FINAL field sits at
 zero angle to T by construction, because its top L bits are the zero bits T is made of. The question
 is how far back from the last round that closeness survives: the round where the winner's angle to T
-drops inside the non-winners around it is the meeting round, and it is read from the data, not set.
+drops inside the non-winners around it is the meeting round, and it is read from the data instead of set.
 
 WHY THIS IS THE HONEST TEST
 

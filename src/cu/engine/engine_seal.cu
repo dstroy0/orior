@@ -364,7 +364,7 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
 
 int entry_set_root(const EngineSignum *roots, unsigned long long count, EngineSignum *root, EngineError *error)
 {
-    // the roots are an array of 32-byte signa, hashed as their bytes
+    // the roots are 32-byte signa, hashed as their bytes
     return entry_keyed(OBSIGNATIO_LEVEL_SET, (const unsigned char *)roots, count * ENGINE_SIGNUM_BYTES, root, error);
 }
 

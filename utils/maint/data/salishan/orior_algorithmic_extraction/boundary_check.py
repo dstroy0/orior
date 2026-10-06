@@ -89,7 +89,7 @@ PERMUTATIONS = 200
 def runs(forms, width):
     """Every character run of one width across a set of forms, counted.
 
-    A run, not a whole form. The whole form is what the distributions in this file could not
+    A run instead of a whole form. The whole form is what the distributions in this file could not
     resolve: there are a few hundred of them and each is seen once. A run of three characters is
     seen many times across many forms, and a count that repeats is a count that can be tested.
     """
@@ -112,7 +112,7 @@ def radix(north, south, width):
     other does not.
 
     Each run is then its own test instead of a term in one big one. The question can therefore be
-    asked at a size the distributions cannot be: a run needs enough of itself, not enough of
+    asked at a size the distributions cannot be: a run needs enough of itself instead of enough of
     the language.
 
     Returns [(deviate, run, in north, in south), ...], largest first, and the number of runs that

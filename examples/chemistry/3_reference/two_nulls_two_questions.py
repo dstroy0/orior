@@ -45,7 +45,7 @@ import manifest  # noqa: E402,F401
 from reference.shuffles import SEED, permuted  # noqa: E402
 
 # Chemistry's own valence layer: the covalent bonds a neutral, closed-shell atom forms. Not the
-# element ledger, which carries proton counts and electron sets and is consumed, not held here.
+# element ledger, which carries proton counts and electron sets and is consumed instead of held here.
 VALENCE = {"H": 1, "C": 4, "N": 3, "O": 2, "F": 1, "Cl": 1}
 
 Molecule = collections.namedtuple("Molecule", ("name", "atoms", "bonds"))

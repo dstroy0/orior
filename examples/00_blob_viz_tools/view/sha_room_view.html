@@ -5618,7 +5618,7 @@ window.BAR = (function () {
   }
 
   // Taken out of the scene and disposed, and not merely hidden. A light left in the scene goes on
-  // costing a shadow pass whether or not anything can see it, and the whole reason the count is worth
+  // costing a shadow pass whether anything can see it, and the whole reason the count is worth
   // changing is that it costs something.
   function dropSource() {
     if (sources.length <= 1) {

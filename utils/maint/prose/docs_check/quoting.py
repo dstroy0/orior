@@ -19,6 +19,10 @@ QUOTED = (
     re.compile(r"neighbouring languages", re.IGNORECASE),
     # The same title, wrapped across two comment lines by half the extraction headers.
     re.compile(r"salish and neighbouring", re.IGNORECASE),
+    # A bibliography entry, which tex_prose hands over as its src: key and then the entry's text. The
+    # authors and the title are the cited work's own, in its own definitions. Anchored to the start
+    # of the run, because an entry opens its paragraph and a citation inside running prose does not.
+    re.compile(r"\A\s*src:[\w-]+\s.{0,800}"),
 )
 
 # A span the writing sets off as a citation of a form. A token inside one is a NAME and not a USE,

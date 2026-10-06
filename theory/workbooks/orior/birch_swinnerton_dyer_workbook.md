@@ -11,7 +11,7 @@ number theory and Navier-Stokes workbooks beside this file already follow:
 
 - Claim nothing. No open problem is attacked here. Nothing below bears on whether BSD is true.
 - Cite nothing unread. A fact that arrived by report says so in the sentence carrying it.
-- Gaps go in the sentence making the claim, not in a footnote.
+- Gaps go in the sentence making the claim and never in a footnote.
 - Withdrawn entries stay on the page with whatever killed them. One is recorded below.
 - Draw the bar, never derive it. No threshold is reasoned out of a distribution here.
 
@@ -20,7 +20,7 @@ recommended this problem, and this workbook acts on that reason: its obstruction
 instrument. The refined conjecture is an exact numerical identity, and the question whether a computed
 number lands on an integer is precision-bound, where the other Millennium problems match the apparatus
 only in subject. That chapter also drew the honest bound: the arithmetic imposes no floor, and the honest
-report is the precision of the weakest input, the L-value, the period and the regulator, not the
+report is the precision of the weakest input, the L-value, the period and the regulator instead of the
 precision of the multiply. This workbook keeps to the exact side and leaves that computed side as the
 stated floor.
 
@@ -107,7 +107,7 @@ Three lists, kept apart. The first two are Wiles's statement, read; the third is
 - Poincare (1901) began the modern theory of rational points and asked about the minimal number of
   generators. Mordell (1922) proved `E(Q)` finitely generated; Weil extended it to number fields and
   abelian varieties.
-- Faltings (1983) proved Mordell's conjecture: genus at least 2 gives finitely many rational points, not
+- Faltings (1983) proved Mordell's conjecture: genus at least 2 gives finitely many rational points, though not
   effectively.
 - Hasse conjectured the holomorphic continuation of `L(C, s)`, now proved through modularity by Wiles,
   Taylor-Wiles, and Breuil-Conrad-Diamond-Taylor.
@@ -140,7 +140,7 @@ does not.
 - Tunnell's counts reproduce the known statuses exactly on `n = 1, 3, 5, 7, 13, 15`: unequal for the
   non-congruent `1` and `3`, equal for the congruent `5, 7, 13, 15`. `n = 1` recovers Fermat
   unconditionally, `A(1) = 2 != 4 = 2 B(1)`. Both theta counts agree across two bounding-box routes.
-- We do not know whether BSD holds. We have computed no L-value, no regulator, no period, and no element
+- We do not know whether BSD holds. We have computed neither an L-value, a regulator, a period nor an element
   of `Sha`. The unconditional direction of Tunnell (unequal counts prove non-congruent) is all the
   criterion gives us; the converse is conditional on BSD, and a bounded search for a triangle or a point
   proves no absence.
@@ -164,7 +164,7 @@ found.
 | `\|Sha_E\|` | conjecturally a finite integer, not known finite in general | completeness, external |
 
 The reading, stated as the toolkit chapter did: the arithmetic imposes no floor. The honest bound on any
-BSD check is the precision of its weakest input, the regulator or the period, not the width of the
+BSD check is the precision of its weakest input, the regulator or the period instead of the width of the
 multiply. An arithmetic with no floor does not give its inputs one. So the exact side reaches the group,
 the torsion, the counts, and the integer factors of the identity; the analytic side is a computed real
 this work does not touch, and `Sha` sits behind a finiteness that is itself open.
@@ -191,7 +191,7 @@ A rational point is built from a fixed set of constructors: the exact rational o
 pairs, and the chord-tangent law composed from them. `proof_group_law.py` proves those constructors give
 an abelian group with the Z-module structure, and a quantity built only from them inherits the proof: the
 order of a point, `[n]P`, the torsion test, and the infinite-order witness are the group law carried
-through, not new things to prove. The one axiom that is not a short check is associativity, the
+through instead of new things to prove. The one axiom that is not a short check is associativity, the
 Cayley-Bacharach theorem, equivalently Riemann-Roch on the genus-one curve; the file verifies the
 implementation realizes it on a sample and does not reprove it in general. What is never inherited is a
 statement about `L`, `R_inf`, or `Sha`, because no constructor here produces one.
@@ -209,7 +209,7 @@ Local solvability is a refute-only probe, the engine's one-directional disciplin
 orior engine, who also corrected an earlier plan: there is no permutation null to draw for a rank
 bound). A class starts admitted and is dropped only on a certificate: a wrong sign over `R` (the exact
 condition `d > 0` or `f > 0`), or a `Q_p` obstruction. The `p`-adic decision is Hensel with the level
-DERIVED from the form, not picked: a solution modulo `p^k` whose Jacobian has valuation `j` lifts once
+DERIVED from the form instead of picked: a solution modulo `p^k` whose Jacobian has valuation `j` lifts once
 `k >= 2j + 1`, and the absence of any lifting residue up to the level the form's own valuations force
 certifies insolubility. The recursion lifts residues digit by digit; branch death is the insolubility
 certificate, a lifting residue the solubility certificate, and across the whole validation the

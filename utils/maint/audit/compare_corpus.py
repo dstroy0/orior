@@ -113,11 +113,11 @@ def main():
     print("    positions 0 to %d are therefore the difficulty rule, not the miners" % (skip - 1))
     print("    %d positions remain to be tested" % (256 - skip))
 
-    # Conditioning is per digest, not per corpus. A digest whose leading run is L has bit L set by
+    # Conditioning is per digest instead of per corpus. A digest whose leading run is L has bit L set by
     # the definition of a leading run and every bit past L unconstrained. Position p may only be
     # counted over digests with L < p. An earlier version excluded one region for the whole corpus,
     # using the SHALLOWEST run, which left most digests still inside their own constrained region
-    # and reported position 76 at seventy-seven standard errors. That was the exclusion, not tilt.
+    # and reported position 76 at seventy-seven standard errors. That was the exclusion instead of tilt.
     chain_counts = [0] * 256
     chain_at = [0] * 256
     freed = 0
@@ -125,7 +125,7 @@ def main():
         run = 256 - value.bit_length()
         target_run = 256 - target.bit_length()
         # Free only where the digest's own run beats its target's run. At equal depth the lower
-        # bits are still bounded by the target and are selected, not free.
+        # bits are still bounded by the target and are selected instead of free.
         if run <= target_run:
             continue
         freed += 1
@@ -185,7 +185,7 @@ def main():
         print("    Position %d clears the loudest-of-%d bar. That would mean selection reaches"
               % (worst_at, tested))
         print("    past the zero run, which the theory says it cannot: the first suspect is")
-        print("    the corpus, not the construction.")
+        print("    the corpus instead of the construction.")
     return 0
 
 

@@ -39,7 +39,7 @@ static int check_projection_closes(void)
         return 1;
     }
 
-    // The ends disagree, which makes the predicate non-transitive and not merely coarse.
+    // The ends disagree, and that makes the predicate non-transitive and not merely coarse.
     if (near_same_in_field(chain, 0u, 4u) != 0)
     {
         printf("  the chain ends agree. This is not the case under test: FAILS\n");

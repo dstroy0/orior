@@ -19,7 +19,7 @@
 # the true width the picture reshapes into a plane where those displacements are short and directional,
 # while at a wrong width the rows slide against each other and the arrangement is scrambled.
 #
-# The two share no code, no null and no statistic. If they peak at the same width on the same file, that
+# The two share neither code, null nor statistic. If they peak at the same width on the same file, that
 # is a measured link between them and the first this work has. If they peak at different widths, at most
 # one of them recovers a picture's width and the other has been reporting something else.
 #

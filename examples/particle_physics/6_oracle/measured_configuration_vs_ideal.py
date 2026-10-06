@@ -93,7 +93,7 @@ def occupation(shells, neutral):
 
     Parenthesized term symbols are stripped, and a bracketed core such as `[Rn]` or `[Cd]` is replaced
     by the shells of that element, read from the same table. NIST abbreviates with whichever element
-    closes the core, not only the noble gases. Returns None where a token does not parse. The caller
+    closes the core, the noble gases among others. Returns None where a token does not parse. The caller
     can error on it and not compare a half-read configuration.
     """
     counts = {}
@@ -222,7 +222,7 @@ def main(argv):
         out.write("    %d without a configuration accounting for its electrons: %s\n"
                   % (len(error), " ".join(element.symbol(one) for one in error)))
 
-    out.write("\n  THE EXCEPTIONS, read off the disagreement, not listed by hand.\n\n")
+    out.write("\n  THE EXCEPTIONS, read off the disagreement instead of listed by hand.\n\n")
     out.write("    %-4s %-4s %-10s %-18s %s\n" % ("", "Z", "source", "ideal", "ground state"))
     for atomic_number, kind, ideal, counts in exceptions:
         ideal_text, ground_text = differing(ideal, counts)

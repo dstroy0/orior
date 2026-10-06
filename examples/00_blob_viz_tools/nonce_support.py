@@ -57,7 +57,7 @@ def excitations(base, count, seed):
     """Nonce values to excite with: the base, every single-bit flip of it, then random draws.
 
     The single-bit flips are the sharpest excitation, one input bit moved at a time. The random draws
-    fill the rest a position called elided has survived many unrelated inputs, not just the 32
+    fill the rest a position called elided has survived many unrelated inputs beyond the 32
     adjacent ones. A position constant across all of these is elided under the tested excitation, which
     is a lower bound on its true support and never an overstatement.
     """
@@ -86,7 +86,7 @@ def interior_runs(block, nonces, midstate):
     """For each nonce, the per-round state of the first hash's second block and of the second hash.
 
     Each is ROUNDS rows of eight words, the running state plus the start. Read directly and not
-    summarized, because the support needs the value at every position, not a statistic of it.
+    summarized, because the support needs the value at every position instead of a statistic of it.
     """
     runs = []
     for nonce in nonces:

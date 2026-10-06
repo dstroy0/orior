@@ -30,7 +30,7 @@ is rank 8, absent in 248, with 7 free numbers left once the weight is fixed. Mea
 `reading_rank.py`.
 
 **Degree 15 dips and then recovers.** At full depth the least live singular value is 3.47e-3
-at degree 15 against 1.75 at degree 14. The exactly-complete degree is about 500 times worse
+at degree 15 against 1.75 at degree 14. The exactly complete degree is about 500 times worse
 conditioned than the incomplete degree beneath it, recovery arrives by 17, and saturation follows.
 Completeness of count and health of conditioning are separate properties.
 
@@ -93,7 +93,7 @@ recomputed when the depth, the smoothing or the ceiling changes and never per pi
 already forms this vector: `sphere_field.kernel` returns exactly `g` for T3 and T4 together.
 
 **A correct pixel filter is free.** It is one addend inside a `tau` that is already being applied.
-There is no second pass, no extra sampling, and no new operator: the filter enters the product the
+It needs neither a second pass, extra sampling nor a new operator: the filter enters the product the
 chain was already forming.
 
 ## 4. Why They Are Diagonal, And Why One Is Not
@@ -209,7 +209,7 @@ power by T3, and the same grid draws it more accurately. The grid is wrong in pr
 structure the state happens to hold.
 
 **Read the gradient column.** The surface is shaded, and shading takes its normal from
-the gradient. A linear interpolant has a constant gradient inside a triangle, which makes the drawn normal
+the gradient. A linear interpolant has a constant gradient inside a triangle, and that makes the drawn normal
 a staircase across a field whose gradient turns smoothly. At degree 10 the median normal is 7.5
 degrees off and one sample in twenty is more than 47 degrees off. That is the 5-degree quilt visible
 on the reconstruction, and it is a far larger error than the 1 percent in the value column.
@@ -330,7 +330,7 @@ and not the world. The power-under-rotation null floor stands at 4.005e-16 from 
 
 * **T5 and T10 are unbuilt.** The math above is written and the shader is not. Nothing here is a
   frame time, and the claim that a fragment evaluation is faster than a table read is an
-  architectural argument from working-set sizes, not a measurement.
+  architectural argument from working-set sizes instead of a measurement.
 * **The anisotropic case has no answer** beyond accepting the isotropic kernel's over-blur.
 * **The `l_max` constant** of `3.33 / sigma` follows from a threshold of one level in eight bits.
   The crossover where dropping degrees begins to pay has not been measured against a real frame.

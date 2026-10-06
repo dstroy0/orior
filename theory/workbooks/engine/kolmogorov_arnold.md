@@ -9,11 +9,11 @@
 
   f(x_1, …, x_n) = Σ_{q=1}^{2n+1} Φ_q( Σ_{p=1}^{n} φ_{q,p}(x_p) )
 
-The inner functions φ_{q,p} can be chosen once for every f; only the outer Φ_q depend on f. The statement is exact: an equality, not an approximation. Its catch is that the inner functions it guarantees can be very rough (nowhere differentiable). For that reason it was long thought useless for computing (Girosi and Poggio 1989).
+The inner functions φ_{q,p} can be chosen once for every f; only the outer Φ_q depend on f. The statement is exact: an equality instead of an approximation. Its catch is that the inner functions it guarantees can be very rough (nowhere differentiable). For that reason it was long thought useless for computing (Girosi and Poggio 1989).
 
 **KANs** ([Liu et al., 2024](#src:Liu-et-al-2024)) take the shape and give up the exactness. A layer is a matrix of one-variable functions on the edges and plain sums at the nodes, x_{l+1,q} = Σ_p φ_{l,q,p}(x_{l,p}), stacked to any depth. Each φ is w · (SiLU(x) + Σ_i c_i B_i(x)), a smooth B-spline on a grid, and every coefficient is fitted in floating point by gradient descent. A KAN therefore approximates f. Its splines are truncated to a grid, its SiLU is a float, and every sum and product rounds.
 
-**The engine takes the other road.** It keeps the theorem's equality and gives up the fitting. Every function on an edge is an exact integer map, every node sum is exact in two's complement, and nothing rounds anywhere. That makes it not a KAN: it is the theorem's own form, held exactly, on the finite integer domain the data actually lives on. Where the engine is "imperfect", it is incomplete, not approximate.
+**The engine takes the other road.** It keeps the theorem's equality and gives up the fitting. Every function on an edge is an exact integer map, every node sum is exact in two's complement, and nothing rounds anywhere. That makes it not a KAN: it is the theorem's own form, held exactly, on the finite integer domain the data actually lives on. Where the engine is "imperfect", it is incomplete instead of approximate.
 
 ## On a finite domain the theorem is exact and one term suffices
 
@@ -21,9 +21,9 @@ The engine's data never leaves a finite set of integers: a voxel is a u16 lane, 
 
   f(x_1, …, x_n) = Φ( Σ_{p=1}^{n} x_p · B^{p−1} )
 
-The inner functions φ_p(x_p) = x_p · B^{p−1} are shifts. Their sum is the mixed-radix number of the point, which is a bijection onto [0, B^n). An outer Φ therefore exists and equals f read at that number. It is arithmetic, not approximation: exact for every f (**proved** by construction; the mixed radix is a bijection).
+The inner functions φ_p(x_p) = x_p · B^{p−1} are shifts. Their sum is the mixed-radix number of the point, which is a bijection onto [0, B^n). An outer Φ therefore exists and equals f read at that number. It is arithmetic instead of approximation: exact for every f (**proved** by construction; the mixed radix is a bijection).
 
-This is also exactly what the engine's multi-limb keys do: they pack several quantities into one exact integer as radix digits. The component tree's key carries the face's name in its lowest limb below the residual's limbs (`max_tree_key_limb`), which makes every key distinct.
+This is also exactly what the engine's multi-limb keys do: they pack several quantities into one exact integer as radix digits. The component tree's key carries the face's name in its lowest limb below the residual's limbs (`max_tree_key_limb`), and that makes every key distinct.
 
 It also says where the difficulty went. The one-term form moves the whole of f into Φ, a table of B^n entries. The theorem's real content, on any domain, is that Φ and the φ can be *small*. KANs look for that smallness by fitting smooth functions. The engine looks for it by reading structure out of the data exactly: separability per axis, a period, a ladder of rungs. Both are the same search for a short description, which is Kolmogorov's other result (below).
 
@@ -54,7 +54,7 @@ The skeleton is shared: one-variable functions on the edges, sums at the nodes, 
 - **Held.** Every floor's high-pass coefficients, the residue, are kept whole in the crystal: never bounded, modeled or discarded, and rebuilt voxel for voxel (**proved**, 25 of 25).
 - **Measured.** The entropy history measures the floor per voxel and per bit, as exact counts. On 44b6_0113de3b, bits 0 to 3 flip 499 to 500 times per thousand transitions in every window, at maximum entropy. Bits 5 to 10 fall from about 430 to about 20 where bodies hold them. The fixed pattern is the anchor bits, which never flip (**measured**; the counts **proved** on 2,000 voxels × 9 windows). The null draws read the field's own noise at a body's lag in frames far off in time. A body is real only where it stands above that reading (built).
 
-So where a KAN has one generic base term and an unexplained remainder, the engine names the remainder at every voxel and bit and keeps every bit of it. That is also what makes the compression floor measurable ([compression_table.md](../compression/compression_table.md), F4): the noise is a measured quantity with a place, not a loss value.
+So where a KAN has one generic base term and an unexplained remainder, the engine names the remainder at every voxel and bit and keeps every bit of it. That is also what makes the compression floor measurable ([compression_table.md](../compression/compression_table.md), F4): the noise is a measured quantity with a place instead of a loss value.
 
 | claim | status |
 |---|---|
@@ -89,7 +89,7 @@ The continuous theorem, in Sprecher's version, is built on one inner function ψ
 
 **The setting** (Braun and Griebel 2009, Theorem 2.1; A15 of [engine_table.md](engine_table.md)). Take integers n ≥ 2, m ≥ 2n, γ ≥ m + 2 and a = [γ(γ − 1)]⁻¹. Then f(x) = Σ_{q=0}^{m} Φ_q ∘ ξ(x_q), with ξ(x_q) = Σ_{p=1}^{n} α_p ψ(x_p + qa), α_1 = 1, α_p = Σ_{r≥1} γ^−(p−1)β(r) and β(r) = (nʳ − 1)/(n − 1). ψ is first defined on the terminating base-γ rationals D_k = { Σ_{r≤k} i_r γ^−r } and extended to [0, 1] as a limit. Here n = 2 and n = 3 with γ = 10, which meets γ ≥ 2n + 2.
 
-**The arithmetic** (proved by construction). Every value on a grid is an exact integer over 2^L · γ^β(L). At depth, a value is a sparse sum Σ c_j γ^−e_j: each c_j an exact rational, and each e_j = β(L) held as an integer and never expanded ("the exp is symbolic"). At level 60 for n = 2, β = 2^60 − 1 = 1,152,921,504,606,846,975, a number no expansion of digits could reach. A sign is decided exactly: the head is folded in until it outweighs a proven bound on the tail, and when the exponent gap is wide, bit lengths decide it. So every question of the form "is it past the limit" gets a true or false answer, not a rounded one.
+**The arithmetic** (proved by construction). Every value on a grid is an exact integer over 2^L · γ^β(L). At depth, a value is a sparse sum Σ c_j γ^−e_j: each c_j an exact rational, and each e_j = β(L) held as an integer and never expanded ("the exp is symbolic"). At level 60 for n = 2, β = 2^60 − 1 = 1,152,921,504,606,846,975, a number no expansion of digits could reach. A sign is decided exactly: the head is folded in until it outweighs a proven bound on the tail, and when the exponent gap is wide, bit lengths decide it. So every question of the form "is it past the limit" gets a true or false answer instead of a rounded one.
 
 1. **Sprecher's ψ fails, exactly.** Sprecher's ψ (Braun and Griebel's 2.4) at n = 2 and γ = 10 gives ψ(0.58999) = 2207/4000 = 0.55175 > ψ(0.59) = 11/20 = 0.55, the paper's (2.5) reproduced as exact rationals (**proved**). It is not increasing, and it descends between 10 of the 99,999 neighboring pairs of D_5, the first between 0.08999 and 0.09000 (**measured**). The paper's values need m_r = ⟨i_r⟩(1 + Σ_{s<r} [i_s] ⋯ [i_{r−1}]), the empty product counted as 1, as in Sprecher's own form; the sum as typeset in (2.4), with [i_1] = 0 and no leading 1, gives ψ(0.59) = 0.501. The sim takes the reading that reproduces (2.5), and an independent recount in exact fractions agrees on both values and on the 10 descents.
 2. **Köppen's ψ, in both of its readings.** Köppen's correction is recursive on D_k. A level-L point whose last digit is γ − 1 is carried: it takes a midpoint of the level-(L − 1) values ψ and ψ⁺ on either side. The paper gives that midpoint two ways. (2.9)/(2.10), the form its proofs use, is ψ_L = ½ψ_{L−1} + ½ψ⁺_{L−1} + (γ − 2)/(2γ^β(L)), symmetric in the cell. (2.7) as printed puts i_k = γ − 1 inside the half, (γ − 1)/(2γ^β(L)). Of the two, (2.9) averages ψ_L(d − γ^−L) with ψ_{L−1}(d + γ^−L). For n = 2 and n = 3 at γ = 10, on every point of D_1 to D_5 (10 to 100,000 points), in both readings (**proved**, exhaustively):
@@ -162,7 +162,7 @@ The values are sorted, and the least neighboring gap is found. The sim cuts α_p
 - the contraction of the outer functions (Theorem 3.3), with the narrowed ramp in place of the paper's;
 - ψ at the shifted points x + qa, which are off the grid.
 
-Until both are built, the engine holds the theorem's inner function and its separation on the grid exactly, not the continuous theorem. A14's "not the continuous theorem" stands until Doug rules.
+Until both are built, the engine holds the theorem's inner function and its separation on the grid exactly, short of the continuous theorem. A14's "not the continuous theorem" stands until Doug rules.
 
 **The literature** (each record checked at Crossref or arXiv).
 - D. A. Sprecher, "A numerical implementation of Kolmogorov's superpositions", Neural Networks 9(5) (1996) 765–772, doi:10.1016/0893-6080(95)00081-X; and "… II", Neural Networks 10(3) (1997) 447–457, doi:10.1016/S0893-6080(96)00073-1. The ψ that fails (item 1).

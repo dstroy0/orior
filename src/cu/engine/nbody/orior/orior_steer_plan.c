@@ -44,7 +44,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     // Every alignment starts standing and a probe can only ever take one down. That direction
     // makes the descent safe to stop at any level: the set shrinks and never grows back.
     //
-    // ON RESUME THE SURVIVORS ARE THE INPUT, NOT RESET. A caller composes a recursive spawn by
+    // ON RESUME THE SURVIVORS ARE THE INPUT AND ARE NOT RESET. A caller composes a recursive spawn by
     // running one descent, then running the next over the survivors the last one left. The child
     // reads only what the parent kept standing and its cost is the survivor count and not the whole
     // field. The engine cannot check that an incoming survivor set is a valid superset of the true
@@ -151,7 +151,7 @@ size_t anchor_steer_plan_recursive(const AnchorSteerDescent *args)
 
     // Reordering. `spawning` is 0 and the candidates are the offsets the caller already placed.
     // force_full_depth is read from the argument even here: a caller checking that stopping equals
-    // continuing has to be able to force the reordering descent too, not only the spawning one.
+    // continuing has to be able to force the reordering descent as well as the spawning one.
     return steer_descend(args->offsets, args->count, args->corpus, args->corpus_len, args->needle, args->needle_len,
                          args->survivors, args->survivors_length, args->sample_stride, 0, args->force_full_depth,
                          args->any, args->resume);

@@ -31,7 +31,7 @@
 # and an independent walk computes its length and any single byte without building it, agreeing with the
 # first on both the length and the sampled bytes. Drawn null: one byte of a tape flipped decodes to a
 # different payload. A wrong tape is caught, and a clean roundtrip means something. Floor: density is a
-# property of the payload, not of the format. A structureless payload has no repeat to name, falls to one
+# property of the payload instead of the format. A structureless payload has no repeat to name, falls to one
 # literal, and transfers at its own size plus a few bytes of frame; the format claims no compression it
 # cannot show, and the ratio is reported with its numerator and denominator on every case.
 #

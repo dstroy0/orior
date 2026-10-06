@@ -32,7 +32,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 TOTALS = os.path.join(ROOT, "miner_totals.txt")
 LOG = os.path.join(ROOT, "miner.log")
 
-# Remembered, not measured: the figure for where the engine started. No log reaches back to it.
+# Remembered and never measured: the figure for where the engine started. No log reaches back to it.
 REMEMBERED_START = 30.0e6
 
 # Assumed, for the comparison column only, and an order of magnitude and not a model number.
@@ -115,7 +115,7 @@ def _report():
         print("")
         print("    THIS PLOT IS FLAT AND IS NOT THE CLIMB. Only %d of %d samples sit under ninety"
               % (below, len(rates)))
-        print("    percent of the peak. What it shows is the STEADY STATE with a cold start at")
+        print("    percent of the peak. It shows the STEADY STATE with a cold start at")
         print("    the left edge. No log in this tree reaches back to the remembered 30 MH/s, so")
         print("    the improvement below can be stated at its endpoints and cannot be drawn.")
         print("    Presenting a flat line as a growth curve would be the plot lying about itself.")
@@ -243,7 +243,7 @@ def _check():
         lines.append("    FAIL the plot is empty or solid, so the axis is wrong")
         failed += 1
 
-    # And the remembered figure must be labeled, not silently mixed with measurements. Checked by
+    # And the remembered figure must be labeled instead of silently mixed with measurements. Checked by
     # its own constant being distinct from anything in the log.
     lines.append("  the remembered start %.0f MH/s is below every logged sample: %s"
                  % (REMEMBERED_START / 1e6,

@@ -124,7 +124,7 @@ remainder is somebody else's open problem and not a defect in the measurement.
 The device packer decides whether a squared distance sits under a threshold, summing squared
 differences across up to nineteen coordinates. The generated PTX carries `sub.f32` and `fma.rn.f32`
 and the comparisons, with no approximate reciprocal, no approximate square root and no fast-math
-substitution anywhere. Fusing the multiply into the add is more accurate than separating them, not
+substitution anywhere. Fusing the multiply into the add is more accurate than separating them, and never
 less.
 
 Whether single precision is sufficient was measured and not argued. The same points were packed
@@ -270,7 +270,7 @@ screw alone would put them. Where a lit point lands is fixed once the amount is 
 
 ### The angular power spectrum and torsion split exactly
 
-On an equal-ring placement a shift along a ring is a pure rotation, which makes it the placement to
+On an equal-ring placement a shift along a ring is a pure rotation, and that makes it the placement to
 test a rotation on. Both harmonic readings come off one coefficient table, and under that rotation
 they behave as opposites.
 
@@ -310,7 +310,7 @@ chosen by counting coefficients alone lands on the worst usable degree available
 
 The companion result is easy to misread. Sixty-four rounds wrote sixty-four distinct signatures, a
 coherence of 100%, with no collisions. The rank says why that is close to free: seven free numbers
-separate sixty-four arbitrary states nearly always, whether or not the seven carry anything about
+separate sixty-four arbitrary states nearly always, whether the seven carry anything about
 the source. Distinctness here reports the resolution of a float and not a property of the object
 being read. It is computed because a collision would have been informative, being a move the reading
 cannot see. None occurred, which rules that out and establishes nothing past it.
@@ -422,7 +422,7 @@ octahedron or a cone, swapped under the cloud while it moves so the same populat
 against a different wall. It squashes to a disc. A carried beam casts shadows of whatever stops it,
 and beam energy decides what that is, and raising it switches shadows off one at a time. Dwell sorts
 the light by how long it stayed inside. Zooming in crosses the shell and leaves the reader among the
-lights; zooming out puts the room's own wall in front of them and fades it, which makes the wall the
+lights; zooming out puts the room's own wall in front of them and fades it, and that makes the wall the
 surface being read.
 
 **What a reading of that field now contains.** The carried beam deposits into the same field as the

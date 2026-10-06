@@ -15,12 +15,12 @@
 # Simplified and traditional are one language written in two character sets. The words are the same, the
 # grammar is the same, and a reader of one can often not read the other on sight. That is a change of
 # writing with no change of language, and both sides come from the same software translations so the
-# subject matter is fixed as well, which makes it the cleanest comparison available here.
+# subject matter is fixed as well. That makes it the cleanest comparison available here.
 #
 # Cantonese against Mandarin is the other half, two languages that are not mutually intelligible and are
 # written in largely the same characters. That comparison carries a fault that cannot be removed with what
 # is available: the Cantonese is subtitles and the Mandarin beside it is not from the same collection. A
-# difference between them is ala difference of subject. It is reported and marked, not leaned on.
+# difference between them is ala difference of subject. It is reported and marked, and nothing leans on it.
 #
 # What the script pair alone can settle: if one language in two character sets reads as far apart as two
 # unrelated languages do, the reading is following the writing.

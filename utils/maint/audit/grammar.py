@@ -1,4 +1,4 @@
-"""The rules, not the frequencies: which transitions are possible and which are forbidden.
+"""The rules instead of the frequencies: which transitions are possible and which are forbidden.
 
 Every earlier reading of the influence web here was a distribution - how often an input at one
 position reached an output at another. That counts pieces. A language is not its letter frequencies;
@@ -67,7 +67,7 @@ def compress(block, rounds):
 
 
 def support(rounds, source, trials, rng):
-    """Which output positions this ONE input bit ever moves. A set, not a histogram."""
+    """Which output positions this ONE input bit ever moves. A set instead of a histogram."""
     reached = 0
     for _ in range(trials):
         block = [rng.getrandbits(32) for _ in range(16)]
@@ -121,7 +121,7 @@ def main():
         print("    trajectory that would need it.")
     print()
     print("    Before it closes the forbidden set is a HARD constraint and needs no null: a")
-    print("    transition either occurred or it did not. That is what a rule is, and it is a")
+    print("    transition either occurred or it did not. That is a rule, and it is a")
     print("    different kind of statement from any frequency in this tree.")
     print()
     print("    How FAST it closes is the number. A round function whose grammar")

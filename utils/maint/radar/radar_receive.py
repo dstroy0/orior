@@ -133,7 +133,7 @@ def main():
     #
     # The waveform is the set of classes the round function actually transports along, each taken
     # with the sign the mechanism predicts: all positive, because a transport channel makes a cell
-    # more dependent, not less. Projecting the per-round CFAR vector onto it and integrating is the
+    # more dependent and never less. Projecting the per-round CFAR vector onto it and integrating is the
     # optimal detector for that waveform in white noise, and it is pre-registered. There is no
     # maximum-of-N correction to pay.
     waveform = [DIAGONAL, CARRY] + list(SIGMA1)

@@ -2058,7 +2058,7 @@
   // those two separate on the wall is the body's distance from the wall: that is a measurement, and
   // it is the reason the second source is worth what it costs.
   //
-  // What it costs is the whole performance question. A cube shadow map is six scene renders for one
+  // Its cost is the whole performance question. A cube shadow map is six scene renders for one
   // source. The map is small and the redraw is held until something moves, and between those two the
   // second source is affordable.
   // ---------------------------------------------------------------------------------------------
@@ -2132,7 +2132,7 @@
   var CONE_UP = new THREE.Vector3(0, 1, 0);
 
   // The spray, as tiny neon streaks flowing from the source outward. Each particle is a short segment
-  // along the cone axis, not a dot. It reads as something in motion and not a speck; and the
+  // along the cone axis instead of a dot. It reads as something in motion and not a speck; and the
   // whole field flows from the apex toward the mouth, the neutrinos coming through the point
   // and out. One shared geometry serves every source, aimed per source; a particle is fixed by its
   // angle and its radial fraction and carried by a phase that all sources share, animating it is
@@ -2860,7 +2860,7 @@
 
     // The spray of neutrinos, a neon point cloud shaped into a cone with its apex on the source. It
     // lights nothing and casts nothing: it is the beam made visible and never a second source. The
-    // geometry and material are shared across sources. This is one point cloud aimed, not a new
+    // geometry and material are shared across sources. This is one point cloud aimed instead of a new
     // one built.
     var cone = new THREE.LineSegments(CONE_SPRAY_GEO, CONE_MAT);
     cone.frustumCulled = false;
@@ -3060,7 +3060,7 @@
     // A light the beam goes through is still there and still lit. Dimming it says which ones the beam
     // is stopped by; hiding it would say the beam decides what exists.
     //
-    // The color is one object held outside, not one per call. Every three.js color, vector and
+    // The color is one object held outside instead of one per call. Every three.js color, vector and
     // matrix on a repeating path in this file is held that way.
     var shade = energyShade;
     var k2;
@@ -3370,7 +3370,7 @@
   // arrived at that latitude. They stay bands deliberately, because a banded quantity is what a curve
   // gets derived from, and smoothing them for the sake of the picture would throw that away.
   //
-  // What the picture needs is different. A real scarcity gradient puts most of its range near zero
+  // The picture needs something different. A real scarcity gradient puts most of its range near zero
   // and a long faint tail above it, a linear map to color spends the whole visible range on the
   // peak and draws the tail as nothing. A saturating transfer lifts the faint end and lets the bright
   // end clip, as a physical detector does.
@@ -3725,8 +3725,8 @@
   // sixty a second, and an audit that looks for `new` and array literals does not catch it, because a
   // string concatenation is neither.
   //
-  // Held as a small array of the values themselves and compared element by element: no allocation, no
-  // formatting, and no question about whether two different readings can format to one string.
+  // Held as a small array of the values themselves and compared element by element. Nothing is allocated, nothing is
+  // formatted, and there is no question about whether two different readings can format to one string.
   var paintFresh = true;
   var paintKeyNow = null;
   var paintKeyWas = null;
@@ -4187,7 +4187,7 @@
             );
       var barHigh = lit * (high - 14);
       // Degree zero cool, the rest warming with the degree so the eye reads how far out the structure
-      // reaches, not only that it is there.
+      // reaches, and not only that it is there.
       barPen.fillStyle =
         b === 0
           ? "#3d6a9b"
@@ -4909,7 +4909,7 @@
     function (raw) {
       // The panels' own opacity, set on one custom property every box reads.
       //
-      // The boundary already has an opacity control and this is not a second one. What this covers is
+      // The boundary already has an opacity control and this is not a second one. This covers
       // the panels sitting over the picture: eight boxes at nine tenths opaque cover a quarter of the
       // scene. Held as a variable instead of set on each box, a box added later is covered without
       // being remembered.
@@ -5245,7 +5245,7 @@
   }
 
   // Taken out of the scene and disposed, and not merely hidden. A light left in the scene goes on
-  // costing a shadow pass whether or not anything can see it, and the whole reason the count is worth
+  // costing a shadow pass whether anything can see it, and the whole reason the count is worth
   // changing is that it costs something.
   function dropSource() {
     if (sources.length <= 1) {
@@ -6070,7 +6070,7 @@
           // Swapping the two x values outright is wrong whenever the labels are different widths and
           // share a row: "neutrino source" is 117px and "boundary 1" is 85px. Handing each the
           // other's left edge slides the wide one 32px into its neighbor. Anchoring to the span's
-          // two ends instead -- the formerly-right label to the left end, the formerly-left label
+          // two ends instead -- the formerly right label to the left end, the formerly left label
           // flush against the right end -- exchanges them without overlap, because a span that held
           // both with a gap between them still holds both when they change places.
           var wasOne = one.left,
@@ -6260,7 +6260,7 @@
     step(gap);
 
     // The trace is laid on its own clock and not once a frame. Tied to the frame rate the tail gets
-    // shorter on a fast machine and longer on a slow one, which makes the dwell time a property of
+    // shorter on a fast machine and longer on a slow one, and the dwell time becomes a property of
     // the hardware and not of the medium.
     sinceTrail += gap;
     if (sinceTrail > 0.045) {
@@ -6474,7 +6474,7 @@
   var lastSpeed = 6;
 
   function speedSlider(ops) {
-    // The box is the authority and the slider follows it, not the other way round.
+    // The box is the authority and the slider follows it.
     //
     // Routing the typed value through the slider is wrong by 0.8%: the slider has a hundred stops
     // over twenty-four operations a second. Typing 7.5 sets the clock to 7.44 while the box goes on

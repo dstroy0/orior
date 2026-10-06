@@ -219,7 +219,7 @@ def _check():
         lines.append("    FAIL a round that cannot have seen the bit already differs")
         failed += 1
 
-    # And the reading of two identical states must be exactly zero, not merely small.
+    # And the reading of two identical states must be exactly zero, and merely small fails.
     places = boundary_read.ring_place(state_deflection.RINGS, state_deflection.WIDTH)
     angles = boundary_read.as_angles(places)
     scalar, _alpha, total = deform_rate.deformation_scalar(

@@ -24,7 +24,7 @@ A cell commonly divides along its long axis, a rule [Minc and Piel](#src:Minc-Pi
 
 A dividing or dying cell moves the tissue around it. At the length and speed of cells the Reynolds number is far below one, as [Purcell](#src:Purcell-1977) sets out. If the tissue responds as a viscous fluid, the flow around an event is a Stokes flow. A body that exerts no net force on its surroundings has a far field led by a force dipole, whose velocity falls off as $1/r^2$, followed by a source dipole falling off as $1/r^3$, as [Lauga and Powers](#src:Lauga-Powers-2009) review for swimming microorganisms. About the event, the force dipole's flow has the angular structure of degree 2 and the source dipole's that of degree 1. The neighbors' departures from the common drift are therefore expanded in those degrees about each candidate origin, and the origin that best accounts for them is taken as the event's position.
 
-Embryonic tissue is packed with cells and is viscoelastic, not a Newtonian fluid. The Stokes far field is a hypothesis about it, not a property of it.
+Embryonic tissue is packed with cells and is viscoelastic instead of a Newtonian fluid. The Stokes far field is a hypothesis about it instead of a property of it.
 
 **Refutation.** Take the mean magnitude of the neighbors' departures from the common drift at distance $r$ from annotated divisions, and the same mean at distance $r$ from points away from any division. If the first is no larger than the second, there is no displacement to read. If it is larger, its fall-off with $r$ tests the Stokes reading, which predicts $1/r^2$ in the far field.
 

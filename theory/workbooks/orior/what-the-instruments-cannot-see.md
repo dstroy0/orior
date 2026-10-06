@@ -59,14 +59,14 @@ Reversing every rotation gives a function statistically identical to the standar
 means differ by a third of a standard error and both reach half the output at round eighteen - so
 handedness is cosmetic and the rotation amounts carry the diffusion.
 
-Every one of those is a bound with a domain, not an absolute. A finite observation of an unbounded
+Every one of those is a bound with a domain instead of an absolute. A finite observation of an unbounded
 input space can bound an effect and can never establish absence.
 
 **On the block header, a real and large signal.** The sixteen bits BIP320 reserves for version
 rolling give away 1.82 bits of collision entropy, which is 588 times the floor chance produces at
 that width and depth, and 45.7 per cent of what the field could carry. Per-bit shares run from -5 to
 -51 standard errors against a swept counter's prediction, and the whole distribution is bimodal with
-spikes on exact powers of two: conventions, not a sweep. The leak also moves, at p = 0.010 against a
+spikes on exact powers of two: conventions instead of a sweep. The leak also moves, at p = 0.010 against a
 shuffle null, which is software being deployed and retired inside a forty eight day window.
 
 **On the clocks, a physical effect cleanly separated.** Timestamps in 2.98 per cent of blocks precede

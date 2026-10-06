@@ -54,7 +54,7 @@ POSITIONS = 2048
 WINDOWS = (16, 24, 32, 48, 64)
 
 # Reseeds of the shuffle each row is scored against. The floor quoted is the tallest margin any of
-# them reached, not the average. The separation is against the best a null permutation managed.
+# them reached instead of the average. The separation is against the best a null permutation managed.
 DRAWS = 12
 
 

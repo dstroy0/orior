@@ -26,7 +26,7 @@
 # collapse is read off its rendered pages, and there is no other answer.
 #
 # Transposition is not here because the one family that needs it needs a whole conversion table with
-# it. lyon_encoding.py is that table and it is that font's grain, not a general one.
+# it. lyon_encoding.py is that table and it is that font's grain instead of a general one.
 #
 # Deletion is not here for a different reason: on the papers measured so far it is not decidable from
 # the text alone. Davis and Mellesmoen prints l followed by a space for both l̓ with its space

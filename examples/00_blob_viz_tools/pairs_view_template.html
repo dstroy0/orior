@@ -190,7 +190,7 @@ function paint(roundIndex) {
     // geometric top depends on how the axis was oriented, tracked at build time.
     var aColor = a ? HOT : COLD;
     var bColor = b ? HOT : COLD;
-    // Mixed pairs get the order hue, not two grays. A flip of which bit is set is a change
+    // Mixed pairs get the order hue instead of two grays. A flip of which bit is set is a change
     // of color and not only of which end glows.
     if (a !== b) {
       aColor = a ? TOP : COLD;

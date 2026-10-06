@@ -8,6 +8,7 @@
 import re
 
 from .context import CONTEXT_REASON, context_exempt
+from .grammar import CONFIRM, GRAMMAR_CORPUS, GRAMMAR_RATE
 from .human_rate import HUMAN_RATE, stage_of
 from .index import PASSAGE, _COMPILED, candidates, present
 from .quoting import EM_DASH, NAMED_IN_MARKDOWN, NAMED_SPAN, QUOTED
@@ -96,6 +97,8 @@ def banned_hits(lines, quotations=False, comments=False, path=None, ledger=None)
                     (start >= opens) and (stop <= closes) for opens, closes in quoted
                 ):
                     continue
+                if (pattern in CONFIRM) and not CONFIRM[pattern](hit):
+                    continue
                 at = offsets[start] if start < len(offsets) else offsets[-1]
                 token = hit.group(0)
                 if tier in exempt:
@@ -140,6 +143,17 @@ def banned_hits(lines, quotations=False, comments=False, path=None, ledger=None)
 CORPUS = "the 759,815-word reference papers"
 
 
+def measured(pattern):
+    """A pattern's human rate per 100k words, with the corpus that rate was counted in.
+
+    A grammar pattern carries its own rate and its own corpus. Printing it against CORPUS would name
+    a text it was never counted in.
+    """
+    if pattern in GRAMMAR_RATE:
+        return GRAMMAR_RATE[pattern], GRAMMAR_CORPUS
+    return HUMAN_RATE.get(pattern, 0.0), CORPUS
+
+
 def banned_tokens(
     lines, quotations=False, comments=False, path=None, ledger=None, regions=None
 ):
@@ -155,7 +169,7 @@ def banned_tokens(
     """
     found = []
     for at, pattern, token in banned_hits(lines, quotations, comments, path, ledger):
-        rate = HUMAN_RATE.get(pattern, 0.0)
+        rate, corpus = measured(pattern)
         shape = stage_of(pattern)
         tier = tier_of(pattern)
         said = " ".join(token.split())
@@ -164,9 +178,9 @@ def banned_tokens(
         elif tier == "alphabet":
             note = "definition %r, American convention is the house rule" % said
         elif rate:
-            note = "tier B %s %r, %.1f per 100k in %s" % (shape, said, rate, CORPUS)
+            note = "tier B %s %r, %.1f per 100k in %s" % (shape, said, rate, corpus)
         else:
-            note = "tier B %s %r, not seen in %s" % (shape, said, CORPUS)
+            note = "tier B %s %r, not seen in %s" % (shape, said, corpus)
         found.append((at, attributed(note, at, regions)))
     return sorted(found)
 

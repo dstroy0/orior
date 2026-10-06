@@ -141,7 +141,7 @@ static double turing_now(void)
 #define TURING_HALF_BITS 31u
 // the widths below are set from the input before any program is built, each at least its floor and as wide as the
 // input asks, and no input is turned away for its size: a width reached is the engine's signal to fold the arithmetic
-// or schedule the run again, at the layout and the device's allocation, not here.
+// or schedule the run again, at the layout and the device's allocation, and never here.
 // nu and every k and x below 2^turing_nu_bits, s below 2^(2 turing_nu_bits), and the lanes of a pair run below
 // 2^turing_lane_bits
 #define TURING_NU_FLOOR 16u

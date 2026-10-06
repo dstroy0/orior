@@ -441,7 +441,7 @@ def _drift():
     print("")
     print("  WHAT THAT IS WORTH, AND IT IS NARROW BUT REAL. Nothing here is faster: the exact")
     print("  machine is slower than float64 by a large factor and always will be, since a Decimal")
-    print("  multiply is not a hardware instruction. What it buys is that a residual means")
+    print("  multiply is not a hardware instruction. It buys a residual that means")
     print("  something. An instrument whose own floor is 1e-16 cannot report a 1e-20 effect, and")
     print("  most published state vector simulators have exactly that floor.")
     print("")
@@ -490,7 +490,7 @@ def _check():
     # THE CONTROL COMPARES THE STATE AGAINST A HIGHER-PRECISION REFERENCE ACROSS A CIRCUIT THAT
     # DOES NOT CANCEL. H squared is the identity. 30 Hadamards on one qubit are fifteen
     # identities and return the state however inexact each one is. And the NORM is preserved by
-    # any unitary circuit, which makes it the least sensitive signature available.
+    # any unitary circuit. That makes it the least sensitive signature available.
     coarse = ExactState(6, 20)
     fine = ExactState(6, 60)
     for at in range(6):

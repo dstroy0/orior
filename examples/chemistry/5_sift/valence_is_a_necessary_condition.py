@@ -24,7 +24,7 @@
 # can pass on an arrangement the per-atom check errors, the mis-wired peroxide below. A
 # route that could never disagree with the other would be the same route twice.
 #
-# The null is drawn, not assumed. Keep the bond graph and the multiset of elements, and permute which
+# The null is drawn instead of assumed. Keep the bond graph and the multiset of elements, and permute which
 # element sits at which atom with reference.shuffles.permuted. That deletes one property, the match
 # between an element and the degree its place carries, and keeps the counts exactly. Most such
 # permutations put an element where its valence does not fit the degree. The octet errors on them.

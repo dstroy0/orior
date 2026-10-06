@@ -8,7 +8,7 @@
 #
 # WHAT THIS ANSWERS
 #
-# docs_check bans 242 phrases and every one got there because somebody noticed it, which makes
+# docs_check bans 242 phrases and every one got there because somebody noticed it, and that makes
 # the list a record of noticing. The question underneath it is whether this tree's prose reads like
 # English somebody wrote. That question already has a bench: english_sift.english_reference builds
 # a byte pair reference from four megabytes of ordinary English plus the in-domain English nine

@@ -3,7 +3,7 @@
 **Purpose:** Carry the transfinite noise sieve and the fluidic architecture (the drafts in `thought_experiments/engine/`) into the ledger, idea by idea, each set beside the part of the engine that is its working form and the status that backs it. The theory and the code are then read as one thing, and a reader knows which ideas already run.
 **Scope:** every idea in the noise sieve and fluidic drafts, the drafts on the demon with a universal Turing machine, the keyspace and folding draft, the subtractive framework and the seed crystal draft; the claims among them with no working form are kept in [wants.md](wants.md). `proposal.md` sets the sieve on the cell program. It is in `thought_experiments/cell_tracking/`, and its sections are in the cell workbook ([on_the_engine.md](../cell_tracking/on_the_engine.md)). Where an idea has a working form, the module is named; [cell_tracking_table.md](../cell_tracking/cell_tracking_table.md) says which part of the n-body problem each module solves, and [engine_table.md](engine_table.md) what each machine part computes.
 
-The status column follows the ledger's rules ([README.md](README.md)): proved, measured, built, theory, refuted, not so.
+The status column follows the ledger's rules ([README.md](README.md)): `proved`, `measured`, `built`, `theory`, `refuted`, `not so`.
 
 ## The governing functional
 
@@ -75,7 +75,7 @@ Read right to left, it is the engine's run order:
 
 **The idea.** Time is part of the tower: samples enter at the bottom and stack upward, and the time domain is written into the lattice. Every tower has a floor configuration and a master schedule by family of operation. Floor −4 is where the noise bits are at their smallest and become irreducible.
 
-**In the engine.** The .kcr tower lifts t, z, y and x together: time is a lifted axis, not a loop. A whole 100×64×256×256 sample reaches one coefficient in 8 floors. What the program does not generate is every floor's high-pass coefficients, the residue. That residue is held whole and never bounded, modeled or discarded.
+**In the engine.** The .kcr tower lifts t, z, y and x together: time is a lifted axis instead of a loop. A whole 100×64×256×256 sample reaches one coefficient in 8 floors. What the program does not generate is every floor's high-pass coefficients, the residue. That residue is held whole and never bounded, modeled or discarded.
 
 **The floor, measured.** The anchor count stacks every frame of a sample and counts, per voxel and per bit, the frames that carry the bit. In every one of the 25 44b6 samples, bits 0 to 4 are set in about 46% of frames at nearly every voxel: those planes carry no anchor, and they look alike in every sample. The anchors sit in bits 6 to 11 and differ between samples. That is the measured floor, and it answers the drafts' "noise bits minimised to their smallest state". It also says why floor −4 is sample bound: no voxel is anchored in every sample.
 
@@ -135,7 +135,7 @@ The observer settling on hot bits, and the noise key fed back as the next cycle'
 
 **Recursive inflation.** Kₘ₊₁ = R(Kₘ, ξ). A composed key is itself a step, and it can be a step in another program: recursion is keys of keys. Towers can be built in n dimensions: the tower lifts every axis still longer than one, whatever their number.
 
-**Identity as the limit of coherence.** ID(x) = lim C(x, t): an object is who it is because its coherence carries on, not because of a tag. In the engine a link is chosen by coherence at the climbed lag (`held`), and every body's fate follows from the links (`bodies`: entered, present, split, merged, left, ended, vanished, absorbed).
+**Identity as the limit of coherence.** ID(x) = lim C(x, t): an object is who it is because its coherence carries on, and a tag plays no part. In the engine a link is chosen by coherence at the climbed lag (`held`), and every body's fate follows from the links (`bodies`: entered, present, split, merged, left, ended, vanished, absorbed).
 
 **Entropy.** Φ(x) = Θ(H_max − ∫ H(x, t) dt): whatever decays to maximum entropy is background and goes to floor −4; whatever does not is coherence. The anchor counts measure this directly. A bit carried in a fraction p of the frames has entropy −p log p − (1 − p) log(1 − p), which is at its maximum near p = ½. So the low five bit planes, near ½ at every voxel, are H_max: floor −4 by this very test. The anchor bits, near 0 or 1, are coherence. Taking Φ per voxel from the counts on disk costs no new pass over the data.
 
@@ -153,7 +153,7 @@ The observer settling on hot bits, and the noise key fed back as the next cycle'
 **In the engine.** Two parts carry over exactly.
 
 - **Reversible maps in place of unitaries.** Every transform the engine applies to data is an exact integer map with an exact inverse: the tower's lifting steps, and the integer rotations as three lifting shears. They are the classical, exact counterpart of a unitary: nothing is lost, and each is undone by running it backwards.
-- **Measurement without dice.** The noise is taken as deterministic, constant and unique per sample. It is read whole, never drawn from a distribution, and the null draws are deterministic frames far off in time, not random numbers.
+- **Measurement without dice.** The noise is taken as deterministic, constant and unique per sample. It is read whole, never drawn from a distribution, and the null draws are deterministic frames far off in time instead of random numbers.
 
 The 2^n barrier does not go away in a machine. The engine keeps its state exact and bounds every width before it runs; it does not hold an infinite Hilbert space.
 
@@ -169,7 +169,7 @@ The 2^n barrier does not go away in a machine. The engine keeps its state exact 
 
 **In the engine.** The boundary functional is the same object as the drafts' ∂Ω: the edge between what a pass accepts and what it does not, applied to every element at once. The engine's proved instance of a fold is the CRC-64. Each segment's register is taken from zero as the tower touches the pixels. Registers are then folded pairwise, each left one carried across its neighbor by one imprinted operator a level. The accumulator stays 64 bits whether it covers 64 pixels or 419,430,400. The latch is a reduction the engine already runs: the device comparisons that count differing voxels, and the overflow flag the tower sets.
 
-**Stated exactly.** A fold compresses the *verification* of work, not the work. Proving that a search over the keyspace was done still needs every hash in it computed once. Expected work to meet x < T is about 2^120 / T evaluations, and no fold changes that count. What folding removes is the cost of *checking* the trace, which otherwise grows with every recursive layer. A preimage below a threshold is found by search, and the fold proves the search.
+**Stated exactly.** A fold compresses the *verification* of work instead of the work. Proving that a search over the keyspace was done still needs every hash in it computed once. Expected work to meet x < T is about 2^120 / T evaluations, and no fold changes that count. What folding removes is the cost of *checking* the trace, which otherwise grows with every recursive layer. A preimage below a threshold is found by search, and the fold proves the search.
 
 | claim | status |
 |---|---|
@@ -181,11 +181,11 @@ The 2^n barrier does not go away in a machine. The engine keeps its state exact 
 
 The draft in the subtractive framework draft is a cosmology. Its cosmological claims (arrival as a c speed update shell, monitoring daemons on structural lines, black holes as sinks) are outside anything this engine can measure, and the ledger records them as theory and leaves them there. Three of its turns correct or sharpen the sieve drafts, and those carry straight into the engine.
 
-**Rules propagate at field speed, not instantly.** "The ruleset propagates to w at field speed": the new rules spread from where they are applied as a wavefront, bounded by the medium's clock, instead of blinking into existence everywhere. This corrects §1's "transfinite speed". In a machine the rules reach every lane in one launch, and the launch takes time; the ledger's 31 ms a frame is that front, measured.
+**Rules propagate at field speed instead of instantly.** "The ruleset propagates to w at field speed": the new rules spread from where they are applied as a wavefront, bounded by the medium's clock, instead of blinking into existence everywhere. This corrects §1's "transfinite speed". In a machine the rules reach every lane in one launch, and the launch takes time; the ledger's 31 ms a frame is that front, measured.
 
 **Phase cancellation is subtraction of the whole medium.** "You read the incoming packet, flip the sign, and output it. The wave hits your boundary, meets its exact inverse, and resolves to zero." That is the residual's key: 2^g · B_narrow − B_wide · B_narrow. The wide term is the medium, and it is subtracted whole, in exact two's complement. The medium resolves to exactly zero, and what is left stands above it. The inversion is exact only because the arithmetic is: a rounded inverse leaves a residue of rounding, and that residue would read as structure.
 
-**The identity:null permutation means field noise readings only.** A null is not a blank pointer or an error. Asked what is here, it returns a valid, boring reading of the field noise, indistinguishable from empty space. That is the precise meaning of the engine's null draws. The same body is climbed at the same lag toward frames far off in time, where no correspondence exists. What comes back is the reading field noise alone gives there. A body is real only where it stands above that reading. The reading is taken, not assumed: nothing is drawn from a distribution, and no threshold is chosen.
+**The identity:null permutation means field noise readings only.** A null is not a blank pointer or an error. Asked what is here, it returns a valid, boring reading of the field noise, indistinguishable from empty space. That is the precise meaning of the engine's null draws. The same body is climbed at the same lag toward frames far off in time, where no correspondence exists. What comes back is the reading field noise alone gives there. A body is real only where it stands above that reading. The reading is taken instead of assumed: nothing is drawn from a distribution, and no threshold is chosen.
 
 **Listening at the noise floor.** "Tune the receiver to field noise": a receiver matched to the floor takes only what rises above it. The anchor counts are that receiver. The low five bit planes sit at the floor (near ½ at every voxel), and a bit is signal only where its count leaves ½.
 
@@ -239,7 +239,7 @@ the four noise vectors draft takes the residual tensor F − I and splits it int
 | the history separates the fixed pattern (no flips) from shot, read and quantization (half the transitions) | measured on 44b6_0113de3b: bits 0 to 3 at 499 to 500 per thousand in every window |
 | a sample wide rise in entropy at window 4, then a move toward order | measured on 44b6_0113de3b; on the other 24 samples, pending |
 | the history's counts are exact | proved on 44b6_0113de3b: 2,000 voxels × 9 windows counted by hand from the .stack, 0 words differ |
-| the noise keys stamped top down over the whole set in one cycle | theory; the cycle runs record programs, not only linear keys: tables, division and the bitwise operations with the wrap (M10; `record_table_test`, `record_divide_test`, `record_bitwise_test`), and no noise key is imprinted |
+| the noise keys stamped top down over the whole set in one cycle | theory; the cycle runs record programs as well as linear keys: tables, division and the bitwise operations with the wrap (M10; `record_table_test`, `record_divide_test`, `record_bitwise_test`), and no noise key is imprinted |
 
 Every noise term, these four and the rest Doug named has one row in [noise_vector_integration_table.md](noise_vector_integration_table.md): how it moves, the exact sums that read it, its form in the sims' camera law, and the experiment that moves its status.
 
@@ -255,8 +255,8 @@ Every noise term, these four and the rest Doug named has one row in [noise_vecto
 
 | claim | status |
 |---|---|
-| the floor section in the `.cfg`, laid down before anything else runs | built, not yet run: the `.cfg` reads and writes it; a program's driver laying it down is in the cell workbook |
-| entropy conserved at every voxel: each bit's flips have the parity of its net change | built, not yet run: checked in the history's own pass |
+| the floor section in the `.cfg`, laid down before anything else runs | built and not yet run: the `.cfg` reads and writes it; a program's driver laying it down is in the cell workbook |
+| entropy conserved at every voxel: each bit's flips have the parity of its net change | built and not yet run: checked in the history's own pass |
 | the floor's identity at every voxel places every departure: where steering happened | theory; the history holds it, and the reading is not built |
 | the clock as the elevator: any floor at any time reached directly | built: the tower's floors and the stream's chunks at known offsets; the history's windows at known places |
 

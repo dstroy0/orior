@@ -28,7 +28,7 @@
 # in the sample. So latitude is reported because it is what the data holds, and it is reported as a weak
 # proxy that is expected to fail, and never as the test.
 #
-# What this cannot see: WALS records what a feature is, not why. A correlation here would be consistent
+# What this cannot see: WALS records what a feature is. It does not record why. A correlation here would be consistent
 # with the claim and would not establish it, since anything else that follows the same map, contact and
 # descent above all, would produce the same number.
 

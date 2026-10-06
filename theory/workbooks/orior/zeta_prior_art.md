@@ -9,8 +9,8 @@ threads they belong to. No note bears on the hypothesis.
 
 **How closely read.**
 - **Read:** opened here and read, with the pages given.
-- **Reported:** from a web search or cited by a paper read here, not opened.
-- **From knowledge:** stated from training, not from a copy read here.
+- **Reported:** from a web search or cited by a paper read here, and not opened.
+- **From knowledge:** stated from memory of the literature instead of a copy read here.
 
 Nothing here is a result of the engine. The engine's own runs are the entries.
 
@@ -28,7 +28,7 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
   every `n` up to `N`. The zeros of `F` off the line, the sources of the twist that hides `Z`'s zeros,
   lock on the prime powers at Landau's sign, `R` in proportion to `Lambda(n) n^(-1/2)`, and not on
   `ln 6`. Langer's count of the zeros of a sum of exponentials, one for each two zeros of `Z` here, is
-  from knowledge, not read.
+  from knowledge and not read.
 - **Gonek's uniform bound.** Reported. `R <= x log(2 T x) log log(3 x) / T`, uniform in `x` and `T`.
   It makes Landau's formula a usable reference at a finite height, the regime the engine runs in.
 - **Balanzario, Cardenas Romero and Chacon Serna, "A smooth version of Landau's explicit formula"
@@ -58,7 +58,7 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
   ([two_crystals.md](../engine/two_crystals.md), "The places of Q"). RH for every `L`-function with
   Grossencharakter is equivalent to the positivity of the Weil distribution, a sign on the pairing of
   a test function on the zeros against its transform on the primes. The "crucial negative sign" in the
-  fluctuations is why the zeros read as absorption, a dip, not emission. The engine certifies a
+  fluctuations is why the zeros read as absorption, a dip instead of emission. The engine certifies a
   zero as a sign change of `Z`, a crossing to a null, a dip in this sense.
 
 ## Interlacing: two quadratures that trap each other's zeros
@@ -148,7 +148,7 @@ Nothing here is a result of the engine. The engine's own runs are the entries.
 - **Ford and Zaharescu, "On the distribution of imaginary parts of zeros of the Riemann zeta function"
   (arXiv:math/0405459, 2004).** Read, pp. 1-4. Under RH, the exponential sum of the zeros against the
   known frequency `alpha`, `sum over 0 < gamma <= T of exp(2 pi i j alpha gamma)`, is of order `T`,
-  against the `T log T` terms: the zeros are biased against that reference, not evenly spread. The bias
+  against the `T log T` terms: the zeros are biased against that reference instead of evenly spread. The bias
   density `g_alpha` is zero unless `alpha` is a rational multiple of `(log p) / 2 pi` for a prime `p`;
   at `alpha = a (log p) / (2 pi q)` it has global minima at `t = k / q`, each a shortage of zeros
   there. Their Figure 1, from Odlyzko's zeros to height `T = 600000`: `alpha = (log 2) / 2 pi` shows

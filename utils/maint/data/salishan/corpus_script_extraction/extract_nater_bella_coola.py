@@ -15,7 +15,7 @@
 # Nater defines his own symbols in section 2 and they are used unchanged here. The character ˽, which he
 # names Combining Inverted Bridge Below, follows proclitics and precedes enclitics. A hyphen follows a
 # prefix and precedes a suffix. A colon precedes a reduplicated consonant. Those three carry the
-# morphology and are part of the text, not punctuation to be stripped.
+# morphology and are part of the text instead of punctuation to be stripped.
 #
 # The story is The Frog Children, told by the late Dr. Margaret Siwallace and recorded over forty years
 # before the paper was published in 2015. Nater notes that the narrator first calls it a sʔalac'i, a

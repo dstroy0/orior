@@ -25,7 +25,7 @@
  *   descent's cap of four, which the case checks. The lone survivor is then verified against the
  *   whole needle with a full compare before it is called found, which is this tree's rule that a
  *   survivor is not a match until the exact compare confirms it, carried into the recursive setting.
- *   The premise that the target is unique is checked, not assumed: a repeated target would stall the
+ *   The premise that the target is unique is checked instead of assumed: a repeated target would stall the
  *   descent at its true-occurrence count, and that is a different outcome.
  *
  *   NULL. A flat field matches the needle at every alignment. No probe prunes anything and the
@@ -345,7 +345,7 @@ static int o2_case_anytime_superset(void)
 }
 
 /**
- * @brief Case 4. The read cost, reported for a pruning field against a barely-pruning one.
+ * @brief Case 4. The read cost, reported for a pruning field against a barely pruning one.
  *
  * @return 0 always. The cost is reported and not asserted, since the numbers belong to the fields.
  * @note THE HONEST BOUNDARY. A pruning field collapses the survivors fast. The sum of survivor
@@ -388,7 +388,7 @@ static int o2_case_cost_boundary(void)
                          &prune_sum);
     }
 
-    // Barely-pruning field: the least symbol dominates and the needle is all of it. Most
+    // Barely pruning field: the least symbol dominates and the needle is all of it. Most
     // alignments agree at most positions and each probe removes few.
     uint64_t skew_state = 0x0BADC0DE0BADC0DEULL;
     for (size_t at = 0u; at < O2_CORPUS; at += 1u)

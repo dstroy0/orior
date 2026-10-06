@@ -317,7 +317,7 @@ def build_motif():
         1 for members in context_groups(signal, radius).values() if len(members) > 1
     )
     # drawn null: break the context->center link by shuffling the centers among themselves; the same
-    # grouping then no longer recovers the clean center. The live 100% is the link, not the grouping.
+    # grouping then no longer recovers the clean center. The live 100% is the link instead of the grouping.
     shuffled = list(signal)
     center_values = [signal[c] for c in centers]
     random.Random(SEED ^ 0x2).shuffle(center_values)
@@ -523,7 +523,7 @@ def main():
         "  from its target; the routes agree and a broken one splits. The agreement is\n"
     )
     out.write(
-        "  evidence; the null is drawn, not assumed; and the floor is a sweep because a floor\n"
+        "  evidence; the null is drawn instead of assumed; and the floor is a sweep because a floor\n"
     )
     out.write(
         "  that moves with a parameter is a different claim from one quoted at a single setting.\n"

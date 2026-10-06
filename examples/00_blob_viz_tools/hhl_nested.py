@@ -202,7 +202,7 @@ def _report():
                   % (dimensions, size, sparsity, kappa, classical, quantum, winner))
         print("")
 
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     return 0
 
 
@@ -243,7 +243,7 @@ def _crossover():
     print("")
     print("  What nesting does is keep the N term logarithmic while the classical term stays")
     print("  linear. Past the crossover the margin widens without limit in N at every")
-    print("  dimension. The dimension sets where the race starts, not who wins it.")
+    print("  dimension. The dimension sets where the race starts and does not decide who wins it.")
     return 0
 
 
@@ -331,7 +331,7 @@ def _field():
                  ("%.3e" % crossing) if crossing else "none"))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     print("  The bound is set by the SMALLEST field term, an uneven map is carried by its")
     print("  weakest qubit and not by its strongest. A spikeball pays for it: the spikes")
@@ -438,7 +438,7 @@ def _arrange(size=256):
         print("  same field strength placed differently. That is free, and the bound would have")
         print("  told you the arrangements were identical.")
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     return 0
 
 

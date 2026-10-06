@@ -33,7 +33,7 @@ unity of order 2^n means. For that form two complete proofs are available, and n
 that returns a probability.
 
     PRIMALITY, BY PROTH. For N = k * 2^n + 1 with k odd and k < 2^n, N is prime if and only if some
-    a has a^((N-1)/2) congruent to -1 modulo N. A witness is a certificate of primality, not
+    a has a^((N-1)/2) congruent to -1 modulo N. A witness is a certificate of primality instead of
     evidence of it. On the other side a single a with a^(N-1) not congruent to 1 is a certificate of
     compositeness by Fermat. So both verdicts are proofs and neither is a judgement call.
 

@@ -65,8 +65,8 @@ class for a scanner. If the control does not fire, the null is about the tool.
 
 Seven derived thresholds in one night and every one came in too low. The error is one-directional
 and for that reason it earns a rule instead of more care: deriving a bar means enumerating the
-sources of variance, and the ones left out only ever ADD variance, which makes the derived value always
-the low estimate. A drawn bar has them all whether or not anyone thought of them.
+sources of variance, and the ones left out only ever ADD variance, and that makes the derived value always
+the low estimate. A drawn bar has them all whether anyone thought of them.
 
     a shuffle of labels that returned identical counts every draw, sd 0.00
     a bar at two Poisson floors for a statistic that spans three and a half by construction
@@ -171,7 +171,7 @@ What that settles, in both directions:
                 for "no gradient exists" with nothing fixing the difference. Fading an injected
                 gradient until the same statistic loses it puts a number on it - 0.0625 leading-zero
                 bits per single-bit step, with the control flat at every rung. Above that, excluded.
-                Below it, or expressed anywhere else in the digest, not looked at.
+                Below it, or expressed anywhere else in the digest, it is not looked at.
 
                 The engineering conclusion survives intact, because mining's objective IS that
                 count. The general claim did not, and the difference is the whole lesson: this null
@@ -216,7 +216,7 @@ back empty anyway.
 
 Three ways to use it:
 
-**As a constraint, not a loss.** Where a dependency has been elided, everything downstream of that
+**As a constraint instead of a loss.** Where a dependency has been elided, everything downstream of that
 dependency is decided. That prunes searches over trajectories outright instead of probabilistically,
 and it is why a support measurement is worth more per run than any frequency.
 

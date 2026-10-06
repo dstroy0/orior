@@ -178,7 +178,7 @@ def main():
     else:
         print("    P_l moved by %.3e under general rotation. Either the placement is uneven at" % gen_power)
         print("    this rank or the reading does not realize the Wigner structure, and both are")
-        print("    faults in the instrument, not facts about the state.")
+        print("    faults in the instrument instead of facts about the state.")
     return 0
 
 

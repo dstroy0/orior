@@ -222,7 +222,7 @@ entire cause of the blindness.
 
 Three consequences, each a number:
 
-- **Degree eight recovers 81 of 256.** No sample size, no precision and no number of beams completes
+- **Degree eight recovers 81 of 256.** Neither sample size, precision nor the number of beams completes
   it.
 - **Degree fifteen is the floor**, where (L+1)^2 first reaches 256. Below it the blindness is forced
   by counting alone.
@@ -303,16 +303,16 @@ beam can hide part of an object as easily as reveal it.
 harmonic reading, and made it the first priority of the precision work. The basis measurement says
 otherwise: it is orthonormal to 2.2e-14 at degree fifteen, the degree a complete reading
 needs. The mantissa argument holds only for readings much deeper than that. **The priority argument
-was wrong and the reading degree is a choice, not a precision limit.**
+was wrong and the reading degree is a choice instead of a precision limit.**
 
 **On coherence.** I reported sixty-four distinct signatures from sixty-four rounds as coherence. The
-rank says seven free numbers, and seven reals separate sixty-four arbitrary states whether or not
+rank says seven free numbers, and seven reals separate sixty-four arbitrary states whether
 the seven carry meaning. **The separation was free and I reported it as a result.**
 
 **On the octant delta.** Three assertions withdrawn before the fourth stood, each asserting a
 *level* -- a ramp, a stationary value, a floor -- for a quantity that has a *trend*.
 
-**On saturation.** Overturned by the object, not the statistic: every version of that measurement
+**On saturation.** Overturned by the object instead of the statistic: every version of that measurement
 read the finalized digest.
 
 ---

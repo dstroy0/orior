@@ -21,8 +21,8 @@
 # would make this file disagree with the source it came from.
 #
 # Two files come out. One holds everything found, marked. Nothing is lost and a reader can check it
-# against the paper. The other holds only what she said in the target language, with no gloss, no
-# segmentation, no translation and no marks. That file is what gets ingested.
+# against the paper. The other holds only what she said in the target language, with neither gloss,
+# segmentation, translation nor marks. That file is what gets ingested.
 #
 # Bernice Garcia asked that it be acknowledged that she is a Kamloops Indian Residential School speaker
 # who is re-learning her language. That is recorded in the output because she asked for it.
@@ -109,7 +109,7 @@ TARGET = os.path.join(
 PAGE = re.compile(r"^===== page \d+ =====$")
 HEADING = re.compile(r"^(\d+\.\d+)\s+(\S.*)$")
 
-# A sentence number can follow a closing quote with no space, as in tékɬ!”18. where 17 ends and 18
+# A sentence number can follow a closing quote with no space, as in `tékɬ!”18.` where 17 ends and 18
 # begins. Requiring whitespace before the number lost that sentence and reported only a total one
 # short, and the numbering gaps are checked at the end of this run for that reason.
 NUMBERED_INLINE = re.compile(r"(?:(?<=^)|(?<=\s)|(?<=[”\"'’.!?]))(\d{1,3})\.\s")

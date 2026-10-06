@@ -12,7 +12,7 @@ Two facts about the vector before any operator touches it.
 
 \textbf{Its length bounds what a reading can say.} A reading to degree \(L\) carries \((L+1)^2\) real numbers about its source, whatever the source is. \(256\) sources read at degree \(8\) arrive as \(81\) numbers, and \(175\) directions of the source space are absent from the reading. The eight-letter octant alphabet is rank \(8\), absent in \(248\), with \(7\) free numbers left once the weight is fixed.
 
-\textbf{Degree 15 dips and then recovers.} At full depth the least live singular value is \(3.474 \times 10^{-3}\) at degree \(15\) against \(1.75\) at degree \(14\), a ratio of \(504\), and it recovers to \(2.52\) by degree \(17\). The exactly-complete degree has a least singular value about \(500\) times smaller than the incomplete degree beneath it. That is a ratio of least singular values; a condition number also divides by the largest. Completeness of count and health of conditioning are separate properties.
+\textbf{Degree 15 dips and then recovers.} At full depth the least live singular value is \(3.474 \times 10^{-3}\) at degree \(15\) against \(1.75\) at degree \(14\), a ratio of \(504\), and it recovers to \(2.52\) by degree \(17\). The exactly complete degree has a least singular value about \(500\) times smaller than the incomplete degree beneath it. That is a ratio of least singular values; a condition number also divides by the largest. Completeness of count and health of conditioning are separate properties.
 
 \section{The transform table}
 
@@ -62,7 +62,7 @@ The two smoothing times add. The heat kernel on the sphere is a semigroup: smoot
 
 The pixel width \(\sigma\) varies per pixel (below, under the footprint), and \(\tau_{\text{pixel}} = \sigma^2/2\) enters \(g\), and the gains are per pixel. Group the synthesis by degree, \(f = \sum_l g_l S_l\) with \(S_l = \sum_m a_{lm} Y_{lm}\), and set \(q = e^{-2\tau}\). Since \(g_l / g_{l-1} = e^{-2l\tau} = q^l\) up to the depth factor, each degree past the first takes two multiplications, one for \(q^l\) and one for \(g_l\). \textbf{The filter costs one exponential and \(3L - 2\) multiplications per pixel}, \(28\) at \(L = 10\).
 
-\textbf{A correct pixel filter is nearly free.} It is one addend inside a \(\tau\) already being applied. There is no second pass, no extra sampling, and no new operator.
+\textbf{A correct pixel filter is nearly free.} It is one addend inside a \(\tau\) already being applied. It needs neither a second pass, extra sampling nor a new operator.
 
 \section{Why they are diagonal, and why two are not}
 

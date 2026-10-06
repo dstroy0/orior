@@ -4,7 +4,7 @@
 // then each of its 104 operation bits is turned over one at a time and run again. A turned bit that changes the answer
 // or stops the instruction running is a bit the part reads; one that changes nothing is control or unused.
 //
-// Which operand a read bit belongs to is matched, not guessed: the same instruction is run with each source operand's
+// Which operand a read bit belongs to is matched instead of guessed: the same instruction is run with each source operand's
 // register number or number moved by a known amount, and a turned encoding bit belongs to the operand whose move
 // gives the same answer. A read bit no operand's move explains is the operation's own, or a field the text does not
 // print.

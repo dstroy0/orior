@@ -10,7 +10,7 @@
  * clears every point already kept. So the device answers that for a batch at a time and the host
  * walks the batch in order, settling the few candidates that clear the kept set against each other.
  *
- * The answer is the same answer a purely sequential pass would give, and that is checked, not
+ * The answer is the same answer a purely sequential pass would give, and that is checked instead of
  * asserted: the driver runs this and the host version over the same shapes at low dimensions
  * where both can reach, and the counts have to agree.
  *
@@ -91,7 +91,7 @@ __host__ __device__ inline void place(float *out, int dims, int shape, uint64_t 
     if (shape == CUBE)
     {
         /* A facet first and then a place on it. Drawing inside the solid and pushing outward
-         * instead crowds the corners, which makes a cube look as though it holds more than it
+         * instead crowds the corners. A cube then looks as though it holds more than it
          * does, and the error grows with the dimension. */
         int facet = (int)(next_unit(state) * dims);
         if (facet >= dims)

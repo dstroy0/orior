@@ -361,7 +361,7 @@ int main(int count, char **arguments)
     memset(floor_step_settings, 0, sizeof(floor_step_settings));
     ok = ok && track_scene(&results, "camera law, a voxel a frame", &scene, &camera, (unsigned long long)TRACK_CELL,
                            &host, &device, floor_step_settings, TRACK_DELTAS);
-    // the same bodies with no noise, no ramp and no pattern: what the floor's time step leaves once the noise is gone
+    // the same bodies without noise, ramp or pattern: what the floor's time step leaves once the noise is gone
     SimScene quiet = scene;
     quiet.ramp = 0ull;
     TrackSetting quiet_settings[TRACK_PATCHES][TRACK_DELTAS];

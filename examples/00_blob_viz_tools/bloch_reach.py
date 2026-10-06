@@ -150,7 +150,7 @@ def covering_radius(points, probes=20000, seed=17):
 def _report():
     print("")
     print("  THE GRAPH POINTS, recorded. A single-qubit stabilizer state is a Pauli eigenstate and")
-    print("  there are exactly six. These are computed from the amplitudes, not written down.")
+    print("  there are exactly six. These are computed from the amplitudes instead of written down.")
     print("")
     print("  %-6s %28s %26s" % ("state", "amplitudes", "Bloch vector"))
     points = stabilizer_points()
@@ -197,7 +197,7 @@ def _depth():
               % (depth, len(points), radius, ("%.2fx tighter" % (base / radius)) if (radius > 0 and radius < base) else "no gain"))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     print("  These are UPPER BOUNDS on the miss. The reachable set at each depth is sampled, and a")
     print("  sampled subset can only make a covering radius look worse than the truth. The real")

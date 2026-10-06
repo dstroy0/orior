@@ -20,7 +20,7 @@ Zooming out far enough puts the inner shell behind you and leaves you inside the
 
 THE BEAM
 
-The light is carried, not fixed. Moving it sweeps the shadows across the wall, and a shadow that
+The light is carried instead of fixed. Moving it sweeps the shadows across the wall, and a shadow that
 sweeps is worth more than a shadow that sits: two objects that overlap from one place separate from
 the next, and the rate a shadow moves against the wall gives the depth of the thing casting it.
 

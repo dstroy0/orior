@@ -38,7 +38,7 @@ WHAT THIS DOES NOT PROVE, AND --wall MEASURES IT
 
 The T gate is free. The STATE is not. A non-Clifford gate takes the state out of the stabilizer set.
 The graph form stops applying and the full 2^n amplitude array is required. That is the real
-limit here and it is a qubit count, not a gate count: the opposite of the hardware situation, where
+limit here and it is a qubit count instead of a gate count: the opposite of the hardware situation, where
 qubits are plentiful relative to distilled T gates.
 """
 
@@ -152,7 +152,7 @@ def _report(qubits=8, digits=60):
         print("  %8d %30s" % (qubit, distance(left, right)))
 
     print("")
-    print("  READ THE NUMBERS, NOT THIS SENTENCE.")
+    print("  READ THE NUMBERS INSTEAD OF THIS SENTENCE.")
     print("")
     print("  A T gate on hardware needs a distilled magic state, which costs thousands of physical")
     print("  qubits and many rounds per logical gate. T-count is therefore the currency of")
@@ -166,7 +166,7 @@ def _wall(digits=40):
     """What actually limits this, since it is not the gate."""
     import time
     print("")
-    print("  THE REAL LIMIT IS THE STATE, NOT THE GATE. A non-Clifford gate leaves the stabilizer")
+    print("  THE REAL LIMIT IS THE STATE INSTEAD OF THE GATE. A non-Clifford gate leaves the stabilizer")
     print("  set. The graph form stops applying and the full 2^n array is needed.")
     print("")
     print("  %8s %12s %14s %16s %16s"

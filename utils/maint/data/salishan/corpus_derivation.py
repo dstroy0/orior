@@ -119,7 +119,7 @@ def _repository_root():
 ROOT = _repository_root()
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# The chapter is the output now, not a page under docs. theory/ is the source and docs/research
+# The chapter is the output instead of a page under docs. theory/ is the source and docs/research
 # points at it. Writing markdown there would put a second copy where the pointer belongs.
 #
 # The figure goes beside the chapter for the same reason. It was landing under docs/ while its
@@ -950,7 +950,7 @@ def main():
         handle.write("> **%.3g** per line\n\n" % joint)
         handle.write("### How much of that number has settled\n\n")
         handle.write(
-            "Three significant figures is a format, not a finding. The digit worth "
+            "Three significant figures is a format instead of a finding. The digit worth "
             "reporting has stopped moving, and the way to find it is to "
             "watch the bound as each paper joined the corpus.\n\n"
         )
@@ -1143,8 +1143,8 @@ def main():
                 "Flattening the pooled counts to maximum entropy takes it out: a run is "
                 "weighed against where the pooled total alone would put it. A run "
                 "carrying no border information then contributes nothing however common "
-                "it is. Each run is its own test, and what a run needs is enough of "
-                "itself, not enough of the language.\n\n"
+                "it is. Each run is its own test, and a run needs enough of "
+                "itself instead of enough of the language.\n\n"
             )
             handle.write(
                 "The concept is held fixed while this is asked, over the %d concepts both "

@@ -236,7 +236,7 @@ Doug's: the bottom boundary of the inverted tower and the bottom boundary of the
   - Chains cancel inside: (T⁻¹G₂T) ∘ (T⁻¹G₁T) = T⁻¹(G₂G₁)T. A chain of operations on the crystal pays one T and one T⁻¹, not a pair for each operation.
   - T⁻¹GT = id exactly when G = id. The full cancellation survives only an identity in the middle.
   - T⁻¹GT is a bijection exactly when G is one, and its inverse is T⁻¹G⁻¹T.
-  - The levels above G cancel past it. Write T = T_L ∘ … ∘ T_1, level 1 first. Level j reads and writes only the all-low-pass corner that level j − 1 left. A G that touches only coefficients outside the corner of level ℓ (the high-pass coefficients of level ℓ or below) acts on other coordinates than every T_j above ℓ, and commutes with them. Then T⁻¹GT = T_1⁻¹ ∘ … ∘ T_ℓ⁻¹ ∘ G ∘ T_ℓ ∘ … ∘ T_1: a G on level ℓ's high-pass coefficients costs ℓ levels each way, not L.
+  - The levels above G cancel past it. Write T = T_L ∘ … ∘ T_1, level 1 first. Level j reads and writes only the all-low-pass corner that level j − 1 left. A G that touches only coefficients outside the corner of level ℓ (the high-pass coefficients of level ℓ or below) acts on other coordinates than every T_j above ℓ, and commutes with them. Then T⁻¹GT = T_1⁻¹ ∘ … ∘ T_ℓ⁻¹ ∘ G ∘ T_ℓ ∘ … ∘ T_1: a G on level ℓ's high-pass coefficients costs ℓ levels each way instead of L.
 - **An edge is a record floor.** Derived from `tower_edge_kernel` (A14).
   - An edge permutes the low k bits of a coefficient through a table π (k ≤ 20) and passes its high bits.
   - For every integer v: E(v) = (v − AND(v, 2^k − 1)) + TABLE_π(AND(v, 2^k − 1)).
@@ -315,7 +315,7 @@ Doug's framing (paraphrased): domain and range are complete and defined across t
   - T is a bijection. Decoding the crystal and running T⁻¹ gives the lane back: K(x | the program) ≤ that length + c, for a constant c, the length of a fixed decoder.
   - The code states each coefficient alone, by its length and its bits, the same way for every register of a floor of the tower. It is a memoryless coder of the tower's coefficients, the class of rung F2 in [compression_table.md](../compression/compression_table.md). Its length is at least F2's multinomial terms for the same coefficients, and F2 is the tighter rung. As a two-part code it is F3′ with an empty model ([kolmogorov_arnold.md](kolmogorov_arnold.md), item 5).
   - The bound runs one way. K can be far below the crystal's code: a lane printed by a short program whose samples show no smoothness gets a noise-sized crystal.
-- **Which shape is the oval.** Stated, not resolved; it is Doug's call.
+- **Which shape is the oval.** Stated and not resolved; it is Doug's call.
   - The heap across the floors is an hourglass for simple data, pinched at the crystal. Its waist fills in as the complexity rises, and noise shows none.
   - The space between the heap and the ring is an oval, largest for simple data.
 

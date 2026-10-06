@@ -202,14 +202,14 @@ def _check():
     # The property the page relies on is that a patch's size on the page IS its solid angle,
     # everywhere on the disc and not along one line. So the sphere is cut into cells of EQUAL SOLID
     # ANGLE, by sampling uniformly in cos(colatitude) and in longitude, and every cell's projected
-    # area must come out the same. Area, not height, and the whole disc, not a meridian.
+    # area must come out the same. Area instead of height, and the whole disc instead of a meridian.
     #
     # A CONVERGENCE TEST AND NOT A TOLERANCE. Summing quadrilaterals is a discretization, and a fixed
     # bound on the spread would be a number picked by hand. The spread is measured at two
     # resolutions and must SHRINK when the grid is refined: a real projection error does not go away
     # with resolution, and a discretization error does.
     #
-    # THE DENOMINATOR IS EACH ROW'S TRUE AREA, NOT THE MEAN OF THE ROWS. The mean is dragged by the
+    # THE DENOMINATOR IS EACH ROW'S TRUE AREA INSTEAD OF THE MEAN OF THE ROWS. The mean is dragged by the
     # polar rows and by the straight-edge under-count, drifts with resolution, and leaves the
     # quotient no limit to converge to. Every row holds solid angle 4 pi / steps and the whole disc
     # is pi. Each row's true projected area is exactly pi / steps, which is fixed.

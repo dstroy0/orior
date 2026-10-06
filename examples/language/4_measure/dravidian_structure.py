@@ -14,7 +14,7 @@
 # Written down before the distances are computed, from the accepted account of the family: Tamil and
 # Malayalam nearest each other, separated around the ninth century; Kannada beside that pair, inside South
 # Dravidian but split earlier; Telugu furthest of the four, being South Central and older still. Three
-# distances in a required order, not a grouping. Beside them sit three Indo-Aryan languages of the same
+# distances in a required order instead of a grouping. Beside them sit three Indo-Aryan languages of the same
 # subcontinent, written in related scripts, which must all fall outside the Dravidian set: if they do not,
 # the reading is following the writing systems of a region and not its languages.
 #

@@ -17,7 +17,7 @@
 # content fixed takes away a cue the earlier test had, since different books in different languages could
 # be told apart partly by being different books. This is the harder test. Against that, one text per
 # language has to be cut into pieces to have several samples, and pieces of one translation resemble each
-# other more than separate books do, which makes it easier. The two do not cancel and the number below is
+# other more than separate books do, and that makes it easier. The two do not cancel and the number below is
 # not directly comparable to the earlier one.
 #
 # The shape of the answer is comparable: whether the languages that get confused are still the

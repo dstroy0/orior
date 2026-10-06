@@ -63,6 +63,7 @@ from .bans_register import REGISTER  # noqa: F401
 from .bans_shapes import SHAPES  # noqa: F401
 from .bans_probe import PROBE  # noqa: F401
 from .bans_detected import DETECTED  # noqa: F401
+from .grammar import CONFIRM, CONSTRUCTIONS, GRAMMAR, GRAMMAR_AUTHORITY, GRAMMAR_CORPUS, GRAMMAR_RATE, ISMS, PLAIN, PLAIN_AUTHORITY, hides_verb, plain_pattern, plain_rows  # noqa: F401
 from .bans import BANNED, WITHDRAWN  # noqa: F401
 from .human_rate import HUMAN_RATE, stage_of  # noqa: F401
 from .tier import AUTHORITY, COMMENT_ONLY, _ORPHANS, tier_of  # noqa: F401
@@ -79,15 +80,15 @@ from .refs import _REF_CACHE, manifests_covering, refs_for, tree_ref  # noqa: F4
 from .fixes import FIX_TIERS, fix_error, fix_plan  # noqa: F401
 from .markdown import ASCII_ART, CODE_SPAN, DECLARATOR_HEAD, DOXYGEN_TARGET, LINK, MARKDOWN_BOLD, MARKDOWN_ITALIC, MARKDOWN_RULE, ROW, SEPARATOR, dead_links, empty_tables, markdown_leftovers, path_candidate  # noqa: F401
 from .index import PASSAGE, _ATOMIC, _COMPILED, _CONST, _FOLDS, _INDEX, _PARSER, _REPEATS, _fold, _required, candidates, folded, literal_index, present  # noqa: F401
-from .scan import CORPUS, MARKER, attributed, banned_hits, banned_tokens, em_dashes, runs  # noqa: F401
+from .scan import CORPUS, MARKER, attributed, banned_hits, banned_tokens, em_dashes, measured, runs  # noqa: F401
 from .prose import CONTINUATION, SENTENCE_END, STRING_SPAN, comment_prose, hash_tail, marker_edges, near_marker, prose_only, tex_prose  # noqa: F401
 from .ratchet import DEFAULT_RATCHET, RATCHET_HEADER, ratchet_read, ratchet_slack, ratchet_write, staged_paths  # noqa: F401
-from .oracle import SHORTEST, SHOWN, TABLES, WEB_TABLE, WORD, WORD_TABLE, adjacent, between, counted, offlist, oracle_roots, pick  # noqa: F401
+from .oracle import PLAIN_TABLE, SHORTEST, SHOWN, TABLES, WEB_TABLE, WORD, WORD_TABLE, adjacent, between, counted, offlist, oracle_roots, pick, plain_for  # noqa: F401
 from .holes import HOLE, diff_holes  # noqa: F401
 from .printed import REPORTING, printed_hits, printed_strings  # noqa: F401
 from .punctuation import SUSPECT, smart_quotes  # noqa: F401
 from .changed import HUNK, added_lines, changed_paths, changed_scope, git_lines, on_changed, untracked_lines  # noqa: F401
-from .readings import USAGE, reading, show_holes, show_lines, show_offlist, show_pick, show_slack, words_given  # noqa: F401
+from .readings import USAGE, reading, show_holes, show_lines, show_offlist, show_pick, show_plain_for, show_slack, words_given  # noqa: F401
 from .run import main, option_value  # noqa: F401
 
 

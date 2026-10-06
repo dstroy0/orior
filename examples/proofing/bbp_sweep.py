@@ -12,9 +12,9 @@ there. So the grid covers powers two and three, which are far less swept, and co
 
 WHAT A HIT WOULD AND WOULD NOT BE
 
-A believable relation here is a CANDIDATE formula, not a discovery. Most of the space is either
+A believable relation here is a CANDIDATE formula instead of a discovery. Most of the space is either
 empty or already in Bailey's compendium, and anything that survives the screen has to be checked
-against it before it is called new. What the screen guarantees is only that the relation is not an
+against it before it is called new. The screen guarantees only that the relation is not an
 artifact of finite precision, the part that is easy to get wrong and hard to notice.
 
     python examples/proofing/bbp_sweep.py
@@ -80,7 +80,7 @@ def main():
     given = parser.parse_args()
     places = given.places
 
-    # THE ENGINE IS AN IMPORT, NOT A SWITCH. What stood here called `device_only.engage()`, which
+    # THE ENGINE IS AN IMPORT INSTEAD OF A SWITCH. What stood here called `device_only.engage()`, which
     # reached into another module and rebound its multiply for the whole process - a monkeypatch,
     # and one that lied twice over. It routed through the DISPATCHING multiply, which hands operands
     # below 1,024 limbs back to the host; 1,024 limbs is 32,768 bits, leaving a sweep at the default

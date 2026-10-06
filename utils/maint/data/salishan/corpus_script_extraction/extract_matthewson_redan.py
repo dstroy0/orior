@@ -127,7 +127,7 @@ BRACKETED = re.compile(r"\[([^\]]*)\]")
 QUOTED = re.compile(r"^['‘“]")
 
 # Where one of her sentences ends. The closing quote comes after the stop, because the story is full
-# of people talking: Nilh swe7áwentsas, “K̓weswapáw̓!” is one sentence and splitting at the ! would
+# of people talking: `Nilh swe7áwentsas, “K̓weswapáw̓!”` is one sentence and splitting at the ! would
 # leave the quotation mark opening the next one.
 SENTENCE = re.compile(r"(?<=[.!?])(?=\s)|(?<=[.!?][\"”’'])(?=\s)")
 

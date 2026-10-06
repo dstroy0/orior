@@ -8,7 +8,7 @@ Peak minus trough is a maximum minus a minimum over twenty-four bins, and that s
 half to four and a half standard deviations for pure noise, by construction. A bar set at two, or
 even at four, is at or below what chance produces. Every pool clears it. And eight trough hours
 drawn uniformly from twenty-four span about nineteen hours on average. A twenty hour spread is
-the expected result of no signal at all, not evidence against it.
+the expected result of no signal at all instead of evidence against it.
 
 The correct question is asked here in two stages, each against a null built at that pool's own
 sample size:
