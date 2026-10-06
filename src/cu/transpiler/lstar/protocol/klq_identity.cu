@@ -1958,15 +1958,16 @@ static std::map<std::string, StallField> stall_fields(const char *ksc)
     return fields;
 }
 
-// The cases a question is put over, spread evenly through the host's: the words of each into `question`, and the
-// host's place of each into `places`
+// The cases a question is put over: every case the host computes, spread evenly through them only where the run
+// channel holds fewer. The words of each into `question`, and the host's place of each into `places`
 static void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
 {
     places->clear();
-    question->cases = RUN_CASES_MOST;
-    for (unsigned int place = 0u; place < RUN_CASES_MOST; place += 1u)
+    const unsigned int count = (IDENTITY_CASES < RUN_CASES_MOST) ? IDENTITY_CASES : RUN_CASES_MOST;
+    question->cases = count;
+    for (unsigned int place = 0u; place < count; place += 1u)
     {
-        const unsigned int at = (unsigned int)(((unsigned long long)place * IDENTITY_CASES) / RUN_CASES_MOST);
+        const unsigned int at = (unsigned int)(((unsigned long long)place * IDENTITY_CASES) / count);
         const unsigned long long left = s_values[(at / IDENTITY_VALUES) % IDENTITY_VALUES];
         const unsigned long long right = s_values[at % IDENTITY_VALUES];
         const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffull), (unsigned int)(left >> 32u),
@@ -1977,16 +1978,38 @@ static void stall_cases(RunQuestion *question, std::vector<unsigned int> *places
     }
 }
 
+// The trace of every ask, where KLQ_TRACE names a file: the ask's number, the code's size, the registers, the shape
+// and the launches it is put with and its count of cases, then what came back: alike, apart with the first case
+// apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
+static FILE *s_ask_trace = NULL;
+
 // 1 where the part answers `code`, put as `question` says of its registers, shape and launches, alike with the host
 // on every case it computes, 0 where it answers apart, refuses it or the gate holds it, each counted in `asks`
 static int question_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
                           const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
 {
+    static int s_opened = 0;
+    if ((s_opened == 0) && (getenv("KLQ_TRACE") != NULL))
+    {
+        s_ask_trace = fopen(getenv("KLQ_TRACE"), "wb");
+    }
+    s_opened = 1;
     question->code = code.data();
     question->code_size = code.size();
     *asks += 1ull;
+    if (s_ask_trace != NULL)
+    {
+        fprintf(s_ask_trace, "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases: ",
+                *asks, question->code_size, question->registers, question->threads, question->blocks,
+                question->launches, question->cases);
+    }
     if (!run_channel_ask(question))
     {
+        if (s_ask_trace != NULL)
+        {
+            fprintf(s_ask_trace, "outcome %u, %s\n", question->outcome, question->refused);
+            fflush(s_ask_trace);
+        }
         return 0;
     }
     for (unsigned int place = 0u; place < question->cases; place += 1u)
@@ -1994,8 +2017,20 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
         const std::string &expected = host[places[place]];
         if ((expected != "-") && (std::stoull(expected, nullptr, 16) != question->answered[place]))
         {
+            if (s_ask_trace != NULL)
+            {
+                fprintf(s_ask_trace, "apart at case %u, the host %s and the part %llx\n", places[place],
+                        expected.c_str(), question->answered[place]);
+                fflush(s_ask_trace);
+            }
             return 0;
         }
+    }
+    if (s_ask_trace != NULL)
+    {
+        fprintf(s_ask_trace, "alike%s\n",
+                (question->launches != 0u) ? (", " + std::to_string(question->nanoseconds) + " ns").c_str() : "");
+        fflush(s_ask_trace);
     }
     return 1;
 }

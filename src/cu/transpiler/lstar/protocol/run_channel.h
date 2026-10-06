@@ -28,10 +28,11 @@ extern "C"
 {
 #endif
 
-// the words of a case, the words of its answer, and the most cases one question is run over
+// the words of a case, the words of its answer, and the most cases one question is run over, past every case the
+// host computes a question on: the carrier gives each case a thread
 #define RUN_IN_WORDS 8u
 #define RUN_OUT_WORDS 2u
-#define RUN_CASES_MOST 256u
+#define RUN_CASES_MOST 4096u
 
 // what a run came to
 typedef enum

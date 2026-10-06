@@ -331,7 +331,7 @@ The width w is the widest put that comes back whole, and the next one comes back
 - **The C of the host.** A case it traps on or leaves undefined carries no h(k), and the part's answer there is held to nothing (Steps 4 and 5).
 - **The types of the host.** The host computes integers alone: 436 questions, and float and double, 398 of the 1016, are asked of nothing. No form of a floating slot is derived.
 - **The reading of the engine.** A question the engine cannot write through cu.krs is asked of nothing: 166 besides the floating ones. 35 have no reading, 33 of them a quotient or a remainder, which sm_86's ruleset gives no form for (`err word_div`). 66 are calls or elements cu.krs gives no form for, 30 atomics and 34 statements.
-- **The run channel.** A question carries as many cases as a launch gives threads, up to the 2^20 the host fills, and the run tool gives every case a thread.
+- **The run channel.** A question carries as many cases as a launch gives threads, up to the 2^20 the host fills, and the run tool gives every case a thread. Every ask of the protocol puts all 648 cases the host computes: the register walk holds each probe to every one of them and reads the last register R252 over 35 asks, 9 alike, 20 refused and 6 held by the gate (`KLQ_TRACE` writes each ask and its answer).
 - **The slices.** A context no two questions of the host hold is asked of nothing: 762 of 1113.
 - **Two words.** A 64-bit form is put as two forms of 32 bits as NVIDIA's listing writes it, and the width that would ask it is Step 1, theory.
 - **The walks.** The register walk starts below the top of the field, 255, and the threads stop at the 2^20 the host fills cases for (Step 9).
