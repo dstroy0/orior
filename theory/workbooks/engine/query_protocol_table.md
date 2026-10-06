@@ -250,3 +250,89 @@ and it is then a verdict on any part of a set that holds the entries it names. A
 - **The reading of a part:** a witnessed R reads 1 where R(E) and gray where not; a relation of absence reads 0 where the name is given and gray where it is not. A set known whole would leave no gray, and no set is known whole.
 - **Maps:** the map from language L to L′ holds, for each name L gives, whether it is one text with another name in L and two in L′ (breaks), two texts in L and one in L′ (collapses), or given in L′ as another kind of form, nop, err or construct (kind). Each is witnessed by the entries it names. A name L′ does not give is open (absent). **Measured** (Q19): 32 witnessed and 0 open each way between cu's set and sass's.
 - **The bridge:** each language is mapped once, to `Lstar.klq`, and a map between two languages is read through it, M_L′⁻¹ ∘ M_L: n languages take n maps, where read pairwise they take n·(n − 1). **Measured** (`klq_write.sh`, `cu.klm` and `sass.klm` with 151 keys each): every name of the 41 the map read directly between cu's set and sass's names is found on the two maps through the bridge, each way. Through the bridge 6 names more each way are one text with another on one side and two on the other, where the other side gives one of the two as another kind, which the direct map reads as kind alone.
+
+### P11. The ruleset, derived ask by ask (Q4, Q11, Q18, Q19)
+
+A ruleset gives each slot σ one form, and each fact of the part one number. Both are derived by putting relations to the part whose right side the host computes, one case at a time, each answer read as P1 reads it. No value is written by hand: a number enters as the answer of the host to a case or as the part's answer to an ask, and every walk over a number runs until the part says no.
+
+**The ask.** A form f is put on a case k beside the answer of the host, h(k):
+
+  `f(k) = h(k) ?`
+
+The part gives one of four answers. Alike, where f(k) = h(k). Apart, where it gives another word. Refused, where it ends the run as an illegal instruction, an illegal address or a launch out of resources. Nothing, where no answer comes back. Alike is truthy and the other three are falsy.
+
+A case on which the C of the host traps or is undefined carries no h(k): a divisor of 0, the least value over −1, and a shift by the width or past it. The part's answer to such a case is read and kept, and gates nothing (`refused_<n>` in the host program `klq_identity` writes).
+
+**The cases.** Each operand is put through 18 values: 0, 1, 2, 3, and the edges of every width, 0x7F, 0x80, 0xFF, 0x100, 0x7FFF, 0x8000, 0xFFFF, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF, 0x100000000 and the three edges of 64 bits. With a third operand of two values, a two-operand form meets 18 · 18 · 2 = 648 cases.
+
+The steps run in order, and each takes what the steps before it found.
+
+**Step 1. The width (Q18).** Before any value is given a register:
+
+  `read(put(0xFF)) = 0xFF ?`  `read(put(0xFFFF)) = 0xFFFF ?`  `read(put(0xFFFFFFFF)) = 0xFFFFFFFF ?`  `read(put(0x1FFFFFFFF)) = 0x1FFFFFFFF ?`
+
+The width w is the widest put that comes back whole, and the next one comes back cut at w. Once add stands (Step 2), two more asks must agree with it: x doubled from 1, `x ← x + x`, reads 0 at the w-th doubling and at no doubling before it, and `0xFFFFFFFF + 1 = 0 ?` is alike where w = 32. Where the three do not agree, nothing past this step is asked. **Theory.**
+
+**Step 2. Add, by the descent (P2).** The candidates are every form the machine file holds in a two-operand slot, operands filled by their kinds. The descent puts first the case the most candidates fail. Five candidates and add, on four cases:
+
+| case | h = add | or | xor | and | take | mul |
+|---|---|---|---|---|---|---|
+| `1, 1 → 2 ?` | 2 | 1 | 0 | 1 | 0 | 1 |
+| `0, 1 → 1 ?` | 1 | 1 | 1 | 0 | 0xFFFFFFFF | 0 |
+| `1, 0 → 1 ?` | 1 | 1 | 1 | 0 | 1 | 0 |
+| `0xFFFFFFFF, 1 → 0 ?` | 0 | 0xFFFFFFFF | 0xFFFFFFFE | 1 | 0xFFFFFFFE | 0xFFFFFFFF |
+
+- `1, 1 → 2 ?` fails all five, and it is placed first: the carry out of the low bit is what add holds and no bitwise form holds.
+- `0, 1 → 1 ?` and `1, 0 → 1 ?` fail a form that drops an operand.
+- `0xFFFFFFFF, 1 → 0 ?` fails a form that saturates at the top, or carries into a 33rd bit.
+- On the ladder's candidates the descent places one or two cases a relation, and every impostor fails at the first or second (**proved**, Q4). The survivors are S(add), and their count is a reading (Q11).
+
+**Step 3. Take.** `1, 1 → 0 ?`, `0, 1 → 0xFFFFFFFF ?`, `1, 0 → 1 ?`.
+
+- `1, 1 → 0 ?` fails add (2) and or (1); xor answers 0 and stands.
+- `0, 1 → 0xFFFFFFFF ?` fails xor and or (1), a form that takes the operands swapped (1), and one that saturates at 0 (0).
+- f(0, 1) ≠ f(1, 0) witnesses that the form does not commute, which add and every bitwise form do.
+
+**Step 4. Divide.** `0, 1 → 0 ?`, `1, 1 → 1 ?`, `3, 2 → 1 ?`, `0xFFFFFFFF, 2 → ?`, `1, 0 → ?`.
+
+- `3, 2 → 1 ?` fails a form that rounds (2).
+- `0xFFFFFFFF, 2` is 0 signed, −1 over 2 cut toward 0, and 0x7FFFFFFF unsigned; a form that rounds down gives 0xFFFFFFFF. One case separates the three.
+- `1, 0` and `0x80000000, 0xFFFFFFFF` signed carry no h(k). The part's word on each is kept at the key with the form that gave it. Two forms that give two words there are two operations (P10), and since C leaves the case undefined, either holds as the slot's form.
+
+**Step 5. Shift.** `1, 31 → 0x80000000 ?`, `0x80000000, 31 → 1 ?` right, `1, 32 → ?`.
+
+- `0x80000000, 31` right is 1 unsigned and 0xFFFFFFFF signed, which separates the logical shift from the arithmetic one.
+- `1, 32` carries no h(k). A form that clamps answers 0, and a form that wraps answers 1. The case keeps the two apart as operations without gating either (Q17: NVIDIA's `.W` wraps, where the precept wraps too).
+
+**Step 6. Compare, and the select that reads it.** `0, 1 → 1 ?`, `1, 0 → 0 ?`, `1, 1 → 0 ?`, `0xFFFFFFFF, 0 → ?` for less-than.
+
+- `1, 1 → 0 ?` fails less-or-equal (1).
+- `0xFFFFFFFF, 0` is 1 signed and 0 unsigned.
+- A test and the select that reads it are one word, asked as one (Q19).
+
+**Step 7. Two forms, one slot (P10).** Forms f and g in one slot are put on K. The first k with f(k) ≠ g(k) closes the pair as two operations, and k is kept at the key as its witness. A pair alike on every k ∈ K stays gray, with |K| its reading. A case closes a pair once, and a closed pair is not asked again (P5).
+
+**Step 8. The bound in place of a counterexample.** An L* learner asks whether a conjecture is the machine and is given a case apart when it is not. The part gives no such case: K stands in for it, as a test suite does ([learning_a_ruleset.md](../../thought_experiments/engine/learning_a_ruleset.md)). An operation on words holds no state, and so the bound is on cases and not on states: a form is exact on K and gray past it. A two-operand form of 32 bits has 2^64 cases, and a form apart on a case outside K is found only by adding that case to K. **Measured** at 16 bits: 55 forms on all 65,536 cases against the integers of the host ([learning_a_ruleset.md](../../thought_experiments/engine/learning_a_ruleset.md), Status).
+
+**Step 9. The part's numbers, walked until it says no.** These relations are over a number n and not a word. Each holds below a bound and is refused past it:
+
+  holds(n) ⇒ holds(m) for every m < n
+
+and the walk reads one bound, the greatest n that holds.
+
+- **The last register.** `holds(R_n) ?`: a chain register written and read back, renamed R_n, in a kernel declaring 255, and the control renames it to the least number nothing uses. The walk goes down from the top of the field below RZ, the name the field's top gives the register that reads 0. n = 254 and 253 are refused as illegal instructions, and 252 is alike: last = 252. **Measured** on the RTX 3070, sm_86 (`klq_identity register`, kept in `sm_86.ksc` as `run answers 000000fc register last`).
+- **The launch.** `run(r, t) ?`: t threads a block, doubled from 1, with r registers declared. The part refuses as out of resources where r · t > 65536 in a block. That bound is the part's answer and is written nowhere. The host bounds only the threads it fills cases for, 2^20 in all (`CUBIN_RUN_THREADS_MOST`, `cubin_run.c`). **Measured.**
+- **The fewest registers.** `alike(T, r) ?`: task T run with r registers declared. r is walked up from the count of registers the chain names until alike, and halved down until not, at one thread a block. A container declaring d gives code R0 to R(d − 3), as the last register gives at d = 255. **Measured** on sm_86: chains naming up to R21, R69 and R197 are refused at 22, 70 and 198 declared, and answer at 24, 72 and 200. A chain naming up to R13 answers at 8 and at 1: under some count the part gives a container more than it declares.
+
+**Step 10. The cost of a task, by the bounced sustain.** c(r, t) is task T's cost on the part's clock, read over 100 launches, at r registers and t threads. The ask is
+
+  `c(r, t) ≤ hi ?`
+
+against a band B = [lo, hi] read at the fewest registers:
+
+- An ask inside B sustains it. B holds after 5 asks in a row land inside it without widening it.
+- An ask past B is falsy only where it lands past B twice with the baseline asked between them landing inside B. Where the baseline strays, B widens to hold it and the count starts again.
+- knee(t) = the least r with c(r, t) past B, found by bisection over r, which reads one bound where c(·, t) past B holds of every r above it.
+- Each t is walked, doubled from 1 until the launch is refused (Step 9), and the curve of a task is its knees against t. **Measured** on task 1006 at one thread: 1.80 ms up to r = 128, 2.11 ms at r = 129, 3.04 ms at r = 192.
+
+**Step 11. The ruleset.** For each slot σ the survivors S(σ) of Steps 2 to 7 are ranked by P6, and the slot is given c_1 where m_c2 − m_c1 > s and keeps its form where not. Steps 1, 9 and 10 give the part's numbers: the width, the last register, the bound on a launch, and each task's knees. Each is kept with the part and the size it was read on (Q10), in the part's `.ksc`.

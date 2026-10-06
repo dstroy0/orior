@@ -248,7 +248,7 @@ variance / level & 1.15 & 1.35 & 1.26 & 1.24 & 1.25 & 1.28 & 1.55 & 1.98 & 3.17 
 \end{longtable}
 }
 
-From level 24 to 104 the ratio holds at 1.15 to 1.35 and both estimators agree: shot noise. Above 120 the change is present in most frames, not a few. The median cannot remove it, and the ratio climbs to a plateau near 170,000. A single line fitted over every bin (138.4 × level − 23,437) is not a photon transfer curve; the steep bins dominate it, and its noise floor (4.97 bits) is discarded.
+From level 24 to 104 the ratio holds at 1.15 to 1.35 and both estimators agree: shot noise. Above 120 the change is present in most frames. The median cannot remove it, and the ratio climbs to a plateau near 170,000. A single line fitted over every bin (138.4 × level − 23,437) is not a photon transfer curve; the steep bins dominate it, and its noise floor (4.97 bits) is discarded.
 
 \textbf{The same, motion removed by neighbor differencing (C5, C6, C7).} Whether the bright excess is noise or structure is read from space: white noise does not correlate with its neighbor, moving structure does. The frame difference d is correlated with its x, y and z neighbors, per level, over 10 frame pairs of whole frames (41,943,040 voxel-frames); subtracting the neighbor cancels the smooth structure, and var(d − d\_\allowbreak{}neighbour) / 4 is the white noise per frame that remains, an upper bound. The script is scratch (\texttt{coherence.\allowbreak{}py}).
 
@@ -269,7 +269,7 @@ white / level & 1.57 & 1.23 & 1.20 & 1.21 & 1.19 & 1.17 & 1.17 & 1.19 & 1.22 & 1
 \end{longtable}
 }
 
-The bright excess is structure: the difference's correlation with its neighbor climbs from 0.007 at level 24 to 0.985 at 1000. With the neighbor taken off, what is left follows one line, 1.17 to 1.23 × level from 40 to 200, the same gain the time pass found in the dim range. Fitted there: \textbf{variance = 1.162 × level + 2.46}. The line meets zero near level −2: the data carries no dark offset, and the read noise is about 1.6 digital numbers (DN). Above about 300 the remainder climbs again, because one neighbor cannot cancel a sharp edge; that is structure a better predictor takes, not noise. The z correlation of 0.12 at the dimmest levels is the only departure from white noise, and it is not explained.
+The bright excess is structure: the difference's correlation with its neighbor climbs from 0.007 at level 24 to 0.985 at 1000. With the neighbor taken off, what is left follows one line, 1.17 to 1.23 × level from 40 to 200, the same gain the time pass found in the dim range. Fitted there: \textbf{variance = 1.162 × level + 2.46}. The line meets zero near level −2: the data carries no dark offset, and the read noise is about 1.6 digital numbers (DN). Above about 300 the remainder climbs again, because one neighbor cannot cancel a sharp edge; that is structure a better predictor takes instead of noise. The z correlation of 0.12 at the dimmest levels is the only departure from white noise, and it is not explained.
 
 {\footnotesize
 \setlength{\tabcolsep}{6pt}
@@ -371,7 +371,7 @@ category & how it moves & its functional, as exact sums over the sample & what t
 \begin{itemize}
 \item \textbf{Exact arithmetic coding} (the interval held as an exact integer of whatever width it needs) ends within 2 bits of that sum over the whole stream, however long.
 \item \textbf{Enumerative coding} in exact integers (the stream's index among every stream with the same counts) spends exactly ⌈log₂(n! / Π c!)⌉ bits: the F1 and F2 counts themselves, with no loss at all. It costs a big-integer multiply per symbol; the engine's exact integer is that machinery.
-\item \textbf{A fixed-width range coder} (32 or 64 bits) rounds each interval down to its width and loses a sliver per symbol, small but not zero. That is a rounding. It is the fast approximation to measure against the exact two, not the design.
+\item \textbf{A fixed-width range coder} (32 or 64 bits) rounds each interval down to its width and loses a sliver per symbol, small but not zero. That is a rounding. It is the fast approximation to measure against the exact two instead of the design.
 \end{itemize}
 
 \textbf{Two things the 2 bits does not cover.}
@@ -446,7 +446,7 @@ Each part is in \texttt{orior/\allowbreak{}src/\allowbreak{}engine}, with its pr
 
 {\footnotesize
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2434\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2802\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2726\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2037\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2434\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2802\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2726\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2039\linewidth-2\tabcolsep\relax}}
 \toprule
 part & what it does toward the lower bound & proof & status \\
 \midrule
@@ -454,7 +454,7 @@ part & what it does toward the lower bound & proof & status \\
 \textbf{The lookup-table step} (M10, A13; C21) & a pointwise function evaluated over the lane's alphabet once and read back as a lookup table; one table read through another is their composition. In a two-part code it is the model's part (F3′), stated once and read per lane & \texttt{record\_\allowbreak{}table\_\allowbreak{}test} (\texttt{test/\allowbreak{}engine/\allowbreak{}record\_\allowbreak{}table\_\allowbreak{}test.\allowbreak{}cu}): x² and |x − 30000| + 100 over the 16-bit alphabet, 4,096 lanes, the table and the ops agreeing word for word on device and host; a table read through a table against the composed ops; 15 checks, 0 failed & proved for the lookup-table step; square root and division as tables untested; not in the compression path \\
 \textbf{The lifting transform's edges} (M20, A14) & a bijection on a level's low index bits inside the reversible stream; any other function is made reversible by the embedding (x, y) → (x, y ⊕ f(x)) & \texttt{tower\_\allowbreak{}edge\_\allowbreak{}test} (\texttt{test/\allowbreak{}engine/\allowbreak{}tower\_\allowbreak{}edge\_\allowbreak{}test.\allowbreak{}cu}), 25 checks, 0 failed, and the \texttt{root\_\allowbreak{}universal} sim, 1,268 checks, 0 failed: lift, code, decode and lower exact on 48 of 48 & proved; \texttt{engine.\allowbreak{}cu} passes no edges. A keyed random edge costs 6.810 to 12.608 coded bits a voxel on level 0 at widths 2 to 12, against 6.802 with none; a fitted edge not measured; its place in the \texttt{.\allowbreak{}kcr} is Doug's call \\
 \textbf{The root noise of a box} (E16) & for each shared term (rows 8, 9, 10, 18 and 25 of the noise vector integration table), a pattern of floor means and its residual, which return the box exactly; the root is the term whose pattern and residual code smallest against the box & the \texttt{noise\_\allowbreak{}root} sim, 72 checks, 0 failed: at variance 1,024 every term is the root, saving 32 to 89 per mille of the box's bits & proved on the sim; no driver part over real boxes, and the pattern is not stored in the compressed file \\
-\textbf{The lattice price} (\texttt{engine\_\allowbreak{}lattice\_\allowbreak{}bits}, engine.h) & the coder's bits for a lattice of ints, lifted by \texttt{tower\_\allowbreak{}lift} and coded by \texttt{compression\_\allowbreak{}encode} & the engine build compiles it & built, not yet run: nothing calls it until a driver part does \\
+\textbf{The lattice price} (\texttt{engine\_\allowbreak{}lattice\_\allowbreak{}bits}, engine.h) & the coder's bits for a lattice of ints, lifted by \texttt{tower\_\allowbreak{}lift} and coded by \texttt{compression\_\allowbreak{}encode} & the engine build compiles it & built and not yet run: nothing calls it until a driver part does \\
 \bottomrule
 \end{longtable}
 }

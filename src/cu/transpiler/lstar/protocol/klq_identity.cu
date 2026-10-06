@@ -408,7 +408,7 @@ static std::vector<std::string> links_past(const Question &one, const Question &
 static int question_integer(const Question &question)
 {
     static const std::set<std::string> s_categories = {"operator", "compound", "unary", "conversion", "conditional",
-                                                       "statement", "test"};
+                                                       "statement", "test", "pressure"};
     return s_categories.count(question.category) && (question.text.find("float") == std::string::npos) &&
            (question.text.find("double") == std::string::npos) && (question.text.find("__") == std::string::npos);
 }
@@ -806,6 +806,14 @@ static int identity_slice(const char *listing, const char *manifest, const char 
         }
     }
     fclose(file);
+    // a task of register pressure slices with nothing, and the host computes it for the run channel's curve
+    for (const Question &question : questions)
+    {
+        if ((question.category == "pressure") && question_integer(question))
+        {
+            asked.insert(question.number);
+        }
+    }
     printf("  %s: %u questions, %u slices, %u identities\n", path.c_str(), (unsigned int)questions.size(), slices,
            (unsigned int)identities.size());
     if (!chains_write(questions, folder))
@@ -2027,6 +2035,16 @@ static int chain_code_read(const char *engine, const std::string &number, std::v
     return !links->empty() && ((code->size() % 16u) == 0u) && ((links->size() * 16u) <= code->size());
 }
 
+// the registers chain `number` of ours names, its high water mark as `engine` gives it, or 0 where it gives none. The
+// part refuses a container declaring the mark alone where the code names a register within the part's own past the
+// last it gives code, and the count a container declares is walked up from the mark until the part answers
+static unsigned int chain_registers(const char *engine, const std::string &number)
+{
+    std::ifstream file(std::string(engine) + "/" + number + ".registers");
+    unsigned int registers = 0u;
+    return (file >> registers) ? registers : 0u;
+}
+
 // The .ksc rewritten with `rows` in place of every answer of the run channel it held to the question `asked`, the rows
 // put after its last row of the run channel and its count of the run channel's answers taken again. 1, or 0 where the
 // .ksc could not be written
@@ -2455,8 +2473,9 @@ static int curve_point(const std::vector<unsigned char> &code, const std::vector
 // with every stall the longest. For each count of threads a block holds, from 1 and doubling, the task is launched
 // over CURVE_THREADS threads in all, and its curve is its time against the registers its container declares: from the
 // fewest it answers alike with to the most the register field names. The fewest is asked in blocks of one thread,
-// walked up from one past the highest number its register fields hold until it answers alike and halved down from
-// there, and is the task's at every count of threads. The fewest's band is the least and the most of its times, asked
+// walked up from the registers the chain names, or where it gives none from one past the highest number its
+// register fields hold, until it answers alike and halved down from there, and is the task's at every count of
+// threads. The fewest's band is the least and the most of its times, asked
 // again until it holds CURVE_SUSTAIN asks in a row without widening. A count of registers is truthy where the task
 // answers alike and its time a launch keeps within the band, and falsy where it answers apart, the part refuses the
 // launch, or its time is past the band twice running with the fewest bounced between and holding to the band; where
@@ -2518,7 +2537,9 @@ static int identity_curve(const char *engine, const char *answers, const char *k
         }
         unsigned int soonest_threads = 0u;
         unsigned long long soonest = 0ull;
-        unsigned int fewest = named + 1u;
+        // the walk for the fewest starts at the registers the chain names where the engine gives them
+        const unsigned int mark = chain_registers(engine, task);
+        unsigned int fewest = (mark != 0u) ? mark : (named + 1u);
         for (unsigned int threads = 1u; threads <= CURVE_THREADS; threads *= 2u)
         {
             // the fewest registers the task answers alike with, walked up in blocks of one thread until the part says

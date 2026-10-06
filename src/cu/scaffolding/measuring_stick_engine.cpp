@@ -326,6 +326,27 @@ static std::string stick_bare(const std::string &text)
     return bare;
 }
 
+// 1 where `text` is an expression other than `name` itself that reads `name`: the name standing in it with no letter,
+// digit, `_` or `.` either side of it
+static int stick_reads_name(const std::string &text, const std::string &name)
+{
+    if (text == name)
+    {
+        return 0;
+    }
+    const auto joins = [](char letter)
+    { return (isalnum((unsigned char)letter) != 0) || (letter == '_') || (letter == '.'); };
+    for (size_t at = text.find(name); at != std::string::npos; at = text.find(name, at + 1u))
+    {
+        const size_t end = at + name.size();
+        if (((at == 0u) || !joins(text[at - 1u])) && ((end == text.size()) || !joins(text[end])))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // `text` with every run of white space cut to one space and none at either end
 static std::string stick_squeeze(const std::string &text)
 {
@@ -807,6 +828,8 @@ class StickKernel
     std::string question;
     unsigned int forms;
     StickAsked asked;
+    // the count of registers the kernel names, its high water mark once assign() has given them
+    unsigned int registers_held = 0u;
 
     // `expression` read and written into a register, its value; empty where it is not read, `question` then saying why
     StickValue value(const std::string &expression)
@@ -867,11 +890,16 @@ class StickKernel
     }
 
     // `name` held in `value` as a value of type `type`, or as a word of no type of C where `type` is -1, never
-    // negative where `nonnegative` is set. A name held anew is read from `value` alone, whatever stood for it before
+    // negative where `nonnegative` is set. A name held anew is read from `value` alone, whatever stood for it before,
+    // and every expression held that reads the name is let go: its value is of what the name held when it was read
     void hold(const std::string &name, StickValue value, int type, int nonnegative = 0)
     {
         value.is_signed = (type >= 0) ? s_types[type].is_signed : 0;
         value.type = type;
+        for (auto held = held_values.begin(); held != held_values.end();)
+        {
+            held = stick_reads_name(held->first, name) ? held_values.erase(held) : std::next(held);
+        }
         held_values[name] = value;
         standing.erase(name);
         flags.erase(name);
@@ -977,12 +1005,12 @@ class StickKernel
         return StickValue{std::string((bits == 64u) ? "%w" : "%r") + std::to_string(next - 1u), bits, 0};
     }
 
-    // Each register the kernel names given one of the file, in the order the text first names them, from the first
-    // past the ones kernel_open writes: a word one register, and a wide an even pair. A word moved into another and
-    // used nowhere else, its own writing and the move, is the word_used_once of the move's form, and where the system
-    // folds it the word moved into is the moved word itself. A wide made of a word whose move the system folds is the
-    // pair that word begins, the word given the even register. A move of a register into itself is then left out as
-    // the nothing it does
+    // Each register the kernel names given one of the file for the lines it lives over, from the first that names it
+    // to the last, and given again once it is let go: a word one register, and a wide an even pair. A word moved into
+    // another and used nowhere else, its own writing and the move, is the word_used_once of the move's form, and where
+    // the system folds it the word moved into is the moved word itself. A wide made of a word whose move the system
+    // folds is the pair that word begins, the word given the even register. A move of a register into itself is then
+    // left out as the nothing it does
     void assign(void)
     {
         for (const auto &copy : pending_copies)
@@ -1012,24 +1040,125 @@ class StickKernel
         {
             pair_of[tie.second] = tie.first;
         }
-        std::map<std::string, unsigned int> given;
-        unsigned int at = 2u;
+        // each name's first and last line, a name tied into another's pair counted as that other's
         const std::regex named("%[rw][0-9]+");
-        for (std::sregex_iterator found(text.begin(), text.end(), named), end; found != end; ++found)
+        const auto root_of = [&](const std::string &name)
         {
-            const std::string name = found->str();
-            if ((given.find(name) != given.end()) || (ties.find(name) != ties.end()))
+            const auto tie = ties.find(name);
+            return (tie != ties.end()) ? tie->second : name;
+        };
+        std::vector<std::vector<std::string>> line_names;
+        std::map<std::string, size_t> last_line;
+        for (size_t line_at = 0u; line_at < text.size();)
+        {
+            const size_t line_end = std::min(text.find('\n', line_at), text.size());
+            const std::string line = text.substr(line_at, line_end - line_at);
+            line_names.emplace_back();
+            for (std::sregex_iterator found(line.begin(), line.end(), named), end; found != end; ++found)
             {
-                continue;
+                const std::string root = root_of(found->str());
+                line_names.back().push_back(root);
+                last_line[root] = line_names.size() - 1u;
             }
-            const int even = (name[1] == 'w') || (pair_of.find(name) != pair_of.end());
-            at += ((even != 0) && ((at % 2u) != 0u)) ? 1u : 0u;
-            given[name] = at;
-            at += (even != 0) ? 2u : 1u;
+            line_at = line_end + 1u;
+        }
+        // Each name given a register at the line that first names it and the register let go after the line that
+        // last names it, never on a line that names it: a word one register, the lowest free, and a wide an even pair,
+        // the lowest both of which are free. The high water mark, from the first past the ones kernel_open writes,
+        // rises only where no register under it is free
+        std::map<std::string, unsigned int> given;
+        std::set<unsigned int> free;
+        unsigned int high_water = 2u;
+        for (size_t line = 0u; line < line_names.size(); line += 1u)
+        {
+            for (const std::string &root : line_names[line])
+            {
+                if (given.find(root) != given.end())
+                {
+                    continue;
+                }
+                const int even = (root[1] == 'w') || (pair_of.find(root) != pair_of.end());
+                unsigned int number = high_water;
+                const auto pair_free = std::find_if(free.begin(), free.end(), [&](unsigned int one)
+                                                    { return ((one % 2u) == 0u) && (free.count(one + 1u) != 0u); });
+                if ((even == 0) && !free.empty())
+                {
+                    number = *free.begin();
+                    free.erase(free.begin());
+                }
+                else if ((even != 0) && (pair_free != free.end()))
+                {
+                    number = *pair_free;
+                    free.erase(number);
+                    free.erase(number + 1u);
+                }
+                else
+                {
+                    if ((even != 0) && ((high_water % 2u) != 0u))
+                    {
+                        free.insert(high_water);
+                        number = high_water + 1u;
+                    }
+                    high_water = number + ((even != 0) ? 2u : 1u);
+                }
+                given[root] = number;
+            }
+            for (const std::string &root : line_names[line])
+            {
+                if ((last_line[root] == line) && (given.find(root) != given.end()))
+                {
+                    const int even = (root[1] == 'w') || (pair_of.find(root) != pair_of.end());
+                    free.insert(given[root]);
+                    if (even != 0)
+                    {
+                        free.insert(given[root] + 1u);
+                    }
+                    last_line[root] = line_names.size();
+                }
+            }
         }
         for (const auto &tie : ties)
         {
             given[tie.first] = given[tie.second];
+        }
+        // A register a form names by its own number past the high water mark is the form's own, and is moved to just
+        // past the mark, the second register of a pair and the pair it begins kept even, the mark rising over it: the
+        // kernel's registers lie next to each other, and it declares the mark. A number the text names before the
+        // kernel's names are given is a form's, since every register of the kernel's own is named by %r or %w
+        const std::regex pinned("\\bR([0-9]+)(\\.hi)?\\b");
+        std::map<unsigned int, int> pinned_pairs;
+        for (std::sregex_iterator found(text.begin(), text.end(), pinned), end; found != end; ++found)
+        {
+            const unsigned int number = (unsigned int)std::stoul((*found)[1].str());
+            if (number >= high_water)
+            {
+                pinned_pairs[number] = pinned_pairs[number] || (*found)[2].matched;
+            }
+        }
+        std::map<unsigned int, unsigned int> moved_to;
+        for (const auto &pin : pinned_pairs)
+        {
+            high_water += ((pin.second != 0) && ((high_water % 2u) != 0u)) ? 1u : 0u;
+            moved_to[pin.first] = high_water;
+            high_water += (pin.second != 0) ? 2u : 1u;
+        }
+        std::string moved_text;
+        size_t moved_last = 0u;
+        for (std::sregex_iterator found(text.begin(), text.end(), pinned), end; found != end; ++found)
+        {
+            const unsigned int number = (unsigned int)std::stoul((*found)[1].str());
+            moved_text += text.substr(moved_last, (size_t)found->position() - moved_last);
+            moved_text += (moved_to.count(number) != 0u) ? ("R" + std::to_string(moved_to[number]) + (*found)[2].str())
+                                                         : found->str();
+            moved_last = (size_t)found->position() + found->str().size();
+        }
+        text = moved_text + text.substr(moved_last);
+        registers_held = high_water;
+        // the mark may not pass the last register the part answers a kernel's code can name
+        if ((machine->register_last != SASS_MACHINE_UNANSWERED) && (high_water > (machine->register_last + 1u)))
+        {
+            ask("a kernel of more registers at once than the part gives code: " + std::to_string(high_water) +
+                " past " + std::to_string(machine->register_last + 1u));
         }
         std::string written;
         size_t last = 0u;
@@ -2336,8 +2465,10 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
         return kernel->question.empty() ? ("a statement nothing here reads: " + statement) : kernel->question;
     }
     kernel->write("kernel_close", {});
-    kernel->assign();
+    // a load folded into its extension writes the extension's register lines sooner, and registers are given over
+    // the lines the folded text holds
     kernel->fold_loads();
+    kernel->assign();
     kernel->balance();
     return kernel->question;
 }
@@ -2576,6 +2707,7 @@ int main(int argc, char **argv)
         }
         std::ofstream(out + "/" + source.number + ".bin", std::ios::binary)
             .write((const char *)code.data(), (std::streamsize)code.size());
+        std::ofstream(out + "/" + source.number + ".registers", std::ios::binary) << kernel.registers_held << "\n";
         fprintf(table, "%s\tanswered\t%u\t%u\t\n", source.number.c_str(), kernel.forms, count);
         answered += 1u;
     }

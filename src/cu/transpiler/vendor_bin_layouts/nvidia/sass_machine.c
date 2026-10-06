@@ -482,7 +482,10 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         char writer[SASS_MACHINE_TOKEN];
         char reader[SASS_MACHINE_TOKEN];
         unsigned int last = 0u;
-        if (sscanf(line, "run answers %x register last", &last) == 1)
+        // sscanf counts the number it converted whether or not the words after it match, and %n is set only where
+        // they all did
+        int matched = 0;
+        if ((sscanf(line, "run answers %x register last%n", &last, &matched) == 1) && (matched != 0))
         {
             machine->register_last = last;
             continue;
