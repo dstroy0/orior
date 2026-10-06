@@ -99,7 +99,7 @@ done
 PORTABLE_OBJECTS=()
 for portable in engine/nbody/body_overlap engine/nbody/heaviest_matching engine/analysis/shift_agreement \
                 engine/nbody/max_tree engine/compiler/cycle engine/nbody/marginal engine/arithmetic/double_fields \
-                engine/arithmetic/decimal_double engine/runtime/scriptura "${INGEST[@]}"; do
+                engine/arithmetic/decimal_double engine/runtime/scriptura cu/types/integers/exact_record "${INGEST[@]}"; do
     for source in "$TOP/src/$portable"/*.c; do
         name="$(basename "$source" .c)"
         OBJECT="$OUT/${name}_portable.o"

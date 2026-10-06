@@ -130,6 +130,36 @@ extern "C"
 
     long cycle_record_sum_host(const CycleRecordSumRequest *request);
 
+    // cycle_record_sum keeps its device scratch between calls, grown to the most a sum has asked; this gives it back
+    void cycle_record_sum_release(void);
+
+    // The sort: within each run of `group` consecutive records of `count`, the lanes in the order of their output at
+    // bit `offset`, `bits` wide, read as a magnitude, least first, and records whose outputs are equal in the order of
+    // their lanes. `order` takes `count` lanes, 32 bits each: entry i of a run is the lane of the run's record that
+    // stands i-th. `order` is an index a sweep reads its records through. `count` is a whole number of runs and at
+    // most 2^32 records. cycle_record_sort reads records and writes the order in device memory: a run whose records
+    // and lanes fit one thread block's shared memory is sorted there by a bitonic network over (output, lane), and a
+    // longer run by a radix sort of four bits a pass over the device, the output's bits and then the run's number.
+    // cycle_record_sort_host reads and writes them in host memory, by a merge that keeps equal outputs in lane order.
+    typedef struct
+    {
+        const unsigned int *records;
+        unsigned long long count;
+        unsigned long long group;
+        unsigned int out_limbs;
+        unsigned int offset;
+        unsigned int bits;
+        unsigned int *order;
+        EngineError *error;
+    } CycleRecordSortRequest;
+
+    long cycle_record_sort(const CycleRecordSortRequest *request);
+
+    // 1 where a sort request is whole, the check both routes make before a record is read
+    int cycle_record_sort_valid(const CycleRecordSortRequest *request);
+
+    long cycle_record_sort_host(const CycleRecordSortRequest *request);
+
 #ifdef __cplusplus
 }
 #endif
