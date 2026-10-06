@@ -41,9 +41,11 @@ key word_copy
 pair word_copy thread_idx_x
 closed 0987:0110 1,0,0->0
 unknown_coherence
+relation_identity 692eac9ed38b335d
 pair word_copy warp_size
 closed 0967:0110 0,8000000000000000,0->0
 unknown_coherence
+relation_identity c4914c82742f4623
 key word_set
 key word_bitand
 pair word_bitand word_from_byte
@@ -59,11 +61,13 @@ key signed_word_shr
 pair signed_word_shr word_shr
 closed 0390:00b0 80000000,0,0->ffffffff80000000
 frame_coherence
+relation_identity 59fcf2e7c57871c1
 key word_mul
 key word_mul_add
 pair word_mul_add word_mul
 closed 1003:00d0 0,0,1->1
 unknown_coherence
+relation_identity 9fe9d58582725add
 key word_div
 key word_select
 key word_mul_low
@@ -78,6 +82,7 @@ key test_word_zero
 pair test_word_zero test_word_nonzero
 closed 0287:00b0 0,0,0->1
 negation_coherence
+relation_identity f340fd04bcb6df95
 key test_signed_word_negative
 key test_sign_ne
 key test_sign_gt
@@ -90,10 +95,12 @@ key test_wide_lt
 pair test_wide_lt test_wide_eq
 closed 0989:00d0 0,0,0->0
 modifier_coherence
+relation_identity 400d9b1a22d06c2f
 key test_wide_lt_and
 pair test_wide_lt_and test_wide_lt
 closed 0988:00e0 0,1,0->0
 qualifier_coherence
+relation_identity 2fa049d3e8dac194
 key predicate_bitxor
 key predicate_bitand
 key wide_from_word
@@ -101,6 +108,7 @@ key word_from_wide
 pair word_from_wide warp_size
 closed 0964:00f0 0,0,0->0
 unknown_coherence
+relation_identity 2736e10b82ba61ea
 key wide_pack
 pair wide_pack wide_from_word
 open 0
@@ -182,21 +190,25 @@ key global_load_word
 pair global_load_word global_load_constant_word
 open 259776
 qualifier_coherence
+relation_identity 08068507b4c62fe9
 key global_load_wide
 pair global_load_wide global_load_word
 closed 0282:00a0 100000000,0,0->fffffffeffffffff
 frame_coherence
+relation_identity a813ac273deeff09
 key global_store_wide
 key wide_from_signed_word
 key test_word_ge
 pair test_word_ge test_word_lt
 closed 0143:00c0 0,0,0->1
 negation_coherence
+relation_identity 195a6d0ab9c56ae1
 key exit_if
 key test_word_le
 pair test_word_le test_word_lt
 closed 0994:00d0 0,0,1->1
 modifier_coherence
+relation_identity 6953ba4d7c924bed
 key test_word_ne
 pair test_word_ne test_word_nonzero
 open 0
@@ -204,6 +216,7 @@ unknown_coherence
 pair test_word_ne test_word_lt
 closed 0288:00b0 1,0,0->0
 modifier_coherence
+relation_identity 971f18de4b1a6204
 key test_word_eq
 pair test_word_eq test_word_zero
 open 0
@@ -211,14 +224,17 @@ unknown_coherence
 pair test_word_eq test_word_lt
 closed 0938:00d0 0,0,0->1
 modifier_coherence
+relation_identity 96e6d09e2a70ce13
 key test_word_gt
 pair test_word_gt test_word_lt
 closed 0133:00c0 0,1,0->1
 modifier_coherence
+relation_identity 3e3d245895bda6ef
 key test_signed_word_lt
 pair test_signed_word_lt test_word_lt
 closed 0920:00d0 0,80000000,1->0
 frame_coherence
+relation_identity f7a71ae99c05ee21
 pair test_signed_word_lt test_signed_word_negative
 open 0
 unknown_coherence
@@ -226,14 +242,17 @@ key test_signed_word_ge
 pair test_signed_word_ge test_word_ge
 closed 0142:00c0 0,80000000,0->1
 frame_coherence
+relation_identity 428c3c94e72f0021
 key test_signed_word_le
 pair test_signed_word_le test_word_le
 closed 0927:00d0 0,80000000,0->0
 frame_coherence
+relation_identity f7a71ae99c05ee21
 key test_signed_word_gt
 pair test_signed_word_gt test_word_gt
 closed 0130:00c0 0,8000,0->0
 frame_coherence
+relation_identity dcff9cb40141111d
 key test_wide_ne
 pair test_wide_ne test_word_nonzero
 open 0
@@ -241,38 +260,47 @@ unknown_coherence
 pair test_wide_ne test_wide_eq
 closed 0105:00c0 0,0,0->0
 negation_coherence
+relation_identity 195a6d0ab9c56ae1
 key test_wide_le
 pair test_wide_le test_wide_eq
 closed 0994:00d0 0,1,1->1
 modifier_coherence
+relation_identity 816e9ed0981013cb
 key test_wide_gt
 pair test_wide_gt test_wide_eq
 closed 0135:00c0 0,0,0->1
 modifier_coherence
+relation_identity eeae788c37accbc8
 key test_wide_ge
 pair test_wide_ge test_wide_eq
 closed 0145:00c0 1,0,0->1
 modifier_coherence
+relation_identity 7f7615b37be4f7e4
 key test_signed_wide_lt
 pair test_signed_wide_lt test_wide_lt
 closed 0966:00d0 0,8000000000000000,0->0
 frame_coherence
+relation_identity 1bcae8cface26481
 key test_signed_wide_le
 pair test_signed_wide_le test_wide_le
 closed 0972:00d0 0,8000000000000000,0->0
 frame_coherence
+relation_identity 1bcae8cface26481
 key test_signed_wide_gt
 pair test_signed_wide_gt test_wide_gt
 closed 0124:00c0 0,8000000000000000,0->1
 frame_coherence
+relation_identity d154479646280d95
 key test_signed_wide_ge
 pair test_signed_wide_ge test_wide_ge
 closed 0144:00c0 0,8000000000000000,0->1
 frame_coherence
+relation_identity d154479646280d95
 key test_wide_zero
 pair test_wide_zero test_wide_nonzero
 closed 0337:00b0 0,0,0->0
 negation_coherence
+relation_identity f340fd04bcb6df95
 key word_from_byte
 key word_from_signed_byte
 key word_from_halfword
@@ -281,34 +309,42 @@ key global_load_byte
 pair global_load_byte global_load_word
 closed 0325:00a0 100,0,0->0
 frame_coherence
+relation_identity c15d4f6ab6cf82e6
 key global_load_signed_byte
 pair global_load_signed_byte global_load_byte
 closed 0355:00a0 80,0,0->ffffffffffffff80
 frame_coherence
+relation_identity 3dd1f3a53868a8cd
 key global_load_halfword
 pair global_load_halfword global_load_word
 closed 0367:00a0 7fffffff,0,0->ffff
 frame_coherence
+relation_identity db68f78e701006d2
 key global_load_signed_halfword
 pair global_load_signed_halfword global_load_signed_byte
 closed 0268:00a0 80,0,0->80
 frame_coherence
+relation_identity ecf31afd8c2d8318
 key test_word_nonzero_and
 pair test_word_nonzero_and test_word_nonzero
 closed 0151:00d0 1,0,0->0
 qualifier_coherence
+relation_identity 0a34b25c1c71248d
 key test_word_nonzero_or
 pair test_word_nonzero_or test_word_nonzero_and
 closed 0160:00d0 0,1,0->1
 modifier_coherence
+relation_identity 999e1ecd71ec7199
 key test_wide_nonzero_and
 pair test_wide_nonzero_and test_wide_nonzero
 closed 0155:00e0 1,0,0->0
 qualifier_coherence
+relation_identity a3e1524802706254
 key test_wide_nonzero_or
 pair test_wide_nonzero_or test_wide_nonzero_and
 closed 0164:00e0 0,1,0->1
 modifier_coherence
+relation_identity 10e6366a49c87475
 key wide_sub
 key wide_bitand
 key wide_bitor
@@ -319,6 +355,7 @@ key signed_wide_shr
 pair signed_wide_shr wide_shr
 closed 0254:00c0 8000000000000000,1,0->c000000000000000
 frame_coherence
+relation_identity 7b6702e92b1430b9
 text_identity int (((a == b) ? 1 : 0) != 0) = int (a == b)
 open 648
 text_identity int (((a != b) ? 1 : 0) != 0) = int (a != b)

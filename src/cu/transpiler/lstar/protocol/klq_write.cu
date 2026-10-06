@@ -181,10 +181,11 @@ int main(int argc, char **argv)
     // the identities between texts the bridge holds, each with its verdict, kept whole: no ruleset writes them, and
     // they are written again after the keys as they were read
     std::vector<std::string> identities;
-    // each pair's verdict as the bridge held it, and the set of our coherence klq_decoder read it into, each written
-    // again beneath the pair
+    // each pair's verdict as the bridge held it, the set of our coherence klq_decoder read it into and its relation's
+    // identity, each written again beneath the pair
     std::map<std::string, std::string> verdicts;
     std::map<std::string, std::string> sets;
+    std::map<std::string, std::string> relations;
     std::string pair_held;
     std::ifstream held_bridge(path, std::ios::binary);
     std::string line;
@@ -205,7 +206,13 @@ int main(int argc, char **argv)
         {
             sets[pair_held] = line;
         }
-        pair_held = (line.rfind("pair ", 0u) == 0u) ? line : ((verdict || set) ? pair_held : std::string());
+        const int relation = (line.rfind("relation_identity ", 0u) == 0u);
+        if (relation && !pair_held.empty())
+        {
+            relations[pair_held] = line;
+        }
+        pair_held =
+            (line.rfind("pair ", 0u) == 0u) ? line : ((verdict || set || relation) ? pair_held : std::string());
         if (in_identity)
         {
             identities.push_back(line);
@@ -243,6 +250,10 @@ int main(int argc, char **argv)
                 if (sets.count(pair) != 0u)
                 {
                     fprintf(bridge, "%s\n", sets[pair].c_str());
+                }
+                if (relations.count(pair) != 0u)
+                {
+                    fprintf(bridge, "%s\n", relations[pair].c_str());
                 }
             }
         }

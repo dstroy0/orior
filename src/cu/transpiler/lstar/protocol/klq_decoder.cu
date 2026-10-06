@@ -94,9 +94,53 @@ static std::set<unsigned long long> operands_deciding(const std::vector<std::vec
     return deciding;
 }
 
-// the set of our coherence a put apart is read into, and empty where it is read into none
+// A pair's relation over the cases, its identity, the relation being what it is and no name being needed for it: what
+// came back of each case read as a function of the case words `read`, each combination of their values alike, apart,
+// or both where a word outside `read` decides it among the cases holding it. The combinations are written in the order
+// of their values for each order of the words, the least writing taken, a carrier naming the words in any order, and
+// hashed to sixteen hexadecimal digits
+static std::string relation_identity(const std::vector<std::vector<std::string>> &cases, const std::string &came_back,
+                                     const std::set<unsigned long long> &read)
+{
+    std::vector<unsigned long long> order(read.begin(), read.end());
+    std::string least;
+    do
+    {
+        std::map<std::string, std::set<char>> by_values;
+        for (size_t place = 0u; (place < cases.size()) && (place < came_back.size()); place += 1u)
+        {
+            if (came_back[place] == '-')
+            {
+                continue;
+            }
+            std::string values;
+            for (const unsigned long long operand : order)
+            {
+                values += ((operand < cases[place].size()) ? cases[place][(size_t)operand] : std::string("-")) + ",";
+            }
+            by_values[values].insert(came_back[place]);
+        }
+        std::string written;
+        for (const auto &held : by_values)
+        {
+            written += held.first + ((held.second.size() > 1u) ? "?" : std::string(1u, *held.second.begin())) + ";";
+        }
+        least = (least.empty() || (written < least)) ? written : least;
+    } while (std::next_permutation(order.begin(), order.end()));
+    unsigned long long hashed = 0xcbf29ce484222325ull;
+    for (const char letter : least)
+    {
+        hashed = (hashed ^ (unsigned char)letter) * 0x100000001b3ull;
+    }
+    char identity[24];
+    snprintf(identity, sizeof(identity), "%016llx", hashed);
+    return identity;
+}
+
+// the set of our coherence a put apart is read into, and empty where it is read into none, its relation's identity in
+// `identity`
 static std::string put_decoded(const LoggedPut &put, const std::vector<std::vector<std::string>> &cases,
-                               const std::string &folder)
+                               const std::string &folder, std::string *identity)
 {
     const size_t colon = put.address.find(':');
     std::ifstream carrier(folder + "/" + put.address.substr(0u, colon) + ".sass", std::ios::binary);
@@ -147,6 +191,9 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
         form_written.insert(link.written);
         line_at += 1;
     }
+    std::set<unsigned long long> link_words = qualified;
+    link_words.insert(qualifying.begin(), qualifying.end());
+    *identity = relation_identity(cases, put.came_back, link_words);
     const std::set<unsigned long long> deciding = operands_deciding(cases, put.came_back);
     // a case word the carrier reads after the link decides the cases apart beside the words the link reads, and is
     // read by neither side of the pair
@@ -283,31 +330,39 @@ int main(int argc, char **argv)
     }
     // each pair's set, read off its put apart, or a qualifier's where every put the part answered came back alike
     std::map<std::string, std::string> decoded;
+    // each answered pair's relation, its identity, whatever its forms' texts: the put apart's where it has one
+    std::map<std::string, std::string> identities;
     std::map<std::string, int> apart_held;
     std::map<std::string, int> alike_held;
     for (const LoggedPut &put : puts)
     {
         const std::string key = pair_key(put.from, put.to);
         if ((put.came_back == "recorded") || (put.came_back == "refused") || put.came_back.empty() ||
-            (operation_stem(put.from_text) != operation_stem(put.to_text)))
+            case_sets.empty())
         {
             continue;
         }
+        const int one_text = (operation_stem(put.from_text) == operation_stem(put.to_text));
         if (put.came_back.find('x') == std::string::npos)
         {
-            alike_held[key] = 1;
+            alike_held[key] |= one_text ? 1 : 2;
+            if (apart_held.count(key) == 0u)
+            {
+                identities[key] = relation_identity(case_sets[put.cases_at], put.came_back, {});
+            }
             continue;
         }
         apart_held[key] = 1;
-        const std::string set =
-            case_sets.empty() ? std::string() : put_decoded(put, case_sets[put.cases_at], argv[2]);
-        decoded[key] = set.empty() ? std::string("unknown_coherence") : set;
+        std::string identity;
+        const std::string set = put_decoded(put, case_sets[put.cases_at], argv[2], &identity);
+        identities[key] = identity;
+        decoded[key] = (set.empty() || !one_text) ? std::string("unknown_coherence") : set;
     }
     for (const auto &held : alike_held)
     {
         if (apart_held.count(held.first) == 0u)
         {
-            decoded[held.first] = "qualifier_coherence";
+            decoded[held.first] = (held.second == 1) ? "qualifier_coherence" : "unknown_coherence";
         }
     }
     std::vector<std::string> bridge;
@@ -325,7 +380,9 @@ int main(int argc, char **argv)
     std::vector<std::string> written;
     std::string pair_held;
     std::string set_held;
+    std::string identity_held;
     std::map<std::string, unsigned int> counted;
+    std::set<std::string> relations;
     const auto pair_closed = [&]() {
         if (!pair_held.empty())
         {
@@ -334,9 +391,18 @@ int main(int argc, char **argv)
                                                                       : set_held;
             written.push_back(set);
             counted[set] += 1u;
+            const std::string identity = (identities.count(pair_held) != 0u)
+                                             ? ("relation_identity " + identities[pair_held])
+                                             : identity_held;
+            if (!identity.empty())
+            {
+                written.push_back(identity);
+                relations.insert(identity);
+            }
         }
         pair_held.clear();
         set_held.clear();
+        identity_held.clear();
     };
     for (const std::string &entry : bridge)
     {
@@ -344,6 +410,11 @@ int main(int argc, char **argv)
         if (!pair_held.empty() && set_line(entry))
         {
             set_held = entry;
+            continue;
+        }
+        if (!pair_held.empty() && (entry.rfind("relation_identity ", 0u) == 0u))
+        {
+            identity_held = entry;
             continue;
         }
         if (!pair_held.empty() && verdict)
@@ -380,8 +451,9 @@ int main(int argc, char **argv)
         printf("  %s: %s\n", held.first.c_str(), held.second.c_str());
     }
     printf("klq_decoder: %u puts read, %u qualifier_coherence, %u frame_coherence, %u modifier_coherence, %u "
-           "negation_coherence, %u unknown_coherence, written to %s\n",
+           "negation_coherence, %u unknown_coherence, %u relation identities, written to %s\n",
            (unsigned int)puts.size(), counted["qualifier_coherence"], counted["frame_coherence"],
-           counted["modifier_coherence"], counted["negation_coherence"], counted["unknown_coherence"], argv[3]);
+           counted["modifier_coherence"], counted["negation_coherence"], counted["unknown_coherence"],
+           (unsigned int)relations.size(), argv[3]);
     return 0;
 }

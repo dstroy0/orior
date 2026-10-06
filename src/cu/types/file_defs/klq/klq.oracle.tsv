@@ -24,5 +24,6 @@ pair	klq_decoder	qualifier_coherence	qualifier_coherence	the two forms one text 
 pair	klq_decoder	modifier_coherence	modifier_coherence	the two forms one text but for a modifier: apart where a case word that the link reads decides it, both results standing
 pair	klq_decoder	frame_coherence	frame_coherence	the two forms one text but for a sign or a width: alike on every case whose operands every frame reads as themselves, apart only past them
 pair	klq_decoder	negation_coherence	negation_coherence	the two forms of a flag one text but for a modifier, apart whatever the link reads: each the other's negation, the two members of one node
+pair	klq_decoder	relation_identity	relation_identity <hash>	the pair's relation over the cases, its identity: alike, apart or both at each combination of the case words its link reads, hashed, whatever names the pair
 pair	klq_decoder	unknown_coherence	unknown_coherence	no answer has read the pair into a set: it can be anything, and is a member of every set of our coherence
 any	-	comment	# <text>	a comment
