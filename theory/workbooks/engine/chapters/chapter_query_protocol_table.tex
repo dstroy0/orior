@@ -559,9 +559,11 @@ case & h = add & or & xor & and & take & mul \\
 \item \texttt{1, 1 → 0 ?} fails less-or-equal (1).
 \item \texttt{0x\allowbreak{}FFFFFFFF, 0} is 1 signed and 0 unsigned.
 \item A test and the select that reads it are one word, asked as one (Q19).
+\item A bool is a relation and no narrowing: \texttt{(bool)v} is [v ≠ 0] over the whole of v. \texttt{0x100000000 → 1 ?} fails a flag of the low word alone (0), which a byte or a halfword is right to read.
+\item A flag read as a word and tested against 0 is the flag: [select(p, 1, 0) ≠ 0] = p on every case. The round trip is a cost to rank (P6) and never a gate, and a reader that does not hold it reads each conditional nested in another again for every reading of the one around it.
 \end{itemize}
 
-\textbf{Measured}, Steps 2 to 6 on sm\_\allowbreak{}86: the engine's chain for every question the host computes, 424 of them, answers alike on all 648 cases and none apart. The 64-bit add, take, bitwise forms, not, negation and both shifts right are among them, each in the two words of NVIDIA's listing, and every comparison glued to a second test by \texttt{\&\&} or \texttt{||}.
+\textbf{Measured}, Steps 2 to 6 on sm\_\allowbreak{}86: the engine's chain for every question the host computes, 441 of them, answers alike on all 648 cases and none apart. The 64-bit add, take, bitwise forms, not, negation and both shifts right are among them, each in the two words of NVIDIA's listing, every comparison glued to a second test by \texttt{\&\&} or \texttt{||}, and every select over a bool.
 
 \textbf{Step 7. Two forms, one slot (P10).} Forms f and g in one slot are put on K. The first k with f(k) ≠ g(k) closes the pair as two operations, and k is kept at the key as its witness. A pair alike on every k ∈ K stays gray, with |K| its reading. A case closes a pair once, and a closed pair is not asked again (P5).
 
@@ -573,7 +575,7 @@ case & h = add & or & xor & and & take & mul \\
 \item \textbf{The cases.} An operand meets 18 values and no other. Between 0x100000000 and 0x7FFFFFFFFFFFFFFF none is put, and a form apart only there is found by no case (Step 8).
 \item \textbf{The C of the host.} A case it traps on or leaves undefined carries no h(k), and the part's answer there is held to nothing (Steps 4 and 5).
 \item \textbf{The types of the host.} The host computes integers alone: 436 questions, and float and double, 398 of the 1016, are asked of nothing. No form of a floating slot is derived.
-\item \textbf{The reading of the engine.} A question the engine cannot write through cu.krs is asked of nothing: 183 besides the floating ones. 52 have no reading, 33 of them a test of the low word of a 64-bit operand. 66 are calls or elements cu.krs gives no form for, 30 atomics and 34 statements.
+\item \textbf{The reading of the engine.} A question the engine cannot write through cu.krs is asked of nothing: 166 besides the floating ones. 35 have no reading, 33 of them a quotient or a remainder, which sm\_\allowbreak{}86's ruleset gives no form for (\texttt{err word\_\allowbreak{}div}). 66 are calls or elements cu.krs gives no form for, 30 atomics and 34 statements.
 \item \textbf{The run channel.} A question carries as many cases as a launch gives threads, up to the 2\textasciicircum{}20 the host fills, and the run tool gives every case a thread.
 \item \textbf{The slices.} A context no two questions of the host hold is asked of nothing: 762 of 1113.
 \item \textbf{Two words.} A 64-bit form is put as two forms of 32 bits as NVIDIA's listing writes it, and the width that would ask it is Step 1, theory.
@@ -639,7 +641,7 @@ category & questions & written & held & alike \\
 \midrule
 \endhead
 operator & 171 & 131 & 131 & 131 \\
-conversion & 110 & 64 & 64 & 64 \\
+conversion & 110 & 72 & 72 & 72 \\
 test & 90 & 90 & 90 & 90 \\
 compound & 88 & 64 & 64 & 64 \\
 single math & 87 & 0 & 0 & 0 \\
@@ -654,11 +656,11 @@ statement & 19 & 1 & 1 & 1 \\
 warp & 17 & 0 & 0 & 0 \\
 memory & 13 & 0 & 0 & 0 \\
 built-in & 13 & 11 & 0 & 0 \\
-conditional & 11 & 0 & 0 & 0 \\
+conditional & 11 & 9 & 9 & 9 \\
 pressure & 10 & 10 & 10 & 10 \\
 sync & 9 & 0 & 0 & 0 \\
 call & 4 & 0 & 0 & 0 \\
-all & 1016 & 435 & 424 & 424 \\
+all & 1016 & 452 & 441 & 441 \\
 \bottomrule
 \end{longtable}
 }
