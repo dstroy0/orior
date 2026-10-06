@@ -10,7 +10,8 @@
 // word alone answer one alike and the other apart. Each operand of the link is followed back through the carrier to
 // the case words it reads (carrier_flow.h). A pair apart where a case word decides it that an
 // operand only the form it stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms
-// name the same operands, apart where a case word the link reads decides it, is a modifier's. A pair of forms of a flag
+// name the same operands, apart where a case word the link reads decides it, is a modifier's, and a frame's where it
+// is alike on every case whose operands every frame reads as themselves. A pair of forms of a flag
 // that name the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair
 // answered alike at every put is a qualifier's. A pair this log reads into no set keeps the set line the bridge held beneath it, and one
 // that holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one
@@ -41,6 +42,9 @@ struct LoggedPut
     // the cases the ask was put over, by their place in the log's case sets
     size_t cases_at;
 };
+
+// the values every frame reads as themselves lie below the top of a byte read signed
+static const unsigned long long s_frame_free_below = 0x80ull;
 
 // the first word of a link's text up to its first `.`, its guard passed over
 static std::string operation_stem(const std::string &text)
@@ -167,7 +171,27 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
     {
         return "negation_coherence";
     }
-    return (only.empty() && link_read) ? "modifier_coherence" : std::string();
+    if (!only.empty() || !link_read)
+    {
+        return std::string();
+    }
+    // two readings of the same bits under two frames agree wherever every operand fits every frame, below the top of
+    // a byte read signed, the narrowest signed width the cases hold: a modifier apart only past that is the frame's
+    int past_every_frame = 1;
+    for (size_t place = 0u; (place < cases.size()) && (place < put.came_back.size()); place += 1u)
+    {
+        if (put.came_back[place] != 'x')
+        {
+            continue;
+        }
+        int fits = 1;
+        for (const std::string &operand : cases[place])
+        {
+            fits &= (std::stoull(operand, nullptr, 16) < s_frame_free_below) ? 1 : 0;
+        }
+        past_every_frame &= fits ? 0 : 1;
+    }
+    return past_every_frame ? "frame_coherence" : "modifier_coherence";
 }
 
 // the two forms of a pair, the lesser first, as one key
@@ -338,9 +362,9 @@ int main(int argc, char **argv)
     {
         printf("  %s: %s\n", held.first.c_str(), held.second.c_str());
     }
-    printf("klq_decoder: %u puts read, %u qualifier_coherence, %u modifier_coherence, %u negation_coherence, %u "
-           "unknown_coherence, written to %s\n",
-           (unsigned int)puts.size(), counted["qualifier_coherence"], counted["modifier_coherence"],
-           counted["negation_coherence"], counted["unknown_coherence"], argv[3]);
+    printf("klq_decoder: %u puts read, %u qualifier_coherence, %u frame_coherence, %u modifier_coherence, %u "
+           "negation_coherence, %u unknown_coherence, written to %s\n",
+           (unsigned int)puts.size(), counted["qualifier_coherence"], counted["frame_coherence"],
+           counted["modifier_coherence"], counted["negation_coherence"], counted["unknown_coherence"], argv[3]);
     return 0;
 }

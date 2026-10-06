@@ -185,7 +185,7 @@ qualifier_coherence
 key global_load_wide
 pair global_load_wide global_load_word
 closed 0006:00a0 100000000,0,0->100000000
-modifier_coherence
+frame_coherence
 key global_store_wide
 key wide_from_signed_word
 key test_word_ge
@@ -218,22 +218,22 @@ modifier_coherence
 key test_signed_word_lt
 pair test_signed_word_lt test_word_lt
 closed 0920:00d0 0,80000000,1->0
-modifier_coherence
+frame_coherence
 pair test_signed_word_lt test_signed_word_negative
 open 0
 unknown_coherence
 key test_signed_word_ge
 pair test_signed_word_ge test_word_ge
 closed 0108:00c0 0,80,0->0
-modifier_coherence
+frame_coherence
 key test_signed_word_le
 pair test_signed_word_le test_word_le
 closed 0926:00d0 0,80000000,1->0
-modifier_coherence
+frame_coherence
 key test_signed_word_gt
 pair test_signed_word_gt test_word_gt
 closed 0118:00c0 0,80,0->1
-modifier_coherence
+frame_coherence
 key test_wide_ne
 pair test_wide_ne test_word_nonzero
 open 0
@@ -256,19 +256,19 @@ modifier_coherence
 key test_signed_wide_lt
 pair test_signed_wide_lt test_wide_lt
 closed 0965:00d0 0,8000000000000000,1->0
-modifier_coherence
+frame_coherence
 key test_signed_wide_le
 pair test_signed_wide_le test_wide_le
 closed 0971:00d0 0,8000000000000000,1->0
-modifier_coherence
+frame_coherence
 key test_signed_wide_gt
 pair test_signed_wide_gt test_wide_gt
 closed 0124:00c0 0,8000000000000000,0->1
-modifier_coherence
+frame_coherence
 key test_signed_wide_ge
 pair test_signed_wide_ge test_wide_ge
 closed 0114:00c0 0,8000000000000000,0->0
-modifier_coherence
+frame_coherence
 key test_wide_zero
 pair test_wide_zero test_wide_nonzero
 closed 0154:00c0 1,0,0->0
@@ -280,19 +280,19 @@ key word_from_signed_halfword
 key global_load_byte
 pair global_load_byte global_load_word
 closed 0073:00b0 1,100,0->1
-modifier_coherence
+frame_coherence
 key global_load_signed_byte
 pair global_load_signed_byte global_load_byte
 closed 0080:00a0 80,1,0->ffffffffffffffc0
-modifier_coherence
+frame_coherence
 key global_load_halfword
 pair global_load_halfword global_load_word
 closed 0075:00b0 1,80000000,0->1
-modifier_coherence
+frame_coherence
 key global_load_signed_halfword
 pair global_load_signed_halfword global_load_signed_byte
 closed 0082:00a0 80,0,0->80
-modifier_coherence
+frame_coherence
 key test_word_nonzero_and
 pair test_word_nonzero_and test_word_nonzero
 closed 0148:00d0 1,0,0->0
@@ -318,7 +318,7 @@ key wide_shr
 key signed_wide_shr
 pair signed_wide_shr wide_shr
 closed 0086:00c0 8000000000000000,1,0->c000000000000000
-modifier_coherence
+frame_coherence
 text_identity int (((a == b) ? 1 : 0) != 0) = int (a == b)
 open 648
 text_identity int (((a != b) ? 1 : 0) != 0) = int (a != b)
