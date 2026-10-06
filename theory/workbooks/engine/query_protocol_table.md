@@ -261,7 +261,9 @@ A ruleset gives each slot σ one form, and each fact of the part one number. Bot
 
 The part gives one of four answers. Alike, where f(k) = h(k). Apart, where it gives another word. Refused, where it ends the run as an illegal instruction, an illegal address or a launch out of resources. Nothing, where no answer comes back. Alike is truthy and the other three are falsy.
 
-A case on which the C of the host traps or is undefined carries no h(k): a divisor of 0, the least value over −1, and a shift by the width or past it. The part's answer to such a case is read and kept, and gates nothing (`refused_<n>` in the host program `klq_identity` writes).
+A case on which the C of the host traps or is undefined carries no h(k): a divisor of 0, the least value over −1, and a shift by the width or past it. The part's answer to such a case is read and kept, and gates nothing (`refused_<n>` in the host program `klq_identity` writes). Each is judged in the operand's own type: a `signed char` divisor put 0x100 is a divisor of 0.
+
+**What the host computes.** Every integer question a slice holds, every task of register pressure, and every question the engine writes a chain for: each chain the part is asked is held to h on every case.
 
 **The cases.** Each operand is put through 18 values: 0, 1, 2, 3, and the edges of every width, 0x7F, 0x80, 0xFF, 0x100, 0x7FFF, 0x8000, 0xFFFF, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF, 0x100000000 and the three edges of 64 bits. With a third operand of two values, a two-operand form meets 18 · 18 · 2 = 648 cases.
 
@@ -286,12 +288,15 @@ The width w is the widest put that comes back whole, and the next one comes back
 - `0, 1 → 1 ?` and `1, 0 → 1 ?` fail a form that drops an operand.
 - `0xFFFFFFFF, 1 → 0 ?` fails a form that saturates at the top, or carries into a 33rd bit.
 - On the ladder's candidates the descent places one or two cases a relation, and every impostor fails at the first or second (**proved**, Q4). The survivors are S(add), and their count is a reading (Q11).
+- At 2w a value is two words, and a form of 2w is a pair of forms of w. `0xFFFFFFFF, 1 → 0x100000000 ?` fails a pair whose two words are added apart (0): the high word takes the carry out of the low.
 
 **Step 3. Take.** `1, 1 → 0 ?`, `0, 1 → 0xFFFFFFFF ?`, `1, 0 → 1 ?`.
 
 - `1, 1 → 0 ?` fails add (2) and or (1); xor answers 0 and stands.
 - `0, 1 → 0xFFFFFFFF ?` fails xor and or (1), a form that takes the operands swapped (1), and one that saturates at 0 (0).
 - f(0, 1) ≠ f(1, 0) witnesses that the form does not commute, which add and every bitwise form do.
+- At 2w, `0x100000000, 1 → 0xFFFFFFFF ?` fails a pair whose two words are taken apart (0x1FFFFFFFF): the high word takes the borrow out of the low.
+- −a is 0 − a in a's type, put to take as `0, a`, and no form of its own is asked for it.
 
 **Step 4. Divide.** `0, 1 → 0 ?`, `1, 1 → 1 ?`, `3, 2 → 1 ?`, `0xFFFFFFFF, 2 → ?`, `1, 0 → ?`.
 
@@ -303,6 +308,8 @@ The width w is the widest put that comes back whole, and the next one comes back
 
 - `0x80000000, 31` right is 1 unsigned and 0xFFFFFFFF signed, which separates the logical shift from the arithmetic one.
 - `1, 32` carries no h(k). A form that clamps answers 0, and a form that wraps answers 1. The case keeps the two apart as operations without gating either (Q17: NVIDIA's `.W` wraps, where the precept wraps too).
+- Every case with an h(k) has a count under w, and its low word holds the count. A count held in two words is put as its low word, and every case with an h(k) answers the same.
+- At 2w, `0x100000000, 1 → 0x80000000 ?` right fails a pair whose two words are shifted apart (0): the low word takes the bits the high word lets go.
 
 **Step 6. Compare, and the select that reads it.** `0, 1 → 1 ?`, `1, 0 → 0 ?`, `1, 1 → 0 ?`, `0xFFFFFFFF, 0 → ?` for less-than.
 
@@ -310,9 +317,21 @@ The width w is the widest put that comes back whole, and the next one comes back
 - `0xFFFFFFFF, 0` is 1 signed and 0 unsigned.
 - A test and the select that reads it are one word, asked as one (Q19).
 
+**Measured**, Steps 2 to 6 on sm_86: the engine's chain for every question the host computes, 377 of them, answers alike on every case and none apart. The 64-bit add, take, bitwise forms, not, negation and both shifts right are among them, each in the two words of NVIDIA's listing.
+
 **Step 7. Two forms, one slot (P10).** Forms f and g in one slot are put on K. The first k with f(k) ≠ g(k) closes the pair as two operations, and k is kept at the key as its witness. A pair alike on every k ∈ K stays gray, with |K| its reading. A case closes a pair once, and a closed pair is not asked again (P5).
 
 **Step 8. The bound in place of a counterexample.** An L* learner asks whether a conjecture is the machine and is given a case apart when it is not. The part gives no such case: K stands in for it, as a test suite does ([learning_a_ruleset.md](../../thought_experiments/engine/learning_a_ruleset.md)). An operation on words holds no state, and so the bound is on cases and not on states: a form is exact on K and gray past it. A two-operand form of 32 bits has 2^64 cases, and a form apart on a case outside K is found only by adding that case to K. **Measured** at 16 bits: 55 forms on all 65,536 cases against the integers of the host ([learning_a_ruleset.md](../../thought_experiments/engine/learning_a_ruleset.md), Status).
+
+**Where the questions are bounded.** Each step asks only what the step before it can hold, and each bound is a place the ruleset is gray. Read off the stick's 1016 questions:
+
+- **The cases.** An operand meets 18 values and no other. Between 0x100000000 and 0x7FFFFFFFFFFFFFFF none is put, and a form apart only there is found by no case (Step 8).
+- **The C of the host.** A case it traps on or leaves undefined carries no h(k), and the part's answer there is held to nothing (Steps 4 and 5).
+- **The types of the host.** The host computes integers alone: 436 questions, and float and double, 398 of the 1016, are asked of nothing. No form of a floating slot is derived.
+- **The reading of the engine.** A question the engine cannot write through cu.krs is asked of nothing: 230 besides the floating ones. 99 have no reading: 47 a comparison glued to a second test by `&&` or `||`, and 33 a test of the low word of a 64-bit operand. 66 are calls or elements cu.krs gives no form for, 30 atomics and 34 statements.
+- **The slices.** A context no two questions of the host hold is asked of nothing: 762 of 1113.
+- **Two words.** A 64-bit form is put as two forms of 32 bits as NVIDIA's listing writes it, and the width that would ask it is Step 1, theory.
+- **The walks.** The register walk starts below the top of the field, 255, and the threads stop at the 2^20 the host fills cases for (Step 9).
 
 **Step 9. The part's numbers, walked until it says no.** These relations are over a number n and not a word. Each holds below a bound and is refused past it:
 

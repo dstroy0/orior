@@ -487,7 +487,9 @@ A ruleset gives each slot σ one form, and each fact of the part one number. Bot
 
 The part gives one of four answers. Alike, where f(k) = h(k). Apart, where it gives another word. Refused, where it ends the run as an illegal instruction, an illegal address or a launch out of resources. Nothing, where no answer comes back. Alike is truthy and the other three are falsy.
 
-A case on which the C of the host traps or is undefined carries no h(k): a divisor of 0, the least value over −1, and a shift by the width or past it. The part's answer to such a case is read and kept, and gates nothing (\texttt{refused\_\allowbreak{}<n>} in the host program \texttt{klq\_\allowbreak{}identity} writes).
+A case on which the C of the host traps or is undefined carries no h(k): a divisor of 0, the least value over −1, and a shift by the width or past it. The part's answer to such a case is read and kept, and gates nothing (\texttt{refused\_\allowbreak{}<n>} in the host program \texttt{klq\_\allowbreak{}identity} writes). Each is judged in the operand's own type: a \texttt{signed char} divisor put 0x100 is a divisor of 0.
+
+\textbf{What the host computes.} Every integer question a slice holds, every task of register pressure, and every question the engine writes a chain for: each chain the part is asked is held to h on every case.
 
 \textbf{The cases.} Each operand is put through 18 values: 0, 1, 2, 3, and the edges of every width, 0x7F, 0x80, 0xFF, 0x100, 0x7FFF, 0x8000, 0xFFFF, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF, 0x100000000 and the three edges of 64 bits. With a third operand of two values, a two-operand form meets 18 · 18 · 2 = 648 cases.
 
@@ -521,6 +523,7 @@ case & h = add & or & xor & and & take & mul \\
 \item \texttt{0, 1 → 1 ?} and \texttt{1, 0 → 1 ?} fail a form that drops an operand.
 \item \texttt{0x\allowbreak{}FFFFFFFF, 1 → 0 ?} fails a form that saturates at the top, or carries into a 33rd bit.
 \item On the ladder's candidates the descent places one or two cases a relation, and every impostor fails at the first or second (\textbf{proved}, Q4). The survivors are S(add), and their count is a reading (Q11).
+\item At 2w a value is two words, and a form of 2w is a pair of forms of w. \texttt{0x\allowbreak{}FFFFFFFF, 1 → 0x100000000 ?} fails a pair whose two words are added apart (0): the high word takes the carry out of the low.
 \end{itemize}
 
 \textbf{Step 3. Take.} \texttt{1, 1 → 0 ?}, \texttt{0, 1 → 0x\allowbreak{}FFFFFFFF ?}, \texttt{1, 0 → 1 ?}.
@@ -529,6 +532,8 @@ case & h = add & or & xor & and & take & mul \\
 \item \texttt{1, 1 → 0 ?} fails add (2) and or (1); xor answers 0 and stands.
 \item \texttt{0, 1 → 0x\allowbreak{}FFFFFFFF ?} fails xor and or (1), a form that takes the operands swapped (1), and one that saturates at 0 (0).
 \item f(0, 1) ≠ f(1, 0) witnesses that the form does not commute, which add and every bitwise form do.
+\item At 2w, \texttt{0x100000000, 1 → 0x\allowbreak{}FFFFFFFF ?} fails a pair whose two words are taken apart (0x1FFFFFFFF): the high word takes the borrow out of the low.
+\item −a is 0 − a in a's type, put to take as \texttt{0, a}, and no form of its own is asked for it.
 \end{itemize}
 
 \textbf{Step 4. Divide.} \texttt{0, 1 → 0 ?}, \texttt{1, 1 → 1 ?}, \texttt{3, 2 → 1 ?}, \texttt{0x\allowbreak{}FFFFFFFF, 2 → ?}, \texttt{1, 0 → ?}.
@@ -544,6 +549,8 @@ case & h = add & or & xor & and & take & mul \\
 \begin{itemize}
 \item \texttt{0x80000000, 31} right is 1 unsigned and 0xFFFFFFFF signed, which separates the logical shift from the arithmetic one.
 \item \texttt{1, 32} carries no h(k). A form that clamps answers 0, and a form that wraps answers 1. The case keeps the two apart as operations without gating either (Q17: NVIDIA's \texttt{.\allowbreak{}W} wraps, where the precept wraps too).
+\item Every case with an h(k) has a count under w, and its low word holds the count. A count held in two words is put as its low word, and every case with an h(k) answers the same.
+\item At 2w, \texttt{0x100000000, 1 → 0x80000000 ?} right fails a pair whose two words are shifted apart (0): the low word takes the bits the high word lets go.
 \end{itemize}
 
 \textbf{Step 6. Compare, and the select that reads it.} \texttt{0, 1 → 1 ?}, \texttt{1, 0 → 0 ?}, \texttt{1, 1 → 0 ?}, \texttt{0x\allowbreak{}FFFFFFFF, 0 → ?} for less-than.
@@ -554,9 +561,23 @@ case & h = add & or & xor & and & take & mul \\
 \item A test and the select that reads it are one word, asked as one (Q19).
 \end{itemize}
 
+\textbf{Measured}, Steps 2 to 6 on sm\_\allowbreak{}86: the engine's chain for every question the host computes, 377 of them, answers alike on every case and none apart. The 64-bit add, take, bitwise forms, not, negation and both shifts right are among them, each in the two words of NVIDIA's listing.
+
 \textbf{Step 7. Two forms, one slot (P10).} Forms f and g in one slot are put on K. The first k with f(k) ≠ g(k) closes the pair as two operations, and k is kept at the key as its witness. A pair alike on every k ∈ K stays gray, with |K| its reading. A case closes a pair once, and a closed pair is not asked again (P5).
 
 \textbf{Step 8. The bound in place of a counterexample.} An L* learner asks whether a conjecture is the machine and is given a case apart when it is not. The part gives no such case: K stands in for it, as a test suite does (learning\_\allowbreak{}a\_\allowbreak{}ruleset.md). An operation on words holds no state, and so the bound is on cases and not on states: a form is exact on K and gray past it. A two-operand form of 32 bits has 2\textasciicircum{}64 cases, and a form apart on a case outside K is found only by adding that case to K. \textbf{Measured} at 16 bits: 55 forms on all 65,536 cases against the integers of the host (learning\_\allowbreak{}a\_\allowbreak{}ruleset.md, Status).
+
+\textbf{Where the questions are bounded.} Each step asks only what the step before it can hold, and each bound is a place the ruleset is gray. Read off the stick's 1016 questions:
+
+\begin{itemize}
+\item \textbf{The cases.} An operand meets 18 values and no other. Between 0x100000000 and 0x7FFFFFFFFFFFFFFF none is put, and a form apart only there is found by no case (Step 8).
+\item \textbf{The C of the host.} A case it traps on or leaves undefined carries no h(k), and the part's answer there is held to nothing (Steps 4 and 5).
+\item \textbf{The types of the host.} The host computes integers alone: 436 questions, and float and double, 398 of the 1016, are asked of nothing. No form of a floating slot is derived.
+\item \textbf{The reading of the engine.} A question the engine cannot write through cu.krs is asked of nothing: 230 besides the floating ones. 99 have no reading: 47 a comparison glued to a second test by \texttt{\&\&} or \texttt{||}, and 33 a test of the low word of a 64-bit operand. 66 are calls or elements cu.krs gives no form for, 30 atomics and 34 statements.
+\item \textbf{The slices.} A context no two questions of the host hold is asked of nothing: 762 of 1113.
+\item \textbf{Two words.} A 64-bit form is put as two forms of 32 bits as NVIDIA's listing writes it, and the width that would ask it is Step 1, theory.
+\item \textbf{The walks.} The register walk starts below the top of the field, 255, and the threads stop at the 2\textasciicircum{}20 the host fills cases for (Step 9).
+\end{itemize}
 
 \textbf{Step 9. The part's numbers, walked until it says no.} These relations are over a number n and not a word. Each holds below a bound and is refused past it:
 
