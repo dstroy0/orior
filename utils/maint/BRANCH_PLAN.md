@@ -13,7 +13,7 @@ without being asked.
     git branch internal
 
 leaves every one of those commits on `main` as well. Both branches share the same ancestry. Anyone
-who clones `main` gets the advantage work out of the history whether or not a single advantage file
+who clones `main` gets the advantage work out of the history whether a single advantage file
 is present in the working tree, and `git log -p` reads it back in full.
 
 So the split cannot be "branch off the internal work". It has to be **`main` starting over with no
@@ -48,7 +48,7 @@ names the domain.
     external    the constants and the independent series, as natural_constants.py
     internal    the two SHA table functions, moved to a separate file
 
-This is a real piece of work and it is a prerequisite, not a detail.
+This is a real piece of work and it is a prerequisite instead of a detail.
 
 ## 3. The file list for `main`
 
@@ -113,7 +113,7 @@ Run from the repository root, one at a time, reading the output of each.
 
 **An untracked file is one `git add .` away from tracked.** On `main` every internal file is still
 sitting in the working tree, untracked. A `.gitignore` on `main` listing the internal paths
-stops a future `git add .` sweeping them into a public branch. Write it before the first commit, not
+stops a future `git add .` sweeping them into a public branch. Write it before the first commit and never
 after.
 
 **`git push --all` pushes `internal` too.** If both branches share a remote, one careless push

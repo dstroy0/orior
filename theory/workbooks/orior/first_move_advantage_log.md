@@ -57,7 +57,7 @@ reflection-invariant magnitude has about chirality (protein structure analysis, 
 what the symmetry preserves, blind to what it flips.
 
 The value of the move is positive where a tempo helps and **negative in zugzwang**, where being
-forced to move loses. So first-move advantage is a property measured per position, not a constant.
+forced to move loses. So first-move advantage is a property measured per position instead of a constant.
 
 ## Established results
 
@@ -90,7 +90,7 @@ theorem for this class:
 - **Defender in front with the attacker behind, and the rook pawn in the corner.** A draw whoever
   moves; the value of the move is zero.
 
-The value of the move is positive, zero, or negative by position, and its sign is a table lookup, not
+The value of the move is positive, zero, or negative by position, and its sign is a table lookup instead of
 a constant. The retrograde solve and the agreement with published theory are the two routes.
 
 ## The exact predictor plays both sides, K+R vs K
@@ -173,7 +173,7 @@ Every open question becomes an exact lookup or filter, no search and no bound.
    is a tempo advantage, zero is no effect, negative is zugzwang.
 2. **Does the first move have an advantage, per class.** Filter the table for the sign of the value
    of the move over a whole material class, and report the counts of advantage, neutral, and
-   disadvantage. The theorem's answer is that distribution, exact, not a single constant.
+   disadvantage. The theorem's answer is that distribution, exact, instead of a single constant.
 3. **Trebuchet.** The mutual-zugzwang position is V(P, White to move) is a White loss AND
    V(P, Black to move) is a Black loss. Both movers lose. The move is a strict disadvantage. It is
    a direct filter on the table, and it is the exact proof that first-move advantage can be negative.
@@ -189,8 +189,8 @@ Every open question becomes an exact lookup or filter, no search and no bound.
 - **K+R vs K and K+P vs K+P.** K+P vs K is done, solved and checked above. K+R vs K is the next class
   by the same retrograde. K+P vs K+P is where a two-sided mutual zugzwang lives, and it is solved the
   same way once the promotion tables beneath it (K+Q vs K, K+R vs K) are in hand. The promotion edge
-  is why the classes are solved bottom-up, with a stalemate-on-promotion kept a draw, not a win.
-- **Find a trebuchet by filter, not by hand.** Once the K+P vs K+P table exists, question 3 finds the
+  is why the classes are solved bottom-up, with a stalemate-on-promotion kept a draw instead of a win.
+- **Find a trebuchet by filter instead of by hand.** Once the K+P vs K+P table exists, question 3 finds the
   mutual zugzwang without hand-construction, the robust way to exhibit the negative case.
 - **The README routing line.** `theory/` is plain tracked content with no gitlink behind it, and the
   game-theory research paper is authored there, beside this log.

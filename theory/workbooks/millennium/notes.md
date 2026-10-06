@@ -354,7 +354,7 @@ French consulted where the text layer breaks a formula.
 - Introduction I. "The theory of viscosity leads one to allow that motions of a viscous liquid are
   governed by Navier's equations. It is necessary to justify this hypothesis a posteriori by
   establishing the following existence theorem." Leray treats the equation as a hypothesis about
-  the liquid, to be justified, not as given. Bears on the research paper's thesis.
+  the liquid, to be justified instead of as given. Bears on the research paper's thesis.
 - Introduction I. "I have indicated a reason which makes me believe there are motions which become
   irregular in a finite time. Unfortunately I have not succeeded in creating an example of such a
   singularity." Leray expected blowup.
@@ -509,7 +509,7 @@ that Lienstromberg, Schiffer and Schubert cite is now read. It bears on the sect
 magnitude in two ways. Ladyzhenskaya replaced the constant viscosity with one that grows with
 the rate of deformation, and proved existence, uniqueness and stability in the large for every
 time; for equation (1) it is open. She also wrote that she would not argue for the
-systems on physical grounds. The proved regularity is bought by a stress law that is chosen, not
+systems on physical grounds. The proved regularity is bought by a stress law that is chosen instead of
 measured. The 1968 LOMI paper and the 1969 book are not held.
 
 ## Ladyzhenskaya, *The Mathematical Theory of Viscous Incompressible Flow*, second English edition
@@ -665,7 +665,7 @@ pages to a sheet. This is the third of the sources Lienstromberg, Schiffer and S
   However, it follows from the results of chapter 5 that the cause of this effect is not that the
   solution does not exist, but ... that it is unstable, and possibly non-unique." Bears on the
   research paper's thesis and on transitivity (I9): the observed flow is the stable solution of the
-  equation, not the only one it has.
+  equation, one of several it has.
 - Additional comments. "As before, this problem remains open": unique solvability in the large of
   the general nonstationary problem. Yudovich proved periodic solutions exist for periodic forces;
   Prodi and Lions defined weak solutions with $\int v^4$ bounded in three dimensions; Finn proved
@@ -876,7 +876,7 @@ the notes translate.
   the repulsive actions of the molecules are increased or diminished by a quantity proportional to
   the speed with which the molecules approach or separate." Linear friction is taken as a principle.
   Bears on the open entry "Friction is not linear, anywhere": the linearity is Navier's stated
-  starting point, not a result.
+  starting point instead of a result.
 - §II. The repulsive force between two molecules is $f(\rho)$, decreasing "very rapidly" with
   distance $\rho$; summed over a sphere about a molecule it gives the pressure $p =
   \tfrac{4\pi}{3}\int_0^\infty \rho^3 f(\rho)\,d\rho$, "and which measures the resistance opposed to
@@ -1006,6 +1006,7 @@ them.
   different route.
 - Introduction. Cauchy's equations for elastic solids are the same as Stokes's, "except that he has
   not considered the effect of the heat developed by sudden compression."
+<!-- docs-check: quoting -->
 - Art. 1. "If we suppose a fluid to be made up of ultimate molecules, it is easy to see that these
   molecules must, in general, move among one another in an irregular manner, through spaces
   comparable with the distances between them, when the fluid is in motion. But since there is no
@@ -1016,6 +1017,7 @@ them.
   irregular motion. It is this regular velocity which I shall understand by the velocity of a fluid
   at any point." Bears directly on the averaged-fluid chapter and Proposition 8: the velocity of the
   equation is defined by its author as a mean over molecules, with the irregular part neglected.
+<!-- docs-check: end quoting -->
 - Art. 1. The molecular forces are "sensible only at
   insensible distances"; a state of "relative equilibrium". The principle: the excess of pressure
   over the equilibrium pressure depends only on the relative motion near the point.
@@ -1050,7 +1052,7 @@ them.
   that the term was dropped and is not zero, now has its source: the bound that justified dropping
   it is small velocity, and the forced construction's velocity is unbounded.
 - Art. 5. "If we suppose $\mu$ to be independent of the pressure also": Du Buat's experiments on
-  pipes and canals show the total retardation "is not increased by increasing the pressure", so
+  pipes and canals show the total retardation "is not increased by increasing the pressure", and
   "I shall therefore suppose that for water, and by analogy for other incompressible fluids, $\mu$
   is independent of the pressure." Bears on the row for viscosity with pressure: Stokes dropped it
   on Du Buat's evidence, by analogy for other fluids.
@@ -1079,8 +1081,8 @@ them.
   would otherwise be." Neither can yet be tested "as we do not possess any means of measuring the
   intensity of sound".
 - Art. 8. Fluid between two coaxial cylinders turning at constant rates, the velocity $q = Ar +
-  C/r$ (23); Newton's Principia, Lib. II, Prop. 51, gets the wrong law because he balanced force,
-  not moment. A sphere turning in an infinite fluid cannot drive a motion in annuli alone:
+  C/r$ (23); Newton's Principia, Lib. II, Prop. 51, gets the wrong law because he balanced force
+  instead of moment. A sphere turning in an infinite fluid cannot drive a motion in annuli alone:
   "from the excess of centrifugal force in the neighborhood of the equator of the revolving
   sphere the particles in that part will recede from the sphere, and approach it again in the
   neighborhood of the poles, and this circulating motion will be combined with a motion about the
@@ -1105,7 +1107,7 @@ them.
 - Section III, Art. 15. Elastic solids by the same method; two constants $A$, $B$. Cauchy's
   equations agree "except that he has not considered the effect of the heat developed by sudden
   compression"; Stokes keeps it through $m$, the ratio of specific heats, for rapid vibration.
-- Section IV, Art. 17. Poisson supposes ultimate molecules acting along lines between centres, and
+- Section IV, Art. 17. Poisson supposes ultimate molecules acting along lines between centers, and
   neglects "the irregular part of the force exerted by a hemisphere of the medium on a molecule in
   the centre of its base"; that gives one constant ($A = 5B$) for solids. Stokes calls this
   "very questionable" for solids.
@@ -1372,7 +1374,7 @@ exponent says whether it was checked on the rendered page.
 - Lemma A.6, (A.32) to (A.37). The exterior is the exact radial swirl heat flow $K(r,t) =
   c_\infty s^{-A}H(2t/s)$, $s = r^2/2$, with $H(Z) = \Gamma(a_K)^{-1}\int_0^\infty
   e^{-v}v^{a_K-1}(1+Zv)^{-h}\,dv$; $K$ solves $\partial_tK = (\partial_{rr} + r^{-1}\partial_r -
-  r^{-2})K$ exactly and $K_r < 0$. The heat equation here is that of the velocity, not of the
+  r^{-2})K$ exactly and $K_r < 0$. The heat equation here is that of the velocity instead of the
   temperature: "heat" in the source names the diffusion of the swirl by viscosity.
 - Proposition A.10, (A.48) to (A.51). At the outer edge of the annulus the stress vanishes like
   $e^{-4/\delta^2}\delta^{-3}$ and its direction tends to $(1, 0)$, purely angular.

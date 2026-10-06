@@ -165,7 +165,7 @@ scores disagree, and both are printed for that reason.
 distinguishable from present and broken, and a capability probe answering 0 honestly keeps a
 stub from reporting itself present.
 
-## 8. What cannot be inspected, and why that is deliberate
+## 8. What cannot be inspected, and why
 
 **The symbol.** `AnchorField` carries an `AnchorSameAt` oracle and an opaque `const void *field`
 pointer the engine never dereferences. Equality is the whole interface: no order, no hash, no element

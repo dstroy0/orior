@@ -102,7 +102,7 @@ CITED = r"\[\[cite:([^\]]+)\]\]"
 
 
 def counted(path):
-    """How many rows a table holds, not counting its header."""
+    """How many rows a table holds, its header left out."""
     rows = 0
     with open(path, encoding="utf-8") as handle:
         for line in handle:

@@ -109,7 +109,7 @@ def arms_to_closure(points, harmonics, centers, radians, smooth=False):
 
 
 def _sources():
-    """Does the ceiling move with the source count? It is the object's size, not a limit.
+    """Does the ceiling move with the source count? It is the object's size instead of a limit.
 
     "You don't need to cap at 175, stop bounding us."
 
@@ -147,7 +147,7 @@ def _sources():
               % (count, rank, count, kernel, used if used is not None else "not closed"))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     print("  The ceiling is the source count at every row. It is the object's size and not a")
     print("  property of the instrument. Raise the source count and the ceiling rises with it. The")
@@ -194,7 +194,7 @@ def _report():
                  best if best else "not closed", last))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     for radians in (0.4, 0.6, 0.9, 1.2):
         aimed = outcomes[("aimed", radians)]
@@ -231,7 +231,7 @@ def _shape():
               % (radians, hard if hard else "not closed", soft if soft else "not closed"))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE. A hard edge and a smooth weight are both legal")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE. A hard edge and a smooth weight are both legal")
     print("  arms. Which is worth choosing at each size is in the table and not in an argument")
     print("  about which ought to be.")
     return 0

@@ -1,27 +1,32 @@
 # The language: gnascor
 
-**Purpose:** Say what gnascor is, what the query protocol asks, and where the transpiler keeps each piece.
-**Scope:** `src/cu/transpiler/`, `src/cu/transpiler/`
+The goal is to compile a program written in gnascor into any language, even one nobody has seen before, and to prove that it is the same program everywhere. When the target language is unknown, the engine works it out by asking it questions.
 
-The objective is to compile a program written in gnascor to any language, including one nobody has met, and prove it is the same program everywhere. Where the language is unknown, the engine derives it by asking. [gnascor.md](https://github.com/dstroy0/orior/blob/main/src/cu/transpiler/gnascor.md) holds the language part by part, and [engine_plan.md](https://github.com/dstroy0/orior/blob/main/src/engine_plan.md) the open work.
+- [gnascor.md](https://github.com/dstroy0/orior/blob/main/src/cu/transpiler/gnascor.md) describes the language part by part.
+- [engine_plan.md](https://github.com/dstroy0/orior/blob/main/src/engine_plan.md) lists the work still open.
 
-**gnascor** is the internal language, `.g` high order and `.gsm` its assembly. It is designed and it is what a program is written in. It is not derived and its vocabulary does not move. **`L*`** is the map from gnascor to a target's definitions, and it is the derived part.
+There are two pieces:
 
-**The language is built on one idea: information is coherence.** A description at its Kolmogorov complexity holds no redundancy, every bit of it carries, and no part predicts another. A system at coherence has that property from the other side: its parts agree and the friction between them is at its floor. The idea is that compression and coherence are one measurement from two directions. It is the ground the design stands on and not a result. Each part built on it is checked on its own.
+- **gnascor** is the internal language. `.g` is the high order language and `.gsm` is its assembly. gnascor is designed, not discovered, and it is what you write programs in. Its vocabulary is fixed.
+- **`L*`** maps gnascor onto each target's own definitions. This is the part the engine works out.
 
-What is known before meeting anything is relations. `1,1 -> 2` is a relation and is not an addition, because addition is a definition. Every system that computes agrees about the relation and each defines it its own way.
+**The language rests on one idea: information is coherence.** A description at its Kolmogorov complexity has no repetition in it. Every bit counts, and no part of it predicts another. A system at full coherence has the same property seen from the other side: its parts agree, and the friction between them is as low as it can go. The idea is that compression and coherence are the same measurement taken from two directions. This is the starting point of the design. It is not a result, and each part built on it is tested on its own.
+
+Before you meet any system, what you know is relations. `1,1 -> 2` is a relation, not an addition, because addition is a definition. Every system that computes agrees on the relation, and each one defines it in its own way.
 
 ## The query protocol
 
-The query protocol is the form every ask takes, and it is what derivation is made of:
+Every question the engine asks takes the same form, and working out a language is built from these questions:
 
     [ address ] -> ( qualifier ) -> [ measured cost ] -> binary result (1 or 0)
 
-The address names the target: a memory address, a URI, an API endpoint, an LLM context key, a register, or a key of `Lstar.klq`, the bridge between languages keyed by the schema's form names, read through a language's `.klm`. The qualifier is a binary question asked at it, phrased to demand a state validation and never a data payload. The cost bound is the most the target may spend to answer, and no hand writes that field. An ask carrying no bound returns the cost instead of a bit. The spread of those costs is the baseline, and every bound after that is expressed against it.
+- **The address** names the target. It can be a memory address, a URI, an API endpoint, an LLM context key, a register, or a key of `Lstar.klq`. `Lstar.klq` is the bridge between languages: it is keyed by the schema's form names and read through each language's `.klm`.
+- **The qualifier** is a yes or no question asked at that address. It always asks the target to confirm a state and never asks it for data.
+- **The cost bound** is the most the target may spend to answer. Nobody writes this field by hand. A question asked with no bound gets back the cost instead of a bit. The spread of those costs becomes the baseline, and every later bound is set against it.
 
-**Gate, then rank. Never one score.** A relation holds or it does not, and that answer carries no noise. A cost is measured and every cost carries noise. The gate decides which candidates are admissible and the rank orders whatever survives, and the two are never added together. [query_protocol_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/query_protocol_table.md) holds the protocol step by step.
+**Gate first, then rank. Never one combined score.** A relation either holds or it doesn't, and that answer has no noise in it. A cost is measured, and every measured cost has noise. The gate decides which candidates are allowed, and the rank puts the survivors in order. The two are never added together. [query_protocol_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/query_protocol_table.md) walks through the protocol step by step.
 
-Two branches resolve to a pair, and the pair to a four-letter mnemonic:
+Two branches combine into a pair, and each pair has a four-letter name:
 
 | left branch | right branch | pair state | mnemonic | meaning                                                     |
 | ----------- | ------------ | ---------- | -------- | ----------------------------------------------------------- |
@@ -32,7 +37,13 @@ Two branches resolve to a pair, and the pair to a four-letter mnemonic:
 
 ## The transpiler
 
-The transpiler is the record machine's programs written for a part, and the asks that learn the part. `keymath` imprints record programs, `key_schedule` lays them out, and `cycle` runs them on the device with a host reference. The code generator writes each program's lane from a ruleset, one `.krs` a language, and every lane the device writes is held word for word against the host's.
+The transpiler has two jobs. It writes the record machine's programs for a particular part, and it asks the questions that teach the engine about that part.
+
+- `keymath` writes the record programs.
+- `key_schedule` lays them out.
+- `cycle` runs them on the device and checks them against a reference run on the host.
+
+The code generator writes each program's lane from a ruleset, with one `.krs` file per language. Every lane the device writes is checked word for word against the host's.
 
 | directory                                                                                                  | what it holds                                                                                                                                                       |
 | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -43,6 +54,6 @@ The transpiler is the record machine's programs written for a part, and the asks
 | [`src/cu/transpiler/lstar/interface/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/lstar/interface)     | the cell, a probe runner: a probe asks the target one question in a child process the cell can lose                                                                 |
 | [`examples/qasm/`](https://github.com/dstroy0/orior/tree/main/examples/qasm)                                         | exact qubit states, read from OpenQASM                                                                                                                              |
 
-The method is to write C source, read the SASS it compiles to, and hold it against what NVIDIA's compiler writes for the same program (Q17). Every slot a `.krs` writes by hand is asked of the part the way `loop_back_if` is asked of sm_86 (Q16).
+The method works like this: write C source, read the SASS it compiles to, and compare that with what NVIDIA's compiler writes for the same program (Q17). Every slot that a `.krs` file fills in by hand is checked by asking the part, the same way `loop_back_if` is asked of sm_86 (Q16).
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

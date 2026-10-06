@@ -374,8 +374,8 @@ def main():
             )
 
     # The ingestion stream: only what she said, only in the target language, nothing around it.
-    # A mixed line contributes its target spans and not its English ones, and no gloss, no
-    # segmentation, no translation and no metadata reach this file at all.
+    # A mixed line contributes its target spans and not its English ones, and neither gloss,
+    # segmentation, translation nor metadata reach this file at all.
     # Sections 2 and 4 are two printings of the same story. Writing both puts every sentence
     # into the stream twice. A span already written is not written again and the count skipped is
     # reported, since a large skip means the two printings agree and a small one means they differ.

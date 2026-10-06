@@ -18,7 +18,7 @@
 #
 # K+R vs K is the class where this closes cleanly: it is a forced win for the rook's side, there is no
 # pawn and so no promotion, and the whole game stays in the class until mate. The move-sequence source
-# here is the game itself, not an outside record: the repository holds no game corpus. The real
+# here is the game itself instead of an outside record: the repository holds no game corpus. The real
 # movesets are the ones the exact predictor plays, from a real starting position, not pulled from a
 # database of human games. Comparing the predictor against human play would need such a corpus.
 #

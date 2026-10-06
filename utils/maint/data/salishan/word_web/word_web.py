@@ -21,7 +21,7 @@
 #              a bag of characters.
 #   shape      two forms of one language sharing a leading or trailing run of at least SHAPE_RUN
 #              characters. Salish morphology is heavily affixed and reduplicating. A shared run
-#              is usually a shared root or a shared affix. It is a measurement, not a parse.
+#              is usually a shared root or a shared affix. It is a measurement instead of a parse.
 #   context    two forms written in the same section of the same paper by the same speaker. Words
 #              that turn up together in one telling are related by that telling.
 #
@@ -110,7 +110,7 @@ CORPORA = os.path.join(ROOT, "build", "corpora")
 SHAPE_RUN = 4
 
 # English function words carry no concept. A gloss sharing one of these with another gloss is not
-# two forms meaning the same thing. This is the entire list and it is English, not Salish:
+# two forms meaning the same thing. This is the entire list and it is English instead of Salish:
 # nothing here is a claim about any of the languages being extracted.
 EMPTY = frozenset(
     (

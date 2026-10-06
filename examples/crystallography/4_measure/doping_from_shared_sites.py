@@ -10,8 +10,8 @@
 # WHAT IS BEING DETECTED
 #
 # A substitutional dopant is two elements sharing one crystallographic position. That is a
-# statement about incidence: two things sitting in the same place. It needs no distance, no
-# tolerance and no chemistry, and representation.exact.contested returns exactly it.
+# statement about incidence: two things sitting in the same place. It needs neither distance,
+# tolerance nor chemistry, and representation.exact.contested returns exactly it.
 #
 # No occupancy is read here. The deposit publishes _atom_site_occupancy and that column is the
 # answer key. It belongs to stage six and not to this stage. What this measure sees is only
@@ -38,7 +38,7 @@
 # measure failing on three quarters of it.
 #
 # Two sites share a position when the deposit wrote the same three fractional coordinates twice.
-# That is a fact about the atom site loop alone. It needs no cell edge, no angle, no tiling and no
+# That is a fact about the atom site loop alone. It needs neither cell edge, angle, tiling nor
 # conversion to angstroms. None of those are read. The coordinates are still carried exactly,
 # as integers through representation.exact, because a shared position is decided by equality and
 # an equality decided on rounded values is not one.
@@ -109,7 +109,7 @@ def doped_sites(text):
 
     None is "no site parsed": the reading is crystal.exact_sites and an entry whose coordinates all
     fail to parse comes back with an empty list and not with rows. A deposit that has rows and no
-    usable coordinate is counted unreadable, not readable with nothing shared.
+    usable coordinate is counted unreadable instead of readable with nothing shared.
 
     An entry nothing could be read from is not an entry that was read and found clean, but it feeds
     the "entries read" figure directly, and the early return does not announce itself at the call

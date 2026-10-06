@@ -25,7 +25,7 @@
 // budgets (omega_device); the host's own run of every term through 30 bits must give the same fates and busy
 // beavers. Arguments: L, steps, tokens, and "cpu" to run every term on the host instead.
 //
-// The mass of the closed terms longer than L is bounded by counting, not running: the mass a(n) of
+// The mass of the closed terms longer than L is bounded by counting instead of running: the mass a(n) of
 // every term code of n bits and the mass c(n, k) of those closed under k lambdas follow recurrences,
 // summed in fixed point rounded toward the bound each side needs. Every code parses to its end with
 // probability 1 (the parse is a subcritical branching process, and 1 is the smaller root of

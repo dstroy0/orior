@@ -280,7 +280,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
 }
 
 /**
- * @brief Asserts that the arm this machine carries was actually taken, not merely compiled.
+ * @brief Asserts that the arm this machine carries was actually taken as well as compiled.
  *
  * @return Count of failures.
  *

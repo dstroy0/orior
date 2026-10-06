@@ -13,7 +13,7 @@
 # Chinese, or the one it settled on for Finnish, has measured something about that language and written
 # it down as a configuration.
 #
-# Those settings are a fact about the language whether or not anyone treated them as one. An
+# Those settings are a fact about the language whether anyone treated them as one. An
 # agglutinative language with long words needs longer runs to reach a morpheme than an isolating one
 # does. A logographic script needs shorter ones because a single character already carries what an
 # alphabet defines. If the settings across many papers line up with what kind of language each is

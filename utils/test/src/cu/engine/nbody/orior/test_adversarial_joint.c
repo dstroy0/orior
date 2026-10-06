@@ -244,7 +244,7 @@ static int adversarial_same_symbol(const void *field, size_t left, size_t right)
  * @param[in] needle_length How many. Non-zero.
  * @return                  Alignments where every symbol agrees.
  * @note The truth both projected routes answer to. It shares no code with the projection or with the
- *       byte engine, which makes agreement with it agreement between two independent routes.
+ *       byte engine, and that makes agreement with it agreement between two independent routes.
  */
 size_t adversarial_count_symbols(const uint32_t *corpus, size_t corpus_length, const uint32_t *needle,
                                  size_t needle_length)

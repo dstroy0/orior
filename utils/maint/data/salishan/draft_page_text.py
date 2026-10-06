@@ -98,7 +98,7 @@ def main():
         target, count = draft(stem)
         out.write("  %s  %d lines\n" % (os.path.basename(target), count))
     out.write(
-        "\n  a draft, not the paper. read the rendered page beside it before trusting a line.\n"
+        "\n  a draft instead of the paper. read the rendered page beside it before trusting a line.\n"
     )
     out.flush()
     return 0

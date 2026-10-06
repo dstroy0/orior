@@ -6,6 +6,7 @@
 #
 
 from .bans_detected import DETECTED
+from .grammar import GRAMMAR
 from .bans_outright import OUTRIGHT
 from .bans_probe import PROBE
 from .bans_register import REGISTER
@@ -18,8 +19,9 @@ from .locale import LOCALE
 #
 # LOCALE is spliced in and is the single copy of the British patterns. The order of the groups is
 # the order a hit is reported through: where two patterns overlap a site, whichever group BANNED
-# reaches first names it. Reordering these changes which pattern a finding is attributed to.
-BANNED = OUTRIGHT + LOCALE + REGISTER + SHAPES + PROBE + DETECTED
+# reaches first names it. Reordering these changes which pattern a finding is attributed to. GRAMMAR
+# comes last, and a site an older group already names keeps that name.
+BANNED = OUTRIGHT + LOCALE + REGISTER + SHAPES + PROBE + DETECTED + GRAMMAR
 
 
 

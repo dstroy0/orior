@@ -12,7 +12,7 @@
 # printed twice under the same number: the Lushootseed first, then her English for it. So the
 # number is the pairing and the order decides which is which. Nothing else has to.
 #
-# THE ORTHOGRAPHY IS NOT REPAIRED AND THAT IS DELIBERATE.
+# THE ORTHOGRAPHY IS NOT REPAIRED.
 #
 # This is a 1983 typescript and its scan is badly damaged. ʔ arrives as ?, ə arrives as ~ and J and
 # G, ʷ arrives as V and v, and her own name is set as VI [!.aq liS'"} blu] lIil bert. The Lyon
@@ -194,7 +194,7 @@ def examples(lines, ends_at):
     # Set when a marker opened a Lushootseed slot and carried no text with it. The typescript puts
     # such a marker in the left margin, part way down the previous example's English, and the OCR
     # flattened that into its own line. Example 3's English runs on for two lines after the bare
-    # (4) that interrupts it, and those two lines are hers in English, not the start of example 4.
+    # (4) that interrupts it, and those two lines are hers in English instead of the start of example 4.
     waiting = False
     previous = None
 
@@ -278,7 +278,7 @@ def main():
     # damaged mark set reads Victoria and nonconfigurationality? as forms of the language. It
     # would put both into this record as things somebody said.
     #
-    # Kept and named, not cut. Cutting it lost those tokens from the record and the coverage check
+    # Kept and named instead of cut. Cutting it lost those tokens from the record and the coverage check
     # then reported this paper as incomplete. It is not incomplete. The words are in the PDF and
     # they belong to somebody else's paper.
     next_paper = len(lines)
@@ -301,8 +301,8 @@ def main():
             rows.append(("N", number, "translation", english))
 
     # Her essay. It is English and it is hers, and it is what the examples are set into. It is
-    # kept and marked derived, not dropped as apparatus. Told from the examples by which lines they
-    # took, not by comparing text. A line matched against a bag of words matches nothing, and every
+    # kept and marked derived instead of dropped as apparatus. Told from the examples by which lines they
+    # took instead of by comparing text. A line matched against a bag of words matches nothing, and every
     # continuation line went into the essay a second time.
     for at, line in enumerate(lines):
         trimmed = " ".join(line.split())

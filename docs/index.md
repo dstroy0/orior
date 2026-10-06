@@ -97,23 +97,23 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    Keep the counts, shuffle the arrangement, and the shuffle is the background. A filter built from any part of a pattern never loses a true occurrence, and the exact compare stays.
+    Keep the same pieces, shuffle their order, and the shuffled copy is the baseline. Whatever the shuffle wipes out is the pattern. A filter built from any part of a pattern never misses a true match, and every match is still checked in full.
 
     [:octicons-arrow-right-24: The algorithm](method.md)
 
--   :material-cube-outline:{ .lg .middle } __The number of dimensions is not in the state__
+-   :material-cube-outline:{ .lg .middle } __Any number of dimensions, the same memory__
 
     ---
 
-    The filter holds one bit for each alignment. Neither the alphabet nor the number of dimensions appears in it, and the same expression gives the cost from a line to an eight dimensional cube.
+    The filter keeps one bit for each place a match could start. Its memory doesn't grow with the alphabet or with the number of dimensions, and one formula gives its cost for anything from a line to an eight dimensional cube.
 
     [:octicons-arrow-right-24: The sift](sift.md)
 
--   :material-layers-triple:{ .lg .middle } __Exact steps join before any input exists__
+-   :material-layers-triple:{ .lg .middle } __Exact steps joined ahead of time__
 
     ---
 
-    A chain of exact steps composes into one program and runs on the device as one. It runs the same steps, and what it removes is the time between them.
+    A chain of exact steps is combined into one program before any data arrives, and runs on the device as one. It does the same work. It saves the time between the steps.
 
     [:octicons-arrow-right-24: The stack](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/vertical_time_compression.md)
 
@@ -121,7 +121,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    No program computes Kolmogorov complexity, and nothing here claims to. On 25 volumes of cell tracking the noise of the camera puts a floor at 38.9 percent of raw, and the engine writes 42.0.
+    No program can compute Kolmogorov complexity, and nothing here claims to. On 25 volumes of cell tracking images, the noise of the camera means no file can get below 38.9 percent of the raw size. The engine gets to 42.0 percent.
 
     [:octicons-arrow-right-24: Compression](https://github.com/dstroy0/orior/tree/main/theory/workbooks/compression)
 
@@ -129,7 +129,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    A program of sums, products, exclusive or and AND gives the same answer at every width. The emitter writes it to PTX, C or SASS, and where a rule of a target is not known it asks the part.
+    A program built only from sums, products, exclusive or and AND gives the same answer at every word width. The code writer turns it into PTX, C or SASS. When it doesn't know one of the rules of a target part, it asks the part.
 
     [:octicons-arrow-right-24: Two crystals](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/two_crystals.md)
 
@@ -137,7 +137,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    Measured, a boundary can refuse and cannot predict. An exclusion is permanent and free, and finer detail costs precision that grows exponentially. There is no wall of principle, only that bill.
+    In practice, a boundary can rule things out but can't predict them. An exclusion is permanent and costs nothing. Each finer level of detail costs exponentially more precision. Nothing forbids prediction in principle. It just has that bill.
 
     [:octicons-arrow-right-24: Thought experiments](https://github.com/dstroy0/orior/tree/main/theory/thought_experiments/orior)
 
@@ -145,7 +145,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    In SHA-256, no input reaches 214 of 256 positions at round seven, and the support closes near round 30 of 64. Nothing here claims a weakness in SHA-256.
+    In SHA-256, by round seven there are 214 of 256 positions that no input bit can reach. By about round 30 of 64, every position is reached. Nothing here claims a weakness in SHA-256.
 
     [:octicons-arrow-right-24: Instruments](https://github.com/dstroy0/orior/tree/main/theory/theory/instruments)
 
@@ -153,7 +153,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    Given seeds to enough places, every quantity an exact identity reaches comes out to the same places. Two seeds, the square roots of 2 and 3, give 2,230,148 exact square roots up to 10^800.
+    Start with a few numbers known to enough digits, and every quantity an exact identity can reach from them comes out to the same number of digits. Two starting numbers, the square roots of 2 and 3, give 2,230,148 exact square roots up to 10^800.
 
     [:octicons-arrow-right-24: Precision](https://github.com/dstroy0/orior/tree/main/theory/theory/precision)
 
@@ -162,19 +162,19 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 ## What came back
 
 <div class="orior-stats">
-<div><strong>453 of 453</strong><span>crystal axes equal to the published edge as an integer, with no tolerance</span></div>
-<div><strong>0 refused</strong><span>of 9,396,207 true occurrences on byte strings, and of 213,840 across one to eight dimensions</span></div>
-<div><strong>1 of 200</strong><span>random borders as good as the dialect border it found, never given the labels</span></div>
-<div><strong>383 of 383</strong><span>subtraction games that return their Grundy period</span></div>
-<div><strong>13 to 22 times</strong><span>faster for seven hundred steps laid as one stack, every record equal</span></div>
-<div><strong>792</strong><span>exact numbers that hold 100 quantum bits all 0 or all 1 together</span></div>
+<div><strong>453 of 453</strong><span>crystal edges that match the published value exactly, as whole numbers, with no tolerance</span></div>
+<div><strong>0 missed</strong><span>out of 9,396,207 true matches in byte strings, and out of 213,840 across one to eight dimensions</span></div>
+<div><strong>1 of 200</strong><span>random borders did as well as the dialect border it found without ever seeing the labels</span></div>
+<div><strong>383 of 383</strong><span>subtraction games where it found the right Grundy period</span></div>
+<div><strong>13 to 22 times</strong><span>faster when seven hundred steps run as one combined program, with every record identical</span></div>
+<div><strong>792</strong><span>exact numbers are enough to hold 100 quantum bits that are all 0 or all 1 together</span></div>
 </div>
 
 ## What it does not claim
 
-- It does not compute Kolmogorov complexity. It bounds a file from above, by writing it.
-- It claims no weakness in SHA-256.
-- It does not hold every quantum state in a few numbers. A general state of 100 quantum bits still needs 2^100.
-- It is not a model and nothing in it is trained.
-- Several results were found first by others, and where that is known the published work is named.
-- The thought experiments hold ideas whose experiment cannot be built as written. They are kept apart from the results, and none of them is one.
+- It doesn't compute Kolmogorov complexity. It puts an upper limit on the complexity of a file by actually writing the file smaller.
+- It doesn't claim any weakness in SHA-256.
+- It can't hold every quantum state in a few numbers. A general state of 100 quantum bits still needs 2^100.
+- It isn't a model, and nothing in it is trained.
+- Some results were found by other people first. Where we know that, the published work is named.
+- The thought experiments are ideas whose experiment can't be built as written. They are kept apart from the results, and none of them is one.

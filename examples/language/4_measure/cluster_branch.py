@@ -28,7 +28,7 @@
 # the spread across all of them. That comparison needs no clustering and does not depend on the linkage.
 #
 # What this cannot see: nineteen languages is a small number to cluster, one join changes everything
-# above it, and the heights are printed, which makes a join that barely won visible. Two of the corpora hold
+# above it, and the heights are printed, and that makes a join that barely won visible. Two of the corpora hold
 # only twenty thousand tokens against sixty thousand for the rest, and their numbers carry that.
 
 import io

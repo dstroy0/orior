@@ -6,7 +6,7 @@
 
 The bodies are one array: the tracker's leaves are the `max_tree` bodies in the order `flatten` packs them. A body's index is its frame's start plus its leaf.
 
-Statuses: proved, measured, built, theory, refuted, not so. "Not built" means nothing of it exists yet.
+Statuses: `proved`, `measured`, `built`, `theory`, `refuted`, `not so`. "Not built" means nothing of it exists yet.
 
 ## Done before this plan
 

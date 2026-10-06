@@ -89,7 +89,7 @@ void anchor_steer_probe_order(size_t *offsets, size_t count, const AnchorFieldCe
  * @param[out] value Where the limbs are written [BORROWS].
  * @param[in]  from  The value to carry.
  * @note Base 2^32 least significant limb first, the layout exact_integer.h declares.
- *       Writing the two limbs directly is reading that declaration, not reaching around it;
+ *       Writing the two limbs directly is reading that declaration instead of reaching around it;
  *       there is no decimal text here to route through anchor_exact_from_decimal and converting a
  *       counter to text to parse it back would be slower and just as exact.
  * @note limb[1] exists because the assert at the top of this file holds the engine to 8 limbs or
@@ -174,7 +174,7 @@ int anchor_steer_prefers_free(const AnchorFieldCensus *census)
 }
 
 /* ------------------------------------------------------------------------------------------------
- * Truthy and falsy steering. The signal is the survivor vector, not the symbol histogram.
+ * Truthy and falsy steering. The signal is the survivor vector instead of the symbol histogram.
  *
  * EACH PERMUTATION OF THE ANCHORS IS A NULL, AND EACH NULL IS A STEER. An alignment survives only
  * when every anchor agrees, and a conjunction does not depend on the order of its terms. Every

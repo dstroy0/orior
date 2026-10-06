@@ -28,7 +28,7 @@ rounds 1–3 "premise holds: no" when the nonce had not entered yet.
 **The subtraction:** `bench_reach.cpp`, and it is computed and not sampled. Every state bit
 carries the set of input bits that can reach it, propagated through the real operations - rotation
 permutes positions, shift drops them, bitwise operations union bit by bit, and addition unions
-upward through the carry. Addition is the only widening operation, which makes this an
+upward through the carry. Addition is the only widening operation, and that makes this an
 over-approximation: a path may carry no influence, but **the absence of a path is exact**. That
 is the right side to err on for a precondition.
 
@@ -182,7 +182,7 @@ realigned. `-mstackrealign` changes the prologue not at all. **Nothing in this t
 source change here avoids it**; the instruction is available and `-O2` runs it happily.
 
 The resolution is that the `-O0` arm drops `-mavx2`. `sha256_core.c` gates its vector arm on
-`__AVX2__` and the `#else` arm defers to the scalar reference, which makes the unoptimized build the
+`__AVX2__` and the `#else` arm defers to the scalar reference, and that makes the unoptimized build the
 reference arm - the arm a fold audit wants, since it is the arm whose arithmetic the
 statistics read. `kat_validation` then runs `-O0` clean: **24 run, 0 failed.**
 
@@ -256,7 +256,7 @@ comparison does not.
 ## 14. A result that exists at one seed - *open*
 
 Thirty-two of the fixed seeds in this tree are the same constant. A statistic that appears at one
-seed and not at others is a draw, not a finding.
+seed and not at others is a draw instead of a finding.
 
 **The subtraction:** sweep the seed and report the spread across seeds beside the headline. The
 detection floor is then measured instead of derived.
@@ -289,7 +289,7 @@ every path goes through it. Not a check on the copies - the removal of the copie
 **A limit worth stating.** `tools/audit/verify_renyi.py` reimplements the predictions in another language
 against another libm, and it is the check that closed mode 8's remaining gap. It carried the same
 missing `- log2(mean)` term. An independent implementation written by the same author reproduces the
-author's misconceptions faithfully; what it catches is transcription and folding, not a wrong idea.
+author's misconceptions faithfully; what it catches is transcription and folding instead of a wrong idea.
 The thing that caught the wrong idea was running at a domain where the term does not vanish.
 
 ---

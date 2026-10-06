@@ -1,26 +1,30 @@
 # The algorithm
 
-**Purpose:** State the one construction every reading here is made of, and what it does not do.
-**Scope:** `archive/src/python/`, `examples/`
+Measure how far something sits from the most disordered arrangement of its own parts. (This is Shannon's information entropy.)
 
-Measure how far something sits from the most disordered arrangement of its own parts. (Shannon's information entropy)
+That is the basic idea, and everything else is built from it.
 
-That is the most basic construction.
-
-Every domain is that sentence with a different answer to what counts as a part:
+Every subject asks that same question. What changes is what counts as a part:
 
 - atoms in a cell
 - symbols in a corpus
 - bytes in a file
 - coordinates in a board layout
 
-The reference is built from the object's own parts. There is no prior to estimate, no training set, no model, and no neural net representation of the domain.
+The reference is built from the object's own parts. Nothing is estimated in advance. No training set, model or neural network stands in for the subject.
 
-Building a reference by maximizing entropy under the constraints the object supplies is Jaynes's principle. The departure from it is the free energy above equilibrium.
+Building the reference this way, by making entropy as high as the object's own constraints allow, is Jaynes's principle. How far the object sits from that reference is the free energy above equilibrium.
 
 ## The six parts
 
-The basic construction, Identity:Null Permutation, runs through all six parts. Represent the object as points carrying values, fix a partition over those points, build the maximum entropy reference that partition allows, and read the departure from it. The sift and the oracle sit either side, one discarding candidates and one supplying an answer from outside the sample.
+The basic construction, called Identity:Null Permutation, runs through all six parts. In order:
+
+1. Write the object as points that carry values.
+2. Choose how to group those points.
+3. Build the maximum entropy reference that grouping allows.
+4. Measure how far the object sits from that reference.
+
+The sift and the oracle sit on either side. The sift throws out candidates, and the oracle brings in an answer from outside the sample.
 
 | part             | what it does                                                                                       |
 | ---------------- | -------------------------------------------------------------------------------------------------- |
@@ -31,30 +35,38 @@ The basic construction, Identity:Null Permutation, runs through all six parts. R
 | `sift`           | the sound filter, a necessary condition over any index set                                         |
 | `oracle`         | agreement with ground truth that somebody else published                                           |
 
-Each part is an import name in [`archive/src/python/manifest.tsv`](https://github.com/dstroy0/orior/blob/main/archive/src/python/manifest.tsv), beside `instrument` and `render`. One row a name: the name a program imports, and the path under `archive/src/python/` that answers it. A program puts `archive/src/python/` on its path and imports `manifest` first. Everything downstream of `representation` sees points and values and is blind to what an object is. One instrument reads both. Seven subjects have their own directories under `representation`, the only part that knows a domain exists: `atom`, `game`, `particle`, `picture`, `sound`, `structure` and `text`. `representation.constants` derives the natural constants, each by two routes agreeing.
+Each part is a name you can import. They are listed in [`archive/src/python/manifest.tsv`](https://github.com/dstroy0/orior/blob/main/archive/src/python/manifest.tsv), along with `instrument` and `render`. Each row gives the name a program imports and the path under `archive/src/python/` that provides it. A program adds `archive/src/python/` to its path and imports `manifest` first.
 
-[`archive/src/python/README.md`](https://github.com/dstroy0/orior/blob/main/archive/src/python/README.md) is the map. [`examples/`](https://github.com/dstroy0/orior/tree/main/examples) runs the same six names end to end on real corpora, one stage directory per part.
+Only `representation` knows what the object is. Everything after it sees just points and values, and one instrument reads every subject. Seven subjects have their own directories under `representation`: `atom`, `game`, `particle`, `picture`, `sound`, `structure` and `text`. `representation.constants` works out the natural constants, each one two different ways that have to agree.
 
-## No bounding, no tuning
+[`archive/src/python/README.md`](https://github.com/dstroy0/orior/blob/main/archive/src/python/README.md) is the map. [`examples/`](https://github.com/dstroy0/orior/tree/main/examples) runs the same six parts from start to finish on real data, with one stage directory per part.
 
-The method picks no tolerance, no threshold, and no parameter by judgment. Bounding is choosing a cutoff to make a result come out the way it was expected to. It is the failure this work is built to avoid, and it is not permitted anywhere in it.
+## No cutoff, no tuning
 
-Every comparison is exact integer arithmetic. The engine holds no floating-point value, and there is no rounding to hide a chosen bound inside. The null a departure is measured against is drawn by permuting the object's own parts, never computed from a formula that could be tuned. Where a reading appears to need a cutoff, the cutoff is swept and the reading is reported across the whole sweep, as a curve. A positive control runs beside every negative result, because a negative result with no positive control has measured nothing.
+The method never picks a tolerance, a threshold or a setting by judgment. Picking a cutoff to make a result come out the way you expected is the mistake this work is built to avoid, and it isn't allowed anywhere in it.
 
-A number picked to make a result come out is not a measurement. This work does not carry one, and a contribution that adds one does not land.
+- **Every comparison uses exact whole number arithmetic.** The engine holds no floating-point values, and that leaves no rounding to hide a chosen cutoff in.
+- **The baseline comes from a shuffle of the object's own parts.** It is never worked out from a formula that someone could tune.
+- **Where a reading seems to need a cutoff, every cutoff is tried.** The result is reported across the whole range, as a curve.
+- **Every negative result has a positive control running next to it.** A negative result with no positive control hasn't measured anything.
+
+A number picked to make a result come out right is not a measurement. This work contains none, and a contribution that adds one won't be accepted.
 
 ## The detector and the measure are not the same reading
 
-The engine carries many readers, one per file under [`archive/src/python/engine/analysis/measure/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/analysis/measure) and [`archive/src/python/engine/analysis/reference/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/analysis/reference), and the examples run each on a corpus. Two of them are mistaken for each other more than any others, and reporting one as the other is an error.
+The engine has many readers, one per file under [`archive/src/python/engine/analysis/measure/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/analysis/measure) and [`archive/src/python/engine/analysis/reference/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/analysis/reference). The examples run each one on real data. Two of them get mixed up more than any others, and reporting one as the other is a mistake.
 
-The shift agreement detector reads a period or an offset, from how often a shift agrees with itself. The permutation null measure reads how far an object sits from a shuffle of its own parts, and its bit form reads the exact invariances that survive the shuffle. A number from one is not a number from the other.
+- **The shift agreement detector** finds a period or an offset. It looks at how often the object matches itself when shifted.
+- **The permutation null measure** finds how far an object sits from a shuffle of its own parts. Its bit form finds the exact patterns that survive the shuffle.
 
-What each reader has and has not been shown to do is in the workbook, row by row, including the rows that failed. Read it before quoting any reading. The one reading whose answer came from outside this work is the crystal cell edge, recorded under [Areas of research](research.md).
+A number from one is not a number from the other.
+
+The workbook records, row by row, what each reader has and hasn't been shown to do, including the rows that failed. Read it before you quote any reading. Only one reading has been checked against an answer from outside this work: the crystal cell edge, described under [Areas of research](research.md).
 
 ## What it knows
 
-Nothing. There is no model, no training, no corpus of examples, no prior. It has no knowledge of language, chemistry or images and never acquires any. It computes one distance and every result came out of that.
+Nothing. There is no model, no training, no set of examples to learn from, and nothing assumed in advance. It knows nothing about language, chemistry or images, and it never learns anything. It computes one distance, and every result comes from that.
 
-It runs on human timescales: seconds on a laptop against a database somebody else published. Its reach is unbounded, because it assumes nothing about the domain and needs only that the object is not already at maximum entropy. Every single reading is finite and carries a stated floor. Where the floor is not cleared, the honest answer is that nothing was read. [Reading the result](usage.md#reading-the-result) says what a floor is.
+It runs in human time: seconds on a laptop, against a database someone else published. It can be pointed at anything, because it assumes nothing about the subject. All it needs is an object that isn't already at maximum entropy. Every single reading has a limit, and each one comes with a stated floor. If a reading doesn't clear its floor, the honest answer is that nothing was found. [Reading the result](usage.md#reading-the-result) explains what a floor is.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

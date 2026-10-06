@@ -152,7 +152,7 @@
     gap: 4px;
   }
 
-  /* The whole bottom edge is the resize grip, not a corner. */
+  /* The whole bottom edge is the resize grip instead of a corner. */
   .edge {
     height: 7px;
     cursor: ns-resize;
@@ -529,7 +529,7 @@
   #axes-lines:empty {
     display: none;
   }
-  /* The histogram is a control, not part of the handle: a drag that starts on it selects values
+  /* The histogram is a control instead of part of the handle: a drag that starts on it selects values
      instead of moving the box. */
   #hist {
     display: block;
@@ -871,7 +871,7 @@
     // Each shape is an embedding of the same measured grid, and the choice is a test. It is not a
     // decoration. Residue is genuinely periodic mod 32. The cylinder is the honest map for it;
     // the torus imposes a periodicity on the round axis that does not exist. Structure that shows
-    // under one embedding and not another belongs to the map, not to the field. Agreement across
+    // under one embedding and not another belongs to the map instead of the field. Agreement across
     // shapes is the invariant content - the same null-by-subtraction every other reading here uses.
     //
     // Each supplies a surface point and its outward normal for (u, v) in the unit square, where u
@@ -889,7 +889,7 @@
 
     // Shapes whose extent grows with the count, and not only their detail, are capped. A prism
     // at 4096 sides is still a prism the same size; a helicoid at 4096 turns is 23,591 units tall and
-    // has left the camera behind. Measured, not guessed: the sweep that found it is in the scratch
+    // has left the camera behind. Measured: the sweep that found it is in the scratch
     // harness that checks every shape at orders 3 through 4096.
     function winding() {
       return Math.max(1, Math.min(48, orderAt / 6));
@@ -1805,7 +1805,7 @@
 
     // -- a small orbit controller, written, not loaded ------------------------------------
     //
-    // The camera is an offset from the target and an up vector, not a pair of angles. Angles are what
+    // The camera is an offset from the target and an up vector instead of a pair of angles. Angles are what
     // made the drag wrong: yaw and pitch are measured against the world. What "left" means on the
     // screen depends on where the camera already is, and past the pole it means the opposite. There
     // is no orientation at which this version disagrees with the screen, because the axes it turns
@@ -1941,7 +1941,7 @@
     var stepPick = document.getElementById("pick-step");
     fillOptions(stepPick, VIEWS, 0);
 
-    // Steps are a sequence, not a set of alternatives: a representation is fed a step at a time and
+    // Steps are a sequence instead of a set of alternatives: a representation is fed a step at a time and
     // the point is to walk it. The dropdown and the two arrows go through one call. The readout
     // and the drawing cannot disagree about which step is up.
     function showStep(index) {
@@ -2576,7 +2576,7 @@
       var grabY = 0;
 
       handle.addEventListener("pointerdown", function (event) {
-        // A button inside the handle is a button, not a grip.
+        // A button inside the handle is a button instead of a grip.
         if (event.target.tagName === "BUTTON" || event.target.tagName === "INPUT") {
           return;
         }

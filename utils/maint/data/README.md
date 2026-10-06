@@ -15,7 +15,7 @@ They range from a single work to a whole archive: Project Gutenberg, OPUS, Deuts
 
 ## salishan
 
-One subject's pipeline, from the archive to a checked corpus. This is the largest single thing in the repository and it is a data pipeline, not a tool. It sits here under its own name for that reason, instead of inside a directory called tools.
+One subject's pipeline, from the archive to a checked corpus. This is the largest single thing in the repository and it is a data pipeline instead of a tool. It sits here under its own name for that reason, instead of inside a directory called tools.
 
 | | |
 |---|---|

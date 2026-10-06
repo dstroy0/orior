@@ -25,7 +25,7 @@ one tells about the other, in bits.
 THE NULL
 
 Mutual information over finite samples is positive by chance, more so with more buckets. The floor
-is drawn, not derived. Shuffle the region labels against the groups many times and read the mutual
+is drawn instead of derived. Shuffle the region labels against the groups many times and read the mutual
 information each shuffle gives. Real dependence clears that band; a value inside it is the estimator's
 own bias and not structure.
 

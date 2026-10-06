@@ -3,7 +3,7 @@
 #   pwsh -File maint\tree\reorganize_tools.ps1 [-DryRun]
 #
 # The same job reorganize_src.ps1 did for src, and for the same reason: forty loose files in one
-# directory is a list to read, not a structure to navigate.
+# directory is a list to read instead of a structure to navigate.
 #
 # NAMES DO NOT CHANGE, ONLY PATHS
 #

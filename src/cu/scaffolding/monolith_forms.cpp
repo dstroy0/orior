@@ -321,7 +321,7 @@ struct Asked
     std::vector<Argument> arguments;
 };
 
-// what the arguments of an asked form come from, which makes two of them one question
+// what the arguments of an asked form come from, and two of them alike are one question
 static std::string asked_key(const Asked &asked)
 {
     std::string key = s_form_names[asked.form];
@@ -2809,7 +2809,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         std::string ptx_state = state(ptx_verdict, ptx_now, &ptx_same);
         // A PTX reading that differs from the ruleset only in an operation's signedness is the ruleset's form where the
         // system compiles both to the same machine code: the SASS read whole and alike is that proof. Record the
-        // writings the system answers alike and read the form as given, not otherwise.
+        // writings the system answers alike and read the form as given.
         if ((ptx_state == "read") && (sass_state == "same"))
         {
             std::vector<std::pair<std::string, std::string>> alike;

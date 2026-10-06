@@ -194,7 +194,7 @@ def _report(samples=SAMPLES):
     print("  make the hash catastrophically broken and would have been found decades ago by")
     print("  everyone. The measurement above is aimed at a weak one, the thing that could")
     print("  plausibly have escaped notice, and it is the thing Shor would also need: the transform")
-    print("  peaks on a period held across the whole domain, not on one holding sometimes.")
+    print("  peaks on a period held across the whole domain instead of on one holding sometimes.")
     return 0
 
 
@@ -242,7 +242,7 @@ def _grover():
         DERIVED         the Grover iteration count, which is (pi/4) * sqrt(N), standard and exact
         QUOTED          the cost of ONE coherent reversible SHA-256 circuit, from the published
                         literature on quantum preimage attacks. Not verified here. The order of
-                        magnitude is what the argument rests on, not the digits.
+                        magnitude is what the argument rests on, and the digits are not.
     """
     import io
     import json
@@ -283,7 +283,7 @@ def _grover():
 
     # THE ORACLE IS THE WHOLE PROBLEM. A Grover call is not a hash, it is a coherent reversible
     # circuit for the entire function, run in superposition, with no measurement until the end.
-    print("  ONE ORACLE CALL IS A COHERENT REVERSIBLE DOUBLE SHA-256, not a hash. Published")
+    print("  ONE ORACLE CALL IS A COHERENT REVERSIBLE DOUBLE SHA-256 instead of a hash. Published")
     print("  estimates for a quantum SHA-256 circuit are on the order of a few thousand logical")
     print("  qubits and 1e5 to 1e6 T gates per evaluation, and mining needs SHA-256 twice. QUOTED,")
     print("  not verified here.")
@@ -398,7 +398,7 @@ def _dimensional():
     AND A THEOREM SAYS IT CANNOT BE FIXED BY CLEVERNESS. The BBBV bound proves Omega(sqrt(N)) is
     optimal for a black box oracle, and any scheme that beats sqrt(N) must be exploiting structure.
     The dimensional split beats it by a wide margin, and for that reason it needs the structure
-    that four measurements here do not find. QUOTED, not verified here.
+    that four measurements here do not find. QUOTED and not verified here.
     """
     import io
     import json
@@ -451,7 +451,7 @@ def _dimensional():
     print("  optimal for a black box oracle. any scheme beating sqrt(N) is exploiting structure,")
     print("  and the dimensional split beats it by %.3e times, the measure of how much"
           % (plain / best[1]))
-    print("  structure it is quietly assuming. QUOTED, not verified here.")
+    print("  structure it is quietly assuming. QUOTED and not verified here.")
     print("")
     print("  SO THIS IS NOT A DEAD END IN THE IDEA, IT IS THE SAME WALL REACHED FROM A FIFTH SIDE.")
     print("  Every route through this tree arrives at one sentence: SHA-256 gives up no partial")

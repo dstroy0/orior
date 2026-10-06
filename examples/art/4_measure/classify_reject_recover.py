@@ -170,7 +170,7 @@ def reject_repeat(stack, frame):
 
     Two routes build the consensus, greatest count and median. Where they agree the value has a strict
     majority of the frames behind it and the recovery is exact; where they differ the class has no
-    majority. That class is the floor, and it is flagged, not returned as clean.
+    majority. That class is the floor, and it is flagged instead of returned as clean.
     """
     by_count = consensus_majority(stack, frame)[:frame]
     by_median = consensus_median(stack, frame)[:frame]

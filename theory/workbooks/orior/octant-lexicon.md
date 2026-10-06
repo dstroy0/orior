@@ -58,7 +58,7 @@ blindness, before any measurement is taken.
 
 Against a 256-bit lit set, a reading to degree eight recovers 81 directions and has nullity 175. The
 map reaches the rank its coefficient count allows at every degree below the source count, and the
-shortfall in coefficients accounts for the blindness on its own. No sample size, no precision and no
+shortfall in coefficients accounts for the blindness on its own. Neither sample size, precision nor the
 number of beams changes it.
 
 The eight-letter alphabet on this page is rank 8, seven free numbers once the weight is fixed, nullity
@@ -210,7 +210,7 @@ Sixty-four rounds wrote sixty-four distinct signatures, a coherence of 100%, wit
 This is not evidence that the letters carry meaning, and it should not be presented as a finding.
 
 The rank says why in one line. Seven free numbers separate sixty-four arbitrary states nearly
-always, whether or not the seven carry anything about the source. Distinctness here reports the
+always, whether the seven carry anything about the source. Distinctness here reports the
 resolution of a float and not a property of SHA-256, and any count of distinct signatures quoted
 without the rank beside it is quoting the float.
 

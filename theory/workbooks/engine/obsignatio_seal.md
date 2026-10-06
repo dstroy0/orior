@@ -5,13 +5,13 @@
 
 ## Why a DAG and not a CRC
 
-A CRC-64 is linear over GF(2): crc(a ⊕ b) = crc(a) ⊕ crc(b) ⊕ crc(0). So anyone can craft an edit that leaves it unchanged, it says nothing about where a fault sits, and two CRCs do not compose into a commitment on both. It still misses a random corruption only 2^−64 of the time, and it catches every burst of 64 bits or fewer; its failure is structure, not size.
+A CRC-64 is linear over GF(2): crc(a ⊕ b) = crc(a) ⊕ crc(b) ⊕ crc(0). So anyone can craft an edit that leaves it unchanged, it says nothing about where a fault sits, and two CRCs do not compose into a commitment on both. It still misses a random corruption only 2^−64 of the time, and it catches every burst of 64 bits or fewer; its failure is structure instead of size.
 
 A k-bit check of any kind misses a random corruption with probability 2^−k, whatever the function. A check smaller than 64 bits is therefore never stronger than CRC-64 against random flips, and no finite check is infinite. The seal takes k = 256 at every node:
 - a random corruption passes one node with probability 2^−256;
 - a deliberate collision costs about 2^128 work.
 
-What the DAG adds is structure. It is nonlinear, and no edit can be steered past it. A mismatch walks down to its place. Every subtree seals on its own, in parallel, and the parents fold them exactly.
+The DAG adds structure. It is nonlinear, and no edit can be steered past it. A mismatch walks down to its place. Every subtree seals on its own, in parallel, and the parents fold them exactly.
 
 ## The node function
 
@@ -95,7 +95,7 @@ The second read is the only step that catches a flip in the first read, which wo
 ## Where it stops
 
 - **The tower spans all four axes**, and no single plane decodes on its own. A check without a full decode is possible only on the stored bytes: the chunk leaves, the stream root, the side's stored leaf and the members root. A decoded row can be checked only after a whole decode, though a mismatch still names its row.
-- **An unkeyed root seals against accident, not against an author.** Whoever can rewrite a file can recompute its roots all the way up. Against a deliberate tamperer the universal root needs a trust anchor where they cannot write:
+- **An unkeyed root seals against accident instead of against an author.** Whoever can rewrite a file can recompute its roots all the way up. Against a deliberate tamperer the universal root needs a trust anchor where they cannot write:
   - a signature over it, with the public key compiled in;
   - or a root published out of band.
   
@@ -117,7 +117,7 @@ Doug's nine posits on the wire and the witness are in [wants.md](wants.md), numb
 - **(b) Every crystal is legal, and T carries no redundancy** ("Redundancy" in [two_crystals.md](two_crystals.md)). Rebuilding needs the source or the whole crystal, and it fails closed: every tampered case in the table above was stopped and named.
 - **(c) A CRC with the seal as a locator.**
   - Erasure: a CRC of degree r with g(0) = 1 recovers any burst of at most r bits whose positions are known. The burst e at offset i leaves the syndrome x^i·e(x) mod g. g(0) = 1 makes x a unit mod g, and no nonzero e of degree below r is a multiple of g: the syndrome names e. At r = 64, a burst of up to 64 bits.
-  - The seal locates to a row or a chunk, not to bits. Inside the segment the burst's place is unknown, and that is burst correction: a linear code that corrects every burst of length b needs r ≥ 2b check bits ([Reiger 1960](#src:Reiger-1960); [Peterson and Weldon 1972](#src:Peterson-and-Weldon-1972)). A CRC-64 corrects bursts of at most 32 bits, and only with a generator chosen for it.
+  - The seal locates to a row or a chunk instead of to bits. Inside the segment the burst's place is unknown, and that is burst correction: a linear code that corrects every burst of length b needs r ≥ 2b check bits ([Reiger 1960](#src:Reiger-1960); [Peterson and Weldon 1972](#src:Peterson-and-Weldon-1972)). A CRC-64 corrects bursts of at most 32 bits, and only with a generator chosen for it.
   - "We have the crc" (point 2) holds outside the `.kcr`: the `.bapx` body table carries a CRC-64, and the entropy history carries `payload_crc` and `cloud_crc`. The `.kcr`'s CRC words were replaced by the seal ("What it costs"). Adding one back is a format change, Doug's call.
 - **(d) The set root is a joint function of every crystal's root.** It changes on any change, except with probability 2^−256 per node. This is classical binding, and it involves no quantum entanglement (points 3 and 4). Θ over a set is built. The universal root is ruled and still unbuilt (below).
 - **(e) The floor as amplitude and the knf as phase** (points 6 and 7).

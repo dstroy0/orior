@@ -4,7 +4,7 @@
 **Two tables, two concerns:** keep the cell table and the engine table separate; each is optimized against the other only through its interface section, never merged. **The engine is optimized for no scale:** no size, spacing, order, window or width is ever written into engine/. Each comes from the request or the data. The engine table's scale audit lists what is still in; this has been put in and ripped out repeatedly, and it is dangerous.
 **Scope:** the engine's items of the build plan kept and item 38. The item numbers are the plan's own, and a number missing here is another workbook's: the cell program's items are in the cell workbook's [build_plan.md](../cell_tracking/build_plan.md), and the crystal's growth in the compression workbook's [build_plan.md](../compression/build_plan.md).
 
-Statuses: proved, measured, built, theory, refuted, not so. "Not built" means nothing of it exists yet.
+Statuses: `proved`, `measured`, `built`, `theory`, `refuted`, `not so`. "Not built" means nothing of it exists yet.
 
 ## Done before this plan
 

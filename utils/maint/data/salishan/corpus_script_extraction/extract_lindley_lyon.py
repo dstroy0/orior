@@ -101,7 +101,7 @@ ROOT = _repository_root()
 PAPERS = os.path.join(ROOT, "build", "papers")
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# The drafted page text, not the extraction. This paper's PDF hands back the font's own alphabet,
+# The drafted page text instead of the extraction. This paper's PDF hands back the font's own alphabet,
 # and a corpus built on that is not the language: read from the PDF's text, much of what this reader
 # writes is a string the page does not print.
 SOURCE = os.path.join(PAPERS, "2013_Lindley_Lyon.page.txt")
@@ -223,7 +223,7 @@ def two_line_words(block):
             close()
             slot = 0
     close()
-    # Tested on a run of capitals, not on the label list. The list matches on word boundaries and
+    # Tested on a run of capitals instead of on the label list. The list matches on word boundaries and
     # there is none inside 3POSS, and a form line reading father-3POSS passed it.
     slipped = any(CAPS_RUN.search(one[0] or "") for one in words)
     return words, translation, leftover, slipped

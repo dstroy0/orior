@@ -208,7 +208,7 @@ def _report():
                  error, wrong, "lit" if works else "DARK"))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     print("  The degenerate row decides the claim. Parallel beams all read the same")
     print("  line through the object. Their shadows cannot distinguish sources that differ off")

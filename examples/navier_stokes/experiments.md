@@ -87,7 +87,7 @@ exactly one solution is the lemma of the workbook's chapter on terms to put back
 The paper's text (arXiv 2609.17642v1) holds the operators T_b and Z_b of its (3), the system (4), the rule (17) and
 (18) with the products of lower orders named and not written, the heat exterior E = c X^(-A) H(2d/X) as the solution
 of T_{-(A+1/2)} F - 2 (X F)_XX = 0, the stresses tau_theta = X^-1 int x R_theta and tau_z = (2X)^(-1/2) int R_z, and
-the exterior pressure -int F_ext^2. The family of axis data and annulus content and the fits are in its code, not its
+the exterior pressure -int F_ext^2. The family of axis data and annulus content and the fits are in its code instead of its
 text.
 
 Check (`core_rule`): the system of 2 is the paper's (3) and (4) term for term. The paper's (17) and (18) as printed

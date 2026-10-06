@@ -10,7 +10,7 @@
 # silent. Garcia numbered its third story differently from its first two and that story came back empty.
 # Matthewson's footnote markers matched a bare number heading and cut a section from thirty-four blocks to
 # two. Alexander's story sits entirely in subsections. Reading the bare numbers returned two appendices
-# and none of the narrative. LaFontaine writes ł where others write ɬ, which makes every token invisible.
+# and none of the narrative. LaFontaine writes ł where others write ɬ, and that makes every token invisible.
 #
 # All four were visible in the shape of the file and none of them were visible in a summary of it. This
 # reports the shape: the headings, how many numbered blocks sit under each section, whether timestamps

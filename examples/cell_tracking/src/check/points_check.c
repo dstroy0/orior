@@ -10,7 +10,7 @@
 // its view, and its .points must end at its last frame. Reads only; every word is little-endian, as the scan writes it.
 //   points_check <set> <sample> [<sample> ...]
 //
-// The formats, restated here from what the scan writes, not read from its code: a change to them must be made here too.
+// The formats, restated here from what the scan writes instead of read from its code: a change to them must be made here too.
 //   scan.set   "readings R", "bits B", "samples S", then the S names, a line each
 //   .readings  65536 64-bit counts, one a reading's value, then the footing: held, lo, hi, lo's steps, hi's steps
 //   .points    six 32-bit words (frames, depth, height, width, limbs, bits), the readings (64 bits), C (65536 64-bit

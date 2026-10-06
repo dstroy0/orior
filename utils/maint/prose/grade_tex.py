@@ -64,7 +64,7 @@ def flatten(line):
     line = re.sub(r"\\\(.*?\\\)", " ", line)
     line = re.sub(r"\\\[.*?\\\]", " ", line)
 
-    # References and citations carry keys, not prose.
+    # References and citations carry keys instead of prose.
     line = re.sub(r"\\(label|ref|eqref|cite|citep|autoref|pageref|input|include|usepackage"
                   r"|bibliography|bibliographystyle|hypersetup|newcommand|renewcommand"
                   r"|DeclareMathOperator|index)\s*(\[[^\]]*\])?\s*(\{[^{}]*\})*", " ", line)

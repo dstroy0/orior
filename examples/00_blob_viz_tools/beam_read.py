@@ -43,7 +43,7 @@ THE THREE CONTROLS, ALL OF WHICH MUST PASS FOR A NULL HERE TO MEAN ANYTHING
        round 64 does not clear the null bar, the instrument is broken and every other row on the
        page is meaningless. This costs nothing and it is not optional.
 
-    2. THE NULL IS DRAWN, NOT DERIVED. The bar is the 95th percentile of the LARGEST absolute
+    2. THE NULL IS DRAWN INSTEAD OF DERIVED. The bar is the 95th percentile of the LARGEST absolute
        correlation a shuffled pairing produces over the SAME number of features. Shuffling destroys
        any real relation while preserving every marginal. Taking the max in the null too
        makes 256 features and 81 features comparable: reporting the loudest of many against a
@@ -264,7 +264,7 @@ def _report(nonces=NONCES):
             verdict = "FIRES" if value > bar else "null"
             limit = detection_limit(features, target, bar, seed=round_at)
             fired[(round_at, name)] = (value, bar, verdict)
-            # A round before the nonce enters is labeled as construction, not as evidence. An
+            # A round before the nonce enters is labeled as construction instead of evidence. An
             # unlabeled 0.0000 in a results table reads as the strongest possible measurement when
             # it is in fact no measurement at all.
             note = "by construction" if round_at < FIRST_LIVE_ROUND else ""

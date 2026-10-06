@@ -234,7 +234,7 @@ not like an ocean." The only background is then the thermal fluctuation of densi
 the floor used below.
 
 **Sources read for the test.** Kruger, *How to compute density fluctuations at the nanoscale*,
-arXiv:2408.05530, equation (2): $\kappa_T = (V/k_BT)\langle\delta\rho^2\rangle/\rho^2$, which makes
+arXiv:2408.05530, equation (2): $\kappa_T = (V/k_BT)\langle\delta\rho^2\rangle/\rho^2$, and that gives
 the thermal floor $\sqrt{k_BT\kappa_T/V}$. Daddi-Moussa-Ider, Sprenger, Richter, Lowen and Menzel,
 *Steady azimuthal flow field induced by a rotating sphere*, arXiv:2107.03927, equation (3): far from
 a turning body in an unbounded fluid the speed is $|L\times s|/(8\pi\eta s^3)$, falling as the inverse
@@ -438,7 +438,7 @@ nor the theorem predicts more than that, and the record of failed vessels does n
 
 **In the author's words:** "no when you multiply force like that to a singularity, usually in
 physical reality that leads to light heat or both." This is the meaning of "microcavitation nukes"
-in I10: the energy is converted, not a city leveled.
+in I10: the energy is converted, and no city is leveled.
 
 **Already known when written.** Proposition 5: the rate of shear heating has no bound at the
 singular time. Page 16 of the forced construction: the core's integral of squared radial
@@ -636,7 +636,7 @@ either liquid alone under the same drive.
 The temperature difference is borne out by Maquet and others, a vapor cushion at a step of one
 kelvin between two liquids, without a uniform liquid under the same drive to compare. The density
 difference is not tested: no source held reports shear or vapor at a density step. In all three
-sources that score it the drive is heat or tension, not shear.
+sources that score it the drive is heat or tension instead of shear.
 
 ---
 

@@ -12,7 +12,7 @@ reading is not reading and not information the reading destroys.
 
 "Conserves information" has an exact operational meaning and it is testable: take an object, read
 it, and try to recover the object from the reading alone. If the recovery lands at the arithmetic
-floor then the reading carried everything and nothing was lost. That is a measurement, not a
+floor then the reading carried everything and nothing was lost. That is a measurement instead of a
 definition. This file runs it.
 
 WHAT IT COMES BACK AS

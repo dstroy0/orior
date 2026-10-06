@@ -215,7 +215,7 @@ class TierIsDecidedByTheSentence(unittest.TestCase):
         for pattern, where in docs_check.AUTHORITY.items():
             self.assertRegex(
                 where,
-                r"code-(documentation|comments):\d+",
+                r"code-(documentation|comments):\d+|NARA Writing Style Guide (\d+(\.\d+)+|Appendix [A-Z]),",
                 "AUTHORITY[%r] does not cite a section: %r" % (pattern, where),
             )
 

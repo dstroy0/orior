@@ -48,7 +48,7 @@ foreach ($phase in 0..7)
     $out = Join-Path $work ("phase{0}.out" -f $phase)
     Write-Host "    phase $phase" -ForegroundColor DarkCyan
     # Holes off: the 32-bit window costs four gigabytes and answers a question about the
-    # arrangement, not about alignment. Control four is the pseudorandom one and is the null here.
+    # arrangement instead of about alignment. Control four is the pseudorandom one and is the null here.
     # Zero threads means the polite default, which matters because this machine is in use.
     & $exe $domain 0 4 $phase 0 $onDevice *> $out
 }

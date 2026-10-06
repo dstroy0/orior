@@ -21,7 +21,7 @@ def main(arguments):
         held = file.read()
     found = held.count(old)
     if found != 1:
-        print("  %s holds %d of that text, not one: left alone" % (path, found))
+        print("  %s holds %d of that text instead of one: left alone" % (path, found))
         return 1
     with open(path, "w", encoding="utf-8", newline="") as file:
         file.write(held.replace(old, new))

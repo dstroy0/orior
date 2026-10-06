@@ -9,9 +9,9 @@
 #
 #   Usage:  python examples/0_experimental/zeta_zero_symmetry.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. It is an entry in the analytic-number-theory workbook and follows the same rail: claim
-# nothing. Two facts about zeta are theorems, not computed here: the functional equation makes the zero
+# nothing. Two facts about zeta are theorems and are not computed here: the functional equation makes the zero
 # set invariant under s -> 1 - s, and the real coefficients make it invariant under conjugation
 # s -> conj(s). Take those as given. What this file does is verify, on exact Gaussian rationals, the
 # GROUP those two symmetries generate and its fixed set, which needs no zero and no zeta value at all.

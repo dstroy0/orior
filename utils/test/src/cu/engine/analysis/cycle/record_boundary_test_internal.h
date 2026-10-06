@@ -6,7 +6,7 @@
 //
 // The crystal as a boundary, measured on itself. A 5/3 lifting tower T of four levels over 64 samples runs as record
 // floors. Its crystal (the level-4 lows and every high, in Mallat order) is the boundary between the tower and its
-// inverse, and everything here is read there, not from either end.
+// inverse, and everything here is read there instead of from either end.
 //
 // Written onto the boundary and read back: arbitrary crystals run through T^-1 then T return exactly. The boundary
 // is a whole coordinate chart of Z^n. The precision the boundary reads: a flip of input bit b moves a crystal

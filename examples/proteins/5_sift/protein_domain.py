@@ -15,7 +15,7 @@
 # Projecting it to a sequence would measure the projection. The construction does not need one. A pattern
 # here is a set of displacements in three dimensions together with the value expected at each, and an
 # alignment survives when every displacement lands on a point holding the value asked for. That is
-# Proposition 1 with no order, no raster and no alphabet assumption, the form the propositions were
+# Proposition 1 without an order, a raster or an alphabet assumed, the form the propositions were
 # stated in.
 #
 # The null is built by deletion, as everywhere else here, and which property it deletes decides the
@@ -94,7 +94,7 @@ def cascade(cloud, rng, shuffled):
         places = dict(zip(keys, values))
     elif shuffled:
         # Deletes the geometry and keeps the composition, by scattering the same values over the same
-        # bounding box. What the fold constrains is then present in one arm and absent from the other
+        # bounding box. Whatever the fold constrains is then present in one arm and absent from the other
         keys = list(places)
         lows = [min(key[axis] for key in keys) for axis in range(3)]
         highs = [max(key[axis] for key in keys) for axis in range(3)]

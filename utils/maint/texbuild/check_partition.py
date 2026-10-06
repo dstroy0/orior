@@ -83,7 +83,7 @@ def read_manifest(root):
             fields = line.split("\t")
             if len(fields) < 3:
                 continue
-            # AN UNKNOWN CLASS IS REPORTED, NOT SKIPPED. Skipping it silently is fail-closed, since
+            # AN UNKNOWN CLASS IS REPORTED INSTEAD OF SKIPPED. Skipping it silently is fail-closed, since
             # the row then falls through to unlisted-is-HELD - but it is also invisible, and a
             # class defined under a wrong name holds a file while its author believes it was classified. That bit
             # for real: the fifteen EXTERNAL rows added on 2026-09-11 were dropped by this line

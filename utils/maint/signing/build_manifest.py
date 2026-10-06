@@ -8,7 +8,7 @@
 #
 # WHY THIS EXISTS NOW
 #
-# docs/provenance.md section 3 makes the argument and section 8 lists the apparatus as specified and
+# docs/provenance.md section 3 argues for a priority anchor and section 8 lists the apparatus as specified and
 # not built. The gap matters more than it reads: this corpus is seven days old, it is unpublished, and
 # its only evidence of date is the commit timestamps, which section 3 rules out by name because a
 # commit date is written by the committer's own clock exactly as a signature's date field is.
@@ -160,7 +160,7 @@ def main(argv):
     with open(out, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("# MANIFEST. One row per authored file: which tree, path, bytes, SHA-256.\n")
         handle.write("#\n")
-        handle.write("# SIGN THIS FILE, NOT THE CORPUS. One signature over a list of digests covers\n")
+        handle.write("# SIGN THIS FILE INSTEAD OF THE CORPUS. One signature over a list of digests covers\n")
         handle.write("# every byte the list names, and it stays one deliberate act by a person.\n")
         handle.write("# Signing every file separately multiplies attestations without adding\n")
         handle.write("# information, and turns a human attestation into a build step.\n")

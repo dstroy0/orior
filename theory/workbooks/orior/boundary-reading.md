@@ -97,7 +97,7 @@ Eight regions is a small alphabet, and how small is a counting fact and not a ju
 reading is rank 8, seven free numbers once the weight is fixed, and against a source with 256
 degrees of freedom it moves in 8 directions and has nullity 248. A caller should know that number before
 building on this call, and should know that distinctness under such a reading is close to free: seven
-reals separate any few dozen arbitrary states whether or not the seven carry anything.
+reals separate any few dozen arbitrary states whether the seven carry anything.
 
 `docs/octant-lexicon.md` records what the alphabet did when it was pointed at a computation,
 including a conclusion that was withdrawn when the object it read turned out to be the wrong one.

@@ -15,7 +15,7 @@
 # bucket.
 #
 # The capacity at each level is what Pauli allows there: one electron per spin-orbital, two per orbital,
-# 2(2l+1) per subshell, 2n^2 per shell. Those numbers are read off the accumulation here, not put in.
+# 2(2l+1) per subshell, 2n^2 per shell. Those numbers are read off the accumulation here instead of put in.
 # The max bucket at a partition is the fullest that level's cell ever gets, and it lands on the Pauli
 # capacity because the ideal filling packs each cell before opening the next.
 #

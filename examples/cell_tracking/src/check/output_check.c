@@ -17,7 +17,7 @@
 // at its last pair. It counts every file's bytes, line feeds and carriage returns. Reads only.
 //   output_check <set> <nodes.tsv> <submission.csv> <sample> [<sample> ...]
 //
-// The formats, restated here from what the scan, the sort and the output write, not read from their code: a change to
+// The formats, restated here from what the scan, the sort and the output write instead of read from their code: a change to
 // them must be made here too. Every word is little-endian.
 //   .points     six 32-bit words (frames, depth, height, width, limbs, bits), the readings (64 bits), C (65536 64-bit
 //               words), then a frame after another: its count, each point's voxel, each point's levels (limbs words)

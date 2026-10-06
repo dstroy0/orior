@@ -97,9 +97,9 @@ static double sass_cubin_nanoseconds(void)
     return (taken != NULL) ? strtod(taken + 2, NULL) : 0.0;
 }
 
-// A question of preference, not of membership. Every question above asks whether the part CAN do a thing;
+// A question of preference instead of membership. Every question above asks whether the part CAN do a thing;
 // this asks which of two codings of one thing the part prefers. Both must answer the same, or they are not
-// two codings of one thing and the reading is void. What the part prefers is not what a listing says and not what
+// two codings of one thing and the reading is void. The part's preference is not what a listing says and not what
 // the encoding says: it is the part's own answer, in its own clock.
 typedef struct
 {

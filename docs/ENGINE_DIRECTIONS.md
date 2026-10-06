@@ -1,8 +1,5 @@
 # Directions the engine's own proofs already license
 
-**Purpose:** Collect the capabilities that follow from what the engine has already proved, and the Laplacian construction that replaces its planning cost with a determinant.
-**Scope:** `src/cu/engine/nbody/orior/orior.h`, `src/cu/engine/nbody/orior/orior_*.c`
-
 ## Contents
 
 1. [What is already proved](#what-is-already-proved)
@@ -47,7 +44,7 @@ This is a capability the alphabet claim already bought. [The sift](sift.md) stat
 indexed and no table is built over the alphabet, and that a real-valued or unenumerable alphabet
 costs nothing. An engine that never enumerates symbols cannot notice that the symbols were replaced.
 
-**What it leaks is known exactly, and that is the unusual part.** Two positions carrying the same
+**Its leak is known exactly, and that is the unusual part.** Two positions carrying the same
 byte still carry the same byte after `f`. The encoding hides values and preserves the equality
 pattern, an observer learns the partition of positions into equal classes and nothing finer. That
 partition is the quantity `A(d)` measures. The leak of this construction is the statistic section 5
@@ -92,7 +89,7 @@ unreliability in that one direction alone.
 
 ## Its own cost is the arrangement measurement
 
-[The sift](sift.md#the-kernel-dispatches-and-grades-itself) records a blindness in the dispatcher. Collision entropy is permutation invariant and
+[The sift](sift.md#the-kernel-picks-its-own-engine-and-grades-its-choice) records a blindness in the dispatcher. Collision entropy is permutation invariant and
 cannot see an arrangement, and a period-16 counter therefore reads 4.0 bits while the dispatcher calls a
 perfectly structured corpus memoryless. The note states that reading arrangement needs a different
 quantity. `orior_anchors_for` supplies one only where the period the corpus repeats at is known.
@@ -110,7 +107,7 @@ histogram is permutation invariant and the measurement is not, because the measu
 of `A(d)` over the shifts the search actually visits.
 
 **The gap between predicted `q` and measured `q` is arrangement information, and it is the quantity
-[The sift](sift.md#the-kernel-dispatches-and-grades-itself) says is needed.** A permuted corpus has an identical histogram and a different
+[The sift](sift.md#the-kernel-picks-its-own-engine-and-grades-its-choice) says is needed.** A permuted corpus has an identical histogram and a different
 measured `q`. The period-16 counter reads `2^-4` predicted and close to 1 measured, the largest gap
 the statistic can show.
 
@@ -153,7 +150,7 @@ mode of a determinantal point process whose kernel the census already contains.*
 
 Two classical facts make this more than an analogy. The marginal gain from adding a probe `p` to a
 set `S` is `det(C_{S+p}) / det(C_S)`, the Schur complement of `p` against `S`, known in statistics as
-the leverage score and in the graph Laplacian setting as the effective resistance. Sampling by effective
+the *leverage score* and in the graph Laplacian setting as the effective resistance. Sampling by effective
 resistance is exactly how spectral sparsification builds a small subgraph preserving every cut of the
 original within a factor, and every undirected graph admits such a sparsifier with a near-linear
 number of edges. A greedy descent that scores candidates by determinant is running the sparsification

@@ -29,7 +29,7 @@
 # It is deliberately only casual. It stops the easy path and does not pretend to stop somebody who
 # does the gathering themselves and means it.
 #
-# What the run prints is the delta. The thresholds are cut so every bit splits the frames in half
+# The run prints the delta. The thresholds are cut so every bit splits the frames in half
 # and the axes are rotated so no bit restates another, the sample brought to the highest
 # entropy it can carry, with every state reachable. A recording that then used all of those states
 # evenly would be noise. The gap between that reference and what the recording actually does is the

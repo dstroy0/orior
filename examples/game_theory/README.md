@@ -61,7 +61,7 @@ bigger. The cost is that it stops being the number it is named after. `P(outcome
 things, and the second does not estimate the first. Reporting the second under the first's name
 is the way this work would be quietly wrong.
 
-**In poker the pruning changes the recommendation, not just the probability.** On a pair of sevens
+**In poker the pruning changes the recommendation as well as the probability.** On a pair of sevens
 over a twelve card deck the survivorship reading wins 0.833333 and the adversary reading 0.361111, a
 gap of 0.472222 -- and they do not agree on what to do. Unpruned, the best move is to discard `2s 7s`.
 Pruned, it is to keep the hand. A probability that is wrong can be caveated. A recommendation that is

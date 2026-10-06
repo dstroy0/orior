@@ -5,7 +5,7 @@ invisible everywhere else, and one of each was live when this was written.
 
 FAULT ONE: A REPLACEMENT THAT IS ITSELF BANNED
 
-Line 20 replaced "is exactly the" with "is precisely the". Both are banned by `docs_check` - the
+Line 20 replaced `is exactly the` with `is precisely the`. Both are banned by `docs_check` - the
 first at its line 63, the second at line 85 - so the rule carried a banned phrase from one form
 to another and reported success. It survived because its target is a `.h`, and the docs gate blanks
 code. The file the rule edits is a file the gate does not read. A repair table that can introduce
@@ -17,7 +17,7 @@ A rule whose replacement drops a word can leave a sentence ungrammatical, and NO
 broken sentence still renders, contains no banned token, and is therefore neither breaking nor
 prose. Found in the tree, all from this shape:
 
-    "is the one to take seriously"  ->  "is the to take seriously"
+    `is the one to take seriously`  ->  `is the to take seriously`
     "what remains after every"      ->  "what remains every"
     "the arm whose arithmetic"      ->  "the whose arithmetic"
 

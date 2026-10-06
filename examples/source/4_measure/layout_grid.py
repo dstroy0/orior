@@ -9,7 +9,7 @@
 #   Usage:  python examples/source/4_measure/layout_grid.py layout.txt [more.txt ...]
 #
 # Every other measurement of a human layer in this work has to argue that some channel is not required.
-# A board layout removes the argument in a different way from assembly. A coordinate in one can hold any
+# A board layout removes the argument differently from assembly. A coordinate in one can hold any
 # value the format's precision allows, and the fabricator accepts it: physics does not prefer 12.7000 to
 # 12.7031, and no rule of the format forbids either. Designers place on a grid anyway, because a person
 # is moving the parts.

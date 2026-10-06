@@ -157,7 +157,7 @@ def _report():
     after = magic_of(*gate_t(*start))
     print("  %-8s %16.12f %16.12f %14.3e" % ("T", before, after, abs(after - before)))
     print("")
-    print("  READ THE NUMBERS, NOT THIS SENTENCE. Free gates move the magic by the arithmetic")
+    print("  READ THE NUMBERS INSTEAD OF THIS SENTENCE. Free gates move the magic by the arithmetic")
     print("  floor and T moves it by a real amount. Calling Clifford free means that,")
     print("  and it is the same shape as the twist leaving entanglement at exactly zero.")
     return 0

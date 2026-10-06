@@ -1,4 +1,4 @@
-"""The null permutation derived before the reading, not discovered after it. The demon's position.
+"""The null permutation derived before the reading instead of discovered after it. The demon's position.
 
     python examples/00_blob_viz_tools/null_first.py --check
     python examples/00_blob_viz_tools/null_first.py                 every instrument's kernel, up front

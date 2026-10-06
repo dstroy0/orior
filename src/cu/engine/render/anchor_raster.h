@@ -181,7 +181,7 @@ extern "C"
      * @note The channel, the reduce rule and the gain are unchanged and are not duplicated here. Each
      *       reads one alignment and returns one value without knowing how many dimensions the
      *       destination has. Only the index to position map changes between a sheet and a block. The
-     *       engine makes the same statement about its own index set needing no order and no
+     *       engine states the same about its own index set needing no order and no
      *       dimension.
      * @note Every transform here is a bijection computed in integer arithmetic. A device
      *       implementation reproduces it exactly and no transform can drop or duplicate an alignment.

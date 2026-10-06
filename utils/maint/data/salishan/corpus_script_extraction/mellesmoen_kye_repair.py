@@ -33,7 +33,7 @@
 #
 # The body writes the ejective with COMBINING COMMA ABOVE and the appendices write it with COMBINING
 # COMMA ABOVE RIGHT. č̓ƛ̓aʔ ‘rock’ is printed four times with the first mark and once, in Appendix B,
-# with the second. One paper prints one word both ways, which makes the second mark the same mark.
+# with the second. One paper prints one word both ways, and that makes the second mark the same mark.
 # The same holds for l̓: the body writes c̓əbə́l̓qid with COMBINING COMMA ABOVE and Appendix B writes
 # x̌ʷul̕-b with COMBINING COMMA ABOVE RIGHT.
 #

@@ -273,7 +273,7 @@ static int sass_cubin_same(SassProbe *probe, const SassMachine *machine, const c
 
 // A lane of the interface's own written into the resident's cubin, and the resident checked for having survived it. What
 // goes in is the frame's own text, which assembles and asks nothing of the launch: under test here is the cubin
-// writer, not the lane. 1 where every instruction of the resident is still in the cubin afterwards
+// writer instead of the lane. 1 where every instruction of the resident is still in the cubin afterwards
 static int sass_lane_written(SassProbe *probe)
 {
     // A lane is a function the resident calls, and a function ends where it was called from. Putting a kernel's

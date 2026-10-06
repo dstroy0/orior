@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/0_experimental/bloom_is_the_sift_theorem.py
 #
-# This reads no corpus. It sits in 0_experimental: it is an algorithm shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: it is an algorithm shown working instead of a stage
 # reading. When a Bloom filter runs over an actual corpus with its false-positive rate measured against
 # a drawn null it graduates to any_corpus/5_sift; until then it is an idea that works.
 #
@@ -47,7 +47,7 @@ ABSENT = 6000  # items queried to measure the false-positive rate; enough to res
 
 
 def formula_rate(bits, hashes, count):
-    """The textbook false-positive rate, computed exactly as a rational, not as a float.
+    """The textbook false-positive rate, computed exactly as a rational instead of a float.
 
     One minus the chance a given bit is still zero after every insertion, raised to the hash count.
     The exact form keeps this a prediction to compare the measurement against, with no rounding of its
@@ -58,7 +58,7 @@ def formula_rate(bits, hashes, count):
 
 
 def structured_items(count, start=0):
-    """Items that share structure: a fixed prefix and a short running suffix, not uniform draws."""
+    """Items that share structure: a fixed prefix and a short running suffix instead of uniform draws."""
     return ["session-user-record-%04d" % (start + index) for index in range(count)]
 
 

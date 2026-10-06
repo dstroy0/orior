@@ -170,7 +170,7 @@ def main():
     if repeated:
         print("    positions loudest in more than one arm: %s  <- worth chasing" % repeated)
     else:
-        print("    No position was loudest in more than one arm. That is what noise does, and it")
+        print("    No position was loudest in more than one arm. Noise does that, and it")
         print("    is a stronger statement than any single arm could make however deep it ran.")
 
     print()

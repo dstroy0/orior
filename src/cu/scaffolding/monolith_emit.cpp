@@ -689,7 +689,7 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         return;
     }
 
-    // ERR has two candidates and the part's clock chooses between them, not this: a trap where it stands, the way
+    // ERR has two candidates and the part's clock chooses between them, and this code does not: a trap where it stands, the way
     // NVIDIA writes it, a branch past the trap on the flag; and a branch to a handler, the error word (word_web.h),
     // written through sass.krs on NVIDIA's predicate and landing on the label label_error writes
     if (precept == PRECEPT_ERR)

@@ -37,7 +37,7 @@ digest exists.
 
 A projection that beat this would have to read structure from the *nonce* without hashing it. That
 is
-a preimage-shaped claim about SHA-256, not an engineering task.
+a preimage-shaped claim about SHA-256 instead of an engineering task.
 
 This constraint is why every hypothesis below is stated over the digest and measured for structure
 and not assumed to yield speed.
@@ -280,7 +280,7 @@ gives the remaining two. Nothing searched, nothing approximated. 4096 trials.
 **Result.** 64 rounds forward then 64 backward returns the exact starting state, every trial. The
 file's forward round is separately asserted equal to the kernel's.
 **Verdict.** **Supported exactly.** The mechanism is reversible end to end. "Memoryless" describes
-the statistics of the output, not the process. Every bit that went in is still there.
+the statistics of the output instead of the process. Every bit that went in is still there.
 **What it does not supply.** See H15.
 
 ### H15 - Mapping what is trackable
@@ -302,7 +302,7 @@ an error in the first revision of this entry and is corrected here. The miner co
 | ntime | ~13 bits of slack within the allowed window | header 68-71, `W[1]` | rollable |
 | version | 16 bits under BIP320 | header 0-3, inside the midstate | rollable |
 
-That is roughly **125 bits** of miner-controlled freedom, not 32. The freedom is necessary instead
+That is roughly **125 bits** of miner-controlled freedom instead of 32. The freedom is necessary instead
 of
  helpful: at difficulty 1.27e14 a solution needs about 76 bits of search. A 32-bit nonce alone
 would exhaust without one. This is why extranonce2 exists and why `btc_miner.cpp` rolls it when the
@@ -346,7 +346,7 @@ the same seam.
 and
 never measured, and the workbook said so.
 **Method.** `bench_extranonce.cpp`, using a real `mining.notify` captured from solo.ckpool.org kept
-verbatim, which makes the coinbase layout and the 12-entry branch the ones a pool actually sends. A step here
+verbatim, and that makes the coinbase layout and the 12-entry branch the ones a pool actually sends. A step here
 rebuilds the coinbase, its double hash, every merkle fold, the merkle root, and therefore the
 midstate.
 **Control first.** Moving extranonce2 moves the merkle root, leaves the rest of the header unmoved, and
@@ -404,7 +404,7 @@ rolling being actively spent as a search dimension. That is direct evidence for 
 ### H18 - There is no noise floor; stop quoting one
 
 **Claim.** The digest field carries no background noise, because the information is held elsewhere.
-**Why it is right.** SHA-256 is deterministic, which makes `H(digest | input)` exactly zero. The flatness
+**Why it is right.** SHA-256 is deterministic, and that makes `H(digest | input)` exactly zero. The flatness
 is
 not a noisy signal averaging out; it is pseudorandomness with no stochastic component at all. H14
 already showed where the information is: preserved perfectly in the mechanism, recoverable by
@@ -559,7 +559,7 @@ It says addition preserves it with a probability and computes that probability:
 | predicted by the formula | 0.265625 |
 | difference | -0.000345 |
 
-A round applies about six additions, which makes per-round survival `0.265280^6 = 3.485e-04`, giving 1.43
+A round applies about six additions, and that makes per-round survival `0.265280^6 = 3.485e-04`, giving 1.43
 expected survivors in a 4096-trial table. The row read 0.00% because the relation was destroyed by
 the **additions**, at a rate the table had no resolution to see. Rotation, exclusive or and the
 Sigma
@@ -573,7 +573,7 @@ anything: the constants are not optional and nobody chooses them at mining time.
 
 **Claim.** Every projection so far attacked the compression function. The schedule is a weaker
 object:
-`sigma0` and `sigma1` are rotations, shifts and exclusive or, which makes both GF(2)-linear, and only the
+`sigma0` and `sigma1` are rotations, shifts and exclusive or, and that makes both GF(2)-linear, and only the
 three modular additions per word leave that basis. It is also where the one real structural win in
 Bitcoin mining lives, since ASICBoost exploits the schedule's independence from the chaining value.
 **Method.** `bench_schedule.cpp`. Confirm the linearity, measure the real expansion against its
@@ -613,7 +613,7 @@ the one everyone already varies.
 ### H24 - The chain as an iterated map
 
 **Claim.** Every test so far lived inside one header's nonce space. Block N's hash is literally a
-field of block N+1's header, which makes the sequence an iterated map `h(n+1) = F(h(n), rest(n))`, and
+field of block N+1's header, and that makes the sequence an iterated map `h(n+1) = F(h(n), rest(n))`, and
 iterated maps have orbits, recurrences and periods.
 **Stated before measuring.** A block hash is not a uniform 256-bit value. It is conditioned on
 clearing the target: the top ~76 bits are forced and only the remainder is free. Every test uses
@@ -639,7 +639,7 @@ accounted for.
 **Why no orbits were ever likely, which is structural instead of statistical.** An autonomous map
 `h -> F(h)` has orbits. This one is `h(n+1) = F(h(n), rest(n))` where `rest` carries a fresh
 coinbase
-and a fresh nonce chosen by whoever mined that block. Fresh entropy enters at every step, which makes it a
+and a fresh nonce chosen by whoever mined that block. Fresh entropy enters at every step, and that makes it a
 Markov chain with injection instead of a dynamical system, and a system with injection cannot recur.
 **Bound instead of proof.** 1000 blocks cannot see a period longer than about 500, and the corpus
 spans one difficulty adjustment.
@@ -769,7 +769,7 @@ or near zero. **With the constants present, all 32 frames read 0.000000** over 4
 at three, 0.00005% at four.
 **A small real positive.** Measured exceeds `p^n` by about 1.6x at round two and 2.1x at rounds
 three
-and four, which makes successive rounds slightly positively correlated in the frame instead of
+and four, and that makes successive rounds slightly positively correlated in the frame instead of
 independent. That is a genuine structural effect and it is the thread H29 pulls.
 **Verdict.** Extrapolating the measured per-round rate: 2.249e-212 over 128 rounds against brute
 force at 8.636e-78. Riding the best frame for the depth a header hash runs is about **4e133 times
@@ -944,7 +944,7 @@ line through the origin in alpha, which gives a test with no free parameter:
 `deficit(2) / deficit(1/2) = 4` exactly
 
 Domain size, bin count, window position and sample count all cancel out of a ratio between orders.
-**Method, part two - enumeration, not sampling.** `bench_renyi.cpp`. All `2^32` nonces of the block
+**Method, part two - enumeration instead of sampling.** `bench_renyi.cpp`. All `2^32` nonces of the block
 125552 header, whole SHA256d over all eighty bytes, whole 256-bit digest read. Windows of 8 bits at
 all 32 positions, 16 bits at all 16 positions, and 32 bits at digest bytes 0–3, which over a `2^32`
 domain is the only family where a bin can be empty and is therefore where the holes are.
@@ -1045,7 +1045,7 @@ one
 compression call (512 message, 256 chaining), propagated through the real operations: rotation
 permutes positions, shift drops them, bitwise operations union bit by bit, and addition unions
 upward
-through the carry. Addition is the only widening operation, which makes this an over-approximation -
+through the carry. Addition is the only widening operation, and that makes this an over-approximation -
 **a path may carry no influence, but the absence of a path is exact.**
 **Result, the nonce.**
 
@@ -1082,7 +1082,7 @@ since the first revision, where it was listed as unbuilt.
 ### H35 - The arrangement of the holes, checked in every direction there is
 
 **Claim.** Every number this workbook has produced about the digest distribution is a function of
-the count multiset alone, which makes all of them permutation invariant and none can see *where* the
+the count multiset alone, and that makes all of them permutation invariant and none can see *where* the
 holes sit. From `orior`'s ledger: histogram quantities describe the maximum entropy case and
 are free; the arrangement remains. Nothing here had ever asked about it.
 **The instrument.** `bench_renyi.cpp` and `bench_renyi_cuda.cu`. All `2^32` nonces of block 125552's
@@ -1092,7 +1092,7 @@ into a four gigabyte array - the one family where a bin can be empty. 1,579,996,
 range, matching to six significant figures.
 **The null.** The permutation over arrangements of a fixed multiset, which preserves every count and
 destroys every position. It is the data with one property deleted instead of a model that could be
-false, which makes it the right null and not merely a sensible one.
+false, and that makes it the right null and not merely a sensible one.
 **Method, and it widened three times.** Each step was run against a splitmix64 control that got the
 identical treatment.
 
@@ -1169,7 +1169,7 @@ was already covered by reading at 8, 16 and 32 bits.
 its inputs arrived in. H35 walked the value axis in all 4.29 billion linear directions. **The nonce
 axis is a different axis, it is the the miner walks, and nothing here had ever looked along it,
 because no histogram can.**
-**The reframing.** Nonce is time and the digest is the waveform, which makes this an audio problem.
+**The reframing.** Nonce is time and the digest is the waveform, and that makes this an audio problem.
 Two things follow that this tree had not done. Fourier is linear over the integers and sees
 *periodic* structure, where every arrangement test run here was Walsh, linear over GF(2), which sees
 *dyadic* structure - the two are blind to different things and a comb was invisible to all of it.
@@ -1230,7 +1230,7 @@ bivariate normal, `-log2(1 - c^2)/2`, because a correlation is not additive and 
 bits can be divided by the rounds spent.
 **Two co-arms, coupled instead of independent.** A round writes `state[0]` and `state[4]` and
 shifts the rest along, and those are the only two places it puts anything. Both are driven by the
-same input difference on the same pair, which makes them co-arms - an earlier attempt in
+same input difference on the same pair, and that makes them co-arms - an earlier attempt in
 this tree used independent arms and was structurally guaranteed to null. The joint reading is the
 multiple correlation of the input distance on both at once.
 **Result, pooled.**
@@ -1272,7 +1272,7 @@ weight, giving `depth ≈ 7 - log2(w)`, which is linear in the logarithm and mak
 lever on depth. Inverting it is the part worth having: the weight needed to reach depth `d` is
 `w = 2^(7-d)`. At `d = 7` that is one bit. At `d = 8` it is half a bit.
 
-**Weight is bounded below by one, which makes round seven a wall instead of a slope.** There is no
+**Weight is bounded below by one, and that makes round seven a wall instead of a slope.** There is no
 difference that reaches round eight by this route, because the lever runs out instead of because
 the signal happens to be small there. The one-bit difference is the deepest probe that exists and it
 dies at seven rounds of sixty-four, which is 5.5% of a doubled hash. Every deeper result in the
@@ -1401,12 +1401,12 @@ Stated because a document that only lists what it ruled out reads as stronger th
 - Six of its thirty-one hypotheses were measured against hand-derived nulls that have not been
   permutation-checked.
 - Nothing in it is a proof of absence. H21 is the only entry that proves anything, and what it proves
-  is a degree bound, not the absence of structure.
+  is a degree bound instead of the absence of structure.
 
 ## 7. Provenance
 
-Every number in this document was produced by a binary in this tree against the real function, not
-quoted. The reduced-round instrument in `sha256_core.c:sha256_block_compress_partial` is asserted
+Every number in this document was produced by a binary in this tree against the real function instead of
+being quoted. The reduced-round instrument in `sha256_core.c:sha256_block_compress_partial` is asserted
 equal to `sha256_block_compress` at 64 rounds over 512 random blocks
 (`bench_transform.cpp:check_instrument`), and the instrument therefore cannot drift from what it measures. The
 SHA-256 implementation itself is validated against FIPS 180-4 vectors, the genesis block, and block

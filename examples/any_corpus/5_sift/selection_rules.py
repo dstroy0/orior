@@ -8,8 +8,8 @@
 #   Usage:  python examples/any_corpus/5_sift/selection_rules.py corpus.sym [more.sym ...]
 #
 # An anchor is a condition copied out of the needle. A position genuinely holding the needle
-# satisfies every anchor whatever chose it. Correctness cannot turn on the rule. What the rule moves
-# is how many false candidates survive, which is cost. This prints both, and only one of them is
+# satisfies every anchor whatever chose it. Correctness cannot turn on the rule. The rule moves
+# how many false candidates survive, and that is cost. This prints both, and only one of them is
 # allowed to move.
 #
 # The sizing column is the other half. Multiplying the rate of each anchor is correct when the

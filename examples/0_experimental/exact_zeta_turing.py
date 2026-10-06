@@ -36,7 +36,7 @@
 # u_h / P = sum over k of q_k / (z_h - w_k), a sum of nu poles on the unit circle at the P roots of unity z_h, which a
 # tree of multipole and local expansions of order ORDER over leaves of 2^BETA frequencies evaluates, with each leaf's
 # near poles taken whole through the Dirichlet kernel; the main sum's half is Re(exp(i theta) F). Its lanes a cell
-# grow as P, not nu P. With both, the device runs the two and writes the most their Z differ by over the cell.
+# grow as P instead of nu P. With both, the device runs the two and writes the most their Z differ by over the cell.
 #
 # THE BOUND ON Z
 #

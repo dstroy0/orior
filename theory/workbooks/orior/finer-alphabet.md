@@ -9,7 +9,7 @@ This note works out what that would buy before anyone spends the compute on it.
 
 ## The answer
 
-Subdividing does not repair the reading, and the argument that settles it is counting, not
+Subdividing does not repair the reading, and the argument that settles it is counting instead of
 statistics. The placement holds 256 points, and past a certain depth there are more cells than there
 are points to write into them.
 

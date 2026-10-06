@@ -30,7 +30,7 @@
 # THE DISTRIBUTION. Beyond the five oracle positions, the value of the move is tallied over the whole
 # class: the boards where having the move helps White, changes nothing, or hurts White (the zugzwang
 # and opposition band). It takes every sign. The claim is exact -- first-move advantage is a
-# per-position quantity, not a constant.
+# per-position quantity instead of a constant.
 
 import os
 import sys
@@ -263,7 +263,7 @@ def main():
     print("")
     print("  The opposition row is the theorem: White's result is a win if the opponent must move and")
     print("  only a draw if White must move. The value of the move is negative -- moving first")
-    print("  throws away the win. First-move advantage is a per-position quantity, not a constant.")
+    print("  throws away the win. First-move advantage is a per-position quantity instead of a constant.")
 
 
 if __name__ == "__main__":

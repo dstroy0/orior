@@ -17,7 +17,7 @@
 # because for these five languages the pronunciation is a function of the definition, and a template
 # can produce it.
 #
-# What is still needed is the shared alphabet, and that is a mapping, not a lookup. Each language's
+# What is still needed is the shared alphabet, and that is a mapping instead of a lookup. Each language's
 # definition is turned into the sounds it stands for. A Hungarian s and a Polish sz become the same
 # symbol when they are the same consonant and different symbols when they are not.
 #

@@ -32,7 +32,7 @@ This builds and runs the whole suite, and builds the daemon into the run's build
 | `tessera_job_test` | the client against the built daemon, every path below | 25 checks, 0 failed |
 | `tessera_run_test.sh` | host jobs through `tessera_run` (below): the exit code handed on, the command on the jobs' processors at below normal priority, its processors measured, a job waiting for one that holds them all, two that fit at once, the errors, a command watched by a child (confirmed, a parent killed, on Linux a parent stopped, no launch record) | 14 checks, 0 failed on Windows; 15 on Linux |
 
-The endpoint names the device, not the state: the job test proves the daemon only when no other daemon holds the
+The endpoint names the device instead of the state: the job test proves the daemon only when no other daemon holds the
 device. `run.sh` gives its tests an endpoint of their own, `TESSERA_RUNTIME`, which Windows reads into the pipe's name
 as Linux reads it into the socket's folder. The job test and the host test each start a daemon there, apart from the
 daemons real jobs are using.
@@ -61,7 +61,7 @@ The device's tessera builds only where `nvcc` is.
 
 `utils/test/src/cu/engine/runtime/daemon/tessera_test.sh` holds the two to each other. It makes one seeded stream of calls of each
 tessera, round by round: every answer must be the host's field for field, and the ledger each is left with must be
-the host's. The device's ledger starts with rooms of one, which makes it grow. The test is a job on the device's
+the host's. The device's ledger starts with rooms of one, and that makes it grow. The test is a job on the device's
 tessera daemon. It is written and has not been built or run.
 
 ## Starting the daemon
@@ -264,7 +264,7 @@ its two tessera checks:
 | chaitin_omega (L 16, on the engine) | 30,256 | 286,425,088 | 16, 0 failed |
 
 Nothing in the repository loads the engine DLL (`build_engine.sh` builds it and nothing calls it), and there is no
-other caller to submit. `cell_tracking/src/cell_shift.c` runs on orior's engine, not this one.
+other caller to submit. `cell_tracking/src/cell_shift.c` runs on orior's engine instead of this one.
 
 ## Host jobs: the host's processors
 
@@ -407,7 +407,7 @@ growth, the peak kept, the wake. A daemon in reported mode ignores these frames 
 gcc builds all of it with 0 warnings. On a native Linux driver the daemon measures each pid through NVML and
 ignores reports. This machine has no native Linux NVIDIA driver, so that path has not run.
 
-**One endpoint, one daemon.** The socket path names the device, not the state. A daemon with another
+**One endpoint, one daemon.** The socket path names the device instead of the state. A daemon with another
 `TESSERA_STATE` can reach the same path. Before binding, a daemon connects to the path: if something answers,
 it says so and exits. It removes the socket file at idle only if that file is still the one it bound.
 

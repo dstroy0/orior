@@ -11,7 +11,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_congruent_number.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. The arithmetic is the engine's own: Python integers as the bignum, and an exact rational
 # carried as a reduced (numerator, denominator) pair of native integers, reduced by a hand-written
 # Euclid. No float, no fraction library, no math library; the one square root needed is an integer
@@ -314,7 +314,7 @@ def report_witness(out):
               % (right_triangle, area, area_is_five))
     out.write("    base point %s on C_5: %s, integral: %s\n"
               % ((str(base[0]), str(base[1])), on_curve, base_integral))
-    out.write("    its double %s on C_5: %s, not integral: %s\n"
+    out.write("    its double %s on C_5: %s, integral: %s\n"
               % ((str(doubled[0]), str(doubled[1])), double_on_curve, double_not_integral))
     out.write("    the doubled x equals (hypotenuse/2)^2 = %s: %s (triangle and point are one witness)\n"
               % (x_from_triangle, triangle_matches_point))

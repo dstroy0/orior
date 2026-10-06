@@ -11,7 +11,7 @@
 //   refusal     a link count no known order covers is refused, and the solve writes nothing
 //   sweep       the sweep's asks cover one link, half plus one and every link, in turn
 //
-// The contention read is a test on noisy costs and is measured, not proved: costs drawn in integers around an
+// The contention read is a test on noisy costs and is measured and not proved: costs drawn in integers around an
 // overhead, pairs of links contending by an amount drawn per pair, and the rate the read finds contention at each
 // amount, the rate at none being its false alarms.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/ask_order.h"

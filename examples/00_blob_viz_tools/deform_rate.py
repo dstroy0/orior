@@ -396,7 +396,7 @@ def _exact():
     print("  %-54s %18.0e" % ("deflection under a quarter turn, exact", worst))
 
     print("")
-    print("  EVERY ROW ABOVE IS EXACTLY ZERO, not small. Those moves are sign flips and swaps of")
+    print("  EVERY ROW ABOVE IS EXACTLY ZERO, and not merely small. Those moves are sign flips and swaps of")
     print("  numbers already held. There is no arithmetic in them to round. That is true in")
     print("  float32, in float64 and at a thousand decimal digits, and it is true forever: a")
     print("  floor of zero is not a precision setting and nothing can be lower.")

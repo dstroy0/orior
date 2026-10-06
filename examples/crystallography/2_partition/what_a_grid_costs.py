@@ -24,7 +24,7 @@
 # arithmetic and not in the scale. One multiplication takes a fraction's decimal places plus an
 # edge's, which is about eleven, and every scale above that carries the same answer.
 #
-# What that leaves is the honest split between the two bounds. The voxel was buying error. The scale
+# That leaves the honest split between the two bounds. The voxel was buying error. The scale
 # was buying headroom for paths with more arithmetic in them than this one has.
 
 import io

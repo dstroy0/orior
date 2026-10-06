@@ -72,7 +72,7 @@ def bare_token(token):
 # Some of these languages are written in a practical orthography that uses plain keyboard
 # characters. St'át'imcets writes the glottal stop as the digit 7. Cw7aoz, skúza7 and ts7ásas
 # carry none of the marks above and are invisible to a test built only on them. A digit inside a
-# word does not occur in English, which makes it a reliable mark where a paper uses it.
+# word does not occur in English, and that makes it a reliable mark where a paper uses it.
 PRACTICAL = "7"
 
 # Every character these orthographies write their languages with, as one set. This is the space a

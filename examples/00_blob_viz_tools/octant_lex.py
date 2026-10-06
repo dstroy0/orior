@@ -298,7 +298,7 @@ def main():
     else:
         out.append("    no null permutations, and against that rank it is close to free: %d real"
                    % free)
-        out.append("    numbers separate %d unrelated states whether or not the %d carry meaning,"
+        out.append("    numbers separate %d unrelated states whether the %d carry meaning,"
                    % (len(rows), free))
         out.append("    so distinctness here is not evidence. Evidence would be a delta below the")
         out.append("    redraw level, or a signature that predicts the round it came from")

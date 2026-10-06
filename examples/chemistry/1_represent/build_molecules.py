@@ -13,10 +13,10 @@
 # the atoms and the bonds and their orders. It does not place the atoms in space, because a bond's
 # magnitude is its length and a length is an oracle fact, valence-fixed and tabulated, that belongs in
 # oracle/chemistry with a citation and is not entered yet. So what is built here is the molecular
-# graph, and the geometry it carries is stated as design in theory/theory/chemistry, not asserted here.
+# graph, and the geometry it carries is stated as design in theory/theory/chemistry and is not asserted here.
 #
 # The element identity, the proton count and the electron set, is authored once by the atomic-structure
-# subject in representation.atom.element and consumed, not transcribed. This example holds only
+# subject in representation.atom.element and consumed instead of transcribed. This example holds only
 # chemistry's own layer, a valence per element. It runs before that ledger lands on main; wiring the
 # import is the routed follow-up. Valence is defined here as the number of covalent bonds a neutral,
 # closed-shell atom forms, which for the main group is min(v, 8 - v) over its valence electrons.
@@ -32,7 +32,7 @@ import io
 import sys
 
 # The number of covalent bonds each element forms in a neutral, closed-shell molecule. Chemistry's
-# own layer, not the element ledger: it names no proton count and no electron configuration. Helium
+# own layer, separate from the element ledger: it names no proton count and no electron configuration. Helium
 # forms none. A charged or open-shell species is outside this model and is left out of the catalog
 # and not forced through it.
 VALENCE = {"H": 1, "C": 4, "N": 3, "O": 2, "F": 1, "Cl": 1}
@@ -214,7 +214,7 @@ def main():
     out.write(
         "  each of those closes every atom. The octet admits them all and the choice among\n"
     )
-    out.write("  them is left to a measure, not to valence.\n")
+    out.write("  them is left to a measure instead of to valence.\n")
 
     ok = closed == len(CATALOG)
     out.write(

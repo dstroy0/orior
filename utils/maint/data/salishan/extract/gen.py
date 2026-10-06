@@ -164,7 +164,7 @@ def successor(label, previous):
 def orthographic(run):
     """Whether an italic run is a cited form of the language: a letter outside plain English, or
     an affix's hyphen or a root's √ at its edge. A run of four words or more, most of them plain
-    English letters, is an italicized sentence that names a language, not a form of it."""
+    English letters, is an italicized sentence that names a language instead of a form of it."""
     words = run.split()
     if len(words) >= 4 and sum(bool(re.fullmatch(r"[A-Za-z()\-,.;:]+", one)) for one in words) > 0.6 * len(words):
         return False

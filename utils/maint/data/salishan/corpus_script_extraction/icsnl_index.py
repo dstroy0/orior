@@ -9,7 +9,7 @@
 #
 # The conference has met every year since 1966 and the University of British Columbia posts the whole run,
 # with the volumes from 1966 to 1999 held as the Kinkade Collection and the rest published since. That is
-# fifty and more volumes of description of a family with no annotated corpus anywhere, which makes the
+# fifty and more volumes of description of a family with no annotated corpus anywhere, and that makes the
 # archive the corpus.
 #
 # The links are pulled out of the page here instead of through a summarizer, because a summarizer given a
@@ -17,7 +17,7 @@
 # this page. The addresses are the only part that matters.
 #
 # Nothing is downloaded by this. It writes the list and stops, since the run is several hundred megabytes
-# and what to take from it is a decision, not a default.
+# and what to take from it is a decision instead of a default.
 
 import io
 import os

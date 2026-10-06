@@ -265,7 +265,7 @@ def _efficiency():
     Eight independent arms give rank 8. So do the eight sign octants, and so does any other eight
     that are independent. Reporting that a different eight "recovered eight directions the octants
     could not see" is true and says less than it sounds: at eight arms rank 8 is the ceiling, and the
-    octants already reach it. What a different arrangement buys is DIFFERENT directions, not more.
+    octants already reach it. A different arrangement buys DIFFERENT directions instead of more.
 
     The quantity that actually varies is INDEPENDENCE. An arm set of k arms has rank at most
     min(k, N), and whether it attains that is a property of where the arms sit. The agglomeration

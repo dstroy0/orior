@@ -23,7 +23,7 @@
 #
 # The generalization is the falsifiable part and it is what this script tests. If the mechanism is
 # continued fractions then the reported number should be a convergent denominator of the slope for
-# any irrational slope, not only for phi. Nine slopes, seven windows each.
+# any irrational slope, phi among them. Nine slopes, seven windows each.
 #
 # The diagnostic that comes out of it needs no oracle at all. A true period is the same number at
 # every window. These are not: none of the nine slopes gives one answer across all seven windows,

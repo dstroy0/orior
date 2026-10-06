@@ -6,7 +6,7 @@
 #
 #   python utils/test/src/lng/lng_check_test.py
 #
-# Every expectation below was written by reading the input, not by running the tool. Each check has
+# Every expectation below was written by reading the input instead of by running the tool. Each check has
 # a clean input it must pass and a broken one it must catch: a check that has never caught anything
 # cannot be told apart from one that catches nothing.
 

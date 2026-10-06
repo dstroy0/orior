@@ -18,7 +18,7 @@ Two costs grow at different rates and only one of them is the arithmetic:
     the REDUCTION        grows with how many times the lattice swaps, and each swap in
                          `reduce_lattice` recomputes the ENTIRE Gram-Schmidt from scratch
 
-The second is a property of the implementation, not of the problem. Textbook LLL updates the
+The second is a property of the implementation instead of the problem. Textbook LLL updates the
 coefficients incrementally on a swap; this one throws them away and rebuilds, which is O(n^3) inner
 products every time. If that term dominates, buying a faster multiply or a bigger card does nothing
 at all, and the fix is in the reduction.
@@ -124,7 +124,7 @@ def main():
     print("  precision. Linear count times width^1.585 predicts an exponent near 2.585 and 2.64 was")
     print("  measured. The model closes.")
     print()
-    print("  SO THE CARD CANNOT HELP THIS SEARCH, AND THE ANSWER IS A NUMBER, NOT AN OPINION.")
+    print("  SO THE CARD CANNOT HELP THIS SEARCH, AND THE ANSWER IS A NUMBER INSTEAD OF AN OPINION.")
     print()
     print("  A device multiply only beats the host above 1,024 limbs, which is 32,768 bits. The mean")
     print("  operand here is 0.642 times the precision. The mean multiply reaches the crossover")

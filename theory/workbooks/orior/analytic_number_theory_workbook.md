@@ -13,7 +13,7 @@ research paper already refused the exact temptation this one has to refuse:
 - Claim nothing. No open problem is attacked here. A method that led a research paper would already claim to
   reach something; nothing of that kind is claimed or supported.
 - Cite nothing unread. A fact that arrived by report says so in the sentence carrying it.
-- Gaps go in the sentence making the claim, not in a footnote.
+- Gaps go in the sentence making the claim and never in a footnote.
 - Withdrawn entries stay on the page with whatever killed them.
 - Draw the bar, never derive it. A threshold reasoned out of a distribution inherits every variance
   source it forgot.
@@ -52,7 +52,7 @@ facts and connects them to the measurement floor.
 - The generation operator is a Moore closure: extensive, monotone, idempotent, with closed sets closed
   under intersection. One round of derivation is extensive and monotone but not idempotent, the null;
   a closure is the fixed point.
-- The exactly-nameable quantities are countable: a finite description over a finite alphabet lands at a
+- The exactly nameable quantities are countable: a finite description over a finite alphabet lands at a
   finite index, and the enumeration is shown injective and a contiguous prefix of the naturals on a
   sample.
 - The reals are not countable: Cantor's diagonal builds, from any finite table, a real differing from
@@ -604,7 +604,7 @@ point `e` of cell 300. `N(T_a) = 384` and `N(T_e) = 941,822`, each held to one v
 `x^(-1/2) = 2^b / U` are exact. `b` is the least that gives the cell 4 points or more for each unit
 `theta / pi` rises across it: `2^-12` at cell 10, `2^-18` at cell 100 and `2^-20` at cell 300.
 
-**Held, not rounded.** Every value is a mantissa in a register and a binary exponent the program holds.
+**Held instead of rounded.** Every value is a mantissa in a register and a binary exponent the program holds.
 A product multiplies the mantissas and adds the exponents. A quotient is read below and above, outward:
 each value is a bracket of two integers at a power of two, and none is held at a fixed scale.
 
@@ -727,7 +727,7 @@ step's divisions take.
 - **The port check.** The host's records equal the device's word for word.
 
 **What it is not.** The spherical function at the points of a grid, by two routes and their bounds.
-It computes no Selberg transform, no Eisenstein series and no scattering, and it says nothing about
+It computes neither a Selberg transform, an Eisenstein series nor scattering, and it says nothing about
 the hypothesis.
 
 ## Entry 11: a counted zero turned into a certificate a second reader checks in one pass
@@ -793,7 +793,7 @@ must agree.
 **The depth.** The value is read at a count of places by the two routes, `N` doubling until they
 agree. The jittered index is read at those places and again at twice them, and the places double until
 the two indices agree. The reader cannot draw more out of a value than the value holds, and the depth
-each point needs is decided by that agreement, not assigned in advance.
+each point needs is decided by that agreement instead of assigned in advance.
 
 **The line.** On `Re(s) = 1/2`, zeta is `e^(-i theta) Z` with `Z` real, and the phase of zeta is
 `-theta` up to a half turn. `theta` comes by a second route, Stirling's series in `exact_zeta_gram.py`,
@@ -1096,7 +1096,7 @@ checks failed:
 
 - The scatter is already about two to one along the track, the misses sitting behind the walker, and
   the aspect widens slowly with height (0.477 to 0.567). The share under us holds above 99.1%, and the
-  far misses stand four to nine times past the core: single dots, not a smear.
+  far misses stand four to nine times past the core: single dots instead of a smear.
 
 A height's 600 to 2,200 misses read the share under us to about a tenth of a percent. A share of
 99.999% is read from `10^5` misses or more.
@@ -1148,7 +1148,7 @@ word of their slope, each against the uniform lattice and a shuffled null.
 | null, golden shuffled | 0.091 | 92.5% | 214 |
 
 - The result is against the posit. As a sampling grid the metallic rhythm widens the pickle and loses
-  misses under us, not narrows it. Every comb catches more misses than the uniform lattice and pushes
+  misses under us instead of narrowing it. Every comb catches more misses than the uniform lattice and pushes
   more past a step. The ordered comb is worse than its own shuffle (0.263 against 0.149; 0.118 against
   0.091): the rhythm concentrates misses, it does not spread them.
 - The cause is the gap variance: a non-uniform lattice at one mean rate has longer gaps than the
@@ -1156,11 +1156,11 @@ word of their slope, each against the uniform lattice and a shuffled null.
   across it. Golden, the flattest comb, is the least hurt; silver and the comb, with the longest gaps,
   the most.
 - The reading: the carrier is not a sampling grid. Its role as the posits set it, a known reference to
-  read `w` against, is a readout under a lattice chosen to catch zeros, not the lattice itself. The
-  grid wants to be uniform or denser where the dips are, not quasiperiodic.
+  read `w` against, is a readout under a lattice chosen to catch zeros instead of the lattice itself. The
+  grid wants to be uniform or denser where the dips are instead of quasiperiodic.
 
 The share under us is raised by a lattice denser where it misses, the dip-driven control of the open
-list, not by a carrier grid.
+list instead of a carrier grid.
 
 **The filter built to trap.** Posit, Doug's: a filter that concentrates misses is built wrong. It is
 to be built to trap the zeros between its peaks.
@@ -1300,7 +1300,7 @@ to be built to trap the zeros between its peaks.
   | neither | 1 |
 
   165 of the 166 are the surface's twist. The one left reaches 1.50 `theta'` at most between its zeros,
-  the level's move by `R / (2 |F|)` the way derived for it, not yet read.
+  the level's move by `R / (2 |F|)` the way derived for it, and not yet read.
 - **The sources of the waves.** Posit, Doug's: with the wave's shape known where it is made, its
   harmonics locate the wave's origin, show whether the origins form a regular interference pattern, and
   predict where seiches will occur.
@@ -1430,7 +1430,7 @@ to be built to trap the zeros between its peaks.
   flag from the device.
 - **The slide.** Posit, Doug's: the miss the pole rule leaves is the ball sliding while it spins; it
   loses its grip for a moment, and the forces decouple entirely. The slides come on extreme changes of
-  course. Rules are to be relational, one motion against another, not set at a threshold: where the
+  course. Rules are to be relational, one motion against another instead of set at a threshold: where the
   momentum is 1 and the angle 0, the coupling is 1. The turn at a miss is an orbital slingshot.
   Measured, the miss left, across its two zeros: the drag 0.93 to 1.50, the clock steady; the swell
   -6.3 to -1.1 over `theta'`, `|F|` falling from 0.147 to 0.033; the level `R / (2 |F|)` rising from
@@ -1834,7 +1834,7 @@ one each run in its own process gives.
 **`F` and `F'` as two sets of one evaluation.** Timed run by run over cell 301, the device's 148 runs of
 the two evaluations take 0.29 s, and the local shift 0.205 s of it: 18 runs of its 18,124-step program
 at 11 ms each, whether a level holds 8 boxes or 2,048. A lane's steps run one after another, and the
-run's time is its lanes' length, not their count. The poles and the weighted poles stand at the same
+run's time is its lanes' length instead of their count. The poles and the weighted poles stand at the same
 places and lay their records out alike, and every program of `F'`'s evaluation is `F`'s. The two run as
 two sets of one evaluation: the weighted poles' records after the poles', each stage's records set
 after set with one zero record after them all, every index of the second set moved by the first set's
@@ -2271,7 +2271,7 @@ What the math bounds of each. Derived unless marked.
     of size `1 / lambda < 1`, every periodic comb's growth is a quadratic Pisot unit, and every member
     is a one-dimensional Pisot quasicrystal with pure-point diffraction. The `{n,n,n}` diagonal are the
     metallic means, sweeping from the densest and flattest (golden) to sparser as `n` grows; the kicked
-    combs interleave them. Which member locks best to the zeros is measured, not chosen.
+    combs interleave them. Which member locks best to the zeros is measured instead of chosen.
   - **Synthesis** (posit 7: integrate and recombine the carriers in any way to lock onto any
     harmonic chosen). A finite sum of pure-point combs is pure point: a combination of these
     members is a carrier with lines at a chosen set of frequencies, a matched filter built to a target.
@@ -2280,8 +2280,8 @@ What the math bounds of each. Derived unless marked.
     frequencies, and `log p` is transcendental (Lindemann). A line lands on a prime power only to a
     precision, at a finite height the window's width, the engine's own discipline. In the
     engine a carrier is one weight field a lane, and a combination is another weight field: synthesis
-    costs one field, not a rebuild.
-  - Wanted, not built: lattices in `theta / pi` stepped by these combs, the moments of `w` (inertia,
+    costs one field instead of a rebuild.
+  - Wanted and not built: lattices in `theta / pi` stepped by these combs, the moments of `w` (inertia,
     angle, angular momentum `Im(conj(F) F')`) read against each, their beat read as the difference, and
     each read with the steps shuffled, as the null.
 - **(7) Two crystals tuned to a known comb and set against each other.** Read against the engine's two
@@ -2299,7 +2299,7 @@ What the math bounds of each. Derived unless marked.
   - What the engine adds: it holds both combs in one field and reads a chosen carrier against them
     exactly, with a drawn null. What it cannot reach is the all-functions positivity, the hypothesis
     itself.
-- **(8) The carrier is finite-state, not a truncated series.** Read against the two crystals'
+- **(8) The carrier is finite-state instead of a truncated series.** Read against the two crystals'
   computability.
   - **The sharp distinction: completeness is local.** The machine never holds the completed infinite
     totality, the fog. In a locale it holds every bit of variability the locale contains, exactly: an
@@ -2344,7 +2344,7 @@ What the math bounds of each. Derived unless marked.
   - **The reckoning.** The prime lines forecast the twist, `phi' ~ theta' - sum of Lambda(n) n^(-1/2)
     sin(t ln n)`, cheap and fixed, and mark the steps at risk (entry 16, the seiches). On the line the
     series does not converge, and at a source `F'/F` has a pole no finite set of lines makes: the lines
-    guarantee the kind of noise, not each pulse. The fix at each coarse point, `F'/F` exact on the
+    guarantee the kind of noise instead of each pulse. The fix at each coarse point, `F'/F` exact on the
     device, holds what lies between the lines.
   - **The primes read back from the zeros** (entry 16): the certified zeros of `Z` in one window place
     every prime power past the window's `N`, by Landau.
@@ -2455,7 +2455,7 @@ want, and the status says what has been run. No row bears on the hypothesis.
 | the digits of a zero | Riemann-Siegel or Euler-Maclaurin, to a stated precision | exact values, with no infinite digit strings and no spurious divergences | Platt's interval computation, which isolated every zero below about `3 * 10^10` to `2^-102`, with directed rounding at each step | done by the field, rigorously, and reported from a web search (the precision tradition section). Exact arithmetic sharpens the values to zero width and leaves the zeros to the same enclosure |
 | the zeros as a set | counted by `N(T) ~ (T / 2pi) log(T / 2pi) - T / 2pi` | an infinite point cloud in which every branch has an answer | every zero up to a height `T` found by the winding count, and the count checked against `N(T)`; and the same count checked against `N(T)` by Turing's method | the winding count: run below `t = 123` (entry 4), forty, as the published table has them. Turing's method: run (entries 9, 14 and 15), every zero in `(0, 6295757.960979]` a certified sign change, 12,843,158. A count reaches a horizon and never all of them (the bounding function section) |
 | the spacing law | Montgomery's pair correlation against the GUE | the spacing matches the energy levels of quantum chaotic systems, said to be proven | a proof of Montgomery's conjecture | not proven: entry 3 records it as a conjecture with strong numerical support, in the column labeled a dream |
-| L* on zeta | not in the problem | zeta treated as unknown hardware, and the field's preferences probed the way a processor's timing is | L* learns a finite automaton from membership and equivalence queries. Zeta would need an alphabet and a membership query, and neither is named | wanted, not built. engine_table has no L* row; its M23 holds the refinement loop, not built |
+| L* on zeta | not in the problem | zeta treated as unknown hardware, and the field's preferences probed the way a processor's timing is | L* learns a finite automaton from membership and equivalence queries. Zeta would need an alphabet and a membership query, and neither is named | wanted and not built. engine_table has no L* row; its M23 holds the refinement loop, not built |
 | every zero on the line | the hypothesis | the structure forces every zero onto that symmetry line | a proof | open. Nothing here bears on it |
 
 ## The device program, and what it wants
@@ -2492,18 +2492,18 @@ places, `N` and the widths come from the records.
 - Entry 4 counts below `t = 123`, one value at a time on the host, in five minutes. The device
   program and its wants are the table above. Of it, Z3's `C` and Z1's `A` across a cell run on the
   device; the rest is not built.
-- Entry 5 reads `theta` and the Gram points on the host, and Z8 above is its device part, not built.
+- Entry 5 reads `theta` and the Gram points on the host, and Z8 above is its device part, and not built.
 - Entry 6 reads `Z` on the host. Of Z9, its device part, `R`'s curves run across a cell, and entry
   9's term and point stages give `Z` through `C_10` at every point of a cell, under Gabcke's bound on
   `R_10` (entry 19). Every `C_n` is built (entry 7), and the host's `R` stops at `c_5`. `R` to the
-  series' own least term, and the exact remainder in place of the series, are wanted, not built.
-- Entry 7's zeros of `C_n` are read on grids, and a count proven complete on `0 < z < 1` is wanted,
-  not built. What grows in triangle cell 5, six times cell 4's time, is not yet read.
+  series' own least term, and the exact remainder in place of the series, are wanted and not built.
+- Entry 7's zeros of `C_n` are read on grids, and a count proven complete on `0 < z < 1` is wanted
+  and not built. What grows in triangle cell 5, six times cell 4's time, is not yet read.
 - Asked of the triangle: the fractal has at least three terms and perhaps five, perhaps all of x, y,
   z, d and t. It then becomes a probability wave function, and a vector walk over it proves the
   fractal. Then: it is a coordinate system, a dimension and time. Entry 8
   reads them as the three sides, each side's scaling exponent between cells, and `t`. The vector walk
-  over them is wanted, not built.
+  over them is wanted and not built.
 - Entry 8's spread of the arrival angles is read in 84 windows of 1,024 boundaries and over two whole
   stretches, from 2 and from `10^6`. The triangle measured past cell 6, against what the omitted curves
   give there, is wanted.
@@ -2518,16 +2518,16 @@ places, `N` and the widths come from the records.
 - The form factor of the zeros on `theta / pi` is read at seven heights an e-fold apart (entry 17).
   The pair counts by eighths, each pair's difference carrying the two certified intervals' widths, are
   read against the demon's arms at three heights (entry 18). The form factor from the zeros' intervals,
-  in place of their midpoints, is wanted, not built.
+  in place of their midpoints, is wanted and not built.
 - The drawn null through the same field: the demon's arms, the gaps shuffled and shuffled within runs,
   run on `S`'s curves and the pair counts (entry 18), and the carriers' steps shuffled and shifted
   against `w`'s moments. GUE draws in place of the zeros, and the arms against every structure entry 16
-  reads at the misses, are wanted, not built.
+  reads at the misses, are wanted and not built.
 - The metallic carriers in place of e ("The zeros in the engine's field", (6)): the lattices the golden
   `1, 1, 1`, the silver `2, 2, 2` and the `1, 1, 2` comb step are measured as sampling grids against the
   uniform lattice and their shuffled steps (entry 16), and the moments of `w` against each, with their
   beat, at one mark a unit (entry 18). The same at the rate of the miss map's coarse lattices is
-  wanted, not built. Every growth constant, `phi`, `1 + sqrt(2)` and `3 + sqrt(10)`, is a Pisot unit,
+  wanted and not built. Every growth constant, `phi`, `1 + sqrt(2)` and `3 + sqrt(10)`, is a Pisot unit,
   and each comb is a one-dimensional Pisot quasicrystal ([zeta_prior_art.md](zeta_prior_art.md)).
 - The two crystals tuned to a known comb and set against each other ("The zeros in the engine's field",
   (7)): `w` and its conjugate, as `w^2`, against four carriers with a drawn null (entry 18). At one mark
@@ -2538,7 +2538,7 @@ places, `N` and the widths come from the records.
   term the charge is `1.2 e-22` at cell 10 (entry 19).
 - Entry 10 reads `phi_r` for `u < 1/2` and `r < 8`. The Selberg transform of a kernel, `c(r)`, and
   the scattering `pi c(r) zeta(2 i r) / zeta(1 + 2 i r)`, whose poles sit at half the zeros, are
-  wanted, not built.
+  wanted and not built.
 
 ## Withdrawn
 

@@ -148,7 +148,7 @@ def _check(product):
         return 0
     if known_ok and not found_ok:
         print("  The known formula checks out but the search returned something that does not.")
-        print("  The reduction is at fault, not the arithmetic.")
+        print("  The reduction is at fault instead of the arithmetic.")
     elif found_ok and not known_ok:
         print("  The search found a relation but the KNOWN formula does not hold on these values,")
         print("  which means the auxiliary sums are being computed wrongly. Suspect the series")

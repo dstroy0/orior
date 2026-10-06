@@ -17,9 +17,9 @@
 // and the word of ones that a rewrite needs and no operand carries. 24 symbols and 13 places is 24^13, or 8.76e17,
 // which sits inside an unsigned long long. Every tree in either web is one 8-byte number.
 //
-// What this buys is not bytes. web_check measures both and the node lists win at this size - 21 trees hold 32 nodes
+// This buys no bytes. web_check measures both and the node lists win at this size - 21 trees hold 32 nodes
 // between them, three bytes each, against eight bytes a tree for the numbers - because most words are a single node
-// and a tree has to reach five before a number pays for itself. What it buys is one form per tree. A node list
+// and a tree has to reach five before a number pays for itself. It buys one form per tree. A node list
 // carries an ordering the tree does not have: the same tree written by two hands numbers its nodes differently, and
 // the two lists differ where the trees do not. As a number, one tree is one value. Two subtrees are the same
 // subtree where their numbers are equal, a compare in place of a walk, and a .kdm keyed on subtrees rests on that,

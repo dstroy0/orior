@@ -15,7 +15,7 @@
 #
 # THE ENCODING, AND WHY IT DECIDES THE REST
 #
-# pdftotext writes Latin-1 unless told otherwise, and Latin-1 has no ʔ, no ə and no ɬ. A paper
+# pdftotext writes Latin-1 unless told otherwise, and Latin-1 has neither ʔ, ə nor ɬ. A paper
 # converted that way still opens, still looks like a paper, and has had the language taken out of
 # it. Given -enc UTF-8 it keeps the characters and reorders the page: it lays text out by position,
 # and a running header then prints before the title it sits above while a two-column table comes out
@@ -227,7 +227,7 @@ def converted(source, target):
     if unmapped:
         with open(notice, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(
-                "The text beside this file is the font's encoding, not the page.\n"
+                "The text beside this file is the font's encoding instead of the page.\n"
             )
             handle.write("Read the page instead:\n")
             handle.write(

@@ -12,7 +12,7 @@ condition and the bond length as an oracle, using the primitives already in the 
 | `4_measure`   | `a_single_period_cannot_see_a_growing_one.py` | why a single-period reader misses a growing recurrence, and why the boundaries must be supplied                  |
 | `5_sift`      | `valence_is_a_necessary_condition.py`         | whether the octet errors on no real molecule and prunes the rest, and whether a shuffle of the same atoms loses it |
 
-Stages two and six are not present yet, and stage four is present only in the readings that need no geometry. The reason is a boundary, not an omission.
+Stages two and six are not present yet, and stage four is present only in the readings that need no geometry. The reason is a boundary instead of an omission.
 
 ## The stages here run on what exists
 
@@ -33,7 +33,7 @@ closes and most permutations do not. A degree-preserving rewire deletes the conn
 each atom's degree at its valence, and the octet does not depart from it at all, closing on every
 rewire including the self-bonded graphs that are not molecules. So the octet carries which element sits
 where and carries nothing about which atoms are joined, and telling one isomer from another is a
-measure question, not a valence question.
+measure question instead of a valence question.
 
 Stage four measures, and it measures a limit. Collision entropy reads the atom counts alone. It is
 permutation invariant, and `a_histogram_cannot_see_structure.py` shows a molecule and any rearrangement
@@ -97,6 +97,6 @@ python examples/chemistry/5_sift/valence_is_a_necessary_condition.py
 
 Not one reads a file or reaches a network. The molecules and their valences are in the scripts, a
 bonding map that is chemistry's own layer and not the element ledger, and the periodic example's
-sequence is a synthetic sawtooth with arbitrary segment lengths, not the shell counts.
+sequence is a synthetic sawtooth with arbitrary segment lengths instead of the shell counts.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

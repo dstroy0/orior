@@ -295,8 +295,8 @@ def _check():
     digits = 120
 
     # Pi against a prefix taken on authority. The one imported number in this file.
-        # Fifty places is far past anything a shader consumes and far short of what the code can do,
-    # which makes it a check on correctness and not on reach.
+        # Fifty places is far past anything a shader consumes and far short of what the code can do.
+    # That makes it a check on correctness and not on reach.
     text = shown(pi_machin(digits), digits)
     want = PI_PREFIX
     lines.append("  pi against a %d digit prefix: %s" % (len(want) - 2, "agrees" if text.startswith(want) else "DIFFERS"))

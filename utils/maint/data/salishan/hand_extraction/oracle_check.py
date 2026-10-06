@@ -190,7 +190,7 @@ def trailing_marker(plain):
 
 # A footnote number set in front of the word it marks, as Mary George's 70gagayat is. The two
 # numbers stack: (28)140chechlhem carries the line number and the footnote number both. The strip
-# runs until nothing more comes off. 7 is the glottal stop in the van Eijk orthography. 7amash
+# runs until nothing else comes off. 7 is the glottal stop in the van Eijk orthography. 7amash
 # and t7u open with a digit and are whole words. A run of one 7 stays; a run holding any other digit
 # is the marker.
 def leading_marker(plain):
@@ -533,7 +533,7 @@ def main():
 
         rows = oracle_rows(table)
 
-        # Width first, because it is structural and holds whether or not the content can be
+        # Width first, because it is structural and holds whether the content can be
         # graded. A paper in ORTHOGRAPHY_ABSENT returns before the counts below, and a damaged
         # row there is still a damaged row.
         wide = wrong_width(table)
@@ -592,7 +592,7 @@ def main():
             if welds.get(token, set()) & written:
                 continue
             # An English possessive on a name in the language. These papers are written in English
-            # and put one on Kʷəɬtəzétkʷu’s. The word is the name, and the row holds the name.
+            # and put one on `Kʷəɬtəzétkʷu’s`. The word is the name, and the row holds the name.
             if token.endswith(("’s", "'s")) and (token[:-2] in written):
                 continue
             # A capital opening a sentence. None of these orthographies tell two words apart by

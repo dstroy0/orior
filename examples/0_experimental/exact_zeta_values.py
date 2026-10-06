@@ -9,7 +9,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_zeta_values.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. It is the first entry of an analytic-number-theory workbook, and it claims nothing about any
 # open problem. The Riemann hypothesis concerns the ZEROS of zeta(s) in the critical strip; this file
 # touches none of them. It computes the VALUES at the even integers, which have a closed form Euler
@@ -101,7 +101,7 @@ def convolution_identity_holds(coefficients):
 def main():
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
     out.write("  zeta at the even integers, exact, and Euler's identity as a pi-free check\n")
-    out.write("  this touches the VALUES, not the zeros; it claims nothing about the Riemann hypothesis\n\n")
+    out.write("  this touches the VALUES instead of the zeros; it claims nothing about the Riemann hypothesis\n\n")
 
     bernoulli = bernoulli_numbers(2 * HIGHEST)
     coefficients = {twice_k: zeta_coefficient(twice_k, bernoulli)

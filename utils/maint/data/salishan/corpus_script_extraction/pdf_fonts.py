@@ -7,7 +7,7 @@
 #   Usage:  python maint/data/salishan/corpus_script_extraction/pdf_fonts.py <name> [name ...]
 #
 # salish_purity.py reports which extracted papers lost their phonemes, and the answer for everything
-# published before about 2014 is all of them. Lushootseed with no glottal stop, no schwa and no lateral
+# published before about 2014 is all of them. Lushootseed with neither glottal stop, schwa nor lateral
 # fricative is not Lushootseed, and the whole pre-2010 literature in this archive reads that way.
 #
 # The glyphs are still in those files. The map from the font's own character codes back

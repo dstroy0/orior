@@ -17,13 +17,14 @@ import os
 import sys
 
 from .holes import diff_holes
-from .oracle import offlist, oracle_roots, pick
+from .oracle import offlist, oracle_roots, pick, plain_for
 
 USAGE = (
     "  docs_check --pick=after <word>          what this writing puts after a word",
     "  docs_check --pick=before <word>         what it puts before one",
     "  docs_check --pick=between <one> <two>   what it puts between two",
     "  docs_check --pick=rank <word> ...       each word's count, 0 where it is never used",
+    "  docs_check --pick=plain <words> ...     the plain form the style guide gives for a phrase",
     "  docs_check --offlist [<root> ...]       words in the tree that voice.tsv does not approve",
     "  docs_check --holes=<unified diff>       added lines a repair may have left ungrammatical",
     "  docs_check --show=<regex> [<root> ...]  the lines the matching findings sit on",
@@ -42,6 +43,8 @@ def words_given(argv):
 
 def show_pick(asked, given):
     """Print one pick reading. 4 where the request names no reading this can answer."""
+    if asked == "plain":
+        return show_plain_for(given)
     rows = pick(asked, given)
     if rows is None:
         print("  --pick takes after, before, between or rank, and the words to ask about.")
@@ -53,6 +56,20 @@ def show_pick(asked, given):
         return 0
     for count, word in rows:
         print("  %8d  %s" % (count, word))
+    return 0
+
+
+def show_plain_for(given):
+    """Print every phrase of the plain table the words hold, with the form the guide gives for it."""
+    if not given:
+        print("  --pick=plain takes the words to read: --pick=plain <words> ...")
+        return 4
+    rows = plain_for(given)
+    if not rows:
+        print("  the style guide names no phrase in these words.")
+        return 0
+    for phrase, plain, section in rows:
+        print("  %-32s %-28s NARA %s" % (phrase, plain or "(leave it out)", section))
     return 0
 
 

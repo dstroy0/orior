@@ -13,12 +13,12 @@
 # their own Ramachandran signature, the occupancy of the two-degree grid coarsened to the resolution
 # a null supports. Three things keep this honest and are all in this file:
 #
-#   The resolution is drawn, not chosen. A protein of a few hundred residues cannot fill the 32400
+#   The resolution is drawn instead of chosen. A protein of a few hundred residues cannot fill the 32400
 #   two-degree cells. At that grid its signature is sampling noise and a random draw of the same
 #   count reaches the same distance from the corpus. Coarsening to ten degrees is where a live
 #   signature sits farthest above that residue-count-matched null; the sweep is REPORTED here.
 #
-#   The count is drawn, not chosen. The number of families is the gap statistic (Tibshirani 2001)
+#   The count is drawn instead of chosen. The number of families is the gap statistic (Tibshirani 2001)
 #   against a structure-free reference uniform over the data's own PCA box. A lower live
 #   dispersion than the null is real grouping and not the data merely being tighter than a blob.
 #

@@ -106,7 +106,7 @@ static void magnitude_add(const uint32_t *left, const uint32_t *right, uint32_t 
     for (size_t at = 0u; at < (size_t)ANCHOR_EXACT_LIMBS; at++)
     {
         const uint64_t total = (uint64_t)left[at] + (uint64_t)right[at] + carry;
-        // Explicit narrowing to a limb. The high half is the carry and is kept, not discarded.
+        // Explicit narrowing to a limb. The high half is the carry and is kept.
         result[at] = (uint32_t)(total & LIMB_MASK);
         carry = total >> LIMB_BITS;
     }

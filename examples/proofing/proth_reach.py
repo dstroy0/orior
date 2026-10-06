@@ -76,9 +76,9 @@ def _check():
             failed += 1
     lines.append("")
 
-    # Larger cases whose verdicts are derived, not remembered: a deterministic Miller-Rabin finds
+    # Larger cases whose verdicts are derived instead of remembered: a deterministic Miller-Rabin finds
     # each smallest odd k giving a prime and giving a composite at that power. The answers come from
-    # that computation, not from memory.
+    # that computation instead of from memory.
     lines.append("  LARGER CASES, verdicts derived rather than remembered")
     known = ((27, 40, True), (1, 40, False), (7, 50, True), (1, 50, False),
              (31, 60, True), (1, 60, False))

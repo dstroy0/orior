@@ -299,7 +299,7 @@ def git(root, *arguments):
 
     This is not hypothetical in this tree. The Salishan corpus tracks two papers whose names carry
     U+2019, which is ordinary Salishan orthography, and a listing without this flag returns 0 of
-    them where one with it returns 2. The corpus custodian hit it twice in one day -- catalogued it
+    them where one with it returns 2. The corpus custodian hit it twice in one day -- cataloged it
     in the morning, wrote a rule about it, and walked into it again four hours later on the same
     character in the same repository.
 

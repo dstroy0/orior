@@ -11,7 +11,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_descent_rank.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. The arithmetic is the engine's own: Python integers as the bignum and exact residues mod
 # p^k, no float, no fraction library, no math library. The elliptic-curve group law used for the lower
 # bound is imported from exact_congruent_number.py so one representation carries both files.
@@ -323,7 +323,7 @@ def report_pinning(out):
     out.write("    n=17: upper %d, lower %d, no point found -> rank in [%d, %d], NOT pinned\n"
               % (upper17, lower17, lower17, upper17))
     out.write("    the n=17 gap is Sha[phi]'s 2-part, the known limit of a first descent; the true rank\n")
-    out.write("    is 0, which this descent alone cannot certify. That is the stated floor, not a claim.\n\n")
+    out.write("    is 0, which this descent alone cannot certify. That is the stated floor instead of a claim.\n\n")
     return pinned and upper17 == 2
 
 

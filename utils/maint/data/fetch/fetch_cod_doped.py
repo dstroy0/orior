@@ -463,7 +463,7 @@ def main():
         families.write("# entry\tfamily\tsearch name\n")
         families.flush()
 
-    # Interleaved, not walked family by family. Taking the first name of every family before the
+    # Interleaved instead of walked family by family. Taking the first name of every family before the
     # second name of any of them means a target reached early is still spread across the whole list.
     # Walked in order, a target of ten thousand would be met inside the first few families and the
     # corpus would carry no sulfides, carbonates or zeolites at all.

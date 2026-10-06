@@ -14,8 +14,8 @@
 # from the ledger and puts none in by hand. The keep decision is connected_multigraph in measure, the
 # same gate the wide-set detector runs, and what is built legal and what is detected legal are one test.
 #
-# The gate is a necessary condition, not sufficient: a built formula is one that could be a molecule,
-# not one that is. The space the rules allow is far larger than the molecules that exist, and the point
+# The gate is a necessary condition and is not sufficient: a built formula is one that could be a molecule,
+# which is short of one that is. The space the rules allow is far larger than the molecules that exist, and the point
 # of building it is that count and that containment: the real molecules the detector passed all sit
 # inside this legal space, because they clear the same gate. Integer arithmetic only, no bound.
 
@@ -39,7 +39,7 @@ from measure.graph_realizable import connected_multigraph  # noqa: E402
 from representation.atom import element  # noqa: E402
 
 # assembly_from_atomic_properties sits in this directory; its valence reading is the ledger source, and
-# building on it keeps one derivation of the bond count, not two.
+# building on it keeps one derivation of the bond count instead of two.
 import assembly_from_atomic_properties as assembly  # noqa: E402
 
 # The elements the space is built over, and the count each ranges up to. Carbon, hydrogen, nitrogen and
@@ -58,7 +58,7 @@ ATOM = re.compile(r"([A-Z][a-z]?)(\d*)")
 
 
 def degrees_of_element():
-    """The bonding degree of each build element, its capacity read from the ledger, not put in."""
+    """The bonding degree of each build element, its capacity read from the ledger instead of put in."""
     degree = {}
     for symbol in BUILD_ELEMENTS:
         valence, closure = assembly.outermost_valence(element.atomic_number(symbol))

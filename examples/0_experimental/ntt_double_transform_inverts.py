@@ -9,7 +9,7 @@
 #
 #   Usage:  python examples/0_experimental/ntt_double_transform_inverts.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. The transform is a sum over roots of unity, which are waves on the circle: X[k] = sum_j x[j]
 # w^{jk} with w an n-th root of unity. Apply it a second time and every term collects into a delta,
 # because sum_k w^{k(j+m)} is n when j+m is 0 modulo n and 0 otherwise. The second transform returns

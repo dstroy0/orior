@@ -159,7 +159,7 @@ def flattened(counts):
 def scored(candidate, counts, total, flat):
     """How far a candidate's runs sit from where a flat distribution would put them.
 
-    Each run is its own term, for the reason radix gives: a run needs enough of itself, not enough of
+    Each run is its own term, for the reason radix gives: a run needs enough of itself instead of enough of
     the language. A run the paper never writes scores below zero. A restoration that invents runs
     is pushed down and not merely left unrewarded.
     """

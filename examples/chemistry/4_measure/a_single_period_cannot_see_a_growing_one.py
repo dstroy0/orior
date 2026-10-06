@@ -96,7 +96,7 @@ def partition_agreement(series, boundaries):
 
     Each later segment is compared to the first over the length they share. A recurrence that repeats
     under this partition scores one; a shuffle of the same values scores near chance. The boundaries are
-    supervised, supplied from outside, not found in the series.
+    supervised, supplied from outside instead of found in the series.
     """
     edges = list(boundaries) + [len(series)]
     segments = [

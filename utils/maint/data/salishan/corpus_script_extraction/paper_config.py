@@ -116,7 +116,7 @@ HILBERT_HESS = "?ə" + "čšɬƛᶻʷ" + "̌̓"
 # Robertson writes his Thompson and Shuswap in Americanist symbols and says so on page 30.
 ROBERTSON = SHARED + "̣čš"
 
-# Wolfe's forms are affixes, not words. The set has to reach a suffix written in plain letters
+# Wolfe's forms are affixes instead of words. The set has to reach a suffix written in plain letters
 # with one accent on it. The accents are given composed and combining both: NFC makes á one
 # character while ə́ has no composed form and keeps its acute standing alone.
 WOLFE = SHARED + "ʸːɛεέŋᶿθǰčšĺ" + "áéíóú" + "̌́"
@@ -264,7 +264,7 @@ HAMP_TILLAMOOK = SHARED + "?" + "̣" + "ɔɨæʌɪ"
 # the base and a grave on that same vowel in the derived form, scxaʔánəm against scxaʔànəmákst being
 # the clearest. A set without U+0300 reads half of that alternation as unmarked.
 #
-# æ and ɪ belong to the two authors quoted, not to Kinkade: æ is Reichard's throughout her Coeur
+# æ and ɪ belong to the two authors quoted instead of to Kinkade: æ is Reichard's throughout her Coeur
 # d'Alene forms, and ɪ is the reduplicant vowel of cɪciʔ and cɪciy̓æ, which the table records as an
 # assigned reading of a short curled stroke and not as a glyph anyone identified.
 KINKADE_COLUMBIAN = SHARED + "̣" + "́̀̌" + "æɪ"

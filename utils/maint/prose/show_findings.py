@@ -1,6 +1,6 @@
 """Prints each prose finding with the whole line it sits on, ready to be rewritten.
 
-Fixing a finding needs the sentence, not the token. The gate prints a file, a line and a phrase,
+Fixing a finding needs the sentence instead of the token. The gate prints a file, a line and a phrase,
 which is enough to locate but not enough to rewrite, and rewriting from the phrase alone is how a
 replacement ends up saying less than the original did.
 

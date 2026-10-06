@@ -9,7 +9,7 @@ twenty mutilated comments, and only a length comparison against the original fou
 
 So no replacement is typed here. A caller names a file, a line, the phrase to remove and the phrase
 to put in its place. Everything around the phrase is read out of the file and copied verbatim into
-both sides of the row, which makes losing the tail of a line impossible instead of unlikely.
+both sides of the row, and that makes losing the tail of a line impossible instead of unlikely.
 
     python utils/maint/prose/build_fixes.py plan.tsv        # report the rows it would add
     python utils/maint/prose/build_fixes.py plan.tsv --write

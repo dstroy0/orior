@@ -126,7 +126,7 @@ signature, and never the passphrase.
 **Proposed:** put the key in a Bitcoin status message so it stays available.
 
 **Why it fails.** This is 5.1 published to the most permanent medium that exists. Bitcoin is
-immutable and globally replicated by design: there is no deletion, no expiry and no
+immutable and globally replicated by design: there is neither deletion, expiry nor
 jurisdiction to appeal to. An encrypted key on chain is a fixed target that every future attacker
 can grind against with better hardware than exists today, and the grinding is invisible.
 
