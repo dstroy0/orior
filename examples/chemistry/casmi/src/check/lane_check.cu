@@ -40,6 +40,11 @@
 #define LANE_CHECK_PLACES 18u
 #define LANE_CHECK_PLACES_LIFT 1077ull
 
+// a base B from 1 to 2^53: its biased exponent 1023 to 1075, and the 0 to 52 low mantissa bits a whole B leaves 0
+#define LANE_CHECK_BASE_BIASED_LEAST 1023ull
+#define LANE_CHECK_BASE_BIASED_MOST 1075ull
+#define LANE_CHECK_BASE_DROP_BITS 7u
+
 // a plane's lanes as a tower edge's index: every 16-bit lane is one entry
 #define LANE_CHECK_EDGE_BITS 16u
 #define LANE_CHECK_EDGE_ENTRIES (1u << LANE_CHECK_EDGE_BITS)
@@ -60,6 +65,9 @@ static CasmiParquetFooter s_footer;
 
 // the leading records the host reference runs and is held against, 0 for every one
 static unsigned long long s_host_lanes = 0ull;
+
+// the column run, LANE_CHECK_COLUMNS for every one
+static unsigned int s_column = LANE_CHECK_COLUMNS;
 
 // a column's values, and row r's values from row_start[r] up to row_start[r + 1]
 typedef struct
@@ -447,41 +455,57 @@ static unsigned long long lane_bits(const AnchorExactInteger *value)
     return 0ull;
 }
 
-// The least decimal places p at which an integer k has k 10^-p inside the double's preimage, the reals rounding to
-// nearest, ties to even, stores as this double, and the least such k. On the unit u = 2^(E - 1077) the double is 4M,
-// its preimage runs from 4M - 2 (4M - 1 where M is 2^52 above the least exponent) to 4M + 2, closed where M is even
-// and open where it is odd; k 10^-p lies in it exactly where k 2^s lies between 10^p times its ends, s = 1077 - E.
-// Each p is one floor; `least` counts the floors before the first that holds, LANE_CHECK_PLACES where none does
-// a double's preimage on the unit 2^(E - 1077): its ends `low` and `high`, `odd` 1 where they are open, and `divisor`
-// 2^(1077 - E); a real r rounds to the double exactly where r 2^(1077 - E) lies between the ends
+// a double's preimage on the unit 2^(E - 1077): its ends `low` and `high`, `odd_low` and `odd_high` 1 where each end is
+// open, and `divisor` 2^(1077 - E); a real r rounds to the double exactly where r 2^(1077 - E) lies between the ends
 typedef struct
 {
     unsigned int low;
     unsigned int high;
-    unsigned int odd;
+    unsigned int odd_low;
+    unsigned int odd_high;
     unsigned int divisor;
 } LanePreimage;
 
-static void lane_preimage(ExactRecordProgram *program, unsigned int fraction, unsigned int biased,
-                          unsigned long long most_placed, unsigned int shift_bits, LanePreimage *preimage)
+// a double's mantissa M, its exponent as placed, and its preimage's lower gap: 2 quarters of its last place, 1 where M
+// is 2^52 above the least normal exponent
+static void lane_double_read(ExactRecordProgram *program, unsigned int fraction, unsigned int biased,
+                             unsigned int *mantissa, unsigned int *placed, unsigned int *gap)
 {
     const unsigned int zero = exact_record_constant(program, 0ull);
     const unsigned int one = exact_record_constant(program, 1ull);
     const unsigned int two = exact_record_constant(program, 2ull);
-    const unsigned int four = exact_record_constant(program, 4ull);
     const unsigned int normal = exact_record_above(program, biased, zero);
-    const unsigned int mantissa = exact_record_sum(
+    *mantissa = exact_record_sum(
         program, fraction, exact_record_product(program, normal, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS)));
-    const unsigned int placed = exact_record_sum(program, biased, exact_record_difference(program, one, normal));
-    // the lower gap is half the upper where the fraction is 0 above the least normal exponent
+    *placed = exact_record_sum(program, biased, exact_record_difference(program, one, normal));
     const unsigned int narrow =
         exact_record_product(program, exact_record_equal(program, fraction, zero), exact_record_above(program, biased, one));
+    *gap = exact_record_difference(program, two, narrow);
+}
+
+// 1 where an integer is odd: v - 2 floor(v / 2)
+static unsigned int lane_odd(ExactRecordProgram *program, unsigned int value)
+{
+    const unsigned int two = exact_record_constant(program, 2ull);
+    return exact_record_difference(program, value,
+                                   exact_record_product(program, two, exact_record_quotient(program, value, two)));
+}
+
+static void lane_preimage(ExactRecordProgram *program, unsigned int fraction, unsigned int biased,
+                          unsigned long long most_placed, unsigned int shift_bits, LanePreimage *preimage)
+{
+    const unsigned int two = exact_record_constant(program, 2ull);
+    const unsigned int four = exact_record_constant(program, 4ull);
+    unsigned int mantissa = 0u;
+    unsigned int placed = 0u;
+    unsigned int gap = 0u;
+    lane_double_read(program, fraction, biased, &mantissa, &placed, &gap);
     const unsigned int centre = exact_record_product(program, four, mantissa);
-    preimage->low = exact_record_difference(program, centre, exact_record_difference(program, two, narrow));
+    preimage->low = exact_record_difference(program, centre, gap);
     preimage->high = exact_record_sum(program, centre, two);
-    // closed where M is even: M - 2 floor(M / 2) is the parity
-    preimage->odd =
-        exact_record_difference(program, mantissa, exact_record_product(program, two, exact_record_quotient(program, mantissa, two)));
+    // closed where M is even
+    preimage->odd_low = lane_odd(program, mantissa);
+    preimage->odd_high = preimage->odd_low;
     const unsigned int shift = exact_record_difference(program, exact_record_constant(program, most_placed), placed);
     preimage->divisor = exact_record_two_to(
         program, exact_record_sum(program, shift, exact_record_constant(program, LANE_CHECK_PLACES_LIFT - most_placed)),
@@ -502,24 +526,19 @@ static void lane_preimage_integer(ExactRecordProgram *program, const LanePreimag
     edouble_record_floor_ceiling(program, exact_record_product(program, scale, preimage->high), preimage->divisor,
                                  &high_floor, &high_ceiling);
     // closed: ceil(low) to floor(high); open: floor(low) + 1 to ceil(high) - 1
-    *least = exact_record_select(program, preimage->odd, exact_record_sum(program, low_floor, one), low_ceiling);
+    *least = exact_record_select(program, preimage->odd_low, exact_record_sum(program, low_floor, one), low_ceiling);
     const unsigned int most =
-        exact_record_select(program, preimage->odd, exact_record_difference(program, high_ceiling, one), high_floor);
+        exact_record_select(program, preimage->odd_high, exact_record_difference(program, high_ceiling, one), high_floor);
     *holds = exact_record_difference(program, one, exact_record_above(program, *least, most));
 }
 
-static void lane_places_program(ExactRecordProgram *program, unsigned long long most_placed, unsigned int shift_bits,
-                                unsigned int *least, unsigned int *chosen)
+// The least decimal places p at which an integer k has k 10^-p inside the preimage, and the least such k. Each p is one
+// floor; `least` counts the floors before the first that holds, LANE_CHECK_PLACES where none does
+static void lane_places_search(ExactRecordProgram *program, const LanePreimage *preimage, unsigned int *least,
+                               unsigned int *chosen)
 {
-    const unsigned int fraction_field = exact_record_member_field(program, LANE_CHECK_MANTISSA_BITS, 0u);
-    const unsigned int exponent_field =
-        exact_record_member_field(program, LANE_CHECK_EXPONENT_BITS, LANE_CHECK_MANTISSA_BITS);
-    const unsigned int fraction = exact_record_read_unsigned(program, fraction_field, 0u);
-    const unsigned int biased = exact_record_read_unsigned(program, exponent_field, 0u);
     const unsigned int zero = exact_record_constant(program, 0ull);
     const unsigned int one = exact_record_constant(program, 1ull);
-    LanePreimage preimage;
-    lane_preimage(program, fraction, biased, most_placed, shift_bits, &preimage);
     unsigned int none = one;
     unsigned int counted = zero;
     unsigned int picked = zero;
@@ -528,7 +547,7 @@ static void lane_places_program(ExactRecordProgram *program, unsigned long long 
     {
         unsigned int k_least = 0u;
         unsigned int holds = 0u;
-        lane_preimage_integer(program, &preimage, exact_record_constant(program, power), &k_least, &holds);
+        lane_preimage_integer(program, preimage, exact_record_constant(program, power), &k_least, &holds);
         const unsigned int first = exact_record_product(program, none, holds);
         picked = exact_record_sum(program, picked, exact_record_product(program, first, k_least));
         none = exact_record_product(program, none, exact_record_difference(program, one, holds));
@@ -539,9 +558,127 @@ static void lane_places_program(ExactRecordProgram *program, unsigned long long 
     *chosen = picked;
 }
 
-// each value's least places, LANE_CHECK_PLACES where none holds, and its k, into `places_of` and `k_of`
+// The places program: the reals rounding to nearest, ties to even, store as this double. On the unit u = 2^(E - 1077)
+// the double is 4M, its preimage runs from 4M - 2 (4M - 1 where M is 2^52 above the least exponent) to 4M + 2, closed
+// where M is even and open where it is odd; k 10^-p lies in it exactly where k 2^s lies between 10^p times its ends,
+// s = 1077 - E
+static void lane_places_program(ExactRecordProgram *program, unsigned long long most_placed, unsigned int shift_bits,
+                                unsigned int *least, unsigned int *chosen)
+{
+    const unsigned int fraction_field = exact_record_member_field(program, LANE_CHECK_MANTISSA_BITS, 0u);
+    const unsigned int exponent_field =
+        exact_record_member_field(program, LANE_CHECK_EXPONENT_BITS, LANE_CHECK_MANTISSA_BITS);
+    const unsigned int fraction = exact_record_read_unsigned(program, fraction_field, 0u);
+    const unsigned int biased = exact_record_read_unsigned(program, exponent_field, 0u);
+    LanePreimage preimage;
+    lane_preimage(program, fraction, biased, most_placed, shift_bits, &preimage);
+    lane_places_search(program, &preimage, least, chosen);
+}
+
+// The double nearest an end of an interval, on the end's side: the least double at or above `value` where `above` is
+// 1, the greatest at or below it where `above` is 0, strictly past it where `open` is 1. `value` is an integer of
+// `bits_least` to `bits_least` + 2 bits on some unit, and the double comes out as M 2^s on that unit, M from 2^52 to
+// 2^53 - 1
+static void lane_double_at(ExactRecordProgram *program, unsigned int value, unsigned int bits_least, int above,
+                           unsigned int open, unsigned int *mantissa, unsigned int *shift)
+{
+    const unsigned int one = exact_record_constant(program, 1ull);
+    const unsigned int two = exact_record_constant(program, 2ull);
+    const unsigned int least_mantissa = exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS);
+    const unsigned int width = LANE_CHECK_MANTISSA_BITS + 1u;
+    // s = bits(value) - 53
+    unsigned int s = exact_record_constant(program, (unsigned long long)(bits_least - width));
+    for (unsigned int more = 0u; more < 2u; more += 1u)
+    {
+        const unsigned int edge =
+            exact_record_difference(program, exact_record_power_two(program, bits_least + more), one);
+        s = exact_record_sum(program, s, exact_record_above(program, value, edge));
+    }
+    unsigned int floor = 0u;
+    unsigned int ceiling = 0u;
+    edouble_record_floor_ceiling(program, value, exact_record_two_to(program, s, LANE_CHECK_BASE_DROP_BITS), &floor,
+                                 &ceiling);
+    if (above)
+    {
+        // closed: ceil(v / 2^s); open: floor(v / 2^s) + 1; 2^53 carries into the next binade
+        const unsigned int raw = exact_record_select(program, open, exact_record_sum(program, floor, one), ceiling);
+        const unsigned int over = exact_record_equal(program, raw, exact_record_power_two(program, width));
+        *mantissa = exact_record_select(program, over, least_mantissa, raw);
+        *shift = exact_record_sum(program, s, over);
+    }
+    else
+    {
+        // closed: floor(v / 2^s); open: ceil(v / 2^s) - 1; below 2^52 it falls into the binade under
+        const unsigned int raw =
+            exact_record_select(program, open, exact_record_difference(program, ceiling, one), floor);
+        const unsigned int under = exact_record_difference(program, one, exact_record_above(program, raw,
+                                                                  exact_record_difference(program, least_mantissa, one)));
+        *mantissa = exact_record_select(program, under,
+                                        exact_record_sum(program, exact_record_product(program, two, raw), one), raw);
+        *shift = exact_record_difference(program, s, under);
+    }
+}
+
+// The divided program: x = fl(fl(d) / B), d a decimal k 10^-p and B the constant `base`. The doubles D with
+// fl(D / B) = x are those in B times x's preimage, and the reals rounding to one of them run from the lower end of the
+// least one's preimage to the upper end of the greatest one's, each end closed where its D's mantissa is even. On the
+// unit u / 4 those ends are (4 M_least - gap) 2^s_least and (4 M_most + 2) 2^s_most, and the places search runs on them.
+// `exists` is 1 where some double D divides to x
+static void lane_divided_program(ExactRecordProgram *program, unsigned long long base, unsigned long long most_placed,
+                                 unsigned int shift_bits, unsigned int *least, unsigned int *chosen, unsigned int *exists)
+{
+    const unsigned int fraction_field = exact_record_member_field(program, LANE_CHECK_MANTISSA_BITS, 0u);
+    const unsigned int exponent_field =
+        exact_record_member_field(program, LANE_CHECK_EXPONENT_BITS, LANE_CHECK_MANTISSA_BITS);
+    const unsigned int fraction = exact_record_read_unsigned(program, fraction_field, 0u);
+    const unsigned int biased = exact_record_read_unsigned(program, exponent_field, 0u);
+    const unsigned int one = exact_record_constant(program, 1ull);
+    const unsigned int two = exact_record_constant(program, 2ull);
+    const unsigned int four = exact_record_constant(program, 4ull);
+    LanePreimage x;
+    lane_preimage(program, fraction, biased, most_placed, shift_bits, &x);
+    const unsigned int scale = exact_record_constant(program, base);
+    // B x's preimage ends on u: from B (2^54 - 2) to B (2^55 + 2), bits(B) + 53 to bits(B) + 55 bits
+    const unsigned int base_bits = exact_record_bits_of(base);
+    unsigned int least_mantissa = 0u;
+    unsigned int least_shift = 0u;
+    unsigned int most_mantissa = 0u;
+    unsigned int most_shift = 0u;
+    lane_double_at(program, exact_record_product(program, scale, x.low), base_bits + LANE_CHECK_MANTISSA_BITS + 1u, 1,
+                   x.odd_low, &least_mantissa, &least_shift);
+    lane_double_at(program, exact_record_product(program, scale, x.high), base_bits + LANE_CHECK_MANTISSA_BITS + 1u, 0,
+                   x.odd_high, &most_mantissa, &most_shift);
+    const unsigned int least_two = exact_record_two_to(program, least_shift, LANE_CHECK_BASE_DROP_BITS);
+    const unsigned int most_two = exact_record_two_to(program, most_shift, LANE_CHECK_BASE_DROP_BITS);
+    *exists = exact_record_difference(program, one,
+                                      exact_record_above(program, exact_record_product(program, least_mantissa, least_two),
+                                                         exact_record_product(program, most_mantissa, most_two)));
+    const unsigned int narrow = exact_record_equal(program, least_mantissa, exact_record_power_two(program,
+                                                                                                   LANE_CHECK_MANTISSA_BITS));
+    LanePreimage decimal;
+    decimal.low = exact_record_product(
+        program,
+        exact_record_difference(program, exact_record_product(program, four, least_mantissa),
+                                exact_record_difference(program, two, narrow)),
+        least_two);
+    decimal.high = exact_record_product(
+        program, exact_record_sum(program, exact_record_product(program, four, most_mantissa), two), most_two);
+    decimal.odd_low = lane_odd(program, least_mantissa);
+    decimal.odd_high = lane_odd(program, most_mantissa);
+    decimal.divisor = exact_record_product(program, four, x.divisor);
+    unsigned int counted = 0u;
+    unsigned int picked = 0u;
+    lane_places_search(program, &decimal, &counted, &picked);
+    // where no D exists the places read as none
+    *least = exact_record_select(program, *exists, counted, exact_record_constant(program, LANE_CHECK_PLACES));
+    *chosen = exact_record_product(program, *exists, picked);
+}
+
+// each value's least places, LANE_CHECK_PLACES where none holds, and its k, into `places_of` and `k_of`: of the value
+// itself where `base` is 0, and of the decimal the value is that decimal over `base` where it is not. A k past 64 bits
+// reads as held by none
 static int lane_places(SimResults *results, const LaneColumn *column, const unsigned short *device_rebuilt,
-                       unsigned char *places_of, unsigned long long *k_of)
+                       unsigned long long base, unsigned char *places_of, unsigned long long *k_of)
 {
     unsigned long long least_placed = 0ull;
     unsigned long long most_placed = 0ull;
@@ -557,7 +694,15 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     ExactRecordProgram program;
     exact_record_open(&program);
     unsigned int outputs[2] = {0u, 0u};
-    lane_places_program(&program, most_placed, shift_bits, &outputs[0], &outputs[1]);
+    unsigned int exists = 0u;
+    if (base == 0ull)
+    {
+        lane_places_program(&program, most_placed, shift_bits, &outputs[0], &outputs[1]);
+    }
+    else
+    {
+        lane_divided_program(&program, base, most_placed, shift_bits, &outputs[0], &outputs[1], &exists);
+    }
     LaneLoaded loaded;
     EngineError error;
     if (lane_load(&program, outputs, 2u, LANE_CHECK_LIMBS_PER_VALUE, 1u, &loaded, &error) == 0)
@@ -610,27 +755,30 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
         AnchorExactInteger read;
-        lane_field(&device[value * out_limbs], least_place.out_offset, least_place.out_bits, &read);
-        const unsigned long long places = read.limb[0];
-        most = ((places < LANE_CHECK_PLACES) && (places > most)) ? places : most;
-        unheld += (places >= LANE_CHECK_PLACES) ? 1ull : 0ull;
         lane_field(&device[value * out_limbs], k_place.out_offset, k_place.out_bits, &read);
         const unsigned long long k = ((unsigned long long)read.limb[1] << 32u) | read.limb[0];
-        k_bits += lane_bits(&read);
+        const int narrow_k = lane_bits(&read) <= 64ull;
+        wide += narrow_k ? 0ull : 1ull;
+        lane_field(&device[value * out_limbs], least_place.out_offset, least_place.out_bits, &read);
+        const unsigned long long places = narrow_k ? read.limb[0] : LANE_CHECK_PLACES;
+        most = ((places < LANE_CHECK_PLACES) && (places > most)) ? places : most;
+        unheld += (places >= LANE_CHECK_PLACES) ? 1ull : 0ull;
         at_places[(places < LANE_CHECK_PLACES) ? places : LANE_CHECK_PLACES] += 1ull;
-        wide += (lane_bits(&read) > 64ull) ? 1ull : 0ull;
         places_of[value] = (unsigned char)((places < LANE_CHECK_PLACES) ? places : LANE_CHECK_PLACES);
-        k_of[value] = k;
-        // strtod, correctly rounded, reads "k e-p" back to the stored bits, for the leading checked values
-        if ((value < checked) && (places < LANE_CHECK_PLACES))
+        k_of[value] = (places < LANE_CHECK_PLACES) ? k : 0ull;
+        // strtod, correctly rounded, reads "k e-p" back, and over the base binary64 divides it, to the stored bits
+        if (places < LANE_CHECK_PLACES)
         {
+            k_bits += exact_record_bits_of(k);
             char text[64];
             snprintf(text, sizeof(text), "%llue-%llu", k, places);
-            const double read_back = strtod(text, NULL);
+            double read_back = strtod(text, NULL);
+            read_back = (base == 0ull) ? read_back : (read_back / (double)base);
             apart += (memcmp(&read_back, column->bytes + (value * 8ull), 8u) == 0) ? 0ull : 1ull;
         }
     }
-    lane_line_decimal(results, "    places: ", program.count);
+    lane_line_decimal(results, "    places over ", (base == 0ull) ? 1ull : base);
+    lane_line_decimal(results, ": ", program.count);
     lane_line_decimal(results, " steps, record ", (unsigned long long)loaded.layout.out_bits);
     lane_line_decimal(results, " bits; device ", run_end - run_start);
     lane_line_decimal(results, " us over ", values);
@@ -652,11 +800,10 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     {
         lane_line_decimal(results, " ", at_places[place]);
     }
-    lane_line_decimal(results, "; k past 64 bits ", wide);
+    lane_line_decimal(results, "; k past 64 bits, read as none ", wide);
     lane_line_end(results);
-    sim_check(results, wide == 0ull, "every k is below 2^64");
     sim_check(results, same, "the places records equal the host reference's word for word");
-    sim_check(results, ok && (apart == 0ull), "every k e-p reads back, correctly rounded, to the stored double");
+    sim_check(results, ok && (apart == 0ull), "every held k e-p reads back, correctly rounded, to the stored double");
     cudaFree(device_out);
     free(device);
     free(host);
@@ -852,16 +999,17 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
 // the powers of ten below 2^64
 #define LANE_CHECK_TENS 20u
 
-// the form a value takes on its column's units: the integer on the first unit, the integer on the second, or its stored
-// lanes kept
+// the form a value takes on its column's units: the integer on the first unit, a decimal on the second, a decimal
+// divided by one of the LANE_CHECK_DIVISORS bases, or its stored lanes kept
 #define LANE_CHECK_FORM_UNIT 0u
 #define LANE_CHECK_FORM_DECIMAL 1u
-#define LANE_CHECK_FORM_KEPT 2u
+#define LANE_CHECK_FORM_DIVIDED 2u
+#define LANE_CHECK_FORM_KEPT (LANE_CHECK_FORM_DIVIDED + LANE_CHECK_DIVISORS)
 
-// a base B from 1 to 2^53: its biased exponent 1023 to 1075, and the 0 to 52 low mantissa bits a whole B leaves 0
-#define LANE_CHECK_BASE_BIASED_LEAST 1023ull
-#define LANE_CHECK_BASE_BIASED_MOST 1075ull
-#define LANE_CHECK_BASE_DROP_BITS 7u
+// the bases a decimal is divided by in binary64 before it is stored, as the libraries that write percentages and
+// per-mille scales divide
+#define LANE_CHECK_DIVISORS 2u
+static const unsigned long long LANE_CHECK_DIVISOR[LANE_CHECK_DIVISORS] = {100ull, 999ull};
 
 // the column each intensity's row base is read from, and the intensities' column
 #define LANE_CHECK_BASE_PATH "base_peak_intensity"
@@ -1072,8 +1220,8 @@ static void lane_counts_program(ExactRecordProgram *program, unsigned long long 
 // row with no base reads a 0 laid past the column's end. The host reference runs the leading values, every held c is
 // read back through c / B in binary64 against the stored double, and the counts go through lane_unit_code
 static int lane_counts(SimResults *results, const LaneColumn *column, const LaneColumn *bases,
-                       const unsigned short *device_rebuilt, const unsigned char *places_of,
-                       const unsigned long long *k_of)
+                       const unsigned short *device_rebuilt, const unsigned char *const *places_of,
+                       const unsigned long long *const *k_of)
 {
     if (bases->rows != column->rows)
     {
@@ -1243,18 +1391,32 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     unsigned int fewest_unit = 0u;
     for (unsigned int unit_places = 0u; ok && (unit_places < LANE_CHECK_PLACES); unit_places += 1u)
     {
-        unsigned long long decimal = 0ull;
+        // the value itself as a decimal first, then the decimal it is over each divisor in turn
+        unsigned long long taken[1u + LANE_CHECK_DIVISORS];
+        memset(taken, 0, sizeof(taken));
         for (unsigned long long value = 0ull; value < values; value += 1ull)
         {
-            const unsigned int places = places_of[value];
-            const int takes = (keep[value] == LANE_CHECK_FORM_KEPT) && (places <= unit_places) &&
-                              (k_of[value] <= (~0ull / ten[unit_places - places]));
-            second[value] = takes ? (k_of[value] * ten[unit_places - places]) : unit[value];
-            form[value] = takes ? LANE_CHECK_FORM_DECIMAL : keep[value];
-            decimal += takes ? 1ull : 0ull;
+            second[value] = unit[value];
+            form[value] = keep[value];
+            for (unsigned int each = 0u; (form[value] == LANE_CHECK_FORM_KEPT) && (each <= LANE_CHECK_DIVISORS);
+                 each += 1u)
+            {
+                const unsigned int places = places_of[each][value];
+                if ((places <= unit_places) && (k_of[each][value] <= (~0ull / ten[unit_places - places])))
+                {
+                    second[value] = k_of[each][value] * ten[unit_places - places];
+                    form[value] = (each == 0u) ? LANE_CHECK_FORM_DECIMAL : (LANE_CHECK_FORM_DIVIDED + each - 1u);
+                    taken[each] += 1ull;
+                }
+            }
         }
         lane_line_decimal(results, "    on 1 / B, else 10^-", unit_places);
-        lane_line_decimal(results, " for ", decimal);
+        lane_line_decimal(results, " for ", taken[0]);
+        for (unsigned int each = 0u; each < LANE_CHECK_DIVISORS; each += 1u)
+        {
+            lane_line_decimal(results, ", over ", LANE_CHECK_DIVISOR[each]);
+            lane_line_decimal(results, " for ", taken[1u + each]);
+        }
         scriptura_text(&results->line, ":");
         unsigned long long both = 0ull;
         ok = lane_unit_code(results, column, second, form, &both);
@@ -1297,13 +1459,16 @@ int main(int count, char **arguments)
     sim_open(&results, capacity);
     if (count < 2)
     {
-        scriptura_text(&results.line, "usage: lane_check FILE.parquet [HOST_LANES]\n"
+        scriptura_text(&results.line, "usage: lane_check FILE.parquet [HOST_LANES [COLUMN]]\n"
                                       "  HOST_LANES: the leading records the host reference checks, every one where it"
-                                      " is not given or is 0\n");
+                                      " is not given or is 0\n"
+                                      "  COLUMN: 0 precursor_mz, 1 ms2_mzs, 2 the intensities; every column where it"
+                                      " is not given\n");
         sim_flush(&results);
         return 2;
     }
     s_host_lanes = (count > 2) ? strtoull(arguments[2], NULL, 10) : 0ull;
+    s_column = (count > 3) ? (unsigned int)strtoul(arguments[3], NULL, 10) : LANE_CHECK_COLUMNS;
     const CasmiParquetFooterRead footer = {arguments[1], &s_footer};
     if (casmi_parquet_footer_read(&footer) < 0ll)
     {
@@ -1340,6 +1505,12 @@ int main(int count, char **arguments)
     }
     for (unsigned int each = 0u; each < LANE_CHECK_COLUMNS; each += 1u)
     {
+        if ((s_column < LANE_CHECK_COLUMNS) && (each != s_column))
+        {
+            free(columns[each].bytes);
+            free(columns[each].row_start);
+            continue;
+        }
         const LaneColumn *const column = &columns[each];
         const unsigned long long lanes = column->values * LANE_CHECK_LANES_PER_VALUE;
         scriptura_text(&results.line, "  ");
@@ -1354,8 +1525,16 @@ int main(int count, char **arguments)
                            (cudaMemcpy(device_lanes, column->bytes, (size_t)(lanes * 2ull), cudaMemcpyHostToDevice) ==
                             cudaSuccess);
         sim_check(&results, placed, "the stored lanes reach the device");
-        unsigned char *const places_of = (unsigned char *)malloc((size_t)column->values + 1u);
-        unsigned long long *const k_of = (unsigned long long *)malloc((size_t)(column->values * 8ull) + 8u);
+        // the places of each value itself, then, for the intensities, of the decimal it is over each divisor
+        unsigned char *places_of[1u + LANE_CHECK_DIVISORS];
+        unsigned long long *k_of[1u + LANE_CHECK_DIVISORS];
+        int allocated = 1;
+        for (unsigned int form = 0u; form <= LANE_CHECK_DIVISORS; form += 1u)
+        {
+            places_of[form] = (unsigned char *)malloc((size_t)column->values + 1u);
+            k_of[form] = (unsigned long long *)malloc((size_t)(column->values * 8ull) + 8u);
+            allocated = allocated && (places_of[form] != NULL) && (k_of[form] != NULL);
+        }
         int places_read = 0;
         for (unsigned int layout = 0u; placed && (layout < LANE_CHECK_LAYOUTS); layout += 1u)
         {
@@ -1373,11 +1552,17 @@ int main(int count, char **arguments)
             if (tripped && (layout == (LANE_CHECK_LAYOUTS - 1u)))
             {
                 (void)lane_records(&results, column, device_rebuilt);
-                places_read = (places_of != NULL) && (k_of != NULL) &&
-                              lane_places(&results, column, device_rebuilt, places_of, k_of);
+                places_read = allocated && lane_places(&results, column, device_rebuilt, 0ull, places_of[0], k_of[0]);
                 if (places_read && (each == LANE_CHECK_INTENSITIES))
                 {
-                    (void)lane_counts(&results, column, &bases, device_rebuilt, places_of, k_of);
+                    for (unsigned int divisor = 0u; places_read && (divisor < LANE_CHECK_DIVISORS); divisor += 1u)
+                    {
+                        places_read = lane_places(&results, column, device_rebuilt, LANE_CHECK_DIVISOR[divisor],
+                                                  places_of[1u + divisor], k_of[1u + divisor]);
+                    }
+                    (void)(places_read &&
+                           lane_counts(&results, column, &bases, device_rebuilt, (const unsigned char *const *)places_of,
+                                       (const unsigned long long *const *)k_of));
                 }
             }
         }
@@ -1385,10 +1570,13 @@ int main(int count, char **arguments)
         {
             scriptura_text(&results.line, "   the values on one decimal unit");
             lane_line_end(&results);
-            (void)lane_decimal_trips(&results, column, places_of, k_of);
+            (void)lane_decimal_trips(&results, column, places_of[0], k_of[0]);
         }
-        free(places_of);
-        free(k_of);
+        for (unsigned int form = 0u; form <= LANE_CHECK_DIVISORS; form += 1u)
+        {
+            free(places_of[form]);
+            free(k_of[form]);
+        }
         // the same lanes as planes: plane j holds lane j of every value, in value order; each significance lies
         // beside its own kind; laid once as four rows and once as four lattices of their own
         unsigned short *const planes = (unsigned short *)malloc((size_t)(lanes * 2ull) + 2u);
