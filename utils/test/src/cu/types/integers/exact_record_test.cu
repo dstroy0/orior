@@ -3,7 +3,7 @@
 // on the device and on the host over random lanes, and the two must agree word for word and equal the values the
 // test works out in limbs:
 // - base^e of a register base below 2^8 and e below 16, by square and multiply over e's bits;
-// - 2^e and 3^e of a register e, by the nibble table, e below 2^8 and below 2^6;
+// - 2^e and 3^e of a register e, by the nibble table, e below 2^8 and below 2^6, and 2^e by its bits, e below 2^8;
 // - the outward pair of a quotient, l / r less and more 1, for signed l and r;
 // - the two's complement wrap and narrow, a bit of a signed value, [v > w], [v == w], [v == v] and the larger of the
 //   two by select.
@@ -24,8 +24,9 @@
 
 #define RECORD_TEST_LANES 4096u
 
-// the widest value a case reads back, in limbs: 2^255 and 255^15 fit
-#define RECORD_TEST_VALUE_LIMBS 9u
+// the widest register a case reads back, in limbs: the registers of 3^e by the nibble table and of 2^e below 2^256 are
+// 408 and 272 bits wide
+#define RECORD_TEST_VALUE_LIMBS 16u
 
 #define RECORD_TEST_OUTPUTS 8u
 
@@ -99,12 +100,19 @@ static int record_same(const RecordValue *left, const RecordValue *right)
     return (left->sign == right->sign) && (memcmp(left->limb, right->limb, sizeof(left->limb)) == 0);
 }
 
-// `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign
+// `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign; an output wider than the value
+// holds reads as sign 2, which equals no worked-out value
 static void record_at(const unsigned int *words, unsigned int offset, unsigned int bits, RecordValue *value)
 {
+    if (bits > 32u * RECORD_TEST_VALUE_LIMBS)
+    {
+        memset(value, 0, sizeof(*value));
+        value->sign = 2;
+        return;
+    }
     unsigned int raw[RECORD_TEST_VALUE_LIMBS + 1u];
     memset(raw, 0, sizeof(raw));
-    for (unsigned int bit = 0u; (bit < bits) && (bit < 32u * (RECORD_TEST_VALUE_LIMBS + 1u)); bit += 1u)
+    for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
         raw[bit / 32u] |= ((words[from / 32u] >> (from % 32u)) & 1u) << (bit % 32u);
@@ -222,6 +230,31 @@ static int record_run(RecordResults *results, ExactRecordProgram *program, const
              (cudaMemcpy(device, device_out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
     }
     const int same = (ok != 0) && (memcmp(host, device, words * sizeof(unsigned int)) == 0);
+    if (same == 0)
+    {
+        size_t first = words;
+        size_t differ = 0u;
+        for (size_t at = 0u; (ok != 0) && (at < words); at += 1u)
+        {
+            differ += (host[at] != device[at]) ? 1u : 0u;
+            first = ((first == words) && (host[at] != device[at])) ? at : first;
+        }
+        scriptura_text(&results->line, "  run ");
+        scriptura_decimal(&results->line, (unsigned long long)ok, 1u);
+        scriptura_text(&results->line, ", error module ");
+        scriptura_decimal(&results->line, (unsigned long long)error.module, 1u);
+        scriptura_text(&results->line, " site ");
+        scriptura_decimal(&results->line, (unsigned long long)error.site, 1u);
+        scriptura_text(&results->line, " status ");
+        scriptura_decimal(&results->line, (unsigned long long)(long long)error.status, 1u);
+        scriptura_text(&results->line, ", words differing ");
+        scriptura_decimal(&results->line, (unsigned long long)differ, 1u);
+        scriptura_text(&results->line, " of ");
+        scriptura_decimal(&results->line, (unsigned long long)words, 1u);
+        scriptura_text(&results->line, ", first at ");
+        scriptura_decimal(&results->line, (unsigned long long)first, 1u);
+        scriptura_character(&results->line, '\n');
+    }
     for (unsigned int lane = 0u; (same != 0) && (lane < RECORD_TEST_LANES); lane += 1u)
     {
         for (unsigned int out = 0u; out < output_count; out += 1u)
@@ -273,14 +306,15 @@ static void record_power_case(RecordResults *results)
     exact_record_close(&program);
 }
 
-// base^e for a constant base by the nibble table, e a register of `bits` bits
+// base^e for a constant base by the nibble table, e a register of `bits` bits, or 2^e by its bits where base is 0
 static void record_power_of_case(RecordResults *results, unsigned int base, unsigned int bits, const char *what)
 {
     ExactRecordProgram program;
     exact_record_open(&program);
     const unsigned int exponent_field = exact_record_field(&program, bits);
     const unsigned int exponent = exact_record_read_unsigned(&program, exponent_field, 0u);
-    const unsigned int outputs[1] = {exact_record_power_of(&program, base, exponent, bits)};
+    const unsigned int outputs[1] = {(base == 0u) ? exact_record_two_to(&program, exponent, bits)
+                                                   : exact_record_power_of(&program, base, exponent, bits)};
     for (unsigned int lane = 0u; lane < RECORD_TEST_LANES; lane += 1u)
     {
         // every exponent in turn, then random ones
@@ -294,7 +328,7 @@ static void record_power_of_case(RecordResults *results, unsigned int base, unsi
         record_small(&want, 1);
         for (unsigned int times = 0u; times < s_atoms[lane]; times += 1u)
         {
-            record_times(&want, base);
+            record_times(&want, (base == 0u) ? 2u : base);
         }
         matched += (unsigned int)record_same(&want, &s_read[lane]);
     }
@@ -408,6 +442,7 @@ int main(int count, char **arguments)
         record_power_case(&results);
         record_power_of_case(&results, 2u, 8u, "2^e by the nibble table, e below 2^8, device = host = the limbs' power");
         record_power_of_case(&results, 3u, 6u, "3^e by the nibble table, e below 2^6, device = host = the limbs' power");
+        record_power_of_case(&results, 0u, 8u, "2^e by its bits, e below 2^8, device = host = the limbs' power");
         record_bracket_case(&results);
         record_compare_case(&results);
     }
