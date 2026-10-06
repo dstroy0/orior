@@ -389,6 +389,35 @@ static int stick_balanced(const std::string &text)
     return !text.empty() && (depth == 0);
 }
 
+// `bare`, two flags C joins by one && or one || outside every parenthesis, written with the two exchanged; empty where
+// `bare` joins no two flags so
+static std::string stick_flags_exchanged(const std::string &bare)
+{
+    int depth = 0;
+    size_t joined = std::string::npos;
+    for (size_t at = 0u; (at + 1u) < bare.size(); at += 1u)
+    {
+        depth += ((bare[at] == '(') || (bare[at] == '[')) ? 1 : 0;
+        depth -= ((bare[at] == ')') || (bare[at] == ']')) ? 1 : 0;
+        const int join = (depth == 0) && (((bare[at] == '&') && (bare[at + 1u] == '&')) ||
+                                          ((bare[at] == '|') && (bare[at + 1u] == '|')));
+        if (join != 0)
+        {
+            if (joined != std::string::npos)
+            {
+                return std::string();
+            }
+            joined = at;
+            at += 1u;
+        }
+    }
+    if (joined == std::string::npos)
+    {
+        return std::string();
+    }
+    return bare.substr(joined + 2u) + bare.substr(joined, 2u) + bare.substr(0u, joined);
+}
+
 // `bare`, a comparison of C, written as its complement: its outermost comparison's operator exchanged for the one C
 // gives the opposite answer, == for !=, < for >=, > for <=. Empty where `bare` is no comparison
 static std::string stick_complement(const std::string &bare)
@@ -1383,6 +1412,8 @@ class StickKernel
     unsigned int steps_kept = 0u;
     // the names held whose value is never negative
     std::set<std::string> nonnegatives;
+    // the joins of two flags read exchanged, each read in that order once
+    std::set<std::string> exchanging;
     // each bool held as a flag, by its name, and the expression it is the flag of
     std::map<std::string, StickTyped> flags;
     // each name read as an expression not yet written, by the name
@@ -2042,6 +2073,20 @@ class StickKernel
                                pattern.bits, 1, {}, -1, best);
                     }
                 }
+            }
+        }
+        // Two flags joined by && or || hold in either order, nothing the reader reads writing anything, and a form
+        // that glues a test to another flag reads the test first. The exchanged text is read once: it exchanges back
+        const std::string exchanged = stick_flags_exchanged(bare);
+        if ((best->cost == 0xFFFFFFFFu) && !exchanged.empty() && (exchanging.count(bare) == 0u))
+        {
+            exchanging.insert(exchanged);
+            StickReading other;
+            const int read_other = read(exchanged, in_place, &other);
+            exchanging.erase(exchanged);
+            if (read_other != 0)
+            {
+                *best = other;
             }
         }
         if (best->cost == 0xFFFFFFFFu)

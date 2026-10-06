@@ -317,7 +317,7 @@ The width w is the widest put that comes back whole, and the next one comes back
 - `0xFFFFFFFF, 0` is 1 signed and 0 unsigned.
 - A test and the select that reads it are one word, asked as one (Q19).
 
-**Measured**, Steps 2 to 6 on sm_86: the engine's chain for every question the host computes, 377 of them, answers alike on every case and none apart. The 64-bit add, take, bitwise forms, not, negation and both shifts right are among them, each in the two words of NVIDIA's listing.
+**Measured**, Steps 2 to 6 on sm_86: the engine's chain for every question the host computes, 424 of them, answers alike on all 648 cases and none apart. The 64-bit add, take, bitwise forms, not, negation and both shifts right are among them, each in the two words of NVIDIA's listing, and every comparison glued to a second test by `&&` or `||`.
 
 **Step 7. Two forms, one slot (P10).** Forms f and g in one slot are put on K. The first k with f(k) ≠ g(k) closes the pair as two operations, and k is kept at the key as its witness. A pair alike on every k ∈ K stays gray, with |K| its reading. A case closes a pair once, and a closed pair is not asked again (P5).
 
@@ -328,7 +328,8 @@ The width w is the widest put that comes back whole, and the next one comes back
 - **The cases.** An operand meets 18 values and no other. Between 0x100000000 and 0x7FFFFFFFFFFFFFFF none is put, and a form apart only there is found by no case (Step 8).
 - **The C of the host.** A case it traps on or leaves undefined carries no h(k), and the part's answer there is held to nothing (Steps 4 and 5).
 - **The types of the host.** The host computes integers alone: 436 questions, and float and double, 398 of the 1016, are asked of nothing. No form of a floating slot is derived.
-- **The reading of the engine.** A question the engine cannot write through cu.krs is asked of nothing: 230 besides the floating ones. 99 have no reading: 47 a comparison glued to a second test by `&&` or `||`, and 33 a test of the low word of a 64-bit operand. 66 are calls or elements cu.krs gives no form for, 30 atomics and 34 statements.
+- **The reading of the engine.** A question the engine cannot write through cu.krs is asked of nothing: 183 besides the floating ones. 52 have no reading, 33 of them a test of the low word of a 64-bit operand. 66 are calls or elements cu.krs gives no form for, 30 atomics and 34 statements.
+- **The run channel.** A question carries as many cases as a launch gives threads, up to the 2^20 the host fills, and the run tool gives every case a thread.
 - **The slices.** A context no two questions of the host hold is asked of nothing: 762 of 1113.
 - **Two words.** A 64-bit form is put as two forms of 32 bits as NVIDIA's listing writes it, and the width that would ask it is Step 1, theory.
 - **The walks.** The register walk starts below the top of the field, 255, and the threads stop at the 2^20 the host fills cases for (Step 9).
@@ -355,3 +356,53 @@ against a band B = [lo, hi] read at the fewest registers:
 - Each t is walked, doubled from 1 until the launch is refused (Step 9), and the curve of a task is its knees against t. **Measured** on task 1006 at one thread: 1.80 ms up to r = 128, 2.11 ms at r = 129, 3.04 ms at r = 192.
 
 **Step 11. The ruleset.** For each slot σ the survivors S(σ) of Steps 2 to 7 are ranked by P6, and the slot is given c_1 where m_c2 − m_c1 > s and keeps its form where not. Steps 1, 9 and 10 give the part's numbers: the width, the last register, the bound on a launch, and each task's knees. Each is kept with the part and the size it was read on (Q10), in the part's `.ksc`.
+
+### P12. Categories, and the coherence set C* (P10, P11)
+
+The ruleset L* of one known language is finite: the language holds finitely many forms, and P11 decides each on finitely many cases. The set of all of them is not finite:
+
+  L_all = {C*, L_1, L_2, …}
+
+C* is our coherence. It is made of the categories we understand, each a pool of questions split from the others by what its questions ask. Our coherence has limits, and C* runs past them toward the edge of human coherence. Where we have no category, the system answers for itself.
+
+**A category.** A category c is a pool of questions Q_c with its own cases K_c, its own answerer h_c, and its own bounds. h_c is the host where the host computes c, and nothing where it does not. The pools split the questions, each question in one pool:
+
+  Q = ⋃_c Q_c,  Q_c ∩ Q_d = ∅ for c ≠ d
+
+Each pool is learned as L* learns a language (P11): an ask a case, and K_c in place of a counterexample.
+
+**Open-ended.** No set of categories is known whole (P10). A category added is a pool asked as the others are, and a question no category holds is kept gray, never thrown out. The flow keeps the unknown.
+
+**Relational: never wrong, never whole.** Every question at its root is a relation over forms and cases. A witnessed answer holds on every set holding the entries it names (P10). A category, a case or a language added never undoes it, and a concept read so is never wrong. A relation of absence stays gray on every part, and no reading is whole, ever.
+
+**The language bounds itself to the answerer's rules.** A form enters a ruleset only where the part answers it (P7, P8). What the part refuses, what it never answers and what no category asks stay gray. The ruleset is the answerer's rules as far as the questions reach.
+
+**We fill part of C*.** The filled part is every category with an answerer and a reading. We build to fill more: each form the part answers is a form to build the next question with (P8).
+
+**Measured**, the stick's categories on sm_86. Each category is a pool. A question is written where the engine reads it through cu.krs, held where the host computes it, and alike where the part answers it as the host does on all 648 cases:
+
+| category | questions | written | held | alike |
+|---|---|---|---|---|
+| operator | 171 | 131 | 131 | 131 |
+| conversion | 110 | 64 | 64 | 64 |
+| test | 90 | 90 | 90 | 90 |
+| compound | 88 | 64 | 64 | 64 |
+| single math | 87 | 0 | 0 | 0 |
+| double math | 86 | 0 | 0 | 0 |
+| unary | 78 | 64 | 64 | 64 |
+| casting intrinsic | 71 | 0 | 0 | 0 |
+| single intrinsic | 41 | 0 | 0 | 0 |
+| integer intrinsic | 37 | 0 | 0 | 0 |
+| atomic | 33 | 0 | 0 | 0 |
+| double intrinsic | 28 | 0 | 0 | 0 |
+| statement | 19 | 1 | 1 | 1 |
+| warp | 17 | 0 | 0 | 0 |
+| memory | 13 | 0 | 0 | 0 |
+| built-in | 13 | 11 | 0 | 0 |
+| conditional | 11 | 0 | 0 | 0 |
+| pressure | 10 | 10 | 10 | 10 |
+| sync | 9 | 0 | 0 | 0 |
+| call | 4 | 0 | 0 | 0 |
+| all | 1016 | 435 | 424 | 424 |
+
+Every bound of P11 is a row of this table. A category with no answerer, the floating ones and the intrinsics, holds nothing. built-in is written and not held: the host computes no built-in. None is apart. Every question held answers without error, and every other question stays gray.

@@ -10,9 +10,9 @@
 // (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
 // eight words in hex, the words a line leaves out zero, and the kernel is handed the stick's frame: in, eight words a
 // thread, out, two words a thread, and the count of threads. It is launched in blocks of <threads>, <blocks> of them,
-// one block of 256 where the question names no shape, and every thread is given a case, thread t case t of the cases
-// taken round: the cases are answered by the first threads, and the rest do the same work over again. One line is
-// written to the answers:
+// blocks of 256 where the question names no shape, as many as give every case a thread, and every thread is given a
+// case, thread t case t of the cases taken round: the cases are answered by the first threads, and the rest do the
+// same work over again. One line is written to the answers:
 //
 //     answered <answer>...      each case's two words as one value in hex, in the order of the cases
 //     skipped <verdict> <name>  cubin_safe held it off the part, and the driver never saw it
@@ -41,12 +41,12 @@
 // the most bytes a container and its code take, and the longest line of the cases
 #define CUBIN_RUN_BYTES 262144u
 #define CUBIN_RUN_LINE 1024u
-// the words of a case and of an answer, the stick's frame; the most cases a question gives, and the threads a block
-// holds where the question names no shape of its own
+// the words of a case and of an answer, the stick's frame, and the threads a block holds where the question names
+// no shape of its own
 #define CUBIN_RUN_IN_WORDS 8u
 #define CUBIN_RUN_OUT_WORDS 2u
 #define CUBIN_RUN_THREADS 256u
-// the most threads one launch gives a case each
+// the most threads one launch gives a case each, and the most cases a question gives: every case is a thread's
 #define CUBIN_RUN_THREADS_MOST (1u << 20u)
 // the exits a question's code holds at most
 #define CUBIN_RUN_EXITS 256u
@@ -91,9 +91,9 @@ static unsigned char s_pattern[CUBIN_RUN_BYTES];
 static unsigned char s_code[CUBIN_RUN_BYTES];
 static unsigned char s_container[CUBIN_RUN_BYTES];
 static unsigned int s_exits[CUBIN_RUN_EXITS];
-static unsigned int s_cases[CUBIN_RUN_THREADS][CUBIN_RUN_IN_WORDS];
+static unsigned int s_cases[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_IN_WORDS];
 static unsigned int s_case_count;
-static unsigned int s_answers[CUBIN_RUN_THREADS][CUBIN_RUN_OUT_WORDS];
+static unsigned int s_answers[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_OUT_WORDS];
 
 // `path` read whole into `bytes`, which holds `room`: the bytes read, or 0 where it was not read or does not fit
 static unsigned long long cubin_run_file(const char *path, unsigned char *bytes, unsigned long long room)
@@ -129,7 +129,7 @@ static int cubin_run_cases(const char *path)
         {
             continue;
         }
-        fits = (count < CUBIN_RUN_THREADS);
+        fits = (count < CUBIN_RUN_THREADS_MOST);
         if (fits)
         {
             memcpy(s_cases[count], words, sizeof(words));
@@ -281,8 +281,8 @@ int main(int count, char **words)
         return 2;
     }
     const unsigned int launches = (count >= 8) ? (unsigned int)strtoul(words[7], NULL, 10) : 0u;
-    const CubinRunShape shape = {(count == 10) ? (unsigned int)strtoul(words[8], NULL, 10) : CUBIN_RUN_THREADS,
-                                 (count == 10) ? (unsigned int)strtoul(words[9], NULL, 10) : 1u};
+    CubinRunShape shape = {(count == 10) ? (unsigned int)strtoul(words[8], NULL, 10) : CUBIN_RUN_THREADS,
+                           (count == 10) ? (unsigned int)strtoul(words[9], NULL, 10) : 1u};
     char kernel[256];
     const unsigned long long pattern_size = cubin_pattern_read(words[2], s_pattern, sizeof(s_pattern), kernel,
                                                                sizeof(kernel));
@@ -294,7 +294,9 @@ int main(int count, char **words)
         fprintf(stderr, "the container, the code, the cases, the answers or the machine file did not read\n");
         return 2;
     }
-    // a launch gives every case a thread, and gives a case each to no more threads than it holds them for
+    // a question that names no shape is given blocks of CUBIN_RUN_THREADS, as many as give every case a thread. A
+    // launch gives every case a thread, and gives a case each to no more threads than it holds them for
+    shape.blocks = (count == 10) ? shape.blocks : ((s_case_count + CUBIN_RUN_THREADS - 1u) / CUBIN_RUN_THREADS);
     const unsigned long long threads = (unsigned long long)shape.threads * shape.blocks;
     if ((threads < s_case_count) || (threads > CUBIN_RUN_THREADS_MOST))
     {
