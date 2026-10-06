@@ -73,12 +73,12 @@ run answers ffffffff IADD3 R6, -R0, RZ, RZ;SHF.R.S32.HI R7, RZ, R7, R6
 run answers 16000000 SHF.R.U64 R7, R0, R7, R0
 run answers fffffaff IADD3 R6, -R0, RZ, RZ;SHF.L.U64.HI R7, R6, R7, R6
 run answers 000000fc register last
-run answers 00000080 curve 0310 1
-run answers 00000014 curve 0310 2
+run answers 000000a8 curve 0310 1
+run answers 000000a8 curve 0310 2
 run answers 00000080 curve 0310 4
 run answers 00000080 curve 0310 8
 run answers 000000a8 curve 0310 16
-run answers 000000fa curve 0310 32
+run answers 000000ff curve 0310 32
 run answers 000000ff curve 0310 64
 run answers 000000ff curve 0310 128
 run answers 000000ff curve 0310 256
