@@ -418,3 +418,49 @@ Every bound of P11 is a row of this table. A category with no answerer, the floa
 - A v the bracket holds exactly, down(k) = up(k), is a case with one answer and gates as an integer case does.
 - The exact double is a mantissa and an exponent, m · 2^e, each lane its own exponent. Its sum, difference and product are exact, and its cut to width w keeps both ends (`edouble_record`, `src/cu/types/integerfloats/edouble`).
 - **Theory.** The floating categories hold nothing until the stick's floating questions are put this way.
+
+### P13. The sets, open-ended, and what they collapse (P2, P5, P10, P11, P12)
+
+Every set below is open. No set is known whole (P10), and an entry added is asked as the others are.
+
+- **The categories.** C* = ⋃_c c, and a category is a pair c = (asked, answerer). The asked side is gnascor's thing and doing words, the tables of [gnascor.md](../../../src/cu/transpiler/gnascor.md). The answerer side is one of the kinds below.
+- **The cases.** K_c for each category, grown by the descent (Collapse 4).
+- **The identities.** I, relations between texts. Each is witnessed by the text, and both its sides are held to each other on the part over K (P10).
+- **The compositions.** Chains of forms, a category whose cases are its links' cases (Q19).
+- **The record.** R, every ask with its answer, the part and the size it was read on (Q9, Q10). An ask R holds is not put again.
+
+| answerer | relation | read by |
+|---|---|---|
+| the host, exact | f(k) ∈ [down(k), up(k)] | P1, P2 |
+| the part alone | holds(n) ⇒ holds(m) for every m < n | the walk, Step 9 |
+| the part's clock | c(r, t) ≤ hi | the bounced sustain, Step 10 |
+| a model holding state | f(k_1 … k_n) over sequences, a stated bound on states | none yet |
+
+The last row is the stick's memory, atomic, warp and sync questions, 72 of them. A per-lane relation does not reach them: they ask a sequence of an answerer holding state, and are exact only up to a stated bound on its states ([learning_a_ruleset.md](../../thought_experiments/engine/learning_a_ruleset.md)).
+
+**Collapse 1. One relation for every exact answer.** The host gives an exact value bracketed at the result's width w, and every ask of it is f(k) ∈ [down(k), up(k)]. An integer case is a bracket of one word, down = up, and the ask is f(k) = h(k). A floating case is a bracket of two ends, and the end the part takes is its rounding (P12). A case the C of the host leaves undefined has no bracket and gates nothing. Equality, the bracket and the refused case are one relation at three widths.
+
+**Collapse 2. One walk.** A relation over an ordered set that holds below a bound and not past it is read by one walk: the last register, the launch, the fewest registers and each knee. The walk steps or bisects to the bound, with the bounced sustain where the reading carries noise and a band of 0 where it carries none.
+
+**Collapse 3. Forms read through identities.** A form of 2w is a pair of forms of w joined by an entry of I: add and take by the carry and the borrow, the bitwise forms word by word, a shift right through both words. The wide row of gnascor's table is then read off the word row and I, and asked of the part as a composition, in place of a form written by hand into every ruleset. The reader's own rules are entries of I as well, and the reader consults I in place of carrying them:
+
+- [select(p, 1, 0) ≠ 0] = p
+- −a = 0 − a
+- a shift's count is its low word below the width
+- (bool)v = [v ≠ 0] over the whole of v
+- p ∧ q = q ∧ p, and p ∨ q = q ∨ p
+- select(p, a, b) = select(¬p, b, a)
+- a test glued to a flag is the test and a join, `test_*_and` and `test_*_or`
+
+**Collapse 4. Cases and checks are one pool.** With K_c open, the descent that orders the cases (P2) also chooses the case to add. The open pairs of c are its candidates (P5), and the case added is a case the most of them fail.
+
+**The scheduler.** The gray entries of every set are its queue, and P11's bounds are that queue written out. Each turn:
+
+1. R gives the gray entries.
+2. The ask that settles the most of them is chosen, the descent of P2 taken across categories.
+3. It is put through the asker of its answerer: the part through the device daemon's admission, one ask at a time.
+4. Its answer is written to R and to every entry it settles.
+
+A process runs again only where an entry it reads has changed. A new category, case or identity is one more pool on the queue.
+
+- **Theory.** No set past the categories and R's start, `KLQ_TRACE`, is built.
