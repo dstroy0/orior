@@ -46,7 +46,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# THE MULTIPLY IS AN ARGUMENT, NOT A GLOBAL. The lattice entries are the constants at full width.
+# THE MULTIPLY IS AN ARGUMENT INSTEAD OF A GLOBAL. The lattice entries are the constants at full width.
 # Every inner product multiplies numbers of whatever precision the search is running at. The whole
 # search reduces to that single operation, and it is the operation the engines exist for.
 #

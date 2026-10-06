@@ -121,7 +121,7 @@ PRINTS = re.compile(r"\bprint\(|out\.write\(|sys\.stdout")
 # A header claims a file write only when it names something written somewhere. The bare verb caught
 # "Written as the decomposition it names" and fired on 42 of 98 examples, which is a checker nobody
 # would read twice.
-# The destination has to be a place, not an infinitive. Accepting a bare "to" matched "a procedure
+# The destination has to be a place instead of an infinitive. Accepting a bare "to" matched "a procedure
 # written to be carried out exactly", which is prose about procedures and not a claim about output.
 SAYS_WRITE = re.compile(
     r"\b(writes?|written|emits?|saves?)\b[^.]{0,60}?"
@@ -290,7 +290,7 @@ def main():
     out.write("\n  %d examples read, %d finding(s)\n" % (scanned, findings))
     for kind in sorted(tally):
         out.write("    %-9s %d\n" % (kind, tally[kind]))
-    out.write("\n  Heuristics. A finding is a file worth opening, not a defect.\n\n")
+    out.write("\n  Heuristics. A finding is a file worth opening instead of a defect.\n\n")
     out.flush()
     return 0
 

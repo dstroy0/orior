@@ -296,7 +296,7 @@ def _check():
     # A CONSTANT FIELD IS PURE STRUCTURE, a RANDOM field is max entropy and near flat off the peak.
     # The constant must carry far more self-delta, or the statistic is not reading structure. An
     # alternating field is NOT the flat case: it is maximally periodic and maxes out like the
-    # constant, the statistic being right, not wrong.
+    # constant, the statistic being right.
     constant = [1] * WIDTH
     state = 0xC0FFEE
     noise = []

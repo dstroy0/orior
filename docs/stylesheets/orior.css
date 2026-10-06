@@ -638,16 +638,6 @@
   color: var(--orior-signal);
 }
 
-/* Purpose and Scope lines at the head of a page read as a header band. */
-.md-typeset h1 + p:not(.orior-lede) {
-  padding: 0.75rem 1rem;
-  border-left: 3px solid var(--orior-signal);
-  border-radius: 0 var(--orior-radius) var(--orior-radius) 0;
-  background-color: var(--orior-tint);
-  font-size: 0.76rem;
-  line-height: 1.6;
-}
-
 /* The landing page opens on the hero, with no source button beside it. */
 .md-content__inner:has(.orior-hero) > .md-content__button {
   display: none;

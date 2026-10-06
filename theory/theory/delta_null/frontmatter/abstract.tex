@@ -11,14 +11,14 @@
 
 That is the method. Each subject in this work applies it with a different answer to what a part
 is: atoms in a crystal cell, symbols in a corpus, bytes in a file, coordinates on a circuit board.
-The reference is built only from the object's own parts. There is no prior estimate, no
-training set, and no model or neural network. The reference is the maximum entropy arrangement of
+The reference is built only from the object's own parts. There is neither a prior estimate, a
+training set nor a model or neural network. The reference is the maximum entropy arrangement of
 those parts, the shuffled copy that keeps every count, and the measurement is the exact difference
 from it. In statistics this is a permutation test \cite{src:Good-2005}.
 
 Two propositions set the limits of the search. First, any subset of a pattern's positions is a
 necessary condition for the pattern. A filter that checks a subset never loses a true match. That
-holds whatever chose the subset, whatever the alphabet is, and whether or not the positions have an
+holds whatever chose the subset, whatever the alphabet is, and whether the positions have an
 order, as long as each check compares symbols, or compares ranks counted together with the
 pattern's. Filtering followed by verification is standard in string search \cite{src:Navarro}, and
 this is the condition under which the filter is lossless. Second, the reverse fails for every proper

@@ -11,7 +11,7 @@
 #
 #   Usage:  python examples/0_experimental/exact_navier_stokes_on_torus.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. The sets are Fefferman's, read from the Clay statement: equations (1) momentum, (2)
 # divergence, (3) initial datum; (8) periodic datum and force with the erratum's periodic pressure; (10)
 # periodic solution; (11) smooth pressure and velocity; and (7) bounded energy, which on the torus is
@@ -56,7 +56,7 @@
 #
 # Floor: none in the arithmetic. The boundary is the horizon: the Taylor coefficients of a generic datum
 # occupy more modes at every order; a truncation at any fixed mode radius therefore misses some order,
-# and the count it misses is measured here, not bounded. No bounding: every value is an exact integer
+# and the count it misses is measured here instead of bounded. No bounding: every value is an exact integer
 # and every test an exact equality.
 #
 # Whose forms these are, named with respect. Every object here belongs to the field, and this file only

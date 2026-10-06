@@ -11,8 +11,8 @@
 # year mentioned in a preface as it is to be a date of publication. Every reading that used those dates
 # is void, including a correlation against time and a comparison of one century against another.
 #
-# The files are named by the catalog's own numbers. The catalog can be asked directly. What it gives
-# is the author's dates, which is not a publication date either, but an author's lifetime bounds when a
+# The files are named by the catalog's own numbers. The catalog can be asked directly. It gives
+# the author's dates, which is not a publication date either, but an author's lifetime bounds when a
 # book could have been written and does not depend on what number happens to appear first in a preface.
 # The distinction is kept in the output: this is when the author lived, and it is used as a date only
 # because it is the honest one available.

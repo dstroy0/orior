@@ -20,7 +20,7 @@
 #   prose_distance      reported this repository as closer to English than the papers, and the
 #                       reason was that the papers are not English.
 #   machine_distance   put the Salishan extraction scripts furthest from the machine pole. They
-#                       were matching the papers on Salishan, not on register.
+#                       were matching the papers on Salishan instead of on register.
 #   ban_evidence        divided phrase counts by a word total padded with non-English tokens.
 #                       Every per-100k rate it reported was low.
 #

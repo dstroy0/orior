@@ -197,7 +197,7 @@ def distance(first, second):
 
 
 def web_profile(words, run=2):
-    """A distribution over runs of `run` adjacent words. The word web, not the bag of words.
+    """A distribution over runs of `run` adjacent words. The word web instead of the bag of words.
 
     A bag of words is invariant under permutation: shuffle the corpus and every count is identical.
     The null permutation against a bag is therefore exactly zero, and this repository already
@@ -724,7 +724,7 @@ def main():
     out.write(
         "    every distance printed above this line was taken on that bag. Every one of\n"
     )
-    out.write("    them reads composition, not arrangement.\n")
+    out.write("    them reads composition instead of arrangement.\n")
 
     if ("machine" in webs) and ("human" in webs):
         out.write(

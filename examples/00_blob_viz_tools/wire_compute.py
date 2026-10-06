@@ -288,7 +288,7 @@ def _gates():
     else:
         print("  The adjacency still describes the amplitudes after every single measurement, at")
         print("  every width. So the pattern is a legal sequence of measurements on a graph state")
-        print("  and the machine is running it, not approximating it.")
+        print("  and the machine is running it instead of approximating it.")
     return failed
 
 

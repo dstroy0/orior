@@ -9,7 +9,7 @@
 // pi / 4 and scales it by the square root of 2, and its determinant is 2. Each floor drops one bit: its image is
 // the pairs of equal parity. Eight floors close the turn and leave 16 z. Every lane runs on the device and on the
 // host, word for word, and every floor is checked against the Gaussian product z (1 + i)^k taken on the CPU from the
-// powers' polar form, not from the floor. keymath carries every register as a linear form over the two fields and
+// powers' polar form instead of from the floor. keymath carries every register as a linear form over the two fields and
 // bounds it by the sum of |coefficient| 2^bits. After k floors the coefficients are the parts of (1 + i)^k, whose
 // magnitudes sum to 2^ceil(k/2). The widths are 24 + ceil(k/2): they grow half a bit a floor, as the values do, and
 // some lane fills each one.

@@ -24,7 +24,7 @@
 | what | samples | result | settles |
 |---|---|---|---|
 | components mode dump (an older mode), best policy (the 400 largest per frame) | 13 of the 44b6 | SCORE 0.2376; edge Jaccard 0.238; TP 713, FP 467, FN 1,815 | the internal 98% does not carry over to the metric |
-| same dump, every node | 13 of the 44b6 | 60.4% of ground-truth edges lost because the source ground-truth node has no predicted node within 7 µm; 1.5% land elsewhere | that dump's loss is detection, not linking; the dump is an older mode and must be redone on the current engine |
+| same dump, every node | 13 of the 44b6 | 60.4% of ground-truth edges lost because the source ground-truth node has no predicted node within 7 µm; 1.5% land elsewhere | that dump's loss is detection instead of linking; the dump is an older mode and must be redone on the current engine |
 
 ### The 6bba samples
 

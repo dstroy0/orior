@@ -14,7 +14,7 @@
 // host's serial scan over the same records returns and the first lane the host's own arithmetic finds, at every
 // threshold from every lane hitting to none, and over 2^24 lanes on the device with only the lane brought back. Its
 // edges: lane 0, the last lane, the least of many, a field across two limbs, a field of a whole limb, and bits outside
-// the field that must not trip it. Under an index the lane register is still the lane, not the record it reads. A
+// the field that must not trip it. Under an index the lane register is still the lane instead of the record it reads. A
 // member of two records still errors on a sweep of three lanes, and the latch errors on a field past its record. The
 // test is one job on the device's tessera daemon, submitted before its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"

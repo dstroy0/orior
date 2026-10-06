@@ -243,7 +243,7 @@ made only of stops, tp 'spotted', noting that the root is not given as a standal
 lists 127 voiceless words and roots, and maintains that the language is non-syllabic.
 
 The test. Mellesmoen's definition, applied to the Nuxalk free words in every paper except those two:
-cited forms that are one token, not starred, not a root, not an affix or clitic. Stops are p, t, k, q
+cited forms that are one token and are neither starred, a root, an affix nor a clitic. Stops are p, t, k, q
 and their ejectives; c and ƛ are affricates, kept apart as she keeps them.
 
 The result. 1332 distinct free words, 122 obstruent-only (9.2%). 1262 of them come from Nater's 2013
@@ -277,7 +277,7 @@ of Nuxalk's excesses here.
 
 ## Open, not done
 
-- P1 and P2 are limited by what has been extracted, not by the method. The corpus holds 987 papers as
+- P1 and P2 are limited by what has been extracted instead of by the method. The corpus holds 987 papers as
   PDF and 138 have an oracle table. Extracting the Sechelt, Pentlatch, Cowlitz, Upper Chehalis and
   Nuxalk papers and any dictionary-like papers first would fill P2's blanks and give P1 the nouns it
   needs.
@@ -292,7 +292,7 @@ of Nuxalk's excesses here.
   exact run over all 254 tables, which fails (b) and (d) with the criteria unchanged.
 - **Withdrawn.** P1's first run, which read noun meanings from any short gloss.
   **What killed it:** the diagnostics. The commonest "noun meanings" were provenance notes ("wordlist",
-  "orthography"), and the =-morphemes of the Interior papers were proclitic hosts, not suffixes.
+  "orthography"), and the =-morphemes of the Interior papers were proclitic hosts instead of suffixes.
   Replaced by the fixed list of nominal meanings, applied to suffixes and nouns alike before any pair
   was counted.
 - **Withdrawn.** P0 criterion (d) as first fixed: no outside language above the largest excess its own

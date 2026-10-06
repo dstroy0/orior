@@ -1,9 +1,6 @@
 # The conditions of use
 
-**Purpose:** Say what this work can do to people and to what people hold, and the condition each use carries.
-**Scope:** every tool, measurement and derivative that comes out of this work; `examples/`, `theory/`
-
-The method reads anything that can be split into parts and counted. That includes people: what they speak, what they write, what a scan of their body holds, and what they keep closed. Each section below names one thing the work can do, what it cannot tell you, and what has to be true before you use it. Every condition here is a condition of use, not a recommendation.
+The method reads anything that can be split into parts and counted. That includes people: what they speak, what they write, what a scan of their body holds, and what they keep closed. Each section below names one thing the work can do, what it cannot tell you, and what has to be true before you use it. Every condition here is a condition of use.
 
 Anyone may read, run and change this work under the AGPL. A product or service that keeps its source closed needs [the commercial license](https://github.com/dstroy0/orior/blob/main/LICENSES/LicenseRef-Commercial.txt), and an educator's exception is issued under [the educator's license](https://github.com/dstroy0/orior/blob/main/LICENSES/LicenseRef-Educational.txt). Section 7A of each makes every condition on this page a term of that license, beside Section 7 for language. Breaking one can end it at once.
 

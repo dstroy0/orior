@@ -25,6 +25,7 @@ import os
 import re
 
 from .files import walk_markdown
+from .grammar import PLAIN_TABLE, plain_rows  # noqa: F401
 from .prose import prose_only
 from .repository import DEFAULT_ROOTS, REPOSITORY
 
@@ -67,6 +68,12 @@ def counted():
     return held
 
 
+def plain_for(given):
+    """The plain-table rows whose phrase occurs in the words given, in table order."""
+    said = " " + " ".join(" ".join(given).lower().split()) + " "
+    return [row for row in plain_rows() if (" %s " % row[0]) in said]
+
+
 def adjacent():
     """Every pair in the web, indexed both ways: what follows a word, and what precedes it."""
     after = {}
@@ -101,7 +108,8 @@ def pick(asked, given):
     """One reading of the tables, as (count, word) rows, commonest first.
 
     `asked` is after, before, between or rank. rank answers for words the caller names, and reports
-    0 for a word the corpus never uses, which is the answer and not a failure to find one.
+    0 for a word the corpus never uses, which is the answer and not a failure to find one. The plain
+    reading has rows of its own shape and is plain_for.
     """
     given = [one.lower() for one in given]
     if asked == "rank":

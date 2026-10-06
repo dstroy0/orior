@@ -25,7 +25,7 @@
 # The wide set is the molecular formulae of the first several thousand PubChem compounds, fetched by
 # utils/maint/data/fetch/fetch_pubchem_formulae.py. A charged formula is an ion, whose valence count carries
 # an extra electron this neutral reading does not model, and those are set aside and counted. A formula
-# with an element the valence table does not carry is set aside too, named, not guessed.
+# with an element the valence table does not carry is set aside too, named instead of guessed.
 #
 # Integer arithmetic only, with no library and no rounding. Source of the valences: the standard
 # main-group valences, the same shell deficits the assembly stage reads. Source of the wide set: the
@@ -173,7 +173,7 @@ def main(argv):
     control_ok = controls(out)
     wide_set(out)
     out.write("\n  the conditions are a necessary condition read in integers: a real molecule meets them,\n")
-    out.write("  the crafted illegal formulae do not, and the failures are decomposed, not just counted.\n")
+    out.write("  the crafted illegal formulae do not, and the failures are decomposed as well as counted.\n")
     out.write("  an error for too few bonds is a formula whose atoms cannot form one connected molecule;\n")
     out.write("  inspected, these are net-neutral salts, an organic cation and a separate counter-ion\n")
     out.write("  written as one formula, not one covalent molecule and right to error.\n\n")

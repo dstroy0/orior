@@ -142,7 +142,7 @@ ASIDE = re.compile(r"\((?:tr\.|itr\.|tr\./itr\.|DIM)\)")
 def form_of(text):
     """One entry's form, with the paper's own parenthesized notes taken off.
 
-    (tr.) and (tr./itr.) sit between the form and its gloss and are English, not Bella Coola. Left
+    (tr.) and (tr./itr.) sit between the form and its gloss and are English instead of Bella Coola. Left
     in, every transitive entry arrives as two tokens and the second of them is the word tr.
     """
     return " ".join(ASIDE.sub(" ", text).split()).strip(" ,=")

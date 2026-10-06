@@ -13,8 +13,8 @@ comes back exactly 0.0 at every vertex on every shape. It has to: local compleme
 Clifford operation and those preserve entanglement across every bipartition. A twist moves the
 description and not the content, the relabeling-is-free result from another direction.
 
-A PERTURBATION IS A DIFFERENT OPERATOR. Toggling the edges on one qubit changes the STATE, not its
-description. It is not a local Clifford and it is not obliged to preserve anything. The response
+A PERTURBATION IS A DIFFERENT OPERATOR. Toggling the edges on one qubit changes the STATE and leaves its
+description alone. It is not a local Clifford and it is not obliged to preserve anything. The response
 is therefore live, and because each qubit sits at a position on the shell, the response has an
 orientation.
 
@@ -137,7 +137,7 @@ def _report(qubits=QUBITS):
                  numpy.trace(tensor)))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     print("  ANISOTROPY IS THE LARGEST PRINCIPAL MOMENT OVER THE SMALLEST. A value near 1 means")
     print("  the state resists perturbation equally about every axis, as a placement")

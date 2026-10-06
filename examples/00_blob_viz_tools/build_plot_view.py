@@ -6,7 +6,7 @@
 """Plots one or more expressions over a grid and hands them to the shape viewer.
 
 The other generators read something that was measured. This one evaluates something that was
-written down, which makes the same instrument useful for a surface you already understand: a
+written down. That leaves the same instrument useful for a surface you already understand: a
 function whose shape is known is the way to find out what an embedding does to a shape, and a
 function nobody has drawn on a torus before is worth a look on its own.
 

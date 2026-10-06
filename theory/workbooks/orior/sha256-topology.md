@@ -139,7 +139,7 @@ rounds  1  2  3  4  5  6  7  8  9 10 11 12   degree
     10  .  .  .  .  .  .  .  .  .  .  .  .   at least 12
 ```
 
-**The degree goes from exactly 3 to at least 12 in one round.** The nonce carries 32 bits, which makes 32
+**The degree goes from exactly 3 to at least 12 in one round.** The nonce carries 32 bits, and that makes 32
 the ceiling; the function is within a factor of three of its ceiling one round after the input
 arrives, out of 128. Degree growth is the quantity that decides whether any algebraic attack has
 room
@@ -263,7 +263,7 @@ statistics, and every one of them names a measurement this work has not made.
 
 | # | hypothesis | how it fails | status |
 |---|---|---|---|
-| H1 | **The clutter is colored, not white.** The CFAR treats the 32 residue classes as independent; they share a message set and are certainly not. STAP estimates the covariance from target-free snapshots and whitens | rounds 24-64 are 41 *proven* target-free realizations, which is textbook secondary data. If the covariance comes back near-diagonal, the clutter is white and there is no gain | untested, data already dumped |
+| H1 | **The clutter is colored instead of white.** The CFAR treats the 32 residue classes as independent; they share a message set and are certainly not. STAP estimates the covariance from target-free snapshots and whitens | rounds 24-64 are 41 *proven* target-free realizations, which is textbook secondary data. If the covariance comes back near-diagonal, the clutter is white and there is no gain | untested, data already dumped |
 | H2 | **The per-round decrement carries the round constants.** Deviation from exactly 2048 is 1.5 where measurement error is 0.25, and rounds differ in nothing but K_t. This is Specific Emitter Identification: the *imperfections* identify the emitter | correlate the deviation against properties of K_t. No correlation means the scatter is a noise estimate that is simply wrong | **next** |
 | H3 | **The probe has been a single omnidirectional element.** Flipping a *pattern* matched to a transport channel - say Sigma1's preimage {i, i-6, i-11, i-25} - is array gain on transmit, which beats any receive-side processing because it is two-way | a matched pattern that gains nothing over a single bit refutes the reading of the spectrum | untested |
 | H4 | **The message schedule is a delay line: the array steers in depth.** Word w emits at round w+1. Choosing which words carry a difference therefore sets each element's emission time | arrivals arranged to coincide should interfere measurably; if they add incoherently the light cone is not a usable delay line | untested |
@@ -368,7 +368,7 @@ correction fixed the second; the first needs the sample scaling to see.
 
 **The signature of a null in this statistic is now known and is itself a function:** deviation
 proportional to k^(-1/2) with sigma constant near 4.5. Anything real breaks it in a specific,
-recognisable way, which makes this a reusable instrument instead of one result.
+recognizable way, and that makes this a reusable instrument instead of one result.
 
 ### The operation map, and where it stands against the field
 
@@ -455,7 +455,7 @@ the composition instead of something rotating, which answers the unwinding quest
 there is no moving structure to chase with an inverse rotation.
 
 **The decay is quantized.** The first four differences are 2048.33, 2048.21, 2048.83 and 2047.24,
-and one sigma of the class mean at that sample is 1.526e-5, which makes 2048 sigmas **exactly 1/32**. The
+and one sigma of the class mean at that sample is 1.526e-5, and that makes 2048 sigmas **exactly 1/32**. The
 ridge loses one thirty-second of its amplitude per round - one bit position of thirty-two going
 diffuse - holding to four decimal places for five rounds, then accelerating into collapse at 22.
 
@@ -468,7 +468,7 @@ opposite of the refuted SAC dip which held its sigma and shrank its deviation.
 **And the null past round 23 is now the strongest in this document**: 2.09, 2.07 and 2.04 against a
 2.63 peak, with 4096 cells behind each number instead of one - roughly sixty-four times the
 sensitivity the maximum had, finding nothing. The harmonic sweep agrees: the round-23 profile
-transforms to a loudest tone of 1.80 against a 2.35 null: no repeating trend, no harmonics and no
+transforms to a loudest tone of 1.80 against a 2.35 null: neither a repeating trend, harmonics nor
 side lobes.
 
 Not claimed: which rotation residue 26 corresponds to. After twelve rounds the effective residue is
@@ -496,7 +496,7 @@ exact taint and cone structure that priced the miner's two savings.
   instrument by a factor of three in rounds.
 - **Message freedom.** A collision attack varies the whole message to steer the path. Mining fixes
   all but 32 bits; most published technique does not transfer - but that is an argument about
-  applicability, not one we have measured.
+  applicability instead of one we have measured.
 - **Triples and higher combinations** of intermediate state bits. Pairs were tested and are null;
   2.7 million triples would push the null peak to about 5.4 and were judged not worth the run.
 - ~~The strict avalanche criterion round count.~~ Obtained and reproduced: onset at round 23, and
@@ -513,7 +513,7 @@ exact taint and cone structure that priced the miner's two savings.
   | **`bench_nature`** | **best grip over 4096 lags** | **4.08** | **none** | **uncorrected** |
 
   The conservative rows are safe in the direction that matters: a real signal between the null peak
-  and the threshold is missed instead of invented, which makes the depths reported here lower bounds and
+  and the threshold is missed instead of invented, and that makes the depths reported here lower bounds and
   not false positives.
 
   `bench_nature` is the finding. It takes the best grip over 4096 lags, a maximum over 4096
@@ -582,7 +582,7 @@ standard's choice sits at an optimum. **Falsified if** the standard beats every 
 would be a small piece of evidence that the constants were selected instead of picked. Buildable,
 and the scoring function already exists in `bench_words`.
 
-**One bit per round is a rate, not a coincidence.** The ridge sheds exactly 1/32 of its amplitude
+**One bit per round is a rate instead of a coincidence.** The ridge sheds exactly 1/32 of its amplitude
 per round, which is one bit position of thirty-two. **Test:** whether that rate is 1/w at other word
 widths, using the narrowed variants. **Falsified if** width 16 sheds 1/32 instead of 1/16.
 Buildable, and it would turn a number into a law.
@@ -613,7 +613,7 @@ because the arithmetic is suggestive, not because it is a plan.
 Patterns that hold across results instead of inside one. These are where the next questions come
 from, because a trend with one exception is a lead and a trend with none is a law.
 
-**Every decay is a constant decrement, not a constant fraction.** Nothing here decays exponentially.
+**Every decay is a constant decrement instead of a constant fraction.** Nothing here decays exponentially.
 
 | what decays | rate | shape |
 |---|---|---|
@@ -809,7 +809,7 @@ Remove Sigma1 and class 6 does not merely fade, it **flips sign**, from +6.83 to
 integer addition and the carry channel reads -0.11: no addition means no carries means no -1 mod 32
 transport, and the instrument reports exactly that with nothing left over.
 
-**The Sigma0 row is an underpowered test, not a refutation.** Those classes were already at 1.74,
+**The Sigma0 row is an underpowered test instead of a refutation.** Those classes were already at 1.74,
 which is noise, and the removal of something that was not there cannot be detected. The
 pre-registration said as much; this is consistent and carries no information either way.
 
@@ -1068,7 +1068,7 @@ coincidence of the number.
 
 ### The field only desaturates: monotone destruction, no construction
 
-Reading color saturation as construction and desaturation as destruction makes a sharp prediction,
+Reading color saturation as construction and desaturation as destruction predicts sharply,
 because a hash should destroy structure and never build it. `tools/check/check_monotone.py` tests it on
 the total field power - the signed residue fold summed in magnitude over all 32 classes.
 
@@ -1146,7 +1146,7 @@ design can build the resolved row.
 
 An earlier draft of this section concluded that **the ceiling is structural, not architectural**, and
 that no arrangement of blocks moves it. That was a universal bound drawn from a single unexamined
-assumption: that nonces are enumerated in sequence, which makes the varying field the low bits.
+assumption: that nonces are enumerated in sequence, and that makes the varying field the low bits.
 
 Nothing requires that. Enumeration order is free, and it is worth between 1.19x and 1.43x:
 
@@ -1199,7 +1199,7 @@ bit 31 is discarded modulo 2^32. Bit 511 flips bit 31 of `a` and of `e` with pro
 > ride one round longer than the rest of their word because they never generate a carry, which is
 > arithmetic instead of causality.
 
-**The cliff is where determinism ends, not where causality begins.** Every measured number survives
+**The cliff is where determinism ends instead of where causality begins.** Every measured number survives
 - the constant, the waterfall, the shift invariance, the slope-32 diagonal - but the name was wrong,
 and a wrong name misleads further than a wrong number does.
 
@@ -1457,7 +1457,7 @@ should say so instead of pretend it is injective.
   of the sample at every depth from 9 to 14 - ratios of 4.00, 4.00, 3.99, 3.99, 4.22, 3.83 for
   sixteenfold more pairs, the textbook figure. The signal was always there and was only
   ever under the threshold. One more round per fourfold increase is therefore the decay rate being
-  measured, not a trend to extrapolate. The inverse dies at 15 and reads noise at 16, where more
+  measured instead of a trend to extrapolate. The inverse dies at 15 and reads noise at 16, where more
   pairs make it *smaller*: 2.438, 1.317, 0.881.
 
   What actually differs is the shape of the approach. Forward loses a factor near 29.7 per round;
@@ -1520,7 +1520,7 @@ should say so instead of pretend it is injective.
   | 24 | 2,10,17 | 5,8,19 | **8** | 3.03 |
   | 32 | 2,13,22 | 6,11,25 | 2 | 4.86 |
 
-  At width 4 the two triples are identical, which makes Sigma0 and Sigma1 the same function and the
+  At width 4 the two triples are identical, and that makes Sigma0 and Sigma1 the same function and the
   rotation design is gone. At width 24 one amount shares a factor of 8 with the width. **The sweep
   compares seven constructions, not one construction at seven sizes**, and the peak column
   is reading. The wall holding still across all seven is the more interesting fact for surviving it.
@@ -1623,7 +1623,7 @@ should say so instead of pretend it is injective.
   Counted across the sweep: **22 pairs of amounts sit one apart at the narrowed widths and 0 do at
   width 32.** None of SHA-256's four functions has an adjacent pair; nearly every narrowed one does.
 
-- **Where the schedule is weak is sparsity, not rank.** A one-bit nonce flip expanded through the
+- **Where the schedule is weak is sparsity instead of rank.** A one-bit nonce flip expanded through the
   standard's schedule over 4096 random headers: the mean difference weight saturates at word 22,
   nineteen words after the nonce enters, but the **minimum stays at one bit through word 27**. A
   single-bit difference can cross 24 words of expansion without fanning out at all, for the right
@@ -1638,7 +1638,7 @@ should say so instead of pretend it is injective.
   random words but four header words, 0x80000000, ten zeros and a length.
 
   The first version of that bench reported the *minimum* weight per word and was wrong to. A minimum
-  is a tail statistic that grows more extreme with the sample whether or not anything is there: at
+  is a tail statistic that grows more extreme with the sample whether anything is there: at
   2^27 pairs chance alone delivers a one-bit word about once per word. The null predicts a minimum
   of one across the deep words. `bench_space`'s figure survives only because its sample
   was 256 times smaller, where chance gives 0.001 and four hits are not chance. Counting the rate
@@ -1679,7 +1679,7 @@ should say so instead of pretend it is injective.
 
   It immediately dissolves the step of four. For the nonce the floors at words 18 through 28 are
   **2, 1, 6, 2, 4, 2, 7, 6, 5, 2, 11** - so W19 is the only genuine one-bit path from a nonce, and
-  W23 and W27 have floor **2**. Their one-bit events are a carry canceling a bit, not a path. The
+  W23 and W27 have floor **2**. Their one-bit events are a carry canceling a bit instead of a path. The
   floor-2 words are 18, 21, 23, 27, spaced 3, 2, 4. There is no period; the apparent step of four
   was which floor-2 words happened to produce cancellations above the sampling floor.
 
@@ -1834,7 +1834,7 @@ Stated as gaps and not as conclusions, because several are cheap to close and on
    nonlinear perturbation. **This is the most structured object in SHA-256 and we have not touched
    it.**
 2. **Exact DAG reachability, as opposed to the statistical light cone.** The propagation front was
-   measured by sampling. The circuit is a fixed DAG, which makes reachability *computable exactly*: after
+   measured by sampling. The circuit is a fixed DAG, and that makes reachability *computable exactly*: after
    `r` rounds, which input bits can provably affect which output bits. Statistical measurement can
    only ever say "no effect observed"; the DAG says "no path exists." Those are different claims and
    only one of them is a constraint you can solve against.
@@ -1842,7 +1842,7 @@ Stated as gaps and not as conclusions, because several are cheap to close and on
    its interior. The decay curve's shape there is unmeasured.
 4. **The state as a torus and not as eight rows.** The Fourier and Walsh work transformed each
    32-bit row independently. The bit axis is genuinely cyclic under rotation, and the word axis is a
-   shift register. The natural object is therefore a product space, not eight separate circles. A transform
+   shift register. The natural object is therefore a product space instead of eight separate circles. A transform
    over that product has not been tried.
 5. **Cycle structure of the round permutation.** For fixed `W[t]` the round is a permutation of a
    2^256 set. Permutations have cycle structure, fixed points, and order. None of this has been
@@ -2024,7 +2024,7 @@ still have missed. An unbounded null was being quoted as though it excluded ever
 
 `bench_walk.cpp` §5 now fixes that floor by injection instead of by argument. A known smooth
 gradient is added to the score - `alpha * set_bits(nonce)`, which moves by exactly one per single-bit
-step, which makes alpha the gradient in the same units the readout carries - and faded until §1's own
+step, and that makes alpha the gradient in the same units the readout carries - and faded until §1's own
 statistic loses it. Measured, with the unrelated-nonce control held beside it at every rung:
 
 | alpha, bits per single-bit step | flip correlation | z | control z | |

@@ -11,7 +11,7 @@
 # sit 0.0936 apart. Where a text came from carries nearly as much as what language it is in. That was
 # recorded as a fact about languages and it is a fact about the reading.
 #
-# What the reading holds is which of the commonest 64 characters follows which, and that is 4096 numbers
+# The reading holds which of the commonest 64 characters follows which, and that is 4096 numbers
 # standing in for a whole language. Everything else is discarded: every dependency longer than one
 # character, the entire tail of the alphabet past rank 64, where a character sits inside a word, and all
 # word and morpheme structure. A margin of seven percent is what is left after that. It is not what

@@ -32,7 +32,7 @@ THE POSITIVE CONTROL
 The header is a real block whose winning nonce the chain recorded. The search hides the low bits of
 that nonce and looks for it in the window around it. A run is believed only when it returns exactly
 that nonce and the nonce reproduces the block's own id. A cheap condition that breaks this is
-reported, not trusted.
+reported instead of trusted.
 
 WHAT IS HELD
 

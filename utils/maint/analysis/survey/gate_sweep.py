@@ -12,7 +12,7 @@
 # the answer is written to a file. A reading then consults the verdict instead of repeating the check, and
 # a corpus that has never been through the gate is visible as one with no verdict.
 #
-# What this catches is worth stating plainly, because two of these were found by accident and cost hours
+# Its catches are worth stating plainly, because two of these were found by accident and cost hours
 # each. A Greek to English lexicon standing in a Greek corpus. Untranslated English in seven Indic files,
 # from 1.8 to 30.0 percent, which inverted a whole language family and drew three explanations before
 # anyone looked. Neither is exotic and neither announces itself.

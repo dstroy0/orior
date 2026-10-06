@@ -81,7 +81,7 @@ does not identify emitters, and a document claiming it did would contradict two 
 
 The mechanism left standing explains the shape without appealing to identity. The field is re-rolled
 continuously during search, and a winning block records wherever the roll stood when it landed. The
-distribution is a picture of where implementations spend their time, not of who is searching. Zero
+distribution is a picture of where implementations spend their time instead of who is searching. Zero
 is where a counter starts, 0xffff is a mask, 0xfff8 is that mask with three bits cleared, and the
 powers of two are single-bit states. Those are conventions, arrived at independently, and the piles
 sit exactly on them. The pattern is collective and names nobody.
@@ -114,7 +114,7 @@ freedom, which is where a fair clock lands.
 
 **The clocks disagree about the time.** Thirty-one of 999 blocks, 3.10 per cent, record a timestamp
 earlier than their own parent. That cannot happen if the network's clocks agree. The protocol allows
-it, which makes the count a direct measurement of the disagreement with no model in between. The deepest
+it, and that makes the count a direct measurement of the disagreement with no model in between. The deepest
 is height 965370, three hundred and four seconds before its parent.
 
 The three readings together locate the effect precisely. The process is clean and the clocks tick
@@ -166,7 +166,7 @@ way a signal grows.
 
 The one lead did not resolve. Reversing blocks carrying a lower rolled version read -2.09 standard
 errors at a thousand blocks, which predicts -5.52 at this depth. It read -2.64: larger, but nothing
-like square root growth. It is neither confirmed nor dead and wants a deeper corpus, not a verdict.
+like square root growth. It is neither confirmed nor dead and wants a deeper corpus instead of a verdict.
 
 The reversal population is now readable at 208 reversals, up from 31. Binned by minute it runs
 72, 37, 22, 30, 20, 23, 4 across zero to seven minutes - broad and decaying, with no discrete bands.
@@ -209,7 +209,7 @@ each half's own total, because the three-hour smoothing correlates neighboring b
 distance distribution is nothing like uniform on 0 to 12.
 
 Two things worth reading off it. The **trough** is the stable feature and the **peak** is not: the
-peak moves from 08:00 to 13:00 between the time halves while the trough does not move at all, which makes the
+peak moves from 08:00 to 13:00 between the time halves while the trough does not move at all, and that makes the
 trough the feature any phase claim should be built on. And this says nothing about migration in either
 direction: the corpus spans 48 days and each half 24, while mining geography moves over years. Two
 halves three weeks apart agree under a stable phase *and* under an unmeasurably slow migration. Separating those needs years of corpus, far more than this one holds.

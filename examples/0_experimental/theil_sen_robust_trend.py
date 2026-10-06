@@ -12,7 +12,7 @@
 # the majority of point PAIRS agree on: the Theil-Sen estimator takes the median of every pairwise
 # slope, and the intercept as the median of the residual offsets. It is application logic and not an
 # engine primitive, for the same reason the collaborative filter is -- a trend estimate is what a
-# reading is measured INTO, not the null it stands against.
+# reading is measured INTO instead of the null it stands against.
 #
 # Why it is in the family. Two points from a clean line give exactly the line's slope; a point pulled
 # off the line by an outlier gives a slope that is nearly anything. So the clean pairs all agree on one

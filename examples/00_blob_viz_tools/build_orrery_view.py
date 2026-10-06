@@ -18,8 +18,8 @@
 
 WHY A SYSTEM AND NOT A FILE
 
-Everything else in this directory reads data nobody knows the shape of, which makes a viewer that
-looks right impossible to grade. Here the interior is written down first: bodies at known radii on
+Everything else in this directory reads data nobody knows the shape of, and a viewer that
+looks right is impossible to grade. Here the interior is written down first: bodies at known radii on
 known periods. The page then shows the boundary alone, derives the interior back out of it, and
 prints the derived numbers next to the ones it was built from. A viewer that draws a convincing
 picture and recovers the wrong radius is caught in the same glance.
@@ -400,7 +400,7 @@ def main():
     #
     # Peak strength was tried first as the way to tell a body from an artifact and it does not
     # work: on one patch a spurious peak scored 2419 while a real body scored 555. Strength says
-    # how loud a bin is, not whether anything is there.
+    # how loud a bin is. It does not say whether anything is there.
     #
     # Agreement does work. A body is somewhere. Every patch sees it swing. An artifact is a
     # feature of one curve. It lives on one patch and dies on the next. Antipodal patches are

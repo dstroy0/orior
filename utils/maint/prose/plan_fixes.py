@@ -1,6 +1,6 @@
 """Proposes a phrase swap for each finding, for build_fixes.py to turn into table rows.
 
-The gate names a token, not a phrase: it reports the bare contrast word where the text carries its two-word form. A swap
+The gate names a token instead of a phrase: it reports the bare contrast word where the text carries its two-word form. A swap
 has to act on the phrase. Each site is widened to the construction actually present and then a
 rule is applied to that construction.
 

@@ -53,7 +53,7 @@ extern "C"
     } DevicePoolReserveRequest;
 
     // holds the plan's pool as one allocation of device_pool_plan_bytes, with nothing taken yet; a plan of no bytes
-    // holds an empty pool and allocates nothing. The pool is written, not read. A pool already held is released
+    // holds an empty pool and allocates nothing. The pool is written and never read. A pool already held is released
     // first.
     long device_pool_reserve(const DevicePoolReserveRequest *request);
 

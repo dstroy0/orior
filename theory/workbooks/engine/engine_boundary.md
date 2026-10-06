@@ -11,7 +11,7 @@ Restated "absolutely anything to do with tracking microorganisms goes into cell 
 
 - The engine holds math only: trees, cuts, overlaps, fields, exact integers. Nothing in engine/ may name or know about cells, divisions, daughters, key cells, moves, merges, appear/disappear, or grading against the answer key.
 - Cell semantics and oracle grading go in cell_tracking/. They compose the engine's generic outputs there.
-- Before adding any field, kernel or request member under engine/, check it names a mathematical object, not a biological one. If unsure, ask Doug first.
+- Before adding any field, kernel or request member under engine/, check it names a mathematical object instead of a biological one. If unsure, ask Doug first.
 
 What prompted it: in the 9c/9d overlap work, max_tree got
 - the division_voxels and key_voxels requests;

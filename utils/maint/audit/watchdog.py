@@ -18,7 +18,7 @@ Four checks, each with its floor derived from the process instead of chosen:
                   with a known mean. A drought is only meaningful against that mean, and the
                   probability of a drought this long is computable instead of alarming.
   job cadence     a pool sends work on its own rhythm. The gaps are what they are, and the alarm
-                  belongs at a quantile of the observed distribution, not at a round number.
+                  belongs at a quantile of the observed distribution instead of at a round number.
 
     python utils/maint/audit/watchdog.py
     python utils/maint/audit/watchdog.py --log build/miner_20260910_234344.log
@@ -108,7 +108,7 @@ def report(path):
         print("    that computes the wrong thing looks exactly like one that works.")
     else:
         print("    FAULT. More survivors than 2^32 allows, which means the anchor test itself")
-        print("    is wrong, not the hashing.")
+        print("    is wrong instead of the hashing.")
     print()
     print("    depth needed for a 1%% deficit to clear 3 sd: %s hashes"
           % format(int(9.0 / (0.01 ** 2) * ANCHOR_SPACE), ","))
@@ -157,11 +157,11 @@ def report(path):
         for t in (gap, 2 * gap, 3 * gap, 5 * gap):
             print("      %6.0f s with none   probability %.4f" % (t, math.exp(-t / gap)))
         print()
-        print("    Alarm where that probability is small enough to act on, not at a round number.")
+        print("    Alarm where that probability is small enough to act on instead of at a round number.")
     if last["submitted"] > 0 and last["accepted"] < last["submitted"]:
         print()
         print("    REJECTS PRESENT. Rejected shares are stale work or a bad ntime, and both are")
-        print("    connection faults, not hashing faults.")
+        print("    connection faults instead of hashing faults.")
 
     print()
     print("=" * 74)
@@ -187,7 +187,7 @@ def report(path):
             print("    %d jobs carried an ntime EARLIER than the job before them, deepest %d s."
                   % (len(backward), -min(backward)))
             print("    The chain itself does this on 2.98%% of blocks: a pool doing it is")
-            print("    normal, not alarming. It is only a fault if our OWN clock is what")
+            print("    normal instead of alarming. It is only a fault if our OWN clock is what")
             print("    disagrees, which shows as rejects and not here.")
     else:
         print()
@@ -282,7 +282,7 @@ def pooled_anchor_test():
         print("    if the ratio returns to one, it was accounting.")
     else:
         print("    RESOLVED, AND IT IS AN EXCESS. More survivors than 2^-32 permits means the")
-        print("    anchor test itself is wrong, not the hashing.")
+        print("    anchor test itself is wrong instead of the hashing.")
 
 
 BASELINE = os.path.join(HERE, "watchdog_baseline.json")

@@ -16,7 +16,7 @@ same object orior builds when it takes the transitive closure of a relation into
 
 THE MEASURE
 
-Every negative here is a boundary, not a failure: it says the words do not link on shared rare
+Every negative here is a boundary instead of a failure: it says the words do not link on shared rare
 sub-patterns at this length, which maps where the structure is not. The reading is the component
 structure, the count of non-singleton components and the largest one, against a null of random units
 with the same leading zeros and nonce weight. Real words that link more than random do it because they
@@ -26,7 +26,7 @@ WHY RARE
 
 A sub-pattern in almost every word is the leading zeros, which link everybody and carry no
 information. A sub-pattern in a handful is a feature those few share, and it is the only kind that can
-carry a web with structure. The rarity ceiling is swept, not chosen. The reading is a curve over
+carry a web with structure. The rarity ceiling is swept instead of chosen. The reading is a curve over
 how rare a shared pattern has to be to count.
 
 WHAT IS HELD

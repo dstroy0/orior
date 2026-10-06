@@ -288,7 +288,7 @@ def main():
     out.write(
         "  A person reads these. Neither count is a verdict, and a claim about somebody\n"
     )
-    out.write("  else's priority is a citation, not a finding.\n")
+    out.write("  else's priority is a citation instead of a finding.\n")
     out.flush()
     return claims + quoted
 

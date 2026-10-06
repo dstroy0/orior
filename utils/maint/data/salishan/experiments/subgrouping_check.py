@@ -14,7 +14,7 @@
 # and a nominalizing s- is set aside. Two forms of one meaning are counted as a match when their first
 # two classes agree, the criterion Turchin, Peiros and Gell-Mann (2010) use. Their paper is cited from
 # report and was not read for this file. The criterion is coarse by design: it survives the dozen
-# orthographies in these tables, and chance matches are measured, not assumed away.
+# orthographies in these tables, and chance matches are measured instead of assumed away.
 #
 # For each pair of languages, the match rate over the meanings both attest is set against the rate
 # when one language's meanings are shuffled. The excess, observed minus shuffled, is the signal.

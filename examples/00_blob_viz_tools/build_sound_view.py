@@ -28,7 +28,7 @@ Four readings of the same frames:
   slope      difference between neighboring bins, which sharpens a peak and kills a plateau
 
 Zero-padding is the oversampling. It adds no resolution: two tones closer together than the frame
-can separate stay unseparated however large the pad. What it does is interpolate the spectrum onto
+can separate stay unseparated however large the pad. It interpolates the spectrum onto
 a finer grid. A peak sitting between two bins is then drawn at its real height and position
 and not smeared across the two. Raise --fft to separate tones, raise --pad to place them.
 """

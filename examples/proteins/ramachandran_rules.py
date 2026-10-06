@@ -27,7 +27,7 @@
 # Crystallography needs no tolerance: a lattice displacement lands on an occupied place or does not.
 # A protein cannot be read that way, and the crystallography README says why. A backbone is a cloud
 # of real valued coordinates. A torsion is an irrational the deposit never wrote, and the rules
-# are published on a grid of two degrees, not as a formula. So there is a quantum here, and the
+# are published on a grid of two degrees instead of as a formula. So there is a quantum here, and the
 # right move is to declare where it comes from and not pick one.
 #
 # It comes from the reference. The grid is two degrees because the Richardson laboratory published
@@ -42,7 +42,7 @@ from decimal import Decimal, getcontext
 
 # Digits carried through the atan2. The reference grid is two degrees, and forty digits places the
 # angle roughly forty orders of magnitude under that. The precision cannot decide a bin. Raising
-# it changes no classification; this is headroom, not a knob.
+# it changes no classification; this is headroom instead of a knob.
 getcontext().prec = 40
 
 AGENT = {"User-Agent": "orior-research/1.0 "

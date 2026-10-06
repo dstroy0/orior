@@ -6,7 +6,7 @@
 #
 #   Usage:  python maint/data/salishan/orior_algorithmic_extraction/corpus_growth.py
 #
-# A corpus of n members is a sample of a distribution, not the distribution. A candidate that looks
+# A corpus of n members is a sample of a distribution instead of the distribution. A candidate that looks
 # nothing like anything already in the corpus is therefore not disqualified: at this n the
 # corpus does not yet cover its own support, and support is still climbing.
 #

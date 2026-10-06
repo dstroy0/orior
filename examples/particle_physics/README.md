@@ -79,7 +79,7 @@ Distinct is the states summed over the table; the accumulation is 7021 electrons
 | counts kept, order deleted | 0.030 | 0.027 | 0.060  | 0.035  | 0.094 at 22 |
 | no exclusion               | 0.000 | 0.000 | 0.000  | 0.000  | 0.000 at 1  |
 
-The first background is `reference.shuffles.permuted`, a uniform arrangement of the same signatures. Its floor is identical to the real one, 0.030, because it keeps every count exactly, and its match rate at the row lengths falls to that floor. The recurrence is in the order Pauli fills the shells in, not in the counts. The second background deletes the exclusion: every electron drops to 1s, and an element is then only a count of electrons in one state; every signature is distinct, and the floor and the match rate are both zero. Without exclusion there is a ladder and no table. The real accumulation is the positive control and the only arm carrying the recurrence.
+The first background is `reference.shuffles.permuted`, a uniform arrangement of the same signatures. Its floor is identical to the real one, 0.030, because it keeps every count exactly, and its match rate at the row lengths falls to that floor. The recurrence is in the order Pauli fills the shells in. It is not in the counts. The second background deletes the exclusion: every electron drops to 1s, and an element is then only a count of electrons in one state; every signature is distinct, and the floor and the match rate are both zero. Without exclusion there is a ladder and no table. The real accumulation is the positive control and the only arm carrying the recurrence.
 
 ## The row lengths, off the difference set
 
@@ -99,7 +99,7 @@ A second sift reads the same necessary condition on particle decays. `decays_pas
 
 `measured_configuration_vs_ideal.py` holds the ideal filling against the published ground states and reports where they disagree. The measured configurations come from the NIST Atomic Spectra Database, fetched by `utils/maint/data/fetch/fetch_nist_ground_states.py`, which carries neutral atoms through element 108. For 109 to 118 no neutral atom has been measured. Those ten take the predicted relativistic configurations, marked predicted and kept apart from the measured ones. Every configuration is checked to account for exactly Z electrons before it is compared.
 
-All 118 elements are covered: 108 measured, 10 predicted. Of the measured, 88 agree with the ideal filling and 20 differ; the 10 predicted all agree. The 20 disagreements are read off, not listed by hand:
+All 118 elements are covered: 108 measured, 10 predicted. Of the measured, 88 agree with the ideal filling and 20 differ; the 10 predicted all agree. The 20 disagreements are read off instead of listed by hand:
 
 |     | Z   | ideal   | ground state |
 | --- | --- | ------- | ------------ |
@@ -124,7 +124,7 @@ All 118 elements are covered: 108 measured, 10 predicted. Of the measured, 88 ag
 | Cm  | 96  | 5f8     | 5f7 6d1      |
 | Lr  | 103 | 6d1     | 7p1          |
 
-Most agree, the positive control: a reading where nothing agreed would be broken, not a table of exceptions. The disagreements are the transition metals that borrow an s electron for a fuller d shell, the lanthanides and actinides that seat an early d electron before the f shell fills, and lawrencium's 7p ground state. The ten predicted configurations follow the ideal order. Every exception is a measured one.
+Most agree, the positive control: a reading where nothing agreed would be broken instead of a table of exceptions. The disagreements are the transition metals that borrow an s electron for a fuller d shell, the lanthanides and actinides that seat an early d electron before the f shell fills, and lawrencium's 7p ground state. The ten predicted configurations follow the ideal order. Every exception is a measured one.
 
 ## The particles, and the structure the exact numbers emit
 

@@ -1426,7 +1426,7 @@ def deciphered(symbol, textpage, index, ciphers=None):
 
 
 def drawn_space(textpage, index):
-    """True for a space the page draws with ink, not one pdfium set: Galloway's enciphered Times
+    """True for a space the page draws with ink instead of one pdfium set: Galloway's enciphered Times
     draws its = at the code of a space, (=[¢] on page 5."""
     left, bottom, right, top = textpage.get_charbox(index)
     return not pdfium_c.FPDFText_IsGenerated(textpage.raw, index) and right - left > 0.01 and top - bottom > 0.01

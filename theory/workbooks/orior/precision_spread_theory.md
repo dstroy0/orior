@@ -95,7 +95,7 @@ puts `sqrt(n)` in the generated set for every `n` whose prime factors are among 
 integers. The count of `k`-smooth integers up to a bound grows without limit in the bound, and the
 multiplier grows without limit. The prototype counts it: from the two seeds `sqrt(2)` and `sqrt(3)`
 alone, the generated set holds the square root of 2,230,148 distinct 3-smooth integers up to `10^800`, which is
-1,115,074 exactly-known constants per seed. Adding seeds raises the count at far smaller bounds: three
+1,115,074 exactly known constants per seed. Adding seeds raises the count at far smaller bounds: three
 seeds reach 1,143 per seed at `10^12`, ten seeds reach 146,955, fifteen seeds pass 200,000.
 
 The same holds for two more families. The zetas: `zeta(2k) = rational * pi^{2k}` puts every even zeta
@@ -166,10 +166,10 @@ The spread raises precision. It does not raise completeness, and the two are sep
 
 Game theory gives the sharpest statement: an unsolved game tree, chess, has an unbounded winning-path
 tree whose entropy is estimated at a horizon the domain refuses to fold into the number. No spread buys
-back an unsolved tree, because the limit is a missing computation, not a rounding. Particle physics
+back an unsolved tree, because the limit is a missing computation instead of a rounding. Particle physics
 has the same shape: the Bohr model omits fine structure, the Lamb shift, and QED, and
 the model truncation dominates far above the constant uncertainty. Protein has it as deposition: the
-arithmetic is already exact, and a scheme that wants more precision has to lift the experiment, not the
+arithmetic is already exact, and a scheme that wants more precision has to lift the experiment instead of the
 computation.
 
 This is the engine's own division seen again. The workbook records that soundness belongs to the

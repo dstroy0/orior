@@ -28,7 +28,7 @@
 # to disagree. Two electrons at one state is a Pauli violation, and it shows only in the count.
 #
 # The filling read here is the ideal, Madelung order and Hund's rule, as element.electrons builds it.
-# Real atoms deviate, and those measured configurations are the oracle stage, not this one. The
+# Real atoms deviate, and those measured configurations belong to the oracle stage. The
 # differentiating electron's group signature recurs down the table, and that recurrence is the periodic
 # law the measure stage reads. It is not read here. This stage writes each element down.
 

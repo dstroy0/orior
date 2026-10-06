@@ -76,7 +76,7 @@ def reciprocal(product, value, bits):
     lifted = reciprocal(product, value, half)
     out = (lifted << (bits - half + 1)) - (product(value, product(lifted, lifted)) >> (2 * half - bits))
 
-    # Newton lands within a couple of units here. This settles it by stepping, not searching.
+    # Newton lands within a couple of units here. This settles it by stepping instead of searching.
     top = 1 << bits
     while product(out, value) > top:
         out -= 1
@@ -150,7 +150,7 @@ def inverse_root(product, value, bits):
     if bits <= max(64, value.bit_length() // 2 + 32):
         return math.isqrt((1 << (2 * bits)) // value)
 
-    # HALVE THE SIGNIFICANT BITS, NOT THE SCALE. The answer carries `bits - width/2` significant
+    # HALVE THE SIGNIFICANT BITS AND LEAVE THE SCALE. The answer carries `bits - width/2` significant
     # bits, being the remainder of the scale once the root's own size is taken out. Halving
     # `bits` alone would halve the scale and leave the significant count almost untouched for a
     # large value. The step below it would arrive with too little precision to double.
@@ -176,7 +176,7 @@ def root_scaled(product, value, places):
     sqrt(v) = v / sqrt(v). Multiplying the value by its own inverse root gives the root, and the
     only operations used are the ones the card already does.
     """
-    # THE RECIPROCAL ROOT MUST COVER THE VALUE, NOT HALF OF IT. `back` is 2^bits / sqrt(value),
+    # THE RECIPROCAL ROOT MUST COVER THE WHOLE VALUE. `back` is 2^bits / sqrt(value),
     # which carries bits - bit_length(value)/2 significant bits, and the answer needs
     # bit_length(value)/2 + 4*places of them. Sized at half the bit length, `back` came out with
     # about sixty four good bits and the settling loop had to climb the rest one unit at a time,
@@ -205,7 +205,7 @@ def reduce_by(product, value, modulus, folded=None):
     """
     if value < modulus:
         return value
-    # THE RECIPROCAL HAS TO COVER THE VALUE, NOT JUST THE MODULUS. If `bits` is only wide enough for
+    # THE RECIPROCAL HAS TO COVER THE VALUE AS WELL AS THE MODULUS. If `bits` is only wide enough for
     # the modulus then the truncation in `folded` scales with `value` and the quotient comes out low
     # by an amount that grows with it, leaving the correction loop to subtract the modulus that many
     # times. Sizing `bits` to the value keeps the quotient within one of the truth.

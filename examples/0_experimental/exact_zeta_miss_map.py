@@ -596,7 +596,7 @@ def antinode_indices(fine):
     """Coarse fine-indices at the antinodes of Z, where Im(w) changes sign: w crosses the real axis and |Z| sits near a
     lobe peak. A zero is where Re(w) crosses zero, on the imaginary axis, and the two axes alternate as w winds: each
     zero is trapped between two antinodes. A pair hides only where w wiggles, crossing the imaginary axis twice with no
-    real-axis crossing between. This is the filter built to trap, not to space."""
+    real-axis crossing between. This is the filter built to trap instead of to space."""
     idx = [0]
     for j in range(1, len(fine)):
         if (fine[j - 1][3].imag <= 0.0) != (fine[j][3].imag <= 0.0):

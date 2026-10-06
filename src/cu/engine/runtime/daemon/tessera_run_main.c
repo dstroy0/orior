@@ -45,8 +45,8 @@ int main(int count, char **arguments)
     ask.holding_microseconds = RUN_RUNNING_MICROSECONDS;
     ask.sweep_microseconds = RUN_SWEEP_MICROSECONDS;
     ask.idle_microseconds = RUN_IDLE_MICROSECONDS;
-    // processors named past the signum's kept peak are not held for asking: the job waits only for capacity. What it
-    // reserves is still the kept peak where that is more than it named
+    // processors named past the signum's kept peak are not held for asking: the job waits only for capacity. It
+    // still reserves the kept peak where that is more than it named
     ask.override_budget = 1u;
     ask.daemon_path = daemon;
     ask.error = &error;

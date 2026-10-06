@@ -7,7 +7,7 @@
 #   Usage:  from salish_unsorted import unreached, write_unsorted
 #
 # An extractor is written against one paper's layout and meets lines that layout does not account for.
-# There are two ways that happens. A line reaches the classifier and none of its tests fire, as a wrapped
+# That happens in two ways. A line reaches the classifier and none of its tests fire, as a wrapped
 # phonetic line or a form cited inline in a note does. Or a line is never reached at all, because
 # it sits in front matter, in an appendix, or in a section the extractor was not told to read.
 #
@@ -15,10 +15,10 @@
 # name why, and hold it out of the ingestion stream until a person has said what it is. A guess costs more
 # than a gap, because a gap is visible and a wrong guess is not.
 #
-# The second kind is found by comparing, not by parsing. Every token in the source carrying a
+# The second kind is found by comparing instead of by parsing. Every token in the source carrying a
 # character the language is written with should appear somewhere in the extraction. A source line
 # holding words that no extracted row holds was not reached. That is the same test coverage_check.py runs,
-# and the number it reports does not change: these lines are flagged, not classified. They still count
+# and the number it reports does not change: these lines are flagged instead of classified. They still count
 # against coverage. What changes is that the gap now has a file naming every line in it.
 #
 # A paper whose extractor repairs its source has to be compared after the same repair. Comparing a repaired

@@ -9,7 +9,7 @@
 #           python maint/data/fetch/fetch_ctc.py --fetch NAME --test   the test arm as well
 #           python maint/data/fetch/fetch_ctc.py --tier small     every dataset under 200 MB
 #
-# NOTHING IS FETCHED BY DEFAULT AND THAT IS DELIBERATE. The full table is about 3.4 GB of 2D
+# NOTHING IS FETCHED BY DEFAULT. The full table is about 3.4 GB of 2D
 # training data and about 360 GB of 3D, and one row of it, Fluo-N3DL-TRIF, is 320 GB training
 # against 467 GB test on its own. A fetcher that pulls its whole manifest on a bare invocation is a
 # fetcher that fills a disk before anyone reads its output. Run it bare first and read the total.
@@ -17,7 +17,7 @@
 # WHERE THIS WRITES. repos/external/datasets at tree level, outside this repository, flat names and
 # no nesting. That directory is not a git repository at all. Nothing here can be committed by
 # accident. The rule this repo's .gitignore already states is the same one: what a tool can fetch is
-# not carried here. What the repository keeps is this manifest.
+# not carried here. The repository keeps this manifest.
 #
 # WHY THESE DATASETS AND NOT A LEADERBOARD. The permutation null measure carries most of the
 # findings in this work and has no positive control from outside it, which theory/workbooks/orior calls the

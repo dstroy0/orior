@@ -13,7 +13,7 @@
 # What can be asked is whether the corpus stays on its curve. A pure corpus growing on more of the
 # same language adds support slowly and holds its split-half distance roughly level. Tipping in the
 # whole sifted set does neither: a refused corpus's cells and D_self jump together, which is a second
-# distribution arriving, not more of the first. The Salishan research paper gives the figures, which
+# distribution arriving instead of more of the first. The Salishan research paper gives the figures, which
 # instrument_figures.py measures.
 #
 # So candidates are sorted by distance to the corpus and admitted in batches while D_self stays

@@ -183,7 +183,7 @@ A ruleset is a text file whose first line is `krs 1`, and every other line is on
   argument, `{bank:n}` for scratch register n of one of the ruleset's banks, and any other word for itself. Each time
   the form is written, its construct's lines are written in its place, and each scratch register is a fresh one: in
   PTX, one of the step's own temporaries, 64-bit temporaries or predicates, declared with them. A ruleset may give a
-  form as a form or as a construct, not both. `utils/test/src/cu/transpiler/codegen/rulesets/flagless/ptx.krs` gives the carry chains and the
+  form as a form or as a construct, and never as both. `utils/test/src/cu/transpiler/codegen/rulesets/flagless/ptx.krs` gives the carry chains and the
   product this way, with no instruction that sets or reads the condition code.
 
 A line that begins with `#` is a comment. The code generator lists every form, bank and register it needs, with the
@@ -223,7 +223,7 @@ engine_record_host(&request, &sweep);  // the same program on the host, from the
   shared record is then read by every lane with nothing stored a lane, and with the lane's own number
   (`ENGINE_RECORD_LANE`) the lanes enumerate a range from it: x = base + ℓ. With an index, lane i reads record
   `index[i · members + m]` of member m. That is how a lane gathers its inputs from anywhere in a member. An index
-  names a record by a 32-bit number, and the lane's number is still i, not the record it reads. With no index, a
+  names a record by a 32-bit number, and the lane's number is still i instead of the record it reads. With no index, a
   member holding more than one record and fewer than the lanes errors on the sweep before any lane runs.
 - `out` receives `lanes` output records.
 - A lane is **errored** when a division meets a zero divisor, an exact quotient meets a remainder, a ladder's

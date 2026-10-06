@@ -377,7 +377,7 @@ static void faces_test_walk(FacesTestSample *walk, FacesFlaw flaw)
     memcpy(walk->predictions, predictions, sizeof(predictions));
     const unsigned int outside[12] = {0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 1u, 1u, 1u, 1u};
     memcpy(walk->outside, outside, sizeof(outside));
-    // a to t chosen; p to u in the gate, not chosen; c to c' chosen
+    // a to t chosen; p to u in the gate and passed over; c to c' chosen
     const unsigned int gates[3][4] = {{0u, 0u, 0u, 1u}, {1u, 1u, 4u, 0u}, {2u, 0u, 1u, 1u}};
     memcpy(walk->gates, gates, sizeof(gates));
     walk->gate_count = 3u;

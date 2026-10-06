@@ -231,7 +231,7 @@ free numbers at fixed weight. Overlapping arms carry no such constraint and hold
 seven-free-numbers figure quoted for the eight octants comes from their tiling and is not a property
 of eight arms.
 
-**Completeness is priced, not forbidden.** Recovering all `N` directions of an `N`-point source
+**Completeness is priced instead of forbidden.** Recovering all `N` directions of an `N`-point source
 takes `N` independent arms. No arrangement of geometry avoids that, and no precision substitutes for
 it.
 

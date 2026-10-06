@@ -51,7 +51,7 @@ WHAT THIS FILE MEASURES, in the order the measurements force it.
    monopole and a stack of those is nearly rank one. Narrow wins by construction.
 
 4. AND THEN THE NULL PICKS UP THE TURF. The narrow sweep reports condition 4.86 at width 0.003
-   with the rank never breaking, and that number measures the AIMING, not the instrument.
+   with the rank never breaking, and that number measures the AIMING instead of the instrument.
    `beam_set` aims beam `at` at source `(at * 7 + 1) % 256`, and 7 is coprime to 256. The aiming
    is a PERMUTATION: one beam pointed at each source. Shrink the width and the matrix becomes a
    permuted identity for free. The aimed instrument is built out of the answer.
@@ -406,7 +406,7 @@ def _widths(harmonics, points, truth, spacing, baseline):
     print("    AIMED best %.3e at width %.5f, and the rank NEVER breaks, because the aiming is a"
           % (min(one[2] for one in walk),
              min(walk, key=lambda one: one[2])[0]))
-    print("    permutation onto the sources. That column measures the aiming, not the instrument.")
+    print("    permutation onto the sources. That column measures the aiming instead of the instrument.")
     if complete:
         best = min(complete, key=lambda one: one[4])
         print("    BLIND best %.3e at width %.5f  (%.2f spacings), against %.3e for the shipped"

@@ -25,7 +25,7 @@
 #
 # Word boundaries are the other one. The PDF puts a space in front of a letter carrying a mark.
 # s ’plá ’ks@lx is one word, iP ’kl is two, and both of them are a space in front of a marked
-# letter. Page 25 settles the first as sp̓lák̓səlx and page 24 the second as iʔ k̓l. wa’y and Lyon’s
+# letter. Page 25 settles the first as sp̓lák̓səlx and page 24 the second as iʔ k̓l. `wa’y` and `Lyon’s`
 # are the same case with the space missing instead of inserted.
 #
 # Those are the sites to read first on any page, and they are why this file is not a repair in
@@ -90,7 +90,7 @@ def moved_marks(token):
 
 
 # The characters of the extraction that only the language is written with. A token holding one of
-# them is Salish. These are the codes as they arrive, not what they become: an earlier version of
+# them is Salish. These are the codes as they arrive instead of what they become: an earlier version of
 # this listed ə ɬ ʕ ƛ, which the test never sees, and s’tmQa’lt came through with its ejective marks
 # still standing in front of their letters.
 #
@@ -142,7 +142,7 @@ def salish(token):
 
     Two things this misses. A P-initial Salish word with no other mark on it, as Pitx, Pamn and
     Pasil are, comes through as English. So does a word whose ’ the extraction did not put a space
-    in front of, because wa’y and Lyon’s are then the same shape and only the page tells them apart.
+    in front of, because `wa’y` and `Lyon’s` are then the same shape and only the page tells them apart.
     Both are among the first things to look for on a page.
     """
     if a_gloss(token):

@@ -38,7 +38,7 @@
 # solution at t = 0, exactly. Each bar is the number of Fourier modes a coefficient occupies; the darker
 # bar inside it is how many of those sit outside the box |k|_inf <= 1, and the darkest how many sit
 # outside |k|_inf <= 2. The numbers come from running the example when this script runs. They are the
-# measured horizon: any fixed box misses some order, and the count it misses is drawn, not bounded.
+# measured horizon: any fixed box misses some order, and the count it misses is drawn instead of bounded.
 
 import io
 import os

@@ -65,7 +65,7 @@ def words_in(text):
 def papers_text():
     """Every extracted research paper, joined.
 
-    The whole of each one, not a slice. A rate needs the denominator it was counted over, and there
+    Each one whole instead of a slice. A rate needs the denominator it was counted over, and there
     is no reason to sample when the corpus is 7.3 MB and already on disk.
     """
     if not os.path.isdir(PAPERS):
@@ -82,7 +82,7 @@ def papers_text():
 def repository_text():
     """Every comment, docstring and page in this tree, joined.
 
-    One arm, not two. Splitting it by author is not available: the text here is almost all
+    One arm instead of two. Splitting it by author is not available: the text here is almost all
     machine-written across many sessions, and the session-boundary split that looked like an
     author split was measuring nothing.
     """

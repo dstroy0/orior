@@ -37,7 +37,7 @@ static size_t field_number_classes(AnchorSameAt same_in_field, const void *field
     // NOT need a shared rank to imply agreement. The labeling must be a superset of the
     // relation, and the smallest superset that is an equivalence is the transitive closure.
     //
-    // EVERY PAIR, NOT EVERY REPRESENTATIVE. Comparing a position against one member of each class is
+    // EVERY PAIR INSTEAD OF EVERY REPRESENTATIVE. Comparing a position against one member of each class is
     // correct only where agreement is transitive. Over 0 1 2 3 4 at a tolerance of two, position 3
     // agrees with 2 and not with 0. Comparing against class zero's representative opens a second
     // class while 2 and 3 agree, and two agreeing positions in different classes breaks the

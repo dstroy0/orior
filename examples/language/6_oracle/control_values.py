@@ -15,7 +15,7 @@
 # autonomous, and they gloss an inferential evidential beside it. So the axis that had no column is
 # written on every verb of a story, and it can be counted instead of argued about.
 #
-# The story is a creation account, which makes the count worth taking. Old One makes the earth, and an
+# The story is a creation account, and that makes the count worth taking. Old One makes the earth, and an
 # English reading of it says he made the world deliberately. The glosses do not obviously agree: he scratches
 # and piles and throws under control, and the flatland, the pitch and the rock arrive under change of
 # state. If that holds across the whole text then the world here is a by-product of a being existing and

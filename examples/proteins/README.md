@@ -13,8 +13,8 @@ rule somebody else published and applied to the same deposit before this instrum
 | `5_sift`      | `protein_domain.py`                    | how far the anchor cascade survives on a real cloud of points |
 | `6_oracle`    | `published_outlier_rate.py`            | whether it matches what wwPDB published for the same deposit  |
 
-The subject stood at three of the six stages: represent, partition and sift. It had no reference,
-no measure and no oracle, and the reason that gap mattered is written into the crystallography
+The subject stood at three of the six stages: represent, partition and sift. It had neither reference,
+measure nor oracle, and the reason that gap mattered is written into the crystallography
 subject next door. Every control in this work until the crystals was a memoryless process, and a
 memoryless process shows only that an instrument does not invent structure. It cannot show that
 an instrument finds structure that is present, and the protein case is exactly where that bit: a
@@ -59,7 +59,7 @@ the only quantum in the reading, and it is the Richardson laboratory's, not this
 favored and allowed cutoffs are MolProbity's own numbers, named in `ramachandran_rules.CONTOURS`
 and printed by every stage that applies them.
 
-The sign of the torsion is fixed by measurement, not assertion. With the IUPAC sign the corpus
+The sign of the torsion is fixed by measurement instead of assertion. With the IUPAC sign the corpus
 reproduces each deposit's published outlier rate; with it negated every structure reads as its own
 mirror image and almost nothing agrees. Stage six is what settled it.
 
@@ -107,8 +107,8 @@ direction:
 
 At the resolution where the backbone is placed to a fraction of an angstrom, the reading reproduces
 the published rate almost every time. Where the coordinates are uncertain, the two counts diverge.
-And the divergence has a direction: of the 316 misses, 299 count more outliers than wwPDB, not
-fewer. The reading is not finding structure that is absent; it is scoring residues the pipeline's
+And the divergence has a direction: of the 316 misses, 299 count more outliers than wwPDB and
+not fewer. The reading is not finding structure that is absent; it is scoring residues the pipeline's
 own count leaves out, and it does so more often exactly where the model is least certain. Nothing
 was tuned to reach this: the contours and cutoffs are MolProbity's, the corpus is a seeded random
 draw from every X-ray protein entry, and the sweep ran once through.

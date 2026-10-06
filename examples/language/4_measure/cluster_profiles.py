@@ -34,7 +34,7 @@
 # Family and type are printed beside the trees, because a tree checked only against itself proves nothing.
 #
 # What this cannot see: eight languages is a small number to cluster and one merge changes the shape of
-# everything above it. The heights are printed, which makes a merge that barely beat its alternative visible.
+# everything above it. The heights are printed, and that makes a merge that barely beat its alternative visible.
 
 import io
 import os

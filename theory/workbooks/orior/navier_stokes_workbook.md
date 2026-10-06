@@ -17,7 +17,7 @@ number theory workbook beside this file already follows:
 - Claim nothing. No open problem is attacked here. Nothing below bears on whether Fefferman's (A), (B),
   (C) or (D) holds.
 - Cite nothing unread. A fact that arrived by report says so in the sentence carrying it.
-- Gaps go in the sentence making the claim, not in a footnote.
+- Gaps go in the sentence making the claim and never in a footnote.
 - Withdrawn entries stay on the page with whatever killed them. Four are recorded below.
 - Draw the bar, never derive it. The boundary kind below is read off each object by a probe, never
   assigned by judgment.
@@ -168,7 +168,7 @@ Three lists, kept apart. The first two are Fefferman's statement, read; the thir
 **What they wanted**: a proof of one of (A), (B), (C), (D), in the sets defined above. He says the leeway
 is deliberate, to give solvers room while retaining the heart of the problem: whether smooth, physically
 reasonable solutions exist for every reasonable datum, or whether some datum breaks down. "Physically
-reasonable" is defined, not left open: smooth, with bounded energy on `R^3`, or smooth and periodic on
+reasonable" is defined instead of left open: smooth, with bounded energy on `R^3`, or smooth and periodic on
 the torus with the periodic pressure of the errata. The Euler case is wanted too, in his words, and is
 not on the Clay list.
 
@@ -199,7 +199,7 @@ not on the Clay list.
 - The disjoint-translate constructor splits the bilinear term exactly when supports are disjoint and not
   when they overlap, in one variable on a lattice of eighths. That result belongs to its own algebra and stands apart from their corollary.
 - We do not know whether (A), (B), (C) or (D) holds. We have not read the 2026 proof. We have computed
-  no blowup, no weak solution, no singular set, and no solution on `R^3`. The two files reach one
+  neither a blowup, a weak solution, a singular set nor a solution on `R^3`. The two files reach one
   countable island inside `D_8` and read it exactly; they reach nothing past it.
 
 ## Entry 1, 2026-09-17: the sets, run on the unit torus
@@ -245,7 +245,7 @@ with (2) enforced by Leray's projection. Nothing is rounded.
   | outside `\|k\|_inf <= 2` | 0   | 0   | 0   | 16  | 66  |
 
   `|k|_1` climbs by exactly one per order, because a product of modes adds their index vectors. A
-  truncation at any fixed radius misses some order, and the count it misses is measured, not bounded.
+  truncation at any fixed radius misses some order, and the count it misses is measured instead of bounded.
   Every coefficient stays divergence-free and real-valued.
 
 - Symmetries, exact on the coefficients. Time scaling `v(x,t) = mu u(x, mu t)` solves (1)-(3) at viscosity
@@ -292,7 +292,7 @@ Their sets, read by the probes, on `u_2` of the generic datum (its modes reach `
 | `u_2` from `A` deposited to 6 places, against true `A` | yes | silent      | silent        | measurement             |
 | `u_1 / u_0 = -4 nu pi^2`, deposit against true `A`     | no  | silent      | silent        | none                    |
 
-The format kind is a property of the report, not of the object: the same coefficient reads `format` in
+The format kind is a property of the report instead of the object: the same coefficient reads `format` in
 decimals, because a coefficient carrying `pi` has no last digit, and reads `none` in the ring, which has
 no scale. The measurement kind is the deposit's, and it is canceled only by the ratio in which the
 amplitude cancels, the floor-free ratio of the precision document's Regime C.
@@ -411,12 +411,12 @@ plainly. The test is what would answer it, and the status says what has been run
 
 | where it is bound | as the statement assigns it | wanted | what would test it | status |
 | --- | --- | --- | --- | --- |
-| `nu`, in (1) | one positive constant; `nu Laplacian u` is linear in `u` | viscous friction is nonlinear everywhere, and every unknown quantity is carried as a vector magnitude | `nu` replaced by a function of the local magnitude `\|grad u\|` and carried through the recurrence: whether the residual stays exact and `d/dt E` stays at most zero. Ladyzhenskaya's modified equations make that replacement; cited from memory of the literature, unread here | wanted, not built. The ring holds `nu` as a parameter the time scaling moves exactly (entry 1) |
-| (2), `div u = 0` | the density one constant | density varies with temperature, sometimes greatly, from place to place, and a change of density is a change in the local mean spacing of atoms | the density carried as a second field under `d rho/dt + div(rho u) = 0`, with `d/dt int rho = 0` checked exactly at every order | wanted, not built. With (2) as written, Leray's projection holds the divergence at zero on every coefficient (entry 1) |
-| one fluid | one `nu`, one density, one phase | all fluids belong to one set, and by transitivity the behavior holds for every one of them, transitional phases included | the two rows above run together across a change of phase | wanted, not built. The ring carries neither field |
+| `nu`, in (1) | one positive constant; `nu Laplacian u` is linear in `u` | viscous friction is nonlinear everywhere, and every unknown quantity is carried as a vector magnitude | `nu` replaced by a function of the local magnitude `\|grad u\|` and carried through the recurrence: whether the residual stays exact and `d/dt E` stays at most zero. Ladyzhenskaya's modified equations make that replacement; cited from memory of the literature, unread here | wanted and not built. The ring holds `nu` as a parameter the time scaling moves exactly (entry 1) |
+| (2), `div u = 0` | the density one constant | density varies with temperature, sometimes greatly, from place to place, and a change of density is a change in the local mean spacing of atoms | the density carried as a second field under `d rho/dt + div(rho u) = 0`, with `d/dt int rho = 0` checked exactly at every order | wanted and not built. With (2) as written, Leray's projection holds the divergence at zero on every coefficient (entry 1) |
+| one fluid | one `nu`, one density, one phase | all fluids belong to one set, and by transitivity the behavior holds for every one of them, transitional phases included | the two rows above run together across a change of phase | wanted and not built. The ring carries neither field |
 | `f`, in `F_5` or `F_89` | given, smooth, rapid decay; identically zero in (A) and (B) | what is left as the forcing goes to zero, the question the millennium chapter records as put to this work | (A) and (B) themselves: `nu > 0` kept and `f = 0` | open. On one datum each, the forced and unforced solution sets do not contain each other's member (entry 1); two instances, no theorem |
 | `u°`, in `D_4` or `D_8` | given, smooth, divergence-free | the fluid defined by what has already been measured of it, by asking what it is | a datum read from a measurement, carried as a deposit and read by the two probes | the probes read a deposited amplitude as measurement (entry 2); no measured datum is run |
-| decay (4), (5), (9), or periodicity (8), (10) | the edge of the domain. The statement has no wall: the domain is `R^3` with decay at infinity, or the torus | every boundary of the fluid can be read off at any threshold chosen | a level set of `\|u\|` at a stated threshold, read from the coefficients | wanted, not built. Shell membership by `\|k\|^2` is read exactly with no numeric `pi` (entry 3) |
+| decay (4), (5), (9), or periodicity (8), (10) | the edge of the domain. The statement has no wall: the domain is `R^3` with decay at infinity, or the torus | every boundary of the fluid can be read off at any threshold chosen | a level set of `\|u\|` at a stated threshold, read from the coefficients | wanted and not built. Shell membership by `\|k\|^2` is read exactly with no numeric `pi` (entry 3) |
 | smoothness (6), (11) | `p, u` in `C^inf`, continuous at every scale | the field is infinitely divisible, and the claim is that the field was not assumed continuous | nothing for the assumption: (6) already makes it, and (A) to (D) ask whether it survives in time. The radius of the time-Taylor series is where it would end | bound by the statement. No finite order reaches the radius (entry 3) |
 | energy (7) | one constant `C` bounding `int \|u\|^2` for every `t` | the sounding board names none | `d/dt E = -2 nu int \|grad u\|^2` at every instant | holds at `t = 0` on both data (entry 1); (7) is every instant |
 | the field over `R^3` | (1) to (11) are on a field, not on points | the fluid as an infinite point cloud, with as many vectors through it as wanted | a ring field sampled on `(2K+1)^3` points of the torus, and its coefficients recovered exactly. A grid that size determines every field whose modes have `\|k\|_inf <= K`; the horizon table counts what a fixed cloud misses at each order | wanted, not built |
@@ -428,7 +428,7 @@ plainly. The test is what would answer it, and the status says what has been run
 | the observer | not in the statement | an observer outside the box, in a further dimension, sees every constituent without sorting them and leaves the system's entropy unchanged | a probe that reads the field and leaves it unchanged in every digit | a thought experiment. The SHA-256 deformation workbook moved its probe and the surface did not change in any digit; that is SHA-256, not a fluid, and Landauer's principle is not addressed here |
 | exact in place of bound | not in the statement | the mathematics, restructured algebraically, is exact | the solution as exact Taylor coefficients in the ring | run on `R_div` to order 4 (entry 1). Whether the series converges, and for how long, is not known here |
 | the compiler | not in the statement | coherence assigned by each part's own preference, expressed in clock cycles; any language learned through its ruleset by L*; the same core mathematics throughout | engine_table's M23, the refinement loop, over M10's record programs | M10 and M23 are in engine_table, and L* has no row there. M23 is not built |
-| the 2026 paper, under real conditions | (C) and (D) are about solutions of (1) to (3), not about water. "Physically reasonable" is defined: smooth with bounded energy, or smooth and periodic | the paper's equations break down under real conditions because the field was not assumed continuous | a reading of the paper's sections 3 to 9 against (1) to (7). Its Theorem 1.1, as the millennium chapter quotes it, takes `u, p` smooth on `R^3 x [0,1)`. The field it builds is continuous | not read. The millennium chapter read Theorem 1.1, section 10.4 and Corollary 10.6 only |
+| the 2026 paper, under real conditions | (C) and (D) are about solutions of (1) to (3). They are not about water. "Physically reasonable" is defined: smooth with bounded energy, or smooth and periodic | the paper's equations break down under real conditions because the field was not assumed continuous | a reading of the paper's sections 3 to 9 against (1) to (7). Its Theorem 1.1, as the millennium chapter quotes it, takes `u, p` smooth on `R^3 x [0,1)`. The field it builds is continuous | not read. The millennium chapter read Theorem 1.1, section 10.4 and Corollary 10.6 only |
 
 ## Open, not done
 

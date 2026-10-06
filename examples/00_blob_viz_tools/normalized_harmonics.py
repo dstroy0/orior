@@ -90,7 +90,7 @@ for where in (SUPPORT, HERE):
 import dn_load
 
 # Guard digits carried above whatever the caller asks for. The recurrence is 2*top long and each
-# step is one multiply and one subtract. The digits it can cost are a few, not a few dozen. Ten
+# step is one multiply and one subtract. The digits it can cost are a few instead of a few dozen. Ten
 # is generous and the cost of generosity here is a few percent of runtime.
 GUARD = 10
 

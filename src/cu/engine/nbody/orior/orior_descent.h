@@ -27,7 +27,7 @@ extern "C"
      * ANY SYMBOL TYPE, THROUGH `any`. Set it and the engine reads the field only through an equality
      * oracle, never touching `corpus` or `needle`. That is not a convenience wrapper over the byte path;
      * it is the path the theory describes, and the byte members are the specialization. Soundness uses
-     * equality alone and reads no order, no dimension and no alphabet. An engine that demands a
+     * equality alone and reads neither order, dimension nor alphabet. An engine that demands a
      * `uint8_t *` is narrower than its own proof. The byte path stays because it is faster and because
      * every existing caller passes bytes.
      *
@@ -125,7 +125,7 @@ extern "C"
      *
      * So the depth is bounded from ABOVE before the program runs, and that bound is what terminates it:
      * a strictly shrinking unplaced set under a constant ceiling, the way a `for` loop over a fixed
-     * array does. There is no runtime guard, no iteration cap and no watchdog, because a bound enforced
+     * array does. No runtime guard, iteration cap or watchdog is present, because a bound enforced
      * at compile time does not need one.
      *
      * THE DEPTH IS NOT FIXED, THOUGH. Corpus content decides the descent's depth as well as its choice

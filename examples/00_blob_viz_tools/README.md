@@ -8,8 +8,8 @@ no fetch at run time. Standard library only.
 ## What is general and what belongs to this tree
 
 The general ones take their input as an argument and open nothing else. They are the toolkit
-candidates. The rest hardcode a path into this repository and are examples of the pattern,
-not tools:
+candidates. The rest hardcode a path into this repository and are examples of the pattern
+instead of tools:
 
 | general                           | reads                                       |
 | --------------------------------- | ------------------------------------------- |
@@ -352,8 +352,8 @@ another by construction; the measured shares total `1.000000000000000`.
 
 The alphabet is the fraction of the lit set in each octant, one word of eight numbers per state. It
 is **rank 8, blind in 248 of 256 directions**, and at fixed weight the shares carry one constraint
-and leave seven free numbers. Seven real numbers will separate sixty-four arbitrary states whether or
-not the seven mean anything. Distinctness at that sample size is not evidence.
+and leave seven free numbers. Seven real numbers will separate sixty-four arbitrary states whether
+the seven mean anything. Distinctness at that sample size is not evidence.
 
 ### quotient_coherence.py -- how much of a change the alphabet could see
 

@@ -26,7 +26,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
         container_attribute_of(places, bytes, size, places->attribute_exits, &value_size);
     if (found == NULL)
     {
-        // A section with no ending attribute belongs to something the target calls and returns from, not to
+        // A section with no ending attribute belongs to something the target calls and returns from instead of to
         // something it enters: an entry ends where the container says it ends, and the other ends on its own.
         // Carrying the section over untouched is right for that and only for that
         if (exit_count != 0u)

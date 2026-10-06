@@ -4,11 +4,11 @@
 # Catalog: EXP-x-009
 #
 # Exact identities carry precision from a few computed constants to unboundedly many derived ones, and
-# the multiplier is counted, not assumed.
+# the multiplier is counted.
 #
 #   Usage:  python examples/0_experimental/exact_identities_spread_precision.py
 #
-# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working, not a stage
+# This reads no corpus. It sits in 0_experimental: an arithmetic result shown working instead of a stage
 # reading. It is the mechanism behind a goal to raise the accuracy the engine holds by a large factor.
 # A constant computed once to N places by its own series is expensive. An exact identity that ties it
 # to another constant hands that other constant the same N places for the cost of one multiply. A small
@@ -32,7 +32,7 @@
 # places absorbs. That floor is arithmetic. There is a second floor this example does NOT cross and
 # says so: a MEASURED quantity (a crystal edge, a physical constant) carries an upstream measurement
 # floor that no identity on this end raises past. The spread multiplies precision only where the
-# quantity is defined by exact operations, not measured.
+# quantity is defined by exact operations and is never measured.
 
 import io
 import sys
@@ -266,7 +266,7 @@ def report_null(out, root_of, pi_value):
 
 def report_multiplier(out):
     """The accuracy multiplier: derived constants per seed, counted, and shown to pass one million."""
-    out.write("  multiplier: exactly-known constants per seed, counted over the seed primes\n")
+    out.write("  multiplier: exactly known constants per seed, counted over the seed primes\n")
     out.write("  %-8s %-16s %-16s %s\n" % ("seeds", "bound", "generated", "per seed"))
 
     budget = 3_000_000

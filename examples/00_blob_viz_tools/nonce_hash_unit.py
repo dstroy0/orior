@@ -180,7 +180,7 @@ def main(argv):
         nonce = nonce_bits(int(block["nonce"]) & MASK)
         unit = nonce + bits
         live = sliding_local_order(unit, window)
-        # The matched null depends only on the leading-zero count and the nonce weight, not the block.
+        # The matched null depends only on the leading-zero count and the nonce weight. The block does not enter it.
         # It is drawn once per pair and reused. Without this the 14k nulls dominate the run.
         key = (leading, sum(nonce))
         band = band_cache.get(key)

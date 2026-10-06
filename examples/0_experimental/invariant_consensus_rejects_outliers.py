@@ -30,9 +30,9 @@
 # Two routes bracket the answer: the maximum clique is tight and the k-core is the cheap relaxation that
 # contains it. Both retain every inlier and the k-core admits more outliers, the
 # soundness-versus-cost split again. A broken compatibility that links everything is run beside them to
-# show the rule moves cost, not correctness. The null is drawn by shuffling the correspondences, which
+# show the rule moves cost and leaves correctness alone. The null is drawn by shuffling the correspondences, which
 # destroys the rigidity so no large clique remains. The floor is stated: when outliers conspire into a
-# consistent set LARGER than the inliers, the largest mutually-compatible set is theirs, and the
+# consistent set LARGER than the inliers, the largest mutually compatible set is theirs, and the
 # necessary condition cannot tell a large accident from the truth.
 
 import io

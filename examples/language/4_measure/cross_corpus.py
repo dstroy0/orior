@@ -14,8 +14,8 @@
 # that way was reported as inflated and not comparable.
 #
 # Two different works translated into the same languages remove that entirely. A language's reading from
-# one work is matched against every language's reading from the other, and the two share no sentence, no
-# topic and no translator. Nothing is left to carry a match except the language.
+# one work is matched against every language's reading from the other, and the two share neither sentence,
+# topic nor translator. Nothing is left to carry a match except the language.
 #
 # This is the strictest test available here and the one the earlier numbers were standing in for. A
 # reading that belongs to a language survives it. A reading that belongs to a book cannot.

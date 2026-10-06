@@ -18,7 +18,7 @@ The constants come from the engine's `no_rounding` module and from the private p
 
 - Bignum, C side: `src/engine/c/no_rounding/exact_integer.h`. `AnchorExactInteger` is 108 `uint32`
   limbs (`ANCHOR_EXACT_LIMBS = 108`, line 49), base `2^32` with a 64-bit accumulator, schoolbook
-  multiply. `ANCHOR_EXACT_DIGITS = 1024` (line 66) is a declared floor, not the capacity: 108 limbs
+  multiply. `ANCHOR_EXACT_DIGITS = 1024` (line 66) is a declared floor instead of the capacity: 108 limbs
   is 3456 bits and holds 1040 decimal digits. 16 are headroom the constant does not promise (lines
   55 to 60). Schoolbook is correct at this width because Karatsuba crosses over in the thousands of
   limbs and this is a hundred (line 179).
@@ -128,7 +128,7 @@ two routes, a drawn null, and a stated floor:
   a few seed constants to unboundedly many. Checked by a second route (derived sqrt against a direct
   integer root to 240 places, pi by Machin against Euler, the ratio `5 zeta4 = 2 zeta2^2`). Null drawn
   (`sqrt6 = sqrt2 + sqrt3` refused). Floor measured (worst 65 units under a guard of `10^24`).
-  Multiplier measured: 1,115,074 exactly-known constants per seed in the two-seed case, growing without
+  Multiplier measured: 1,115,074 exactly known constants per seed in the two-seed case, growing without
   bound.
 - `examples/0_experimental/exact_residue_code_detects_uncertainty.py`: a redundant residue number
   system, an existing error-correcting code, on exact integers. Corrects one residue error, detects
@@ -249,7 +249,7 @@ Sound, exact, unconditional; claims only the rank upper bound and the exhibited 
   `from_measured`/`measured()` path coming but not yet on main); there is no divide. Derive outside
   the type and ingest finished text. The padding point is WITHDRAWN: `from_decimal` holds
   exactly the value of the text given, and padding 1000 places to 1024 is exact for that text; the
-  fault is only a truncated expansion treated as the constant at a higher scale, a caller issue, not a
+  fault is only a truncated expansion treated as the constant at a higher scale, a caller issue instead of a
   code defect. All of this concerns `src/engine/c/no_rounding/exact_integer.{h,c}`, and the documentation
   fixes landed as `src exact bugfix`.
   None of it touches the image_transforms NTT, which works on integer views modulo `p`, not on decimal

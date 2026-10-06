@@ -27,7 +27,7 @@
 # repeats at the frame period, over a target that sums to zero at each pixel across the frames. This
 # script shows the boundary of that case from both sides. Raising the pattern's amplitude does not
 # change the 100% -- the arithmetic is exact at any amplitude -- but it does move the detector's margin
-# above the drawn null, and a weak pattern fails to be SEEN, not to be removed. Incoherent noise of
+# above the drawn null, and a weak pattern fails to be SEEN, and is still removed. Incoherent noise of
 # every kind -- independent per-frame Gaussian, impulses, Poisson shot --
 # is declined: it carries no phase at the frame period, sits inside the null band, and is left intact.
 # A mix of a fixed pattern and Gaussian is the realistic case and reports the coherent fraction, which
@@ -74,7 +74,7 @@ from reference.exact_ratio import (whole, add, sub, mul, over, compare,  # noqa:
 
 
 def _external_datasets():
-    """repos/external/datasets, resolved by walking up to the `repos` ancestor, not by counting.
+    """repos/external/datasets, resolved by walking up to the `repos` ancestor instead of by counting.
 
     external/ is a sibling of owned/ under repos/, outside this repository, and this resolves it the
     same way utils/maint/data/fetch/fetch_ctc.py does so it holds from the shared checkout and from a linked
@@ -152,7 +152,7 @@ def per_frame_gaussian(scene, sigma, seed):
 def with_impulses(stack, count, swing, seed):
     """`count` positions replaced by a value from nowhere: replacement noise, the wrong kind entirely.
 
-    Impulses are incoherent. The frame-period detector should decline them, not scrub them.
+    Impulses are incoherent. The frame-period detector should decline them and leave them in place.
     """
     rng = random.Random(seed)
     out = list(stack)

@@ -111,7 +111,7 @@ Every table is checked against its paper in both directions: no form written tha
 
 How each automatic extractor fares against its table is reported per paper in the chapter \emph{How wrong it could be}, the only form in which those counts mean anything.
 
-\textbf{One hole in the second direction is not a hole in a table.} Nater's argument is that Bella Coola has words with no vowel in them. Entries like \texttt{kp} `each, all, every', \texttt{tp} `spotted', \texttt{ps}, \texttt{px} and \texttt{sx} are plain ASCII with nothing in them that any mark set can catch. The language-token test needs a marked character, and about thirty of the 133 entries are invisible to the second direction. The first direction still checks every one of them, because it looks for what the table wrote down. The apostrophe cannot be the way in: Nater writes every ejective with one, but a gloss ends in a closing quote and the two characters are the same, which makes every English gloss a word of the language. That trade is a few hundred false holes for about thirty real ones, and the apostrophe stays out.
+\textbf{One hole in the second direction is not a hole in a table.} Nater's argument is that Bella Coola has words with no vowel in them. Entries like \texttt{kp} `each, all, every', \texttt{tp} `spotted', \texttt{ps}, \texttt{px} and \texttt{sx} are plain ASCII with nothing in them that any mark set can catch. The language-token test needs a marked character, and about thirty of the 133 entries are invisible to the second direction. The first direction still checks every one of them, because it looks for what the table wrote down. The apostrophe cannot be the way in: Nater writes every ejective with one, but a gloss ends in a closing quote and the two characters are the same, and every English gloss then reads as a word of the language. That trade is a few hundred false holes for about thirty real ones, and the apostrophe stays out.
 
 \textbf{Verification separates the author from the speaker.} In Hilbert's paper \cite{src:Hilbert-1983} the coverage check is 100 percent, and the hand extraction still corrects two things. Vi Hilbert wrote the paper; the twenty-one examples were said by her aunt \textbf{Susie Sampson Peter} of the Upper Skagit and by \textbf{Martha LaMont}, recorded by Leon Metcalf between 1950 and 1958 and by Thom Hess in 1963. And example 2's English translation is a single line, ``High class, high class was Raven.'' The extraction welds the next eleven lines of Hilbert's commentary onto it. The typescript sets examples in an indented column and the essay at full width; the extraction drops the indent and the width recovers it.
 
@@ -157,13 +157,13 @@ and the extracted text holds
 
 \texttt{cítxws@lx uì ’ti ny ’Qip c ’kaPít@t}
 
-Every schwa is \texttt{@}, every lateral fricative \texttt{ì}, every pharyngeal \texttt{Q}, every glottal stop \texttt{P}; the wedge stands in front of its letter as \texttt{ˇx}, the ejective mark stands in front of its letter instead of over it, and the word \texttt{ck̓aʔítət} is split. Two independent PDF libraries lose the same things, which makes this a property of the file and not of one library.
+Every schwa is \texttt{@}, every lateral fricative \texttt{ì}, every pharyngeal \texttt{Q}, every glottal stop \texttt{P}; the wedge stands in front of its letter as \texttt{ˇx}, the ejective mark stands in front of its letter instead of over it, and the word \texttt{ck̓aʔítət} is split. Two independent PDF libraries lose the same things. This is then a property of the file and not of one library.
 
 \textbf{One part of the loss cannot be inverted.} Labialization is written with a raised w and the page also has a plain w. Both arrive as \texttt{w}. Page \texttt{kʷukʷ} and page \texttt{wist} are the same string in the text, and nothing in the file separates them.
 
 The consequence for method is the reason this section exists. A hand extraction taken from one of these texts records the font's encoding and not the paper, and it then verifies clean against that same text in both directions, because both sides of the check are reading the one damaged artifact. The verification of these papers is therefore done against the page.
 
-The pages are rendered as images and the transcription is done from the image. A page text is drafted from the font's codes in the shared orthography, line for line with the extraction, which makes a page of one a page of the other. The draft is a starting point a person corrects against the rendered page, never a source. There are seven things it cannot decide:
+The pages are rendered as images and the transcription is done from the image. A page text is drafted from the font's codes in the shared orthography, line for line with the extraction, and a page of one is then a page of the other. The draft is a starting point a person corrects against the rendered page, never a source. There are seven things it cannot decide:
 
 \begin{itemize}
 \item \textbf{Labialization}, for the reason above. The drafter writes \texttt{ʷ} after the consonants that take one, which is right for \texttt{kʷ qʷ xʷ x̌ʷ} and wrong wherever a real \texttt{w} follows a consonant. The rule errs in both directions, and page 315 has one of each. \texttt{púlxwi} gets a \texttt{ʷ} it should not have, and section 3.2 settles that by parsing the word \texttt{√púlx-wi}. \texttt{lkʷu·········t} loses the one it should have, because the inserted space splits it into \texttt{lk} and \texttt{wu·········t} before the rule can see the consonant, and section 3.2 parses that one \texttt{√lkʷ=ut}. The rule runs over the whole line and reaches the English as well: stanza 117's word gloss \texttt{he.fell.off.backwards} comes out \texttt{he.fell.off.backʷards}.
@@ -281,7 +281,7 @@ The blanket repair cannot reach any of them and is right not to. The break follo
 
 The score separates them. Garcia's \texttt{w ɬ} scores $-1.4$ and is declined, because the runs \texttt{wɬ} would make sit below where a flat distribution puts them: the paper does not write words shaped that way. Nine of Garcia's 33 sites are declined on that test.
 
-\textbf{These are candidate corrections, and none is applied.} Applying them rewrites the corpora and moves what every downstream measurement reads, which is a decision to take deliberately and measure. What the table establishes is that the damage is there, that it is larger than the checks can see, and that it is readable without a person opening a page.
+\textbf{These are candidate corrections, and none is applied.} Applying them rewrites the corpora and moves what every downstream measurement reads, which is a decision to take deliberately and measure. The table establishes that the damage is there, that it is larger than the checks can see, and that it is readable without a person opening a page.
 
 \section{What the gold standard corpus measures}
 
@@ -344,7 +344,7 @@ The waveform on its own is not enough. A vowel is a harmonic series under an env
 
 What a person hears is not what the microphone recorded, and it differs between listeners by physiology and by how much hearing they have lost. The weighting takes an audiogram, the six frequencies a hearing test is run at with the loss in dB at each; the loss comes off a band before loudness, and a band a listener cannot hear stops reaching the code. The default is a listener who has lost none.
 
-Some sounds are the same sound at different frequencies. A phone said by a small speaker and by a large one differs by a scaling of the whole spectrum. The 64 bands are log spaced, which makes that scaling a shift along the band axis, and the magnitude of a Fourier transform along that axis is unchanged by the shift. That transform is the segment field.
+Some sounds are the same sound at different frequencies. A phone said by a small speaker and by a large one differs by a scaling of the whole spectrum. The 64 bands are log spaced, and that scaling is then a shift along the band axis, and the magnitude of a Fourier transform along that axis is unchanged by the shift. That transform is the segment field.
 
 And some sounds that differ only in frequency mean different things. Stress carries an acute in every orthography in this corpus, and a field made shift invariant would put a stressed form and an unstressed one at one address. The prosody field is separate for that reason and holds loudness, pitch against the speaker's own median, how that pitch is moving, and voicing.
 

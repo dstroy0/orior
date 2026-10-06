@@ -86,7 +86,7 @@ typedef struct
     PreceptNode node[8];
 } PreceptRewrite;
 
-// What this does not yet hold is the edge of the design, not an omission: ADD and SUB over gates. An adder is a rank
+// What this does not yet hold is the edge of the design instead of an omission: ADD and SUB over gates. An adder is a rank
 // of gates per bit, and its size is the register's width where a rewrite below has a fixed count of nodes. A
 // width-counted rewrite is a second kind of node and is not decided. Every rewrite below is fixed arity and reads
 // without a width

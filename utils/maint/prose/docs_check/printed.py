@@ -27,6 +27,7 @@
 
 import ast
 
+from .grammar import CONFIRM
 from .index import _COMPILED, candidates
 
 # The calls whose arguments reach a reader. `write` covers sys.stdout.write without this having to
@@ -91,7 +92,11 @@ def printed_hits(path, lines):
     found = []
     for at, text in printed_strings(path, lines):
         for pattern in candidates(text):
-            hit = _COMPILED[pattern].search(text)
+            held = CONFIRM.get(pattern)
+            hit = next(
+                (one for one in _COMPILED[pattern].finditer(text) if held is None or held(one)),
+                None,
+            )
             if hit:
                 found.append(
                     (

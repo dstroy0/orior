@@ -667,7 +667,7 @@ def _optime():
                  "on" if close else "OFF"))
 
     print("")
-    print("  THE DETECTOR READS THE FIRST TURNING POINT, NOT THE LOWEST. The least step norm over")
+    print("  THE DETECTOR READS THE FIRST TURNING POINT INSTEAD OF THE LOWEST. The least step norm over")
     print("  the window reads 7 for 32 marked items against a predicted 2.22, a defect in the")
     print("  reader and not a limit of the signal:")
     print("  amplitude amplification is a rotation. The step norm is PERIODIC, and the least")
@@ -794,7 +794,7 @@ def _check():
         lines.append("    FAIL no over-rotation, so this is not behaving as a rotation")
         failed += 1
 
-    # THE IDENTITY NULL. A state against itself must read exactly zero, not nearly.
+    # THE IDENTITY NULL. A state against itself must read exactly zero, and nearly zero fails.
     scalar, _phase, total = deformation_between(states[3], states[3], angles)
     lines.append("  a state against itself: scalar %.1e, total change %.1e" % (scalar, total))
     if total != 0.0:

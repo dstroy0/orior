@@ -48,7 +48,7 @@ def seat_tightest(symbols):
 
     The spread weights each position by how often it is used. The commonest symbol takes the middle
     and the rest go outward by frequency. This is the value the coefficient converges to and it is
-    reached, not approached.
+    reached instead of approached.
     """
     order = {}
     for symbol in symbols:

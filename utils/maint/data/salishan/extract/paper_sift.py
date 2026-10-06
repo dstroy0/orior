@@ -77,7 +77,7 @@ DENOTATION = re.compile(r"⟦|^(?:[a-j]\.\s*)?λ")
 # its value, = λt.∃e∃s.cutΔ(x,e,s) = max(cutΔ).
 DENOTATION_GOES_ON = re.compile(r"⟧|=\s*λ|^[↑=]")
 DISPLAY = re.compile(r"[⇔→⟶]|\b[A-Z][a-z]*P\b|^\s*√\s*$|\]\s*ω|^\[")
-# Labels an author sets before an English reading of an example, not speakers.
+# Labels an author sets before an English reading of an example instead of speakers.
 TRANSLATION_LABELS = ("Target", "Intended", "Actual", "Literally", "Lit", "Literal", "Gloss")
 # A speaker's own comment after an example: Dave Michel: ... or DD Comment: ...
 # A comment can name the example it is on, Comment on (9)A3: or Comments on versions of (6): in Hill
@@ -137,7 +137,7 @@ def main():
         if found:
             page = int(found.group(1))
             continue
-        # The printed page number on a line of its own is the running foot, not text. Kept, it
+        # The printed page number on a line of its own is the running foot instead of text. Kept, it
         # ended every example that crossed a page.
         if text and not re.match(r"^\d{1,4}$", text):
             lines.append((number, page, text))
@@ -246,7 +246,7 @@ def main():
             # t sek-ha> is <shna-hle t sek-ha> and then the rest of the row.
             stash = example[5]
             example[5] = ""
-            # The opener left open, not the last one: <rapentle’he ‘a lazy man’ closes its gloss.
+            # The opener left open instead of the last one: <rapentle’he ‘a lazy man’ closes its gloss.
             pairs = {"<": ">", "⟨": "⟩", "{": "}", "(": ")"}
             unclosed = [stash.rfind(one) for one, shut in pairs.items()
                         if stash.count(one) > stash.count(shut)]
@@ -1363,7 +1363,7 @@ def main():
             elif state in ("context", "tiers") and tier_like and not (
                     previous == "segmentation" and (verdict == "english"
                                                     or counted["language"] == 0)):
-                # The tier under an orthography line is its segmentation, whether or not the
+                # The tier under an orthography line is its segmentation, whether the
                 # word carries a boundary: ƛ̓ʊxʷegən above ƛ̓əxʷigan.
                 # Two tiers the page wraps together go on in turn, a segmentation and its glosses
                 # and then the rest of each: [kʷa cəkláw̓sxən]] in Davis's (23), where the

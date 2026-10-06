@@ -170,7 +170,7 @@ Two fields with the same frequency multiset and opposite arrangements, 256 class
 
 **The natural arrangement is the harmful one.** A class occurring once has one chance to arrive early; a class occurring nine times has nine. Rare classes therefore arrive late and the overflow ate exactly them, at mean occupancy 1.06. The rarest class is the best probe the steering has. The degradation spent the thing the projection exists to find.
 
-**Fixed by refusing.** A field holding more classes than a byte rank can name now returns 0 with `distinct` set to 0, instead of degrading silently. That also enforces the standing advice for fields of this shape: do not project, hand the oracle to a descent, which needs no ranks, no closure and no table. Tested: 400 distinct classes refused, `distinct` reporting 0.
+**Fixed by refusing.** A field holding more classes than a byte rank can name now returns 0 with `distinct` set to 0, instead of degrading silently. That also enforces the standing advice for fields of this shape: do not project, hand the oracle to a descent, which needs neither ranks, closure nor table. Tested: 400 distinct classes refused, `distinct` reporting 0.
 
 The alternative fix, labeling with a separate `uint32_t` array of `length` entries so the component count runs unbounded and the clamp applies at relabel time, would make the original sentence true. It needs a caller supplied label array, because the kernel allocates nothing, and it is not taken here. Refusing is smaller and it is the honest answer for a byte ranked output.
 
@@ -248,7 +248,7 @@ The shape would be a caller supplied array of `count` entries, filled with the s
 
 **What it composes into, and why it is cheap to keep.** Growth happens only BETWEEN descents, on the refuse branch: the "ask another slightly different question" shape. Inside a descent survivors still only shrink. Soundness, the anytime property and termination are all intact at the inner level, since all three follow from that one monotonicity. The result is a Turing complete outer machine whose every inner step is a sound, terminating, interruptible filter. The universality lives in the composition and the inner loop does not change.
 
-**The reduction target is named. Nobody owes a universality proof.** Read a window, act on what was read, append, continue is a tag system. Post introduced them in 1943, Minsky proved 2-tag systems universal in 1961, Cocke and Minsky tightened it in 1964. What would be owed is an encoding into that shape, not a proof from scratch.
+**The reduction target is named. Nobody owes a universality proof.** Read a window, act on what was read, append, continue is a tag system. Post introduced them in 1943, Minsky proved 2-tag systems universal in 1961, Cocke and Minsky tightened it in 1964. What would be owed is an encoding into that shape instead of a proof from scratch.
 
 **The cost is the evidence.** At the outer level, termination goes. That is not a regression waiting to be fixed: if it were still decidable whether a given outer run finishes, the thing would not be universal. The engine's current selling point is that it always returns an answer, and this trades exactly that, at the outer level only.
 
@@ -315,7 +315,7 @@ Clifford, Jalsenius, Porat and Sach, "Space Lower Bounds for Online Pattern Matc
 
 **That is the same trade F14 measured, priced in the other currency.** The equality-only oracle buys independence from alphabet size. F14 prices that in time: a 7.4 times constant factor per corpus symbol, with a crossover near six times the corpus length. This prices it in space: `m` bits where `O(log^2 m)` is achievable for exact matching, because fingerprinting is closed to an engine that refuses to expose a representation. One interface decision, two measured costs. That is a better account of what the oracle costs than a lower bound the engine was never up against.
 
-**How the wrong version got here.** An earlier fetch of the same paper returned a summary naming "Theorem 6" and stating that exact pattern matching requires `Omega(m)` bits. That was recorded as the shape of the result without the abstract being read. Same class as everything else in this section: a plausible sentence from a summary, not checked against the source.
+**How the wrong version got here.** An earlier fetch of the same paper returned a summary naming "Theorem 6" and stating that exact pattern matching requires `Omega(m)` bits. That was recorded as the shape of the result without the abstract being read. Same class as everything else in this section: a plausible sentence from a summary, never checked against the source.
 
 Sources: [arXiv:1106.4412](https://arxiv.org/abs/1106.4412) for the lower bounds and the dichotomy; Porat and Porat, "Exact and Approximate Pattern Matching in the Streaming Model", FOCS 2009, 315 to 323, for the `O(log m log n)` upper bound.
 

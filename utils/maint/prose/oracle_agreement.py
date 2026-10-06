@@ -25,8 +25,8 @@
 # WHAT IT DOES NOT ANSWER
 #
 # It cannot say the label is right. Uploads of the same mislabeled corpus agree perfectly,
-# and so do corpora of different models that happen to share a register. What it
-# catches is the ordinary failure: one upload among several that is not what the others are.
+# and so do corpora of different models that happen to share a register. It
+# catches the ordinary failure: one upload among several that is not what the others are.
 #
 # The control matters for the same reason. Against a control too close to the subject the
 # separation vanishes and nothing is shown. The control here is the human pole, the furthest
@@ -163,7 +163,7 @@ def main():
     control = words_of(human_text())
     if len(control) < LEAST:
         out.write(
-            "  no human pole under build/papers. The control makes a distance\n"
+            "  no human pole under build/papers. Without the control a distance does not\n"
         )
         out.write("  mean anything. This stops instead of reporting a bare number.\n\n")
         out.flush()

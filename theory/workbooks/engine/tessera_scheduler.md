@@ -26,7 +26,7 @@ The bytes held by processes outside tessera are
 
   O(τ) = U(τ) − Σ_j u_j(τ)
 
-A job reserves room it may not have allocated yet. What it blocks is therefore max(r_j, u_j(τ)). The headroom is
+A job reserves room it may not have allocated yet. It therefore blocks max(r_j, u_j(τ)). The headroom is
 
   H(τ) = C − O(τ) − Σ_j max(r_j, u_j(τ))
 
@@ -95,7 +95,7 @@ is kept under its signum σ_j, the BLAKE3 root of its request. The engine is det
 
 That was the gap before this date: the history was raw records and the ticket plain text. A damaged history of whole records read without complaint, a short tail was dropped silently, and a failed save went unreported.
 
-The daemon opens its ledger and loads its history before it makes any endpoint: the pipe on Windows, the lock and the socket on Linux. A refused history ends the daemon before any client can reach it. A daemon that loses the race to be the only one has only read the history, which is safe, because a save swaps the whole file in at once. The unsealed 192-byte history from before the seal was moved aside as `history.unsealed` in the state directory, not deleted.
+The daemon opens its ledger and loads its history before it makes any endpoint: the pipe on Windows, the lock and the socket on Linux. A refused history ends the daemon before any client can reach it. A daemon that loses the race to be the only one has only read the history, which is safe, because a save swaps the whole file in at once. The unsealed 192-byte history from before the seal was moved aside as `history.unsealed` in the state directory instead of deleted.
 
 ## The driver submits (24 September)
 
@@ -120,7 +120,7 @@ The history then held two records and the seal (128 bytes), and the daemon ended
 Two findings, both measured:
 
 - **The kept peak is not a constant.** Identical requests measured peaks 4,194,304 bytes (2^22) apart. The peak is the largest of samples taken every 20 ms: a measurement at that resolution. The rule above is qualified to say so. Whether the sampling moves it has not been tested.
-- **A job reserves its declaration, not its kept peak.** The second prove declared less than its kept peak and was admitted on its declaration. Until its sweeps grew it, its reservation stood 3,119,706,112 bytes below what it went on to use. That is Doug's rule: reserve what the job asks for, grow and warn when it takes more.
+- **A job reserves its declaration instead of its kept peak.** The second prove declared less than its kept peak and was admitted on its declaration. Until its sweeps grew it, its reservation stood 3,119,706,112 bytes below what it went on to use. That is Doug's rule: reserve what the job asks for, grow and warn when it takes more.
   - The same day, the working tree's code was changed, uncommitted and not yet ruled on, to reserve the larger of the declaration and the kept peak (`tessera_ledger_wants`). With it, two proves each reserved 3,962,761,216 bytes.
 
 ## The sims submit (24 September)

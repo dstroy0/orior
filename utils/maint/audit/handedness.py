@@ -188,7 +188,7 @@ def main():
         print("    AMOUNTS carry the diffusion and their direction does not: the design could")
         print("    have turned either way and a mirror-blind reading discards nothing.")
     else:
-        print("    The two differ. Rotation direction is load-bearing, and any reading that is")
+        print("    The two differ. Rotation direction carries weight, and any reading that is")
         print("    mirror-blind by construction has been discarding something the function uses.")
         print("    Largest diffusion gap %.2f bits at round %d." % (worst_gap, worst_round))
     return 0

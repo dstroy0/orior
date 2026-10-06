@@ -57,7 +57,7 @@
 # WHAT --arxiv ADDS, AND WHY EACH STEP IS THERE
 #
 # arXiv extracts a tarball into one directory and runs LaTeX there, and everything extracted becomes
-# public whether or not the document reads it. That second half is the part that costs somebody
+# public whether the document reads it. That second half is the part that costs somebody
 # later. The extra steps are mostly deletions:
 #
 #   flattened      Every subdirectory is emptied into the root and the \input and \include lines

@@ -36,7 +36,7 @@ The observable is one already built:
 - **bit bias.** How far each output bit's one-rate departs from half. The survey bench, truncated.
 - **collision entropy of the output byte histogram.** The Renyi bench, truncated.
 
-Each returns a single number per round count, which makes the run one curve per observable, 64 points
+Each returns a single number per round count, and that makes the run one curve per observable, 64 points
 each.
 
 ## The detection floor, drawn on the same axes

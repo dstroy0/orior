@@ -27,7 +27,7 @@ new names: the quantity reported was not the quantity intended. It is written he
 was being built to catch that class and introduced an instance of it on the way.
 
 So the tree currently has **no** page with an unguarded missing key, and that is a fact about the
-templates worth knowing instead of a reason to skip the gate. What the gate errors is the next
+templates worth knowing instead of a reason to skip the gate. The gate errors the next
 builder, and the next template read written without a default.
 
 WHAT THIS ASKS INSTEAD

@@ -6,6 +6,7 @@
 #
 
 from .bans import BANNED
+from .grammar import GRAMMAR_AUTHORITY
 from .locale import LOCALE
 
 
@@ -15,7 +16,8 @@ from .locale import LOCALE
 # ====================================================================
 #
 # TIER A is a NAMED-CONSTRUCTION BAN: a construction one of the two standards bans in a sentence,
-# quoted below with the file and line it is on. Tree-wide, no opt-in, no per-repo setting, every hit
+# quoted below with the file and line it is on, or a phrase or construction the NARA Writing Style
+# Guide names in a section, cited by the section in grammar.py. Tree-wide, no opt-in, no per-repo setting, every hit
 # a finding. A per-repo switch on this tier would exempt a repository from a standard it is already
 # under, which is backwards: the standard is the tree's, not each repository's.
 #
@@ -126,6 +128,11 @@ AUTHORITY = {
     # The which-is clause again, in the form the later tier wrote it.
     r"\bwhich is (what|why|how|the (difference|point|whole|answer|reason|rule))\b": "code-comments:206",
 }
+
+# The sections of the style guide, for the plain phrases and the constructions in grammar.py. A pattern
+# a standard above already cites keeps that citation.
+for _pattern, _cited in GRAMMAR_AUTHORITY.items():
+    AUTHORITY.setdefault(_pattern, _cited)
 
 # A selector that names nothing is drift, and drift in a table like this is silent: the tier simply
 # stops being claimed and every finding in it prints as house style. Raised at import rather than

@@ -10,7 +10,7 @@
 #
 # Reading a set of n dimensions along a curve returns its exponent divided by n, which is only useful to
 # someone already holding one of the two numbers. The question here is whether the line carries the
-# dimension count on its own, with no width supplied, no exponent supplied, and no access to the set.
+# dimension count on its own, with neither the width nor the exponent supplied and without access to the set.
 #
 # The first attempt looked for a repeat spaced n doublings apart, sampled eight times per doubling, and
 # found nothing at any dimension: every field returned the same period, which was the lowest the search

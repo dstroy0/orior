@@ -62,7 +62,7 @@ extern "C"
  *       declared in the header because it is part of the contract: a
  *       caller sizing a probe array needs it, and a reader asking whether a recursion
  *       terminates should find its bound in the header instead of having to open the source.
- * @note DEFINED FROM ORIOR_ANCHORS, NOT COPIED. Defining one from the other makes the compiler
+ * @note DEFINED FROM ORIOR_ANCHORS INSTEAD OF COPIED. Defining one from the other makes the compiler
  *       hold the invariant the termination argument rests on.
  */
 #define ANCHOR_STEER_ANCHORS ORIOR_ANCHORS
@@ -217,7 +217,7 @@ extern "C"
      *       from the code that it is carrying weight. Find a row where it pays or leave it inert.
      * @note The rule is read off the cycle measurements and belongs to the machine that produced them.
      *       Re-run bench_dispatch before trusting it on another part. It sweeps both thresholds instead
-     *       of assuming them. What it prints is a recommendation to act on, not a confirmation.
+     *       of assuming them. It prints a recommendation to act on instead of a confirmation.
      */
     OriorEngine orior_choose(const OriorPlan *plan);
 

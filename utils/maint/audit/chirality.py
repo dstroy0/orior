@@ -21,7 +21,7 @@ spreads are the same. So the function has a handedness in its transport, and the
 that handedness survives into the boundary reading or is destroyed by the mixing.
 
 Torsion is the statistic that can answer it, because torsion is itself chiral: it measures twist,
-and twist has a sign. Deflection cannot - it is a magnitude and mirror-blind by construction, which
+and twist has a sign. Deflection cannot - it is a magnitude and mirror-blind by construction, and that
 makes it the internal control. A reading where deflection matches and torsion differs is chirality;
 one where both differ is a bug in the placement.
 

@@ -39,7 +39,7 @@
 #
 # THE CONVERSE IS THE HALF THAT IS EASY TO MISS
 #
-# A site published under full occupancy that is NOT shared with anything is a vacancy, not a
+# A site published under full occupancy that is NOT shared with anything is a vacancy instead of a
 # dopant. Nothing substitutes there; the atom is simply absent some of the time. A detector that
 # called every occupancy under 1 a dopant would be wrong on exactly these, and they are more
 # numerous than the doped sites. Both counts are reported, because a detector is characterized by
@@ -217,7 +217,7 @@ def main():
     out.write("  of those, no occupancy column published  %d\n" % no_column)
     out.write("  of those, checkable against the column   %d\n" % checked)
 
-    # Three outcomes, not two. The first draft of this scored pass against fail and reported the
+    # Three outcomes instead of two. The first draft of this scored pass against fail and reported the
     # second line below as a 16.3% failure, which was the wrong question asked of the right data.
     # A site can be substituted AND partly vacant at once, and the deposit saying so is not a
     # disagreement with anything. Only the third line is an inconsistency.
@@ -246,7 +246,7 @@ def main():
         "     contradicts either this reading or itself, and the count alone does not say\n"
     )
     out.write(
-        "     which. It is a flag to open, not a verdict. Every one inspected in this\n"
+        "     which. It is a flag to open instead of a verdict. Every one inspected in this\n"
     )
     out.write("     corpus has been the deposit: COD 1011256, from 1933, writes\n")
     out.write(

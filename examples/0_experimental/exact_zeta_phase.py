@@ -43,7 +43,7 @@
 # The value is read at a count of places by exact_zeta_zeros.py's two routes, N doubling until they
 # agree. The jittered index is read at those places and again at twice them, and the places double
 # until the two indices agree. The reader cannot draw more out of a value than the value holds, and
-# the depth each point needs is decided by that agreement, not assigned in advance.
+# the depth each point needs is decided by that agreement instead of assigned in advance.
 #
 # THE LINE
 #

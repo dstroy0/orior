@@ -323,7 +323,7 @@ TEMPLATE = """<title>Eyes on the State</title>
   <h2>What the null is worth</h2>
   <p class="note">The weakest limit across the live rounds is %(limit).3f, a correlation below
   about that would not have been visible to this sample. The limit is measured by fading an injected
-  correlation until it stops clearing the bar, not derived: an analytic floor comes out too low,
+  correlation until it stops clearing the bar. It is never derived: an analytic floor comes out too low,
   and the rule is to draw the null and not compute it. The target takes
   %(levels)d distinct values with a spread of %(spread).4f.</p>
 

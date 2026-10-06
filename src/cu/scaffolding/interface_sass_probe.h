@@ -242,7 +242,7 @@ void sass_machine_listing(SassMachine *machine, const SassListing *listing);
 // The rounds are bounded and the walk is not run to its own end, which was measured and does not close: see
 // sass_machine_widen for the reading and why taking the whole component is worse than taking this much of it.
 //
-// Two things a widened form is not. It is decodable, not run: only a question that assembles one and runs it says
+// Two things a widened form is not. It is decodable without being run: only a question that assembles one and runs it says
 // the part executes it. And its operand bits are the ones the form it came from held, which the new operation may
 // read as something else - PLOP3.LUT is one bit from SHF.L.U32, and it decodes with a register standing where a
 // predicate belongs: its form carries that kind and no predicate operation can be written from it. An operation

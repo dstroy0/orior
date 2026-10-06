@@ -13,7 +13,7 @@
 # bright feature narrower than the element and leaves everything wider untouched; closing does the same
 # for a dark feature. It is a rank operator. Like the windowed median it rejects a replacement noise
 # a mean cannot, and it needs no threshold: the element width is a declared input and min and max are
-# positions in a sorted window, not tolerances.
+# positions in a sorted window instead of tolerances.
 #
 # It is application logic and not an engine primitive, and for the reason the collaborative filter
 # is: opening TRANSFORMS the reading into a different reading of itself. It is not a null a departure is

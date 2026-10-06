@@ -38,7 +38,7 @@ still produces a positive number, and the bias grows as the table gets sparse. D
 possible, and this tree has a rule against it: a derived bar comes out too low, always in the same
 direction.
 
-So it is measured. Shuffling the tokens destroys arrangement and keeps every count identical, which
+So it is measured. Shuffling the tokens destroys arrangement and keeps every count identical, and that
 makes a shuffle EXACTLY the memoryless surrogate for this statistic. The floor at each lag is what
 the shuffle produces at that lag, drawn several times. What gets reported is the excess over that
 floor. A decay to zero means decay to where this corpus at this size can no longer tell.
@@ -54,24 +54,24 @@ same way pi in the compressor gates a compression claim.
 WHAT BOUNDS A READING
 
 The decay law is the right discriminator and long-range dependence is real in natural language: a
-null from this instrument is a statement about its power at a given corpus size, not about the
+null from this instrument is a statement about its power at a given corpus size instead of about the
 effect. Three nuisance parameters bound that power, and each one has a control.
 
 LENGTH. MI bias grows as a corpus shrinks: every comparison is made at the shorter pole's length. At
 that length the human decay slopes form a band, and only a separation wider than that band is
-reportable. The band narrows as the root of the length: more text is the way forward, not a better
+reportable. The band narrows as the root of the length: more text is the way forward instead of a better
 statistic. `--band` draws the human band at a chosen `--length`.
 
 THE UNIGRAM DISTRIBUTION. The excess at any one lag carries the estimator's bias: a bare LEVEL
-compares two estimators wherever the unigram distributions differ. The hypothesis is about SHAPE,
-not level: dividing each curve by its own value at lag one removes the scale the bias sets, and a
+compares two estimators wherever the unigram distributions differ. The hypothesis is about SHAPE
+instead of level: dividing each curve by its own value at lag one removes the scale the bias sets, and a
 power law and an exponential differ in how they fall whatever that scale is. `--twoband` gives both
 poles a band at a common length and measures the confound alongside.
 
 ASSEMBLY. `load_papers` concatenates about 120 separate documents, and different papers use different
 words at different rates: composition drifts across the joins, and drift raises MI at every lag.
 Knowing where you are in the corpus tells you which document you are in, and therefore which words
-are likely. That is a fact about how the corpus is built, not about the writing. Document count and
+are likely. That is a fact about how the corpus is built instead of about the writing. Document count and
 join rate set a corpus's large-lag excess on their own.
 
 SEPARATING DRIFT FROM DEPENDENCE
@@ -353,7 +353,7 @@ def main():
             print()
             print("    So the human tail reported earlier is an artifact of corpus ASSEMBLY, and")
             print("    the claim it supported - that long-range structure lives in content-word")
-            print("    recurrence - loses that support. Retracted here, not elsewhere.")
+            print("    recurrence - loses that support. Retracted here and nowhere else.")
         else:
             print("    The large-lag excess is destroyed by scrambling: it was dependence at a")
             print("    distance after all and survives this check.")
@@ -600,7 +600,7 @@ def main():
         # is what the verdict rests on when the floors do not match.
         human_slope, human_points = decay_shape(matched_rows)
         session_slope, session_points = decay_shape(session_rows)
-        print("    decay shape, log-log slope of the excess normalised to its own lag one:")
+        print("    decay shape, log-log slope of the excess normalized to its own lag one:")
         print("      human      %s  over %d lags"
               % (("%+.3f" % human_slope) if human_slope is not None else "  n/a", human_points))
         print("      machine    %s  over %d lags"
@@ -619,7 +619,7 @@ def main():
                     print("    was about. The machine curve falls away faster, %+.3f against %+.3f,"
                           % (session_slope, human_slope))
                     print("    the direction predicted: bounded context forgets sooner. The")
-                    print("    normalisation divides each curve by its own lag one: the bias scale")
+                    print("    normalization divides each curve by its own lag one: the bias scale")
                     print("    cancels to first order and this survives the mismatch above.")
                     print()
                     print("    Treat it as SUGGESTIVE and not settled. The cancellation is first")
@@ -657,7 +657,7 @@ def main():
             print("    until that is fixed. Do not interpret any file with it.")
             print()
             print("    The corpora differ enormously in size, and MI bias grows as a corpus")
-            print("    shrinks: the likeliest cause is the comparison, not the text.")
+            print("    shrinks: the likeliest cause is the comparison instead of the text.")
             return 1
         return 0
 

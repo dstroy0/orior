@@ -111,7 +111,7 @@ def inline(value, chapter):
         return protect(r"\(" + match.group(1).replace(r"\lt", "<").replace(r"\gt", ">") + r"\)")
 
     def format_link(match):
-        # [a, a](0) in a table is an interval, not a link. A target names a file or a page.
+        # [a, a](0) in a table is an interval instead of a link. A target names a file or a page.
         if not re.search(r"[A-Za-z]", match.group(2)):
             return match.group(0)
         # [Chang 1959](#src:Chang-1959) cites a registry key: its words stay, and the label is

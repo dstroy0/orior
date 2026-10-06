@@ -1,19 +1,16 @@
 # Using it
 
-**Purpose:** Run the measure on something of your own, and know which of the six parts you are calling.
-**Scope:** `archive/src/python/`, `src/cu/engine/nbody/orior/orior.h`, `examples/`.
+## The shortest way to start
 
-## The shortest thing that works
-
-Every example takes a corpus path and prints what it read. Nothing is configured first and no model is fitted.
+Every example takes the path to your data and prints what it found. There is nothing to set up first and no model to train.
 
 ```sh
 python examples/any_corpus/4_measure/head_and_tail.py yours.sym
 ```
 
-A `.sym` file is one symbol per line. Any sequence works: characters, words, byte values, note numbers, residue names. The measure never learns what a symbol means and cannot tell one domain from another.
+A `.sym` file has one symbol per line. Any sequence works: characters, words, byte values, note numbers, residue names. The measure never learns what a symbol means, and it can't tell one subject from another.
 
-Run an example with no argument and it prints the usage line and stops.
+If you run an example with no argument, it prints how to use it and stops.
 
 ## The six parts
 
@@ -26,11 +23,11 @@ Run an example with no argument and it prints the usage line and stops.
 | `sift` | filter candidates with a necessary condition |
 | `oracle` | check against ground truth somebody else published |
 
-Only `representation` knows a domain exists. It has `atom`, `constants`, `game`, `particle`, `picture`, `sound`, `structure` and `text` under it. Everything downstream sees points and values.
+Only `representation` knows what kind of thing your object is. Under it are `atom`, `constants`, `game`, `particle`, `picture`, `sound`, `structure` and `text`. Everything after it sees only points and values.
 
 [`archive/src/python/README.md`](https://github.com/dstroy0/orior/blob/main/archive/src/python/README.md) is the map.
 
-## Where the rest of it is
+## Where everything else is
 
 | | what it operates on |
 |---|---|
@@ -42,19 +39,19 @@ Only `representation` knows a domain exists. It has `atom`, `constants`, `game`,
 | [`theory/`](https://github.com/dstroy0/orior/tree/main/theory) | the research papers, and the ledger they cite |
 | [`utils/maint/`](https://github.com/dstroy0/orior/tree/main/utils/maint) | the repository itself. Records, gates, prose checks, fetchers, the research paper build |
 
-`utils/maint/` is sorted into categories and holds no loose scripts. [`utils/maint/README.md`](https://github.com/dstroy0/orior/blob/main/utils/maint/README.md) states what belongs in each, including `utils/maint/data/` for external material and `utils/maint/analysis/` for the surveys the research papers ask for.
+`utils/maint/` is sorted into categories, with no loose scripts. [`utils/maint/README.md`](https://github.com/dstroy0/orior/blob/main/utils/maint/README.md) says what goes in each one. For example, `utils/maint/data/` holds outside material, and `utils/maint/analysis/` holds the surveys the research papers ask for.
 
 ## Reading the result
 
-A measurement carries a floor. The floor is what the same measure returns on a shuffle of the same symbols, an arrangement carrying no structure at all.
+Every measurement comes with a floor. The floor is what the same measure gives on a shuffled copy of the same symbols, a version with no structure at all.
 
-**A reading below its floor read nothing.** Not a small result, nothing. Every example prints the floor beside the number for that reason.
+**A reading below its floor found nothing.** That's why every example prints the floor next to the number.
 
-The floor moves with sample size. One computed on a large corpus bounds nothing about a short file. The examples compute it at the size actually measured.
+The floor changes with the size of the sample. A floor worked out on a large body of text tells you nothing about a short file. The examples work out the floor at the size actually measured.
 
-## The twelve domains
+## The twelve subjects
 
-`examples/` runs the same six parts end to end on real material. The proofs that pin the ledger sit apart, under `evidence/proofs/posits/`.
+`examples/` runs the same six parts from start to finish on real data. The proofs behind the ledger are kept separately, in `evidence/proofs/posits/`.
 
 | domain | examples | what it reads |
 |---|---|---|
@@ -71,11 +68,11 @@ The floor moves with sample size. One computed on a large corpus bounds nothing 
 | `sound` | 3 | recordings as bit fields |
 | `molecules` | 3 | molecular formulae, legal from illegal by valence |
 
-Every example carries a catalog number in its header, `LNG-4-012` and so on. A citation to that number survives the file moving. [`utils/maint/catalog/catalog.py`](https://github.com/dstroy0/orior/blob/main/utils/maint/catalog/catalog.py) is the registry.
+Every example has a catalog number at the top of the file, such as `LNG-4-012`. If you cite that number, the citation still works after the file moves. [`utils/maint/catalog/catalog.py`](https://github.com/dstroy0/orior/blob/main/utils/maint/catalog/catalog.py) keeps the list.
 
 ## The search kernel
 
-`anchor_steer_count` counts the occurrences of a needle in a corpus. Its last argument is 1 to order the probes by rarity and 0 to leave them in spatial order, and the count is the same either way ([`orior_descent.h:342-368`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L342-L368)). Both buffers are [BORROWS] for the call.
+`anchor_steer_count` counts how many times a needle (the pattern you search for) appears in a corpus (the text you search in). Its last argument is 1 to order the probes by rarity, or 0 to keep them in the order they appear. The count is the same either way ([`orior_descent.h:342-368`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L342-L368)). The function borrows both buffers for the length of the call ([BORROWS]).
 
 ```c
 #include <stdint.h>
@@ -99,11 +96,14 @@ int main(void)
 }
 ```
 
-Built with the four-source line in [Setup](setup.md#the-c-engine) under gcc on x86-64 Windows, it prints `4 occurrences, scanned by the portable engine`.
+Built with the gcc line in [Setup](setup.md#the-c-engine), under gcc on x86-64 Windows, it prints `4 occurrences, scanned by the portable engine`.
 
-The sift is a sound filter: no arrangement of anchors can lose a true occurrence. Errors are one directional and any discrepancy is an over-count. It carries `m` bits of state for a pattern of length `m`, with no table over the alphabet. A real-valued or unenumerable alphabet costs it nothing.
+The sift is a safe filter: no arrangement of anchors can lose a true occurrence.
 
-The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/nbody/orior/sift) implements the same construction and shares no code with the C. The two are checked against each other by agreeing on counts.
+- **It can only be wrong in one direction.** Any mistake is an over-count, never a missed match.
+- **Its memory is small.** It keeps `m` bits of state for a pattern of length `m`, with no table over the alphabet. An alphabet of real numbers, or one too large to list, costs it nothing extra.
+
+The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com/dstroy0/orior/tree/main/archive/src/python/engine/nbody/orior/sift) builds the same thing and shares no code with the C version. The two are checked against each other by making sure their counts agree.
 
 ## Other languages
 
@@ -112,10 +112,17 @@ The Python in [`archive/src/python/engine/nbody/orior/sift/`](https://github.com
 | R | [`evidence/sims/r/departure.R`](https://github.com/dstroy0/orior/blob/main/evidence/sims/r/departure.R) | runs, checked against the reference |
 | MATLAB and Octave | [`evidence/sims/matlab/orior_departure.m`](https://github.com/dstroy0/orior/blob/main/evidence/sims/matlab/orior_departure.m) | run on Octave 11.3.0, inside the reference floor; MATLAB proper not run here |
 
-A port is correct when it lands inside the reseeding floor of the Python, since each language draws its null from a different generator and none agree to the last digit. Checked on 200000 symbols over twelve seeds: a clustered sequence reads 0.4228 in Python and 0.4282 in R against a floor of 0.0092, and a memoryless one reads 0.9953 and 0.9933 against a floor of 0.0044. Both gaps sit at about half a floor.
+Each language draws its shuffle from its own random number generator, and no two agree to the last digit. A port counts as correct when its result lands inside the reseeding floor of the Python version.
+
+This was checked on 200000 symbols over twelve seeds:
+
+- A clustered sequence reads 0.4228 in Python and 0.4282 in R, against a floor of 0.0092.
+- A memoryless sequence reads 0.9953 and 0.9933, against a floor of 0.0044.
+
+Both gaps come to about half a floor.
 
 ## If you are working on a language
 
-Read [the conditions of use](condition_of_use.md) first. These tools regenerate language, and output near the edge of a source distribution can be coherent and already not be the language. Nothing here marks which side of that a result fell on, and a human review of the output is a condition of use.
+Read [the conditions of use](condition_of_use.md) first. These tools can generate language. Output near the edge of what the source covers can read smoothly and still not be the language. Nothing here marks which side of that line a result fell on. A person must review the output. That review is a condition of use.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

@@ -4,8 +4,8 @@ A harmonic reading of the SHA-256 compression state renders a surface, and that 
 the round clock turns. This records what the deformation is, proves it belongs to the state
 not to the observer or the probe, and traces it to the one structural feature of the
 compression function that could produce it. The observer-invariance that makes the reading
-trustworthy is stated first, because it is the calibration that lets the rest be read as measurement,
-not as viewpoint.
+trustworthy is stated first, because it is the calibration that lets the rest be read as measurement
+instead of as viewpoint.
 
 Run the measurements with `python examples/proofing/state_deflection.py`.
 
@@ -24,7 +24,7 @@ the object under the instrument is SHA-256 and not an approximation of it.
 
 A shape read this way has two anisotropies, and they answer to a rotation of the observer
 differently. This is standard representation theory of the rotation group, stated here because it is
-the null the measurement rests on, not because it is new.
+the null the measurement rests on. It is not new.
 
 - **The angular power spectrum**, the power per degree `P_l = Σ_m |a_lm|²`, is invariant under every rotation in
   SO(3): the degree-`l` subspace carries a unitary irreducible representation of the group, and a

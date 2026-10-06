@@ -121,7 +121,7 @@ def confirms(path, must_hold, out):
         from pypdf import PdfReader
     except ImportError:
         out.write(
-            "      cannot confirm: no pypdf installed. Erroring, not keeping an unchecked file.\n"
+            "      cannot confirm: no pypdf installed. Erroring instead of keeping an unchecked file.\n"
         )
         return False
 

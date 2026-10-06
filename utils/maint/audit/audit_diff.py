@@ -91,7 +91,7 @@ def main():
 
     if pending:
         print()
-        print("  still running, not yet judged: %s" % ", ".join(pending))
+        print("  still running and not yet judged: %s" % ", ".join(pending))
 
     print()
     print("  %d clean, %d moved, %d pending" % (len(clean), len(dirty), len(pending)))

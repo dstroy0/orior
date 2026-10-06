@@ -1,15 +1,12 @@
 # Licensing
 
-**Purpose:** Say which license governs a use, how the conditions of use bind, and how an educator asks for an exception.
-**Scope:** `LICENSE`, `LICENSES/`
-
-Every source file carries this header:
+Every source file starts with this line:
 
 ```
 SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 ```
 
-Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a negotiated commercial licensing contract or an educator's license issued to you personally. It will always be free to use under the AGPL.
+You can use this work under the AGPL-3.0-or-later. That will always be free. To use it any other way, you need written permission: either a commercial contract we agree on, or an educator's license issued to you by name.
 
 | license                  | text                                                                                                                                                                             | terms                                                                |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
@@ -19,13 +16,19 @@ Every use falls under AGPL-3.0-or-later unless you hold explicit permission, whi
 
 ## The conditions of use
 
-[The conditions of use](condition_of_use.md) are a term of every commercial contract and every educator's license. Section 7A of each binds whoever signs or accepts it to each of them, for every closed product or work made under it and its output, and Section 7 binds them to the terms of the speakers for language. No order form or grant changes Section 7A, and breaking it can end the license at once.
+Every commercial contract and every educator's license includes [the conditions of use](condition_of_use.md).
+
+- Section 7A binds whoever signs or accepts the license to every one of those conditions. That covers every closed product or work made under the license, and what it puts out.
+- Section 7 binds them to the terms of the speakers for any language data.
+- No order form or grant can change Section 7A. Breaking it can end the license at once.
 
 ## Educators
 
-For an exception to use this in classrooms or research projects, email dstroy0 (Douglas Quigg) <dquigg123@gmail.com> from your `.edu` or `.org` faculty address.
+To ask for an exception for a class or a research project, email dstroy0 (Douglas Quigg) <dquigg123@gmail.com> from your `.edu` or `.org` faculty address.
 
-Exceptions are granted case by case and govern your use, specifically the accreditation requirement of underlying systems in research or presentation materials. Where an academic exemption leads to a viable market product the license shifts to a royalty ladder, set off the goodwill shown and how well students and others were credited. A portion goes to your institution at a minimum, and straight to your department where their rules allow.
+Each exception is decided on its own and sets the terms of your use. In particular, it sets how you credit the underlying systems in research or in presentation materials.
+
+If work done under an academic exception turns into a product that can be sold, the license moves to a royalty ladder. The royalty depends on the goodwill shown and on how well students and others were credited. At least part of it goes to your institution, and straight to your department where its rules allow.
 
 See [CONTRIBUTING.md](https://github.com/dstroy0/orior/blob/main/CONTRIBUTING.md) and [SECURITY.md](https://github.com/dstroy0/orior/blob/main/SECURITY.md).
 

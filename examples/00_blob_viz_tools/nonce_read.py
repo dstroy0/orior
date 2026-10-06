@@ -212,7 +212,7 @@ def _report():
     print("  that row did NOT clear the bar the pipeline would be broken and every other row")
     print("  uninterpretable. It clearing is the instrument working.")
     print("")
-    print("  THE DETECTION LIMIT, WHICH MAKES THIS A RESULT AND NOT AN ABSENCE. With")
+    print("  THE DETECTION LIMIT, AND THAT MAKES THIS A RESULT AND NOT AN ABSENCE. With")
     print("  %d samples the standard error on a correlation is about 1/sqrt(n) = %.4f. This"
           % (NONCES, 1.0 / math.sqrt(NONCES)))
     print("  sweep could have seen a correlation of roughly %.3f and did not. Anything below that"

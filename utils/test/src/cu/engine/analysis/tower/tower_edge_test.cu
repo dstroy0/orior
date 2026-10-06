@@ -343,7 +343,7 @@ int main(void)
     trip = tower_test_trip(&rig, inside, 2u, &mismatches, &rebuilt_ok, NULL);
     check("bennett edges mid-tower round-trip", (trip == 0L) && (mismatches == 0ull) && (rebuilt_ok != 0));
 
-    // |x| applied bare on the 16-bit field, not embedded: x and -x collide. It is no permutation and errors
+    // |x| applied bare on the 16-bit field without embedding: x and -x collide. It is no permutation and errors
     for (unsigned int index = 0u; index < BENNETT_SIZE; index += 1u)
     {
         bare[index] = (index < (BENNETT_SIZE / 2u)) ? index : (BENNETT_SIZE - index);

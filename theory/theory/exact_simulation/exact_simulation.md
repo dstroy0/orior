@@ -29,7 +29,7 @@ implementation carries the quadruple as four exact rationals and uses no numeric
 The state is held as one small tensor per qubit, joined by bonds, as in a matrix product state [3].
 The bond across a cut is the exact Schmidt rank there. After every two-qubit gate the bond is
 trimmed by a rank-revealing factorization `M = C*F` computed by exact Gaussian elimination over the
-field. No singular value is ever formed. Cost scales with the entanglement actually present, not
+field. No singular value is ever formed. Cost scales with the entanglement actually present instead of
 with the qubit count.
 
 | state | qubits | bond dims | field elements | vs dense |

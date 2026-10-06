@@ -1,4 +1,4 @@
-"""The axis every other test in this tree misses: algorithmic structure, not distribution.
+"""The axis every other test in this tree misses: algorithmic structure instead of distribution.
 
 Everything else here is statistical. Uniform shares, flat autocorrelation, full algebraic degree, no
 co-variation between positions. The digits of pi pass every one of those tests, and the digits of pi

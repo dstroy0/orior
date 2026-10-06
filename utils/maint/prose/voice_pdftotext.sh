@@ -7,8 +7,8 @@
 #   build/tessera_host/tessera_run --processors 8 --name voice_pdftotext -- \
 #       bash utils/maint/prose/voice_pdftotext.sh D:/voice
 #
-# The text goes to build/voice/text/ and never into the tree: it is the books' text. What the tree
-# keeps is voice.tsv, the words and their counts, which voice_count.py writes from it.
+# The text goes to build/voice/text/ and never into the tree: it is the books' text. The tree
+# keeps voice.tsv, the words and their counts, which voice_count.py writes from it.
 #
 # Each title is converted from one PDF. The folder holds scans of the same lectures beside the
 # editions with a text layer, and a title counted twice would count every word in it twice. The

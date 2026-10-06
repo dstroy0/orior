@@ -6,7 +6,7 @@
 #
 #   python utils/test/maint/test_strip_comments.py
 #
-# Every expected output below was written by reading the input, not by running the tool. A
+# Every expected output below was written by reading the input instead of by running the tool. A
 # defect in the tool cannot also be a defect in its expectation. The negative controls are inputs
 # the tool must error. A check that has never errored on anything cannot be told apart from one that
 # errors nothing, and these are what show the errors fire.

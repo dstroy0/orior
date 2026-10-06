@@ -118,7 +118,7 @@ int check_ordering_pays(const uint8_t *corpus, size_t corpus_len, const uint8_t 
     AnchorFieldCensus census;
     anchor_field_census(corpus, corpus_len, &census);
 
-    /* The ratio is carried in hundredths as an exact integer division, not as a double. Both the
+    /* The ratio is carried in hundredths as an exact integer division instead of a double. Both the
      * numerator and the denominator are printed beside it. The reader can check the division. */
     const uint64_t hundredths = (steered_probes > 0u) ? ((plain_probes * 100u) / steered_probes) : 0u;
 

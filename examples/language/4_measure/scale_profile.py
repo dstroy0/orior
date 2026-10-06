@@ -9,8 +9,8 @@
 #   Usage:  python examples/language/4_measure/scale_profile.py
 #
 # Matching against a growing window shows every text still gaining at 262144 characters. No single
-# window holds a text and the rate at any one of them is a reading of that choice. What the sweep produces
-# is not one number but a curve: how much a text knows at each distance, and how much each further
+# window holds a text and the rate at any one of them is a reading of that choice. The sweep produces
+# a curve instead of one number: how much a text knows at each distance, and how much each further
 # distance adds.
 #
 # That curve is worth testing as a description of a language in its own right. The reading used until now

@@ -150,7 +150,7 @@ MARKER = re.compile(r"(?:(?<=\s)|^)\d{1,3}(?=\s|$)")
 # round again before the translations arrive, and this is a cycle.
 BLOCK_ROWS = ("pipa", "morphemic", "gloss")
 
-# Which text numbers are Salish. Texts 3 to 6 are Chinook Jargon and are recorded, not ingested.
+# Which text numbers are Salish. Texts 3 to 6 are Chinook Jargon and are recorded and not ingested.
 SALISH_TEXTS = (1, 2)
 
 LAYER = {

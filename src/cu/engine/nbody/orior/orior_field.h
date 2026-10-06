@@ -21,7 +21,7 @@ extern "C"
      * @note THIS IS THE WHOLE INTERFACE THE ENGINE NEEDS TO A SYMBOL. Not an order, not a hash, not a
      *       size, not an enumeration of the alphabet. Equality at two positions only, the
      *       one relation the soundness proof uses: a subset of a pattern's points is a necessary
-     *       condition, and the proof reads no order, no dimension and no alphabet.
+     *       condition, and the proof reads neither order, dimension nor alphabet.
      * @note A symbol may therefore be a byte, a 32 bit sample, an exact rational, a point in eight
      *       dimensions, a pointer compared by identity, or a value only its owner can compare. The
      *       engine never learns which. An alphabet that cannot be enumerated or hashed costs it
@@ -137,7 +137,7 @@ extern "C"
      * not prove symbol agreement, and a filter does not need it to. The engine's construction is that a
      * necessary condition may be weaker than the thing it screens for.
      *
-     * What that buys is the wide path. An equality oracle cannot be vectorized, because a wide compare
+     * That buys the wide path. An equality oracle cannot be vectorized, because a wide compare
      * is a statement about a representation and the oracle deliberately hides one. Ranks are bytes.
      * A field of any symbol type therefore becomes a field the existing byte engine reads at full speed, AVX2
      * scan included. A real valued alphabet, a point in eight dimensions and an opaque handle all
@@ -212,7 +212,7 @@ extern "C"
      *       obvious way to hold that and it is not the only one; the engine never dereferences the
      *       field and does not care.
      *
-     * @note THE ORACLE HERE IS FIELD AGAINST FIELD, NOT CORPUS AGAINST NEEDLE. It takes two joint
+     * @note THE ORACLE HERE IS FIELD AGAINST FIELD INSTEAD OF CORPUS AGAINST NEEDLE. It takes two joint
      *       positions drawn from one space. `AnchorField.same` in a descent takes a CORPUS position and
      *       a NEEDLE position, which are two spaces. The two have the same C type and different
      *       meanings. The compiler cannot catch the swap and passing one where the other belongs

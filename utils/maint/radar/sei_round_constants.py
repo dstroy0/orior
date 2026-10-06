@@ -91,7 +91,7 @@ def main():
 
     # -- is the scatter real? --------------------------------------------------------------------
     #
-    # The honest error on the common mode is measured, not assumed: past round 23 there is no
+    # The honest error on the common mode is measured instead of assumed: past round 23 there is no
     # signal. The round-to-round variation there is what this statistic does when nothing is
     # happening.
     quiet = [common[r] for r in range(30, 65) if r in common]
@@ -121,7 +121,7 @@ def main():
     if ratio < 3.0:
         print("\n  The scatter is not clearly above what this statistic does when nothing is")
         print("  happening. There is no modulation to identify, and the correlations below are")
-        print("  being computed on noise. Reported anyway, not dropped.")
+        print("  being computed on noise. Reported anyway instead of dropped.")
     else:
         print("\n  The scatter stands above the quiet rounds: there is something to explain.")
 

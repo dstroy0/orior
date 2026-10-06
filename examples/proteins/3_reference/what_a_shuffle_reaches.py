@@ -58,7 +58,7 @@ def favored_fraction(contours, angles):
     """The share of residues whose (phi, psi) sits at or above the general favored cutoff.
 
     One contour is used for every residue here, the general one, because a shuffle has already
-    broken the residue identity that would pick a class. The question is about the plane, not the
+    broken the residue identity that would pick a class. The question is about the plane instead of the
     per-class bookkeeping, and holding the contour fixed keeps the three columns comparing like with
     like.
     """

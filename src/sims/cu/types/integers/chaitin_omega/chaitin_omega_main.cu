@@ -467,7 +467,7 @@ int main(int argc, char **argv)
     // BusyBeaverWiki's BB lambda (OEIS A333479) from 4 through 33 bits; 0 where no closed term exists. The entries
     // equal the terms of OEIS's b-file for A333479 at 4 to 33. A row with a term still open
     // holds only a lower bound, and the published value is the true maximum. The two meeting means the run
-    // reached the champion; past 33 the champions outgrow any space here (327686 bits at 34)
+    // reached the maximum; past 33 the maxima outgrow any space here (327686 bits at 34)
     static const unsigned long long published_max[34] = {
         0ull,  0ull,  0ull,  0ull,  4ull,  0ull,   6ull,   7ull,   8ull,   9ull,   10ull, 11ull,
         12ull, 13ull, 14ull, 15ull, 16ull, 17ull,  18ull,  19ull,  20ull,  22ull,  24ull, 26ull,
@@ -487,7 +487,7 @@ int main(int argc, char **argv)
               "at every settled length");
     if ((counts.steps >= OMEGA_STEPS_DEFAULT) && (counts.tokens >= OMEGA_TOKENS_DEFAULT))
     {
-        // the default budgets reach every champion through 33 bits, the 1812-bit normal form at 33 the largest
+        // the default budgets reach every maximum through 33 bits, the 1812-bit normal form at 33 the largest
         sim_check(&results, published,
                   "BB lambda equals BusyBeaverWiki's (OEIS A333479) at every length through 33 bits");
     }

@@ -96,7 +96,7 @@ A level that finds no candidate leaving fewer survivors than it started with has
 
 The two are different kinds of statement and the guide keeps them apart. The period argument is a theorem over every corpus of that period. This rule is an observation about one field, taken on a sample of it when `sample_stride` is above one. "pruned nothing on this sample" does not establish "can prune nothing". Being wrong costs speed and cannot cost the count.
 
-Destroying the levels below a destroyed probe costs nothing, and the reason is inductive, not a matter of budget.
+Destroying the levels below a destroyed probe costs nothing, and the reason is inductive instead of a matter of budget.
 
 The destroy test compares the minimum over every candidate against the current population (`src/cu/engine/nbody/orior/orior_steer_plan.c`). When it fires, the minimum leaves the population unchanged. Every candidate leaves it unchanged. Placing one would prune nothing, and the next level would inherit the identical population. Its candidate set is the same set or a subset of it, since the enumeration bounds are arguments and constants that do not vary by level (`src/cu/engine/nbody/orior/orior_steer_count.c`) and the coarm descent only ever removes a placed position from consideration. Every candidate in a subset of a set that all left the population unchanged also leaves it unchanged. The next level's minimum is the whole population and its test fires too. By induction every level below prunes nothing.
 
@@ -139,7 +139,7 @@ The bound is attained. The empty probe set takes no probe reads and sends every 
 
 **What the theorem does not cover.** It binds engines that decide an alignment from reads at that alignment. A skipping search breaks that premise deliberately: it uses a read at one alignment to decide a range of others, and never visits most of them. Its reads per alignment are taken over a sparse subset of `A` and fall below one for that reason. That is a different quantity wearing the same name, and no ratio between the two measures anything.
 
-## One invocation is total. The system is not, and that is deliberate
+## One invocation is total. The system is not, by design
 
 Bounding the loops does not establish that the engine is not Turing complete: it analyzes a single invocation and draws a conclusion about the system. The error is worth keeping because it is easy to repeat.
 
@@ -157,7 +157,7 @@ What follows separates what is settled from what is open, and the open part is m
 
 **Failing to halt is not Turing completeness.** A process can fail to halt by cycling among three states. Turing completeness needs storage that grows during execution together with the ability to compute arbitrary functions of it. Concluding the engine is Turing complete because its outer loop is unbounded conflates the two, and that does not follow.
 
-**What the engine implements is finite.** `ANCHOR_STEER_ANCHORS` is 4. The descent places at most four probes and spawns at most four coarms. `ANCHOR_EXACT_LIMBS` is 128 by default, which is 4096 bits. A build may select any power of two from 1 to 32768 limbs, and the engine refuses fewer than 8 (`src/cu/types/integers/exact_integer.h`). A fixed width counter is a finite state machine at any width. For a fixed corpus the survivor set is a subset of the alignments and the probe family is bounded by the needle length. Nothing in the engine as built grows while it runs.
+**The engine's implementation is finite.** `ANCHOR_STEER_ANCHORS` is 4. The descent places at most four probes and spawns at most four coarms. `ANCHOR_EXACT_LIMBS` is 128 by default, which is 4096 bits. A build may select any power of two from 1 to 32768 limbs, and the engine refuses fewer than 8 (`src/cu/types/integers/exact_integer.h`). A fixed width counter is a finite state machine at any width. For a fixed corpus the survivor set is a subset of the alignments and the probe family is bounded by the needle length. Nothing in the engine as built grows while it runs.
 
 **The methodological error is the durable finding and it survives either answer.** Concluding the system is total by observing that every loop inside one invocation is bounded uses only a property of one invocation. A system halting on every input decides its own halting. The claim needs the outer loop and never looks at it.
 
@@ -229,7 +229,7 @@ So the non-increasing enumeration premise stated in the section above is load be
 
 The guarantee is on alignments rejected by `k` probes. It is not a guarantee on reads, and those differ: rejecting an alignment early saves the reads a later probe would have spent on it. A set that rejects the same alignments in a different order costs a different number of reads. The read counts in the table above are measurements and are not covered by the ratio.
 
-It also assumes the marginal gains are evaluated exactly, which holds at `sample_stride` of one. Above one the planner scores candidates on a sample, which makes the oracle approximate, and greedy under an approximate oracle degrades by an amount depending on the error instead of holding at `1 - 1/e`.
+It also assumes the marginal gains are evaluated exactly, which holds at `sample_stride` of one. Above one the planner scores candidates on a sample, and that makes the oracle approximate, and greedy under an approximate oracle degrades by an amount depending on the error instead of holding at `1 - 1/e`.
 
 Nothing here has been measured against the optimal probe set, because computing that means enumerating every set of size `k` and is exponential. The ratio is a proved floor and this document does not report it as an observation.
 

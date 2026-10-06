@@ -1,6 +1,6 @@
 \chapter{The boundary as an instrument}
 
-This chapter states what a boundary reading can recover, what it provably cannot, and which of the boundary results are algebra instead of measurement. The strongest claim in it is a counting argument that no precision, no sample size and no number of probes can move.
+This chapter states what a boundary reading can recover, what it provably cannot, and which of the boundary results are algebra instead of measurement. The strongest claim in it is a counting argument that neither precision, sample size nor the number of probes can move.
 
 \section{The octant decomposition}
 
@@ -39,7 +39,7 @@ spread of the pitch over six amounts & \(4.337 \times 10^{-19}\) \\
 
 Indices that run past \(N\) wrap and return at the other end, and they return \emph{as a rigid second arm of the same helix}. Wrapping leaves the screw intact and splits it into two arms of one screw. A rotated state therefore reads as a shifted spiral with a second arm laid beside it, never as a scramble.
 
-\textbf{This is the strongest structural statement in the chapter.} The rotation is the most-used operation in the compression function, and on this placement an index shift is one rigid move along one helix whose pitch does not depend on the amount. It is an identity, not a measurement: the numbers above check the arithmetic, and the pitch spread of \(4 \times 10^{-19}\) is the rounding of the division.
+\textbf{This is the strongest structural statement in the chapter.} The rotation is the most-used operation in the compression function, and on this placement an index shift is one rigid move along one helix whose pitch does not depend on the amount. It is an identity instead of a measurement: the numbers above check the arithmetic, and the pitch spread of \(4 \times 10^{-19}\) is the rounding of the division.
 
 The caution is equally exact. The placement is chosen, and the identity belongs to the golden spiral. A different placement gives a different move. The identity says that SHA-256's rotations \emph{can} be read as one rigid move, never that the function contains one.
 
@@ -80,7 +80,7 @@ Where the operations of interest are rotations, the bit positions are carried in
 
 Varley, Mediano, Patania and Bongard~\cite{src:Varley} compare topological data analysis against multivariate information theory on the same data, and separate \emph{intrinsic} higher-order information, invariant to a rotation of the embedding, from \emph{contextual} information, which depends on the embedding. On fMRI data over \(36{,}300\) region triads they report normalized O-information correlating with average void persistence at \(\rho = -0.65\), \(p < 10^{-100}\), and with the number of voids at \(\rho = -0.32\); after a PCA rotation those correlations weaken substantially while remaining significant. The contextual part carries much of what they measure.
 
-The split above is the same split with the group action known in closed form instead of sampled. On the sphere the rotation group acts on the coefficients by a character, \(e^{-im\alpha}\). Magnitude and phase separate the intrinsic from the contextual \emph{exactly}: the intrinsic half moves by \(10^{-14}\) and the contextual half recovers the move to \(10^{-13}\). Their caveat applies here too: they state that no formal proofs relate the two frameworks and that their relationships are correlational. Nothing here proves one either. What the sphere adds is one case where the separation is algebraic and can be checked to the last digit.
+The split above is the same split with the group action known in closed form instead of sampled. On the sphere the rotation group acts on the coefficients by a character, \(e^{-im\alpha}\). Magnitude and phase separate the intrinsic from the contextual \emph{exactly}: the intrinsic half moves by \(10^{-14}\) and the contextual half recovers the move to \(10^{-13}\). Their caveat applies here too: they state that no formal proofs relate the two frameworks and that their relationships are correlational. Nothing here proves one either. The sphere adds one case where the separation is algebraic and can be checked to the last digit.
 
 Two further points from the same paper bear on this reading. Their synthetic tests find spheres and hollow toroids dominated by the higher-order term of their measure, and the object read throughout this work is a deforming two-sphere boundary. That is a reason to expect higher-order structure in a boundary reading and never a demonstration that there is any. Their distinction also names something visible in the viewer: the shape of the envelope is the intrinsic reading and its orientation is the contextual one.
 
@@ -107,13 +107,13 @@ degree & coefficients & rank & blind & least kept \\
 
 The map has as much rank as it has rows at every degree below the source count. The shortfall in coefficients is the entire cause of the blindness. Three consequences follow, each a number instead of an opinion.
 
-\textbf{The viewers read to degree eight, carrying \(81\) of \(256\).} No sample size, no precision and no number of probes completes that reading. Raising the degree does, and the cost is coefficients instead of accuracy: the basis is orthonormal to \(2.2 \times 10^{-14}\) at degree fifteen under exact quadrature. Precision is not what holds the reading at eight.
+\textbf{The viewers read to degree eight, carrying \(81\) of \(256\).} Neither sample size, precision nor the number of probes completes that reading. Raising the degree does, and the cost is coefficients instead of accuracy: the basis is orthonormal to \(2.2 \times 10^{-14}\) at degree fifteen under exact quadrature. Precision is not what holds the reading at eight.
 
 \textbf{Degree fifteen is the floor}, because \((L+1)^2\) first reaches \(256\) there. Below it the blindness is forced by counting alone.
 
 \textbf{Reaching the floor is not reaching a usable reading.} At degree fifteen the rank is complete and the least singular value collapses to \(3.5 \times 10^{-3}\), three decades under the values beside it; at sixteen it recovers to \(1.5 \times 10^{-1}\). A square map is invertible and an ill-conditioned one is not invertible in any useful sense, and the count alone hides that. One degree of headroom buys a factor of \(44\) in conditioning.
 
-\textbf{The eight-letter alphabet is rank \(8\), blind in \(248\) of \(256\) directions}, and at fixed weight its shares carry one constraint and leave seven free numbers. This frames the coherence result: sixty-four rounds write sixty-four distinct signatures, which reads as complete separation and comes nearly free, because seven numbers separate sixty-four arbitrary states whether or not the seven mean anything. Distinctness at that sample size is not evidence. Evidence would be a delta below the redraw level, or a signature that predicts the round it came from.
+\textbf{The eight-letter alphabet is rank \(8\), blind in \(248\) of \(256\) directions}, and at fixed weight its shares carry one constraint and leave seven free numbers. This frames the coherence result: sixty-four rounds write sixty-four distinct signatures, which reads as complete separation and comes nearly free, because seven numbers separate sixty-four arbitrary states whether the seven mean anything. Distinctness at that sample size is not evidence. Evidence would be a delta below the redraw level, or a signature that predicts the round it came from.
 
 \subsection{The bound arriving as an implementation defect}
 
@@ -308,7 +308,7 @@ The eight octant shares are a partition of the boundary, and a partition is an o
 
 Every reading in this chapter is a functional of a probability vector on \emph{one} partition. All of it lives at a single object of that category. The cohomology is in the maps \emph{between} refinements, where the mutual informations at all orders sit. The alphabet is one coarse-graining and a finer one refines it. The well-posed next measurement is not a sharper delta on the octants but the comparison across the octant, sub-octant and pair readings, a published frame for a measurement not made here.
 
-Every reading should ship a known-null move and report its residual, which makes every threshold measured and never guessed. The coherence figure rounds at \(10^{-6}\) where integer counts over an integer weight have a true null near \(10^{-16}\): ten decades coarse.
+Every reading should ship a known-null move and report its residual. Every threshold is then measured and never guessed. The coherence figure rounds at \(10^{-6}\) where integer counts over an integer weight have a true null near \(10^{-16}\): ten decades coarse.
 
 \section{Untested here}
 

@@ -45,7 +45,7 @@ GRADED AGAINST THE STATE VECTOR, NOT AGAINST ITSELF
 Entropy here is read as the GF(2) rank of the off diagonal adjacency block, the bits and
 never an amplitude array. For small cases the same number is computed from the actual 2^n state
 vector and the two must agree. A bit level answer that has never been graded against the thing it
-claims to summarize is a claim, not a measurement.
+claims to summarize is a claim instead of a measurement.
 """
 
 import argparse
@@ -247,7 +247,7 @@ def twist_profile(machine):
     in edge count. They are returned together because the whole result is in the contrast between
     them.
 
-    THE ENTANGLEMENT RESPONSE IS EXACTLY ZERO AND THAT IS A THEOREM, NOT A MEASUREMENT. Local
+    THE ENTANGLEMENT RESPONSE IS EXACTLY ZERO AND THAT IS A THEOREM INSTEAD OF A MEASUREMENT. Local
     complementation is a local Clifford operation, and local Clifford operations preserve
     entanglement across every bipartition. So the first list is all zeros for every graph, at every
     vertex, at any size.
@@ -444,7 +444,7 @@ def _report():
                      after_switch - after_release))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     print("  Switching left MORE entanglement than releasing in %d of %d cases."
           % (conserved, examined))
@@ -562,7 +562,7 @@ def _entropy(qubits=8):
         print("  ordered by family:  %s" % ", ".join(by_family))
         print("  ordered by moment:  %s" % ", ".join(by_moment))
         print("")
-        print("  READ THE TABLE, NOT THIS SENTENCE.")
+        print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
         print("")
         if by_rank == by_family == by_moment:
             print("  The three orderings are identical. On these shapes the three measures are")
@@ -642,7 +642,7 @@ def _relax(qubits=10):
                  "OUTSIDE" if outside else "inside"))
 
     print("")
-    print("  READ THE TABLE, NOT THIS SENTENCE.")
+    print("  READ THE TABLE INSTEAD OF THIS SENTENCE.")
     print("")
     print("  The driven rate fell OUTSIDE the random orders' own range on %d of %d shapes."
           % (separated, examined))

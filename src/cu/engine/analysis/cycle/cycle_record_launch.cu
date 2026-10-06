@@ -101,7 +101,7 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
         }
         block->checksum = cycle_block_seal(block);
         // the sealed block goes back to the device, where the next launch finds it; a fault is left sealed on the
-        // host's copy whether or not the device can still take it
+        // host's copy whether the device can still take it
         const cudaError_t sent = cudaMemcpy(device_block, block, sizeof(EngineProgramBlock), cudaMemcpyHostToDevice);
         ok = ok && CYCLE_STATUS_CHECK(sent, device_block, error);
         running = (ok != 0) && (state == ENGINE_PROGRAM_YIELDED);
@@ -282,7 +282,7 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
                 record->block->launches, record->block->checkin, record->block->runtime,
                 record->block->grant_threads);
     }
-    // the frame's reservation is given back whether or not the sweep held
+    // the frame's reservation is given back whether the sweep held
     const int returned = cycle_stack_return(stack, request->device_out, error);
     ok =
         ok && returned &&

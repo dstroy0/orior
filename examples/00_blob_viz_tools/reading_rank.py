@@ -8,7 +8,7 @@ THE DEFECT THIS EXISTS FOR
 
 The octant alphabet separated sixty-four rounds from sixty-four rounds, every signature distinct,
 and that was reported as coherence. It is nearly free. Eight real numbers will separate sixty-four
-arbitrary states whether or not the eight numbers mean anything. Distinctness at that sample size
+arbitrary states whether the eight numbers mean anything. Distinctness at that sample size
 is not evidence and the report should never have implied it was.
 
 What settles it is not a harder sample. It is a rank. The map from lit points to boundary

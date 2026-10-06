@@ -277,7 +277,7 @@ def main():
         )
         handle.write("#\n")
         handle.write(
-            "# A comparative reconstruction, not a narrative. Every form is a lexical\n"
+            "# A comparative reconstruction instead of a narrative. Every form is a lexical\n"
         )
         handle.write(
             "# suffix cited from a published dictionary of one of eighteen languages, and\n"

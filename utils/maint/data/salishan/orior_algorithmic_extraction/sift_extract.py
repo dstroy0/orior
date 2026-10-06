@@ -17,7 +17,7 @@
 #
 # What each line does carry is where it came from and how far outside English it fell. A person
 # opening one paper can start at the strongest lines and work down. These are candidates. A line
-# here has been found, not read.
+# here has been found and not read.
 
 import collections
 import io
@@ -162,7 +162,7 @@ def main():
         papers += 1
         kept += sum(1 for one in held if one[1] == "language")
         residue += sum(1 for one in held if one[1] == "residue")
-        # The language the paper names in its own title and abstract. Read, not assigned: a paper
+        # The language the paper names in its own title and abstract. Read instead of assigned: a paper
         # that names one language and no other is attributed to it, and one that names several is
         # left unattributed, which is right for a comparative paper.
         says = attribution(named_in(path))
@@ -216,7 +216,7 @@ def main():
                 "# to_english and to_language are bits of surprise per byte pair.\n"
             )
             handle.write("#\n")
-            handle.write("# A line here has been found, not read.\n")
+            handle.write("# A line here has been found and not read.\n")
             handle.write("page\twhere\tto_english\tto_language\ttext\n")
             for page, where, to_en, to_lang, text in sorted(
                 held, key=lambda one: one[3] - one[2]

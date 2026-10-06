@@ -22,7 +22,7 @@
 
 #include <cooperative_groups.h>
 #include <cuda_runtime.h>
-// NVRTC's and nvJitLink's prototypes only: both libraries are loaded at run time, and a build links nothing more
+// NVRTC's and nvJitLink's prototypes only: both libraries are loaded at run time, and a build links nothing beyond them
 #include <nvJitLink.h>
 #include <nvrtc.h>
 

@@ -261,7 +261,7 @@ def main():
     )
     for dataset, name, turns, words in used:
         out.write("    %-56s %6d turns %8d words\n" % (dataset[:56], turns, words))
-    out.write("\n  The published label is a claim, not evidence.\n")
+    out.write("\n  The published label is a claim instead of evidence.\n")
     out.flush()
     return 0
 

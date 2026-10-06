@@ -120,7 +120,7 @@ Doug's: two crystals, the finite towers and their limit, with an infinite delta 
 - **The direct crystal, as sets.** Derived. The windows W_w ⊂ W_{w+1} have union ℤ, and every value the machine holds lies in some window. The union is of sets only.
   - A window is not closed under +: 2^{w−2} + 2^{w−2} = 2^{w−1} leaves W_w. Nor under ×.
   - No ring map ℤ/2^w → ℤ/2^{w+1} sends 1 to 1: 2^w · 1 = 0 would have to go to 2^w ≠ 0.
-- **The direct crystal, as groups.** Derived. Under the injections x ↦ 2x, ℤ/2^w → ℤ/2^{w+1}, the direct limit is the Prüfer group ℤ[1/2]/ℤ, not ℤ; ℤ/2^w sits in it as the multiples of 2^{−w}.
+- **The direct crystal, as groups.** Derived. Under the injections x ↦ 2x, ℤ/2^w → ℤ/2^{w+1}, the direct limit is the Prüfer group ℤ[1/2]/ℤ instead of ℤ; ℤ/2^w sits in it as the multiples of 2^{−w}.
   - The Prüfer group is the Pontryagin dual of ℤ₂ ([Hewitt and Ross](#src:Hewitt-and-Ross-1963)). The two systems are dual map for map: the dual of a projection ℤ/2^{w+1} → ℤ/2^w is an injection x ↦ 2x.
 - **They agree on every finite projection.** Derived. π_w(ℤ) = π_w(ℤ₂) = ℤ/2^w for every w. Every x ∈ ℤ₂ shares its w low bits with an integer, the signed representative of π_w(x) in W_w: ℤ is dense in ℤ₂. No finite floor tells the two crystals apart.
 - **The delta is infinite.** Derived.
@@ -356,7 +356,7 @@ Doug's definition of the higher-order and negative-order hypercomputer (points 1
 **Measured.**
 
 - At 65536 the top run holds 7,625,597,484,984 terms as one block. Derived: the first step writes 3^(3^27) − 1 as one run over the exponents 0 … 3^27 − 1, and the exponents 0, 1 and 2 have split off into the tail since. 3^27 − 3 = 7,625,597,484,984.
-- An observation, not a check: after 10⁶ steps the three starts end in one tail, ω² + ω·8 + 572861. Start 16's first step writes 26 = 2·9 + 2·3 + 2 as its lowest terms, and that is start 4's first step (4 → 26). From there the tail evolves as G(4). The same happens one level up for 65536.
+- An observation and not a check: after 10⁶ steps the three starts end in one tail, ω² + ω·8 + 572861. Start 16's first step writes 26 = 2·9 + 2·3 + 2 as its lowest terms, and that is start 4's first step (4 → 26). From there the tail evolves as G(4). The same happens one level up for 65536.
 
 **What it proves.** The start 16 is carried as ω^ω^ω exactly, as a finite object. It falls a million times, and no value is ever formed. The sim checks the descent Goodstein's theorem rests on, step by step. It does not prove the theorem.
 
@@ -414,7 +414,7 @@ Posit.
   - 2^64 at 81,856,329,715,838,968,403 (8.186·10^19);
   - 2^100 at 1,593,334,768,903,120,834,487,234,062,301 (1.593·10^30) = q_57 − 1.
 - The longest stall in the walk: 949 steps with no new cell, at 2^22 cells.
-- An observation, not a check: the last cell filled is very often just behind the start.
+- An observation and not a check: the last cell filled is very often just behind the start.
   - It sits at 1 − α = 0.858407346410 (2^24, 2^32, 2^38, 2^41, 2^100, …), at 1 − 2α = 0.716814692820, at 1 − 3α = 0.575222039230, at 1 − 4α = 0.433629385640, or at 1 − 6α = 0.150444078461.
   - The step is then a few short of a floor's q: q_j − 1 lands at −α.
   - Why: the place near −jα is reached only through (q − j)α, with q a close return. The place the turn came from is the last it fills.
@@ -470,7 +470,7 @@ What the model shows that bears on them (bounds, checked). Derived unless marked
 - **(4) Infinite length, finite information.** A program prints any window of π: K(the first n bits of π) ≤ K(n) + c = O(log n) ([Kolmogorov 1965](#src:Kolmogorov-1965)). A Machin program fits in a kilobyte, and "infinite information" does not hold. An infinite expansion is not infinite complexity ("The anchors" under Doug's posits). A Martin-Löf random real is the opposite: incompressible. "Hyperobject" has no definition here.
 - **(5, 6) Two perturbations.**
   - A shifted start slides the whole etch rigidly: an isometry, Lyapunov exponent 0, ε stays ε, and the three gaps are the same. The rotation is uniquely ergodic ([Weyl](#src:Weyl-1916); [Walters](#src:Walters-1982)): every start has the same long-run statistics. "The field starting conditions do not matter" holds, and "perturb it differently every time" is the shift.
-  - A changed magnitude, with the direction constant, is Doug's wave (6). The rotations by α and by α + ε separate by nε after n encounters with the period 1: linearly, without end, and after about 1/ε encounters the two etches are unrelated. It is not chaos: the growth is linear, not exponential.
+  - A changed magnitude, with the direction constant, is Doug's wave (6). The rotations by α and by α + ε separate by nε after n encounters with the period 1: linearly, without end, and after about 1/ε encounters the two etches are unrelated. It is not chaos: the growth is linear instead of exponential.
   - Every irrational magnitude etches its own never-repeating pattern. A rational one closes.
 - **(7) Present but balanced.**
   - On the helix the acceleration γ″ = −(a cos s, a sin s, 0) points at the axis, and its torque about the axis is 0.
@@ -518,7 +518,7 @@ Doug's framing for 9 holds as built: every wall hit strikes one wall, and every 
 11. After it covers cell 0, how long until that run covers the cell that closed the boundary in the first run, and are the two periods the same?
 12. The fill always lands just before a floor.
 13. Any 2^n can be reached directly in the tower, as one term.
-14. If qα is nearly a whole number, its identity can be taken, and its null permutation makes it whole. What it lacks is its residue.
+14. If qα is nearly a whole number, its identity can be taken, and its null permutation makes it whole. It lacks its residue.
 
 - **The objects.** T is the fill step and L its last cell. H is the first n > T with {nα} < 1/N, the next touch of cell 0. C is the first n > H in L. Each is one first hit from the step before it.
 
@@ -534,7 +534,7 @@ Doug's framing for 9 holds as built: every wall hit strikes one wall, and every 
 - **Slater ([1950](#src:Slater-1950), [1967](#src:Slater-1967)).** The return times to an interval under an irrational rotation take at most three values, and the largest is the sum of the other two. Derived: T sits inside one gap between consecutive visits to [0, 1/N), and H − T is at most the largest of the three.
 - **[Kac (1947)](#src:Kac).** For an ergodic measure-preserving map, the mean return time to a set of measure μ is 1/μ. The mean return to cell 0 is N steps.
 
-**Measured** (100 resolutions). The classification was made by a scratch script over the run's integer output, not by the sim.
+**Measured** (100 resolutions). The classification was made by a scratch script over the run's integer output instead of by the sim.
 
 - **(10) H** lands on a record return or a sum of them: q_12 at 2^24, q_20 at 2^32, q_34 at 2^64.
   - The wait H − T is bimodal. It is 1 to a few hundred steps when the fill lands just before a return from above, or about one floor's q when it does not (33,104 at 2^15, 2.5·10^18 at 2^64).
@@ -599,7 +599,7 @@ Doug's framing for 9 holds as built: every wall hit strikes one wall, and every 
 - π follows the golden pitch on its runs of 1s (floors 4 to 6: 0.6345, 0.5758, 0.7366) and leaves it on every floor of 2 or more. It leaves farthest at 292, 99, 84, 15, 14, 13 and 12: the shrinks 0.0034, 0.0100, 0.0118, 0.0625 (j = 1) and 0.0652 (j = 24), 0.0695, 0.0723 and 0.0791.
 - Growth per floor: q_65^(1/65) = 3.210576 (an integer root, 6 places), against φ = 1.618033 (from ⌊√(5·10^12)⌋). The mean pitch over the 65 certified floors is ln q_65 / 65 ≈ 1.166, against ln φ ≈ 0.481. The sum of the pitches, ln(|δ_0|/|δ_65|), differs from ln q_65 only by end terms.
 
-**Theory** (cited). **[Lévy (1936)](#src:L-vy-1936).** For almost every real, q_j^(1/j) tends to e^(π²/(12 ln 2)) ≈ 3.2758, a mean pitch of π²/(12 ln 2) ≈ 1.187. Whether π obeys it is Open. The 1.166 above is π's measured mean over 65 floors, not a limit.
+**Theory** (cited). **[Lévy (1936)](#src:L-vy-1936).** For almost every real, q_j^(1/j) tends to e^(π²/(12 ln 2)) ≈ 3.2758, a mean pitch of π²/(12 ln 2) ≈ 1.187. Whether π obeys it is Open. The 1.166 above is π's measured mean over 65 floors instead of a limit.
 
 ## Subtractive coalescence
 
@@ -607,7 +607,7 @@ Doug's name for T. Derived.
 
 - The 5/3 lifting's steps are predict and update, the lifting scheme of [Sweldens (1996)](#src:Sweldens-1996). An odd sample less its prediction from the evens is a high-pass coefficient; an even plus a correction from the high-pass coefficients is a low-pass coefficient. Each step is undone by the opposite step.
 - T is not a projection. It is a bijection (proved both ways), and T⁻¹ returns every sample.
-- The pinch is the predictable part moved, not information lost. A ramp's high-pass coefficients are near 0 and its content sits in the few level-L low-pass coefficients. The heap at the crystal is 1/9.61 of the samples' heap for the ramp and 1/1.00 for noise (measured, above). The heap shrinks while the ring grows by n + 2n(1 − 2^{−L}) (6n(1 − 2^{−L}) under the widths ), and the count is kept exactly (det M = 1, Haar counted).
+- The pinch is the predictable part moved instead of information lost. A ramp's high-pass coefficients are near 0 and its content sits in the few level-L low-pass coefficients. The heap at the crystal is 1/9.61 of the samples' heap for the ramp and 1/1.00 for noise (measured, above). The heap shrinks while the ring grows by n + 2n(1 − 2^{−L}) (6n(1 − 2^{−L}) under the widths ), and the count is kept exactly (det M = 1, Haar counted).
 
 ## Physical walls
 
@@ -685,17 +685,17 @@ Cited; both pages read, and only what they state is given.
   - Derived. Under the null that x's arrangement is itself a uniform shuffle, x and the d draws are exchangeable, and the chance that x's heap stands strictly below all d draws is at most 1/(d + 1) ([Hope 1968](#src:Hope-1968)). This is A12's false-period rate, carried over.
   - **Proved** (`test/engine/record_boundary_test`, 48 checks, 0 failed). d = 8 Fisher–Yates shuffles a lane from the test's seeded generator, 256 lanes a class, the ID the crystal's total heap, the four classes of "The boundary". A shuffle keeps the samples' heap exactly, on every draw. Noise is identified no more often than 256/9 plus 5 standard deviations of the binomial count, and each structured class is identified past that bound.
   - **Measured:** lanes identified, with the lane's crystal heap over the draws' mean in brackets: ramp 256 of 256 (0.13), ramp ±8 256 of 256 (0.33), ramp ±1,024 254 of 256 (0.73), noise 21 of 256 (1.00).
-  - The claim is the rate, not every lane. The null bounds how often noise is identified; it promises nothing for any one structured lane. Two shallow ramps under ±1,024 were not identified: their noise swamps the slope, and their shuffles have little arrangement to destroy. A first form of the check asserted every structured lane and failed on those two.
+  - The claim is the rate instead of every lane. The null bounds how often noise is identified; it promises nothing for any one structured lane. Two shallow ramps under ±1,024 were not identified: their noise swamps the slope, and their shuffles have little arrangement to destroy. A first form of the check asserted every structured lane and failed on those two.
   - **One to one** ("unique", not bit to bit; "change one bit and the permutation fails"). **Proved** in the same test.
     - 8,192 of 8,192 null draws change the crystal exactly when they move a value: T(σx) = T(x) exactly when σx = x. **Measured:** 0 draws moved none.
     - Every single flipped bit changes the image: 8,192 of 8,192 pairs through T and 8,192 of 8,192 through T⁻¹.
-    - Derived: both follow from T being a bijection. The crystal is a one-to-one ID of its samples. The heap fingerprint is many-to-one: it reads the arrangement's structure, not the samples.
+    - Derived: both follow from T being a bijection. The crystal is a one-to-one ID of its samples. The heap fingerprint is many-to-one: it reads the arrangement's structure instead of the samples.
 
 - **The knf is unique: it is the broken edge of the crystal. Two sections of a knf agree only by chance, or when the knf belongs to more than one subset.** Posit, and the next one to test. The .knf is the entropy history (M8, A7 in [engine_table.md](engine_table.md)); the name appears nowhere in the source.
   - The measurement, as Doug set it: the null permutation together with the identity by null permutation measures the knf, and it is the next posit to test. The knf is ranked against its spatial null permutation (`knf_identity`, below), and its identity is taken by the identity:null permutation, the procedure that identifies the crystal ("The identity of T by null permutation", below). "Unique" is then read as that rank and that identity, as for the heap fingerprint.
   - What is already measured: 1,500 of 8,192 single flipped bits leave the knf unchanged (`knf_identity`). The knf is not unique bit for bit, and the test above asks whether it is unique by its rank against the two nulls.
   - What the source holds. Derived from A7 and `entropy_history`. For each voxel x, bit j and window of transitions, the history keeps f_j(x), the number of transitions where bit j flips. It reads the raw 16-bit volume, before any lifting, and its parity check f_j(x) ≡ bit j of I_0(x) ⊕ I_{F−1}(x) proves it was taken whole.
-  - Derived: the history is many-to-one, not a bijection. A count keeps how many transitions flipped a bit and loses which: a bit that flips at transitions 1 and 2 and one that flips at 3 and 4 give one count in one window. "Unique" can hold for it only as a statistical ID, like the heap fingerprint above, not as the crystal's one-to-one ID.
+  - Derived: the history is many-to-one instead of a bijection. A count keeps how many transitions flipped a bit and loses which: a bit that flips at transitions 1 and 2 and one that flips at 3 and 4 give one count in one window. "Unique" can hold for it only as a statistical ID, like the heap fingerprint above, not as the crystal's one-to-one ID.
   - Derived: agreement between two sections has a chance rate. A drawn null draws the rate (A12's form): a section agreeing past all d draws has chance at most 1/(d + 1) under the null. Agreement past that rate reads as shared membership, Doug's "more than one subset". The logic is the period reading's, where agreement past the null at lag p reads the lattice as belonging to its own shifted copy.
   - The null is spatial: permute the data over its spatial coordinates x, y and z, and take the identity of the whole null permutation. Built as `knf_identity` ("The knf's identity by spatial null permutation", above).
   - Open: "the broken edge of the crystal". The history reads raw bits, not the crystal or the part the prediction leaves. Whether the history computed on the crystal's high-pass coefficients is the edge Doug means is not settled.
@@ -705,7 +705,7 @@ Cited; both pages read, and only what they state is given.
   - Built: each body's curve over its box, the six bounds xmax, xmin, ymax, ymin, zmax and zmin.
 - **The two nulls**: they should be close to one to one, each the inverse of the other. They may cross, and where they do, the crossing is mutual in volume and in overall magnitude. Posit.
   - Measured against it: the two are inverse, with the endpoints exact (inside 0 at b = 1, between 0 at b = 64), and they cross between b = 2 and 4. They are not 1:1: inside plus between dips to 0.590 at b = 4.
-  - The gap 1 − (inside + between) is 0.41 at b = 4. A reading, not proved: an inside-shuffled pair in a small tile still shares a body, and neither null removes that co-membership. The gap is then the share both nulls keep, shared membership at scale b, the mutual part of the posit.
+  - The gap 1 − (inside + between) is 0.41 at b = 4. A reading, and not proved: an inside-shuffled pair in a small tile still shares a body, and neither null removes that co-membership. The gap is then the share both nulls keep, shared membership at scale b, the mutual part of the posit.
 - **The bulk and the boundary** (his posit is in [wants.md](wants.md)).
   - Derived: T is a bijection from the samples (the bulk) to the crystal (the boundary). Each coefficient reads a cone of reach 3L, and each sample is rebuilt from a cone of reach L + 2 (proved along one line, "The boundary").
   - The holographic codes are isometries with redundancy: a bulk operator can be rebuilt on more than one boundary region ([Almheiri, Dong and Harlow 2015](#src:Almheiri-Dong-and-Harlow-2015); [Pastawski, Yoshida, Harlow and Preskill 2015](#src:Pastawski-Yoshida-Harlow-and-Preskill-2015)).

@@ -1,8 +1,5 @@
 # The engine's correctness does not depend on its control flow
 
-**Purpose:** Prove that the count is exact for every probe set, that the refinement loop's invariant is its own postcondition, that an arbitrary planner cannot endanger the answer, and that the descent terminates without a depth cap.
-**Scope:** `src/cu/engine/nbody/orior/orior.h`, `src/cu/engine/nbody/orior/orior_*.c`
-
 ## Contents
 
 1. [The setting](#the-setting)
@@ -305,7 +302,7 @@ and by Theorem 1 there was none left to buy.
 
 ## What is not claimed
 
-**The engine is not Turing complete, and that is deliberate.** The sweep is a bounded loop over `A`.
+**The engine is not Turing complete.** The sweep is a bounded loop over `A`.
 The descent terminates in at most `|A|` levels by Theorem 5, under a compile-time cap in the present
 code. Both are primitive recursive, every primitive recursive function is total, and the class cannot
 express the Ackermann function. No claim of universality is made or needed.
@@ -410,9 +407,9 @@ problem class by moving a probe's second end into the corpus, and Baker's is the
 the target.
 
 **What this document contributes**, stated narrowly so it can be checked. The identification of the
-survivor count as a Floyd variant for this descent, which makes the depth constant a budget instead
+survivor count as a Floyd variant for this descent, making the depth constant a budget instead
 of a termination argument. The observation that the loop invariant and the postcondition coincide,
-which makes the anytime property fall out instead of being engineered. Theorem 4's quantifier over
+making the anytime property fall out instead of being engineered. Theorem 4's quantifier over
 partial planner functions. Theorem 6, that a fired stop condition stays fired under non-increasing
 enumeration. And Theorem 7, that an unbounded ascent through question classes carries bounded
 productive work, because the variant does not reset when the question changes.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # BTC - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""Local entropy of the interior, not global: the wave cancels over the whole field. Read locally.
+"""Local entropy of the interior instead of the whole field: the wave cancels over the whole field. Read locally.
 
     python examples/00_blob_viz_tools/nonce_local.py --check      the controls, each able to fail
     python examples/00_blob_viz_tools/nonce_local.py              the local-disturbance reading over the corpus
