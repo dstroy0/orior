@@ -1938,15 +1938,13 @@ static void stall_cases(RunQuestion *question, std::vector<unsigned int> *places
     }
 }
 
-// 1 where the part answers `code` alike with the host on every case it computes, 0 where it answers apart, refuses it
-// or the gate holds it, each counted in `asks`
-static int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
-                       const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
+// 1 where the part answers `code`, put as `question` says of its registers, shape and launches, alike with the host
+// on every case it computes, 0 where it answers apart, refuses it or the gate holds it, each counted in `asks`
+static int question_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
+                          const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
 {
     question->code = code.data();
     question->code_size = code.size();
-    // a lane's container declares every register its file holds (sm_86.kdm)
-    question->registers = 255u;
     *asks += 1ull;
     if (!run_channel_ask(question))
     {
@@ -1961,6 +1959,16 @@ static int stall_alike(const std::vector<unsigned char> &code, const std::vector
         }
     }
     return 1;
+}
+
+// 1 where the part answers `code` alike with the host on every case it computes, in a container declaring every
+// register its file holds (sm_86.kdm), 0 where it answers apart, refuses it or the gate holds it, each counted in
+// `asks`
+static int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
+                       const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
+{
+    question->registers = 255u;
+    return question_alike(code, host, places, question, asks);
 }
 
 // each chain's answers the host computes, one a case over every case, by the chain's number
@@ -2399,6 +2407,246 @@ static int identity_register(const char *engine, const char *answers, const char
     return 0;
 }
 
+// the threads every point of a curve launches in all, and the launches its time is taken over; the asks in a row the
+// band of the fewest registers' times holds without widening before it is taken as sustained, and the most asks one
+// band or one point's bounces is given
+#define CURVE_THREADS (1u << 20u)
+#define CURVE_LAUNCHES 100u
+#define CURVE_SUSTAIN 5u
+#define CURVE_ASKS_MOST 64u
+
+// the times a launch of one point takes over every ask of it: the least and the most
+struct CurveBand
+{
+    unsigned long long low;
+    unsigned long long high;
+};
+
+// `band` widened to hold `time`: 1 where it had to widen, 0 where it held `time` already
+static int curve_band_widened(CurveBand *band, unsigned long long time)
+{
+    const int widened = (time < band->low) || (time > band->high);
+    band->low = std::min(band->low, time);
+    band->high = std::max(band->high, time);
+    return widened;
+}
+
+// one point of a curve asked of the part: `code` declaring `registers`, in blocks of `threads`, as many blocks as
+// CURVE_THREADS takes, timed over CURVE_LAUNCHES. 1 where it answers alike with the host, its time a launch into
+// `nanoseconds`; 0 where it answers apart or the part refuses it. Every point asked is a line of `table`
+static int curve_point(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
+                       const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks,
+                       const std::string &task, unsigned int threads, unsigned int registers,
+                       unsigned long long *nanoseconds, FILE *table)
+{
+    question->registers = registers;
+    question->threads = threads;
+    question->blocks = CURVE_THREADS / threads;
+    question->launches = CURVE_LAUNCHES;
+    const int alike = question_alike(code, host, places, question, asks);
+    *nanoseconds = alike ? (question->nanoseconds / CURVE_LAUNCHES) : 0ull;
+    fprintf(table, "%s threads %u blocks %u registers %u: %s %llu ns a launch%s%s\n", task.c_str(), threads,
+            question->blocks, registers, alike ? "alike" : "apart", *nanoseconds, alike ? "" : ", ",
+            alike ? "" : question->refused);
+    return alike;
+}
+
+// The cost of registers to a task, asked of the part by timing it. A task is a chain of ours the host also computes,
+// with every stall the longest. For each count of threads a block holds, from 1 and doubling, the task is launched
+// over CURVE_THREADS threads in all, and its curve is its time against the registers its container declares: from the
+// fewest it answers alike with to the most the register field names. The fewest is asked in blocks of one thread,
+// walked up from one past the highest number its register fields hold until it answers alike and halved down from
+// there, and is the task's at every count of threads. The fewest's band is the least and the most of its times, asked
+// again until it holds CURVE_SUSTAIN asks in a row without widening. A count of registers is truthy where the task
+// answers alike and its time a launch keeps within the band, and falsy where it answers apart, the part refuses the
+// launch, or its time is past the band twice running with the fewest bounced between and holding to the band; where
+// the bounced fewest strays past the band itself, the band widens and the count is asked again. Declaring more
+// registers takes residency and never gives it: every count past a falsy one is falsy, and the knee, the most
+// registers truthy, is found by halving. The counts of threads end where the part answers no count of registers. Each
+// knee is written to the .ksc as the part's answer on the run channel, `run answers <registers> curve <task>
+// <threads>`, and each task's count of threads whose fewest registers run soonest as `run answers <threads> curve
+// <task> threads`; <folder>/curve.txt holds every point asked
+static int identity_curve(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                          const std::vector<std::string> &tasks, const char *const *carrier)
+{
+    std::map<std::string, StallField> fields = stall_fields(ksc);
+    if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
+        (fields.count("rb") == 0u))
+    {
+        printf("klq_identity curve: %s gives no stall field or not every register field\n", ksc);
+        return 1;
+    }
+    const StallField stall = fields["stall"];
+    const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
+    const unsigned long long longest = (1ull << stall.bits) - 1ull;
+    const unsigned int highest = (unsigned int)((1ull << fields["rd"].bits) - 1ull);
+    std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
+    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    {
+        return 1;
+    }
+    FILE *const table = fopen((folder + "/curve.txt").c_str(), "wb");
+    if (table == NULL)
+    {
+        printf("klq_identity curve: %s/curve.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
+    static RunQuestion s_question;
+    std::vector<unsigned int> places;
+    stall_cases(&s_question, &places);
+    unsigned long long asks = 0ull;
+    std::vector<std::string> rows;
+    for (const std::string &task : tasks)
+    {
+        std::vector<unsigned char> code;
+        std::vector<Link> links;
+        if ((host.count(task) == 0u) || !chain_code_read(engine, task, &code, &links))
+        {
+            printf("  %s: no chain of ours the host computes\n", task.c_str());
+            continue;
+        }
+        unsigned int named = 0u;
+        for (size_t index = 0u; index < (code.size() / 16u); index += 1u)
+        {
+            stall_bits_write(&code, index, stall, longest);
+            for (const StallField &field : registers)
+            {
+                const unsigned int number = (unsigned int)stall_bits(code, index, field);
+                named = ((number != highest) && (number > named)) ? number : named;
+            }
+        }
+        unsigned int soonest_threads = 0u;
+        unsigned long long soonest = 0ull;
+        unsigned int fewest = named + 1u;
+        for (unsigned int threads = 1u; threads <= CURVE_THREADS; threads *= 2u)
+        {
+            // the fewest registers the task answers alike with, walked up in blocks of one thread until the part says
+            // yes; the registers code names are its own whatever its blocks hold, and a count of threads the part
+            // refuses at the fewest it refuses at every count, since more registers take more of it
+            unsigned long long first = 0ull;
+            int answered = curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &first,
+                                       table);
+            while ((threads == 1u) && !answered && (fewest < highest))
+            {
+                fewest += 1u;
+                answered = curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &first,
+                                       table);
+            }
+            // a register field holds an immediate's bits as well as a register's number: the count it answers at is
+            // a bound, and the fewest is found under it by halving. Code that answers alike declaring some count
+            // answers alike declaring more, in a block of one thread that every count fits
+            unsigned int short_of = 0u;
+            while ((threads == 1u) && answered && ((fewest - short_of) > 1u))
+            {
+                const unsigned int middle = short_of + ((fewest - short_of) / 2u);
+                unsigned long long time = 0ull;
+                if (curve_point(code, host[task], places, &s_question, &asks, task, threads, middle, &time, table))
+                {
+                    fewest = middle;
+                    first = time;
+                }
+                else
+                {
+                    short_of = middle;
+                }
+            }
+            if (!answered)
+            {
+                printf("  %s: blocks of %u threads answer alike at no count of registers\n", task.c_str(), threads);
+                break;
+            }
+            // the band of the fewest registers' times, asked again until it holds CURVE_SUSTAIN asks in a row without
+            // widening
+            CurveBand band{first, first};
+            unsigned int held = 0u;
+            for (unsigned int asked = 0u; (held < CURVE_SUSTAIN) && (asked < CURVE_ASKS_MOST); asked += 1u)
+            {
+                unsigned long long again = 0ull;
+                if (curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &again, table))
+                {
+                    held = curve_band_widened(&band, again) ? 0u : (held + 1u);
+                }
+            }
+            unsigned int truthy = fewest;
+            unsigned int falsy = highest + 1u;
+            while ((falsy - truthy) > 1u)
+            {
+                const unsigned int middle = truthy + ((falsy - truthy) / 2u);
+                // a point inside the band is truthy, and one that answers apart or is refused is falsy. A point past
+                // the band is bounced off the fewest: where the fewest strays past the band too, the band widens and
+                // the point is asked again against it; where the fewest holds, a point past the band twice running is
+                // falsy
+                int verdict = -1;
+                unsigned int past = 0u;
+                for (unsigned int asked = 0u; (verdict < 0) && (asked < CURVE_ASKS_MOST); asked += 1u)
+                {
+                    unsigned long long time = 0ull;
+                    if (!curve_point(code, host[task], places, &s_question, &asks, task, threads, middle, &time,
+                                     table))
+                    {
+                        verdict = 0;
+                        continue;
+                    }
+                    if (time <= band.high)
+                    {
+                        verdict = 1;
+                        continue;
+                    }
+                    past += 1u;
+                    if (past == 2u)
+                    {
+                        verdict = 0;
+                        continue;
+                    }
+                    unsigned long long bounced = 0ull;
+                    if (curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &bounced,
+                                    table) &&
+                        curve_band_widened(&band, bounced))
+                    {
+                        past = 0u;
+                    }
+                }
+                if (verdict == 1)
+                {
+                    truthy = middle;
+                }
+                else
+                {
+                    falsy = middle;
+                }
+            }
+            printf("  %s, blocks of %u threads: %llu to %llu ns a launch at %u registers, the knee at %u\n",
+                   task.c_str(), threads, band.low, band.high, fewest, truthy);
+            char row[128];
+            snprintf(row, sizeof(row), "run answers %08x curve %s %u", truthy, task.c_str(), threads);
+            rows.push_back(row);
+            if ((soonest_threads == 0u) || (band.low < soonest))
+            {
+                soonest_threads = threads;
+                soonest = band.low;
+            }
+        }
+        if (soonest_threads != 0u)
+        {
+            printf("  %s: soonest in blocks of %u threads, %llu ns a launch\n", task.c_str(), soonest_threads, soonest);
+            char row[128];
+            snprintf(row, sizeof(row), "run answers %08x curve %s threads", soonest_threads, task.c_str());
+            rows.push_back(row);
+        }
+    }
+    fclose(table);
+    run_channel_close();
+    if (!ksc_answers_write(ksc, "curve", rows))
+    {
+        printf("klq_identity curve: %s could not be written\n", ksc);
+        return 1;
+    }
+    printf("klq_identity curve: %zu tasks over %llu asks, %zu answers written to %s\n", tasks.size(), asks,
+           rows.size(), ksc);
+    return 0;
+}
+
 int main(int count, char **words)
 {
     // the carrier's words follow a lone --
@@ -2413,6 +2661,22 @@ int main(int count, char **words)
         std::vector<const char *> carrier(words + 7, words + count);
         carrier.push_back(NULL);
         return identity_register(words[2], words[3], words[4], words[5], carrier.data());
+    }
+    // the tasks are given up to a lone --, the carrier's words after it
+    if ((count >= 9) && (std::string(words[1]) == "curve"))
+    {
+        std::vector<std::string> tasks;
+        int at = 6;
+        for (; (at < count) && (std::string(words[at]) != "--"); at += 1)
+        {
+            tasks.push_back(words[at]);
+        }
+        if (!tasks.empty() && ((at + 1) < count))
+        {
+            std::vector<const char *> carrier(words + at + 1, words + count);
+            carrier.push_back(NULL);
+            return identity_curve(words[2], words[3], words[4], words[5], tasks, carrier.data());
+        }
     }
     // the paths of ours are given up to a lone --, the rulesets after it
     if ((count >= 6) && (std::string(words[1]) == "broken"))
@@ -2449,5 +2713,6 @@ int main(int count, char **words)
     printf("klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
     printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
+    printf("klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");
     return 1;
 }
