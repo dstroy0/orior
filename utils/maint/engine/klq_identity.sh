@@ -10,13 +10,15 @@
 #     utils/maint/engine/klq_identity.sh sass.krs
 #     utils/maint/engine/klq_identity.sh stall
 #     utils/maint/engine/klq_identity.sh register
+#     utils/maint/engine/klq_identity.sh curve <task>...
 #
 # With no arguments the forms are sass.krs's. Given stall alone, it runs nothing else: the soonest each operation's
 # result is read is walked down on the part over the engine's writing of the stick, every question carried by
 # vendor_bin_layouts/nvidia/cubin_run and held to cubin_safe before the driver sees it, and the answers written to
 # sm_86.ksc. Given register alone, the last register a question's code can name is walked down the same way and
-# written to sm_86.ksc. Each of those runs reads the host answers an earlier run wrote, and puts questions to the
-# device.
+# written to sm_86.ksc. Given curve and the numbers of chains of ours, each chain's time is taken on the part against
+# the registers it declares and the threads of its blocks, and each knee written to sm_86.ksc. Each of those runs
+# reads the host answers an earlier run wrote, and puts questions to the device.
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -64,15 +66,17 @@ done
 c++ -o "$BINARY" "${OBJECTS[@]}" -static
 [ -f "$BINARY" ] || { echo "  build failed: klq_identity did not link"; exit 1; }
 
-if [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ]; }; then
+if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
     [ -f "$WORK/host_answers.txt" ] || { echo "  no host answers: run utils/maint/engine/klq_identity.sh first"; exit 1; }
     CARRIER="$OUT/cubin_run"
     cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
         "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
         "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" ||
         { echo "  build failed: cubin_run did not compile"; exit 1; }
-    mkdir -p "$WORK/$1"
-    exec "$BINARY" "$1" "$STICK/engine" "$WORK/host_answers.txt" "$COHERENCE/sm_86.ksc" "$WORK/$1" -- \
+    MODE="$1"
+    shift
+    mkdir -p "$WORK/$MODE"
+    exec "$BINARY" "$MODE" "$STICK/engine" "$WORK/host_answers.txt" "$COHERENCE/sm_86.ksc" "$WORK/$MODE" "$@" -- \
         "$CARRIER" "$COHERENCE/sm_86" "$COHERENCE/sm_86.ksc"
 fi
 
