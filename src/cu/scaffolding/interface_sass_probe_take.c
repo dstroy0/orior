@@ -17,7 +17,7 @@
 // SM86; the folder holds the encodings the disassembler is given.
 #include "interface_sass_probe.h"
 
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -13,7 +13,7 @@
 // text is either control (the stall, yield and barriers the scheduler sets) or unused. Every process is run through the
 // interface, whose runner loses nothing when the disassembler fails
 #include "../transpiler/lstar/interface/interface.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 
 #include <stdio.h>
 

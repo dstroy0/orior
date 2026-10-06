@@ -68,14 +68,14 @@ form word_select to chosen otherwise where = \tSEL \t{to}, {chosen}, {otherwise}
 # two destinations to be a pair; the core names them apart, so each is written on its own out of instructions every
 # listing gave. Asked of the part, 0xffffffff squared plus 0xffffffff: the low answers 0 and the high
 # 0xffffffff, as the question says
-form word_mul_low to left right added = \tIMAD \tR254, {left}, {right}, RZ;\n\tIADD3 \t{to}, P6, R254, {added}, RZ;\n
-form word_mul_high to left right = \tIMAD.HI.U32 \tR254, {left}, {right}, RZ;\n\tIMAD.X \t{to}, R254, 0x1, RZ, P6;\n
+form word_mul_low to left right added = \tIMAD \tR237, {left}, {right}, RZ;\n\tIADD3 \t{to}, P6, R237, {added}, RZ;\n
+form word_mul_high to left right = \tIMAD.HI.U32 \tR237, {left}, {right}, RZ;\n\tIMAD.X \t{to}, R237, 0x1, RZ, P6;\n
 
 # a sign's arithmetic, a signed word of -1, 0 or 1 (sign_set, sign_select; sign_mul, sign_absolute, sign_neg)
 form sign_set to value = \tIMAD.MOV.U32 \t{to}, RZ, RZ, {value};\n
 # a sign's chosen word may be a number, -1 or 1, and SEL reads its first operand from a register, so it is moved
-# through R254 first
-form sign_select to chosen otherwise where = \tMOV \tR254, {chosen};\n\tSEL \t{to}, R254, {otherwise}, {where};\n
+# through R237 first
+form sign_select to chosen otherwise where = \tMOV \tR237, {chosen};\n\tSEL \t{to}, R237, {otherwise}, {where};\n
 construct sign_mul to left right
 word_mul to left right
 end
@@ -120,16 +120,16 @@ test_word_nonzero where {temporary:1}
 end
 
 # 64-bit words, each two registers (wide_mul, wide_mul_word; wide_add; wide_shl, wide_select; wide_div). A wide
-# product sums its two cross products in R254 before it writes both halves of the word product into the pair, so
+# product sums its two cross products in R237 before it writes both halves of the word product into the pair, so
 # that the pair's write reads no operand it has overwritten, and adds the sum into the high half after it
-form wide_mul to left right = \tIMAD \tR254, {left}.hi, {right}, RZ;\n\tIMAD \tR254, {left}, {right}.hi, R254;\n\tIMAD.WIDE.U32 \t{to}, {left}, {right}, RZ;\n\tIADD3 \t{to}.hi, {to}.hi, R254, RZ;\n
+form wide_mul to left right = \tIMAD \tR237, {left}.hi, {right}, RZ;\n\tIMAD \tR237, {left}, {right}.hi, R237;\n\tIMAD.WIDE.U32 \t{to}, {left}, {right}, RZ;\n\tIADD3 \t{to}.hi, {to}.hi, R237, RZ;\n
 form wide_mul_word to left right = \tIMAD.WIDE.U32 \t{to}, {left}, {right}, RZ;\n
 form wide_add to left right = \tIADD3 \t{to}, P6, {left}, {right}, RZ;\n\tIADD3.X \t{to}.hi, {left}.hi, {right}.hi, RZ, P6, !PT;\n
 # the high half reads both halves of the value shifted, and is written before the low half overwrites it
 form wide_shl to from bits = \tSHF.L.U64.HI \t{to}.hi, {from}, {bits}, {from}.hi;\n\tSHF.L.U32 \t{to}, {from}, {bits}, RZ;\n
 # the lane's opening selects a wide 0 as the chosen word, and SEL reads its first operand from a register, so each half
-# is moved through R254 first, as sign_select moves its own
-form wide_select to chosen otherwise where = \tMOV \tR254, {chosen};\n\tSEL \t{to}, R254, {otherwise}, {where};\n\tMOV \tR254, {chosen}.hi;\n\tSEL \t{to}.hi, R254, {otherwise}.hi, {where};\n
+# is moved through R237 first, as sign_select moves its own
+form wide_select to chosen otherwise where = \tMOV \tR237, {chosen};\n\tSEL \t{to}, R237, {otherwise}, {where};\n\tMOV \tR237, {chosen}.hi;\n\tSEL \t{to}.hi, R237, {otherwise}.hi, {where};\n
 err wide_div to left right
 
 form loop_back_if loop where = \t@{where} BRA \t`(.L_loop{loop});\n

@@ -17,7 +17,7 @@
 // it was loaded for and a register stored to `out` is the argument stored; a predicate set from a loaded word, or a
 // word selected from a predicate to be stored, is the predicate. What is left in the block is the form, written with
 // each register named by its argument. A register or predicate that is no argument is scratch: the first word is
-// R254 and the first predicate P6, sass.krs's own, and a block needing more is reported and not written. A number
+// R237 and the first predicate P6, sm_86.kdm's own, and a block needing more is reported and not written. A number
 // argument is named where the number stands once. Each form read is held beside the ruleset's own and written to the
 // record whole, and with apply each form every question of which reads whole and alike is written into the ruleset in
 // place (read_adopted says what whole is).
@@ -26,8 +26,8 @@
 // the cubin writer is C and its headers carry no guard of their own: the linkage is named here
 extern "C"
 {
-#include "sass_assemble.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 #include "interface_sass_probe.h"
 }
 
@@ -1997,7 +1997,7 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
                 {
                     const int predicate = (physical[0] == 'P');
                     unsigned int &taken = predicate ? scratch_predicates : scratch_words;
-                    scratch[physical] = (taken == 0u) ? (predicate ? "P6" : "R254") : physical;
+                    scratch[physical] = (taken == 0u) ? (predicate ? "P6" : "R237") : physical;
                     read.why += (taken == 1u) ? (std::string("more scratch ") + (predicate ? "predicates" : "words") +
                                                  " than one; ")
                                               : std::string();
@@ -2451,7 +2451,7 @@ static std::string read_adopted(const Read &read, const Krs &rules, const Questi
         if (sass && (text[at] == 'R') && ((at + 1u) < text.size()) && (text[at + 1u] >= '0') && (text[at + 1u] <= '9'))
         {
             const unsigned int number = token_number(text.substr(at));
-            const int ruleset = (number >= 238u);
+            const int ruleset = (number >= 236u);
             if (!ruleset)
             {
                 *why = "the reading leaves the compiler's register R" + std::to_string(number);

@@ -22,7 +22,7 @@
 //   leaves between that wait and the read
 //
 // and whether the machine file's form for the operation records the barrier NVIDIA writes.
-#include "sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 
 #include <limits.h>
 #include <stdio.h>

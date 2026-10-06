@@ -70,6 +70,12 @@ static unsigned int s_pipe_count;
 static char s_forms[SASS_FORMS_LONGEST];
 static size_t s_forms_length;
 
+// The field and container rows the file holds, each line with its newline: the fields of an instruction a question on
+// the run channel turns, and the container the system accepted, which every such question is put in (cubin_write.h).
+// A rewrite writes them back as they stood, since nothing here finds them
+static char s_containers[SASS_FORMS_LONGEST];
+static size_t s_containers_length;
+
 static void sass_text_copy(char *into, const char *from)
 {
     unsigned int at = 0u;
@@ -226,11 +232,21 @@ int sass_class_read(const char *machines, const char *part)
     // already taken are kept beside those the file holds
     s_classed_count = 0u;
     s_forms_length = 0u;
+    s_containers_length = 0u;
     memset(s_tally, 0, sizeof(s_tally));
     char line[SASS_TEXT * 8u];
     while (fgets(line, sizeof(line), file) != NULL)
     {
         const size_t length = strlen(line);
+        if ((strncmp(line, "container ", 10u) == 0) || (strncmp(line, "field ", 6u) == 0))
+        {
+            if ((s_containers_length + length) < sizeof(s_containers))
+            {
+                memcpy(&s_containers[s_containers_length], line, length);
+                s_containers_length += length;
+            }
+            continue;
+        }
         const int form = (strncmp(line, "form ", 5u) == 0) || (strncmp(line, "err ", 4u) == 0) ||
                          (strncmp(line, "nop ", 4u) == 0);
         if (form && ((s_forms_length + length) < sizeof(s_forms)))
@@ -341,6 +357,17 @@ int sass_class_write(const char *machines, const char *part)
         fprintf(file, "\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
         fprintf(file, "# them after its own lines and its part's.\n");
         fwrite(s_forms, 1u, s_forms_length, file);
+    }
+    if (s_containers_length != 0u)
+    {
+        fprintf(file, "\n# the fields of an instruction a question on the run channel turns, each its first bit and its "
+                      "bits, a\n");
+        fprintf(file, "# barrier holding every bit setting none; then the container the system accepted, which every "
+                      "such\n");
+        fprintf(file, "# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. A "
+                      "question's code,\n");
+        fprintf(file, "# registers and exits replace the code's.\n");
+        fwrite(s_containers, 1u, s_containers_length, file);
     }
     const int closed = (fclose(file) == 0);
     printf("interface sass class: %s written, %u questions kept whole\n", path, s_classed_count);

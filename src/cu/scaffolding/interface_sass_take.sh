@@ -22,8 +22,8 @@ type -P nvdisasm > /dev/null || { echo "  no nvdisasm on the PATH: the CUDA tool
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$TOP/src/cu/scaffolding"
           -I "$TOP/src/cu/transpiler/lstar/parser" -I "$TEST")
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/scaffolding/sass_machine.c" \
-              "$TOP/src/cu/scaffolding/sass_assemble.c" "$TOP/src/cu/scaffolding/interface_sass_probe_class.c" \
+for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" \
+              "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/scaffolding/interface_sass_probe_class.c" \
               "$TOP/src/cu/scaffolding/interface_sass_probe_machine.c" "$TOP/src/cu/scaffolding/interface_sass_probe_read.c" \
               "$TOP/src/cu/scaffolding/interface_sass_probe_take.c"; do
     object="$OUT/$(basename "$source" .c).o"

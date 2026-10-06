@@ -3,8 +3,8 @@
 // this is the other direction, putting instructions of the interface's own into a cubin the part will load and run, with
 // a cubin the toolchain built standing as the pattern for everything an ELF carries that no instruction states
 #include "interface_sass_probe.h"
-#include "cubin_write.h"
-#include "sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 
 #include <stdio.h>
 #include <string.h>

@@ -10,7 +10,7 @@
 // for a kernel that takes the same parameters and putting new code in it, in place of laying an ELF out from
 // nothing: everything the writer does not understand is carried over, never invented.
 //
-// The writer is container_write.h's emitter, given a cubin and the cubin's layout file emit/layouts/elf64_nvidia.tsv.
+// The writer is container_write.h's emitter, given a cubin and the cubin's layout file elf64_nvidia.tsv beside it.
 //
 // The template's own kernel decides what fits: the same name, the same parameters, the same constant bank. Give
 // the writer code that takes other parameters and the cubin loads and reads the wrong parameters.
@@ -36,6 +36,12 @@ typedef struct
 // the cubin written into `written`, which holds `room` bytes, and its size through `size`. 1, or 0 with the reason
 // printed, having written nothing
 int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long long room, unsigned long long *size);
+
+// the container a system accepted, read from the container rows of its .ksc at `path`: its bytes into `pattern`,
+// which holds `room`, and the kernel it enters at into `kernel`, which holds `kernel_room`. The bytes read, or 0 where
+// the file holds no such rows, a row does not read as hex, or the bytes do not fit, with the reason printed
+unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, unsigned long long room, char *kernel,
+                                      unsigned int kernel_room);
 
 // the offsets of the exits in `code`, into `exits`, which holds `room` of them: the count found. An exit is the
 // instruction EXIT, whose encoding is taken from `exit_low` masked to the operation's own bits

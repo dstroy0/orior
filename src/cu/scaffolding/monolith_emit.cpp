@@ -17,8 +17,8 @@
 // The listing is cuobjdump -sass -fun monolith of the build with MONOLITH_TAGGED 1.
 extern "C"
 {
-#include "sass_assemble.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 }
 
 #include "../transpiler/codegen/word_web.h"
@@ -236,7 +236,7 @@ static int emit_passage(const std::vector<EmitLine> &held, std::string *loaded, 
 // a scratch register for a bank sass.krs asks one of while writing a form; nothing here writes a form that asks
 static std::string emit_scratch(const std::string &)
 {
-    return "R254";
+    return "R237";
 }
 
 // one row of the record: the block, NVIDIA's instruction and where it lies, what our reader, our assembler and our

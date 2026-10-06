@@ -34,8 +34,8 @@
 // its encodings <out>/NNNN.bin. Nothing goes to a device.
 extern "C"
 {
-#include "sass_assemble.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 #include "interface_sass_probe.h"
 }
 
@@ -174,30 +174,52 @@ static int stick_compares(const std::string &token)
     return (token == "<") || (token == "<=") || (token == ">") || (token == ">=") || (token == "==") || (token == "!=");
 }
 
-// `bare`, an expression with its white space taken out, cut into C's tokens: names, a member of one taken with it,
-// numbers with their suffixes, the operators of two letters, and every other letter alone
-static std::vector<std::string> stick_tokens(const std::string &bare)
+// `operation`, an operator of C, as the reader holds it among the tokens: between backticks. No name or number reads
+// as one
+static std::string stick_operator(const std::string &operation)
 {
-    static const char *const s_pairs[] = {"<<", ">>", "<=", ">=", "==", "!=", "&&", "||"};
+    return "`" + operation + "`";
+}
+
+// the operator of C token `token` holds, or empty where it holds a name or a number
+static std::string stick_operation(const std::string &token)
+{
+    return ((token.size() > 2u) && (token[0] == '`')) ? token.substr(1u, token.size() - 2u) : std::string();
+}
+
+// `expression` cut into C's tokens as it is written, its white space parting them: names, a member of one taken with
+// it, numbers with their suffixes, and each operator, the longest that stands at its place, held as stick_operator()
+// gives it. `a - -b` is cut as `a`, `-`, `-`, `b` and `a--b` as `a`, `--`, `b`, as C cuts them
+static std::vector<std::string> stick_tokens(const std::string &expression)
+{
+    static const char *const s_pairs[] = {"<<", ">>", "<=", ">=", "==", "!=", "&&", "||", "++", "--"};
     std::vector<std::string> tokens;
     size_t at = 0u;
-    while (at < bare.size())
+    while (at < expression.size())
     {
+        const char letter = expression[at];
+        if (isspace((unsigned char)letter) != 0)
+        {
+            at += 1u;
+            continue;
+        }
         size_t end = at + 1u;
-        const char letter = bare[at];
         if ((isalnum((unsigned char)letter) != 0) || (letter == '_'))
         {
-            while ((end < bare.size()) &&
-                   ((isalnum((unsigned char)bare[end]) != 0) || (bare[end] == '_') || (bare[end] == '.')))
+            while ((end < expression.size()) && ((isalnum((unsigned char)expression[end]) != 0) ||
+                                                 (expression[end] == '_') || (expression[end] == '.')))
             {
                 end += 1u;
             }
+            tokens.push_back(expression.substr(at, end - at));
+            at = end;
+            continue;
         }
         for (const char *const pair : s_pairs)
         {
-            end = (bare.compare(at, 2u, pair) == 0) ? (at + 2u) : end;
+            end = (expression.compare(at, 2u, pair) == 0) ? (at + 2u) : end;
         }
-        tokens.push_back(bare.substr(at, end - at));
+        tokens.push_back(stick_operator(expression.substr(at, end - at)));
         at = end;
     }
     return tokens;
@@ -876,7 +898,7 @@ class StickKernel
     // cu.krs; type -1 where it is not typed, `question` then saying why
     StickTyped typed(const std::string &expression)
     {
-        tokens = stick_tokens(stick_bare(expression));
+        tokens = stick_tokens(expression);
         token_at = 0u;
         const StickTyped whole = conditional();
         if ((whole.type >= 0) && (token_at != tokens.size()))
@@ -1222,6 +1244,8 @@ class StickKernel
     unsigned int next;
     unsigned int predicates;
     std::map<std::string, StickValue> held_values;
+    // how many values a `++` or a `--` has kept under a name of their own, the value its name held before the step
+    unsigned int steps_kept = 0u;
     // the names held whose value is never negative
     std::set<std::string> nonnegatives;
     // each bool held as a flag, by its name, and the expression it is the flag of
@@ -1265,13 +1289,13 @@ class StickKernel
     StickTyped conditional(void)
     {
         const StickTyped where = binary(1);
-        if ((where.type < 0) || (token_at >= tokens.size()) || (tokens[token_at] != "?"))
+        if ((where.type < 0) || (token_at >= tokens.size()) || (tokens[token_at] != stick_operator("?")))
         {
             return where;
         }
         token_at += 1u;
         const StickTyped chosen = conditional();
-        if ((chosen.type < 0) || (token_at >= tokens.size()) || (tokens[token_at] != ":"))
+        if ((chosen.type < 0) || (token_at >= tokens.size()) || (tokens[token_at] != stick_operator(":")))
         {
             return (chosen.type < 0) ? chosen : refuse("a conditional with no `:`");
         }
@@ -1298,7 +1322,7 @@ class StickKernel
         StickTyped left = unary();
         while ((left.type >= 0) && (token_at < tokens.size()))
         {
-            const std::string token = tokens[token_at];
+            const std::string token = stick_operation(tokens[token_at]);
             const int precedence = stick_precedence(token);
             if ((precedence == 0) || (precedence < lowest))
             {
@@ -1374,14 +1398,77 @@ class StickKernel
         return whole;
     }
 
-    // a unary operator over what it binds, a cast, or a primary expression
+    // `name` stepped by one, `step` the `+` or the `-` of the step: the name read once, its value and 1 under `step`
+    // as C combines them, converted back to the name's type, and held as the name's value from here on. `++` and `--`
+    // are each an assignment that gives a value, `a += 1` and `a -= 1`: the add primitive of the name's own context
+    // and nothing past it. The value read is kept under a name of its own and given through `before`; type -1 where
+    // the name holds no value of C to step
+    StickTyped stepped(const std::string &name, const std::string &step, StickTyped *before)
+    {
+        const auto stands = standing.find(name);
+        const int type = (stands != standing.end()) ? stands->second.type : type_of(name);
+        if ((type < 0) || (flags.count(name) != 0u) || !stick_operation(name).empty() ||
+            (isdigit((unsigned char)name[0]) != 0))
+        {
+            return refuse("a step of what holds no value of C: " + name);
+        }
+        const int nonnegative =
+            (stands != standing.end()) ? stands->second.nonnegative : ((nonnegatives.count(name) != 0u) ? 1 : 0);
+        const StickValue read_value = value((stands != standing.end()) ? stands->second.text : name);
+        if (read_value.name.empty())
+        {
+            return StickTyped{"", -1};
+        }
+        const std::string kept = "stick_kept_" + std::to_string(steps_kept);
+        steps_kept += 1u;
+        hold(kept, read_value, type, nonnegative);
+        *before = StickTyped{kept, type, nonnegative};
+        const StickTyped one{number_text(1u), stick_type_bare("int"), 1};
+        const StickTyped sum = converted(combined(*before, step, one), type);
+        if (sum.type < 0)
+        {
+            return sum;
+        }
+        const StickValue value_held = value(sum.text);
+        if (value_held.name.empty())
+        {
+            return StickTyped{"", -1};
+        }
+        hold(name, value_held, type, sum.nonnegative);
+        return StickTyped{name, type, sum.nonnegative};
+    }
+
+    // a unary operator over what it binds, a cast, or a primary expression. A step is read in its order: the
+    // operation before the operand gives the operand's value after the step, the operand before the operation the
+    // value before it
     StickTyped unary(void)
     {
         if (token_at >= tokens.size())
         {
             return refuse("an expression that ends before its operand");
         }
-        const std::string token = tokens[token_at];
+        const std::string token = stick_operation(tokens[token_at]);
+        if ((token == "++") || (token == "--"))
+        {
+            token_at += 1u;
+            if (token_at >= tokens.size())
+            {
+                return refuse("an expression that ends before its operand");
+            }
+            const std::string name = tokens[token_at];
+            token_at += 1u;
+            StickTyped before;
+            return stepped(name, token.substr(0u, 1u), &before);
+        }
+        const std::string next = ((token_at + 1u) < tokens.size()) ? stick_operation(tokens[token_at + 1u]) : "";
+        if (token.empty() && ((next == "++") || (next == "--")))
+        {
+            const std::string name = tokens[token_at];
+            token_at += 2u;
+            StickTyped before;
+            const StickTyped after = stepped(name, next.substr(0u, 1u), &before);
+            return (after.type < 0) ? after : before;
+        }
         if ((token == "-") || (token == "~") || (token == "+") || (token == "!"))
         {
             token_at += 1u;
@@ -1405,12 +1492,20 @@ class StickKernel
             whole.low_bits = value.low_bits;
             return whole;
         }
-        const int cast = ((token == "(") && ((token_at + 2u) < tokens.size()) && (tokens[token_at + 2u] == ")"))
-                             ? stick_type_bare(tokens[token_at + 1u])
+        // a cast is a type's names between parentheses, `(unsigned int)` read as the type `unsignedint` names
+        size_t close = token_at + 1u;
+        std::string type_name;
+        while ((token == "(") && (close < tokens.size()) && stick_operation(tokens[close]).empty())
+        {
+            type_name += tokens[close];
+            close += 1u;
+        }
+        const int cast = (!type_name.empty() && (close < tokens.size()) && (tokens[close] == stick_operator(")")))
+                             ? stick_type_bare(type_name)
                              : -1;
         if (cast >= 0)
         {
-            token_at += 3u;
+            token_at = close + 1u;
             const StickTyped operand = unary();
             return (operand.type < 0) ? operand : converted(operand, cast);
         }
@@ -1422,10 +1517,10 @@ class StickKernel
     {
         const std::string token = tokens[token_at];
         token_at += 1u;
-        if (token == "(")
+        if (token == stick_operator("("))
         {
             const StickTyped inner = conditional();
-            if ((inner.type < 0) || (token_at >= tokens.size()) || (tokens[token_at] != ")"))
+            if ((inner.type < 0) || (token_at >= tokens.size()) || (tokens[token_at] != stick_operator(")")))
             {
                 return (inner.type < 0) ? inner : refuse("a parenthesis that does not close");
             }
@@ -1436,7 +1531,8 @@ class StickKernel
         {
             return number_typed(token);
         }
-        if ((token_at < tokens.size()) && ((tokens[token_at] == "(") || (tokens[token_at] == "[")))
+        if ((token_at < tokens.size()) &&
+            ((tokens[token_at] == stick_operator("(")) || (tokens[token_at] == stick_operator("["))))
         {
             return refuse("a call or an element nothing here types: " + token);
         }

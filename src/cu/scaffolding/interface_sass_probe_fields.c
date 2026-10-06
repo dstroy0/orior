@@ -19,10 +19,10 @@
 // writes <folder>/list.txt and the cubins it names; interface_sass_run runs that list and writes the answers, which a
 // later pass reads back against the form's runs. The frame opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
-#include "cubin_write.h"
-#include "sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 #include "../transpiler/lstar/interface/interface.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 #include "interface_sass_probe.h"
 
 #include <stdio.h>
@@ -36,7 +36,8 @@
 #define FIELDS_EXITS 256u
 // the operation bits of an instruction, 0 to 104, and the scheduler's at 105 and above, which this never turns
 #define FIELDS_OPERATION_BITS 105u
-// the registers a thread of every cubin declares, R0 to R254: a register field reaches every number the part holds
+// the registers a thread of every cubin declares, the most a cubin declares: a register field reaches every number
+// the part gives a kernel's code
 #define FIELDS_REGISTERS 255u
 
 static SassMachine s_machine;

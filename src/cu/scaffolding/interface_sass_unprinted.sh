@@ -39,8 +39,8 @@ RUNNER="$(ls "$RUN"/*_ptx_probe.exe "$RUN"/*_ptx_probe 2>/dev/null | head -1)"
 [ -n "$RUNNER" ] || { echo "  no PTX probe in $RUN"; exit 1; }
 
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/scaffolding/sass_machine.c" "$TOP/src/cu/scaffolding/sass_assemble.c" \
-              "$TOP/src/cu/scaffolding/cubin_write.c" "$TOP/src/cu/scaffolding/container_write.c" "$TOP/src/cu/scaffolding/container_pattern.c" "$TOP/src/cu/scaffolding/container_layout.c" "$HERE/interface_sass_probe_unprinted.c"; do
+for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" \
+              "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$HERE/interface_sass_probe_unprinted.c"; do
     object="$OUT/$(basename "$source" .c).o"
     cc -std=c11 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$INTERFACE" -I "$KRS_C" \
         -c "$source" -o "$object" || exit 1

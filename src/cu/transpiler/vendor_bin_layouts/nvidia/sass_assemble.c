@@ -340,10 +340,10 @@ static void sass_high_write(unsigned long long *high, unsigned int first, unsign
 // form's own encoding sets is set too, except on an operation whose result is back in a measured count of cycles.
 // Nothing releases a barrier such an operation sets, and the next instruction's wait on all six never ends. A barrier
 // no instruction set is already at rest, and waiting on all six costs nothing where none was set
-static void sass_control_safe(const SassForm *form, unsigned long long *high)
+static void sass_control_safe(const SassMachine *machine, const SassForm *form, unsigned long long *high)
 {
     unsigned int soonest = SASS_STALL_LONGEST;
-    const unsigned int schedule = sass_operation_schedule(form->operation, &soonest);
+    const unsigned int schedule = sass_operation_schedule(machine, form->operation, &soonest);
     const int fixed = (schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_LONGEST);
     const int wrote = (schedule == SASS_SCHEDULE_LATE) ||
                       (!fixed && sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST));
@@ -367,6 +367,26 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     {
         printf("  sass_assemble: no form for %s\n", text);
         return 0;
+    }
+    // a register past the last the part answers a question's code can name is refused, the high half of a pair
+    // counted as its own register; RZ is no register a thread holds, and is named past every one
+    for (unsigned int place = 0u; place < parts.operands; place += 1u)
+    {
+        const char *const operand = parts.operand[place];
+        const char *const open = strrchr(operand, '[');
+        const char *const named = (parts.kind[place] == SASS_OPERAND_ADDRESS) ? ((open != NULL) ? (open + 1) : NULL)
+                                  : (parts.kind[place] == SASS_OPERAND_REGISTER) ? operand
+                                                                                 : NULL;
+        if ((named == NULL) || (named[0] != 'R') || (strncmp(named, "RZ", 2u) == 0))
+        {
+            continue;
+        }
+        if (sass_register_value(named) > machine->register_last)
+        {
+            printf("  sass_assemble: %s names a register past R%u, the last the part answers code can name\n", text,
+                   machine->register_last);
+            return 0;
+        }
     }
     SassPlace places[SASS_MACHINE_OPERANDS];
     unsigned int unplaced = 0u;
@@ -456,7 +476,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     sass_bits_write(low, high, SASS_GUARD_NOT, 1u, (parts.guard[1] == '!') ? 1ull : 0ull);
     if (control == SASS_CONTROL_SAFE)
     {
-        sass_control_safe(form, high);
+        sass_control_safe(machine, form, high);
     }
     return 1;
 }

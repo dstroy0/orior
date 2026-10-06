@@ -25,7 +25,7 @@ mkdir -p "$OUT"
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU"
     -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA" -I "$CUBIN" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
 OBJECTS=()
-for source in "$TOP/src/cu/scaffolding/sass_machine.c" "$TOP/src/cu/scaffolding/sass_assemble.c"; do
+for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c"; do
     object="$OUT/$(basename "$source").o"
     cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/transpiler/lstar/parser" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")

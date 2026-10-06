@@ -29,7 +29,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu; do
     c++ -std=c++17 -O1 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -x c++ -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-for source in "$TOP/src/cu/scaffolding/sass_machine.c" "$TOP/src/cu/scaffolding/sass_assemble.c"; do
+for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c"; do
     object="$OUT/$(basename "$source").o"
     cc -std=c11 -O1 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")

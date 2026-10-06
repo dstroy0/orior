@@ -3088,7 +3088,8 @@ product	0	-	-	0
 #
 # The machine as the probes found it (25 questions, 33 operations, 0 failed, and each operation's fields from turning
 # its 128 bits over one at a time):
-#  - One file of 32-bit registers, R0 to R254, and RZ reading 0. The operand fields are Rd 16-23, Ra 24-31, Rb 32-39
+#  - One file of 32-bit registers, of which a kernel's code names R0 to R252, and RZ reading 0. The operand fields
+#    are Rd 16-23, Ra 24-31, Rb 32-39
 #    and an immediate 32-63. There is no 64-bit register: a 64-bit value is two registers, and only an address or a
 #    wide product needs them adjacent ([R2.64], IMAD.WIDE.U32 R2, R4, R3, ...).
 #  - Predicates P0 to P6, and PT, which always holds. Three bits name one (81-83, 84-86 and 87-90, where 90 negates),
@@ -3102,17 +3103,18 @@ product	0	-	-	0
 #    c[0x0][0x160]. A lane written as a function leaves R1, R20 and R21 alone.
 #  - The banks are all the one file, so a writer must give numbers that do not collide across them. The code generator
 #    numbers each bank from 0 and needs an allocation before it writes SASS; the cell's probe gives its own numbers.
-#  - The lane's fixed registers, reserved at the top of the file, and P6 and R254, this file's own scratch: P6 carries
-#    a chain's carry and the low half of a wide comparison, and R254 holds the 1 global_add_atomic_word adds, since the part's
-#    reduction reads what it adds from a register, and a wide product's cross products. R238 and R239 hold the launch the lane was called with, which
-#    launch_open puts there. A lane of more than 238 registers, or of more than the three predicates P0 to P2, is past
-#    what this file reserves.
-#  - That every number up to R254 is the lane's rests on one thing the lane's cubin must do, asked of the part
-#    and answered both ways: in a kernel declaring 255 registers, R0 through R254 each hold what is written into
-#    them, and R255 reads zero whatever is written into it. In a kernel declaring the toolchain's own count, writing
-#    R238 or R254 errors on the device. The part gives a kernel the numbers its ELF asked for and no more, so a lane
-#    written from this file is a lane whose cubin declares 255. Writing fewer and naming R254 anyway is the one way
-#    this file's register numbering goes wrong quietly.
+#  - The lane's fixed registers, reserved at the top of the file, and P6 and R237, this file's own scratch: P6 carries
+#    a chain's carry and the low half of a wide comparison, and R237 holds the 1 global_add_atomic_word adds, since
+#    the part's reduction reads what it adds from a register, a wide product's cross products, and a select's chosen
+#    word. R236 holds sign_base. R238 and R239 hold the launch the lane was called with, which launch_open puts there.
+#    A lane of more than 236 registers, or of more than the three predicates P0 to P2, is past what this file
+#    reserves.
+#  - The last register a kernel's code names is the part's answer on the run channel, sm_86.ksc's
+#    `run answers <last> register last`, and the assembler refuses a register past it. In a kernel declaring 255
+#    registers, R0 through R252 each hold what is written into them; code naming R253 or R254 the part refuses as an
+#    illegal instruction, and R255 is RZ, reading zero whatever is written into it. In a kernel declaring fewer, the
+#    part gives it the numbers its ELF asked for, so a lane written from this file is a lane whose cubin
+#    declares 255.
 #  - shared_open and shared_close: the lane's file in shared memory, which no question covered.
 
 # the registers the lane holds throughout
@@ -3124,7 +3126,7 @@ fixed body = R246
 fixed bodies = R248
 fixed tables = R250
 fixed threads = R252
-fixed sign_base = R253
+fixed sign_base = R236
 fixed indexed = P3
 fixed one = P4
 fixed ok = P5
@@ -3142,8 +3144,9 @@ fixed ok = P5
 # because nothing has ever called our lane.
 #
 # launch_open moves the two it was handed into the registers the lane holds them in throughout, and %zero needs no
-# move because RZ reads zero already. The launch lives in R238 and R239, under the fixed registers and over the file
-# (register_file_holds answers 238), and it is written here by its number as ptx.krs writes %launch by its name
+# move because RZ reads zero already. The launch lives in R238 and R239, under the fixed registers and over sign_base,
+# the scratch and the file (register_file_holds answers 236), and it is written here by its number as ptx.krs writes
+# %launch by its name
 form launch_open = \tMOV \tR238, R4;\n\tMOV \tR239, R5;\n\tMOV \tR240, R6;\n\tMOV \tR241, R7;\n
 # one 64-bit word of the launch, in one instruction: a ruleset does no arithmetic and cannot write {offset}+4 for the
 # second half, and LDG.E.64.CONSTANT writes the pair (asked of the part, R8 reads 0xb and R9 reads 0x7)
@@ -3159,8 +3162,8 @@ form wide_from_word_if where to from = \tSEL \t{to}, {from}, {to}, {where};\n\tS
 # the resident's counter, one added to a word of memory by every lane that reaches it. The part's reduction takes what
 # it adds from a register and never an immediate - RED.E.ADD.STRONG.GPU [R2.64], R7 is the whole of what the listing
 # gives, and turning its bits one at a time reaches MIN, MAX, DEC, the other widths and the other scopes, and no
-# coding that reads a number out of the instruction - so the 1 is moved into R254 first
-form global_add_atomic_word address = \tMOV \tR254, 1;\n\tRED.E.ADD.STRONG.GPU \t[{address}.64], R254;\n
+# coding that reads a number out of the instruction - so the 1 is moved into R237 first
+form global_add_atomic_word address = \tMOV \tR237, 1;\n\tRED.E.ADD.STRONG.GPU \t[{address}.64], R237;\n
 
 # a 64-bit word moved to and from its two registers (wide_from_word, word_from_wide, wide_pack, wide_unpack)
 form wide_from_word to from = \tMOV \t{to}, {from};\n\tMOV \t{to}.hi, RZ;\n

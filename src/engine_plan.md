@@ -438,12 +438,15 @@ reads has changed.
      the machine file and no control transfer or wait among them; any other is marked skipped and run on nothing.
      Of the 75 forms, 1619 bits read inside a run the machine file records and 526 outside every run. The three
      branch forms name a label and are not asked.
-   - Scheduler bits. NVIDIA sets them an instruction at a time. The krs holds each operation's schedule, read
-     from what NVIDIA's compiler writes over the tree (`monolith_scheduler.md`): a late result behind a write
-     barrier, a store behind a read barrier, and the soonest a fixed result is read, 4 cycles on the integer
-     operations. Our safe word sets its barriers from that schedule and stalls each instruction the soonest its
-     operation's result is read, the longest where the krs measures no count (`sass_operation_schedule`), and
-     `cubin_safe` holds every instruction it reads to that stall.
+   - Scheduler bits. NVIDIA sets them an instruction at a time. A late result sits behind a write barrier and a
+     store behind a read barrier, read from what NVIDIA's compiler writes over the tree (`monolith_scheduler.md`).
+     The soonest a fixed result is read is the part's answer on the run channel, walked down by
+     `klq_identity.sh stall` and held in `sm_86.ksc` as `run answers <stall> stall <writer> <reader>`. Our safe word
+     stalls each instruction the largest soonest its operation answered, the longest where it answered none
+     (`sass_operation_schedule`). `sm_86.ksc` holds none until the stick answers whole at the longest stalls: that
+     run is the baseline each stall is timed against, and a stall is kept at the longest whose time matches the
+     shortest. `cubin_safe` asks no stall of an instruction a form holds: a short one gives a wrong answer and
+     never a kernel that does not return.
    - Writings searched on the part. `src/cu/scaffolding/interface_sass_writings.sh` puts every
      form of the machine file that writes a register from registers, predicates and numbers alone, 745 of 2928, in
      place of the frame's IADD3, each through the gate, and runs it on the part over 256 cases at once: the ladder's
@@ -518,7 +521,7 @@ reads has changed.
    `SASS_LEARN` set it learns the machine again through the disassembler, bit by bit, and prints nothing the harness
    sees for more than 1800 s: the harness ends it. It alone
    puts cubins our own assembler wrote on the part, and every one is read on the host first: `cubin_safe`
-   (`src/cu/scaffolding/cubin_safe.{h,c}`) holds each instruction a kernel reaches to the safe scheduler word, to
+   (`src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.{h,c}`) holds each instruction a kernel reaches to the safe scheduler word, to
    no branch and no wait, to one instruction at most that no form holds, and to an EXIT every thread takes, and
    both `interface_sass_run` and `interface_sass_probe` refuse a cubin that breaks a rule before the driver sees it.
    `src/cu/scaffolding/cubin_safe_check.sh` holds the gate to one case a rule, 15 checks, 0 failed,

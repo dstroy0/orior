@@ -4,6 +4,9 @@
 //   klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>
 //   klq_identity read <folder> <Lstar.klq> <ruleset>...
 //   klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
+//   klq_identity permute <nvcc listing> <manifest> <folder>
+//   klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...
+//   klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...
 //
 // Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
 // links are the slice's identity: each an instruction with its registers read as their kind and its literals as
@@ -33,12 +36,15 @@
 // nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts write
 // its links, and with the rule a link breaks where asking the part as written would end it
 #include "code_generator.h"
+#include "run_channel.h"
 #include "target_internal.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include <algorithm>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <regex>
 #include <set>
@@ -214,8 +220,9 @@ static int link_read(const std::string &line, Link *link)
     }
     text = written;
     // the link with each register a mark and each literal operand another, the registers and the literals in the order
-    // written, its spaces one and its numbers decimal. The target of a control transfer is a position in the chain and
-    // is written as its distance in links from the link itself
+    // written, its spaces one and its numbers decimal. The target of an operation that aims at an address of the code is
+    // a position in the chain and is written as its distance in links from the link itself: a barrier's number, a mask
+    // or a count is a literal
     static const std::regex s_reuse("\\.reuse");
     static const std::regex s_spaces("\\s+");
     static const std::regex s_named("\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b");
@@ -230,8 +237,9 @@ static int link_read(const std::string &line, Link *link)
     const size_t operation_first = (plain[0] == '@') ? plain.find(' ') + 1u : 0u;
     const size_t operation_last = plain.find(' ', operation_first);
     const std::string operation_name = plain.substr(operation_first, plain.find_first_of(". ", operation_first) - operation_first);
-    const int transfers = std::any_of(std::begin(s_control_or_wait), std::end(s_control_or_wait),
-                                      [&](const char *control) { return operation_name == control; });
+    static const char *const s_aimed[] = {"BRA", "JMP", "CALL", "BSSY"};
+    const int transfers = std::any_of(std::begin(s_aimed), std::end(s_aimed),
+                                      [&](const char *aimed) { return operation_name == aimed; });
     std::vector<std::string> pieces;
     if (operation_last != std::string::npos)
     {
@@ -728,6 +736,21 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
     return 1;
 }
 
+// 1 where questions `one` and `other` are a slice: their listings the same but for one link a side, the two links
+// naming the same registers and read as different kinds, given through `left` and `right`
+static int slice_found(const Question &one, const Question &other, const Link **left, const Link **right)
+{
+    const std::vector<std::string> first = links_past(one, other);
+    const std::vector<std::string> second = links_past(other, one);
+    if ((first.size() != 1u) || (second.size() != 1u))
+    {
+        return 0;
+    }
+    *left = &one.links.at(first[0]);
+    *right = &other.links.at(second[0]);
+    return ((*left)->registers == (*right)->registers) && ((*left)->kind != (*right)->kind);
+}
+
 static int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder)
 {
     std::vector<Question> questions;
@@ -752,18 +775,14 @@ static int identity_slice(const char *listing, const char *manifest, const char 
     {
         for (size_t other = one + 1u; other < questions.size(); other += 1u)
         {
-            const std::vector<std::string> first = links_past(questions[one], questions[other]);
-            const std::vector<std::string> second = links_past(questions[other], questions[one]);
-            if ((first.size() != 1u) || (second.size() != 1u))
+            const Link *found_left = nullptr;
+            const Link *found_right = nullptr;
+            if (!slice_found(questions[one], questions[other], &found_left, &found_right))
             {
                 continue;
             }
-            const Link &left = questions[one].links.at(first[0]);
-            const Link &right = questions[other].links.at(second[0]);
-            if ((left.registers != right.registers) || (left.kind == right.kind))
-            {
-                continue;
-            }
+            const Link &left = *found_left;
+            const Link &right = *found_right;
             // each slice a line: its two members, each a question and the position of its link in that question's chain,
             // then the identity, the two links in order, the first member writing the first, then each member's context
             const int swapped = right.kind < left.kind;
@@ -830,11 +849,83 @@ static std::vector<std::regex> form_links(const std::string &text)
         std::string pattern;
         static const std::regex s_special("[.^$|()\\[\\]*+?\\\\]");
         const std::string escaped = std::regex_replace(link.kind, s_special, "\\$&");
+        // an offset added to an address is not written where it is 0: the parameter after a + is there or not
+        static const std::regex s_offset("\\\\\\+\\{[a-z_]+\\}");
         static const std::regex s_parameter("\\{[a-z_]+\\}(\\\\\\.hi)?");
-        pattern = std::regex_replace(escaped, s_parameter, "[^,]+");
+        pattern = std::regex_replace(std::regex_replace(escaped, s_offset, "(\\+[^,\\]]+)?"), s_parameter, "[^,]+");
         links.push_back(std::regex("^" + pattern + "$"));
     }
     return links;
+}
+
+// the forms of each ruleset given, each name with the links its text writes; 0 where a ruleset could not be read
+static int forms_read(int count, char **files, std::vector<std::pair<std::string, std::vector<std::regex>>> *forms)
+{
+    for (int given = 0; given < count; given += 1)
+    {
+        HeldSet set;
+        const RulesetSchema *const schema = code_generator(files[given]).schema();
+        std::string paths[RULESET_PATHS_MAX];
+        const unsigned int paths_count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
+        RulesetFlat flat;
+        ruleset_flat_schema(schema, &flat);
+        std::string error;
+        if (ruleset_relations_read(paths, paths_count, &flat.schema, &set.memory, &set.relations, &error) == 0)
+        {
+            printf("  %s could not be opened\n", error.c_str());
+            return 0;
+        }
+        for (unsigned int at = 0u; at < set.relations.entry_count; at += 1u)
+        {
+            const RulesetCoreEntry *const entry = &set.relations.entries[at];
+            if (entry->kind != RULESET_CORE_ENTRY_FORM)
+            {
+                continue;
+            }
+            const std::string name((const char *)&set.relations.text[entry->name.first], entry->name.length);
+            const std::string text((const char *)&set.relations.text[entry->text.first], entry->text.length);
+            forms->push_back(std::make_pair(name, form_links(text)));
+        }
+        // a pipe row chooses between an operation and its writing on the other pipe: a link of either was placed by
+        // the row's choice, whichever way it went
+        for (unsigned int at = 0u; at < paths_count; at += 1u)
+        {
+            std::ifstream file(paths[at]);
+            std::string line;
+            while (std::getline(file, line))
+            {
+                std::stringstream words(line);
+                std::string head;
+                std::string operation;
+                std::string writing;
+                if ((words >> head >> operation >> writing) && (head == "pipe"))
+                {
+                    static const std::regex s_special("[.^$|()\\[\\]*+?\\\\]");
+                    const std::string either = std::regex_replace(operation, s_special, "\\$&") + "|" +
+                                               std::regex_replace(writing, s_special, "\\$&");
+                    forms->push_back(std::make_pair("pipe:" + operation + ":" + writing,
+                                                    std::vector<std::regex>{std::regex("^(@!?P )?(" + either + ")( .*)?$")}));
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+// the names of the forms whose texts write `kind`, joined by spaces, or - where none does
+static std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms,
+                                 const std::string &kind)
+{
+    std::string names;
+    for (const auto &form : forms)
+    {
+        if (std::any_of(form.second.begin(), form.second.end(),
+                        [&](const std::regex &one) { return std::regex_match(kind, one); }))
+        {
+            names += (names.empty() ? "" : " ") + form.first;
+        }
+    }
+    return names.empty() ? std::string("-") : names;
 }
 
 // a member of a slice: its question and the position of its link in that question's chain
@@ -1003,33 +1094,10 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
               [](const std::pair<std::string, std::vector<Carrier>> &one,
                  const std::pair<std::string, std::vector<Carrier>> &other)
               { return carrier_before(one.second[0], other.second[0]); });
-    // the forms of each ruleset given, each name with the links its text writes
     std::vector<std::pair<std::string, std::vector<std::regex>>> forms;
-    for (int given = 0; given < count; given += 1)
+    if (!forms_read(count, files, &forms))
     {
-        HeldSet set;
-        const RulesetSchema *const schema = code_generator(files[given]).schema();
-        std::string paths[RULESET_PATHS_MAX];
-        const unsigned int paths_count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
-        RulesetFlat flat;
-        ruleset_flat_schema(schema, &flat);
-        std::string error;
-        if (ruleset_relations_read(paths, paths_count, &flat.schema, &set.memory, &set.relations, &error) == 0)
-        {
-            printf("  %s could not be opened\n", error.c_str());
-            return 1;
-        }
-        for (unsigned int at = 0u; at < set.relations.entry_count; at += 1u)
-        {
-            const RulesetCoreEntry *const entry = &set.relations.entries[at];
-            if (entry->kind != RULESET_CORE_ENTRY_FORM)
-            {
-                continue;
-            }
-            const std::string name((const char *)&set.relations.text[entry->name.first], entry->name.length);
-            const std::string text((const char *)&set.relations.text[entry->text.first], entry->text.length);
-            forms.push_back(std::make_pair(name, form_links(text)));
-        }
+        return 1;
     }
     std::ifstream held(klq);
     std::stringstream kept;
@@ -1315,8 +1383,1053 @@ static int identity_known(const char *listing, const char *manifest, const std::
     return 0;
 }
 
+// the root of `kind` among the categories, each kind joined to the kinds it was found in a slice with
+static std::string category_root(std::map<std::string, std::string> *parent, const std::string &kind)
+{
+    std::string root = kind;
+    while ((*parent)[root] != root)
+    {
+        root = (*parent)[root];
+    }
+    for (std::string walk = kind; walk != root;)
+    {
+        const std::string next = (*parent)[walk];
+        (*parent)[walk] = root;
+        walk = next;
+    }
+    return root;
+}
+
+// a question the permutations put: the window it is asked in at its first occurrence, how often it arises, the link
+// put in and the link it stands for
+struct Permuted
+{
+    unsigned int question;
+    unsigned int link;
+    unsigned int count;
+    std::string window;
+    std::string from;
+    std::string to;
+};
+
+// The parts of nvcc's chains put together by their categories, no part's meaning read: two links a slice sets apart
+// stand for each other, and each link joined to another so, at any remove, is of its category. Each link of each chain
+// is stood for by every other of its category naming as many registers, the registers of the link it stands for given
+// to it, and asked in the window of the link before it and the link after: a window nvcc writes somewhere is known, and
+// one it never writes is a question, held at the first address it arises at with its count. A link put in that rule 2
+// keeps off the part is marked with the rule. <folder>/permutations.txt holds the categories, each with its members at
+// the first address each occurs at, then the questions in the order of their addresses
+static int identity_permute(const char *listing, const char *manifest, const std::string &folder)
+{
+    std::vector<Question> questions;
+    if (!questions_read(listing, manifest, &questions))
+    {
+        return 1;
+    }
+    const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
+    // the first occurrence of every kind of link, and each kind its own category before any slice joins it
+    std::map<std::string, std::pair<unsigned int, unsigned int>> first_kind;
+    std::map<std::string, std::string> parent;
+    for (unsigned int question = 0u; question < questions.size(); question += 1u)
+    {
+        for (unsigned int link = 0u; link < questions[question].chain.size(); link += 1u)
+        {
+            const std::string &kind = questions[question].chain[link].kind;
+            first_kind.insert(std::make_pair(kind, std::make_pair(question, link)));
+            parent.insert(std::make_pair(kind, kind));
+        }
+    }
+    for (size_t one = 0u; one < questions.size(); one += 1u)
+    {
+        for (size_t other = one + 1u; other < questions.size(); other += 1u)
+        {
+            const Link *left = nullptr;
+            const Link *right = nullptr;
+            if (slice_found(questions[one], questions[other], &left, &right))
+            {
+                const std::string left_root = category_root(&parent, left->kind);
+                const std::string right_root = category_root(&parent, right->kind);
+                parent[left_root] = right_root;
+            }
+        }
+    }
+    // each category's members in the order of their first occurrence
+    std::vector<std::pair<std::pair<unsigned int, unsigned int>, std::string>> ordered;
+    for (const auto &kind : first_kind)
+    {
+        ordered.push_back(std::make_pair(kind.second, kind.first));
+    }
+    std::sort(ordered.begin(), ordered.end());
+    std::map<std::string, std::vector<std::string>> categories;
+    std::vector<std::string> roots;
+    for (const auto &kind : ordered)
+    {
+        const std::string root = category_root(&parent, kind.second);
+        if (categories[root].empty())
+        {
+            roots.push_back(root);
+        }
+        categories[root].push_back(kind.second);
+    }
+    std::unordered_map<unsigned long long, Permuted> asked;
+    std::vector<unsigned long long> asked_order;
+    unsigned long long known = 0ull;
+    unsigned long long put = 0ull;
+    for (unsigned int question = 0u; question < questions.size(); question += 1u)
+    {
+        const std::vector<Link> &chain = questions[question].chain;
+        for (unsigned int link = 0u; link < chain.size(); link += 1u)
+        {
+            const std::vector<std::string> &members = categories[category_root(&parent, chain[link].kind)];
+            for (const std::string &member : members)
+            {
+                const std::pair<unsigned int, unsigned int> &at = first_kind.at(member);
+                const Link &source = questions[at.first].chain[at.second];
+                if ((member == chain[link].kind) || (source.named.size() != chain[link].named.size()))
+                {
+                    continue;
+                }
+                Link substitute = source;
+                substitute.named = chain[link].named;
+                substitute.position = chain[link].position;
+                Question window;
+                window.number = questions[question].number;
+                for (unsigned int within = (link == 0u) ? 0u : link - 1u;
+                     within < std::min((unsigned int)chain.size(), link + 2u); within += 1u)
+                {
+                    window.chain.push_back((within == link) ? substitute : chain[within]);
+                }
+                const unsigned int length = (unsigned int)window.chain.size();
+                const unsigned long long identity = window_identities(window, 0u).back();
+                const std::string rendered = window_render(window, 0u, length);
+                put += 1ull;
+                const auto found = held.find(identity);
+                if ((found != held.end()) &&
+                    (window_render(questions[found->second.question], found->second.link, length) == rendered))
+                {
+                    known += 1ull;
+                    continue;
+                }
+                const auto inserted = asked.insert(std::make_pair(
+                    identity, Permuted{question, link, 0u, rendered, chain[link].kind, member}));
+                if (inserted.second)
+                {
+                    asked_order.push_back(identity);
+                }
+                inserted.first->second.count += 1u;
+            }
+        }
+    }
+    const std::string path = folder + "/permutations.txt";
+    FILE *const file = fopen(path.c_str(), "wb");
+    if (file == NULL)
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
+    unsigned int joined = 0u;
+    for (const std::string &root : roots)
+    {
+        const std::vector<std::string> &members = categories[root];
+        if (members.size() < 2u)
+        {
+            continue;
+        }
+        joined += 1u;
+        const std::pair<unsigned int, unsigned int> &first = first_kind.at(members[0]);
+        fprintf(file, "category %s %u\n", address_text(questions, first.first, first.second).c_str(),
+                (unsigned int)members.size());
+        for (const std::string &member : members)
+        {
+            const std::pair<unsigned int, unsigned int> &at = first_kind.at(member);
+            fprintf(file, "member %s %s\n", address_text(questions, at.first, at.second).c_str(), member.c_str());
+        }
+    }
+    unsigned int flagged = 0u;
+    for (const unsigned long long identity : asked_order)
+    {
+        const Permuted &question = asked.at(identity);
+        std::string window = question.window;
+        window.pop_back();
+        std::replace(window.begin(), window.end(), '\n', ';');
+        fprintf(file, "question %s %u\nfrom %s\nto %s\nwindow %s\n",
+                address_text(questions, question.question, question.link).c_str(), question.count,
+                question.from.c_str(), question.to.c_str(), window.c_str());
+        if (rule_broken(question.to))
+        {
+            fprintf(file, "rule 2 %s: its form transfers control or waits\n", question.to.c_str());
+            flagged += 1u;
+        }
+    }
+    fclose(file);
+    printf("  %s: %u kinds of link in %u categories of more than one, %llu windows put, %llu of them nvcc writes, "
+           "%u questions, %u of them kept off the part by rule 2\n",
+           path.c_str(), (unsigned int)first_kind.size(), joined, put, known, (unsigned int)asked_order.size(), flagged);
+    return 0;
+}
+
+// what one form's writing came to over the questions nvcc makes in fewer steps: the questions, and its links of ours
+// alone there, of a kind nvcc writes nothing of in the question
+struct FormFolded
+{
+    std::set<std::string> questions;
+    unsigned int alone;
+};
+
+// The answer and ours, question by question. nvcc's chain for a question of the stick is the answer; ours is the
+// disassembly of what the transpiler wrote for it, derived from the rulesets alone, and the rulesets are what the L*
+// query gave. A question is one product, and the only reason to fold is to make the same product in fewer steps: two
+// chains of as many steps are two arrangements of it and neither is broken, whatever order or pipe each takes. Where
+// nvcc makes it in fewer steps there is a fold the query has not learned, and where ours takes fewer, ours folds
+// further.
+//
+// The two chains are aligned link by link on their kinds, the longest run in common kept in order, and where they part
+// each link of ours is moved (nvcc writes its kind elsewhere in the question) or ours alone (nvcc writes nothing of its
+// kind there), each with the forms of the rulesets whose texts write it, and each link of nvcc's with nothing of ours
+// is written with its address. <folder>/broken.txt holds a question a group of lines, its verdict and the steps of
+// each, then each form whose links stand alone in a question nvcc makes in fewer steps, with its count of questions
+// and of links, the most questions first
+static int identity_broken(const char *listing, const char *manifest, const std::string &folder,
+                           const std::vector<std::string> &ours_paths, int count, char **files)
+{
+    std::vector<Question> questions;
+    if (!questions_read(listing, manifest, &questions))
+    {
+        return 1;
+    }
+    std::vector<std::pair<std::string, std::vector<std::regex>>> forms;
+    if (!forms_read(count, files, &forms))
+    {
+        return 1;
+    }
+    std::map<std::string, size_t> numbered;
+    for (size_t at = 0u; at < questions.size(); at += 1u)
+    {
+        numbered[questions[at].number] = at;
+    }
+    std::vector<Question> ours;
+    for (const std::string &path : ours_paths)
+    {
+        candidates_read(path, &ours);
+    }
+    const std::string path = folder + "/broken.txt";
+    FILE *const file = fopen(path.c_str(), "wb");
+    if (file == NULL)
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
+    std::map<std::string, FormFolded> folded;
+    unsigned int alike = 0u;
+    unsigned int same = 0u;
+    unsigned int theirs_fewer = 0u;
+    unsigned int ours_fewer = 0u;
+    unsigned int steps_to_learn = 0u;
+    unsigned int unanswered = 0u;
+    for (const Question &mine : ours)
+    {
+        const auto found = numbered.find(mine.number);
+        if ((found == numbered.end()) || mine.chain.empty())
+        {
+            unanswered += 1u;
+            continue;
+        }
+        const Question &answer = questions[found->second];
+        const size_t rows = mine.chain.size();
+        const size_t columns = answer.chain.size();
+        // the longest run of kinds the two chains hold in common, in order
+        std::vector<std::vector<unsigned int>> common(rows + 1u, std::vector<unsigned int>(columns + 1u, 0u));
+        for (size_t row = rows; row-- > 0u;)
+        {
+            for (size_t column = columns; column-- > 0u;)
+            {
+                common[row][column] = (mine.chain[row].kind == answer.chain[column].kind)
+                                          ? common[row + 1u][column + 1u] + 1u
+                                          : std::max(common[row + 1u][column], common[row][column + 1u]);
+            }
+        }
+        // the links each chain holds alone, and the stretches they part in, each running from one link in common to the
+        // next
+        std::vector<size_t> mine_only;
+        std::vector<size_t> answer_only;
+        std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> stretches(1u);
+        for (size_t row = 0u, column = 0u; (row < rows) || (column < columns);)
+        {
+            if ((row < rows) && (column < columns) && (mine.chain[row].kind == answer.chain[column].kind))
+            {
+                if (!stretches.back().first.empty() || !stretches.back().second.empty())
+                {
+                    stretches.emplace_back();
+                }
+                row += 1u;
+                column += 1u;
+            }
+            else if ((column < columns) && ((row == rows) || (common[row][column + 1u] >= common[row + 1u][column])))
+            {
+                answer_only.push_back(column);
+                stretches.back().second.push_back(column);
+                column += 1u;
+            }
+            else
+            {
+                mine_only.push_back(row);
+                stretches.back().first.push_back(row);
+                row += 1u;
+            }
+        }
+        // a link of ours alone whose kind nvcc writes alone elsewhere in the question is moved, and the two stand for
+        // each other; what is left of a stretch is its own, and a stretch where ours holds more of its own links than
+        // nvcc's is where a fold takes steps away
+        std::vector<int> moved(rows, 0);
+        std::vector<int> paired(columns, 0);
+        std::map<std::string, std::vector<size_t>> answer_kinds;
+        for (const size_t column : answer_only)
+        {
+            answer_kinds[answer.chain[column].kind].push_back(column);
+        }
+        for (const size_t row : mine_only)
+        {
+            std::vector<size_t> &held = answer_kinds[mine.chain[row].kind];
+            if (!held.empty())
+            {
+                moved[row] = 1;
+                paired[held.front()] = 1;
+                held.erase(held.begin());
+            }
+        }
+        std::vector<int> folding(rows, 0);
+        for (const auto &stretch : stretches)
+        {
+            const size_t mine_own = (size_t)std::count_if(stretch.first.begin(), stretch.first.end(),
+                                                          [&](size_t row) { return !moved[row]; });
+            const size_t answer_own = (size_t)std::count_if(stretch.second.begin(), stretch.second.end(),
+                                                            [&](size_t column) { return !paired[column]; });
+            for (const size_t row : stretch.first)
+            {
+                folding[row] = !moved[row] && (mine_own > answer_own);
+            }
+        }
+        const char *verdict = "same";
+        if (mine_only.empty() && answer_only.empty())
+        {
+            verdict = "alike";
+            alike += 1u;
+        }
+        else if (columns < rows)
+        {
+            verdict = "fewer theirs";
+            theirs_fewer += 1u;
+            steps_to_learn += (unsigned int)(rows - columns);
+        }
+        else if (rows < columns)
+        {
+            verdict = "fewer ours";
+            ours_fewer += 1u;
+        }
+        else
+        {
+            same += 1u;
+        }
+        fprintf(file, "question %s %s %u %u %u\n", mine.number.c_str(), verdict, (unsigned int)rows,
+                (unsigned int)columns, common[0][0]);
+        for (const size_t row : mine_only)
+        {
+            const Link &link = mine.chain[row];
+            const std::string names = forms_writing(forms, link.kind);
+            fprintf(file, "%s %s %s form %s%s\n", moved[row] ? "moved" : "ours", link.position.c_str(),
+                    link.kind.c_str(), names.c_str(), folding[row] ? " fold" : "");
+            // only a link of a stretch where ours holds more of its own links than nvcc's, in a question nvcc makes in
+            // fewer steps, is a step a fold takes away
+            if (!folding[row] || (columns >= rows))
+            {
+                continue;
+            }
+            std::stringstream split(names);
+            std::string name;
+            while (split >> name)
+            {
+                FormFolded &form = folded[name];
+                form.questions.insert(mine.number);
+                form.alone += 1u;
+            }
+        }
+        for (const size_t column : answer_only)
+        {
+            fprintf(file, "theirs %s:%s %s\n", answer.number.c_str(), answer.chain[column].position.c_str(),
+                    answer.chain[column].kind.c_str());
+        }
+    }
+    std::vector<std::pair<std::string, FormFolded>> ranked(folded.begin(), folded.end());
+    std::sort(ranked.begin(), ranked.end(),
+              [](const std::pair<std::string, FormFolded> &one, const std::pair<std::string, FormFolded> &other)
+              {
+                  return (one.second.questions.size() != other.second.questions.size())
+                             ? (one.second.questions.size() > other.second.questions.size())
+                             : (one.first < other.first);
+              });
+    for (const auto &form : ranked)
+    {
+        fprintf(file, "fold %s %u %u\n", form.first.c_str(), (unsigned int)form.second.questions.size(),
+                form.second.alone);
+    }
+    fclose(file);
+    printf("  %s: %u of ours, %u alike link for link, %u in as many steps, %u nvcc makes in fewer (%u steps to "
+           "learn), %u ours makes in fewer, %u with no answer\n",
+           path.c_str(), (unsigned int)ours.size(), alike, same, theirs_fewer, steps_to_learn, ours_fewer, unanswered);
+    for (size_t at = 0u; (at < ranked.size()) && (at < 8u); at += 1u)
+    {
+        printf("    %s: %u questions, %u links alone\n", ranked[at].first.c_str(),
+               (unsigned int)ranked[at].second.questions.size(), ranked[at].second.alone);
+    }
+    return 0;
+}
+
+
+// a field of an instruction as the system's .ksc gives it: its first bit and how many bits it takes
+struct StallField
+{
+    unsigned int first;
+    unsigned int bits;
+};
+
+// one question the walk puts: a chain of ours, its code with every stall the longest, and the place of the writer
+// whose stall is turned, the instruction after it reading what it wrote
+struct StallProbe
+{
+    std::string number;
+    std::vector<unsigned char> code;
+    size_t writer;
+};
+
+// the instructions' bits `field` takes at instruction `index` of `code`, sixteen bytes an instruction
+static unsigned long long stall_bits(const std::vector<unsigned char> &code, size_t index, const StallField &field)
+{
+    unsigned long long value = 0ull;
+    for (unsigned int bit = 0u; bit < field.bits; bit += 1u)
+    {
+        const unsigned int at = field.first + bit;
+        value |= (unsigned long long)((code[(index * 16u) + (at / 8u)] >> (at % 8u)) & 1u) << bit;
+    }
+    return value;
+}
+
+// `value` written into the bits `field` takes at instruction `index` of `code`
+static void stall_bits_write(std::vector<unsigned char> *code, size_t index, const StallField &field,
+                             unsigned long long value)
+{
+    for (unsigned int bit = 0u; bit < field.bits; bit += 1u)
+    {
+        const unsigned int at = field.first + bit;
+        unsigned char *const byte = &(*code)[(index * 16u) + (at / 8u)];
+        const unsigned char mask = (unsigned char)(1u << (at % 8u));
+        *byte = (unsigned char)(((value >> bit) & 1ull) ? (*byte | mask) : (*byte & ~mask));
+    }
+}
+
+// the registers an operand names, a pair read whole where it is written .64, as a wide destination is
+static std::set<std::string> stall_registers(const std::string &operand, int wide)
+{
+    static const std::regex s_named("\\b(R|P|UR)([0-9]+)\\b");
+    std::set<std::string> named;
+    for (std::sregex_iterator walk(operand.begin(), operand.end(), s_named); walk != std::sregex_iterator(); ++walk)
+    {
+        named.insert(walk->str());
+        if (wide || (operand.find(".64") != std::string::npos))
+        {
+            named.insert((*walk)[1].str() + std::to_string(std::stoul((*walk)[2].str()) + 1ul));
+        }
+    }
+    return named;
+}
+
+// a link's operation without its guard, and its operands split
+static std::string stall_operation(const Link &link, std::vector<std::string> *operands)
+{
+    std::string text = link.exact;
+    if (text[0] == '@')
+    {
+        text = trimmed(text.substr(text.find_first_of(" \t")));
+    }
+    const size_t space = text.find_first_of(" \t");
+    operands->clear();
+    if (space != std::string::npos)
+    {
+        std::stringstream pieces(text.substr(space));
+        std::string piece;
+        while (std::getline(pieces, piece, ','))
+        {
+            operands->push_back(trimmed(piece));
+        }
+    }
+    return text.substr(0u, space);
+}
+
+// What the link writes: the registers its first operand names, a pair where the operation's result is wide. An address
+// in that place writes nothing, and neither does a link that writes no register
+static std::set<std::string> stall_written(const Link &link)
+{
+    std::vector<std::string> operands;
+    const std::string operation = stall_operation(link, &operands);
+    if (operands.empty() || (operands[0].find('[') != std::string::npos) || (operands[0] == "PT") ||
+        (operands[0] == "RZ"))
+    {
+        return std::set<std::string>();
+    }
+    const int wide = (operation.find(".WIDE") != std::string::npos) || (operation.find(".64") != std::string::npos);
+    return stall_registers(operands[0], wide);
+}
+
+// what the link reads: its guard, and every operand but a first it writes, a register a wide operation reads as data
+// read as its pair
+static std::set<std::string> stall_read(const Link &link)
+{
+    std::vector<std::string> operands;
+    const std::string operation = stall_operation(link, &operands);
+    const int wide = (operation.find(".64") != std::string::npos);
+    std::set<std::string> read;
+    if (link.exact[0] == '@')
+    {
+        read = stall_registers(link.exact.substr(0u, link.exact.find_first_of(" \t")), 0);
+    }
+    const size_t first = (stall_written(link).empty()) ? 0u : 1u;
+    for (size_t at = first; at < operands.size(); at += 1u)
+    {
+        const int data = wide && (operands[at].find('[') == std::string::npos);
+        const std::set<std::string> named = stall_registers(operands[at], data);
+        read.insert(named.begin(), named.end());
+    }
+    return read;
+}
+
+// the fields the system's .ksc gives, by name
+static std::map<std::string, StallField> stall_fields(const char *ksc)
+{
+    std::map<std::string, StallField> fields;
+    std::ifstream file(ksc);
+    std::string line;
+    while (std::getline(file, line))
+    {
+        char name[64];
+        StallField field = {0u, 0u};
+        if (sscanf(line.c_str(), "field %63s %u %u", name, &field.first, &field.bits) == 3)
+        {
+            fields[name] = field;
+        }
+    }
+    return fields;
+}
+
+// The cases a question is put over, spread evenly through the host's: the words of each into `question`, and the
+// host's place of each into `places`
+static void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
+{
+    places->clear();
+    question->cases = RUN_CASES_MOST;
+    for (unsigned int place = 0u; place < RUN_CASES_MOST; place += 1u)
+    {
+        const unsigned int at = (unsigned int)(((unsigned long long)place * IDENTITY_CASES) / RUN_CASES_MOST);
+        const unsigned long long left = s_values[(at / IDENTITY_VALUES) % IDENTITY_VALUES];
+        const unsigned long long right = s_values[at % IDENTITY_VALUES];
+        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffull), (unsigned int)(left >> 32u),
+                                                  (unsigned int)(right & 0xffffffffull), (unsigned int)(right >> 32u),
+                                                  (unsigned int)(at / (IDENTITY_VALUES * IDENTITY_VALUES)), 0u, 0u, 0u};
+        memcpy(question->word[place], words, sizeof(words));
+        places->push_back(at);
+    }
+}
+
+// 1 where the part answers `code` alike with the host on every case it computes, 0 where it answers apart, refuses it
+// or the gate holds it, each counted in `asks`
+static int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
+                       const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
+{
+    question->code = code.data();
+    question->code_size = code.size();
+    // a lane's container declares every register its file holds (sm_86.kdm)
+    question->registers = 255u;
+    *asks += 1ull;
+    if (!run_channel_ask(question))
+    {
+        return 0;
+    }
+    for (unsigned int place = 0u; place < question->cases; place += 1u)
+    {
+        const std::string &expected = host[places[place]];
+        if ((expected != "-") && (std::stoull(expected, nullptr, 16) != question->answered[place]))
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// each chain's answers the host computes, one a case over every case, by the chain's number
+static std::map<std::string, std::vector<std::string>> host_answers_read(const char *answers)
+{
+    std::map<std::string, std::vector<std::string>> host;
+    std::ifstream host_file(answers);
+    std::string line;
+    while (std::getline(host_file, line))
+    {
+        std::stringstream words(line);
+        std::string number;
+        words >> number;
+        std::vector<std::string> case_answers;
+        std::string answer;
+        while (words >> answer)
+        {
+            case_answers.push_back(answer);
+        }
+        if (case_answers.size() == IDENTITY_CASES)
+        {
+            host[number] = case_answers;
+        }
+    }
+    return host;
+}
+
+// chain `number` of ours, read from `engine`: its code, sixteen bytes an instruction, and the links its listing gives.
+// 0 where either is missing or the listing gives more links than the code holds instructions
+static int chain_code_read(const char *engine, const std::string &number, std::vector<unsigned char> *code,
+                           std::vector<Link> *links)
+{
+    const std::string base = std::string(engine) + "/" + number;
+    std::ifstream listing(base + ".dis");
+    std::ifstream binary(base + ".bin", std::ios::binary);
+    if (!listing || !binary)
+    {
+        return 0;
+    }
+    code->assign((std::istreambuf_iterator<char>(binary)), std::istreambuf_iterator<char>());
+    links->clear();
+    std::string line;
+    while (std::getline(listing, line))
+    {
+        Link link;
+        const int read = link_read(line, &link);
+        if (read < 0)
+        {
+            break;
+        }
+        if ((read > 0) && !link.position.empty())
+        {
+            links->push_back(link);
+        }
+    }
+    return !links->empty() && ((code->size() % 16u) == 0u) && ((links->size() * 16u) <= code->size());
+}
+
+// The .ksc rewritten with `rows` in place of every answer of the run channel it held to the question `asked`, the rows
+// put after its last row of the run channel and its count of the run channel's answers taken again. 1, or 0 where the
+// .ksc could not be written
+static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows)
+{
+    std::ifstream in(ksc, std::ios::binary);
+    std::vector<std::string> kept;
+    std::string line;
+    while (std::getline(in, line))
+    {
+        const std::string plain = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+        if (plain.compare(0u, 12u, "run answers ") == 0)
+        {
+            std::stringstream words(plain);
+            std::string channel;
+            std::string answered;
+            std::string word;
+            std::string question;
+            words >> channel >> answered >> word >> question;
+            if (question == asked)
+            {
+                continue;
+            }
+        }
+        kept.push_back(plain);
+    }
+    in.close();
+    size_t after = kept.size();
+    for (size_t at = 0u; at < kept.size(); at += 1u)
+    {
+        after = (kept[at].compare(0u, 4u, "run ") == 0) ? (at + 1u) : after;
+    }
+    kept.insert(kept.begin() + (std::ptrdiff_t)after, rows.begin(), rows.end());
+    unsigned int answered = 0u;
+    for (const std::string &kept_line : kept)
+    {
+        answered += (kept_line.compare(0u, 12u, "run answers ") == 0) ? 1u : 0u;
+    }
+    FILE *const out = fopen(ksc, "wb");
+    if (out == NULL)
+    {
+        return 0;
+    }
+    for (const std::string &kept_line : kept)
+    {
+        if (kept_line.compare(0u, 22u, "count run      answers") == 0)
+        {
+            fprintf(out, "count run      answers  %u\n", answered);
+            continue;
+        }
+        fprintf(out, "%s\n", kept_line.c_str());
+    }
+    fclose(out);
+    return 1;
+}
+
+// The soonest each operation's result is read, asked of the part and walked down. Every chain of ours the host also
+// computes is a probe where an instruction that writes a register is read by the very next: with every stall the
+// longest, the chain answers alike with the host, and each stall the walk puts at the writer is truthy while every
+// probe of its pair answers alike and falsy once one answers apart. The walk starts at the longest, which is truthy,
+// and steps down one at a time until a stall is falsy; the soonest is the last truthy one, since a stall longer than
+// a truthy one is truthy too. An instruction that sets a write barrier is read behind the barrier and not behind its
+// stall, and is not walked. Each pair's soonest is written to the .ksc as the part's answer on the run channel,
+// `run answers <stall> stall <writer> <reader>`, in place of those it held, and <folder>/stall.txt holds every pair
+// with its probes and its asks
+static int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                          const char *const *carrier)
+{
+    std::map<std::string, StallField> fields = stall_fields(ksc);
+    if ((fields.count("stall") == 0u) || (fields.count("write_barrier") == 0u))
+    {
+        printf("klq_identity stall: %s gives no stall field or no write barrier field\n", ksc);
+        return 1;
+    }
+    const StallField stall = fields["stall"];
+    const StallField barrier = fields["write_barrier"];
+    const unsigned long long longest = (1ull << stall.bits) - 1ull;
+    const unsigned long long none = (1ull << barrier.bits) - 1ull;
+    std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
+    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    {
+        return 1;
+    }
+    static RunQuestion s_question;
+    std::vector<unsigned int> places;
+    stall_cases(&s_question, &places);
+    unsigned long long asks = 0ull;
+    // the probes of each pair, a writer's operation and its reader's
+    std::map<std::pair<std::string, std::string>, std::vector<StallProbe>> pairs;
+    unsigned int chains = 0u;
+    unsigned int unanswered = 0u;
+    for (const auto &held : host)
+    {
+        std::vector<unsigned char> code;
+        std::vector<Link> links;
+        if (!chain_code_read(engine, held.first, &code, &links))
+        {
+            continue;
+        }
+        for (size_t index = 0u; index < (code.size() / 16u); index += 1u)
+        {
+            stall_bits_write(&code, index, stall, longest);
+        }
+        // a chain is a probe only where, with every stall the longest, the part answers it alike with the host
+        chains += 1u;
+        if (!stall_alike(code, held.second, places, &s_question, &asks))
+        {
+            unanswered += 1u;
+            printf("  %s: not alike at the longest stalls (%s), and no probe\n", held.first.c_str(), s_question.refused);
+            continue;
+        }
+        for (size_t index = 0u; (index + 1u) < links.size(); index += 1u)
+        {
+            const size_t place = (size_t)std::stoul(links[index].position, nullptr, 16) / 16u;
+            if (stall_bits(code, place, barrier) != none)
+            {
+                continue;
+            }
+            const std::set<std::string> written = stall_written(links[index]);
+            const std::set<std::string> read = stall_read(links[index + 1u]);
+            const int reads = std::any_of(written.begin(), written.end(),
+                                          [&](const std::string &name) { return read.count(name) != 0u; });
+            if (!reads)
+            {
+                continue;
+            }
+            std::vector<std::string> operands;
+            const std::pair<std::string, std::string> pair(stall_operation(links[index], &operands),
+                                                           stall_operation(links[index + 1u], &operands));
+            pairs[pair].push_back(StallProbe{held.first, code, place});
+        }
+    }
+    printf("klq_identity stall: %u chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n", chains,
+           unanswered, pairs.size(), run_channel_carrier());
+    // the probes a pair is walked over at most, each from a chain of its own
+    const size_t most = 3u;
+    std::vector<std::string> rows;
+    FILE *const table = fopen((folder + "/stall.txt").c_str(), "wb");
+    if (table == NULL)
+    {
+        printf("klq_identity stall: %s/stall.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
+    for (const auto &pair : pairs)
+    {
+        std::vector<const StallProbe *> probes;
+        std::set<std::string> numbers;
+        for (const StallProbe &probe : pair.second)
+        {
+            if ((probes.size() < most) && numbers.insert(probe.number).second)
+            {
+                probes.push_back(&probe);
+            }
+        }
+        unsigned long long soonest = longest;
+        const unsigned long long before = asks;
+        for (unsigned long long step = longest; step-- > 0ull;)
+        {
+            int truthy = 1;
+            for (const StallProbe *probe : probes)
+            {
+                std::vector<unsigned char> turned = probe->code;
+                stall_bits_write(&turned, probe->writer, stall, step);
+                truthy = truthy && stall_alike(turned, host[probe->number], places, &s_question, &asks);
+                if (!truthy)
+                {
+                    break;
+                }
+            }
+            if (!truthy)
+            {
+                break;
+            }
+            soonest = step;
+        }
+        std::string over;
+        for (const StallProbe *probe : probes)
+        {
+            over += " " + probe->number;
+        }
+        fprintf(table, "%s %s soonest %llu, %llu asks, over%s\n", pair.first.first.c_str(), pair.first.second.c_str(),
+                soonest, asks - before, over.c_str());
+        printf("  %s then %s: soonest %llu (%llu asks)\n", pair.first.first.c_str(), pair.first.second.c_str(), soonest,
+               asks - before);
+        char row[256];
+        snprintf(row, sizeof(row), "run answers %08llx stall %s %s", soonest, pair.first.first.c_str(),
+                 pair.first.second.c_str());
+        rows.push_back(row);
+    }
+    fclose(table);
+    run_channel_close();
+    if (!ksc_answers_write(ksc, "stall", rows))
+    {
+        printf("klq_identity stall: %s could not be written\n", ksc);
+        return 1;
+    }
+    printf("klq_identity stall: %zu pairs walked over %llu asks, written to %s\n", pairs.size(), asks, ksc);
+    return 0;
+}
+
+// one question the register walk puts: a chain of ours, its code with every stall the longest, the register it
+// writes that the walk renames, and every number its register fields hold
+struct RegisterProbe
+{
+    std::string number;
+    std::vector<unsigned char> code;
+    unsigned long long renamed;
+    std::set<unsigned long long> named;
+};
+
+// `code` with every register field that holds `from` set to `to`
+static std::vector<unsigned char> register_renamed(const std::vector<unsigned char> &code,
+                                                   const std::vector<StallField> &registers, unsigned long long from,
+                                                   unsigned long long to)
+{
+    std::vector<unsigned char> turned = code;
+    for (size_t index = 0u; index < (code.size() / 16u); index += 1u)
+    {
+        for (const StallField &field : registers)
+        {
+            if (stall_bits(code, index, field) == from)
+            {
+                stall_bits_write(&turned, index, field, to);
+            }
+        }
+    }
+    return turned;
+}
+
+// The last register a question's code can name, asked of the part and walked down. A chain of ours the host also
+// computes is a probe where, with every stall the longest, it answers alike with the host, and still does with a
+// register it writes and then reads renamed, in every register field, to the lowest number those fields do not
+// hold. The walk
+// starts at the highest number a register field holds and steps down one at a time, skipping a number a probe holds:
+// a number is truthy where every probe answers alike with its register renamed to it, and falsy where one answers
+// apart, is refused, or is held by the gate. The last register is the first truthy number, and every number under
+// it is the code's to name. It is written to the .ksc as the part's answer on the run channel,
+// `run answers <last> register last`, and <folder>/register.txt holds every number asked with its verdict
+static int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                             const char *const *carrier)
+{
+    std::map<std::string, StallField> fields = stall_fields(ksc);
+    if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
+        (fields.count("rb") == 0u))
+    {
+        printf("klq_identity register: %s gives no stall field or not every register field\n", ksc);
+        return 1;
+    }
+    const StallField stall = fields["stall"];
+    const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
+    const unsigned long long longest = (1ull << stall.bits) - 1ull;
+    const unsigned long long highest = (1ull << fields["rd"].bits) - 1ull;
+    std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
+    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    {
+        return 1;
+    }
+    static RunQuestion s_question;
+    std::vector<unsigned int> places;
+    stall_cases(&s_question, &places);
+    unsigned long long asks = 0ull;
+    // the probes the walk is put over at most, each from a chain of its own
+    const size_t most = 3u;
+    std::vector<RegisterProbe> probes;
+    for (const auto &held : host)
+    {
+        if (probes.size() >= most)
+        {
+            break;
+        }
+        std::vector<unsigned char> code;
+        std::vector<Link> links;
+        if (!chain_code_read(engine, held.first, &code, &links))
+        {
+            continue;
+        }
+        for (size_t index = 0u; index < (code.size() / 16u); index += 1u)
+        {
+            stall_bits_write(&code, index, stall, longest);
+        }
+        if (!stall_alike(code, held.second, places, &s_question, &asks))
+        {
+            continue;
+        }
+        RegisterProbe probe{held.first, code, highest, {}};
+        for (size_t index = 0u; index < (code.size() / 16u); index += 1u)
+        {
+            for (const StallField &field : registers)
+            {
+                probe.named.insert(stall_bits(code, index, field));
+            }
+        }
+        unsigned long long lowest = 0ull;
+        while ((lowest < highest) && (probe.named.count(lowest) != 0u))
+        {
+            lowest += 1ull;
+        }
+        // the registers the chain writes and reads after, in the order it writes them, each tried until one renamed
+        // to the lowest number the chain does not hold still answers alike: a register written and never read again
+        // asks whether a number is written, and not whether it holds what is written
+        for (size_t index = 0u; (index < (code.size() / 16u)) && (probe.renamed == highest); index += 1u)
+        {
+            const unsigned long long written = stall_bits(code, index, registers[0]);
+            int read_after = 0;
+            for (size_t after = index + 1u; after < (code.size() / 16u); after += 1u)
+            {
+                read_after = read_after || (stall_bits(code, after, registers[1]) == written) ||
+                             (stall_bits(code, after, registers[2]) == written);
+            }
+            if ((written == highest) || (lowest == highest) || !read_after ||
+                !stall_alike(register_renamed(code, registers, written, lowest), held.second, places, &s_question,
+                             &asks))
+            {
+                continue;
+            }
+            probe.renamed = written;
+        }
+        if (probe.renamed != highest)
+        {
+            printf("  probe %s: R%llu renamed\n", held.first.c_str(), probe.renamed);
+            probes.push_back(probe);
+        }
+    }
+    if (probes.empty())
+    {
+        printf("klq_identity register: no chain answers alike with a register renamed, and no probe\n");
+        run_channel_close();
+        return 1;
+    }
+    FILE *const table = fopen((folder + "/register.txt").c_str(), "wb");
+    if (table == NULL)
+    {
+        printf("klq_identity register: %s/register.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
+    unsigned long long last = highest + 1ull;
+    for (unsigned long long number = highest + 1ull; number-- > 0ull;)
+    {
+        const int held_by_probe = std::any_of(probes.begin(), probes.end(), [&](const RegisterProbe &probe) {
+            return probe.named.count(number) != 0u;
+        });
+        if (held_by_probe)
+        {
+            continue;
+        }
+        int truthy = 1;
+        for (const RegisterProbe &probe : probes)
+        {
+            truthy = truthy && stall_alike(register_renamed(probe.code, registers, probe.renamed, number),
+                                           host[probe.number], places, &s_question, &asks);
+        }
+        fprintf(table, "R%llu %s%s%s\n", number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
+                truthy ? "" : s_question.refused);
+        printf("  R%llu: %s\n", number, truthy ? "truthy" : "falsy");
+        if (truthy)
+        {
+            last = number;
+            break;
+        }
+    }
+    fclose(table);
+    run_channel_close();
+    if (last > highest)
+    {
+        printf("klq_identity register: no number answers alike, and no last register\n");
+        return 1;
+    }
+    char row[64];
+    snprintf(row, sizeof(row), "run answers %08llx register last", last);
+    if (!ksc_answers_write(ksc, "register", {row}))
+    {
+        printf("klq_identity register: %s could not be written\n", ksc);
+        return 1;
+    }
+    printf("klq_identity register: the last register R%llu, over %llu asks, written to %s\n", last, asks, ksc);
+    return 0;
+}
+
 int main(int count, char **words)
 {
+    // the carrier's words follow a lone --
+    if ((count >= 8) && (std::string(words[1]) == "stall") && (std::string(words[6]) == "--"))
+    {
+        std::vector<const char *> carrier(words + 7, words + count);
+        carrier.push_back(NULL);
+        return identity_stall(words[2], words[3], words[4], words[5], carrier.data());
+    }
+    if ((count >= 8) && (std::string(words[1]) == "register") && (std::string(words[6]) == "--"))
+    {
+        std::vector<const char *> carrier(words + 7, words + count);
+        carrier.push_back(NULL);
+        return identity_register(words[2], words[3], words[4], words[5], carrier.data());
+    }
+    // the paths of ours are given up to a lone --, the rulesets after it
+    if ((count >= 6) && (std::string(words[1]) == "broken"))
+    {
+        std::vector<std::string> ours_paths;
+        int at = 5;
+        for (; (at < count) && (std::string(words[at]) != "--"); at += 1)
+        {
+            ours_paths.push_back(words[at]);
+        }
+        at += (at < count) ? 1 : 0;
+        return identity_broken(words[2], words[3], words[4], ours_paths, count - at, words + at);
+    }
+    if ((count == 5) && (std::string(words[1]) == "permute"))
+    {
+        return identity_permute(words[2], words[3], words[4]);
+    }
     if ((count >= 5) && (std::string(words[1]) == "known"))
     {
         return identity_known(words[2], words[3], words[4], count - 5, words + 5);
@@ -1332,5 +2445,9 @@ int main(int count, char **words)
     printf("klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>\n");
     printf("klq_identity read <folder> <Lstar.klq> <ruleset>...\n");
     printf("klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
+    printf("klq_identity permute <nvcc listing> <manifest> <folder>\n");
+    printf("klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
+    printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
+    printf("klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     return 1;
 }

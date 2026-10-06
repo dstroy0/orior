@@ -109,14 +109,15 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
         SassInstructionParts parts;
         sass_instruction_read(text, &parts);
         unsigned int soonest = SASS_STALL_LONGEST;
-        const unsigned int schedule = sass_operation_schedule(parts.operation, &soonest);
-        if (stall < soonest)
-        {
-            return CUBIN_SAFE_STALL;
-        }
-        // a barrier set by an operation whose result is back in a measured count of cycles is never released, and the
-        // next wait on all six never ends
-        if ((schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_LONGEST) &&
+        const unsigned int schedule = sass_operation_schedule(machine, parts.operation, &soonest);
+        // A barrier set by an operation whose result is back in a fixed count of cycles is never released, and the
+        // next wait on all six never ends. An operation releases one where its schedule is late or a store, or where
+        // the encoding the system wrote its form with sets one
+        const SassForm *const form = sass_machine_form(machine, &parts);
+        const int releases = (schedule != SASS_SCHEDULE_FIXED) ||
+                             ((form != NULL) && (sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST) ||
+                                                 sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST)));
+        if (!releases &&
             (sass_barrier_set(high, SASS_WRITE_BARRIER_FIRST) || sass_barrier_set(high, SASS_READ_BARRIER_FIRST)))
         {
             return CUBIN_SAFE_BARRIER;
@@ -167,7 +168,7 @@ const char *cubin_safe_name(unsigned int verdict)
 {
     static const char *const s_names[] = {"safe",
                                           "not a whole count of instructions",
-                                          "a stall short of its operation's soonest read",
+                                          "an instruction no form holds, stalled short of the longest",
                                           "a wait short of all six barriers",
                                           "a control transfer or a wait",
                                           "an operation key unknown or holding a control transfer or a wait",

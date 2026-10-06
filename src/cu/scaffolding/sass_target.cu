@@ -7,15 +7,15 @@ SassTarget::SassTarget(void) : CodeGenerator("sass.krs")
 {
 }
 
-// R0 through R237. The part has 255 numbered registers and RZ, of which sass.krs pins the top for the lane's own:
-// R240 up are its fixed registers, and R238 and R239 are the launch the lane was called with, which launch_open moves
-// there and launch_load_wide reads every parameter through. A lane whose banks reach R238 is refused, in place of
-// writing over the address its own parameters come from. This is the file's count and not what a lane can take and stay
-// fast: an SM holds 65536 registers and runs 1536 threads. 42 a thread is full occupancy and every one past that
-// costs residency
+// R0 through R235. A kernel's code names R0 through R252 (sm_86.ksc, the part's answer), of which sm_86.kdm pins the
+// top for the lane's own: R240 up are its fixed registers, R238 and R239 are the launch the lane was called with, which
+// launch_open moves there and launch_load_wide reads every parameter through, R237 is the file's scratch and R236
+// holds sign_base. A lane whose banks reach R236 is refused, in place of writing over what those hold. This is the
+// file's count and not what a lane can take and stay fast: an SM holds 65536 registers and runs 1536 threads. 42 a
+// thread is full occupancy and every one past that costs residency
 unsigned int SassTarget::register_file_holds(void) const
 {
-    return 238u;
+    return 236u;
 }
 
 // The resident reaches SASS already built. ptx.krs holds it as PTX that runs, the part's own compiler turns that

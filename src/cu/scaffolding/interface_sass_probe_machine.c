@@ -4,8 +4,8 @@
 // a form a bit at a time, and the sweep, which puts every operation key to the disassembler (sass_machine.h)
 #include "interface_sass_probe.h"
 
-#include "sass_assemble.h"
-#include "sass_machine.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 
 #include <stdio.h>
 #include <string.h>
