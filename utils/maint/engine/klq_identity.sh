@@ -83,7 +83,7 @@ fi
 if [ "$#" -eq 0 ]; then
     set -- sass.krs
 fi
-"$BINARY" slice "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$STICK/measuring_stick.cu" "$WORK" || exit 1
+"$BINARY" slice "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$STICK/measuring_stick.cu" "$WORK" "$STICK/engine" || exit 1
 # the host computes each question as its C says, signed arithmetic wrapping as the part's does
 c++ -std=c++17 -O0 -fwrapv -w -o "$WORK/host_questions" "$WORK/host_questions.cpp" || { echo "  the host questions did not compile"; exit 1; }
 "$WORK/host_questions" > "$WORK/host_answers.txt" || exit 1
@@ -93,7 +93,7 @@ c++ -std=c++17 -O0 -fwrapv -w -o "$WORK/host_questions" "$WORK/host_questions.cp
 # the engine's writing of the stick sifted through what nvcc writes, read off the disassembly and never run
 ENGINE="$STICK/engine"
 if compgen -G "$ENGINE/*.dis" > /dev/null; then
-    "$BINARY" known "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE"/*.dis || exit 1
+    "$BINARY" known "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE" || exit 1
     # ours held against the answer question by question, each place they part traced to the forms that wrote it
-    "$BINARY" broken "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE"/*.dis -- "$@"
+    "$BINARY" broken "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" "$WORK" "$ENGINE" -- "$@"
 fi

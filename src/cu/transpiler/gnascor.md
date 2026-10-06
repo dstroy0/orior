@@ -307,11 +307,11 @@ The transpiler's mnemonics are its word map. A thing is named after what it is, 
 | sign | `sign_set` | - | - | - | - | `sign_mul` | - | - | - | - | - | `sign_select` | `sign_neg` | `sign_absolute` |
 | word | `word_set` | `word_copy` | `word_add` | `word_sub` | `word_borrow_read` | `word_mul` | `word_div` | `word_bitand` | `word_bitor` | `word_bitxor` | `word_shl`, `word_shr`, `word_funnel_right` | `word_select` | - | - |
 | signed_word | - | - | - | - | - | - | *needed* | - | - | - | `signed_word_shr` | - | - | - |
-| wide | - | - | `wide_add` | *needed* | - | `wide_mul`, `wide_mul_word` | `wide_div` | *needed* | *needed* | *needed* | `wide_shl` | `wide_select` | - | - |
-| signed_wide | - | - | - | - | - | - | *needed* | - | - | - | *needed* (right) | - | - | - |
+| wide | - | - | `wide_add` | `wide_sub` | - | `wide_mul`, `wide_mul_word` | `wide_div` | `wide_bitand` | `wide_bitor` | `wide_bitxor` | `wide_shl`, `wide_shr` | `wide_select` | - | - |
+| signed_wide | - | - | - | - | - | - | *needed* | - | - | - | `signed_wide_shr` | - | - | - |
 | predicate | - | - | - | - | - | - | - | `predicate_bitand` | - | `predicate_bitxor` | - | - | - | - |
 
-`not` is the bitwise not of `~`: `word_not`. A chain's part follows the doing word: `word_add_first`, `word_add_middle`, `word_add_last`, `word_sub_first`, `word_sub_middle`, `word_sub_last`. The chain that leaves its borrow is `word_sub_first` and `word_sub_middle`, the top limb a `word_sub_middle` too, and `word_borrow_read` reads the borrow it leaves. A `mul`'s part follows it as well: `word_mul_add`, `word_mul_low`, `word_mul_high`, `wide_mul_word_add`.
+`not` is the bitwise not of `~`: `word_not`, `wide_not`. A chain's part follows the doing word: `word_add_first`, `word_add_middle`, `word_add_last`, `word_sub_first`, `word_sub_middle`, `word_sub_last`. The chain that leaves its borrow is `word_sub_first` and `word_sub_middle`, the top limb a `word_sub_middle` too, and `word_borrow_read` reads the borrow it leaves. A `mul`'s part follows it as well: `word_mul_add`, `word_mul_low`, `word_mul_high`, `wide_mul_word_add`.
 
 ### Tests: the thing read, by the comparison the flag holds
 

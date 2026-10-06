@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // klq_identity.cu: the identities a language's questions carry, read off the measuring stick and written to Lstar.klq
 //
-//   klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>
+//   klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder> [<ours folder>]
 //   klq_identity read <folder> <Lstar.klq> <ruleset>...
 //   klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
 //   klq_identity permute <nvcc listing> <manifest> <folder>
@@ -28,8 +28,9 @@
 // is read as, its primitives and its operands, with a number its contents in their order give it.
 //
 // slice writes <folder>/slices.txt, each slice a line, <folder>/chains.txt, the primitives and the chains, and
-// <folder>/host_questions.cpp, every question a slice holds whose operands and result are integers, compiled for the
-// host as C++ with the frame every kernel shares. The host
+// <folder>/host_questions.cpp, every question whose operands and result are integers that a slice holds, that is a task
+// of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with the frame
+// every kernel shares. The host
 // computes each over every case and writes <folder>/host_answers.txt; read then gives each identity its verdict: the
 // first case the two questions of one of its slices answer apart closes it as two operations, and an identity alike on
 // every case asked stays open with its count of cases. A case the host's C would trap on or leave undefined is asked of
@@ -43,6 +44,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -426,10 +428,10 @@ static std::string kernel_text(const std::string &stick, const std::string &numb
     return stick.substr(first, last + 3u - first);
 }
 
-// the type a kernel's first operand is cast to, as its text declares it
+// the type a kernel's first operand is cast to, as its text declares it, const or not: a compound assignment writes it
 static std::string first_type(const std::string &kernel)
 {
-    static const std::regex s_first("const ([a-z ]+) a = \\(");
+    static const std::regex s_first("\\b(?:const )?([a-z][a-z ]*) a = \\(");
     std::smatch found;
     return std::regex_search(kernel, found, s_first) ? found[1].str() : std::string("int");
 }
@@ -751,7 +753,8 @@ static int slice_found(const Question &one, const Question &other, const Link **
     return ((*left)->registers == (*right)->registers) && ((*left)->kind != (*right)->kind);
 }
 
-static int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder)
+static int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder,
+                          const std::string &ours)
 {
     std::vector<Question> questions;
     if (!questions_read(listing, manifest, &questions))
@@ -806,10 +809,12 @@ static int identity_slice(const char *listing, const char *manifest, const char 
         }
     }
     fclose(file);
-    // a task of register pressure slices with nothing, and the host computes it for the run channel's curve
+    // the host computes each integer question the run channel puts to the part, a slice's member or not: a task of
+    // register pressure, which slices with nothing, and every question the engine writes a chain for in `ours`
     for (const Question &question : questions)
     {
-        if ((question.category == "pressure") && question_integer(question))
+        const int written = !ours.empty() && std::filesystem::exists(ours + "/" + question.number + ".bin");
+        if (question_integer(question) && ((question.category == "pressure") || (written != 0)))
         {
             asked.insert(question.number);
         }
@@ -1224,6 +1229,32 @@ static int identity_read(const std::string &folder, const std::string &klq, int 
     return 0;
 }
 
+// the files `given` names, a folder standing for every .dis file in it by name: a folder of the engine's writing of the
+// stick holds more files than one command line can name
+static std::vector<std::string> candidate_paths(const std::vector<std::string> &given)
+{
+    std::vector<std::string> paths;
+    for (const std::string &path : given)
+    {
+        if (!std::filesystem::is_directory(path))
+        {
+            paths.push_back(path);
+            continue;
+        }
+        std::vector<std::string> held;
+        for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(path))
+        {
+            if (entry.path().extension() == ".dis")
+            {
+                held.push_back(entry.path().generic_string());
+            }
+        }
+        std::sort(held.begin(), held.end());
+        paths.insert(paths.end(), held.begin(), held.end());
+    }
+    return paths;
+}
+
 // the chains of a candidate file: one for each function its listing names, or the whole file as one chain named for
 // its stem where it names none
 static void candidates_read(const std::string &path, std::vector<Question> *candidates)
@@ -1266,8 +1297,8 @@ static void candidates_read(const std::string &path, std::vector<Question> *cand
 // its whole known at an address, or read as the longest known windows from each link, with every link whose primitive
 // nvcc never writes and every two links side by side nvcc never writes so, each known apart. A part unknown that rule 2
 // keeps off the part is marked with the rule. <folder>/known.txt holds a candidate a group of lines
-static int identity_known(const char *listing, const char *manifest, const std::string &folder, int count,
-                          char **paths)
+static int identity_known(const char *listing, const char *manifest, const std::string &folder,
+                          const std::vector<std::string> &paths)
 {
     std::vector<Question> questions;
     if (!questions_read(listing, manifest, &questions))
@@ -1276,9 +1307,9 @@ static int identity_known(const char *listing, const char *manifest, const std::
     }
     const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
     std::vector<Question> candidates;
-    for (int at = 0; at < count; at += 1)
+    for (const std::string &path : paths)
     {
-        candidates_read(paths[at], &candidates);
+        candidates_read(path, &candidates);
     }
     const std::string path = folder + "/known.txt";
     FILE *const file = fopen(path.c_str(), "wb");
@@ -2709,7 +2740,7 @@ int main(int count, char **words)
             ours_paths.push_back(words[at]);
         }
         at += (at < count) ? 1 : 0;
-        return identity_broken(words[2], words[3], words[4], ours_paths, count - at, words + at);
+        return identity_broken(words[2], words[3], words[4], candidate_paths(ours_paths), count - at, words + at);
     }
     if ((count == 5) && (std::string(words[1]) == "permute"))
     {
@@ -2717,17 +2748,18 @@ int main(int count, char **words)
     }
     if ((count >= 5) && (std::string(words[1]) == "known"))
     {
-        return identity_known(words[2], words[3], words[4], count - 5, words + 5);
+        return identity_known(words[2], words[3], words[4],
+                              candidate_paths(std::vector<std::string>(words + 5, words + count)));
     }
-    if ((count == 6) && (std::string(words[1]) == "slice"))
+    if (((count == 6) || (count == 7)) && (std::string(words[1]) == "slice"))
     {
-        return identity_slice(words[2], words[3], words[4], words[5]);
+        return identity_slice(words[2], words[3], words[4], words[5], (count == 7) ? words[6] : "");
     }
     if ((count >= 4) && (std::string(words[1]) == "read"))
     {
         return identity_read(words[2], words[3], count - 4, words + 4);
     }
-    printf("klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder>\n");
+    printf("klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder> [<ours folder>]\n");
     printf("klq_identity read <folder> <Lstar.klq> <ruleset>...\n");
     printf("klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
     printf("klq_identity permute <nvcc listing> <manifest> <folder>\n");

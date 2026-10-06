@@ -129,7 +129,7 @@ form wide_unpack low high from =     {low} = (unsigned int){from};\n    {high} =
 form wide_mul to left right =     {to} = {left} * (unsigned long long){right};\n
 form wide_mul_word to left right =     {to} = (unsigned long long){left} * (unsigned long long){right};\n
 form wide_add to left right =     {to} = {left} + {right};\n
-form wide_shl to from bits =     {to} = {from} << {bits}u;\n
+form wide_shl to from bits =     {to} = {from} << {bits};\n
 form wide_select to chosen otherwise where =     {to} = ({where}) ? (unsigned long long){chosen} : (unsigned long long){otherwise};\n
 form wide_div to left right =     {to} = {left} / {right};\n
 
@@ -212,3 +212,10 @@ form test_signed_wide_lt where left right =     {where} = ((long long){left} < (
 form test_signed_wide_le where left right =     {where} = ((long long){left} <= (long long){right});\n
 form test_signed_wide_gt where left right =     {where} = ((long long){left} > (long long){right});\n
 form test_signed_wide_ge where left right =     {where} = ((long long){left} >= (long long){right});\n
+form wide_sub to left right =     {to} = {left} - {right};\n
+form wide_bitand to left right =     {to} = {left} & {right};\n
+form wide_bitor to left right =     {to} = {left} | {right};\n
+form wide_bitxor to left right =     {to} = {left} ^ {right};\n
+form wide_not to from =     {to} = ~{from};\n
+form wide_shr to from bits =     {to} = {from} >> {bits};\n
+form signed_wide_shr to from bits =     {to} = (long long){from} >> {bits};\n

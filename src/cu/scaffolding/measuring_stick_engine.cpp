@@ -75,6 +75,9 @@ extern "C" const char __ehdr_start = 0;
 // the one past it, its low word in the even register. A value narrower than a register is held in the low bits of one
 #define STICK_REGISTER_BITS 32u
 #define STICK_PAIR_BITS 64u
+// the width of a shift's count, `bits` in the rulesets: one register, a value held in a pair read as its low word. C
+// leaves a count past the width undefined, and the low word holds every count under it
+#define STICK_COUNT_BITS 0u
 
 // the schema's forms by their place in it, as machine_ir_types.h names them
 #define STICK_FORM_NAME(name_, text_, parameters_) text_,
@@ -585,9 +588,11 @@ static std::string stick_constant(const std::string &text)
 }
 
 // The width of the registers sass.krs's text for `form` takes each parameter in, by the parameter's place: a pair
-// where the text writes the parameter's high word or reads it as a 64-bit address, else one register
+// where the text writes the parameter's high word or reads it as a 64-bit address, STICK_COUNT_BITS for a shift's
+// count, else one register
 static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsigned int form)
 {
+    const std::vector<std::string> names = ruleset_parameters(sass, s_form_names[form]);
     const unsigned int count = sass->schema->forms[form].parameters;
     std::vector<std::string> markers;
     for (unsigned int parameter = 0u; parameter < count; parameter += 1u)
@@ -605,7 +610,8 @@ static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsig
     {
         const int pair = (text.find(markers[parameter] + ".hi") != std::string::npos) ||
                          (text.find(markers[parameter] + ".64") != std::string::npos);
-        bits[parameter] = (pair != 0) ? STICK_PAIR_BITS : STICK_REGISTER_BITS;
+        const int count = (parameter < names.size()) && (names[parameter] == "bits");
+        bits[parameter] = (pair != 0) ? STICK_PAIR_BITS : ((count != 0) ? STICK_COUNT_BITS : STICK_REGISTER_BITS);
     }
     return bits;
 }
@@ -1615,7 +1621,12 @@ class StickKernel
             {
                 return value;
             }
-            // a negation's and a complement's low bits are of their operand's low bits alone
+            // a negation is 0 less its operand, in the operand's type
+            if (token == "-")
+            {
+                return combined(StickTyped{number_text(0u), stick_type_bare("int"), 1}, "-", value);
+            }
+            // a complement's low bits are of its operand's low bits alone
             StickTyped whole{"(" + token + value.text + ")", value.type};
             whole.low = (value.low_bits != 0u) ? ("(" + token + value.low + ")") : std::string();
             whole.low_bits = value.low_bits;
@@ -1853,14 +1864,17 @@ class StickKernel
             {
                 StickReading child = options[at][rest % options[at].size()];
                 rest /= options[at].size();
-                held = ((at < slot_bits.size()) && (child.bits != STICK_PREDICATE_BITS) &&
+                const int count = (at < slot_bits.size()) && (slot_bits[at] == STICK_COUNT_BITS);
+                held = ((at < slot_bits.size()) && (count == 0) && (child.bits != STICK_PREDICATE_BITS) &&
                         (stick_held_bits(child.bits) != slot_bits[at]))
                            ? 0
                            : held;
                 child.negated = ((int)at == negated) ? 1 : 0;
                 reading.children.push_back(child);
                 reading.cost += child.cost;
-                bits = ((child.bits > bits) && (child.bits != STICK_PREDICATE_BITS)) ? child.bits : bits;
+                // a count is no part of the width of what the form writes
+                bits = ((count == 0) && (child.bits > bits) && (child.bits != STICK_PREDICATE_BITS)) ? child.bits
+                                                                                                       : bits;
             }
             reading.bits = (bits_given != 0u) ? bits_given : bits;
             if ((held == 0) || (reading.cost >= best->cost))

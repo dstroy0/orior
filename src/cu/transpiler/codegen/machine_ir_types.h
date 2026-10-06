@@ -171,7 +171,14 @@
     form_(TEST_WORD_NONZERO_AND, "test_word_nonzero_and", 3u)       \
     form_(TEST_WORD_NONZERO_OR, "test_word_nonzero_or", 3u)         \
     form_(TEST_WIDE_NONZERO_AND, "test_wide_nonzero_and", 3u)       \
-    form_(TEST_WIDE_NONZERO_OR, "test_wide_nonzero_or", 3u)
+    form_(TEST_WIDE_NONZERO_OR, "test_wide_nonzero_or", 3u)         \
+    form_(WIDE_SUB, "wide_sub", 3u)                                 \
+    form_(WIDE_BITAND, "wide_bitand", 3u)                           \
+    form_(WIDE_BITOR, "wide_bitor", 3u)                             \
+    form_(WIDE_BITXOR, "wide_bitxor", 3u)                           \
+    form_(WIDE_NOT, "wide_not", 2u)                                 \
+    form_(WIDE_SHR, "wide_shr", 3u)                                 \
+    form_(SIGNED_WIDE_SHR, "signed_wide_shr", 3u)
 // clang-format on
 
 // every bank of registers the code generator takes from, each written with one parameter, the register's number n
