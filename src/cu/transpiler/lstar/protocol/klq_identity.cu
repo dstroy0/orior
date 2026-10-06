@@ -46,6 +46,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <regex>
@@ -2074,6 +2075,24 @@ static void record_open(const char *ksc)
 // apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
 static FILE *s_ask_trace = NULL;
 
+// The host's answer to a case as a bracket [down, up] around the exact value at the result's width, and whether the
+// part's answer `answered` falls in it: 1 where it does, 0 where it does not, and -1 where the host gives no bracket.
+// An integer case is a bracket of one word, `down`, and holds where the part answers that word. A floating case is a
+// bracket of two ends, `down:up`, the two values of the result's type nearest the exact one, and holds where the part
+// answers either end, the end it takes being its rounding. A case the host's C leaves undefined is `-` and gates
+// nothing
+static int bracket_holds(const std::string &host, unsigned long long answered)
+{
+    if (host == "-")
+    {
+        return -1;
+    }
+    const size_t colon = host.find(':');
+    const unsigned long long down = std::stoull(host.substr(0u, colon), nullptr, 16);
+    const unsigned long long up = (colon == std::string::npos) ? down : std::stoull(host.substr(colon + 1u), nullptr, 16);
+    return ((answered == down) || (answered == up)) ? 1 : 0;
+}
+
 // 1 where the part answers `code`, put as `question` says of its registers, shape and launches, alike with the host
 // on every case it computes, 0 where it answers apart, refuses it or the gate holds it, each counted in `asks`
 static int question_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
@@ -2138,7 +2157,7 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         const std::string &expected = host[places[place]];
-        if ((expected != "-") && (std::stoull(expected, nullptr, 16) != question->answered[place]))
+        if (bracket_holds(expected, question->answered[place]) == 0)
         {
             if (s_ask_trace != NULL)
             {
@@ -2242,9 +2261,9 @@ static unsigned int chain_registers(const char *engine, const std::string &numbe
     return (file >> registers) ? registers : 0u;
 }
 
-// The .ksc rewritten with `rows` in place of every row of the run channel it held to the question `asked`, whatever
-// came back, the rows put after its last row of the run channel and its counts of the run channel taken again. 1, or
-// 0 where the .ksc could not be written
+// The .ksc rewritten with `rows` in place of every row of the run channel it held to a question beginning with the
+// words `asked`, whatever came back, the rows put after its last row of the run channel and its counts of the run
+// channel taken again. 1, or 0 where the .ksc could not be written
 static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows)
 {
     std::ifstream in(ksc, std::ios::binary);
@@ -2260,8 +2279,12 @@ static int ksc_answers_write(const char *ksc, const std::string &asked, const st
             std::string answered;
             std::string word;
             std::string question;
-            words >> channel >> answered >> word >> question;
-            if (question == asked)
+            words >> channel >> answered >> word;
+            std::getline(words, question);
+            question = (!question.empty() && (question[0] == ' ')) ? question.substr(1u) : question;
+            // a row is the question's where its question begins with `asked`, whole words of it
+            if ((question.compare(0u, asked.size(), asked) == 0) &&
+                ((question.size() == asked.size()) || (question[asked.size()] == ' ')))
             {
                 continue;
             }
@@ -2455,6 +2478,42 @@ static int identity_stall(const char *engine, const char *answers, const char *k
 
 // one question the register walk puts: a chain of ours, its code with every stall the longest, the register it
 // writes that the walk renames, and every number its register fields hold
+// The one walk over numbers a relation holds at on one side of a bound and not past it: the last register, the fewest
+// registers and each knee are read by it. `holds` answers 1 where the relation holds at a number, 0 where it does not,
+// and -1 at a number that is not the relation's to answer, which the walk passes over. Stepping: from `from` by `step`
+// as far as `end`, the first number the relation holds at, or `end` + `step` where it holds at none
+static long long walk_step(const std::function<int(long long)> &holds, long long from, long long step, long long end)
+{
+    for (long long number = from; number != (end + step); number += step)
+    {
+        if (holds(number) == 1)
+        {
+            return number;
+        }
+    }
+    return end + step;
+}
+
+// Halving: `truthy` a number the relation holds at and `falsy` one it does not, on either side of it, each moved to
+// the middle the relation gives the same answer as until the two are adjacent. The truthy end, the last number the
+// relation holds at before the bound
+static long long walk_halved(const std::function<int(long long)> &holds, long long truthy, long long falsy)
+{
+    while (((truthy - falsy) > 1) || ((falsy - truthy) > 1))
+    {
+        const long long middle = truthy + ((falsy - truthy) / 2);
+        if (holds(middle) == 1)
+        {
+            truthy = middle;
+        }
+        else
+        {
+            falsy = middle;
+        }
+    }
+    return truthy;
+}
+
 struct RegisterProbe
 {
     std::string number;
@@ -2590,46 +2649,43 @@ static int identity_register(const char *engine, const char *answers, const char
         run_channel_close();
         return 1;
     }
-    unsigned long long last = highest + 1ull;
-    for (unsigned long long number = highest + 1ull; number-- > 0ull;)
-    {
+    // a number is the walk's to ask where no probe holds it
+    const auto renamed_alike = [&](long long number) -> int {
         const int held_by_probe = std::any_of(probes.begin(), probes.end(), [&](const RegisterProbe &probe) {
-            return probe.named.count(number) != 0u;
+            return probe.named.count((unsigned long long)number) != 0u;
         });
         if (held_by_probe)
         {
-            continue;
+            return -1;
         }
         int truthy = 1;
         for (const RegisterProbe &probe : probes)
         {
-            truthy = truthy && stall_alike(register_renamed(probe.code, registers, probe.renamed, number),
+            truthy = truthy && stall_alike(register_renamed(probe.code, registers, probe.renamed,
+                                                            (unsigned long long)number),
                                            host[probe.number], places, &s_question, &asks);
         }
-        fprintf(table, "R%llu %s%s%s\n", number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
+        fprintf(table, "R%lld %s%s%s\n", number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
                 truthy ? "" : s_question.refused);
-        printf("  R%llu: %s\n", number, truthy ? "truthy" : "falsy");
-        if (truthy)
-        {
-            last = number;
-            break;
-        }
-    }
+        printf("  R%lld: %s\n", number, truthy ? "truthy" : "falsy");
+        return truthy;
+    };
+    const long long last = walk_step(renamed_alike, (long long)highest, -1, 0);
     fclose(table);
     run_channel_close();
-    if (last > highest)
+    if (last < 0)
     {
         printf("klq_identity register: no number answers alike, and no last register\n");
         return 1;
     }
     char row[64];
-    snprintf(row, sizeof(row), "run answers %08llx register last", last);
+    snprintf(row, sizeof(row), "run answers %08llx register last", (unsigned long long)last);
     if (!ksc_answers_write(ksc, "register", {row}))
     {
         printf("klq_identity register: %s could not be written\n", ksc);
         return 1;
     }
-    printf("klq_identity register: the last register R%llu, over %llu asks, written to %s\n", last, asks, ksc);
+    printf("klq_identity register: the last register R%lld, over %llu asks, written to %s\n", last, asks, ksc);
     return 0;
 }
 
@@ -2754,33 +2810,29 @@ static int identity_curve(const char *engine, const char *answers, const char *k
             // the fewest registers the task answers alike with, walked up in blocks of one thread until the part says
             // yes; the registers code names are its own whatever its blocks hold, and a count of threads the part
             // refuses at the fewest it refuses at every count, since more registers take more of it
-            unsigned long long first = 0ull;
-            int answered = curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &first,
-                                       table);
-            while ((threads == 1u) && !answered && (fewest < highest))
-            {
-                fewest += 1u;
-                answered = curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &first,
-                                       table);
-            }
-            // a register field holds an immediate's bits as well as a register's number: the count it answers at is
-            // a bound, and the fewest is found under it by halving. Code that answers alike declaring some count
-            // answers alike declaring more, in a block of one thread that every count fits
-            unsigned int short_of = 0u;
-            while ((threads == 1u) && answered && ((fewest - short_of) > 1u))
-            {
-                const unsigned int middle = short_of + ((fewest - short_of) / 2u);
+            std::map<long long, unsigned long long> times;
+            const auto declaring_alike = [&](long long count) -> int {
                 unsigned long long time = 0ull;
-                if (curve_point(code, host[task], places, &s_question, &asks, task, threads, middle, &time, table))
-                {
-                    fewest = middle;
-                    first = time;
-                }
-                else
-                {
-                    short_of = middle;
-                }
+                const int alike = curve_point(code, host[task], places, &s_question, &asks, task, threads,
+                                              (unsigned int)count, &time, table);
+                times[count] = time;
+                return alike;
+            };
+            int answered = 0;
+            if (threads == 1u)
+            {
+                // a register field holds an immediate's bits as well as a register's number: the count it answers at
+                // is a bound, and the fewest is found under it by halving. Code that answers alike declaring some
+                // count answers alike declaring more, in a block of one thread that every count fits
+                const long long found = walk_step(declaring_alike, (long long)fewest, 1, (long long)highest);
+                answered = (found <= (long long)highest);
+                fewest = answered ? (unsigned int)walk_halved(declaring_alike, found, 0) : fewest;
             }
+            else
+            {
+                answered = declaring_alike((long long)fewest);
+            }
+            const unsigned long long first = times[(long long)fewest];
             if (!answered)
             {
                 printf("  %s: blocks of %u threads answer alike at no count of registers\n", task.c_str(), threads);
@@ -2798,36 +2850,27 @@ static int identity_curve(const char *engine, const char *answers, const char *k
                     held = curve_band_widened(&band, again) ? 0u : (held + 1u);
                 }
             }
-            unsigned int truthy = fewest;
-            unsigned int falsy = highest + 1u;
-            while ((falsy - truthy) > 1u)
-            {
-                const unsigned int middle = truthy + ((falsy - truthy) / 2u);
-                // a point inside the band is truthy, and one that answers apart or is refused is falsy. A point past
-                // the band is bounced off the fewest: where the fewest strays past the band too, the band widens and
-                // the point is asked again against it; where the fewest holds, a point past the band twice running is
-                // falsy
-                int verdict = -1;
+            // a point inside the band is truthy, and one that answers apart or is refused is falsy. A point past the
+            // band is bounced off the fewest: where the fewest strays past the band too, the band widens and the point
+            // is asked again against it; where the fewest holds, a point past the band twice running is falsy
+            const auto within_band = [&](long long count) -> int {
                 unsigned int past = 0u;
-                for (unsigned int asked = 0u; (verdict < 0) && (asked < CURVE_ASKS_MOST); asked += 1u)
+                for (unsigned int asked = 0u; asked < CURVE_ASKS_MOST; asked += 1u)
                 {
                     unsigned long long time = 0ull;
-                    if (!curve_point(code, host[task], places, &s_question, &asks, task, threads, middle, &time,
-                                     table))
+                    if (!curve_point(code, host[task], places, &s_question, &asks, task, threads, (unsigned int)count,
+                                     &time, table))
                     {
-                        verdict = 0;
-                        continue;
+                        return 0;
                     }
                     if (time <= band.high)
                     {
-                        verdict = 1;
-                        continue;
+                        return 1;
                     }
                     past += 1u;
                     if (past == 2u)
                     {
-                        verdict = 0;
-                        continue;
+                        return 0;
                     }
                     unsigned long long bounced = 0ull;
                     if (curve_point(code, host[task], places, &s_question, &asks, task, threads, fewest, &bounced,
@@ -2837,15 +2880,9 @@ static int identity_curve(const char *engine, const char *answers, const char *k
                         past = 0u;
                     }
                 }
-                if (verdict == 1)
-                {
-                    truthy = middle;
-                }
-                else
-                {
-                    falsy = middle;
-                }
-            }
+                return 0;
+            };
+            const unsigned int truthy = (unsigned int)walk_halved(within_band, (long long)fewest, (long long)highest + 1);
             printf("  %s, blocks of %u threads: %llu to %llu ns a launch at %u registers, the knee at %u\n",
                    task.c_str(), threads, band.low, band.high, fewest, truthy);
             char row[128];
@@ -2867,33 +2904,85 @@ static int identity_curve(const char *engine, const char *answers, const char *k
     }
     fclose(table);
     run_channel_close();
-    if (!ksc_answers_write(ksc, "curve", rows))
+    // each task's rows in place of that task's alone, every other task's curve kept
+    for (const std::string &task : tasks)
     {
-        printf("klq_identity curve: %s could not be written\n", ksc);
-        return 1;
+        const std::string asked = "curve " + task;
+        std::vector<std::string> own;
+        std::copy_if(rows.begin(), rows.end(), std::back_inserter(own), [&](const std::string &row) {
+            return row.find(" " + asked + " ") != std::string::npos;
+        });
+        if (!ksc_answers_write(ksc, asked, own))
+        {
+            printf("klq_identity curve: %s could not be written\n", ksc);
+            return 1;
+        }
     }
     printf("klq_identity curve: %zu tasks over %llu asks, %zu answers written to %s\n", tasks.size(), asks,
            rows.size(), ksc);
     return 0;
 }
 
-// Every chain of ours the host computes put to the part as the engine writes it, over every case the host computes it
-// on, in a container declaring every register its file holds: alike where the part answers it as the host does on
-// every case, apart where it answers one case otherwise, refused where it will not take it, and held where the gate
-// keeps it off the part. <folder>/alike.txt holds each chain with what it came to
-static int identity_alike(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                          const char *const *carrier)
+// The queue over the stick's questions (P13, the scheduler). Every question of the manifest is an entry of its
+// category, and R gives each what it reads: 1 where the part answers it as the host does on every case the host
+// computes it on, 0 where it answers one case otherwise or refuses it, and gray where nothing has settled it. A
+// gray entry carries what keeps it gray: the engine's note where the engine writes no chain for it, that the host
+// computes no answer to it, or that the gate holds it off the part. A gray entry with a chain and a host answer is
+// put through the run channel, every case at once in a container declaring every register its file holds, and its
+// answer is written to R. A question R has settled is never put again. Each ask settles one entry and no other:
+// the questions of the stick share no case, and the order the entries are put in settles no more of them than another
+// order would. <folder>/queue.txt holds every entry with its category, what it reads and what keeps it gray, and each
+// category's entries are counted on the standard output as a row of P12's table
+static int identity_queue(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                          const char *manifest, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
+    // the engine's answer to each question and its note where it writes no chain
+    std::map<std::string, std::string> notes;
+    std::ifstream written(std::string(engine) + "/engine.tsv", std::ios::binary);
+    std::string line;
+    while (std::getline(written, line))
+    {
+        line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+        std::vector<std::string> cells;
+        std::stringstream row(line);
+        std::string cell;
+        while (std::getline(row, cell, '\t'))
+        {
+            cells.push_back(cell);
+        }
+        if ((cells.size() >= 2u) && (cells[1] != "answered") && (cells[0] != "number"))
+        {
+            notes[cells[0]] = (cells.size() >= 5u) ? cells[4] : cells[1];
+        }
+    }
+    std::vector<std::pair<std::string, std::string>> entries;
+    std::ifstream listed(manifest, std::ios::binary);
+    while (std::getline(listed, line))
+    {
+        line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+        const size_t first_tab = line.find('\t');
+        const size_t second_tab = line.find('\t', first_tab + 1u);
+        if ((first_tab == std::string::npos) || (second_tab == std::string::npos) || (line.compare(0u, 6u, "number") == 0))
+        {
+            continue;
+        }
+        entries.emplace_back(line.substr(0u, first_tab), line.substr(first_tab + 1u, second_tab - first_tab - 1u));
+    }
+    if (entries.empty())
+    {
+        printf("klq_identity queue: %s lists no question\n", manifest);
+        return 1;
+    }
     if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
     {
         return 1;
     }
     record_open(ksc);
-    FILE *const table = fopen((folder + "/alike.txt").c_str(), "wb");
+    FILE *const table = fopen((folder + "/queue.txt").c_str(), "wb");
     if (table == NULL)
     {
-        printf("klq_identity alike: %s/alike.txt could not be written\n", folder.c_str());
+        printf("klq_identity queue: %s/queue.txt could not be written\n", folder.c_str());
         run_channel_close();
         return 1;
     }
@@ -2901,38 +2990,73 @@ static int identity_alike(const char *engine, const char *answers, const char *k
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long asks = 0ull;
-    std::map<std::string, unsigned int> came;
-    for (const auto &held : host)
+    // each category's entries counted by what came of them, in the order the manifest first names the category
+    std::vector<std::string> categories;
+    std::map<std::string, std::map<std::string, unsigned int>> counted;
+    for (const auto &entry : entries)
     {
+        const std::string &number = entry.first;
+        const std::string &category = entry.second;
+        if (counted.count(category) == 0u)
+        {
+            categories.push_back(category);
+        }
+        counted[category]["questions"] += 1u;
+        std::string reads = "gray";
+        std::string reason;
         std::vector<unsigned char> code;
         std::vector<Link> links;
-        if (!chain_code_read(engine, held.first, &code, &links))
+        if ((notes.count(number) != 0u) || !chain_code_read(engine, number, &code, &links))
         {
-            continue;
+            reason = (notes.count(number) != 0u) ? notes[number] : "the engine writes no chain";
         }
-        const int alike = stall_alike(code, held.second, places, &s_question, &asks);
-        const std::string verdict = alike ? "alike"
-                                    : (s_question.outcome == RUN_ANSWERED) ? "apart"
-                                    : (s_question.outcome == RUN_HELD)     ? "held"
-                                                                           : "refused";
-        came[verdict] += 1u;
-        fprintf(table, "%s %s%s%s\n", held.first.c_str(), verdict.c_str(), alike ? "" : " ",
-                alike ? "" : s_question.refused);
+        else if (host.count(number) == 0u)
+        {
+            counted[category]["written"] += 1u;
+            reason = "the host computes no answer";
+        }
+        else
+        {
+            counted[category]["written"] += 1u;
+            counted[category]["held"] += 1u;
+            const int alike = stall_alike(code, host[number], places, &s_question, &asks);
+            reads = alike ? "1" : (s_question.outcome == RUN_HELD) ? "gray" : "0";
+            reason = alike ? "alike"
+                     : (s_question.outcome == RUN_ANSWERED) ? "apart"
+                     : (s_question.outcome == RUN_HELD)     ? std::string("the gate holds it: ") + s_question.refused
+                                                            : std::string("refused: ") + s_question.refused;
+            counted[category]["alike"] += alike ? 1u : 0u;
+        }
+        counted[category][reads] += 1u;
+        fprintf(table, "%s\t%s\t%s\t%s\n", number.c_str(), category.c_str(), reads.c_str(), reason.c_str());
     }
     fclose(table);
     run_channel_close();
-    printf("klq_identity alike: %llu asks, %u alike, %u apart, %u refused, %u held\n", asks, came["alike"],
-           came["apart"], came["refused"], came["held"]);
-    return (came["apart"] == 0u) ? 0 : 1;
+    printf("| category | questions | written | held | alike | 1 | 0 | gray |\n");
+    std::map<std::string, unsigned int> all;
+    for (const std::string &category : categories)
+    {
+        std::map<std::string, unsigned int> &row = counted[category];
+        printf("| %s | %u | %u | %u | %u | %u | %u | %u |\n", category.c_str(), row["questions"], row["written"],
+               row["held"], row["alike"], row["1"], row["0"], row["gray"]);
+        for (const char *const column : {"questions", "written", "held", "alike", "1", "0", "gray"})
+        {
+            all[column] += row[column];
+        }
+    }
+    printf("| all | %u | %u | %u | %u | %u | %u | %u |\n", all["questions"], all["written"], all["held"], all["alike"],
+           all["1"], all["0"], all["gray"]);
+    printf("klq_identity queue: %llu asks, %u read 1, %u read 0, %u gray\n", asks, all["1"], all["0"], all["gray"]);
+    return (all["0"] == 0u) ? 0 : 1;
 }
 
 int main(int count, char **words)
 {
-    if ((count >= 8) && (std::string(words[1]) == "alike") && (std::string(words[6]) == "--"))
+    if ((count >= 9) && (std::string(words[1]) == "queue") && (std::string(words[7]) == "--"))
     {
-        std::vector<const char *> carrier(words + 7, words + count);
+        std::vector<const char *> carrier(words + 8, words + count);
         carrier.push_back(NULL);
-        return identity_alike(words[2], words[3], words[4], words[5], carrier.data());
+        return identity_queue(words[2], words[3], words[4], words[5], words[6], carrier.data());
     }
     // the carrier's words follow a lone --
     if ((count >= 8) && (std::string(words[1]) == "stall") && (std::string(words[6]) == "--"))
@@ -2999,7 +3123,7 @@ int main(int count, char **words)
     printf("klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
     printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
-    printf("klq_identity alike <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
+    printf("klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...\n");
     printf("klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");
     return 1;
 }
