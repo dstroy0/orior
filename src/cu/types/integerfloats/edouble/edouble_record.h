@@ -11,7 +11,8 @@
 // it gives, equal where nothing was dropped.
 //
 // Each call that reads two exponents or cuts a mantissa takes the bound it rests on, the bits the exponents' spread
-// or the shift lies within; the widths keymath imprints follow from them.
+// or the shift lies within; the widths keymath imprints follow from them. Where the program knows both exponents, as
+// it knows every exponent it sets, the sum lifts the one side by a known power and costs no step for the exponents.
 
 #ifdef __cplusplus
 extern "C"
@@ -104,6 +105,74 @@ extern "C"
     // value 2^power for a constant power, exact: the exponent moved
     EdoubleRecordHeld edouble_record_held_times_two_to(ExactRecordProgram *program, EdoubleRecordHeld value,
                                                        long long power);
+
+    // the value at the constant exponent `exponent`, outward: the lower end's floor and the upper end's ceiling of
+    // each end times 2^(e - exponent), exact where e is the larger, each end's register wrapped to `bits` for ends the
+    // caller holds within [-2^(bits - 1), 2^(bits - 1)). Where the program does not know e, |e - exponent| lies below
+    // 2^range_bits
+    EdoubleRecordHeld edouble_record_held_at(ExactRecordProgram *program, EdoubleRecordHeld value, long long exponent,
+                                             unsigned int bits, unsigned int range_bits);
+
+    // ---- balls: every value within the radius of the center, the radius never below zero ----
+    //
+    // A ball's product costs one product for its center and three for its radius, against the four corners and their
+    // order a held pair's takes. Only a read at an exponent drops bits, and it widens the radius by what it drops. Each
+    // read wraps the center and narrows the radius to the widths it is given, and gives the flag `fits`, 1 where both
+    // lay inside them: a run that holds every flag at 1 dropped nothing to a wrap. The quotient takes exponents the
+    // program knows.
+
+    typedef struct
+    {
+        EdoubleRecord center;
+        EdoubleRecord radius;
+    } EdoubleRecordBall;
+
+    EdoubleRecordBall edouble_record_ball_of(EdoubleRecord center, EdoubleRecord radius);
+
+    // an exact value, its radius 0
+    EdoubleRecordBall edouble_record_ball_exact(ExactRecordProgram *program, EdoubleRecord value);
+
+    EdoubleRecordBall edouble_record_ball_negate(ExactRecordProgram *program, EdoubleRecordBall value);
+
+    // the centers' sum and the radii's, exact, each pair of exponents known to differ by less than 2^spread_bits
+    EdoubleRecordBall edouble_record_ball_sum(ExactRecordProgram *program, EdoubleRecordBall a, EdoubleRecordBall b,
+                                              unsigned int spread_bits);
+
+    EdoubleRecordBall edouble_record_ball_difference(ExactRecordProgram *program, EdoubleRecordBall a,
+                                                     EdoubleRecordBall b, unsigned int spread_bits);
+
+    // the centers' product, and the radius |c_a| r_b + |c_b| r_a + r_a r_b, exact
+    EdoubleRecordBall edouble_record_ball_product(ExactRecordProgram *program, EdoubleRecordBall a, EdoubleRecordBall b,
+                                                  unsigned int spread_bits);
+
+    // the ball times 2^power for a constant power, exact
+    EdoubleRecordBall edouble_record_ball_times_two_to(ExactRecordProgram *program, EdoubleRecordBall value,
+                                                       long long power);
+
+    // the ball read at the constant exponent `exponent`, its radius at `radius_exponent`: the center cut toward zero
+    // there, the radius's ceiling there and one unit of `exponent` more where the center was cut, the center wrapped
+    // to `bits` and the radius narrowed to `radius_bits`; `fits` 1 where |center| < 2^(bits - 1) and the radius is
+    // below 2^radius_bits. Where the program does not know an exponent, it lies within 2^range_bits of the one read
+    EdoubleRecordBall edouble_record_ball_at(ExactRecordProgram *program, EdoubleRecordBall value, long long exponent,
+                                             unsigned int bits, long long radius_exponent, unsigned int radius_bits,
+                                             unsigned int range_bits, unsigned int *fits);
+
+    // a / b at the constant exponent `exponent`, its radius at `radius_exponent`, for every exponent known: the
+    // center the quotient of the centers cut toward zero, and the radius the ceiling of
+    // (|c_b| r_a + |c_a| r_b) / (|c_b| (|c_b| - r_b)) and one unit more; `fits` as the read gives it, and 0 where b's
+    // ball holds 0
+    EdoubleRecordBall edouble_record_ball_quotient(ExactRecordProgram *program, EdoubleRecordBall a, EdoubleRecordBall b,
+                                                   long long exponent, unsigned int bits, long long radius_exponent,
+                                                   unsigned int radius_bits, unsigned int *fits);
+
+    // the ball's lower and upper ends, exact
+    EdoubleRecord edouble_record_ball_down(ExactRecordProgram *program, EdoubleRecordBall value, unsigned int spread_bits);
+
+    EdoubleRecord edouble_record_ball_up(ExactRecordProgram *program, EdoubleRecordBall value, unsigned int spread_bits);
+
+    // 1 where every value a holds lies above every value b holds, exact
+    unsigned int edouble_record_ball_above(ExactRecordProgram *program, EdoubleRecordBall a, EdoubleRecordBall b,
+                                           unsigned int spread_bits);
 
 #ifdef __cplusplus
 }
