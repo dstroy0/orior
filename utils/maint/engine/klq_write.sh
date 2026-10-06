@@ -13,8 +13,8 @@ set -u
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
-CODEGEN="$TOP/src/cu/transpiler/codegen"
-PARSER="$TOP/src/cu/transpiler/lstar/parser"
+CODEGEN="$TOP/src/cu/engine/rmc"
+PARSER="$TOP/src/cu/types/file_defs/readers"
 PROTOCOL="$TOP/src/cu/transpiler/lstar/protocol"
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER")

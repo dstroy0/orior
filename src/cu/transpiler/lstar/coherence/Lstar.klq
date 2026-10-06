@@ -267,660 +267,332 @@ pair signed_wide_shr wide_shr
 open 0
 text_identity int (((a == b) ? 1 : 0) != 0) = int (a == b)
 open 648
-open 0
-open 0
 text_identity int (((a != b) ? 1 : 0) != 0) = int (a != b)
 open 648
-open 0
-open 0
 text_identity int (((a < b) ? 1 : 0) != 0) = int (a < b)
 open 648
-open 0
-open 0
 text_identity int (((a > b) ? 1 : 0) != 0) = int (a > b)
 open 648
-open 0
-open 0
 text_identity int (((a <= b) ? 1 : 0) != 0) = int (a <= b)
 open 648
-open 0
-open 0
 text_identity int (((a >= b) ? 1 : 0) != 0) = int (a >= b)
 open 648
-open 0
-open 0
 text_identity unsigned int (((a == b) ? 1 : 0) != 0) = unsigned int (a == b)
 open 648
-open 0
-open 0
 text_identity unsigned int (((a != b) ? 1 : 0) != 0) = unsigned int (a != b)
 open 648
-open 0
-open 0
 text_identity unsigned int (((a < b) ? 1 : 0) != 0) = unsigned int (a < b)
 open 648
-open 0
-open 0
 text_identity unsigned int (((a > b) ? 1 : 0) != 0) = unsigned int (a > b)
 open 648
-open 0
-open 0
 text_identity unsigned int (((a <= b) ? 1 : 0) != 0) = unsigned int (a <= b)
 open 648
-open 0
-open 0
 text_identity unsigned int (((a >= b) ? 1 : 0) != 0) = unsigned int (a >= b)
 open 648
-open 0
-open 0
 text_identity long long (((a == b) ? 1 : 0) != 0) = long long (a == b)
 open 648
-open 0
-open 0
 text_identity long long (((a != b) ? 1 : 0) != 0) = long long (a != b)
 open 648
-open 0
-open 0
 text_identity long long (((a < b) ? 1 : 0) != 0) = long long (a < b)
 open 648
-open 0
-open 0
 text_identity long long (((a > b) ? 1 : 0) != 0) = long long (a > b)
 open 648
-open 0
-open 0
 text_identity long long (((a <= b) ? 1 : 0) != 0) = long long (a <= b)
 open 648
-open 0
-open 0
 text_identity long long (((a >= b) ? 1 : 0) != 0) = long long (a >= b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (((a == b) ? 1 : 0) != 0) = unsigned long long (a == b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (((a != b) ? 1 : 0) != 0) = unsigned long long (a != b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (((a < b) ? 1 : 0) != 0) = unsigned long long (a < b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (((a > b) ? 1 : 0) != 0) = unsigned long long (a > b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (((a <= b) ? 1 : 0) != 0) = unsigned long long (a <= b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (((a >= b) ? 1 : 0) != 0) = unsigned long long (a >= b)
 open 648
-open 0
-open 0
 text_identity signed char -a = signed char 0 - a
 open 648
-open 0
-open 0
 text_identity unsigned char -a = unsigned char 0 - a
 open 648
-open 0
-open 0
 text_identity short -a = short 0 - a
 open 648
-open 0
-open 0
 text_identity unsigned short -a = unsigned short 0 - a
 open 648
-open 0
-open 0
 text_identity int -a = int 0 - a
 open 648
-open 0
-open 0
 text_identity unsigned int -a = unsigned int 0 - a
 open 648
-open 0
-open 0
 text_identity long long -a = long long 0 - a
 open 648
-open 0
-open 0
 text_identity unsigned long long -a = unsigned long long 0 - a
 open 648
-open 0
-open 0
 text_identity long long a << b = long long a << (unsigned int)b
 open 144
-open 0
-open 0
 text_identity long long a >> b = long long a >> (unsigned int)b
 open 144
-open 0
-open 0
 text_identity unsigned long long a << b = unsigned long long a << (unsigned int)b
 open 144
-open 0
-open 0
 text_identity unsigned long long a >> b = unsigned long long a >> (unsigned int)b
 open 144
-open 0
-open 0
 text_identity signed char (bool)a = signed char a != 0
 open 648
-open 0
-open 0
 text_identity unsigned char (bool)a = unsigned char a != 0
 open 648
-open 0
-open 0
 text_identity short (bool)a = short a != 0
 open 648
-open 0
-open 0
 text_identity unsigned short (bool)a = unsigned short a != 0
 open 648
-open 0
-open 0
 text_identity int (bool)a = int a != 0
 open 648
-open 0
-open 0
 text_identity unsigned int (bool)a = unsigned int a != 0
 open 648
-open 0
-open 0
 text_identity long long (bool)a = long long a != 0
 open 648
-open 0
-open 0
 text_identity unsigned long long (bool)a = unsigned long long a != 0
 open 648
-open 0
-open 0
 text_identity int (a == b) && (c != 0) = int (c != 0) && (a == b)
 open 648
-open 0
-open 0
 text_identity int (a == b) || (c != 0) = int (c != 0) || (a == b)
 open 648
-open 0
-open 0
 text_identity int (a != b) && (c != 0) = int (c != 0) && (a != b)
 open 648
-open 0
-open 0
 text_identity int (a != b) || (c != 0) = int (c != 0) || (a != b)
 open 648
-open 0
-open 0
 text_identity int (a < b) && (c != 0) = int (c != 0) && (a < b)
 open 648
-open 0
-open 0
 text_identity int (a < b) || (c != 0) = int (c != 0) || (a < b)
 open 648
-open 0
-open 0
 text_identity int (a > b) && (c != 0) = int (c != 0) && (a > b)
 open 648
-open 0
-open 0
 text_identity int (a > b) || (c != 0) = int (c != 0) || (a > b)
 open 648
-open 0
-open 0
 text_identity int (a <= b) && (c != 0) = int (c != 0) && (a <= b)
 open 648
-open 0
-open 0
 text_identity int (a <= b) || (c != 0) = int (c != 0) || (a <= b)
 open 648
-open 0
-open 0
 text_identity int (a >= b) && (c != 0) = int (c != 0) && (a >= b)
 open 648
-open 0
-open 0
 text_identity int (a >= b) || (c != 0) = int (c != 0) || (a >= b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a == b) && (c != 0) = unsigned int (c != 0) && (a == b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a == b) || (c != 0) = unsigned int (c != 0) || (a == b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a != b) && (c != 0) = unsigned int (c != 0) && (a != b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a != b) || (c != 0) = unsigned int (c != 0) || (a != b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a < b) && (c != 0) = unsigned int (c != 0) && (a < b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a < b) || (c != 0) = unsigned int (c != 0) || (a < b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a > b) && (c != 0) = unsigned int (c != 0) && (a > b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a > b) || (c != 0) = unsigned int (c != 0) || (a > b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a <= b) && (c != 0) = unsigned int (c != 0) && (a <= b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a <= b) || (c != 0) = unsigned int (c != 0) || (a <= b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a >= b) && (c != 0) = unsigned int (c != 0) && (a >= b)
 open 648
-open 0
-open 0
 text_identity unsigned int (a >= b) || (c != 0) = unsigned int (c != 0) || (a >= b)
 open 648
-open 0
-open 0
 text_identity long long (a == b) && (c != 0) = long long (c != 0) && (a == b)
 open 648
-open 0
-open 0
 text_identity long long (a == b) || (c != 0) = long long (c != 0) || (a == b)
 open 648
-open 0
-open 0
 text_identity long long (a != b) && (c != 0) = long long (c != 0) && (a != b)
 open 648
-open 0
-open 0
 text_identity long long (a != b) || (c != 0) = long long (c != 0) || (a != b)
 open 648
-open 0
-open 0
 text_identity long long (a < b) && (c != 0) = long long (c != 0) && (a < b)
 open 648
-open 0
-open 0
 text_identity long long (a < b) || (c != 0) = long long (c != 0) || (a < b)
 open 648
-open 0
-open 0
 text_identity long long (a > b) && (c != 0) = long long (c != 0) && (a > b)
 open 648
-open 0
-open 0
 text_identity long long (a > b) || (c != 0) = long long (c != 0) || (a > b)
 open 648
-open 0
-open 0
 text_identity long long (a <= b) && (c != 0) = long long (c != 0) && (a <= b)
 open 648
-open 0
-open 0
 text_identity long long (a <= b) || (c != 0) = long long (c != 0) || (a <= b)
 open 648
-open 0
-open 0
 text_identity long long (a >= b) && (c != 0) = long long (c != 0) && (a >= b)
 open 648
-open 0
-open 0
 text_identity long long (a >= b) || (c != 0) = long long (c != 0) || (a >= b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a == b) && (c != 0) = unsigned long long (c != 0) && (a == b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a == b) || (c != 0) = unsigned long long (c != 0) || (a == b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a != b) && (c != 0) = unsigned long long (c != 0) && (a != b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a != b) || (c != 0) = unsigned long long (c != 0) || (a != b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a < b) && (c != 0) = unsigned long long (c != 0) && (a < b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a < b) || (c != 0) = unsigned long long (c != 0) || (a < b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a > b) && (c != 0) = unsigned long long (c != 0) && (a > b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a > b) || (c != 0) = unsigned long long (c != 0) || (a > b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a <= b) && (c != 0) = unsigned long long (c != 0) && (a <= b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a <= b) || (c != 0) = unsigned long long (c != 0) || (a <= b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a >= b) && (c != 0) = unsigned long long (c != 0) && (a >= b)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a >= b) || (c != 0) = unsigned long long (c != 0) || (a >= b)
 open 648
-open 0
-open 0
 text_identity int (a == b) ? a : b = int !(a == b) ? b : a
 open 648
-open 0
-open 0
 text_identity int (a != b) ? a : b = int !(a != b) ? b : a
 open 648
-open 0
-open 0
 text_identity int (a < b) ? a : b = int !(a < b) ? b : a
 open 648
-open 0
-open 0
 text_identity int (a > b) ? a : b = int !(a > b) ? b : a
 open 648
-open 0
-open 0
 text_identity int (a <= b) ? a : b = int !(a <= b) ? b : a
 open 648
-open 0
-open 0
 text_identity int (a >= b) ? a : b = int !(a >= b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned int (a == b) ? a : b = unsigned int !(a == b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned int (a != b) ? a : b = unsigned int !(a != b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned int (a < b) ? a : b = unsigned int !(a < b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned int (a > b) ? a : b = unsigned int !(a > b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned int (a <= b) ? a : b = unsigned int !(a <= b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned int (a >= b) ? a : b = unsigned int !(a >= b) ? b : a
 open 648
-open 0
-open 0
 text_identity long long (a == b) ? a : b = long long !(a == b) ? b : a
 open 648
-open 0
-open 0
 text_identity long long (a != b) ? a : b = long long !(a != b) ? b : a
 open 648
-open 0
-open 0
 text_identity long long (a < b) ? a : b = long long !(a < b) ? b : a
 open 648
-open 0
-open 0
 text_identity long long (a > b) ? a : b = long long !(a > b) ? b : a
 open 648
-open 0
-open 0
 text_identity long long (a <= b) ? a : b = long long !(a <= b) ? b : a
 open 648
-open 0
-open 0
 text_identity long long (a >= b) ? a : b = long long !(a >= b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned long long (a == b) ? a : b = unsigned long long !(a == b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned long long (a != b) ? a : b = unsigned long long !(a != b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned long long (a < b) ? a : b = unsigned long long !(a < b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned long long (a > b) ? a : b = unsigned long long !(a > b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned long long (a <= b) ? a : b = unsigned long long !(a <= b) ? b : a
 open 648
-open 0
-open 0
 text_identity unsigned long long (a >= b) ? a : b = unsigned long long !(a >= b) ? b : a
 open 648
-open 0
-open 0
 text_identity int (a == b) && (c != 0) = int (a == b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a == b) || (c != 0) = int (a == b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a != b) && (c != 0) = int (a != b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a != b) || (c != 0) = int (a != b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a < b) && (c != 0) = int (a < b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a < b) || (c != 0) = int (a < b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a > b) && (c != 0) = int (a > b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a > b) || (c != 0) = int (a > b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a <= b) && (c != 0) = int (a <= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a <= b) || (c != 0) = int (a <= b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a >= b) && (c != 0) = int (a >= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity int (a >= b) || (c != 0) = int (a >= b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a == b) && (c != 0) = unsigned int (a == b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a == b) || (c != 0) = unsigned int (a == b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a != b) && (c != 0) = unsigned int (a != b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a != b) || (c != 0) = unsigned int (a != b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a < b) && (c != 0) = unsigned int (a < b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a < b) || (c != 0) = unsigned int (a < b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a > b) && (c != 0) = unsigned int (a > b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a > b) || (c != 0) = unsigned int (a > b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a <= b) && (c != 0) = unsigned int (a <= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a <= b) || (c != 0) = unsigned int (a <= b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a >= b) && (c != 0) = unsigned int (a >= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned int (a >= b) || (c != 0) = unsigned int (a >= b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a == b) && (c != 0) = long long (a == b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a == b) || (c != 0) = long long (a == b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a != b) && (c != 0) = long long (a != b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a != b) || (c != 0) = long long (a != b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a < b) && (c != 0) = long long (a < b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a < b) || (c != 0) = long long (a < b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a > b) && (c != 0) = long long (a > b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a > b) || (c != 0) = long long (a > b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a <= b) && (c != 0) = long long (a <= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a <= b) || (c != 0) = long long (a <= b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a >= b) && (c != 0) = long long (a >= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity long long (a >= b) || (c != 0) = long long (a >= b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a == b) && (c != 0) = unsigned long long (a == b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a == b) || (c != 0) = unsigned long long (a == b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a != b) && (c != 0) = unsigned long long (a != b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a != b) || (c != 0) = unsigned long long (a != b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a < b) && (c != 0) = unsigned long long (a < b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a < b) || (c != 0) = unsigned long long (a < b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a > b) && (c != 0) = unsigned long long (a > b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a > b) || (c != 0) = unsigned long long (a > b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a <= b) && (c != 0) = unsigned long long (a <= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a <= b) || (c != 0) = unsigned long long (a <= b) | (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a >= b) && (c != 0) = unsigned long long (a >= b) & (c != 0)
 open 648
-open 0
-open 0
 text_identity unsigned long long (a >= b) || (c != 0) = unsigned long long (a >= b) | (c != 0)
 open 648
-open 0
-open 0
 slice_identity 0000:00d0 0010:00d0
 first IADD3 R, R, R, RZ
 second IADD3 R, -R, R, RZ

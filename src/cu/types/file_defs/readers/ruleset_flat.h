@@ -5,7 +5,7 @@
 #define RULESET_FLAT_H
 
 #include "ruleset_core.h"
-#include "../../codegen/ruleset_reader.h"
+#include "ruleset_reader.h"
 
 #include <string>
 #include <vector>

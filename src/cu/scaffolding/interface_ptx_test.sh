@@ -9,9 +9,9 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_CU="$TEST"
 TOP="$(cd "$TEST/../../.." && pwd)"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-CODEGEN="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU_2="$TOP/src/cu/transpiler/lstar/parser"
+CODEGEN="$TOP/src/cu/engine/rmc"
+CODEGEN_CU="$TOP/src/cu/engine/rmc"
+CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp interface_ptx_test
 
@@ -86,8 +86,8 @@ STATUS=$?
 echo "  interface ptx test exit $STATUS"
 
 # again in a ruleset whose carry chains and product are constructs of more basic forms, with no instruction that
-# sets or reads the condition code (utils/test/src/cu/transpiler/codegen/rulesets/flagless)
-FLAGLESS="$TEST/../../../utils/test/src/cu/transpiler/codegen/rulesets/flagless"
+# sets or reads the condition code (utils/test/src/cu/engine/rmc/rulesets/flagless)
+FLAGLESS="$TEST/../../../utils/test/src/cu/engine/rmc/rulesets/flagless"
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) FLAGLESS="$(cygpath -m "$FLAGLESS")" ;;
 esac

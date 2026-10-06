@@ -9,7 +9,7 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../.." && pwd)"
 CUB="$TOP/src/cu/scaffolding"
-KRS="$TOP/src/cu/transpiler/lstar/parser"
+KRS="$TOP/src/cu/types/file_defs/readers"
 OUT="$TOP/build/cubin_safe"
 mkdir -p "$OUT"
 

@@ -9,8 +9,8 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HERE="$TOP/src/cu/scaffolding"
-CUBIN="$TOP/src/cu/transpiler/lstar/parser"
-KRS_C="$TOP/src/cu/transpiler/lstar/parser"
+CUBIN="$TOP/src/cu/types/file_defs/readers"
+KRS_C="$TOP/src/cu/types/file_defs/readers"
 INT="$TOP/src/cu/transpiler/lstar/interface"
 OUT="$TOP/build/monolith/scheduler"
 mkdir -p "$OUT/cubins"

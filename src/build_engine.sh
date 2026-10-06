@@ -70,7 +70,7 @@ MODULES=(engine/formats/stack cu/includes/formats/stack cu/engine/parser
          cu/engine/analysis/noise_detector engine/runtime/schedule cu/engine/runtime/schedule
          engine/compiler/keymath cu/engine/analysis/keymath engine/compiler/key_schedule
          cu/engine/analysis/key_schedule engine/compiler/cycle cu/engine/analysis/cycle
-         engine/compiler/codegen cu/transpiler/codegen cu/transpiler/lstar/parser engine/runtime/radix_keys
+         engine/compiler/codegen cu/engine/rmc cu/types/file_defs/readers engine/runtime/radix_keys
          engine/analysis/unit_sweep cu/engine/analysis/unit_sweep engine/runtime/obsignatio
          cu/engine/runtime/obsignatio engine/analysis/residual cu/engine/analysis/residual
          engine/nbody/max_tree cu/engine/nbody/max_tree engine/nbody/flatten cu/engine/nbody/flatten

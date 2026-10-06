@@ -3127,11 +3127,14 @@ static int identity_text(const char *engine, const char *answers, const char *ks
     unsigned int open = 0u;
     unsigned int closed = 0u;
     unsigned int unasked = 0u;
+    // every verdict line the bridge held beneath an identity between texts, however many, gives way to the one written
+    int beneath = 0;
     for (size_t at = 0u; at < bridge.size(); at += 1u)
     {
         const std::string &entry = bridge[at];
         const int verdict_line = (entry.rfind("open ", 0u) == 0u) || (entry.rfind("closed ", 0u) == 0u);
-        if (verdict_line && !written.empty() && (written.back().rfind("text_identity ", 0u) == 0u))
+        beneath = (entry.rfind("text_identity ", 0u) == 0u) || (beneath && verdict_line);
+        if (verdict_line && beneath)
         {
             continue;
         }
