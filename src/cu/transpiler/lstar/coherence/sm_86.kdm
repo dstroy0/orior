@@ -3207,6 +3207,6 @@ form word_from_signed_halfword to from = \tPRMT \t{to}, {from}, 0x9910, RZ;\n
 # operations the system writes on the FMA pipe in place of the integer pipe: the operation, its
 # writing there, and the lane it moves in, one whose integer pipe holds the first number of
 # operations or more and the second more than its FMA pipe.
-pipe MOV IMAD.MOV.U32 5 0
+pipe MOV IMAD.MOV.U32 5 2
 pipe SHF.L.U32 IMAD.SHL.U32 0 2
 pipe IADD3.X IMAD.X 0 4
