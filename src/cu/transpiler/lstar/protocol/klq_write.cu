@@ -14,13 +14,15 @@
 // onto the bridge, which witnesses no two names one text. A name the schema does not name has no key, and is open
 //
 // The bridge's identities between texts, `text_identity <text> = <text>` with their verdicts, are no ruleset's: each
-// is kept as the bridge held it and written after the keys
+// is kept as the bridge held it and written after the keys. A pair the bridge held a verdict for, put to the part, is
+// written with that verdict, and with the set of our coherence klq_decoder read it into
 #include "code_generator.h"
 #include "target_internal.h"
 
 #include <stdio.h>
 
 #include <fstream>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -179,6 +181,11 @@ int main(int argc, char **argv)
     // the identities between texts the bridge holds, each with its verdict, kept whole: no ruleset writes them, and
     // they are written again after the keys as they were read
     std::vector<std::string> identities;
+    // each pair's verdict as the bridge held it, and the set of our coherence klq_decoder read it into, each written
+    // again beneath the pair
+    std::map<std::string, std::string> verdicts;
+    std::map<std::string, std::string> sets;
+    std::string pair_held;
     std::ifstream held_bridge(path, std::ios::binary);
     std::string line;
     int in_identity = 0;
@@ -187,6 +194,18 @@ int main(int argc, char **argv)
         line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
         const int verdict = (line.rfind("open ", 0u) == 0u) || (line.rfind("closed ", 0u) == 0u);
         in_identity = (line.rfind("text_identity ", 0u) == 0u) || (in_identity && verdict);
+        const std::string suffix = "_coherence";
+        const int set = (line.find(' ') == std::string::npos) && (line.size() > suffix.size()) &&
+                        (line.compare(line.size() - suffix.size(), suffix.size(), suffix) == 0);
+        if (verdict && !pair_held.empty() && (verdicts.count(pair_held) == 0u))
+        {
+            verdicts[pair_held] = line;
+        }
+        if (set && !pair_held.empty())
+        {
+            sets[pair_held] = line;
+        }
+        pair_held = (line.rfind("pair ", 0u) == 0u) ? line : ((verdict || set) ? pair_held : std::string());
         if (in_identity)
         {
             identities.push_back(line);
@@ -218,8 +237,13 @@ int main(int argc, char **argv)
         {
             if (held.first == keys[at])
             {
-                fprintf(bridge, "pair %s %s\n", held.first.c_str(), held.second.c_str());
-                fprintf(bridge, "open 0\n");
+                const std::string pair = "pair " + held.first + " " + held.second;
+                fprintf(bridge, "%s\n%s\n", pair.c_str(),
+                        (verdicts.count(pair) != 0u) ? verdicts[pair].c_str() : "open 0");
+                if (sets.count(pair) != 0u)
+                {
+                    fprintf(bridge, "%s\n", sets[pair].c_str());
+                }
             }
         }
     }

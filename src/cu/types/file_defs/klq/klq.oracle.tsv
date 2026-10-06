@@ -20,4 +20,7 @@ chain	klq_identity	primitives	primitives <address>...	the primitive of each link
 chain	klq_identity	operands	operands <value>...	the literal operands and the distances in links of the targets, in the order the chain writes them
 body	klq_identity	closed	closed [<address>] <case>	two operations, and the case that witnessed it
 body	klq_write klq_identity	open	open <count>	alike on every case asked, and its count of cases alike
+pair	klq_decoder	qualifier_coherence	qualifier_coherence	the two forms one text but for a qualifier: open on every carrier, or apart only where a case word that an operand of one form alone reads decides it
+pair	klq_decoder	modifier_coherence	modifier_coherence	the two forms one text but for a modifier: apart where a case word that the link reads decides it, both results standing
+pair	klq_decoder	unknown_coherence	unknown_coherence	no answer has read the pair into a set: it can be anything, and is a member of every set of our coherence
 any	-	comment	# <text>	a comment

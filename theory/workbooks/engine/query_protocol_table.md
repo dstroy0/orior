@@ -423,7 +423,76 @@ Every bound of P11 is a row of this table. A category with no answerer, the floa
 
 Every set below is open. No set is known whole (P10), and an entry added is asked as the others are.
 
-- **The categories.** C* = ⋃_c c, and a category is a pair c = (asked, answerer). The asked side is gnascor's thing and doing words, the tables of [gnascor.md](../../../src/cu/transpiler/gnascor.md). The answerer side is one of the kinds below.
+- **The categories.** C* = ⋃_c c, and a category is a pair c = (asked, answerer). The asked side is gnascor's thing and doing words, the tables of [gnascor.md](../../../src/cu/transpiler/gnascor.md), and the sets of our coherence below, which those tables file among their thing, doing and gluing words. Each such set is named `<n>_coherence`, its stem what it holds. The answerer side is one of the kinds below. Each category has a clear operational line, and where two categories blur, the blur is another category.
+- **The tree.** The sets are nodes of one tree of linked nodes. Each node is one equality test, and each set is the node of everything beneath it, a set of sets where it holds others. A node with more than two members is a binary tree in the first-child, next-sibling form: the first link goes down into the set, and the next goes to the member beside it. A sibling link between two members is their negation. A fact one node holds and several parents read, the frame, is one node linked from each, and its answer is written there once. `unknown_coherence` ends every set: an entry no answer has read further down stays there, a member of every set beneath. Read on this tree, the decoder's 25 pairs of `modifier_coherence` are 15 edges of the frame, 6 edges across the line from an equality to an order, 2 edges within order, swap and strict against inclusive, and 2 duals.
+
+```
+equality_coherence                every ask: f = g over K
+├─ comparison_coherence
+│  ├─ equality_coherence          eq, ne, zero, nonzero: no frame
+│  │  └─ unknown_coherence
+│  ├─ order_coherence             lt, le, gt, ge, negative: a frame
+│  │  ├─ strict, inclusive        lt and le, gt and ge: apart at a = b alone
+│  │  ├─ operand swap             lt(a, b) = gt(b, a)
+│  │  └─ unknown_coherence
+│  └─ unknown_coherence
+├─ frame                          one node, linked from thing words, modifiers and orders
+│  ├─ sign                        signed_, .S8 and .U8, SHF.R.S32 and .U32, ISETP .U32
+│  ├─ width                       byte, halfword, word, wide, .64, .128
+│  └─ unknown_coherence
+├─ qualifier_coherence
+│  ├─ memory promise              .CONSTANT
+│  ├─ flag join                   _and, _or
+│  ├─ guard                       if, unless
+│  ├─ exclusion                   atomic
+│  ├─ scope                       STRONG, GPU, SYS, CTA, SM
+│  ├─ cache                       EF, EL, LU, NA, LTC64B, LTC128B
+│  ├─ timing                      stall, barrier, wait, .reuse
+│  └─ unknown_coherence
+├─ modifier_coherence
+│  ├─ dual                        and, or
+│  └─ unknown_coherence
+├─ negation_coherence
+│  ├─ bitwise                     not
+│  ├─ arithmetic                  neg
+│  ├─ predicate                   !, unless
+│  └─ unknown_coherence
+├─ range_coherence
+│  ├─ halves                      low, high
+│  ├─ chain position              first, middle, last
+│  ├─ sides                       left, right
+│  └─ unknown_coherence
+├─ vector_coherence
+│  ├─ level                       thread, block, grid, warp
+│  ├─ position, extent            idx, dim
+│  ├─ axis                        x, y, z
+│  └─ unknown_coherence
+├─ literal, run-time value        a node with no set
+│  ├─ text literal                word_copy with 8
+│  ├─ launch constant             warp_size
+│  └─ unknown_coherence
+├─ switch_coherence
+│  ├─ structure                   open, body, close
+│  ├─ declaration                 declare_*
+│  ├─ flow                        exit, return, the way back to a loop, label, dispatch
+│  ├─ note                        note
+│  └─ unknown_coherence
+└─ unknown_coherence
+```
+
+- **When a language is read.** A language is read through our coherence where its program builds: written from the rules the query has read, it answers alike with the host on every case. `unknown_coherence` empty at every node the program's path passes is the same condition. Where the program does not build, either the question was malformed, the part refusing the ask as it was written, or an entry the program needs is still in `unknown_coherence`, and the query runs another cycle. L* stays open: no set is known whole (P10), a language added brings its entries in at `unknown_coherence`, and a program built closes the path it reads and no other.
+- **Every cycle ends.** A cycle ends in one of three ways, and each is bounded. An entry moves down a node, and a path of the tree is finite. A question comes back malformed, refused, nothing or held, and its path stops with the part's reason. A built program answers apart at a case, and that case moves an entry: R holds every ask, and no ask is put twice. The cases K_c grow to test our coherence, each added by the descent (Collapse 4), and a run grows only by the cases added. Where a program does not build, the query says which of the three stopped its path: the question to put otherwise, the node still in `unknown_coherence` to ask next, or the case and the link the program answered apart at.
+- **Folding.** `folding_coherence` is internal: our coherence held against itself. Where the tests grow past what the cycles settle, the tree is read for tests that answer one another, and each is factored out and asked once. One ask at a node answers both members a sibling link joins, its negation the other. `lt` answers `gt` across the swap. The frame is asked once at its node, and every parent linking it reads that answer. `zero` is `eq` at 0. What folds is the testing across nodes, and no entry and no answer is lost to it.
+- **The qualifiers.** `qualifier_coherence`, a category of C*: a statement x that qualifies the result of a statement y, the condition under which y's result stands. Each is asked as y with x against y alone. On every case where x holds the two answer alike, and on a case where x fails y's result does not stand: a pair of them closes only at a case where x fails. `LDG.E.CONSTANT` against `LDG.E`, `ld.global.nc` against `ld.global` in PTX, qualifies a load by nothing writing the memory it reads while the kernel runs, and the C of both is one text. Every carrier holds that, the two answer alike and the pair stays open, and it closes only on a carrier that breaks it, which the C leaves undefined. A flag glued to a test qualifies it the same way, `test_word_nonzero_and` against `test_word_nonzero` closing at a case where the flag fails, and so do `if` and `unless` on a doing word and `atomic`, no other thread coming between.
+- **The modifiers.** `modifier_coherence`, a category of C*: a word that changes what a form reads, writes or does, asked as the form with it against the form without it. Where the two differ both results stand, and a pair of them closes at its first case apart: `global_load_signed_byte` against `global_load_byte` closes at `0080:00a0`, and `signed_byte` is the thing it reads. A modifier qualifies nothing. Each pair of `Lstar.klq` whose two forms are one text but for their modifiers is an entry of `qualifier_coherence` or of `modifier_coherence`, and the case it closes at sorts it: a case where x fails is a qualifier's, and a case where both results stand is a modifier's. A pair open on every carrier is a qualifier's.
+- **The vectors.** `vector_coherence`, a category of C*: a word whose answer changes with where a lane sits and the shape of its launch, and never with the case it is given: `thread`, `block`, `grid`, `idx`, `dim` and `warp`, each taken at `x`, `y` or `z`. It is asked over launch shapes and not over K. The pairs `block_idx_z` and `block_idx_y`, `block_dim_y` and `block_dim_x`, `block_dim_z` and `block_dim_x`, `grid_dim_y` and `grid_dim_x`, and `grid_dim_z` and `grid_dim_x` answer alike on every case of one launch, and no carrier closes them.
+- **The ranges.** `range_coherence`, a category of C*: a part or a place, a description of range, which piece of one whole a form gives: `low`, `high`, `first`, `middle`, `last`, `left` and `right`. The parts of one whole put together give the whole, an entry of I (Collapse 3): `word_mul_low` with `word_mul_high` is `wide_mul`, and `word_add_first`, `word_add_middle` and `word_add_last` are a chain of one add.
+- **The comparisons.** `comparison_coherence`, a category of C*: a relation between operands that gives a flag, `lt`, `le`, `gt`, `ge`, `eq`, `ne`, and against 0 `zero`, `nonzero` and `negative`. Each is tied to the others by entries of I: lt(a, b) = gt(b, a), ne = ¬eq, and `zero` is `eq` against 0. The pairs `test_word_ne` and `test_word_nonzero`, `test_word_eq` and `test_word_zero`, `test_signed_word_lt` and `test_signed_word_negative`, and `test_wide_ne` and `test_word_nonzero` are each a comparison against an operand beside the same comparison against 0, and are asked nothing. It holds two sets, and the frame is the line between them.
+- **The equalities.** `equality_coherence`, a part of `comparison_coherence`: a distance from n of 0 or not 0, n any value, `eq` and `ne` at the other operand and `zero` and `nonzero` at 0. It needs no frame of reference: two words are equal under every reading of their bits, and gnascor's tests have no signed row for any of them. Equality is purely relational, and maps directly to the relational assembly: every verdict of the protocol is an equality over cases, alike or apart, and Collapse 1's integer case is f(k) = h(k).
+- **The orders.** `order_coherence`, a part of `comparison_coherence`: `lt`, `le`, `gt` and `ge` at the other operand and `negative` at 0. Each needs a frame of reference for one thing to be less than another, a sign and a width, and no answer has given one. Its entries are `unknown_coherence` until the part reads the frame out. The frame is the delta between the two parts: `test_signed_word_lt` against `test_word_lt` is apart in the frame alone, `ISETP.LT` against `ISETP.LT.U32`, and the decoder reads the pairs apart in a frame, or across the line from an equality to an order, into `modifier_coherence`, where the frame is what moved. The floating bracket of Collapse 1 is order as well, the end the part takes its rounding.
+- **The negations.** `negation_coherence`, a category of C*: a word that, taken twice, gives back what it was given, x(x(y)) = y on every case: `neg`, `not`, a predicate's `!`, and `unless`, which is `if` negated.
+- **The switches.** `switch_coherence`, a category of C*: a word no case reads that places the forms a case does read, `open`, `body`, `close`, `note`, `declare`, `start`, `next` and `dispatch`, and `exit`, `return`, `label` and the way back to a loop. Taken out, one changes no answer or refuses the whole program, and never moves one case.
+- **The unknowns.** `unknown_coherence`, a member of every set of our coherence: an entry no answer has read into a set. It can be anything, and it is therefore a member of all of them until an answer reads it into one. It is the gray of P1. A pair of `Lstar.klq` the decoder reads into no set is written `unknown_coherence` beneath its verdict.
 - **The cases.** K_c for each category, grown by the descent (Collapse 4).
 - **The identities.** I, relations between texts. Each is witnessed by the text, and both its sides are held to each other on the part over K (P10). Each is an entry of `Lstar.klq`, `text_identity <text> = <text>`, its sides functions as the stick's manifest writes them, and its verdict beneath it: closed at the first case the host or the part answers its sides apart, open with its count of cases where both answer them alike on every case. A name of the bridge carries its stem and then what it is, an identity or an address: the identities a slice of two questions carries are `slice_identity <address>`.
 - **The compositions.** Chains of forms, a category whose cases are its links' cases (Q19).
@@ -472,4 +541,5 @@ While the stick's questions share no case, an ask settles its own entry and no o
 - **Built**, Collapse 2: `walk_step` and `walk_halved` in `klq_identity.cu` read the last register (R252 over 35 asks), the fewest registers and each knee. Task 1006, walked again, gives the fewest at 1 register and its knees inside the spread of its times.
 - **Measured**, the queue (`klq_identity.sh queue`, the stick's manifest and R): 1016 entries, 441 reading 1, 0 reading 0, 575 gray, P12's table row for row. Of the gray: 399 hold a floating value, 92 a call or element nothing types and 4 a name nothing types, 34 a statement nothing reads, 33 a quotient or remainder with no reading, 11 a built-in the host computes no answer to, and 2 a form of `sass.krs` assembled with no reading of its operands. `<folder>/queue.txt` holds each entry and what keeps it gray.
 - **Measured**, I (`klq_identity.sh text_identity`: each side a kernel of a stick of its own, listed by nvcc, written by the engine, computed on the host and put to the part through R): 164 identities of Collapse 3 over the stick's integer types and tests, 280 sides. All 164 are open: 160 on all 648 cases, and the 4 shift identities on 144, the cases whose count is under the width, the rest left undefined by the host's C. A shift identity is therefore witnessed only where its count's high word is 0. Two false identities put beside them, `int a + b = int a - b` and `unsigned int a ^ b = unsigned int a | b`, close at their first case apart. No side the engine writes answers apart from the host, and no identity has closed on the part.
+- **Measured**, the pairs (`klq_identity.sh pair`: each pair of `Lstar.klq` put to the part through R, one form standing in for the other at every link of the engine's chains that holds it, where a later link reads what it writes, and its verdict written beneath it): of 54 pairs, 40 close at their first case apart, over 1342 asks. `global_load_constant_word` in place of `global_load_word`, the two apart in a qualifier alone, answers alike at 416 links over 259776 cases, and is open: the first entry of `qualifier_coherence`. The other 13 are asked nothing: no chain holds 12 of them at a link the other form can be written in, and `wide_mul_word` in place of `wide_mul_word_add` is refused as an illegal address at each of its 882 links, each a link that writes an address. `klq_decoder` reads the log beside the trace and writes each pair's set beneath its verdict: 4 in `qualifier_coherence`, `.CONSTANT` and the three tests glued to a flag by `and`, and 25 in `modifier_coherence`, the width and sign of a load, the sign of a shift and of a test, the comparison a test makes, and `and` against `or`. The other 25 are `unknown_coherence`: the 13 asked nothing, 4 pairs of complements whose cases apart no case word the link reads decides, and 8 pairs closed at a link of the carrier's own before its first case load, the thread's index, the case's index, the bound and the case's stride, where a stand-in moves the case every thread reads.
 - **Theory.** The reader consulting I in place of carrying its rules, the wide row read off the word row and I, K_c, the cost curve over pairs, and the floating brackets.

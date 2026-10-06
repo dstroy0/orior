@@ -320,7 +320,7 @@ The transpiler's mnemonics are its word map. A thing is named after what it is, 
 | sign | - | - | `test_sign_gt` | - | - | `test_sign_ne` | - | - | - |
 | word | `test_word_lt` | `test_word_le` | `test_word_gt` | `test_word_ge` | `test_word_eq` | `test_word_ne` | `test_word_zero` | `test_word_nonzero` | - |
 | signed_word | `test_signed_word_lt` | `test_signed_word_le` | `test_signed_word_gt` | `test_signed_word_ge` | - | - | - | - | `test_signed_word_negative` |
-| wide | `test_wide_lt` | `test_wide_le` | `test_wide_gt` | `test_wide_ge` | `test_wide_eq` | `test_wide_ne` | - | `test_wide_nonzero` | - |
+| wide | `test_wide_lt` | `test_wide_le` | `test_wide_gt` | `test_wide_ge` | `test_wide_eq` | `test_wide_ne` | `test_wide_zero` | `test_wide_nonzero` | - |
 | signed_wide | `test_signed_wide_lt` | `test_signed_wide_le` | `test_signed_wide_gt` | `test_signed_wide_ge` | - | - | - | - | - |
 
 A test glued to another flag by C's `&&` or `||` folds into it: `test_wide_lt_and`, `test_word_nonzero_and`, `test_word_nonzero_or`, `test_wide_nonzero_and`, `test_wide_nonzero_or`.
