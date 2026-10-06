@@ -12,6 +12,10 @@
 // Every value is exact. A quotient rounds toward zero, and down and up give the integers below and above it whatever
 // the signs, the outward pair a held value is read through. A register's width is the bound keymath finds at imprint;
 // wrap and narrow give a value its own width where the caller holds the bound.
+//
+// A step whose operands are all constants the program knows, each below 2^62 in size, is the constant it gives: the
+// program writes that constant and no step for the operation, and a sum with 0, a product with 1 or 0 and a quotient
+// by 1 give their other operand or 0. A value every lane holds alike, an exponent the program sets, costs no step.
 
 #ifdef __cplusplus
 extern "C"
@@ -34,6 +38,9 @@ extern "C"
         unsigned int **table_values;
         unsigned int table_count;
         unsigned int table_room;
+        // each step's value where the program knows it, a constant below 2^62 in size, and 1 there in `known`
+        long long *values;
+        unsigned char *known;
         // 1 where a step, field or table could not be held; every later call then writes nothing and returns 0
         int failed;
     } ExactRecordProgram;
@@ -49,6 +56,12 @@ extern "C"
 
     // a constant below 2^64
     unsigned int exact_record_constant(ExactRecordProgram *program, unsigned long long value);
+
+    // a constant of either sign: its magnitude, negated below zero
+    unsigned int exact_record_signed(ExactRecordProgram *program, long long value);
+
+    // 1 where the program knows the value of step `value`, a constant below 2^62 in size, and that value at `out`
+    int exact_record_known(const ExactRecordProgram *program, unsigned int value, long long *out);
 
     // 2^bits, for any bits: one constant below 2^63, a product of constants past it
     unsigned int exact_record_power_two(ExactRecordProgram *program, unsigned int bits);

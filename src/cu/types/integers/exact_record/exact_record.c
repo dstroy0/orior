@@ -52,15 +52,22 @@ void exact_record_close(ExactRecordProgram *program)
     free(program->field_offset);
     free(program->tables);
     free(program->table_values);
+    free(program->values);
+    free(program->known);
     memset(program, 0, sizeof(*program));
 }
 
-unsigned int exact_record_step(ExactRecordProgram *program, EngineRecordOperation operation, unsigned int left,
-                               unsigned int right, unsigned int member)
+// a step written as given, its value known or not; the steps, values and flags grow to one room together
+static unsigned int exact_record_append(ExactRecordProgram *program, EngineRecordOperation operation, unsigned int left,
+                                        unsigned int right, unsigned int member, int known, long long value)
 {
+    const unsigned int needed = program->count + 1u;
+    unsigned int values_room = program->step_room;
+    unsigned int known_room = program->step_room;
     if ((program->failed != 0) ||
-        (exact_record_grow((void **)&program->steps, &program->step_room, program->count + 1u,
-                           sizeof(EngineRecordStep)) == 0))
+        (exact_record_grow((void **)&program->values, &values_room, needed, sizeof(long long)) == 0) ||
+        (exact_record_grow((void **)&program->known, &known_room, needed, sizeof(unsigned char)) == 0) ||
+        (exact_record_grow((void **)&program->steps, &program->step_room, needed, sizeof(EngineRecordStep)) == 0))
     {
         program->failed = 1;
         return 0u;
@@ -70,14 +77,166 @@ unsigned int exact_record_step(ExactRecordProgram *program, EngineRecordOperatio
     step->left = left;
     step->right = right;
     step->member = member;
+    program->known[program->count] = (unsigned char)(known != 0);
+    program->values[program->count] = known ? value : 0ll;
     program->count += 1u;
     return program->count - 1u;
 }
 
+// the bound a known value lies within
+#define EXACT_RECORD_KNOWN_BOUND (1ll << 62)
+
+static int exact_record_small(long long value)
+{
+    return (value > -EXACT_RECORD_KNOWN_BOUND) && (value < EXACT_RECORD_KNOWN_BOUND);
+}
+
+// a known value as steps: its constant, or 0 less its magnitude below zero
+static unsigned int exact_record_fold(ExactRecordProgram *program, long long value)
+{
+    if (value >= 0ll)
+    {
+        return exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)((unsigned long long)value & 0xFFFFFFFFull),
+                                   (unsigned int)((unsigned long long)value >> 32u), 0u, 1, value);
+    }
+    const unsigned int zero = exact_record_append(program, ENGINE_RECORD_CONSTANT, 0u, 0u, 0u, 1, 0ll);
+    const unsigned long long magnitude = (unsigned long long)(-value);
+    const unsigned int held = exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(magnitude & 0xFFFFFFFFull),
+                                                  (unsigned int)(magnitude >> 32u), 0u, 1, -value);
+    return exact_record_append(program, ENGINE_RECORD_DIFFERENCE, zero, held, 0u, 1, value);
+}
+
+int exact_record_known(const ExactRecordProgram *program, unsigned int value, long long *out)
+{
+    if ((program->failed != 0) || (value >= program->count) || (program->known[value] == 0u))
+    {
+        return 0;
+    }
+    *out = program->values[value];
+    return 1;
+}
+
+// the value of a step over known operands, 1 where it is a known value too
+static int exact_record_value(EngineRecordOperation operation, long long a, long long b, unsigned int right, long long *out)
+{
+    switch (operation)
+    {
+    case ENGINE_RECORD_SUM:
+        *out = a + b;
+        return exact_record_small(*out);
+    case ENGINE_RECORD_DIFFERENCE:
+        *out = a - b;
+        return exact_record_small(*out);
+    case ENGINE_RECORD_PRODUCT:
+    {
+        const long long size_a = (a < 0ll) ? -a : a;
+        const long long size_b = (b < 0ll) ? -b : b;
+        if ((size_a != 0ll) && (size_b >= EXACT_RECORD_KNOWN_BOUND / size_a))
+        {
+            return 0;
+        }
+        *out = a * b;
+        return 1;
+    }
+    case ENGINE_RECORD_QUOTIENT:
+        *out = (b != 0ll) ? a / b : 0ll;
+        return b != 0ll;
+    case ENGINE_RECORD_REMAINDER:
+        *out = (b != 0ll) ? a % b : 0ll;
+        return b != 0ll;
+    case ENGINE_RECORD_EXACT_QUOTIENT:
+        *out = (b != 0ll) ? a / b : 0ll;
+        return (b != 0ll) && ((a % b) == 0ll);
+    case ENGINE_RECORD_COMPARE:
+        *out = (long long)(a > b) - (long long)(a < b);
+        return 1;
+    case ENGINE_RECORD_ABSOLUTE:
+        *out = (a < 0ll) ? -a : a;
+        return 1;
+    case ENGINE_RECORD_AND:
+        *out = a & b;
+        return 1;
+    case ENGINE_RECORD_XOR:
+        *out = a ^ b;
+        return 1;
+    case ENGINE_RECORD_WRAP:
+    {
+        if (right >= 63u)
+        {
+            *out = a;
+            return 1;
+        }
+        const long long whole = 1ll << right;
+        long long residue = a % whole;
+        residue += (residue < 0ll) ? whole : 0ll;
+        *out = (residue >= (whole >> 1u)) ? residue - whole : residue;
+        return 1;
+    }
+    default:
+        return 0;
+    }
+}
+
+unsigned int exact_record_step(ExactRecordProgram *program, EngineRecordOperation operation, unsigned int left,
+                               unsigned int right, unsigned int member)
+{
+    const int two = (operation == ENGINE_RECORD_SUM) || (operation == ENGINE_RECORD_DIFFERENCE) ||
+                    (operation == ENGINE_RECORD_PRODUCT) || (operation == ENGINE_RECORD_QUOTIENT) ||
+                    (operation == ENGINE_RECORD_REMAINDER) || (operation == ENGINE_RECORD_EXACT_QUOTIENT) ||
+                    (operation == ENGINE_RECORD_COMPARE) || (operation == ENGINE_RECORD_AND) ||
+                    (operation == ENGINE_RECORD_XOR);
+    const int one = (operation == ENGINE_RECORD_ABSOLUTE) || (operation == ENGINE_RECORD_WRAP);
+    long long a = 0ll;
+    long long b = 0ll;
+    const int left_known = (two || one) && exact_record_known(program, left, &a);
+    const int right_known = two && exact_record_known(program, right, &b);
+    long long value = 0ll;
+    if ((left_known && (one || right_known)) && exact_record_value(operation, a, b, right, &value))
+    {
+        return exact_record_fold(program, value);
+    }
+    // a sum with 0, a product with 1 or 0, a quotient by 1
+    if (((operation == ENGINE_RECORD_SUM) || (operation == ENGINE_RECORD_DIFFERENCE)) && right_known && (b == 0ll))
+    {
+        return left;
+    }
+    if ((operation == ENGINE_RECORD_SUM) && left_known && (a == 0ll))
+    {
+        return right;
+    }
+    if ((operation == ENGINE_RECORD_PRODUCT) && ((left_known && (a == 0ll)) || (right_known && (b == 0ll))))
+    {
+        return exact_record_fold(program, 0ll);
+    }
+    if ((operation == ENGINE_RECORD_PRODUCT) && left_known && (a == 1ll))
+    {
+        return right;
+    }
+    if (((operation == ENGINE_RECORD_PRODUCT) || (operation == ENGINE_RECORD_QUOTIENT) ||
+         (operation == ENGINE_RECORD_EXACT_QUOTIENT)) &&
+        right_known && (b == 1ll))
+    {
+        return left;
+    }
+    return exact_record_append(program, operation, left, right, member, 0, 0ll);
+}
+
 unsigned int exact_record_constant(ExactRecordProgram *program, unsigned long long value)
 {
-    return exact_record_step(program, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull),
-                             (unsigned int)(value >> 32u), 0u);
+    const int known = value < (unsigned long long)EXACT_RECORD_KNOWN_BOUND;
+    return exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull),
+                               (unsigned int)(value >> 32u), 0u, known, known ? (long long)value : 0ll);
+}
+
+unsigned int exact_record_signed(ExactRecordProgram *program, long long value)
+{
+    if (exact_record_small(value))
+    {
+        return exact_record_fold(program, value);
+    }
+    const unsigned long long magnitude = (value < 0ll) ? (0ull - (unsigned long long)value) : (unsigned long long)value;
+    const unsigned int held = exact_record_constant(program, magnitude);
+    return (value < 0ll) ? exact_record_negate(program, held) : held;
 }
 
 unsigned int exact_record_power_two(ExactRecordProgram *program, unsigned int bits)
@@ -229,6 +388,11 @@ unsigned int exact_record_equal(ExactRecordProgram *program, unsigned int left, 
 unsigned int exact_record_select(ExactRecordProgram *program, unsigned int flag, unsigned int if_one,
                                  unsigned int if_zero)
 {
+    long long known = 0ll;
+    if (exact_record_known(program, flag, &known))
+    {
+        return (known != 0ll) ? if_one : if_zero;
+    }
     return exact_record_sum(program, if_zero,
                             exact_record_product(program, flag, exact_record_difference(program, if_one, if_zero)));
 }
@@ -324,6 +488,12 @@ static unsigned int exact_record_limbs_times(unsigned int *value, unsigned int l
 unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long long base, unsigned int exponent,
                                    unsigned int exponent_bits)
 {
+    // a known exponent by squares: its bits are known, and the table's index would be a constant narrower than it
+    long long known = 0ll;
+    if (exact_record_known(program, exponent, &known))
+    {
+        return exact_record_power(program, exact_record_constant(program, base), exponent, exponent_bits);
+    }
     // the table's rows base^v for v below 16, in limbs enough for base^15 at 15 times base's bits, then laid out as wide
     // as the widest row, base^15 for a base past 1
     const unsigned int bound_limbs = ((exact_record_bits_of(base) * (EXACT_RECORD_NIBBLE_ROWS - 1u)) / 32u) + 1u;
