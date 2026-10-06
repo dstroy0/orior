@@ -1,0 +1,3 @@
+# What cargo and the Tauri build write here, each rebuilt from Cargo.lock and the sources.
+src-tauri/target/
+src-tauri/gen/

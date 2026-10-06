@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window: the core events and windows. The pickers open from Rust and need nothing here.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
