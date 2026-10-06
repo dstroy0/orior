@@ -122,6 +122,11 @@ extern "C"
     unsigned int exact_record_select(ExactRecordProgram *program, unsigned int flag, unsigned int if_one,
                                      unsigned int if_zero);
 
+    // the smaller and the larger of two values
+    unsigned int exact_record_min(ExactRecordProgram *program, unsigned int left, unsigned int right);
+
+    unsigned int exact_record_max(ExactRecordProgram *program, unsigned int left, unsigned int right);
+
     // ---- tables and powers ----
 
     // a table of 2^index_bits rows, each out_bits wide, rows of (out_bits + 31) / 32 limbs; the values are copied.

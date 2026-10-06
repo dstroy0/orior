@@ -233,6 +233,16 @@ unsigned int exact_record_select(ExactRecordProgram *program, unsigned int flag,
                             exact_record_product(program, flag, exact_record_difference(program, if_one, if_zero)));
 }
 
+unsigned int exact_record_min(ExactRecordProgram *program, unsigned int left, unsigned int right)
+{
+    return exact_record_select(program, exact_record_above(program, left, right), right, left);
+}
+
+unsigned int exact_record_max(ExactRecordProgram *program, unsigned int left, unsigned int right)
+{
+    return exact_record_select(program, exact_record_above(program, left, right), left, right);
+}
+
 unsigned int exact_record_table(ExactRecordProgram *program, unsigned int index_bits, unsigned int out_bits,
                                 const unsigned int *values)
 {
