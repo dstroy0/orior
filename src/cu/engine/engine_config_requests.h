@@ -71,6 +71,11 @@ extern "C"
         unsigned int unit_sweep;
         int *offset_halves;
         EngineError *error;
+        // the comb: a running sum of comb[axis] voxels along each axis, taken on both terms alike before the smooth.
+        // It sends a period of comb[axis] along the axis to a constant, with every harmonic of it, and the residual's
+        // kernel still sums to zero. 0 and 1 leave the axis as it is. A comb of n moves both terms' centers by n - 1
+        // half voxels, as a smooth order of n - 1 does: the place an odd smooth order gives is set by s + n - 1.
+        unsigned int comb[ENGINE_AXES];
     } EngineResidualRequest;
 
 #define ENGINE_RESIDUAL_BY_UNIT_SWEEP 0u
