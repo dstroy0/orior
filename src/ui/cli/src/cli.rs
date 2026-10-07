@@ -743,6 +743,11 @@ pub fn run(given: Vec<String>) -> Outcome {
         out(&format!("orior {}", env!("CARGO_PKG_VERSION")));
         return Outcome::Exit(0);
     }
+    // The first run at a terminal asks whether errors file on their own, where the installer did not,
+    // and a run that answers it itself asks nothing.
+    if words.get(1).map(String::as_str) != Some("auto-report") {
+        report::ask_once();
+    }
     // The words before the menus were the command line's, and each still names what it named.
     match first {
         "list" | "show" => return Outcome::Exit(console(first, named, &words[1..], &menus)),
