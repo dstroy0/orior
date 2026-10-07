@@ -797,6 +797,16 @@ body[data-view="run"] .statusbar .ed-status {
   visibility: visible;
 }
 
+.wordmark-link {
+  cursor: pointer;
+}
+
+.wordmark-link:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+  border-radius: var(--radius);
+}
+
 .bar-mark .eye-mark path {
   stroke-width: 9;
 }

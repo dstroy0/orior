@@ -268,10 +268,12 @@ fn gh(args: &[&str], input: Option<&str>) -> Option<String> {
     out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
-/// Opens an issue page of orior's repository in the browser. Any other address is refused.
+/// Opens a page of orior's repository in the browser: the repository itself or a page under it. Any
+/// other address is refused.
 pub fn open_page(url: &str) -> Result<(), String> {
-    if !url.starts_with(&format!("https://github.com/{REPOSITORY}/issues")) {
-        return Err(format!("{url} is not an issue page of {REPOSITORY}"));
+    let home = format!("https://github.com/{REPOSITORY}");
+    if url != home && !url.starts_with(&format!("{home}/")) {
+        return Err(format!("{url} is not a page of {REPOSITORY}"));
     }
     let mut command = if cfg!(windows) {
         let mut command = Command::new("rundll32");

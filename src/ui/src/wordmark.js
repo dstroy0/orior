@@ -3,7 +3,10 @@
 
 // The name: "or", the eye in place of the i, "or". The eye is line art in the text's color and
 // follows the scheme, and the name still reads as orior to a screen reader. The bar along the top
-// holds it small, and an empty view holds it large until it goes there.
+// holds it small, and an empty view holds it large until it goes there. Either opens orior's
+// repository.
+
+import { invoke } from "./bridge.js";
 
 // The eye's strokes, each the center line of one line of the drawing, in the drawing's own units.
 const STROKES = [
@@ -140,16 +143,35 @@ function watch(node) {
 // The name large, for an empty view, and set to go to the bar once it shows.
 export function wordmark(tag) {
   const node = setWordmark(document.createElement(tag));
+  linkHome(node);
   watch(node);
   return node;
+}
+
+// The name opens orior's repository in the browser, from a click or from Enter or Space.
+const REPOSITORY = "https://github.com/dstroy0/orior";
+
+function linkHome(node) {
+  node.setAttribute("role", "link");
+  node.tabIndex = 0;
+  node.title = REPOSITORY;
+  node.classList.add("wordmark-link");
+  const go = () => invoke("report_open", { url: REPOSITORY }).catch(() => {});
+  node.addEventListener("click", go);
+  node.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      go();
+    }
+  });
 }
 
 // Sets the name in the bar and in every heading the page marks for it, each of those set to go to
 // the bar once it shows.
 export function startWordmark() {
-  setWordmark(document.getElementById("bar-mark"));
+  linkHome(setWordmark(document.getElementById("bar-mark")));
   document.querySelectorAll("[data-wordmark]").forEach((node) => {
-    setWordmark(node);
+    linkHome(setWordmark(node));
     watch(node);
   });
 }
