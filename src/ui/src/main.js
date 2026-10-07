@@ -20,6 +20,7 @@ import { startTerminal } from "./terminal.js";
 import { onView, showView } from "./views.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
+import { keepMemory } from "./statusbar.js";
 
 async function openInEditor(path) {
   showView("edit");
@@ -59,6 +60,7 @@ async function start() {
   startWordmark();
   keepScheme();
   keepZoom();
+  keepMemory();
   startMenus();
   keepLattices();
   watch(drawPulse);

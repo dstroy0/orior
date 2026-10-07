@@ -291,6 +291,15 @@ select {
   display: none;
 }
 
+.status-memory {
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.status-memory[hidden] {
+  display: none;
+}
+
 .statusbar .ed-status {
   flex: 1;
   min-height: 0;
