@@ -10,6 +10,7 @@
 // while the window shows.
 
 import { invoke } from "./bridge.js";
+import { still } from "./motion.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -47,7 +48,7 @@ const megabytes = (bytes) => {
 // and what it has reserved in all.
 async function drawMemory() {
   const node = document.getElementById("status-memory");
-  if (document.hidden) {
+  if (still()) {
     return;
   }
   const read = await invoke("memory_use").catch(() => null);

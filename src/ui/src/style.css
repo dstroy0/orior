@@ -3697,9 +3697,10 @@ textarea.report-field {
   }
 }
 
-/* While the window's frame is dragged, every animation of the page holds. */
+/* While the window's frame is held, every animation of the page holds and no transition runs. */
 .still *,
 .still *::before,
 .still *::after {
   animation-play-state: paused !important;
+  transition: none !important;
 }
