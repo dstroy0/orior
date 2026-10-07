@@ -24,7 +24,9 @@ extern "C"
     {
         ENGINE_SMOOTH = 1,
         ENGINE_KEEP = 2,
-        ENGINE_SCALE_SUBTRACT = 3
+        ENGINE_SCALE_SUBTRACT = 3,
+        // a running sum of `orders[axis]` voxels along each axis; 0 and 1 leave the axis as it is
+        ENGINE_COMB = 4
     } EngineOperation;
 
     typedef struct
