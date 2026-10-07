@@ -22,5 +22,6 @@ pub mod home;
 pub mod plugins;
 pub mod report;
 pub mod root;
+pub mod run_file;
 pub mod runner;
 pub mod toolchains;

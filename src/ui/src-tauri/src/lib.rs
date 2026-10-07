@@ -11,7 +11,7 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, runner, toolchains};
+use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, toolchains};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -264,6 +264,13 @@ struct Toolchains {
 #[tauri::command(async)]
 fn format_text(app: State<App>, path: String, language: String, text: String) -> Result<String, String> {
     format::format(&root_of(&app)?.join(path), &language, &text)
+}
+
+/// The shell line that runs the file at `path`, under the tree, with its language's toolchain.
+#[tauri::command(async)]
+fn run_file_line(app: State<App>, path: String, language: String) -> Result<run_file::RunLine, String> {
+    let root = root_of(&app)?;
+    run_file::line_for(&root, &root.join(path), &language)
 }
 
 /// Every language a formatter formats.
@@ -547,6 +554,7 @@ fn open(launch: Launch) {
             home_reveal,
             format_text,
             format_languages,
+            run_file_line,
             toolchains_check,
             toolchain_version,
             toolchain_install,

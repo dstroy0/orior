@@ -201,6 +201,7 @@ const COMMANDS = {
   "previous-match": inEditor((e) => e.find.step(-1)),
   start: () => chosenJob() && startChosen(),
   stop: stopChosen,
+  "run-file": () => editing().runFile(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
   new: newTerminal,

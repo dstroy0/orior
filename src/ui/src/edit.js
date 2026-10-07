@@ -36,7 +36,7 @@ import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins } from "./plugins.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
-import { terminalAt } from "./terminal.js";
+import { runInTerminal, terminalAt } from "./terminal.js";
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
@@ -559,6 +559,26 @@ async function formatTab(tab, { saving: onSave = false } = {}) {
   }
   if (!onSave) {
     say(`Formatted ${changes ? changes.hunks.length : 1} ${changes?.hunks.length === 1 ? "place" : "places"}.`);
+  }
+}
+
+// Run, Run File: the tab's file saved where it has changes, then run in the terminal with the
+// toolchain its language has, by the line run_file.rs in the command line's crate gives.
+async function runTab(tab) {
+  const s = tab?.session;
+  if (!s || s.window) {
+    return;
+  }
+  if (dirty(tab) && !tab.readOnly) {
+    state.active = tab.path;
+    await saveActive();
+  }
+  try {
+    const run = await invoke("run_file_line", { path: tab.path, language: s.language?.id ?? "plaintext" });
+    runInTerminal(run.line);
+    say(`Running ${tab.path.split("/").pop()} with ${run.tool}.`);
+  } catch (error) {
+    say(String(error), { failed: true });
   }
 }
 
@@ -1365,6 +1385,7 @@ export function editing() {
     open: state.tabs.length > 0,
     save: saveActive,
     format: () => formatTab(tabOf(state.active)),
+    runFile: () => runTab(tabOf(state.active)),
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {

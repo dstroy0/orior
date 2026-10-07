@@ -48,6 +48,10 @@ pub struct Tool {
     pub not_in: Vec<String>,
     #[serde(default)]
     pub formats: Vec<String>,
+    /// The shell line that runs a file, by its language, or by its language and extension, as
+    /// run_file.rs reads it.
+    #[serde(default)]
+    pub runs: HashMap<String, String>,
     /// How the tool formats a text of a language `formats` names, where it does.
     #[serde(default)]
     pub format: Option<Formatter>,

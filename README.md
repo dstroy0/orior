@@ -108,6 +108,7 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | rework lines | Selection holds Join Lines (Ctrl+J), Sort Lines Ascending and Descending, Delete Duplicate Lines, and the case changes. With nothing selected, sorting and duplicates take the whole text and a case change takes the word at the cursor. |
 | comment lines | Ctrl+/ |
 | format the file | Shift+Alt+F, or Edit, Format Document: Black for Python, clang-format for C, C++ and CUDA, rustfmt for Rust, Prettier for JavaScript, CSS, HTML, JSON, Markdown and YAML. Each keeps to the project's own pyproject.toml, .clang-format, rustfmt.toml or .prettierrc, and one undo takes it back. |
+| run the file | Ctrl+F5, or Run, Run File: it is saved, then runs in the terminal with its language's toolchain. Python, R, Ruby, JavaScript, the shells and PowerShell run as scripts; MATLAB runs with -batch, or in Octave where MATLAB is not installed; Lean with lean --run, TeX with latexmk, netlists with ngspice or LTspice, VHDL with GHDL; C, C++, CUDA and Rust are compiled to build/run/ and run. |
 | fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
 
 View turns on and off Sticky Scroll, which holds the opening line of each block the top of the screen is inside; Breadcrumbs, the folders, the file and the symbols the cursor is inside, each a click from where it points; and Bracket Pair Colorization, each pair of brackets colored by its depth.
@@ -188,6 +189,7 @@ Ctrl+` opens and closes the terminal, and Ctrl+Shift+` starts a new shell. Closi
 | Ctrl+Shift+F | Find in Files |
 | Ctrl+Shift+E, Ctrl+Shift+D | the Edit view, the Run view |
 | F5, Shift+F5 | start the job, stop it |
+| Ctrl+F5 | run the file |
 | Ctrl+S | save |
 | Shift+Alt+F | format the file |
 | Ctrl+B | show or collapse the side pane |
@@ -207,6 +209,7 @@ Given no words, `orior` opens the window. Given words, it runs them in the termi
 orior run list [word]                   the jobs, or those whose id, title or about holds the word
 orior run show <job>                    a job's file, values and the commands it runs
 orior run <job> [key=value] [-- words]  run a job; a key given twice gives two values
+orior run run-file <file>               run a file with its language's toolchain
 orior build [job]                       the build jobs, or one of them; each kind of job is a word
 orior edit search [--case] [--word] [--regex] <text>
 orior edit format [--check] <file>...   format files in place; --check names those that would change

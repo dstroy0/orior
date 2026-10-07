@@ -24,6 +24,7 @@ use crate::home;
 use crate::plugins;
 use crate::report;
 use crate::root;
+use crate::run_file;
 use crate::runner::{self, Said, Sink};
 use crate::toolchains;
 
@@ -469,6 +470,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "user-css" => return user_css(),
         "toolchains" => return toolchains_words(words),
         "format" => return format_files(words),
+        "run-file" => return run_file_words(named, words),
         "report" => return report_page(named, words),
         _ => {}
     }
@@ -679,6 +681,49 @@ fn toolchains_words(words: &[String]) -> i32 {
         Err(said) => err(&said),
     }
     0
+}
+
+/// `orior run run-file <file>`: runs a file with its language's toolchain, as run_file.rs gives the
+/// line, in bash at the tree's top folder, attached to this terminal, and exits with its code.
+fn run_file_words(named: Option<&str>, words: &[String]) -> i32 {
+    let [file] = words else {
+        err("run-file takes the one file to run");
+        return WRONG;
+    };
+    let root = match tree(named) {
+        Ok(root) => root,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let path = dunce::canonicalize(file).unwrap_or_else(|_| PathBuf::from(file));
+    let Some(language) = format::language_of(&path) else {
+        err(&format!("{file}: no plugin opens it, and so orior knows no way to run it"));
+        return NO_CODE;
+    };
+    let run = match run_file::line_for(&root, &path, &language) {
+        Ok(run) => run,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let bash = match runner::bash() {
+        Ok(bash) => bash,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    err(&format!("$ {}", run.line));
+    match std::process::Command::new(bash).arg("-c").arg(&run.line).env("PATH", toolchains::run_path()).status() {
+        Ok(status) => status.code().unwrap_or(NO_CODE),
+        Err(error) => {
+            err(&error.to_string());
+            NO_CODE
+        }
+    }
 }
 
 /// `orior edit format [--check] <file>...`: formats each file in place with its language's formatter,

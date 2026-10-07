@@ -16,6 +16,7 @@
       "group": "orior's own",
       "for": "every job's script and the terminal; on Windows it is the one that comes with Git",
       "programs": ["bash"],
+      "runs": {"shell": "{program} {file}"},
       "version": ["--version"],
       "env": "ORIOR_BASH",
       "notIn": ["System32", "WindowsApps"],
@@ -28,6 +29,7 @@
       "group": "orior's own",
       "for": "the tree's Python scripts, the jobs that run them, and Black",
       "programs": ["python3", "python"],
+      "runs": {"python": "{program} {file}"},
       "version": ["--version"],
       "env": "ORIOR_PYTHON",
       "notIn": ["WindowsApps"],
@@ -40,6 +42,7 @@
       "group": "orior's own",
       "for": "the PowerShell scripts of the tree",
       "programs": ["pwsh"],
+      "runs": {"powershell": "{program} -NoProfile -File {file}"},
       "version": ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"],
       "install": {"any": "https://learn.microsoft.com/powershell/scripting/install/installing-powershell"},
       "places": {"windows": ["%ProgramFiles%\\PowerShell\\7"], "macos": ["/usr/local/microsoft/powershell/7", "/opt/homebrew/bin"], "linux": ["/opt/microsoft/powershell/7"]}
@@ -60,6 +63,7 @@
       "group": "C, C++ and CUDA",
       "for": "nvcc, which builds the .cu sims and the tracking driver",
       "programs": ["nvcc"],
+      "runs": {"c.cu": "{nvcc} {file} -o {out} && {out}"},
       "version": ["--version"],
       "install": {"windows": "https://developer.nvidia.com/cuda-downloads", "linux": "https://developer.nvidia.com/cuda-downloads"},
       "places": {"windows": ["%ProgramFiles%\\NVIDIA GPU Computing Toolkit\\CUDA\\v*\\bin"], "linux": ["/usr/local/cuda/bin"]}
@@ -81,6 +85,7 @@
       "group": "C, C++ and CUDA",
       "for": "gcc and g++, for C and C++",
       "programs": ["gcc", "g++"],
+      "runs": {"c.c": "{gcc} {file} -o {out} && {out}", "c.cpp": "{g++} {file} -o {out} && {out}", "c.cc": "{g++} {file} -o {out} && {out}"},
       "version": ["--version"],
       "install": {"windows": "https://www.msys2.org/", "macos": "https://formulae.brew.sh/formula/gcc", "linux": "https://gcc.gnu.org/install/binaries.html"},
       "places": {"windows": ["C:\\msys64\\ucrt64\\bin", "C:\\msys64\\mingw64\\bin", "C:\\Strawberry\\c\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin"]}
@@ -91,6 +96,7 @@
       "group": "C, C++ and CUDA",
       "for": "clang and clang++, and clangd, which reads C, C++ and CUDA for an editor",
       "programs": ["clang", "clang++", "clangd"],
+      "runs": {"c.c": "{clang} {file} -o {out} && {out}", "c.cpp": "{clang++} {file} -o {out} && {out}", "c.cc": "{clang++} {file} -o {out} && {out}"},
       "version": ["--version"],
       "install": {"any": "https://github.com/llvm/llvm-project/releases"},
       "places": {"windows": ["%ProgramFiles%\\LLVM\\bin"], "macos": ["/opt/homebrew/opt/llvm/bin", "/usr/local/opt/llvm/bin"], "linux": ["/usr/bin", "/usr/lib/llvm-*/bin"]}
@@ -131,6 +137,7 @@
       "group": "Languages",
       "for": "cargo and rustc, which build orior itself, and rustfmt",
       "programs": ["cargo", "rustc", "rustfmt"],
+      "runs": {"rust": "{rustc} {file} -o {out} && {out}"},
       "version": ["--version"],
       "formats": ["rust"],
       "format": {"program": "rustfmt", "args": ["--edition", "2021"]},
@@ -143,6 +150,7 @@
       "group": "Languages",
       "for": "JavaScript, and npm, which installs Prettier",
       "programs": ["node", "npm", "npx"],
+      "runs": {"javascript": "{node} {file}"},
       "version": ["--version"],
       "install": {"any": "https://nodejs.org/en/download"},
       "places": {"windows": ["%ProgramFiles%\\nodejs"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"], "linux": ["/usr/bin", "/usr/local/bin"]}
@@ -153,6 +161,7 @@
       "group": "Languages",
       "for": "the tree's Ruby scripts",
       "programs": ["ruby", "gem"],
+      "runs": {"ruby": "{ruby} {file}"},
       "version": ["--version"],
       "install": {"windows": "https://rubyinstaller.org/downloads/", "any": "https://www.ruby-lang.org/en/documentation/installation/"},
       "places": {"windows": ["C:\\Ruby3*\\bin", "C:\\tools\\ruby3*\\bin"], "macos": ["/opt/homebrew/opt/ruby/bin", "/usr/local/opt/ruby/bin"], "linux": ["/usr/bin"]}
@@ -163,6 +172,7 @@
       "group": "Languages",
       "for": "Rscript, which runs the tree's R",
       "programs": ["Rscript", "R"],
+      "runs": {"r": "{Rscript} {file}"},
       "version": ["--version"],
       "install": {"any": "https://cran.r-project.org/"},
       "places": {"windows": ["%ProgramFiles%\\R\\R-*\\bin"], "macos": ["/Library/Frameworks/R.framework/Resources/bin", "/opt/homebrew/bin"], "linux": ["/usr/bin"]}
@@ -173,6 +183,7 @@
       "group": "Languages",
       "for": "the tree's MATLAB, run as matlab -batch",
       "programs": ["matlab"],
+      "runs": {"matlab": "{program} -batch \"run('{path}')\""},
       "install": {"any": "https://www.mathworks.com/downloads/"},
       "places": {"windows": ["%ProgramFiles%\\MATLAB\\R20*\\bin"], "macos": ["/Applications/MATLAB_R20*.app/bin"], "linux": ["/usr/local/MATLAB/R20*/bin"]}
     },
@@ -182,6 +193,7 @@
       "group": "Languages",
       "for": "the tree's .m files where MATLAB is not there",
       "programs": ["octave-cli", "octave"],
+      "runs": {"octave": "{program} {file}", "matlab": "{program} {file}"},
       "version": ["--version"],
       "install": {"any": "https://octave.org/download"},
       "places": {"windows": ["%ProgramFiles%\\GNU Octave\\Octave-*\\mingw64\\bin", "%LOCALAPPDATA%\\Programs\\GNU Octave\\Octave-*\\mingw64\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin"]}
@@ -192,6 +204,7 @@
       "group": "Languages",
       "for": "lean and lake, through elan, which keeps each project on its own Lean",
       "programs": ["lean", "lake", "elan"],
+      "runs": {"lean": "{lean} --run {file}"},
       "version": ["--version"],
       "install": {"any": "https://lean-lang.org/install/"},
       "places": {"windows": ["%USERPROFILE%\\.elan\\bin"], "any": ["~/.elan/bin"]}
@@ -202,6 +215,7 @@
       "group": "Languages",
       "for": "latexmk and the engines it runs, which build the research papers",
       "programs": ["latexmk", "lualatex", "pdflatex"],
+      "runs": {"tex": "{latexmk} -pdf -interaction=nonstopmode -cd {file}"},
       "version": ["-v"],
       "install": {"windows": "https://miktex.org/download", "any": "https://tug.org/texlive/"},
       "places": {"windows": ["%LOCALAPPDATA%\\Programs\\MiKTeX\\miktex\\bin\\x64", "%ProgramFiles%\\MiKTeX\\miktex\\bin\\x64", "C:\\texlive\\20*\\bin\\windows", "C:\\texlive\\20*\\bin\\win64"], "macos": ["/Library/TeX/texbin"], "linux": ["/usr/local/texlive/20*/bin/x86_64-linux", "/usr/bin"]}
@@ -212,6 +226,7 @@
       "group": "Circuits and hardware",
       "for": "running SPICE netlists from the command line",
       "programs": ["ngspice_con", "ngspice"],
+      "runs": {"ngspice": "{program} -b {file}"},
       "install": {"any": "https://ngspice.sourceforge.io/download.html"},
       "places": {"windows": ["%ProgramFiles%\\Spice64\\bin", "C:\\Spice64\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin"]}
     },
@@ -221,6 +236,7 @@
       "group": "Circuits and hardware",
       "for": "opening and running the .asc schematics",
       "programs": ["LTspice", "XVIIx64"],
+      "runs": {"ltspice.asc": "{program} -b {file}", "ltspice.net": "{program} -b {file}"},
       "install": {"windows": "https://www.analog.com/en/resources/design-tools-and-calculators/ltspice-simulator.html", "macos": "https://www.analog.com/en/resources/design-tools-and-calculators/ltspice-simulator.html"},
       "places": {"windows": ["%ProgramFiles%\\ADI\\LTspice", "%LOCALAPPDATA%\\Programs\\ADI\\LTspice", "%ProgramFiles%\\LTC\\LTspiceXVII"], "macos": ["/Applications/LTspice.app/Contents/MacOS"]}
     },
@@ -230,6 +246,7 @@
       "group": "Circuits and hardware",
       "for": "analyzing and simulating VHDL",
       "programs": ["ghdl"],
+      "runs": {"vhdl": "{ghdl} -c --std=08 {file} -r {stem}"},
       "version": ["--version"],
       "install": {"any": "https://github.com/ghdl/ghdl/releases"},
       "places": {"windows": ["C:\\msys64\\ucrt64\\bin", "C:\\msys64\\mingw64\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin", "/usr/local/bin"]}
