@@ -798,9 +798,15 @@ int main(int argc, char **argv)
     {
         printf("  choices: %s\n", choices_written(chosen).c_str());
     }
+    const unsigned long long answered_flags = query_trace_flag(trace, "alike") | query_trace_flag(trace, "apart");
     for (const auto &held : choices)
     {
-        if (!held.first.empty() && (decoded.count(held.first) == 0u))
+        int answered = 0;
+        for (const auto &flag : held.second)
+        {
+            answered |= ((flag.first & answered_flags) != 0ull) ? 1 : 0;
+        }
+        if (!held.first.empty() && (decoded.count(held.first) == 0u) && !answered)
         {
             printf("  answered nothing, %s: %s\n", held.first.c_str(), choices_written(held.second).c_str());
         }

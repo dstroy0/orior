@@ -12,3 +12,4 @@ flag	name	gloss
 0x400	parameter_unbound	a parameter of the stand-in has no argument the form gives it, and the put is a malformed question
 0x800	unwritable	the ruleset writes no stand-in of the arguments the form gives it, and the put is a malformed question
 0x1000	no_link	the form stands at no link of any carrier, and its line carries no link
+0x2000	lower	both forms of a pair whose puts asked nothing stand at a link of a third form, and the part's answers to the two are held against each other, alike or apart between them
