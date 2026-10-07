@@ -51,7 +51,9 @@ The easiest way in is [the app](#the-app): one window that lists every job the t
    ```
 
    The installers carry no certificate's signature. Windows warns before the first run, where More info, Run anyway starts it; on macOS, a right click on the app and Open starts it the first time.
-2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
+2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. The next clone starts in the same folder. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
+
+   ![Clone Repository with orior's address, the folder to clone into, and the fuse two thirds burnt while git receives the objects](src/ui/docs/img/clone.png)
 3. **Run a job.** The Run tab lists every job. Choose one, set its values and press F5.
 
 File, Clone Repository does the same at any time, and `orior file clone` does it from a terminal.

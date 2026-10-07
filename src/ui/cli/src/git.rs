@@ -160,7 +160,10 @@ pub fn clone(url: &str, target: &Path, mut said: impl FnMut(&str, bool)) -> Resu
     command.args(["clone", "--progress", "--", url]).arg(target).env("PATH", crate::toolchains::run_path()).env("GIT_TERMINAL_PROMPT", "0");
     command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
     crate::runner::quiet(&mut command);
-    let mut child = command.spawn().map_err(|error| format!("git did not start: {error}"))?;
+    let mut child = command.spawn().map_err(|error| match error.kind() {
+        std::io::ErrorKind::NotFound => "git is not installed, or not on the PATH: File, Toolchains, or orior file toolchains install git, opens its install page".to_string(),
+        _ => format!("git did not start: {error}"),
+    })?;
     let mut stderr = child.stderr.take().expect("piped");
     let mut line = Vec::new();
     let mut fatal = None;
