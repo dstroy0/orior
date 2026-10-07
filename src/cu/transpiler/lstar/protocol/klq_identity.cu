@@ -3906,6 +3906,22 @@ static int form_verbs(const std::string &text)
     return verbs;
 }
 
+// 1 where one of the forms `first` and `second` is the other loaded const: the same operands, its opcode the other's
+// with `.CONSTANT` after it. Whether a load may be const is read off its chain, a store to the memory it reads, and
+// the part answers the two alike at every link of a chain that holds it
+static int form_const_loaded(const std::string &first, const std::string &second)
+{
+    const std::vector<std::string> first_tokens = form_tokens(first);
+    const std::vector<std::string> second_tokens = form_tokens(second);
+    if (first_tokens.empty() || (first_tokens.size() != second_tokens.size()) ||
+        !std::equal(first_tokens.begin() + 1, first_tokens.end(), second_tokens.begin() + 1))
+    {
+        return 0;
+    }
+    return ((first_tokens[0] + ".CONSTANT") == second_tokens[0]) ||
+           ((second_tokens[0] + ".CONSTANT") == first_tokens[0]);
+}
+
 // 1 where the form `text` holds no instruction, each of which ends at a `;`: a directive or a label alone, placing
 // the forms a case reads
 static int form_switches(const std::string &text)
@@ -4091,6 +4107,9 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         std::map<char, std::string> bound;
         std::map<char, std::string> fixed;
         const int unified = form_unified(to_text, from_text, &bound, &fixed);
+        // a const load and a plain one: the first link alike is the part's answer, and the question stays open for
+        // the chain to settle, or for a lower identity to witness where the rest of the chain fails
+        const int const_loaded = form_const_loaded(from_text, to_text);
         // the form's parameters the stand-in reads: by name, or in place of one of its own
         std::set<std::string> read_by_to(to_names.begin(), to_names.end());
         for (const auto &each : bound)
@@ -4581,6 +4600,10 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 alike_cases += (unsigned int)std::count_if(places.begin(), places.end(),
                                                            [&](unsigned int place) { return expected[place] != "-"; });
                 answered = 1;
+                if (const_loaded)
+                {
+                    break;
+                }
                 continue;
             }
             if (put_outcome == RUN_ANSWERED)

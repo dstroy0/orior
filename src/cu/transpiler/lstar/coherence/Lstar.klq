@@ -261,7 +261,7 @@ commutative_coherence
 unknown_coherence
 key global_load_word
 pair global_load_word global_load_constant_word
-open 259776
+open 648
 verb_coherence
 qualifier_coherence
 concept_coherence bbf04f410a71e3c1
