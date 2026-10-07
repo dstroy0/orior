@@ -6,6 +6,13 @@
 // bytes, its k-file head read out where it has one. A file as a commit left it opens read only, in a
 // tab of its own beside the file's.
 //
+// Over the editor, the breadcrumbs: the folders the file is in and its name, then each symbol the
+// cursor is inside, the outermost first. A folder or the name shows it in the explorer, and a symbol
+// takes the cursor to it.
+//
+// The editor's gutter marks each line that differs from the last commit, and where lines were taken
+// out, against the file as the last commit left it, read again each time the window comes back.
+//
 // The tree marks what git says of each file: its name in the color of how it differs from the last
 // commit, the state's letter after it, and a folder holding a changed file in that file's color with
 // a dot. What the ignore files leave out is dimmed.
@@ -17,6 +24,7 @@
 
 import { invoke } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
+import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
@@ -49,6 +57,8 @@ const state = {
   // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is held.
   used: [],
   cycle: null,
+  // Each file's text as the last commit left it, as it is being read or once it is: null for none.
+  heads: new Map(),
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
@@ -381,6 +391,7 @@ function show(path) {
     binaryNode.hidden = true;
     state.editor.show(tab.session);
     state.editor.focus();
+    markChanges(tab);
   } else {
     state.editor.show(null);
     editorNode.hidden = true;
@@ -391,6 +402,7 @@ function show(path) {
   }
   drawTabs();
   drawDefs();
+  drawCrumbs();
   reveal(path);
   drawOutline(tab?.session ?? null);
   drawTimeline(tab ? tab.file : null);
@@ -410,9 +422,10 @@ async function saveActive() {
   }
   // A file still being read is written only once all of it is in.
   await tab.reading;
-  const saving = tab.session.doc.id;
+  tidy(tab);
+  const writing = tab.session.doc.id;
   await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
-  tab.saved = saving;
+  tab.saved = writing;
   tab.closing = false;
   forgetBackup(tab.path);
   drawTabs();
@@ -448,6 +461,173 @@ export async function openAt(path, line, col = 0) {
   if (state.active === path) {
     state.editor.goTo(line - s.base, col);
   }
+}
+
+// Saving: on its own a moment after typing rests where Auto Save is on, and each file saved with
+// the spaces and tabs at its lines' ends taken off and a line end after its last line where those
+// are on. A Markdown file keeps its lines' ends, where two spaces break a line.
+
+const AUTO_SAVE_REST = 1000;
+const SAVING = { "auto-save": ["orior.autosave", false], trim: ["orior.trim", false], "final-newline": ["orior.final-newline", false] };
+
+export function saving(name) {
+  const [key, fallback] = SAVING[name];
+  const kept = localStorage.getItem(key);
+  return kept === null ? fallback : kept === "true";
+}
+
+export function setSaving(name, on = !saving(name)) {
+  localStorage.setItem(SAVING[name][0], String(on));
+}
+
+// Takes the ends of a tab's lines off and puts a line end after its last line, as the settings say,
+// as one edit that undo takes back.
+function tidy(tab) {
+  const s = tab.session;
+  if (!s || s.readOnly || s.window) {
+    return;
+  }
+  const doc = s.doc;
+  const edits = [];
+  if (saving("trim") && !/\.(?:md|markdown)$/i.test(tab.file)) {
+    for (let line = 0; line < doc.count; line += 1) {
+      const text = doc.line(line);
+      const kept = text.replace(/[ \t]+$/, "").length;
+      if (kept !== text.length) {
+        edits.push({ from: { line, col: kept }, to: { line, col: text.length }, text: "" });
+      }
+    }
+  }
+  const last = doc.count - 1;
+  if (saving("final-newline") && doc.line(last) !== "") {
+    const end = { line: last, col: doc.line(last).length };
+    edits.push({ from: end, to: end, text: "\n" });
+  }
+  if (!edits.length) {
+    return;
+  }
+  if (state.editor.s === s) {
+    state.editor.change(edits, "tidy");
+    return;
+  }
+  doc.change(edits, "tidy", s.selections);
+  s.selections = s.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
+  doc.settle(s.selections);
+}
+
+// The breadcrumbs.
+
+const CRUMBS_KEY = "orior.crumbs";
+
+// How long a text's symbols are kept for the breadcrumbs after an edit before they are read again,
+// in milliseconds.
+const CRUMB_SYMBOLS_HELD = 500;
+
+export function crumbsShown() {
+  return localStorage.getItem(CRUMBS_KEY) !== "false";
+}
+
+export function setCrumbs(on = !crumbsShown()) {
+  localStorage.setItem(CRUMBS_KEY, String(on));
+  drawCrumbs();
+}
+
+function crumbSymbols(s) {
+  const now = performance.now();
+  if (!s.crumbs || (s.crumbs.id !== s.doc.id && now - s.crumbs.at > CRUMB_SYMBOLS_HELD)) {
+    s.crumbs = { id: s.doc.id, at: now, symbols: symbolsOf(s.language?.id, s.doc) };
+  }
+  return s.crumbs.symbols;
+}
+
+// The symbols the cursor's line is inside: the last at each depth that starts at or above it, where
+// the region it opens reaches the line or it stands on the line itself.
+function symbolsAround(s, line) {
+  const held = [];
+  for (const symbol of crumbSymbols(s)) {
+    if (symbol.line > line) {
+      break;
+    }
+    held.length = Math.min(held.length, symbol.depth);
+    held.push(symbol);
+  }
+  return held.filter((symbol) => symbol.line === line || s.endOf(symbol.line) >= line);
+}
+
+// Opens a folder of the tree and every folder above it, and gives its row the keys.
+async function revealFolder(folder) {
+  togglePane(true);
+  let at = folder.length;
+  while (at > 0) {
+    state.expanded.add(folder.slice(0, at));
+    at = folder.lastIndexOf("/", at - 1);
+  }
+  await drawTree();
+  const row = [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === folder);
+  row?.scrollIntoView({ block: "nearest" });
+  row?.focus();
+}
+
+function drawCrumbs() {
+  const bar = document.getElementById("crumbs");
+  const tab = tabOf(state.active);
+  bar.hidden = !tab || !crumbsShown();
+  if (bar.hidden) {
+    return;
+  }
+  const parts = tab.file.split("/");
+  const crumb = (text, run, className = "") => {
+    const button = element("button", { type: "button", className: `crumb ${className}`.trim(), textContent: text });
+    button.addEventListener("click", run);
+    return button;
+  };
+  const nodes = [];
+  parts.slice(0, -1).forEach((name, at) => nodes.push(crumb(name, () => revealFolder(parts.slice(0, at + 1).join("/")))));
+  const file = crumb(tabName(tab), () => {
+    togglePane(true);
+    reveal(tab.path).then(() => [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === tab.path)?.focus());
+  }, "file");
+  file.prepend(iconOf(tab.file.split("/").pop(), Boolean(state.known?.typeOf(tab.file))));
+  nodes.push(file);
+  const s = tab.session;
+  if (s && state.editor?.s === s) {
+    for (const symbol of symbolsAround(s, state.editor.head().line)) {
+      nodes.push(crumb(symbol.name, () => jumpTo(symbol.line), "symbol"));
+    }
+  }
+  const key = nodes.map((node) => node.textContent).join("/");
+  if (bar.dataset.key === key) {
+    return;
+  }
+  bar.dataset.key = key;
+  bar.replaceChildren(...nodes.flatMap((node, at) => (at ? [element("span", { className: "crumb-gap", textContent: "›", ariaHidden: "true" }), node] : [node])));
+}
+
+// Marks the lines of a tab's text that differ from the last commit. A file read only in part, a file
+// as a commit left it, and a file the last commit does not hold have no marks.
+async function markChanges(tab) {
+  const s = tab?.session;
+  if (!s) {
+    return;
+  }
+  if (tab.commit || s.window || s.base) {
+    state.editor.setChanges(s, null);
+    return;
+  }
+  if (!state.heads.has(tab.file)) {
+    state.heads.set(tab.file, invoke("file_head", { path: tab.file }).catch(() => null));
+  }
+  const head = await state.heads.get(tab.file);
+  if (typeof head !== "string") {
+    state.editor.setChanges(s, null);
+    return;
+  }
+  if (s.changesFor === s.doc.id && s.changesHead === head) {
+    return;
+  }
+  s.changesFor = s.doc.id;
+  s.changesHead = head;
+  state.editor.setChanges(s, lineChanges(head.split(/\r?\n/), s.doc.lines));
 }
 
 // Places: where the cursor stands, kept before each jump for Back and Forward.
@@ -793,6 +973,8 @@ export async function startEdit(defs) {
   let keeping = 0;
   let outlining = 0;
   let backing = 0;
+  let marking = 0;
+  let autoSaving = 0;
   window.addEventListener("keyup", (event) => event.key === "Control" && endCycle());
   window.addEventListener("blur", endCycle);
   const cursorLine = () => (state.editor?.s ? state.editor.head().line : 0);
@@ -802,6 +984,7 @@ export async function startEdit(defs) {
       cancelAnimationFrame(lighting);
       lighting = requestAnimationFrame(() => {
         light();
+        drawCrumbs();
         lightOutline(cursorLine());
       });
       window.clearTimeout(keeping);
@@ -814,6 +997,12 @@ export async function startEdit(defs) {
       }
       window.clearTimeout(backing);
       backing = window.setTimeout(keepBackups, 800);
+      window.clearTimeout(marking);
+      marking = window.setTimeout(() => markChanges(tabOf(state.active)), 400);
+      window.clearTimeout(autoSaving);
+      if (saving("auto-save")) {
+        autoSaving = window.setTimeout(() => editing().saveAll(), AUTO_SAVE_REST);
+      }
       drawTabs();
       window.clearTimeout(outlining);
       outlining = window.setTimeout(() => drawOutline(tabOf(state.active)?.session ?? null), 300);
@@ -852,6 +1041,8 @@ export async function startEdit(defs) {
   menuOn(document.getElementById("tabs"), tabItems);
   menuOn(document.getElementById("editor"), editorItems);
   window.addEventListener("focus", async () => {
+    state.heads.clear();
+    markChanges(tabOf(state.active));
     await loadChanges();
     drawTree();
   });
@@ -956,9 +1147,10 @@ export function editing() {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {
         await tab.reading;
-        const saving = tab.session.doc.id;
+        tidy(tab);
+        const writing = tab.session.doc.id;
         await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
-        tab.saved = saving;
+        tab.saved = writing;
         tab.closing = false;
         forgetBackup(tab.path);
         if (inBridge(tab.path)) {
@@ -972,6 +1164,8 @@ export function editing() {
     },
     close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
     closeAll: () => [...state.tabs].forEach(closeTab),
+    brackets: () => Boolean(state.editor?.bracketsOn),
+    setBrackets: (on) => state.editor?.setBrackets(on),
     sticky: () => Boolean(state.editor?.stickyOn),
     setSticky: (on) => state.editor?.setSticky(on),
     back: () => step(-1),
@@ -1002,6 +1196,7 @@ export function editing() {
 export function forgetTree() {
   keepBackups();
   state.restored = false;
+  state.heads.clear();
   state.tabs = [];
   state.used = [];
   state.back = [];

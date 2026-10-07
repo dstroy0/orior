@@ -74,6 +74,9 @@ export class Session {
     this.view = null;
     this.doc.watch(({ edits, first }) => {
       this.highlight.forget(first);
+      if (this.depths && this.depths.length > first + 1) {
+        this.depths.length = first + 1;
+      }
       if (this.folded.size) {
         const carried = new Map();
         for (const [start, end] of this.folded) {

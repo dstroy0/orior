@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 //! What git says of the tree: the branch it is on, the files that differ from the last commit and
-//! how, the commits that touched a file, and a file's text as one of those commits left it. In a tree
-//! git cannot read, each of these comes back empty.
+//! how, the commits that touched a file, and a file's text as one of those commits left it or as the
+//! last did. In a tree git cannot read, each of these comes back empty.
 
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -115,6 +115,13 @@ pub fn text_at(root: &Path, file: &str, id: &str) -> Result<String, String> {
     git(root, &["show", &format!("{id}:./{file}")])
         .map(|out| String::from_utf8_lossy(&out).into_owned())
         .ok_or_else(|| format!("{file} is not in {id}"))
+}
+
+/// A file's text as the last commit left it, or nothing where the tree is not git's or the last
+/// commit does not hold the file.
+pub fn head_text(root: &Path, file: &str) -> Option<String> {
+    inside(root, file).ok()?;
+    git(root, &["show", &format!("HEAD:./{file}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
 }
 
 #[cfg(test)]

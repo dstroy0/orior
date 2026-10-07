@@ -41,7 +41,7 @@ pub enum Arg {
     /// empty and the step asks for the separator.
     Words(String, bool),
     /// No argument: the value of a param, where one is given, set in the step's environment under the
-    /// param's key, which is the variable's name.
+    /// param's key as the variable's name.
     Env(String),
 }
 
