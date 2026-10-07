@@ -40,8 +40,11 @@
 // 3. Every bound of the witness and the proof is exact and held in the build's width.
 // 4. The witness and the proof are written whole to the cfg's record, with the radius each proves.
 // 5. An X inside a proved radius has F_low past 0, and each medium of the cfg has its walls written there.
-// The request: core_radius <cfg>.
-//     bash examples/navier_stokes/run.sh core_radius examples/navier_stokes/cfg/core_radius.cfg
+// 6. The carry on the device holds every sum below the product of its primes, and is the host's to the last bit at
+//    every order both reach.
+// The request: core_radius <cfg>. The norms of the reach's orders on E_rho carry rho^m to its last mode, and ask the
+// width of 256 limbs.
+//     SIM_EXACT_LIMBS=256 bash examples/navier_stokes/run.sh core_radius examples/navier_stokes/cfg/core_radius.cfg
 
 typedef std::vector<SimRational> CoreRadiusSequence;
 
@@ -230,21 +233,22 @@ static CoreRadiusWeights core_radius_d(const CoreRadiusWeights &weights, SimRati
     return core_radius_scaled(core_radius_sum(weights, core_radius_scaled(core_radius_second(weights), s)), half);
 }
 
-// T_m' = 2 m (T_(m-1) + T_(m-3) + ...), T_0 taken once where it is reached
+// T_m' = 2 m (T_(m-1) + T_(m-3) + ...), T_0 taken once where it is reached: entry j is the sum of 2 m c_m over the
+// m past j of the other parity, held as a running sum from the top down
 static CoreRadiusWeights core_radius_slope(const CoreRadiusWeights &weights)
 {
     CoreRadiusWeights slope;
-    for (size_t m = 1u; m < weights.size(); m += 1u)
+    if (weights.size() < 2u)
     {
-        const SimRational twice = core_radius_times(core_radius_number(2ll * (long long)m, 1ll), weights[m]);
-        for (size_t j = m - 1u;; j -= 2u)
-        {
-            core_radius_add(&slope, j, (j == 0u) ? core_radius_times(core_radius_number(1ll, 2ll), twice) : twice);
-            if (j < 2u)
-            {
-                break;
-            }
-        }
+        return slope;
+    }
+    slope.resize(weights.size() - 1u, core_radius_number(0ll, 1ll));
+    SimRational running[2] = {core_radius_number(0ll, 1ll), core_radius_number(0ll, 1ll)};
+    for (size_t m = weights.size() - 1u; m >= 1u; m -= 1u)
+    {
+        running[m & 1u] = core_radius_plus(running[m & 1u], core_radius_times(core_radius_number(2ll * (long long)m, 1ll), weights[m]));
+        const size_t j = m - 1u;
+        slope[j] = (j == 0u) ? core_radius_times(core_radius_number(1ll, 2ll), running[m & 1u]) : running[m & 1u];
     }
     return slope;
 }
@@ -358,12 +362,388 @@ static void core_radius_round_up(CoreRadiusWeights *weights, const AnchorExactIn
     }
 }
 
+// The carry on the device. Past the exact orders every weight the carry reads is a multiple of 2^-bits, and the
+// Cauchy sums of an order are integer sums: with every weight held as the integer c 2^bits,
+//     spin:   sum (k - i + 1) [w_i f_j] + sum [u_i a_j],   along: sum (k - i) [w_i u_j] + sum [u_i b_j],
+//     square: sum [f_i f_j],
+// j = k - i, a and b the angular and axial Z parts, and [x y]_n = sum over m + p = n and over |m - p| = n of x_m y_p,
+// twice the Chebyshev product, the sum over |m - p| = 0 taken once. Each sum is 2^(2 bits + 1) times the host's. The
+// device takes every sum modulo primes below 2^31, one thread to a mode, a prime and a sum, and the host reads each
+// back whole by the Chinese remainder theorem, its mixed radix digits by Garner's rule: the sums are at least 0, and
+// below the product of the primes where 2 widest + log2 of the terms' count and weight is below 30 times their
+// number, widest the most bits of any integer put. The rest of each order, linear in its own weights, stays on the
+// host, and the order is the host's to the last bit.
+
+enum
+{
+    CORE_RADIUS_SPIN_WEIGHTS = 0,
+    CORE_RADIUS_ALONG_WEIGHTS = 1,
+    CORE_RADIUS_INFLOW_WEIGHTS = 2,
+    CORE_RADIUS_ANGULAR_TURNED = 3,
+    CORE_RADIUS_ALONG_TURNED = 4,
+    CORE_RADIUS_KINDS = 5
+};
+
+#define CORE_RADIUS_SUMS 3u
+
+#define CORE_RADIUS_THREADS 128u
+
+typedef struct
+{
+    unsigned int primes_count;
+    unsigned int orders;
+    unsigned int modes;
+    std::vector<uint32_t> primes;
+    // inverse[t * primes_count + s] = p_s^-1 mod p_t for s < t
+    std::vector<uint32_t> inverse;
+    std::vector<uint32_t> lengths;
+    uint32_t *residues;
+    uint32_t *lengths_device;
+    uint32_t *primes_device;
+    uint32_t *sums;
+    unsigned int widest;
+    int held;
+} CoreRadiusDevice;
+
+// [x y]_n modulo p for x of length x_length and y of length y_length
+__device__ static unsigned long long core_radius_device_pair(const uint32_t *x, unsigned int x_length, const uint32_t *y, unsigned int y_length, unsigned int n,
+                                                              unsigned long long p)
+{
+    unsigned long long total = 0ull;
+    if ((x_length == 0u) || (y_length == 0u))
+    {
+        return total;
+    }
+    // m + q = n
+    const unsigned int low = (n + 1u > y_length) ? n + 1u - y_length : 0u;
+    const unsigned int high = (n < x_length - 1u) ? n : x_length - 1u;
+    for (unsigned int m = low; m <= high; m += 1u)
+    {
+        total = (total + (unsigned long long)x[m] * y[n - m]) % p;
+    }
+    if (n == 0u)
+    {
+        const unsigned int both = (x_length < y_length) ? x_length : y_length;
+        for (unsigned int m = 0u; m < both; m += 1u)
+        {
+            total = (total + (unsigned long long)x[m] * y[m]) % p;
+        }
+        return total;
+    }
+    // q = m - n
+    for (unsigned int m = n; (m < x_length) && (m - n < y_length); m += 1u)
+    {
+        total = (total + (unsigned long long)x[m] * y[m - n]) % p;
+    }
+    // q = m + n
+    for (unsigned int m = 0u; (m < x_length) && (m + n < y_length); m += 1u)
+    {
+        total = (total + (unsigned long long)x[m] * y[m + n]) % p;
+    }
+    return total;
+}
+
+// one thread to the mode n, the prime blockIdx.y and the sum blockIdx.z of order k's sums
+__global__ static void core_radius_device_kernel(const uint32_t *residues, const uint32_t *lengths, const uint32_t *primes, unsigned int primes_count,
+                                                 unsigned int orders, unsigned int modes, unsigned int k, uint32_t *sums)
+{
+    const unsigned int n = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int t = blockIdx.y;
+    const unsigned int sum = blockIdx.z;
+    if (n >= modes)
+    {
+        return;
+    }
+    const unsigned long long p = primes[t];
+    unsigned long long total = 0ull;
+    for (unsigned int i = 0u; i <= k; i += 1u)
+    {
+        const unsigned int j = k - i;
+        unsigned int left_kind[2] = {CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS};
+        unsigned int right_kind[2] = {CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS};
+        unsigned long long weight[2] = {1ull, 0ull};
+        if (sum == 0u)
+        {
+            left_kind[0] = CORE_RADIUS_INFLOW_WEIGHTS;
+            right_kind[0] = CORE_RADIUS_SPIN_WEIGHTS;
+            weight[0] = (unsigned long long)j + 1ull;
+            left_kind[1] = CORE_RADIUS_ALONG_WEIGHTS;
+            right_kind[1] = CORE_RADIUS_ANGULAR_TURNED;
+            weight[1] = 1ull;
+        }
+        else if (sum == 1u)
+        {
+            left_kind[0] = CORE_RADIUS_INFLOW_WEIGHTS;
+            right_kind[0] = CORE_RADIUS_ALONG_WEIGHTS;
+            weight[0] = (unsigned long long)j;
+            left_kind[1] = CORE_RADIUS_ALONG_WEIGHTS;
+            right_kind[1] = CORE_RADIUS_ALONG_TURNED;
+            weight[1] = 1ull;
+        }
+        for (unsigned int part = 0u; part < 2u; part += 1u)
+        {
+            if (weight[part] == 0ull)
+            {
+                continue;
+            }
+            const unsigned int left = left_kind[part] * orders + i;
+            const unsigned int right = right_kind[part] * orders + j;
+            const uint32_t *const x = residues + ((size_t)left * primes_count + t) * modes;
+            const uint32_t *const y = residues + ((size_t)right * primes_count + t) * modes;
+            const unsigned long long pair = core_radius_device_pair(x, lengths[left], y, lengths[right], n, p);
+            total = (total + (weight[part] % p) * pair) % p;
+        }
+    }
+    sums[((size_t)sum * primes_count + t) * modes + n] = (uint32_t)total;
+}
+
+static unsigned long long core_radius_power_mod(unsigned long long base, unsigned long long power, unsigned long long p)
+{
+    unsigned long long result = 1ull;
+    base %= p;
+    while (power > 0ull)
+    {
+        if ((power & 1ull) != 0ull)
+        {
+            result = (result * base) % p;
+        }
+        base = (base * base) % p;
+        power >>= 1u;
+    }
+    return result;
+}
+
+// the bits of a magnitude, 0 for 0
+static unsigned int core_radius_bits(const AnchorExactInteger *value)
+{
+    const unsigned long long used = sim_exact_limbs_used(value);
+    if (used == 0ull)
+    {
+        return 0u;
+    }
+    unsigned int top = 0u;
+    uint32_t limb = value->limb[used - 1ull];
+    while (limb != 0u)
+    {
+        top += 1u;
+        limb >>= 1u;
+    }
+    return (unsigned int)(32ull * (used - 1ull)) + top;
+}
+
+// the device's buffers for `orders` orders of at most `modes` weights, modulo `primes_count` primes: held 0 where no
+// device answers or a buffer does not open
+static void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsigned int modes, unsigned int primes_count)
+{
+    device->primes_count = primes_count;
+    device->orders = orders;
+    device->modes = modes;
+    device->widest = 0u;
+    device->residues = NULL;
+    device->lengths_device = NULL;
+    device->primes_device = NULL;
+    device->sums = NULL;
+    device->lengths.assign((size_t)CORE_RADIUS_KINDS * orders, 0u);
+    // the largest primes below 2^31, each tested by trial division
+    device->primes.clear();
+    for (uint32_t candidate = 0x7FFFFFFFu; device->primes.size() < primes_count; candidate -= 2u)
+    {
+        int prime = 1;
+        for (uint32_t divisor = 3u; (unsigned long long)divisor * divisor <= candidate; divisor += 2u)
+        {
+            if (candidate % divisor == 0u)
+            {
+                prime = 0;
+                break;
+            }
+        }
+        if (prime)
+        {
+            device->primes.push_back(candidate);
+        }
+    }
+    device->inverse.assign((size_t)primes_count * primes_count, 0u);
+    for (unsigned int t = 0u; t < primes_count; t += 1u)
+    {
+        for (unsigned int s = 0u; s < t; s += 1u)
+        {
+            // Fermat: p_s^(p_t - 2) mod p_t
+            device->inverse[(size_t)t * primes_count + s] =
+                (uint32_t)core_radius_power_mod(device->primes[s], (unsigned long long)device->primes[t] - 2ull, device->primes[t]);
+        }
+    }
+    int count = 0;
+    const size_t residue_bytes = (size_t)CORE_RADIUS_KINDS * orders * primes_count * modes * sizeof(uint32_t);
+    const size_t sum_bytes = (size_t)CORE_RADIUS_SUMS * primes_count * modes * sizeof(uint32_t);
+    device->held = (cudaGetDeviceCount(&count) == cudaSuccess) && (count > 0) && (cudaMalloc((void **)&device->residues, residue_bytes) == cudaSuccess) &&
+                   (cudaMemset(device->residues, 0, residue_bytes) == cudaSuccess) &&
+                   (cudaMalloc((void **)&device->lengths_device, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
+                   (cudaMemset(device->lengths_device, 0, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
+                   (cudaMalloc((void **)&device->primes_device, primes_count * sizeof(uint32_t)) == cudaSuccess) &&
+                   (cudaMemcpy(device->primes_device, device->primes.data(), primes_count * sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess) &&
+                   (cudaMalloc((void **)&device->sums, sum_bytes) == cudaSuccess);
+}
+
+static void core_radius_device_close(CoreRadiusDevice *device)
+{
+    cudaFree(device->residues);
+    cudaFree(device->lengths_device);
+    cudaFree(device->primes_device);
+    cudaFree(device->sums);
+}
+
+// the weights of `kind` at order k, each a multiple of 1 / unit, put on the device as integers modulo every prime
+static void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const AnchorExactInteger *unit)
+{
+    if (!device->held)
+    {
+        return;
+    }
+    if ((k >= device->orders) || (weights.size() > device->modes))
+    {
+        device->held = 0;
+        return;
+    }
+    std::vector<uint32_t> residues((size_t)device->primes_count * device->modes, 0u);
+    for (size_t m = 0u; m < weights.size(); m += 1u)
+    {
+        AnchorExactInteger scaled;
+        AnchorExactInteger whole;
+        AnchorExactInteger remainder;
+        AnchorExactInteger zero;
+        sim_exact_unsigned(&zero, 0ull);
+        // c 2^bits, whole where c is a multiple of 2^-bits and at least 0
+        const int read = (anchor_exact_multiply(&weights[m].numerator, unit, &scaled) == ANCHOR_EXACT_OK) &&
+                         (anchor_exact_divide(&scaled, &weights[m].denominator, &whole, &remainder) == ANCHOR_EXACT_OK) &&
+                         (anchor_exact_compare(&remainder, &zero) == 0) && (sim_rational_sign(weights[m]) >= 0);
+        if (!read)
+        {
+            device->held = 0;
+            return;
+        }
+        device->widest = std::max(device->widest, core_radius_bits(&whole));
+        const unsigned long long used = sim_exact_limbs_used(&whole);
+        for (unsigned int t = 0u; t < device->primes_count; t += 1u)
+        {
+            const unsigned long long p = device->primes[t];
+            unsigned long long residue = 0ull;
+            for (unsigned long long index = used; index > 0ull; index -= 1ull)
+            {
+                residue = ((residue << 32u) | whole.limb[index - 1ull]) % p;
+            }
+            // a residue modulo a prime below 2^31 fits a limb
+            residues[(size_t)t * device->modes + m] = (uint32_t)residue;
+        }
+    }
+    const size_t slot = (size_t)kind * device->orders + k;
+    // a length is at most the device's modes, which fit 32 bits
+    device->lengths[slot] = (uint32_t)weights.size();
+    device->held = (cudaMemcpy(device->residues + slot * device->primes_count * device->modes, residues.data(), residues.size() * sizeof(uint32_t),
+                               cudaMemcpyHostToDevice) == cudaSuccess) &&
+                   (cudaMemcpy(device->lengths_device + slot, &device->lengths[slot], sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess);
+}
+
+// order k's three sums, spin, along and square, each over 2^(2 bits + 1), read back whole
+static void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const AnchorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS])
+{
+    for (unsigned int sum = 0u; sum < CORE_RADIUS_SUMS; sum += 1u)
+    {
+        sums[sum].clear();
+    }
+    if (!device->held)
+    {
+        return;
+    }
+    // every sum is at most (k + 2) times the count of its products times 2^(2 widest); the lengths bound the count
+    unsigned long long count = 0ull;
+    unsigned int modes = 0u;
+    const unsigned int pairs[CORE_RADIUS_SUMS][2][2] = {{{CORE_RADIUS_INFLOW_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS}, {CORE_RADIUS_ALONG_WEIGHTS, CORE_RADIUS_ANGULAR_TURNED}},
+                                                         {{CORE_RADIUS_INFLOW_WEIGHTS, CORE_RADIUS_ALONG_WEIGHTS}, {CORE_RADIUS_ALONG_WEIGHTS, CORE_RADIUS_ALONG_TURNED}},
+                                                         {{CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS}, {CORE_RADIUS_SPIN_WEIGHTS, CORE_RADIUS_SPIN_WEIGHTS}}};
+    for (unsigned int sum = 0u; sum < CORE_RADIUS_SUMS; sum += 1u)
+    {
+        for (unsigned int part = 0u; part < ((sum == 2u) ? 1u : 2u); part += 1u)
+        {
+            for (unsigned int i = 0u; i <= k; i += 1u)
+            {
+                const unsigned int left = device->lengths[(size_t)pairs[sum][part][0] * device->orders + i];
+                const unsigned int right = device->lengths[(size_t)pairs[sum][part][1] * device->orders + (k - i)];
+                count += 2ull * left * right;
+                if ((left > 0u) && (right > 0u))
+                {
+                    modes = std::max(modes, left + right - 1u);
+                }
+            }
+        }
+    }
+    unsigned int count_bits = 0u;
+    for (unsigned long long scale = count * ((unsigned long long)k + 2ull); scale != 0ull; scale >>= 1u)
+    {
+        count_bits += 1u;
+    }
+    if ((2u * device->widest + count_bits >= 30u * device->primes_count) || (modes > device->modes))
+    {
+        device->held = 0;
+        return;
+    }
+    const dim3 grid((modes + CORE_RADIUS_THREADS - 1u) / CORE_RADIUS_THREADS, device->primes_count, CORE_RADIUS_SUMS);
+    core_radius_device_kernel<<<grid, CORE_RADIUS_THREADS>>>(device->residues, device->lengths_device, device->primes_device, device->primes_count, device->orders,
+                                                             device->modes, k, device->sums);
+    std::vector<uint32_t> residues((size_t)CORE_RADIUS_SUMS * device->primes_count * device->modes);
+    device->held = (cudaGetLastError() == cudaSuccess) &&
+                   (cudaMemcpy(residues.data(), device->sums, residues.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost) == cudaSuccess);
+    if (!device->held)
+    {
+        return;
+    }
+    // 2^(2 bits + 1)
+    AnchorExactInteger square;
+    AnchorExactInteger scale;
+    sim_rational_status_check((anchor_exact_multiply(unit, unit, &square) == ANCHOR_EXACT_OK) && sim_exact_scaled(&square, 2ull, &scale));
+    std::vector<unsigned long long> digits(device->primes_count);
+    for (unsigned int sum = 0u; sum < CORE_RADIUS_SUMS; sum += 1u)
+    {
+        for (unsigned int n = 0u; n < modes; n += 1u)
+        {
+            // Garner: x = d_0 + p_0 (d_1 + p_1 (d_2 + ...)), d_t below p_t
+            for (unsigned int t = 0u; t < device->primes_count; t += 1u)
+            {
+                const unsigned long long p = device->primes[t];
+                unsigned long long digit = residues[((size_t)sum * device->primes_count + t) * device->modes + n];
+                for (unsigned int s = 0u; s < t; s += 1u)
+                {
+                    digit = ((digit + p - (digits[s] % p)) % p) * device->inverse[(size_t)t * device->primes_count + s] % p;
+                }
+                digits[t] = digit;
+            }
+            AnchorExactInteger whole;
+            sim_exact_unsigned(&whole, digits[device->primes_count - 1u]);
+            for (unsigned int t = device->primes_count - 1u; t > 0u; t -= 1u)
+            {
+                AnchorExactInteger digit;
+                AnchorExactInteger raised;
+                sim_exact_unsigned(&digit, digits[t - 1u]);
+                sim_rational_status_check(sim_exact_scaled(&whole, device->primes[t - 1u], &raised) && sim_exact_sum(&raised, &digit, &whole));
+            }
+            SimRational value;
+            value.numerator = whole;
+            value.denominator = scale;
+            sim_rational_settle(&value);
+            sums[sum].push_back(value);
+        }
+        while (!sums[sum].empty() && (sim_rational_sign(sums[sum].back()) == 0))
+        {
+            sums[sum].pop_back();
+        }
+    }
+}
+
 // The orders of `orders` carried to `order`: for every k <= order the inflow and the Z parts are taken from f_k and
 // u_k, and every order past those `orders` holds is built from the rule. Exact at s = -1, magnitudes at s = +1: with
 // s = +1 and the orders it is given at their magnitudes, each new order bounds the magnitudes of the exact one mode by
-// mode.
+// mode. With a device and a unit the Cauchy sums are the device's, every weight they read a multiple of 1 / unit.
 static void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const AnchorExactInteger *unit,
-                               CoreRadiusOrders *orders)
+                               CoreRadiusDevice *device, CoreRadiusOrders *orders)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -391,6 +771,15 @@ static void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsi
             core_radius_round_up(&inflow[k], unit);
             core_radius_round_up(&angular_turned[k], unit);
         }
+        const int on_device = (device != NULL) && (unit != NULL);
+        if (on_device)
+        {
+            core_radius_device_put(device, CORE_RADIUS_SPIN_WEIGHTS, k, f[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_ALONG_WEIGHTS, k, g[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_INFLOW_WEIGHTS, k, inflow[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_ANGULAR_TURNED, k, angular_turned[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_ALONG_TURNED, k, along_turned[k], unit);
+        }
         if (k + 1u < f.size())
         {
             continue;
@@ -404,15 +793,26 @@ static void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsi
         along = core_radius_sum(along, core_radius_scaled(core_radius_d(g[k], one), d_eight));
         along = core_radius_sum(along, core_radius_turned_weights(q[k], pressure_c, k, scale->h, s));
         CoreRadiusWeights square;
-        for (unsigned int i = 0u; i <= k; i += 1u)
+        if (on_device)
         {
-            const unsigned int j = k - i;
-            const SimRational rest = core_radius_number((long long)j, 1ll);
-            spin = core_radius_sum(spin, core_radius_scaled(core_radius_product(inflow[i], f[j]), core_radius_plus(rest, one)));
-            spin = core_radius_sum(spin, core_radius_product(g[i], angular_turned[j]));
-            along = core_radius_sum(along, core_radius_scaled(core_radius_product(inflow[i], g[j]), rest));
-            along = core_radius_sum(along, core_radius_product(g[i], along_turned[j]));
-            square = core_radius_sum(square, core_radius_product(f[i], f[j]));
+            CoreRadiusWeights sums[CORE_RADIUS_SUMS];
+            core_radius_device_sums(device, k, unit, sums);
+            spin = core_radius_sum(spin, sums[0]);
+            along = core_radius_sum(along, sums[1]);
+            square = sums[2];
+        }
+        else
+        {
+            for (unsigned int i = 0u; i <= k; i += 1u)
+            {
+                const unsigned int j = k - i;
+                const SimRational rest = core_radius_number((long long)j, 1ll);
+                spin = core_radius_sum(spin, core_radius_scaled(core_radius_product(inflow[i], f[j]), core_radius_plus(rest, one)));
+                spin = core_radius_sum(spin, core_radius_product(g[i], angular_turned[j]));
+                along = core_radius_sum(along, core_radius_scaled(core_radius_product(inflow[i], g[j]), rest));
+                along = core_radius_sum(along, core_radius_product(g[i], along_turned[j]));
+                square = core_radius_sum(square, core_radius_product(f[i], f[j]));
+            }
         }
         f.push_back(core_radius_scaled(spin, sim_rational_reciprocal(core_radius_times(core_radius_times(two, next), core_radius_plus(next, one)))));
         g.push_back(core_radius_scaled(along, sim_rational_reciprocal(core_radius_times(two, core_radius_times(next, next)))));
@@ -424,6 +824,22 @@ static void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsi
             core_radius_round_up(&q.back(), unit);
         }
     }
+}
+
+// 1 where two orders' weights are the same, a 0 past either's last weight
+static int core_radius_same(const CoreRadiusWeights &left, const CoreRadiusWeights &right)
+{
+    const size_t length = std::max(left.size(), right.size());
+    for (size_t m = 0u; m < length; m += 1u)
+    {
+        const SimRational one = (m < left.size()) ? left[m] : core_radius_number(0ll, 1ll);
+        const SimRational other = (m < right.size()) ? right[m] : core_radius_number(0ll, 1ll);
+        if (sim_rational_sign(sim_rational_difference(one, other)) != 0)
+        {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 // the weights of every order to `order` from the data, exact at s = -1 and magnitudes at s = +1, read on no ellipse:
@@ -447,13 +863,13 @@ static void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWe
     {
         orders->q[0].push_back(exact ? weight : sim_rational_absolute(weight));
     }
-    core_radius_extend(scale, s, order, NULL, orders);
+    core_radius_extend(scale, s, order, NULL, NULL, orders);
 }
 
 // the exact orders to `order` at their magnitudes, carried by magnitudes to `last`: every order a bound of the exact
 // one mode by mode, each its weight kept where it holds it
 static void core_radius_continued(const CoreRadiusScale *scale, const CoreRadiusOrders *exact, unsigned int order, unsigned int last,
-                                  const AnchorExactInteger *unit, CoreRadiusOrders *continued)
+                                  const AnchorExactInteger *unit, CoreRadiusDevice *device, CoreRadiusOrders *continued)
 {
     continued->f.clear();
     continued->g.clear();
@@ -475,8 +891,12 @@ static void core_radius_continued(const CoreRadiusScale *scale, const CoreRadius
         {
             continued->q[k].push_back(sim_rational_absolute(weight));
         }
+        // the exact orders' magnitudes rounded up as they enter the carry, every weight it reads a multiple of 1 / unit
+        core_radius_round_up(&continued->f[k], unit);
+        core_radius_round_up(&continued->g[k], unit);
+        core_radius_round_up(&continued->q[k], unit);
     }
-    core_radius_extend(scale, core_radius_number(1ll, 1ll), last, unit, continued);
+    core_radius_extend(scale, core_radius_number(1ll, 1ll), last, unit, device, continued);
 }
 
 // the scalars the proof reads on one ellipse: l^(2k) ||.||_rho0 Delta^k, and l^(2k+2) ||w_k||_rho0 Delta^(k+1)
@@ -798,8 +1218,10 @@ static std::string core_radius_lean(const std::string &name, const std::string &
     text += "  bu := " + term_book_rational(proof->b_u) + "\n";
     text += "  bp := " + term_book_rational(proof->b_p) + "\n";
     text += "  bw := " + term_book_rational(proof->b_w) + "\n\n";
+    // the kernel evaluates every inequality over Q, a split's sums of rationals thousands of bits wide among them
     text += "theorem " + name + "_checks : " + name + ".Checks := by\n";
-    text += "  norm_num [Witness.Checks, " + name + ", angular, along, Finset.sum_range_succ]\n\n";
+    text += "  unfold Witness.Checks\n";
+    text += "  decide +kernel\n\n";
     return text;
 }
 
@@ -1061,6 +1483,8 @@ int main(int count, char **arguments)
     unsigned long long steps = 0ull;
     unsigned long long split = 0ull;
     unsigned long long carry = 0ull;
+    unsigned long long reach = 0ull;
+    unsigned long long reach_split = 0ull;
     unsigned long long bits = 0ull;
     SimRational step;
     SimRational wall_step;
@@ -1080,7 +1504,8 @@ int main(int count, char **arguments)
                      run_cfg_rationals(&cfg, "ellipse.inner", &inner) && (outer.size() == inner.size()) && run_cfg_count(&cfg, "order", &order) &&
                      (order >= 1ull) && run_cfg_rational(&cfg, "rate.step", &step) && (sim_rational_sign(step) > 0) &&
                      run_cfg_count(&cfg, "rate.steps", &steps) && (steps >= 1ull) && run_cfg_count(&cfg, "split", &split) && (split >= 1ull) &&
-                     (order >= 2ull * split) && run_cfg_count(&cfg, "carry", &carry) && (carry >= order) &&
+                     (order >= 2ull * split) && run_cfg_count(&cfg, "carry", &carry) && (carry >= order) && run_cfg_count(&cfg, "reach.order", &reach) && (reach >= carry) &&
+                     run_cfg_count(&cfg, "reach.split", &reach_split) && (reach_split >= 1ull) && (reach >= 2ull * reach_split) &&
                      run_cfg_count(&cfg, "bits", &bits) && (bits >= 1ull) && run_cfg_rational(&cfg, "walls.step", &wall_step) &&
                      (sim_rational_sign(wall_step) > 0) && run_cfg_rational(&cfg, "walls.light", &light) && run_cfg_rational(&cfg, "walls.planck", &planck) &&
                      (sim_rational_sign(planck) > 0) && run_cfg_rationals(&cfg, "walls.mach", &mach) && run_cfg_text(&cfg, "walls.names", &names) &&
@@ -1104,7 +1529,7 @@ int main(int count, char **arguments)
     if (!media_read || (count_media == 0u))
     {
         run_cfg_missing(&results.line, "core anisotropy, axis angular, axial and pressure, ellipse outer and inner of one length, order, rate "
-                                       "step and steps, a split at least 1 with order at least twice it, a carry at least the order, bits, and walls "
+                                       "step and steps, a split at least 1 with order at least twice it, a carry at least the order, a reach order at least the carry and twice its split, bits, and walls "
                                        "step, light, planck, mach, and names with one viscosity, sound, spacing, relaxation, mass and ionization each");
         sim_flush(&results);
         fprintf(stderr, "core_radius <cfg>\n");
@@ -1128,8 +1553,29 @@ int main(int count, char **arguments)
     // the carried magnitudes rounded up to multiples of 2^-bits
     AnchorExactInteger unit;
     sim_rational_status_check(sim_exact_power(2ull, bits, &unit));
-    core_radius_continued(&constants, &exact, (unsigned int)order, (unsigned int)carry, &unit, &continued);
+    core_radius_continued(&constants, &exact, (unsigned int)order, (unsigned int)carry, &unit, NULL, &continued);
+    // the carry on the device to the cfg's reach, its primes enough for sums of twice the bits and 256 more
+    CoreRadiusDevice device;
+    const unsigned int reach_modes = g0 + (g0 + 4u) * (unsigned int)reach + 8u;
+    core_radius_device_open(&device, (unsigned int)reach + 1u, reach_modes, (unsigned int)((2ull * bits + 256ull) / 30ull + 1ull));
+    CoreRadiusOrders reached;
+    core_radius_continued(&constants, &exact, (unsigned int)order, (unsigned int)reach, &unit, &device, &reached);
+    sim_check(&results, device.held, "the device's carry held, every sum below the product of its primes");
+    core_radius_device_close(&device);
+    int same = device.held;
+    for (unsigned int k = 0u; same && (k <= (unsigned int)carry); k += 1u)
+    {
+        same = core_radius_same(continued.f[k], reached.f[k]) && core_radius_same(continued.g[k], reached.g[k]) &&
+               core_radius_same(continued.q[k], reached.q[k]) && core_radius_same(continued.inflow[k], reached.inflow[k]);
+    }
+    sim_check(&results, same, "the device's carry is the host's to the last bit at every order both reach");
     int fixed_length = 1;
+    for (unsigned int k = 0u; k <= (unsigned int)reach; k += 1u)
+    {
+        const size_t length = (size_t)g0 + (size_t)(g0 + 4u) * k + 1u;
+        fixed_length = fixed_length && (reached.f[k].size() <= length) && (reached.g[k].size() <= length) && (reached.q[k].size() <= length) &&
+                       (reached.inflow[k].size() <= length + 3u);
+    }
     for (unsigned int k = 0u; k <= (unsigned int)carry; k += 1u)
     {
         const size_t length = (size_t)g0 + (size_t)(g0 + 4u) * k + 1u;
@@ -1200,11 +1646,16 @@ int main(int count, char **arguments)
         CoreRadiusSequence carried_norms;
         const SimRational carried = core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps, record, ellipse + "_carried",
                                                            on + "the magnitudes carried to order " + std::to_string(carry) + ".", &lean, &carried_proof, &carried_norms);
+        CoreRadiusProof reached_proof;
+        CoreRadiusSequence reached_norms;
+        const SimRational far = core_radius_fixed_rate(&scale, &reached, g0, (unsigned int)reach, (unsigned int)reach_split, step, steps, record, ellipse + "_reached",
+                                                       on + "the magnitudes carried on the device to order " + std::to_string(reach) + ".", &lean, &reached_proof,
+                                                       &reached_norms);
         // the X of each proof's radius, stepped by the walls' step, where X F_low^2 is largest
-        const CoreRadiusProof *const proofs[2] = {&exact_proof, &carried_proof};
-        const CoreRadiusSequence *const proof_norms[2] = {&exact_norms, &carried_norms};
-        const SimRational radii[2] = {one_ellipse, carried};
-        for (unsigned int which = 0u; which < 2u; which += 1u)
+        const CoreRadiusProof *const proofs[3] = {&exact_proof, &carried_proof, &reached_proof};
+        const CoreRadiusSequence *const proof_norms[3] = {&exact_norms, &carried_norms, &reached_norms};
+        const SimRational radii[3] = {one_ellipse, carried, far};
+        for (unsigned int which = 0u; which < 3u; which += 1u)
         {
             if (sim_rational_sign(proofs[which]->rate) <= 0)
             {
@@ -1249,7 +1700,9 @@ int main(int count, char **arguments)
         sim_rational_print(&results.line, one_ellipse);
         scriptura_text(&results.line, " on E_rho0 alone, X < ");
         sim_rational_print(&results.line, carried);
-        scriptura_text(&results.line, " with the magnitudes carried to the order of the cfg's carry\n");
+        scriptura_text(&results.line, " with the magnitudes carried to the order of the cfg's carry, X < ");
+        sim_rational_print(&results.line, far);
+        scriptura_text(&results.line, " with them carried on the device to the cfg's reach and split there\n");
         sim_flush(&results);
     }
     sim_check(&results, legal, "every ellipse of the cfg one the bounds hold on");
