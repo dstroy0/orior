@@ -3,7 +3,7 @@
 **Purpose:** Find an object's information entropy, and compile the program that measures it to any part.
 **Scope:** the whole repository; [the site](https://dstroy0.github.io/orior/) holds the rest
 
-[Setup](docs/setup.md) · [Using it](docs/usage.md) · [The algorithm](docs/method.md) · [The engine](docs/engine.md) · [Areas of research](docs/research.md) · [Licensing](docs/licensing.md)
+[Setup](docs/setup.md) · [The app](#the-app) · [Using it](docs/usage.md) · [The algorithm](docs/method.md) · [The engine](docs/engine.md) · [Areas of research](docs/research.md) · [Licensing](docs/licensing.md)
 
 Orior finds the pattern in anything, from a crystal to a language to a file. It compares the thing with a shuffled copy of itself, and the pattern is what the copy lost. Every number is exact, with nothing rounded, guessed or trained.
 
@@ -52,6 +52,145 @@ sh utils/maint/texbuild/build_theory.sh                             # the resear
 ```
 
 On Windows PowerShell the engine builds with `utils/maint/engine/build_engine.ps1`. Python needs only `numpy` to start. [Setup](docs/setup.md) covers the rest.
+
+## The app
+
+`orior` is one program with two faces: a window that runs every job in the tree and edits its files, and a command line over the same jobs. Most of what follows is done from the window, and every menu command is a word at the command line as well.
+
+### Get started
+
+It needs Rust 1.77 or later. From a fresh clone:
+
+```sh
+cd src/ui/src-tauri
+cargo run                       # build it and open the window
+cargo run -- run list           # the same program given words, with no install
+```
+
+The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it asks for a folder, and File, Open Folder moves it to another tree at any time. Each tree keeps its own open tabs. [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
+
+### The window
+
+| part | what it holds |
+| --- | --- |
+| Menu bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help. A key shown beside a command runs it from anywhere in the window. |
+| Run view (Ctrl+Shift+D) | every job the tree holds, the values each takes, and each run's output as it arrives |
+| Edit view (Ctrl+Shift+E) | the explorer, the editor with a tab for each file, and beside it the definition of the open file's type |
+| Explorer | the panes Search, Open Editors, the tree's files, Outline and Timeline. Its … menu shows or hides each pane. |
+| Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
+| Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
+
+The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open.
+
+### Run a job
+
+1. Press Ctrl+Shift+D, or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
+2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
+3. Set its values and press F5 to start it. Shift+F5 stops it.
+
+The output streams as it comes. The fuse along its foot burns while the run goes: a step at a time for a job of several steps, a crawling spark for a job of one. It burns out and flashes when the run ends well, and sputters dark when it fails or is stopped. A page a viewer writes opens in a window of its own.
+
+### Edit a file
+
+Open a file from the tree, from Go to File (Ctrl+P), or from the command line with `orior <file>:<line>:<column>`. The editor colors `.g`, `.gsm`, the k-files and every language under `src/lng/`, and shows the type's definition beside the file. In a file of `src/cu/transpiler/lstar/coherence/`, the bridge shows beside it: for the key under the cursor, its pairs and their verdicts, its name in each language and each ruleset's entry, every line a click from its file. A file that is not text opens as its bytes, and a file too large to read whole opens at the line it was left at and reads outward from there.
+
+| to | do this |
+| --- | --- |
+| complete the word at the cursor | Ctrl+Space; a hover over a word shows what it means |
+| add a cursor | Ctrl+Alt+Up or Ctrl+Alt+Down; Ctrl+D adds the next occurrence of the selection, Ctrl+Shift+L every one |
+| select a column | drag with Shift+Alt held, or turn on Selection, Column Selection Mode and drag |
+| move or copy lines | Alt+Up and Alt+Down move them; Shift+Alt+Up and Shift+Alt+Down copy them |
+| rework lines | Selection holds Join Lines (Ctrl+J), Sort Lines Ascending and Descending, Delete Duplicate Lines, and the case changes. With nothing selected, sorting and duplicates take the whole text and a case change takes the word at the cursor. |
+| comment lines | Ctrl+/ |
+| fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
+
+View turns on and off Sticky Scroll, which holds the opening line of each block the top of the screen is inside; Breadcrumbs, the folders, the file and the symbols the cursor is inside, each a click from where it points; and Bracket Pair Colorization, each pair of brackets colored by its depth.
+
+Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save saves each file a moment after it changes. A tab with changes not yet saved asks for a second click before it closes. Closing the app with changes open keeps them: they come back, still unsaved, the next time the tree opens.
+
+### Find your way
+
+| to go to | press |
+| --- | --- |
+| a file | Ctrl+P, then part of its name. `path:line:column` goes to a place in it, and the files opened last come first. |
+| a command | Ctrl+Shift+P, or `>` in Go to File |
+| a symbol in the file | Ctrl+Shift+O, or `@` in Go to File. The Outline pane lists them all. |
+| a line | Ctrl+G, or `:` in Go to File |
+| the matching bracket | Ctrl+Shift+\ |
+| where the cursor was | Alt+Left, and Alt+Right to come back |
+| the tab shown last | Ctrl+Tab; hold Ctrl and press Tab again to step further back |
+
+### Search
+
+Ctrl+F finds in the file and Ctrl+H replaces, with F3 and Shift+F3 for the next and the previous match. Ctrl+Shift+F opens Find in Files, the explorer's Search pane: case, whole words and regular expressions each turn on beside the field, each file's row holds its count, and a line's row opens the file at the match. `orior edit search <text>` searches the tree from the command line.
+
+### Version control
+
+The tree colors each file's name by how it differs from the last commit, with git's letter after it. A folder holding a changed file takes that file's color with a dot, and what the ignore files leave out is dimmed.
+
+In the editor, the gutter marks each line added or changed since the last commit, and each place lines were taken out. A click on a mark shows the change under it: the lines the commit had and the lines there now. Revert puts the commit's lines back as one edit, which Ctrl+Z takes back. Alt+F5 and Shift+Alt+F5 step to the next and the previous change. The strip down the minimap's right edge marks the whole file at once, the changes in one lane and find's matches and the cursors in the other, and a click on it goes there.
+
+The Timeline pane lists the commits that touched the open file. Open shows the file as a commit left it, read only, in a tab of its own.
+
+### Settings and themes
+
+File, Preferences (Ctrl+,) holds the zoom, every setting the menus turn on and off, Trim Trailing Whitespace and Insert Final Newline on save, and the colors. Ctrl+=, Ctrl+- and Ctrl+0 zoom in, out and back, and View switches between light and dark.
+
+To make a theme of your own, choose Light or Dark under Color Theme and press New. Each color of the palette is then yours to change, Search narrows the list, and ↺ puts one color back. Export copies the theme to the clipboard, and Import reads one from it. Themes are kept between runs and the one chosen shows from the first frame.
+
+### The terminal
+
+Ctrl+` opens and closes the terminal, and Ctrl+Shift+` starts a new shell. Closing the panel leaves the shell running. Ctrl+C copies where text is selected and interrupts where none is; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Its top edge drags to set its height. Open in terminal, on a folder of the tree, starts a shell there.
+
+### Keyboard shortcuts
+
+| keys | does |
+| --- | --- |
+| Ctrl+Shift+P | Command Palette |
+| Ctrl+P | Go to File |
+| Ctrl+Shift+F | Find in Files |
+| Ctrl+Shift+E, Ctrl+Shift+D | the Edit view, the Run view |
+| F5, Shift+F5 | start the job, stop it |
+| Ctrl+S | save |
+| Ctrl+B | show or collapse the side pane |
+| Ctrl+` | the terminal |
+| Alt+Left, Alt+Right | back, forward |
+| Ctrl+D | add the next occurrence |
+| Alt+F5 | the next change since the last commit |
+| Ctrl+, | Preferences |
+
+Help, Keyboard Shortcuts lists every one, and `orior help keys` prints them.
+
+### The command line
+
+Given no words, `orior` opens the window. Given words, it runs them in the terminal: a menu's title and one of its commands. `orior help` lists every one, and a command marked `*` there acts in the window, opening it if it is closed.
+
+```
+orior run list [word]                   the jobs, or those whose id, title or about holds the word
+orior run show <job>                    a job's file, values and the commands it runs
+orior run <job> [key=value] [-- words]  run a job; a key given twice gives two values
+orior build [job]                       the build jobs, or one of them; each kind of job is a word
+orior edit search [--case] [--word] [--regex] <text>
+orior go bridge [key]                   the keys of Lstar.klq, or one key's pairs, maps and rulesets
+orior view scheme dark                  any window command, here switching to the dark scheme
+orior <file>[:line[:column]]            open a file of the tree in the window
+orior --completions <shell>             completions for bash, zsh, fish or powershell
+```
+
+`list`, `show` and `bridge` work alone as well. A job is named by its id, by the end of its id after a slash, or by its title, where that names only one: `orior run sim/noise_floor`, `orior run show noise_floor`. A run's output streams as it comes, and `orior` exits with the code of its last step.
+
+To complete words as you type, load the script for your shell: `eval "$(orior --completions bash)"` in bash, `orior --completions fish | source` in fish, and `orior --completions powershell | Out-String | Invoke-Expression` in PowerShell.
+
+| setting | names |
+| --- | --- |
+| `--root <folder>` | the tree to work on, ahead of `ORIOR_ROOT` |
+| `ORIOR_ROOT` | the tree, ahead of the one the working folder or the program is in |
+| `ORIOR_BASH`, `ORIOR_PYTHON` | the bash and the Python the jobs run with, where the ones on the path are not the ones to use |
+| `ORIOR_NO_REPORTS` | no error reports for this run |
+
+### When something goes wrong
+
+The app files the errors it meets as issues on dstroy0/orior, and asks once whether to. Help, Automatic Error Reports turns that on or off, and the status bar shows where each report went. Help, Report a Bug opens a form for a report of your own, and `orior help report` does the same from the command line.
 
 ## What came back
 
