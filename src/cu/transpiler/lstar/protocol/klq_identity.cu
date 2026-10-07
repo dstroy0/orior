@@ -4844,6 +4844,49 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         {
             return 0;
         }
+        // each form read against the other token by token, as a put reads a stand-in against its form: what the other
+        // writes in place of each of its parameters, the other's operand or a literal
+        std::map<char, std::string> first_bound;
+        std::map<char, std::string> second_bound;
+        std::map<char, std::string> fixed;
+        const int first_unified = form_unified(first_text, second_text, &first_bound, &fixed);
+        const int second_unified = form_unified(second_text, first_text, &second_bound, &fixed);
+        // the arguments of a form of parameters `names`: each its operand of the third form's link where `given`
+        // names it, or else what the other form writes in its place, the operand `given` names of the other's
+        // parameter there or the literal it writes. 1 where every parameter has an argument
+        const auto arguments_of =
+            [](const std::vector<std::string> &names, int unified, const std::map<char, std::string> &bound,
+               const std::vector<std::string> &other_names, const std::map<std::string, std::string> &given,
+               std::vector<std::string> *arguments) {
+                arguments->clear();
+                for (size_t at = 0u; at < names.size(); at += 1u)
+                {
+                    const auto direct = given.find(names[at]);
+                    const auto aligned = bound.find((char)('A' + at));
+                    if (direct != given.end())
+                    {
+                        arguments->push_back(direct->second);
+                        continue;
+                    }
+                    if (!unified || (aligned == bound.end()))
+                    {
+                        return 0;
+                    }
+                    if (aligned->second[0] != '\x01')
+                    {
+                        arguments->push_back(aligned->second);
+                        continue;
+                    }
+                    const size_t other = (size_t)(aligned->second[1] - 'A');
+                    const auto through = (other < other_names.size()) ? given.find(other_names[other]) : given.end();
+                    if (through == given.end())
+                    {
+                        return 0;
+                    }
+                    arguments->push_back(through->second);
+                }
+                return 1;
+            };
         unsigned int alike_cases = 0u;
         int answered = 0;
         for (const std::string &third : keys)
@@ -4854,17 +4897,15 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             }
             std::vector<std::string> third_names;
             const std::string third_text = marked(third, &third_names);
-            std::set<std::string> named(third_names.begin(), third_names.end());
-            int names_all = !third_text.empty();
-            for (const std::string &name : first_names)
+            std::map<std::string, std::string> named;
+            for (const std::string &name : third_names)
             {
-                names_all &= (named.count(name) != 0u) ? 1 : 0;
+                named[name] = name;
             }
-            for (const std::string &name : second_names)
-            {
-                names_all &= (named.count(name) != 0u) ? 1 : 0;
-            }
-            if (!names_all)
+            std::vector<std::string> unused;
+            if (third_text.empty() ||
+                !arguments_of(first_names, first_unified, first_bound, second_names, named, &unused) ||
+                !arguments_of(second_names, second_unified, second_bound, first_names, named, &unused))
             {
                 continue;
             }
@@ -4922,23 +4963,24 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     fprintf(s_ask_log, "witness %s %s %s\n", first.c_str(), second.c_str(), third.c_str());
                 }
                 witnessed = 1;
-                // each form written in the link's place with the arguments the third form's link gives by name
+                // each form written in the link's place with the arguments the third form's link gives by name, and
+                // through the pair's binding where it gives none
                 std::vector<std::string> first_arguments;
                 std::vector<std::string> second_arguments;
-                for (const std::string &name : first_names)
-                {
-                    first_arguments.push_back(given[name]);
-                }
-                for (const std::string &name : second_names)
-                {
-                    second_arguments.push_back(given[name]);
-                }
+                arguments_of(first_names, first_unified, first_bound, second_names, given, &first_arguments);
+                arguments_of(second_names, second_unified, second_bound, first_names, given, &second_arguments);
                 std::string first_standing;
                 std::string second_standing;
                 if ((ruleset_opcode(sass, first, first_arguments, none, first_standing) == 0) ||
                     (ruleset_opcode(sass, second, second_arguments, none, second_standing) == 0))
                 {
                     lower("unwritable");
+                    continue;
+                }
+                // two stand-ins of one text, the pair's binding writing each as the other, ask the part nothing
+                if (first_standing == second_standing)
+                {
+                    lower("unchanged");
                     continue;
                 }
                 const std::string before = chain.second.substr(0u, (size_t)found.position(0));
