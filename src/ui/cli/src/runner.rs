@@ -73,10 +73,14 @@ fn since(began: Instant) -> f64 {
 pub type Sink = Arc<dyn Fn(Said) + Send + Sync>;
 
 /// The bash that runs the tree's scripts. On Windows that is Git's, found beside git itself, because
-/// the bash System32 offers is WSL's and reads none of these paths. ORIOR_BASH overrides it anywhere.
+/// the bash System32 offers is WSL's and reads none of these paths. ORIOR_BASH overrides it anywhere,
+/// and a folder given for bash under File, Toolchains overrides the rest.
 pub fn bash() -> Result<PathBuf, String> {
     if let Ok(named) = std::env::var("ORIOR_BASH") {
         return Ok(PathBuf::from(named));
+    }
+    if let Some(chosen) = crate::toolchains::chosen_program("bash") {
+        return Ok(chosen);
     }
     if !cfg!(windows) {
         return Ok(PathBuf::from("bash"));
@@ -103,10 +107,14 @@ pub fn bash() -> Result<PathBuf, String> {
     })
 }
 
-/// The Python that runs the tree's scripts: ORIOR_PYTHON, else python on Windows and python3 elsewhere.
+/// The Python that runs the tree's scripts: ORIOR_PYTHON, else the one in the folder given for Python
+/// under File, Toolchains, else python on Windows and python3 elsewhere.
 pub fn python() -> PathBuf {
     if let Ok(named) = std::env::var("ORIOR_PYTHON") {
         return PathBuf::from(named);
+    }
+    if let Some(chosen) = crate::toolchains::chosen_program("python") {
+        return chosen;
     }
     PathBuf::from(if cfg!(windows) { "python" } else { "python3" })
 }
@@ -354,6 +362,7 @@ impl Runs {
             }
             let seen = Arc::new(Mutex::new(Vec::new()));
             let mut code = Some(0);
+            let run_path = crate::toolchains::run_path();
             for (mut cmd, shown) in commands {
                 if holds(&stopped, run) {
                     break;
@@ -363,7 +372,7 @@ impl Runs {
                     let _ = std::fs::create_dir_all(&view_out);
                     cmd.env("VIEW_OUT", &view_out);
                 }
-                cmd.env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8");
+                cmd.env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8").env("PATH", &run_path);
                 cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
                 if !attached {
                     quiet(&mut cmd);

@@ -300,6 +300,11 @@ pub fn open_page(url: &str) -> Result<(), String> {
     if url != home && !url.starts_with(&format!("{home}/")) {
         return Err(format!("{url} is not a page of {REPOSITORY}"));
     }
+    open_url(url)
+}
+
+/// Opens `url` in the browser, as the system opens addresses.
+pub(crate) fn open_url(url: &str) -> Result<(), String> {
     let mut command = if cfg!(windows) {
         let mut command = Command::new("rundll32");
         command.args(["url.dll,FileProtocolHandler", url]);

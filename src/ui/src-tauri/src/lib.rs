@@ -11,7 +11,7 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, git, home, plugins, report, root, runner};
+use orior_cli::{bridge, catalog, commands, defs, files, git, home, plugins, report, root, runner, toolchains};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -254,6 +254,47 @@ fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> 
     git::text_at(&root_of(&app)?, &path, &id)
 }
 
+#[derive(serde::Serialize)]
+struct Toolchains {
+    tools: Vec<toolchains::Found>,
+    own: Option<toolchains::Own>,
+}
+
+/// Every toolchain as toolchains.rs finds it, and whether orior itself is on the PATH.
+#[tauri::command(async)]
+fn toolchains_check() -> Toolchains {
+    Toolchains { tools: toolchains::check(), own: toolchains::own().ok() }
+}
+
+/// What a toolchain says its version is.
+#[tauri::command(async)]
+fn toolchain_version(id: String) -> Result<String, String> {
+    toolchains::version(&id)
+}
+
+/// Opens a toolchain's install page in the browser, and names it.
+#[tauri::command]
+fn toolchain_install(id: String) -> Result<String, String> {
+    toolchains::open_install(&id)
+}
+
+/// Puts the folder of a toolchain, or of orior itself where `what` is "orior", on the reader's PATH.
+#[tauri::command(async)]
+fn toolchain_add_path(what: String) -> Result<String, String> {
+    toolchains::add_to_path(&what)
+}
+
+/// Has orior run a toolchain from `folder`, and names the program found there.
+#[tauri::command]
+fn toolchain_use(id: String, folder: String) -> Result<String, String> {
+    toolchains::choose(&id, &folder)
+}
+
+#[tauri::command]
+fn toolchain_forget(id: String) -> Result<(), String> {
+    toolchains::forget(&id)
+}
+
 /// Every plugin, as plugins.rs finds them.
 #[tauri::command]
 fn plugins_read() -> Vec<plugins::Plugin> {
@@ -492,6 +533,12 @@ fn open(launch: Launch) {
             plugin_create,
             user_css_read,
             home_reveal,
+            toolchains_check,
+            toolchain_version,
+            toolchain_install,
+            toolchain_add_path,
+            toolchain_use,
+            toolchain_forget,
             bridge_read,
             job_start,
             job_stop,

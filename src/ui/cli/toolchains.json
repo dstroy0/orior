@@ -1,0 +1,280 @@
+{
+  "tools": [
+    {
+      "id": "git",
+      "name": "Git",
+      "group": "orior's own",
+      "for": "the gutter's changes, the Timeline and Revert, and on Windows the bash every job runs in",
+      "programs": ["git"],
+      "version": ["--version"],
+      "install": {"windows": "https://git-scm.com/downloads/win", "macos": "https://git-scm.com/downloads/mac", "linux": "https://git-scm.com/downloads/linux"},
+      "places": {"windows": ["%ProgramFiles%\\Git\\cmd", "%LOCALAPPDATA%\\Programs\\Git\\cmd"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"]}
+    },
+    {
+      "id": "bash",
+      "name": "Bash",
+      "group": "orior's own",
+      "for": "every job's script and the terminal; on Windows it is the one that comes with Git",
+      "programs": ["bash"],
+      "version": ["--version"],
+      "env": "ORIOR_BASH",
+      "notIn": ["System32", "WindowsApps"],
+      "install": {"windows": "https://git-scm.com/downloads/win", "any": "https://www.gnu.org/software/bash/"},
+      "places": {"windows": ["%ProgramFiles%\\Git\\bin", "%LOCALAPPDATA%\\Programs\\Git\\bin"], "macos": ["/opt/homebrew/bin", "/bin"], "linux": ["/bin", "/usr/bin"]}
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "group": "orior's own",
+      "for": "the tree's Python scripts, the jobs that run them, and Black",
+      "programs": ["python3", "python"],
+      "version": ["--version"],
+      "env": "ORIOR_PYTHON",
+      "notIn": ["WindowsApps"],
+      "install": {"any": "https://www.python.org/downloads/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*", "%ProgramFiles%\\Python3*"], "macos": ["/Library/Frameworks/Python.framework/Versions/Current/bin", "/opt/homebrew/bin"]}
+    },
+    {
+      "id": "pwsh",
+      "name": "PowerShell 7",
+      "group": "orior's own",
+      "for": "the PowerShell scripts of the tree",
+      "programs": ["pwsh"],
+      "version": ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+      "install": {"any": "https://learn.microsoft.com/powershell/scripting/install/installing-powershell"},
+      "places": {"windows": ["%ProgramFiles%\\PowerShell\\7"], "macos": ["/usr/local/microsoft/powershell/7", "/opt/homebrew/bin"], "linux": ["/opt/microsoft/powershell/7"]}
+    },
+    {
+      "id": "gh",
+      "name": "GitHub CLI",
+      "group": "orior's own",
+      "for": "filing error reports and bug reports as issues",
+      "programs": ["gh"],
+      "version": ["--version"],
+      "install": {"any": "https://cli.github.com/"},
+      "places": {"windows": ["%ProgramFiles%\\GitHub CLI"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"]}
+    },
+    {
+      "id": "cuda",
+      "name": "CUDA Toolkit",
+      "group": "C, C++ and CUDA",
+      "for": "nvcc, which builds the .cu sims and the tracking driver",
+      "programs": ["nvcc"],
+      "version": ["--version"],
+      "install": {"windows": "https://developer.nvidia.com/cuda-downloads", "linux": "https://developer.nvidia.com/cuda-downloads"},
+      "places": {"windows": ["%ProgramFiles%\\NVIDIA GPU Computing Toolkit\\CUDA\\v*\\bin"], "linux": ["/usr/local/cuda/bin"]}
+    },
+    {
+      "id": "msvc",
+      "name": "MSVC Build Tools",
+      "group": "C, C++ and CUDA",
+      "for": "cl, the host compiler nvcc calls on Windows; it compiles from a Developer prompt, so PATH alone is not all it needs",
+      "programs": ["cl"],
+      "version": [],
+      "only": "windows",
+      "install": {"windows": "https://visualstudio.microsoft.com/visual-cpp-build-tools/"},
+      "places": {"windows": ["%ProgramFiles(x86)%\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64", "%ProgramFiles%\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64"]}
+    },
+    {
+      "id": "gcc",
+      "name": "GCC",
+      "group": "C, C++ and CUDA",
+      "for": "gcc and g++, for C and C++",
+      "programs": ["gcc", "g++"],
+      "version": ["--version"],
+      "install": {"windows": "https://www.msys2.org/", "macos": "https://formulae.brew.sh/formula/gcc", "linux": "https://gcc.gnu.org/install/binaries.html"},
+      "places": {"windows": ["C:\\msys64\\ucrt64\\bin", "C:\\msys64\\mingw64\\bin", "C:\\Strawberry\\c\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "llvm",
+      "name": "LLVM: Clang and clangd",
+      "group": "C, C++ and CUDA",
+      "for": "clang and clang++, and clangd, which reads C, C++ and CUDA for an editor",
+      "programs": ["clang", "clang++", "clangd"],
+      "version": ["--version"],
+      "install": {"any": "https://github.com/llvm/llvm-project/releases"},
+      "places": {"windows": ["%ProgramFiles%\\LLVM\\bin"], "macos": ["/opt/homebrew/opt/llvm/bin", "/usr/local/opt/llvm/bin"], "linux": ["/usr/bin", "/usr/lib/llvm-*/bin"]}
+    },
+    {
+      "id": "cmake",
+      "name": "CMake",
+      "group": "C, C++ and CUDA",
+      "for": "the builds that are CMake projects",
+      "programs": ["cmake"],
+      "version": ["--version"],
+      "install": {"any": "https://cmake.org/download/"},
+      "places": {"windows": ["%ProgramFiles%\\CMake\\bin"], "macos": ["/Applications/CMake.app/Contents/bin", "/opt/homebrew/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "ninja",
+      "name": "Ninja",
+      "group": "C, C++ and CUDA",
+      "for": "the build CMake writes",
+      "programs": ["ninja"],
+      "version": ["--version"],
+      "install": {"any": "https://github.com/ninja-build/ninja/releases"},
+      "places": {"windows": ["%ProgramFiles%\\CMake\\bin", "%ProgramFiles%\\Microsoft Visual Studio\\*\\*\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja", "%ProgramFiles(x86)%\\Microsoft Visual Studio\\*\\*\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "make",
+      "name": "GNU Make",
+      "group": "C, C++ and CUDA",
+      "for": "the builds that are makefiles",
+      "programs": ["make"],
+      "version": ["--version"],
+      "install": {"windows": "https://www.msys2.org/", "any": "https://www.gnu.org/software/make/"},
+      "places": {"windows": ["C:\\msys64\\usr\\bin"], "macos": ["/usr/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "rust",
+      "name": "Rust",
+      "group": "Languages",
+      "for": "cargo and rustc, which build orior itself, and rustfmt",
+      "programs": ["cargo", "rustc", "rustfmt"],
+      "version": ["--version"],
+      "formats": ["rust"],
+      "install": {"any": "https://rustup.rs/"},
+      "places": {"windows": ["%USERPROFILE%\\.cargo\\bin"], "any": ["~/.cargo/bin"]}
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "group": "Languages",
+      "for": "JavaScript, and npm, which installs Prettier",
+      "programs": ["node", "npm", "npx"],
+      "version": ["--version"],
+      "install": {"any": "https://nodejs.org/en/download"},
+      "places": {"windows": ["%ProgramFiles%\\nodejs"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"], "linux": ["/usr/bin", "/usr/local/bin"]}
+    },
+    {
+      "id": "ruby",
+      "name": "Ruby",
+      "group": "Languages",
+      "for": "the tree's Ruby scripts",
+      "programs": ["ruby", "gem"],
+      "version": ["--version"],
+      "install": {"windows": "https://rubyinstaller.org/downloads/", "any": "https://www.ruby-lang.org/en/documentation/installation/"},
+      "places": {"windows": ["C:\\Ruby3*\\bin", "C:\\tools\\ruby3*\\bin"], "macos": ["/opt/homebrew/opt/ruby/bin", "/usr/local/opt/ruby/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "r",
+      "name": "R",
+      "group": "Languages",
+      "for": "Rscript, which runs the tree's R",
+      "programs": ["Rscript", "R"],
+      "version": ["--version"],
+      "install": {"any": "https://cran.r-project.org/"},
+      "places": {"windows": ["%ProgramFiles%\\R\\R-*\\bin"], "macos": ["/Library/Frameworks/R.framework/Resources/bin", "/opt/homebrew/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "matlab",
+      "name": "MATLAB",
+      "group": "Languages",
+      "for": "the tree's MATLAB, run as matlab -batch",
+      "programs": ["matlab"],
+      "install": {"any": "https://www.mathworks.com/downloads/"},
+      "places": {"windows": ["%ProgramFiles%\\MATLAB\\R20*\\bin"], "macos": ["/Applications/MATLAB_R20*.app/bin"], "linux": ["/usr/local/MATLAB/R20*/bin"]}
+    },
+    {
+      "id": "octave",
+      "name": "GNU Octave",
+      "group": "Languages",
+      "for": "the tree's .m files where MATLAB is not there",
+      "programs": ["octave-cli", "octave"],
+      "version": ["--version"],
+      "install": {"any": "https://octave.org/download"},
+      "places": {"windows": ["%ProgramFiles%\\GNU Octave\\Octave-*\\mingw64\\bin", "%LOCALAPPDATA%\\Programs\\GNU Octave\\Octave-*\\mingw64\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "lean",
+      "name": "Lean",
+      "group": "Languages",
+      "for": "lean and lake, through elan, which keeps each project on its own Lean",
+      "programs": ["lean", "lake", "elan"],
+      "version": ["--version"],
+      "install": {"any": "https://lean-lang.org/install/"},
+      "places": {"windows": ["%USERPROFILE%\\.elan\\bin"], "any": ["~/.elan/bin"]}
+    },
+    {
+      "id": "tex",
+      "name": "TeX: MiKTeX or TeX Live",
+      "group": "Languages",
+      "for": "latexmk and the engines it runs, which build the research papers",
+      "programs": ["latexmk", "lualatex", "pdflatex"],
+      "version": ["-v"],
+      "install": {"windows": "https://miktex.org/download", "any": "https://tug.org/texlive/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\MiKTeX\\miktex\\bin\\x64", "%ProgramFiles%\\MiKTeX\\miktex\\bin\\x64", "C:\\texlive\\20*\\bin\\windows", "C:\\texlive\\20*\\bin\\win64"], "macos": ["/Library/TeX/texbin"], "linux": ["/usr/local/texlive/20*/bin/x86_64-linux", "/usr/bin"]}
+    },
+    {
+      "id": "ngspice",
+      "name": "ngspice",
+      "group": "Circuits and hardware",
+      "for": "running SPICE netlists from the command line",
+      "programs": ["ngspice_con", "ngspice"],
+      "install": {"any": "https://ngspice.sourceforge.io/download.html"},
+      "places": {"windows": ["%ProgramFiles%\\Spice64\\bin", "C:\\Spice64\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "ltspice",
+      "name": "LTspice",
+      "group": "Circuits and hardware",
+      "for": "opening and running the .asc schematics",
+      "programs": ["LTspice", "XVIIx64"],
+      "install": {"windows": "https://www.analog.com/en/resources/design-tools-and-calculators/ltspice-simulator.html", "macos": "https://www.analog.com/en/resources/design-tools-and-calculators/ltspice-simulator.html"},
+      "places": {"windows": ["%ProgramFiles%\\ADI\\LTspice", "%LOCALAPPDATA%\\Programs\\ADI\\LTspice", "%ProgramFiles%\\LTC\\LTspiceXVII"], "macos": ["/Applications/LTspice.app/Contents/MacOS"]}
+    },
+    {
+      "id": "ghdl",
+      "name": "GHDL",
+      "group": "Circuits and hardware",
+      "for": "analyzing and simulating VHDL",
+      "programs": ["ghdl"],
+      "version": ["--version"],
+      "install": {"any": "https://github.com/ghdl/ghdl/releases"},
+      "places": {"windows": ["C:\\msys64\\ucrt64\\bin", "C:\\msys64\\mingw64\\bin"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin", "/usr/local/bin"]}
+    },
+    {
+      "id": "cces",
+      "name": "CrossCore Embedded Studio",
+      "group": "Circuits and hardware",
+      "for": "cc21k and easm21k, which build SHARC code",
+      "programs": ["cc21k", "easm21k"],
+      "only": "windows",
+      "install": {"windows": "https://www.analog.com/en/resources/evaluation-hardware-and-software/software/adswt-cces.html"},
+      "places": {"windows": ["%ProgramFiles%\\Analog Devices\\CrossCore Embedded Studio *", "%ProgramFiles(x86)%\\Analog Devices\\CrossCore Embedded Studio *"]}
+    },
+    {
+      "id": "black",
+      "name": "Black",
+      "group": "Formatters",
+      "for": "formats Python",
+      "programs": ["black"],
+      "version": ["--version"],
+      "formats": ["python"],
+      "install": {"any": "https://black.readthedocs.io/en/stable/getting_started.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin"]}
+    },
+    {
+      "id": "clang-format",
+      "name": "clang-format",
+      "group": "Formatters",
+      "for": "formats C, C++ and CUDA; it comes with LLVM",
+      "programs": ["clang-format"],
+      "version": ["--version"],
+      "formats": ["c"],
+      "install": {"any": "https://github.com/llvm/llvm-project/releases"},
+      "places": {"windows": ["%ProgramFiles%\\LLVM\\bin", "%ProgramFiles%\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\Llvm\\x64\\bin", "%ProgramFiles(x86)%\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\Llvm\\x64\\bin"], "macos": ["/opt/homebrew/opt/llvm/bin", "/opt/homebrew/bin"], "linux": ["/usr/bin"]}
+    },
+    {
+      "id": "prettier",
+      "name": "Prettier",
+      "group": "Formatters",
+      "for": "formats JavaScript, CSS, HTML, JSON, Markdown and YAML; npm installs it",
+      "programs": ["prettier"],
+      "version": ["--version"],
+      "formats": ["javascript", "css", "html", "json", "markdown", "yaml"],
+      "install": {"any": "https://prettier.io/docs/install"},
+      "places": {"windows": ["%APPDATA%\\npm"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"], "linux": ["/usr/local/bin", "/usr/bin"]}
+    }
+  ]
+}

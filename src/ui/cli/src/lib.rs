@@ -22,3 +22,4 @@ pub mod plugins;
 pub mod report;
 pub mod root;
 pub mod runner;
+pub mod toolchains;

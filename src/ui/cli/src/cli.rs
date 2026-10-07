@@ -24,6 +24,7 @@ use crate::plugins;
 use crate::report;
 use crate::root;
 use crate::runner::{self, Said, Sink};
+use crate::toolchains;
 
 /// The code a run exits with where a step could not start or gave no code.
 const NO_CODE: i32 = 1;
@@ -465,6 +466,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "plugins" => return plugins_list(),
         "new-plugin" => return new_plugin(words),
         "user-css" => return user_css(),
+        "toolchains" => return toolchains_words(words),
         "report" => return report_page(named, words),
         _ => {}
     }
@@ -614,6 +616,67 @@ fn new_plugin(words: &[String]) -> i32 {
             WRONG
         }
     }
+}
+
+/// `orior file toolchains [install <tool> | add-path <tool|orior> | use <tool> <folder> | forget <tool>]`:
+/// with no words, every toolchain as toolchains.rs finds it, a group at a time, with its version
+/// where it says one, and whether orior itself is on the PATH. `install` opens a tool's install page,
+/// `add-path` puts the folder its program was found in, or orior's own, on the reader's PATH, `use`
+/// has orior run a tool from a folder, and `forget` drops that folder.
+fn toolchains_words(words: &[String]) -> i32 {
+    let word = |at: usize| words.get(at).map(String::as_str);
+    let done = |said: Result<String, String>| match said {
+        Ok(text) => {
+            out(&text);
+            0
+        }
+        Err(text) => {
+            err(&text);
+            NO_CODE
+        }
+    };
+    match (word(0), word(1), word(2)) {
+        (None, _, _) | (Some("check"), None, _) => {}
+        (Some("install"), Some(id), None) => return done(toolchains::open_install(id).map(|url| format!("opened {url}"))),
+        (Some("add-path"), Some(what), None) => {
+            return done(toolchains::add_to_path(what).map(|folder| format!("{folder} is on your PATH for every terminal started from now")));
+        }
+        (Some("use"), Some(id), Some(folder)) if words.len() == 3 => return done(toolchains::choose(id, folder).map(|program| format!("orior runs {program}"))),
+        (Some("forget"), Some(id), None) => return done(toolchains::forget(id).map(|()| format!("orior looks for {id} on the PATH again"))),
+        _ => {
+            err("toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder> or forget <tool>");
+            return WRONG;
+        }
+    }
+    let found = toolchains::check();
+    let versions = toolchains::versions(&found);
+    let wide = found.iter().map(|one| one.id.len()).max().unwrap_or(0);
+    let mut group = "";
+    for one in &found {
+        if one.group != group {
+            group = &one.group;
+            out(&format!("\n{group}"));
+        }
+        let state = match one.state {
+            "env" => "named",
+            "chosen" => "chosen",
+            "path" => "on PATH",
+            "found" => "not on PATH",
+            _ => "missing",
+        };
+        let detail = match (&one.program, versions.get(&one.id)) {
+            (Some(program), Some(version)) => format!("{version}  {program}"),
+            (Some(program), None) => program.clone(),
+            (None, _) => one.install.clone().map(|url| format!("install: {url}")).unwrap_or_default(),
+        };
+        out(&format!("  {:wide$}  {state:11}  {detail}", one.id));
+    }
+    match toolchains::own() {
+        Ok(own) if own.on_path => out(&format!("\norior is on PATH: {}", own.folder)),
+        Ok(own) => out(&format!("\norior is not on PATH: orior file toolchains add-path orior adds {}", own.folder)),
+        Err(said) => err(&said),
+    }
+    0
 }
 
 /// `orior file user-css`: names the stylesheet the window lays over its own, and makes it, empty but

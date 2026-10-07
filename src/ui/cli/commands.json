@@ -19,6 +19,8 @@
         { "label": "New Language Plugin…", "command": "new-plugin", "args": "<name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] [--block-comment <open> <close>] [--keywords <a,b>] [--types <a,b>] [--constants <a,b>] [--quotes <q,q>] [--replace]", "console": true },
         { "label": "Reload Plugins", "command": "reload-plugins" },
         "-",
+        { "label": "Toolchains…", "command": "toolchains", "args": "[check|install <tool>|add-path <tool|orior>|use <tool> <folder>|forget <tool>]", "console": true },
+        "-",
         { "label": "Exit", "command": "exit" }
       ]
     },

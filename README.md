@@ -161,6 +161,19 @@ Each language the editor colors is a plugin. orior comes with plugins for MATLAB
 
 File, New Language Plugin asks for a name, the extensions, the comments, the keywords, the types, the constants and the quotes, or starts from a plugin there already. A sample on the right shows how the plugin colors code as you type, over the `plugin.json` it will write. Create writes it to your plugins folder, with a sample file beside it, and the editor opens those extensions in it at once.
 
+### Toolchains
+
+orior installs no compiler or language of its own. File, Toolchains lists each one the tree and the app use, from Git, Bash and Python through CUDA, MSVC, GCC, LLVM, Rust, Node.js, Ruby, R, MATLAB, Octave, Lean, TeX, ngspice, LTspice, GHDL and CrossCore Embedded Studio to the formatters Black, clang-format and Prettier, with what each is for, where orior found it and the version it says.
+
+| shown | means | what you can do |
+| --- | --- | --- |
+| on PATH | found on your PATH | Choose Folder to use another copy |
+| installed, not on PATH | found where it usually installs | Add to PATH, or Use This Folder |
+| not found | not on your PATH or in its usual folders | Install Page opens its makers' download page; Choose Folder takes its `bin` folder |
+| from your folder | orior runs it from the folder you gave | Forget Folder |
+
+Above the list, Add orior to PATH puts orior's own folder on your PATH, and `orior` then works in any terminal. On Windows a folder goes on your own Path in the registry, and its `%VARIABLES%` stay as written; elsewhere it is a line at the end of `~/.profile`. orior's runs and its terminal read the PATH anew each time and put the folders you gave first: a change shows there at once; a terminal opened before it does not have it. The folders you gave are kept in `toolchains.json` in orior's own folder.
+
 ### The terminal
 
 Ctrl+` opens and closes the terminal, and Ctrl+Shift+` starts a new shell. Closing the panel leaves the shell running. Ctrl+C copies where text is selected and interrupts where none is; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Its top edge drags to set its height. Open in terminal, on a folder of the tree, starts a shell there.
@@ -199,6 +212,10 @@ orior view scheme dark                  any window command, here switching to th
 orior file plugins                      every plugin, where it comes from and what it opens
 orior file new-plugin <name> --ext <e>  write a language plugin; orior help names its other words
 orior file user-css                     the path of user.css, made where it is not there
+orior file toolchains                   each toolchain, where it was found and its version
+orior file toolchains install <tool>    open a toolchain's install page
+orior file toolchains add-path <tool>   put its folder on your PATH; add-path orior adds orior
+orior file toolchains use <tool> <dir>  run a toolchain from a folder; forget <tool> drops it
 orior <file>[:line[:column]]            open a file of the tree in the window
 orior --completions <shell>             completions for bash, zsh, fish or powershell
 ```

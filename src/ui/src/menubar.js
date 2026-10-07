@@ -25,6 +25,7 @@ import { openPalette, startPalette } from "./palette.js";
 import { showPreferences } from "./preferences.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
+import { runToolchains } from "./toolchains.js";
 import { openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
@@ -184,6 +185,7 @@ const COMMANDS = {
   plugins: () => showPlugins(sheet),
   "new-plugin": (args) => showGenerator(sheet, args),
   "reload-plugins": () => loadPlugins(),
+  toolchains: (args) => runToolchains(sheet, args),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
