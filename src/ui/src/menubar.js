@@ -20,10 +20,11 @@
 // into the last, a menu of menus.
 
 import { invoke } from "./bridge.js";
-import { editing, explorerAuto, explorerShown, openAt as openFileAt, setExplorerAuto, toggleExplorer } from "./edit.js";
+import { editing, openAt as openFileAt } from "./edit.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { scheme, setScheme, toggleScheme } from "./scheme.js";
+import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { onView, shownView, showView } from "./views.js";
 import { wordmark } from "./wordmark.js";
@@ -114,15 +115,9 @@ const COMMANDS = {
   "cursor-below": inEditor((e) => e.addCursor(1)),
   "next-occurrence": inEditor((e) => e.addMatch(false)),
   "all-occurrences": inEditor((e) => e.addMatch(true)),
-  "edit-view": () => {
-    showView("edit");
-    toggleExplorer(true);
-  },
-  explorer: (args) => {
-    showView("edit");
-    toggleExplorer(args[0] === "show" ? true : args[0] === "hide" ? false : undefined);
-  },
-  "explorer-auto": (args) => setExplorerAuto(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
+  "edit-view": () => showView("edit"),
+  "side-bar": (args) => togglePane(args[0] === "show" ? true : args[0] === "hide" ? false : undefined),
+  "auto-collapse": (args) => setAutoCollapse(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
@@ -148,8 +143,8 @@ const COMMANDS = {
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
-  explorer: () => shownView() === "edit" && explorerShown(),
-  "explorer-auto": explorerAuto,
+  "side-bar": paneShown,
+  "auto-collapse": autoCollapse,
 };
 
 // What a command needs before it can act, by the name commands.json gives the need.

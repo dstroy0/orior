@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The name as the app sets it large: "or", the eye in place of the i, "or". The eye is line art in the
-// text's color and follows the scheme, and the name still reads as orior to a screen reader.
+// The name: "or", the eye in place of the i, "or". The eye is line art in the text's color and
+// follows the scheme, and the name still reads as orior to a screen reader. The bar along the top
+// holds it small, and an empty view holds it large until it goes there.
 
 // The eye's strokes, each the center line of one line of the drawing, in the drawing's own units.
 const STROKES = [
@@ -75,11 +76,80 @@ export function setWordmark(node) {
   return node;
 }
 
-export function wordmark(tag) {
-  return setWordmark(document.createElement(tag));
+// How long the name stands on an empty view before it goes to the bar, and how long it takes, in
+// milliseconds.
+const STANDS = 1400;
+const FLIES = 700;
+
+const flights = new Map();
+
+// The name large on an empty view: it stands a moment, then slides left and up into its place in the
+// bar along the top, where it stays. Each time the view shows again it stands and goes again.
+function fly(node) {
+  const home = document.getElementById("bar-mark");
+  window.clearTimeout(flights.get(node));
+  node.getAnimations().forEach((one) => one.cancel());
+  node.style.visibility = "";
+  flights.set(
+    node,
+    window.setTimeout(() => {
+      const from = node.getBoundingClientRect();
+      const to = home.getBoundingClientRect();
+      const done = () => {
+        node.style.visibility = "hidden";
+        home.classList.add("home");
+      };
+      if (!from.width || !to.width || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        done();
+        return;
+      }
+      const scale = to.width / from.width;
+      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+      const flight = node.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px) scale(${scale})` }], {
+        duration: FLIES,
+        easing: "cubic-bezier(0.5, 0, 0.25, 1)",
+        fill: "forwards",
+      });
+      flight.onfinish = done;
+    }, STANDS)
+  );
 }
 
-// Sets the name in every heading the page marks for it.
-export function setWordmarks() {
-  document.querySelectorAll("[data-wordmark]").forEach(setWordmark);
+// What shows a large name is watched, and not the name: gone to the bar, the name stands outside the
+// view that clips it, and never reads as shown again.
+const seen = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    const node = entry.target.querySelector(":scope > .wordmark");
+    if (!node) {
+      continue;
+    }
+    if (entry.isIntersecting) {
+      fly(node);
+    } else {
+      window.clearTimeout(flights.get(node));
+    }
+  }
+});
+
+// Watches what holds , once it is held.
+function watch(node) {
+  requestAnimationFrame(() => node.parentElement && seen.observe(node.parentElement));
+}
+
+// The name large, for an empty view, and set to go to the bar once it shows.
+export function wordmark(tag) {
+  const node = setWordmark(document.createElement(tag));
+  watch(node);
+  return node;
+}
+
+// Sets the name in the bar and in every heading the page marks for it, each of those set to go to
+// the bar once it shows.
+export function startWordmark() {
+  setWordmark(document.getElementById("bar-mark"));
+  document.querySelectorAll("[data-wordmark]").forEach((node) => {
+    setWordmark(node);
+    watch(node);
+  });
 }

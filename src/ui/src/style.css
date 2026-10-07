@@ -763,30 +763,29 @@ body[data-view="run"] .statusbar .ed-status {
   fill: currentColor;
 }
 
-/* On an empty view the name stands a moment, then slides left and up out of the way. */
+/* The name large on an empty view takes only its own width and goes to the bar from where it
+ * stands. */
 .empty-body .wordmark,
 .open-body .wordmark {
-  animation: wordmark-away 0.7s cubic-bezier(0.55, 0, 0.75, 0.2) 1.4s forwards;
+  width: fit-content;
+  margin-inline: auto;
 }
 
-@keyframes wordmark-away {
-  to {
-    transform: translate(-42vw, -42vh) scale(0.2);
-    opacity: 0;
-  }
+/* The name small at the left of the bar, shown once the large one has first reached it. */
+.bar-mark {
+  flex: none;
+  font: 700 17px/1 var(--head);
+  letter-spacing: -0.03em;
+  color: #f3f2fb;
+  visibility: hidden;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .empty-body .wordmark,
-  .open-body .wordmark {
-    animation-name: wordmark-fade;
-  }
+.bar-mark.home {
+  visibility: visible;
+}
 
-  @keyframes wordmark-fade {
-    to {
-      opacity: 0;
-    }
-  }
+.bar-mark .eye-mark path {
+  stroke-width: 9;
 }
 
 .empty-body p,
@@ -1525,18 +1524,17 @@ body[data-view="run"] .statusbar .ed-status {
   font-weight: 500;
 }
 
-/* The explorer: its head, its search, and its panes one over the next. The tree's pane takes what
- * the others leave, and Outline and Timeline open share it. Collapsed, the explorer gives its width
- * to the editor and slides left and up out of the way as it goes. */
-.explorer {
+/* A pane that takes the editor's room: the job list, the explorer, the definitions. Collapsed, it
+ * gives its width back and its inside slides up and toward the edge it stands at. The pointer at
+ * that edge of the view brings it back. */
+.collapsible {
   overflow: hidden;
   transition:
     width 0.22s ease,
     border-color 0.22s ease;
 }
 
-.explorer-inner {
-  width: var(--side);
+.side-inner {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -1546,22 +1544,54 @@ body[data-view="run"] .statusbar .ed-status {
     opacity 0.22s ease;
 }
 
-.explorer.collapsed {
-  width: 0;
-  border-right-color: transparent;
+.side > .side-inner {
+  width: var(--side);
 }
 
-.explorer.collapsed .explorer-inner {
+.collapsible.collapsed {
+  width: 0;
+  border-color: transparent;
+}
+
+.collapsible.toward-left.collapsed > .side-inner {
   transform: translate(-100%, -100%);
   opacity: 0;
 }
 
+.collapsible.toward-right.collapsed > .side-inner {
+  transform: translate(100%, -100%);
+  opacity: 0;
+}
+
+.pane-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+}
+
+.pane-edge[hidden] {
+  display: none;
+}
+
+.pane-edge-left {
+  left: 0;
+}
+
+.pane-edge-right {
+  right: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .explorer,
-  .explorer-inner {
+  .collapsible,
+  .side-inner {
     transition: none;
   }
 }
+
+/* The explorer: its head, its search, and its panes one over the next. The tree's pane takes what
+ * the others leave, and Outline and Timeline open share it. */
 
 .explorer-head {
   display: flex;
@@ -1892,9 +1922,22 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 /* The definitions beside the editor: the open file type's oracle table, row by row. */
-.defs {
+.defs-side {
   width: var(--defs);
   flex: none;
+}
+
+.defs-side[hidden] {
+  display: none;
+}
+
+.defs.side-inner {
+  display: block;
+}
+
+.defs {
+  width: var(--defs);
+  height: 100%;
   overflow: auto;
   padding: 1rem 1.1rem 1.4rem;
   background: var(--surface);

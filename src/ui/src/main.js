@@ -11,10 +11,11 @@ import { startMenus } from "./menu.js";
 import { drawMenubar, runLaunch, startMenubar } from "./menubar.js";
 import { loadRun, startRun } from "./run.js";
 import { keepScheme } from "./scheme.js";
+import { keepPane } from "./sides.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
 import { showView } from "./views.js";
-import { setWordmarks } from "./wordmark.js";
+import { startWordmark } from "./wordmark.js";
 
 async function openInEditor(path) {
   showView("edit");
@@ -49,7 +50,7 @@ function drawPulse(held) {
 }
 
 async function start() {
-  setWordmarks();
+  startWordmark();
   keepScheme();
   startMenus();
   keepLattices();
@@ -58,6 +59,9 @@ async function start() {
   await startMenubar({ openFolder });
   await startRun(openInEditor);
   await startTerminal();
+  keepPane(document.getElementById("job-side"), "left");
+  keepPane(document.getElementById("explorer"), "left");
+  keepPane(document.getElementById("defs-side"), "right");
   await begin(await invoke("root_get"));
   await runLaunch();
 }

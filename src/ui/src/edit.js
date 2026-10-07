@@ -9,9 +9,6 @@
 // The tree marks what git says of each file: its name in the color of how it differs from the last
 // commit, the state's letter after it, and a folder holding a changed file in that file's color with
 // a dot. What the ignore files leave out is dimmed.
-//
-// The explorer collapses, sliding left and up, when the editor is pressed, where the reader keeps it
-// collapsing; Ctrl+B and the Edit view's keys bring it back.
 
 import { invoke } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
@@ -25,6 +22,7 @@ import { clipText, copyText, menuOn } from "./menu.js";
 import { terminalAt } from "./terminal.js";
 import { onScheme } from "./scheme.js";
 import { calm, write } from "./status.js";
+import { togglePane } from "./sides.js";
 import { drawBranch } from "./statusbar.js";
 
 const state = {
@@ -42,10 +40,6 @@ const state = {
 
 // Which git state a folder takes from the files in it: the first of these that any of them is.
 const ROLL_ORDER = ["C", "M", "D", "A", "R", "U"];
-
-// The explorer's place: shown or collapsed, and whether pressing the editor collapses it.
-const SHOWN_KEY = "orior.explorer.shown";
-const AUTO_KEY = "orior.explorer.auto";
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -474,8 +468,9 @@ function drawDefs() {
   const ext = path ? extOf(fileOf(path)) : "";
   const tables = state.known.tablesOf(ext);
   const bridged = inBridge(path);
-  panel.hidden = !type && !tables.length && !bridged;
-  if (panel.hidden) {
+  const side = document.getElementById("defs-side");
+  side.hidden = !type && !tables.length && !bridged;
+  if (side.hidden) {
     return;
   }
   const parts = [];
@@ -641,44 +636,17 @@ export async function startEdit(defs) {
   menuOn(document.getElementById("files"), fileItems);
   menuOn(document.getElementById("tabs"), tabItems);
   menuOn(document.getElementById("editor"), editorItems);
-  setExplorer(localStorage.getItem(SHOWN_KEY) !== "false");
-  document.querySelector("#mode-edit .desk").addEventListener("pointerdown", () => explorerAuto() && explorerShown() && setExplorer(false));
   window.addEventListener("focus", async () => {
     await loadChanges();
     drawTree();
   });
-  document.getElementById("defs").hidden = true;
+  document.getElementById("defs-side").hidden = true;
   document.getElementById("editor").hidden = true;
   drawEmpty(true);
   loadBridge();
   keepBridge(() => inBridge(state.active) && drawDefs());
   await loadChanges();
   await drawTree();
-}
-
-// The explorer shown, or collapsed out of the way with nothing in it taking the keys.
-function setExplorer(shown) {
-  const side = document.getElementById("explorer");
-  side.classList.toggle("collapsed", !shown);
-  side.inert = !shown;
-  localStorage.setItem(SHOWN_KEY, String(shown));
-}
-
-export function explorerShown() {
-  return !document.getElementById("explorer").classList.contains("collapsed");
-}
-
-export function toggleExplorer(shown = !explorerShown()) {
-  setExplorer(shown);
-}
-
-// Whether pressing the editor collapses the explorer. It does until the reader turns it off.
-export function explorerAuto() {
-  return localStorage.getItem(AUTO_KEY) !== "false";
-}
-
-export function setExplorerAuto(on = !explorerAuto()) {
-  localStorage.setItem(AUTO_KEY, String(on));
 }
 
 // The menus.
@@ -789,7 +757,7 @@ export function editing() {
     close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
     closeAll: () => [...state.tabs].forEach(closeTab),
     find: () => {
-      setExplorer(true);
+      togglePane(true);
       const filter = document.getElementById("file-filter");
       filter.focus();
       filter.select();
