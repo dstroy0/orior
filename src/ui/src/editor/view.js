@@ -19,7 +19,8 @@ import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
 
 const PAD = 10;
-const LINE = 20;
+// The height of a row, read from the code's line height each time the editor measures.
+let LINE = 20;
 
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
@@ -223,6 +224,16 @@ export class Editor {
     this.text.append(probe);
     this.cw = probe.getBoundingClientRect().width / 100 || 7.8;
     probe.remove();
+    LINE = Math.round(Number.parseFloat(getComputedStyle(this.host).lineHeight)) || LINE;
+  }
+
+  // Measures again and draws every row anew, as a change of font asks.
+  restyle() {
+    this.measure();
+    this.rowsKey = "";
+    this.rowsCache = null;
+    this.widestAt = -1;
+    this.schedule();
   }
 
   get doc() {

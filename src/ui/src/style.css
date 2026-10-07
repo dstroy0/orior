@@ -12,12 +12,60 @@
   --head: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --text: "Source Serif 4", Georgia, serif;
   --code: "IBM Plex Mono", Consolas, monospace;
+  --code-size: 13px;
+  --code-line: 20px;
+  --bar-fg: #f3f2fb;
+  --bar-signal: #6fdcb4;
+  --bar-title: rgba(243, 242, 251, 0.78);
+  --bar-title-hover: rgba(243, 242, 251, 0.1);
+  --bar-bright: #ffffff;
+  --bar-path: rgba(243, 242, 251, 0.6);
+  --bar-scheme: rgba(243, 242, 251, 0.8);
+  --bar-scheme-hover: #b49cff;
+  --status-fg: rgba(243, 242, 251, 0.82);
+  --status-line: rgba(111, 220, 180, 0.35);
+  --status-report: #f2d48a;
+  --open-fg: #f3f2fb;
+  --open-said: #bcb8e0;
+  --ed-suggest-shadow: rgba(10, 8, 40, 0.35);
+  --backdrop: rgba(8, 6, 30, 0.45);
+  --plasma-dusk: rgb(50, 18, 98);
+  --plasma-plum: rgb(94, 40, 166);
+  --plasma-orchid: rgb(148, 94, 232);
+  --fuse-ash: rgb(50, 18, 98);
+  --fuse-burn: rgb(94, 40, 166);
+  --fuse-fire: rgb(148, 94, 232);
+  --eye-dark: rgb(7, 6, 26);
+  --eye-socket: rgba(5, 4, 20, 0.8);
+  --eye-white-1: #e6e3f6;
+  --eye-white-2: #b9b3e0;
+  --eye-white-3: #3c3672;
+  --eye-lid-shadow: rgba(6, 5, 22, 0.78);
+  --eye-iris-1: rgb(255, 196, 92);
+  --eye-iris-2: rgb(232, 104, 28);
+  --eye-iris-3: rgb(140, 30, 14);
+  --eye-iris-4: rgb(34, 6, 10);
+  --eye-iris-rim: rgba(20, 4, 8, 0.75);
+  --eye-flame-1: rgba(255, 236, 150, 0.7);
+  --eye-flame-2: rgba(255, 150, 40, 0.55);
+  --eye-flame-3: rgba(210, 50, 15, 0.35);
+  --eye-flame-4: rgba(120, 10, 10, 0);
+  --eye-kindle-1: rgba(255, 250, 210, 0.75);
+  --eye-kindle-2: rgba(255, 210, 90, 0.6);
+  --eye-kindle-3: rgba(255, 140, 30, 0);
+  --eye-pupil-shine: rgb(214, 255, 150);
+  --eye-pupil-edge: rgb(36, 168, 128);
+  --eye-gleam: rgba(255, 255, 255, 0.75);
+  --lattice-1: rgb(111, 220, 180);
+  --lattice-2: rgb(138, 184, 255);
+  --lattice-3: rgb(180, 156, 255);
   --radius: 0.4rem;
   --side: 19rem;
   --defs: 23rem;
 }
 
 [data-scheme="dark"] {
+  --on-signal: #131331;
   --bg: #131331;
   --surface: #1c1940;
   --well: #1b1b3d;
@@ -72,6 +120,7 @@
 }
 
 [data-scheme="light"] {
+  --on-signal: #ffffff;
   --bg: #fbfbfe;
   --surface: #efeef9;
   --well: #f0eff8;
@@ -170,14 +219,14 @@ select {
   height: 2.9rem;
   padding: 0 0.8rem 0 1rem;
   background: var(--ink);
-  color: #f3f2fb;
-  border-bottom: 2px solid #6fdcb4;
+  color: var(--bar-fg);
+  border-bottom: 2px solid var(--bar-signal);
   flex: none;
 }
 
 .mark {
   font-size: 1.15rem;
-  color: #6fdcb4;
+  color: var(--bar-signal);
 }
 
 /* The menu bar takes the room its titles need, and gives up room before the folder's path does
@@ -198,15 +247,15 @@ select {
   border: 0;
   border-radius: 0.3rem;
   background: none;
-  color: rgba(243, 242, 251, 0.78);
+  color: var(--bar-title);
   font: 13px var(--head);
   cursor: pointer;
 }
 
 .bar-title:hover,
 .bar-title[aria-expanded="true"] {
-  background: rgba(243, 242, 251, 0.1);
-  color: #ffffff;
+  background: var(--bar-title-hover);
+  color: var(--bar-bright);
 }
 
 .bar-title:focus-visible {
@@ -263,7 +312,7 @@ select {
   flex: 1 1 0;
   min-width: 0;
   font: 12.5px var(--code);
-  color: rgba(243, 242, 251, 0.6);
+  color: var(--bar-path);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -279,8 +328,8 @@ select {
   height: 22px;
   padding: 0 0.8rem;
   background: var(--ink);
-  color: rgba(243, 242, 251, 0.82);
-  border-top: 1px solid rgba(111, 220, 180, 0.35);
+  color: var(--status-fg);
+  border-top: 1px solid var(--status-line);
   font: 12px var(--head);
   white-space: nowrap;
 }
@@ -307,7 +356,7 @@ select {
   border: 0;
   padding: 0;
   background: none;
-  color: #f2d48a;
+  color: var(--status-report);
   font: inherit;
   cursor: pointer;
 }
@@ -326,7 +375,7 @@ select {
 }
 
 .status-zoom:hover {
-  color: #ffffff;
+  color: var(--bar-bright);
 }
 
 .status-zoom[hidden] {
@@ -354,7 +403,7 @@ select {
 }
 
 .statusbar .ed-status button:hover {
-  color: #ffffff;
+  color: var(--bar-bright);
 }
 
 body[data-view="run"] .statusbar .ed-status {
@@ -366,7 +415,7 @@ body[data-view="run"] .statusbar .ed-status {
   display: flex;
   gap: 0.9rem;
   font: 12px var(--code);
-  color: #6fdcb4;
+  color: var(--bar-signal);
   white-space: nowrap;
 }
 
@@ -395,12 +444,12 @@ body[data-view="run"] .statusbar .ed-status {
   border-radius: 50%;
   background: none;
   cursor: pointer;
-  color: rgba(243, 242, 251, 0.8);
+  color: var(--bar-scheme);
   font-size: 1rem;
 }
 
 .scheme:hover {
-  color: #b49cff;
+  color: var(--bar-scheme-hover);
 }
 
 .shell {
@@ -651,11 +700,7 @@ body[data-view="run"] .statusbar .ed-status {
 .primary {
   border: 1px solid var(--signal);
   background: var(--signal);
-  color: #131331;
-}
-
-[data-scheme="light"] .primary {
-  color: #ffffff;
+  color: var(--on-signal);
 }
 
 .primary:hover {
@@ -832,7 +877,7 @@ body[data-view="run"] .statusbar .ed-status {
 .open-body {
   position: relative;
   text-align: center;
-  color: #f3f2fb;
+  color: var(--open-fg);
 }
 
 .empty-body h1,
@@ -877,7 +922,7 @@ body[data-view="run"] .statusbar .ed-status {
   flex: none;
   font: 700 17px/1 var(--head);
   letter-spacing: -0.03em;
-  color: #f3f2fb;
+  color: var(--bar-fg);
   visibility: hidden;
 }
 
@@ -904,7 +949,7 @@ body[data-view="run"] .statusbar .ed-status {
   margin: 0.8rem auto 1.2rem;
   max-width: 48ch;
   font: 15px/1.6 var(--text);
-  color: #bcb8e0;
+  color: var(--open-said);
 }
 
 /* The eye over the lattice while a tree is read. */
@@ -1125,7 +1170,7 @@ body[data-view="run"] .statusbar .ed-status {
   grid-template-rows: minmax(0, 1fr) auto;
   background: var(--ed-bg);
   color: var(--ed-fg);
-  font: 13px/20px var(--code);
+  font: var(--code-size) / var(--code-line) var(--code);
   font-variant-ligatures: none;
   overflow: hidden;
 }
@@ -1146,7 +1191,7 @@ body[data-view="run"] .statusbar .ed-status {
   position: absolute;
   left: 0;
   right: 0;
-  height: 20px;
+  height: var(--code-line);
   padding-right: 20px;
   text-align: right;
 }
@@ -1258,7 +1303,7 @@ body[data-view="run"] .statusbar .ed-status {
 .ed-row {
   position: absolute;
   left: 10px;
-  height: 20px;
+  height: var(--code-line);
   white-space: pre;
 }
 
@@ -1364,7 +1409,7 @@ body[data-view="run"] .statusbar .ed-status {
 .ed-input {
   position: absolute;
   width: 1px;
-  height: 20px;
+  height: var(--code-line);
   padding: 0;
   border: 0;
   outline: none;
@@ -1494,7 +1539,7 @@ body[data-view="run"] .statusbar .ed-status {
   background: var(--ed-widget);
   border: 1px solid var(--ed-widget-line);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(10, 8, 40, 0.35);
+  box-shadow: 0 8px 24px var(--ed-suggest-shadow);
   font: 12.5px var(--code);
 }
 
@@ -2391,7 +2436,7 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .sheet::backdrop {
-  background: rgba(8, 6, 30, 0.45);
+  background: var(--backdrop);
 }
 
 .sheet-close {
@@ -3170,7 +3215,7 @@ textarea.report-field {
 .peek-lines {
   overflow: auto;
   padding: 0.25rem 0;
-  font: 13px/20px var(--code);
+  font: var(--code-size) / var(--code-line) var(--code);
   white-space: pre;
 }
 
@@ -3184,4 +3229,8 @@ textarea.report-field {
 
 .peek-line.added {
   background: color-mix(in srgb, var(--ed-added) 14%, transparent);
+}
+
+.prefs-font[type="number"] {
+  max-width: 6rem;
 }

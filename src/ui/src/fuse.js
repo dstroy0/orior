@@ -12,10 +12,14 @@
 // and leaves the fuse burnt dark as far as it came. A reader who asks the system for less motion
 // gets the fuse drawn where it stands, with no spark.
 //
+// The fuse not yet burnt is --fuse-ash, the trail and the embers --fuse-burn and --fuse-fire, and
+// the head and its sparks --fuse-fire.
+//
 // While the run goes, the head twitches where it stands: it wanders as far as JITTER pixels on
 // quick waves that never line up, and throws its sparks from wherever it is.
 
-import { DUSK, ORCHID, PLUM, addArc, addSpot, cornersOf, plasmaOn } from "./plasma.js";
+import { rgbOf } from "./colors.js";
+import { addArc, addSpot, cornersOf, plasmaOn } from "./plasma.js";
 
 const PEAK = 0.5;
 const FLASH = 0.9;
@@ -111,6 +115,9 @@ export function makeFuse(place) {
     const y = height * 0.7;
     corners.clear();
     const { run } = fire;
+    const DUSK = rgbOf("--fuse-ash");
+    const PLUM = rgbOf("--fuse-burn");
+    const ORCHID = rgbOf("--fuse-fire");
     if (!run) {
       drawer.draw(corners.list, 0, width, height);
       return false;

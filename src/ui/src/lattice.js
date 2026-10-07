@@ -13,13 +13,13 @@
 // page stands at the same point of the loop. Where the reader asks for less motion the lattice holds
 // still, ordered at the left.
 
+import { rgbOf } from "./colors.js";
+import { onScheme } from "./scheme.js";
+
 const STEP = 22;
 const SEED = 1729;
-const STOPS = [
-  [111, 220, 180],
-  [138, 184, 255],
-  [180, 156, 255],
-];
+// The colors from ordered to disordered, the stylesheet's --lattice-1 to --lattice-3.
+const STOPS = ["--lattice-1", "--lattice-2", "--lattice-3"];
 
 // The loop's stages, each its length in seconds.
 const STAGES = [
@@ -61,15 +61,24 @@ function shade(loose) {
   const along = loose * (STOPS.length - 1);
   const low = Math.min(Math.floor(along), STOPS.length - 2);
   const part = along - low;
-  return STOPS[low].map((from, at) => Math.round(from + (STOPS[low + 1][at] - from) * part));
+  const to = rgbOf(STOPS[low + 1]);
+  return rgbOf(STOPS[low]).map((from, at) => Math.round(from + (to[at] - from) * part));
 }
 
-const PENS = Array.from({ length: LEVELS }, (_, level) => {
-  const loose = level / (LEVELS - 1);
-  const kept = 1 - loose;
-  const [red, green, blue] = shade(loose);
-  return { color: `rgba(${red}, ${green}, ${blue}, ${(0.36 + 0.16 * kept).toFixed(3)})`, size: 1.3 + 0.4 * kept };
+// The pen of each level, made again when the scheme or a theme changes.
+let pens = null;
+onScheme(() => {
+  pens = null;
 });
+function pensOf() {
+  pens ??= Array.from({ length: LEVELS }, (_, level) => {
+    const loose = level / (LEVELS - 1);
+    const kept = 1 - loose;
+    const [red, green, blue] = shade(loose);
+    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.36 + 0.16 * kept).toFixed(3)})`, size: 1.3 + 0.4 * kept };
+  });
+  return pens;
+}
 
 const clamp = (value) => Math.max(0, Math.min(1, value));
 const ease = (part) => part * part * (3 - 2 * part);
@@ -157,7 +166,7 @@ function paint(canvas, laid, seconds) {
     if (!placed.length) {
       return;
     }
-    const { color, size } = PENS[level];
+    const { color, size } = pensOf()[level];
     pen.fillStyle = color;
     pen.beginPath();
     for (let at = 0; at < placed.length; at += 2) {

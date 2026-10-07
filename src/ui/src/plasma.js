@@ -11,13 +11,16 @@
 // A shape is drawn the way it is filled: `across` runs from -1 at one edge through 0 at the middle
 // to 1 at the other, and `along` from 0, where the light is full, to 1, where it is gone.
 
+import { rgbOf } from "./colors.js";
+
 // Each corner's numbers: x and y, across and along, red, green and blue from 0 to 1, and strength.
 export const CORNER = 8;
 
-// The plasma's purples, from the shadow at its edges to the light inside it.
-export const DUSK = [50, 18, 98];
-export const PLUM = [94, 40, 166];
-export const ORCHID = [148, 94, 232];
+// The plasma's purples, from the shadow at its edges to the light inside it, each as [red, green,
+// blue] and read from the stylesheet's --plasma-dusk, --plasma-plum and --plasma-orchid.
+export const dusk = () => rgbOf("--plasma-dusk");
+export const plum = () => rgbOf("--plasma-plum");
+export const orchid = () => rgbOf("--plasma-orchid");
 
 // The triangles of a frame's plasma, written corner by corner into one list that is kept from frame
 // to frame and grows when it fills. A corner is [x, y, across, along, color, strength].

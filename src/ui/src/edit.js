@@ -37,6 +37,7 @@ import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { terminalAt } from "./terminal.js";
 import { onScheme } from "./scheme.js";
+import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
 import { togglePane } from "./sides.js";
 import { drawBranch } from "./statusbar.js";
@@ -1095,6 +1096,7 @@ export async function startEdit(defs) {
   window.addEventListener("keyup", (event) => event.key === "Control" && endCycle());
   window.addEventListener("blur", endCycle);
   const cursorLine = () => (state.editor?.s ? state.editor.head().line : 0);
+  onFonts(() => state.editor?.restyle());
   state.editor = new Editor(document.getElementById("editor"), {
     statusHost: document.getElementById("statusbar"),
     onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),

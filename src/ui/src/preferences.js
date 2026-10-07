@@ -6,6 +6,7 @@
 // scheme's own theme starts a theme of the reader's from it, and every change shows at once. A
 // theme copies out as text and reads back in from the clipboard.
 
+import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
 import { clipText, copyText } from "./menu.js";
 import { scheme, setScheme } from "./scheme.js";
 import { BASES, builtIn, choose, chosen, deleteTheme, freeName, readTheme, saveTheme, themeNamed, themes, themeText } from "./themes.js";
@@ -264,11 +265,32 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
     return element("section", { className: "prefs-settings" }, ...rows);
   }
 
+  // The fonts, each a field the stylesheet's own font shows in while it is empty.
+  function fontsSection() {
+    const set = fonts();
+    const rows = FONT_SETTINGS.map(({ name, label, size }) => {
+      const field = element("input", {
+        className: "report-field prefs-font",
+        type: size ? "number" : "text",
+        value: size ? String(Number.parseFloat(set[name] ?? "") || "") : (set[name] ?? ""),
+        placeholder: size ? String(Number.parseFloat(fontDefault(name))) : fontDefault(name),
+        spellcheck: false,
+        ariaLabel: label,
+      });
+      if (size) {
+        Object.assign(field, { min: 9, max: 32, step: 1 });
+      }
+      field.addEventListener("change", () => setFont(name, size && field.value ? `${field.value}px` : field.value));
+      return element("label", { className: "report-row" }, element("span", { textContent: label }), field);
+    });
+    return element("section", { className: "prefs-fonts" }, element("h3", { textContent: "Fonts" }), ...rows);
+  }
+
   function draw() {
     const focused = document.activeElement;
     const focusName = body.contains(focused) ? focused.closest(".prefs-color")?.dataset.name : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
-    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), themeRow(), colorsSection());
+    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), fontsSection(), themeRow(), colorsSection());
     const grid = body.querySelector(".prefs-colors");
     grid.scrollTop = scroll;
     if (focusName) {

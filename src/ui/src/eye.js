@@ -19,16 +19,15 @@
 // their own, and run back in, and it leans toward the mouse. A reader who asks the system for less
 // motion gets the eye held still and open, with one iris.
 
-import { DUSK, ORCHID, PLUM, addArc, cornersOf, plasmaOn } from "./plasma.js";
+import { cssOf, rgbOf, withAlpha } from "./colors.js";
+import { addArc, cornersOf, dusk, orchid, plasmaOn, plum } from "./plasma.js";
 
 const OPENING = 1.4;
 const OPEN_FROM = 0.1;
 
-const DARK = [7, 6, 26];
 
 const smooth = (x) => x * x * (3 - 2 * x);
 const mix = (a, b, x) => a + (b - a) * x;
-const rgba = ([r, g, b], a) => `rgba(${r}, ${g}, ${b}, ${a})`;
 
 function seeded(seed) {
   let state = seed >>> 0;
@@ -77,22 +76,24 @@ function glowOf(pen, r, stops) {
   return glow;
 }
 
+// The fire's stops, each a place along the radius and the stylesheet's color for it.
+const stopsOf = (stops) => stops.map(([at, name]) => [at, cssOf(name)]);
 const GROUND = [
-  [0, "rgb(255, 196, 92)"],
-  [0.3, "rgb(232, 104, 28)"],
-  [0.65, "rgb(140, 30, 14)"],
-  [1, "rgb(34, 6, 10)"],
+  [0, "--eye-iris-1"],
+  [0.3, "--eye-iris-2"],
+  [0.65, "--eye-iris-3"],
+  [1, "--eye-iris-4"],
 ];
 const FLAME = [
-  [0, "rgba(255, 236, 150, 0.7)"],
-  [0.45, "rgba(255, 150, 40, 0.55)"],
-  [0.8, "rgba(210, 50, 15, 0.35)"],
-  [1, "rgba(120, 10, 10, 0)"],
+  [0, "--eye-flame-1"],
+  [0.45, "--eye-flame-2"],
+  [0.8, "--eye-flame-3"],
+  [1, "--eye-flame-4"],
 ];
 const KINDLE = [
-  [0, "rgba(255, 250, 210, 0.75)"],
-  [0.4, "rgba(255, 210, 90, 0.6)"],
-  [0.65, "rgba(255, 140, 30, 0)"],
+  [0, "--eye-kindle-1"],
+  [0.4, "--eye-kindle-2"],
+  [0.65, "--eye-kindle-3"],
 ];
 
 // Adds each flame's outline to the path, `seconds` into the fire, in an iris of radius r.
@@ -134,12 +135,10 @@ const LEAN = 6;
 // The pupils shine back as a dog's or a cat's do, from the layer behind the retina that throws the
 // light that comes in back out through it, the tapetum lucidum. The shine is deep in the pupil: none
 // where the pull is GLOWS[0] or less, near the pupil's edge, and full where it is GLOWS[1] or more.
-// It goes from SHINE_EDGE out there to SHINE in the middle. A reflection is brightest when the eye
+// It goes from --eye-pupil-edge out there to --eye-pupil-shine in the middle. A reflection is brightest when the eye
 // looks straight at whoever is looking, and the pupils come up to full shine while the eye stares at
 // the reader and fall to DIM of it while it rolls, closing GLINT of the gap a second.
 const GLOWS = [1.1, 3];
-const SHINE = [214, 255, 150];
-const SHINE_EDGE = [36, 168, 128];
 const DIM = 0.25;
 const GLINT = 4;
 
@@ -179,6 +178,9 @@ function irisPicture(draw) {
       (one.size * (1 + 0.1 * Math.sin(one.rates[2] * seconds + one.phases[1]))) ** 2,
     ]);
     const data = image.data;
+    const DARK = rgbOf("--eye-dark");
+    const SHINE = rgbOf("--eye-pupil-shine");
+    const SHINE_EDGE = rgbOf("--eye-pupil-edge");
     for (let row = 0; row < FIELD; row += 1) {
       const v = ((row + 0.5) / FIELD) * 2 * REACH - REACH;
       for (let column = 0; column < FIELD; column += 1) {
@@ -211,22 +213,22 @@ function irisPicture(draw) {
     pen.beginPath();
     pen.arc(0, 0, r, 0, Math.PI * 2);
     pen.clip();
-    pen.fillStyle = glowOf(pen, r, GROUND);
+    pen.fillStyle = glowOf(pen, r, stopsOf(GROUND));
     pen.fillRect(-r, -r, side, side);
     pen.globalCompositeOperation = "lighter";
     for (const [set, stops] of [
       [flames, FLAME],
       [kindling, KINDLE],
     ]) {
-      pen.fillStyle = glowOf(pen, r, stops);
+      pen.fillStyle = glowOf(pen, r, stopsOf(stops));
       pen.beginPath();
       addFlames(pen, set, r, seconds);
       pen.fill();
     }
     pen.globalCompositeOperation = "source-over";
     const rim = pen.createRadialGradient(0, 0, r * 0.72, 0, 0, r);
-    rim.addColorStop(0, "rgba(20, 4, 8, 0)");
-    rim.addColorStop(1, "rgba(20, 4, 8, 0.75)");
+    rim.addColorStop(0, withAlpha("--eye-iris-rim", 0));
+    rim.addColorStop(1, cssOf("--eye-iris-rim"));
     pen.fillStyle = rim;
     pen.fillRect(-r, -r, side, side);
     return canvas;
@@ -275,8 +277,8 @@ function drawIris(pen, picture, iris, x, y, r, turn, face) {
   const hx = x - r * 0.32 * face;
   const hy = y - r * 0.36;
   const shine = pen.createRadialGradient(hx, hy, 0, hx, hy, r * 0.11);
-  shine.addColorStop(0, "rgba(255, 255, 255, 0.75)");
-  shine.addColorStop(1, "rgba(255, 255, 255, 0)");
+  shine.addColorStop(0, cssOf("--eye-gleam"));
+  shine.addColorStop(1, withAlpha("--eye-gleam", 0));
   pen.fillStyle = shine;
   pen.beginPath();
   pen.arc(hx, hy, r * 0.11, 0, Math.PI * 2);
@@ -521,8 +523,8 @@ function tonguesOf(draw) {
         [1 + draw() * 1.5, 3 + draw() * 3, draw() * Math.PI * 2],
         [2.5 + draw() * 2, 6 + draw() * 5, draw() * Math.PI * 2],
       ],
-      color: heat < 0.55 ? PLUM : heat < 0.85 ? DUSK : ORCHID,
-      heart: heat < 0.5 ? ORCHID : PLUM,
+      color: heat < 0.55 ? plum() : heat < 0.85 ? dusk() : orchid(),
+      heart: heat < 0.5 ? orchid() : plum(),
     };
   };
   const upper = Array.from({ length: ABOVE }, (_, at) => tongue(spaced(ABOVE, at), (round) => 0.4 + 0.9 * round ** 1.2));
@@ -580,7 +582,7 @@ function drawUnder(pen, size, lid) {
   pen.save();
   pen.filter = `blur(${Math.max(4, b * 0.35)}px)`;
   openingPath(pen, edges(1), cx, cy, a * 1.06, b * 1.5);
-  pen.fillStyle = "rgba(5, 4, 20, 0.8)";
+  pen.fillStyle = cssOf("--eye-socket");
   pen.fill();
   pen.restore();
 
@@ -588,9 +590,9 @@ function drawUnder(pen, size, lid) {
   openingPath(pen, lid, cx, cy, a, b);
   pen.clip();
   const white = pen.createRadialGradient(cx - a * 0.15, cy - b * 0.3, b * 0.1, cx, cy, a * 1.02);
-  white.addColorStop(0, "#e6e3f6");
-  white.addColorStop(0.5, "#b9b3e0");
-  white.addColorStop(1, "#3c3672");
+  white.addColorStop(0, cssOf("--eye-white-1"));
+  white.addColorStop(0.5, cssOf("--eye-white-2"));
+  white.addColorStop(1, cssOf("--eye-white-3"));
   pen.fillStyle = white;
   pen.fillRect(0, 0, width, height);
   pen.restore();
@@ -604,7 +606,7 @@ function drawOver(pen, size, lid) {
   pen.clip();
   pen.filter = `blur(${Math.max(2, b * 0.16)}px)`;
   pen.lineCap = "round";
-  pen.strokeStyle = "rgba(6, 5, 22, 0.78)";
+  pen.strokeStyle = cssOf("--eye-lid-shadow");
   pen.lineWidth = b * 0.6;
   pen.beginPath();
   trace(pen, lid.upper, cx, cy, a, b);
@@ -614,7 +616,7 @@ function drawOver(pen, size, lid) {
   const upper = lidOf(lid.upper, size, 1);
   const lower = lidOf(lid.lower, size, -1);
   pen.save();
-  pen.fillStyle = rgba(DARK, 1);
+  pen.fillStyle = cssOf("--eye-dark");
   for (const [line, band] of [
     [upper, UPPER_BAND],
     [lower, LOWER_BAND],
@@ -721,8 +723,8 @@ function drawPlasma(size, lid, state, grown) {
     // The rim, breathing a little: its glow pushed out from it by most of its width, and the
     // bright line on it.
     const breath = grown * (0.8 + 0.2 * Math.sin(seconds * 3.1) * Math.sin(seconds * 1.7 + 1));
-    addRim(corners, rim, b * RIM_GLOW * 0.6, b * RIM_GLOW, DUSK, 0.5 * breath);
-    addRim(corners, rim, 0, b * RIM_LINE, ORCHID, 0.55 * breath);
+    addRim(corners, rim, b * RIM_GLOW * 0.6, b * RIM_GLOW, dusk(), 0.5 * breath);
+    addRim(corners, rim, 0, b * RIM_LINE, orchid(), 0.55 * breath);
     const starts = [];
     for (const [lid, band, tongues, home, reach] of [
       [upper, UPPER_BAND, state.tongues.upper, -Math.PI / 2, 0.55],
@@ -768,7 +770,7 @@ function drawPlasma(size, lid, state, grown) {
         state.sparkUntil = seconds + mix(SPARK[0], SPARK[1], state.draw());
       }
       for (const arc of state.arcs) {
-        addArc(corners, arc, b * 0.04, ORCHID, 0.6);
+        addArc(corners, arc, b * 0.04, orchid(), 0.6);
       }
     }
   }
