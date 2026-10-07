@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! Starting a job, carrying its output to the window line by line, and stopping it.
+//! Starting a job, carrying its output line by line, and stopping it.
 //!
 //! A job's steps run one after another in the tree's top folder, and the first that exits other than
-//! 0 ends the job. Every line either stream writes reaches the window as a `run-line` event, and the
-//! end as one `run-end` carrying the exit code and the pages the job wrote.
+//! 0 ends the job. Every line either stream writes goes to the run's sink as it comes, and then the
+//! end, carrying the exit code and the pages the job wrote. The window's sink sends them to the page;
+//! the command line's prints them.
 
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Read};
@@ -16,18 +17,22 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
 
 use crate::catalog::{Arg, Job, Program, Step};
 use crate::root::relative;
 
-/// The runs this app has started: the process of each step still running, and the runs a reader has
-/// stopped. Each is shared with the threads that wait on the runs.
+/// The runs started: the process of each step still running, and the runs a reader has stopped.
+/// Each is shared with the threads that wait on the runs.
+///
+/// The window's runs are detached: their steps get no console of their own on Windows and a process
+/// group of their own elsewhere, and only Stop ends them. The command line's are attached: they share
+/// its console, and the key that stops it stops them.
 #[derive(Default)]
 pub struct Runs {
     next: AtomicU64,
     live: Arc<Mutex<HashMap<u64, u32>>>,
     stopped: Arc<Mutex<HashSet<u64>>>,
+    attached: bool,
 }
 
 fn holds(stopped: &Mutex<HashSet<u64>>, run: u64) -> bool {
@@ -35,19 +40,28 @@ fn holds(stopped: &Mutex<HashSet<u64>>, run: u64) -> bool {
 }
 
 #[derive(Clone, Serialize)]
-struct Line {
-    run: u64,
-    stream: &'static str,
-    text: String,
+pub struct Line {
+    pub run: u64,
+    pub stream: &'static str,
+    pub text: String,
 }
 
 #[derive(Clone, Serialize)]
-struct End {
-    run: u64,
-    code: Option<i32>,
-    stopped: bool,
-    views: Vec<String>,
+pub struct End {
+    pub run: u64,
+    pub code: Option<i32>,
+    pub stopped: bool,
+    pub views: Vec<String>,
 }
+
+/// What a run says as it goes: each line, then its end.
+pub enum Said {
+    Line(Line),
+    End(End),
+}
+
+/// Where a run's lines and end go.
+pub type Sink = Arc<dyn Fn(Said) + Send + Sync>;
 
 /// The bash that runs the tree's scripts. On Windows that is Git's, found beside git itself, because
 /// the bash System32 offers is WSL's and reads none of these paths. ORIOR_BASH overrides it anywhere.
@@ -220,7 +234,7 @@ pub(crate) fn quiet(cmd: &mut Command) {
     }
 }
 
-fn carry<R: Read + Send + 'static>(app: AppHandle, run: u64, stream: &'static str, from: R, seen: Arc<Mutex<Vec<String>>>) -> thread::JoinHandle<()> {
+fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, from: R, seen: Arc<Mutex<Vec<String>>>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut reader = BufReader::new(from);
         let mut bytes = Vec::new();
@@ -233,7 +247,7 @@ fn carry<R: Read + Send + 'static>(app: AppHandle, run: u64, stream: &'static st
                     if let Ok(mut seen) = seen.lock() {
                         seen.push(text.clone());
                     }
-                    let _ = app.emit("run-line", Line { run, stream, text });
+                    sink(Said::Line(Line { run, stream, text }));
                 }
             }
         }
@@ -274,8 +288,19 @@ fn pages(root: &Path, view_out: &Path, lines: &[String]) -> Vec<String> {
     named
 }
 
+/// The commands a job's steps run with these values, each as the line a run shows for it.
+pub fn shown(root: &Path, job: &Job, values: &HashMap<String, Vec<String>>) -> Result<Vec<String>, String> {
+    job.steps.iter().map(|step| command(root, step, values).map(|(_, shown)| shown)).collect()
+}
+
 impl Runs {
-    pub fn start(&self, app: AppHandle, root: PathBuf, job: Job, values: HashMap<String, Vec<String>>) -> Result<u64, String> {
+    /// Runs whose steps share this process's console.
+    pub fn attached() -> Self {
+        Runs { attached: true, ..Runs::default() }
+    }
+
+    /// Starts a job. Its steps run on a thread of their own, which the returned handle waits on.
+    pub fn start(&self, sink: Sink, root: PathBuf, job: Job, values: HashMap<String, Vec<String>>) -> Result<(u64, thread::JoinHandle<()>), String> {
         for param in &job.params {
             let given = values.get(&param.key).is_some_and(|v| v.iter().any(|v| !v.is_empty()));
             if param.required && !given {
@@ -294,28 +319,36 @@ impl Runs {
             commands.push(command(&root, step, &values)?);
         }
         let run = self.next.fetch_add(1, Ordering::SeqCst) + 1;
-        let view_out = root.join("build").join("ui").join("views").join(run.to_string());
+        // Run numbers start again in each process, and the window and the command line can run at
+        // once. The folder is named by both and emptied before the run writes to it.
+        let view_out = root.join("build").join("ui").join("views").join(format!("{}-{run}", std::process::id()));
         let live = self.live.clone();
         let stopped = self.stopped.clone();
-        thread::spawn(move || {
+        let attached = self.attached;
+        let waits = thread::spawn(move || {
+            if job.opens == "views" {
+                let _ = std::fs::remove_dir_all(&view_out);
+            }
             let seen = Arc::new(Mutex::new(Vec::new()));
             let mut code = Some(0);
             for (mut cmd, shown) in commands {
                 if holds(&stopped, run) {
                     break;
                 }
-                let _ = app.emit("run-line", Line { run, stream: "command", text: shown });
+                sink(Said::Line(Line { run, stream: "command", text: shown }));
                 if job.opens == "views" {
                     let _ = std::fs::create_dir_all(&view_out);
                     cmd.env("VIEW_OUT", &view_out);
                 }
                 cmd.env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8");
                 cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
-                quiet(&mut cmd);
+                if !attached {
+                    quiet(&mut cmd);
+                }
                 let mut child: Child = match cmd.spawn() {
                     Ok(child) => child,
                     Err(error) => {
-                        let _ = app.emit("run-line", Line { run, stream: "stderr", text: format!("could not start: {error}") });
+                        sink(Said::Line(Line { run, stream: "stderr", text: format!("could not start: {error}") }));
                         code = None;
                         break;
                     }
@@ -323,8 +356,8 @@ impl Runs {
                 if let Ok(mut live) = live.lock() {
                     live.insert(run, child.id());
                 }
-                let out = child.stdout.take().map(|s| carry(app.clone(), run, "stdout", s, seen.clone()));
-                let err = child.stderr.take().map(|s| carry(app.clone(), run, "stderr", s, seen.clone()));
+                let out = child.stdout.take().map(|s| carry(sink.clone(), run, "stdout", s, seen.clone()));
+                let err = child.stderr.take().map(|s| carry(sink.clone(), run, "stderr", s, seen.clone()));
                 let status = child.wait();
                 for reader in [out, err].into_iter().flatten() {
                     let _ = reader.join();
@@ -339,9 +372,9 @@ impl Runs {
             }
             let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
             let views = if job.opens == "views" { pages(&root, &view_out, &lines) } else { Vec::new() };
-            let _ = app.emit("run-end", End { run, code, stopped: holds(&stopped, run), views });
+            sink(Said::End(End { run, code, stopped: holds(&stopped, run), views }));
         });
-        Ok(run)
+        Ok((run, waits))
     }
 
     /// Stops a run and everything it started: the whole process tree on Windows, the process group
