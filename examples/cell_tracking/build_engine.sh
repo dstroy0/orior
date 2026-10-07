@@ -92,7 +92,8 @@ done
 PORTABLE_OBJECTS=()
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/types/integerfloats/double_fields \
-                cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura "${INGEST[@]}"; do
+                cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura cu/types/integers/exact_record \
+                "${INGEST[@]}"; do
     for source in "$(build_path "$portable")"/*.c; do
         name="$(basename "$source" .c)"
         OBJECT="$OUT/${name}_portable.o"
