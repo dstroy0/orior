@@ -10,6 +10,7 @@ import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
 import { drawMenubar, runLaunch, startMenubar } from "./menubar.js";
 import { loadRun, startRun } from "./run.js";
+import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
 import { keepPane } from "./sides.js";
 import { watch } from "./status.js";
@@ -50,6 +51,7 @@ function drawPulse(held) {
 }
 
 async function start() {
+  catchErrors();
   startWordmark();
   keepScheme();
   startMenus();

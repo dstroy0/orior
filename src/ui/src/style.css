@@ -261,6 +261,19 @@ select {
   stroke-width: 1.3;
 }
 
+.status-report {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #f2d48a;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-report[hidden] {
+  display: none;
+}
+
 .statusbar .ed-status {
   flex: 1;
   min-height: 0;
@@ -2255,6 +2268,61 @@ body[data-view="run"] .statusbar .ed-status {
 
 .sheet-keys kbd {
   font: 12px var(--code);
+  color: var(--fg-2);
+}
+
+/* The form for a bug report: a label over each field, the fields as wide as the sheet. */
+.sheet-report {
+  display: grid;
+  gap: 0.7rem;
+  width: min(34rem, 80vw);
+  font: 13px var(--head);
+}
+
+.sheet-report h2 {
+  margin: 0 0 0.2rem;
+  font: 600 1.05rem var(--head);
+}
+
+.report-row {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--fg-2);
+}
+
+.report-field {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px var(--head);
+}
+
+textarea.report-field {
+  resize: vertical;
+  font: 12.5px/1.5 var(--code);
+}
+
+.report-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--fg-2);
+}
+
+.report-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.report-said {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--fg-2);
 }
 

@@ -27,6 +27,7 @@ import { scheme, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { onView, shownView, showView } from "./views.js";
+import { reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
 
 // The most titles the bar shows at a window width: [narrowest width in pixels, titles]. The rest go
@@ -138,6 +139,12 @@ const COMMANDS = {
   clear: clearTerminal,
   kill: killTerminal,
   keys: showShortcuts,
+  report: (args) => reportForm(sheet, args),
+  "auto-report": async (args) => {
+    const on = args[0] === "on" ? true : args[0] === "off" ? false : !state.autoReport;
+    await invoke("report_auto_set", { on });
+    state.autoReport = on;
+  },
   about: showAbout,
 };
 
@@ -145,6 +152,7 @@ const COMMANDS = {
 const CHECKS = {
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
+  "auto-report": () => state.autoReport,
 };
 
 // What a command needs before it can act, by the name commands.json gives the need.
@@ -420,6 +428,7 @@ export async function startMenubar({ openFolder }) {
   state.bar = document.getElementById("menubar");
   state.openFolder = openFolder;
   state.menus = JSON.parse(await invoke("commands_read")).menus;
+  state.autoReport = await invoke("report_auto").catch(() => true);
   onView(markView);
   state.bar.addEventListener("keydown", (event) => {
     const at = state.titles.findIndex(({ button }) => button === document.activeElement);

@@ -9,7 +9,7 @@
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, git, root, runner};
+use orior_cli::{bridge, catalog, commands, defs, files, git, report, root, runner};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -160,6 +160,43 @@ fn tree_branch(app: State<App>) -> Result<Option<String>, String> {
     Ok(git::branch(&root_of(&app)?))
 }
 
+/// Files an error the window met, on its own where the reporter lets errors file. Answers where the
+/// report went, or nothing.
+#[tauri::command]
+async fn report_error(app: State<'_, App>, category: String, message: String, detail: String) -> Result<Option<report::Filed>, String> {
+    let root = app.root.lock().ok().and_then(|root| root.clone());
+    tauri::async_runtime::spawn_blocking(move || report::error(&category, &message, &detail, root.as_deref())).await.map_err(|e| e.to_string())
+}
+
+/// Files a bug report the reader wrote, with the run's recent errors where they asked for them.
+#[tauri::command]
+async fn report_bug(app: State<'_, App>, report: report::Report, with_errors: bool) -> Result<report::Filed, String> {
+    let root = app.root.lock().ok().and_then(|root| root.clone());
+    let mut report = report;
+    if with_errors {
+        let errors = report::recent();
+        report.logs = [report.logs.trim(), errors.trim()].iter().filter(|part| !part.is_empty()).copied().collect::<Vec<_>>().join("
+
+");
+    }
+    tauri::async_runtime::spawn_blocking(move || report::file(&report, root.as_deref())).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn report_auto() -> bool {
+    report::auto()
+}
+
+#[tauri::command]
+fn report_auto_set(on: bool) -> Result<(), String> {
+    report::set_auto(on)
+}
+
+#[tauri::command]
+fn report_open(url: String) -> Result<(), String> {
+    report::open_page(&url)
+}
+
 #[tauri::command]
 fn file_commits(app: State<App>, path: String) -> Result<Vec<git::Commit>, String> {
     git::commits(&root_of(&app)?, &path)
@@ -305,6 +342,7 @@ fn view_scheme(context: UriSchemeContext<'_, tauri::Wry>, request: Request<Vec<u
 /// The program: the command line where it is given words, else the window. Returns the code to
 /// exit with.
 pub fn start() -> i32 {
+    report::catch_panics();
     let words: Vec<String> = std::env::args().skip(1).collect();
     if words.is_empty() {
         cli::console_let_go();
@@ -355,6 +393,11 @@ fn open(launch: Launch) {
             tree_find,
             tree_changed,
             tree_branch,
+            report_error,
+            report_bug,
+            report_auto,
+            report_auto_set,
+            report_open,
             file_commits,
             file_at,
             file_read,

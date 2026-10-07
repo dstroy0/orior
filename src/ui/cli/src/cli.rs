@@ -18,6 +18,7 @@ use std::sync::{Arc, Mutex};
 use crate::bridge::{self, Bridge};
 use crate::catalog::{self, Job};
 use crate::commands::{self, Commands, Item, Menu};
+use crate::report;
 use crate::root;
 use crate::runner::{self, Said, Sink};
 
@@ -454,6 +455,8 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
             }
             return 0;
         }
+        "auto-report" => return auto_report(words.first().map(String::as_str)),
+        "report" => return report_page(named, words),
         _ => {}
     }
     let root = match tree(named) {
@@ -485,6 +488,48 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
             } else {
                 run_job(root, job, &words[1..])
             }
+        }
+    }
+}
+
+/// `orior help auto-report [on|off]`: turns errors filing on their own on or off, or says which.
+fn auto_report(word: Option<&str>) -> i32 {
+    let on = match word {
+        None => {
+            out(if report::auto() { "on" } else { "off" });
+            return 0;
+        }
+        Some("on") => true,
+        Some("off") => false,
+        Some(other) => {
+            err(&format!("{other} is neither on nor off"));
+            return WRONG;
+        }
+    };
+    match report::set_auto(on) {
+        Ok(()) => 0,
+        Err(said) => {
+            err(&said);
+            NO_CODE
+        }
+    }
+}
+
+/// `orior help report [category] [title]`: opens the bug report page with what was given filled in.
+fn report_page(named: Option<&str>, words: &[String]) -> i32 {
+    let (category, title) = match words.first() {
+        Some(first) if report::CATEGORIES.contains(&first.as_str()) => (first.clone(), words[1..].join(" ")),
+        _ => ("unknown".to_string(), words.join(" ")),
+    };
+    let root = tree(named).ok();
+    let given = report::Report { category, title, ..report::Report::default() };
+    let url = report::page(&given, root.as_deref());
+    out(&url);
+    match report::open_page(&url) {
+        Ok(()) => 0,
+        Err(said) => {
+            err(&said);
+            NO_CODE
         }
     }
 }
