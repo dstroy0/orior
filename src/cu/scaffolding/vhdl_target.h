@@ -7,7 +7,7 @@
 // clocked process, and its text is always split into states: program() splits it only where the lane itself must be
 // split, at each error and each return, and scheduled() splits it by a target's construction set as well
 
-#include "../transpiler/codegen/code_generator.h"
+#include "../engine/rmc/code_generator.h"
 
 class VhdlTarget : public CodeGenerator
 {

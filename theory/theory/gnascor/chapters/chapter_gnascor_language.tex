@@ -50,6 +50,7 @@ suffix & holds & field term \\
 \texttt{.knf} & a measured noise floor & baseline; noise floor \\
 \texttt{.kcs} & what rebuilds information & generator; decoder \\
 \texttt{.kdm} & the hardware map & machine description \\
+\texttt{.kqr} & every question put and what came back & measurement log \\
 \bottomrule
 \end{tabular}
 \caption{The views of a member. The suffixes are the language's own.}
@@ -61,9 +62,9 @@ specific enough to be best on one part and no other. A driver written by hand is
 block only, since a person writes it once. Here neither block is written: both are read off the
 part, and keeping the specific one costs nothing.
 
-One further view holds every question put to a member and every answer, with costs, refusals and
-censored samples marked, and the best path per problem read from those same answers. In the
-field this is a measurement log. The language has not yet named its suffix.
+The query record, \texttt{.kqr}, holds every question put to a member and every answer, with costs,
+refusals and censored samples marked, and the best path per problem read from those same answers. In
+the field this is a measurement log.
 
 \section{Information is coherence}
 

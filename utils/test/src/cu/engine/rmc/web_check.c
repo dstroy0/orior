@@ -3,8 +3,8 @@
 // reach only nodes below it, which is what makes the root reachable and keeps a tree from looping; a node's children
 // must be as many as its precept takes; and a leaf must be an operand the word actually reads. None of this needs a
 // device or a target: the webs are the compiler's own and are the same on every part
-#include "../../../../../../src/cu/transpiler/codegen/tree_number.h"
-#include "../../../../../../src/cu/transpiler/codegen/word_web.h"
+#include "../../../../../../src/cu/engine/rmc/tree_number.h"
+#include "../../../../../../src/cu/engine/rmc/word_web.h"
 
 #include <stdio.h>
 

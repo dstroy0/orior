@@ -8,7 +8,7 @@
 // assembles its text, and the ruleset leaves empty every form no probe gave. No route writes a program with this generator: the cell's
 // probes read it, to write their questions in the machine's own code
 
-#include "../transpiler/codegen/code_generator.h"
+#include "../engine/rmc/code_generator.h"
 
 class SassTarget : public CodeGenerator
 {

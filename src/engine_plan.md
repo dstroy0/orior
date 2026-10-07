@@ -129,6 +129,7 @@ Finished work lives in the engine table, `theory/workbooks/engine/engine_table.m
     .ksc   Kolmogorov system classification
     .klq   Kolmogorov language query
     .klm   Kolmogorov language map
+    .kqr   Kolmogorov query record
 
 Doug names these. Do not add one.
 
@@ -531,7 +532,7 @@ reads has changed.
    before a cubin is written. A loop ask
    branches by its nature and is held off the part until a rule says when a loop ends.
 
-9. **One face of a set has no suffix.** Its content is settled and Doug names it. It holds the asks put to a
+9. **The query record holds its asks and not yet their costs.** `.kqr`, the query record, holds the asks put to a
     member and the paths read off them, in that order: every probe and what came back, with costs, refusals
     and censored samples each marked, then the winning path per problem over those same asks. It takes the
     stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map
@@ -539,7 +540,11 @@ reads has changed.
     for any member of a class, and a specific block holding the best combination available for one section of
     one member. Keeping the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a
     cache of it. A refused or censored probe appears nowhere in a table of chain costs, and it separates two
-    parts that cost the same.
+    parts that cost the same. `klq_identity.sh pair` writes `sm_86.kqr` (`src/cu/types/file_defs/kqr`, read and
+    written by `query_record.cu` in `src/cu/types/file_defs/readers`): every ask the pairs put and what came back,
+    each case's word or the refusal, then each pair and its verdict. A cycle reads it first and asks the part only
+    what no cycle asked, and an open pair is the question a further pass takes up. The costs, the censored
+    samples, the winning path over chain costs and the general and specific split are not written yet.
 
 10. **The order of asks is built on the host and nothing emits it to a target.** The order, its solve and the
     contention read are proved on the host (M24 in the engine table, Q5, Q7). The device half is open: a container
@@ -570,7 +575,6 @@ reads has changed.
     `utils/maint/engine/tree_layout_check.py --write`.
 
 ## Pending Doug
-- The suffix of the face Open 9 describes.
 
 ## Roles
 - Theorist writes the engine table and posits. Send it every hash and measured number.

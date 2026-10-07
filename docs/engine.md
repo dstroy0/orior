@@ -69,6 +69,7 @@ The k-files are the file types the compiler reads and writes.
 | `.knf` | Kolmogorov noise floor                  | a measured noise floor                               |
 | `.kcs` | Kolmogorov information construction set | what reconstructs information                        |
 | `.kdm` | Kolmogorov device map                   | the hardware map                                     |
+| `.kqr` | Kolmogorov query record                 | every ask put to a member and what came back         |
 | `.g`   | gnascor high order language             | semantic plain language, plus the shortcut operators |
 | `.gsm` | gnascor assembly language               | the same program with the switch thrown              |
 

@@ -12,7 +12,13 @@
 # and writes its result to out[thread], an integer widened and a floating value by its bits. The frame around a
 # function is the same text in every kernel of the same types, and what differs between two kernels is the function.
 #
+# Given a bridge, Lstar.klq, it writes in place of the stick every side of every identity between texts the bridge
+# holds, `text_identity <text> = <text>`, each side once, in the category text_identity. A side is a function as the
+# manifest writes it, its type and then its expression: the kernel reads a and b of that type and c an int, as a test
+# does, and writes the expression cast to that type as r.
+#
 #     python measuring_stick.py <stick .cu> <manifest>
+#     python measuring_stick.py <stick .cu> <manifest> <Lstar.klq>
 import sys
 
 # the types, each with its name in C, whether it is an integer, and whether it is floating
@@ -400,6 +406,24 @@ def build():
     return stick
 
 
+def text_identity_sides(bridge):
+    """every side of every identity between texts the bridge holds, once each, in the order the identities give
+    them, each side's kernel framed as a test's: a and b of the side's type, c an int, and r the expression cast to
+    that type"""
+    stick = Stick()
+    sides = []
+    with open(bridge, encoding="utf-8") as held:
+        for line in held:
+            line = line.rstrip("\r\n")
+            if line.startswith("text_identity "):
+                sides += [side for side in line[len("text_identity "):].split(" = ") if side not in sides]
+    for side in sides:
+        # the side's type is the longest type name it begins with
+        t = max((name for name, _ in TYPES if side.startswith(name + " ")), key=len)
+        stick.expression("text_identity", side, [t, t, I], t, "(" + t + ")(" + side[len(t) + 1:] + ")")
+    return stick
+
+
 # what every kernel shares: the device functions the calls reach and the constant memory read
 PRELUDE = """// written by measuring_stick.py whole on every run
 #include <cuda_runtime.h>
@@ -429,10 +453,10 @@ __device__ __noinline__ int measuring_stick_recursive(int a, int b)
 
 
 def main():
-    if len(sys.argv) != 3:
-        sys.stderr.write("measuring_stick.py <stick .cu> <manifest>\n")
+    if len(sys.argv) not in (3, 4):
+        sys.stderr.write("measuring_stick.py <stick .cu> <manifest> [<Lstar.klq>]\n")
         return 2
-    stick = build()
+    stick = build() if len(sys.argv) == 3 else text_identity_sides(sys.argv[3])
     with open(sys.argv[1], "w", newline="\n") as source:
         source.write(PRELUDE)
         for number, (category, text, body) in enumerate(stick.kernels):

@@ -41,13 +41,14 @@ extern "C"
 
 #include "cu_target.h"
 #include "machine_ir_types.h"
-#include "ruleset_core_words.h"
-#include "ruleset_reader.h"
+#include "../types/file_defs/readers/ruleset_core_words.h"
+#include "../types/file_defs/readers/ruleset_reader.h"
 #include "sass_target.h"
 #include "target.h"
 
 #include <algorithm>
 #include <cctype>
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -75,6 +76,9 @@ extern "C" const char __ehdr_start = 0;
 // the one past it, its low word in the even register. A value narrower than a register is held in the low bits of one
 #define STICK_REGISTER_BITS 32u
 #define STICK_PAIR_BITS 64u
+// the width of a shift's count, `bits` in the rulesets: one register, a value held in a pair read as its low word. C
+// leaves a count past the width undefined, and the low word holds every count under it
+#define STICK_COUNT_BITS 0u
 
 // the schema's forms by their place in it, as machine_ir_types.h names them
 #define STICK_FORM_NAME(name_, text_, parameters_) text_,
@@ -242,6 +246,40 @@ struct StickPattern
     int select;
 };
 
+// The trace of the kernel being read, where STICK_TRACE is set: every reading tried, nested as it is tried, every
+// form whose text matches and every choice of its operands with why it fails, what each reading gives, every line
+// written and every question put. NULL where nothing is traced
+static FILE *s_trace = NULL;
+static unsigned int s_trace_depth = 0u;
+
+// one line of the trace, indented by the depth of the reading it is of
+static void stick_trace(const char *format, ...)
+{
+    if (s_trace == NULL)
+    {
+        return;
+    }
+    fprintf(s_trace, "%*s", (int)(2u * s_trace_depth), "");
+    va_list arguments;
+    va_start(arguments, format);
+    vfprintf(s_trace, format, arguments);
+    va_end(arguments);
+    fputc('\n', s_trace);
+}
+
+// the depth of the trace one deeper for as long as it is held
+struct StickTraceDeeper
+{
+    StickTraceDeeper()
+    {
+        s_trace_depth += 1u;
+    }
+    ~StickTraceDeeper()
+    {
+        s_trace_depth -= 1u;
+    }
+};
+
 // what a reading is: a form over the readings of its parameters, a value the kernel holds, a number written in
 // place, a number set into a register, or a parameter of the kernel
 enum StickLeaf
@@ -289,7 +327,9 @@ struct StickParameter
 // An expression written out with every conversion C makes in it, the place in s_types of the type it gives, and 1
 // where its value is never negative, a number or a flag's select of 1 and 0, so that widening it signed or unsigned
 // gives one value. Where `low_bits` is not 0, `low` is a text whose low `low_bits` bits are the value's own and which
-// leaves out conversions those bits do not need: a narrowing reads no more of its operand than that
+// leaves out conversions those bits do not need: a narrowing reads no more of its operand than that. `zero_one` is 1
+// where the value is a word that holds 0 or 1 alone. A flag tested off such a word keeps it in `word`, of type
+// `word_type`: the flag read back as a word is that word, [select(p, 1, 0) != 0] = p
 struct StickTyped
 {
     std::string text;
@@ -297,6 +337,9 @@ struct StickTyped
     int nonnegative = 0;
     std::string low;
     unsigned int low_bits = 0u;
+    int zero_one = 0;
+    std::string word;
+    int word_type = -1;
 };
 
 // what a round asks of nvcc's listing about one kernel: each form that moved a word of the constant bank, and the
@@ -384,6 +427,35 @@ static int stick_balanced(const std::string &text)
         }
     }
     return !text.empty() && (depth == 0);
+}
+
+// `bare`, two flags C joins by one && or one || outside every parenthesis, written with the two exchanged; empty where
+// `bare` joins no two flags so
+static std::string stick_flags_exchanged(const std::string &bare)
+{
+    int depth = 0;
+    size_t joined = std::string::npos;
+    for (size_t at = 0u; (at + 1u) < bare.size(); at += 1u)
+    {
+        depth += ((bare[at] == '(') || (bare[at] == '[')) ? 1 : 0;
+        depth -= ((bare[at] == ')') || (bare[at] == ']')) ? 1 : 0;
+        const int join = (depth == 0) && (((bare[at] == '&') && (bare[at + 1u] == '&')) ||
+                                          ((bare[at] == '|') && (bare[at + 1u] == '|')));
+        if (join != 0)
+        {
+            if (joined != std::string::npos)
+            {
+                return std::string();
+            }
+            joined = at;
+            at += 1u;
+        }
+    }
+    if (joined == std::string::npos)
+    {
+        return std::string();
+    }
+    return bare.substr(joined + 2u) + bare.substr(joined, 2u) + bare.substr(0u, joined);
 }
 
 // `bare`, a comparison of C, written as its complement: its outermost comparison's operator exchanged for the one C
@@ -585,9 +657,11 @@ static std::string stick_constant(const std::string &text)
 }
 
 // The width of the registers sass.krs's text for `form` takes each parameter in, by the parameter's place: a pair
-// where the text writes the parameter's high word or reads it as a 64-bit address, else one register
+// where the text writes the parameter's high word or reads it as a 64-bit address, STICK_COUNT_BITS for a shift's
+// count, else one register
 static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsigned int form)
 {
+    const std::vector<std::string> names = ruleset_parameters(sass, s_form_names[form]);
     const unsigned int count = sass->schema->forms[form].parameters;
     std::vector<std::string> markers;
     for (unsigned int parameter = 0u; parameter < count; parameter += 1u)
@@ -605,7 +679,8 @@ static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsig
     {
         const int pair = (text.find(markers[parameter] + ".hi") != std::string::npos) ||
                          (text.find(markers[parameter] + ".64") != std::string::npos);
-        bits[parameter] = (pair != 0) ? STICK_PAIR_BITS : STICK_REGISTER_BITS;
+        const int count = (parameter < names.size()) && (names[parameter] == "bits");
+        bits[parameter] = (pair != 0) ? STICK_PAIR_BITS : ((count != 0) ? STICK_COUNT_BITS : STICK_REGISTER_BITS);
     }
     return bits;
 }
@@ -901,6 +976,7 @@ class StickKernel
             held = stick_reads_name(held->first, name) ? held_values.erase(held) : std::next(held);
         }
         held_values[name] = value;
+        readings.clear();
         standing.erase(name);
         flags.erase(name);
         nonnegatives.erase(name);
@@ -910,10 +986,14 @@ class StickKernel
         }
     }
 
-    // `name`, a bool, held as the flag `flag` reads as, read where the name is read
+    // `name`, a bool, held as the flag `flag` reads as, read where the name is read, with the word of 0 and 1 it is
+    // tested off where it is one
     void hold_flag(const std::string &name, const StickTyped &flag)
     {
-        flags[name] = StickTyped{"(" + flag.text + ")", flag.type};
+        StickTyped held{"(" + flag.text + ")", flag.type};
+        held.word = flag.word;
+        held.word_type = flag.word_type;
+        flags[name] = held;
     }
 
     // `name` read as `value`, written where the name is read and only as much of it as is read there
@@ -949,13 +1029,23 @@ class StickKernel
         const int flag = stick_type_bare("bool");
         if (to == flag)
         {
-            return combined(value, "!=", StickTyped{number_text(0u), stick_type_bare("int"), 1});
+            StickTyped tested = combined(value, "!=", StickTyped{number_text(0u), stick_type_bare("int"), 1});
+            tested.word = (value.zero_one != 0) ? value.text : std::string();
+            tested.word_type = (value.zero_one != 0) ? value.type : -1;
+            return tested;
+        }
+        if ((value.type == flag) && !value.word.empty())
+        {
+            StickTyped word{value.word, value.word_type, 1};
+            word.zero_one = 1;
+            return converted(word, to);
         }
         if (value.type == flag)
         {
-            return converted(StickTyped{"((" + value.text + ")?" + number_text(1u) + ":" + number_text(0u) + ")",
-                                        stick_type_bare("unsignedint"), 1},
-                             to);
+            StickTyped selected{"((" + value.text + ")?" + number_text(1u) + ":" + number_text(0u) + ")",
+                                stick_type_bare("unsignedint"), 1};
+            selected.zero_one = 1;
+            return converted(selected, to);
         }
         const unsigned int from_bits = s_types[value.type].bits;
         const unsigned int to_bits = s_types[to].bits;
@@ -968,6 +1058,7 @@ class StickKernel
             StickTyped narrowed{stick_cast(to) + low, to, (s_types[to].is_signed == 0) ? 1 : 0};
             narrowed.low = low;
             narrowed.low_bits = to_bits;
+            narrowed.zero_one = value.zero_one;
             return narrowed;
         }
         if (stick_held_bits(from_bits) == stick_held_bits(to_bits))
@@ -975,15 +1066,20 @@ class StickKernel
             StickTyped same{value.text, to, value.nonnegative};
             same.low = value.low;
             same.low_bits = value.low_bits;
+            same.zero_one = value.zero_one;
             return same;
         }
         if (to_bits > from_bits)
         {
             const int sign = (s_types[value.type].is_signed != 0) && (value.nonnegative == 0);
-            return StickTyped{((sign != 0) ? "(unsignedlonglong)(longlong)(int)" : "(unsignedlonglong)") + value.text,
-                              to, value.nonnegative};
+            StickTyped widened{((sign != 0) ? "(unsignedlonglong)(longlong)(int)" : "(unsignedlonglong)") + value.text,
+                               to, value.nonnegative};
+            widened.zero_one = value.zero_one;
+            return widened;
         }
-        return StickTyped{stick_cast(to) + value.text, to};
+        StickTyped cut{stick_cast(to) + value.text, to};
+        cut.zero_one = value.zero_one;
+        return cut;
     }
 
     // 1 where `name` is held
@@ -1286,6 +1382,12 @@ class StickKernel
     // form `name` written in sass.krs with `arguments`; 0 where it is not, `question` then saying why
     int write(const std::string &name, const std::vector<std::string> &arguments)
     {
+        std::string listed;
+        for (const std::string &argument : arguments)
+        {
+            listed += " " + argument;
+        }
+        stick_trace("write %s%s", name.c_str(), listed.c_str());
         const auto none = [](const std::string &) { return std::string(); };
         if (ruleset_opcode(sass, name, arguments, none, text) == 0)
         {
@@ -1299,6 +1401,7 @@ class StickKernel
     // `why` kept as the kernel's question where it has none yet
     void ask(const std::string &why)
     {
+        stick_trace("question %s", why.c_str());
         question = question.empty() ? why : question;
     }
 
@@ -1377,6 +1480,13 @@ class StickKernel
     unsigned int steps_kept = 0u;
     // the names held whose value is never negative
     std::set<std::string> nonnegatives;
+    // the joins of two flags read exchanged, each read in that order once
+    std::set<std::string> exchanging;
+    // Each reading made since the kernel last held a value, by whether it was read in place and its text, and
+    // whether it read. A reading is of the values held, the kernel's parameters and the rulesets alone, and a text
+    // read again while nothing new is held reads the same: an expression's parts are read once each, however
+    // many of its readings hold them
+    std::map<std::string, std::pair<int, StickReading>> readings;
     // each bool held as a flag, by its name, and the expression it is the flag of
     std::map<std::string, StickTyped> flags;
     // each name read as an expression not yet written, by the name
@@ -1442,7 +1552,10 @@ class StickKernel
         {
             return StickTyped{"", -1};
         }
-        return StickTyped{"((" + flag.text + ")?" + left.text + ":" + right.text + ")", common};
+        // a select between two words of 0 and 1 holds 0 or 1
+        StickTyped selected{"((" + flag.text + ")?" + left.text + ":" + right.text + ")", common};
+        selected.zero_one = (left.zero_one != 0) && (right.zero_one != 0);
+        return selected;
     }
 
     // the binary operators that bind at `lowest` or tighter, each left to right over what binds tighter still
@@ -1615,7 +1728,12 @@ class StickKernel
             {
                 return value;
             }
-            // a negation's and a complement's low bits are of their operand's low bits alone
+            // a negation is 0 less its operand, in the operand's type
+            if (token == "-")
+            {
+                return combined(StickTyped{number_text(0u), stick_type_bare("int"), 1}, "-", value);
+            }
+            // a complement's low bits are of its operand's low bits alone
             StickTyped whole{"(" + token + value.text + ")", value.type};
             whole.low = (value.low_bits != 0u) ? ("(" + token + value.low + ")") : std::string();
             whole.low_bits = value.low_bits;
@@ -1698,7 +1816,9 @@ class StickKernel
         const int type = (wide != 0) ? stick_type_bare((unsigned_one != 0) ? "unsignedlonglong" : "longlong")
                          : ((unsigned_one != 0) || (number > 0x7FFFFFFFull)) ? stick_type_bare("unsignedint")
                                                                              : stick_type_bare("int");
-        return StickTyped{number_text((unsigned int)number), type, 1};
+        StickTyped written{number_text((unsigned int)number), type, 1};
+        written.zero_one = (number <= 1ull);
+        return written;
     }
     // each wide that is the pair a word begins, by the wide's name, and the words so held
     std::map<std::string, std::string> ties;
@@ -1827,6 +1947,7 @@ class StickKernel
             StickReading in_register;
             if ((read(stick_bare(spans[at]), 1, &in_place) == 0) || (read(stick_bare(spans[at]), 0, &in_register) == 0))
             {
+                stick_trace("%s refused: its operand %s has no reading", s_form_names[form], spans[at].c_str());
                 return 0;
             }
             options[at].push_back(in_place);
@@ -1853,14 +1974,21 @@ class StickKernel
             {
                 StickReading child = options[at][rest % options[at].size()];
                 rest /= options[at].size();
-                held = ((at < slot_bits.size()) && (child.bits != STICK_PREDICATE_BITS) &&
-                        (stick_held_bits(child.bits) != slot_bits[at]))
-                           ? 0
-                           : held;
+                const int count = (at < slot_bits.size()) && (slot_bits[at] == STICK_COUNT_BITS);
+                const int fits = !((at < slot_bits.size()) && (count == 0) && (child.bits != STICK_PREDICATE_BITS) &&
+                                   (stick_held_bits(child.bits) != slot_bits[at]));
+                if ((fits == 0) && (held != 0))
+                {
+                    stick_trace("%s choice %zu: operand %zu wants %u bits and holds %u", s_form_names[form], choice, at,
+                                slot_bits[at], child.bits);
+                }
+                held = (fits == 0) ? 0 : held;
                 child.negated = ((int)at == negated) ? 1 : 0;
                 reading.children.push_back(child);
                 reading.cost += child.cost;
-                bits = ((child.bits > bits) && (child.bits != STICK_PREDICATE_BITS)) ? child.bits : bits;
+                // a count is no part of the width of what the form writes
+                bits = ((count == 0) && (child.bits > bits) && (child.bits != STICK_PREDICATE_BITS)) ? child.bits
+                                                                                                       : bits;
             }
             reading.bits = (bits_given != 0u) ? bits_given : bits;
             if ((held == 0) || (reading.cost >= best->cost))
@@ -1880,12 +2008,18 @@ class StickKernel
             {
                 *best = reading;
                 chosen = 1;
+                stick_trace("%s choice %zu: assembles, %u forms", s_form_names[form], choice, reading.cost);
             }
             else if (assembles(form, {"P0"}, reading.children) != 0)
             {
                 reading.bits = STICK_PREDICATE_BITS;
                 *best = reading;
                 chosen = 1;
+                stick_trace("%s choice %zu: assembles as a flag, %u forms", s_form_names[form], choice, reading.cost);
+            }
+            else
+            {
+                stick_trace("%s choice %zu: sass.krs's text does not assemble over it", s_form_names[form], choice);
             }
         }
         return chosen;
@@ -1910,7 +2044,44 @@ class StickKernel
 
     // the reading of `bare` of the fewest forms, a number or a folded word in place only where `in_place` allows it;
     // 0 where there is none
+    // `bare` read as read_untraced() reads it, the reading and what it gives written to the trace
     int read(const std::string &bare, int in_place, StickReading *best)
+    {
+        static const char *const s_leaves[] = {"form", "held", "number in place", "number set", "parameter"};
+        stick_trace("read %s%s", bare.c_str(), (in_place != 0) ? " in place" : "");
+        // a reading made while a join of flags is read exchanged is not kept: the join is refused its second order
+        const std::string key = std::string((in_place != 0) ? "1" : "0") + bare;
+        const auto before = exchanging.empty() ? readings.find(key) : readings.end();
+        int read_given = 0;
+        if (before != readings.end())
+        {
+            read_given = before->second.first;
+            *best = before->second.second;
+            stick_trace("(read before)");
+        }
+        else
+        {
+            {
+                const StickTraceDeeper deeper;
+                read_given = read_untraced(bare, in_place, best);
+            }
+            if (exchanging.empty())
+            {
+                readings[key] = std::make_pair(read_given, *best);
+            }
+        }
+        if (read_given == 0)
+        {
+            stick_trace("-> no reading of %s", bare.c_str());
+            return 0;
+        }
+        stick_trace("-> %s%s%s, %u forms, %u bits", s_leaves[best->leaf],
+                    (best->leaf == STICK_FORM) ? " " : "", (best->leaf == STICK_FORM) ? s_form_names[best->form] : "",
+                    best->cost, best->bits);
+        return 1;
+    }
+
+    int read_untraced(const std::string &bare, int in_place, StickReading *best)
     {
         best->cost = 0xFFFFFFFFu;
         unsigned int number = 0u;
@@ -1972,6 +2143,12 @@ class StickKernel
             }
             for (const std::vector<std::string> &spans : found)
             {
+                std::string listed;
+                for (const std::string &span : spans)
+                {
+                    listed += " [" + span + "]";
+                }
+                stick_trace("text of %s matches:%s", s_form_names[pattern.form], listed.c_str());
                 std::vector<std::string> ordered(spans.size());
                 for (size_t slot = 0u; slot < spans.size(); slot += 1u)
                 {
@@ -2030,6 +2207,20 @@ class StickKernel
                 }
             }
         }
+        // Two flags joined by && or || hold in either order, nothing the reader reads writing anything, and a form
+        // that glues a test to another flag reads the test first. The exchanged text is read once: it exchanges back
+        const std::string exchanged = stick_flags_exchanged(bare);
+        if ((best->cost == 0xFFFFFFFFu) && !exchanged.empty() && (exchanging.count(bare) == 0u))
+        {
+            exchanging.insert(exchanged);
+            StickReading other;
+            const int read_other = read(exchanged, in_place, &other);
+            exchanging.erase(exchanged);
+            if (read_other != 0)
+            {
+                *best = other;
+            }
+        }
         if (best->cost == 0xFFFFFFFFu)
         {
             return 0;
@@ -2060,6 +2251,7 @@ class StickKernel
             const StickValue value = fresh(reading.bits);
             write("word_set", {value.name, ruleset_register(sass, "immediate", reading.number)});
             held_values["=" + reading.text] = value;
+            readings.clear();
             return value;
         }
         std::vector<std::string> operands;
@@ -2102,6 +2294,7 @@ class StickKernel
         arguments.insert(arguments.end(), operands.begin(), operands.end());
         write(s_form_names[reading.form], arguments);
         held_values[reading.text] = value;
+        readings.clear();
         return value;
     }
 
@@ -2376,11 +2569,15 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
                 kernel->hold(name, loaded, type);
                 continue;
             }
-            // a byte or a halfword is the narrowing of the word loaded, written where it is read
-            if (s_types[type].bits < STICK_REGISTER_BITS)
+            // A byte or a halfword is the narrowing of the word loaded, written where it is read. A bool is no
+            // narrowing: it is the whole value loaded tested against 0, and is read below as a flag of that value
+            if ((s_types[type].bits < STICK_REGISTER_BITS) && (s_types[type].bits != STICK_PREDICATE_BITS))
             {
                 const std::string loaded_word = name + "@word";
-                kernel->hold(loaded_word, loaded, word);
+                // the word is the low word of what was loaded, the even register where a pair was loaded
+                StickValue low = loaded;
+                low.bits = STICK_REGISTER_BITS;
+                kernel->hold(loaded_word, low, word);
                 const StickTyped narrowed = kernel->converted(StickTyped{loaded_word, word}, type);
                 if (narrowed.type < 0)
                 {
@@ -2683,7 +2880,15 @@ int main(int argc, char **argv)
     for (const StickSource &source : sources)
     {
         StickKernel kernel(cu, sass, &machine, &patterns, 1);
+        // STICK_TRACE set writes <out>/<number>.trace beside the kernel's text
+        s_trace = (getenv("STICK_TRACE") != NULL) ? fopen((out + "/" + source.number + ".trace").c_str(), "wb") : NULL;
         const std::string question = stick_kernel(source, &kernel);
+        if (s_trace != NULL)
+        {
+            fprintf(s_trace, "%s\n", question.empty() ? "answered" : ("question " + question).c_str());
+            fclose(s_trace);
+            s_trace = NULL;
+        }
         if (!question.empty())
         {
             fprintf(table, "%s\tquestion\t0\t0\t%s\n", source.number.c_str(), question.c_str());

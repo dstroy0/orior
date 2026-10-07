@@ -16,9 +16,9 @@
 
 // the code generator, which writes a program's lane as PTX or C source for the target named here, and the launch it
 // reads; and its assembly printer, which the device runs to write the lane's text again
-#include "../../../transpiler/codegen/asm_printer.h"
-#include "../../../transpiler/codegen/code_generator.h"
-#include "../../../transpiler/codegen/codegen_device.h"
+#include "../../../engine/rmc/asm_printer.h"
+#include "../../../engine/rmc/code_generator.h"
+#include "../../../engine/rmc/codegen_device.h"
 
 #include <cooperative_groups.h>
 #include <cuda_runtime.h>
