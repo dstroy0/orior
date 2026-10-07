@@ -212,6 +212,13 @@ fn report_auto() -> bool {
     report::auto()
 }
 
+/// Whether the reporter has answered whether errors file on their own, and the question they are
+/// asked where they have not.
+#[tauri::command]
+fn report_asked() -> (bool, &'static str) {
+    (report::asked(), report::QUESTION)
+}
+
 #[tauri::command]
 fn report_auto_set(on: bool) -> Result<(), String> {
     report::set_auto(on)
@@ -441,6 +448,7 @@ fn open(launch: Launch) {
             report_bug,
             report_auto,
             report_auto_set,
+            report_asked,
             report_open,
             file_commits,
             file_at,

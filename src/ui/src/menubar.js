@@ -31,7 +31,7 @@ import { scheme, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { onView, shownView, showView } from "./views.js";
-import { reportForm } from "./reports.js";
+import { askReports, reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
 
 // The most titles the bar shows at a window width: [narrowest width in pixels, titles]. The rest go
@@ -286,7 +286,7 @@ async function showAbout() {
   sheet(body);
 }
 
-// A sheet over the app, which Escape, a press outside it or its × closes.
+// A sheet over the app, which Escape, a press outside it or its × closes. Answers the sheet.
 function sheet(body) {
   const dialog = document.createElement("dialog");
   dialog.className = "sheet";
@@ -297,6 +297,7 @@ function sheet(body) {
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
+  return dialog;
 }
 
 // The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
@@ -470,6 +471,12 @@ export async function startMenubar({ openFolder }) {
   state.openFolder = openFolder;
   state.menus = JSON.parse(await invoke("commands_read")).menus;
   state.autoReport = await invoke("report_auto").catch(() => true);
+  const [asked, question] = await invoke("report_asked").catch(() => [true, ""]);
+  if (!asked) {
+    askReports(sheet, question, (on) => {
+      state.autoReport = on;
+    });
+  }
   startPalette({
     commands: paletteCommands,
     files: () => invoke("tree_files"),

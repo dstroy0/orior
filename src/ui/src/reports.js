@@ -92,6 +92,37 @@ export function reportForm(sheet, given = []) {
   (title.value ? what : title).focus();
 }
 
+// The question asked once, on the first run where the installer did not ask it: whether errors file
+// on their own. Yes is the answer Enter gives, and a sheet closed with no answer leaves them on.
+export function askReports(sheet, question, answered) {
+  let given = null;
+  const yes = element("button", { className: "primary", type: "submit", textContent: "File them", autofocus: true });
+  const no = element("button", { type: "button", textContent: "Don't" });
+  const form = element(
+    "form",
+    { className: "sheet-report" },
+    element("h2", { textContent: "Automatic Error Reports" }),
+    element("p", { textContent: question }),
+    element("div", { className: "report-foot" }, no, yes)
+  );
+  const dialog = sheet(form);
+  const answer = (on) => {
+    given = on;
+    dialog.close();
+  };
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    answer(true);
+  });
+  no.addEventListener("click", () => answer(false));
+  dialog.addEventListener("close", async () => {
+    const on = given ?? true;
+    await invoke("report_auto_set", { on }).catch(() => {});
+    answered(on);
+  });
+  yes.focus();
+}
+
 export function autoReports() {
   return invoke("report_auto");
 }
