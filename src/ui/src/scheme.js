@@ -15,6 +15,11 @@ export function onScheme(listener) {
   listeners.push(listener);
 }
 
+// Tells what reads the scheme's colors that they changed, as a theme does without the scheme changing.
+export function notifyScheme() {
+  listeners.forEach((listener) => listener(scheme()));
+}
+
 function set(name) {
   document.documentElement.dataset.scheme = name;
   const button = document.getElementById("scheme");

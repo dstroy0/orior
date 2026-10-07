@@ -2723,3 +2723,202 @@ textarea.report-field {
   min-width: 0;
   overflow: hidden;
 }
+
+/* Preferences: the settings, the color theme with its name and what can be done with it, then every
+ * color of the palette, a row a color with its swatch, its name, its value and the way back to the
+ * scheme's own, a row the theme changes marked in signal. The colors scroll and the rest stays. */
+.sheet:has(.sheet-prefs) {
+  width: min(52rem, 94vw);
+  max-width: none;
+  height: min(52rem, 88vh);
+  max-height: none;
+}
+
+.sheet-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  height: 100%;
+  font: 13px var(--head);
+}
+
+.sheet-prefs h2 {
+  margin: 0;
+  font: 600 1.15rem var(--head);
+}
+
+.sheet-prefs h3 {
+  margin: 0 0 0.45rem;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+.prefs-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.6rem;
+}
+
+.prefs-settings .report-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.prefs-settings .report-check {
+  margin: 0;
+}
+
+.prefs-line {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.prefs-line select {
+  flex: 0 1 16rem;
+}
+
+.prefs-line .prefs-name {
+  flex: 1 1 auto;
+}
+
+.prefs-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.prefs-button {
+  padding: 0.25rem 0.8rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.75);
+  background: var(--surface);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  cursor: pointer;
+}
+
+.prefs-button:hover:not(:disabled) {
+  border-color: var(--hover);
+}
+
+.prefs-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.prefs-said {
+  min-height: 1em;
+  margin: 0.4rem 0 0;
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.prefs-palette {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.prefs-palette .filter {
+  margin: 0 0 0.5rem;
+}
+
+.prefs-colors {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+}
+
+.prefs-colors h4 {
+  margin: 0.7rem 0 0.25rem;
+  font: 600 12px var(--code);
+  color: var(--fg-3);
+}
+
+.prefs-color {
+  display: grid;
+  grid-template-columns: 2rem 13rem minmax(0, 1fr) 1.8rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.12rem 0.3rem;
+  border-radius: calc(var(--radius) * 0.6);
+  box-shadow: inset 2px 0 0 transparent;
+}
+
+.prefs-color:hover {
+  background: var(--line);
+}
+
+.prefs-color.changed {
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.prefs-color code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 12.5px var(--code);
+  color: var(--fg);
+}
+
+.prefs-swatch {
+  width: 2rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  cursor: pointer;
+}
+
+.prefs-swatch::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.prefs-swatch::-webkit-color-swatch {
+  border: 0;
+  border-radius: 2px;
+}
+
+.prefs-value {
+  min-width: 0;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  color: var(--fg-2);
+  font: 12.5px var(--code);
+}
+
+.prefs-value:hover,
+.prefs-value:focus {
+  border-color: var(--ed-widget-line);
+  background: var(--well);
+  color: var(--fg);
+  outline: none;
+}
+
+.prefs-reset {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.prefs-reset:disabled {
+  visibility: hidden;
+}
+
+.prefs-reset:hover {
+  color: var(--hover);
+}
+
+.prefs-settings select {
+  width: auto;
+}
