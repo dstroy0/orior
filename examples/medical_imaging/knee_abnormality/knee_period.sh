@@ -66,7 +66,7 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DANCHOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DANCHOR_E
 MODULES=(cu/includes/formats/stack cu/engine/parser cu/engine/analysis/compression cu/engine/analysis/tower
          cu/engine/runtime/device_pool cu/engine/analysis/entropy_history cu/engine/analysis/noise_detector
          cu/engine/runtime/schedule cu/engine/analysis/keymath cu/engine/analysis/key_schedule
-         cu/engine/analysis/cycle cu/transpiler/codegen cu/transpiler/lstar/parser cu/engine/runtime/radix_keys
+         cu/engine/analysis/cycle cu/engine/rmc cu/types/file_defs/readers cu/engine/runtime/radix_keys
          cu/engine/analysis/unit_sweep cu/engine/runtime/obsignatio cu/engine/analysis/residual
          cu/engine/nbody/max_tree cu/engine/nbody/flatten cu/engine/analysis/golden_bands
          cu/engine/analysis/residual_survey cu/engine/nbody/grow cu/engine/analysis/shift_agreement
