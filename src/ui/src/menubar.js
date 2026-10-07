@@ -20,14 +20,19 @@
 // into the last, a menu of menus.
 
 import { invoke } from "./bridge.js";
-import { editing, openAt as openFileAt } from "./edit.js";
+import { editing, openAt as openFileAt, openFile, recentFiles } from "./edit.js";
+import { showPane } from "./explorer.js";
+import { openPalette, startPalette } from "./palette.js";
+import { showPreferences } from "./preferences.js";
+import { focusSearch } from "./search.js";
+import { zoomBy } from "./zoom.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { scheme, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { onView, shownView, showView } from "./views.js";
-import { reportForm } from "./reports.js";
+import { askReports, reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
 
 // The most titles the bar shows at a window width: [narrowest width in pixels, titles]. The rest go
@@ -68,15 +73,24 @@ function searchJobs(word = "") {
   filter.focus();
 }
 
-// The file a path names, at the line after its colon, or the edit view's search where none is named.
+// The file a path names, at the line and column after its colons, or the quick open where none is
+// named.
 function goToFile(args = []) {
-  showView("edit");
-  const [path, line] = (args[0] ?? "").split(/:(?=\d+$)/);
-  if (path) {
-    openFileAt(path, Math.max(0, Number(line || 1) - 1));
-  } else {
-    editing().find();
+  const found = (args[0] ?? "").match(/^(.*?)(?::(\d+))?(?::(\d+))?$/);
+  if (!found[1]) {
+    openPalette("");
+    return;
   }
+  showView("edit");
+  openFileAt(found[1], Math.max(0, Number(found[2] || 1) - 1), Math.max(0, Number(found[3] || 1) - 1));
+}
+
+// Find in Files: the explorer's Search pane, holding the words given where there are any.
+function findInFiles(args = []) {
+  showView("edit");
+  togglePane(true);
+  showPane("search");
+  focusSearch(args.length ? args.join(" ") : undefined);
 }
 
 // The bridge's key in Lstar.klq, or the file itself.
@@ -104,6 +118,18 @@ const COMMANDS = {
   copy: inEditor(() => document.execCommand("copy")),
   paste: inEditor(pasted),
   find: inEditor((e) => e.find.open(false)),
+  search: findInFiles,
+  palette: (args) => openPalette(`>${args.join(" ")}`),
+  "zoom-in": () => zoomBy(1),
+  "zoom-out": () => zoomBy(-1),
+  "zoom-reset": () => zoomBy(0),
+  back: () => editing().back(),
+  forward: () => editing().forward(),
+  "last-editor": () => editing().lastEditor(),
+  symbol: (args) => {
+    showView("edit");
+    openPalette(`@${args.join(" ")}`);
+  },
   replace: inEditor((e) => e.find.open(true)),
   comment: inEditor((e) => e.toggleComment()),
   "select-all": inEditor((e) => e.selectAll()),
@@ -119,6 +145,8 @@ const COMMANDS = {
   "edit-view": () => showView("edit"),
   "side-bar": (args) => togglePane(args[0] === "show" ? true : args[0] === "hide" ? false : undefined),
   "auto-collapse": (args) => setAutoCollapse(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
+  "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
+  preferences: () => showPreferences(sheet, { menus: state.menus, runCommand, checks: CHECKS }),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
@@ -152,12 +180,14 @@ const COMMANDS = {
 const CHECKS = {
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
+  "sticky-scroll": () => editing().sticky(),
   "auto-report": () => state.autoReport,
 };
 
 // What a command needs before it can act, by the name commands.json gives the need.
 const NEEDS = {
   editor: () => Boolean(editing().editor),
+  text: () => Boolean(editing().editor),
   "changed-active": () => editing().activeChanged,
   changed: () => editing().changed,
   tab: () => Boolean(editing().active),
@@ -168,7 +198,22 @@ const NEEDS = {
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
 export function runCommand(command, args = []) {
-  COMMANDS[command]?.(args);
+  return COMMANDS[command]?.(args);
+}
+
+// Every command the menus list that can act now, for the quick open's >.
+function paletteCommands() {
+  const found = [];
+  for (const menu of state.menus) {
+    for (const item of menu.items ?? []) {
+      if (item === "-" || item.command === "palette" || (item.needs && !NEEDS[item.needs]?.())) {
+        continue;
+      }
+      const label = item.labels?.[scheme()] ?? item.label;
+      found.push({ key: `${menu.title}/${item.command}`, menu: menu.title, label: label.replace(/…$/, ""), keys: item.keys, run: () => runCommand(item.command) });
+    }
+  }
+  return found;
 }
 
 function jobItem(job) {
@@ -245,7 +290,7 @@ async function showAbout() {
   sheet(body);
 }
 
-// A sheet over the app, which Escape, a press outside it or its × closes.
+// A sheet over the app, which Escape, a press outside it or its × closes. Answers the sheet.
 function sheet(body) {
   const dialog = document.createElement("dialog");
   dialog.className = "sheet";
@@ -256,6 +301,7 @@ function sheet(body) {
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
+  return dialog;
 }
 
 // The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
@@ -429,6 +475,28 @@ export async function startMenubar({ openFolder }) {
   state.openFolder = openFolder;
   state.menus = JSON.parse(await invoke("commands_read")).menus;
   state.autoReport = await invoke("report_auto").catch(() => true);
+  const [asked, question] = await invoke("report_asked").catch(() => [true, ""]);
+  if (!asked) {
+    askReports(sheet, question, (on) => {
+      state.autoReport = on;
+    });
+  }
+  startPalette({
+    commands: paletteCommands,
+    files: () => invoke("tree_files"),
+    recent: recentFiles,
+    symbols: () => editing().symbols(),
+    lineCount: () => editing().lineCount(),
+    goLine: (line, col) => editing().goLine(line, col),
+    openFile: (path, line, col) => {
+      showView("edit");
+      if (line === null) {
+        openFile(path);
+      } else {
+        openFileAt(path, line, col);
+      }
+    },
+  });
   onView(markView);
   state.bar.addEventListener("keydown", (event) => {
     const at = state.titles.findIndex(({ button }) => button === document.activeElement);

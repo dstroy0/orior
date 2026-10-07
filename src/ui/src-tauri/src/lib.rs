@@ -6,6 +6,7 @@
 //! calls, the `view` scheme its page windows load from, the terminal's pseudo-terminals and the
 //! clipboard. The same program is the command line, handing it any words it is started with.
 
+mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
@@ -128,6 +129,13 @@ fn app_version() -> &'static str {
 }
 
 /// Ends the app, every window of it, from the File menu.
+/// What the app holds in memory, its own process and every one it started, or nothing where the
+/// system does not say.
+#[tauri::command]
+fn memory_use() -> Option<memory::Memory> {
+    memory::read()
+}
+
 /// Shows the window once its page has its scheme and its colors, so that no frame before them shows.
 #[tauri::command]
 fn window_show(window: tauri::WebviewWindow) -> Result<(), String> {
@@ -210,6 +218,13 @@ async fn report_bug(app: State<'_, App>, report: report::Report, with_errors: bo
 #[tauri::command]
 fn report_auto() -> bool {
     report::auto()
+}
+
+/// Whether the reporter has answered whether errors file on their own, and the question they are
+/// asked where they have not.
+#[tauri::command]
+fn report_asked() -> (bool, &'static str) {
+    (report::asked(), report::QUESTION)
 }
 
 #[tauri::command]
@@ -430,6 +445,7 @@ fn open(launch: Launch) {
             app_version,
             app_exit,
             window_show,
+            memory_use,
             tree_list,
             tree_find,
             tree_files,
@@ -441,6 +457,7 @@ fn open(launch: Launch) {
             report_bug,
             report_auto,
             report_auto_set,
+            report_asked,
             report_open,
             file_commits,
             file_at,

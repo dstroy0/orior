@@ -14,8 +14,10 @@
 //!
 //! Before anything leaves the machine the reporter's home folder, the tree's path and the reporter's
 //! name in a path are struck from it. Errors file on their own unless the reporter turns that off, a
-//! setting kept in orior's own folder and shared by the window and the command line. One error files
-//! once a run, and a run files at most AUTO_LIMIT on its own.
+//! setting kept in orior's own folder and shared by the window and the command line. The reporter is
+//! asked once, yes the answer given by default: by the Windows installer, and otherwise on the first
+//! run, in the window or at the terminal. One error files once a run, and a run files at most
+//! AUTO_LIMIT on its own.
 
 use std::collections::{BTreeSet, VecDeque};
 use std::io::Write;
@@ -66,14 +68,12 @@ pub enum Filed {
     Page(String),
 }
 
+/// What orior keeps between runs: whether errors file on their own, as the reporter answered when they
+/// were asked, at installation or on the first run, and nothing where they have not answered yet.
 #[derive(Default, Serialize, Deserialize)]
 struct Settings {
-    #[serde(default = "on")]
-    auto_report: bool,
-}
-
-fn on() -> bool {
-    true
+    #[serde(default)]
+    auto_report: Option<bool>,
 }
 
 struct Run {
@@ -97,12 +97,42 @@ fn settings() -> Settings {
     settings_path()
         .and_then(|path| std::fs::read_to_string(path).ok())
         .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or(Settings { auto_report: true })
+        .unwrap_or_default()
 }
 
-/// Whether errors file on their own.
+/// Whether errors file on their own: as the reporter answered, and on where they have not answered.
 pub fn auto() -> bool {
-    std::env::var_os("ORIOR_NO_REPORTS").is_none() && settings().auto_report
+    std::env::var_os("ORIOR_NO_REPORTS").is_none() && settings().auto_report.unwrap_or(true)
+}
+
+/// Whether the reporter has answered whether errors file on their own.
+pub fn asked() -> bool {
+    settings().auto_report.is_some()
+}
+
+/// The question the reporter is asked once, at installation or on the first run.
+pub const QUESTION: &str = "orior files the errors it meets as issues on dstroy0/orior on its own: through your GitHub \
+                            CLI where it is signed in, else as a page opened for you to submit. Help, Automatic Error \
+                            Reports turns it on or off later.";
+
+/// Asks the reporter once whether errors file on their own, where they have not answered, nothing
+/// turned reports off, and the run is at a terminal that can answer. Enter answers yes. A run with no
+/// terminal asks nothing and files as it would by default.
+pub fn ask_once() {
+    use std::io::{BufRead, IsTerminal};
+    if asked() || std::env::var_os("ORIOR_NO_REPORTS").is_some() || !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
+        return;
+    }
+    eprint!("{QUESTION}\nFile them? [Y/n] ");
+    let _ = std::io::stderr().flush();
+    let mut answer = String::new();
+    if std::io::stdin().lock().read_line(&mut answer).is_err() {
+        return;
+    }
+    let on = !answer.trim().to_lowercase().starts_with('n');
+    if let Err(said) = set_auto(on) {
+        eprintln!("{said}");
+    }
 }
 
 pub fn set_auto(on: bool) -> Result<(), String> {
@@ -111,7 +141,7 @@ pub fn set_auto(on: bool) -> Result<(), String> {
         std::fs::create_dir_all(folder).map_err(|e| e.to_string())?;
     }
     let mut kept = settings();
-    kept.auto_report = on;
+    kept.auto_report = Some(on);
     std::fs::write(&path, serde_json::to_string_pretty(&kept).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
 }
 

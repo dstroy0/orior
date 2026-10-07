@@ -12,7 +12,7 @@ The app reads all of it from the tree each time:
 | what | read from |
 | --- | --- |
 | the builds | every `build*.sh` under `src/`, `utils/maint/engine/`, `utils/maint/texbuild/` and each example |
-| the protocol | every `klq_*.sh` under `utils/maint/engine/` |
+| the protocol | every `klq_*.sh` under `utils/maint/engine/`: its modes from its usage lines, and its settings, `KLQ_TRACE` and `KLQ_SEED`, from its opening comment, each set in the script's environment |
 | ingest, the run parts, render | `examples/cell_tracking/src/track_driver/track_driver.cu`, its usage text |
 | the sims | the `case` in `src/sims/run.sh` |
 | the other runs | `examples/navier_stokes/run.sh` and its cfgs, `examples/qasm/run.sh` and its circuits |
@@ -42,6 +42,11 @@ cargo tauri build
 ```
 
 They land under `src-tauri/target/release/bundle/`, for the platform the build runs on.
+
+orior files the errors it meets as issues on dstroy0/orior on its own, and asks once whether to,
+yes the answer given by default. The Windows installer asks as it installs (`src-tauri/windows/hooks.nsh`);
+every other install asks on its first run, in the window or at the terminal. Help, Automatic Error
+Reports turns it on or off later, and `ORIOR_NO_REPORTS` turns it off for a run.
 
 | platform | also needs |
 | --- | --- |
