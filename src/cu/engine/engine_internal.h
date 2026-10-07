@@ -87,6 +87,8 @@ struct EngineResidualResident
     unsigned int smooth_orders[ENGINE_AXES];
     unsigned int background_orders[ENGINE_AXES];
     unsigned int comb[ENGINE_AXES];
+    unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
+    unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
     unsigned short *volume;
     unsigned int *residual;
     unsigned int *check;
