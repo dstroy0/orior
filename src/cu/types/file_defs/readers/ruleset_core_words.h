@@ -12,7 +12,7 @@
 // The memory is the caller's, sized from the file (ruleset_core_capacities), which no read passes; where the host
 // errored, the read ends with why, and the caller writes the host's reason from it
 
-#include "../../codegen/machine_ir_types.h"
+#include "../../../engine/rmc/machine_ir_types.h"
 
 // what one argument of a construct's line is, as PseudoOperandKind gives it
 #define RULESET_CORE_TEXT 0u

@@ -167,7 +167,7 @@ by its text and used only where that text matches byte for byte.
 The lane's text is written from a **ruleset**, one for each of the first two ways: `../../transpiler/lstar/coherence/ptx.krs` for
 PTX and `../../transpiler/lstar/coherence/c.krs` for C source, read once a process from that folder, or from the folder
 `$CYCLE_RULESETS` names. The code generator decides what each step does, and the ruleset decides how the target writes it.
-Its base class, `Target` (`../../cu/transpiler/codegen/target.h`, `compiler/codegen/target_*.cu`), reads and writes rulesets and names no language. Each language
+Its base class, `Target` (`src/cu/engine/rmc/target.h`, `src/cu/engine/rmc/target_*.cu`), reads and writes rulesets and names no language. Each language
 is a class that inherits it, in files of its own: `PtxTarget` (`ptx_target.{h,cu}`) and `CTarget`
 (`c_target.{h,cu}`). The record machine picks the language.
 A ruleset is a text file whose first line is `krs 1`, and every other line is one entry:
@@ -183,7 +183,7 @@ A ruleset is a text file whose first line is `krs 1`, and every other line is on
   argument, `{bank:n}` for scratch register n of one of the ruleset's banks, and any other word for itself. Each time
   the form is written, its construct's lines are written in its place, and each scratch register is a fresh one: in
   PTX, one of the step's own temporaries, 64-bit temporaries or predicates, declared with them. A ruleset may give a
-  form as a form or as a construct, and never as both. `utils/test/src/cu/transpiler/codegen/rulesets/flagless/ptx.krs` gives the carry chains and the
+  form as a form or as a construct, and never as both. `utils/test/src/cu/engine/rmc/rulesets/flagless/ptx.krs` gives the carry chains and the
   product this way, with no instruction that sets or reads the condition code.
 
 A line that begins with `#` is a comment. The code generator lists every form, bank and register it needs, with the

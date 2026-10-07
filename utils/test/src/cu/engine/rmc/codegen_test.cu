@@ -14,7 +14,7 @@
 #include "../../engine/analysis/cycle/record_image.h"
 #include "code_generator.h"
 #include "codegen_device.h"
-#include "ruleset_reader.h"
+#include "../../../../../../src/cu/types/file_defs/readers/ruleset_reader.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

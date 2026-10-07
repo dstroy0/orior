@@ -12,11 +12,11 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HERE="$TOP/src/cu/scaffolding"
-CODEGEN="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU_2="$TOP/src/cu/transpiler/lstar/parser"
-CUBIN="$TOP/src/cu/transpiler/lstar/parser"
-KRS_C="$TOP/src/cu/transpiler/lstar/parser"
+CODEGEN="$TOP/src/cu/engine/rmc"
+CODEGEN_CU="$TOP/src/cu/engine/rmc"
+CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
+CUBIN="$TOP/src/cu/types/file_defs/readers"
+KRS_C="$TOP/src/cu/types/file_defs/readers"
 OUT="$TOP/build/monolith/emit"
 mkdir -p "$OUT"
 

@@ -13,9 +13,9 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-CODEGEN="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU_2="$TOP/src/cu/transpiler/lstar/parser"
+CODEGEN="$TOP/src/cu/engine/rmc"
+CODEGEN_CU="$TOP/src/cu/engine/rmc"
+CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
 CUBIN="$TOP/src/cu/scaffolding"
 OUT="$TOP/build/sass_krs_check"
 mkdir -p "$OUT"

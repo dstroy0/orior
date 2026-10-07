@@ -21,7 +21,7 @@ extern "C"
 #include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 }
 
-#include "../transpiler/codegen/word_web.h"
+#include "../engine/rmc/word_web.h"
 #include "sass_target.h"
 #include "target.h"
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // codegen_reader.cu: a ruleset's .krs file read, and its scratch laid out, on the device, and held to the host's
-#include "codegen_device.h"
-#include "codegen_device_internal.h"
-#include "../lstar/parser/ruleset_flat.h"
+#include "../../../engine/rmc/codegen_device.h"
+#include "../../../engine/rmc/codegen_device_internal.h"
+#include "ruleset_flat.h"
 
 // 1 where two templates are the same: their pieces and slots
 static int ruleset_same_templates(const std::vector<InstrTemplate> &left, const std::vector<InstrTemplate> &right)

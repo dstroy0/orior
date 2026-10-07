@@ -14,11 +14,11 @@
 #
 # item	kind	path	what it does
 relations	engine	src/cu/transpiler/lstar/protocol/ladder.h	The relations known before meeting anything, the anchors that name them, and the cases the ladder climbs by. 1,1 -> 2 and no writing of it.
-relations	engine	src/cu/transpiler/codegen/precept_value.h	A tree over the alphabet applied to words, so a tree states what a target must answer.
+relations	engine	src/cu/engine/rmc/precept_value.h	A tree over the alphabet applied to words, so a tree states what a target must answer.
 relations	entry	utils/test/src/cu/transpiler/lstar/protocol/chain_check.c	How much of a relation the ladder's own cases decide. 507 arrangements fit them and are not it.
-alphabet	key	src/cu/transpiler/codegen/precepts.h	18 precepts and 9 rewrites, typed. What a derived alphabet is checked against.
-word web	key	src/cu/transpiler/codegen/word_web.h	12 of the schema's 99 words as trees, typed. What a derived web is checked against.
-word web	engine	src/cu/transpiler/codegen/tree_number.h	A tree as one number, so two trees compare without a walk.
+alphabet	key	src/cu/engine/rmc/precepts.h	18 precepts and 9 rewrites, typed. What a derived alphabet is checked against.
+word web	key	src/cu/engine/rmc/word_web.h	12 of the schema's 99 words as trees, typed. What a derived web is checked against.
+word web	engine	src/cu/engine/rmc/tree_number.h	A tree as one number, so two trees compare without a walk.
 .krs	seed	src/cu/transpiler/lstar/coherence/sass.krs	gnascor to sm_86. Written by hand. 69 forms, 23 nop, 5 err, 2 construct.
 .krs	seed	src/cu/transpiler/lstar/coherence/ptx.krs	gnascor to PTX. Written by hand. 88 forms, 11 nop, 0 err.
 .krs	seed	src/cu/transpiler/lstar/coherence/c.krs	gnascor to C. Written by hand. 83 forms, 16 nop.
@@ -41,8 +41,8 @@ emitter	entry	src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c	The one 
 emitter	scaffold	src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c	Turns text into encodings against a machine held in memory.
 emitter	scaffold	src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c	Holds forms read from a machine file, and reads and writes that file.
 emitter	key	src/cu/transpiler/lstar/coherence/sm_86	2927 forms one run found. An input to nothing that derives.
-code generator	engine	src/cu/transpiler/codegen/code_generator.cu	Decides the forms a program is made of and writes them through a ruleset.
-code generator	engine	src/cu/transpiler/codegen/code_generator.h	What a language declares about itself to be written to.
+code generator	engine	src/cu/engine/rmc/code_generator.cu	Decides the forms a program is made of and writes them through a ruleset.
+code generator	engine	src/cu/engine/rmc/code_generator.h	What a language declares about itself to be written to.
 target	engine	src/cu/scaffolding/sass_target.cu	sm_86 as a language: its ruleset, its register file, whether it writes its own resident.
 target	engine	src/cu/scaffolding/ptx_target.h	PTX as a language.
 target	engine	src/cu/scaffolding/c_target.h	C as a language.

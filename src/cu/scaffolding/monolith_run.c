@@ -8,7 +8,7 @@
 // last word is held against the same chain run through precept_applied on the host, which says every step ran.
 //
 //     monolith_run <cubin> [runs] [turns] [cost runs]
-#include "../transpiler/codegen/precept_value.h"
+#include "../engine/rmc/precept_value.h"
 #include "../transpiler/lstar/protocol/monolith.h"
 
 #include <cuda.h>

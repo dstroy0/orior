@@ -213,3 +213,10 @@ err test_signed_wide_lt where left right
 err test_signed_wide_le where left right
 err test_signed_wide_gt where left right
 err test_signed_wide_ge where left right
+err wide_sub to left right
+err wide_bitand to left right
+err wide_bitor to left right
+err wide_bitxor to left right
+err wide_not to from
+err wide_shr to from bits
+err signed_wide_shr to from bits
