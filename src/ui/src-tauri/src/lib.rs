@@ -11,6 +11,7 @@ mod defs;
 mod files;
 mod root;
 mod runner;
+mod terminal;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -25,6 +26,7 @@ use tauri::{AppHandle, Emitter, Manager, State, UriSchemeContext, WebviewUrl, We
 struct App {
     root: Mutex<Option<PathBuf>>,
     runs: runner::Runs,
+    terms: terminal::Terms,
     windows: AtomicU64,
 }
 
@@ -82,6 +84,29 @@ fn job_start(handle: AppHandle, app: State<App>, job: String, values: HashMap<St
 #[tauri::command]
 fn job_stop(app: State<App>, run: u64) -> Result<(), String> {
     app.runs.stop(run)
+}
+
+/// Opens a terminal at the tree's top folder, or at the home folder where no tree is open.
+#[tauri::command]
+fn term_open(handle: AppHandle, app: State<App>, cols: u16, rows: u16) -> Result<u64, String> {
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
+    let at = root_of(&app).ok().or(home).or_else(|| std::env::current_dir().ok()).ok_or("no folder to open a terminal in")?;
+    app.terms.open(handle, &at, cols, rows)
+}
+
+#[tauri::command]
+fn term_write(app: State<App>, id: u64, text: String) -> Result<(), String> {
+    app.terms.write(id, &text)
+}
+
+#[tauri::command]
+fn term_resize(app: State<App>, id: u64, cols: u16, rows: u16) -> Result<(), String> {
+    app.terms.resize(id, cols, rows)
+}
+
+#[tauri::command]
+fn term_close(app: State<App>, id: u64) -> Result<(), String> {
+    app.terms.close(id)
 }
 
 #[tauri::command]
@@ -254,6 +279,10 @@ pub fn run() {
             bridge_read,
             job_start,
             job_stop,
+            term_open,
+            term_write,
+            term_resize,
+            term_close,
             tree_list,
             tree_find,
             file_read,

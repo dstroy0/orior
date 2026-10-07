@@ -18,6 +18,7 @@
       </nav>
       <span class="pulse" id="pulse"></span>
       <span class="tree" id="tree-path"></span>
+      <button class="term-toggle" id="term-toggle" type="button" aria-pressed="false" title="Terminal (Ctrl+`)">Terminal</button>
       <button class="scheme" id="scheme" type="button" aria-label="Light"></button>
     </header>
 
@@ -60,6 +61,12 @@
         </div>
       </section>
     </main>
+
+    <section class="term" id="term" hidden>
+      <div class="term-grip" id="term-grip" aria-hidden="true"></div>
+      <div class="term-view" id="term-view"></div>
+      <textarea class="term-keys" id="term-keys" aria-label="Terminal" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    </section>
 
     <script type="module" src="main.js"></script>
   </body>

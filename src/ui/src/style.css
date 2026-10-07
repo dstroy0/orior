@@ -249,6 +249,24 @@ select {
   color: #b49cff;
 }
 
+.term-toggle {
+  border: 0;
+  background: none;
+  padding: 0.3rem 0.6rem;
+  font: 12.5px var(--code);
+  color: rgba(243, 242, 251, 0.72);
+  cursor: pointer;
+}
+
+.term-toggle:hover {
+  color: #b49cff;
+}
+
+.term-toggle[aria-pressed="true"] {
+  color: #ffffff;
+  box-shadow: inset 0 -2px 0 #6fdcb4;
+}
+
 .shell {
   flex: 1;
   min-height: 0;
@@ -1512,6 +1530,151 @@ select {
 .defs .none {
   font: 14px/1.55 var(--text);
   color: var(--fg-3);
+}
+
+/* The terminal under both views. Its sixteen colors are the palette's, light and dark. */
+[data-scheme="dark"] .term {
+  --t0: #2a2758;
+  --t1: #ff8fa3;
+  --t2: #6fdcb4;
+  --t3: #f2d48a;
+  --t4: #8ab8ff;
+  --t5: #b49cff;
+  --t6: #7fd8e8;
+  --t7: #d6d4ee;
+  --t8: #5e5b8a;
+  --t9: #ffb3c1;
+  --t10: #9fe3c8;
+  --t11: #ffe3a8;
+  --t12: #b5d1ff;
+  --t13: #d2c4ff;
+  --t14: #a8ecf5;
+  --t15: #ffffff;
+}
+
+[data-scheme="light"] .term {
+  --t0: #17163a;
+  --t1: #b4233c;
+  --t2: #0f7a53;
+  --t3: #8a6100;
+  --t4: #3346d3;
+  --t5: #5b3fd1;
+  --t6: #0f6f80;
+  --t7: #6b6990;
+  --t8: #8a88a8;
+  --t9: #d0405a;
+  --t10: #16935f;
+  --t11: #a87a12;
+  --t12: #5566e0;
+  --t13: #7a5ee0;
+  --t14: #1a8ea3;
+  --t15: #3d3b66;
+}
+
+.term {
+  flex: none;
+  height: 16rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--well);
+  border-top: 1px solid var(--line);
+}
+
+.term-grip {
+  flex: none;
+  height: 6px;
+  margin-top: -3px;
+  cursor: ns-resize;
+}
+
+.term-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;
+  padding: 0.2rem 0.6rem 0.35rem;
+  font: 13px/1.3 var(--code);
+  color: var(--fg);
+  white-space: pre;
+  user-select: text;
+  cursor: text;
+}
+
+.term-view > div > div,
+.term-probe {
+  height: 1.3em;
+  overflow: hidden;
+}
+
+.term-probe {
+  position: absolute;
+  visibility: hidden;
+}
+
+.term-keys {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  resize: none;
+}
+
+.t-f0 { color: var(--t0); }
+.t-f1 { color: var(--t1); }
+.t-f2 { color: var(--t2); }
+.t-f3 { color: var(--t3); }
+.t-f4 { color: var(--t4); }
+.t-f5 { color: var(--t5); }
+.t-f6 { color: var(--t6); }
+.t-f7 { color: var(--t7); }
+.t-f8 { color: var(--t8); }
+.t-f9 { color: var(--t9); }
+.t-f10 { color: var(--t10); }
+.t-f11 { color: var(--t11); }
+.t-f12 { color: var(--t12); }
+.t-f13 { color: var(--t13); }
+.t-f14 { color: var(--t14); }
+.t-f15 { color: var(--t15); }
+.t-b0 { background: var(--t0); }
+.t-b1 { background: var(--t1); }
+.t-b2 { background: var(--t2); }
+.t-b3 { background: var(--t3); }
+.t-b4 { background: var(--t4); }
+.t-b5 { background: var(--t5); }
+.t-b6 { background: var(--t6); }
+.t-b7 { background: var(--t7); }
+.t-b8 { background: var(--t8); }
+.t-b9 { background: var(--t9); }
+.t-b10 { background: var(--t10); }
+.t-b11 { background: var(--t11); }
+.t-b12 { background: var(--t12); }
+.t-b13 { background: var(--t13); }
+.t-b14 { background: var(--t14); }
+.t-b15 { background: var(--t15); }
+.t-f-default-bg { color: var(--well); }
+.t-b-default-fg { background: var(--fg); }
+.t-bold { font-weight: 600; }
+.t-dim { opacity: 0.6; }
+.t-italic { font-style: italic; }
+.t-under { text-decoration: underline; }
+.t-strike { text-decoration: line-through; }
+.t-under.t-strike { text-decoration: underline line-through; }
+
+/* The cursor is solid while the terminal holds the keys and an outline while it does not. */
+.term-view .t-cursor {
+  background: transparent;
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+}
+
+.term-view.term-focused .t-cursor {
+  background: var(--signal);
+  color: var(--well);
+  outline: 0;
 }
 
 @media (max-width: 1200px) {

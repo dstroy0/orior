@@ -10,6 +10,7 @@ import { hideLoading, showLoading } from "./loading.js";
 import { loadRun, startRun } from "./run.js";
 import { keepScheme } from "./scheme.js";
 import { watch } from "./status.js";
+import { startTerminal } from "./terminal.js";
 
 function mode(name) {
   document.querySelectorAll(".modes button").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.mode === name)));
@@ -68,6 +69,7 @@ async function start() {
     }
   });
   await startRun(openInEditor);
+  await startTerminal();
   await begin(await invoke("root_get"));
 }
 
