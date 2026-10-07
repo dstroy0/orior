@@ -185,15 +185,15 @@ pair thread_idx_y thread_idx_x
 closed 0314:00b0 0,1,0->0/1
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key thread_idx_z
 pair thread_idx_z thread_idx_x
 closed 0315:00b0 0,1,0->0/1
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key block_idx_x
 key block_idx_y
 pair block_idx_y block_idx_x
@@ -201,52 +201,52 @@ closed 0258:00b0 100000000,7f,0->0/1
 syntactic_coherence
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key block_idx_z
 pair block_idx_z block_idx_x
 closed 0261:00b0 100000000,7f,0->0/1
 syntactic_coherence
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 pair block_idx_z block_idx_y
 open 648
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key block_dim_x
 key block_dim_y
 pair block_dim_y block_dim_x
 closed 0298:00b0 0,0,0->1/100
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key block_dim_z
 pair block_dim_z block_dim_x
 closed 0256:00b0 0,0,0->1/0
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key grid_dim_x
 key grid_dim_y
 pair grid_dim_y grid_dim_x
 closed 0295:00b0 0,0,0->1/3
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key grid_dim_z
 pair grid_dim_z grid_dim_x
 closed 0299:00b0 0,0,0->1/3
 pragmatic_coherence
 verb_coherence
+witness_coherence
 vector_coherence
-unknown_coherence
 key warp_size
 key parameter_load_word
 key parameter_load_wide
@@ -258,7 +258,7 @@ closed 1004:00d0 0,0,1->1/0
 structural_coherence
 operation_coherence
 commutative_coherence
-unknown_coherence
+witness_coherence
 key global_load_word
 pair global_load_word global_load_constant_word
 open 648

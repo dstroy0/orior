@@ -248,11 +248,11 @@ static const char *const s_metas[] = {"structural_coherence", "syntactic_coheren
 
 // the sets, each written beneath a pair's verdict in the order the tree holds them, `unknown_coherence` last. The
 // texts read a pair into a category, and only an answer reads it out of `unknown_coherence`
-static const char *const s_sets[] = {"comparison_coherence", "equality_coherence",    "order_coherence",
-                                     "operation_coherence",  "commutative_coherence", "verb_coherence",
-                                     "frame_coherence",      "qualifier_coherence",   "modifier_coherence",
-                                     "negation_coherence",   "range_coherence",       "vector_coherence",
-                                     "control_coherence",    "switch_coherence",      "unknown_coherence"};
+static const char *const s_sets[] = {
+    "comparison_coherence",  "equality_coherence", "order_coherence",   "operation_coherence",
+    "commutative_coherence", "verb_coherence",     "frame_coherence",   "qualifier_coherence",
+    "modifier_coherence",    "negation_coherence", "witness_coherence", "range_coherence",
+    "vector_coherence",      "control_coherence",  "switch_coherence",  "unknown_coherence"};
 
 // the categories the texts read a pair into, before any ask
 static const char *const s_categories[] = {"comparison_coherence", "equality_coherence", "order_coherence",
@@ -315,6 +315,10 @@ int main(int argc, char **argv)
     std::string choosing;
     std::map<std::string, std::map<unsigned long long, unsigned int>> choices;
     std::map<unsigned long long, unsigned int> chosen;
+    // the pairs the lower witness answered: a choice of a link of a third form the part answered alike or apart
+    const unsigned long long lower_flag = query_trace_flag(trace, "lower");
+    const unsigned long long answer_flags = query_trace_flag(trace, "alike") | query_trace_flag(trace, "apart");
+    std::set<std::string> witnessed;
     while (std::getline(log, line))
     {
         line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
@@ -322,6 +326,10 @@ int main(int argc, char **argv)
         if (line.rfind("choice ", 0u) == 0u)
         {
             const unsigned long long word = std::stoull(line.substr(7u), nullptr, 16);
+            if (((word & lower_flag) != 0ull) && ((word & answer_flags) != 0ull))
+            {
+                witnessed.insert(choosing);
+            }
             for (const auto &flag : trace.named)
             {
                 if ((word & flag.first) != 0ull)
@@ -501,6 +509,15 @@ int main(int argc, char **argv)
         if (apart_held.count(held.first) == 0u)
         {
             decoded[held.first] = {(held.second == 1) ? "qualifier_coherence" : "unknown_coherence"};
+        }
+    }
+    // a pair no put of its own answered, witnessed at a third form's link: the part answered its two forms there,
+    // alike or apart, and the pair is known, read out of unknown_coherence into witness_coherence
+    for (const std::string &key : witnessed)
+    {
+        if (decoded.count(key) == 0u)
+        {
+            decoded[key] = {"witness_coherence"};
         }
     }
     // a pair no test read into a set whose whole product agrees only where it reads a value its forms write of their
