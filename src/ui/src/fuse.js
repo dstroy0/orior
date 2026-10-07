@@ -12,6 +12,11 @@
 // seconds after that. One that fails or is stopped sputters out over SPUTTER seconds and leaves the
 // fuse burnt dark as far as it came. A reader who asks the system for less motion gets the fuse
 // drawn where it stands, with no spark.
+//
+// A fire that has come as far as it can and waits on the run's next step twitches where it stands:
+// its head wanders as far as JITTER pixels on quick waves that never line up, and throws its sparks
+// from wherever it is. A fuse that holds still and a run that has hung look the same, and one that
+// twitches is still going.
 
 import { DUSK, ORCHID, PLUM, addArc, addSpot, cornersOf, plasmaOn } from "./plasma.js";
 
@@ -34,6 +39,10 @@ const EMBERS = 6;
 const EMBER_GAP = 13;
 // Each piece of the fuse's line is at most PIECE pixels long.
 const PIECE = 8;
+// How far a waiting head wanders, and how near, in pixels, the fire must be to where it should be
+// for it to count as waiting.
+const JITTER = 3;
+const SETTLED = 4;
 
 const mix = (a, b, x) => a + (b - a) * x;
 
@@ -154,6 +163,15 @@ export function makeFuse() {
       going = going && out < 1;
     }
 
+    // Where the head is drawn: where the fire has come, and, while it waits, twitching about it.
+    let headX = head;
+    let headY = y;
+    if (!run.done && !still && aim !== null) {
+      const waiting = Math.max(0, 1 - (Math.abs(aim - fire.burn) * width) / SETTLED);
+      headX += JITTER * waiting * Math.sin(seconds * 13.1) * Math.sin(seconds * 7.3 + 1);
+      headY += JITTER * 0.6 * waiting * Math.sin(seconds * 17.7 + 2) * Math.sin(seconds * 5.9);
+    }
+
     const along = (x) => 0.15 + 0.8 * (1 - (x - tail) / (head - tail || 1));
     const trail = failed ? DUSK : PLUM;
     strip(aim === null && !run.done ? 0 : head, width, y, 1.3, DUSK, 0.6 * (well ? life : 1), () => 0.35, 0, seconds);
@@ -171,7 +189,7 @@ export function makeFuse() {
         ember(x, y, (8 + 9 * flicker) * (1 - (at / EMBERS) * 0.5), 3.5, Math.sin(seconds * 2 + at) * 3, at % 2 ? PLUM : ORCHID, 0.6);
       }
       if (seconds >= fire.sparkUntil) {
-        fire.sparks = sparksAt(head, y);
+        fire.sparks = sparksAt(headX, headY);
         fire.sparkUntil = seconds + SPARK_EVERY;
       }
       for (const spark of fire.sparks) {
@@ -179,7 +197,7 @@ export function makeFuse() {
       }
     }
     if (headLife > 0 && !(well && ended > PEAK)) {
-      addSpot(corners, head, y, 12 * (1 + fire.flare * 0.8), ORCHID, (0.7 + 0.6 * fire.flare) * headLife * boost);
+      addSpot(corners, headX, headY, 12 * (1 + fire.flare * 0.8), ORCHID, (0.7 + 0.6 * fire.flare) * headLife * boost);
     }
     drawer.draw(corners.list, corners.count, width, height);
     return going;
