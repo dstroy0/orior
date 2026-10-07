@@ -2075,6 +2075,35 @@ static std::string s_record_ksc;
 // empty where it could not be read, so that nothing writes over a record no mode read
 static QueryRecord s_query_record;
 static std::string s_query_record_path;
+
+// The lines that place what a cycle puts in the record's order, its cycle and mode, its seed and its rounds, each
+// written before the first new ask or sample that follows it and nowhere where none follows: a cycle the record
+// answers whole adds no line to it
+static std::vector<std::pair<std::string, std::string>> s_marks_pending;
+
+// `kind words` held to be written before the next new ask or sample, a round in place of a round still pending
+static void mark_pending(const std::string &kind, const std::string &words)
+{
+    if ((kind == "round") && !s_marks_pending.empty() && (s_marks_pending.back().first == "round"))
+    {
+        s_marks_pending.back().second = words;
+        return;
+    }
+    s_marks_pending.push_back(std::make_pair(kind, words));
+}
+
+// the lines pending written to the record, a cycle numbered after every cycle it holds
+static void marks_written(void)
+{
+    for (const auto &mark : s_marks_pending)
+    {
+        const std::string words = (mark.first == "cycle")
+                                      ? (std::to_string(query_record_cycles(s_query_record) + 1u) + " " + mark.second)
+                                      : mark.second;
+        query_record_mark(&s_query_record, mark.first, words);
+    }
+    s_marks_pending.clear();
+}
 static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows);
 
 // the record written back to the .ksc it was read from, every ask a row in the order of its keys
@@ -2105,9 +2134,12 @@ static void record_close(void)
     s_query_record_path.clear();
 }
 
-// the record read from `ksc`, written back to it when the program ends
-static void record_open(const char *ksc)
+// the record read from `ksc`, written back to it when the program ends, and the query record beside it, a cycle of
+// mode `mode` pending in its order
+static void record_open(const char *ksc, const char *mode)
 {
+    s_marks_pending.clear();
+    mark_pending("cycle", mode);
     s_record.clear();
     s_record_ksc = ksc;
     std::ifstream in(ksc, std::ios::binary);
@@ -2300,6 +2332,7 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     std::vector<RunQuestion *> timed;
     std::vector<std::string> identities(carried.size());
     std::map<std::string, RunQuestion *> first_of;
+    std::vector<std::string> firsts;
     std::vector<std::pair<RunQuestion *, RunQuestion *>> copies;
     for (size_t at = 0u; at < carried.size(); at += 1u)
     {
@@ -2325,6 +2358,7 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
             continue;
         }
         first_of[identities[at]] = question;
+        firsts.push_back(identities[at]);
         const int shaped = (question->threads != 0u) || (question->blocks != 0u);
         ((carried[at].dangerous != 0) || shaped ? alone : mundane).push_back(question);
     }
@@ -2353,16 +2387,17 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         const std::string answer = answer_recorded(question);
         if (!answer.empty())
         {
-            s_query_record.samples.push_back(
-                QueryRecordSample{question_identity(question), answer, question->nanoseconds,
-                                  (answer == "answers") ? std::string() : question->refused});
+            marks_written();
+            query_record_sample(&s_query_record,
+                                QueryRecordSample{question_identity(question), answer, question->nanoseconds,
+                                                  (answer == "answers") ? std::string() : question->refused});
         }
     }
-    for (const auto &each : first_of)
+    for (const std::string &identity : firsts)
     {
-        RunQuestion *const question = each.second;
+        RunQuestion *const question = first_of[identity];
         QueryRecordAsk held;
-        held.identity = each.first;
+        held.identity = identity;
         held.answer = answer_recorded(question);
         if (held.answer.empty())
         {
@@ -2375,6 +2410,10 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         else
         {
             held.refusal = question->refused;
+        }
+        if (query_record_find(s_query_record, identity) == NULL)
+        {
+            marks_written();
         }
         query_record_keep(&s_query_record, held);
     }
@@ -2733,7 +2772,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "stall");
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -2945,7 +2984,7 @@ static int identity_register(const char *engine, const char *answers, const char
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "register");
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -3144,7 +3183,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "curve");
     FILE *const table = fopen((folder + "/curve.txt").c_str(), "wb");
     if (table == NULL)
     {
@@ -3354,7 +3393,7 @@ static int identity_queue(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "queue");
     FILE *const table = fopen((folder + "/queue.txt").c_str(), "wb");
     if (table == NULL)
     {
@@ -3473,7 +3512,7 @@ static int identity_text(const char *engine, const char *answers, const char *ks
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "text_identity");
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -4131,7 +4170,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "pair");
+    mark_pending("seed", std::to_string(seed));
     // the asks the query record held before this cycle, read with R
     const size_t recorded_before = s_query_record.asks.size();
     // each pair's question and places, held with the pair and reached from its own thread, since a pair waits on its
@@ -4868,6 +4908,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         const unsigned long long held_before = s_round_held;
         const unsigned long long processes_before = s_round_processes;
         round += 1u;
+        mark_pending("round", std::to_string(round));
         std::vector<CarriedAsk> carried;
         unsigned int asking = 0u;
         for (size_t at = 0u; at < pairs.size(); at += 1u)

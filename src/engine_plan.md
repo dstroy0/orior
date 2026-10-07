@@ -546,8 +546,10 @@ reads has changed.
     gate held it off the part to protect the whole; every timed ask a sample of its own with the nanoseconds its
     launches took; then each pair and its verdict. A cycle reads it first and asks the part only what no cycle
     asked, a timed ask excepted and an ask that timed out asked again until an answer resolves it, and an open pair
-    is the question a further pass takes up. The curve of task 1006 writes 293 samples, 278 with their cost and 15 refused. The order and the
-    seed, the winning path over chain costs and the general and specific split are not written yet.
+    is the question a further pass takes up. The curve of task 1006 writes 293 samples, 278 with their cost and 15 refused. The asks and
+    samples stand in the order they were put, each cycle that put a new one before them with its mode, its seed
+    where it draws one and its rounds, and a cycle the record answers whole writes no line. The winning path over
+    chain costs and the general and specific split are not written yet.
 
 10. **The order of asks is built on the host and nothing emits it to a target.** The order, its solve and the
     contention read are proved on the host (M24 in the engine table, Q5, Q7). The device half is open: a container

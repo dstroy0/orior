@@ -53,6 +53,13 @@ int query_record_read(const std::string &path, const std::string &member, QueryR
             words >> record->member;
             continue;
         }
+        if ((kind == "cycle") || (kind == "seed") || (kind == "round"))
+        {
+            std::string said;
+            std::getline(words >> std::ws, said);
+            query_record_mark(record, kind, said);
+            continue;
+        }
         if (kind == "pair")
         {
             QueryRecordPath held;
@@ -82,7 +89,7 @@ int query_record_read(const std::string &path, const std::string &member, QueryR
             {
                 std::getline(words >> std::ws, held.refusal);
             }
-            record->samples.push_back(held);
+            query_record_sample(record, held);
             continue;
         }
         if (kind != "ask")
@@ -122,29 +129,37 @@ int query_record_write(const std::string &path, const QueryRecord &record, std::
         return 0;
     }
     fprintf(file, "kqr %s\n", record.member.c_str());
-    for (const QueryRecordAsk &held : record.asks)
+    for (const QueryRecordLine &line : record.order)
     {
-        fprintf(file, "ask %s %s", held.identity.c_str(), held.answer.c_str());
-        for (const unsigned long long word : held.words)
+        if (line.kind == "ask")
         {
-            fprintf(file, " %llx", word);
+            const QueryRecordAsk &held = record.asks[line.at];
+            fprintf(file, "ask %s %s", held.identity.c_str(), held.answer.c_str());
+            for (const unsigned long long word : held.words)
+            {
+                fprintf(file, " %llx", word);
+            }
+            if (!held.refusal.empty())
+            {
+                fprintf(file, " %s", held.refusal.c_str());
+            }
         }
-        if (!held.refusal.empty())
+        else if (line.kind == "sample")
         {
-            fprintf(file, " %s", held.refusal.c_str());
+            const QueryRecordSample &held = record.samples[line.at];
+            fprintf(file, "sample %s %s", held.identity.c_str(), held.answer.c_str());
+            if (held.answer == "answers")
+            {
+                fprintf(file, " %llu", held.nanoseconds);
+            }
+            else if (!held.refusal.empty())
+            {
+                fprintf(file, " %s", held.refusal.c_str());
+            }
         }
-        fprintf(file, "\n");
-    }
-    for (const QueryRecordSample &held : record.samples)
-    {
-        fprintf(file, "sample %s %s", held.identity.c_str(), held.answer.c_str());
-        if (held.answer == "answers")
+        else
         {
-            fprintf(file, " %llu", held.nanoseconds);
-        }
-        else if (!held.refusal.empty())
-        {
-            fprintf(file, " %s", held.refusal.c_str());
+            fprintf(file, "%s %s", line.kind.c_str(), line.words.c_str());
         }
         fprintf(file, "\n");
     }
@@ -176,5 +191,23 @@ void query_record_keep(QueryRecord *record, const QueryRecordAsk &ask)
         return;
     }
     record->asked[ask.identity] = record->asks.size();
+    record->order.push_back(QueryRecordLine{"ask", record->asks.size(), std::string()});
     record->asks.push_back(ask);
+}
+
+void query_record_sample(QueryRecord *record, const QueryRecordSample &sample)
+{
+    record->order.push_back(QueryRecordLine{"sample", record->samples.size(), std::string()});
+    record->samples.push_back(sample);
+}
+
+void query_record_mark(QueryRecord *record, const std::string &kind, const std::string &words)
+{
+    record->order.push_back(QueryRecordLine{kind, 0u, words});
+}
+
+unsigned int query_record_cycles(const QueryRecord &record)
+{
+    return (unsigned int)std::count_if(record.order.begin(), record.order.end(),
+                                       [](const QueryRecordLine &line) { return line.kind == "cycle"; });
 }

@@ -38,14 +38,24 @@ struct QueryRecordPath
     std::string verdict;
 };
 
-// a member's record: the member, its asks in the order they were first put, each found by its identity, its samples in
-// the order they were taken, and its paths
+// one line of the record's order: a cycle, its seed or one of its rounds, `words` what the line says after its kind;
+// or an ask or a sample, `at` its place in the record's asks or samples
+struct QueryRecordLine
+{
+    std::string kind;
+    size_t at;
+    std::string words;
+};
+
+// a member's record: the member, its asks, each found by its identity, and its samples, all in the order they were put
+// with the cycles, seeds and rounds that put them, and its paths
 struct QueryRecord
 {
     std::string member;
     std::vector<QueryRecordAsk> asks;
     std::unordered_map<std::string, size_t> asked;
     std::vector<QueryRecordSample> samples;
+    std::vector<QueryRecordLine> order;
     std::vector<QueryRecordPath> paths;
 };
 
@@ -53,8 +63,8 @@ struct QueryRecord
 // line it stopped at and why in `error` where a line is none the record's oracle gives
 int query_record_read(const std::string &path, const std::string &member, QueryRecord *record, std::string *error);
 
-// `record` written to `path`, its asks, its samples and then its paths: 1, or 0 and why in `error` where it could not
-// be written
+// `record` written to `path`, its asks and samples in the order they were put, with the cycles, seeds and rounds that
+// put them, and then its paths: 1, or 0 and why in `error` where it could not be written
 int query_record_write(const std::string &path, const QueryRecord &record, std::string *error);
 
 // the ask of `identity` the record holds, NULL where it holds none
@@ -63,5 +73,14 @@ const QueryRecordAsk *query_record_find(const QueryRecord &record, const std::st
 // `ask` held by the record after every ask before it, where the record holds no ask of its identity, and in place of
 // the one it holds where that one timed out: a later answer resolves it
 void query_record_keep(QueryRecord *record, const QueryRecordAsk &ask);
+
+// `sample` held by the record after every ask and sample before it
+void query_record_sample(QueryRecord *record, const QueryRecordSample &sample);
+
+// a line `kind words`, a cycle, a seed or a round, held by the record after every line before it
+void query_record_mark(QueryRecord *record, const std::string &kind, const std::string &words);
+
+// the count of cycles the record holds
+unsigned int query_record_cycles(const QueryRecord &record);
 
 #endif
