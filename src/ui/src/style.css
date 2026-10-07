@@ -699,12 +699,32 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 /* The fuse along the foot of the output, burning while the run goes. */
+.console .fuse-box {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  cursor: grab;
+}
+
+.console .fuse-box.dragging {
+  cursor: grabbing;
+}
+
+.console .fuse-box:focus-visible {
+  outline-offset: -2px;
+}
+
 .console .fuse {
   display: block;
-  flex: none;
   width: 100%;
   height: 30px;
   pointer-events: none;
+}
+
+.console .ruler {
+  display: block;
+  width: 100%;
+  height: 28px;
 }
 
 .console-head {

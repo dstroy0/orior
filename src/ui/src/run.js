@@ -7,6 +7,7 @@
 import { invoke, listen, pick } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
+import { makeRuler } from "./ruler.js";
 import { keepLattice } from "./lattice.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { copyText, menuOn } from "./menu.js";
@@ -29,10 +30,13 @@ const state = {
   // Lines and ends that arrive before job_start has returned the run they belong to.
   early: new Map(),
   // The fuse at the foot of the output, kept from one drawing of the stage to the next.
-  fuse: makeFuse(),
+  fuse: makeFuse(() => state.ruler.headAt()),
   // Which groups of the list the reader opened or closed, by key.
   opened: new Map(),
 };
+
+// The time ruler under the fuse, kept as the fuse is.
+state.ruler = makeRuler(state.fuse.canvas);
 
 function early(run) {
   if (!state.early.has(run)) {
@@ -246,9 +250,11 @@ export async function startJob(id, values) {
   const run = await invoke("job_start", { job: id, values });
   const before = early(run);
   state.early.delete(run);
-  // `started` counts the steps begun, each of which writes its command line first.
-  const started = before.lines.filter((line) => line.stream === "command").length;
-  state.runs.set(run, { run, job: id, lines: before.lines, started, done: false, code: null, views: [], stopped: false });
+  // `started` counts the steps begun, each of which writes its command line first, and `steps` holds
+  // when each began. `clock` is the page's time when the run started, as near as its lines place it.
+  const steps = before.lines.filter((line) => line.stream === "command").map((line) => line.ms);
+  const clock = performance.now() - (before.lines[before.lines.length - 1]?.ms ?? 0);
+  state.runs.set(run, { run, job: id, lines: before.lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], stopped: false });
   write("runs", [run, { job: id }]);
   state.shown.set(id, run);
   if (before.end) {
@@ -266,7 +272,8 @@ export async function startJob(id, values) {
 function console_(job) {
   const runs = runsOf(job.id);
   if (!runs.length) {
-    state.fuse.follow(null, job.steps);
+    state.fuse.follow(null);
+    state.ruler.follow(null);
     return null;
   }
   const shown = state.runs.get(state.shown.get(job.id)) ?? runs[runs.length - 1];
@@ -298,9 +305,10 @@ function console_(job) {
   }
   requestAnimationFrame(() => {
     lines.scrollTop = lines.scrollHeight;
-    state.fuse.follow(shown ?? null, job.steps);
+    state.fuse.follow(shown ?? null);
+    state.ruler.follow(shown ?? null);
   });
-  return element("div", { className: "console" }, head, lines, state.fuse.canvas);
+  return element("div", { className: "console" }, head, lines, state.ruler.element);
 }
 
 function status(run) {
@@ -339,14 +347,17 @@ function onLine({ payload }) {
     return;
   }
   run.lines.push(payload);
+  run.clock = Math.min(run.clock, performance.now() - payload.ms);
   if (payload.stream === "command") {
     run.started += 1;
+    run.steps.push(payload.ms);
   }
   if (run.lines.length > KEPT_LINES) {
     run.lines.splice(0, run.lines.length - KEPT_LINES);
   }
   if (state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
     state.fuse.flare();
+    state.ruler.wake();
     const lines = document.getElementById("lines");
     if (lines) {
       const atEnd = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40;
@@ -367,7 +378,7 @@ function onEnd({ payload }) {
     early(payload.run).end = payload;
     return;
   }
-  Object.assign(run, { done: true, code: payload.code, stopped: payload.stopped, views: payload.views });
+  Object.assign(run, { done: true, code: payload.code, stopped: payload.stopped, views: payload.views, endMs: payload.ms });
   write("runs", [payload.run, null]);
   drawList();
   if (state.chosen === run.job) {

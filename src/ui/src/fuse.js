@@ -2,31 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The fuse along the foot of a run's output: a line of the eye's plasma that burns from left to
-// right while the run goes.
+// right while the run goes, on the scale of the time ruler under it.
 //
-// A job of more than one step burns its fuse a step at a time: when the nth of its N steps starts,
-// the fire has come (n - 1)/N of the way. A job of one step gives no measure of how far it has come,
-// and its spark crawls the fuse's length in CRAWL seconds with a trail TRAIL pixels long behind it,
-// and starts again at the left. Each line the run writes makes the spark flare. A run that ends well
-// burns out to the end and flashes, at its brightest PEAK seconds after the end and gone FLASH
-// seconds after that. One that fails or is stopped sputters out over SPUTTER seconds and leaves the
-// fuse burnt dark as far as it came. A reader who asks the system for less motion gets the fuse
-// drawn where it stands, with no spark.
+// The fire's head stands where the run's latest moment falls on the ruler, and the fuse burnt
+// behind it is the time gone. Zooming or moving the ruler moves the fire with it, and a ruler moved
+// back from the latest moment shows the fuse burnt across its whole width. Each line the run writes
+// makes the head flare. A run that ends well flashes, at its brightest PEAK seconds after the end
+// and gone FLASH seconds after that. One that fails or is stopped sputters out over SPUTTER seconds
+// and leaves the fuse burnt dark as far as it came. A reader who asks the system for less motion
+// gets the fuse drawn where it stands, with no spark.
 //
-// A fire that has come as far as it can and waits on the run's next step twitches where it stands:
-// its head wanders as far as JITTER pixels on quick waves that never line up, and throws its sparks
-// from wherever it is. A fuse that holds still and a run that has hung look the same, and one that
-// twitches is still going.
+// While the run goes, the head twitches where it stands: it wanders as far as JITTER pixels on
+// quick waves that never line up, and throws its sparks from wherever it is.
 
 import { DUSK, ORCHID, PLUM, addArc, addSpot, cornersOf, plasmaOn } from "./plasma.js";
 
-const CRAWL = 4;
-const TRAIL = 180;
 const PEAK = 0.5;
 const FLASH = 0.9;
 const SPUTTER = 1.2;
-// How much of the gap between where the fire is and where it should be closes a second.
-const CATCH = 5;
 // How fast a flare dies: the part of it left after a second is e to the minus FADE.
 const FADE = 5;
 // The sparks the head throws at a time, each a crooked line of SPARK_STEPS pieces, thrown anew
@@ -45,35 +38,22 @@ const WAVE = 1.2;
 const PIECE = 8;
 const NOSE = 2;
 const TAPER = 12;
-// How far a waiting head wanders, and how near, in pixels, the fire must be to where it should be
-// for it to count as waiting.
+// How far the head wanders.
 const JITTER = 3;
-const SETTLED = 4;
 
 const mix = (a, b, x) => a + (b - a) * x;
 
-// Makes a fuse: its canvas, and what points it at a run and makes it flare.
-export function makeFuse() {
+// Makes a fuse: its canvas, and what points it at a run and makes it flare. `place()` is how far
+// across the run's latest moment falls on the ruler, 0 at the left and 1 at the right.
+export function makeFuse(place) {
   const canvas = Object.assign(document.createElement("canvas"), { className: "fuse" });
   canvas.setAttribute("aria-hidden", "true");
   const drawer = plasmaOn(canvas);
   const corners = cornersOf();
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const fire = { run: null, steps: 1, burn: 0, crawl: 0, flare: 0, endedAt: null, sparks: [], sparkUntil: 0 };
+  const fire = { run: null, flare: 0, endedAt: null, sparks: [], sparkUntil: 0 };
   let frame = 0;
   let last = 0;
-
-  // How far the fire should have come, from 0 to 1, or null where the run gives no measure.
-  const aimed = () => {
-    const { run, steps } = fire;
-    if (run.done && !run.stopped && run.code === 0) {
-      return 1;
-    }
-    if (steps > 1) {
-      return Math.max(0, Math.min(1, (run.started - 1) / steps));
-    }
-    return null;
-  };
 
   // A line of light from x0 to x1 about the height y, `half` to each side, waving `wave` pixels. Its
   // width rounds off to a point within TAPER of each end, where it is cut into pieces NOSE pixels
@@ -139,23 +119,12 @@ export function makeFuse() {
       fire.endedAt = seconds;
     }
     const ended = fire.endedAt === null ? 0 : seconds - fire.endedAt;
-    const aim = aimed();
-    const well = run.done && aim === 1;
+    const well = run.done && !run.stopped && run.code === 0;
     const failed = run.done && !well;
     fire.flare *= Math.exp(-dt * FADE);
 
-    let head;
-    let tail = 0;
-    if (aim === null && !run.done) {
-      fire.crawl = still ? 0 : (fire.crawl + dt / CRAWL) % 1;
-      fire.burn = fire.crawl;
-      head = fire.crawl * width;
-      tail = Math.max(0, head - TRAIL);
-    } else {
-      const target = aim ?? fire.burn;
-      fire.burn += (target - fire.burn) * (still ? 1 : 1 - Math.exp(-dt * CATCH));
-      head = fire.burn * width;
-    }
+    const head = Math.max(0, Math.min(width + TAPER, (place() ?? 0) * width));
+    const tail = 0;
 
     // How bright the whole fire is, how bright its head, and whether it has more to do.
     let life = 1;
@@ -173,18 +142,19 @@ export function makeFuse() {
       going = going && out < 1;
     }
 
-    // Where the head is drawn: where the fire has come, and, while it waits, twitching about it.
+    // Where the head is drawn: where the fire has come, and, while the run goes, twitching about it.
     let headX = head;
     let headY = y;
-    if (!run.done && !still && aim !== null) {
-      const waiting = Math.max(0, 1 - (Math.abs(aim - fire.burn) * width) / SETTLED);
-      headX += JITTER * waiting * Math.sin(seconds * 13.1) * Math.sin(seconds * 7.3 + 1);
-      headY += JITTER * 0.6 * waiting * Math.sin(seconds * 17.7 + 2) * Math.sin(seconds * 5.9);
+    if (!run.done && !still) {
+      headX += JITTER * Math.sin(seconds * 13.1) * Math.sin(seconds * 7.3 + 1);
+      headY += JITTER * 0.6 * Math.sin(seconds * 17.7 + 2) * Math.sin(seconds * 5.9);
     }
 
     const along = (x) => 0.15 + 0.8 * (1 - (x - tail) / (head - tail || 1));
     const trail = failed ? DUSK : PLUM;
-    strip(aim === null && !run.done ? 0 : head, width, y, 1.3, DUSK, 0.6 * (well ? life : 1), () => 0.35, 0, seconds);
+    if (head < width) {
+      strip(head, width, y, 1.3, DUSK, 0.6 * (well ? life : 1), () => 0.35, 0, seconds);
+    }
     if (head > tail) {
       strip(tail, head, y, 7, trail, 0.55 * life * boost, along, still ? 0 : WAVE, seconds);
       strip(tail, head, y, 1.8, failed ? PLUM : ORCHID, 0.85 * life * boost, along, still ? 0 : WAVE, seconds);
@@ -233,15 +203,11 @@ export function makeFuse() {
 
   return {
     canvas,
-    // Points the fuse at a run of a job of `steps` steps, or at nothing. A run already over when the
-    // fuse first meets it is drawn as it ended.
-    follow(run, steps) {
+    // Points the fuse at a run, or at nothing. A run already over when the fuse first meets it is
+    // drawn as it ended.
+    follow(run) {
       if (run !== fire.run) {
-        Object.assign(fire, { run, steps: Math.max(1, steps || 1), burn: 0, crawl: 0, flare: 0, endedAt: null, sparks: [], sparkUntil: 0 });
-        if (run?.done) {
-          fire.endedAt = -Infinity;
-          fire.burn = fire.steps > 1 ? Math.max(0, Math.min(1, (run.started - 1) / fire.steps)) : 0;
-        }
+        Object.assign(fire, { run, flare: 0, endedAt: run?.done ? -Infinity : null, sparks: [], sparkUntil: 0 });
       }
       wake();
     },

@@ -89,7 +89,7 @@ The panes at the sides collapse toward their edge a moment after the pointer lea
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 
-The output streams as it comes. The fuse along its foot burns while the run goes: a step at a time for a job of several steps, a crawling spark for a job of one. It burns out and flashes when the run ends well, and sputters dark when it fails or is stopped. A page a viewer writes opens in a window of its own.
+The output streams as it comes. The fuse along its foot burns on the time ruler under it, its head at the run's latest moment, and it flashes when the run ends well and sputters dark when it fails or is stopped. The ruler marks where each step started and where the output came, red where it went to stderr. The wheel over either one, or + and - with the ruler holding the keys, zooms the time down to a few milliseconds across; a drag or Left and Right moves it, and 0 or a double click fits the whole run again. A page a viewer writes opens in a window of its own.
 
 ### Edit a file
 
