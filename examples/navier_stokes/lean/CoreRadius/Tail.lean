@@ -30,8 +30,7 @@ structure Rule (K : Type*) where
   alpha_pressure : K
   beta : K
 
-/-- Every constant of the rule is at least 0, the rate past 0, and the angular and pressure alphas at least 2 beta's
-share the bound of a Z part reads. -/
+/-- Every constant of the rule is at least 0, and the rate past 0. -/
 structure Rule.Legal (c : Rule K) : Prop where
   rate : 0 < c.rate
   lambda : 0 ≤ c.lambda

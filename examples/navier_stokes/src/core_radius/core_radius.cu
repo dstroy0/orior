@@ -611,10 +611,44 @@ static SimRational core_radius_high(const CoreRadiusSequence &n, SimRational r, 
     return most;
 }
 
-// 1 where the proof on one ellipse carries n_k <= B r^-k from N to every order past it
+// the numbers the proof on one ellipse reads at r: the rule's constants, n_k r^k below the split, and the bounds past it
+typedef struct
+{
+    SimRational rate;
+    SimRational lambda;
+    SimRational angular_a0;
+    SimRational along_a0;
+    SimRational a1;
+    SimRational alpha_angular;
+    SimRational alpha_along;
+    SimRational alpha_pressure;
+    SimRational beta;
+    CoreRadiusSequence f;
+    CoreRadiusSequence u;
+    CoreRadiusSequence w;
+    SimRational b_f;
+    SimRational b_u;
+    SimRational b_p;
+    SimRational b_w;
+} CoreRadiusProof;
+
+// n_k r^k for k < split
+static CoreRadiusSequence core_radius_scaled(const CoreRadiusSequence &n, SimRational r, unsigned int split)
+{
+    CoreRadiusSequence scaled;
+    SimRational power = core_radius_number(1ll, 1ll);
+    for (unsigned int k = 0u; k < split; k += 1u)
+    {
+        scaled.push_back(core_radius_times(n[k], power));
+        power = core_radius_times(power, r);
+    }
+    return scaled;
+}
+
+// 1 where the proof on one ellipse carries n_k <= B r^-k from N to every order past it, the numbers it reads in proof
 static int core_radius_fixed_proof(const CoreRadiusScale *scale, const CoreRadiusFixed *fixed, unsigned int g0, const CoreRadiusSequence &nf,
                                    const CoreRadiusSequence &nu, const CoreRadiusSequence &np, const CoreRadiusSequence &nw, unsigned int order,
-                                   unsigned int split, SimRational r)
+                                   unsigned int split, SimRational r, CoreRadiusProof *proof)
 {
     const SimRational zero = core_radius_number(0ll, 1ll);
     const SimRational one = core_radius_number(1ll, 1ll);
@@ -669,8 +703,86 @@ static int core_radius_fixed_proof(const CoreRadiusScale *scale, const CoreRadiu
     along = core_radius_plus(along, core_radius_over(core_radius_low(nu, r, split, alpha_a, fixed->beta), square_11));
     along = core_radius_plus(along, core_radius_times(b_u, core_radius_plus(core_radius_over(alpha_a, core_radius_times(two, n1)), core_radius_times(fixed->beta, quarter))));
     along = core_radius_plus(along, core_radius_over(core_radius_times(core_radius_plus(fixed->alpha_pressure, core_radius_times(fixed->beta, n)), b_p), core_radius_times(square_11, b_u)));
+    proof->rate = r;
+    proof->lambda = fixed->lambda;
+    proof->angular_a0 = angular_a0;
+    proof->along_a0 = along_a0;
+    proof->a1 = a1;
+    proof->alpha_angular = fixed->alpha_angular;
+    proof->alpha_along = fixed->alpha_along;
+    proof->alpha_pressure = fixed->alpha_pressure;
+    proof->beta = fixed->beta;
+    proof->f = core_radius_scaled(nf, r, split);
+    proof->u = core_radius_scaled(nu, r, split);
+    proof->w = core_radius_scaled(nw, r, split);
+    proof->b_f = b_f;
+    proof->b_u = b_u;
+    proof->b_p = b_p;
+    proof->b_w = b_w;
     const SimRational limit = sim_rational_reciprocal(r);
     return (sim_rational_sign(sim_rational_difference(limit, angular)) >= 0) && (sim_rational_sign(sim_rational_difference(limit, along)) >= 0);
+}
+
+// the Lean file at the cfg's member `member`, a path from the directory the cfg is in, written whole: 1 where every
+// byte was written
+static int core_radius_lean_write(const char *cfg_path, const RunCfg *cfg, const char *member, const std::string &text)
+{
+    std::string name;
+    if (run_cfg_text(cfg, member, &name) == 0)
+    {
+        return 0;
+    }
+    const std::string from = cfg_path;
+    const size_t slash = from.find_last_of("/\\");
+    const std::string path = (slash == std::string::npos) ? name : (from.substr(0u, slash + 1u) + name);
+    FILE *const file = fopen(path.c_str(), "wb");
+    if (file == NULL)
+    {
+        return 0;
+    }
+    fwrite(text.data(), 1u, text.size(), file);
+    const int written = ferror(file) == 0;
+    return (fclose(file) == 0) && written;
+}
+
+// the exact rationals of a sequence as a Lean list
+static std::string core_radius_lean_list(const CoreRadiusSequence &n)
+{
+    std::string list = "[";
+    for (size_t k = 0u; k < n.size(); k += 1u)
+    {
+        list += ((k == 0u) ? "" : ", ") + term_book_rational(n[k]);
+    }
+    return list + "]";
+}
+
+// the proof on one ellipse as a Lean witness `name` and the theorem that its numbers pass the checks
+static std::string core_radius_lean(const std::string &name, const std::string &title, unsigned int split, unsigned int order, const CoreRadiusProof *proof)
+{
+    std::string text = "/-- " + title + " -/\n";
+    text += "def " + name + " : Witness where\n";
+    text += "  rule :=\n";
+    text += "    { rate := " + term_book_rational(proof->rate) + "\n";
+    text += "      lambda := " + term_book_rational(proof->lambda) + "\n";
+    text += "      angular_a0 := " + term_book_rational(proof->angular_a0) + "\n";
+    text += "      along_a0 := " + term_book_rational(proof->along_a0) + "\n";
+    text += "      a1 := " + term_book_rational(proof->a1) + "\n";
+    text += "      alpha_angular := " + term_book_rational(proof->alpha_angular) + "\n";
+    text += "      alpha_along := " + term_book_rational(proof->alpha_along) + "\n";
+    text += "      alpha_pressure := " + term_book_rational(proof->alpha_pressure) + "\n";
+    text += "      beta := " + term_book_rational(proof->beta) + " }\n";
+    text += "  split := " + std::to_string(split) + "\n";
+    text += "  order := " + std::to_string(order) + "\n";
+    text += "  f := " + core_radius_lean_list(proof->f) + "\n";
+    text += "  u := " + core_radius_lean_list(proof->u) + "\n";
+    text += "  w := " + core_radius_lean_list(proof->w) + "\n";
+    text += "  bf := " + term_book_rational(proof->b_f) + "\n";
+    text += "  bu := " + term_book_rational(proof->b_u) + "\n";
+    text += "  bp := " + term_book_rational(proof->b_p) + "\n";
+    text += "  bw := " + term_book_rational(proof->b_w) + "\n\n";
+    text += "theorem " + name + "_checks : " + name + ".Checks := by\n";
+    text += "  norm_num [Witness.Checks, " + name + ", angular, along, Finset.sum_range_succ]\n\n";
+    return text;
 }
 
 // sum m |c_m| rho^m / (length sum |c_m| rho^m), 0 for weights all 0
@@ -688,8 +800,10 @@ static SimRational core_radius_place(const CoreRadiusWeights &weights, SimRation
 }
 
 // the largest r = j step the proof on E_rho holds at, the radius r / l^2 it proves, with the norms written to the record
+// and the numbers it reads at r appended to `lean` as the witness `name`
 static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const CoreRadiusOrders *orders, unsigned int g0, unsigned int order,
-                                          unsigned int split, SimRational step, unsigned long long steps, FILE *record)
+                                          unsigned int split, SimRational step, unsigned long long steps, FILE *record, const std::string &name,
+                                          const std::string &title, std::string *lean)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -719,12 +833,13 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
         np.push_back(core_radius_norm(orders->q[k], rho));
         nw.push_back(core_radius_norm(orders->inflow[k], rho));
     }
+    CoreRadiusProof proof;
     unsigned long long low = 0ull;
     unsigned long long high = steps + 1ull;
     while (high - low > 1ull)
     {
         const unsigned long long middle = low + (high - low) / 2ull;
-        if (core_radius_fixed_proof(scale, &fixed, g0, nf, nu, np, nw, order, split, core_radius_times(core_radius_number((long long)middle, 1ll), step)))
+        if (core_radius_fixed_proof(scale, &fixed, g0, nf, nu, np, nw, order, split, core_radius_times(core_radius_number((long long)middle, 1ll), step), &proof))
         {
             low = middle;
         }
@@ -735,6 +850,10 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
     }
     const SimRational proved = core_radius_times(core_radius_number((long long)low, 1ll), step);
     const SimRational radius = core_radius_over(proved, core_radius_times(scale->l, scale->l));
+    if ((low > 0ull) && core_radius_fixed_proof(scale, &fixed, g0, nf, nu, np, nw, order, split, proved, &proof))
+    {
+        *lean += core_radius_lean(name, title, split, order, &proof);
+    }
     if (record != NULL)
     {
         record_text(record, ("  one ellipse, split " + std::to_string(split) + ": ||f_k||, ||u_k||, ||p_k||, ||w_k|| on E_rho0 to order " + std::to_string(order)).c_str());
@@ -852,6 +971,15 @@ int main(int count, char **arguments)
                        (continued.inflow[k].size() <= length + 3u);
     }
     sim_check(&results, fixed_length, "every order's weights within the length the rule fixes");
+    std::string lean = "-- SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n"
+                       "import CoreRadius.Witness\n\n"
+                       "/-!\n"
+                       "# The numbers each ellipse proves\n\n"
+                       "`core_radius.cu` writes this file from `cfg/core_radius.cfg`: for each ellipse, the numbers the proof on it reads at\n"
+                       "the largest r it proves, with each weight exact and with the magnitudes carried, and the theorem that they pass\n"
+                       "`Witness.Checks`. `Witness.tail` carries them to every order past the split.\n"
+                       "-/\n\n"
+                       "namespace CoreRadius\n\n";
     for (size_t index = 0u; index < outer.size(); index += 1u)
     {
         const SimRational rho_square = core_radius_times(outer[index], outer[index]);
@@ -891,8 +1019,12 @@ int main(int count, char **arguments)
         const SimRational weights = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "weights");
         core_radius_weights_witness(&scale, &exact, last, &a, &u, &p, &w);
         const SimRational kept = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "exact weights");
-        const SimRational one_ellipse = core_radius_fixed_rate(&scale, &exact, g0, last, (unsigned int)split, step, steps, record);
-        const SimRational carried = core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps, record);
+        const std::string ellipse = "ellipse_" + std::to_string(index);
+        const std::string on = "On E_rho0, rho0 = " + term_book_rational(outer[index]) + ", ";
+        const SimRational one_ellipse = core_radius_fixed_rate(&scale, &exact, g0, last, (unsigned int)split, step, steps, record, ellipse + "_exact",
+                                                               on + "each weight exact to order " + std::to_string(last) + ".", &lean);
+        const SimRational carried = core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps, record, ellipse + "_carried",
+                                                           on + "the magnitudes carried to order " + std::to_string(carry) + ".", &lean);
         scriptura_text(&results.line, "  rho0 ");
         sim_rational_print(&results.line, outer[index]);
         scriptura_text(&results.line, ", rho_min ");
@@ -913,6 +1045,8 @@ int main(int count, char **arguments)
         sim_flush(&results);
     }
     sim_check(&results, legal, "every ellipse of the cfg one the bounds hold on");
+    lean += "end CoreRadius\n";
+    sim_check(&results, core_radius_lean_write(arguments[1], &cfg, "report.lean", lean), "Lean witness written");
     const int held = !run_cfg_short() && !record_short() && (s_sim_rational_wide == 0);
     scriptura_text(&results.line, held ? "  every bound is exact and held in the build's width\n" : "  a bound outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
     sim_check(&results, held, "every bound held");
