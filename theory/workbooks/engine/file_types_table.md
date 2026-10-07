@@ -13,6 +13,7 @@ proposed, it is checked against this table and against the whole biohub tree, or
 | `.knf` | Kolmogorov noise floor. A sample's floor is its entropy history. krep kind "KNF\0". | Doug |
 | `.kdm` | Kolmogorov device map: the hardware map. | Doug |
 | `.ksc` | Kolmogorov system classification: the language map. | Doug |
+| `.kqr` | Kolmogorov query record: every ask put to a member and what came back, then the paths read off those asks (`src/cu/types/file_defs/kqr`). | Doug |
 
 ## Retired
 

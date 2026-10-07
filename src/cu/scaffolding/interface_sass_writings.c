@@ -21,8 +21,8 @@
 // first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
 // the relation each is a row of.
 #include "../transpiler/lstar/protocol/ladder.h"
-#include "../transpiler/codegen/precept_value.h"
-#include "../transpiler/codegen/word_web.h"
+#include "../engine/rmc/precept_value.h"
+#include "../engine/rmc/word_web.h"
 #include "../transpiler/vendor_bin_layouts/nvidia/cubin_safe.h"
 #include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
 #include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"

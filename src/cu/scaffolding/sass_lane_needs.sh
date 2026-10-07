@@ -9,9 +9,9 @@ set -u
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
-CODEGEN="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU_2="$TOP/src/cu/transpiler/lstar/parser"
+CODEGEN="$TOP/src/cu/engine/rmc"
+CODEGEN_CU="$TOP/src/cu/engine/rmc"
+CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
 KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
@@ -27,7 +27,7 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCL
 OBJECTS=()
 for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c"; do
     object="$OUT/$(basename "$source").o"
-    cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/transpiler/lstar/parser" -c "$source" -o "$object" || exit 1
+    cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/types/file_defs/readers" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
 # cycle.c is the host oracle that runs a lane, which nothing here does: only the encoder and the layout are wanted,

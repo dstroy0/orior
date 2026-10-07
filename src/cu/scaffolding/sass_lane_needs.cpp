@@ -18,8 +18,8 @@ extern "C"
 }
 
 #include "machine_ir_types.h"
-#include "ruleset_core_words.h"
-#include "ruleset_reader.h"
+#include "../types/file_defs/readers/ruleset_core_words.h"
+#include "../types/file_defs/readers/ruleset_reader.h"
 #include "sass_target.h"
 #include "target.h"
 

@@ -4,7 +4,7 @@
 
 // What the monolith (monolith.cu) and its runner agree on: how a costed chain is laid out and where each section's
 // count is written. C, read by both.
-#include "../../codegen/precepts.h"
+#include "../../../engine/rmc/precepts.h"
 
 // the steps in one turn of a costed chain, unrolled; a run is `turns` of them
 #define MONOLITH_BLOCK 100u

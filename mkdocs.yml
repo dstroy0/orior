@@ -43,21 +43,19 @@ theme:
     - content.action.view
     - toc.follow
   palette:
-    # The ledger is long and gets read at length. Both schemes are offered and neither is forced.
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: custom
-      accent: custom
-      toggle:
-        icon: material/weather-night
-        name: Dark
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
+    # Dark is the scheme a first visit opens in, whatever the system prefers, and light is the toggle.
+    - scheme: slate
       primary: custom
       accent: custom
       toggle:
         icon: material/weather-sunny
         name: Light
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Dark
 
 plugins:
   - search
@@ -81,14 +79,14 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
-# MathJax loads beside the page and not in front of it, so nothing after it waits on the download.
+# MathJax loads beside the page and not in front of it, and nothing after it waits on the download.
 extra_javascript:
   - javascript/mathjax.js
   - path: https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
     async: true
   - javascript/orior.js
 
-# The heading face is fetched beside the site's stylesheet, not from inside it, so the two load
+# The heading face is fetched beside the site's stylesheet instead of from inside it, and the two load
 # together.
 extra_css:
   - https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&display=swap

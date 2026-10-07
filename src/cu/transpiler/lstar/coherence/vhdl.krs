@@ -234,3 +234,10 @@ err test_signed_wide_lt where left right
 err test_signed_wide_le where left right
 err test_signed_wide_gt where left right
 err test_signed_wide_ge where left right
+form wide_sub to left right =             {to} := wide_of({left}) - wide_of({right});\n
+form wide_bitand to left right =             {to} := wide_of({left}) and wide_of({right});\n
+form wide_bitor to left right =             {to} := wide_of({left}) or wide_of({right});\n
+form wide_bitxor to left right =             {to} := wide_of({left}) xor wide_of({right});\n
+err wide_not to from
+form wide_shr to from bits =             {to} := shift_right(wide_of({from}), {bits});\n
+err signed_wide_shr to from bits

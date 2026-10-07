@@ -86,6 +86,7 @@ struct EngineResidualResident
     CycleKey *key;
     unsigned int smooth_orders[ENGINE_AXES];
     unsigned int background_orders[ENGINE_AXES];
+    unsigned int comb[ENGINE_AXES];
     unsigned short *volume;
     unsigned int *residual;
     unsigned int *check;

@@ -25,7 +25,7 @@ extern "C"
 #include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
 }
 
-#include "../transpiler/lstar/parser/ruleset_flat.h"
+#include "../types/file_defs/readers/ruleset_flat.h"
 #include "sass_target.h"
 #include "target.h"
 

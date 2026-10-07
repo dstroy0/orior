@@ -158,3 +158,14 @@ form test_signed_wide_lt where left right = \tISETP.LT.U32.AND \tP6, PT, {left},
 form test_signed_wide_le where left right = \tISETP.LE.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.LE.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
 form test_signed_wide_gt where left right = \tISETP.GT.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.GT.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
 form test_signed_wide_ge where left right = \tISETP.GE.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.GE.AND.EX \t{where}, PT, {left}.hi, {right}.hi, PT, P6;\n
+
+# the wide row as NVIDIA writes it for sm_86: each half its own instruction, the low half first, a subtraction
+# adding the right negated with its borrow taken back as ~right in the high half; a shift right writes the low
+# half from both halves of the value before the high half is written
+form wide_sub to left right = \tIADD3 \t{to}, P6, {left}, -{right}, RZ;\n\tIADD3.X \t{to}.hi, {left}.hi, ~{right}.hi, RZ, P6, !PT;\n
+form wide_bitand to left right = \tLOP3.LUT \t{to}, {left}, {right}, RZ, 0xc0, !PT;\n\tLOP3.LUT \t{to}.hi, {left}.hi, {right}.hi, RZ, 0xc0, !PT;\n
+form wide_bitor to left right = \tLOP3.LUT \t{to}, {right}, {left}, RZ, 0xfc, !PT;\n\tLOP3.LUT \t{to}.hi, {right}.hi, {left}.hi, RZ, 0xfc, !PT;\n
+form wide_bitxor to left right = \tLOP3.LUT \t{to}, {right}, {left}, RZ, 0x3c, !PT;\n\tLOP3.LUT \t{to}.hi, {right}.hi, {left}.hi, RZ, 0x3c, !PT;\n
+form wide_not to from = \tLOP3.LUT \t{to}, RZ, {from}, RZ, 0x33, !PT;\n\tLOP3.LUT \t{to}.hi, RZ, {from}.hi, RZ, 0x33, !PT;\n
+form wide_shr to from bits = \tSHF.R.U64 \t{to}, {from}, {bits}, {from}.hi;\n\tSHF.R.U32.HI \t{to}.hi, RZ, {bits}, {from}.hi;\n
+form signed_wide_shr to from bits = \tSHF.R.S64 \t{to}, {from}, {bits}, {from}.hi;\n\tSHF.R.S32.HI \t{to}.hi, RZ, {bits}, {from}.hi;\n

@@ -5,9 +5,9 @@
 
 #define KREP_KIND_SHARD "KSH\0"
 
-// The flattened file's format word, first in its head. Format 2 records each sample's orders after its name, and a file
-// of any other format errors on read.
-#define FLATTEN_FORMAT 2u
+// The flattened file's format word, first in its head. Format 3 records each sample's orders after its name, the smooth,
+// the background and the comb, and a file of any other format errors on read.
+#define FLATTEN_FORMAT 3u
 
 #define FLATTEN_HEAD_LIMBS 5u
 

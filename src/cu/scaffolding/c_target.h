@@ -6,7 +6,7 @@
 // and its header is the prelude. It lays out the file and its signs in the thread block's shared memory. A program
 // whose PTX holds too great a local frame runs from a small one as C (rule (i), cycle_compile_*.cu)
 
-#include "../transpiler/codegen/code_generator.h"
+#include "../engine/rmc/code_generator.h"
 
 class CTarget : public CodeGenerator
 {

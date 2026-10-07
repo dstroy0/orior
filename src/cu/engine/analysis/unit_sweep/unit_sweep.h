@@ -24,6 +24,8 @@ extern "C"
         unsigned int limbs;
         unsigned int *device_out;
         EngineError *error;
+        // the comb, as EngineResidualRequest's
+        unsigned int comb[ENGINE_AXES];
     } UnitSweepRequest;
 
     long unit_sweep_residual(const UnitSweepRequest *request);
