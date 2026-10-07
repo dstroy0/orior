@@ -990,9 +990,15 @@ body[data-view="run"] .statusbar .ed-status {
   opacity: 0;
 }
 
+/* The eye floats in the pane's bottom right corner, a fifth of an inch in from the right and above the
+   status bar. Its drawing leaves 17% of the box to each side of the lids and 22% under the plasma,
+   which the box reaches past the corner by. */
 .loading .eye-box {
-  position: relative;
-  width: min(44rem, 72vw, 92vh);
+  --eye-size: min(11rem, 18vw, 23vh);
+  position: absolute;
+  right: calc(0.2in - var(--eye-size) * 0.17);
+  bottom: calc(0.2in - var(--eye-size) * 0.22);
+  width: var(--eye-size);
   aspect-ratio: 1;
 }
 
