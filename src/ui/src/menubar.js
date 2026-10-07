@@ -3,8 +3,9 @@
 
 // The menu bar, as commands.json lists it: the list the command line reads too, so that each item
 // here is `orior <menu> <command>` there. What each command does in the window is COMMANDS below,
-// what it needs before it can act is NEEDS, and the keys an item lists are bound here as well. A
-// key the editor or the terminal takes first stays theirs.
+// what it needs before it can act is NEEDS, whether an item that is on or off is on is CHECKS, and
+// the keys an item lists are bound here as well. A key the editor or the terminal takes first stays
+// theirs.
 //
 // A menu of jobs lists the catalog's groups it names, split by what each job works on where it says
 // so, and a group with no job in the tree has no menu. A job chosen from a menu shows in the run view
@@ -19,7 +20,7 @@
 // into the last, a menu of menus.
 
 import { invoke } from "./bridge.js";
-import { editing, openAt as openFileAt } from "./edit.js";
+import { editing, explorerAuto, explorerShown, openAt as openFileAt, setExplorerAuto, toggleExplorer } from "./edit.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { scheme, setScheme, toggleScheme } from "./scheme.js";
@@ -113,7 +114,15 @@ const COMMANDS = {
   "cursor-below": inEditor((e) => e.addCursor(1)),
   "next-occurrence": inEditor((e) => e.addMatch(false)),
   "all-occurrences": inEditor((e) => e.addMatch(true)),
-  "edit-view": () => showView("edit"),
+  "edit-view": () => {
+    showView("edit");
+    toggleExplorer(true);
+  },
+  explorer: (args) => {
+    showView("edit");
+    toggleExplorer(args[0] === "show" ? true : args[0] === "hide" ? false : undefined);
+  },
+  "explorer-auto": (args) => setExplorerAuto(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
@@ -135,6 +144,12 @@ const COMMANDS = {
   kill: killTerminal,
   keys: showShortcuts,
   about: showAbout,
+};
+
+// Whether an item that is on or off is on, by the name commands.json gives it.
+const CHECKS = {
+  explorer: () => shownView() === "edit" && explorerShown(),
+  "explorer-auto": explorerAuto,
 };
 
 // What a command needs before it can act, by the name commands.json gives the need.
@@ -174,6 +189,7 @@ function itemsOf(menu) {
       : {
           label: item.labels?.[scheme()] ?? item.label,
           keys: item.keys,
+          checked: item.checks ? Boolean(CHECKS[item.checks]?.()) : undefined,
           disabled: Boolean(item.needs && !NEEDS[item.needs]?.()),
           run: () => runCommand(item.command),
         },

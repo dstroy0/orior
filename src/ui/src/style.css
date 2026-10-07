@@ -228,6 +228,58 @@ select {
   white-space: nowrap;
 }
 
+/* The bar along the bottom of the window, in the ink of the bar along its top. */
+.statusbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  height: 22px;
+  padding: 0 0.8rem;
+  background: var(--ink);
+  color: rgba(243, 242, 251, 0.82);
+  border-top: 1px solid rgba(111, 220, 180, 0.35);
+  font: 12px var(--head);
+  white-space: nowrap;
+}
+
+.status-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-branch[hidden] {
+  display: none;
+}
+
+.branch-mark {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.statusbar .ed-status {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 12px var(--head);
+}
+
+.statusbar .ed-status button:hover {
+  color: #ffffff;
+}
+
+body[data-view="run"] .statusbar .ed-status {
+  display: none;
+}
+
 /* The status block's reading: runs going and files still being read, in signal. */
 .pulse {
   display: flex;
@@ -308,8 +360,7 @@ select {
   color: var(--fg-3);
 }
 
-.jobs,
-.files {
+.jobs {
   flex: 1;
   overflow: auto;
   padding: 0 0.5rem 1rem;
@@ -710,6 +761,32 @@ select {
 
 .eye-mark .iris {
   fill: currentColor;
+}
+
+/* On an empty view the name stands a moment, then slides left and up out of the way. */
+.empty-body .wordmark,
+.open-body .wordmark {
+  animation: wordmark-away 0.7s cubic-bezier(0.55, 0, 0.75, 0.2) 1.4s forwards;
+}
+
+@keyframes wordmark-away {
+  to {
+    transform: translate(-42vw, -42vh) scale(0.2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-body .wordmark,
+  .open-body .wordmark {
+    animation-name: wordmark-fade;
+  }
+
+  @keyframes wordmark-fade {
+    to {
+      opacity: 0;
+    }
+  }
 }
 
 .empty-body p,
@@ -1448,40 +1525,370 @@ select {
   font-weight: 500;
 }
 
-/* The tree of files. */
-.node {
-  display: block;
+/* The explorer: its head, its search, and its panes one over the next. The tree's pane takes what
+ * the others leave, and Outline and Timeline open share it. Collapsed, the explorer gives its width
+ * to the editor and slides left and up out of the way as it goes. */
+.explorer {
+  overflow: hidden;
+  transition:
+    width 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.explorer-inner {
+  width: var(--side);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.explorer.collapsed {
+  width: 0;
+  border-right-color: transparent;
+}
+
+.explorer.collapsed .explorer-inner {
+  transform: translate(-100%, -100%);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer,
+  .explorer-inner {
+    transition: none;
+  }
+}
+
+.explorer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.5rem 0 0.95rem;
+}
+
+.explorer-head h2 {
+  margin: 0;
+  font: 600 12px var(--head);
+  color: var(--fg-2);
+}
+
+.explorer-more {
+  width: 1.6rem;
+  height: 1.4rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: var(--fg-2);
+  font: 600 14px/1 var(--head);
+  cursor: pointer;
+}
+
+.explorer-more:hover,
+.explorer-more[data-menu="open"] {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.explorer .filter {
+  margin: 0.5rem 0.75rem 0.6rem;
+}
+
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+
+.pane[hidden] {
+  display: none;
+}
+
+.pane.expanded[data-pane="folder"] {
+  flex: 2 1 0;
+}
+
+.pane.expanded[data-pane="outline"],
+.pane.expanded[data-pane="timeline"] {
+  flex: 1 1 0;
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
   width: 100%;
-  text-align: left;
+  height: 22px;
+  flex: none;
+  padding: 0 0.5rem 0 0.15rem;
   border: 0;
   background: none;
-  padding: 0.16rem 0.5rem;
-  border-radius: var(--radius);
-  font: 12.5px/1.5 var(--code);
-  color: var(--fg-2);
+  color: var(--fg);
+  font: 600 12px var(--head);
+  text-align: left;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.node:hover {
-  color: var(--hover);
+.pane-head:hover {
   background: var(--line);
+}
+
+.pane-head:focus-visible,
+.node:focus-visible,
+.open-row:focus-visible,
+.sym:focus-visible,
+.commit:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+}
+
+/* An arrow drawn in two borders: right where closed, down where open. */
+.pane-head::before,
+.node.dir .twisty::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.12s ease;
+}
+
+.pane-head::before {
+  flex: none;
+  margin: 0 0.45rem 0 0.4rem;
+}
+
+.pane-head[aria-expanded="true"]::before,
+.node.dir[aria-expanded="true"] .twisty::before {
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.pane-head[aria-expanded="false"] + .pane-body {
+  display: none;
+}
+
+.pane-body {
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 0.3rem;
+}
+
+.pane[data-pane="open"] .pane-body {
+  max-height: calc(22px * 8 + 0.3rem);
+}
+
+/* A row of a pane: the tree's, Open Editors', Outline's and Timeline's alike. */
+.node,
+.open-row,
+.sym,
+.commit {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 22px;
+  padding: 0 0.6rem 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 13px var(--head);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.node:hover,
+.open-row:hover,
+.sym:hover,
+.commit:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.node[aria-current="true"],
+.open-row[aria-current="true"],
+.sym[aria-current="true"] {
+  background: var(--ed-sel-idle);
+  color: var(--fg);
+}
+
+.node .name,
+.open-row .name,
+.sym .name,
+.commit .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .node.dir {
   color: var(--fg);
 }
 
-.node.known {
+.node.known .name {
   color: var(--link);
 }
 
-.node[aria-current="true"] {
-  background: var(--bg);
-  box-shadow: inset 2px 0 0 var(--signal);
+/* A line down from each folder above a row, under the folder's arrow. */
+.guide {
+  flex: none;
+  align-self: stretch;
+  width: 12px;
+  margin-left: 0;
+  background: linear-gradient(var(--guide), var(--guide)) 7px 0 / 1px 100% no-repeat;
+  --guide: color-mix(in srgb, var(--fg) 14%, transparent);
+}
+
+.explorer:hover .guide {
+  --guide: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+
+.twisty {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 100%;
+}
+
+/* A file's icon: its type's mark, or a page. */
+.icon {
+  flex: none;
+  width: 16px;
+  margin-right: 0.35rem;
+  font: 700 9.5px/1 var(--code);
+  text-align: center;
+  letter-spacing: -0.04em;
+}
+
+.icon.page::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 10px;
+  border: 1px solid var(--fg-3);
+  border-radius: 1px;
+}
+
+/* What git says of a row: the name and its letter in the state's color. */
+.node .change {
+  flex: none;
+  margin-left: 0.5rem;
+  font: 600 11px var(--code);
+}
+
+.node.dir .change {
+  font-size: 8px;
+}
+
+.node[data-change="M"] .name,
+.node[data-change="M"] .change {
+  color: var(--t3);
+}
+
+.node[data-change="U"] .name,
+.node[data-change="U"] .change,
+.node[data-change="A"] .name,
+.node[data-change="A"] .change {
+  color: var(--t2);
+}
+
+.node[data-change="D"] .name,
+.node[data-change="D"] .change {
+  color: var(--t1);
+}
+
+.node[data-change="R"] .name,
+.node[data-change="R"] .change {
+  color: var(--t6);
+}
+
+.node[data-change="C"] .name,
+.node[data-change="C"] .change {
+  color: var(--t9);
+}
+
+.node.ignored .name,
+.node.ignored .icon {
+  color: var(--fg-3);
+}
+
+/* Open Editors: the × where a tab is, a dot where it holds changes, the × again under the pointer. */
+.open-row .close {
+  flex: none;
+  width: 16px;
+  margin-right: 0.2rem;
+  text-align: center;
+  color: var(--fg-2);
+  visibility: hidden;
+}
+
+.open-row .close::before {
+  content: "×";
+}
+
+.open-row .close.dirty {
+  visibility: visible;
+}
+
+.open-row .close.dirty::before {
+  content: "●";
+  font-size: 10px;
+}
+
+.open-row:hover .close,
+.open-row:focus-visible .close {
+  visibility: visible;
+}
+
+.open-row:hover .close::before {
+  content: "×";
+  font-size: inherit;
+}
+
+.open-row .close:hover {
   color: var(--fg);
+}
+
+.open-row .where,
+.commit .where {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.commit .where {
+  flex: none;
+}
+
+.commit-dot::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--fg-3);
+  border-radius: 50%;
 }
 
 /* The definitions beside the editor: the open file type's oracle table, row by row. */
@@ -1853,6 +2260,19 @@ select {
   color: var(--fg);
   text-align: left;
   cursor: pointer;
+}
+
+/* A menu with items that are on or off sets every item in, and marks the ones that are on. */
+.menu.checks .menu-item {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.menu-item[aria-checked="true"]::before {
+  content: "\2713";
+  position: absolute;
+  left: 0.6rem;
+  color: var(--signal);
 }
 
 .menu-item:focus {

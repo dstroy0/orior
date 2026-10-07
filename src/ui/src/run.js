@@ -186,9 +186,12 @@ function drawStage() {
   const stage = document.getElementById("job-stage");
   const job = state.jobs.find((one) => one.id === state.chosen);
   if (!job) {
+    // An empty stage drawn again stays as it is, its name not shown a second time.
+    if (stage.querySelector(":scope > .empty")) {
+      return;
+    }
     const canvas = element("canvas", { className: "lattice" });
-    const tree = document.getElementById("tree-path").textContent;
-    const body = element("div", { className: "empty-body" }, wordmark("h1"), element("p", { textContent: tree }));
+    const body = element("div", { className: "empty-body" }, wordmark("h1"));
     stage.replaceChildren(element("div", { className: "empty" }, canvas, body));
     keepLattice(canvas);
     return;

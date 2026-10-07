@@ -51,8 +51,10 @@ function detectIndent(doc) {
 const FAR = Number.MAX_SAFE_INTEGER;
 
 export class Session {
-  constructor(text, language, { base = 0, window = null } = {}) {
+  constructor(text, language, { base = 0, window = null, readOnly = false } = {}) {
     this.doc = new Doc(text);
+    // A session that is read only takes no edit, and nothing it holds is ever written.
+    this.readOnly = readOnly;
     this.language = language ?? null;
     this.highlight = new Highlight(this.doc, this.language?.grammar ?? null);
     this.selections = [{ anchor: pos(0, 0), head: pos(0, 0), goal: null }];

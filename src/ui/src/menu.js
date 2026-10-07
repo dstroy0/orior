@@ -124,7 +124,11 @@ function build(items, level) {
       continue;
     }
     const button = Object.assign(document.createElement("button"), { type: "button", className: "menu-item", disabled: Boolean(item.disabled) });
-    button.setAttribute("role", "menuitem");
+    button.setAttribute("role", item.checked === undefined ? "menuitem" : "menuitemcheckbox");
+    if (item.checked !== undefined) {
+      button.setAttribute("aria-checked", String(Boolean(item.checked)));
+      menu.classList.add("checks");
+    }
     button.append(Object.assign(document.createElement("span"), { textContent: item.label }));
     if (item.items) {
       button.setAttribute("aria-haspopup", "menu");

@@ -9,7 +9,7 @@
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, root, runner};
+use orior_cli::{bridge, catalog, commands, defs, files, git, root, runner};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -148,6 +148,26 @@ fn tree_list(app: State<App>, dir: String) -> Result<Vec<files::Entry>, String> 
 #[tauri::command]
 fn tree_find(app: State<App>, query: String) -> Result<Vec<String>, String> {
     Ok(files::find(&root_of(&app)?, &query))
+}
+
+#[tauri::command]
+fn tree_changed(app: State<App>) -> Result<Vec<git::Changed>, String> {
+    Ok(git::changed(&root_of(&app)?))
+}
+
+#[tauri::command]
+fn tree_branch(app: State<App>) -> Result<Option<String>, String> {
+    Ok(git::branch(&root_of(&app)?))
+}
+
+#[tauri::command]
+fn file_commits(app: State<App>, path: String) -> Result<Vec<git::Commit>, String> {
+    git::commits(&root_of(&app)?, &path)
+}
+
+#[tauri::command]
+fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> {
+    git::text_at(&root_of(&app)?, &path, &id)
 }
 
 #[tauri::command]
@@ -333,6 +353,10 @@ fn open(launch: Launch) {
             app_exit,
             tree_list,
             tree_find,
+            tree_changed,
+            tree_branch,
+            file_commits,
+            file_at,
             file_read,
             file_window,
             file_slice,

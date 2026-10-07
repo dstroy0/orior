@@ -8,12 +8,10 @@
     <title>orior</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body data-view="run">
     <header class="bar">
-      <span class="mark" aria-hidden="true">Σ</span>
       <nav class="menubar" id="menubar" role="menubar" aria-label="orior"></nav>
       <span class="tree" id="tree-path"></span>
-      <span class="pulse" id="pulse"></span>
       <button class="scheme" id="scheme" type="button" aria-label="Light"></button>
     </header>
 
@@ -27,9 +25,32 @@
       </section>
 
       <section class="mode" id="mode-edit" data-active="false">
-        <aside class="side">
-          <input class="filter" id="file-filter" type="search" placeholder="Search" spellcheck="false" />
-          <div class="files" id="files"></div>
+        <aside class="side explorer" id="explorer">
+          <div class="explorer-inner">
+            <div class="explorer-head">
+              <h2>Explorer</h2>
+              <button class="explorer-more" id="explorer-more" type="button" aria-label="Views and More Actions" aria-haspopup="menu">…</button>
+            </div>
+            <input class="filter" id="file-filter" type="search" placeholder="Search" spellcheck="false" />
+            <div class="panes" id="panes">
+              <section class="pane" data-pane="open">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:open" aria-expanded="true">Open Editors</button>
+                <div class="pane-body" id="open-editors"></div>
+              </section>
+              <section class="pane" data-pane="folder">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:folder" aria-expanded="true"></button>
+                <div class="pane-body files" id="files"></div>
+              </section>
+              <section class="pane" data-pane="outline">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:outline" aria-expanded="false">Outline</button>
+                <div class="pane-body" id="outline"></div>
+              </section>
+              <section class="pane" data-pane="timeline">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:timeline" aria-expanded="false">Timeline</button>
+                <div class="pane-body" id="timeline"></div>
+              </section>
+            </div>
+          </div>
         </aside>
         <div class="desk">
           <div class="tabs" id="tabs" role="tablist"></div>
@@ -39,7 +60,6 @@
             <canvas class="lattice" aria-hidden="true"></canvas>
             <div class="empty-body">
               <h1 data-wordmark>orior</h1>
-              <p id="edit-empty-tree"></p>
             </div>
           </div>
         </div>
@@ -69,6 +89,11 @@
       <div class="term-view" id="term-view"></div>
       <textarea class="term-keys" id="term-keys" aria-label="Terminal" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
     </section>
+
+    <footer class="statusbar" id="statusbar">
+      <span class="status-branch" id="status-branch" hidden></span>
+      <span class="pulse" id="pulse"></span>
+    </footer>
 
     <script type="module" src="main.js"></script>
   </body>

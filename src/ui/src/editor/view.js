@@ -101,7 +101,8 @@ export function parseSnippet(body) {
 }
 
 export class Editor {
-  constructor(host, { onCursor, onChange } = {}) {
+  // The status line goes in `statusHost` where one is given, and under the editor where not.
+  constructor(host, { onCursor, onChange, statusHost = null } = {}) {
     this.host = host;
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
@@ -129,7 +130,8 @@ export class Editor {
     const canvas = document.createElement("canvas");
     canvas.className = "ed-mini";
     this.status = div("ed-status");
-    host.append(this.gutter, this.scroller, canvas, this.status);
+    host.append(this.gutter, this.scroller, canvas);
+    (statusHost ?? host).append(this.status);
     this.minimap = new Minimap(this, canvas);
     this.find = new Find(this);
     this.goto = new GoTo(this);
@@ -471,6 +473,9 @@ export class Editor {
   // old text to the new and answers the selections, or, left out, every selection is carried.
   change(edits, kind, place) {
     const s = this.s;
+    if (s.readOnly) {
+      return false;
+    }
     const before = this.copySelections();
     const { edits: written } = s.doc.change(edits, kind, before);
     const map = (p, after = false) => mapThrough(p, written, after);
@@ -832,6 +837,9 @@ export class Editor {
   }
 
   undo(back = true) {
+    if (this.s.readOnly) {
+      return;
+    }
     const found = back ? this.doc.undo() : this.doc.redo();
     if (!found) {
       return;

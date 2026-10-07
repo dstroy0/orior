@@ -3,10 +3,10 @@
 
 //! The editor's reads and writes, every one inside the tree.
 //!
-//! The file list is the tree as git sees it: what it tracks and what it would track, and none of what
-//! the tree's ignore files leave out. What a build writes, what a cache keeps and what a tool keeps
-//! for itself in a folder of its own are out of the list for the reason they are out of git, and the
-//! list holds no name of its own to leave out. A tree git cannot read is listed whole, less SKIPPED.
+//! A folder's list holds every entry in it but git's own folder, and marks the ones the tree's ignore
+//! files leave out: what a build writes, what a cache keeps and what a tool keeps for itself. A search
+//! finds only what git tracks or would track. A tree git cannot read is listed whole, less SKIPPED,
+//! and nothing in it is marked.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -42,6 +42,8 @@ pub struct Entry {
     pub name: String,
     pub path: String,
     pub dir: bool,
+    /// Whether the tree's ignore files leave the entry out.
+    pub ignored: bool,
 }
 
 #[derive(Serialize)]
@@ -114,12 +116,16 @@ pub fn list(root: &Path, dir: &str) -> Result<Vec<Entry>, String> {
             let name = entry.file_name().to_string_lossy().into_owned();
             let is_dir = entry.file_type().ok()?.is_dir();
             let path = relative(root, &entry.path());
-            let shown = match &view {
-                Some(view) if is_dir => view.dirs.contains(&path),
-                Some(view) => view.files.contains(&path),
-                None => !(is_dir && SKIPPED.contains(&name.as_str())),
+            if is_dir && name == ".git" {
+                return None;
+            }
+            let ignored = match &view {
+                Some(view) if is_dir => !view.dirs.contains(&path),
+                Some(view) => !view.files.contains(&path),
+                None if is_dir && SKIPPED.contains(&name.as_str()) => return None,
+                None => false,
             };
-            shown.then_some(Entry { path, name, dir: is_dir })
+            Some(Entry { path, name, dir: is_dir, ignored })
         })
         .collect();
     entries.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));

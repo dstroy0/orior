@@ -54,6 +54,8 @@
         { "label": "Edit", "command": "edit-view", "keys": "Ctrl+Shift+E" },
         { "label": "Run", "command": "run-view", "keys": "Ctrl+Shift+D" },
         "-",
+        { "label": "Explorer", "command": "explorer", "keys": "Ctrl+B", "args": "[show|hide]", "checks": "explorer" },
+        { "label": "Auto Collapse Explorer", "command": "explorer-auto", "args": "[on|off]", "checks": "explorer-auto" },
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         "-",
         { "label": "Light", "command": "scheme", "args": "[light|dark]", "labels": { "dark": "Light", "light": "Dark" } },

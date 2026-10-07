@@ -14,5 +14,6 @@ pub mod cli;
 pub mod commands;
 pub mod defs;
 pub mod files;
+pub mod git;
 pub mod root;
 pub mod runner;
