@@ -24,6 +24,10 @@ function set(name) {
   listeners.forEach((listener) => listener(name));
 }
 
+export function setScheme(name) {
+  set(name);
+}
+
 export function toggleScheme() {
   set(scheme() === "dark" ? "light" : "dark");
 }

@@ -1,17 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! The app: the commands its window calls, and the `view` scheme its page windows load from. The
-//! same program is the command line, in `cli`, over the same jobs, runner and bridge.
+//! The app: the window, a layer on the orior-cli crate. Every job, every reading of the tree and
+//! every command of the menus is that crate's; this layer adds the window, the commands its page
+//! calls, the `view` scheme its page windows load from, the terminal's pseudo-terminals and the
+//! clipboard. The same program is the command line, handing it any words it is started with.
 
-mod bridge;
-mod catalog;
-mod cli;
-mod defs;
-mod files;
-mod root;
-mod runner;
 mod terminal;
+
+use orior_cli::cli::{self, Launch, Outcome};
+use orior_cli::{bridge, catalog, commands, defs, files, root, runner};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -25,6 +23,8 @@ use tauri::{AppHandle, Emitter, Manager, State, UriSchemeContext, WebviewUrl, We
 #[derive(Default)]
 struct App {
     root: Mutex<Option<PathBuf>>,
+    /// The command the command line opened the window to run, until the page takes it.
+    launch: Mutex<Option<Launch>>,
     runs: runner::Runs,
     terms: terminal::Terms,
     windows: AtomicU64,
@@ -107,6 +107,18 @@ fn term_resize(app: State<App>, id: u64, cols: u16, rows: u16) -> Result<(), Str
 #[tauri::command]
 fn term_close(app: State<App>, id: u64) -> Result<(), String> {
     app.terms.close(id)
+}
+
+/// The menus, as the command line reads them.
+#[tauri::command]
+fn commands_read() -> &'static str {
+    commands::TEXT
+}
+
+/// The command the window was opened to run, once.
+#[tauri::command]
+fn launch_take(app: State<App>) -> Option<Launch> {
+    app.launch.lock().ok()?.take().filter(|launch| !launch.command.is_empty())
 }
 
 /// The app's version, as its package gives it.
@@ -276,16 +288,28 @@ pub fn start() -> i32 {
     let words: Vec<String> = std::env::args().skip(1).collect();
     if words.is_empty() {
         cli::console_let_go();
-        run();
-        0
-    } else {
-        cli::run(words)
+        open(Launch::default());
+        return 0;
+    }
+    match cli::run(words) {
+        Outcome::Exit(code) => code,
+        Outcome::Window(launch) => {
+            open(launch);
+            0
+        }
     }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = App { root: Mutex::new(root::find()), ..App::default() };
+    open(Launch::default());
+}
+
+/// Opens the window on the tree the launch names, else the one `root::find` finds, to run the
+/// launch's command once the page is up.
+fn open(launch: Launch) {
+    let root = launch.root.clone().or_else(root::find);
+    let app = App { root: Mutex::new(root), launch: Mutex::new(Some(launch)), ..App::default() };
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(app)
@@ -303,6 +327,8 @@ pub fn run() {
             term_resize,
             term_close,
             clip_read,
+            commands_read,
+            launch_take,
             app_version,
             app_exit,
             tree_list,

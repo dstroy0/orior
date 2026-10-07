@@ -157,7 +157,7 @@ function toggle(open = parts.panel.hidden) {
 }
 
 function onKey(event) {
-  if (event.isComposing || (event.ctrlKey && event.code === "Backquote")) {
+  if (event.isComposing || (event.ctrlKey && !event.shiftKey && event.code === "Backquote")) {
     return;
   }
   const copy = event.ctrlKey && event.code === "KeyC" && (event.shiftKey || chosen());
@@ -287,7 +287,7 @@ export async function startTerminal() {
   window.addEventListener(
     "keydown",
     (event) => {
-      if (event.ctrlKey && event.code === "Backquote") {
+      if (event.ctrlKey && !event.shiftKey && event.code === "Backquote") {
         event.preventDefault();
         toggle();
       }

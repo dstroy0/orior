@@ -8,7 +8,7 @@ import { forgetTree, openFile, startEdit } from "./edit.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, startMenubar } from "./menubar.js";
+import { drawMenubar, runLaunch, startMenubar } from "./menubar.js";
 import { loadRun, startRun } from "./run.js";
 import { keepScheme } from "./scheme.js";
 import { watch } from "./status.js";
@@ -52,16 +52,17 @@ async function start() {
   startMenus();
   keepLattices();
   watch(drawPulse);
-  document.getElementById("open-button").addEventListener("click", openFolder);
-  startMenubar({ openFolder });
+  document.getElementById("open-button").addEventListener("click", () => openFolder());
+  await startMenubar({ openFolder });
   await startRun(openInEditor);
   await startTerminal();
   await begin(await invoke("root_get"));
+  await runLaunch();
 }
 
-// Asks for a folder and works on the tree in it in place of the one open.
-async function openFolder() {
-  const chosen = await pick("dir");
+// Works on the tree in `folder`, or in one asked for, in place of the one open.
+async function openFolder(folder) {
+  const chosen = folder ?? (await pick("dir"));
   if (typeof chosen !== "string") {
     return;
   }

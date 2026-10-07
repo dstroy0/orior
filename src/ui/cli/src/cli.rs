@@ -1,11 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! The command line: the window's jobs and bridge, read and run from a terminal by the same program.
+//! The command line: the window's menus as words. `orior <menu> <command>` is the command of that
+//! menu, `orior <menu> <job>` the job of a menu of jobs, and the help is the menus listed.
 //!
-//! Every job the window lists is a job here, read from the tree the same way, and a run goes through
-//! the same runner with the same checks. The steps share the terminal, its output streams as it
-//! comes, and the program exits with the job's code.
+//! A command the terminal can do, starting a job, listing, showing, the bridge, the keys and the
+//! version, runs here. Every other acts in the window, and the words come to the window to open with
+//! the command to run in it. Every job the window lists is a job here, read from the tree the same
+//! way, and a run goes through the same runner with the same checks. The steps share the terminal,
+//! its output streams as it comes, and the program exits with the job's code.
 
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
@@ -14,31 +17,14 @@ use std::sync::{Arc, Mutex};
 
 use crate::bridge::{self, Bridge};
 use crate::catalog::{self, Job};
+use crate::commands::{self, Commands, Item, Menu};
 use crate::root;
 use crate::runner::{self, Said, Sink};
-
-const HELP: &str = "\
-orior: the window, and every job it runs, from one program
-
-  orior                          open the window
-  orior list [word]              the jobs, or those whose id, title or about holds the word
-  orior show <job>               a job's file, values and the commands it runs
-  orior run <job> [key=value]    run a job; a key given twice gives two values
-  orior run <job> -- <words>     the words after -- are the job's arguments
-  orior bridge [key]             the keys of Lstar.klq, or one key's pairs, maps and rulesets
-  orior help                     this
-
-  --root <folder>                the orior tree to work on; else ORIOR_ROOT, else the tree the
-                                 working folder or the program sits in
-
-A job is named by its id, by the end of its id after a slash, or by its title, where that names
-only one. A run exits with the code of its last step.
-";
 
 /// The code a run exits with where a step could not start or gave no code.
 const NO_CODE: i32 = 1;
 /// The code for words the program does not take.
-const WRONG: i32 = 2;
+pub const WRONG: i32 = 2;
 
 fn out(text: &str) {
     let _ = writeln!(std::io::stdout().lock(), "{text}");
@@ -331,11 +317,119 @@ fn bridge(root: &std::path::Path, word: Option<&str>) -> i32 {
     0
 }
 
-/// The tree a run works on: the folder `--root` names, else the one `root::find` finds.
-fn tree(named: Option<String>) -> Result<PathBuf, String> {
+/// What the command line's words come to: a code to exit with, or the window to open, on a tree and
+/// with a command of its menus to run once it is up.
+pub enum Outcome {
+    Exit(i32),
+    Window(Launch),
+}
+
+/// The window a command of its menus opens: the tree to open it on, where one was named, and the
+/// command with its words. With no command, the window opens and runs none.
+#[derive(Clone, Default, serde::Serialize)]
+pub struct Launch {
+    pub root: Option<PathBuf>,
+    pub menu: String,
+    pub command: String,
+    pub args: Vec<String>,
+}
+
+impl Launch {
+    /// The words that name the command, as the command line takes them.
+    pub fn words(&self) -> String {
+        [self.menu.as_str(), self.command.as_str()].into_iter().chain(self.args.iter().map(String::as_str)).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ")
+    }
+}
+
+/// The help, made from the menus: a line for each command, the ones that act in the window marked.
+fn help(menus: &Commands) -> String {
+    let mut rows: Vec<(String, String)> = vec![("orior".into(), "open the window".into())];
+    for menu in &menus.menus {
+        let word = menu.word();
+        for item in menu.commands() {
+            let usage = format!("orior {word} {} {}", item.command, item.args);
+            let mark = if item.console { "" } else { "* " };
+            rows.push((usage.trim_end().to_string(), format!("{mark}{}", item.label)));
+        }
+        if !menu.groups.is_empty() {
+            let usage = match menu.split.as_deref() {
+                Some(split) => format!("orior {word} [{split}] [job]"),
+                None => format!("orior {word} [job]"),
+            };
+            rows.push((usage, format!("the {} jobs, or one of them", menu.groups.join(" and "))));
+        }
+    }
+    rows.push(("orior run <job> [key=value] [-- words]".into(), "start a job, as orior run start".into()));
+    rows.push(("orior list | show <job> | bridge [key]".into(), "as orior run list, run show and go bridge".into()));
+    rows.push(("orior help".into(), "this".into()));
+    let pad = rows.iter().map(|(usage, _)| usage.chars().count()).max().unwrap_or(0);
+    let mut text = String::from(
+        "orior: the window, and every job it runs, from one program. A menu's title and one of its\n\
+         commands are the words for it here. A command marked * acts in the window, which it opens.\n\n",
+    );
+    for (usage, said) in rows {
+        text.push_str(&format!("  {usage:pad$}  {said}\n"));
+    }
+    text.push_str(
+        "\n  --root <folder>  the orior tree to work on; else ORIOR_ROOT, else the tree the working\n\
+         \x20                  folder or the program sits in\n\n\
+         A job is named by its id, by the end of its id after a slash, or by its title, where that\n\
+         names only one. A run exits with the code of its last step. A key given twice gives two values.\n",
+    );
+    text
+}
+
+/// The keys of every command that has some, by menu.
+fn keys(menus: &Commands) {
+    for menu in &menus.menus {
+        let rows: Vec<&Item> = menu.commands().filter(|item| !item.keys.is_empty()).collect();
+        if rows.is_empty() {
+            continue;
+        }
+        out(&menu.title);
+        let pad = rows.iter().map(|item| item.label.chars().count()).max().unwrap_or(0);
+        for item in rows {
+            out(&format!("  {:pad$}  {}", item.label, item.keys));
+        }
+    }
+}
+
+/// A menu's commands, and the jobs of a menu of jobs, as `orior <menu>` alone shows them.
+fn menu_lines(root: Option<&std::path::Path>, menu: &Menu) -> i32 {
+    let word = menu.word();
+    for item in menu.commands() {
+        let usage = format!("orior {word} {} {}", item.command, item.args);
+        let mark = if item.console { "" } else { "  *" };
+        out(&format!("{}{mark}", usage.trim_end()));
+    }
+    if menu.groups.is_empty() {
+        return 0;
+    }
+    let Some(root) = root else {
+        err("no orior tree here: run from inside one, or name one with --root");
+        return NO_CODE;
+    };
+    let jobs: Vec<Job> = catalog::read(root).into_iter().filter(|job| menu.groups.iter().any(|g| g == job.group)).collect();
+    if menu.split.is_some() {
+        let mut subjects: Vec<String> = jobs.iter().map(subject).collect();
+        subjects.dedup();
+        subjects.iter().for_each(|name| out(name));
+    } else {
+        jobs.iter().for_each(|job| out(&job.id));
+    }
+    0
+}
+
+/// What a stage job works on, the second part of its file's path.
+pub fn subject(job: &Job) -> String {
+    job.file.split('/').nth(1).unwrap_or(&job.file).to_string()
+}
+
+/// The tree a command works on: the folder `--root` names, else the one `root::find` finds.
+fn tree(named: Option<&str>) -> Result<PathBuf, String> {
     match named {
         Some(dir) => {
-            let path = dunce::canonicalize(&dir).map_err(|e| format!("{dir}: {e}"))?;
+            let path = dunce::canonicalize(dir).map_err(|e| format!("{dir}: {e}"))?;
             if root::holds_tree(&path) {
                 Ok(path)
             } else {
@@ -346,8 +440,94 @@ fn tree(named: Option<String>) -> Result<PathBuf, String> {
     }
 }
 
-/// Runs the words given on the command line and returns the code to exit with.
-pub fn run(given: Vec<String>) -> i32 {
+/// A command the command line runs itself, in the terminal.
+fn console(command: &str, named: Option<&str>, words: &[String], menus: &Commands) -> i32 {
+    match command {
+        "keys" => {
+            keys(menus);
+            return 0;
+        }
+        "about" => {
+            out(&format!("orior {}", env!("CARGO_PKG_VERSION")));
+            if let Ok(root) = tree(named) {
+                out(&root.display().to_string());
+            }
+            return 0;
+        }
+        _ => {}
+    }
+    let root = match tree(named) {
+        Ok(root) => root,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let first = words.first().map(String::as_str);
+    match command {
+        "list" => list(&root, first),
+        "bridge" => bridge(&root, first),
+        _ => {
+            let Some(name) = first else {
+                err(&format!("{command} needs a job: orior run list names them"));
+                return WRONG;
+            };
+            let job = match job_named(&catalog::read(&root), name) {
+                Ok(job) => job,
+                Err(said) => {
+                    err(&said);
+                    return NO_CODE;
+                }
+            };
+            if command == "show" {
+                show(&root, &job);
+                0
+            } else {
+                run_job(root, job, &words[1..])
+            }
+        }
+    }
+}
+
+/// `orior <menu> [subject] <job>`: a job of a menu of jobs, shown as the window shows it on choosing.
+fn menu_job(named: Option<&str>, menu: &Menu, words: &[String]) -> i32 {
+    let root = match tree(named) {
+        Ok(root) => root,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let mut jobs: Vec<Job> = catalog::read(&root).into_iter().filter(|job| menu.groups.iter().any(|g| g == job.group)).collect();
+    let mut words = words.iter();
+    if menu.split.is_some() {
+        let Some(name) = words.next() else { return menu_lines(Some(&root), menu) };
+        jobs.retain(|job| subject(job) == *name);
+        if jobs.is_empty() {
+            err(&format!("{} has no {name}: orior {} names what it has", menu.title, menu.word()));
+            return NO_CODE;
+        }
+        if words.len() == 0 {
+            jobs.iter().for_each(|job| out(&job.id));
+            return 0;
+        }
+    }
+    let Some(name) = words.next() else { return menu_lines(Some(&root), menu) };
+    match job_named(&jobs, name) {
+        Ok(job) => {
+            show(&root, &job);
+            0
+        }
+        Err(said) => {
+            err(&said);
+            NO_CODE
+        }
+    }
+}
+
+/// Runs the words given on the command line: a command run here, with the code to exit with, or the
+/// window to open for one that acts there.
+pub fn run(given: Vec<String>) -> Outcome {
     let mut named = None;
     let mut words = Vec::new();
     let mut given = given.into_iter();
@@ -358,7 +538,7 @@ pub fn run(given: Vec<String>) -> i32 {
         } else if word == "--root" {
             let Some(dir) = given.next() else {
                 err("--root needs a folder");
-                return WRONG;
+                return Outcome::Exit(WRONG);
             };
             named = Some(dir);
         } else if let Some(dir) = word.strip_prefix("--root=") {
@@ -367,50 +547,60 @@ pub fn run(given: Vec<String>) -> i32 {
             words.push(word);
         }
     }
-    let first = words.first().map(String::as_str).unwrap_or("help");
-    if matches!(first, "help" | "-h" | "--help") {
-        out(HELP.trim_end());
-        return 0;
+    let menus = commands::read();
+    let named = named.as_deref();
+    let window = |menu: String, command: String, args: Vec<String>| match named.map(|dir| tree(Some(dir))).transpose() {
+        Ok(root) => Outcome::Window(Launch { root, menu, command, args }),
+        Err(said) => {
+            err(&said);
+            Outcome::Exit(NO_CODE)
+        }
+    };
+    let Some(first) = words.first().map(String::as_str) else {
+        if named.is_some() {
+            return window(String::new(), String::new(), Vec::new());
+        }
+        out(help(&menus).trim_end());
+        return Outcome::Exit(0);
+    };
+    // help alone is the help; help and a word is that command of the Help menu.
+    if matches!(first, "-h" | "--help") || (first == "help" && words.len() == 1) {
+        out(help(&menus).trim_end());
+        return Outcome::Exit(0);
     }
     if matches!(first, "--version" | "-V") {
         out(&format!("orior {}", env!("CARGO_PKG_VERSION")));
-        return 0;
+        return Outcome::Exit(0);
     }
-    if !matches!(first, "list" | "show" | "run" | "bridge") {
-        err(&format!("orior takes no {first}: orior help names what it takes"));
-        return WRONG;
-    }
-    let root = match tree(named) {
-        Ok(root) => root,
-        Err(said) => {
-            err(&said);
-            return NO_CODE;
-        }
-    };
-    let second = words.get(1).map(String::as_str);
+    // The words before the menus were the command line's, and each still names what it named.
     match first {
-        "list" => list(&root, second),
-        "bridge" => bridge(&root, second),
-        _ => {
-            let Some(name) = second else {
-                err(&format!("orior {first} needs a job: orior list names them"));
-                return WRONG;
-            };
-            let job = match job_named(&catalog::read(&root), name) {
-                Ok(job) => job,
-                Err(said) => {
-                    err(&said);
-                    return NO_CODE;
-                }
-            };
-            if first == "show" {
-                show(&root, &job);
-                0
-            } else {
-                run_job(root, job, &words[2..])
-            }
-        }
+        "list" | "show" => return Outcome::Exit(console(first, named, &words[1..], &menus)),
+        "bridge" => return Outcome::Exit(console("bridge", named, &words[1..], &menus)),
+        _ => {}
     }
+    let Some(menu) = menus.menus.iter().find(|menu| menu.word() == first) else {
+        err(&format!("orior takes no {first}: orior help names what it takes"));
+        return Outcome::Exit(WRONG);
+    };
+    let Some(second) = words.get(1) else {
+        let root = tree(named).ok();
+        return Outcome::Exit(menu_lines(root.as_deref(), menu));
+    };
+    if let Some(item) = menu.command(second) {
+        let rest = words[2..].to_vec();
+        if item.console {
+            return Outcome::Exit(console(&item.command, named, &rest, &menus));
+        }
+        return window(menu.word(), item.command.clone(), rest);
+    }
+    if menu.word() == "run" {
+        return Outcome::Exit(console("start", named, &words[1..], &menus));
+    }
+    if !menu.groups.is_empty() {
+        return Outcome::Exit(menu_job(named, menu, &words[1..]));
+    }
+    err(&format!("{} has no {second}: orior {first} names what it has", menu.title));
+    Outcome::Exit(WRONG)
 }
 
 /// Lets go of the console where this process is the only one on it: the console Windows opens for a

@@ -1,9 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The menu bar: File, Edit, Selection, View, Go and Run, then the catalog's groups of jobs, then
-// Terminal and Help. The run group is the Run menu and the render and view groups share the Render
-// menu. A group with no job in the tree has no menu. A job chosen from a menu shows in the run view
+// The menu bar, as commands.json lists it: the list the command line reads too, so that each item
+// here is `orior <menu> <command>` there. What each command does in the window is COMMANDS below,
+// what it needs before it can act is NEEDS, and the keys an item lists are bound here as well. A
+// key the editor or the terminal takes first stays theirs.
+//
+// A menu of jobs lists the catalog's groups it names, split by what each job works on where it says
+// so, and a group with no job in the tree has no menu. A job chosen from a menu shows in the run view
 // with its form, and starts only from there or from Run, Start.
 //
 // Edit and Run are the two views as well as menus, and the bar marks the one shown; opening either
@@ -15,10 +19,10 @@
 // into the last, a menu of menus.
 
 import { invoke } from "./bridge.js";
-import { editing } from "./edit.js";
+import { editing, openAt as openFileAt } from "./edit.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
-import { scheme, toggleScheme } from "./scheme.js";
+import { scheme, setScheme, toggleScheme } from "./scheme.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { onView, shownView, showView } from "./views.js";
 
@@ -32,21 +36,120 @@ const TITLES_AT = [
   [0, 7],
 ];
 
-const state = { bar: null, open: -1, titles: [], held: false, before: null, openFolder: () => {} };
+const state = { bar: null, menus: [], open: -1, titles: [], held: false, before: null, openFolder: () => {} };
 
-// The editor's commands, each acting on the editor with the keys handed to it first.
-function editorItem(label, keys, act, needs = true) {
+// The editor's command: the run view gives way to the edit view, and the editor takes the keys.
+const inEditor = (act) => () => {
   const { editor } = editing();
-  return {
-    label,
-    keys,
-    disabled: needs && !editor,
-    run: () => {
-      showView("edit");
-      editor?.focus();
-      act(editor);
-    },
-  };
+  if (!editor) {
+    return;
+  }
+  showView("edit");
+  editor.focus();
+  act(editor);
+};
+
+async function pasted(editor) {
+  const text = await clipText();
+  editor.focus();
+  editor.paste({ preventDefault() {}, clipboardData: { getData: () => text } });
+}
+
+// The run view's search, holding `word`.
+function searchJobs(word = "") {
+  showView("run");
+  const filter = document.getElementById("job-filter");
+  filter.value = word;
+  filter.dispatchEvent(new Event("input"));
+  filter.focus();
+}
+
+// The file a path names, at the line after its colon, or the edit view's search where none is named.
+function goToFile(args = []) {
+  showView("edit");
+  const [path, line] = (args[0] ?? "").split(/:(?=\d+$)/);
+  if (path) {
+    openFileAt(path, Math.max(0, Number(line || 1) - 1));
+  } else {
+    editing().find();
+  }
+}
+
+// The bridge's key in Lstar.klq, or the file itself.
+async function goToBridge(args = []) {
+  const read = await invoke("bridge_read").catch(() => null);
+  const klq = read?.klq;
+  if (!klq) {
+    return;
+  }
+  showView("edit");
+  openFileAt(klq.path, klq.keys?.[args[0]]?.line ?? 0);
+}
+
+// What each command does in the window, given the words the command line passed it, if any.
+const COMMANDS = {
+  "open-folder": (args) => state.openFolder(args[0]),
+  save: () => editing().save(),
+  "save-all": () => editing().saveAll(),
+  "close-editor": () => editing().close(),
+  "close-all": () => editing().closeAll(),
+  exit: () => invoke("app_exit"),
+  undo: inEditor((e) => e.undo(true)),
+  redo: inEditor((e) => e.undo(false)),
+  cut: inEditor(() => document.execCommand("cut")),
+  copy: inEditor(() => document.execCommand("copy")),
+  paste: inEditor(pasted),
+  find: inEditor((e) => e.find.open(false)),
+  replace: inEditor((e) => e.find.open(true)),
+  comment: inEditor((e) => e.toggleComment()),
+  "select-all": inEditor((e) => e.selectAll()),
+  "select-line": inEditor((e) => e.selectLine()),
+  "copy-line-up": inEditor((e) => e.copyLines(-1)),
+  "copy-line-down": inEditor((e) => e.copyLines(1)),
+  "move-line-up": inEditor((e) => e.moveLines(-1)),
+  "move-line-down": inEditor((e) => e.moveLines(1)),
+  "cursor-above": inEditor((e) => e.addCursor(-1)),
+  "cursor-below": inEditor((e) => e.addCursor(1)),
+  "next-occurrence": inEditor((e) => e.addMatch(false)),
+  "all-occurrences": inEditor((e) => e.addMatch(true)),
+  "edit-view": () => showView("edit"),
+  "run-view": () => showView("run"),
+  "terminal-view": () => toggleTerminal(),
+  scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
+  "fold-all": inEditor((e) => e.foldAll(true)),
+  "unfold-all": inEditor((e) => e.foldAll(false)),
+  file: goToFile,
+  line: (args) => inEditor((e) => (args[0] ? e.goTo(Math.max(0, Number(args[0]) - 1)) : e.goto.open()))(),
+  bracket: inEditor((e) => e.jumpBracket()),
+  bridge: goToBridge,
+  "next-match": inEditor((e) => e.find.step(1)),
+  "previous-match": inEditor((e) => e.find.step(-1)),
+  start: () => chosenJob() && startChosen(),
+  stop: stopChosen,
+  list: (args) => searchJobs(args[0]),
+  show: (args) => searchJobs(args[0]),
+  new: newTerminal,
+  toggle: () => toggleTerminal(),
+  clear: clearTerminal,
+  kill: killTerminal,
+  keys: showShortcuts,
+  about: showAbout,
+};
+
+// What a command needs before it can act, by the name commands.json gives the need.
+const NEEDS = {
+  editor: () => Boolean(editing().editor),
+  "changed-active": () => editing().activeChanged,
+  changed: () => editing().changed,
+  tab: () => Boolean(editing().active),
+  tabs: () => editing().open,
+  job: () => Boolean(chosenJob()),
+  live: () => chosenLive(),
+};
+
+// Runs a command of a menu, as its item does, with the words the command line gave it.
+export function runCommand(command, args = []) {
+  COMMANDS[command]?.(args);
 }
 
 function jobItem(job) {
@@ -59,146 +162,41 @@ function jobItem(job) {
   };
 }
 
-const jobsIn = (...groups) => listedJobs().filter((job) => groups.includes(job.group));
+const jobsIn = (groups) => listedJobs().filter((job) => groups.includes(job.group));
 
-function jobItems(...groups) {
-  return groups.flatMap((group, at) => {
-    const items = jobsIn(group).map(jobItem);
-    return at > 0 && items.length ? ["-", ...items] : items;
-  });
+// A menu's items: its commands, then the jobs of its groups, split by what each works on where the
+// menu says so.
+function itemsOf(menu) {
+  const items = (menu.items ?? []).map((item) =>
+    item === "-"
+      ? "-"
+      : {
+          label: item.labels?.[scheme()] ?? item.label,
+          keys: item.keys,
+          disabled: Boolean(item.needs && !NEEDS[item.needs]?.()),
+          run: () => runCommand(item.command),
+        },
+  );
+  const groups = menu.groups ?? [];
+  let jobs;
+  if (menu.split) {
+    const all = jobsIn(groups);
+    jobs = [...new Set(all.map(subject))].map((name) => ({ label: name, items: all.filter((job) => subject(job) === name).map(jobItem) }));
+  } else {
+    jobs = groups.flatMap((group, at) => {
+      const own = jobsIn([group]).map(jobItem);
+      return at > 0 && own.length ? ["-", ...own] : own;
+    });
+  }
+  return items.length && jobs.length ? [...items, "-", ...jobs] : [...items, ...jobs];
 }
 
-// The stage group, a menu of what each stage works on.
-function stageItems() {
-  const jobs = jobsIn("stage");
-  return [...new Set(jobs.map(subject))].map((name) => ({ label: name, items: jobs.filter((job) => subject(job) === name).map(jobItem) }));
-}
-
-const MENUS = [
-  {
-    title: "File",
-    items: () => {
-      const edits = editing();
-      return [
-        { label: "Open Folder…", run: () => state.openFolder() },
-        "-",
-        { label: "Save", keys: "Ctrl+S", disabled: !edits.activeChanged, run: edits.save },
-        { label: "Save All", disabled: !edits.changed, run: edits.saveAll },
-        "-",
-        { label: "Close Editor", keys: "Ctrl+W", disabled: !edits.active, run: edits.close },
-        { label: "Close All Editors", disabled: !edits.open, run: edits.closeAll },
-        "-",
-        { label: "Exit", run: () => invoke("app_exit") },
-      ];
-    },
-  },
-  {
-    title: "Edit",
-    view: "edit",
-    items: () => [
-      editorItem("Undo", "Ctrl+Z", (e) => e.undo(true)),
-      editorItem("Redo", "Ctrl+Y", (e) => e.undo(false)),
-      "-",
-      editorItem("Cut", "Ctrl+X", () => document.execCommand("cut")),
-      editorItem("Copy", "Ctrl+C", () => document.execCommand("copy")),
-      editorItem("Paste", "Ctrl+V", async (e) => {
-        const text = await clipText();
-        e.focus();
-        e.paste({ preventDefault() {}, clipboardData: { getData: () => text } });
-      }),
-      "-",
-      editorItem("Find", "Ctrl+F", (e) => e.find.open(false)),
-      editorItem("Replace", "Ctrl+H", (e) => e.find.open(true)),
-      "-",
-      editorItem("Toggle Line Comment", "Ctrl+/", (e) => e.toggleComment()),
-    ],
-  },
-  {
-    title: "Selection",
-    items: () => [
-      editorItem("Select All", "Ctrl+A", (e) => e.selectAll()),
-      editorItem("Select Line", "Ctrl+L", (e) => e.selectLine()),
-      "-",
-      editorItem("Copy Line Up", "Shift+Alt+Up", (e) => e.copyLines(-1)),
-      editorItem("Copy Line Down", "Shift+Alt+Down", (e) => e.copyLines(1)),
-      editorItem("Move Line Up", "Alt+Up", (e) => e.moveLines(-1)),
-      editorItem("Move Line Down", "Alt+Down", (e) => e.moveLines(1)),
-      "-",
-      editorItem("Add Cursor Above", "Ctrl+Alt+Up", (e) => e.addCursor(-1)),
-      editorItem("Add Cursor Below", "Ctrl+Alt+Down", (e) => e.addCursor(1)),
-      editorItem("Add Next Occurrence", "Ctrl+D", (e) => e.addMatch(false)),
-      editorItem("Select All Occurrences", "Ctrl+Shift+L", (e) => e.addMatch(true)),
-    ],
-  },
-  {
-    title: "View",
-    items: () => [
-      { label: "Edit", keys: "Ctrl+Shift+E", run: () => showView("edit") },
-      { label: "Run", keys: "Ctrl+Shift+D", run: () => showView("run") },
-      "-",
-      { label: "Terminal", keys: "Ctrl+`", run: () => toggleTerminal() },
-      "-",
-      { label: scheme() === "dark" ? "Light" : "Dark", run: toggleScheme },
-      "-",
-      editorItem("Fold All", "Ctrl+K Ctrl+0", (e) => e.foldAll(true)),
-      editorItem("Unfold All", "Ctrl+K Ctrl+J", (e) => e.foldAll(false)),
-    ],
-  },
-  {
-    title: "Go",
-    items: () => [
-      { label: "Go to File…", keys: "Ctrl+P", run: goToFile },
-      editorItem("Go to Line…", "Ctrl+G", (e) => e.goto.open()),
-      editorItem("Go to Bracket", "Ctrl+Shift+\\", (e) => e.jumpBracket()),
-      "-",
-      editorItem("Next Match", "F3", (e) => e.find.step(1)),
-      editorItem("Previous Match", "Shift+F3", (e) => e.find.step(-1)),
-    ],
-  },
-  {
-    title: "Run",
-    view: "run",
-    items: () => [
-      { label: "Start", keys: "F5", disabled: !chosenJob(), run: startChosen },
-      { label: "Stop", keys: "Shift+F5", disabled: !chosenLive(), run: stopChosen },
-      ...(jobsIn("run").length ? ["-", ...jobItems("run")] : []),
-    ],
-  },
-  { title: "Build", groups: ["build"], items: () => jobItems("build") },
-  { title: "Protocol", groups: ["protocol"], items: () => jobItems("protocol") },
-  { title: "Ingest", groups: ["ingest"], items: () => jobItems("ingest") },
-  { title: "Render", groups: ["render", "view"], items: () => jobItems("render", "view") },
-  { title: "Sim", groups: ["sim"], items: () => jobItems("sim") },
-  { title: "Pipeline", groups: ["pipeline"], items: () => jobItems("pipeline") },
-  { title: "Stage", groups: ["stage"], items: stageItems },
-  { title: "Test", groups: ["test"], items: () => jobItems("test") },
-  {
-    title: "Terminal",
-    items: () => [
-      { label: "New Terminal", keys: "Ctrl+Shift+`", run: newTerminal },
-      { label: "Toggle Terminal", keys: "Ctrl+`", run: () => toggleTerminal() },
-      "-",
-      { label: "Clear", run: clearTerminal },
-      { label: "Kill Terminal", run: killTerminal },
-    ],
-  },
-  {
-    title: "Help",
-    items: () => [{ label: "Keyboard Shortcuts", run: showShortcuts }, "-", { label: "About", run: showAbout }],
-  },
-];
-
-function goToFile() {
-  showView("edit");
-  editing().find();
-}
-
-// The keys the menus list, by menu, in a sheet over the app.
+// The keys every menu lists, by menu, in a sheet over the app.
 function showShortcuts() {
   const body = document.createElement("div");
   body.className = "sheet-keys";
-  for (const menu of MENUS) {
-    const rows = menu.items().filter((item) => item !== "-" && item.keys);
+  for (const menu of state.menus) {
+    const rows = (menu.items ?? []).filter((item) => item !== "-" && item.keys);
     if (!rows.length) {
       continue;
     }
@@ -206,7 +204,7 @@ function showShortcuts() {
     block.append(Object.assign(document.createElement("h3"), { textContent: menu.title }));
     for (const item of rows) {
       const row = document.createElement("div");
-      row.append(Object.assign(document.createElement("span"), { textContent: item.label }), Object.assign(document.createElement("kbd"), { textContent: item.keys }));
+      row.append(Object.assign(document.createElement("span"), { textContent: item.labels?.[scheme()] ?? item.label }), Object.assign(document.createElement("kbd"), { textContent: item.keys }));
       block.append(row);
     }
     body.append(block);
@@ -240,9 +238,9 @@ function sheet(body) {
   dialog.showModal();
 }
 
-// The menus the bar has a title for: every one of the app's, and each group's that has a job.
+// The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
 function shownMenus() {
-  return MENUS.filter((menu) => !menu.groups || menu.groups.some((group) => jobsIn(group).length));
+  return state.menus.filter((menu) => menu.items?.length || jobsIn(menu.groups ?? []).length);
 }
 
 // Gives each title the first of its letters no title before it has.
@@ -276,33 +274,33 @@ function titleOf(menu, letter) {
 // Draws the bar's titles, the ones that fit and the rest in the last.
 export function drawMenubar() {
   const bar = state.bar;
+  if (!bar) {
+    return;
+  }
   closeMenu(false);
   state.open = -1;
   const menus = shownMenus();
   const letters = lettersFor(menus);
   bar.replaceChildren(...menus.map((menu, at) => titleOf(menu, letters[at])));
-  state.titles = menus.map((menu, at) => ({ menu, button: bar.children[at] }));
-  const more = { title: "…", items: () => [] };
+  state.titles = menus.map((menu, at) => ({ items: () => itemsOf(menu), menu, button: bar.children[at] }));
+  const more = { title: "…" };
   const moreButton = titleOf(more, -1);
   moreButton.ariaLabel = "More";
   bar.append(moreButton);
-  moreButton.hidden = true;
   const most = TITLES_AT.find(([width]) => window.innerWidth >= width)[1];
   if (state.titles.length > most || bar.scrollWidth > bar.clientWidth) {
-    moreButton.hidden = false;
     const folded = [];
     while ((state.titles.length > most || bar.scrollWidth > bar.clientWidth) && state.titles.length > 1) {
       const last = state.titles.pop();
       last.button.remove();
       folded.unshift(last.menu);
     }
-    more.items = () => folded.map((menu) => ({ label: menu.title, items: menu.items() }));
-    state.titles.push({ menu: more, button: moreButton });
+    state.titles.push({ items: () => folded.map((menu) => ({ label: menu.title, items: itemsOf(menu) })), menu: more, button: moreButton });
   } else {
     moreButton.remove();
   }
   state.titles.forEach(({ button }, at) => {
-    button.addEventListener("click", () => (state.open === at && menuOpen() ? closeBar() : openAt(at, true)));
+    button.addEventListener("click", () => (state.open === at && menuOpen() ? closeMenu() : openAt(at, true)));
     button.addEventListener("pointerenter", () => menuOpen() && state.open >= 0 && state.open !== at && openAt(at, false));
   });
   markView(shownView());
@@ -312,23 +310,19 @@ function markView(name) {
   state.bar?.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-current", String(button.dataset.view === name)));
 }
 
-function closeBar() {
-  closeMenu();
-}
-
 // Opens the menu under the at'th title. The keys go into it where it was opened from the keyboard or
 // by a press, and stay where they are where the pointer only passed onto its title.
 function openAt(at, keyed) {
   const count = state.titles.length;
   const index = ((at % count) + count) % count;
-  const { menu, button } = state.titles[index];
+  const { menu, button, items: itemsFor } = state.titles[index];
   if (menu.view) {
     showView(menu.view);
   }
   const box = button.getBoundingClientRect();
   state.bar.querySelectorAll(".bar-title").forEach((one) => one.removeAttribute("aria-expanded"));
   button.setAttribute("aria-expanded", "true");
-  const items = menu.items();
+  const items = itemsFor();
   showMenu(box.left, box.bottom + 2, items.length ? items : [{ label: menu.title, disabled: true, run: () => {} }], {
     side: (by) => openAt(index + by, true),
     keep: state.bar,
@@ -359,24 +353,61 @@ function leaveBar(refocus) {
   }
 }
 
-// The keys the menus list that nothing nearer the focus takes first.
-const SHORTCUTS = {
-  "Ctrl+Shift+KeyE": () => showView("edit"),
-  "Ctrl+Shift+KeyD": () => showView("run"),
-  "Ctrl+KeyP": goToFile,
-  "Ctrl+KeyW": () => editing().close(),
-  "Ctrl+Shift+Backquote": newTerminal,
-  F5: () => chosenJob() && startChosen(),
-  "Shift+F5": stopChosen,
-};
+// The key names commands.json writes, as the page names the key: a letter or digit by its place on
+// the keyboard, and the rest by name.
+const KEY_CODES = { "`": "Backquote", "\\": "Backslash", "/": "Slash", Up: "ArrowUp", Down: "ArrowDown", Left: "ArrowLeft", Right: "ArrowRight" };
 
-function shortcutName(event) {
-  return `${event.ctrlKey ? "Ctrl+" : ""}${event.shiftKey ? "Shift+" : ""}${event.altKey ? "Alt+" : ""}${event.code}`;
+// Whether an event is the keys an item lists. Two presses, as Ctrl+K Ctrl+0, are the editor's.
+function pressed(keys, event) {
+  if (!keys || keys.includes(" ")) {
+    return false;
+  }
+  const parts = keys.split("+");
+  const key = parts.pop() || "+";
+  if (parts.includes("Ctrl") !== event.ctrlKey || parts.includes("Shift") !== event.shiftKey || parts.includes("Alt") !== event.altKey) {
+    return false;
+  }
+  if (/^[A-Z]$/.test(key)) {
+    return event.code === `Key${key}`;
+  }
+  if (/^\d$/.test(key)) {
+    return event.code === `Digit${key}`;
+  }
+  return KEY_CODES[key] ? event.code === KEY_CODES[key] : event.key === key;
 }
 
-export function startMenubar({ openFolder }) {
+// Runs the command whose keys an event is, where nothing nearer the focus took the keys first. The
+// keys of a command for the editor are the editor's own, and a text field or the run's output keeps
+// them for itself. A key bound here never reaches the web view, even where its command cannot act.
+function onShortcut(event) {
+  if (event.defaultPrevented || menuOpen()) {
+    return;
+  }
+  for (const menu of state.menus) {
+    for (const item of menu.items ?? []) {
+      if (item !== "-" && item.needs !== "editor" && pressed(item.keys, event)) {
+        event.preventDefault();
+        if (!item.needs || NEEDS[item.needs]?.()) {
+          runCommand(item.command);
+        }
+        return;
+      }
+    }
+  }
+}
+
+// Runs the command the command line opened the window for, once the tree is read.
+export async function runLaunch() {
+  const launch = await invoke("launch_take").catch(() => null);
+  if (launch?.command) {
+    runCommand(launch.command, launch.args);
+  }
+}
+
+export async function startMenubar({ openFolder }) {
   state.bar = document.getElementById("menubar");
   state.openFolder = openFolder;
+  state.menus = JSON.parse(await invoke("commands_read")).menus;
   onView(markView);
   state.bar.addEventListener("keydown", (event) => {
     const at = state.titles.findIndex(({ button }) => button === document.activeElement);
@@ -413,11 +444,7 @@ export function startMenubar({ openFolder }) {
       }
       return;
     }
-    const act = SHORTCUTS[shortcutName(event)];
-    if (act && !event.defaultPrevented) {
-      event.preventDefault();
-      act();
-    }
+    onShortcut(event);
   });
   window.addEventListener("keyup", (event) => {
     if (event.key !== "Alt") {

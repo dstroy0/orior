@@ -51,7 +51,7 @@ fn shell(root: &Path) -> Result<CommandBuilder, String> {
     let mut command = if let Ok(named) = std::env::var("ORIOR_SHELL") {
         CommandBuilder::new(named)
     } else if cfg!(windows) {
-        let mut bash = CommandBuilder::new(crate::runner::bash()?);
+        let mut bash = CommandBuilder::new(orior_cli::runner::bash()?);
         bash.args(["--login", "-i"]);
         bash.env("CHERE_INVOKING", "1");
         bash

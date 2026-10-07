@@ -510,12 +510,6 @@ export async function startEdit(defs) {
   menuOn(document.getElementById("files"), fileItems);
   menuOn(document.getElementById("tabs"), tabItems);
   menuOn(document.getElementById("editor"), editorItems);
-  window.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.code === "KeyS") {
-      event.preventDefault();
-      saveActive();
-    }
-  });
   document.getElementById("defs").hidden = true;
   document.getElementById("editor").hidden = true;
   drawEmpty(true);
