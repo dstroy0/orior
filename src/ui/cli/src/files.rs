@@ -132,6 +132,151 @@ pub fn list(root: &Path, dir: &str) -> Result<Vec<Entry>, String> {
     Ok(entries)
 }
 
+/// The most paths the whole list holds, for a tree git cannot read.
+const ALL_LIMIT: usize = 100_000;
+
+/// Every file git tracks or would track, or for a tree git cannot read every file less SKIPPED, at
+/// most ALL_LIMIT of them, sorted.
+pub fn all(root: &Path) -> Vec<String> {
+    if let Some(view) = seen(root) {
+        return view.files.iter().cloned().collect();
+    }
+    let mut found = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let Ok(kind) = entry.file_type() else { continue };
+            if kind.is_dir() {
+                if !SKIPPED.contains(&entry.file_name().to_string_lossy().as_ref()) {
+                    pending.push(entry.path());
+                }
+            } else if found.len() < ALL_LIMIT {
+                found.push(relative(root, &entry.path()));
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
+/// One line a search found: the file, the line and the column counted from 1, and the line's text,
+/// cut to HIT_TEXT characters.
+#[derive(Serialize)]
+pub struct Hit {
+    pub path: String,
+    pub line: u64,
+    pub col: u64,
+    pub text: String,
+}
+
+/// How a search reads its query: case as given or not, whole words only or not, and a regular
+/// expression or the text itself.
+#[derive(Clone, Copy, Default, serde::Deserialize)]
+pub struct Searching {
+    #[serde(default)]
+    pub case: bool,
+    #[serde(default)]
+    pub word: bool,
+    #[serde(default)]
+    pub regex: bool,
+}
+
+/// The most lines a search returns.
+const HITS_LIMIT: usize = 2000;
+
+/// The most characters of a found line kept.
+const HIT_TEXT: usize = 240;
+
+/// The files larger than this a search of a tree git cannot read passes over.
+const SEARCHED_BYTES: u64 = 4 * 1024 * 1024;
+
+fn hit(path: String, line: u64, col: u64, text: &str) -> Hit {
+    Hit { path, line, col, text: text.trim_end().chars().take(HIT_TEXT).collect() }
+}
+
+/// Every line in the tree's files that holds the query, at most HITS_LIMIT of them. Git searches what
+/// it tracks or would track; a tree git cannot read is searched a file at a time, the query read as
+/// the text itself.
+pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, String> {
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut git = Command::new("git");
+    git.args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
+    if !how.case {
+        git.arg("-i");
+    }
+    if how.word {
+        git.arg("-w");
+    }
+    git.arg(if how.regex { "-E" } else { "-F" });
+    git.args(["-e", query, "--", "."]);
+    git.stdin(Stdio::null()).stderr(Stdio::piped());
+    crate::runner::quiet(&mut git);
+    if let Ok(out) = git.output() {
+        // Git says 1 where nothing matched, and more where it could not search.
+        match out.status.code() {
+            Some(0) => {
+                let prefix = Command::new("git").args(["rev-parse", "--show-prefix"]).current_dir(root).output().ok().map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string()).unwrap_or_default();
+                return Ok(String::from_utf8_lossy(&out.stdout)
+                    .lines()
+                    .filter_map(|line| {
+                        let mut parts = line.splitn(4, ':');
+                        let path = parts.next()?;
+                        let number = parts.next()?.parse().ok()?;
+                        let col = parts.next()?.parse().ok()?;
+                        let path = path.strip_prefix(prefix.as_str()).unwrap_or(path).to_string();
+                        Some(hit(path, number, col, parts.next().unwrap_or_default()))
+                    })
+                    .take(HITS_LIMIT)
+                    .collect());
+            }
+            Some(1) => return Ok(Vec::new()),
+            _ if String::from_utf8_lossy(&out.stderr).contains("regular expression") => {
+                return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+            }
+            _ => {}
+        }
+    }
+    let wanted = if how.case { query.to_string() } else { query.to_lowercase() };
+    let boundary = |text: &str, at: usize, length: usize| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + length..].chars().next();
+        let wordy = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+        !wordy(before) && !wordy(after)
+    };
+    let mut found = Vec::new();
+    for path in all(root) {
+        let full = root.join(&path);
+        if full.metadata().map_or(true, |meta| meta.len() > SEARCHED_BYTES) {
+            continue;
+        }
+        let Ok(bytes) = fs::read(&full) else { continue };
+        if bytes[..bytes.len().min(8192)].contains(&0) {
+            continue;
+        }
+        let text = String::from_utf8_lossy(&bytes);
+        for (index, line) in text.lines().enumerate() {
+            let seen_as = if how.case { line.to_string() } else { line.to_lowercase() };
+            let mut from = 0;
+            while let Some(at) = seen_as[from..].find(&wanted) {
+                let at = from + at;
+                if !how.word || boundary(&seen_as, at, wanted.len()) {
+                    let col = line.get(..at).map_or(0, |before| before.chars().count()) as u64 + 1;
+                    found.push(hit(path.clone(), index as u64 + 1, col, line));
+                    break;
+                }
+                from = at + wanted.len().max(1);
+            }
+            if found.len() >= HITS_LIMIT {
+                return Ok(found);
+            }
+        }
+    }
+    Ok(found)
+}
+
 /// The most paths a search returns.
 const FOUND_LIMIT: usize = 500;
 

@@ -51,6 +51,7 @@ function drawPulse(held) {
 }
 
 async function start() {
+  invoke("window_show").catch(() => {});
   catchErrors();
   startWordmark();
   keepScheme();

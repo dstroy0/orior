@@ -128,6 +128,12 @@ fn app_version() -> &'static str {
 }
 
 /// Ends the app, every window of it, from the File menu.
+/// Shows the window once its page has its scheme and its colors, so that no frame before them shows.
+#[tauri::command]
+fn window_show(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.show().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn app_exit(handle: AppHandle) {
     handle.exit(0);
@@ -148,6 +154,25 @@ fn tree_list(app: State<App>, dir: String) -> Result<Vec<files::Entry>, String> 
 #[tauri::command]
 fn tree_find(app: State<App>, query: String) -> Result<Vec<String>, String> {
     Ok(files::find(&root_of(&app)?, &query))
+}
+
+/// Every file of the tree, for the quick open.
+#[tauri::command]
+fn tree_files(app: State<App>) -> Result<Vec<String>, String> {
+    Ok(files::all(&root_of(&app)?))
+}
+
+/// Every line in the tree's files that holds the query, for Find in Files.
+#[tauri::command]
+async fn tree_search(app: State<'_, App>, query: String, how: files::Searching) -> Result<Vec<files::Hit>, String> {
+    let root = root_of(&app)?;
+    tauri::async_runtime::spawn_blocking(move || files::search(&root, &query, how)).await.map_err(|e| e.to_string())?
+}
+
+/// Sets the window's zoom, 1 being none.
+#[tauri::command]
+fn zoom_set(webview: tauri::Webview, factor: f64) -> Result<(), String> {
+    webview.set_zoom(factor.clamp(0.5, 3.0)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -358,6 +383,9 @@ pub fn start() -> i32 {
     }
 }
 
+/// How long the window waits for its page before it shows regardless.
+const SHOW_ANYWAY: std::time::Duration = std::time::Duration::from_secs(4);
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     open(Launch::default());
@@ -372,6 +400,18 @@ fn open(launch: Launch) {
         .plugin(tauri_plugin_dialog::init())
         .manage(app)
         .register_uri_scheme_protocol("view", view_scheme)
+        .setup(|app| {
+            // The web view's own ground, which shows between one page and the next, is the page's.
+            // A page that never asks for the window still has it shown after SHOW_ANYWAY.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_background_color(Some(tauri::window::Color(0x13, 0x13, 0x31, 0xff)));
+                std::thread::spawn(move || {
+                    std::thread::sleep(SHOW_ANYWAY);
+                    let _ = window.show();
+                });
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             root_get,
             root_set,
@@ -389,8 +429,12 @@ fn open(launch: Launch) {
             launch_take,
             app_version,
             app_exit,
+            window_show,
             tree_list,
             tree_find,
+            tree_files,
+            tree_search,
+            zoom_set,
             tree_changed,
             tree_branch,
             report_error,
