@@ -1,0 +1,66 @@
+{
+  "id": "sharc",
+  "name": "SHARC Assembly",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["asm"],
+  "comments": {"line":"//","block":["/*","*/"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "(?::|\\bdo\\b.*\\buntil\\b.*)\\s*(?://.*)?$",
+  "grammar": {
+    "ignoreCase": true,
+    "words": [
+      "abs", "and", "ashift", "bclr", "bit", "bitrev", "bset", "btgl", "btst", "by", "call", "cjump", "clip", "clr",
+      "comp", "compu", "copysign", "db", "dm", "do", "else", "emuidle", "exp", "exp2", "fdep", "fext", "fix",
+      "float", "flush", "fpack", "funpack", "idle", "if", "jump", "la", "lefto", "leftz", "logb",
+      "lshift", "mant", "max", "min", "modify", "nop", "not", "or", "pass", "pm", "pop", "push", "rframe",
+      "recips", "rnd", "rot", "rsqrts", "rti", "rts", "sat", "scalb", "set", "ssf", "ssi", "sf", "si", "tgl",
+      "trunc", "tst", "uuf", "uui", "suf", "sui", "usf", "usi", "uf", "ui", "until", "xor", "loop", "sts", "cache",
+      "ci", "lw"
+    ],
+    "registers": [
+      "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+      "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
+      "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15",
+      "sf0", "sf1", "sf2", "sf3", "sf4", "sf5", "sf6", "sf7", "sf8", "sf9", "sf10", "sf11", "sf12", "sf13",
+      "sf14", "sf15", "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i10", "i11", "i12", "i13",
+      "i14", "i15", "m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "m12", "m13",
+      "m14", "m15", "l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9", "l10", "l11", "l12", "l13",
+      "l14", "l15", "b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "b10", "b11", "b12", "b13",
+      "b14", "b15", "px", "px1", "px2", "mrf", "mrb", "mr0f", "mr1f", "mr2f", "mr0b", "mr1b", "mr2b", "msf",
+      "msb", "astat", "astatx", "astaty", "stky", "stkyx", "stkyy", "mode1", "mode2", "mode1stk", "mmask",
+      "imask", "imaskp", "irptl", "lirptl", "ustat1", "ustat2", "ustat3", "ustat4", "curlcntr", "laddr",
+      "pcstk", "pcstkp", "faddr", "daddr", "pc", "tperiod", "tcount", "lcntr"
+    ],
+    "conditions": [
+      "eq", "ne", "gt", "lt", "ge", "le", "ac", "av", "mv", "ms", "sv", "sz", "tf", "bm", "lce", "forever",
+      "true", "false", "flag0_in", "flag1_in", "flag2_in", "flag3_in", "sse", "ssi"
+    ],
+    "tokenizer": {
+      "root": [
+        ["^\\s*#\\s*\\w+","keyword.directive","@directive"],
+        {"include":"@whitespace"},
+        [{"pattern":"\\.[a-z_]\\w*(?:\\s*/\\s*[a-z_0-9]+)*","flags":"i"},"keyword.directive"],
+        ["[A-Za-z_]\\w*(?=\\s*:(?!=))","tag"],
+        ["[A-Za-z_]\\w*",{"cases":{"@registers":"variable","@conditions":"predefined","@words":"keyword","@default":"identifier"}}],
+        [{"pattern":"0x[0-9a-f]+|b#[01]+|h#[0-9a-f]+|(?:\\d+\\.\\d*|\\.\\d+)(?:e[-+]?\\d+)?r?|\\d+","flags":"i"},"number"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["'(?:[^'\\\\]|\\\\.)*'","string"],
+        ["[{}()[\\]]","@brackets"],
+        ["[-+*/=<>&|^~!]+","operator"],
+        ["[;,:]","delimiter"]
+      ],
+      "directive": [
+        ["<[^>]*>","string"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["\\/\\/.*$","comment"],
+        ["\\\\$","keyword.directive","@directive"],
+        ["$","","@pop"],
+        ["[^\"<\\\\/]+|.","keyword.directive"]
+      ],
+      "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"],["\\/\\/.*$","comment"]],
+      "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
+    }
+  }
+}

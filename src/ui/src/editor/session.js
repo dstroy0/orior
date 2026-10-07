@@ -55,8 +55,7 @@ export class Session {
     this.doc = new Doc(text);
     // A session that is read only takes no edit, and nothing it holds is ever written.
     this.readOnly = readOnly;
-    this.language = language ?? null;
-    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null);
+    this.setLanguage(language);
     this.selections = [{ anchor: pos(0, 0), head: pos(0, 0), goal: null }];
     this.primary = 0;
     this.top = 0;
@@ -96,6 +95,12 @@ export class Session {
         }
       }
     });
+  }
+
+  // Colors the text in `language` from here on, as a plugin read again asks.
+  setLanguage(language) {
+    this.language = language ?? null;
+    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null);
   }
 
   // Every region that folds. It reads the whole text, and only folding everything asks for it.

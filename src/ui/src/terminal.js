@@ -232,6 +232,12 @@ export function terminalAt(folder) {
   send(`cd -- '${where.replace(/'/g, "'\\''")}'\r`);
 }
 
+// Opens the panel and runs `line` in its shell, as though typed there.
+export function runInTerminal(line) {
+  toggle(true);
+  send(`${line}\r`);
+}
+
 // The terminal's menu: copy what is chosen in it, paste, clear the screen, or close the panel.
 function terminalItems() {
   const text = chosen();

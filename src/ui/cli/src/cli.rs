@@ -19,9 +19,15 @@ use crate::bridge::{self, Bridge};
 use crate::catalog::{self, Job};
 use crate::commands::{self, Commands, Item, Menu};
 use crate::files;
+use crate::format;
+use crate::home;
+use crate::plugins;
 use crate::report;
 use crate::root;
+use crate::run_file;
 use crate::runner::{self, Said, Sink};
+use crate::toolchains;
+use crate::validate;
 
 /// The code a run exits with where a step could not start or gave no code.
 const NO_CODE: i32 = 1;
@@ -460,6 +466,13 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         }
         "auto-report" => return auto_report(words.first().map(String::as_str)),
         "search" => return search(named, words),
+        "plugins" => return plugins_list(),
+        "new-plugin" => return new_plugin(words),
+        "user-css" => return user_css(),
+        "toolchains" => return toolchains_words(words),
+        "format" => return format_files(words),
+        "run-file" => return run_file_words(named, words),
+        "validate" => return validate_files(words),
         "report" => return report_page(named, words),
         _ => {}
     }
@@ -492,6 +505,365 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
             } else {
                 run_job(root, job, &words[1..])
             }
+        }
+    }
+}
+
+/// `orior file plugins`: every plugin, its id, where it comes from, its name and the extensions it
+/// opens. One of the reader's that stands in for one that comes with orior is marked so.
+fn plugins_list() -> i32 {
+    let found = plugins::all();
+    let users: std::collections::HashSet<String> = found.iter().filter(|plugin| plugin.source == "user").map(|plugin| plugin.id.clone()).collect();
+    let mut rows = Vec::new();
+    for plugin in &found {
+        let read: Result<serde_json::Value, _> = serde_json::from_str(&plugin.text);
+        let (name, opens) = match &read {
+            Ok(value) => (
+                value["name"].as_str().unwrap_or(&plugin.id).to_string(),
+                value["extensions"].as_array().map(|list| list.iter().filter_map(|ext| ext.as_str()).map(|ext| format!(".{ext}")).collect::<Vec<_>>().join(" ")).unwrap_or_default(),
+            ),
+            Err(error) => (format!("does not read: {error}"), String::new()),
+        };
+        let source = if plugin.source == "bundled" && users.contains(&plugin.id) { "bundled, replaced" } else { plugin.source };
+        rows.push((plugin.id.clone(), source.to_string(), name, opens));
+    }
+    let wide = |pick: fn(&(String, String, String, String)) -> &String| rows.iter().map(|row| pick(row).len()).max().unwrap_or(0);
+    let (a, b, c) = (wide(|row| &row.0), wide(|row| &row.1), wide(|row| &row.2));
+    for (id, source, name, opens) in &rows {
+        out(&format!("{id:a$}  {source:b$}  {name:c$}  {opens}"));
+    }
+    if let Some(dir) = home::plugins() {
+        out(&format!("\nthe reader's plugins: {}", dir.display()));
+    }
+    0
+}
+
+/// `orior file new-plugin <name> --ext <ext,...> ...`: writes a language plugin to the reader's
+/// plugins folder, as plugins.rs says, and names the folder.
+fn new_plugin(words: &[String]) -> i32 {
+    let mut spec = plugins::Spec::default();
+    let mut name = Vec::new();
+    let mut replace = false;
+    let list = |text: &str| text.split(',').map(|word| word.trim().to_string()).filter(|word| !word.is_empty()).collect::<Vec<_>>();
+    let mut at = 0;
+    while at < words.len() {
+        let word = words[at].as_str();
+        let value = words.get(at + 1).map(String::as_str);
+        let taken = match (word, value) {
+            ("--replace", _) => {
+                replace = true;
+                0
+            }
+            ("--ext", Some(value)) => {
+                spec.extensions = list(value);
+                1
+            }
+            ("--id", Some(value)) => {
+                spec.id = value.to_string();
+                1
+            }
+            ("--from", Some(value)) => {
+                spec.from = value.to_string();
+                1
+            }
+            ("--line-comment", Some(value)) => {
+                spec.line_comment = value.to_string();
+                1
+            }
+            ("--block-comment", Some(open)) => match words.get(at + 2) {
+                Some(close) => {
+                    spec.block_comment = vec![open.to_string(), close.clone()];
+                    2
+                }
+                None => {
+                    err("--block-comment takes two words, the opening and the closing");
+                    return WRONG;
+                }
+            },
+            ("--keywords", Some(value)) => {
+                spec.keywords = list(value);
+                1
+            }
+            ("--types", Some(value)) => {
+                spec.types = list(value);
+                1
+            }
+            ("--constants", Some(value)) => {
+                spec.constants = list(value);
+                1
+            }
+            ("--quotes", Some(value)) => {
+                spec.quotes = list(value);
+                1
+            }
+            (flag, None) if flag.starts_with("--") => {
+                err(&format!("{flag} needs a value"));
+                return WRONG;
+            }
+            (flag, _) if flag.starts_with("--") => {
+                err(&format!("new-plugin takes no {flag}: orior help names what it takes"));
+                return WRONG;
+            }
+            _ => {
+                name.push(word.to_string());
+                0
+            }
+        };
+        at += 1 + taken;
+    }
+    spec.name = name.join(" ");
+    match plugins::create(&spec, replace) {
+        Ok(folder) => {
+            out(&folder.display().to_string());
+            0
+        }
+        Err(said) => {
+            err(&said);
+            WRONG
+        }
+    }
+}
+
+/// `orior file toolchains [install <tool> | add-path <tool|orior> | use <tool> <folder> | forget <tool>]`:
+/// with no words, every toolchain as toolchains.rs finds it, a group at a time, with its version
+/// where it says one, and whether orior itself is on the PATH. `install` opens a tool's install page,
+/// `add-path` puts the folder its program was found in, or orior's own, on the reader's PATH, `use`
+/// has orior run a tool from a folder, and `forget` drops that folder.
+fn toolchains_words(words: &[String]) -> i32 {
+    let word = |at: usize| words.get(at).map(String::as_str);
+    let done = |said: Result<String, String>| match said {
+        Ok(text) => {
+            out(&text);
+            0
+        }
+        Err(text) => {
+            err(&text);
+            NO_CODE
+        }
+    };
+    match (word(0), word(1), word(2)) {
+        (None, _, _) | (Some("check"), None, _) => {}
+        // A tool its makers give a line to install it by is installed here, in this terminal; any other
+        // has its install page opened.
+        (Some("install"), Some(id), None) => {
+            let Ok(line) = toolchains::setup_line(id) else {
+                return done(toolchains::open_install(id).map(|url| format!("opened {url}")));
+            };
+            let bash = match runner::bash() {
+                Ok(bash) => bash,
+                Err(said) => {
+                    err(&said);
+                    return NO_CODE;
+                }
+            };
+            err(&format!("$ {line}"));
+            return match std::process::Command::new(bash).arg("-c").arg(&line).env("PATH", toolchains::run_path()).status() {
+                Ok(status) => status.code().unwrap_or(NO_CODE),
+                Err(error) => {
+                    err(&error.to_string());
+                    NO_CODE
+                }
+            };
+        }
+        (Some("add-path"), Some(what), None) => {
+            return done(toolchains::add_to_path(what).map(|folder| format!("{folder} is on your PATH for every terminal started from now")));
+        }
+        (Some("use"), Some(id), Some(folder)) if words.len() == 3 => return done(toolchains::choose(id, folder).map(|program| format!("orior runs {program}"))),
+        (Some("forget"), Some(id), None) => return done(toolchains::forget(id).map(|()| format!("orior looks for {id} on the PATH again"))),
+        _ => {
+            err("toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder> or forget <tool>");
+            return WRONG;
+        }
+    }
+    let found = toolchains::check();
+    let versions = toolchains::versions(&found);
+    let wide = found.iter().map(|one| one.id.len()).max().unwrap_or(0);
+    let mut group = "";
+    for one in &found {
+        if one.group != group {
+            group = &one.group;
+            out(&format!("\n{group}"));
+        }
+        let state = match one.state {
+            "env" => "named",
+            "chosen" => "chosen",
+            "path" => "on PATH",
+            "found" => "not on PATH",
+            _ => "missing",
+        };
+        let detail = match (&one.program, versions.get(&one.id)) {
+            (Some(program), Some(version)) => format!("{version}  {program}"),
+            (Some(program), None) => program.clone(),
+            (None, _) => one.install.clone().map(|url| format!("install: {url}")).unwrap_or_default(),
+        };
+        out(&format!("  {:wide$}  {state:11}  {detail}", one.id));
+    }
+    match toolchains::own() {
+        Ok(own) if own.on_path => out(&format!("\norior is on PATH: {}", own.folder)),
+        Ok(own) => out(&format!("\norior is not on PATH: orior file toolchains add-path orior adds {}", own.folder)),
+        Err(said) => err(&said),
+    }
+    0
+}
+
+/// `orior run run-file <file>`: runs a file with its language's toolchain, as run_file.rs gives the
+/// line, in bash at the tree's top folder, attached to this terminal, and exits with its code.
+fn run_file_words(named: Option<&str>, words: &[String]) -> i32 {
+    let [file] = words else {
+        err("run-file takes the one file to run");
+        return WRONG;
+    };
+    let root = match tree(named) {
+        Ok(root) => root,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let path = dunce::canonicalize(file).unwrap_or_else(|_| PathBuf::from(file));
+    let Some(language) = format::language_of(&path) else {
+        err(&format!("{file}: no plugin opens it, and so orior knows no way to run it"));
+        return NO_CODE;
+    };
+    let run = match run_file::line_for(&root, &path, &language) {
+        Ok(run) => run,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let bash = match runner::bash() {
+        Ok(bash) => bash,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    err(&format!("$ {}", run.line));
+    match std::process::Command::new(bash).arg("-c").arg(&run.line).env("PATH", toolchains::run_path()).status() {
+        Ok(status) => status.code().unwrap_or(NO_CODE),
+        Err(error) => {
+            err(&error.to_string());
+            NO_CODE
+        }
+    }
+}
+
+/// `orior run validate [--json] <file>...`: validates each file with the tool plugin for its language,
+/// as validate.rs does, and says what it found and its verdict, or with --json the whole report.
+/// Exits 1 where a file does not hold.
+fn validate_files(words: &[String]) -> i32 {
+    let json = words.iter().any(|word| word == "--json");
+    let files: Vec<&String> = words.iter().filter(|word| *word != "--json").collect();
+    if files.is_empty() || files.iter().any(|word| word.starts_with("--")) {
+        err("validate takes [--json] and the files to validate");
+        return WRONG;
+    }
+    let mut code = 0;
+    for file in files {
+        let path = dunce::canonicalize(file).unwrap_or_else(|_| PathBuf::from(file));
+        let Some(tool) = format::language_of(&path).and_then(|language| validate::tool_for(&language)) else {
+            err(&format!("{file}: no tool plugin validates it"));
+            code = NO_CODE;
+            continue;
+        };
+        let report = match validate::validate(&tool, &path) {
+            Ok(report) => report,
+            Err(said) => {
+                err(&format!("{file}: {said}"));
+                code = NO_CODE;
+                continue;
+            }
+        };
+        if !report.holds {
+            code = NO_CODE;
+        }
+        if json {
+            out(&serde_json::to_string_pretty(&report).unwrap_or_default());
+            continue;
+        }
+        for check in &report.checks {
+            let with = if check.settings.is_empty() { "as it is".to_string() } else { check.settings.join(" ") };
+            let stopped = if check.barriers.is_empty() { String::new() } else { format!(", stopped by {}", check.barriers.join(", ")) };
+            let errors = if check.errors == 1 { "error" } else { "errors" };
+            err(&format!("  checked {with}: {:.1} s, {} {errors}{stopped}", check.seconds, check.errors));
+        }
+        for finding in &report.findings {
+            let head = format!("{file}:{}:{}: {}", finding.line + 1, finding.col + 1, finding.kind);
+            let mut lines = finding.message.lines().filter(|line| !line.trim().is_empty());
+            out(&format!("{head}: {}", lines.next().unwrap_or_default()));
+            for line in lines {
+                out(&format!("    {line}"));
+            }
+            if let Some(lifted) = &finding.lifted {
+                out(&format!("    {lifted}"));
+            }
+        }
+        out(&format!("{file}: {}: {}", if report.holds { "holds" } else { "does not hold" }, report.verdict));
+    }
+    code
+}
+
+/// `orior edit format [--check] <file>...`: formats each file in place with its language's formatter,
+/// as format.rs says, and names each it changed. With --check it changes none, names each it would,
+/// and exits 1 where there is one.
+fn format_files(words: &[String]) -> i32 {
+    let check = words.iter().any(|word| word == "--check");
+    let files: Vec<&String> = words.iter().filter(|word| *word != "--check").collect();
+    if files.is_empty() || files.iter().any(|word| word.starts_with("--")) {
+        err("format takes [--check] and the files to format");
+        return WRONG;
+    }
+    let mut code = 0;
+    for file in files {
+        let path = PathBuf::from(file);
+        let full = dunce::canonicalize(&path).unwrap_or_else(|_| path.clone());
+        let Some(language) = format::language_of(&path) else {
+            err(&format!("{file}: no plugin opens it, and so no formatter knows it"));
+            code = NO_CODE;
+            continue;
+        };
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                err(&format!("{file}: {error}"));
+                code = NO_CODE;
+                continue;
+            }
+        };
+        match format::format(&full, &language, &text) {
+            Ok(formatted) if formatted == text => {}
+            Ok(_) if check => {
+                out(&format!("{file} would change"));
+                code = NO_CODE;
+            }
+            Ok(formatted) => match std::fs::write(&path, formatted) {
+                Ok(()) => out(&format!("{file} formatted")),
+                Err(error) => {
+                    err(&format!("{file}: {error}"));
+                    code = NO_CODE;
+                }
+            },
+            Err(said) => {
+                err(&said);
+                code = NO_CODE;
+            }
+        }
+    }
+    code
+}
+
+/// `orior file user-css`: names the stylesheet the window lays over its own, and makes it, empty but
+/// for a note, where it is not there yet.
+fn user_css() -> i32 {
+    match home::ensure_user_css() {
+        Ok(path) => {
+            out(&path.display().to_string());
+            0
+        }
+        Err(said) => {
+            err(&said);
+            NO_CODE
         }
     }
 }

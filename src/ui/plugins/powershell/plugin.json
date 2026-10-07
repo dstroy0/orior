@@ -1,0 +1,43 @@
+{
+  "id": "powershell",
+  "name": "PowerShell",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["ps1","psm1"],
+  "comments": {"line":"#","block":["<#","#>"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "ignoreCase": true,
+    "words": [
+      "begin", "break", "catch", "class", "continue", "data", "do", "dynamicparam", "else", "elseif", "end",
+      "exit", "filter", "finally", "for", "foreach", "function", "if", "in", "param", "process", "return",
+      "switch", "throw", "trap", "try", "until", "using", "while"
+    ],
+    "tokenizer": {
+      "root": [
+        ["\\s+",""],
+        ["<#","comment","@comment"],
+        ["#.*$","comment"],
+        ["\\$(?:\\{[^}]*\\}|[\\w:]+)","variable"],
+        ["\"","string","@string"],
+        ["'(?:[^']|'')*'","string"],
+        ["-[A-Za-z]+","operator"],
+        ["[A-Za-z]+-[A-Za-z]+","predefined"],
+        ["\\[[A-Za-z.]+\\]","type"],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@default":""}}],
+        ["\\d+","number"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!&|;+*/%-]+","operator"]
+      ],
+      "comment": [["#>","comment","@pop"],["[^#]+|#","comment"]],
+      "string": [
+        ["\\$(?:\\{[^}]*\\}|[\\w:]+)","variable"],
+        ["`.","string.escape"],
+        ["\"","string","@pop"],
+        ["[^\"`$]+|\\$","string"]
+      ]
+    }
+  }
+}

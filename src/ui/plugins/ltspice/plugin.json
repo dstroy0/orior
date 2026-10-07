@@ -1,0 +1,58 @@
+{
+  "id": "ltspice",
+  "name": "LTspice",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["asc","asy","net"],
+  "comments": {"line":"*"},
+  "pairs": ["()","{}"],
+  "quotes": ["\""],
+  "indentAfter": "^\\s*\\.subckt\\b.*$",
+  "grammar": {
+    "ignoreCase": true,
+    "words": [
+      "ac", "dc", "tran", "op", "noise", "tf", "dec", "oct", "lin", "list", "uic", "startup", "steady", "nodiscard",
+      "off", "pulse", "sine", "sin", "pwl", "exp", "sffm", "wavefile", "params", "temp", "find", "when", "at",
+      "trig", "targ", "rise", "fall", "cross", "td", "from", "to", "avg", "rms", "integ", "deriv", "pp", "param",
+      "file", "repeat", "forever", "endrepeat"
+    ],
+    "models": [
+      "r", "c", "l", "d", "npn", "pnp", "nmos", "pmos", "njf", "pjf", "vdmos", "sw", "csw", "ltra", "urc", "res",
+      "cap", "ind"
+    ],
+    "functions": [
+      "abs", "sqrt", "exp", "ln", "log", "log10", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh",
+      "cosh", "tanh", "min", "max", "pow", "pwr", "pwrs", "limit", "u", "uramp", "if", "ddt", "idt", "sdt", "sgn",
+      "sign", "table", "floor", "ceil", "int", "round", "buf", "inv", "delay", "absdelay", "rand", "random",
+      "white", "gauss", "flat", "mc", "v", "i", "re", "im", "mag", "ph"
+    ],
+    "schematic": [
+      "Left", "Right", "Top", "Bottom", "Center", "VLeft", "VRight", "VTop", "VBottom", "Invisible", "Normal",
+      "R0", "R90", "R180", "R270", "M0", "M90", "M180", "M270", "CELL", "BLOCK", "BiDir", "Dot"
+    ],
+    "attributes": [
+      "InstName", "Value", "Value2", "SpiceModel", "SpiceLine", "SpiceLine2", "Prefix", "Description",
+      "ModelFile", "Type", "PinName", "SpiceOrder"
+    ],
+    "tokenizer": {
+      "root": [
+        ["^\\s*\\*.*$","comment"],
+        ["^\\s*;.*$","comment"],
+        [{"pattern":"^(?:Version|SHEET|WIRE|FLAG|IOPIN|SYMBOL|SYMATTR|WINDOW|TEXT|LINE|RECTANGLE|CIRCLE|ARC|PIN|PINATTR|SymbolType|DATAFLAG|BUSTAP)\\b","flags":""},"keyword"],
+        ["!\\.[A-Za-z_]\\w*","keyword.directive"],
+        ["^\\s*\\.[A-Za-z_]\\w*","keyword.directive"],
+        ["^\\s*\\+","operator"],
+        ["^\\s*[A-Za-z]\\w*","type"],
+        ["\\s;.*$","comment"],
+        ["\\s+",""],
+        ["\\{[^}]*\\}","variable"],
+        ["\"[^\"]*\"","string"],
+        ["[A-Za-z_][\\w.#]*",{"cases":{"@attributes":"attribute","@schematic":"predefined","@models":"predefined","@functions":"predefined","@words":"keyword","@default":"identifier"}}],
+        [{"pattern":"[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[-+]?\\d+)?(?:meg|mil|[tgkmunpfaµ])?[a-z]*","flags":"i"},"number"],
+        ["[()]","@brackets"],
+        ["[-+*/^<>=!&|?:]+","operator"],
+        ["[,]","delimiter"]
+      ]
+    }
+  }
+}

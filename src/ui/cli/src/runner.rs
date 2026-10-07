@@ -5,8 +5,9 @@
 //!
 //! A job's steps run one after another in the tree's top folder, and the first that exits other than
 //! 0 ends the job. Every line either stream writes goes to the run's sink as it comes, and then the
-//! end, carrying the exit code and the pages the job wrote. The window's sink sends them to the page;
-//! the command line's prints them.
+//! end, carrying the exit code and the pages the job wrote. Each line and the end carry the
+//! milliseconds since the run started, to the microsecond, which the window's time ruler reads. The
+//! window's sink sends them to the page; the command line's prints them.
 
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Read};
@@ -15,6 +16,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Instant;
 
 use serde::Serialize;
 
@@ -44,6 +46,7 @@ pub struct Line {
     pub run: u64,
     pub stream: &'static str,
     pub text: String,
+    pub ms: f64,
 }
 
 #[derive(Clone, Serialize)]
@@ -52,6 +55,7 @@ pub struct End {
     pub code: Option<i32>,
     pub stopped: bool,
     pub views: Vec<String>,
+    pub ms: f64,
 }
 
 /// What a run says as it goes: each line, then its end.
@@ -60,14 +64,23 @@ pub enum Said {
     End(End),
 }
 
+/// The milliseconds since `began`.
+fn since(began: Instant) -> f64 {
+    began.elapsed().as_secs_f64() * 1000.0
+}
+
 /// Where a run's lines and end go.
 pub type Sink = Arc<dyn Fn(Said) + Send + Sync>;
 
 /// The bash that runs the tree's scripts. On Windows that is Git's, found beside git itself, because
-/// the bash System32 offers is WSL's and reads none of these paths. ORIOR_BASH overrides it anywhere.
+/// the bash System32 offers is WSL's and reads none of these paths. ORIOR_BASH overrides it anywhere,
+/// and a folder given for bash under File, Toolchains overrides the rest.
 pub fn bash() -> Result<PathBuf, String> {
     if let Ok(named) = std::env::var("ORIOR_BASH") {
         return Ok(PathBuf::from(named));
+    }
+    if let Some(chosen) = crate::toolchains::chosen_program("bash") {
+        return Ok(chosen);
     }
     if !cfg!(windows) {
         return Ok(PathBuf::from("bash"));
@@ -94,10 +107,14 @@ pub fn bash() -> Result<PathBuf, String> {
     })
 }
 
-/// The Python that runs the tree's scripts: ORIOR_PYTHON, else python on Windows and python3 elsewhere.
+/// The Python that runs the tree's scripts: ORIOR_PYTHON, else the one in the folder given for Python
+/// under File, Toolchains, else python on Windows and python3 elsewhere.
 pub fn python() -> PathBuf {
     if let Ok(named) = std::env::var("ORIOR_PYTHON") {
         return PathBuf::from(named);
+    }
+    if let Some(chosen) = crate::toolchains::chosen_program("python") {
+        return chosen;
     }
     PathBuf::from(if cfg!(windows) { "python" } else { "python3" })
 }
@@ -247,7 +264,7 @@ pub(crate) fn quiet(cmd: &mut Command) {
     }
 }
 
-fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, from: R, seen: Arc<Mutex<Vec<String>>>) -> thread::JoinHandle<()> {
+fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, from: R, seen: Arc<Mutex<Vec<String>>>, began: Instant) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut reader = BufReader::new(from);
         let mut bytes = Vec::new();
@@ -260,7 +277,7 @@ fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, f
                     if let Ok(mut seen) = seen.lock() {
                         seen.push(text.clone());
                     }
-                    sink(Said::Line(Line { run, stream, text }));
+                    sink(Said::Line(Line { run, stream, text, ms: since(began) }));
                 }
             }
         }
@@ -338,22 +355,24 @@ impl Runs {
         let live = self.live.clone();
         let stopped = self.stopped.clone();
         let attached = self.attached;
+        let began = Instant::now();
         let waits = thread::spawn(move || {
             if job.opens == "views" {
                 let _ = std::fs::remove_dir_all(&view_out);
             }
             let seen = Arc::new(Mutex::new(Vec::new()));
             let mut code = Some(0);
+            let run_path = crate::toolchains::run_path();
             for (mut cmd, shown) in commands {
                 if holds(&stopped, run) {
                     break;
                 }
-                sink(Said::Line(Line { run, stream: "command", text: shown }));
+                sink(Said::Line(Line { run, stream: "command", text: shown, ms: since(began) }));
                 if job.opens == "views" {
                     let _ = std::fs::create_dir_all(&view_out);
                     cmd.env("VIEW_OUT", &view_out);
                 }
-                cmd.env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8");
+                cmd.env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8").env("PATH", &run_path);
                 cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
                 if !attached {
                     quiet(&mut cmd);
@@ -361,7 +380,7 @@ impl Runs {
                 let mut child: Child = match cmd.spawn() {
                     Ok(child) => child,
                     Err(error) => {
-                        sink(Said::Line(Line { run, stream: "stderr", text: format!("could not start: {error}") }));
+                        sink(Said::Line(Line { run, stream: "stderr", text: format!("could not start: {error}"), ms: since(began) }));
                         code = None;
                         break;
                     }
@@ -369,8 +388,8 @@ impl Runs {
                 if let Ok(mut live) = live.lock() {
                     live.insert(run, child.id());
                 }
-                let out = child.stdout.take().map(|s| carry(sink.clone(), run, "stdout", s, seen.clone()));
-                let err = child.stderr.take().map(|s| carry(sink.clone(), run, "stderr", s, seen.clone()));
+                let out = child.stdout.take().map(|s| carry(sink.clone(), run, "stdout", s, seen.clone(), began));
+                let err = child.stderr.take().map(|s| carry(sink.clone(), run, "stderr", s, seen.clone(), began));
                 let status = child.wait();
                 for reader in [out, err].into_iter().flatten() {
                     let _ = reader.join();
@@ -385,7 +404,7 @@ impl Runs {
             }
             let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
             let views = if job.opens == "views" { pages(&root, &view_out, &lines) } else { Vec::new() };
-            sink(Said::End(End { run, code, stopped: holds(&stopped, run), views }));
+            sink(Said::End(End { run, code, stopped: holds(&stopped, run), views, ms: since(began) }));
         });
         Ok((run, waits))
     }

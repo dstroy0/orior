@@ -11,8 +11,7 @@
 // so, and a group with no job in the tree has no menu. A job chosen from a menu shows in the run view
 // with its form, and starts only from there or from Run, Start.
 //
-// Edit and Run are the two views as well as menus, and the bar marks the one shown; opening either
-// shows its view. A press of the menu bar opens its menu, and while one is open the pointer moving
+// A press of the menu bar opens its menu, and while one is open the pointer moving
 // to another title opens that one instead. Alt held marks each title's letter, Alt and the letter
 // opens the menu, and Alt alone gives the bar the keys: Left and Right step along it, Down, Enter or
 // Space opens, and Escape hands the keys back. In an open menu Left and Right step to the menus on
@@ -24,6 +23,10 @@ import { crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, savi
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
 import { showPreferences } from "./preferences.js";
+import { showGenerator, showPlugins } from "./pluginsheet.js";
+import { loadPlugins } from "./plugins.js";
+import { runToolchains } from "./toolchains.js";
+import { openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
@@ -31,7 +34,7 @@ import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, su
 import { scheme, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
-import { onView, shownView, showView } from "./views.js";
+import { showView } from "./views.js";
 import { askReports, reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
 
@@ -135,8 +138,25 @@ const COMMANDS = {
   },
   replace: inEditor((e) => e.find.open(true)),
   comment: inEditor((e) => e.toggleComment()),
+  format: () => editing().format(),
   "select-all": inEditor((e) => e.selectAll()),
   "select-line": inEditor((e) => e.selectLine()),
+  "join-lines": inEditor((e) => e.joinLines()),
+  "sort-ascending": inEditor((e) => e.sortLines(false)),
+  "sort-descending": inEditor((e) => e.sortLines(true)),
+  "unique-lines": inEditor((e) => e.uniqueLines()),
+  "upper-case": inEditor((e) => e.transformCase("upper")),
+  "lower-case": inEditor((e) => e.transformCase("lower")),
+  "title-case": inEditor((e) => e.transformCase("title")),
+  "column-mode": (args) => editing().setColumnMode(onOff(args) ?? !editing().columnMode()),
+  "next-change": () => {
+    showView("edit");
+    editing().nextChange();
+  },
+  "previous-change": () => {
+    showView("edit");
+    editing().previousChange();
+  },
   "copy-line-up": inEditor((e) => e.copyLines(-1)),
   "copy-line-down": inEditor((e) => e.copyLines(1)),
   "move-line-up": inEditor((e) => e.moveLines(-1)),
@@ -149,6 +169,7 @@ const COMMANDS = {
   "side-bar": (args) => togglePane(args[0] === "show" ? true : args[0] === "hide" ? false : undefined),
   "auto-collapse": (args) => setAutoCollapse(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "auto-save": (args) => setSaving("auto-save", onOff(args)),
+  "format-on-save": (args) => setSaving("format", onOff(args)),
   breadcrumbs: (args) => setCrumbs(onOff(args)),
   "bracket-pairs": (args) => editing().setBrackets(onOff(args) ?? !editing().brackets()),
   "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
@@ -162,6 +183,11 @@ const COMMANDS = {
         { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
       ],
     }),
+  "user-css": () => openUserCss(),
+  plugins: () => showPlugins(sheet),
+  "new-plugin": (args) => showGenerator(sheet, args),
+  "reload-plugins": () => loadPlugins(),
+  toolchains: (args) => runToolchains(sheet, args),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
@@ -171,10 +197,15 @@ const COMMANDS = {
   line: (args) => inEditor((e) => (args[0] ? e.goTo(Math.max(0, Number(args[0]) - 1)) : e.goto.open()))(),
   bracket: inEditor((e) => e.jumpBracket()),
   bridge: goToBridge,
+  definition: inEditor(() => editing().definition()),
+  "next-problem": inEditor((e) => e.stepProblem(1)),
+  "previous-problem": inEditor((e) => e.stepProblem(-1)),
   "next-match": inEditor((e) => e.find.step(1)),
   "previous-match": inEditor((e) => e.find.step(-1)),
   start: () => chosenJob() && startChosen(),
   stop: stopChosen,
+  "run-file": () => editing().runFile(),
+  validate: () => editing().validate(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
   new: newTerminal,
@@ -196,7 +227,9 @@ const CHECKS = {
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
   "sticky-scroll": () => editing().sticky(),
+  "column-mode": () => editing().columnMode(),
   "auto-save": () => saving("auto-save"),
+  "format-on-save": () => saving("format"),
   breadcrumbs: crumbsShown,
   "bracket-pairs": () => editing().brackets(),
   "auto-report": () => state.autoReport,
@@ -206,6 +239,7 @@ const CHECKS = {
 const NEEDS = {
   editor: () => Boolean(editing().editor),
   text: () => Boolean(editing().editor),
+  changes: () => editing().hasChanges(),
   "changed-active": () => editing().activeChanged,
   changed: () => editing().changed,
   tab: () => Boolean(editing().active),
@@ -349,9 +383,6 @@ function titleOf(menu, letter) {
   } else {
     button.textContent = menu.title;
   }
-  if (menu.view) {
-    button.dataset.view = menu.view;
-  }
   return button;
 }
 
@@ -387,11 +418,17 @@ export function drawMenubar() {
     button.addEventListener("click", () => (state.open === at && menuOpen() ? closeMenu() : openAt(at, true)));
     button.addEventListener("pointerenter", () => menuOpen() && state.open >= 0 && state.open !== at && openAt(at, false));
   });
-  markView(shownView());
 }
 
-function markView(name) {
-  state.bar?.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-current", String(button.dataset.view === name)));
+// The keys a command lists, or undefined where it lists none.
+export function keysOf(command) {
+  for (const menu of state.menus) {
+    const item = (menu.items ?? []).find((one) => one !== "-" && one.command === command);
+    if (item) {
+      return item.keys;
+    }
+  }
+  return undefined;
 }
 
 // Opens the menu under the at'th title. The keys go into it where it was opened from the keyboard or
@@ -400,9 +437,6 @@ function openAt(at, keyed) {
   const count = state.titles.length;
   const index = ((at % count) + count) % count;
   const { menu, button, items: itemsFor } = state.titles[index];
-  if (menu.view) {
-    showView(menu.view);
-  }
   const box = button.getBoundingClientRect();
   state.bar.querySelectorAll(".bar-title").forEach((one) => one.removeAttribute("aria-expanded"));
   button.setAttribute("aria-expanded", "true");
@@ -515,7 +549,6 @@ export async function startMenubar({ openFolder }) {
       }
     },
   });
-  onView(markView);
   state.bar.addEventListener("keydown", (event) => {
     const at = state.titles.findIndex(({ button }) => button === document.activeElement);
     if (at < 0) {

@@ -20,6 +20,10 @@
       <span class="tree" id="tree-path"></span>
       <button class="scheme" id="scheme" type="button" aria-label="Light"></button>
     </header>
+    <nav class="modes" role="tablist" aria-label="View">
+      <button class="mode-tab" type="button" role="tab" id="tab-run" data-view="run" aria-controls="mode-run" aria-selected="true">Run</button>
+      <button class="mode-tab" type="button" role="tab" id="tab-edit" data-view="edit" aria-controls="mode-edit" aria-selected="false" tabindex="-1">Edit</button>
+    </nav>
 
     <main class="shell">
       <section class="mode" id="mode-run" data-active="true">
@@ -119,6 +123,7 @@
     <footer class="statusbar" id="statusbar">
       <span class="status-branch" id="status-branch" hidden></span>
       <span class="pulse" id="pulse"></span>
+      <button class="status-said" id="status-said" type="button" hidden></button>
       <button class="status-report" id="status-report" type="button" hidden></button>
       <button class="status-zoom" id="status-zoom" type="button" hidden></button>
       <span class="status-memory" id="status-memory" hidden></span>

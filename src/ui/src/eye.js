@@ -14,21 +14,21 @@
 // rolls, friction draws each iris's velocity toward that of the sphere under it, by FRICTION: a
 // roll leaves them sliding and bumping, and a stare lets them come to rest turning with the eye.
 //
-// An iris is fire, flames burning out from round the pupil. Its pupil is dark and moves as
+// An iris is a plasma torus, a ring of plasma flowing round the pupil. Its pupil is dark and moves as
 // a lava lamp does: one round body, and smaller ones that draw out of it, part from it as pupils of
 // their own, and run back in, and it leans toward the mouse. A reader who asks the system for less
 // motion gets the eye held still and open, with one iris.
 
-import { DUSK, ORCHID, PLUM, addArc, cornersOf, plasmaOn } from "./plasma.js";
+import { cssOf, rgbOf, withAlpha } from "./colors.js";
+import { clock, still as paused, whenMoving } from "./motion.js";
+import { addArc, cornersOf, dusk, orchid, plasmaOn, plum } from "./plasma.js";
 
 const OPENING = 1.4;
 const OPEN_FROM = 0.1;
 
-const DARK = [7, 6, 26];
 
 const smooth = (x) => x * x * (3 - 2 * x);
 const mix = (a, b, x) => a + (b - a) * x;
-const rgba = ([r, g, b], a) => `rgba(${r}, ${g}, ${b}, ${a})`;
 
 function seeded(seed) {
   let state = seed >>> 0;
@@ -41,30 +41,29 @@ function seeded(seed) {
   };
 }
 
-// The iris is fire. FLAMES tongues burn out from INNER of its radius, round the pupil, each at its
-// own angle, `width` times its share of the round wide at its root, and between `reach[0]` and
-// `reach[1]` of the radius long as it flickers on two waves, `rates` and `phases`. Each sways round
-// the iris a little and leans one way and back. Over them burn KINDLING shorter ones, hotter. Under
-// them the iris glows from yellow at the pupil to a dark red at its edge.
+// The iris is a plasma torus: a ring of plasma round the pupil, TORUS of the iris's radius out and
+// TUBE of it thick, over a glow from yellow at the pupil to a dark red at the iris's edge. FILAMENTS
+// strands wind round the ring's tube as they run round the ring, each `winds` times, and flow round
+// the tube as the fire goes, which carries the windings round the ring. Each strand is a wide glow
+// with a hot core, bright where it runs over the front of the tube and dim round the back, drawn in
+// PIECES pieces a turn.
 //
 // The fire is drawn once into BURNS pictures over a loop of LOOP seconds, each the first time it is
-// shown, and from then on each frame lays down the picture for its moment in the loop. Every wave
-// of a flame turns a whole number of times in a loop, which joins the loop's end to its start.
-const FLAMES = 30;
-const KINDLING = 16;
-const INNER = 0.26;
+// shown, and from then on each frame lays down the picture for its moment in the loop. Each strand
+// flows a whole number of turns in a loop, which joins the loop's end to its start.
+const TORUS = 0.6;
+const TUBE = 0.17;
+const FILAMENTS = 7;
+const PIECES = 160;
 const LOOP = 2;
 const BURNS = 48;
 
-function flamesOf(draw, count, reach) {
-  const turns = (fewest, most) => ((Math.PI * 2) / LOOP) * (fewest + Math.floor(draw() * (most - fewest + 1)));
-  return Array.from({ length: count }, (_, at) => ({
-    turn: ((at + (draw() - 0.5) * 0.6) / count) * Math.PI * 2,
-    width: 1.1 + draw() * 0.6,
-    reach: [reach[0] * (0.85 + draw() * 0.3), reach[1] * (0.85 + draw() * 0.15)],
-    lean: (draw() - 0.5) * 0.5,
-    rates: [turns(1, 3), turns(3, 5), turns(1, 1)],
-    phases: [draw() * Math.PI * 2, draw() * Math.PI * 2, draw() * Math.PI * 2],
+function filamentsOf(draw) {
+  return Array.from({ length: FILAMENTS }, (_, at) => ({
+    winds: 5 + Math.floor(draw() * 4),
+    phase: (at / FILAMENTS) * Math.PI * 2 + draw() * 0.4,
+    flows: (draw() < 0.5 ? 1 : 2) * ((Math.PI * 2) / LOOP),
+    width: 0.6 + draw() * 0.8,
   }));
 }
 
@@ -77,47 +76,52 @@ function glowOf(pen, r, stops) {
   return glow;
 }
 
+// The fire's stops, each a place along the radius and the stylesheet's color for it.
+const stopsOf = (stops) => stops.map(([at, name]) => [at, cssOf(name)]);
 const GROUND = [
-  [0, "rgb(255, 196, 92)"],
-  [0.3, "rgb(232, 104, 28)"],
-  [0.65, "rgb(140, 30, 14)"],
-  [1, "rgb(34, 6, 10)"],
+  [0, "--eye-iris-1"],
+  [0.3, "--eye-iris-2"],
+  [0.65, "--eye-iris-3"],
+  [1, "--eye-iris-4"],
 ];
-const FLAME = [
-  [0, "rgba(255, 236, 150, 0.7)"],
-  [0.45, "rgba(255, 150, 40, 0.55)"],
-  [0.8, "rgba(210, 50, 15, 0.35)"],
-  [1, "rgba(120, 10, 10, 0)"],
-];
-const KINDLE = [
-  [0, "rgba(255, 250, 210, 0.75)"],
-  [0.4, "rgba(255, 210, 90, 0.6)"],
-  [0.65, "rgba(255, 140, 30, 0)"],
-];
-
-// Adds each flame's outline to the path, `seconds` into the fire, in an iris of radius r.
-function addFlames(pen, flames, r, seconds) {
-  const at = (radius, turn) => [Math.cos(turn) * radius, Math.sin(turn) * radius];
-  const root = INNER * r;
-  for (const flame of flames) {
-    const [quick, quicker, slow] = flame.rates;
-    const [one, two, three] = flame.phases;
-    const flicker = 0.5 + 0.32 * Math.sin(quick * seconds + one) + 0.18 * Math.sin(quicker * seconds + two);
-    const length = r * mix(flame.reach[0], flame.reach[1], flicker);
-    const turn = flame.turn + 0.08 * Math.sin(slow * seconds + three);
-    const lean = flame.lean + 0.25 * Math.sin(slow * seconds + two);
-    const half = (Math.PI / flames.length) * flame.width;
-    const middle = root + (length - root) * 0.55;
-    const left = at(root, turn - half);
-    const right = at(root, turn + half);
-    const tip = at(length, turn + lean * 0.4);
-    const bendLeft = at(middle, turn - half * 0.7 + lean * 0.25);
-    const bendRight = at(middle, turn + half * 0.7 + lean * 0.25);
-    pen.moveTo(left[0], left[1]);
-    pen.quadraticCurveTo(bendLeft[0], bendLeft[1], tip[0], tip[1]);
-    pen.quadraticCurveTo(bendRight[0], bendRight[1], right[0], right[1]);
-    pen.closePath();
+// The torus `seconds` into the fire, in an iris of radius r, laid over what is under it: the ring's
+// body, a soft band strongest along its middle, then each strand piece by piece.
+function drawTorus(pen, filaments, r, seconds) {
+  const ring = TORUS * r;
+  const tube = TUBE * r;
+  const body = pen.createRadialGradient(0, 0, Math.max(0, ring - tube * 1.6), 0, 0, ring + tube * 1.6);
+  body.addColorStop(0, withAlpha("--eye-torus-glow", 0));
+  body.addColorStop(0.5, cssOf("--eye-torus-glow"));
+  body.addColorStop(1, withAlpha("--eye-torus-glow", 0));
+  pen.fillStyle = body;
+  pen.fillRect(-r, -r, r * 2, r * 2);
+  pen.lineCap = "round";
+  const strand = cssOf("--eye-torus-strand");
+  const core = cssOf("--eye-torus-core");
+  for (const filament of filaments) {
+    const point = (step) => {
+      const turn = (step / PIECES) * Math.PI * 2;
+      const twist = filament.winds * turn + filament.phase - filament.flows * seconds;
+      const out = ring + tube * Math.cos(twist);
+      return [Math.cos(turn) * out, Math.sin(turn) * out, Math.sin(twist)];
+    };
+    let from = point(0);
+    for (let step = 1; step <= PIECES; step += 1) {
+      const to = point(step);
+      pen.globalAlpha = 0.06 + 0.7 * smooth((from[2] + to[2] + 2) / 4) ** 1.5;
+      pen.beginPath();
+      pen.moveTo(from[0], from[1]);
+      pen.lineTo(to[0], to[1]);
+      pen.strokeStyle = strand;
+      pen.lineWidth = tube * 0.22 * filament.width;
+      pen.stroke();
+      pen.strokeStyle = core;
+      pen.lineWidth = Math.max(0.5, tube * 0.045 * filament.width);
+      pen.stroke();
+      from = to;
+    }
   }
+  pen.globalAlpha = 1;
 }
 
 // The pupil is the dark where the bodies' summed pull, each body's size squared over the squared
@@ -134,12 +138,10 @@ const LEAN = 6;
 // The pupils shine back as a dog's or a cat's do, from the layer behind the retina that throws the
 // light that comes in back out through it, the tapetum lucidum. The shine is deep in the pupil: none
 // where the pull is GLOWS[0] or less, near the pupil's edge, and full where it is GLOWS[1] or more.
-// It goes from SHINE_EDGE out there to SHINE in the middle. A reflection is brightest when the eye
+// It goes from --eye-pupil-edge out there to --eye-pupil-shine in the middle. A reflection is brightest when the eye
 // looks straight at whoever is looking, and the pupils come up to full shine while the eye stares at
 // the reader and fall to DIM of it while it rolls, closing GLINT of the gap a second.
 const GLOWS = [1.1, 3];
-const SHINE = [214, 255, 150];
-const SHINE_EDGE = [36, 168, 128];
 const DIM = 0.25;
 const GLINT = 4;
 
@@ -161,8 +163,7 @@ function lavaOf(draw) {
 // angle, squeezed and scaled. A divided eye costs a frame what one iris costs, however many irises
 // it holds.
 function irisPicture(draw) {
-  const flames = flamesOf(draw, FLAMES, [0.62, 1]);
-  const kindling = flamesOf(draw, KINDLING, [0.42, 0.62]);
+  const filaments = filamentsOf(draw);
   let burns = [];
   let burnSide = 0;
   const field = document.createElement("canvas");
@@ -179,6 +180,9 @@ function irisPicture(draw) {
       (one.size * (1 + 0.1 * Math.sin(one.rates[2] * seconds + one.phases[1]))) ** 2,
     ]);
     const data = image.data;
+    const DARK = rgbOf("--eye-dark");
+    const SHINE = rgbOf("--eye-pupil-shine");
+    const SHINE_EDGE = rgbOf("--eye-pupil-edge");
     for (let row = 0; row < FIELD; row += 1) {
       const v = ((row + 0.5) / FIELD) * 2 * REACH - REACH;
       for (let column = 0; column < FIELD; column += 1) {
@@ -211,22 +215,14 @@ function irisPicture(draw) {
     pen.beginPath();
     pen.arc(0, 0, r, 0, Math.PI * 2);
     pen.clip();
-    pen.fillStyle = glowOf(pen, r, GROUND);
+    pen.fillStyle = glowOf(pen, r, stopsOf(GROUND));
     pen.fillRect(-r, -r, side, side);
     pen.globalCompositeOperation = "lighter";
-    for (const [set, stops] of [
-      [flames, FLAME],
-      [kindling, KINDLE],
-    ]) {
-      pen.fillStyle = glowOf(pen, r, stops);
-      pen.beginPath();
-      addFlames(pen, set, r, seconds);
-      pen.fill();
-    }
+    drawTorus(pen, filaments, r, seconds);
     pen.globalCompositeOperation = "source-over";
     const rim = pen.createRadialGradient(0, 0, r * 0.72, 0, 0, r);
-    rim.addColorStop(0, "rgba(20, 4, 8, 0)");
-    rim.addColorStop(1, "rgba(20, 4, 8, 0.75)");
+    rim.addColorStop(0, withAlpha("--eye-iris-rim", 0));
+    rim.addColorStop(1, cssOf("--eye-iris-rim"));
     pen.fillStyle = rim;
     pen.fillRect(-r, -r, side, side);
     return canvas;
@@ -275,8 +271,8 @@ function drawIris(pen, picture, iris, x, y, r, turn, face) {
   const hx = x - r * 0.32 * face;
   const hy = y - r * 0.36;
   const shine = pen.createRadialGradient(hx, hy, 0, hx, hy, r * 0.11);
-  shine.addColorStop(0, "rgba(255, 255, 255, 0.75)");
-  shine.addColorStop(1, "rgba(255, 255, 255, 0)");
+  shine.addColorStop(0, cssOf("--eye-gleam"));
+  shine.addColorStop(1, withAlpha("--eye-gleam", 0));
   pen.fillStyle = shine;
   pen.beginPath();
   pen.arc(hx, hy, r * 0.11, 0, Math.PI * 2);
@@ -521,8 +517,8 @@ function tonguesOf(draw) {
         [1 + draw() * 1.5, 3 + draw() * 3, draw() * Math.PI * 2],
         [2.5 + draw() * 2, 6 + draw() * 5, draw() * Math.PI * 2],
       ],
-      color: heat < 0.55 ? PLUM : heat < 0.85 ? DUSK : ORCHID,
-      heart: heat < 0.5 ? ORCHID : PLUM,
+      color: heat < 0.55 ? plum() : heat < 0.85 ? dusk() : orchid(),
+      heart: heat < 0.5 ? orchid() : plum(),
     };
   };
   const upper = Array.from({ length: ABOVE }, (_, at) => tongue(spaced(ABOVE, at), (round) => 0.4 + 0.9 * round ** 1.2));
@@ -580,7 +576,7 @@ function drawUnder(pen, size, lid) {
   pen.save();
   pen.filter = `blur(${Math.max(4, b * 0.35)}px)`;
   openingPath(pen, edges(1), cx, cy, a * 1.06, b * 1.5);
-  pen.fillStyle = "rgba(5, 4, 20, 0.8)";
+  pen.fillStyle = cssOf("--eye-socket");
   pen.fill();
   pen.restore();
 
@@ -588,9 +584,9 @@ function drawUnder(pen, size, lid) {
   openingPath(pen, lid, cx, cy, a, b);
   pen.clip();
   const white = pen.createRadialGradient(cx - a * 0.15, cy - b * 0.3, b * 0.1, cx, cy, a * 1.02);
-  white.addColorStop(0, "#e6e3f6");
-  white.addColorStop(0.5, "#b9b3e0");
-  white.addColorStop(1, "#3c3672");
+  white.addColorStop(0, cssOf("--eye-white-1"));
+  white.addColorStop(0.5, cssOf("--eye-white-2"));
+  white.addColorStop(1, cssOf("--eye-white-3"));
   pen.fillStyle = white;
   pen.fillRect(0, 0, width, height);
   pen.restore();
@@ -604,7 +600,7 @@ function drawOver(pen, size, lid) {
   pen.clip();
   pen.filter = `blur(${Math.max(2, b * 0.16)}px)`;
   pen.lineCap = "round";
-  pen.strokeStyle = "rgba(6, 5, 22, 0.78)";
+  pen.strokeStyle = cssOf("--eye-lid-shadow");
   pen.lineWidth = b * 0.6;
   pen.beginPath();
   trace(pen, lid.upper, cx, cy, a, b);
@@ -614,7 +610,7 @@ function drawOver(pen, size, lid) {
   const upper = lidOf(lid.upper, size, 1);
   const lower = lidOf(lid.lower, size, -1);
   pen.save();
-  pen.fillStyle = rgba(DARK, 1);
+  pen.fillStyle = cssOf("--eye-dark");
   for (const [line, band] of [
     [upper, UPPER_BAND],
     [lower, LOWER_BAND],
@@ -721,8 +717,8 @@ function drawPlasma(size, lid, state, grown) {
     // The rim, breathing a little: its glow pushed out from it by most of its width, and the
     // bright line on it.
     const breath = grown * (0.8 + 0.2 * Math.sin(seconds * 3.1) * Math.sin(seconds * 1.7 + 1));
-    addRim(corners, rim, b * RIM_GLOW * 0.6, b * RIM_GLOW, DUSK, 0.5 * breath);
-    addRim(corners, rim, 0, b * RIM_LINE, ORCHID, 0.55 * breath);
+    addRim(corners, rim, b * RIM_GLOW * 0.6, b * RIM_GLOW, dusk(), 0.5 * breath);
+    addRim(corners, rim, 0, b * RIM_LINE, orchid(), 0.55 * breath);
     const starts = [];
     for (const [lid, band, tongues, home, reach] of [
       [upper, UPPER_BAND, state.tongues.upper, -Math.PI / 2, 0.55],
@@ -768,7 +764,7 @@ function drawPlasma(size, lid, state, grown) {
         state.sparkUntil = seconds + mix(SPARK[0], SPARK[1], state.draw());
       }
       for (const arc of state.arcs) {
-        addArc(corners, arc, b * 0.04, ORCHID, 0.6);
+        addArc(corners, arc, b * 0.04, orchid(), 0.6);
       }
     }
   }
@@ -883,7 +879,7 @@ export function startEye(canvas) {
   let way = 1;
   let loop = 0;
   let turnAt = OPENING + 0.4;
-  let last = performance.now();
+  let last = clock();
   const begun = last;
   let frame = 0;
 
@@ -908,7 +904,10 @@ export function startEye(canvas) {
   window.addEventListener("pointermove", moved);
   document.documentElement.addEventListener("pointerleave", left);
 
-  const tick = (now) => {
+  // The eye keeps its time on the animation's clock. While motion is stopped it draws the frame it
+  // is at and holds there, and takes up from there when motion comes back.
+  const tick = (moment) => {
+    const now = clock(moment);
     // A frame's time is when the frame began, which can be a little before the clock was read at the
     // start. Neither the step nor the time since the start is let below zero.
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
@@ -950,6 +949,13 @@ export function startEye(canvas) {
     front = next;
     float(state.irises, front, spin, dt, 0.92 * tall, tall);
     drawEye(pen, box.width, box.height, state);
+    if (paused()) {
+      frame = 0;
+      whenMoving(() => {
+        frame = requestAnimationFrame(tick);
+      });
+      return;
+    }
     frame = requestAnimationFrame(tick);
   };
 

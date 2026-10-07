@@ -1,0 +1,48 @@
+{
+  "id": "r",
+  "name": "R",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["r"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'","`"],
+  "indentAfter": "[{[(]\\s*(?:#.*)?$",
+  "grammar": {
+    "words": ["if", "else", "repeat", "while", "function", "for", "in", "next", "break", "return", "switch", "library", "require"],
+    "types": ["numeric", "character", "logical", "integer", "complex", "double", "raw", "list", "data.frame", "matrix", "factor", "environment"],
+    "constants": [
+      "TRUE", "FALSE", "NULL", "NA", "NaN", "Inf", "NA_integer_", "NA_real_", "NA_character_", "NA_complex_", "T",
+      "F", "pi", "LETTERS", "letters", "month.name", "month.abb"
+    ],
+    "functions": [
+      "c", "vector", "print", "cat", "paste", "paste0", "length", "seq", "seq_len", "seq_along", "rep", "sum",
+      "mean", "median", "sd", "var", "min", "max", "abs", "sqrt", "exp", "log", "apply", "lapply", "sapply",
+      "vapply", "mapply", "Map", "Reduce", "Filter", "which", "names", "nrow", "ncol", "head", "tail", "summary",
+      "str", "is.na", "is.null", "stop", "warning", "message", "tryCatch", "invisible", "ifelse", "setdiff",
+      "union", "unique", "sort", "order", "rev", "round", "levels", "as.numeric", "as.character", "as.integer",
+      "as.logical", "nchar", "substr", "sprintf", "format", "grepl", "gsub", "sub", "strsplit", "readRDS",
+      "saveRDS", "read.csv", "write.csv", "plot", "lines", "points", "set.seed", "rnorm", "runif", "lm", "glm",
+      "do.call", "match.arg", "missing", "on.exit", "Sys.time", "nlevels", "table", "unlist", "setNames"
+    ],
+    "tokenizer": {
+      "root": [
+        ["#.*$","comment"],
+        ["\\s+",""],
+        ["[rR](['\"])(-*)[\\[({].*?[\\])}]\\2\\1","string"],
+        ["\"","string","@dq"],
+        ["'","string","@sq"],
+        ["`[^`]*`","variable"],
+        ["%[^%\\s]*%","operator"],
+        ["<<-|->>|<-|->|\\|>|\\\\(?=\\()","operator"],
+        ["(?:[A-Za-z]|\\.(?!\\d))[\\w.]*",{"cases":{"@words":"keyword","@constants":"predefined","@types":"type","@functions":"predefined","@default":"identifier"}}],
+        ["0[xX][0-9a-fA-F]+[Li]?|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?[Li]?","number"],
+        ["[{}()\\[\\]]","@brackets"],
+        ["[-+*/^<>=!&|~?:$@]+","operator"],
+        ["[,;]","delimiter"]
+      ],
+      "dq": [["[^\"\\\\]+","string"],["\\\\.","string.escape"],["\"","string","@pop"]],
+      "sq": [["[^'\\\\]+","string"],["\\\\.","string.escape"],["'","string","@pop"]]
+    }
+  }
+}

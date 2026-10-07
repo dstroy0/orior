@@ -1,0 +1,51 @@
+{
+  "id": "rust",
+  "name": "Rust",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["rs"],
+  "comments": {"line":"//","block":["/*","*/"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "words": [
+      "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false",
+      "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
+      "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while"
+    ],
+    "types": [
+      "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128", "usize", "f32", "f64",
+      "bool", "char", "str", "String", "Vec", "Option", "Result", "Box", "Rc", "Arc", "HashMap", "HashSet",
+      "Path", "PathBuf", "Some", "None", "Ok", "Err"
+    ],
+    "tokenizer": {
+      "root": [
+        ["#!?\\[","keyword.directive","@attribute"],
+        {"include":"@whitespace"},
+        ["[a-z_]\\w*!","predefined"],
+        ["'[A-Za-z_]\\w*(?!')","type"],
+        ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
+        [
+          "0[xX][\\da-fA-F_']+[uUlLzZ]*|0[bB][01_']+[uUlL]*|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?[fFuUlLjJ]*",
+          "number"
+        ],
+        ["b?r(#*)\"","string","@raw"],
+        ["b?\"","string","@string"],
+        ["b?'(?:[^'\\\\]|\\\\.[^']*)'","string"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!~?:&|+\\-*/^%@]+","operator"],
+        ["[;,.]","delimiter"]
+      ],
+      "attribute": [
+        ["\\]","keyword.directive","@pop"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["[^\\]\"]+","keyword.directive"]
+      ],
+      "string": [["[^\\\\\"]+","string"],["\\\\.","string.escape"],["\"","string","@pop"]],
+      "raw": [["\"#*","string","@pop"],["[^\"]+","string"]],
+      "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"],["\\/\\/.*$","comment"]],
+      "comment": [["[^/*]+","comment"],["\\/\\*","comment","@comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
+    }
+  }
+}
