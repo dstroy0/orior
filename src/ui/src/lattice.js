@@ -14,6 +14,7 @@
 // still, ordered at the left.
 
 import { rgbOf } from "./colors.js";
+import { still as paused, whenMoving } from "./motion.js";
 import { onScheme } from "./scheme.js";
 
 const STEP = 22;
@@ -189,6 +190,10 @@ export function drawLattice(canvas) {
 // Moves every lattice in sight a frame, no faster than one each FRAME.
 let last = 0;
 function tick(now) {
+  if (paused()) {
+    whenMoving(() => requestAnimationFrame(tick));
+    return;
+  }
   requestAnimationFrame(tick);
   if (now - last < FRAME || document.hidden || still()) {
     return;

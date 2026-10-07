@@ -6,6 +6,7 @@
 //! calls, the `view` scheme its page windows load from, the terminal's pseudo-terminals and the
 //! clipboard. The same program is the command line, handing it any words it is started with.
 
+mod dragging;
 mod memory;
 mod terminal;
 
@@ -426,6 +427,7 @@ fn open(launch: Launch) {
             // A page that never asks for the window still has it shown after SHOW_ANYWAY.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_background_color(Some(tauri::window::Color(0x13, 0x13, 0x31, 0xff)));
+                dragging::watch(app.handle(), &window);
                 std::thread::spawn(move || {
                     std::thread::sleep(SHOW_ANYWAY);
                     let _ = window.show();

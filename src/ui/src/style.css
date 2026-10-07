@@ -3234,3 +3234,10 @@ textarea.report-field {
 .prefs-font[type="number"] {
   max-width: 6rem;
 }
+
+/* While the window is without focus or its frame is dragged, every animation of the page holds. */
+.still *,
+.still *::before,
+.still *::after {
+  animation-play-state: paused !important;
+}

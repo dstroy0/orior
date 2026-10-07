@@ -21,6 +21,7 @@ import { onView, showView, startModes } from "./views.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
 import { keepMemory } from "./statusbar.js";
+import { startMotion } from "./motion.js";
 
 async function openInEditor(path) {
   showView("edit");
@@ -57,6 +58,7 @@ function drawPulse(held) {
 async function start() {
   invoke("window_show").catch(() => {});
   catchErrors();
+  await startMotion();
   startWordmark();
   keepScheme();
   keepZoom();

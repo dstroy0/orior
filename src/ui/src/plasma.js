@@ -136,7 +136,7 @@ export function plasmaOn(canvas) {
   if (drawers.has(canvas)) {
     return drawers.get(canvas);
   }
-  const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false });
+  const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: true });
   if (!gl) {
     drawers.set(canvas, null);
     return null;

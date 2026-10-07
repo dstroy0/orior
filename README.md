@@ -83,7 +83,7 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 | 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
 | 7 | Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
 
-The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open.
+The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open. Animation stops while the window is without focus, and while its frame is dragged or its edges pulled, each moving picture holds as a still one until the drag ends.
 
 ### Run a job
 

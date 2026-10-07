@@ -20,6 +20,7 @@
 // motion gets the eye held still and open, with one iris.
 
 import { cssOf, rgbOf, withAlpha } from "./colors.js";
+import { still as paused, whenMoving } from "./motion.js";
 import { addArc, cornersOf, dusk, orchid, plasmaOn, plum } from "./plasma.js";
 
 const OPENING = 1.4;
@@ -886,7 +887,7 @@ export function startEye(canvas) {
   let loop = 0;
   let turnAt = OPENING + 0.4;
   let last = performance.now();
-  const begun = last;
+  let begun = last;
   let frame = 0;
 
   const size = () => {
@@ -910,7 +911,19 @@ export function startEye(canvas) {
   window.addEventListener("pointermove", moved);
   document.documentElement.addEventListener("pointerleave", left);
 
+  // While motion is stopped the eye holds where it is, and takes up from there when it comes back.
   const tick = (now) => {
+    if (paused()) {
+      const stoppedAt = now;
+      frame = 0;
+      whenMoving(() => {
+        const back = performance.now();
+        begun += back - stoppedAt;
+        last = back;
+        frame = requestAnimationFrame(tick);
+      });
+      return;
+    }
     // A frame's time is when the frame began, which can be a little before the clock was read at the
     // start. Neither the step nor the time since the start is let below zero.
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));

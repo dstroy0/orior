@@ -18,6 +18,8 @@
 // the hover color while it goes, and its end in signal or in the fail color. The pointer over the
 // ruler shows the time under it, in place of any label it would cover.
 
+import { still as paused, whenMoving } from "./motion.js";
+
 const LEAST = 5;
 const ZOOM = 1.5;
 const HEAD = 0.92;
@@ -326,6 +328,11 @@ export function makeRuler(fuse) {
   };
 
   const tick = () => {
+    view.frame = 0;
+    if (paused()) {
+      whenMoving(wake);
+      return;
+    }
     view.frame = paint() ? requestAnimationFrame(tick) : 0;
   };
 

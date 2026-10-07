@@ -19,6 +19,7 @@
 // quick waves that never line up, and throws its sparks from wherever it is.
 
 import { rgbOf } from "./colors.js";
+import { still as paused, whenMoving } from "./motion.js";
 import { addArc, addSpot, cornersOf, plasmaOn } from "./plasma.js";
 
 const PEAK = 0.5;
@@ -192,6 +193,11 @@ export function makeFuse(place) {
   };
 
   const tick = (now) => {
+    if (paused()) {
+      frame = 0;
+      whenMoving(wake);
+      return;
+    }
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     frame = paint(now / 1000, dt) ? requestAnimationFrame(tick) : 0;
