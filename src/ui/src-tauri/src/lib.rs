@@ -47,9 +47,18 @@ fn root_set(app: State<App>, path: String) -> Result<String, String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
+/// A job as the window lists it: the job, and how many steps it runs, which the run's fuse burns
+/// through one at a time.
+#[derive(serde::Serialize)]
+struct Listed {
+    #[serde(flatten)]
+    job: catalog::Job,
+    steps: usize,
+}
+
 #[tauri::command]
-fn catalog_read(app: State<App>) -> Result<Vec<catalog::Job>, String> {
-    Ok(catalog::read(&root_of(&app)?))
+fn catalog_read(app: State<App>) -> Result<Vec<Listed>, String> {
+    Ok(catalog::read(&root_of(&app)?).into_iter().map(|job| Listed { steps: job.steps.len(), job }).collect())
 }
 
 #[tauri::command]

@@ -6,6 +6,7 @@
 
 import { invoke, listen, pick } from "./bridge.js";
 
+import { makeFuse } from "./fuse.js";
 import { drawLattice } from "./lattice.js";
 import { write } from "./status.js";
 
@@ -23,6 +24,8 @@ const state = {
   openFile: () => {},
   // Lines and ends that arrive before job_start has returned the run they belong to.
   early: new Map(),
+  // The fuse at the foot of the output, kept from one drawing of the stage to the next.
+  fuse: makeFuse(),
 };
 
 function early(run) {
@@ -214,7 +217,9 @@ export async function startJob(id, values) {
   const run = await invoke("job_start", { job: id, values });
   const before = early(run);
   state.early.delete(run);
-  state.runs.set(run, { run, job: id, lines: before.lines, done: false, code: null, views: [], stopped: false });
+  // `started` counts the steps begun, each of which writes its command line first.
+  const started = before.lines.filter((line) => line.stream === "command").length;
+  state.runs.set(run, { run, job: id, lines: before.lines, started, done: false, code: null, views: [], stopped: false });
   write("runs", [run, { job: id }]);
   state.shown.set(id, run);
   if (before.end) {
@@ -257,8 +262,11 @@ function console_(job) {
   if (shown?.done) {
     lines.append(endNode(shown));
   }
-  requestAnimationFrame(() => (lines.scrollTop = lines.scrollHeight));
-  return element("div", { className: "console" }, runs.length ? head : null, lines);
+  requestAnimationFrame(() => {
+    lines.scrollTop = lines.scrollHeight;
+    state.fuse.follow(shown ?? null, job.steps);
+  });
+  return element("div", { className: "console" }, runs.length ? head : null, lines, state.fuse.canvas);
 }
 
 function status(run) {
@@ -293,10 +301,14 @@ function onLine({ payload }) {
     return;
   }
   run.lines.push(payload);
+  if (payload.stream === "command") {
+    run.started += 1;
+  }
   if (run.lines.length > KEPT_LINES) {
     run.lines.splice(0, run.lines.length - KEPT_LINES);
   }
   if (state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
+    state.fuse.flare();
     const lines = document.getElementById("lines");
     if (lines) {
       const atEnd = lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40;

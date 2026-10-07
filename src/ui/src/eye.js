@@ -19,17 +19,12 @@
 // their own, and run back in, and it leans toward the mouse. A reader who asks the system for less
 // motion gets the eye held still and open, with one iris.
 
-import * as plasma from "./plasma.js";
+import { DUSK, ORCHID, PLUM, addArc, cornersOf, plasmaOn } from "./plasma.js";
 
 const OPENING = 1.4;
 const OPEN_FROM = 0.1;
 
 const DARK = [7, 6, 26];
-
-// The plasma's purples, from the shadow at its edges to the light inside it.
-const DUSK = [50, 18, 98];
-const PLUM = [94, 40, 166];
-const ORCHID = [148, 94, 232];
 
 const smooth = (x) => x * x * (3 - 2 * x);
 const mix = (a, b, x) => a + (b - a) * x;
@@ -686,46 +681,6 @@ function sparksOf(starts, b, draw) {
   return arcs;
 }
 
-// The triangles of a frame's plasma, written corner by corner into one list that is kept from frame
-// to frame and grows when it fills. A corner is [x, y, across, along, color, strength].
-function cornersOf() {
-  let list = new Float32Array(4096 * plasma.CORNER);
-  let count = 0;
-  const add = ([x, y, across, along, color, strength]) => {
-    if ((count + 1) * plasma.CORNER > list.length) {
-      const bigger = new Float32Array(list.length * 2);
-      bigger.set(list);
-      list = bigger;
-    }
-    const at = count * plasma.CORNER;
-    list[at] = x;
-    list[at + 1] = y;
-    list[at + 2] = across;
-    list[at + 3] = along;
-    list[at + 4] = color[0] / 255;
-    list[at + 5] = color[1] / 255;
-    list[at + 6] = color[2] / 255;
-    list[at + 7] = strength;
-    count += 1;
-  };
-  return {
-    clear: () => (count = 0),
-    // A piece with four sides as two triangles, its corners given in order round it.
-    four(one, two, three, four) {
-      for (const corner of [one, two, three, one, three, four]) {
-        add(corner);
-      }
-    },
-    add,
-    get list() {
-      return list;
-    },
-    get count() {
-      return count;
-    },
-  };
-}
-
 // A tongue as pieces down its length, each `half` times its own width to either side of the middle.
 function addTongue(corners, middle, sides, half, color, strength) {
   for (let step = 0; step < STRANDS; step += 1) {
@@ -746,17 +701,6 @@ function addRim(corners, rim, out, half, color, strength) {
   };
   for (let at = 0; at < rim.length; at += 1) {
     corners.four(edge(at, -1), edge(at, 1), edge(at + 1, 1), edge(at + 1, -1));
-  }
-}
-
-// An arc as a thin piece along each of its lines.
-function addArc(corners, points, half, color, strength) {
-  for (let at = 0; at + 1 < points.length; at += 1) {
-    const [x0, y0] = points[at];
-    const [x1, y1] = points[at + 1];
-    const length = Math.hypot(x1 - x0, y1 - y0) || 1;
-    const side = [(-(y1 - y0) / length) * half, ((x1 - x0) / length) * half];
-    corners.four([x0 - side[0], y0 - side[1], -1, 0.1, color, strength], [x0 + side[0], y0 + side[1], 1, 0.1, color, strength], [x1 + side[0], y1 + side[1], 1, 0.1, color, strength], [x1 - side[0], y1 - side[1], -1, 0.1, color, strength]);
   }
 }
 
@@ -924,7 +868,7 @@ export function startEye(canvas) {
     picture: irisPicture(draw),
     lava: lavaOf(draw),
     tongues: tonguesOf(draw),
-    plasma: lit ? plasma.plasmaOn(lit) : null,
+    plasma: lit ? plasmaOn(lit) : null,
     corners: cornersOf(),
     arcs: [],
     sparkUntil: 0,

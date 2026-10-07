@@ -14,6 +14,76 @@
 // Each corner's numbers: x and y, across and along, red, green and blue from 0 to 1, and strength.
 export const CORNER = 8;
 
+// The plasma's purples, from the shadow at its edges to the light inside it.
+export const DUSK = [50, 18, 98];
+export const PLUM = [94, 40, 166];
+export const ORCHID = [148, 94, 232];
+
+// The triangles of a frame's plasma, written corner by corner into one list that is kept from frame
+// to frame and grows when it fills. A corner is [x, y, across, along, color, strength].
+export function cornersOf() {
+  let list = new Float32Array(4096 * CORNER);
+  let count = 0;
+  const add = ([x, y, across, along, color, strength]) => {
+    if ((count + 1) * CORNER > list.length) {
+      const bigger = new Float32Array(list.length * 2);
+      bigger.set(list);
+      list = bigger;
+    }
+    const at = count * CORNER;
+    list[at] = x;
+    list[at + 1] = y;
+    list[at + 2] = across;
+    list[at + 3] = along;
+    list[at + 4] = color[0] / 255;
+    list[at + 5] = color[1] / 255;
+    list[at + 6] = color[2] / 255;
+    list[at + 7] = strength;
+    count += 1;
+  };
+  return {
+    clear: () => (count = 0),
+    // A piece with four sides as two triangles, its corners given in order round it.
+    four(one, two, three, four) {
+      for (const corner of [one, two, three, one, three, four]) {
+        add(corner);
+      }
+    },
+    add,
+    get list() {
+      return list;
+    },
+    get count() {
+      return count;
+    },
+  };
+}
+
+// An arc as a thin piece along each of its lines.
+export function addArc(corners, points, half, color, strength) {
+  for (let at = 0; at + 1 < points.length; at += 1) {
+    const [x0, y0] = points[at];
+    const [x1, y1] = points[at + 1];
+    const length = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const side = [(-(y1 - y0) / length) * half, ((x1 - x0) / length) * half];
+    corners.four([x0 - side[0], y0 - side[1], -1, 0.1, color, strength], [x0 + side[0], y0 + side[1], 1, 0.1, color, strength], [x1 + side[0], y1 + side[1], 1, 0.1, color, strength], [x1 - side[0], y1 - side[1], -1, 0.1, color, strength]);
+  }
+}
+
+// A soft round light of `radius` about x, y, as a fan of triangles from it.
+export function addSpot(corners, x, y, radius, color, strength) {
+  const middle = [x, y, 0, 0, color, strength];
+  const rim = (at) => {
+    const turn = (at / 16) * Math.PI * 2;
+    return [x + Math.cos(turn) * radius, y + Math.sin(turn) * radius, 1, 0, color, strength];
+  };
+  for (let at = 0; at < 16; at += 1) {
+    corners.add(middle);
+    corners.add(rim(at));
+    corners.add(rim(at + 1));
+  }
+}
+
 const PLACE = `
 attribute vec2 place;
 attribute vec2 shape;
@@ -55,7 +125,10 @@ function compiled(gl, kind, source) {
 }
 
 // The drawer for a canvas, made once and kept with it, or null where the canvas has no WebGL. The
-// eye goes on without its plasma there.
+// eye and the fuse go on without their plasma there.
+//
+// The GPU can take a context back, when its driver restarts or the page holds too many. The drawer
+// then draws nothing, asks for the context back, and sets its program up again when it comes.
 export function plasmaOn(canvas) {
   if (drawers.has(canvas)) {
     return drawers.get(canvas);
@@ -65,32 +138,40 @@ export function plasmaOn(canvas) {
     drawers.set(canvas, null);
     return null;
   }
-  const program = gl.createProgram();
-  gl.attachShader(program, compiled(gl, gl.VERTEX_SHADER, PLACE));
-  gl.attachShader(program, compiled(gl, gl.FRAGMENT_SHADER, SHADE));
-  gl.linkProgram(program);
-  gl.useProgram(program);
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  const bytes = CORNER * 4;
-  for (const [name, count, offset] of [
-    ["place", 2, 0],
-    ["shape", 2, 2],
-    ["tint", 4, 4],
-  ]) {
-    const at = gl.getAttribLocation(program, name);
-    gl.enableVertexAttribArray(at);
-    gl.vertexAttribPointer(at, count, gl.FLOAT, false, bytes, offset * 4);
-  }
-  const room = gl.getUniformLocation(program, "room");
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE);
-  gl.clearColor(0, 0, 0, 0);
+  let room = null;
+  const setUp = () => {
+    const program = gl.createProgram();
+    gl.attachShader(program, compiled(gl, gl.VERTEX_SHADER, PLACE));
+    gl.attachShader(program, compiled(gl, gl.FRAGMENT_SHADER, SHADE));
+    gl.linkProgram(program);
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    const bytes = CORNER * 4;
+    for (const [name, count, offset] of [
+      ["place", 2, 0],
+      ["shape", 2, 2],
+      ["tint", 4, 4],
+    ]) {
+      const at = gl.getAttribLocation(program, name);
+      gl.enableVertexAttribArray(at);
+      gl.vertexAttribPointer(at, count, gl.FLOAT, false, bytes, offset * 4);
+    }
+    room = gl.getUniformLocation(program, "room");
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.clearColor(0, 0, 0, 0);
+  };
+  setUp();
+  canvas.addEventListener("webglcontextlost", (event) => event.preventDefault());
+  canvas.addEventListener("webglcontextrestored", setUp);
 
   const drawer = {
     // Draws `count` corners of `corners`, three to a triangle, over a canvas `width` by `height` of
     // the page's pixels.
     draw(corners, count, width, height) {
+      if (gl.isContextLost()) {
+        return;
+      }
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clear(gl.COLOR_BUFFER_BIT);
       if (count === 0) {
