@@ -35,10 +35,24 @@
 #define LANE_CHECK_SIGN_OFFSET 63u
 #define LANE_CHECK_EXPONENT_ALL 0x7FFull
 
-// the decimal places tried, 0 to 17, each one floor of the places program, and the unit's exponent: on 2^(E - 1077) a
+// the decimal places tried, 0 to 21, each one floor of the places program, and the unit's exponent: on 2^(E - 1077) a
 // double is 4M with its preimage's ends whole
-#define LANE_CHECK_PLACES 18u
+#define LANE_CHECK_PLACES 22u
 #define LANE_CHECK_PLACES_LIFT 1077ull
+
+// the powers of ten below 2^64, 10^0 to 10^19, and the greatest of them
+#define LANE_CHECK_TENS 20u
+#define LANE_CHECK_TEN_MOST 10000000000000000000ull
+
+static unsigned long long lane_ten(unsigned int power)
+{
+    unsigned long long ten = 1ull;
+    for (unsigned int each = 0u; each < power; each += 1u)
+    {
+        ten *= 10ull;
+    }
+    return ten;
+}
 
 // a base B from 1 to 2^53: its biased exponent 1023 to 1075, and the 0 to 52 low mantissa bits a whole B leaves 0
 #define LANE_CHECK_BASE_BIASED_LEAST 1023ull
@@ -545,14 +559,20 @@ static void lane_places_search(ExactRecordProgram *program, const LanePreimage *
     unsigned long long power = 1ull;
     for (unsigned int place = 0u; place < LANE_CHECK_PLACES; place += 1u)
     {
+        // 10^p as one constant below 2^64, and past it as 10^19 times the rest
+        const unsigned int scale =
+            (place < LANE_CHECK_TENS)
+                ? exact_record_constant(program, power)
+                : exact_record_product(program, exact_record_constant(program, LANE_CHECK_TEN_MOST),
+                                       exact_record_constant(program, lane_ten(place - (LANE_CHECK_TENS - 1u))));
         unsigned int k_least = 0u;
         unsigned int holds = 0u;
-        lane_preimage_integer(program, preimage, exact_record_constant(program, power), &k_least, &holds);
+        lane_preimage_integer(program, preimage, scale, &k_least, &holds);
         const unsigned int first = exact_record_product(program, none, holds);
         picked = exact_record_sum(program, picked, exact_record_product(program, first, k_least));
         none = exact_record_product(program, none, exact_record_difference(program, one, holds));
         counted = exact_record_sum(program, counted, none);
-        power *= 10ull;
+        power = (place + 1u < LANE_CHECK_TENS) ? (power * 10ull) : power;
     }
     *least = counted;
     *chosen = picked;
@@ -996,15 +1016,15 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     return ok;
 }
 
-// the powers of ten below 2^64
-#define LANE_CHECK_TENS 20u
-
 // the form a value takes on its column's units: the integer on the first unit, a decimal on the second, a decimal
 // divided by one of the LANE_CHECK_DIVISORS bases, or its stored lanes kept
 #define LANE_CHECK_FORM_UNIT 0u
 #define LANE_CHECK_FORM_DECIMAL 1u
 #define LANE_CHECK_FORM_DIVIDED 2u
 #define LANE_CHECK_FORM_KEPT (LANE_CHECK_FORM_DIVIDED + LANE_CHECK_DIVISORS)
+
+// a form plane's lane where each value is on its own places: its form, and LANE_CHECK_FORMS times its places
+#define LANE_CHECK_FORMS (LANE_CHECK_FORM_KEPT + 1u)
 
 // the bases a decimal is divided by in binary64 before it is stored, as the libraries that write percentages and
 // per-mille scales divide
@@ -1122,7 +1142,8 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
     }
     unsigned long long fewest = ~0ull;
     unsigned int fewest_unit = 0u;
-    for (unsigned int unit_places = 0u; ok && (unit_places <= most); unit_places += 1u)
+    for (unsigned int unit_places = 0u; ok && (unit_places <= most) && (unit_places < LANE_CHECK_TENS);
+         unit_places += 1u)
     {
         int fits = 1;
         for (unsigned long long value = 0ull; fits && (value < values); value += 1ull)
@@ -1137,7 +1158,8 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
             }
             else if (places < LANE_CHECK_PLACES)
             {
-                unit[value] = k_of[value] / ten[places - unit_places];
+                const unsigned int down = places - unit_places;
+                unit[value] = (down < LANE_CHECK_TENS) ? (k_of[value] / ten[down]) : 0ull;
             }
             else
             {
@@ -1169,6 +1191,20 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
         lane_line_decimal(results, " bits, that is ", (fewest * 1000ull) / (values * 64ull));
         scriptura_text(&results->line, " per mille of raw, floored");
         lane_line_end(results);
+    }
+    // each value on its own places: k at its own p, and p beside the form in the form plane
+    for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
+    {
+        const unsigned int places = places_of[value];
+        const int held = places < LANE_CHECK_PLACES;
+        unit[value] = held ? k_of[value] : 0ull;
+        keep[value] = held ? (unsigned char)(LANE_CHECK_FORM_UNIT + (LANE_CHECK_FORMS * places)) : LANE_CHECK_FORM_KEPT;
+    }
+    if (ok)
+    {
+        scriptura_text(&results->line, "    on each value's own places:");
+        unsigned long long own = 0ull;
+        ok = lane_unit_code(results, column, unit, keep, &own);
     }
     sim_check(results, ok, "every unit's planes, flags and kept lanes lift, code, decode and lower");
     free(unit);
@@ -1389,7 +1425,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     ok = ok && (second != NULL) && (form != NULL);
     unsigned long long fewest = ~0ull;
     unsigned int fewest_unit = 0u;
-    for (unsigned int unit_places = 0u; ok && (unit_places < LANE_CHECK_PLACES); unit_places += 1u)
+    for (unsigned int unit_places = 0u; ok && (unit_places < LANE_CHECK_TENS); unit_places += 1u)
     {
         // the value itself as a decimal first, then the decimal it is over each divisor in turn
         unsigned long long taken[1u + LANE_CHECK_DIVISORS];
@@ -1432,6 +1468,35 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         lane_line_decimal(results, "    the fewest: on 1 / B, else 10^-", fewest_unit);
         lane_line_decimal(results, ", with the bases at their raw: ", fewest + base_raw);
         lane_line_decimal(results, " bits, that is ", ((fewest + base_raw) * 1000ull) / (values * 64ull));
+        scriptura_text(&results->line, " per mille of the intensities' raw, floored");
+        lane_line_end(results);
+    }
+    // each value on its own places: c over its base, else the first decimal form that holds it at its own p, and p
+    // beside the form in the form plane
+    for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
+    {
+        second[value] = unit[value];
+        form[value] = keep[value];
+        for (unsigned int each = 0u; (form[value] == LANE_CHECK_FORM_KEPT) && (each <= LANE_CHECK_DIVISORS); each += 1u)
+        {
+            const unsigned int places = places_of[each][value];
+            if (places < LANE_CHECK_PLACES)
+            {
+                second[value] = k_of[each][value];
+                form[value] = (unsigned char)(((each == 0u) ? LANE_CHECK_FORM_DECIMAL
+                                                            : (LANE_CHECK_FORM_DIVIDED + each - 1u)) +
+                                              (LANE_CHECK_FORMS * places));
+            }
+        }
+    }
+    if (ok)
+    {
+        scriptura_text(&results->line, "    on 1 / B, else each value's own places:");
+        unsigned long long own = 0ull;
+        ok = lane_unit_code(results, column, second, form, &own);
+        const unsigned long long base_raw = bases->values * 64ull;
+        lane_line_decimal(results, "    on its own places, with the bases at their raw: ", own + base_raw);
+        lane_line_decimal(results, " bits, that is ", ((own + base_raw) * 1000ull) / (values * 64ull));
         scriptura_text(&results->line, " per mille of the intensities' raw, floored");
         lane_line_end(results);
     }
