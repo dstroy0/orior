@@ -32,11 +32,12 @@
 
 #define RECORD_TEST_TIMED_YX 640ull
 
-// the most the test puts on the device at once: the timed lattice's lanes, both routes' pools, and the record
-// programs' compiled modules beside them
+// the most the test puts on the device at once: the timed lattice's lanes, both routes' pools, and 8 MiB for the
+// record programs' compiled modules beside them. It stays under the job's kept peak, which the daemon holds a
+// declaration to
 #define RECORD_TEST_DECLARED(voxels_, entries_)                                                                        \
     (((voxels_) * sizeof(unsigned short)) + period_reserve_bytes((voxels_), (entries_)) +                             \
-     period_record_reserve_bytes(voxels_) + (192ull << 20u))
+     period_record_reserve_bytes(voxels_) + (8ull << 20u))
 
 typedef struct
 {
