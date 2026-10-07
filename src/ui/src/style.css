@@ -1238,12 +1238,23 @@ body[data-view="run"] .statusbar .ed-status {
   min-width: 2px;
 }
 
+/* The selections, one shape each, drawn under the text in the space it scrolls in. */
+.ed-picked {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .ed-sel {
-  background: var(--ed-sel);
+  fill: var(--ed-sel);
 }
 
 .ed-sel.idle {
-  background: var(--ed-sel-idle);
+  fill: var(--ed-sel-idle);
 }
 
 .ed-pair {

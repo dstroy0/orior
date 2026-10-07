@@ -14,11 +14,15 @@ import { hiddenSpans, indentOf, Rows } from "./folding.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
+import { selectionPath } from "./shape.js";
 import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
 
 const PAD = 10;
 const LINE = 20;
+
+// How round a selection's corners are, in pixels.
+const SELECTION_ROUND = 4;
 
 // Sticky scroll: the most lines it holds along the top, the longest text it reads the regions of,
 // and how long an edit rests before the regions are read again, in milliseconds.
@@ -136,7 +140,12 @@ export class Editor {
     this.input.setAttribute("autocorrect", "off");
     this.input.setAttribute("autocapitalize", "off");
     this.input.setAttribute("aria-label", "Text");
-    this.space.append(this.under, this.text, this.over, this.input);
+    // The selections, each one shape over the characters it covers, under the text.
+    this.picked = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    this.picked.setAttribute("class", "ed-picked");
+    this.picked.setAttribute("aria-hidden", "true");
+    this.pickedHtml = "";
+    this.space.append(this.under, this.picked, this.text, this.over, this.input);
     this.textLayer = new Layer(this.text);
     this.underLayer = new Layer(this.under);
     this.gutterLayer = new Layer(this.gutterRows);
@@ -2040,23 +2049,33 @@ export class Editor {
         }
       }
     }
+    // Each selection covers its characters on each row it reaches, and a line's end inside it as
+    // one blank character, the rows' spans drawn as one shape.
+    const shapes = [];
     for (const sel of sels) {
       if (empty(sel)) {
         continue;
       }
       const start = startOf(sel);
       const end = endOfSel(sel);
-      const firstLine = Math.max(start.line, rows.lineOf(first));
-      const lastLine = Math.min(end.line, rows.lineOf(last));
-      for (let line = firstLine; line <= lastLine; line += 1) {
-        const row = visible(line);
-        if (row < 0) {
+      const spans = [];
+      for (let row = Math.max(first, rows.rowOf(start.line)); row <= Math.min(last, rows.rowOf(end.line)); row += 1) {
+        const line = rows.lineOf(row);
+        if (line < start.line || line > end.line) {
           continue;
         }
+        const text = doc.line(line);
         const from = line === start.line ? start.col : 0;
-        const to = line === end.line ? end.col : doc.line(line).length;
-        band(row, this.span(focused ? "ed-sel" : "ed-sel idle", line, row, from, to, line !== end.line));
+        const ends = line < end.line;
+        const to = line === end.line ? end.col : text.length;
+        spans.push([row, PAD + this.vcolOf(text, from) * cw, PAD + this.vcolOf(text, to) * cw + (ends ? cw : 0)]);
       }
+      shapes.push(selectionPath(spans, LINE, SELECTION_ROUND));
+    }
+    const picked = shapes.join("") ? `<path class="${focused ? "ed-sel" : "ed-sel idle"}" d="${shapes.join("")}"/>` : "";
+    if (picked !== this.pickedHtml) {
+      this.picked.innerHTML = picked;
+      this.pickedHtml = picked;
     }
     for (const sel of sels) {
       const row = visible(sel.head.line);
