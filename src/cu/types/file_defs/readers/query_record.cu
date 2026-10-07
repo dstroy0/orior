@@ -11,6 +11,20 @@
 // the count of words of an ask's identity
 #define QUERY_RECORD_IDENTITY_WORDS 7u
 
+// an ask's or a sample's identity and what came back read from the words after its kind into `identity` and
+// `answer`: 1, or 0 where it has no identity or its answer is none the record's oracle gives
+static int query_record_answer_read(std::stringstream &words, std::string *identity, std::string *answer)
+{
+    std::string word;
+    for (unsigned int at = 0u; (at < QUERY_RECORD_IDENTITY_WORDS) && (words >> word); at += 1u)
+    {
+        *identity += (at == 0u) ? word : (" " + word);
+    }
+    words >> *answer;
+    return (std::count(identity->begin(), identity->end(), ' ') == (long)(QUERY_RECORD_IDENTITY_WORDS - 1u)) &&
+           ((*answer == "answers") || (*answer == "illegal") || (*answer == "nothing") || (*answer == "censored"));
+}
+
 int query_record_read(const std::string &path, const std::string &member, QueryRecord *record, std::string *error)
 {
     *record = QueryRecord();
@@ -51,20 +65,39 @@ int query_record_read(const std::string &path, const std::string &member, QueryR
             record->paths.push_back(held);
             continue;
         }
+        if (kind == "sample")
+        {
+            QueryRecordSample held{std::string(), std::string(), 0ull, std::string()};
+            if (!query_record_answer_read(words, &held.identity, &held.answer))
+            {
+                *error = path + ":" + std::to_string(number) + ": a sample with no identity or no answer";
+                return 0;
+            }
+            if (held.answer == "answers")
+            {
+                words >> held.nanoseconds;
+            }
+            else
+            {
+                std::getline(words >> std::ws, held.refusal);
+            }
+            record->samples.push_back(held);
+            continue;
+        }
         if (kind != "ask")
         {
             *error = path + ":" + std::to_string(number) + ": " + kind + " is no line of a query record";
             return 0;
         }
         QueryRecordAsk held;
-        std::string word;
-        for (unsigned int at = 0u; (at < QUERY_RECORD_IDENTITY_WORDS) && (words >> word); at += 1u)
+        if (!query_record_answer_read(words, &held.identity, &held.answer))
         {
-            held.identity += (at == 0u) ? word : (" " + word);
+            *error = path + ":" + std::to_string(number) + ": an ask with no identity or no answer";
+            return 0;
         }
-        words >> held.answer;
         if (held.answer == "answers")
         {
+            std::string word;
             while (words >> word)
             {
                 held.words.push_back(std::stoull(word, nullptr, 16));
@@ -73,12 +106,6 @@ int query_record_read(const std::string &path, const std::string &member, QueryR
         else
         {
             std::getline(words >> std::ws, held.refusal);
-        }
-        if (std::count(held.identity.begin(), held.identity.end(), ' ') != (long)(QUERY_RECORD_IDENTITY_WORDS - 1u) ||
-            ((held.answer != "answers") && (held.answer != "illegal") && (held.answer != "nothing")))
-        {
-            *error = path + ":" + std::to_string(number) + ": an ask with no identity or no answer";
-            return 0;
         }
         query_record_keep(record, held);
     }
@@ -102,6 +129,19 @@ int query_record_write(const std::string &path, const QueryRecord &record, std::
             fprintf(file, " %llx", word);
         }
         if (!held.refusal.empty())
+        {
+            fprintf(file, " %s", held.refusal.c_str());
+        }
+        fprintf(file, "\n");
+    }
+    for (const QueryRecordSample &held : record.samples)
+    {
+        fprintf(file, "sample %s %s", held.identity.c_str(), held.answer.c_str());
+        if (held.answer == "answers")
+        {
+            fprintf(file, " %llu", held.nanoseconds);
+        }
+        else if (!held.refusal.empty())
         {
             fprintf(file, " %s", held.refusal.c_str());
         }

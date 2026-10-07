@@ -41,6 +41,7 @@
 // every case asked stays open with its count of cases. A case the host's C would trap on or leave undefined is asked of
 // nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts write
 // its links, and with the rule a link breaks where asking the part as written would end it
+#include "../interface/interface.h"
 #include "carrier_flow.h"
 #include "code_generator.h"
 #include "concept_product.h"
@@ -2065,6 +2066,14 @@ struct AskRecorded
 };
 static std::map<std::string, AskRecorded> s_record;
 static std::string s_record_ksc;
+
+// The part's query record, its .kqr beside its .ksc and of the same stem, held in memory for the run: every untimed
+// ask a cycle put and what came back, by the question's identity, every timed ask a sample of its own, and the paths
+// the last cycle read off them. Whatever asks an untimed ask again, in this cycle or a later one, is answered from it,
+// and the part is asked it once. It is read where R is read and written back where R is, and its path is empty where
+// it could not be read, so that nothing writes over a record no mode read
+static QueryRecord s_query_record;
+static std::string s_query_record_path;
 static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows);
 
 // the record written back to the .ksc it was read from, every ask a row in the order of its keys
@@ -2087,6 +2096,12 @@ static void record_close(void)
         printf("  the record could not be written to %s\n", s_record_ksc.c_str());
     }
     s_record_ksc.clear();
+    std::string error;
+    if (!s_query_record_path.empty() && !query_record_write(s_query_record_path, s_query_record, &error))
+    {
+        printf("  %s\n", error.c_str());
+    }
+    s_query_record_path.clear();
 }
 
 // the record read from `ksc`, written back to it when the program ends
@@ -2119,6 +2134,18 @@ static void record_open(const char *ksc)
         std::getline(words, refusal);
         refusal = (!refusal.empty() && (refusal[0] == ' ')) ? refusal.substr(1u) : refusal;
         s_record[key] = AskRecorded{answer, (unsigned int)std::stoul(word, nullptr, 16), refusal};
+    }
+    const std::string classified = ksc;
+    const size_t stem_at = classified.find_last_of("/\\") + 1u;
+    const size_t suffix_at = classified.find_last_of('.');
+    std::string error;
+    s_query_record_path = classified.substr(0u, suffix_at) + ".kqr";
+    if (!query_record_read(s_query_record_path, classified.substr(stem_at, suffix_at - stem_at), &s_query_record,
+                           &error))
+    {
+        printf("  %s: the query record is not read, and nothing is written to it\n", error.c_str());
+        s_query_record = QueryRecord();
+        s_query_record_path.clear();
     }
     static int s_registered = 0;
     if (s_registered == 0)
@@ -2194,11 +2221,6 @@ static std::condition_variable s_turn_changed;
 static int s_turn = -1;
 static std::vector<std::vector<CarriedAsk>> s_round_asks;
 
-// The part's query record, its .kqr, held in memory for the run: every ask a cycle put and what came back, by the
-// question's identity. Whatever asks one again, in this cycle or a later one, is answered from it in the round it
-// asks, and the part is asked it once
-static QueryRecord s_query_record;
-
 // what the rounds asked: the asks handed over, those answered from what was held, and the processes that carried
 // the rest
 static unsigned long long s_round_handed = 0ull;
@@ -2239,14 +2261,37 @@ static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
     }
 }
 
-// The asks `carried` answered: each answered from the query record where its identity was asked before, and the rest
-// carried, one ask of an identity the round holds twice, the mundane together and each dangerous one alone. Each
-// answer the part gave kept in the record after by its identity: an ask the channel never carried or the gate held
-// never reached the part and is not kept
+// what came back of `question` as the query record writes it: answers, illegal, nothing, or censored where the
+// watchdog ended it before it came back; empty where it never reached the part, which the channel never carried or
+// the gate held
+static std::string answer_recorded(const RunQuestion *question)
+{
+    if (question->outcome == RUN_ANSWERED)
+    {
+        return "answers";
+    }
+    if (question->outcome == RUN_ILLEGAL)
+    {
+        return "illegal";
+    }
+    if (question->outcome != RUN_NOTHING)
+    {
+        return std::string();
+    }
+    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? "censored"
+                                                                                                    : "nothing";
+}
+
+// The asks `carried` answered. A timed ask is put every time and kept as a sample of its own, with its cost. An
+// untimed one is answered from the query record where its identity was asked before, and the rest are carried, one
+// ask of an identity the round holds twice: the mundane together, and alone each dangerous one and each one of a shape
+// of its own, which a process of many does not take. Each answer the part gave kept in the record after by its
+// identity
 static void asks_answered(const std::vector<CarriedAsk> &carried)
 {
     std::vector<RunQuestion *> mundane;
-    std::vector<RunQuestion *> dangerous;
+    std::vector<RunQuestion *> alone;
+    std::vector<RunQuestion *> timed;
     std::vector<std::string> identities(carried.size());
     std::map<std::string, RunQuestion *> first_of;
     std::vector<std::pair<RunQuestion *, RunQuestion *>> copies;
@@ -2255,6 +2300,11 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         RunQuestion *const question = carried[at].question;
         identities[at] = question_identity(question);
         s_round_handed += 1ull;
+        if (question->launches != 0u)
+        {
+            timed.push_back(question);
+            continue;
+        }
         const QueryRecordAsk *const held = query_record_find(s_query_record, identities[at]);
         if (held != NULL)
         {
@@ -2269,40 +2319,50 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
             continue;
         }
         first_of[identities[at]] = question;
-        ((carried[at].dangerous != 0) ? dangerous : mundane).push_back(question);
+        const int shaped = (question->threads != 0u) || (question->blocks != 0u);
+        ((carried[at].dangerous != 0) || shaped ? alone : mundane).push_back(question);
     }
     if (!mundane.empty())
     {
         run_channel_ask_many(mundane.data(), (unsigned int)mundane.size());
         s_round_processes += 1ull;
     }
-    for (RunQuestion *const question : dangerous)
+    for (RunQuestion *const question : alone)
     {
-        if ((question->launches != 0u) || (question->threads != 0u) || (question->blocks != 0u))
+        if ((question->threads != 0u) || (question->blocks != 0u))
         {
             run_channel_ask(question);
         }
         else
         {
-            RunQuestion *const alone[1] = {question};
-            run_channel_ask_many(alone, 1u);
+            RunQuestion *const one[1] = {question};
+            run_channel_ask_many(one, 1u);
         }
         s_round_processes += 1ull;
+    }
+    for (RunQuestion *const question : timed)
+    {
+        run_channel_ask(question);
+        s_round_processes += 1ull;
+        const std::string answer = answer_recorded(question);
+        if (!answer.empty())
+        {
+            s_query_record.samples.push_back(
+                QueryRecordSample{question_identity(question), answer, question->nanoseconds,
+                                  (answer == "answers") ? std::string() : question->refused});
+        }
     }
     for (const auto &each : first_of)
     {
         RunQuestion *const question = each.second;
-        if ((question->outcome != RUN_ANSWERED) && (question->outcome != RUN_ILLEGAL) &&
-            (question->outcome != RUN_NOTHING))
+        QueryRecordAsk held;
+        held.identity = each.first;
+        held.answer = answer_recorded(question);
+        if (held.answer.empty())
         {
             continue;
         }
-        QueryRecordAsk held;
-        held.identity = each.first;
-        held.answer = (question->outcome == RUN_ANSWERED)  ? "answers"
-                      : (question->outcome == RUN_ILLEGAL) ? "illegal"
-                                                           : "nothing";
-        if (question->outcome == RUN_ANSWERED)
+        if (held.answer == "answers")
         {
             held.words.assign(question->answered, question->answered + question->cases);
         }
@@ -2321,25 +2381,20 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     }
 }
 
-// The asks `asked`, `count` of them, each dangerous where `dangerous` says, answered: on a pair's own thread handed to
-// the round and waited on, and on the thread that carries the asks put to the part at once, every one of them, since a
-// mode of its own may mean to ask one question again
+// The asks `asked`, `count` of them, each dangerous where `dangerous` says, answered through the query record: on a
+// pair's own thread handed to the round and waited on, and on the thread that carries the asks answered at once. A
+// timed ask, the only one a mode means to ask again, is put every time
 static void asks_carried(RunQuestion *const *asked, const int *dangerous, unsigned int count)
 {
-    if (t_pair < 0)
-    {
-        if (count == 1u)
-        {
-            run_channel_ask(asked[0]);
-            return;
-        }
-        run_channel_ask_many(asked, count);
-        return;
-    }
     std::vector<CarriedAsk> carried;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         carried.push_back(CarriedAsk{asked[at], (dangerous != NULL) ? dangerous[at] : 0});
+    }
+    if (t_pair < 0)
+    {
+        asks_answered(carried);
+        return;
     }
     std::unique_lock<std::mutex> lock(s_turn_lock);
     s_round_asks[(size_t)t_pair] = carried;
@@ -4071,19 +4126,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         return 1;
     }
     record_open(ksc);
-    // the part's query record beside its classification, of the same stem: every ask a cycle before this one put and
-    // what came back
-    const std::string classified = ksc;
-    const size_t stem_at = classified.find_last_of("/\\") + 1u;
-    const std::string kqr = classified.substr(0u, classified.find_last_of('.')) + ".kqr";
-    std::string kqr_error;
-    if (!query_record_read(kqr, classified.substr(stem_at, classified.find_last_of('.') - stem_at), &s_query_record,
-                           &kqr_error))
-    {
-        printf("klq_identity pair: %s\n", kqr_error.c_str());
-        run_channel_close();
-        return 1;
-    }
+    // the asks the query record held before this cycle, read with R
     const size_t recorded_before = s_query_record.asks.size();
     // each pair's question and places, held with the pair and reached from its own thread, since a pair waits on its
     // round with both
@@ -4885,20 +4928,15 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     fclose(file);
     printf("klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open, closed,
            unasked, klq);
-    // the query record written back: every ask it held and every ask this cycle put, then the path this cycle read
-    // off them, each pair and its verdict, an open pair the question a further pass takes up
+    // the path this cycle read off the asks, each pair and its verdict, an open pair the question a further pass takes
+    // up, written to the query record with every ask it held and every ask this cycle put once R is written back
     s_query_record.paths.clear();
     for (const PairPut &pair : pairs)
     {
         s_query_record.paths.push_back(QueryRecordPath{pair.first, pair.second, pair.verdict});
     }
-    if (!query_record_write(kqr, s_query_record, &kqr_error))
-    {
-        printf("klq_identity pair: %s\n", kqr_error.c_str());
-        return 1;
-    }
-    printf("klq_identity pair: %zu asks held in %s, %zu of them put this cycle\n", s_query_record.asks.size(),
-           kqr.c_str(), s_query_record.asks.size() - recorded_before);
+    printf("klq_identity pair: %zu asks held in the query record, %zu of them put this cycle\n",
+           s_query_record.asks.size(), s_query_record.asks.size() - recorded_before);
     return 0;
 }
 
