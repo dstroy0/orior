@@ -10,8 +10,6 @@ import { invoke, listen } from "./bridge.js";
 
 const CHANGE_REST = 300;
 
-const SEVERITY = ["", "error", "warning", "note", "hint"];
-
 let tabsOf = () => [];
 let painted = () => {};
 
@@ -65,16 +63,6 @@ export function wrap(tab) {
     served: true,
     async hover(doc, p) {
       const parts = [];
-      for (const diag of s.diagnostics ?? []) {
-        const line = p.line + s.base;
-        const inside =
-          (line > diag.from.line || (line === diag.from.line && p.col >= diag.from.col)) &&
-          (line < diag.to.line || (line === diag.to.line && p.col <= Math.max(diag.to.col, diag.from.col + 1)));
-        if (inside) {
-          const source = diag.source ? ` ${diag.source}` : "";
-          parts.push({ className: `diag s${diag.severity}`, text: `**${SEVERITY[diag.severity] ?? "note"}**${source}: ${diag.message}` });
-        }
-      }
       const said = await invoke("lsp_hover", at(p)).catch(() => null);
       if (said) {
         parts.push(said);

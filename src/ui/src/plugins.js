@@ -116,7 +116,12 @@ function build() {
         throw new Error(`its id is ${JSON.stringify(plugin.id)}, and its folder is ${id}`);
       }
       Object.assign(reading, { name: plugin.name ?? id, version: plugin.version ?? "", extensions: Array.isArray(plugin.extensions) ? plugin.extensions.map(String) : [] });
-      reading.language = languageOf(plugin);
+      // A tool plugin opens no files: it checks those of the languages it names.
+      if (plugin.kind === "tool") {
+        Object.assign(reading, { kind: "tool", checks: Array.isArray(plugin.languages) ? plugin.languages.map(String) : [], about: String(plugin.about ?? "") });
+      } else {
+        reading.language = languageOf(plugin);
+      }
     } catch (error) {
       reading.error = String(error.message ?? error);
     }
@@ -148,6 +153,11 @@ function build() {
 export async function loadPlugins() {
   state.found = await invoke("plugins_read").catch(() => []);
   build();
+}
+
+// The tool plugin that checks files of `language`, where one is on.
+export function toolFor(language) {
+  return state.readings?.find((reading) => reading.kind === "tool" && reading.on && !reading.replaced && !reading.error && reading.checks.includes(language)) ?? null;
 }
 
 // Each plugin as found, with what was wrong where it did not read, for the Plugins sheet.

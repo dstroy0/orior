@@ -63,6 +63,9 @@ pub struct Tool {
     pub only: Option<String>,
     #[serde(default)]
     pub install: HashMap<String, String>,
+    /// The shell line that installs it on each system, where its makers give one to run.
+    #[serde(default)]
+    pub setup: HashMap<String, String>,
     #[serde(default)]
     pub places: HashMap<String, Vec<String>>,
 }
@@ -98,6 +101,7 @@ pub struct Found {
     pub folder: Option<String>,
     pub chosen: Option<String>,
     pub install: Option<String>,
+    pub setup: bool,
     pub versioned: bool,
 }
 
@@ -334,6 +338,7 @@ pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> F
         folder: None,
         chosen: kept.get(&tool.id).cloned(),
         install: for_system(&tool.install).cloned(),
+        setup: for_system(&tool.setup).is_some(),
         versioned: tool.version.is_some(),
     };
     let mut set = |state: &'static str, program: PathBuf| {
@@ -419,6 +424,12 @@ pub fn own() -> Result<Own, String> {
     let key = key_of(&folder);
     let on_path = path_folders().iter().any(|dir| key_of(dir) == key);
     Ok(Own { folder: folder.display().to_string(), on_path })
+}
+
+/// The shell line that installs tool `id` on this system, as its makers give it.
+pub fn setup_line(id: &str) -> Result<String, String> {
+    let tool = tool(id)?;
+    for_system(&tool.setup).cloned().ok_or_else(|| format!("orior has no way to install {} on {}: its install page has the steps", tool.name, system()))
 }
 
 /// Opens the install page of tool `id` for this system in the browser.

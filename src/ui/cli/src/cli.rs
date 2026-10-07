@@ -27,6 +27,7 @@ use crate::root;
 use crate::run_file;
 use crate::runner::{self, Said, Sink};
 use crate::toolchains;
+use crate::validate;
 
 /// The code a run exits with where a step could not start or gave no code.
 const NO_CODE: i32 = 1;
@@ -471,6 +472,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "toolchains" => return toolchains_words(words),
         "format" => return format_files(words),
         "run-file" => return run_file_words(named, words),
+        "validate" => return validate_files(words),
         "report" => return report_page(named, words),
         _ => {}
     }
@@ -641,7 +643,28 @@ fn toolchains_words(words: &[String]) -> i32 {
     };
     match (word(0), word(1), word(2)) {
         (None, _, _) | (Some("check"), None, _) => {}
-        (Some("install"), Some(id), None) => return done(toolchains::open_install(id).map(|url| format!("opened {url}"))),
+        // A tool its makers give a line to install it by is installed here, in this terminal; any other
+        // has its install page opened.
+        (Some("install"), Some(id), None) => {
+            let Ok(line) = toolchains::setup_line(id) else {
+                return done(toolchains::open_install(id).map(|url| format!("opened {url}")));
+            };
+            let bash = match runner::bash() {
+                Ok(bash) => bash,
+                Err(said) => {
+                    err(&said);
+                    return NO_CODE;
+                }
+            };
+            err(&format!("$ {line}"));
+            return match std::process::Command::new(bash).arg("-c").arg(&line).env("PATH", toolchains::run_path()).status() {
+                Ok(status) => status.code().unwrap_or(NO_CODE),
+                Err(error) => {
+                    err(&error.to_string());
+                    NO_CODE
+                }
+            };
+        }
         (Some("add-path"), Some(what), None) => {
             return done(toolchains::add_to_path(what).map(|folder| format!("{folder} is on your PATH for every terminal started from now")));
         }
@@ -724,6 +747,61 @@ fn run_file_words(named: Option<&str>, words: &[String]) -> i32 {
             NO_CODE
         }
     }
+}
+
+/// `orior run validate [--json] <file>...`: validates each file with the tool plugin for its language,
+/// as validate.rs does, and says what it found and its verdict, or with --json the whole report.
+/// Exits 1 where a file does not hold.
+fn validate_files(words: &[String]) -> i32 {
+    let json = words.iter().any(|word| word == "--json");
+    let files: Vec<&String> = words.iter().filter(|word| *word != "--json").collect();
+    if files.is_empty() || files.iter().any(|word| word.starts_with("--")) {
+        err("validate takes [--json] and the files to validate");
+        return WRONG;
+    }
+    let mut code = 0;
+    for file in files {
+        let path = dunce::canonicalize(file).unwrap_or_else(|_| PathBuf::from(file));
+        let Some(tool) = format::language_of(&path).and_then(|language| validate::tool_for(&language)) else {
+            err(&format!("{file}: no tool plugin validates it"));
+            code = NO_CODE;
+            continue;
+        };
+        let report = match validate::validate(&tool, &path) {
+            Ok(report) => report,
+            Err(said) => {
+                err(&format!("{file}: {said}"));
+                code = NO_CODE;
+                continue;
+            }
+        };
+        if !report.holds {
+            code = NO_CODE;
+        }
+        if json {
+            out(&serde_json::to_string_pretty(&report).unwrap_or_default());
+            continue;
+        }
+        for check in &report.checks {
+            let with = if check.settings.is_empty() { "as it is".to_string() } else { check.settings.join(" ") };
+            let stopped = if check.barriers.is_empty() { String::new() } else { format!(", stopped by {}", check.barriers.join(", ")) };
+            let errors = if check.errors == 1 { "error" } else { "errors" };
+            err(&format!("  checked {with}: {:.1} s, {} {errors}{stopped}", check.seconds, check.errors));
+        }
+        for finding in &report.findings {
+            let head = format!("{file}:{}:{}: {}", finding.line + 1, finding.col + 1, finding.kind);
+            let mut lines = finding.message.lines().filter(|line| !line.trim().is_empty());
+            out(&format!("{head}: {}", lines.next().unwrap_or_default()));
+            for line in lines {
+                out(&format!("    {line}"));
+            }
+            if let Some(lifted) = &finding.lifted {
+                out(&format!("    {lifted}"));
+            }
+        }
+        out(&format!("{file}: {}: {}", if report.holds { "holds" } else { "does not hold" }, report.verdict));
+    }
+    code
 }
 
 /// `orior edit format [--check] <file>...`: formats each file in place with its language's formatter,

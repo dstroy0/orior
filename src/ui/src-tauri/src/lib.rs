@@ -11,7 +11,7 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains};
+use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -320,6 +320,13 @@ fn lsp_complete(app: State<App>, path: String, line: u32, col: u32) -> Result<Ve
     app.servers.complete(&root_of(&app)?.join(path), line, col)
 }
 
+/// The file at `path`, under the tree, validated by the tool plugin for `language`.
+#[tauri::command(async)]
+fn validate_file(app: State<App>, path: String, language: String) -> Result<validate::Report, String> {
+    let tool = validate::tool_for(&language).ok_or_else(|| format!("no tool plugin validates {language}"))?;
+    validate::validate(&tool, &root_of(&app)?.join(path))
+}
+
 /// The shell line that runs the file at `path`, under the tree, with its language's toolchain.
 #[tauri::command(async)]
 fn run_file_line(app: State<App>, path: String, language: String) -> Result<run_file::RunLine, String> {
@@ -349,6 +356,12 @@ fn toolchain_version(id: String) -> Result<String, String> {
 #[tauri::command]
 fn toolchain_install(id: String) -> Result<String, String> {
     toolchains::open_install(&id)
+}
+
+/// The shell line that installs a toolchain, for the terminal to run.
+#[tauri::command]
+fn toolchain_setup(id: String) -> Result<String, String> {
+    toolchains::setup_line(&id)
 }
 
 /// Puts the folder of a toolchain, or of orior itself where `what` is "orior", on the reader's PATH.
@@ -609,6 +622,7 @@ fn open(launch: Launch) {
             format_text,
             format_languages,
             run_file_line,
+            validate_file,
             lsp_open,
             lsp_change,
             lsp_close,
@@ -618,6 +632,7 @@ fn open(launch: Launch) {
             toolchains_check,
             toolchain_version,
             toolchain_install,
+            toolchain_setup,
             toolchain_add_path,
             toolchain_use,
             toolchain_forget,

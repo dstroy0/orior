@@ -11,6 +11,7 @@
 // terminal opened outside orior before the change does not have it.
 
 import { invoke, pick } from "./bridge.js";
+import { runInTerminal } from "./terminal.js";
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -70,8 +71,12 @@ export async function showToolchains(sheet) {
     } else if (tool.state !== "found") {
       made.push(button("Choose Folder…", () => choose(tool)));
     }
+    // Install runs the line its makers give in the terminal, where its progress shows.
+    if (tool.setup && tool.state === "missing") {
+      made.push(button("Install", () => act(() => install(tool), () => `Installing ${tool.name} in the terminal. Check Again once it is done.`), { className: "prefs-button tools-go" }));
+    }
     if (tool.install) {
-      made.push(button("Install Page", () => act(() => invoke("toolchain_install", { id: tool.id }), (url) => `Opened ${url}.`), { title: tool.install, className: `prefs-button${tool.state === "missing" ? " tools-go" : ""}` }));
+      made.push(button("Install Page", () => act(() => invoke("toolchain_install", { id: tool.id }), (url) => `Opened ${url}.`), { title: tool.install, className: `prefs-button${tool.state === "missing" && !tool.setup ? " tools-go" : ""}` }));
     }
     return element("span", { className: "tools-actions" }, ...made);
   }
@@ -155,12 +160,18 @@ export async function showToolchains(sheet) {
   await check();
 }
 
+// Installs a tool by the line its makers give, in the terminal.
+async function install(tool) {
+  runInTerminal(await invoke("toolchain_setup", { id: tool.id }));
+}
+
 // `toolchains` as the menus and the palette give it words: none shows the sheet, and the rest act
 // as `orior file toolchains` does.
 export async function runToolchains(sheet, args = []) {
   const [word, first, second] = args;
   if (word === "install" && first) {
-    return invoke("toolchain_install", { id: first });
+    const line = await invoke("toolchain_setup", { id: first }).catch(() => null);
+    return line ? runInTerminal(line) : invoke("toolchain_install", { id: first });
   }
   if (word === "add-path" && first) {
     return invoke("toolchain_add_path", { what: first });

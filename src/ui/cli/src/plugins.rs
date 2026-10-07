@@ -5,7 +5,7 @@
 //! by its id holding plugin.json:
 //!
 //!   id, name, version       the plugin's own name for itself, the name it shows, and its version
-//!   kind                    "language"
+//!   kind                    "language", or "tool" for a tool plugin, which validate.rs reads
 //!   extensions              the file extensions it opens, without the dot
 //!   comments                { line, block: [open, close] }, either left out where it has none
 //!   pairs, quotes           the brackets it closes and the quotes it pairs
@@ -363,8 +363,11 @@ mod tests {
         for (id, text) in BUNDLED {
             let value: Value = serde_json::from_str(text).unwrap_or_else(|error| panic!("{id}: {error}"));
             assert_eq!(value["id"], json!(id), "{id}");
-            assert_eq!(value["kind"], json!("language"), "{id}");
-            assert!(value["extensions"].as_array().is_some_and(|list| !list.is_empty()), "{id}");
+            match value["kind"].as_str() {
+                Some("language") => assert!(value["extensions"].as_array().is_some_and(|list| !list.is_empty()), "{id}"),
+                Some("tool") => assert!(value["languages"].as_array().is_some_and(|list| !list.is_empty()), "{id}"),
+                other => panic!("{id}: kind {other:?}"),
+            }
         }
     }
 

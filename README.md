@@ -53,6 +53,8 @@ sh utils/maint/texbuild/build_theory.sh                             # the resear
 
 On Windows PowerShell the engine builds with `utils/maint/engine/build_engine.ps1`. Python needs only `numpy` to start. [Setup](docs/setup.md) covers the rest.
 
+Every one of these is a job in [the app](#the-app) as well: `cd src/ui/src-tauri && cargo run` opens a window that lists each job the tree holds, sets its values and runs it, and edits every file of the tree beside it. It is the easiest way in.
+
 ## The app
 
 `orior` is one program with two faces: a window that runs every job in the tree and edits its files, and a command line over the same jobs. Most of what follows is done from the window, and every menu command is a word at the command line as well.
@@ -117,6 +119,19 @@ In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code 
 
 clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes; run it once after a clone and again after a file is added or moved.
 
+### Check a Lean proof
+
+A proof can fail for a reason that is not in its mathematics: Lean stops an elaboration that takes too many heartbeats, recurs too deep or runs out of stack, and the error reads like any other. Run, Validate (Ctrl+Alt+F5) checks the Lean file in the editor and tells the two apart. Where Lean stops at a limit, the file is checked again with that limit raised, step by step up to a ceiling, until it goes through or stops for another reason. A `set_option` in the file is raised with it. The file itself is not changed; the checks run on a copy beside it, deleted after.
+
+| marked | means |
+| --- | --- |
+| math | an error Lean reports with every limit raised: the proof is wrong as written |
+| barrier | a limit stopped Lean here; the hover says the setting it goes through at, or that it still stops at the ceiling |
+| axiom | a theorem rests on an axiom past `propext`, `Classical.choice` and `Quot.sound`: `sorryAx` from a `sorry`, or the answer of compiled code that `native_decide` took |
+| flag | a place where an exact number is carried in a type that can lose it, such as `Float` or `UInt64`, or where compiled code stands in for the definition the proof reads |
+
+Each one shows in the editor as a wave with its hover, and the status bar says whether the file holds and at which settings. Inside a Lake project, found by its `lakefile.lean`, `lakefile.toml` or `lean-toolchain`, the file is checked with `lake env lean`. `orior run validate <file>...` does the same from the command line and exits 1 when a file does not hold; `--json` prints the report.
+
 View turns on and off Sticky Scroll, which holds the opening line of each block the top of the screen is inside; Breadcrumbs, the folders, the file and the symbols the cursor is inside, each a click from where it points; and Bracket Pair Colorization, each pair of brackets colored by its depth.
 
 Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save saves each file a moment after it changes. File, Format on Save formats each file as Ctrl+S or Save All writes it, though not as Auto Save does; a formatter that fails says why on the status bar and the file is written as it was. A tab with changes not yet saved asks for a second click before it closes. Closing the app with changes open keeps them: they come back, still unsaved, the next time the tree opens.
@@ -173,6 +188,8 @@ Each language the editor colors is a plugin. orior comes with plugins for MATLAB
 
 File, New Language Plugin asks for a name, the extensions, the comments, the keywords, the types, the constants and the quotes, or starts from a plugin there already. A sample on the right shows how the plugin colors code as you type, over the `plugin.json` it will write. Create writes it to your plugins folder, with a sample file beside it, and the editor opens those extensions in it at once.
 
+A plugin whose `kind` is `tool` adds a check to languages it names, in place of a language of its own. The Lean checker above is one: its `plugin.json` lists each limit with the words Lean stops with, the option that raises it, its default and its ceiling, then the words to flag and the axioms to trust. File, Plugins shows such a plugin with the languages it checks.
+
 ### Toolchains
 
 orior installs no compiler or language of its own. File, Toolchains lists each one the tree and the app use, from Git, Bash and Python through CUDA, MSVC, GCC, LLVM, Rust, Node.js, Ruby, R, MATLAB, Octave, Lean, TeX, ngspice, LTspice, GHDL and CrossCore Embedded Studio to the formatters Black, clang-format and Prettier, with what each is for, where orior found it and the version it says.
@@ -183,7 +200,7 @@ orior installs no compiler or language of its own. File, Toolchains lists each o
 | --- | --- | --- |
 | on PATH | found on your PATH | Choose Folder to use another copy |
 | installed, not on PATH | found where it usually installs | Add to PATH, or Use This Folder |
-| not found | not on your PATH or in its usual folders | Install Page opens its makers' download page; Choose Folder takes its `bin` folder |
+| not found | not on your PATH or in its usual folders | Install Page opens its makers' download page; Choose Folder takes its `bin` folder. For Lean, Install runs elan's installer in the terminal. |
 | from your folder | orior runs it from the folder you gave | Forget Folder |
 
 Above the list, Add orior to PATH puts orior's own folder on your PATH, and `orior` then works in any terminal. On Windows a folder goes on your own Path in the registry, and its `%VARIABLES%` stay as written; elsewhere it is a line at the end of `~/.profile`. orior's runs and its terminal read the PATH anew each time and put the folders you gave first: a change shows there at once; a terminal opened before it does not have it. The folders you gave are kept in `toolchains.json` in orior's own folder.
@@ -202,6 +219,7 @@ Ctrl+` opens and closes the terminal, and Ctrl+Shift+` starts a new shell. Closi
 | Ctrl+Shift+E, Ctrl+Shift+D | the Edit view, the Run view |
 | F5, Shift+F5 | start the job, stop it |
 | Ctrl+F5 | run the file |
+| Ctrl+Alt+F5 | check a Lean proof |
 | Ctrl+S | save |
 | Shift+Alt+F | format the file |
 | F12 | go to the definition |
@@ -224,6 +242,7 @@ orior run list [word]                   the jobs, or those whose id, title or ab
 orior run show <job>                    a job's file, values and the commands it runs
 orior run <job> [key=value] [-- words]  run a job; a key given twice gives two values
 orior run run-file <file>               run a file with its language's toolchain
+orior run validate [--json] <file>...   check Lean proofs, lifting the limits Lean stops at
 orior build [job]                       the build jobs, or one of them; each kind of job is a word
 orior edit search [--case] [--word] [--regex] <text>
 orior edit format [--check] <file>...   format files in place; --check names those that would change
@@ -233,7 +252,7 @@ orior file plugins                      every plugin, where it comes from and wh
 orior file new-plugin <name> --ext <e>  write a language plugin; orior help names its other words
 orior file user-css                     the path of user.css, made where it is not there
 orior file toolchains                   each toolchain, where it was found and its version
-orior file toolchains install <tool>    open a toolchain's install page
+orior file toolchains install <tool>    run its installer where orior has one, else open its install page
 orior file toolchains add-path <tool>   put its folder on your PATH; add-path orior adds orior
 orior file toolchains use <tool> <dir>  run a toolchain from a folder; forget <tool> drops it
 orior <file>[:line[:column]]            open a file of the tree in the window

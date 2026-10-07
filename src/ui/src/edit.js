@@ -33,7 +33,7 @@ import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_pa
 import { drawOpenEditors, drawOutline, drawTimeline, guides, iconOf, lightOutline, startExplorer } from "./explorer.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
-import { loadPlugins, onPlugins } from "./plugins.js";
+import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
 import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
@@ -580,6 +580,45 @@ async function runTab(tab) {
     const run = await invoke("run_file_line", { path: tab.path, language: s.language?.id ?? "plaintext" });
     runInTerminal(run.line);
     say(`Running ${tab.path.split("/").pop()} with ${run.tool}.`);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+// Run, Validate: the tab's file saved where it has changes, then checked by the tool plugin for its
+// language, as validate.rs in the command line's crate checks it. Its findings are drawn under the
+// text as a language server's diagnostics are, until the text changes, and its verdict is said.
+async function validateTab(tab) {
+  const s = tab?.session;
+  if (!s || s.window) {
+    return;
+  }
+  const language = s.language?.id ?? "plaintext";
+  const tool = toolFor(language);
+  const name = tab.file.split("/").pop();
+  if (!tool) {
+    say(`No tool plugin validates ${s.language?.name ?? "plain text"}: File, Plugins lists them.`);
+    return;
+  }
+  if (dirty(tab) && !tab.readOnly) {
+    state.active = tab.path;
+    await saveActive();
+  }
+  say(`Validating ${name} with ${tool.name}…`);
+  try {
+    const report = await invoke("validate_file", { path: tab.file, language });
+    s.diagnostics = report.findings.map((finding) => ({
+      from: { line: finding.line, col: finding.col },
+      to: { line: finding.end_line, col: finding.end_col },
+      severity: finding.severity,
+      message: finding.lifted ? `${finding.message}
+
+${finding.lifted}` : finding.message,
+      source: finding.kind,
+    }));
+    tab.validated = true;
+    state.editor.schedule();
+    say(`${name} ${report.holds ? "holds" : "does not hold"}: ${report.verdict}`, { failed: !report.holds });
   } catch (error) {
     say(String(error), { failed: true });
   }
@@ -1243,6 +1282,10 @@ export async function startEdit(defs) {
       if (tab) {
         tab.closing = false;
         changed(tab);
+        if (tab.validated) {
+          tab.validated = false;
+          session.diagnostics = null;
+        }
       }
       window.clearTimeout(backing);
       backing = window.setTimeout(keepBackups, 800);
@@ -1412,6 +1455,7 @@ export function editing() {
     format: () => formatTab(tabOf(state.active)),
     runFile: () => runTab(tabOf(state.active)),
     definition: () => state.editor?.s && goToDefinition(state.editor.head()),
+    validate: () => validateTab(tabOf(state.active)),
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {

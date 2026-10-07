@@ -205,6 +205,7 @@ const COMMANDS = {
   start: () => chosenJob() && startChosen(),
   stop: stopChosen,
   "run-file": () => editing().runFile(),
+  validate: () => editing().validate(),
   list: (args) => searchJobs(args[0]),
   show: (args) => searchJobs(args[0]),
   new: newTerminal,

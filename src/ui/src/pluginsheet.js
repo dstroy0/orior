@@ -47,6 +47,7 @@ export function showPlugins(sheet) {
     const opens = element(
       "span",
       { className: "plugin-opens" },
+      ...(reading.kind === "tool" ? [element("span", { textContent: `checks ${reading.checks.join(", ")}`, title: reading.about })] : []),
       ...reading.extensions.map((ext) => {
         const opener = openerOf(ext);
         const other = !reading.error && opener && opener !== reading.id;

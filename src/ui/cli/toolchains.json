@@ -208,6 +208,10 @@
       "runs": {"lean": "{lean} --run {file}"},
       "version": ["--version"],
       "install": {"any": "https://lean-lang.org/install/"},
+      "setup": {
+        "windows": "d=\"$(mktemp -d)\" && curl -sSfL -o \"$d/elan.zip\" https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-pc-windows-msvc.zip && unzip -q -o \"$d/elan.zip\" -d \"$d\" && \"$d/elan-init.exe\" -y --default-toolchain stable && ~/.elan/bin/lean --version; rm -rf \"$d\"",
+        "any": "curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain stable && ~/.elan/bin/lean --version"
+      },
       "places": {"windows": ["%USERPROFILE%\\.elan\\bin"], "any": ["~/.elan/bin"]}
     },
     {

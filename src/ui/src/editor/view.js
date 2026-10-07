@@ -1728,7 +1728,7 @@ export class Editor {
   // A language's hover may answer at once or later, as a language server does; an answer that
   // comes after the pointer has gone elsewhere is dropped.
   async hoverAt(clientX, clientY) {
-    if (!this.s?.language?.hover) {
+    if (!this.s?.language?.hover && !this.s?.diagnostics?.length) {
       return;
     }
     const asked = (this.hoverAsked = (this.hoverAsked ?? 0) + 1);
@@ -1741,15 +1741,39 @@ export class Editor {
       this.hover.hide();
       return;
     }
-    const found = await this.s.language.hover(this.doc, p);
+    const said = this.diagnosticsAt(p);
+    const found = this.s.language?.hover ? await this.s.language.hover(this.doc, p) : null;
     if (asked !== this.hoverAsked || this.s !== session) {
       return;
     }
-    if (!found?.parts?.length) {
+    const parts = [...said, ...(found?.parts ?? [])];
+    if (!parts.length) {
       this.hover.hide();
       return;
     }
-    this.hover.show(found);
+    let from = found?.from ?? p;
+    if (!found) {
+      let col = p.col;
+      while (col > 0 && /\w/.test(text[col - 1])) {
+        col -= 1;
+      }
+      from = { line: p.line, col };
+    }
+    this.hover.show({ from, to: found?.to ?? p, parts });
+  }
+
+  // What the diagnostics under a place say, each in its severity's color: a language server's, or a
+  // tool plugin's.
+  diagnosticsAt(p) {
+    const line = p.line + this.s.base;
+    const names = ["", "error", "warning", "note", "hint"];
+    return (this.s.diagnostics ?? [])
+      .filter(
+        (diag) =>
+          (line > diag.from.line || (line === diag.from.line && p.col >= diag.from.col)) &&
+          (line < diag.to.line || (line === diag.to.line && p.col <= Math.max(diag.to.col, diag.from.col + 1))),
+      )
+      .map((diag) => ({ className: `diag s${diag.severity}`, text: `**${names[diag.severity] ?? "note"}**${diag.source ? ` ${diag.source}` : ""}: ${diag.message}` }));
   }
 
   bind() {

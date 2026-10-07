@@ -124,6 +124,7 @@
         { "label": "Start", "command": "start", "keys": "F5", "args": "<job> [key=value ...] [-- words]", "needs": "job", "console": true },
         { "label": "Stop", "command": "stop", "keys": "Shift+F5", "needs": "live" },
         { "label": "Run File", "command": "run-file", "keys": "Ctrl+F5", "args": "<file>", "needs": "tab", "console": true },
+        { "label": "Validate", "command": "validate", "keys": "Ctrl+Alt+F5", "args": "[--json] <file>...", "needs": "tab", "console": true },
         "-",
         { "label": "List Jobs…", "command": "list", "args": "[word]", "console": true },
         { "label": "Show Job…", "command": "show", "args": "<job>", "console": true }
