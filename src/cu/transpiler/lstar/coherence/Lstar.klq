@@ -62,7 +62,7 @@ structural_coherence
 operation_coherence
 commutative_coherence
 unknown_coherence
-concept_coherence 43eb7d8a1b06dc4e
+concept_coherence c74bd27e16dd456c
 intent_coherence c0 ff
 key word_bitor
 key word_bitxor
@@ -75,16 +75,16 @@ pair signed_word_shr word_shr
 closed 0350:00b0 80,0,0->ffffffffffffff80
 operation_coherence
 frame_coherence
-concept_coherence 2bc95003068f8ed3
+concept_coherence f8950b5a69c420b5
 key word_mul
 key word_mul_add
 pair word_mul_add word_mul
 closed 1004:00d0 0,0,1->1
 structural_coherence
-data_quality_coherence
 operation_coherence
 commutative_coherence
 unknown_coherence
+concept_coherence 1f7da566687be0a5
 key word_div
 key word_select
 key word_mul_low
@@ -304,7 +304,7 @@ comparison_coherence
 order_coherence
 commutative_coherence
 modifier_coherence
-concept_coherence 902ac697e90f8a60
+concept_coherence f167945aa75f183c
 key test_word_eq
 pair test_word_eq test_word_zero
 closed 0938:00d0 0,1,0->0

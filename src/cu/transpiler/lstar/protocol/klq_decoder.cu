@@ -567,6 +567,9 @@ int main(int argc, char **argv)
     std::string intent_held;
     std::map<std::string, unsigned int> counted;
     std::map<std::string, unsigned int> concepts;
+    std::map<std::string, unsigned int> named_pairs;
+    std::map<std::string, size_t> set_signal;
+    std::map<std::string, size_t> set_noise;
     const auto pair_closed = [&]() {
         if (!pair_held.empty())
         {
@@ -628,10 +631,19 @@ int main(int argc, char **argv)
                 }
             }
             sets.insert(std::find(sets.begin(), sets.end(), "unknown_coherence"), lit.begin(), lit.end());
+            // each set's signal and noise: its pairs, those a whole product names, and the rows of their products
+            // that came back one way and both ways
+            const auto product_held = products.find(pair_held);
+            const size_t signal_rows = (product_held != products.end()) ? concept_signal(product_held->second) : 0u;
+            const size_t noise_rows =
+                (product_held != products.end()) ? (product_held->second.rows.size() - signal_rows) : 0u;
             for (const std::string &set : sets)
             {
                 written.push_back(set);
                 counted[set] += 1u;
+                named_pairs[set] += (identities.count(pair_held) != 0u) ? 1u : 0u;
+                set_signal[set] += signal_rows;
+                set_noise[set] += noise_rows;
             }
             // a pair answered in this log is the concept its own product is, and none until that product is whole
             const std::string identity = (identities.count(pair_held) != 0u)
@@ -741,6 +753,15 @@ int main(int argc, char **argv)
     for (const auto &held : concepts)
     {
         shared += (held.second > 1u) ? 1u : 0u;
+    }
+    // each set's pairs, those a whole product names, and its signal against its noise in rows of the products
+    for (const char *const set : s_sets)
+    {
+        if (counted[set] != 0u)
+        {
+            printf("  %s: %u pairs, %u named by a concept, %zu rows of signal, %zu of noise\n", set, counted[set],
+                   named_pairs[set], set_signal[set], set_noise[set]);
+        }
     }
     printf("klq_decoder: %u puts read, %u concepts, %u of more than one pair; metas", (unsigned int)puts.size(),
            (unsigned int)concepts.size(), shared);

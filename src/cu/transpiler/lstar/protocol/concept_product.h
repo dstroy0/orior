@@ -97,8 +97,10 @@ static inline int concept_qualified(const ConceptProduct &product, const std::se
 
 // A put's product, held into `product`: what came back of each case, `writes_from` and `writes_to` one value or two,
 // as a function of the values `reads` the form reads there, a register and its `.hi` one wide value, in the order the
-// form names them, each combination alike, apart, or both where the cases holding it came back both. A combination is
-// held where every value is one the cases are made of, `cased`, so that every carrier holds the same rows
+// form names them, each combination alike, apart, or both where the cases holding it came back both. A parameter the
+// chain binds to a literal is read by its name after `=`, and a flag's after `P=`, a flag as a register `P` is. A
+// combination is held where every value is one the cases are made of, `cased`, so that every carrier holds the same
+// rows
 static inline void concept_product_held(const ConceptReads &reads, const std::vector<unsigned long long> &writes_from,
                                         const std::vector<unsigned long long> &writes_to,
                                         const std::vector<std::set<unsigned long long>> &cased,
@@ -176,6 +178,17 @@ static inline void concept_product_held(const ConceptReads &reads, const std::ve
             product->rows[values].insert(came_back);
         }
     }
+}
+
+// the rows of `product` that came back one way, alike or apart: its signal, the rest its noise
+static inline size_t concept_signal(const ConceptProduct &product)
+{
+    size_t signal = 0u;
+    for (const auto &held : product.rows)
+    {
+        signal += (held.second.size() == 1u) ? 1u : 0u;
+    }
+    return signal;
 }
 
 // 1 where `product` is whole: a row at every combination of the values the cases are made of, `cased`
