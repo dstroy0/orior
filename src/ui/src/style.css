@@ -133,6 +133,7 @@ body {
   color: var(--fg);
   font: 15px/1.5 var(--head);
   overflow: hidden;
+  scrollbar-color: var(--fg-3) transparent;
 }
 
 button,
@@ -1532,8 +1533,8 @@ select {
   color: var(--fg-3);
 }
 
-/* The terminal under both views. Its sixteen colors are the palette's, light and dark. */
-[data-scheme="dark"] .term {
+/* The sixteen colors of the terminal and of a run's output, in the palette, light and dark. */
+[data-scheme="dark"] {
   --t0: #2a2758;
   --t1: #ff8fa3;
   --t2: #6fdcb4;
@@ -1552,7 +1553,7 @@ select {
   --t15: #ffffff;
 }
 
-[data-scheme="light"] .term {
+[data-scheme="light"] {
   --t0: #17163a;
   --t1: #b4233c;
   --t2: #0f7a53;
@@ -1571,9 +1572,12 @@ select {
   --t15: #3d3b66;
 }
 
+/* A height dragged in a taller window still leaves the views their share of a shorter one. */
 .term {
   flex: none;
   height: 16rem;
+  min-height: 96px;
+  max-height: min(75vh, calc(100vh - 16rem));
   display: flex;
   flex-direction: column;
   position: relative;

@@ -84,6 +84,82 @@ function runHtml(text, style, cursor) {
   return `<span${classAttr}${styleAttr}>${escapeHtml(text)}</span>`;
 }
 
+// A style changed by a Select Graphic Rendition sequence's numbers.
+function restyled(from, numbers) {
+  const style = { ...from };
+  for (let at = 0; at < numbers.length; at += 1) {
+    const value = numbers[at] ?? 0;
+    if (value === 0) {
+      Object.assign(style, PLAIN);
+    } else if (value === 1) {
+      style.bold = true;
+    } else if (value === 2) {
+      style.dim = true;
+    } else if (value === 3) {
+      style.italic = true;
+    } else if (value === 4) {
+      style.underline = true;
+    } else if (value === 7) {
+      style.inverse = true;
+    } else if (value === 9) {
+      style.strike = true;
+    } else if (value === 22) {
+      style.bold = false;
+      style.dim = false;
+    } else if (value === 23) {
+      style.italic = false;
+    } else if (value === 24) {
+      style.underline = false;
+    } else if (value === 27) {
+      style.inverse = false;
+    } else if (value === 29) {
+      style.strike = false;
+    } else if (value >= 30 && value <= 37) {
+      style.fg = value - 30;
+    } else if (value === 39) {
+      style.fg = null;
+    } else if (value >= 40 && value <= 47) {
+      style.bg = value - 40;
+    } else if (value === 49) {
+      style.bg = null;
+    } else if (value >= 90 && value <= 97) {
+      style.fg = value - 90 + 8;
+    } else if (value >= 100 && value <= 107) {
+      style.bg = value - 100 + 8;
+    } else if (value === 38 || value === 48) {
+      const key = value === 38 ? "fg" : "bg";
+      if (numbers[at + 1] === 5) {
+        style[key] = numbers[at + 2] ?? 0;
+        at += 2;
+      } else if (numbers[at + 1] === 2) {
+        // Some programs leave an empty color space before the three parts, as 38:2::r:g:b.
+        const from = numbers[at + 2] === null ? at + 3 : at + 2;
+        const [r, g, b] = numbers.slice(from, from + 3);
+        style[key] = `rgb(${r ?? 0}, ${g ?? 0}, ${b ?? 0})`;
+        at = from + 2;
+      }
+    }
+  }
+  return Object.freeze(style);
+}
+
+// A line of a run's output as the page draws it: in the colors and weight its sequences set, which
+// start afresh on each line, with every other escape sequence read past.
+export function coloredHtml(text) {
+  const sequence = /\x1b(?:\[([\d;:]*)[ -/]*([@-~])|\][^\x07\x1b]*(?:\x07|\x1b\\)|[ -/]*[0-~])/g;
+  let style = PLAIN;
+  let html = "";
+  let from = 0;
+  for (const found of text.matchAll(sequence)) {
+    html += text.slice(from, found.index) ? runHtml(text.slice(from, found.index), style, false) : "";
+    if (found[2] === "m") {
+      style = restyled(style, found[1] ? found[1].split(/[;:]/).map((part) => (part === "" ? null : Number(part))) : [0]);
+    }
+    from = found.index + found[0].length;
+  }
+  return html + (text.slice(from) ? runHtml(text.slice(from), style, false) : "");
+}
+
 function lineHtml(line, cursorAt) {
   let html = "";
   let start = 0;
@@ -619,61 +695,7 @@ export class Screen {
 
   // Select Graphic Rendition: the colors and weight of what is printed next.
   sgr(numbers) {
-    const style = { ...this.style };
-    for (let at = 0; at < numbers.length; at += 1) {
-      const value = numbers[at] ?? 0;
-      if (value === 0) {
-        Object.assign(style, PLAIN);
-      } else if (value === 1) {
-        style.bold = true;
-      } else if (value === 2) {
-        style.dim = true;
-      } else if (value === 3) {
-        style.italic = true;
-      } else if (value === 4) {
-        style.underline = true;
-      } else if (value === 7) {
-        style.inverse = true;
-      } else if (value === 9) {
-        style.strike = true;
-      } else if (value === 22) {
-        style.bold = false;
-        style.dim = false;
-      } else if (value === 23) {
-        style.italic = false;
-      } else if (value === 24) {
-        style.underline = false;
-      } else if (value === 27) {
-        style.inverse = false;
-      } else if (value === 29) {
-        style.strike = false;
-      } else if (value >= 30 && value <= 37) {
-        style.fg = value - 30;
-      } else if (value === 39) {
-        style.fg = null;
-      } else if (value >= 40 && value <= 47) {
-        style.bg = value - 40;
-      } else if (value === 49) {
-        style.bg = null;
-      } else if (value >= 90 && value <= 97) {
-        style.fg = value - 90 + 8;
-      } else if (value >= 100 && value <= 107) {
-        style.bg = value - 100 + 8;
-      } else if (value === 38 || value === 48) {
-        const key = value === 38 ? "fg" : "bg";
-        if (numbers[at + 1] === 5) {
-          style[key] = numbers[at + 2] ?? 0;
-          at += 2;
-        } else if (numbers[at + 1] === 2) {
-          // Some programs leave an empty color space before the three parts, as 38:2::r:g:b.
-          const from = numbers[at + 2] === null ? at + 3 : at + 2;
-          const [r, g, b] = numbers.slice(from, from + 3);
-          style[key] = `rgb(${r ?? 0}, ${g ?? 0}, ${b ?? 0})`;
-          at = from + 2;
-        }
-      }
-    }
-    this.style = Object.freeze(style);
+    this.style = restyled(this.style, numbers);
   }
 
   // Gives the screen a new size. Lines are cut or filled out to the new width; a shorter main

@@ -8,6 +8,7 @@ import { invoke, listen, pick } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
 import { drawLattice } from "./lattice.js";
+import { coloredHtml } from "./screen.js";
 import { write } from "./status.js";
 
 // The groups in the order the engine's own steps run, and then what reads its results.
@@ -286,8 +287,12 @@ function endClass(run) {
   return run.code === 0 && !run.stopped ? "ok" : "failed";
 }
 
+// A line of output, in the colors its escape sequences ask for.
 function lineNode(line) {
-  return element("span", { className: line.stream, textContent: `${line.text}\n` });
+  if (!line.text.includes("\x1b")) {
+    return element("span", { className: line.stream, textContent: `${line.text}\n` });
+  }
+  return element("span", { className: line.stream, innerHTML: `${coloredHtml(line.text)}\n` });
 }
 
 function endNode(run) {

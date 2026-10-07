@@ -13,9 +13,7 @@
 import { invoke, listen } from "./bridge.js";
 import { Screen } from "./screen.js";
 
-// The panel is at least SHORTEST pixels tall and at most TALLEST of the window.
-const SHORTEST = 96;
-const TALLEST = 0.75;
+// How tall the panel may be dragged is the stylesheet's to say, in its min-height and max-height.
 const HEIGHT = "orior.terminal.height";
 
 const SPECIAL = {
@@ -43,7 +41,7 @@ const SPECIAL = {
 
 const CURSOR_KEYS = { ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: "D", Home: "H", End: "F" };
 
-const state = { id: null, opening: null, screen: null, waiting: "" };
+const state = { id: null, opening: null, screen: null, waiting: "", before: null };
 const parts = {};
 
 // What a key sends the shell, or null for a key the terminal leaves alone.
@@ -140,14 +138,19 @@ function openShell() {
     .finally(() => (state.opening = null));
 }
 
-// Opens the panel or closes it. An open panel takes the keys.
+// Opens the panel or closes it. An open panel takes the keys, and closing it hands them back to
+// whatever held them before it opened.
 function toggle(open = parts.panel.hidden) {
   parts.panel.hidden = !open;
   parts.button.setAttribute("aria-pressed", String(open));
   if (open) {
+    const holder = document.activeElement;
+    state.before = holder && holder !== document.body && holder !== parts.keys ? holder : null;
     fit();
     openShell();
     parts.keys.focus();
+  } else if (state.before?.isConnected) {
+    state.before.focus();
   } else {
     parts.keys.blur();
   }
@@ -195,8 +198,9 @@ function grip(event) {
   event.preventDefault();
   parts.grip.setPointerCapture(event.pointerId);
   const foot = parts.panel.getBoundingClientRect().bottom;
+  const shape = getComputedStyle(parts.panel);
   const move = (moved) => {
-    const height = Math.max(SHORTEST, Math.min(window.innerHeight * TALLEST, foot - moved.clientY));
+    const height = Math.max(parseFloat(shape.minHeight), Math.min(parseFloat(shape.maxHeight), foot - moved.clientY));
     parts.panel.style.height = `${height}px`;
   };
   const end = () => {
