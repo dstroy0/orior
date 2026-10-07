@@ -136,6 +136,18 @@ const REACH = 0.62;
 const LOOK = 0.3;
 const LEAN = 6;
 
+// The pupils shine back as a dog's or a cat's do, from the layer behind the retina that throws the
+// light that comes in back out through it, the tapetum lucidum. The shine is deep in the pupil: none
+// where the pull is GLOWS[0] or less, near the pupil's edge, and full where it is GLOWS[1] or more.
+// It goes from SHINE_EDGE out there to SHINE in the middle. A reflection is brightest when the eye
+// looks straight at whoever is looking, and the pupils come up to full shine while the eye stares at
+// the reader and fall to DIM of it while it rolls, closing GLINT of the gap a second.
+const GLOWS = [1.1, 3];
+const SHINE = [214, 255, 150];
+const SHINE_EDGE = [36, 168, 128];
+const DIM = 0.25;
+const GLINT = 4;
+
 // The bodies of the pupil. Each wanders on two slow waves, one across and one down, and swells and
 // shrinks a little. The first is large and near the middle; the others swing out far enough to part
 // from it.
@@ -164,7 +176,8 @@ function irisPicture(draw) {
   const fieldPen = field.getContext("2d");
   const image = fieldPen.createImageData(FIELD, FIELD);
 
-  const drawLava = (lava, seconds) => {
+  // The pupil this moment, shining `shine` of its fullest.
+  const drawLava = (lava, seconds, shine) => {
     const bodies = lava.map((one) => [
       one.across * Math.sin(one.rates[0] * seconds + one.phases[0]),
       one.down * Math.sin(one.rates[1] * seconds + one.phases[1]),
@@ -180,9 +193,12 @@ function irisPicture(draw) {
           pull += size / ((u - x) ** 2 + (v - y) ** 2 + 1e-6);
         }
         const at = (row * FIELD + column) * 4;
-        data[at] = DARK[0];
-        data[at + 1] = DARK[1];
-        data[at + 2] = DARK[2];
+        const glow = Math.max(0, Math.min(1, (pull - GLOWS[0]) / (GLOWS[1] - GLOWS[0]))) * shine;
+        const out = smooth(glow);
+        const deep = glow * glow;
+        for (let part = 0; part < 3; part += 1) {
+          data[at + part] = mix(mix(DARK[part], SHINE_EDGE[part], out), SHINE[part], deep);
+        }
         data[at + 3] = 255 * Math.max(0, Math.min(1, (pull - 0.85) / 0.3));
       }
     }
@@ -224,7 +240,7 @@ function irisPicture(draw) {
   const picture = { canvas: null, pupil: field };
   // Brings the picture to the moment `seconds` in, `across` pixels wide. The fire's pictures are
   // drawn again at a new size.
-  picture.paint = (across, lava, seconds) => {
+  picture.paint = (across, lava, seconds, shine) => {
     const side = Math.max(16, Math.ceil(across));
     if (side !== burnSide) {
       burns = [];
@@ -233,7 +249,7 @@ function irisPicture(draw) {
     const at = Math.floor((seconds / LOOP) * BURNS) % BURNS;
     burns[at] ??= burn(side, (at / BURNS) * LOOP);
     picture.canvas = burns[at];
-    drawLava(lava, seconds);
+    drawLava(lava, seconds, shine);
   };
   return picture;
 }
@@ -853,7 +869,7 @@ function drawEye(pen, width, height, state) {
   pen.clip();
   const sphere = sphereOf(cx, cy, a, b);
   const shown = state.irises.filter((iris) => iris.p[2] > 0.05).sort((one, two) => one.p[2] - two.p[2]);
-  state.picture.paint(2 * r * (window.devicePixelRatio || 1), state.lava, state.seconds);
+  state.picture.paint(2 * r * (window.devicePixelRatio || 1), state.lava, state.seconds, state.shine);
   const ease = 1 - Math.exp(-state.dt * LEAN);
   for (const iris of shown) {
     const [x, y, z] = iris.p;
@@ -901,6 +917,7 @@ export function startEye(canvas) {
   const draw = seeded(Date.now());
   const state = {
     open: still ? 1 : OPEN_FROM,
+    shine: still ? 1 : 0,
     gaze: [0, 0],
     seconds: 0,
     irises: [irisAt([0, 0, 1], [0, 0, 0], 1, draw)],
@@ -979,6 +996,7 @@ export function startEye(canvas) {
     }
     const pull = 1 - Math.exp(-dt * (rolling ? 10 : 24));
     state.gaze = state.gaze.map((g, at) => g + (aim[at] - g) * pull);
+    state.shine += ((rolling ? DIM : 1) - state.shine) * (1 - Math.exp(-dt * GLINT));
 
     // The eye's spin is the turn from the last front to this one over the frame, its axis square to
     // both.
