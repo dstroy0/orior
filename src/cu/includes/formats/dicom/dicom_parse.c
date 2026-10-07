@@ -321,9 +321,9 @@ int dicom_sort(EngineError *error)
             return 0;
         }
     }
-    s_dicom_sorting = resident->slices;
+    g_dicom_sorting = resident->slices;
     g_dicom_keyed = resident->keyed;
     qsort(resident->order, (size_t)resident->count, sizeof(unsigned long long), dicom_order_slices);
-    s_dicom_sorting = NULL;
+    g_dicom_sorting = NULL;
     return 1;
 }
