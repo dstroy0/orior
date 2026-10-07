@@ -51,6 +51,7 @@ extern "C"
 #include "../../vendor_bin_layouts/nvidia/sass_assemble.h"
 }
 
+#include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -2154,7 +2155,7 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
                           const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
 {
     static int s_opened = 0;
-    if ((s_opened == 0) && (getenv("KLQ_TRACE") != NULL))
+    if ((s_opened == 0) && (getenv("KLQ_TRACE") != NULL) && (s_ask_trace == NULL))
     {
         s_ask_trace = fopen(getenv("KLQ_TRACE"), "wb");
         s_ask_log = fopen((std::string(getenv("KLQ_TRACE")) + ".log").c_str(), "wb");
@@ -3410,6 +3411,111 @@ static std::string read_shape(const std::vector<CarrierLink> &links, const std::
     return shape;
 }
 
+// A form's text, each parameter a marker, cut into its tokens: a marker one token with the part of a pair it names,
+// `.hi`, a run of letters, digits, `_` and `.` one, and every other mark one, the space between passed over
+static std::vector<std::string> form_tokens(const std::string &text)
+{
+    std::vector<std::string> tokens;
+    for (size_t at = 0u; at < text.size();)
+    {
+        const char letter = text[at];
+        if ((letter == '\x01') && ((at + 2u) < text.size()))
+        {
+            size_t end = at + 3u;
+            if ((end < text.size()) && (text[end] == '.'))
+            {
+                end += 1u;
+                while ((end < text.size()) && (isalnum((unsigned char)text[end]) || (text[end] == '_')))
+                {
+                    end += 1u;
+                }
+            }
+            tokens.push_back(text.substr(at, end - at));
+            at = end;
+            continue;
+        }
+        if (isspace((unsigned char)letter))
+        {
+            at += 1u;
+            continue;
+        }
+        size_t end = at + 1u;
+        if (isalnum((unsigned char)letter) || (letter == '_') || (letter == '.'))
+        {
+            while ((end < text.size()) &&
+                   (isalnum((unsigned char)text[end]) || (text[end] == '_') || (text[end] == '.')))
+            {
+                end += 1u;
+            }
+        }
+        tokens.push_back(text.substr(at, end - at));
+        at = end;
+    }
+    return tokens;
+}
+
+// The form `to_text` read against the form `from_text`, token by token, each parameter a marker: each parameter of
+// `to` bound in `bound` to what `from` writes in its place, a marker of one of `from`'s parameters or a literal, and
+// each parameter of `from` that `to` writes a literal in place of bound in `fixed` to that literal. A marker naming a
+// part of a pair stands against the same part of a marker, and against `RZ`, whose every part is zero. 1 where every
+// other token is the same: `to` is `from` with the parameters `fixed` names bound, one structure
+static int form_unified(const std::string &to_text, const std::string &from_text, std::map<char, std::string> *bound,
+                        std::map<char, std::string> *fixed)
+{
+    const std::vector<std::string> to_tokens = form_tokens(to_text);
+    const std::vector<std::string> from_tokens = form_tokens(from_text);
+    bound->clear();
+    fixed->clear();
+    if (to_tokens.empty() || (to_tokens.size() != from_tokens.size()))
+    {
+        return 0;
+    }
+    for (size_t at = 0u; at < to_tokens.size(); at += 1u)
+    {
+        const std::string &to_token = to_tokens[at];
+        const std::string &from_token = from_tokens[at];
+        const int to_marker = (to_token.size() >= 3u) && (to_token[0] == '\x01');
+        const int from_marker = (from_token.size() >= 3u) && (from_token[0] == '\x01');
+        const std::string to_part = to_marker ? to_token.substr(3u) : std::string();
+        const std::string from_part = from_marker ? from_token.substr(3u) : std::string();
+        if (to_marker)
+        {
+            // a part of a pair stands against the same part of another, and a whole against a marker or a literal
+            const std::string standing = from_marker ? from_token.substr(0u, 3u) : from_token;
+            const int parts_stand = from_marker ? (to_part == from_part) : (to_part.empty() || (from_token == "RZ"));
+            if (!parts_stand || ((bound->count(to_token[1]) != 0u) && ((*bound)[to_token[1]] != standing)))
+            {
+                return 0;
+            }
+            (*bound)[to_token[1]] = standing;
+            continue;
+        }
+        if (from_marker)
+        {
+            if ((!from_part.empty() && (to_token != "RZ")) ||
+                ((fixed->count(from_token[1]) != 0u) && ((*fixed)[from_token[1]] != to_token)))
+            {
+                return 0;
+            }
+            (*fixed)[from_token[1]] = to_token;
+            continue;
+        }
+        if (to_token != from_token)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// 1 where the form `text` reads what the launch gives: a thread's or a block's number from a special register, or a
+// block's or a grid's extent from the constant bank below the parameters
+static int form_launched(const std::string &text)
+{
+    static const std::regex s_launch("SR_(TID|CTAID|NTID|NCTAID)|c\\[0x0\\]\\[0x(0|4|8|c|10|14)\\]");
+    return std::regex_search(text, s_launch) ? 1 : 0;
+}
+
 // 1 where the part answers `code` over the cases `question` holds, its answers in `question`, the container declaring
 // `mark` registers and then every register its file holds where it refuses that, each ask counted in `asks`. The
 // answers are values the host does not compute, held in the log alone and never in R
@@ -3535,6 +3641,20 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         std::vector<std::string> to_names;
         const std::string from_text = marked(from, &from_names);
         const std::string to_text = marked(to, &to_names);
+        // the stand-in read against the form token by token: what the form writes in place of each of the stand-in's
+        // parameters, and each of the form's parameters the stand-in writes a literal in place of
+        std::map<char, std::string> bound;
+        std::map<char, std::string> fixed;
+        const int unified = form_unified(to_text, from_text, &bound, &fixed);
+        // the form's parameters the stand-in reads: by name, or in place of one of its own
+        std::set<std::string> read_by_to(to_names.begin(), to_names.end());
+        for (const auto &each : bound)
+        {
+            if (unified && (each.second[0] == '\x01') && ((size_t)(each.second[1] - 'A') < from_names.size()))
+            {
+                read_by_to.insert(from_names[(size_t)(each.second[1] - 'A')]);
+            }
+        }
         // the values the two forms write of their own, as the ruleset gives them, and the values the pair's product is
         // whole over with them
         std::set<unsigned long long> qualifiers = carrier_literals(from_text);
@@ -3649,14 +3769,31 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             {
                 continue;
             }
+            // each of the stand-in's parameters given by name, or where a name is not given, by what the form writes
+            // in its place, token by token: an argument of the form, or a literal the form writes there
             std::vector<std::string> arguments;
-            for (const std::string &name : to_names)
+            for (size_t parameter = 0u; parameter < to_names.size(); parameter += 1u)
             {
-                if (given.count(name) == 0u)
+                const std::string &name = to_names[parameter];
+                const auto aligned = bound.find((char)('A' + parameter));
+                if (given.count(name) != 0u)
+                {
+                    arguments.push_back(given[name]);
+                }
+                else if (unified && (aligned != bound.end()) && (aligned->second[0] == '\x01') &&
+                         ((size_t)(aligned->second[1] - 'A') < from_names.size()) &&
+                         (given.count(from_names[(size_t)(aligned->second[1] - 'A')]) != 0u))
+                {
+                    arguments.push_back(given[from_names[(size_t)(aligned->second[1] - 'A')]]);
+                }
+                else if (unified && (aligned != bound.end()) && (aligned->second[0] != '\x01'))
+                {
+                    arguments.push_back(aligned->second);
+                }
+                else
                 {
                     return 0;
                 }
-                arguments.push_back(given[name]);
             }
             std::string standing;
             if (ruleset_opcode(sass, to, arguments, none, standing) == 0)
@@ -3719,10 +3856,21 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         address, from_line.c_str(), to_line.c_str());
                 for (const std::string &name : from_names)
                 {
-                    if ((given.count(name) != 0u) &&
-                        (std::find(to_names.begin(), to_names.end(), name) == to_names.end()))
+                    if ((given.count(name) != 0u) && (read_by_to.count(name) == 0u))
                     {
                         fprintf(s_ask_log, " %s", given[name].c_str());
+                    }
+                }
+                // each of the form's parameters the stand-in writes a literal in place of: one structure, bound
+                if (unified && !fixed.empty())
+                {
+                    fprintf(s_ask_log, "\nbinds");
+                    for (const auto &each : fixed)
+                    {
+                        const size_t parameter = (size_t)(each.first - 'A');
+                        fprintf(s_ask_log, " %s=%s",
+                                (parameter < from_names.size()) ? from_names[parameter].c_str() : "?",
+                                each.second.c_str());
                     }
                 }
                 fprintf(s_ask_log, "\nvector registers %u lanes %u operands %u delta %ld seed %lu\n",
@@ -3891,6 +4039,32 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     unsigned int closed = 0u;
     unsigned int unasked = 0u;
     int beneath = 0;
+    if ((getenv("KLQ_TRACE") != NULL) && (s_ask_trace == NULL))
+    {
+        s_ask_trace = fopen(getenv("KLQ_TRACE"), "wb");
+        s_ask_log = fopen((std::string(getenv("KLQ_TRACE")) + ".log").c_str(), "wb");
+    }
+    // what the texts of a pair's two forms say of it before any ask: one structure, one form the other with a
+    // parameter bound; both reading what the launch gives; or two operations, one meaning written twice
+    const auto pair_facts = [&](const std::string &first, const std::string &second) {
+        std::vector<std::string> first_names;
+        std::vector<std::string> second_names;
+        const std::string first_text = marked(first, &first_names);
+        const std::string second_text = marked(second, &second_names);
+        std::map<char, std::string> bound;
+        std::map<char, std::string> fixed;
+        const int structural = (form_unified(first_text, second_text, &bound, &fixed) && !fixed.empty()) ||
+                               (form_unified(second_text, first_text, &bound, &fixed) && !fixed.empty());
+        const int launched = !first_text.empty() && !second_text.empty() && form_launched(first_text) &&
+                             form_launched(second_text);
+        const std::vector<std::string> first_tokens = form_tokens(first_text);
+        const std::vector<std::string> second_tokens = form_tokens(second_text);
+        const int two_operations = !first_tokens.empty() && !second_tokens.empty() &&
+                            (first_tokens[0].substr(0u, first_tokens[0].find('.')) !=
+                             second_tokens[0].substr(0u, second_tokens[0].find('.')));
+        fprintf(s_ask_log, "facts %s %s%s%s%s\n", first.c_str(), second.c_str(), structural ? " structural" : "",
+                launched ? " pragmatic" : "", two_operations ? " syntactic" : "");
+    };
     for (const std::string &entry : bridge)
     {
         const int verdict_line = (entry.rfind("open ", 0u) == 0u) || (entry.rfind("closed ", 0u) == 0u);
@@ -3909,6 +4083,10 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         std::string first;
         std::string second;
         words >> kind >> first >> second;
+        if (s_ask_log != NULL)
+        {
+            pair_facts(first, second);
+        }
         std::string verdict = "open 0";
         if (!put(first, second, &verdict))
         {

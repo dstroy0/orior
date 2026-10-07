@@ -182,10 +182,10 @@ int main(int argc, char **argv)
     // verdicts, its primitives and its chains, kept whole: each line that is not the bridge's first, a key, a pair or
     // a line beneath a pair, written again after the keys as it was read
     std::vector<std::string> identities;
-    // each pair's verdict as the bridge held it, the set of our coherence klq_decoder read it into, its concept and its
-    // intent, each written again beneath the pair
+    // each pair's verdict as the bridge held it, the sets of our coherence klq_decoder read it into, its metas and
+    // then its set, its concept and its intent, each written again beneath the pair
     std::map<std::string, std::string> verdicts;
-    std::map<std::string, std::string> sets;
+    std::map<std::string, std::vector<std::string>> sets;
     std::map<std::string, std::string> relations;
     std::map<std::string, std::string> intents;
     std::string pair_held;
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
         }
         if (set && !pair_held.empty())
         {
-            sets[pair_held] = line;
+            sets[pair_held].push_back(line);
         }
         const int relation = (line.rfind("concept_coherence ", 0u) == 0u);
         if (relation && !pair_held.empty())
@@ -255,9 +255,9 @@ int main(int argc, char **argv)
                 const std::string pair = "pair " + held.first + " " + held.second;
                 fprintf(bridge, "%s\n%s\n", pair.c_str(),
                         (verdicts.count(pair) != 0u) ? verdicts[pair].c_str() : "open 0");
-                if (sets.count(pair) != 0u)
+                for (const std::string &set : sets[pair])
                 {
-                    fprintf(bridge, "%s\n", sets[pair].c_str());
+                    fprintf(bridge, "%s\n", set.c_str());
                 }
                 if (relations.count(pair) != 0u)
                 {
