@@ -101,7 +101,7 @@ PORTABLE_OBJECTS=()
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/marginal \
                 cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
-                "${INGEST[@]}"; do
+                cu/types/integers/exact_record "${INGEST[@]}"; do
     # A folder with no C file leaves the pattern unexpanded, and it names no file to build.
     for source in "$TOP/src/$portable"/*.c; do
         [ -f "$source" ] || continue

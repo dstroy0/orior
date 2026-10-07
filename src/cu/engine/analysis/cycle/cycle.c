@@ -507,3 +507,89 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
     free(value);
     return (long)request->count;
 }
+
+// 1 where a sort request is whole: records and order named, a whole number of runs, at most 2^32 records so that every
+// lane is a 32-bit index, and the field inside its record. Shared by both routes
+int cycle_record_sort_valid(const CycleRecordSortRequest *request)
+{
+    return (request->records != NULL) && (request->order != NULL) && (request->count != 0ull) &&
+           (request->count <= (1ull << 32u)) && (request->group != 0ull) &&
+           ((request->count % request->group) == 0ull) && (request->out_limbs != 0u) && (request->bits != 0u) &&
+           (((unsigned long long)request->offset + request->bits) <= (32ull * (unsigned long long)request->out_limbs));
+}
+
+// the order of two records' fields read as magnitudes, limb by limb from the top: -1, 0 or 1
+static int cycle_host_sort_order(const CycleRecordSortRequest *request, unsigned int one, unsigned int other)
+{
+    const unsigned int limbs = (request->bits + 31u) / 32u;
+    const unsigned int *const first = &request->records[(unsigned long long)one * request->out_limbs];
+    const unsigned int *const second = &request->records[(unsigned long long)other * request->out_limbs];
+    for (unsigned int limb = limbs; limb > 0u; limb -= 1u)
+    {
+        unsigned int left = 0u;
+        unsigned int right = 0u;
+        for (unsigned int bit = 32u * (limb - 1u); (bit < (32u * limb)) && (bit < request->bits); bit += 1u)
+        {
+            const unsigned int from = request->offset + bit;
+            left |= ((first[from / 32u] >> (from % 32u)) & 1u) << (bit % 32u);
+            right |= ((second[from / 32u] >> (from % 32u)) & 1u) << (bit % 32u);
+        }
+        if (left != right)
+        {
+            return (left > right) ? 1 : -1;
+        }
+    }
+    return 0;
+}
+
+long cycle_record_sort_host(const CycleRecordSortRequest *request)
+{
+    if ((request == NULL) || (request->error == NULL))
+    {
+        return CYCLE_ERROR;
+    }
+    EngineError *const error = request->error;
+    if (!CYCLE_CHECK(cycle_record_sort_valid(request), request, error, ENGINE_ERROR_REQUEST))
+    {
+        return CYCLE_ERROR;
+    }
+    // a run of at most 2^32 records is held in host memory, its count below SIZE_MAX
+    unsigned int *const spare = (unsigned int *)malloc((size_t)request->group * sizeof(unsigned int));
+    if (!CYCLE_CHECK(spare != NULL, request, error, ENGINE_ERROR_RESOURCE))
+    {
+        return CYCLE_ERROR;
+    }
+    const unsigned long long runs = request->count / request->group;
+    const unsigned long long group = request->group;
+    for (unsigned long long run = 0ull; run < runs; run += 1ull)
+    {
+        unsigned int *const order = &request->order[run * group];
+        for (unsigned long long at = 0ull; at < group; at += 1ull)
+        {
+            // every lane is below 2^32
+            order[at] = (unsigned int)((run * group) + at);
+        }
+        // bottom-up merges of widening spans; a record from the left span goes first unless the right one's field is
+        // less. Equal fields keep their lanes' order
+        for (unsigned long long span = 1ull; span < group; span *= 2ull)
+        {
+            for (unsigned long long start = 0ull; start < group; start += 2ull * span)
+            {
+                const unsigned long long middle = ((start + span) < group) ? (start + span) : group;
+                const unsigned long long end = ((start + (2ull * span)) < group) ? (start + (2ull * span)) : group;
+                unsigned long long left = start;
+                unsigned long long right = middle;
+                for (unsigned long long out = start; out < end; out += 1ull)
+                {
+                    const int take_right =
+                        (left >= middle) ||
+                        ((right < end) && (cycle_host_sort_order(request, order[right], order[left]) < 0));
+                    spare[out] = take_right ? order[right++] : order[left++];
+                }
+            }
+            memcpy(order, spare, (size_t)group * sizeof(unsigned int));
+        }
+    }
+    free(spare);
+    return (long)request->count;
+}

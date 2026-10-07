@@ -2,7 +2,7 @@
 // period_select.cu: the lattice, the null axis, selection, reading and printing
 #include "period_internal.h"
 
-static int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels)
+int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels)
 {
     EngineError *const error = request->error;
     const unsigned int rank = request->rank;
@@ -76,7 +76,10 @@ static unsigned int period_grid_columns(const PeriodLattice *lattice, EngineErro
     return (unsigned int)((columns != 0ull) ? columns : 1ull);
 }
 
-static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, int with_agreement, EngineError *error)
+// the histogram, and the agreement at entries `begin` to `end` - 1 of the lag table, the rest left 0: a reading counts
+// every axis's lags, a null only the lags of the axis it shuffled, and the histogram alone counts none
+static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, unsigned long long begin,
+                        unsigned long long end, EngineError *error)
 {
     int ok =
         PERIOD_STATUS_CHECK(cudaMemset(pass->device_histogram, 0, PERIOD_VALUES * sizeof(unsigned int)),
@@ -92,13 +95,13 @@ static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, in
         period_histogram_kernel<<<blocks, PERIOD_THREADS>>>(pass->lanes, pass->voxels, pass->device_histogram);
         ok = PERIOD_STATUS_CHECK(cudaGetLastError(), pass->device_histogram, error);
     }
-    if ((ok != 0) && (with_agreement != 0) && (lattice->lag_total != 0ull))
+    if ((ok != 0) && (end > begin))
     {
+        const unsigned long long entries = end - begin;
         // the row count is held at or below the grid's row limit
-        const unsigned int rows =
-            (unsigned int)((lattice->lag_total < PERIOD_GRID_ROWS_MAX) ? lattice->lag_total : PERIOD_GRID_ROWS_MAX);
+        const unsigned int rows = (unsigned int)((entries < PERIOD_GRID_ROWS_MAX) ? entries : PERIOD_GRID_ROWS_MAX);
         const dim3 grid(pass->columns, rows, 1u);
-        period_agreement_kernel<<<grid, PERIOD_THREADS>>>(pass->lanes, *lattice, pass->device_agreement);
+        period_agreement_kernel<<<grid, PERIOD_THREADS>>>(pass->lanes, *lattice, begin, end, pass->device_agreement);
         ok = PERIOD_STATUS_CHECK(cudaGetLastError(), pass->device_agreement, error);
     }
     return ok &&
@@ -110,7 +113,7 @@ static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, in
                                pass->agreement, error);
 }
 
-static int period_request_valid(const PeriodRequest *request, unsigned long long entries)
+int period_request_valid(const PeriodRequest *request, unsigned long long entries)
 {
     EngineError *const error = request->error;
     const unsigned long long band_needed = request->draws * request->rank;
@@ -124,7 +127,7 @@ static int period_request_valid(const PeriodRequest *request, unsigned long long
                         error, ENGINE_ERROR_REQUEST);
 }
 
-static void period_axis_open(const PeriodLattice *lattice, unsigned int axis, PeriodAxis *result)
+void period_axis_open(const PeriodLattice *lattice, unsigned int axis, PeriodAxis *result)
 {
     memset(result, 0, sizeof(*result));
     result->extent = lattice->extent[axis];
@@ -152,8 +155,11 @@ static int period_null_axis(const PeriodRequest *request, const PeriodLattice *l
     const unsigned int blocks =
         (unsigned int)((needed < (unsigned long long)shuffled_pass->columns) ? needed : shuffled_pass->columns);
     period_line_shuffle_kernel<<<blocks, PERIOD_THREADS>>>(device_shuffled, shuffle, *lattice, axis, lines);
+    // only this axis's lags are counted: the strongest peak is read from them alone
+    const unsigned long long begin = lattice->first[axis];
+    const unsigned long long end = begin + (lattice->extent[axis] / 2u);
     int ok = PERIOD_STATUS_CHECK(cudaGetLastError(), device_shuffled, error) &&
-             period_count(shuffled_pass, lattice, 1, error) &&
+             period_count(shuffled_pass, lattice, begin, end, error) &&
              PERIOD_CHECK(memcmp(histogram, shuffled_pass->histogram, PERIOD_VALUES * sizeof(unsigned int)) == 0,
                           shuffled_pass->histogram, error, ENGINE_ERROR_LOGIC);
     if (ok != 0)
@@ -170,9 +176,8 @@ static int period_null_axis(const PeriodRequest *request, const PeriodLattice *l
 // The period is the smallest candidate whose height clears the band top. An empty band, or a given
 // top of zero, lets any peak through. The smallest peak wins; when nothing clears, the period is
 // zero and the display candidate is the strongest peak.
-static void period_select(const unsigned long long *same, const PeriodLattice *lattice, unsigned int axis,
-                          PeriodMargin *band, unsigned long long count, const PeriodMargin *given_top,
-                          PeriodAxis *result)
+void period_select(const unsigned long long *same, const PeriodLattice *lattice, unsigned int axis, PeriodMargin *band,
+                   unsigned long long count, const PeriodMargin *given_top, PeriodAxis *result)
 {
     period_axis_open(lattice, axis, result);
     qsort(band, (size_t)count, sizeof(PeriodMargin), period_margin_compare);
@@ -246,7 +251,7 @@ extern "C" long period_read(const PeriodRequest *request)
     const PeriodResident *const resident = &g_period_resident;
     PeriodPass pass = {request->device_lanes, voxels,    columns,   resident->histogram,
                        resident->agreement,   histogram, agreement, agreement_entries};
-    ok = ok && period_count(&pass, &lattice, 1, error);
+    ok = ok && period_count(&pass, &lattice, 0ull, lattice.lag_total, error);
     unsigned long long collisions = 0ull;
     if (ok != 0)
     {
@@ -340,7 +345,7 @@ extern "C" long period_draw(const PeriodRequest *request, unsigned long long dra
     PeriodPass shuffled_pass = {
         resident->shuffled, voxels,           columns, resident->histogram, resident->agreement, shuffled_histogram,
         shuffled_agreement, agreement_entries};
-    ok = ok && period_count(&pass, &lattice, 0, error);
+    ok = ok && period_count(&pass, &lattice, 0ull, 0ull, error);
     for (unsigned int axis = 0u; (ok != 0) && (axis < lattice.rank); axis += 1u)
     {
         PeriodAxis open;

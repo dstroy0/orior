@@ -105,8 +105,8 @@ extern PeriodResident g_period_resident;
 __global__ void period_histogram_kernel(const unsigned short *lanes, unsigned long long voxels,
                                         unsigned int *histogram);
 
-__global__ void period_agreement_kernel(const unsigned short *lanes, PeriodLattice lattice,
-                                        unsigned long long *agreement);
+__global__ void period_agreement_kernel(const unsigned short *lanes, PeriodLattice lattice, unsigned long long begin,
+                                        unsigned long long end, unsigned long long *agreement);
 
 __global__ void period_line_shuffle_kernel(unsigned short *shuffled, PeriodShuffle shuffle, PeriodLattice lattice,
                                            unsigned int axis, unsigned long long lines);
@@ -120,5 +120,14 @@ void period_strongest(const unsigned long long *same, PeriodAxis *axis);
 int period_fundamental(const unsigned long long *same, const PeriodMargin *top, PeriodAxis *axis);
 
 int period_reserve(unsigned long long voxels, unsigned long long entries, EngineError *error);
+
+int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels);
+
+int period_request_valid(const PeriodRequest *request, unsigned long long entries);
+
+void period_axis_open(const PeriodLattice *lattice, unsigned int axis, PeriodAxis *result);
+
+void period_select(const unsigned long long *same, const PeriodLattice *lattice, unsigned int axis, PeriodMargin *band,
+                   unsigned long long count, const PeriodMargin *given_top, PeriodAxis *result);
 
 #endif
