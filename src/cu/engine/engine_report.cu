@@ -123,6 +123,95 @@ extern "C" int engine_prove_print(const EngineSetRequest *request, FILE *file)
     return entry_report_write(&line, file);
 }
 
+// One sample's device lanes as a sealed crystal at `path`: lifted and coded, sealed, written, read back and verified
+// against the lanes it was given, the lanes rebuilt from the file left in `rebuilt`. The record takes the crystal's
+// floors, bytes, raw bytes and root whether it sealed
+static int entry_crystal_seal(const char *path, const unsigned short *device_lanes, const unsigned long long extent[4],
+                              EngineSideSection *section, unsigned long long lane_offset, unsigned short *rebuilt,
+                              EngineSampleRecord *record, EngineError *error)
+{
+    EngineStream written;
+    unsigned int floors = 0u;
+    memset(&written, 0, sizeof(written));
+    EngineSeal seal;
+    memset(&seal, 0, sizeof(seal));
+    int ok = entry_iapx_encode(device_lanes, extent, &written, &floors, error) != 0;
+    written.lane_offset = lane_offset;
+    ok = ok && entry_seal_make(device_lanes, &written, section, &seal, error);
+    const KrepCrystalRequest write = {path, &written, section, &seal, error};
+    ok = ok && (krep_crystal_write(&write) != 0);
+    record->crystal_written = ok ? 1ull : 0ull;
+
+    EngineStream file;
+    memset(&file, 0, sizeof(file));
+    EngineSideSection back;
+    memset(&back, 0, sizeof(back));
+    EngineSeal back_seal;
+    memset(&back_seal, 0, sizeof(back_seal));
+    const KrepCrystalRequest read = {path, &file, &back, &back_seal, error};
+    ok = ok && krep_crystal_read(&read) &&
+         ENGINE_CHECK((memcmp(file.extent, extent, sizeof(file.extent)) == 0) && (file.chunks == written.chunks) &&
+                          (file.bits == written.bits) && (file.lane_offset == written.lane_offset) &&
+                          entry_signum_same(&back_seal.roots[ENGINE_SEAL_SAMPLE], &seal.roots[ENGINE_SEAL_SAMPLE]),
+                      &file, error, ENGINE_ERROR_LOGIC) &&
+         entry_crystal_verify(&file, &back, &back_seal, device_lanes, rebuilt, record, error) &&
+         ENGINE_CHECK(entry_side_same(&back.side, &section->side), &back, error, ENGINE_ERROR_LOGIC);
+    krep_crystal_release(&file);
+    krep_side_release(&back);
+    krep_seal_release(&back_seal);
+    record->floors = floors;
+    record->crystal_bytes = krep_crystal_bytes(&written, section, &seal);
+    record->raw_bytes = entry_lanes(extent) * 2ull;
+    record->root = seal.roots[ENGINE_SEAL_SAMPLE];
+    krep_seal_release(&seal);
+    return ok;
+}
+
+extern "C" long engine_crystal_write(const EngineCrystalRequest *request)
+{
+    if ((request == NULL) || (request->error == NULL))
+    {
+        return ENGINE_ERROR;
+    }
+    EngineError *const error = request->error;
+    const unsigned long long lanes = entry_lanes(request->extent);
+    char path[ENTRY_PATH_CAPACITY];
+    unsigned int made = 0u;
+    const int pathed =
+        ENGINE_CHECK((request->set != NULL) && (request->sample != NULL) && (request->device_lanes != NULL) &&
+                         (lanes != 0ull),
+                     request, error, ENGINE_ERROR_REQUEST) &&
+        ENGINE_CHECK(engine_sample_path(path, sizeof(path), request->set, request->sample, ENTRY_CRYSTAL_SUFFIX) != 0,
+                     request->sample, error, ENGINE_ERROR_REQUEST);
+    int ok = pathed && ENGINE_IO(entry_directories_make(path, 0, &made) != 0, path, error);
+    EngineSampleRecord unkept;
+    EngineSampleRecord *const record = (request->record != NULL) ? request->record : &unkept;
+    memset(record, 0, sizeof(*record));
+    record->placed = ok ? 1ull : 0ull;
+    record->source_read = record->placed;
+    EngineSideSection none;
+    memset(&none, 0, sizeof(none));
+    EngineSideSection *const section = (request->section != NULL) ? request->section : &none;
+    std::vector<unsigned short> kept((ok && (request->rebuilt == NULL)) ? (size_t)lanes : 0u);
+    unsigned short *const rebuilt = (request->rebuilt != NULL) ? request->rebuilt : kept.data();
+    ok = ok && entry_crystal_seal(path, request->device_lanes, request->extent, section, request->lane_offset, rebuilt,
+                                  record, error);
+    zip_resident_release();
+    if (ok == 0)
+    {
+        if (pathed)
+        {
+            remove(path);
+            entry_directories_remove(path, 0, made);
+        }
+        engine_error_frame(error);
+        engine_error_keep(error);
+        return ENGINE_ERROR;
+    }
+    record->sealed = 1ull;
+    return 0L;
+}
+
 extern "C" long engine_ingest_set(const EngineIngestRequest *request)
 {
     if ((request == NULL) || (request->error == NULL))
@@ -200,37 +289,10 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
                  device_lanes, error);
         free(host_lanes);
 
-        EngineStream written;
-        unsigned int floors = 0u;
-        memset(&written, 0, sizeof(written));
-        EngineSeal seal;
-        memset(&seal, 0, sizeof(seal));
-        ok = ok && (entry_iapx_encode(device_lanes, extent, &written, &floors, error) != 0);
-        written.lane_offset = lane_offset;
-        ok = ok && entry_seal_make(device_lanes, &written, &section, &seal, error);
-        const KrepCrystalRequest write = {iapx_path, &written, &section, &seal, error};
-        ok = ok && (krep_crystal_write(&write) != 0);
-        record->crystal_written = ok ? 1ull : 0ull;
-
-        EngineStream file;
-        memset(&file, 0, sizeof(file));
-        EngineSideSection back;
-        memset(&back, 0, sizeof(back));
-        EngineSeal back_seal;
-        memset(&back_seal, 0, sizeof(back_seal));
         unsigned long long pixels_differ = 0ull;
         std::vector<unsigned short> rebuilt(ok ? (size_t)lanes : 0u);
-        const KrepCrystalRequest read = {iapx_path, &file, &back, &back_seal, error};
-        ok = ok && krep_crystal_read(&read) &&
-             ENGINE_CHECK((memcmp(file.extent, extent, sizeof(extent)) == 0) && (file.chunks == written.chunks) &&
-                              (file.bits == written.bits) && (file.lane_offset == written.lane_offset) &&
-                              entry_signum_same(&back_seal.roots[ENGINE_SEAL_SAMPLE], &seal.roots[ENGINE_SEAL_SAMPLE]),
-                          &file, error, ENGINE_ERROR_LOGIC) &&
-             entry_crystal_verify(&file, &back, &back_seal, device_lanes, rebuilt.data(), record, error) &&
-             ENGINE_CHECK(entry_side_same(&back.side, &section.side), &back, error, ENGINE_ERROR_LOGIC);
-        krep_crystal_release(&file);
-        krep_side_release(&back);
-        krep_seal_release(&back_seal);
+        ok = ok && entry_crystal_seal(iapx_path, device_lanes, extent, &section, lane_offset, rebuilt.data(), record,
+                                      error);
         cudaFree(device_lanes);
         unsigned long long again[4] = {0ull, 0ull, 0ull, 0ull};
         unsigned short *disk = NULL;
@@ -246,13 +308,8 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
             ok = ENGINE_CHECK(pixels_differ == 0ull, &pixels_differ, error, ENGINE_ERROR_LOGIC);
         }
         free(disk);
-        record->floors = floors;
-        record->crystal_bytes = krep_crystal_bytes(&written, &section, &seal);
-        record->raw_bytes = lanes * 2ull;
-        record->root = seal.roots[ENGINE_SEAL_SAMPLE];
         record->pixels_differ = pixels_differ;
         krep_side_release(&section);
-        krep_seal_release(&seal);
         if (ok == 0)
         {
             remove(iapx_path);

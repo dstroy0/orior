@@ -206,6 +206,26 @@ extern "C"
 
     long engine_ingest_set(const EngineIngestRequest *request);
 
+    // One sample's lanes, already on the device, as a sealed crystal at the set's path for the sample, whatever file
+    // they were read from: lifted and coded, sealed, written, read back and rebuilt lane for lane against the lanes it
+    // was given, as engine_ingest_set does for each sample it reads. `extent` is t, z, y and x. `section` is the
+    // sample's side bytes, packed, NULL for none. `rebuilt` takes the lanes rebuilt from the file where it is set, and
+    // `record` the crystal's reading where it is set. A crystal that does not seal is removed and errors.
+    typedef struct
+    {
+        const char *set;
+        const char *sample;
+        const unsigned short *device_lanes;
+        unsigned long long extent[4];
+        EngineSideSection *section;
+        unsigned long long lane_offset;
+        unsigned short *rebuilt;
+        EngineSampleRecord *record;
+        EngineError *error;
+    } EngineCrystalRequest;
+
+    long engine_crystal_write(const EngineCrystalRequest *request);
+
     int engine_ingest_print(const EngineIngestRequest *request, FILE *file);
 
     int engine_prove_print(const EngineSetRequest *request, FILE *file);
