@@ -274,6 +274,32 @@ select {
   display: none;
 }
 
+.status-zoom {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-zoom:hover {
+  color: #ffffff;
+}
+
+.status-zoom[hidden] {
+  display: none;
+}
+
+.status-memory {
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.status-memory[hidden] {
+  display: none;
+}
+
 .statusbar .ed-status {
   flex: 1;
   min-height: 0;
@@ -2439,4 +2465,469 @@ textarea.report-field {
   50% {
     opacity: 0.35;
   }
+}
+
+/* The quick open: a field along the top of the window over its rows, what matched marked in signal,
+ * a row's folder or kind after it, and its keys to the right. */
+.quick {
+  position: fixed;
+  z-index: 60;
+  top: 46px;
+  left: 50%;
+  width: min(40rem, 86vw);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  background: var(--ed-widget);
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 36px var(--lifted);
+  font: 13px var(--head);
+}
+
+.quick[hidden] {
+  display: none;
+}
+
+.quick-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.75);
+  background: var(--well);
+  color: var(--fg);
+  font: 13.5px var(--head);
+  outline: none;
+}
+
+.quick-input:focus {
+  border-color: var(--signal);
+}
+
+.quick-list {
+  max-height: min(26rem, 60vh);
+  margin-top: 0.3rem;
+  overflow-y: auto;
+}
+
+.quick-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-height: 24px;
+  padding: 0.2rem 0.5rem;
+  border-radius: calc(var(--radius) * 0.75);
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.quick-row[aria-selected="true"] {
+  background: var(--ed-sel);
+}
+
+.quick-row.said {
+  color: var(--fg-2);
+  cursor: default;
+}
+
+.quick-label {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+.quick-row mark,
+.search-hit mark {
+  background: none;
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.quick-row kbd {
+  flex: none;
+  margin-left: auto;
+  font: 11.5px var(--code);
+  color: var(--fg-2);
+}
+
+/* Find in Files: the field with its three options inside its right end, what the search found, a
+ * row a file and under it a row a line. */
+.pane.expanded[data-pane="search"] {
+  flex: 2 1 0;
+}
+
+.search-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-box {
+  position: relative;
+  margin: 0.3rem 0.75rem 0.2rem;
+}
+
+.explorer .search-box .filter {
+  width: 100%;
+  margin: 0;
+  padding-right: 5.2rem;
+}
+
+.search-options {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  display: flex;
+  gap: 0.1rem;
+  transform: translateY(-50%);
+}
+
+.search-options [data-option] {
+  padding: 0.05rem 0.3rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) * 0.6);
+  color: var(--fg-2);
+  font: 600 11.5px var(--code);
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-options [data-option="word"] {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.search-options [data-option]:hover {
+  background: var(--line);
+}
+
+.search-options [aria-checked="true"] {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.search-options [data-option]:focus-visible {
+  outline: 1px solid var(--signal);
+}
+
+.search-said {
+  margin: 0.15rem 0.85rem 0.3rem;
+  min-height: 1em;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+.search-hits {
+  min-height: 0;
+  overflow: auto;
+}
+
+.search-file .where {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.search-file .count {
+  flex: none;
+  margin-left: auto;
+  padding: 0 0.4rem;
+  border-radius: 0.6rem;
+  background: var(--line);
+  font: 11px var(--code);
+  color: var(--fg-2);
+}
+
+.search-hit {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 22px;
+  padding: 0 0.6rem 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12.5px var(--code);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-hit .guide {
+  margin-left: 12px;
+}
+
+.search-hit .line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.search-hit:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.search-hit:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+}
+
+/* Sticky scroll: the lines that open each region the top of the editor is inside, held along its
+ * top, the deepest last, over a rule. */
+.ed-sticky {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-bg);
+  box-shadow: 0 3px 6px -3px var(--lifted);
+  border-bottom: 1px solid var(--ed-widget-line);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.ed-sticky[hidden] {
+  display: none;
+}
+
+.ed-sticky-row {
+  display: flex;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.ed-sticky-row:hover {
+  background: var(--ed-current);
+}
+
+.ed-sticky-num {
+  flex: none;
+  box-sizing: border-box;
+  padding-right: 22px;
+  text-align: right;
+  color: var(--ed-num);
+}
+
+.ed-sticky-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Preferences: the settings, the color theme with its name and what can be done with it, then every
+ * color of the palette, a row a color with its swatch, its name, its value and the way back to the
+ * scheme's own, a row the theme changes marked in signal. The colors scroll and the rest stays. */
+.sheet:has(.sheet-prefs) {
+  width: min(52rem, 94vw);
+  max-width: none;
+  height: min(52rem, 88vh);
+  max-height: none;
+}
+
+.sheet-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  height: 100%;
+  font: 13px var(--head);
+}
+
+.sheet-prefs h2 {
+  margin: 0;
+  font: 600 1.15rem var(--head);
+}
+
+.sheet-prefs h3 {
+  margin: 0 0 0.45rem;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+.prefs-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.6rem;
+}
+
+.prefs-settings .report-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.prefs-settings .report-check {
+  margin: 0;
+}
+
+.prefs-line {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.prefs-line select {
+  flex: 0 1 16rem;
+}
+
+.prefs-line .prefs-name {
+  flex: 1 1 auto;
+}
+
+.prefs-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.prefs-button {
+  padding: 0.25rem 0.8rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.75);
+  background: var(--surface);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  cursor: pointer;
+}
+
+.prefs-button:hover:not(:disabled) {
+  border-color: var(--hover);
+}
+
+.prefs-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.prefs-said {
+  min-height: 1em;
+  margin: 0.4rem 0 0;
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.prefs-palette {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.prefs-palette .filter {
+  margin: 0 0 0.5rem;
+}
+
+.prefs-colors {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+}
+
+.prefs-colors h4 {
+  margin: 0.7rem 0 0.25rem;
+  font: 600 12px var(--code);
+  color: var(--fg-3);
+}
+
+.prefs-color {
+  display: grid;
+  grid-template-columns: 2rem 13rem minmax(0, 1fr) 1.8rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.12rem 0.3rem;
+  border-radius: calc(var(--radius) * 0.6);
+  box-shadow: inset 2px 0 0 transparent;
+}
+
+.prefs-color:hover {
+  background: var(--line);
+}
+
+.prefs-color.changed {
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.prefs-color code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 12.5px var(--code);
+  color: var(--fg);
+}
+
+.prefs-swatch {
+  width: 2rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  cursor: pointer;
+}
+
+.prefs-swatch::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.prefs-swatch::-webkit-color-swatch {
+  border: 0;
+  border-radius: 2px;
+}
+
+.prefs-value {
+  min-width: 0;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  color: var(--fg-2);
+  font: 12.5px var(--code);
+}
+
+.prefs-value:hover,
+.prefs-value:focus {
+  border-color: var(--ed-widget-line);
+  background: var(--well);
+  color: var(--fg);
+  outline: none;
+}
+
+.prefs-reset {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.prefs-reset:disabled {
+  visibility: hidden;
+}
+
+.prefs-reset:hover {
+  color: var(--hover);
+}
+
+.prefs-settings select {
+  width: auto;
 }

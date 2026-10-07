@@ -9,6 +9,11 @@
 // The tree marks what git says of each file: its name in the color of how it differs from the last
 // commit, the state's letter after it, and a folder holding a changed file in that file's color with
 // a dot. What the ignore files leave out is dimmed.
+//
+// Each tree keeps its own tabs, the one shown, the files opened last, and the text of every file with
+// changes not yet saved: the app closed with changes open comes back with them still unsaved. Back and
+// Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
+// when each was last shown, while Ctrl is held.
 
 import { invoke } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
@@ -16,6 +21,7 @@ import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
 import { drawOpenEditors, drawOutline, drawTimeline, guides, iconOf, lightOutline, startExplorer } from "./explorer.js";
+import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
@@ -36,7 +42,20 @@ const state = {
   // What git says of each changed file, and of each folder holding one.
   changes: new Map(),
   rolled: new Map(),
+  // The places jumped from, and the ones gone back from.
+  back: [],
+  forward: [],
+  moving: false,
+  // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is held.
+  used: [],
+  cycle: null,
 };
+
+// How many places Back holds, how many files the quick open lists as opened last, and the largest
+// text kept for a file with changes not saved.
+const PLACES = 50;
+const RECENT = 30;
+const BACKUP_MOST = 2 * 1024 * 1024;
 
 // Which git state a folder takes from the files in it: the first of these that any of them is.
 const ROLL_ORDER = ["C", "M", "D", "A", "R", "U"];
@@ -166,6 +185,7 @@ function tabName(tab) {
 }
 
 function drawTabs() {
+  keepSession();
   const bar = document.getElementById("tabs");
   drawOpenEditors(
     state.tabs.map((tab) => ({
@@ -206,8 +226,10 @@ function closeTab(tab) {
     return;
   }
   state.tabs = state.tabs.filter((one) => one !== tab);
+  state.used = state.used.filter((path) => path !== tab.path);
+  forgetBackup(tab.path);
   if (state.active === tab.path) {
-    state.active = state.tabs.at(-1)?.path ?? null;
+    state.active = state.used.find(tabOf) ?? state.tabs.at(-1)?.path ?? null;
     show(state.active);
   } else {
     drawTabs();
@@ -280,6 +302,12 @@ async function readOutward(tab) {
 }
 
 export async function openFile(path) {
+  await load(path);
+  show(path);
+}
+
+// Opens a file's tab without showing it, with the text kept for it where it had changes not saved.
+async function load(path) {
   if (!tabOf(path)) {
     const opened = await invoke("file_read", { path });
     const tab = { path, file: path, size: opened.size, closing: false };
@@ -291,8 +319,10 @@ export async function openFile(path) {
       tab.saved = tab.session.doc.id;
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
-      tab.session = new Session(opened.text, state.known.languageOf(path));
-      tab.saved = tab.session.doc.id;
+      const kept = localStorage.getItem(backupKey(path));
+      tab.session = new Session(kept ?? opened.text, state.known.languageOf(path));
+      // Kept text that differs from the file's is a change not saved, and the tab says so.
+      tab.saved = kept === null || kept === opened.text ? tab.session.doc.id : -1;
       settleAt(tab.session, place);
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
@@ -302,7 +332,6 @@ export async function openFile(path) {
       tab.reading = readOutward(tab);
     }
   }
-  show(path);
 }
 
 // Opens a file as commit `commit` left it, read only, in a tab of its own.
@@ -333,8 +362,17 @@ async function reveal(path) {
 }
 
 function show(path) {
+  if (path !== state.active && state.active && !state.moving) {
+    markPlace();
+  }
   state.active = path;
   const tab = tabOf(path);
+  if (tab && !state.cycle) {
+    state.used = [path, ...state.used.filter((one) => one !== path)];
+  }
+  if (tab && !tab.commit) {
+    keepRecent(tab.file);
+  }
   const editorNode = document.getElementById("editor");
   const binaryNode = document.getElementById("binary");
   drawEmpty(!tab);
@@ -376,6 +414,7 @@ async function saveActive() {
   await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
   tab.saved = saving;
   tab.closing = false;
+  forgetBackup(tab.path);
   drawTabs();
   if (inBridge(tab.path)) {
     loadBridge().then(drawDefs);
@@ -384,13 +423,20 @@ async function saveActive() {
   drawTree();
 }
 
-// Opens a file with the cursor on a line of it, counted from the file's first line. A line a file
-// still being read has not reached yet is waited for; a file not open yet opens around the line.
-export async function openAt(path, line) {
+// Opens a file with the cursor on a line and column of it, each counted from the file's first. A
+// line a file still being read has not reached yet is waited for; a file not open yet opens around
+// the line.
+export async function openAt(path, line, col = 0) {
   if (!tabOf(path)) {
-    localStorage.setItem(placeKey(path), JSON.stringify({ line, col: 0 }));
+    localStorage.setItem(placeKey(path), JSON.stringify({ line, col }));
   }
-  await openFile(path);
+  markPlace();
+  state.moving = true;
+  try {
+    await openFile(path);
+  } finally {
+    state.moving = false;
+  }
   const tab = tabOf(path);
   const s = tab?.session;
   if (!s) {
@@ -400,7 +446,174 @@ export async function openAt(path, line) {
     await tab.reading;
   }
   if (state.active === path) {
-    state.editor.goTo(line - s.base);
+    state.editor.goTo(line - s.base, col);
+  }
+}
+
+// Places: where the cursor stands, kept before each jump for Back and Forward.
+
+function here() {
+  const tab = tabOf(state.active);
+  if (!tab?.session) {
+    return tab ? { path: tab.path, line: 0, col: 0 } : null;
+  }
+  const head = tab.session.selections[tab.session.primary].head;
+  return { path: tab.path, line: tab.session.base + head.line, col: head.col };
+}
+
+// Keeps the place the cursor stands at for Back, unless it is the last one kept or next to it.
+function markPlace() {
+  const place = here();
+  const last = state.back.at(-1);
+  if (!place || (last && last.path === place.path && Math.abs(last.line - place.line) < 2)) {
+    return;
+  }
+  state.back.push(place);
+  state.back.splice(0, state.back.length - PLACES);
+  state.forward = [];
+}
+
+// Goes to a line of the file shown, keeping the place it leaves for Back.
+export function jumpTo(line, col = 0) {
+  if (!state.editor?.s) {
+    return;
+  }
+  markPlace();
+  state.editor.goTo(line, col);
+  state.editor.focus();
+}
+
+async function goPlace(place) {
+  if (!tabOf(place.path) && place.path.includes("@")) {
+    return false;
+  }
+  state.moving = true;
+  try {
+    await openFile(place.path);
+  } catch {
+    return false;
+  } finally {
+    state.moving = false;
+  }
+  const s = tabOf(place.path)?.session;
+  if (s && state.active === place.path) {
+    state.editor.goTo(place.line - s.base, place.col);
+  }
+  return true;
+}
+
+// Steps back, by -1, or forward, by 1, through the places kept.
+async function step(by) {
+  const [from, to] = by < 0 ? [state.back, state.forward] : [state.forward, state.back];
+  while (from.length) {
+    const place = from.pop();
+    const left = here();
+    if (await goPlace(place)) {
+      if (left) {
+        to.push(left);
+      }
+      return;
+    }
+  }
+}
+
+// Last Editor: each press while Ctrl is held steps one tab further back in when each was shown, and
+// letting Ctrl go keeps the tab it stopped on as the one shown last.
+function lastEditor() {
+  const order = state.used.filter(tabOf);
+  if (order.length < 2) {
+    return;
+  }
+  if (!state.cycle) {
+    state.cycle = { order, at: 0 };
+  }
+  state.cycle.at = (state.cycle.at + 1) % state.cycle.order.length;
+  show(state.cycle.order[state.cycle.at]);
+}
+
+function endCycle() {
+  if (!state.cycle) {
+    return;
+  }
+  state.cycle = null;
+  if (state.active) {
+    state.used = [state.active, ...state.used.filter((one) => one !== state.active)];
+  }
+}
+
+// What each tree keeps: its tabs and the one shown, the files opened last, and the text of each file
+// with changes not saved.
+
+const treeKey = () => document.getElementById("tree-path").textContent;
+const sessionKey = () => `orior.session.${treeKey()}`;
+const recentKey = () => `orior.recent.${treeKey()}`;
+const backupKey = (path) => `orior.backup.${treeKey()}\n${path}`;
+
+function readKept(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function keepSession() {
+  if (!state.restored) {
+    return;
+  }
+  const tabs = state.tabs.filter((tab) => !tab.commit).map((tab) => tab.path);
+  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, active: tabOf(state.active)?.commit ? null : state.active }));
+}
+
+function keepRecent(path) {
+  localStorage.setItem(recentKey(), JSON.stringify([path, ...readKept(recentKey(), []).filter((one) => one !== path)].slice(0, RECENT)));
+}
+
+// The files of the tree opened last, the last first.
+export function recentFiles() {
+  return readKept(recentKey(), []);
+}
+
+function forgetBackup(path) {
+  localStorage.removeItem(backupKey(path));
+}
+
+// Keeps the text of each tab with changes not saved, and lets go of each without.
+function keepBackups() {
+  for (const tab of state.tabs) {
+    if (!tab.session || tab.readOnly || tab.session.window) {
+      continue;
+    }
+    if (!dirty(tab)) {
+      forgetBackup(tab.path);
+      continue;
+    }
+    const text = tab.session.doc.text();
+    if (text.length > BACKUP_MOST) {
+      continue;
+    }
+    try {
+      localStorage.setItem(backupKey(tab.path), text);
+    } catch {
+      forgetBackup(tab.path);
+    }
+  }
+}
+
+// Opens the tabs the tree had open, and shows the one it showed.
+export async function restoreSession() {
+  const kept = readKept(sessionKey(), { tabs: [], active: null });
+  for (const path of kept.tabs ?? []) {
+    await load(path).catch(() => {});
+  }
+  state.restored = true;
+  const shown = tabOf(kept.active) ? kept.active : state.tabs.at(-1)?.path;
+  if (shown) {
+    state.moving = true;
+    show(shown);
+    state.moving = false;
+  } else {
+    keepSession();
   }
 }
 
@@ -579,6 +792,9 @@ export async function startEdit(defs) {
   let lighting = 0;
   let keeping = 0;
   let outlining = 0;
+  let backing = 0;
+  window.addEventListener("keyup", (event) => event.key === "Control" && endCycle());
+  window.addEventListener("blur", endCycle);
   const cursorLine = () => (state.editor?.s ? state.editor.head().line : 0);
   state.editor = new Editor(document.getElementById("editor"), {
     statusHost: document.getElementById("statusbar"),
@@ -596,6 +812,8 @@ export async function startEdit(defs) {
       if (tab) {
         tab.closing = false;
       }
+      window.clearTimeout(backing);
+      backing = window.setTimeout(keepBackups, 800);
       drawTabs();
       window.clearTimeout(outlining);
       outlining = window.setTimeout(() => drawOutline(tabOf(state.active)?.session ?? null), 300);
@@ -611,10 +829,7 @@ export async function startEdit(defs) {
     show,
     close: (path) => tabOf(path) && closeTab(tabOf(path)),
     tabMenu: (path) => tabMenu(tabOf(path)),
-    goTo: (line) => {
-      state.editor.goTo(line);
-      state.editor.focus();
-    },
+    goTo: (line) => jumpTo(line),
     cursorLine,
     openCommit,
     refresh: async () => {
@@ -745,6 +960,7 @@ export function editing() {
         await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
         tab.saved = saving;
         tab.closing = false;
+        forgetBackup(tab.path);
         if (inBridge(tab.path)) {
           loadBridge().then(drawDefs);
         }
@@ -756,6 +972,22 @@ export function editing() {
     },
     close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
     closeAll: () => [...state.tabs].forEach(closeTab),
+    sticky: () => Boolean(state.editor?.stickyOn),
+    setSticky: (on) => state.editor?.setSticky(on),
+    back: () => step(-1),
+    forward: () => step(1),
+    lastEditor,
+    lineCount: () => (state.editor?.s ? state.editor.s.base + state.editor.s.doc.count : null),
+    symbols: () => {
+      const s = state.editor?.s;
+      return s ? symbolsOf(s.language?.id, s.doc).map((symbol) => ({ ...symbol, line: s.base + symbol.line, shownLine: s.base + symbol.line + 1 })) : null;
+    },
+    goLine: (line, col) => {
+      const s = state.editor?.s;
+      if (s) {
+        jumpTo(line - s.base, col);
+      }
+    },
     find: () => {
       togglePane(true);
       const filter = document.getElementById("file-filter");
@@ -765,8 +997,17 @@ export function editing() {
   };
 }
 
-// Forgets the folders read so far, for a tree opened in place of this one.
+// Forgets the folders read so far and the tabs, for a tree opened in place of this one. What the tabs
+// held stays kept with the tree they were open in.
 export function forgetTree() {
+  keepBackups();
+  state.restored = false;
+  state.tabs = [];
+  state.used = [];
+  state.back = [];
+  state.forward = [];
+  state.active = null;
+  show(null);
   state.children.clear();
   state.expanded = new Set([""]);
   state.changes = new Map();
