@@ -71,15 +71,17 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 
 ### The window
 
-| part | what it holds |
-| --- | --- |
-| Menu bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help. A key shown beside a command runs it from anywhere in the window. |
-| Run and Edit | the two views, a tab each on the line under the menus. Ctrl+Shift+D shows Run and Ctrl+Shift+E shows Edit, and with a tab holding the keys, Left and Right switch. |
-| Run view | every job the tree holds, the values each takes, and each run's output as it arrives |
-| Edit view | the explorer, the editor with a tab for each file, and beside it the definition of the open file's type |
-| Explorer | the panes Search, Open Editors, the tree's files, Outline and Timeline. Its … menu shows or hides each pane. |
-| Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
-| Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
+![The Edit view with a coherence file open, the bridge beside it and the terminal under it, each part numbered as in the table](src/ui/docs/img/window.png)
+
+| | part | what it holds |
+| --- | --- | --- |
+| 1 | Menu bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help. A key shown beside a command runs it from anywhere in the window. |
+| 2 | Run and Edit | the two views, a tab each on the line under the menus. Run holds every job the tree holds, the values each takes and each run's output; Edit holds the parts below. Ctrl+Shift+D shows Run and Ctrl+Shift+E shows Edit, and with a tab holding the keys, Left and Right switch. |
+| 3 | Explorer | the panes Search, Open Editors, the tree's files, Outline and Timeline. Its … menu shows or hides each pane. |
+| 4 | Editor | a tab for each file, the breadcrumbs over it, and the minimap down its right edge |
+| 5 | Definitions | the definition of the open file's type, and in a coherence file, the bridge |
+| 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
+| 7 | Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
 
 The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open.
 
@@ -88,6 +90,8 @@ The panes at the sides collapse toward their edge a moment after the pointer lea
 1. Choose the Run tab (Ctrl+Shift+D), or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
+
+![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.55 s off the ruler](src/ui/docs/img/run.png)
 
 The output streams as it comes. The fuse along its foot burns on the time ruler under it, its head at the run's latest moment, and it flashes when the run ends well and sputters dark when it fails or is stopped. The ruler marks where each step started and where the output came, red where it went to stderr. The wheel over either one, or + and - with the ruler holding the keys, zooms the time down to a few milliseconds across; a drag or Left and Right moves it, and 0 or a double click fits the whole run again. A page a viewer writes opens in a window of its own.
 
@@ -111,6 +115,8 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 
 ### Find your way
 
+![Go to File with fuse typed, fuse.js first and the letters each name matched marked](src/ui/docs/img/go_to_file.png)
+
 | to go to | press |
 | --- | --- |
 | a file | Ctrl+P, then part of its name. `path:line:column` goes to a place in it, and the files opened last come first. |
@@ -125,11 +131,15 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 
 Ctrl+F finds in the file and Ctrl+H replaces, with F3 and Shift+F3 for the next and the previous match. Ctrl+Shift+F opens Find in Files, the explorer's Search pane: case, whole words and regular expressions each turn on beside the field, each file's row holds its count, and a line's row opens the file at the match. `orior edit search <text>` searches the tree from the command line.
 
+![The Search pane with makeRuler found three times in two files, beside the file it opened](src/ui/docs/img/find_in_files.png)
+
 ### Version control
 
 The tree colors each file's name by how it differs from the last commit, with git's letter after it. A folder holding a changed file takes that file's color with a dot, and what the ignore files leave out is dimmed.
 
 In the editor, the gutter marks each line added or changed since the last commit, and each place lines were taken out. A click on a mark shows the change under it: the lines the commit had and the lines there now. Revert puts the commit's lines back as one edit, which Ctrl+Z takes back. Alt+F5 and Shift+Alt+F5 step to the next and the previous change. The strip down the minimap's right edge marks the whole file at once, the changes in one lane and find's matches and the cursors in the other, and a click on it goes there.
+
+![A changed line open under its gutter mark: the line the last commit had, the line there now, and Revert](src/ui/docs/img/change.png)
 
 The Timeline pane lists the commits that touched the open file. Open shows the file as a commit left it, read only, in a tab of its own.
 
@@ -138,6 +148,8 @@ The Timeline pane lists the commits that touched the open file. Open shows the f
 File, Preferences (Ctrl+,) holds the zoom, every setting the menus turn on and off, Trim Trailing Whitespace and Insert Final Newline on save, and the colors. Ctrl+=, Ctrl+- and Ctrl+0 zoom in, out and back, and View switches between light and dark.
 
 To make a theme of your own, choose Light or Dark under Color Theme and press New. Each color of the palette is then yours to change, Search narrows the list, and ↺ puts one color back. Export copies the theme to the clipboard, and Import reads one from it. Themes are kept between runs and the one chosen shows from the first frame.
+
+![Preferences: the settings, the color theme and its palette](src/ui/docs/img/preferences.png)
 
 ### The terminal
 
