@@ -8,7 +8,7 @@ import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, keysOf, runLaunch, startMenubar } from "./menubar.js";
+import { drawMenubar, keysOf, runCommand, runLaunch, startMenubar } from "./menubar.js";
 import { forgetFiles } from "./palette.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
@@ -20,7 +20,7 @@ import { startTerminal } from "./terminal.js";
 import { onView, showView, startModes } from "./views.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
-import { keepMemory } from "./statusbar.js";
+import { keepMemory, say } from "./statusbar.js";
 import { startMotion } from "./motion.js";
 import { keepUserCss } from "./usercss.js";
 
@@ -69,6 +69,7 @@ async function start() {
   keepLattices();
   watch(drawPulse);
   document.getElementById("open-button").addEventListener("click", () => openFolder());
+  document.getElementById("clone-button").addEventListener("click", () => runCommand("clone"));
   await startMenubar({ openFolder });
   startModes((view) => keysOf(`${view}-view`));
   startSearch((path, line, col) => {
@@ -86,7 +87,8 @@ async function start() {
   await runLaunch();
 }
 
-// Works on the tree in `folder`, or in one asked for, in place of the one open.
+// Works on the tree in `folder`, or in one asked for, in place of the one open. A folder that is no
+// tree is said on the pane that asks for one, and on the bar where a tree is open over that pane.
 async function openFolder(folder) {
   const chosen = folder ?? (await pick("dir"));
   if (typeof chosen !== "string") {
@@ -99,6 +101,9 @@ async function openFolder(folder) {
     await begin(root);
   } catch (error) {
     document.getElementById("open-said").textContent = String(error);
+    if (document.getElementById("open-tree").hidden) {
+      say(String(error), { failed: true });
+    }
   }
 }
 

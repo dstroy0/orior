@@ -3,9 +3,11 @@
 
 //! What git says of the tree: the branch it is on, the files that differ from the last commit and
 //! how, the commits that touched a file, and a file's text as one of those commits left it or as the
-//! last did. In a tree git cannot read, each of these comes back empty.
+//! last did. In a tree git cannot read, each of these comes back empty. Here too is the clone of a
+//! repository into a folder of its own, for File, Clone Repository and `orior file clone`.
 
-use std::path::Path;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use serde::Serialize;
@@ -122,6 +124,96 @@ pub fn text_at(root: &Path, file: &str, id: &str) -> Result<String, String> {
 pub fn head_text(root: &Path, file: &str) -> Option<String> {
     inside(root, file).ok()?;
     git(root, &["show", &format!("HEAD:./{file}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
+}
+
+/// The repository File, Clone Repository offers first.
+pub const ORIOR: &str = "https://github.com/dstroy0/orior.git";
+
+/// The folder a clone goes in where none is named: the reader's home.
+pub fn clone_parent() -> PathBuf {
+    let home = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    std::env::var_os(home).map(PathBuf::from).unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+}
+
+/// The folder a clone of `url` makes under `parent`: the last part of the address, without `.git`,
+/// as git itself names it.
+pub fn clone_folder(url: &str, parent: &Path) -> Result<PathBuf, String> {
+    let address = url.trim().trim_end_matches(['/', '\\']);
+    let name = address.strip_suffix(".git").unwrap_or(address).rsplit(['/', '\\', ':']).next().unwrap_or("");
+    if name.is_empty() || name == "." || name == ".." {
+        return Err(format!("{url} names no repository"));
+    }
+    Ok(parent.join(name))
+}
+
+/// Clones `url` into `target`, a folder that is not there yet or is empty, with the git orior's runs
+/// get. Each line of git's progress goes to `said` as it comes, with whether the line is finished: a
+/// line git ends with a carriage return is one it writes over with the next. Answers the folder, or
+/// the first line git marked fatal.
+pub fn clone(url: &str, target: &Path, mut said: impl FnMut(&str, bool)) -> Result<PathBuf, String> {
+    if target.read_dir().is_ok_and(|mut held| held.next().is_some()) {
+        return Err(format!("{} is there already and holds files", target.display()));
+    }
+    let program = crate::toolchains::chosen_program("git").unwrap_or_else(|| PathBuf::from("git"));
+    let mut command = Command::new(program);
+    // git asks for no password at a terminal no one can type into; a credential helper still may.
+    command.args(["clone", "--progress", "--", url]).arg(target).env("PATH", crate::toolchains::run_path()).env("GIT_TERMINAL_PROMPT", "0");
+    command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
+    crate::runner::quiet(&mut command);
+    let mut child = command.spawn().map_err(|error| format!("git did not start: {error}"))?;
+    let mut stderr = child.stderr.take().expect("piped");
+    let mut line = Vec::new();
+    let mut fatal = None;
+    let mut chunk = [0u8; 4096];
+    let mut tell = |line: &mut Vec<u8>, ended: bool, fatal: &mut Option<String>| {
+        let text = String::from_utf8_lossy(line).trim().to_string();
+        line.clear();
+        if !text.is_empty() {
+            said(&text, ended);
+            if fatal.is_none() {
+                *fatal = text.strip_prefix("fatal: ").map(String::from);
+            }
+        }
+    };
+    loop {
+        let read = match stderr.read(&mut chunk) {
+            Ok(0) | Err(_) => break,
+            Ok(read) => read,
+        };
+        for &byte in &chunk[..read] {
+            match byte {
+                b'\n' => tell(&mut line, true, &mut fatal),
+                b'\r' => tell(&mut line, false, &mut fatal),
+                _ => line.push(byte),
+            }
+        }
+    }
+    tell(&mut line, true, &mut fatal);
+    let status = child.wait().map_err(|error| error.to_string())?;
+    if status.success() {
+        Ok(target.to_path_buf())
+    } else {
+        Err(fatal.unwrap_or_else(|| format!("git clone {url} failed")))
+    }
+}
+
+#[cfg(test)]
+mod clones {
+    use std::path::Path;
+
+    use super::clone_folder;
+
+    #[test]
+    fn a_clone_is_named_as_git_names_it() {
+        let parent = Path::new("work");
+        assert_eq!(clone_folder("https://github.com/dstroy0/orior.git", parent).unwrap(), parent.join("orior"));
+        assert_eq!(clone_folder("https://github.com/dstroy0/orior/", parent).unwrap(), parent.join("orior"));
+        assert_eq!(clone_folder("git@github.com:dstroy0/orior.git", parent).unwrap(), parent.join("orior"));
+        assert_eq!(clone_folder("git@host:orior", parent).unwrap(), parent.join("orior"));
+        assert_eq!(clone_folder(r"D:\repos\orior.git", parent).unwrap(), parent.join("orior"));
+        assert!(clone_folder("https://", parent).is_err());
+        assert!(clone_folder("  ", parent).is_err());
+    }
 }
 
 #[cfg(test)]

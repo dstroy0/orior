@@ -20,6 +20,7 @@ use crate::catalog::{self, Job};
 use crate::commands::{self, Commands, Item, Menu};
 use crate::files;
 use crate::format;
+use crate::git;
 use crate::home;
 use crate::plugins;
 use crate::report;
@@ -470,6 +471,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "new-plugin" => return new_plugin(words),
         "user-css" => return user_css(),
         "toolchains" => return toolchains_words(words),
+        "clone" => return clone_words(words),
         "format" => return format_files(words),
         "run-file" => return run_file_words(named, words),
         "validate" => return validate_files(words),
@@ -744,6 +746,45 @@ fn run_file_words(named: Option<&str>, words: &[String]) -> i32 {
         Ok(status) => status.code().unwrap_or(NO_CODE),
         Err(error) => {
             err(&error.to_string());
+            NO_CODE
+        }
+    }
+}
+
+/// `orior file clone [url] [folder]`: clones a repository, orior's where none is named, into a new
+/// folder in `folder` or the working one. git's progress is written over one line as git writes it.
+fn clone_words(words: &[String]) -> i32 {
+    let url = words.first().map_or(git::ORIOR, String::as_str);
+    let parent = words.get(1).map_or_else(|| std::env::current_dir().unwrap_or_default(), PathBuf::from);
+    let target = match git::clone_folder(url, &parent) {
+        Ok(target) => target,
+        Err(said) => {
+            err(&said);
+            return WRONG;
+        }
+    };
+    let mut shown = 0usize;
+    let mut wrote = false;
+    let cloned = git::clone(url, &target, |line, ended| {
+        wrote = true;
+        let width = line.chars().count();
+        eprint!("\r{line}{}", " ".repeat(shown.saturating_sub(width)));
+        shown = if ended { 0 } else { width };
+        if ended {
+            eprintln!();
+        }
+    });
+    match cloned {
+        Ok(dir) => {
+            out(&format!("Cloned into {}.", dir.display()));
+            out(&format!("orior --root \"{}\" opens it in the window.", dir.display()));
+            0
+        }
+        // Where git wrote why, it is on the screen already.
+        Err(said) => {
+            if !wrote {
+                err(&said);
+            }
             NO_CODE
         }
     }

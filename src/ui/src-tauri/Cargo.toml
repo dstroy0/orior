@@ -16,6 +16,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 name = "orior"
 path = "src/main.rs"
 
+# A plain cargo build, run or install builds the app as released, with the page inside it; cargo
+# tauri dev builds without default features and serves the page as it changes.
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

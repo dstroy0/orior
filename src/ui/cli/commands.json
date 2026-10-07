@@ -4,6 +4,7 @@
       "title": "File",
       "items": [
         { "label": "Open Folder…", "command": "open-folder", "args": "[folder]" },
+        { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
         "-",
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
         { "label": "Save All", "command": "save-all", "needs": "changed" },

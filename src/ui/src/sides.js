@@ -4,9 +4,11 @@
 // The panes that take the editor's room: the job list, the explorer and the definitions. A moment
 // after the app loads, after its view shows, or after the pointer leaves one, it collapses, giving
 // its width back and sliding up and toward the edge it stands at, and the pointer reaching that edge
-// of the window brings it back. A pane that holds the keys, or that a menu is open over, stays until
-// both have left it. Whether panes collapse on
-// their own is the reader's to set, and kept; Ctrl+B shows or collapses the view's own pane either way.
+// of the window brings it back; one brought back that the pointer never comes onto goes again a
+// moment later. A pane that holds the pointer or the keys, or that a menu is open over, stays until
+// all have left it, and is looked at again every REST while it stays: a row redrawn under the keys
+// takes them from the pane with no event to say so. Whether panes collapse on their own is the
+// reader's to set, and kept; Ctrl+B shows or collapses the view's own pane either way.
 
 import { menuOpen } from "./menu.js";
 
@@ -37,10 +39,7 @@ function tryCollapse(pane) {
   if (!autoCollapse() || node.hidden || node.classList.contains("collapsed") || node.offsetParent === null) {
     return;
   }
-  if (node.matches(":hover") || node.contains(document.activeElement)) {
-    return;
-  }
-  if (menuOpen()) {
+  if (node.matches(":hover") || node.contains(document.activeElement) || menuOpen()) {
     collapseLater(pane);
     return;
   }
@@ -57,7 +56,12 @@ export function keepPane(node, side) {
   node.addEventListener("pointerenter", () => window.clearTimeout(pane.timer));
   node.addEventListener("pointerleave", () => collapseLater(pane));
   node.addEventListener("focusout", () => collapseLater(pane));
-  edge.addEventListener("pointerenter", () => !node.hidden && setShown(pane, true));
+  edge.addEventListener("pointerenter", () => {
+    if (!node.hidden) {
+      setShown(pane, true);
+      collapseLater(pane);
+    }
+  });
   // A pane hidden while it has nothing to show starts its wait again when it shows.
   new MutationObserver(() => !node.hidden && collapseLater(pane)).observe(node, { attributes: true, attributeFilter: ["hidden"] });
   panes.push(pane);
@@ -89,6 +93,7 @@ export function togglePane(shown = !paneShown()) {
   setShown(pane, shown);
   if (shown) {
     pane.node.querySelector("input, button")?.focus();
+    collapseLater(pane);
   }
 }
 
