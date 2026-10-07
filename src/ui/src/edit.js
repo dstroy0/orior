@@ -33,6 +33,7 @@ import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_pa
 import { drawOpenEditors, drawOutline, drawTimeline, guides, iconOf, lightOutline, startExplorer } from "./explorer.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
+import { loadPlugins, onPlugins } from "./plugins.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { terminalAt } from "./terminal.js";
@@ -1085,7 +1086,15 @@ function light() {
 }
 
 export async function startEdit(defs) {
+  await loadPlugins();
   state.known = registerLanguages(defs);
+  // A plugin read again, turned on or turned off colors every open file anew.
+  onPlugins(() => {
+    for (const tab of state.tabs) {
+      tab.session?.setLanguage(state.known.languageOf(tab.file));
+    }
+    state.editor?.restyle();
+  });
   state.head = defs.head;
   let lighting = 0;
   let keeping = 0;

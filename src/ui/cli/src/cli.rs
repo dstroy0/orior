@@ -19,6 +19,8 @@ use crate::bridge::{self, Bridge};
 use crate::catalog::{self, Job};
 use crate::commands::{self, Commands, Item, Menu};
 use crate::files;
+use crate::home;
+use crate::plugins;
 use crate::report;
 use crate::root;
 use crate::runner::{self, Said, Sink};
@@ -460,6 +462,9 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         }
         "auto-report" => return auto_report(words.first().map(String::as_str)),
         "search" => return search(named, words),
+        "plugins" => return plugins_list(),
+        "new-plugin" => return new_plugin(words),
+        "user-css" => return user_css(),
         "report" => return report_page(named, words),
         _ => {}
     }
@@ -492,6 +497,136 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
             } else {
                 run_job(root, job, &words[1..])
             }
+        }
+    }
+}
+
+/// `orior file plugins`: every plugin, its id, where it comes from, its name and the extensions it
+/// opens. One of the reader's that stands in for one that comes with orior is marked so.
+fn plugins_list() -> i32 {
+    let found = plugins::all();
+    let users: std::collections::HashSet<String> = found.iter().filter(|plugin| plugin.source == "user").map(|plugin| plugin.id.clone()).collect();
+    let mut rows = Vec::new();
+    for plugin in &found {
+        let read: Result<serde_json::Value, _> = serde_json::from_str(&plugin.text);
+        let (name, opens) = match &read {
+            Ok(value) => (
+                value["name"].as_str().unwrap_or(&plugin.id).to_string(),
+                value["extensions"].as_array().map(|list| list.iter().filter_map(|ext| ext.as_str()).map(|ext| format!(".{ext}")).collect::<Vec<_>>().join(" ")).unwrap_or_default(),
+            ),
+            Err(error) => (format!("does not read: {error}"), String::new()),
+        };
+        let source = if plugin.source == "bundled" && users.contains(&plugin.id) { "bundled, replaced" } else { plugin.source };
+        rows.push((plugin.id.clone(), source.to_string(), name, opens));
+    }
+    let wide = |pick: fn(&(String, String, String, String)) -> &String| rows.iter().map(|row| pick(row).len()).max().unwrap_or(0);
+    let (a, b, c) = (wide(|row| &row.0), wide(|row| &row.1), wide(|row| &row.2));
+    for (id, source, name, opens) in &rows {
+        out(&format!("{id:a$}  {source:b$}  {name:c$}  {opens}"));
+    }
+    if let Some(dir) = home::plugins() {
+        out(&format!("\nthe reader's plugins: {}", dir.display()));
+    }
+    0
+}
+
+/// `orior file new-plugin <name> --ext <ext,...> ...`: writes a language plugin to the reader's
+/// plugins folder, as plugins.rs says, and names the folder.
+fn new_plugin(words: &[String]) -> i32 {
+    let mut spec = plugins::Spec::default();
+    let mut name = Vec::new();
+    let mut replace = false;
+    let list = |text: &str| text.split(',').map(|word| word.trim().to_string()).filter(|word| !word.is_empty()).collect::<Vec<_>>();
+    let mut at = 0;
+    while at < words.len() {
+        let word = words[at].as_str();
+        let value = words.get(at + 1).map(String::as_str);
+        let taken = match (word, value) {
+            ("--replace", _) => {
+                replace = true;
+                0
+            }
+            ("--ext", Some(value)) => {
+                spec.extensions = list(value);
+                1
+            }
+            ("--id", Some(value)) => {
+                spec.id = value.to_string();
+                1
+            }
+            ("--from", Some(value)) => {
+                spec.from = value.to_string();
+                1
+            }
+            ("--line-comment", Some(value)) => {
+                spec.line_comment = value.to_string();
+                1
+            }
+            ("--block-comment", Some(open)) => match words.get(at + 2) {
+                Some(close) => {
+                    spec.block_comment = vec![open.to_string(), close.clone()];
+                    2
+                }
+                None => {
+                    err("--block-comment takes two words, the opening and the closing");
+                    return WRONG;
+                }
+            },
+            ("--keywords", Some(value)) => {
+                spec.keywords = list(value);
+                1
+            }
+            ("--types", Some(value)) => {
+                spec.types = list(value);
+                1
+            }
+            ("--constants", Some(value)) => {
+                spec.constants = list(value);
+                1
+            }
+            ("--quotes", Some(value)) => {
+                spec.quotes = list(value);
+                1
+            }
+            (flag, None) if flag.starts_with("--") => {
+                err(&format!("{flag} needs a value"));
+                return WRONG;
+            }
+            (flag, _) if flag.starts_with("--") => {
+                err(&format!("new-plugin takes no {flag}: orior help names what it takes"));
+                return WRONG;
+            }
+            _ => {
+                name.push(word.to_string());
+                0
+            }
+        };
+        at += 1 + taken;
+    }
+    spec.name = name.join(" ");
+    match plugins::create(&spec, replace) {
+        Ok(folder) => {
+            out(&folder.display().to_string());
+            0
+        }
+        Err(said) => {
+            err(&said);
+            WRONG
+        }
+    }
+}
+
+/// `orior file user-css`: names the stylesheet the window lays over its own, and makes it, empty but
+/// for a note, where it is not there yet.
+fn user_css() -> i32 {
+    match home::ensure_user_css() {
+        Ok(path) => {
+            out(&path.display().to_string());
+            0
+        }
+        Err(said) => {
+            err(&said);
+            NO_CODE
         }
     }
 }

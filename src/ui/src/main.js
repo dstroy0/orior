@@ -22,6 +22,7 @@ import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
 import { keepMemory } from "./statusbar.js";
 import { startMotion } from "./motion.js";
+import { keepUserCss } from "./usercss.js";
 
 async function openInEditor(path) {
   showView("edit");
@@ -61,6 +62,7 @@ async function start() {
   await startMotion();
   startWordmark();
   keepScheme();
+  await keepUserCss();
   keepZoom();
   keepMemory();
   startMenus();

@@ -1,0 +1,33 @@
+{
+  "id": "bat",
+  "name": "Batch",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["bat","cmd"],
+  "comments": {"line":"REM"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\""],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "ignoreCase": true,
+    "perLine": true,
+    "words": [
+      "call", "cd", "copy", "defined", "del", "do", "echo", "else", "endlocal", "equ", "errorlevel", "exist",
+      "exit", "for", "geq", "goto", "gtr", "if", "in", "leq", "lss", "md", "mkdir", "neq", "not", "off", "on",
+      "pause", "popd", "pushd", "rd", "set", "setlocal", "shift", "start"
+    ],
+    "tokenizer": {
+      "root": [
+        [{"pattern":"^\\s*(?:rem\\b|::).*$","flags":"i"},"comment"],
+        ["^\\s*:\\w+","tag"],
+        ["%%?~?[\\w]+%?|![\\w]+!","variable"],
+        ["\"[^\"]*\"","string"],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@default":""}}],
+        ["\\d+","number"],
+        ["[()]","@brackets"],
+        ["[<>=&|@]+","operator"],
+        ["\\s+",""]
+      ]
+    }
+  }
+}

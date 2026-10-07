@@ -151,6 +151,16 @@ To make a theme of your own, choose Light or Dark under Color Theme and press Ne
 
 ![Preferences: the settings, the color theme and its palette](src/ui/docs/img/preferences.png)
 
+File, User Stylesheet opens `user.css` in orior's own folder, making it first where it is not there. Any rule of CSS in it lays over the app's own, and every color and font above is a variable named as Preferences lists it: `:root[data-scheme] { --fuse-fire: #ff7a1a; }` sets the fuse's flame in both schemes. The window reads the file again each time it comes back to the front.
+
+orior's own folder is `%APPDATA%\orior` on Windows and `~/.config/orior` elsewhere, or the folder `ORIOR_HOME` names.
+
+### Languages and plugins
+
+Each language the editor colors is a plugin. orior comes with plugins for MATLAB, Octave, R, Python, C, C++ and CUDA, Rust, JavaScript, Lean, VHDL, SHARC assembly, LTspice, ngspice, TeX, Markdown, HTML and XML, CSS, JSON, TOML, YAML, the shells and plain text. A plugin is a folder with a `plugin.json` that names the extensions it opens, its comments, brackets and quotes, a grammar, and the words and snippets it completes. File, Plugins lists every plugin with what it opens, turns each on or off, and shows what is wrong with one that does not read. Your own plugins go in `plugins` in orior's own folder; Open Plugins Folder opens it, and Reload reads them again. One of yours with the id of one that comes with orior is used in its place. Where two plugins name one extension, as MATLAB and Octave both name `.m`, yours comes first, then the first by id; the list strikes out an extension another plugin opens, and turning that plugin off hands it on.
+
+File, New Language Plugin asks for a name, the extensions, the comments, the keywords, the types, the constants and the quotes, or starts from a plugin there already. A sample on the right shows how the plugin colors code as you type, over the `plugin.json` it will write. Create writes it to your plugins folder, with a sample file beside it, and the editor opens those extensions in it at once.
+
 ### The terminal
 
 Ctrl+` opens and closes the terminal, and Ctrl+Shift+` starts a new shell. Closing the panel leaves the shell running. Ctrl+C copies where text is selected and interrupts where none is; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Its top edge drags to set its height. Open in terminal, on a folder of the tree, starts a shell there.
@@ -186,6 +196,9 @@ orior build [job]                       the build jobs, or one of them; each kin
 orior edit search [--case] [--word] [--regex] <text>
 orior go bridge [key]                   the keys of Lstar.klq, or one key's pairs, maps and rulesets
 orior view scheme dark                  any window command, here switching to the dark scheme
+orior file plugins                      every plugin, where it comes from and what it opens
+orior file new-plugin <name> --ext <e>  write a language plugin; orior help names its other words
+orior file user-css                     the path of user.css, made where it is not there
 orior <file>[:line[:column]]            open a file of the tree in the window
 orior --completions <shell>             completions for bash, zsh, fish or powershell
 ```
@@ -200,6 +213,7 @@ To complete words as you type, load the script for your shell: `eval "$(orior --
 | `ORIOR_ROOT` | the tree, ahead of the one the working folder or the program is in |
 | `ORIOR_BASH`, `ORIOR_PYTHON` | the bash and the Python the jobs run with, where the ones on the path are not the ones to use |
 | `ORIOR_NO_REPORTS` | no error reports for this run |
+| `ORIOR_HOME` | orior's own folder, for the settings, the plugins and `user.css` |
 
 ### When something goes wrong
 

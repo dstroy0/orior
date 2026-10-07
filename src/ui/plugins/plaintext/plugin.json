@@ -1,0 +1,12 @@
+{
+  "id": "plaintext",
+  "name": "Plain Text",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["txt","log"],
+  "comments": {},
+  "pairs": [],
+  "quotes": [],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": null
+}

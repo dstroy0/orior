@@ -83,14 +83,9 @@ struct Run {
 
 static RUN: Mutex<Run> = Mutex::new(Run { filed: BTreeSet::new(), errors: VecDeque::new() });
 
-/// orior's own folder for what it keeps between runs.
+/// Where the settings are kept, in orior's own folder.
 fn settings_path() -> Option<PathBuf> {
-    let base = if cfg!(windows) {
-        std::env::var_os("APPDATA").map(PathBuf::from)
-    } else {
-        std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
-    };
-    base.map(|base| base.join("orior").join("settings.json"))
+    crate::home::folder().map(|folder| folder.join("settings.json"))
 }
 
 fn settings() -> Settings {

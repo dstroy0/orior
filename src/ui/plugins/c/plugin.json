@@ -1,0 +1,57 @@
+{
+  "id": "c",
+  "name": "C, C++ and CUDA",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["c","h","cu","cuh","cpp","hpp","cc"],
+  "comments": {"line":"//","block":["/*","*/"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "words": [
+      "auto", "break", "case", "const", "continue", "default", "do", "else", "enum", "extern", "for", "goto",
+      "if", "inline", "register", "restrict", "return", "sizeof", "static", "struct", "switch", "typedef",
+      "union", "volatile", "while", "_Alignas", "_Alignof", "_Atomic", "_Generic", "_Noreturn",
+      "_Static_assert", "_Thread_local", "class", "namespace", "template", "typename", "public", "private",
+      "protected", "virtual", "override", "final", "constexpr", "consteval", "static_assert", "decltype",
+      "new", "delete", "operator", "this", "using", "try", "catch", "throw", "noexcept", "explicit", "friend",
+      "mutable", "nullptr", "true", "false", "NULL", "__global__", "__device__", "__host__", "__shared__",
+      "__constant__", "__restrict__", "__forceinline__", "__noinline__", "__launch_bounds__", "__syncthreads",
+      "alignas", "alignof"
+    ],
+    "types": [
+      "void", "char", "short", "int", "long", "float", "double", "signed", "unsigned", "bool", "_Bool",
+      "_Complex", "size_t", "ptrdiff_t", "intptr_t", "uintptr_t", "int8_t", "int16_t", "int32_t", "int64_t",
+      "uint8_t", "uint16_t", "uint32_t", "uint64_t", "wchar_t", "char16_t", "char32_t", "half", "dim3",
+      "float2", "float3", "float4", "double2", "int2", "int3", "int4", "uint2", "uint3", "uint4", "FILE"
+    ],
+    "tokenizer": {
+      "root": [
+        ["^\\s*#\\s*\\w+","keyword.directive","@directive"],
+        {"include":"@whitespace"},
+        ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
+        [
+          "0[xX][\\da-fA-F_']+[uUlLzZ]*|0[bB][01_']+[uUlL]*|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?[fFuUlLjJ]*",
+          "number"
+        ],
+        ["[uUL]?\"","string","@string"],
+        ["'(?:[^'\\\\]|\\\\.)*'","string"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!~?:&|+\\-*/^%]+","operator"],
+        ["[;,.]","delimiter"]
+      ],
+      "directive": [
+        ["<[^>]*>","string"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["\\/\\/.*$","comment"],
+        ["\\\\$","keyword.directive","@directive"],
+        ["$","","@pop"],
+        ["[^\"<\\\\/]+|.","keyword.directive"]
+      ],
+      "string": [["[^\\\\\"]+","string"],["\\\\.","string.escape"],["\"","string","@pop"]],
+      "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"],["\\/\\/.*$","comment"]],
+      "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "javascript",
+  "name": "JavaScript",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["js","mjs"],
+  "comments": {"line":"//","block":["/*","*/"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'","`"],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "words": [
+      "async", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default",
+      "delete", "do", "else", "export", "extends", "false", "finally", "for", "from", "function", "if",
+      "import", "in", "instanceof", "let", "new", "null", "of", "return", "static", "super", "switch", "this",
+      "throw", "true", "try", "typeof", "undefined", "var", "void", "while", "with", "yield"
+    ],
+    "tokenizer": {
+      "root": [
+        {"include":"@whitespace"},
+        ["[A-Za-z_$][\\w$]*",{"cases":{"@words":"keyword","@default":"identifier"}}],
+        [
+          "0[xX][\\da-fA-F_']+[uUlLzZ]*|0[bB][01_']+[uUlL]*|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?[fFuUlLjJ]*",
+          "number"
+        ],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["'(?:[^'\\\\]|\\\\.)*'","string"],
+        ["`","string","@template"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!~?:&|+\\-*/^%]+","operator"],
+        ["[;,.]","delimiter"]
+      ],
+      "template": [
+        ["`","string","@pop"],
+        ["\\$\\{","delimiter.bracket","@inner"],
+        ["\\\\.","string.escape"],
+        ["[^`\\\\$]+|\\$","string"]
+      ],
+      "inner": [["\\}","delimiter.bracket","@pop"],{"include":"@root"}],
+      "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"],["\\/\\/.*$","comment"]],
+      "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
+    }
+  }
+}

@@ -3231,6 +3231,189 @@ textarea.report-field {
   max-width: 6rem;
 }
 
+/* Plugins: the actions, then every plugin a row, its box, its name, the extensions it opens, where it
+ * comes from and its folder where it is the reader's. One that is off is dimmed, and what was wrong
+ * with one that does not read runs under it in the failure color. The list scrolls and the rest stays. */
+.sheet:has(.sheet-plugins) {
+  width: min(50rem, 94vw);
+  max-width: none;
+  height: min(40rem, 86vh);
+  max-height: none;
+}
+
+.sheet-plugins {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+  font: 13px var(--head);
+}
+
+.sheet-plugins h2,
+.sheet-generator h2 {
+  margin: 0;
+  font: 600 1.15rem var(--head);
+}
+
+.sheet-plugins .filter {
+  margin: 0;
+}
+
+.sheet-plugins .prefs-said:empty {
+  display: none;
+}
+
+.plugins-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+
+.plugin-row {
+  display: grid;
+  grid-template-columns: auto minmax(10rem, 1.2fr) minmax(6rem, 1fr) auto auto;
+  align-items: center;
+  gap: 0.3rem 0.8rem;
+  padding: 0.45rem 0.2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.plugin-row.off > :not(input) {
+  opacity: 0.5;
+}
+
+.plugin-name span {
+  color: var(--fg-3);
+  font: 12px var(--code);
+}
+
+.plugin-opens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.plugin-opens code {
+  padding: 0 0.3rem;
+  border-radius: calc(var(--radius) * 0.5);
+  background: var(--surface);
+  color: var(--fg-2);
+  font: 12px var(--code);
+}
+
+.plugin-opens code.taken {
+  color: var(--fg-3);
+  text-decoration: line-through;
+}
+
+.plugin-source {
+  color: var(--fg-2);
+  font-size: 12px;
+}
+
+.plugin-error {
+  grid-column: 2 / -1;
+  margin: 0;
+  color: var(--fail);
+  font: 12px var(--code);
+  overflow-wrap: anywhere;
+}
+
+/* New Language Plugin: the answers on the left, and on the right the sample as the plugin colors it
+ * over the plugin's file as it would be written, both in the editor's font. */
+.sheet:has(.sheet-generator) {
+  width: min(64rem, 96vw);
+  max-width: none;
+  height: min(46rem, 90vh);
+  max-height: none;
+}
+
+.sheet-generator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  height: 100%;
+  font: 13px var(--head);
+}
+
+.generator-panes {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) 1fr;
+  gap: 1.2rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.generator-form {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+}
+
+.generator-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.generator-preview {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.generator-preview h3 {
+  margin: 0 0 0.35rem;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+.generator-sample,
+.generator-text {
+  margin: 0 0 0.8rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ed-bg);
+  color: var(--ed-fg);
+  font: var(--code-size) / var(--code-line) var(--code);
+  white-space: pre;
+  overflow: auto;
+}
+
+.generator-sample {
+  flex: none;
+}
+
+.generator-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  color: var(--fg-2);
+}
+
+.generator-go {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+@media (max-width: 44rem) {
+  .generator-panes {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .plugin-row {
+    grid-template-columns: auto 1fr auto;
+  }
+}
+
 /* While the window's frame is dragged, every animation of the page holds. */
 .still *,
 .still *::before,

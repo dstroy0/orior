@@ -1,0 +1,49 @@
+{
+  "id": "matlab",
+  "name": "MATLAB",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["m"],
+  "comments": {"line":"%"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "^\\s*(?:function|if|elseif|else|for|parfor|while|switch|case|otherwise|try|catch|classdef|properties|methods|events|enumeration|arguments|spmd)\\b.*$",
+  "grammar": {
+    "words": [
+      "arguments", "break", "case", "catch", "classdef", "continue", "else", "elseif", "end", "enumeration",
+      "events", "for", "function", "global", "if", "methods", "otherwise", "parfor", "persistent", "properties",
+      "return", "spmd", "switch", "try", "while"
+    ],
+    "types": [
+      "double", "single", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "logical",
+      "char", "string", "cell", "struct", "table", "timetable", "function_handle", "containers"
+    ],
+    "constants": ["true", "false", "pi", "Inf", "inf", "NaN", "nan", "NaT", "eps", "i", "j", "realmax", "realmin", "intmax", "intmin"],
+    "functions": [
+      "abs", "all", "any", "cat", "ceil", "cellfun", "arrayfun", "disp", "error", "exp", "eye", "fieldnames", "find",
+      "floor", "fft", "ifft", "figure", "fprintf", "sprintf", "hold", "isempty", "isfield", "length", "linspace",
+      "log", "max", "mean", "min", "mod", "num2str", "numel", "ones", "plot", "rand", "randn", "repmat", "reshape",
+      "round", "size", "sort", "sqrt", "str2double", "strcmp", "strsplit", "sum", "title", "warning", "xlabel",
+      "ylabel", "zeros", "legend", "subplot", "nargin", "nargout", "varargin", "varargout", "assert", "isa"
+    ],
+    "tokenizer": {
+      "root": [
+        ["^\\s*%\\{\\s*$","comment","@block"],
+        ["%.*$","comment"],
+        ["\\.\\.\\..*$","comment"],
+        ["\\s+",""],
+        ["([A-Za-z]\\w*)('*)",[{"cases":{"@words":"keyword","@types":"type","@constants":"predefined","@functions":"predefined","@default":"identifier"}},"operator"]],
+        ["(0[xX][\\da-fA-F]+(?:[us](?:8|16|32|64))?|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eEdD][+-]?\\d+)?[ij]?)('*)",["number","operator"]],
+        ["([)\\]}])('*)",["@brackets","operator"]],
+        ["[{(\\[]","@brackets"],
+        ["\\.'|\\.[*/\\\\^]|[<>=~]=|&&|\\|\\||[-+*/\\\\^<>=~&|:@]","operator"],
+        ["'","string","@sq"],
+        ["\"","string","@dq"],
+        ["[;,.]","delimiter"]
+      ],
+      "block": [["^\\s*%\\{\\s*$","comment","@block"],["^\\s*%\\}\\s*$","comment","@pop"],[".+","comment"]],
+      "sq": [["[^']+","string"],["''","string.escape"],["'","string","@pop"],["$","","@pop"]],
+      "dq": [["[^\"]+","string"],["\"\"","string.escape"],["\"","string","@pop"],["$","","@pop"]]
+    }
+  }
+}

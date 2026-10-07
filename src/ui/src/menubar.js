@@ -23,6 +23,9 @@ import { crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, savi
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
 import { showPreferences } from "./preferences.js";
+import { showGenerator, showPlugins } from "./pluginsheet.js";
+import { loadPlugins } from "./plugins.js";
+import { openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
@@ -177,6 +180,10 @@ const COMMANDS = {
         { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
       ],
     }),
+  "user-css": () => openUserCss(),
+  plugins: () => showPlugins(sheet),
+  "new-plugin": (args) => showGenerator(sheet, args),
+  "reload-plugins": () => loadPlugins(),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),

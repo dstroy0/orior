@@ -11,7 +11,7 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, git, report, root, runner};
+use orior_cli::{bridge, catalog, commands, defs, files, git, home, plugins, report, root, runner};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -254,6 +254,53 @@ fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> 
     git::text_at(&root_of(&app)?, &path, &id)
 }
 
+/// Every plugin, as plugins.rs finds them.
+#[tauri::command]
+fn plugins_read() -> Vec<plugins::Plugin> {
+    plugins::all()
+}
+
+/// The plugin the generator's answers ask for, as its file would hold it.
+#[tauri::command]
+fn plugin_draft(spec: plugins::Spec) -> Result<String, String> {
+    plugins::draft(&spec).map(|plugin| plugins::text_of(&plugin))
+}
+
+/// Writes the plugin the answers ask for to the reader's plugins folder, and names the folder.
+#[tauri::command]
+fn plugin_create(spec: plugins::Spec, replace: bool) -> Result<String, String> {
+    plugins::create(&spec, replace).map(|folder| folder.display().to_string())
+}
+
+/// The reader's stylesheet, or nothing where there is none.
+#[tauri::command]
+fn user_css_read() -> String {
+    home::user_css().and_then(|path| std::fs::read_to_string(path).ok()).unwrap_or_default()
+}
+
+/// Opens one of orior's own places as the system opens it: "user-css", made first where it is not
+/// there, "plugins", the reader's plugins folder, made first likewise, or the folder of one of the
+/// reader's plugins.
+#[tauri::command]
+fn home_reveal(what: String) -> Result<(), String> {
+    let plugins_dir = home::plugins().ok_or("orior has no folder of its own")?;
+    let path = match what.as_str() {
+        "user-css" => home::ensure_user_css()?,
+        "plugins" => {
+            std::fs::create_dir_all(&plugins_dir).map_err(|error| format!("{}: {error}", plugins_dir.display()))?;
+            plugins_dir
+        }
+        folder => {
+            let path = PathBuf::from(folder);
+            if !path.starts_with(&plugins_dir) || !path.is_dir() {
+                return Err(format!("{folder} is not a plugin of the reader's"));
+            }
+            path
+        }
+    };
+    home::reveal(&path)
+}
+
 #[tauri::command]
 fn file_read(app: State<App>, path: String) -> Result<files::Opened, String> {
     files::read(&root_of(&app)?, &path)
@@ -440,6 +487,11 @@ fn open(launch: Launch) {
             root_set,
             catalog_read,
             definitions_read,
+            plugins_read,
+            plugin_draft,
+            plugin_create,
+            user_css_read,
+            home_reveal,
             bridge_read,
             job_start,
             job_stop,
