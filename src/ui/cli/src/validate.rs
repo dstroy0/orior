@@ -460,6 +460,7 @@ fn command_for(tool: &Tool, program: &Path, file: &Path, project: Option<&Path>,
     }
     let mut command = Command::new(runs);
     command.args(&words).current_dir(&dir).env("PATH", toolchains::run_path()).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    crate::runner::quiet(&mut command);
     Ok((command, dir))
 }
 
