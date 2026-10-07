@@ -1972,6 +1972,37 @@ static std::map<std::string, StallField> stall_fields(const char *ksc)
     return fields;
 }
 
+// The cases a pair's product is put over where its forms write values of their own, `qualifiers`: each operand put
+// through the values every case is put through and those, the third through its own, into `question`. The host
+// computes none of them, and a product asks nothing of the host. 0 where the run channel holds fewer
+static int qualified_cases(RunQuestion *question, const std::set<unsigned long long> &qualifiers)
+{
+    std::vector<unsigned long long> values(s_values, s_values + IDENTITY_VALUES);
+    for (const unsigned long long value : qualifiers)
+    {
+        if (std::find(values.begin(), values.end(), value) == values.end())
+        {
+            values.push_back(value);
+        }
+    }
+    const unsigned long long count = (unsigned long long)values.size() * values.size() * IDENTITY_THIRDS;
+    if (count > RUN_CASES_MOST)
+    {
+        return 0;
+    }
+    question->cases = (unsigned int)count;
+    for (unsigned int place = 0u; place < question->cases; place += 1u)
+    {
+        const unsigned long long left = values[(place / values.size()) % values.size()];
+        const unsigned long long right = values[place % values.size()];
+        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffull), (unsigned int)(left >> 32u),
+                                                  (unsigned int)(right & 0xffffffffull), (unsigned int)(right >> 32u),
+                                                  (unsigned int)(place / (values.size() * values.size())), 0u, 0u, 0u};
+        memcpy(question->word[place], words, sizeof(words));
+    }
+    return 1;
+}
+
 // The cases a question is put over: every case the host computes, spread evenly through them only where the run
 // channel holds fewer. The words of each into `question`, and the host's place of each into `places`
 static void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
@@ -3504,6 +3535,14 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         std::vector<std::string> to_names;
         const std::string from_text = marked(from, &from_names);
         const std::string to_text = marked(to, &to_names);
+        // the values the two forms write of their own, as the ruleset gives them, and the values the pair's product is
+        // whole over with them
+        std::set<unsigned long long> qualifiers = carrier_literals(from_text);
+        for (const unsigned long long value : carrier_literals(to_text))
+        {
+            qualifiers.insert(value);
+        }
+        const std::vector<std::set<unsigned long long>> pair_cased = concept_values_qualified(cased, qualifiers);
         if (from_text.empty() || to_text.empty())
         {
             return 0;
@@ -3691,11 +3730,12 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         found_link.vector.first, seed);
                 // what the form's product is made of: each register it reads that a case reaches, its value on every
                 // case as the part holds it at the form, the carrier cut there and the value stored in its place
-                ConceptReads put_reads;
-                std::vector<unsigned long long> put_writes[2];
                 const std::string form_found = found.str(0);
                 const long form_lines = (long)std::count(form_found.begin(), form_found.end(), '\n') +
                                         ((!form_found.empty() && (form_found.back() == '\n')) ? 0 : 1);
+                // the product asked over the cases the question holds: what the form reads, and what it and its
+                // stand-in write
+                const auto product_asked = [&](ConceptReads &put_reads, std::vector<unsigned long long> *put_writes) {
                 for (const std::string &read : carrier_form_reads(flow.first, flow.second, form_found, link_at))
                 {
                     // an operand of a case the form loads itself is read as the question holds it, and asks nothing
@@ -3785,9 +3825,35 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     fprintf(s_ask_log, "\n");
                 }
                 fflush(s_ask_log);
-                concept_product_held(put_reads, put_writes[0], put_writes[1], cased, &product);
+                };
+                // the values the pair's forms write of their own, each put to the product with every case value
+                fprintf(s_ask_log, "qualifies");
+                for (const unsigned long long value : qualifiers)
+                {
+                    fprintf(s_ask_log, " %llx", value);
+                }
+                fprintf(s_ask_log, "\n");
+                ConceptReads put_reads;
+                std::vector<unsigned long long> put_writes[2];
+                product_asked(put_reads, put_writes);
+                concept_product_held(put_reads, put_writes[0], put_writes[1], pair_cased, &product);
+                if (!qualifiers.empty() && !concept_whole(product, pair_cased) && qualified_cases(&s_question, qualifiers))
+                {
+                    fprintf(s_ask_log, "pair %s in place of %s at %s\nqualified", to.c_str(), from.c_str(), address);
+                    for (const unsigned long long value : qualifiers)
+                    {
+                        fprintf(s_ask_log, " %llx", value);
+                    }
+                    fprintf(s_ask_log, "\n");
+                    ConceptReads qualified_reads;
+                    std::vector<unsigned long long> qualified_writes[2];
+                    product_asked(qualified_reads, qualified_writes);
+                    concept_product_held(qualified_reads, qualified_writes[0], qualified_writes[1], pair_cased,
+                                         &product);
+                    stall_cases(&s_question, &places);
+                }
             }
-            if (past_closed && concept_whole(product, cased))
+            if (past_closed && concept_whole(product, pair_cased))
             {
                 *verdict = closed;
                 return 1;
@@ -3805,7 +3871,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 closed = closed.empty() ? ("closed " + std::string(address) + " " + case_text(s_apart_at) + "->" +
                                            expected[s_apart_at])
                                         : closed;
-                if ((s_ask_log == NULL) || concept_whole(product, cased))
+                if ((s_ask_log == NULL) || concept_whole(product, pair_cased))
                 {
                     *verdict = closed;
                     return 1;

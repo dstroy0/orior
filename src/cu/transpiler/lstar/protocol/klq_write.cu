@@ -13,9 +13,9 @@
 // holds as two keys (breaks), and a name given as another kind than a form (kind). No name of a language collapses
 // onto the bridge, which witnesses no two names one text. A name the schema does not name has no key, and is open
 //
-// The bridge's identities between texts, `text_identity <text> = <text>` with their verdicts, are no ruleset's: each
-// is kept as the bridge held it and written after the keys. A pair the bridge held a verdict for, put to the part, is
-// written with that verdict, and with the set of our coherence klq_decoder read it into
+// The bridge's identities between texts and between slices with their verdicts, its primitives and its chains, are no
+// ruleset's: each line is kept as the bridge held it and written after the keys. A pair the bridge held a verdict for,
+// put to the part, is written with that verdict, and with the set, the concept and the intent klq_decoder read it into
 #include "code_generator.h"
 #include "target_internal.h"
 
@@ -178,23 +178,24 @@ int main(int argc, char **argv)
         }
     }
     const std::string path = folder + "/Lstar.klq";
-    // the identities between texts the bridge holds, each with its verdict, kept whole: no ruleset writes them, and
-    // they are written again after the keys as they were read
+    // every line the bridge holds that no ruleset writes, its identities between texts and between slices with their
+    // verdicts, its primitives and its chains, kept whole: each line that is not the bridge's first, a key, a pair or
+    // a line beneath a pair, written again after the keys as it was read
     std::vector<std::string> identities;
-    // each pair's verdict as the bridge held it, the set of our coherence klq_decoder read it into and its concept,
-    // each written again beneath the pair
+    // each pair's verdict as the bridge held it, the set of our coherence klq_decoder read it into, its concept and its
+    // intent, each written again beneath the pair
     std::map<std::string, std::string> verdicts;
     std::map<std::string, std::string> sets;
     std::map<std::string, std::string> relations;
+    std::map<std::string, std::string> intents;
     std::string pair_held;
     std::ifstream held_bridge(path, std::ios::binary);
     std::string line;
-    int in_identity = 0;
+    int first = 1;
     while (std::getline(held_bridge, line))
     {
         line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
         const int verdict = (line.rfind("open ", 0u) == 0u) || (line.rfind("closed ", 0u) == 0u);
-        in_identity = (line.rfind("text_identity ", 0u) == 0u) || (in_identity && verdict);
         const std::string suffix = "_coherence";
         const int set = (line.find(' ') == std::string::npos) && (line.size() > suffix.size()) &&
                         (line.compare(line.size() - suffix.size(), suffix.size(), suffix) == 0);
@@ -211,12 +212,19 @@ int main(int argc, char **argv)
         {
             relations[pair_held] = line;
         }
-        pair_held =
-            (line.rfind("pair ", 0u) == 0u) ? line : ((verdict || set || relation) ? pair_held : std::string());
-        if (in_identity)
+        const int intent = (line.rfind("intent_coherence ", 0u) == 0u);
+        if (intent && !pair_held.empty())
+        {
+            intents[pair_held] = line;
+        }
+        const int beneath_pair = !pair_held.empty() && (verdict || set || relation || intent);
+        const int ruleset_line = first || (line.rfind("key ", 0u) == 0u) || (line.rfind("pair ", 0u) == 0u);
+        pair_held = (line.rfind("pair ", 0u) == 0u) ? line : (beneath_pair ? pair_held : std::string());
+        if (!beneath_pair && !ruleset_line && !line.empty())
         {
             identities.push_back(line);
         }
+        first = 0;
     }
     held_bridge.close();
     FILE *const bridge = fopen(path.c_str(), "wb");
@@ -255,6 +263,10 @@ int main(int argc, char **argv)
                 {
                     fprintf(bridge, "%s\n", relations[pair].c_str());
                 }
+                if (intents.count(pair) != 0u)
+                {
+                    fprintf(bridge, "%s\n", intents[pair].c_str());
+                }
             }
         }
     }
@@ -263,8 +275,8 @@ int main(int argc, char **argv)
         fprintf(bridge, "%s\n", kept_line.c_str());
     }
     fclose(bridge);
-    printf("  %s: %u keys, %u pairs open, %u pairs of names the schema does not name, %u lines of identities between "
-           "texts kept\n",
+    printf("  %s: %u keys, %u pairs open, %u pairs of names the schema does not name, %u lines no ruleset writes "
+           "kept\n",
            path.c_str(), written, (unsigned int)pairs.size(), unkeyed, (unsigned int)identities.size());
     return failed;
 }

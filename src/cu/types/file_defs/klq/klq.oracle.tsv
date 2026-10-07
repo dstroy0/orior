@@ -25,5 +25,6 @@ pair	klq_decoder	modifier_coherence	modifier_coherence	the two forms one text bu
 pair	klq_decoder	frame_coherence	frame_coherence	the two forms one text but for a sign or a width: alike on every case whose operands every frame reads as themselves, apart only past them
 pair	klq_decoder	negation_coherence	negation_coherence	the two forms of a flag one text but for a modifier, apart whatever the link reads: each the other's negation, the two members of one node
 pair	klq_decoder	concept_coherence	concept_coherence <hash>	the pair's concept, its product whole: whether its two forms write one value or two at each combination of the values the form reads, each as the part holds it at the form, over every put answered and hashed, whatever names the pair and whatever links stand before or after it
+pair	klq_decoder	intent_coherence	intent_coherence <value>...	the values the pair's two forms write of their own, as the ruleset gives them: our intent, imposed, each put to the pair's product with every case value and held in its concept
 pair	klq_decoder	unknown_coherence	unknown_coherence	no answer has read the pair into a set: it can be anything, and is a member of every set of our coherence
 any	-	comment	# <text>	a comment

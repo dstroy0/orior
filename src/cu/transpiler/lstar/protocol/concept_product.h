@@ -56,6 +56,45 @@ static inline std::vector<std::set<unsigned long long>> concept_values(const std
     return cased;
 }
 
+// The values the cases are made of, `cased`, with the values `qualifiers` the pair's forms write of their own, each a
+// word and a wide: a value a form brings decides where the two forms agree, and the pair's product holds a row at it
+static inline std::vector<std::set<unsigned long long>> concept_values_qualified(
+    const std::vector<std::set<unsigned long long>> &cased, const std::set<unsigned long long> &qualifiers)
+{
+    std::vector<std::set<unsigned long long>> qualified = cased;
+    for (const unsigned long long value : qualifiers)
+    {
+        qualified[CONCEPT_VALUE_WORD].insert(value & 0xffffffffull);
+        qualified[CONCEPT_VALUE_WIDE].insert(value);
+    }
+    return qualified;
+}
+
+// 1 where `product` is a qualifier's: apart on some row and alike on some, and alike only on rows where a value the
+// form reads is one of `qualifiers`, the values its forms write of their own
+static inline int concept_qualified(const ConceptProduct &product, const std::set<unsigned long long> &qualifiers)
+{
+    int alike = 0;
+    int apart = 0;
+    int qualified = 1;
+    for (const auto &held : product.rows)
+    {
+        const int row_alike = (held.second.count('=') != 0u) ? 1 : 0;
+        alike |= row_alike;
+        apart |= (held.second.count('x') != 0u) ? 1 : 0;
+        int holds_qualifier = 0;
+        size_t start = 0u;
+        for (size_t comma = held.first.find(','); comma != std::string::npos; comma = held.first.find(',', start))
+        {
+            const unsigned long long value = std::stoull(held.first.substr(start, comma - start), nullptr, 16);
+            holds_qualifier |= (qualifiers.count(value) != 0u) ? 1 : 0;
+            start = comma + 1u;
+        }
+        qualified &= (!row_alike || holds_qualifier) ? 1 : 0;
+    }
+    return (alike && apart && qualified) ? 1 : 0;
+}
+
 // A put's product, held into `product`: what came back of each case, `writes_from` and `writes_to` one value or two,
 // as a function of the values `reads` the form reads there, a register and its `.hi` one wide value, in the order the
 // form names them, each combination alike, apart, or both where the cases holding it came back both. A combination is

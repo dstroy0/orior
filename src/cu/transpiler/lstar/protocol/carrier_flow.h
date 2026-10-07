@@ -294,6 +294,30 @@ static inline std::vector<std::string> carrier_form_reads(const std::vector<Carr
     return reads;
 }
 
+// the literal values the text `form_text` writes, an operand that is a number alone, and no operand of memory or of a
+// bank of constants: the values a form brings of its own, whatever carrier holds it
+static inline std::set<unsigned long long> carrier_literals(const std::string &form_text)
+{
+    static const std::regex s_literal("^\\s*(0x[0-9a-fA-F]+|[0-9]+)\\s*$");
+    std::set<unsigned long long> literals;
+    for (const std::string &form_line : carrier_pieces(form_text, ';'))
+    {
+        std::string rest = carrier_trimmed(form_line);
+        rest = (!rest.empty() && (rest[0] == '@')) ? carrier_trimmed(rest.substr(rest.find_first_of(" \t") + 1u)) : rest;
+        const size_t space = rest.find_first_of(" \t");
+        for (const std::string &operand :
+             carrier_pieces((space == std::string::npos) ? std::string() : rest.substr(space), ','))
+        {
+            std::smatch literal;
+            if (std::regex_match(operand, literal, s_literal))
+            {
+                literals.insert(std::stoull(literal[1].str(), nullptr, 0));
+            }
+        }
+    }
+    return literals;
+}
+
 // the register the form `form_text` makes its product in, as its last instruction's first operand writes it, a
 // pair's high word with its `.hi`, and in `wide` 1 where that instruction writes the pair whole; empty where it writes
 // none

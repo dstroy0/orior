@@ -54,6 +54,8 @@ struct LoggedPut
     // the value the form writes and the value its stand-in writes on every case, each read just after the form
     std::vector<unsigned long long> writes_from;
     std::vector<unsigned long long> writes_to;
+    // the values the pair's two forms write of their own
+    std::set<unsigned long long> qualifiers;
 };
 
 // 1 where the part answered every read of `put` on every case it was put over
@@ -288,7 +290,7 @@ int main(int argc, char **argv)
         else if (std::regex_match(line, found, s_put))
         {
             puts.push_back(LoggedPut{found[2].str(), found[1].str(), found[3].str(), std::string(), std::string(), {},
-                                     came_back, case_sets.empty() ? 0u : case_sets.size() - 1u, {}, {}, {}});
+                                     came_back, case_sets.empty() ? 0u : case_sets.size() - 1u, {}, {}, {}, {}});
             came_back.clear();
             block_answered = 0;
         }
@@ -312,6 +314,15 @@ int main(int argc, char **argv)
                 values.push_back(std::stoull(value, nullptr, 16));
             }
             puts.back().reads.push_back(std::make_pair(read, values));
+        }
+        else if (!puts.empty() && ((line.rfind("qualifies", 0u) == 0u) || (line.rfind("qualified", 0u) == 0u)))
+        {
+            std::stringstream words(line.substr(9u));
+            std::string value;
+            while (words >> value)
+            {
+                puts.back().qualifiers.insert(std::stoull(value, nullptr, 16));
+            }
         }
         else if (!puts.empty() && (line.rfind("writes ", 0u) == 0u))
         {
@@ -350,6 +361,17 @@ int main(int argc, char **argv)
         }
     }
     const std::vector<std::set<unsigned long long>> cased = concept_values(operands);
+    // each pair's qualifiers, the values its forms write of their own, and the values its product is whole over
+    std::map<std::string, std::set<unsigned long long>> pair_qualifiers;
+    for (const LoggedPut &put : puts)
+    {
+        pair_qualifiers[pair_key(put.from, put.to)].insert(put.qualifiers.begin(), put.qualifiers.end());
+    }
+    std::map<std::string, std::vector<std::set<unsigned long long>>> pair_cased;
+    for (const auto &held : pair_qualifiers)
+    {
+        pair_cased[held.first] = concept_values_qualified(cased, held.second);
+    }
     std::map<std::string, ConceptProduct> products;
     std::map<std::string, std::set<std::string>> apart_sets;
     std::map<std::string, int> apart_held;
@@ -358,7 +380,7 @@ int main(int argc, char **argv)
     {
         const std::string key = pair_key(put.from, put.to);
         // a put past the pair's first case apart asks nothing of its verdict, and holds its product alone
-        concept_product_held(put.reads, put.writes_from, put.writes_to, cased, &products[key]);
+        concept_product_held(put.reads, put.writes_from, put.writes_to, pair_cased[key], &products[key]);
         if ((put.came_back == "recorded") || (put.came_back == "refused") || put.came_back.empty() ||
             case_sets.empty())
         {
@@ -391,13 +413,20 @@ int main(int argc, char **argv)
             decoded[held.first] = (held.second == 1) ? "qualifier_coherence" : "unknown_coherence";
         }
     }
+    // a pair no test read into a set whose whole product agrees only where it reads a value its forms write of their
+    // own is a qualifier's, that value its qualifier
     std::map<std::string, std::string> identities;
     for (const auto &held : products)
     {
-        const std::string identity = concept_identity(held.second, cased);
+        const std::string identity = concept_identity(held.second, pair_cased[held.first]);
         if (!identity.empty())
         {
             identities[held.first] = identity;
+        }
+        if (!identity.empty() && (decoded[held.first] == "unknown_coherence") &&
+            concept_qualified(held.second, pair_qualifiers[held.first]))
+        {
+            decoded[held.first] = "qualifier_coherence";
         }
     }
     std::vector<std::string> bridge;
@@ -416,6 +445,7 @@ int main(int argc, char **argv)
     std::string pair_held;
     std::string set_held;
     std::string identity_held;
+    std::string intent_held;
     std::map<std::string, unsigned int> counted;
     std::map<std::string, unsigned int> concepts;
     const auto pair_closed = [&]() {
@@ -436,10 +466,26 @@ int main(int argc, char **argv)
                 written.push_back(identity);
                 concepts[identity] += 1u;
             }
+            // the intent the pair's forms carry of their own, the values each writes as the ruleset gives it
+            std::string intent;
+            for (const unsigned long long value : pair_qualifiers[pair_held])
+            {
+                char written_value[24];
+                snprintf(written_value, sizeof(written_value), " %llx", value);
+                intent += written_value;
+            }
+            intent = !intent.empty()                    ? ("intent_coherence" + intent)
+                     : (decoded.count(pair_held) != 0u) ? std::string()
+                                                        : intent_held;
+            if (!intent.empty())
+            {
+                written.push_back(intent);
+            }
         }
         pair_held.clear();
         set_held.clear();
         identity_held.clear();
+        intent_held.clear();
     };
     for (const std::string &entry : bridge)
     {
@@ -452,6 +498,11 @@ int main(int argc, char **argv)
         if (!pair_held.empty() && (entry.rfind("concept_coherence ", 0u) == 0u))
         {
             identity_held = entry;
+            continue;
+        }
+        if (!pair_held.empty() && (entry.rfind("intent_coherence ", 0u) == 0u))
+        {
+            intent_held = entry;
             continue;
         }
         if (!pair_held.empty() && verdict)
