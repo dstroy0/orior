@@ -27,8 +27,16 @@
 // 3. F_ext with Kummer's w solves the exterior's equation T_{-(A+1/2)} F - 2 (X F)_XX = 0.
 // 4. The tails: each identity's derivative in X is 0, with Kummer's equation for w.
 // 5. The exterior's equation on X F_ext, and the tail of H with h - 1 taken as h - 2, are not 0.
-// 6. Every exact value is held in the build's width.
-// 7. Every identity is written whole to the cfg's record.
+// 6. The stress of the paper's code: with M_X = U, I_X = H, J_X = U H, S_X = U^2 - X F^2 and Pi_X = F^2,
+//    V = X v0 = L^-1 (2 eta X U - 2 D eta M - d M_eta) has V_X = C, and with
+//        W = 1 - (2 D eta M + d M_eta) / X,
+//        F Q_s = -F W + [(1 - h) I - D eta I_eta - d J_eta + 2 (h - D) eta J] / (2 X^2),
+//        N_s = -W U + [D (M - eta M_eta) + 4 h eta S - d S_eta] / X + 4 A eta Pi - d Pi_eta,
+//        X T0_theta = X (X F Q_s / L + 2 X F_X),   sqrt(2X) T0_z = X N_s / L + 2 X U_X,
+//    (X T0_theta)_X = -X R_theta and (sqrt(2X) T0_z)_X = -R_z for any F and U: the stress is minus the integrated
+//    residuals, the torque and the force of 1, and with (1 - h) I taken as (1 - 2 h) I it is not.
+// 7. Every exact value is held in the build's width.
+// 8. Every identity is written whole to the cfg's record.
 // The request: matching_rule <cfg>.
 //     bash examples/navier_stokes/run.sh matching_rule examples/navier_stokes/cfg/matching_rule.cfg
 
@@ -219,6 +227,78 @@ int main(int count, char **arguments)
     matching_rule_report(&results, !jet_rule_zero(moved_outside) && !jet_rule_zero(moved_tail),
                          "  the exterior's equation on X F_ext and the tail of H with h - 2 are not 0",
                          "  a changed exterior or tail is still 0", "a changed exterior and tail seen");
+
+    // 6. the stress of the paper's code from the five cumulative integrals, M_X = U, I_X = H = 2 X F, J_X = U H,
+    // S_X = U^2 - X F^2 and Pi_X = F^2
+    const unsigned int moment = jet_rule_function("M");
+    const unsigned int heat = jet_rule_function("I");
+    const unsigned int carried = jet_rule_function("J");
+    const unsigned int square = jet_rule_function("S");
+    const JetRule h_x = jet_rule_scaled(x_f, sim_rational(2ll, 1ll));
+    jet_rule_relate(moment, 1u, u);
+    jet_rule_relate(heat, 1u, h_x);
+    jet_rule_relate(carried, 1u, matching_rule_times(u, h_x));
+    jet_rule_relate(square, 1u, jet_rule_difference(matching_rule_times(u, u), matching_rule_times(x, matching_rule_times(f, f))));
+    const JetRule m = jet_rule_slope(moment, 0u, 0u);
+    const JetRule i_heat = jet_rule_slope(heat, 0u, 0u);
+    const JetRule j = jet_rule_slope(carried, 0u, 0u);
+    const JetRule s = jet_rule_slope(square, 0u, 0u);
+    const JetRule d_half = jet_rule_difference(matching_rule_number(1ll, 2ll), h);
+    const JetRule a_half = jet_rule_sum(matching_rule_number(1ll, 2ll), h);
+    // V = X v0 = L^-1 (2 eta X U - 2 D eta M - d M_eta), continuity integrated from the axis
+    const JetRule moment_flux = jet_rule_sum(jet_rule_scaled(matching_rule_times(d_half, matching_rule_times(eta, m)), sim_rational(2ll, 1ll)),
+                                             matching_rule_times(end, jet_rule_slope_eta(m)));
+    const JetRule volume_m = matching_rule_times(jet_rule_over_l(),
+                                                 jet_rule_difference(jet_rule_scaled(matching_rule_times(eta, matching_rule_times(x, u)), sim_rational(2ll, 1ll)), moment_flux));
+    const int continuity = jet_rule_zero(jet_rule_difference(jet_rule_x(volume_m), c));
+    // the left sides with v0 = V / X and Pi held by Pi_X = F^2
+    const JetRule inflow_m = matching_rule_times(volume_m, matching_rule_x(-1ll, 1ll));
+    JetRule theta_m = jet_rule_sum(t_f, matching_rule_times(inflow_m, jet_rule_sum(matching_rule_times(x, jet_rule_x(f)), f)));
+    theta_m = jet_rule_sum(theta_m, matching_rule_times(u, z_f));
+    theta_m = jet_rule_difference(theta_m, jet_rule_scaled(jet_rule_x(jet_rule_x(x_f)), sim_rational(2ll, 1ll)));
+    JetRule along_m = jet_rule_sum(t_u, matching_rule_times(volume_m, jet_rule_x(u)));
+    along_m = jet_rule_sum(along_m, matching_rule_times(u, z_u));
+    along_m = jet_rule_sum(along_m, matching_rule_z(pi, pressure_two_b));
+    along_m = jet_rule_difference(along_m, jet_rule_scaled(jet_rule_x(matching_rule_times(x, jet_rule_x(u))), sim_rational(2ll, 1ll)));
+    // W = 1 - (2 D eta M + d M_eta) / X; F Q_s = -F W + [(1 - h) I - D eta I_eta - d J_eta + 2 (h - D) eta J] / (2 X^2)
+    const JetRule over_x = matching_rule_x(-1ll, 1ll);
+    const JetRule w_stress = jet_rule_difference(matching_rule_number(1ll, 1ll), matching_rule_times(moment_flux, over_x));
+    JetRule bracket = matching_rule_times(jet_rule_difference(matching_rule_number(1ll, 1ll), h), i_heat);
+    bracket = jet_rule_difference(bracket, matching_rule_times(d_half, matching_rule_times(eta, jet_rule_slope_eta(i_heat))));
+    bracket = jet_rule_difference(bracket, matching_rule_times(end, jet_rule_slope_eta(j)));
+    bracket = jet_rule_sum(bracket, matching_rule_times(jet_rule_scaled(jet_rule_difference(h, d_half), sim_rational(2ll, 1ll)), matching_rule_times(eta, j)));
+    const JetRule f_q = jet_rule_sum(jet_rule_scaled(matching_rule_times(f, w_stress), sim_rational(-1ll, 1ll)),
+                                     jet_rule_scaled(matching_rule_times(bracket, matching_rule_x(-2ll, 1ll)), sim_rational(1ll, 2ll)));
+    // X T0_theta = X (X F Q_s / L + 2 X F_X)
+    const JetRule x_t_theta = matching_rule_times(x, jet_rule_sum(matching_rule_times(jet_rule_over_l(), matching_rule_times(x, f_q)),
+                                                                  jet_rule_scaled(matching_rule_times(x, jet_rule_x(f)), sim_rational(2ll, 1ll))));
+    // N_s = -W U + [D (M - eta M_eta) + 4 h eta S - d S_eta] / X + 4 A eta Pi - d Pi_eta; sqrt(2X) T0_z = X N_s / L + 2 X U_X
+    JetRule n_bracket = matching_rule_times(d_half, jet_rule_difference(m, matching_rule_times(eta, jet_rule_slope_eta(m))));
+    n_bracket = jet_rule_sum(n_bracket, jet_rule_scaled(matching_rule_times(h, matching_rule_times(eta, s)), sim_rational(4ll, 1ll)));
+    n_bracket = jet_rule_difference(n_bracket, matching_rule_times(end, jet_rule_slope_eta(s)));
+    JetRule n_s = jet_rule_scaled(matching_rule_times(w_stress, u), sim_rational(-1ll, 1ll));
+    n_s = jet_rule_sum(n_s, matching_rule_times(n_bracket, over_x));
+    n_s = jet_rule_sum(n_s, jet_rule_scaled(matching_rule_times(a_half, matching_rule_times(eta, pi)), sim_rational(4ll, 1ll)));
+    n_s = jet_rule_difference(n_s, matching_rule_times(end, jet_rule_slope_eta(pi)));
+    const JetRule root_t_z = jet_rule_sum(matching_rule_times(jet_rule_over_l(), matching_rule_times(x, n_s)),
+                                          jet_rule_scaled(matching_rule_times(x, jet_rule_x(u)), sim_rational(2ll, 1ll)));
+    const JetRule stress_theta = jet_rule_sum(jet_rule_x(x_t_theta), matching_rule_times(x, theta_m));
+    const JetRule stress_z = jet_rule_sum(jet_rule_x(root_t_z), along_m);
+    const int stress = continuity && jet_rule_zero(stress_theta) && jet_rule_zero(stress_z);
+    scriptura_text(&results.line, "  continuity from M: ");
+    scriptura_text(&results.line, continuity ? "V_X = C" : "V_X differs from C");
+    scriptura_text(&results.line, "; the stress of the five integrals against the residuals: theta ");
+    scriptura_text(&results.line, jet_rule_zero(stress_theta) ? "equal" : "differs");
+    scriptura_text(&results.line, ", z ");
+    scriptura_text(&results.line, jet_rule_zero(stress_z) ? "equal" : "differs");
+    scriptura_text(&results.line, ", for any F and U\n");
+    sim_flush(&results);
+    sim_check(&results, stress, "the stress of the five integrals against the residuals");
+    // (1 - h) I taken as (1 - 2 h) I in Q_s adds -h X I / (2 L) to X T0_theta
+    const JetRule changed_stress = jet_rule_sum(
+        stress_theta, jet_rule_x(jet_rule_scaled(matching_rule_times(jet_rule_over_l(), matching_rule_times(h, i_heat)), sim_rational(-1ll, 2ll))));
+    matching_rule_report(&results, !jet_rule_zero(changed_stress), "  the stress with (1 - h) I taken as (1 - 2 h) I is not 0",
+                         "  the stress with a changed part is still 0", "a changed stress seen");
 
     const int held = !jet_rule_short() && !run_cfg_short() && !record_short();
     matching_rule_report(&results, held, "  every exact value is held in the build's width",
