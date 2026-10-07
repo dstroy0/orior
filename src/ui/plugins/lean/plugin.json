@@ -1,0 +1,58 @@
+{
+  "id": "lean",
+  "name": "Lean",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["lean"],
+  "comments": {"line":"--","block":["/-","-/"]},
+  "pairs": ["()","[]","{}","⟨⟩"],
+  "quotes": ["\""],
+  "indentAfter": "(?::=|\\bwhere|\\bby|\\bdo|\\bthen|\\belse|=>|[{[(⟨])\\s*(?:--.*)?$",
+  "grammar": {
+    "words": [
+      "abbrev", "at", "attribute", "axiom", "by", "calc", "class", "coinductive", "decreasing_by", "def",
+      "deriving", "do", "elab", "else", "end", "example", "export", "extends", "for", "from", "fun", "have", "if",
+      "import", "in", "infix", "infixl", "infixr", "inductive", "instance", "let", "local", "macro",
+      "macro_rules", "match", "mut", "mutual", "namespace", "noncomputable", "nomatch", "notation", "obtain",
+      "only", "opaque", "open", "partial", "postfix", "prefix", "private", "protected", "return", "scoped",
+      "section", "set_option", "show", "structure", "suffices", "syntax", "termination_by", "then", "theorem",
+      "lemma", "this", "universe", "unless", "unsafe", "variable", "where", "with", "λ", "Π", "Σ"
+    ],
+    "types": [
+      "Nat", "Int", "Real", "Rat", "Complex", "Prop", "Type", "Sort", "Bool", "String", "Char", "List", "Array",
+      "Option", "Unit", "PUnit", "Float", "Fin", "UInt8", "UInt16", "UInt32", "UInt64", "USize", "IO", "Except",
+      "StateM", "ReaderT", "StateT", "Set", "Finset", "Decidable", "Eq", "Iff", "And", "Or", "Not", "True",
+      "False", "Exists", "Subtype", "Sigma", "Prod", "Sum", "HashMap", "Std"
+    ],
+    "constants": ["true", "false", "none", "some", "rfl", "trivial", "id"],
+    "tactics": [
+      "intro", "intros", "apply", "exact", "simp", "simp_all", "simpa", "dsimp", "rw", "rewrite", "rwa",
+      "induction", "cases", "rcases", "rintro", "constructor", "refine", "use", "omega", "linarith",
+      "nlinarith", "norm_num", "decide", "aesop", "assumption", "contradiction", "exfalso", "sorry", "unfold",
+      "ring", "ring_nf", "field_simp", "specialize", "by_cases", "by_contra", "push_neg", "ext", "funext",
+      "congr", "gcongr", "positivity", "exists", "left", "right", "subst", "injection", "split", "repeat",
+      "first", "try", "all_goals", "any_goals", "focus", "case", "next", "conv", "change", "generalize",
+      "revert", "clear", "rename_i", "symm", "trans", "contrapose", "nofun", "exact?", "apply?", "rw?", "simp?",
+      "native_decide", "norm_cast", "push_cast", "exact_mod_cast", "tauto", "infer_instance"
+    ],
+    "tokenizer": {
+      "root": [
+        ["/-","comment","@comment"],
+        ["--.*$","comment"],
+        ["\\s+",""],
+        ["@\\[[^\\]]*\\]","attribute"],
+        ["#[a-z_]+","keyword.directive"],
+        ["\"","string","@string"],
+        ["'(?:[^'\\\\]|\\\\.)'","string"],
+        [{"pattern":"[\\p{L}_][\\p{L}\\p{N}_'!?₀-₉]*(?:\\.[\\p{L}_][\\p{L}\\p{N}_'!?₀-₉]*)*","flags":"u"},{"cases":{"@words":"keyword","@types":"type","@constants":"predefined","@tactics":"predefined","@default":"identifier"}}],
+        ["0x[0-9a-fA-F_]+|0b[01_]+|\\d[\\d_]*(?:\\.\\d+)?(?:[eE][-+]?\\d+)?","number"],
+        ["[∀∃]","keyword"],
+        ["[{}()\\[\\]⟨⟩]","@brackets"],
+        ["[-:=<>+*/^|&!$%∘×→←↔¬∧∨≤≥≠∈∉⊆⊂∩∪·•▸⁻¹≃≅∣∑∏]+","operator"],
+        ["[,;.]","delimiter"]
+      ],
+      "string": [["[^\"\\\\]+","string"],["\\\\.","string.escape"],["\"","string","@pop"]],
+      "comment": [["/-","comment","@comment"],["-/","comment","@pop"],["[^/-]+","comment"],["[/-]","comment"]]
+    }
+  }
+}

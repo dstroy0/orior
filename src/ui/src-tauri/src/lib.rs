@@ -6,15 +6,16 @@
 //! calls, the `view` scheme its page windows load from, the terminal's pseudo-terminals and the
 //! clipboard. The same program is the command line, handing it any words it is started with.
 
+mod dragging;
 mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, git, report, root, runner};
+use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -28,6 +29,7 @@ struct App {
     launch: Mutex<Option<Launch>>,
     runs: runner::Runs,
     terms: terminal::Terms,
+    servers: Arc<servers::Servers>,
     windows: AtomicU64,
 }
 
@@ -253,6 +255,179 @@ fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> 
     git::text_at(&root_of(&app)?, &path, &id)
 }
 
+#[derive(serde::Serialize)]
+struct Toolchains {
+    tools: Vec<toolchains::Found>,
+    own: Option<toolchains::Own>,
+}
+
+/// `text`, the file at `path` as the editor holds it, formatted by its language's formatter.
+#[tauri::command(async)]
+fn format_text(app: State<App>, path: String, language: String, text: String) -> Result<String, String> {
+    format::format(&root_of(&app)?.join(path), &language, &text)
+}
+
+/// A path a server named, as the page names files: under the tree, from its top folder, and
+/// elsewhere whole.
+fn tree_path(root: &Path, path: &str) -> String {
+    let path = PathBuf::from(path);
+    let path = dunce::canonicalize(&path).unwrap_or(path);
+    let root = dunce::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    path.strip_prefix(&root).map(|inside| inside.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| path.display().to_string())
+}
+
+/// Hands a file the editor opened to its language's server, starting it where it is not running.
+/// Says whether a server took it; the file's diagnostics come as "lsp-diagnostics".
+#[tauri::command(async)]
+fn lsp_open(handle: AppHandle, app: State<App>, path: String, language: String, text: String) -> Result<bool, String> {
+    let root = root_of(&app)?;
+    let tree = root.clone();
+    let emit: servers::Emit = Arc::new(move |mut diagnostics: servers::Diagnostics| {
+        diagnostics.path = tree_path(&tree, &diagnostics.path);
+        let _ = handle.emit("lsp-diagnostics", diagnostics);
+    });
+    app.servers.open(&root, &root.join(path), &language, &text, &emit)
+}
+
+#[tauri::command(async)]
+fn lsp_change(app: State<App>, path: String, text: String) -> Result<(), String> {
+    app.servers.change(&root_of(&app)?.join(path), &text)
+}
+
+#[tauri::command(async)]
+fn lsp_close(app: State<App>, path: String) -> Result<(), String> {
+    app.servers.close(&root_of(&app)?.join(path))
+}
+
+#[tauri::command(async)]
+fn lsp_hover(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<String>, String> {
+    app.servers.hover(&root_of(&app)?.join(path), line, col)
+}
+
+/// Where the symbol at a place is defined, each path as `tree_path` gives it.
+#[tauri::command(async)]
+fn lsp_definition(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Found>, String> {
+    let root = root_of(&app)?;
+    let found = app.servers.definition(&root.join(path), line, col)?;
+    Ok(found.into_iter().map(|mut one| {
+        one.path = tree_path(&root, &one.path);
+        one
+    }).collect())
+}
+
+#[tauri::command(async)]
+fn lsp_complete(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Item>, String> {
+    app.servers.complete(&root_of(&app)?.join(path), line, col)
+}
+
+/// The file at `path`, under the tree, validated by the tool plugin for `language`.
+#[tauri::command(async)]
+fn validate_file(app: State<App>, path: String, language: String) -> Result<validate::Report, String> {
+    let tool = validate::tool_for(&language).ok_or_else(|| format!("no tool plugin validates {language}"))?;
+    validate::validate(&tool, &root_of(&app)?.join(path))
+}
+
+/// The shell line that runs the file at `path`, under the tree, with its language's toolchain.
+#[tauri::command(async)]
+fn run_file_line(app: State<App>, path: String, language: String) -> Result<run_file::RunLine, String> {
+    let root = root_of(&app)?;
+    run_file::line_for(&root, &root.join(path), &language)
+}
+
+/// Every language a formatter formats.
+#[tauri::command]
+fn format_languages() -> Vec<String> {
+    format::languages()
+}
+
+/// Every toolchain as toolchains.rs finds it, and whether orior itself is on the PATH.
+#[tauri::command(async)]
+fn toolchains_check() -> Toolchains {
+    Toolchains { tools: toolchains::check(), own: toolchains::own().ok() }
+}
+
+/// What a toolchain says its version is.
+#[tauri::command(async)]
+fn toolchain_version(id: String) -> Result<String, String> {
+    toolchains::version(&id)
+}
+
+/// Opens a toolchain's install page in the browser, and names it.
+#[tauri::command]
+fn toolchain_install(id: String) -> Result<String, String> {
+    toolchains::open_install(&id)
+}
+
+/// The shell line that installs a toolchain, for the terminal to run.
+#[tauri::command]
+fn toolchain_setup(id: String) -> Result<String, String> {
+    toolchains::setup_line(&id)
+}
+
+/// Puts the folder of a toolchain, or of orior itself where `what` is "orior", on the reader's PATH.
+#[tauri::command(async)]
+fn toolchain_add_path(what: String) -> Result<String, String> {
+    toolchains::add_to_path(&what)
+}
+
+/// Has orior run a toolchain from `folder`, and names the program found there.
+#[tauri::command]
+fn toolchain_use(id: String, folder: String) -> Result<String, String> {
+    toolchains::choose(&id, &folder)
+}
+
+#[tauri::command]
+fn toolchain_forget(id: String) -> Result<(), String> {
+    toolchains::forget(&id)
+}
+
+/// Every plugin, as plugins.rs finds them.
+#[tauri::command]
+fn plugins_read() -> Vec<plugins::Plugin> {
+    plugins::all()
+}
+
+/// The plugin the generator's answers ask for, as its file would hold it.
+#[tauri::command]
+fn plugin_draft(spec: plugins::Spec) -> Result<String, String> {
+    plugins::draft(&spec).map(|plugin| plugins::text_of(&plugin))
+}
+
+/// Writes the plugin the answers ask for to the reader's plugins folder, and names the folder.
+#[tauri::command]
+fn plugin_create(spec: plugins::Spec, replace: bool) -> Result<String, String> {
+    plugins::create(&spec, replace).map(|folder| folder.display().to_string())
+}
+
+/// The reader's stylesheet, or nothing where there is none.
+#[tauri::command]
+fn user_css_read() -> String {
+    home::user_css().and_then(|path| std::fs::read_to_string(path).ok()).unwrap_or_default()
+}
+
+/// Opens one of orior's own places as the system opens it: "user-css", made first where it is not
+/// there, "plugins", the reader's plugins folder, made first likewise, or the folder of one of the
+/// reader's plugins.
+#[tauri::command]
+fn home_reveal(what: String) -> Result<(), String> {
+    let plugins_dir = home::plugins().ok_or("orior has no folder of its own")?;
+    let path = match what.as_str() {
+        "user-css" => home::ensure_user_css()?,
+        "plugins" => {
+            std::fs::create_dir_all(&plugins_dir).map_err(|error| format!("{}: {error}", plugins_dir.display()))?;
+            plugins_dir
+        }
+        folder => {
+            let path = PathBuf::from(folder);
+            if !path.starts_with(&plugins_dir) || !path.is_dir() {
+                return Err(format!("{folder} is not a plugin of the reader's"));
+            }
+            path
+        }
+    };
+    home::reveal(&path)
+}
+
 #[tauri::command]
 fn file_read(app: State<App>, path: String) -> Result<files::Opened, String> {
     files::read(&root_of(&app)?, &path)
@@ -426,6 +601,7 @@ fn open(launch: Launch) {
             // A page that never asks for the window still has it shown after SHOW_ANYWAY.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_background_color(Some(tauri::window::Color(0x13, 0x13, 0x31, 0xff)));
+                dragging::watch(app.handle(), &window);
                 std::thread::spawn(move || {
                     std::thread::sleep(SHOW_ANYWAY);
                     let _ = window.show();
@@ -438,6 +614,28 @@ fn open(launch: Launch) {
             root_set,
             catalog_read,
             definitions_read,
+            plugins_read,
+            plugin_draft,
+            plugin_create,
+            user_css_read,
+            home_reveal,
+            format_text,
+            format_languages,
+            run_file_line,
+            validate_file,
+            lsp_open,
+            lsp_change,
+            lsp_close,
+            lsp_hover,
+            lsp_definition,
+            lsp_complete,
+            toolchains_check,
+            toolchain_version,
+            toolchain_install,
+            toolchain_setup,
+            toolchain_add_path,
+            toolchain_use,
+            toolchain_forget,
             bridge_read,
             job_start,
             job_stop,
@@ -475,8 +673,14 @@ fn open(launch: Launch) {
             view_open,
             pick,
         ])
-        .run(tauri::generate_context!())
-        .expect("the app failed to start");
+        .build(tauri::generate_context!())
+        .expect("the app failed to start")
+        .run(|handle, event| {
+            // A language server orior started ends with it: on Windows a child outlives its parent.
+            if let tauri::RunEvent::Exit = event {
+                handle.state::<App>().servers.stop_all();
+            }
+        });
 }
 
 #[cfg(test)]

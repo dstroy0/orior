@@ -1,0 +1,70 @@
+{
+  "id": "ngspice",
+  "name": "ngspice",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["cir","sp","spice","spi","ckt"],
+  "comments": {"line":"*"},
+  "pairs": ["()","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "^\\s*\\.(?:control|subckt|if|else)\\b.*$",
+  "grammar": {
+    "ignoreCase": true,
+    "words": [
+      "ac", "dc", "tran", "op", "noise", "pz", "sens", "disto", "tf", "dec", "oct", "lin", "uic", "off", "pulse",
+      "sin", "pwl", "exp", "sffm", "am", "trnoise", "trrandom", "params", "temp", "level", "find", "when",
+      "at", "trig", "targ", "rise", "fall", "cross", "td", "from", "to", "avg", "rms", "integ", "deriv", "pp",
+      "min_at", "max_at", "param", "include", "lib"
+    ],
+    "models": [
+      "r", "c", "l", "d", "npn", "pnp", "nmos", "pmos", "njf", "pjf", "nmf", "pmf", "nhfet", "phfet", "sw",
+      "csw", "urc", "ltra", "vdmos", "res", "cap", "ind"
+    ],
+    "functions": [
+      "abs", "sqrt", "exp", "ln", "log", "log10", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh",
+      "tanh", "min", "max", "pow", "pwr", "limit", "u", "u2", "uramp", "if", "ddt", "sgn", "table", "floor",
+      "ceil", "int", "nint", "agauss", "gauss", "aunif", "unif", "v", "i", "vdb", "vp", "vm", "vr", "vi", "db",
+      "mag", "ph", "real", "imag", "mean", "length", "vector"
+    ],
+    "commands": [
+      "alter", "altermod", "break", "cd", "compose", "continue", "define", "destroy", "display", "dowhile",
+      "echo", "edisplay", "else", "end", "esave", "exit", "foreach", "fourier", "gnuplot", "hardcopy", "if",
+      "let", "linearize", "listing", "load", "meas", "measure", "noise", "op", "option", "options", "plot",
+      "print", "quit", "remcirc", "repeat", "reset", "run", "rusage", "save", "set", "setcirc", "setplot",
+      "settype", "shell", "show", "showmod", "source", "spec", "tran", "ac", "dc", "undefine", "unset",
+      "version", "while", "write", "wrdata", "wrs2p", "pre_osdi", "osdi"
+    ],
+    "tokenizer": {
+      "root": [
+        ["^\\s*\\*.*$","comment"],
+        [{"pattern":"^\\s*\\.control\\b.*$","flags":"i"},"keyword.directive","@control"],
+        ["^\\s*\\.[A-Za-z_]\\w*","keyword.directive"],
+        ["^\\s*\\+","operator"],
+        ["^\\s*[A-Za-z]\\w*","type"],
+        ["\\s[$;].*$|//.*$","comment"],
+        ["\\s+",""],
+        ["\\{[^}]*\\}","variable"],
+        ["'[^']*'","variable"],
+        ["\"[^\"]*\"","string"],
+        ["[A-Za-z_][\\w.#]*",{"cases":{"@models":"predefined","@functions":"predefined","@words":"keyword","@default":"identifier"}}],
+        [{"pattern":"[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[-+]?\\d+)?(?:meg|mil|[tgkmunpfa])?[a-z]*","flags":"i"},"number"],
+        ["[()]","@brackets"],
+        ["[-+*/^<>=!&|?:]+","operator"],
+        ["[,]","delimiter"]
+      ],
+      "control": [
+        [{"pattern":"^\\s*\\.endc\\b.*$","flags":"i"},"keyword.directive","@pop"],
+        ["^\\s*\\*.*$","comment"],
+        ["\\s[$;#].*$","comment"],
+        ["\\s+",""],
+        ["\"[^\"]*\"","string"],
+        ["\\$&?[A-Za-z_]\\w*","variable"],
+        ["[A-Za-z_][\\w.#]*",{"cases":{"@commands":"keyword","@functions":"predefined","@default":"identifier"}}],
+        [{"pattern":"[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[-+]?\\d+)?(?:meg|mil|[tgkmunpfa])?[a-z]*","flags":"i"},"number"],
+        ["[()\\[\\]]","@brackets"],
+        ["[-+*/^<>=!&|?:]+","operator"],
+        ["[,;]","delimiter"]
+      ]
+    }
+  }
+}

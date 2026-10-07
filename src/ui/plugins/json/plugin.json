@@ -1,0 +1,25 @@
+{
+  "id": "json",
+  "name": "JSON",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["json","cfg"],
+  "comments": {"line":"//"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\""],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "tokenizer": {
+      "root": [
+        ["\\s+",""],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"(?=\\s*:)","variable"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?","number"],
+        ["\\b(?:true|false|null)\\b","keyword"],
+        ["[{}[\\]]","@brackets"],
+        ["[:,]","delimiter"],
+        ["\\/\\/.*$","comment"]
+      ]
+    }
+  }
+}

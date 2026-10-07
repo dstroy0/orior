@@ -8,18 +8,25 @@
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
         { "label": "Save All", "command": "save-all", "needs": "changed" },
         { "label": "Auto Save", "command": "auto-save", "args": "[on|off]", "checks": "auto-save" },
+        { "label": "Format on Save", "command": "format-on-save", "args": "[on|off]", "checks": "format-on-save" },
         "-",
         { "label": "Close Editor", "command": "close-editor", "keys": "Ctrl+W", "needs": "tab" },
         { "label": "Close All Editors", "command": "close-all", "needs": "tabs" },
         "-",
         { "label": "Preferences", "command": "preferences", "keys": "Ctrl+," },
+        { "label": "User Stylesheet", "command": "user-css", "console": true },
+        "-",
+        { "label": "Plugins…", "command": "plugins", "console": true },
+        { "label": "New Language Plugin…", "command": "new-plugin", "args": "<name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] [--block-comment <open> <close>] [--keywords <a,b>] [--types <a,b>] [--constants <a,b>] [--quotes <q,q>] [--replace]", "console": true },
+        { "label": "Reload Plugins", "command": "reload-plugins" },
+        "-",
+        { "label": "Toolchains…", "command": "toolchains", "args": "[check|install <tool>|add-path <tool|orior>|use <tool> <folder>|forget <tool>]", "console": true },
         "-",
         { "label": "Exit", "command": "exit" }
       ]
     },
     {
       "title": "Edit",
-      "view": "edit",
       "items": [
         { "label": "Undo", "command": "undo", "keys": "Ctrl+Z", "needs": "editor" },
         { "label": "Redo", "command": "redo", "keys": "Ctrl+Y", "needs": "editor" },
@@ -33,7 +40,8 @@
         "-",
         { "label": "Find in Files", "command": "search", "keys": "Ctrl+Shift+F", "args": "[--case] [--word] [--regex] <text>", "console": true },
         "-",
-        { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" }
+        { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" },
+        { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true }
       ]
     },
     {
@@ -46,11 +54,19 @@
         { "label": "Copy Line Down", "command": "copy-line-down", "keys": "Shift+Alt+Down", "needs": "editor" },
         { "label": "Move Line Up", "command": "move-line-up", "keys": "Alt+Up", "needs": "editor" },
         { "label": "Move Line Down", "command": "move-line-down", "keys": "Alt+Down", "needs": "editor" },
+        { "label": "Join Lines", "command": "join-lines", "keys": "Ctrl+J", "needs": "editor" },
+        { "label": "Sort Lines Ascending", "command": "sort-ascending", "needs": "editor" },
+        { "label": "Sort Lines Descending", "command": "sort-descending", "needs": "editor" },
+        { "label": "Delete Duplicate Lines", "command": "unique-lines", "needs": "editor" },
+        { "label": "Transform to Uppercase", "command": "upper-case", "needs": "editor" },
+        { "label": "Transform to Lowercase", "command": "lower-case", "needs": "editor" },
+        { "label": "Transform to Title Case", "command": "title-case", "needs": "editor" },
         "-",
         { "label": "Add Cursor Above", "command": "cursor-above", "keys": "Ctrl+Alt+Up", "needs": "editor" },
         { "label": "Add Cursor Below", "command": "cursor-below", "keys": "Ctrl+Alt+Down", "needs": "editor" },
         { "label": "Add Next Occurrence", "command": "next-occurrence", "keys": "Ctrl+D", "needs": "editor" },
-        { "label": "Select All Occurrences", "command": "all-occurrences", "keys": "Ctrl+Shift+L", "needs": "editor" }
+        { "label": "Select All Occurrences", "command": "all-occurrences", "keys": "Ctrl+Shift+L", "needs": "editor" },
+        { "label": "Column Selection Mode", "command": "column-mode", "args": "[on|off]", "checks": "column-mode" }
       ]
     },
     {
@@ -89,6 +105,13 @@
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },
+        { "label": "Go to Definition", "command": "definition", "keys": "F12", "needs": "editor" },
+        "-",
+        { "label": "Next Problem", "command": "next-problem", "keys": "F8", "needs": "editor" },
+        { "label": "Previous Problem", "command": "previous-problem", "keys": "Shift+F8", "needs": "editor" },
+        "-",
+        { "label": "Next Change", "command": "next-change", "keys": "Alt+F5", "needs": "changes" },
+        { "label": "Previous Change", "command": "previous-change", "keys": "Shift+Alt+F5", "needs": "changes" },
         "-",
         { "label": "Next Match", "command": "next-match", "keys": "F3", "needs": "editor" },
         { "label": "Previous Match", "command": "previous-match", "keys": "Shift+F3", "needs": "editor" }
@@ -96,11 +119,12 @@
     },
     {
       "title": "Run",
-      "view": "run",
       "groups": ["run"],
       "items": [
         { "label": "Start", "command": "start", "keys": "F5", "args": "<job> [key=value ...] [-- words]", "needs": "job", "console": true },
         { "label": "Stop", "command": "stop", "keys": "Shift+F5", "needs": "live" },
+        { "label": "Run File", "command": "run-file", "keys": "Ctrl+F5", "args": "<file>", "needs": "tab", "console": true },
+        { "label": "Validate", "command": "validate", "keys": "Ctrl+Alt+F5", "args": "[--json] <file>...", "needs": "tab", "console": true },
         "-",
         { "label": "List Jobs…", "command": "list", "args": "[word]", "console": true },
         { "label": "Show Job…", "command": "show", "args": "<job>", "console": true }

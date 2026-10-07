@@ -66,20 +66,9 @@ ones to use.
 ## The command line
 
 The program is `orior`, and it is the command line as well as the window. Given no words it opens
-the window; given words it runs them in the terminal, over the same jobs and the same bridge.
+the window; given words it runs them in the terminal, over the same jobs and the same bridge. A
+menu's title and one of its commands are the words for it, read from `cli/commands.json`, the file
+the menus are drawn from as well. [The app](../../README.md#the-app) in the repository's own page
+is the guide to the window and the command line, and `orior help` lists every word.
 
-```
-orior list [word]              the jobs, or those whose id, title or about holds the word
-orior show <job>               a job's file, values and the commands it runs
-orior run <job> [key=value]    run a job; a key given twice gives two values
-orior run <job> -- <words>     the words after -- are the job's arguments
-orior bridge [key]             the keys of Lstar.klq, or one key's pairs, maps and rulesets
-orior help
-```
-
-A job is named by its id, by the end of its id after a slash, or by its title, where that names only
-one: `orior run sim/wave`, `orior show build_engine.sh`. A run's steps share the terminal, its output
-streams as it comes, and `orior` exits with the code of its last step. `--root <folder>` names the
-tree, ahead of `ORIOR_ROOT`.
-
-From inside the tree, `cargo run -- list` runs it without an install.
+From inside the tree, `cargo run -- run list` runs it without an install.

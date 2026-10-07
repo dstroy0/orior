@@ -19,10 +19,14 @@ import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
 
 const PAD = 10;
-const LINE = 20;
+// The height of a row, read from the code's line height each time the editor measures.
+let LINE = 20;
 
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
+
+// Column Selection Mode's key: while it is on, a drag chooses a column, as Shift and Alt do.
+const COLUMN_KEY = "orior.column";
 
 // Sticky scroll: the most lines it holds along the top, the longest text it reads the regions of,
 // and how long an edit rests before the regions are read again, in milliseconds.
@@ -121,8 +125,9 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onChangeMark, statusHost = null } = {}) {
     this.host = host;
+    this.onChangeMark = onChangeMark ?? (() => {});
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
     host.classList.add("ed");
@@ -158,6 +163,7 @@ export class Editor {
     this.sticky.hidden = true;
     this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
     this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
+    this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
     this.stickyList = [];
     this.stickyFor = null;
     this.stickyDoc = -1;
@@ -218,6 +224,16 @@ export class Editor {
     this.text.append(probe);
     this.cw = probe.getBoundingClientRect().width / 100 || 7.8;
     probe.remove();
+    LINE = Math.round(Number.parseFloat(getComputedStyle(this.host).lineHeight)) || LINE;
+  }
+
+  // Measures again and draws every row anew, as a change of font asks.
+  restyle() {
+    this.measure();
+    this.rowsKey = "";
+    this.rowsCache = null;
+    this.widestAt = -1;
+    this.schedule();
   }
 
   get doc() {
@@ -1006,6 +1022,97 @@ export class Editor {
     this.reveal(true);
   }
 
+  setColumnMode(on) {
+    this.columnMode = on;
+    localStorage.setItem(COLUMN_KEY, String(on));
+  }
+
+  // Lines.
+
+  // The spans of whole lines the selections cover, [first, last], in order and merged where they
+  // touch. A selection that only reaches the start of its last line leaves that line out, and one
+  // empty selection alone covers the whole text.
+  lineSpans() {
+    const doc = this.doc;
+    const sels = this.s.selections;
+    if (sels.length === 1 && empty(sels[0])) {
+      return [[0, doc.count - 1]];
+    }
+    const spans = sels
+      .map((sel) => {
+        const start = startOf(sel);
+        const end = endOfSel(sel);
+        return [start.line, end.line > start.line && end.col === 0 ? end.line - 1 : end.line];
+      })
+      .sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const span of spans) {
+      const last = merged.at(-1);
+      if (last && span[0] <= last[1] + 1) {
+        last[1] = Math.max(last[1], span[1]);
+      } else {
+        merged.push([...span]);
+      }
+    }
+    return merged;
+  }
+
+  // Writes each span of lines again as `make` gives it from its lines.
+  rewriteLines(make, kind) {
+    const doc = this.doc;
+    const edits = this.lineSpans().map(([first, last]) => ({ from: pos(first, 0), to: pos(last, doc.line(last).length), text: make(doc.lines.slice(first, last + 1)).join("\n") }));
+    return this.change(edits, kind);
+  }
+
+  sortLines(descending) {
+    const order = new Intl.Collator(undefined, { numeric: true }).compare;
+    this.rewriteLines((lines) => [...lines].sort((a, b) => (descending ? order(b, a) : order(a, b))), "sort");
+  }
+
+  uniqueLines() {
+    this.rewriteLines((lines) => [...new Set(lines)], "unique");
+  }
+
+  // Joins each selection's lines into one, and a cursor's line with the line after it: the space
+  // where two lines meet becomes one space, or none where either side is blank.
+  joinLines() {
+    const doc = this.doc;
+    const edits = [];
+    for (const sel of this.s.selections) {
+      const first = startOf(sel).line;
+      const last = Math.min(doc.count - 1, Math.max(endOfSel(sel).line, first + 1));
+      if (last === first) {
+        continue;
+      }
+      let joined = doc.line(first);
+      for (let line = first + 1; line <= last; line += 1) {
+        const next = doc.line(line).trimStart();
+        joined = joined.trimEnd();
+        joined = !joined.trim() ? joined + next : !next ? joined : `${joined} ${next}`;
+      }
+      edits.push({ from: pos(first, 0), to: pos(last, doc.line(last).length), text: joined });
+    }
+    this.change(edits, "join");
+  }
+
+  // Changes the case of each selection, or of the word at each cursor: upper, lower, or title, each
+  // word's first letter upper and the rest lower.
+  transformCase(kind) {
+    const make = {
+      upper: (text) => text.toUpperCase(),
+      lower: (text) => text.toLowerCase(),
+      title: (text) => text.replace(/\p{L}[\p{L}\p{N}'’]*/gu, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase()),
+    }[kind];
+    const edits = [];
+    for (const sel of this.s.selections) {
+      const span = empty(sel) ? wordAt(this.doc, sel.head) : { from: startOf(sel), to: endOfSel(sel) };
+      if (span) {
+        edits.push({ from: span.from, to: span.to, text: make(this.doc.slice(span.from, span.to)) });
+      }
+    }
+    this.change(edits, "case", (map) => this.s.selections.map((sel) => ({ anchor: map(sel.anchor, false), head: map(sel.head, true), goal: null })));
+  }
+
   selectAll() {
     this.select([{ anchor: pos(0, 0), head: this.doc.end(), goal: null }]);
   }
@@ -1372,6 +1479,7 @@ export class Editor {
       "Mod+D": () => this.addMatch(false),
       "Mod+Shift+L": () => this.addMatch(true),
       "Mod+L": () => this.selectLine(),
+      "Mod+J": () => this.joinLines(),
       "Mod+/": () => this.toggleComment(),
       "Alt+Up": () => this.moveLines(-1),
       "Alt+Down": () => this.moveLines(1),
@@ -1490,17 +1598,29 @@ export class Editor {
       this.toggleFold(Number(target.dataset.fold));
       return;
     }
+    if (target.dataset?.change !== undefined) {
+      event.preventDefault();
+      this.onChangeMark(Number(target.dataset.change));
+      return;
+    }
     event.preventDefault();
     this.focus();
     this.hover.hide();
     this.suggest.close();
     const p = this.posAt(event);
     const unit = fromGutter ? "line" : ["char", "word", "line"][Math.min(event.detail || 1, 3) - 1];
+    // Ctrl and a click, Cmd on a Mac, goes to where the word under it is defined, where the editor's
+    // owner says how.
+    if ((MAC ? event.metaKey : event.ctrlKey) && !event.altKey && !event.shiftKey && !fromGutter && unit === "char" && this.onDefinition) {
+      this.select([caret(p)]);
+      this.onDefinition(p);
+      return;
+    }
     const sels = this.s.selections;
     let index;
     let anchorFrom;
     let anchorTo;
-    if (event.altKey && event.shiftKey && !fromGutter) {
+    if (((event.altKey && event.shiftKey) || (this.columnMode && !event.altKey && !event.shiftKey && unit === "char")) && !fromGutter) {
       const goal = (event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw;
       this.dragging = { column: { row: this.rows().rowOf(p.line), v: Math.max(0, goal) } };
       this.dragTo(event);
@@ -1605,10 +1725,14 @@ export class Editor {
     this.hoverWait = window.setTimeout(() => this.hoverAt(clientX, clientY), 380);
   }
 
-  hoverAt(clientX, clientY) {
-    if (!this.s?.language?.hover) {
+  // A language's hover may answer at once or later, as a language server does; an answer that
+  // comes after the pointer has gone elsewhere is dropped.
+  async hoverAt(clientX, clientY) {
+    if (!this.s?.language?.hover && !this.s?.diagnostics?.length) {
       return;
     }
+    const asked = (this.hoverAsked = (this.hoverAsked ?? 0) + 1);
+    const session = this.s;
     const p = this.posAt({ clientX, clientY });
     const rect = this.space.getBoundingClientRect();
     const x = clientX - rect.left;
@@ -1617,12 +1741,39 @@ export class Editor {
       this.hover.hide();
       return;
     }
-    const found = this.s.language.hover(this.doc, p);
-    if (!found?.parts?.length) {
+    const said = this.diagnosticsAt(p);
+    const found = this.s.language?.hover ? await this.s.language.hover(this.doc, p) : null;
+    if (asked !== this.hoverAsked || this.s !== session) {
+      return;
+    }
+    const parts = [...said, ...(found?.parts ?? [])];
+    if (!parts.length) {
       this.hover.hide();
       return;
     }
-    this.hover.show(found);
+    let from = found?.from ?? p;
+    if (!found) {
+      let col = p.col;
+      while (col > 0 && /\w/.test(text[col - 1])) {
+        col -= 1;
+      }
+      from = { line: p.line, col };
+    }
+    this.hover.show({ from, to: found?.to ?? p, parts });
+  }
+
+  // What the diagnostics under a place say, each in its severity's color: a language server's, or a
+  // tool plugin's.
+  diagnosticsAt(p) {
+    const line = p.line + this.s.base;
+    const names = ["", "error", "warning", "note", "hint"];
+    return (this.s.diagnostics ?? [])
+      .filter(
+        (diag) =>
+          (line > diag.from.line || (line === diag.from.line && p.col >= diag.from.col)) &&
+          (line < diag.to.line || (line === diag.to.line && p.col <= Math.max(diag.to.col, diag.from.col + 1))),
+      )
+      .map((diag) => ({ className: `diag s${diag.severity}`, text: `**${names[diag.severity] ?? "note"}**${diag.source ? ` ${diag.source}` : ""}: ${diag.message}` }));
   }
 
   bind() {
@@ -1676,6 +1827,7 @@ export class Editor {
     this.scroller.addEventListener("mousemove", (event) => this.onPointerMove(event));
     this.scroller.addEventListener("mouseleave", (event) => {
       window.clearTimeout(this.hoverWait);
+      this.hoverAsked = (this.hoverAsked ?? 0) + 1;
       if (!this.hover.holds(event.relatedTarget)) {
         this.hover.hideSoon();
       }
@@ -1888,15 +2040,15 @@ export class Editor {
     }
     let mark = "";
     if (changes.added.has(line)) {
-      mark += `<span class="ed-change added"></span>`;
+      mark += `<span class="ed-change added" data-change="${line}"></span>`;
     } else if (changes.changed.has(line)) {
-      mark += `<span class="ed-change changed"></span>`;
+      mark += `<span class="ed-change changed" data-change="${line}"></span>`;
     }
     if (changes.removed.has(line)) {
-      mark += `<span class="ed-change removed"></span>`;
+      mark += `<span class="ed-change removed" data-change="${line}"></span>`;
     }
     if (line === this.s.doc.count - 1 && changes.removed.has(line + 1)) {
-      mark += `<span class="ed-change removed below"></span>`;
+      mark += `<span class="ed-change removed below" data-change="${line + 1}"></span>`;
     }
     return mark;
   }
@@ -2041,6 +2193,22 @@ export class Editor {
         band(row, this.span(on ? "ed-match on" : "ed-match", line, row, from, to, line !== match.to.line));
       }
     }
+    // A language server's diagnostics, each underlined in the color of its severity: 1 an error, 2 a
+    // warning, 3 a note and 4 a hint. One that spans nothing marks the character it stands at.
+    for (const diag of s.diagnostics ?? []) {
+      for (let line = diag.from.line - s.base; line <= diag.to.line - s.base; line += 1) {
+        const row = line >= 0 && line < doc.count ? visible(line) : -1;
+        if (row < 0) {
+          continue;
+        }
+        const from = line === diag.from.line - s.base ? diag.from.col : 0;
+        let to = line === diag.to.line - s.base ? diag.to.col : doc.line(line).length;
+        if (to <= from) {
+          to = from + 1;
+        }
+        band(row, this.span(`ed-diag s${Math.min(4, Math.max(1, diag.severity))}`, line, row, from, to));
+      }
+    }
     if (s.snippet) {
       for (const stop of s.snippet.stops) {
         const row = visible(stop.from.line);
@@ -2116,6 +2284,23 @@ export class Editor {
     this.strained(performance.now() - began);
   }
 
+  // Moves the cursor to the next of the language server's diagnostics after it, or the one before
+  // it where `dir` is -1, round from the end to the start, and says what it is.
+  stepProblem(dir) {
+    const s = this.s;
+    const all = [...(s?.diagnostics ?? [])].sort((a, b) => a.from.line - b.from.line || a.from.col - b.from.col);
+    if (!all.length) {
+      return null;
+    }
+    const head = this.primary().head;
+    const at = { line: head.line + s.base, col: head.col };
+    const after = (diag) => diag.from.line > at.line || (diag.from.line === at.line && diag.from.col > at.col);
+    const before = (diag) => diag.from.line < at.line || (diag.from.line === at.line && diag.from.col < at.col);
+    const found = dir > 0 ? all.find(after) ?? all[0] : [...all].reverse().find(before) ?? all.at(-1);
+    this.goTo(found.from.line - s.base, found.from.col);
+    return found;
+  }
+
   // The status line, built again only when what it says changes.
   drawStatus() {
     const s = this.s;
@@ -2129,7 +2314,9 @@ export class Editor {
       picked = lines ? `${lines + spans.length} lines selected` : `${chars} selected`;
     }
     const read = s.window ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
-    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id].join("|");
+    const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
+    const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
+    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings].join("|");
     if (said === this.statusSaid) {
       return;
     }
@@ -2148,6 +2335,18 @@ export class Editor {
     }
     if (s.selections.length > 1) {
       parts.push(Object.assign(document.createElement("span"), { textContent: `${s.selections.length} cursors` }));
+    }
+    if (s.diagnostics) {
+      const problems = document.createElement("button");
+      problems.type = "button";
+      problems.className = "problems";
+      problems.title = "Next Problem (F8)";
+      problems.append(
+        Object.assign(document.createElement("span"), { className: errors ? "s1" : "", textContent: `${errors} ${errors === 1 ? "error" : "errors"}` }),
+        Object.assign(document.createElement("span"), { className: warnings ? "s2" : "", textContent: `${warnings} ${warnings === 1 ? "warning" : "warnings"}` }),
+      );
+      problems.addEventListener("click", () => this.stepProblem(1));
+      parts.push(problems);
     }
     const gap = Object.assign(document.createElement("span"), { className: "gap" });
     const indent = document.createElement("button");

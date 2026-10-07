@@ -1,0 +1,52 @@
+{
+  "id": "octave",
+  "name": "Octave",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["m"],
+  "comments": {"line":"%"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "^\\s*(?:function|if|elseif|else|for|parfor|while|do|switch|case|otherwise|try|catch|unwind_protect|unwind_protect_cleanup|classdef|properties|methods|events|enumeration)\\b.*$",
+  "grammar": {
+    "words": [
+      "break", "case", "catch", "classdef", "continue", "do", "else", "elseif", "end", "end_try_catch",
+      "end_unwind_protect", "endclassdef", "endenumeration", "endevents", "endfor", "endfunction", "endif",
+      "endmethods", "endparfor", "endproperties", "endswitch", "endwhile", "enumeration", "events", "for",
+      "function", "global", "if", "methods", "otherwise", "parfor", "persistent", "properties", "return",
+      "switch", "try", "until", "unwind_protect", "unwind_protect_cleanup", "while"
+    ],
+    "types": [
+      "double", "single", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "logical",
+      "char", "cell", "struct", "function_handle", "containers"
+    ],
+    "constants": ["true", "false", "pi", "e", "Inf", "inf", "NaN", "nan", "NA", "eps", "i", "j", "I", "J", "realmax", "realmin", "intmax", "intmin"],
+    "functions": [
+      "abs", "all", "any", "cat", "ceil", "cellfun", "arrayfun", "disp", "error", "exp", "eye", "fieldnames", "find",
+      "floor", "fft", "ifft", "figure", "fprintf", "printf", "sprintf", "hold", "isempty", "isfield", "length",
+      "linspace", "log", "max", "mean", "min", "mod", "num2str", "numel", "ones", "plot", "rand", "randn",
+      "repmat", "reshape", "round", "size", "sort", "sqrt", "str2double", "strcmp", "strsplit", "sum", "title",
+      "warning", "xlabel", "ylabel", "zeros", "legend", "subplot", "nargin", "nargout", "varargin", "varargout",
+      "assert", "isa", "pkg", "puts", "fdisp"
+    ],
+    "tokenizer": {
+      "root": [
+        ["^\\s*[%#]\\{\\s*$","comment","@block"],
+        ["[%#].*$","comment"],
+        ["\\.\\.\\..*$","comment"],
+        ["\\s+",""],
+        ["([A-Za-z]\\w*)('*)",[{"cases":{"@words":"keyword","@types":"type","@constants":"predefined","@functions":"predefined","@default":"identifier"}},"operator"]],
+        ["(0[xX][\\da-fA-F]+|0[bB][01]+|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eEdD][+-]?\\d+)?[ijIJ]?)('*)",["number","operator"]],
+        ["([)\\]}])('*)",["@brackets","operator"]],
+        ["[{(\\[]","@brackets"],
+        ["\\.'|\\.[*/\\\\^]|\\+\\+|--|[-+*/^]=|[<>=~!]=|&&|\\|\\||\\*\\*|[-+*/\\\\^<>=~!&|:@]","operator"],
+        ["'","string","@sq"],
+        ["\"","string","@dq"],
+        ["[;,.]","delimiter"]
+      ],
+      "block": [["^\\s*[%#]\\{\\s*$","comment","@block"],["^\\s*[%#]\\}\\s*$","comment","@pop"],[".+","comment"]],
+      "sq": [["[^']+","string"],["''","string.escape"],["'","string","@pop"],["$","","@pop"]],
+      "dq": [["[^\"\\\\]+","string"],["\\\\.|\"\"","string.escape"],["\"","string","@pop"],["$","","@pop"]]
+    }
+  }
+}

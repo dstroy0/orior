@@ -1,0 +1,31 @@
+{
+  "id": "tex",
+  "name": "TeX",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["tex","sty","cls","bib"],
+  "comments": {"line":"%"},
+  "pairs": ["{}","[]","()","$$"],
+  "quotes": [],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "tokenizer": {
+      "root": [
+        ["%.*$","comment"],
+        ["(\\\\(?:begin|end))(\\{)([^}]*)(\\})",["keyword","delimiter.bracket","type","delimiter.bracket"]],
+        ["\\\\(?:[A-Za-z@]+|.)","keyword"],
+        ["\\$\\$?","number","@math"],
+        ["\\\\\\[|\\\\\\(","number","@math"],
+        ["[{}[\\]]","@brackets"],
+        ["[&~^_]","operator"],
+        ["[^\\\\$%{}[\\]&~^_]+",""]
+      ],
+      "math": [
+        ["\\$\\$?|\\\\\\]|\\\\\\)","number","@pop"],
+        ["\\\\(?:[A-Za-z@]+|.)","predefined"],
+        ["%.*$","comment"],
+        ["[^$\\\\%]+","number"]
+      ]
+    }
+  }
+}
