@@ -47,6 +47,7 @@
   --ed-mini-match: rgba(111, 220, 180, 0.7);
   --ed-mini-slider: rgba(228, 227, 245, 0.08);
   --ed-mini-slider-on: rgba(228, 227, 245, 0.16);
+  --lifted: rgba(8, 6, 30, 0.45);
   --t-comment: #6e6b99;
   --t-keyword: #a48cff;
   --t-type: #6fdcb4;
@@ -94,6 +95,7 @@
   --ed-mini-match: rgba(15, 122, 83, 0.6);
   --ed-mini-slider: rgba(23, 22, 58, 0.07);
   --ed-mini-slider-on: rgba(23, 22, 58, 0.14);
+  --lifted: rgba(23, 22, 58, 0.16);
   --t-comment: #8a88a8;
   --t-keyword: #5b3fd1;
   --t-type: #0f7a53;
@@ -133,6 +135,7 @@ body {
   color: var(--fg);
   font: 15px/1.5 var(--head);
   overflow: hidden;
+  scrollbar-color: var(--fg-3) transparent;
 }
 
 button,
@@ -151,9 +154,9 @@ select {
 .bar {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  gap: 0.7rem;
   height: 2.9rem;
-  padding: 0 1rem;
+  padding: 0 0.8rem 0 1rem;
   background: var(--ink);
   color: #f3f2fb;
   border-bottom: 2px solid #6fdcb4;
@@ -165,46 +168,168 @@ select {
   color: #6fdcb4;
 }
 
-.name {
-  font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
-}
-
-.modes {
+/* The menu bar takes the room its titles need, and gives up room before the folder's path does
+   only where the window is too narrow for both. */
+.menubar {
   display: flex;
-  gap: 0.25rem;
-  margin-left: 0.6rem;
+  align-items: stretch;
+  align-self: stretch;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.modes button {
+.bar-title {
+  flex: none;
+  margin: 0.45rem 0.1rem;
+  padding: 0 0.75rem;
   border: 0;
+  border-radius: 0.3rem;
   background: none;
-  padding: 0.3rem 0.7rem;
-  border-radius: var(--radius);
-  color: rgba(243, 242, 251, 0.72);
-  font-weight: 600;
+  color: rgba(243, 242, 251, 0.78);
+  font: 13px var(--head);
   cursor: pointer;
 }
 
-.modes button:hover {
-  color: #b49cff;
+.bar-title:hover,
+.bar-title[aria-expanded="true"] {
+  background: rgba(243, 242, 251, 0.1);
+  color: #ffffff;
 }
 
-.modes button[aria-selected="true"] {
+.bar-title[aria-current="true"] {
   color: #ffffff;
   box-shadow: inset 0 -2px 0 #6fdcb4;
-  border-radius: 0;
+  border-radius: 0.3rem 0.3rem 0 0;
+}
+
+.bar-title:focus-visible {
+  outline-offset: -2px;
+}
+
+.bar-title u {
+  text-decoration: none;
+}
+
+.alt-held .bar-title u,
+.menubar.held .bar-title u {
+  text-decoration: underline;
+}
+
+/* The tree's folder, in the middle of what the menus leave. */
+.tree {
+  flex: 1 1 0;
+  min-width: 0;
+  font: 12.5px var(--code);
+  color: rgba(243, 242, 251, 0.6);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The bar along the bottom of the window, in the ink of the bar along its top. */
+.statusbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  height: 22px;
+  padding: 0 0.8rem;
+  background: var(--ink);
+  color: rgba(243, 242, 251, 0.82);
+  border-top: 1px solid rgba(111, 220, 180, 0.35);
+  font: 12px var(--head);
+  white-space: nowrap;
+}
+
+.status-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-branch[hidden] {
+  display: none;
+}
+
+.branch-mark {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.status-report {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #f2d48a;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-report[hidden] {
+  display: none;
+}
+
+.status-zoom {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-zoom:hover {
+  color: #ffffff;
+}
+
+.status-zoom[hidden] {
+  display: none;
+}
+
+.status-memory {
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.status-memory[hidden] {
+  display: none;
+}
+
+.statusbar .ed-status {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 12px var(--head);
+}
+
+.statusbar .ed-status button:hover {
+  color: #ffffff;
+}
+
+body[data-view="run"] .statusbar .ed-status {
+  display: none;
 }
 
 /* The status block's reading: runs going and files still being read, in signal. */
 .pulse {
   display: flex;
   gap: 0.9rem;
-  margin-left: auto;
   font: 12px var(--code);
   color: #6fdcb4;
   white-space: nowrap;
+}
+
+.pulse:empty {
+  display: none;
 }
 
 .pulse button {
@@ -220,21 +345,8 @@ select {
   text-decoration: underline;
 }
 
-.pulse:empty + .tree {
-  margin-left: auto;
-}
-
-.tree {
-  margin-left: 1.2rem;
-  font: 12.5px var(--code);
-  color: rgba(243, 242, 251, 0.6);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 45vw;
-}
-
 .scheme {
+  flex: none;
   width: 2rem;
   height: 2rem;
   border: 0;
@@ -287,8 +399,7 @@ select {
   color: var(--fg-3);
 }
 
-.jobs,
-.files {
+.jobs {
   flex: 1;
   overflow: auto;
   padding: 0 0.5rem 1rem;
@@ -375,6 +486,17 @@ select {
   margin: 0;
   font: 600 1.05rem/1.35 var(--code);
   word-break: break-all;
+}
+
+.job-head h2 .named {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.job-head h2 .named:hover {
+  color: var(--hover);
+  text-decoration: underline;
 }
 
 .job-head .file {
@@ -531,6 +653,16 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--well);
+  overflow: hidden;
+}
+
+/* The fuse along the foot of the output, burning while the run goes. */
+.console .fuse {
+  display: block;
+  flex: none;
+  width: 100%;
+  height: 30px;
+  pointer-events: none;
 }
 
 .console-head {
@@ -648,6 +780,63 @@ select {
   letter-spacing: -0.04em;
 }
 
+/* The eye in the name stands in for the i. It keeps the drawing's proportions and its line weight,
+ * and its lids sit centered on the height of the o and the r. */
+.wordmark .eye-mark {
+  width: 1.164em;
+  height: 1.15em;
+  margin: 0 0.02em 0 0.04em;
+  vertical-align: -0.32em;
+  overflow: visible;
+}
+
+.eye-mark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.eye-mark .iris {
+  fill: currentColor;
+}
+
+/* The name large on an empty view takes only its own width and goes to the bar from where it
+ * stands. */
+.empty-body .wordmark,
+.open-body .wordmark {
+  width: fit-content;
+  margin-inline: auto;
+}
+
+/* The name small at the left of the bar, shown once the large one has first reached it. */
+.bar-mark {
+  flex: none;
+  font: 700 17px/1 var(--head);
+  letter-spacing: -0.03em;
+  color: #f3f2fb;
+  visibility: hidden;
+}
+
+.bar-mark.home {
+  visibility: visible;
+}
+
+.wordmark-link {
+  cursor: pointer;
+}
+
+.wordmark-link:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+  border-radius: var(--radius);
+}
+
+.bar-mark .eye-mark path {
+  stroke-width: 9;
+}
+
 .empty-body p,
 .open-body p {
   margin: 0.8rem auto 1.2rem;
@@ -671,10 +860,18 @@ select {
   opacity: 0;
 }
 
-.loading .eye {
+.loading .eye-box {
   position: relative;
-  width: min(40rem, 72vw);
-  aspect-ratio: 16 / 9;
+  width: min(44rem, 72vw, 92vh);
+  aspect-ratio: 1;
+}
+
+.loading .eye-box canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .open {
@@ -1376,46 +1573,420 @@ select {
   font-weight: 500;
 }
 
-/* The tree of files. */
-.node {
-  display: block;
+/* A pane that takes the editor's room: the job list, the explorer, the definitions. Collapsed, it
+ * gives its width back and its inside slides up and toward the edge it stands at. The pointer at
+ * that edge of the view brings it back. */
+.collapsible {
+  overflow: hidden;
+  transition:
+    width 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.side-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.side > .side-inner {
+  width: var(--side);
+}
+
+.collapsible.collapsed {
+  width: 0;
+  border-color: transparent;
+}
+
+.collapsible.toward-left.collapsed > .side-inner {
+  transform: translate(-100%, -100%);
+  opacity: 0;
+}
+
+.collapsible.toward-right.collapsed > .side-inner {
+  transform: translate(100%, -100%);
+  opacity: 0;
+}
+
+.pane-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+}
+
+.pane-edge[hidden] {
+  display: none;
+}
+
+.pane-edge-left {
+  left: 0;
+}
+
+.pane-edge-right {
+  right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsible,
+  .side-inner {
+    transition: none;
+  }
+}
+
+/* The explorer: its head, its search, and its panes one over the next. The tree's pane takes what
+ * the others leave, and Outline and Timeline open share it. */
+
+.explorer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.5rem 0 0.95rem;
+}
+
+.explorer-head h2 {
+  margin: 0;
+  font: 600 12px var(--head);
+  color: var(--fg-2);
+}
+
+.explorer-more {
+  width: 1.6rem;
+  height: 1.4rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: var(--fg-2);
+  font: 600 14px/1 var(--head);
+  cursor: pointer;
+}
+
+.explorer-more:hover,
+.explorer-more[data-menu="open"] {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.explorer .filter {
+  margin: 0.5rem 0.75rem 0.6rem;
+}
+
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+
+.pane[hidden] {
+  display: none;
+}
+
+.pane.expanded[data-pane="folder"] {
+  flex: 2 1 0;
+}
+
+.pane.expanded[data-pane="outline"],
+.pane.expanded[data-pane="timeline"] {
+  flex: 1 1 0;
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
   width: 100%;
-  text-align: left;
+  height: 22px;
+  flex: none;
+  padding: 0 0.5rem 0 0.15rem;
   border: 0;
   background: none;
-  padding: 0.16rem 0.5rem;
-  border-radius: var(--radius);
-  font: 12.5px/1.5 var(--code);
-  color: var(--fg-2);
+  color: var(--fg);
+  font: 600 12px var(--head);
+  text-align: left;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.node:hover {
-  color: var(--hover);
+.pane-head:hover {
   background: var(--line);
+}
+
+.pane-head:focus-visible,
+.node:focus-visible,
+.open-row:focus-visible,
+.sym:focus-visible,
+.commit:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+}
+
+/* An arrow drawn in two borders: right where closed, down where open. */
+.pane-head::before,
+.node.dir .twisty::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.12s ease;
+}
+
+.pane-head::before {
+  flex: none;
+  margin: 0 0.45rem 0 0.4rem;
+}
+
+.pane-head[aria-expanded="true"]::before,
+.node.dir[aria-expanded="true"] .twisty::before {
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.pane-head[aria-expanded="false"] + .pane-body {
+  display: none;
+}
+
+.pane-body {
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 0.3rem;
+}
+
+.pane[data-pane="open"] .pane-body {
+  max-height: calc(22px * 8 + 0.3rem);
+}
+
+/* A row of a pane: the tree's, Open Editors', Outline's and Timeline's alike. */
+.node,
+.open-row,
+.sym,
+.commit {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 22px;
+  padding: 0 0.6rem 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 13px var(--head);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.node:hover,
+.open-row:hover,
+.sym:hover,
+.commit:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.node[aria-current="true"],
+.open-row[aria-current="true"],
+.sym[aria-current="true"] {
+  background: var(--ed-sel-idle);
+  color: var(--fg);
+}
+
+.node .name,
+.open-row .name,
+.sym .name,
+.commit .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .node.dir {
   color: var(--fg);
 }
 
-.node.known {
+.node.known .name {
   color: var(--link);
 }
 
-.node[aria-current="true"] {
-  background: var(--bg);
-  box-shadow: inset 2px 0 0 var(--signal);
+/* A line down from each folder above a row, under the folder's arrow. */
+.guide {
+  flex: none;
+  align-self: stretch;
+  width: 12px;
+  margin-left: 0;
+  background: linear-gradient(var(--guide), var(--guide)) 7px 0 / 1px 100% no-repeat;
+  --guide: color-mix(in srgb, var(--fg) 14%, transparent);
+}
+
+.explorer:hover .guide {
+  --guide: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+
+.twisty {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 100%;
+}
+
+/* A file's icon: its type's mark, or a page. */
+.icon {
+  flex: none;
+  width: 16px;
+  margin-right: 0.35rem;
+  font: 700 9.5px/1 var(--code);
+  text-align: center;
+  letter-spacing: -0.04em;
+}
+
+.icon.page::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 10px;
+  border: 1px solid var(--fg-3);
+  border-radius: 1px;
+}
+
+/* What git says of a row: the name and its letter in the state's color. */
+.node .change {
+  flex: none;
+  margin-left: 0.5rem;
+  font: 600 11px var(--code);
+}
+
+.node.dir .change {
+  font-size: 8px;
+}
+
+.node[data-change="M"] .name,
+.node[data-change="M"] .change {
+  color: var(--t3);
+}
+
+.node[data-change="U"] .name,
+.node[data-change="U"] .change,
+.node[data-change="A"] .name,
+.node[data-change="A"] .change {
+  color: var(--t2);
+}
+
+.node[data-change="D"] .name,
+.node[data-change="D"] .change {
+  color: var(--t1);
+}
+
+.node[data-change="R"] .name,
+.node[data-change="R"] .change {
+  color: var(--t6);
+}
+
+.node[data-change="C"] .name,
+.node[data-change="C"] .change {
+  color: var(--t9);
+}
+
+.node.ignored .name,
+.node.ignored .icon {
+  color: var(--fg-3);
+}
+
+/* Open Editors: the × where a tab is, a dot where it holds changes, the × again under the pointer. */
+.open-row .close {
+  flex: none;
+  width: 16px;
+  margin-right: 0.2rem;
+  text-align: center;
+  color: var(--fg-2);
+  visibility: hidden;
+}
+
+.open-row .close::before {
+  content: "×";
+}
+
+.open-row .close.dirty {
+  visibility: visible;
+}
+
+.open-row .close.dirty::before {
+  content: "●";
+  font-size: 10px;
+}
+
+.open-row:hover .close,
+.open-row:focus-visible .close {
+  visibility: visible;
+}
+
+.open-row:hover .close::before {
+  content: "×";
+  font-size: inherit;
+}
+
+.open-row .close:hover {
   color: var(--fg);
 }
 
+.open-row .where,
+.commit .where {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.commit .where {
+  flex: none;
+}
+
+.commit-dot::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--fg-3);
+  border-radius: 50%;
+}
+
 /* The definitions beside the editor: the open file type's oracle table, row by row. */
-.defs {
+.defs-side {
   width: var(--defs);
   flex: none;
+}
+
+.defs-side[hidden] {
+  display: none;
+}
+
+.defs.side-inner {
+  display: block;
+}
+
+.defs {
+  width: var(--defs);
+  height: 100%;
   overflow: auto;
   padding: 1rem 1.1rem 1.4rem;
   background: var(--surface);
@@ -1496,6 +2067,387 @@ select {
   color: var(--fg-3);
 }
 
+/* The sixteen colors of the terminal and of a run's output, in the palette, light and dark. */
+[data-scheme="dark"] {
+  --t0: #2a2758;
+  --t1: #ff8fa3;
+  --t2: #6fdcb4;
+  --t3: #f2d48a;
+  --t4: #8ab8ff;
+  --t5: #b49cff;
+  --t6: #7fd8e8;
+  --t7: #d6d4ee;
+  --t8: #5e5b8a;
+  --t9: #ffb3c1;
+  --t10: #9fe3c8;
+  --t11: #ffe3a8;
+  --t12: #b5d1ff;
+  --t13: #d2c4ff;
+  --t14: #a8ecf5;
+  --t15: #ffffff;
+}
+
+[data-scheme="light"] {
+  --t0: #17163a;
+  --t1: #b4233c;
+  --t2: #0f7a53;
+  --t3: #8a6100;
+  --t4: #3346d3;
+  --t5: #5b3fd1;
+  --t6: #0f6f80;
+  --t7: #6b6990;
+  --t8: #8a88a8;
+  --t9: #d0405a;
+  --t10: #16935f;
+  --t11: #a87a12;
+  --t12: #5566e0;
+  --t13: #7a5ee0;
+  --t14: #1a8ea3;
+  --t15: #3d3b66;
+}
+
+/* A height dragged in a taller window still leaves the views their share of a shorter one. */
+.term {
+  flex: none;
+  height: 16rem;
+  min-height: 96px;
+  max-height: min(75vh, calc(100vh - 16rem));
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--well);
+  border-top: 1px solid var(--line);
+}
+
+.term-grip {
+  flex: none;
+  height: 6px;
+  margin-top: -3px;
+  cursor: ns-resize;
+}
+
+.term-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;
+  padding: 0.2rem 0.6rem 0.35rem;
+  font: 13px/1.3 var(--code);
+  color: var(--fg);
+  white-space: pre;
+  user-select: text;
+  cursor: text;
+}
+
+.term-view > div > div,
+.term-probe {
+  height: 1.3em;
+  overflow: hidden;
+}
+
+.term-probe {
+  position: absolute;
+  visibility: hidden;
+}
+
+.term-keys {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  resize: none;
+}
+
+.t-f0 { color: var(--t0); }
+.t-f1 { color: var(--t1); }
+.t-f2 { color: var(--t2); }
+.t-f3 { color: var(--t3); }
+.t-f4 { color: var(--t4); }
+.t-f5 { color: var(--t5); }
+.t-f6 { color: var(--t6); }
+.t-f7 { color: var(--t7); }
+.t-f8 { color: var(--t8); }
+.t-f9 { color: var(--t9); }
+.t-f10 { color: var(--t10); }
+.t-f11 { color: var(--t11); }
+.t-f12 { color: var(--t12); }
+.t-f13 { color: var(--t13); }
+.t-f14 { color: var(--t14); }
+.t-f15 { color: var(--t15); }
+.t-b0 { background: var(--t0); }
+.t-b1 { background: var(--t1); }
+.t-b2 { background: var(--t2); }
+.t-b3 { background: var(--t3); }
+.t-b4 { background: var(--t4); }
+.t-b5 { background: var(--t5); }
+.t-b6 { background: var(--t6); }
+.t-b7 { background: var(--t7); }
+.t-b8 { background: var(--t8); }
+.t-b9 { background: var(--t9); }
+.t-b10 { background: var(--t10); }
+.t-b11 { background: var(--t11); }
+.t-b12 { background: var(--t12); }
+.t-b13 { background: var(--t13); }
+.t-b14 { background: var(--t14); }
+.t-b15 { background: var(--t15); }
+.t-f-default-bg { color: var(--well); }
+.t-b-default-fg { background: var(--fg); }
+.t-bold { font-weight: 600; }
+.t-dim { opacity: 0.6; }
+.t-italic { font-style: italic; }
+.t-under { text-decoration: underline; }
+.t-strike { text-decoration: line-through; }
+.t-under.t-strike { text-decoration: underline line-through; }
+
+/* The cursor is solid while the terminal holds the keys and an outline while it does not. */
+.term-view .t-cursor {
+  background: transparent;
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+}
+
+.term-view.term-focused .t-cursor {
+  background: var(--signal);
+  color: var(--well);
+  outline: 0;
+}
+
+/* A popup menu: a panel lifted over the page, its keys set to the right in the code face. */
+.menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 13rem;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-widget);
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px var(--lifted);
+  font: 13px var(--head);
+  max-height: calc(100vh - 3.5rem);
+  overflow-y: auto;
+}
+
+.menu-item[aria-expanded="true"] {
+  background: var(--ed-sel-idle);
+}
+
+/* The mark of an item with items of its own: a chevron pointing to where they open. */
+.menu-more {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+/* A sheet over the app, for the keys and for what the app is. */
+.sheet {
+  min-width: 22rem;
+  max-width: min(46rem, 90vw);
+  max-height: 80vh;
+  padding: 1.2rem 1.4rem 1.4rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--ed-widget);
+  color: var(--fg);
+  box-shadow: 0 16px 40px var(--lifted);
+}
+
+.sheet::backdrop {
+  background: rgba(8, 6, 30, 0.45);
+}
+
+.sheet-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.sheet-close:hover {
+  color: var(--hover);
+}
+
+.sheet-keys {
+  columns: 2 18rem;
+  column-gap: 2rem;
+  font: 13px var(--head);
+}
+
+.sheet-keys section {
+  break-inside: avoid;
+  margin-bottom: 1rem;
+}
+
+.sheet-keys h3 {
+  margin: 0 0 0.35rem;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+.sheet-keys div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.12rem 0;
+}
+
+.sheet-keys kbd {
+  font: 12px var(--code);
+  color: var(--fg-2);
+}
+
+/* The form for a bug report: a label over each field, the fields as wide as the sheet. */
+.sheet-report {
+  display: grid;
+  gap: 0.7rem;
+  width: min(34rem, 80vw);
+  font: 13px var(--head);
+}
+
+.sheet-report h2 {
+  margin: 0 0 0.2rem;
+  font: 600 1.05rem var(--head);
+}
+
+.report-row {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--fg-2);
+}
+
+.report-field {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px var(--head);
+}
+
+textarea.report-field {
+  resize: vertical;
+  font: 12.5px/1.5 var(--code);
+}
+
+.report-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--fg-2);
+}
+
+.report-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.report-said {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--fg-2);
+}
+
+.sheet-about {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0.6rem 1.4rem 0;
+  text-align: center;
+}
+
+.sheet-about .mark {
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--signal);
+}
+
+.sheet-about h2 {
+  margin: 0;
+  font: 700 1.6rem var(--head);
+  letter-spacing: -0.02em;
+}
+
+.sheet-about p {
+  margin: 0;
+  font: 12.5px var(--code);
+  color: var(--fg-2);
+}
+
+.sheet-about .tree {
+  flex: none;
+  max-width: 36rem;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.6rem;
+  padding: 0.34rem 0.7rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* A menu with items that are on or off sets every item in, and marks the ones that are on. */
+.menu.checks .menu-item {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.menu-item[aria-checked="true"]::before {
+  content: "\2713";
+  position: absolute;
+  left: 0.6rem;
+  color: var(--signal);
+}
+
+.menu-item:focus {
+  outline: none;
+  background: var(--ed-sel);
+}
+
+.menu-item:disabled {
+  color: var(--fg-3);
+  cursor: default;
+}
+
+.menu-item kbd {
+  font: 11.5px var(--code);
+  color: var(--fg-3);
+}
+
+[data-menu="open"] {
+  outline: 1px solid var(--hover);
+  outline-offset: -1px;
+}
+
+.menu-line {
+  height: 1px;
+  margin: 0.3rem 0.4rem;
+  background: var(--line);
+}
+
 @media (max-width: 1200px) {
   :root {
     --defs: 18rem;
@@ -1513,4 +2465,469 @@ select {
   50% {
     opacity: 0.35;
   }
+}
+
+/* The quick open: a field along the top of the window over its rows, what matched marked in signal,
+ * a row's folder or kind after it, and its keys to the right. */
+.quick {
+  position: fixed;
+  z-index: 60;
+  top: 46px;
+  left: 50%;
+  width: min(40rem, 86vw);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  background: var(--ed-widget);
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 36px var(--lifted);
+  font: 13px var(--head);
+}
+
+.quick[hidden] {
+  display: none;
+}
+
+.quick-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.75);
+  background: var(--well);
+  color: var(--fg);
+  font: 13.5px var(--head);
+  outline: none;
+}
+
+.quick-input:focus {
+  border-color: var(--signal);
+}
+
+.quick-list {
+  max-height: min(26rem, 60vh);
+  margin-top: 0.3rem;
+  overflow-y: auto;
+}
+
+.quick-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-height: 24px;
+  padding: 0.2rem 0.5rem;
+  border-radius: calc(var(--radius) * 0.75);
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.quick-row[aria-selected="true"] {
+  background: var(--ed-sel);
+}
+
+.quick-row.said {
+  color: var(--fg-2);
+  cursor: default;
+}
+
+.quick-label {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+.quick-row mark,
+.search-hit mark {
+  background: none;
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.quick-row kbd {
+  flex: none;
+  margin-left: auto;
+  font: 11.5px var(--code);
+  color: var(--fg-2);
+}
+
+/* Find in Files: the field with its three options inside its right end, what the search found, a
+ * row a file and under it a row a line. */
+.pane.expanded[data-pane="search"] {
+  flex: 2 1 0;
+}
+
+.search-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-box {
+  position: relative;
+  margin: 0.3rem 0.75rem 0.2rem;
+}
+
+.explorer .search-box .filter {
+  width: 100%;
+  margin: 0;
+  padding-right: 5.2rem;
+}
+
+.search-options {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  display: flex;
+  gap: 0.1rem;
+  transform: translateY(-50%);
+}
+
+.search-options [data-option] {
+  padding: 0.05rem 0.3rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) * 0.6);
+  color: var(--fg-2);
+  font: 600 11.5px var(--code);
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-options [data-option="word"] {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.search-options [data-option]:hover {
+  background: var(--line);
+}
+
+.search-options [aria-checked="true"] {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.search-options [data-option]:focus-visible {
+  outline: 1px solid var(--signal);
+}
+
+.search-said {
+  margin: 0.15rem 0.85rem 0.3rem;
+  min-height: 1em;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+.search-hits {
+  min-height: 0;
+  overflow: auto;
+}
+
+.search-file .where {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.search-file .count {
+  flex: none;
+  margin-left: auto;
+  padding: 0 0.4rem;
+  border-radius: 0.6rem;
+  background: var(--line);
+  font: 11px var(--code);
+  color: var(--fg-2);
+}
+
+.search-hit {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 22px;
+  padding: 0 0.6rem 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12.5px var(--code);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-hit .guide {
+  margin-left: 12px;
+}
+
+.search-hit .line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.search-hit:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.search-hit:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+}
+
+/* Sticky scroll: the lines that open each region the top of the editor is inside, held along its
+ * top, the deepest last, over a rule. */
+.ed-sticky {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-bg);
+  box-shadow: 0 3px 6px -3px var(--lifted);
+  border-bottom: 1px solid var(--ed-widget-line);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.ed-sticky[hidden] {
+  display: none;
+}
+
+.ed-sticky-row {
+  display: flex;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.ed-sticky-row:hover {
+  background: var(--ed-current);
+}
+
+.ed-sticky-num {
+  flex: none;
+  box-sizing: border-box;
+  padding-right: 22px;
+  text-align: right;
+  color: var(--ed-num);
+}
+
+.ed-sticky-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Preferences: the settings, the color theme with its name and what can be done with it, then every
+ * color of the palette, a row a color with its swatch, its name, its value and the way back to the
+ * scheme's own, a row the theme changes marked in signal. The colors scroll and the rest stays. */
+.sheet:has(.sheet-prefs) {
+  width: min(52rem, 94vw);
+  max-width: none;
+  height: min(52rem, 88vh);
+  max-height: none;
+}
+
+.sheet-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  height: 100%;
+  font: 13px var(--head);
+}
+
+.sheet-prefs h2 {
+  margin: 0;
+  font: 600 1.15rem var(--head);
+}
+
+.sheet-prefs h3 {
+  margin: 0 0 0.45rem;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+.prefs-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.6rem;
+}
+
+.prefs-settings .report-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.prefs-settings .report-check {
+  margin: 0;
+}
+
+.prefs-line {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.prefs-line select {
+  flex: 0 1 16rem;
+}
+
+.prefs-line .prefs-name {
+  flex: 1 1 auto;
+}
+
+.prefs-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.prefs-button {
+  padding: 0.25rem 0.8rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.75);
+  background: var(--surface);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  cursor: pointer;
+}
+
+.prefs-button:hover:not(:disabled) {
+  border-color: var(--hover);
+}
+
+.prefs-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.prefs-said {
+  min-height: 1em;
+  margin: 0.4rem 0 0;
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.prefs-palette {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.prefs-palette .filter {
+  margin: 0 0 0.5rem;
+}
+
+.prefs-colors {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+}
+
+.prefs-colors h4 {
+  margin: 0.7rem 0 0.25rem;
+  font: 600 12px var(--code);
+  color: var(--fg-3);
+}
+
+.prefs-color {
+  display: grid;
+  grid-template-columns: 2rem 13rem minmax(0, 1fr) 1.8rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.12rem 0.3rem;
+  border-radius: calc(var(--radius) * 0.6);
+  box-shadow: inset 2px 0 0 transparent;
+}
+
+.prefs-color:hover {
+  background: var(--line);
+}
+
+.prefs-color.changed {
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.prefs-color code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 12.5px var(--code);
+  color: var(--fg);
+}
+
+.prefs-swatch {
+  width: 2rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  cursor: pointer;
+}
+
+.prefs-swatch::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.prefs-swatch::-webkit-color-swatch {
+  border: 0;
+  border-radius: 2px;
+}
+
+.prefs-value {
+  min-width: 0;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  color: var(--fg-2);
+  font: 12.5px var(--code);
+}
+
+.prefs-value:hover,
+.prefs-value:focus {
+  border-color: var(--ed-widget-line);
+  background: var(--well);
+  color: var(--fg);
+  outline: none;
+}
+
+.prefs-reset {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.prefs-reset:disabled {
+  visibility: hidden;
+}
+
+.prefs-reset:hover {
+  color: var(--hover);
+}
+
+.prefs-settings select {
+  width: auto;
 }

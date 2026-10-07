@@ -20,7 +20,7 @@ mkdir -p "$OUT/decode"
 type -P nvdisasm > /dev/null || { echo "  no nvdisasm on the PATH: the CUDA toolkit's disassembler names the fields"; exit 1; }
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$TOP/src/cu/scaffolding"
-          -I "$TOP/src/cu/transpiler/lstar/parser" -I "$TEST")
+          -I "$TOP/src/cu/types/file_defs/readers" -I "$TEST")
 OBJECTS=()
 for source in "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" \
               "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$TOP/src/cu/scaffolding/interface_sass_probe_class.c" \

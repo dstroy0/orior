@@ -1,0 +1,22 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+
+[package]
+name = "orior-cli"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
+rust-version = "1.77"
+
+[lib]
+name = "orior_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "orior-cli"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dunce = "1"

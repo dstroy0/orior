@@ -79,6 +79,8 @@ extern "C"
         // the residual's place per axis in half voxels, as EngineResidualRequest's
         int *offset_halves;
         EngineError *error;
+        // the comb, as EngineResidualRequest's
+        unsigned int comb[ENGINE_AXES];
     } EngineResidualPlanesRequest;
 
     long engine_residual_planes(const EngineResidualPlanesRequest *request, const unsigned int **device_residual,

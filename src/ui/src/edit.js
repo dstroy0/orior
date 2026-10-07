@@ -1,18 +1,35 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The edit view: the tree's files, an editor a tab a file, and beside it the definition of the open
-// file's type as the tree holds it. A file that is not text opens as its bytes, its k-file head read
-// out where it has one.
+// The edit view: the explorer with the tree's files, an editor a tab a file, and beside it the
+// definition of the open file's type as the tree holds it. A file that is not text opens as its
+// bytes, its k-file head read out where it has one. A file as a commit left it opens read only, in a
+// tab of its own beside the file's.
+//
+// The tree marks what git says of each file: its name in the color of how it differs from the last
+// commit, the state's letter after it, and a folder holding a changed file in that file's color with
+// a dot. What the ignore files leave out is dimmed.
+//
+// Each tree keeps its own tabs, the one shown, the files opened last, and the text of every file with
+// changes not yet saved: the app closed with changes open comes back with them still unsaved. Back and
+// Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
+// when each was last shown, while Ctrl is held.
 
 import { invoke } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
+import { drawOpenEditors, drawOutline, drawTimeline, guides, iconOf, lightOutline, startExplorer } from "./explorer.js";
+import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
+import { focusedKey, keepListKeys, refocus } from "./lists.js";
+import { clipText, copyText, menuOn } from "./menu.js";
+import { terminalAt } from "./terminal.js";
 import { onScheme } from "./scheme.js";
 import { calm, write } from "./status.js";
+import { togglePane } from "./sides.js";
+import { drawBranch } from "./statusbar.js";
 
 const state = {
   editor: null,
@@ -22,7 +39,26 @@ const state = {
   active: null,
   expanded: new Set([""]),
   children: new Map(),
+  // What git says of each changed file, and of each folder holding one.
+  changes: new Map(),
+  rolled: new Map(),
+  // The places jumped from, and the ones gone back from.
+  back: [],
+  forward: [],
+  moving: false,
+  // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is held.
+  used: [],
+  cycle: null,
 };
+
+// How many places Back holds, how many files the quick open lists as opened last, and the largest
+// text kept for a file with changes not saved.
+const PLACES = 50;
+const RECENT = 30;
+const BACKUP_MOST = 2 * 1024 * 1024;
+
+// Which git state a folder takes from the files in it: the first of these that any of them is.
+const ROLL_ORDER = ["C", "M", "D", "A", "R", "U"];
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -41,12 +77,36 @@ async function childrenOf(dir) {
   return state.children.get(dir);
 }
 
+// Reads what git says of the tree again: each changed file's state, and each folder's from the files
+// under it.
+async function loadChanges() {
+  const [changed, branch] = await Promise.all([invoke("tree_changed").catch(() => []), invoke("tree_branch").catch(() => null)]);
+  state.changes = new Map(changed.map(({ path, state: mark }) => [path, mark]));
+  state.rolled = new Map();
+  for (const [path, mark] of state.changes) {
+    let at = path.lastIndexOf("/");
+    while (at > 0) {
+      const folder = path.slice(0, at);
+      const held = state.rolled.get(folder);
+      if (!held || ROLL_ORDER.indexOf(mark) < ROLL_ORDER.indexOf(held)) {
+        state.rolled.set(folder, mark);
+      }
+      at = folder.lastIndexOf("/");
+    }
+  }
+  drawBranch(branch, state.changes.size > 0);
+}
+
 async function drawTree() {
   const list = document.getElementById("files");
+  const focused = focusedKey(list);
+  const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
+  document.querySelector('.pane[data-pane="folder"] .pane-head').textContent = top.split("/").filter(Boolean).pop() ?? "";
   const query = document.getElementById("file-filter").value.trim();
   if (query) {
     const found = await invoke("tree_find", { query });
-    list.replaceChildren(...found.map((path) => node({ name: path, path, dir: false }, 0)));
+    list.replaceChildren(...found.map((path) => node({ name: path, path, dir: false, ignored: false }, 0)));
+    refocus(list, focused);
     return;
   }
   const nodes = [];
@@ -60,18 +120,33 @@ async function drawTree() {
   };
   await walk("", 0);
   list.replaceChildren(...nodes);
+  refocus(list, focused);
 }
 
+// A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
+// name, and git's letter for it.
 function node(entry, depth) {
   const known = !entry.dir && state.known?.typeOf(entry.path);
-  const mark = entry.dir ? (state.expanded.has(entry.path) ? "▾ " : "▸ ") : "";
+  const mark = entry.dir ? state.rolled.get(entry.path) : state.changes.get(entry.path);
   const button = element("button", {
-    className: `node${entry.dir ? " dir" : ""}${known ? " known" : ""}`,
+    className: `node${entry.dir ? " dir" : ""}${known ? " known" : ""}${entry.ignored ? " ignored" : ""}`,
     type: "button",
-    textContent: `${mark}${entry.name}`,
     title: entry.path,
   });
-  button.style.paddingLeft = `${0.5 + depth * 0.9}rem`;
+  button.append(...guides(depth), element("span", { className: "twisty" }));
+  if (!entry.dir) {
+    button.append(iconOf(entry.name, Boolean(known)));
+  }
+  button.append(element("span", { className: "name", textContent: entry.name }));
+  if (mark) {
+    button.dataset.change = mark;
+    button.append(element("span", { className: "change", textContent: entry.dir ? "●" : mark }));
+  }
+  button.dataset.key = entry.path;
+  button.dataset.depth = String(depth);
+  if (entry.dir) {
+    button.setAttribute("aria-expanded", String(state.expanded.has(entry.path)));
+  }
   if (state.active === entry.path) {
     button.setAttribute("aria-current", "true");
   }
@@ -97,14 +172,35 @@ function tabOf(path) {
 }
 
 function dirty(tab) {
-  return tab.session && tab.session.doc.id !== tab.saved;
+  return Boolean(tab.session && !tab.readOnly && tab.session.doc.id !== tab.saved);
+}
+
+// The file a tab shows: its own path, or for a file as a commit left it, the file's.
+const fileOf = (path) => tabOf(path)?.file ?? path;
+
+// A tab's name: the file's, and for a file as a commit left it, the commit's short id after.
+function tabName(tab) {
+  const name = tab.file.split("/").pop();
+  return tab.commit ? `${name} @ ${tab.commit.slice(0, 7)}` : name;
 }
 
 function drawTabs() {
+  keepSession();
   const bar = document.getElementById("tabs");
+  drawOpenEditors(
+    state.tabs.map((tab) => ({
+      path: tab.path,
+      file: tab.file,
+      name: tabName(tab),
+      title: tab.commit ? `${tab.file} @ ${tab.commit}` : tab.file,
+      dirty: dirty(tab),
+      active: tab.path === state.active,
+      known: Boolean(state.known?.typeOf(tab.file)),
+    }))
+  );
   bar.replaceChildren(
     ...state.tabs.map((tab) => {
-      const name = tab.path.split("/").pop();
+      const name = tabName(tab);
       const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
       const button = element("button", { className: "tab", type: "button", title: tab.path, role: "tab" });
       button.setAttribute("aria-selected", String(tab.path === state.active));
@@ -130,8 +226,10 @@ function closeTab(tab) {
     return;
   }
   state.tabs = state.tabs.filter((one) => one !== tab);
+  state.used = state.used.filter((path) => path !== tab.path);
+  forgetBackup(tab.path);
   if (state.active === tab.path) {
-    state.active = state.tabs.at(-1)?.path ?? null;
+    state.active = state.used.find(tabOf) ?? state.tabs.at(-1)?.path ?? null;
     show(state.active);
   } else {
     drawTabs();
@@ -156,7 +254,7 @@ function placeOf(path) {
 function keepPlace() {
   const tab = tabOf(state.active);
   const s = tab?.session;
-  if (s) {
+  if (s && !tab.readOnly) {
     const head = s.selections[s.primary].head;
     localStorage.setItem(placeKey(tab.path), JSON.stringify({ line: s.base + head.line, col: head.col }));
   }
@@ -204,9 +302,15 @@ async function readOutward(tab) {
 }
 
 export async function openFile(path) {
+  await load(path);
+  show(path);
+}
+
+// Opens a file's tab without showing it, with the text kept for it where it had changes not saved.
+async function load(path) {
   if (!tabOf(path)) {
     const opened = await invoke("file_read", { path });
-    const tab = { path, size: opened.size, closing: false };
+    const tab = { path, file: path, size: opened.size, closing: false };
     const place = placeOf(path);
     if (opened.windowed) {
       const shown = await invoke("file_window", { path, line: place?.line ?? 0, half: HALF });
@@ -215,8 +319,10 @@ export async function openFile(path) {
       tab.saved = tab.session.doc.id;
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
-      tab.session = new Session(opened.text, state.known.languageOf(path));
-      tab.saved = tab.session.doc.id;
+      const kept = localStorage.getItem(backupKey(path));
+      tab.session = new Session(kept ?? opened.text, state.known.languageOf(path));
+      // Kept text that differs from the file's is a change not saved, and the tab says so.
+      tab.saved = kept === null || kept === opened.text ? tab.session.doc.id : -1;
       settleAt(tab.session, place);
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
@@ -226,14 +332,50 @@ export async function openFile(path) {
       tab.reading = readOutward(tab);
     }
   }
-  show(path);
+}
+
+// Opens a file as commit `commit` left it, read only, in a tab of its own.
+async function openCommit(path, commit) {
+  const key = `${path}@${commit.id}`;
+  if (!tabOf(key)) {
+    const text = await invoke("file_at", { path, id: commit.id });
+    const tab = { path: key, file: path, commit: commit.id, readOnly: true, size: text.length, closing: false };
+    tab.session = new Session(text, state.known.languageOf(path), { readOnly: true });
+    tab.saved = tab.session.doc.id;
+    state.tabs.push(tab);
+  }
+  show(key);
+}
+
+// Opens every folder above a file in the tree and brings its row into sight.
+async function reveal(path) {
+  if (!path || tabOf(path)?.commit) {
+    return;
+  }
+  let at = path.lastIndexOf("/");
+  while (at > 0) {
+    state.expanded.add(path.slice(0, at));
+    at = path.lastIndexOf("/", at - 1);
+  }
+  await drawTree();
+  [...document.querySelectorAll("#files .node")].find((row) => row.dataset.key === path)?.scrollIntoView({ block: "nearest" });
 }
 
 function show(path) {
+  if (path !== state.active && state.active && !state.moving) {
+    markPlace();
+  }
   state.active = path;
   const tab = tabOf(path);
+  if (tab && !state.cycle) {
+    state.used = [path, ...state.used.filter((one) => one !== path)];
+  }
+  if (tab && !tab.commit) {
+    keepRecent(tab.file);
+  }
   const editorNode = document.getElementById("editor");
   const binaryNode = document.getElementById("binary");
+  drawEmpty(!tab);
   if (tab?.session) {
     editorNode.hidden = false;
     binaryNode.hidden = true;
@@ -241,7 +383,7 @@ function show(path) {
     state.editor.focus();
   } else {
     state.editor.show(null);
-    editorNode.hidden = Boolean(tab);
+    editorNode.hidden = true;
     binaryNode.hidden = !tab;
     if (tab) {
       drawBinary(tab);
@@ -249,12 +391,21 @@ function show(path) {
   }
   drawTabs();
   drawDefs();
-  drawTree();
+  reveal(path);
+  drawOutline(tab?.session ?? null);
+  drawTimeline(tab ? tab.file : null);
+}
+
+// With no file open the desk shows the name over the lattice, as the run view does with no job
+// chosen, and the tab bar goes until a tab is in it.
+function drawEmpty(shown) {
+  document.getElementById("tabs").hidden = shown;
+  document.getElementById("edit-empty").hidden = !shown;
 }
 
 async function saveActive() {
   const tab = tabOf(state.active);
-  if (!tab?.session) {
+  if (!tab?.session || tab.readOnly) {
     return;
   }
   // A file still being read is written only once all of it is in.
@@ -263,19 +414,29 @@ async function saveActive() {
   await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
   tab.saved = saving;
   tab.closing = false;
+  forgetBackup(tab.path);
   drawTabs();
   if (inBridge(tab.path)) {
     loadBridge().then(drawDefs);
   }
+  await loadChanges();
+  drawTree();
 }
 
-// Opens a file with the cursor on a line of it, counted from the file's first line. A line a file
-// still being read has not reached yet is waited for; a file not open yet opens around the line.
-export async function openAt(path, line) {
+// Opens a file with the cursor on a line and column of it, each counted from the file's first. A
+// line a file still being read has not reached yet is waited for; a file not open yet opens around
+// the line.
+export async function openAt(path, line, col = 0) {
   if (!tabOf(path)) {
-    localStorage.setItem(placeKey(path), JSON.stringify({ line, col: 0 }));
+    localStorage.setItem(placeKey(path), JSON.stringify({ line, col }));
   }
-  await openFile(path);
+  markPlace();
+  state.moving = true;
+  try {
+    await openFile(path);
+  } finally {
+    state.moving = false;
+  }
   const tab = tabOf(path);
   const s = tab?.session;
   if (!s) {
@@ -285,7 +446,174 @@ export async function openAt(path, line) {
     await tab.reading;
   }
   if (state.active === path) {
-    state.editor.goTo(line - s.base);
+    state.editor.goTo(line - s.base, col);
+  }
+}
+
+// Places: where the cursor stands, kept before each jump for Back and Forward.
+
+function here() {
+  const tab = tabOf(state.active);
+  if (!tab?.session) {
+    return tab ? { path: tab.path, line: 0, col: 0 } : null;
+  }
+  const head = tab.session.selections[tab.session.primary].head;
+  return { path: tab.path, line: tab.session.base + head.line, col: head.col };
+}
+
+// Keeps the place the cursor stands at for Back, unless it is the last one kept or next to it.
+function markPlace() {
+  const place = here();
+  const last = state.back.at(-1);
+  if (!place || (last && last.path === place.path && Math.abs(last.line - place.line) < 2)) {
+    return;
+  }
+  state.back.push(place);
+  state.back.splice(0, state.back.length - PLACES);
+  state.forward = [];
+}
+
+// Goes to a line of the file shown, keeping the place it leaves for Back.
+export function jumpTo(line, col = 0) {
+  if (!state.editor?.s) {
+    return;
+  }
+  markPlace();
+  state.editor.goTo(line, col);
+  state.editor.focus();
+}
+
+async function goPlace(place) {
+  if (!tabOf(place.path) && place.path.includes("@")) {
+    return false;
+  }
+  state.moving = true;
+  try {
+    await openFile(place.path);
+  } catch {
+    return false;
+  } finally {
+    state.moving = false;
+  }
+  const s = tabOf(place.path)?.session;
+  if (s && state.active === place.path) {
+    state.editor.goTo(place.line - s.base, place.col);
+  }
+  return true;
+}
+
+// Steps back, by -1, or forward, by 1, through the places kept.
+async function step(by) {
+  const [from, to] = by < 0 ? [state.back, state.forward] : [state.forward, state.back];
+  while (from.length) {
+    const place = from.pop();
+    const left = here();
+    if (await goPlace(place)) {
+      if (left) {
+        to.push(left);
+      }
+      return;
+    }
+  }
+}
+
+// Last Editor: each press while Ctrl is held steps one tab further back in when each was shown, and
+// letting Ctrl go keeps the tab it stopped on as the one shown last.
+function lastEditor() {
+  const order = state.used.filter(tabOf);
+  if (order.length < 2) {
+    return;
+  }
+  if (!state.cycle) {
+    state.cycle = { order, at: 0 };
+  }
+  state.cycle.at = (state.cycle.at + 1) % state.cycle.order.length;
+  show(state.cycle.order[state.cycle.at]);
+}
+
+function endCycle() {
+  if (!state.cycle) {
+    return;
+  }
+  state.cycle = null;
+  if (state.active) {
+    state.used = [state.active, ...state.used.filter((one) => one !== state.active)];
+  }
+}
+
+// What each tree keeps: its tabs and the one shown, the files opened last, and the text of each file
+// with changes not saved.
+
+const treeKey = () => document.getElementById("tree-path").textContent;
+const sessionKey = () => `orior.session.${treeKey()}`;
+const recentKey = () => `orior.recent.${treeKey()}`;
+const backupKey = (path) => `orior.backup.${treeKey()}\n${path}`;
+
+function readKept(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function keepSession() {
+  if (!state.restored) {
+    return;
+  }
+  const tabs = state.tabs.filter((tab) => !tab.commit).map((tab) => tab.path);
+  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, active: tabOf(state.active)?.commit ? null : state.active }));
+}
+
+function keepRecent(path) {
+  localStorage.setItem(recentKey(), JSON.stringify([path, ...readKept(recentKey(), []).filter((one) => one !== path)].slice(0, RECENT)));
+}
+
+// The files of the tree opened last, the last first.
+export function recentFiles() {
+  return readKept(recentKey(), []);
+}
+
+function forgetBackup(path) {
+  localStorage.removeItem(backupKey(path));
+}
+
+// Keeps the text of each tab with changes not saved, and lets go of each without.
+function keepBackups() {
+  for (const tab of state.tabs) {
+    if (!tab.session || tab.readOnly || tab.session.window) {
+      continue;
+    }
+    if (!dirty(tab)) {
+      forgetBackup(tab.path);
+      continue;
+    }
+    const text = tab.session.doc.text();
+    if (text.length > BACKUP_MOST) {
+      continue;
+    }
+    try {
+      localStorage.setItem(backupKey(tab.path), text);
+    } catch {
+      forgetBackup(tab.path);
+    }
+  }
+}
+
+// Opens the tabs the tree had open, and shows the one it showed.
+export async function restoreSession() {
+  const kept = readKept(sessionKey(), { tabs: [], active: null });
+  for (const path of kept.tabs ?? []) {
+    await load(path).catch(() => {});
+  }
+  state.restored = true;
+  const shown = tabOf(kept.active) ? kept.active : state.tabs.at(-1)?.path;
+  if (shown) {
+    state.moving = true;
+    show(shown);
+    state.moving = false;
+  } else {
+    keepSession();
   }
 }
 
@@ -349,12 +677,13 @@ function drawBinary(tab) {
 function drawDefs() {
   const panel = document.getElementById("defs");
   const path = state.active;
-  const type = path ? state.known.typeOf(path) : null;
-  const ext = path ? extOf(path) : "";
+  const type = path ? state.known.typeOf(fileOf(path)) : null;
+  const ext = path ? extOf(fileOf(path)) : "";
   const tables = state.known.tablesOf(ext);
   const bridged = inBridge(path);
-  panel.hidden = !type && !tables.length && !bridged;
-  if (panel.hidden) {
+  const side = document.getElementById("defs-side");
+  side.hidden = !type && !tables.length && !bridged;
+  if (side.hidden) {
     return;
   }
   const parts = [];
@@ -462,10 +791,19 @@ export async function startEdit(defs) {
   state.head = defs.head;
   let lighting = 0;
   let keeping = 0;
+  let outlining = 0;
+  let backing = 0;
+  window.addEventListener("keyup", (event) => event.key === "Control" && endCycle());
+  window.addEventListener("blur", endCycle);
+  const cursorLine = () => (state.editor?.s ? state.editor.head().line : 0);
   state.editor = new Editor(document.getElementById("editor"), {
+    statusHost: document.getElementById("statusbar"),
     onCursor: () => {
       cancelAnimationFrame(lighting);
-      lighting = requestAnimationFrame(light);
+      lighting = requestAnimationFrame(() => {
+        light();
+        lightOutline(cursorLine());
+      });
       window.clearTimeout(keeping);
       keeping = window.setTimeout(keepPlace, 500);
     },
@@ -474,7 +812,11 @@ export async function startEdit(defs) {
       if (tab) {
         tab.closing = false;
       }
+      window.clearTimeout(backing);
+      backing = window.setTimeout(keepBackups, 800);
       drawTabs();
+      window.clearTimeout(outlining);
+      outlining = window.setTimeout(() => drawOutline(tabOf(state.active)?.session ?? null), 300);
     },
   });
   onScheme(() => state.editor.refreshColors());
@@ -483,22 +825,197 @@ export async function startEdit(defs) {
     window.clearTimeout(wait);
     wait = window.setTimeout(drawTree, 180);
   });
-  window.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.code === "KeyS") {
-      event.preventDefault();
-      saveActive();
-    }
+  startExplorer({
+    show,
+    close: (path) => tabOf(path) && closeTab(tabOf(path)),
+    tabMenu: (path) => tabMenu(tabOf(path)),
+    goTo: (line) => jumpTo(line),
+    cursorLine,
+    openCommit,
+    refresh: async () => {
+      state.children.clear();
+      await loadChanges();
+      await drawTree();
+      drawTimeline(fileOf(state.active), true);
+    },
+    collapse: () => {
+      state.expanded = new Set([""]);
+      drawTree();
+    },
+    panesChanged: () => {
+      drawOutline(tabOf(state.active)?.session ?? null);
+      drawTimeline(state.active ? fileOf(state.active) : null);
+    },
   });
-  document.getElementById("defs").hidden = true;
+  keepListKeys(document.getElementById("panes"), document.getElementById("file-filter"));
+  menuOn(document.getElementById("files"), fileItems);
+  menuOn(document.getElementById("tabs"), tabItems);
+  menuOn(document.getElementById("editor"), editorItems);
+  window.addEventListener("focus", async () => {
+    await loadChanges();
+    drawTree();
+  });
+  document.getElementById("defs-side").hidden = true;
+  document.getElementById("editor").hidden = true;
+  drawEmpty(true);
   loadBridge();
   keepBridge(() => inBridge(state.active) && drawDefs());
+  await loadChanges();
   await drawTree();
 }
 
-// Forgets the folders read so far, for a tree opened in place of this one.
+// The menus.
+
+// Files a page window draws, which open in one from the tree's menu.
+const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
+
+// A row of the tree's menu: open or close a folder, open a file in the editor or a page in a window
+// of its own, copy where it is, or open the terminal in its folder.
+function fileItems(event) {
+  const row = event.target.closest(".node");
+  if (!row) {
+    return null;
+  }
+  const path = row.dataset.key;
+  const folder = row.classList.contains("dir");
+  const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  const open = folder
+    ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
+    : { label: "Open", run: () => openFile(path) };
+  return [
+    open,
+    ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
+    "-",
+    { label: "Copy path", run: () => copyText(path) },
+    { label: "Open in terminal", run: () => terminalAt(folder ? path : parent) },
+  ];
+}
+
+// A tab's menu, from the tab bar or from Open Editors: close it, the others or all of them, a tab with changes asking first as its ×
+// does, or copy where its file is.
+function tabItems(event) {
+  return tabMenu(tabOf(event.target.closest(".tab")?.title));
+}
+
+function tabMenu(tab) {
+  if (!tab) {
+    return null;
+  }
+  const others = state.tabs.filter((one) => one !== tab);
+  return [
+    { label: "Close", run: () => closeTab(tab) },
+    { label: "Close others", disabled: !others.length, run: () => others.forEach(closeTab) },
+    { label: "Close all", run: () => [...state.tabs].forEach(closeTab) },
+    "-",
+    { label: "Copy path", run: () => copyText(tab.file) },
+  ];
+}
+
+// The editor's menu: the clipboard, choosing all, find, go to a line, and save, each the same as its
+// keys. Cut and copy with nothing chosen take the cursor's whole line, as the keys do.
+function editorItems() {
+  const editor = state.editor;
+  if (!editor?.s) {
+    return null;
+  }
+  // A right click leaves the keys with the page, and the clipboard's commands act on what holds them.
+  const held = (command) => () => {
+    editor.focus();
+    document.execCommand(command);
+  };
+  const pasted = async () => {
+    const text = await clipText();
+    editor.focus();
+    editor.paste({ preventDefault() {}, clipboardData: { getData: () => text } });
+  };
+  return [
+    { label: "Cut", keys: "Ctrl+X", run: held("cut") },
+    { label: "Copy", keys: "Ctrl+C", run: held("copy") },
+    { label: "Paste", keys: "Ctrl+V", run: pasted },
+    "-",
+    { label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },
+    { label: "Find", keys: "Ctrl+F", run: () => editor.find.open(false) },
+    { label: "Replace", keys: "Ctrl+H", run: () => editor.find.open(true) },
+    { label: "Go to line", keys: "Ctrl+G", run: () => editor.goto.open() },
+    "-",
+    { label: "Save", keys: "Ctrl+S", disabled: !dirty(tabOf(state.active)), run: saveActive },
+  ];
+}
+
+// What the menu bar does to the editor: the editor where a file of text is open in it, saving one
+// file or all of them, and closing one tab or all of them.
+export function editing() {
+  return {
+    editor: state.editor?.s ? state.editor : null,
+    active: state.active,
+    changed: state.tabs.some(dirty),
+    activeChanged: Boolean(tabOf(state.active) && dirty(tabOf(state.active))),
+    open: state.tabs.length > 0,
+    save: saveActive,
+    saveAll: async () => {
+      const shown = state.active;
+      for (const tab of state.tabs.filter(dirty)) {
+        await tab.reading;
+        const saving = tab.session.doc.id;
+        await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
+        tab.saved = saving;
+        tab.closing = false;
+        forgetBackup(tab.path);
+        if (inBridge(tab.path)) {
+          loadBridge().then(drawDefs);
+        }
+      }
+      state.active = shown;
+      drawTabs();
+      await loadChanges();
+      drawTree();
+    },
+    close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
+    closeAll: () => [...state.tabs].forEach(closeTab),
+    sticky: () => Boolean(state.editor?.stickyOn),
+    setSticky: (on) => state.editor?.setSticky(on),
+    back: () => step(-1),
+    forward: () => step(1),
+    lastEditor,
+    lineCount: () => (state.editor?.s ? state.editor.s.base + state.editor.s.doc.count : null),
+    symbols: () => {
+      const s = state.editor?.s;
+      return s ? symbolsOf(s.language?.id, s.doc).map((symbol) => ({ ...symbol, line: s.base + symbol.line, shownLine: s.base + symbol.line + 1 })) : null;
+    },
+    goLine: (line, col) => {
+      const s = state.editor?.s;
+      if (s) {
+        jumpTo(line - s.base, col);
+      }
+    },
+    find: () => {
+      togglePane(true);
+      const filter = document.getElementById("file-filter");
+      filter.focus();
+      filter.select();
+    },
+  };
+}
+
+// Forgets the folders read so far and the tabs, for a tree opened in place of this one. What the tabs
+// held stays kept with the tree they were open in.
 export function forgetTree() {
+  keepBackups();
+  state.restored = false;
+  state.tabs = [];
+  state.used = [];
+  state.back = [];
+  state.forward = [];
+  state.active = null;
+  show(null);
   state.children.clear();
   state.expanded = new Set([""]);
+  state.changes = new Map();
+  state.rolled = new Map();
+  loadChanges().then(drawTree);
   loadBridge();
+  if (!state.active) {
+    drawEmpty(true);
+  }
 }
 

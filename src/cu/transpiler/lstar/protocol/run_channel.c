@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// run_channel.c: each question written to the channel's folder and carried by the carrier in a process of its own,
-// and the line the carrier wrote read back as the question's answer
+// run_channel.c: each question written to the channel's folder and carried by the carrier in a process of its own, or
+// many in one, and the line the carrier wrote for each read back as that question's answer
 #include "run_channel.h"
 
 #include "../interface/interface.h"
@@ -13,7 +13,7 @@
 #define RUN_CARRIER_WORDS 8u
 #define RUN_PATH_LONGEST 1024u
 // the longest name of a file the channel keeps in its folder, with the slash before it
-#define RUN_NAME_LONGEST 16u
+#define RUN_NAME_LONGEST 32u
 #define RUN_ANSWER_LONGEST (16u + (RUN_CASES_MOST * 17u))
 
 typedef struct
@@ -214,6 +214,125 @@ int run_channel_ask(RunQuestion *asked)
     }
     run_channel_read(asked, answers_path);
     return asked->outcome == RUN_ANSWERED;
+}
+
+unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
+{
+    unsigned int answered = 0u;
+    if (!s_channel.open)
+    {
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            asked[at]->outcome = RUN_NO_CHANNEL;
+            snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the channel is not open");
+        }
+        return 0u;
+    }
+    char list_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+    char output_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+    run_channel_path(list_path, "questions.txt");
+    run_channel_path(output_path, "carrier.txt");
+    // each process carries the questions from `first` on, and the next carries those after the first it left
+    // unanswered
+    unsigned int first = 0u;
+    while (first < count)
+    {
+        FILE *const list = fopen(list_path, "wb");
+        int written = (list != NULL);
+        for (unsigned int at = first; written && (at < count); at += 1u)
+        {
+            char name[RUN_NAME_LONGEST];
+            char code_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+            char cases_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+            char answers_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+            snprintf(name, sizeof(name), "question%u.bin", at);
+            run_channel_path(code_path, name);
+            snprintf(name, sizeof(name), "cases%u.txt", at);
+            run_channel_path(cases_path, name);
+            snprintf(name, sizeof(name), "answers%u.txt", at);
+            run_channel_path(answers_path, name);
+            remove(answers_path);
+            asked[at]->refused[0] = '\0';
+            written = run_channel_write(asked[at], code_path, cases_path) &&
+                      (fprintf(list, "%s %u %s %s\n", code_path, asked[at]->registers, cases_path, answers_path) > 0);
+        }
+        if ((list == NULL) || (fclose(list) != 0) || !written)
+        {
+            for (unsigned int at = first; at < count; at += 1u)
+            {
+                asked[at]->outcome = RUN_NO_CHANNEL;
+                snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the questions could not be written to %.70s",
+                         s_channel.folder);
+            }
+            return answered;
+        }
+        // the interface's command is a list of words it does not write to; the cast only meets its declared type
+        char *command[RUN_CARRIER_WORDS + 4u];
+        unsigned int words = 0u;
+        for (; words < s_channel.words; words += 1u)
+        {
+            command[words] = s_channel.word[words];
+        }
+        command[words] = (char *)"--list";
+        command[words + 1u] = list_path;
+        command[words + 2u] = NULL;
+        // the process is given each question's limit for every question it carries
+        const InterfaceProbe probe = {command, output_path, s_channel.limit_microseconds * (count - first)};
+        InterfaceAnswer answer = {0};
+        answer.output = s_carrier_output;
+        answer.output_capacity = sizeof(s_carrier_output);
+        EngineError error = {0};
+        if ((interface_probe_run(&probe, &answer, &error) != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
+        {
+            for (unsigned int at = first; at < count; at += 1u)
+            {
+                asked[at]->outcome = RUN_NO_CHANNEL;
+                snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the carrier %.96s was not started",
+                         s_channel.word[0]);
+            }
+            return answered;
+        }
+        // every question the process answered, in order, up to the first it left unanswered
+        unsigned int at = first;
+        for (; at < count; at += 1u)
+        {
+            char name[RUN_NAME_LONGEST];
+            char answers_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+            snprintf(name, sizeof(name), "answers%u.txt", at);
+            run_channel_path(answers_path, name);
+            FILE *const held = fopen(answers_path, "rb");
+            if (held == NULL)
+            {
+                break;
+            }
+            fclose(held);
+            run_channel_read(asked[at], answers_path);
+            answered += (asked[at]->outcome == RUN_ANSWERED) ? 1u : 0u;
+        }
+        // the first question left unanswered by a process that did not end clean ended it, and its ending is its
+        // answer; one left by a process that ended clean was left for a refusal before it, and is
+        // carried again
+        if ((at < count) && ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull)))
+        {
+            asked[at]->outcome =
+                (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
+            snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the carrier %s, code %llx",
+                     interface_ending_name(answer.ending), answer.code);
+            at += 1u;
+        }
+        if (at == first)
+        {
+            // a process that answered nothing and ended clean carried nothing, and the questions after are not carried
+            // again
+            for (; at < count; at += 1u)
+            {
+                asked[at]->outcome = RUN_NO_CHANNEL;
+                snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the carrier answered none of the questions");
+            }
+        }
+        first = at;
+    }
+    return answered;
 }
 
 void run_channel_close(void)

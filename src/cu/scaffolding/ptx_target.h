@@ -5,7 +5,7 @@
 // The lane as PTX, a language of the register lane (code_generator.h): its ruleset is ptx.krs, nvJitLink assembles it,
 // and its header is asked of NVRTC
 
-#include "../transpiler/codegen/code_generator.h"
+#include "../engine/rmc/code_generator.h"
 
 class PtxTarget : public CodeGenerator
 {

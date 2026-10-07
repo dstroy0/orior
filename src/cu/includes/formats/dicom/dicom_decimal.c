@@ -235,8 +235,8 @@ static int dicom_uid_compare(const unsigned char *left, unsigned long long left_
 
 int dicom_order_slices(const void *left, const void *right)
 {
-    const DicomSlice *const one = &s_dicom_sorting[*(const unsigned long long *)left];
-    const DicomSlice *const other = &s_dicom_sorting[*(const unsigned long long *)right];
+    const DicomSlice *const one = &g_dicom_sorting[*(const unsigned long long *)left];
+    const DicomSlice *const other = &g_dicom_sorting[*(const unsigned long long *)right];
     if (g_dicom_keyed != 0u)
     {
         const int keyed = anchor_exact_compare(&one->key.mantissa, &other->key.mantissa);

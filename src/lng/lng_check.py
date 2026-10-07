@@ -122,7 +122,7 @@ CHECKED = {
     "?",
 }
 SEARCHED = ["src", "utils"]
-SCHEMA = "src/cu/transpiler/codegen/machine_ir_types.h"
+SCHEMA = "src/cu/engine/rmc/machine_ir_types.h"
 GNASCOR = "src/cu/transpiler/gnascor.md"
 HOL_BITS = ("8", "16", "32", "64")
 # the operators the high order language writes as C writes them, with no word of its own

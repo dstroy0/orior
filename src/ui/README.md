@@ -12,7 +12,7 @@ The app reads all of it from the tree each time:
 | what | read from |
 | --- | --- |
 | the builds | every `build*.sh` under `src/`, `utils/maint/engine/`, `utils/maint/texbuild/` and each example |
-| the protocol | every `klq_*.sh` under `utils/maint/engine/` |
+| the protocol | every `klq_*.sh` under `utils/maint/engine/`: its modes from its usage lines, and its settings, `KLQ_TRACE` and `KLQ_SEED`, from its opening comment, each set in the script's environment |
 | ingest, the run parts, render | `examples/cell_tracking/src/track_driver/track_driver.cu`, its usage text |
 | the sims | the `case` in `src/sims/run.sh` |
 | the other runs | `examples/navier_stokes/run.sh` and its cfgs, `examples/qasm/run.sh` and its circuits |
@@ -43,17 +43,43 @@ cargo tauri build
 
 They land under `src-tauri/target/release/bundle/`, for the platform the build runs on.
 
+orior files the errors it meets as issues on dstroy0/orior on its own, and asks once whether to,
+yes the answer given by default. The Windows installer asks as it installs (`src-tauri/windows/hooks.nsh`);
+every other install asks on its first run, in the window or at the terminal. Help, Automatic Error
+Reports turns it on or off later, and `ORIOR_NO_REPORTS` turns it off for a run.
+
 | platform | also needs |
 | --- | --- |
 | Windows | WebView2, which Windows 10 and 11 carry, and Git for Windows for the bash the scripts run in |
+| macOS | the Xcode command line tools |
+| Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
 
 On Windows the window starts with `--disable-direct-composition`, set in `tauri.conf.json`. With
 direct composition on, a window whose page moves holds to 60 frames a second whatever the display's
 rate, and stalls for up to half a second every few seconds. The first three features that line
 turns off are the ones the window turns off when it is given no line of its own.
-| macOS | the Xcode command line tools |
-| Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
 
 The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIOR_BASH` and
 `ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
 ones to use.
+
+## The command line
+
+The program is `orior`, and it is the command line as well as the window. Given no words it opens
+the window; given words it runs them in the terminal, over the same jobs and the same bridge.
+
+```
+orior list [word]              the jobs, or those whose id, title or about holds the word
+orior show <job>               a job's file, values and the commands it runs
+orior run <job> [key=value]    run a job; a key given twice gives two values
+orior run <job> -- <words>     the words after -- are the job's arguments
+orior bridge [key]             the keys of Lstar.klq, or one key's pairs, maps and rulesets
+orior help
+```
+
+A job is named by its id, by the end of its id after a slash, or by its title, where that names only
+one: `orior run sim/wave`, `orior show build_engine.sh`. A run's steps share the terminal, its output
+streams as it comes, and `orior` exits with the code of its last step. `--root <folder>` names the
+tree, ahead of `ORIOR_ROOT`.
+
+From inside the tree, `cargo run -- list` runs it without an install.

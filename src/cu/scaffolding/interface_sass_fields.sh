@@ -22,7 +22,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../.." && pwd)"
 CUB="$TOP/src/cu/scaffolding"
 INT="$TOP/src/cu/transpiler/lstar/interface"
-KRS="$TOP/src/cu/transpiler/lstar/parser"
+KRS="$TOP/src/cu/types/file_defs/readers"
 OUT="$TOP/build/fields"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 # the seconds a single runner pass is given before it is cut off: a bit-flip that turns the instruction into a loop

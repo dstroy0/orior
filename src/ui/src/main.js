@@ -4,20 +4,26 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, openFile, startEdit } from "./edit.js";
+import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
+import { startMenus } from "./menu.js";
+import { drawMenubar, runLaunch, startMenubar } from "./menubar.js";
+import { forgetFiles } from "./palette.js";
 import { loadRun, startRun } from "./run.js";
+import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
+import { startSearch } from "./search.js";
+import { keepPane, settlePanes } from "./sides.js";
 import { watch } from "./status.js";
-
-function mode(name) {
-  document.querySelectorAll(".modes button").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.mode === name)));
-  document.querySelectorAll(".mode").forEach((section) => (section.dataset.active = String(section.id === `mode-${name}`)));
-}
+import { startTerminal } from "./terminal.js";
+import { onView, showView } from "./views.js";
+import { startWordmark } from "./wordmark.js";
+import { keepZoom } from "./zoom.js";
+import { keepMemory } from "./statusbar.js";
 
 async function openInEditor(path) {
-  mode("edit");
+  showView("edit");
   await openFile(path);
 }
 
@@ -26,7 +32,6 @@ async function settle(root, said) {
   const pane = document.getElementById("open-tree");
   document.getElementById("tree-path").textContent = root ?? "";
   pane.hidden = Boolean(root);
-  document.querySelector(".modes").hidden = !root;
   if (!root) {
     document.getElementById("open-said").textContent = said ?? "";
     return false;
@@ -39,7 +44,7 @@ function drawPulse(held) {
   const parts = [];
   if (held.runs.size) {
     const runs = Object.assign(document.createElement("button"), { type: "button", textContent: `${held.runs.size} running` });
-    runs.addEventListener("click", () => mode("run"));
+    runs.addEventListener("click", () => showView("run"));
     parts.push(runs);
   }
   for (const [path, { read, size }] of held.reads) {
@@ -50,25 +55,46 @@ function drawPulse(held) {
 }
 
 async function start() {
+  invoke("window_show").catch(() => {});
+  catchErrors();
+  startWordmark();
   keepScheme();
+  keepZoom();
+  keepMemory();
+  startMenus();
   keepLattices();
   watch(drawPulse);
-  document.querySelectorAll(".modes button").forEach((button) => button.addEventListener("click", () => mode(button.dataset.mode)));
-  document.getElementById("open-button").addEventListener("click", async () => {
-    const chosen = await pick("dir");
-    if (typeof chosen !== "string") {
-      return;
-    }
-    try {
-      const root = await invoke("root_set", { path: chosen });
-      forgetTree();
-      await begin(root);
-    } catch (error) {
-      document.getElementById("open-said").textContent = String(error);
-    }
+  document.getElementById("open-button").addEventListener("click", () => openFolder());
+  await startMenubar({ openFolder });
+  startSearch((path, line, col) => {
+    showView("edit");
+    openAt(path, line, col);
   });
   await startRun(openInEditor);
+  await startTerminal();
+  keepPane(document.getElementById("job-side"), "left");
+  keepPane(document.getElementById("explorer"), "left");
+  keepPane(document.getElementById("defs-side"), "right");
   await begin(await invoke("root_get"));
+  settlePanes();
+  onView(settlePanes);
+  await runLaunch();
+}
+
+// Works on the tree in `folder`, or in one asked for, in place of the one open.
+async function openFolder(folder) {
+  const chosen = folder ?? (await pick("dir"));
+  if (typeof chosen !== "string") {
+    return;
+  }
+  try {
+    const root = await invoke("root_set", { path: chosen });
+    forgetTree();
+    forgetFiles();
+    await begin(root);
+  } catch (error) {
+    document.getElementById("open-said").textContent = String(error);
+  }
 }
 
 let started = false;
@@ -86,6 +112,8 @@ async function begin(root) {
       await startEdit(defs);
     }
     await loadRun();
+    drawMenubar();
+    await restoreSession();
   } finally {
     await hideLoading();
   }

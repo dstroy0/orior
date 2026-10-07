@@ -7,7 +7,7 @@
 // itself: a .cu file read against cu.krs is read form by form, and each form written at once in another ruleset of the
 // same schema
 
-#include "../transpiler/codegen/code_generator.h"
+#include "../engine/rmc/code_generator.h"
 
 class CuTarget : public CodeGenerator
 {

@@ -10,9 +10,9 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../.." && pwd)"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
-CODEGEN="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU_2="$TOP/src/cu/transpiler/lstar/parser"
+CODEGEN="$TOP/src/cu/engine/rmc"
+CODEGEN_CU="$TOP/src/cu/engine/rmc"
+CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
 KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
@@ -36,7 +36,7 @@ build_object()
         [ -n "$(find "$CODEGEN_CU" "$CODEGEN_CU_2" "$TOP/utils/test/src/cu/transpiler/lstar/interface" -name '*.h' \
             -newer "$object" -print -quit)" ]; then
         case "$1" in
-            c) cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -I "$TOP/src/cu/transpiler/lstar/parser" \
+            c) cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -I "$TOP/src/cu/types/file_defs/readers" \
                    -I "$TOP/src/cu/transpiler/lstar/interface" -c "$3" -o "$object" || exit 1 ;;
             *) c++ -std=c++17 -O2 -Wall "${INCLUDES[@]}" -x c++ -c "$3" -o "$object" || exit 1 ;;
         esac

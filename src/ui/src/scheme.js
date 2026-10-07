@@ -15,6 +15,11 @@ export function onScheme(listener) {
   listeners.push(listener);
 }
 
+// Tells what reads the scheme's colors that they changed, as a theme does without the scheme changing.
+export function notifyScheme() {
+  listeners.forEach((listener) => listener(scheme()));
+}
+
 function set(name) {
   document.documentElement.dataset.scheme = name;
   const button = document.getElementById("scheme");
@@ -24,7 +29,15 @@ function set(name) {
   listeners.forEach((listener) => listener(name));
 }
 
+export function setScheme(name) {
+  set(name);
+}
+
+export function toggleScheme() {
+  set(scheme() === "dark" ? "light" : "dark");
+}
+
 export function keepScheme() {
   set(localStorage.getItem(KEY) === "light" ? "light" : "dark");
-  document.getElementById("scheme").addEventListener("click", () => set(scheme() === "dark" ? "light" : "dark"));
+  document.getElementById("scheme").addEventListener("click", toggleScheme);
 }
