@@ -60,14 +60,17 @@ export function drawLattice(canvas) {
   }
 }
 
-// Draws every lattice on the page now and again whenever the window changes size.
+// Redraws a lattice each time its size changes, which a lattice in a hidden view also does when the
+// view is shown. One taken off the page is let go.
+const sized = new ResizeObserver((entries) =>
+  entries.forEach((entry) => (entry.target.isConnected ? drawLattice(entry.target) : sized.unobserve(entry.target))),
+);
+
+export function keepLattice(canvas) {
+  sized.observe(canvas);
+}
+
+// Keeps every lattice on the page drawn.
 export function keepLattices() {
-  const all = () => document.querySelectorAll("canvas.lattice").forEach((canvas) => drawLattice(canvas));
-  let wait = 0;
-  window.addEventListener("resize", () => {
-    window.clearTimeout(wait);
-    wait = window.setTimeout(all, 120);
-  });
-  all();
-  return all;
+  document.querySelectorAll("canvas.lattice").forEach(keepLattice);
 }

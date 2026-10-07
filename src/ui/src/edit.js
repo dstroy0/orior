@@ -11,6 +11,9 @@ import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
+import { focusedKey, keepListKeys, refocus } from "./lists.js";
+import { clipText, copyText, menuOn } from "./menu.js";
+import { terminalAt } from "./terminal.js";
 import { onScheme } from "./scheme.js";
 import { calm, write } from "./status.js";
 
@@ -43,10 +46,12 @@ async function childrenOf(dir) {
 
 async function drawTree() {
   const list = document.getElementById("files");
+  const focused = focusedKey(list);
   const query = document.getElementById("file-filter").value.trim();
   if (query) {
     const found = await invoke("tree_find", { query });
     list.replaceChildren(...found.map((path) => node({ name: path, path, dir: false }, 0)));
+    refocus(list, focused);
     return;
   }
   const nodes = [];
@@ -60,6 +65,7 @@ async function drawTree() {
   };
   await walk("", 0);
   list.replaceChildren(...nodes);
+  refocus(list, focused);
 }
 
 function node(entry, depth) {
@@ -72,6 +78,11 @@ function node(entry, depth) {
     title: entry.path,
   });
   button.style.paddingLeft = `${0.5 + depth * 0.9}rem`;
+  button.dataset.key = entry.path;
+  button.dataset.depth = String(depth);
+  if (entry.dir) {
+    button.setAttribute("aria-expanded", String(state.expanded.has(entry.path)));
+  }
   if (state.active === entry.path) {
     button.setAttribute("aria-current", "true");
   }
@@ -234,6 +245,7 @@ function show(path) {
   const tab = tabOf(path);
   const editorNode = document.getElementById("editor");
   const binaryNode = document.getElementById("binary");
+  drawEmpty(!tab);
   if (tab?.session) {
     editorNode.hidden = false;
     binaryNode.hidden = true;
@@ -241,7 +253,7 @@ function show(path) {
     state.editor.focus();
   } else {
     state.editor.show(null);
-    editorNode.hidden = Boolean(tab);
+    editorNode.hidden = true;
     binaryNode.hidden = !tab;
     if (tab) {
       drawBinary(tab);
@@ -250,6 +262,17 @@ function show(path) {
   drawTabs();
   drawDefs();
   drawTree();
+}
+
+// With no file open the desk shows the tree's name over the lattice, as the run view does with no
+// job chosen, and the tab bar goes until a tab is in it.
+function drawEmpty(shown) {
+  const empty = document.getElementById("edit-empty");
+  document.getElementById("tabs").hidden = shown;
+  empty.hidden = !shown;
+  if (shown) {
+    document.getElementById("edit-empty-tree").textContent = document.getElementById("tree-path").textContent;
+  }
 }
 
 async function saveActive() {
@@ -483,6 +506,10 @@ export async function startEdit(defs) {
     window.clearTimeout(wait);
     wait = window.setTimeout(drawTree, 180);
   });
+  keepListKeys(document.getElementById("files"), document.getElementById("file-filter"));
+  menuOn(document.getElementById("files"), fileItems);
+  menuOn(document.getElementById("tabs"), tabItems);
+  menuOn(document.getElementById("editor"), editorItems);
   window.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.code === "KeyS") {
       event.preventDefault();
@@ -490,9 +517,86 @@ export async function startEdit(defs) {
     }
   });
   document.getElementById("defs").hidden = true;
+  document.getElementById("editor").hidden = true;
+  drawEmpty(true);
   loadBridge();
   keepBridge(() => inBridge(state.active) && drawDefs());
   await drawTree();
+}
+
+// The menus.
+
+// Files a page window draws, which open in one from the tree's menu.
+const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
+
+// A row of the tree's menu: open or close a folder, open a file in the editor or a page in a window
+// of its own, copy where it is, or open the terminal in its folder.
+function fileItems(event) {
+  const row = event.target.closest(".node");
+  if (!row) {
+    return null;
+  }
+  const path = row.dataset.key;
+  const folder = row.classList.contains("dir");
+  const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  const open = folder
+    ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
+    : { label: "Open", run: () => openFile(path) };
+  return [
+    open,
+    ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
+    "-",
+    { label: "Copy path", run: () => copyText(path) },
+    { label: "Open in terminal", run: () => terminalAt(folder ? path : parent) },
+  ];
+}
+
+// A tab's menu: close it, the others or all of them, a tab with changes asking first as its ×
+// does, or copy where its file is.
+function tabItems(event) {
+  const tab = tabOf(event.target.closest(".tab")?.title);
+  if (!tab) {
+    return null;
+  }
+  const others = state.tabs.filter((one) => one !== tab);
+  return [
+    { label: "Close", run: () => closeTab(tab) },
+    { label: "Close others", disabled: !others.length, run: () => others.forEach(closeTab) },
+    { label: "Close all", run: () => [...state.tabs].forEach(closeTab) },
+    "-",
+    { label: "Copy path", run: () => copyText(tab.path) },
+  ];
+}
+
+// The editor's menu: the clipboard, choosing all, find, go to a line, and save, each the same as its
+// keys. Cut and copy with nothing chosen take the cursor's whole line, as the keys do.
+function editorItems() {
+  const editor = state.editor;
+  if (!editor?.s) {
+    return null;
+  }
+  // A right click leaves the keys with the page, and the clipboard's commands act on what holds them.
+  const held = (command) => () => {
+    editor.focus();
+    document.execCommand(command);
+  };
+  const pasted = async () => {
+    const text = await clipText();
+    editor.focus();
+    editor.paste({ preventDefault() {}, clipboardData: { getData: () => text } });
+  };
+  return [
+    { label: "Cut", keys: "Ctrl+X", run: held("cut") },
+    { label: "Copy", keys: "Ctrl+C", run: held("copy") },
+    { label: "Paste", keys: "Ctrl+V", run: pasted },
+    "-",
+    { label: "Select all", keys: "Ctrl+A", run: () => editor.selectAll() },
+    { label: "Find", keys: "Ctrl+F", run: () => editor.find.open(false) },
+    { label: "Replace", keys: "Ctrl+H", run: () => editor.find.open(true) },
+    { label: "Go to line", keys: "Ctrl+G", run: () => editor.goto.open() },
+    "-",
+    { label: "Save", keys: "Ctrl+S", disabled: !dirty(tabOf(state.active)), run: saveActive },
+  ];
 }
 
 // Forgets the folders read so far, for a tree opened in place of this one.
@@ -500,5 +604,8 @@ export function forgetTree() {
   state.children.clear();
   state.expanded = new Set([""]);
   loadBridge();
+  if (!state.active) {
+    drawEmpty(true);
+  }
 }
 

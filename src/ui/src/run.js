@@ -7,7 +7,9 @@
 import { invoke, listen, pick } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
-import { drawLattice } from "./lattice.js";
+import { keepLattice } from "./lattice.js";
+import { focusedKey, keepListKeys, refocus } from "./lists.js";
+import { copyText, menuOn } from "./menu.js";
 import { coloredHtml } from "./screen.js";
 import { write } from "./status.js";
 
@@ -27,6 +29,8 @@ const state = {
   early: new Map(),
   // The fuse at the foot of the output, kept from one drawing of the stage to the next.
   fuse: makeFuse(),
+  // Which groups of the list the reader opened or closed, by key.
+  opened: new Map(),
 };
 
 function early(run) {
@@ -57,8 +61,21 @@ function subject(job) {
   return job.file.split("/")[1] || job.file;
 }
 
+// A group of the list, open as the reader left it, else open where a search is under way or where
+// it is not the stage group, which is long.
+function groupOf(key, label, count, depth, query, open) {
+  const block = element("details", { className: "group", open: Boolean(query) || (state.opened.get(key) ?? open) });
+  block.dataset.depth = String(depth);
+  const summary = element("summary", {}, label, element("span", { className: "count", textContent: String(count) }));
+  summary.dataset.key = key;
+  block.append(summary);
+  block.addEventListener("toggle", () => !query && state.opened.set(key, block.open));
+  return block;
+}
+
 function drawList() {
   const list = document.getElementById("jobs");
+  const focused = focusedKey(list);
   const query = document.getElementById("job-filter").value.trim().toLowerCase();
   const kept = state.jobs.filter((job) => !query || `${job.id} ${job.about}`.toLowerCase().includes(query));
   list.replaceChildren();
@@ -67,14 +84,12 @@ function drawList() {
     if (!jobs.length) {
       continue;
     }
-    const block = element("details", { className: "group", open: Boolean(query) || group !== "stage" });
-    block.append(element("summary", {}, group, element("span", { className: "count", textContent: String(jobs.length) })));
+    const block = groupOf(group, group, jobs.length, 0, query, group !== "stage");
     if (group === "stage") {
       const subjects = [...new Set(jobs.map(subject))];
       for (const name of subjects) {
-        const inner = element("details", { className: "group", open: Boolean(query) });
         const own = jobs.filter((job) => subject(job) === name);
-        inner.append(element("summary", {}, name, element("span", { className: "count", textContent: String(own.length) })));
+        const inner = groupOf(`${group}/${name}`, name, own.length, 1, query, false);
         own.forEach((job) => inner.append(item(job)));
         block.append(inner);
       }
@@ -83,10 +98,12 @@ function drawList() {
     }
     list.append(block);
   }
+  refocus(list, focused);
 }
 
 function item(job) {
   const button = element("button", { className: "item", type: "button", title: job.id });
+  button.dataset.key = job.id;
   if (liveOf(job.id)) {
     button.append(element("span", { className: "live" }));
   }
@@ -171,15 +188,21 @@ function drawStage() {
     const tree = document.getElementById("tree-path").textContent;
     const body = element("div", { className: "empty-body" }, element("h1", { textContent: "orior" }), element("p", { textContent: tree }));
     stage.replaceChildren(element("div", { className: "empty" }, canvas, body));
-    requestAnimationFrame(() => drawLattice(canvas));
+    keepLattice(canvas);
     return;
   }
   const values = remembered(job.id);
+  // A job named for its file has one line for both, and the name opens the file.
   const head = element("div", { className: "job-head" });
-  head.append(element("h2", { textContent: job.title }));
-  const link = element("a", { textContent: job.file, tabIndex: 0 });
+  const link = element("a", { textContent: job.file, tabIndex: 0, title: job.file });
   link.addEventListener("click", () => state.openFile(job.file));
-  head.append(element("div", { className: "file" }, link));
+  link.addEventListener("keydown", (event) => event.key === "Enter" && state.openFile(job.file));
+  if (job.title === job.file) {
+    link.className = "named";
+    head.append(element("h2", {}, link));
+  } else {
+    head.append(element("h2", { textContent: job.title }), element("div", { className: "file" }, link));
+  }
   if (job.about) {
     head.append(element("p", { textContent: job.about }));
   }
@@ -208,7 +231,7 @@ function drawStage() {
   });
   stop.disabled = !liveOf(job.id);
 
-  stage.replaceChildren(head, job.params.length ? params : null, actions, console_(job));
+  stage.replaceChildren(...[head, job.params.length ? params : null, actions, console_(job)].filter(Boolean));
   stage.querySelectorAll("input, select").forEach((node) => node.addEventListener("input", () => remember(job.id, valuesFrom(job))));
 }
 
@@ -234,8 +257,13 @@ export async function startJob(id, values) {
   return run;
 }
 
+// A job's output, which a job that has not run yet has none of.
 function console_(job) {
   const runs = runsOf(job.id);
+  if (!runs.length) {
+    state.fuse.follow(null, job.steps);
+    return null;
+  }
   const shown = state.runs.get(state.shown.get(job.id)) ?? runs[runs.length - 1];
   const head = element("div", { className: "console-head" });
   for (const run of runs) {
@@ -267,7 +295,7 @@ function console_(job) {
     lines.scrollTop = lines.scrollHeight;
     state.fuse.follow(shown ?? null, job.steps);
   });
-  return element("div", { className: "console" }, runs.length ? head : null, lines, state.fuse.canvas);
+  return element("div", { className: "console" }, head, lines, state.fuse.canvas);
 }
 
 function status(run) {
@@ -353,6 +381,48 @@ export async function startRun(openFile) {
   await listen("run-line", onLine);
   await listen("run-end", onEnd);
   document.getElementById("job-filter").addEventListener("input", drawList);
+  keepListKeys(document.getElementById("jobs"), document.getElementById("job-filter"));
+  menuOn(document.getElementById("jobs"), jobItems);
+  menuOn(document.getElementById("job-stage"), outputItems);
+}
+
+// A job's menu: start it as its Start button would, with what its form holds, stop its runs, open
+// its file, or copy where the file is.
+function jobItems(event) {
+  const job = state.jobs.find((one) => one.id === event.target.closest(".item")?.dataset.key);
+  if (!job) {
+    return null;
+  }
+  const live = runsOf(job.id).filter((run) => !run.done);
+  return [
+    {
+      label: "Start",
+      run: () => {
+        choose(job.id);
+        document.querySelector("#job-stage .actions .primary")?.click();
+      },
+    },
+    { label: "Stop", disabled: !live.length, run: () => live.forEach((run) => invoke("job_stop", { run: run.run }).catch(() => {})) },
+    "-",
+    { label: "Edit", run: () => state.openFile(job.file) },
+    { label: "Copy path", run: () => copyText(job.file) },
+  ];
+}
+
+// The output's menu: copy what is chosen in it, or all of it, or choose all of it.
+function outputItems(event) {
+  const lines = event.target.closest(".lines");
+  if (!lines) {
+    return null;
+  }
+  const selection = window.getSelection();
+  const chosen = selection && !selection.isCollapsed && lines.contains(selection.anchorNode) ? selection.toString() : "";
+  return [
+    { label: "Copy", keys: "Ctrl+C", disabled: !chosen, run: () => copyText(chosen) },
+    { label: "Copy all", run: () => copyText(lines.textContent) },
+    "-",
+    { label: "Select all", run: () => window.getSelection().selectAllChildren(lines) },
+  ];
 }
 
 export async function loadRun() {

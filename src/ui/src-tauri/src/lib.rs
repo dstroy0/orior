@@ -109,6 +109,13 @@ fn term_close(app: State<App>, id: u64) -> Result<(), String> {
     app.terms.close(id)
 }
 
+/// The text on the system clipboard, read here so the page never asks the reader for leave to read
+/// it. Empty where the clipboard holds no text.
+#[tauri::command]
+fn clip_read() -> String {
+    arboard::Clipboard::new().and_then(|mut clip| clip.get_text()).unwrap_or_default()
+}
+
 #[tauri::command]
 fn tree_list(app: State<App>, dir: String) -> Result<Vec<files::Entry>, String> {
     files::list(&root_of(&app)?, &dir)
@@ -283,6 +290,7 @@ pub fn run() {
             term_write,
             term_resize,
             term_close,
+            clip_read,
             tree_list,
             tree_find,
             file_read,

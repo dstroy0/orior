@@ -11,6 +11,7 @@
 // to make it taller or shorter, and its height is kept between visits.
 
 import { invoke, listen } from "./bridge.js";
+import { clipText, copyText, menuOn } from "./menu.js";
 import { Screen } from "./screen.js";
 
 // How tall the panel may be dragged is the stylesheet's to say, in its min-height and max-height.
@@ -166,7 +167,7 @@ function onKey(event) {
     event.stopPropagation();
     const text = chosen();
     if (text) {
-      navigator.clipboard.writeText(text).catch(() => {});
+      copyText(text);
       window.getSelection().removeAllRanges();
     }
     return;
@@ -185,12 +186,38 @@ function onKey(event) {
   send(text);
 }
 
-function onPaste(event) {
-  event.preventDefault();
-  const text = event.clipboardData.getData("text/plain").replace(/\r?\n/g, "\r");
+// Sends pasted text as the shell takes a paste: lines ended as Enter ends them, and marked as a paste
+// where the program in the terminal asked for that.
+function pasteText(given) {
+  const text = given.replace(/\r?\n/g, "\r");
   if (text) {
     send(state.screen?.modes.paste ? `\x1b[200~${text}\x1b[201~` : text);
   }
+}
+
+function onPaste(event) {
+  event.preventDefault();
+  pasteText(event.clipboardData.getData("text/plain"));
+}
+
+// Opens the panel with its shell in `folder`, a path under the tree's top folder.
+export function terminalAt(folder) {
+  toggle(true);
+  const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
+  const where = folder ? `${top}/${folder}` : top;
+  send(`cd -- '${where.replace(/'/g, "'\\''")}'\r`);
+}
+
+// The terminal's menu: copy what is chosen in it, paste, clear the screen, or close the panel.
+function terminalItems() {
+  const text = chosen();
+  return [
+    { label: "Copy", keys: "Ctrl+Shift+C", disabled: !text, run: () => copyText(text) },
+    { label: "Paste", keys: "Ctrl+Shift+V", run: async () => pasteText(await clipText()) },
+    "-",
+    { label: "Clear", keys: "Ctrl+L", run: () => send("\x0c") },
+    { label: "Close", keys: "Ctrl+`", run: () => toggle(false) },
+  ];
 }
 
 // Drags the panel's top edge.
@@ -256,7 +283,8 @@ export async function startTerminal() {
   });
   parts.keys.addEventListener("focus", () => state.screen?.setFocus(true));
   parts.keys.addEventListener("blur", () => state.screen?.setFocus(false));
-  parts.view.addEventListener("mouseup", () => !chosen() && parts.keys.focus());
+  parts.view.addEventListener("mouseup", (event) => event.button === 0 && !chosen() && parts.keys.focus());
+  menuOn(parts.panel, terminalItems);
   parts.grip.addEventListener("pointerdown", grip);
   new ResizeObserver(() => requestAnimationFrame(fit)).observe(parts.view);
 }

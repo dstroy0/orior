@@ -7,6 +7,7 @@ import { invoke, pick } from "./bridge.js";
 import { forgetTree, openFile, startEdit } from "./edit.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
+import { startMenus } from "./menu.js";
 import { loadRun, startRun } from "./run.js";
 import { keepScheme } from "./scheme.js";
 import { watch } from "./status.js";
@@ -52,6 +53,7 @@ function drawPulse(held) {
 
 async function start() {
   keepScheme();
+  startMenus();
   keepLattices();
   watch(drawPulse);
   document.querySelectorAll(".modes button").forEach((button) => button.addEventListener("click", () => mode(button.dataset.mode)));
