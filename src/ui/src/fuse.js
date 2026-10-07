@@ -19,7 +19,7 @@
 // quick waves that never line up, and throws its sparks from wherever it is.
 
 import { rgbOf } from "./colors.js";
-import { still as paused, whenMoving } from "./motion.js";
+import { clock, still as paused, whenMoving } from "./motion.js";
 import { addArc, addSpot, cornersOf, plasmaOn } from "./plasma.js";
 
 const PEAK = 0.5;
@@ -192,15 +192,17 @@ export function makeFuse(place) {
     return going;
   };
 
-  const tick = (now) => {
-    if (paused()) {
-      frame = 0;
-      whenMoving(wake);
-      return;
-    }
+  // The fire keeps its time on the animation's clock, and while motion is stopped holds the frame it
+  // is at.
+  const tick = (moment) => {
+    const now = clock(moment);
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
-    frame = paint(now / 1000, dt) ? requestAnimationFrame(tick) : 0;
+    const going = paint(now / 1000, dt);
+    frame = going && !paused() ? requestAnimationFrame(tick) : 0;
+    if (going && paused()) {
+      whenMoving(wake);
+    }
   };
 
   // Draws the fire now, and keeps drawing it each frame while it has more to do.
@@ -208,8 +210,13 @@ export function makeFuse(place) {
     if (frame) {
       return;
     }
-    last = performance.now();
-    if (paint(last / 1000, 0) && !still) {
+    last = clock();
+    if (!paint(last / 1000, 0) || still) {
+      return;
+    }
+    if (paused()) {
+      whenMoving(wake);
+    } else {
       frame = requestAnimationFrame(tick);
     }
   };

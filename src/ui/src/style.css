@@ -46,13 +46,9 @@
   --eye-iris-3: rgb(140, 30, 14);
   --eye-iris-4: rgb(34, 6, 10);
   --eye-iris-rim: rgba(20, 4, 8, 0.75);
-  --eye-flame-1: rgba(255, 236, 150, 0.7);
-  --eye-flame-2: rgba(255, 150, 40, 0.55);
-  --eye-flame-3: rgba(210, 50, 15, 0.35);
-  --eye-flame-4: rgba(120, 10, 10, 0);
-  --eye-kindle-1: rgba(255, 250, 210, 0.75);
-  --eye-kindle-2: rgba(255, 210, 90, 0.6);
-  --eye-kindle-3: rgba(255, 140, 30, 0);
+  --eye-torus-glow: rgba(255, 120, 40, 0.42);
+  --eye-torus-strand: rgba(255, 150, 60, 0.3);
+  --eye-torus-core: rgba(255, 236, 190, 0.75);
   --eye-pupil-shine: rgb(214, 255, 150);
   --eye-pupil-edge: rgb(36, 168, 128);
   --eye-gleam: rgba(255, 255, 255, 0.75);
@@ -3235,7 +3231,7 @@ textarea.report-field {
   max-width: 6rem;
 }
 
-/* While the window is without focus or its frame is dragged, every animation of the page holds. */
+/* While the window's frame is dragged, every animation of the page holds. */
 .still *,
 .still *::before,
 .still *::after {

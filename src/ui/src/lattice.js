@@ -14,7 +14,7 @@
 // still, ordered at the left.
 
 import { rgbOf } from "./colors.js";
-import { still as paused, whenMoving } from "./motion.js";
+import { clock, still as paused, whenMoving } from "./motion.js";
 import { onScheme } from "./scheme.js";
 
 const STEP = 22;
@@ -183,7 +183,7 @@ const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 export function drawLattice(canvas) {
   const laid = layOut(canvas);
   if (laid) {
-    paint(canvas, laid, still() ? 0 : performance.now() / 1000);
+    paint(canvas, laid, still() ? 0 : clock() / 1000);
   }
 }
 
@@ -203,7 +203,7 @@ function tick(now) {
     if (!canvas.isConnected) {
       lattices.delete(canvas);
     } else if (canvas.offsetParent !== null) {
-      paint(canvas, laid, now / 1000);
+      paint(canvas, laid, clock(now) / 1000);
     }
   }
 }
