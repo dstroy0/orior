@@ -74,8 +74,9 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 | part | what it holds |
 | --- | --- |
 | Menu bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help. A key shown beside a command runs it from anywhere in the window. |
-| Run view (Ctrl+Shift+D) | every job the tree holds, the values each takes, and each run's output as it arrives |
-| Edit view (Ctrl+Shift+E) | the explorer, the editor with a tab for each file, and beside it the definition of the open file's type |
+| Run and Edit | the two views, a tab each on the line under the menus. Ctrl+Shift+D shows Run and Ctrl+Shift+E shows Edit, and with a tab holding the keys, Left and Right switch. |
+| Run view | every job the tree holds, the values each takes, and each run's output as it arrives |
+| Edit view | the explorer, the editor with a tab for each file, and beside it the definition of the open file's type |
 | Explorer | the panes Search, Open Editors, the tree's files, Outline and Timeline. Its … menu shows or hides each pane. |
 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
 | Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
@@ -84,7 +85,7 @@ The panes at the sides collapse toward their edge a moment after the pointer lea
 
 ### Run a job
 
-1. Press Ctrl+Shift+D, or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
+1. Choose the Run tab (Ctrl+Shift+D), or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 

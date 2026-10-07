@@ -19,7 +19,6 @@
     },
     {
       "title": "Edit",
-      "view": "edit",
       "items": [
         { "label": "Undo", "command": "undo", "keys": "Ctrl+Z", "needs": "editor" },
         { "label": "Redo", "command": "redo", "keys": "Ctrl+Y", "needs": "editor" },
@@ -107,7 +106,6 @@
     },
     {
       "title": "Run",
-      "view": "run",
       "groups": ["run"],
       "items": [
         { "label": "Start", "command": "start", "keys": "F5", "args": "<job> [key=value ...] [-- words]", "needs": "job", "console": true },

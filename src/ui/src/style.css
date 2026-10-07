@@ -209,12 +209,6 @@ select {
   color: #ffffff;
 }
 
-.bar-title[aria-current="true"] {
-  color: #ffffff;
-  box-shadow: inset 0 -2px 0 #6fdcb4;
-  border-radius: 0.3rem 0.3rem 0 0;
-}
-
 .bar-title:focus-visible {
   outline-offset: -2px;
 }
@@ -226,6 +220,42 @@ select {
 .alt-held .bar-title u,
 .menubar.held .bar-title u {
   text-decoration: underline;
+}
+
+/* The views' tabs, a row of their own under the menus, the view shown underlined in
+   signal, as the site marks the page it is on. */
+.modes {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  height: 2.1rem;
+  padding: 0 0.8rem 0 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.mode-tab {
+  padding: 0 0.95rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 13px var(--head);
+  cursor: pointer;
+}
+
+.mode-tab:hover {
+  color: var(--fg);
+  background: var(--line);
+}
+
+.mode-tab[aria-selected="true"] {
+  color: var(--fg);
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+.mode-tab:focus-visible {
+  outline-offset: -2px;
 }
 
 /* The tree's folder, in the middle of what the menus leave. */

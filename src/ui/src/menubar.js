@@ -11,8 +11,7 @@
 // so, and a group with no job in the tree has no menu. A job chosen from a menu shows in the run view
 // with its form, and starts only from there or from Run, Start.
 //
-// Edit and Run are the two views as well as menus, and the bar marks the one shown; opening either
-// shows its view. A press of the menu bar opens its menu, and while one is open the pointer moving
+// A press of the menu bar opens its menu, and while one is open the pointer moving
 // to another title opens that one instead. Alt held marks each title's letter, Alt and the letter
 // opens the menu, and Alt alone gives the bar the keys: Left and Right step along it, Down, Enter or
 // Space opens, and Escape hands the keys back. In an open menu Left and Right step to the menus on
@@ -31,7 +30,7 @@ import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, su
 import { scheme, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
-import { onView, shownView, showView } from "./views.js";
+import { showView } from "./views.js";
 import { askReports, reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
 
@@ -367,9 +366,6 @@ function titleOf(menu, letter) {
   } else {
     button.textContent = menu.title;
   }
-  if (menu.view) {
-    button.dataset.view = menu.view;
-  }
   return button;
 }
 
@@ -405,11 +401,17 @@ export function drawMenubar() {
     button.addEventListener("click", () => (state.open === at && menuOpen() ? closeMenu() : openAt(at, true)));
     button.addEventListener("pointerenter", () => menuOpen() && state.open >= 0 && state.open !== at && openAt(at, false));
   });
-  markView(shownView());
 }
 
-function markView(name) {
-  state.bar?.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-current", String(button.dataset.view === name)));
+// The keys a command lists, or undefined where it lists none.
+export function keysOf(command) {
+  for (const menu of state.menus) {
+    const item = (menu.items ?? []).find((one) => one !== "-" && one.command === command);
+    if (item) {
+      return item.keys;
+    }
+  }
+  return undefined;
 }
 
 // Opens the menu under the at'th title. The keys go into it where it was opened from the keyboard or
@@ -418,9 +420,6 @@ function openAt(at, keyed) {
   const count = state.titles.length;
   const index = ((at % count) + count) % count;
   const { menu, button, items: itemsFor } = state.titles[index];
-  if (menu.view) {
-    showView(menu.view);
-  }
   const box = button.getBoundingClientRect();
   state.bar.querySelectorAll(".bar-title").forEach((one) => one.removeAttribute("aria-expanded"));
   button.setAttribute("aria-expanded", "true");
@@ -533,7 +532,6 @@ export async function startMenubar({ openFolder }) {
       }
     },
   });
-  onView(markView);
   state.bar.addEventListener("keydown", (event) => {
     const at = state.titles.findIndex(({ button }) => button === document.activeElement);
     if (at < 0) {

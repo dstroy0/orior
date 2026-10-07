@@ -8,7 +8,7 @@ import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, runLaunch, startMenubar } from "./menubar.js";
+import { drawMenubar, keysOf, runLaunch, startMenubar } from "./menubar.js";
 import { forgetFiles } from "./palette.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
@@ -17,7 +17,7 @@ import { startSearch } from "./search.js";
 import { keepPane, settlePanes } from "./sides.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
-import { onView, showView } from "./views.js";
+import { onView, showView, startModes } from "./views.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
 import { keepMemory } from "./statusbar.js";
@@ -66,6 +66,7 @@ async function start() {
   watch(drawPulse);
   document.getElementById("open-button").addEventListener("click", () => openFolder());
   await startMenubar({ openFolder });
+  startModes((view) => keysOf(`${view}-view`));
   startSearch((path, line, col) => {
     showView("edit");
     openAt(path, line, col);
