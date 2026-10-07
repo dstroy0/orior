@@ -34,6 +34,7 @@ import { drawOpenEditors, drawOutline, drawTimeline, guides, iconOf, lightOutlin
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins } from "./plugins.js";
+import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
@@ -241,6 +242,7 @@ function closeTab(tab) {
   }
   state.tabs = state.tabs.filter((one) => one !== tab);
   state.used = state.used.filter((path) => path !== tab.path);
+  stopServing(tab);
   forgetBackup(tab.path);
   if (state.active === tab.path) {
     state.active = state.used.find(tabOf) ?? state.tabs.at(-1)?.path ?? null;
@@ -345,6 +347,7 @@ async function load(path) {
     if (tab.session?.window) {
       tab.reading = readOutward(tab);
     }
+    serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
   }
 }
 
@@ -579,6 +582,24 @@ async function runTab(tab) {
     say(`Running ${tab.path.split("/").pop()} with ${run.tool}.`);
   } catch (error) {
     say(String(error), { failed: true });
+  }
+}
+
+// Go to Definition, and a click with Ctrl held: where the language server says the symbol at `p`
+// is defined. A file under the tree opens there; one outside it, as a system header is, is named.
+async function goToDefinition(p) {
+  const tab = tabOf(state.active);
+  if (!tab?.served) {
+    say(`No language server serves ${tab?.session?.language?.name ?? "plain text"}: File, Toolchains lists those there are.`);
+    return;
+  }
+  const [found] = await definition(tab, p);
+  if (!found) {
+    say("No definition found.");
+  } else if (/^(?:[A-Za-z]:[\\/]|\/|\\\\)/.test(found.path)) {
+    say(`Defined at ${found.path}:${found.line + 1}`);
+  } else {
+    await openAt(found.path, found.line, found.col);
   }
 }
 
@@ -1189,6 +1210,7 @@ export async function startEdit(defs) {
   onPlugins(() => {
     for (const tab of state.tabs) {
       tab.session?.setLanguage(state.known.languageOf(tab.file));
+      wrap(tab);
     }
     state.editor?.restyle();
   });
@@ -1220,6 +1242,7 @@ export async function startEdit(defs) {
       const tab = state.tabs.find((one) => one.session === session);
       if (tab) {
         tab.closing = false;
+        changed(tab);
       }
       window.clearTimeout(backing);
       backing = window.setTimeout(keepBackups, 800);
@@ -1234,6 +1257,8 @@ export async function startEdit(defs) {
       outlining = window.setTimeout(() => drawOutline(tabOf(state.active)?.session ?? null), 300);
     },
   });
+  state.editor.onDefinition = (p) => goToDefinition(p);
+  startServers({ tabs: () => state.tabs, paint: () => state.editor.schedule() });
   onScheme(() => state.editor.refreshColors());
   let wait = 0;
   document.getElementById("file-filter").addEventListener("input", () => {
@@ -1386,6 +1411,7 @@ export function editing() {
     save: saveActive,
     format: () => formatTab(tabOf(state.active)),
     runFile: () => runTab(tabOf(state.active)),
+    definition: () => state.editor?.s && goToDefinition(state.editor.head()),
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {
@@ -1446,6 +1472,7 @@ export function editing() {
 // held stays kept with the tree they were open in.
 export function forgetTree() {
   keepBackups();
+  state.tabs.forEach(stopServing);
   state.restored = false;
   state.heads.clear();
   state.tabs = [];

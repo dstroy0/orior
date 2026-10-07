@@ -1609,6 +1609,13 @@ export class Editor {
     this.suggest.close();
     const p = this.posAt(event);
     const unit = fromGutter ? "line" : ["char", "word", "line"][Math.min(event.detail || 1, 3) - 1];
+    // Ctrl and a click, Cmd on a Mac, goes to where the word under it is defined, where the editor's
+    // owner says how.
+    if ((MAC ? event.metaKey : event.ctrlKey) && !event.altKey && !event.shiftKey && !fromGutter && unit === "char" && this.onDefinition) {
+      this.select([caret(p)]);
+      this.onDefinition(p);
+      return;
+    }
     const sels = this.s.selections;
     let index;
     let anchorFrom;
@@ -1718,10 +1725,14 @@ export class Editor {
     this.hoverWait = window.setTimeout(() => this.hoverAt(clientX, clientY), 380);
   }
 
-  hoverAt(clientX, clientY) {
+  // A language's hover may answer at once or later, as a language server does; an answer that
+  // comes after the pointer has gone elsewhere is dropped.
+  async hoverAt(clientX, clientY) {
     if (!this.s?.language?.hover) {
       return;
     }
+    const asked = (this.hoverAsked = (this.hoverAsked ?? 0) + 1);
+    const session = this.s;
     const p = this.posAt({ clientX, clientY });
     const rect = this.space.getBoundingClientRect();
     const x = clientX - rect.left;
@@ -1730,7 +1741,10 @@ export class Editor {
       this.hover.hide();
       return;
     }
-    const found = this.s.language.hover(this.doc, p);
+    const found = await this.s.language.hover(this.doc, p);
+    if (asked !== this.hoverAsked || this.s !== session) {
+      return;
+    }
     if (!found?.parts?.length) {
       this.hover.hide();
       return;
@@ -1789,6 +1803,7 @@ export class Editor {
     this.scroller.addEventListener("mousemove", (event) => this.onPointerMove(event));
     this.scroller.addEventListener("mouseleave", (event) => {
       window.clearTimeout(this.hoverWait);
+      this.hoverAsked = (this.hoverAsked ?? 0) + 1;
       if (!this.hover.holds(event.relatedTarget)) {
         this.hover.hideSoon();
       }
@@ -2154,6 +2169,22 @@ export class Editor {
         band(row, this.span(on ? "ed-match on" : "ed-match", line, row, from, to, line !== match.to.line));
       }
     }
+    // A language server's diagnostics, each underlined in the color of its severity: 1 an error, 2 a
+    // warning, 3 a note and 4 a hint. One that spans nothing marks the character it stands at.
+    for (const diag of s.diagnostics ?? []) {
+      for (let line = diag.from.line - s.base; line <= diag.to.line - s.base; line += 1) {
+        const row = line >= 0 && line < doc.count ? visible(line) : -1;
+        if (row < 0) {
+          continue;
+        }
+        const from = line === diag.from.line - s.base ? diag.from.col : 0;
+        let to = line === diag.to.line - s.base ? diag.to.col : doc.line(line).length;
+        if (to <= from) {
+          to = from + 1;
+        }
+        band(row, this.span(`ed-diag s${Math.min(4, Math.max(1, diag.severity))}`, line, row, from, to));
+      }
+    }
     if (s.snippet) {
       for (const stop of s.snippet.stops) {
         const row = visible(stop.from.line);
@@ -2229,6 +2260,23 @@ export class Editor {
     this.strained(performance.now() - began);
   }
 
+  // Moves the cursor to the next of the language server's diagnostics after it, or the one before
+  // it where `dir` is -1, round from the end to the start, and says what it is.
+  stepProblem(dir) {
+    const s = this.s;
+    const all = [...(s?.diagnostics ?? [])].sort((a, b) => a.from.line - b.from.line || a.from.col - b.from.col);
+    if (!all.length) {
+      return null;
+    }
+    const head = this.primary().head;
+    const at = { line: head.line + s.base, col: head.col };
+    const after = (diag) => diag.from.line > at.line || (diag.from.line === at.line && diag.from.col > at.col);
+    const before = (diag) => diag.from.line < at.line || (diag.from.line === at.line && diag.from.col < at.col);
+    const found = dir > 0 ? all.find(after) ?? all[0] : [...all].reverse().find(before) ?? all.at(-1);
+    this.goTo(found.from.line - s.base, found.from.col);
+    return found;
+  }
+
   // The status line, built again only when what it says changes.
   drawStatus() {
     const s = this.s;
@@ -2242,7 +2290,9 @@ export class Editor {
       picked = lines ? `${lines + spans.length} lines selected` : `${chars} selected`;
     }
     const read = s.window ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
-    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id].join("|");
+    const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
+    const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
+    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings].join("|");
     if (said === this.statusSaid) {
       return;
     }
@@ -2261,6 +2311,18 @@ export class Editor {
     }
     if (s.selections.length > 1) {
       parts.push(Object.assign(document.createElement("span"), { textContent: `${s.selections.length} cursors` }));
+    }
+    if (s.diagnostics) {
+      const problems = document.createElement("button");
+      problems.type = "button";
+      problems.className = "problems";
+      problems.title = "Next Problem (F8)";
+      problems.append(
+        Object.assign(document.createElement("span"), { className: errors ? "s1" : "", textContent: `${errors} ${errors === 1 ? "error" : "errors"}` }),
+        Object.assign(document.createElement("span"), { className: warnings ? "s2" : "", textContent: `${warnings} ${warnings === 1 ? "warning" : "warnings"}` }),
+      );
+      problems.addEventListener("click", () => this.stepProblem(1));
+      parts.push(problems);
     }
     const gap = Object.assign(document.createElement("span"), { className: "gap" });
     const indent = document.createElement("button");

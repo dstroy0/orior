@@ -97,6 +97,7 @@
       "for": "clang and clang++, and clangd, which reads C, C++ and CUDA for an editor",
       "programs": ["clang", "clang++", "clangd"],
       "runs": {"c.c": "{clang} {file} -o {out} && {out}", "c.cpp": "{clang++} {file} -o {out} && {out}", "c.cc": "{clang++} {file} -o {out} && {out}"},
+      "server": {"program": "clangd", "args": ["--background-index", "--header-insertion=never", "--log=error"], "languages": ["c"], "ids": {"c": "c", "h": "cpp", "cpp": "cpp", "hpp": "cpp", "cc": "cpp", "cu": "cuda-cpp", "cuh": "cuda-cpp"}},
       "version": ["--version"],
       "install": {"any": "https://github.com/llvm/llvm-project/releases"},
       "places": {"windows": ["%ProgramFiles%\\LLVM\\bin"], "macos": ["/opt/homebrew/opt/llvm/bin", "/usr/local/opt/llvm/bin"], "linux": ["/usr/bin", "/usr/lib/llvm-*/bin"]}

@@ -111,6 +111,8 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | run the file | Ctrl+F5, or Run, Run File: it is saved, then runs in the terminal with its language's toolchain. Python, R, Ruby, JavaScript, the shells and PowerShell run as scripts; MATLAB runs with -batch, or in Octave where MATLAB is not installed; Lean with lean --run, TeX with latexmk, netlists with ngspice or LTspice, VHDL with GHDL; C, C++, CUDA and Rust are compiled to build/run/ and run. |
 | fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
 
+In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the status bar counts them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition. clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes; run it once after a clone and again after a file is added or moved.
+
 View turns on and off Sticky Scroll, which holds the opening line of each block the top of the screen is inside; Breadcrumbs, the folders, the file and the symbols the cursor is inside, each a click from where it points; and Bracket Pair Colorization, each pair of brackets colored by its depth.
 
 Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save saves each file a moment after it changes. File, Format on Save formats each file as Ctrl+S or Save All writes it, though not as Auto Save does; a formatter that fails says why on the status bar and the file is written as it was. A tab with changes not yet saved asks for a second click before it closes. Closing the app with changes open keeps them: they come back, still unsaved, the next time the tree opens.
@@ -126,6 +128,8 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 | a symbol in the file | Ctrl+Shift+O, or `@` in Go to File. The Outline pane lists them all. |
 | a line | Ctrl+G, or `:` in Go to File |
 | the matching bracket | Ctrl+Shift+\ |
+| a definition, in C, C++ and CUDA | F12, or a click with Ctrl held |
+| the next error or warning | F8, and Shift+F8 for the one before |
 | where the cursor was | Alt+Left, and Alt+Right to come back |
 | the tab shown last | Ctrl+Tab; hold Ctrl and press Tab again to step further back |
 
@@ -192,6 +196,8 @@ Ctrl+` opens and closes the terminal, and Ctrl+Shift+` starts a new shell. Closi
 | Ctrl+F5 | run the file |
 | Ctrl+S | save |
 | Shift+Alt+F | format the file |
+| F12 | go to the definition |
+| F8, Shift+F8 | the next error or warning, the one before |
 | Ctrl+B | show or collapse the side pane |
 | Ctrl+` | the terminal |
 | Alt+Left, Alt+Right | back, forward |

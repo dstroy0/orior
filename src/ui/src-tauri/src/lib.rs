@@ -11,11 +11,11 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, toolchains};
+use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -29,6 +29,7 @@ struct App {
     launch: Mutex<Option<Launch>>,
     runs: runner::Runs,
     terms: terminal::Terms,
+    servers: Arc<servers::Servers>,
     windows: AtomicU64,
 }
 
@@ -264,6 +265,59 @@ struct Toolchains {
 #[tauri::command(async)]
 fn format_text(app: State<App>, path: String, language: String, text: String) -> Result<String, String> {
     format::format(&root_of(&app)?.join(path), &language, &text)
+}
+
+/// A path a server named, as the page names files: under the tree, from its top folder, and
+/// elsewhere whole.
+fn tree_path(root: &Path, path: &str) -> String {
+    let path = PathBuf::from(path);
+    let path = dunce::canonicalize(&path).unwrap_or(path);
+    let root = dunce::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    path.strip_prefix(&root).map(|inside| inside.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| path.display().to_string())
+}
+
+/// Hands a file the editor opened to its language's server, starting it where it is not running.
+/// Says whether a server took it; the file's diagnostics come as "lsp-diagnostics".
+#[tauri::command(async)]
+fn lsp_open(handle: AppHandle, app: State<App>, path: String, language: String, text: String) -> Result<bool, String> {
+    let root = root_of(&app)?;
+    let tree = root.clone();
+    let emit: servers::Emit = Arc::new(move |mut diagnostics: servers::Diagnostics| {
+        diagnostics.path = tree_path(&tree, &diagnostics.path);
+        let _ = handle.emit("lsp-diagnostics", diagnostics);
+    });
+    app.servers.open(&root, &root.join(path), &language, &text, &emit)
+}
+
+#[tauri::command(async)]
+fn lsp_change(app: State<App>, path: String, text: String) -> Result<(), String> {
+    app.servers.change(&root_of(&app)?.join(path), &text)
+}
+
+#[tauri::command(async)]
+fn lsp_close(app: State<App>, path: String) -> Result<(), String> {
+    app.servers.close(&root_of(&app)?.join(path))
+}
+
+#[tauri::command(async)]
+fn lsp_hover(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<String>, String> {
+    app.servers.hover(&root_of(&app)?.join(path), line, col)
+}
+
+/// Where the symbol at a place is defined, each path as `tree_path` gives it.
+#[tauri::command(async)]
+fn lsp_definition(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Found>, String> {
+    let root = root_of(&app)?;
+    let found = app.servers.definition(&root.join(path), line, col)?;
+    Ok(found.into_iter().map(|mut one| {
+        one.path = tree_path(&root, &one.path);
+        one
+    }).collect())
+}
+
+#[tauri::command(async)]
+fn lsp_complete(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Item>, String> {
+    app.servers.complete(&root_of(&app)?.join(path), line, col)
 }
 
 /// The shell line that runs the file at `path`, under the tree, with its language's toolchain.
@@ -555,6 +609,12 @@ fn open(launch: Launch) {
             format_text,
             format_languages,
             run_file_line,
+            lsp_open,
+            lsp_change,
+            lsp_close,
+            lsp_hover,
+            lsp_definition,
+            lsp_complete,
             toolchains_check,
             toolchain_version,
             toolchain_install,
@@ -598,8 +658,14 @@ fn open(launch: Launch) {
             view_open,
             pick,
         ])
-        .run(tauri::generate_context!())
-        .expect("the app failed to start");
+        .build(tauri::generate_context!())
+        .expect("the app failed to start")
+        .run(|handle, event| {
+            // A language server orior started ends with it: on Windows a child outlives its parent.
+            if let tauri::RunEvent::Exit = event {
+                handle.state::<App>().servers.stop_all();
+            }
+        });
 }
 
 #[cfg(test)]

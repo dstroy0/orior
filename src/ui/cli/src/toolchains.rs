@@ -52,6 +52,9 @@ pub struct Tool {
     /// run_file.rs reads it.
     #[serde(default)]
     pub runs: HashMap<String, String>,
+    /// The language server the tool has for the editor, as servers.rs starts it, where it has one.
+    #[serde(default)]
+    pub server: Option<crate::servers::ServerSpec>,
     /// How the tool formats a text of a language `formats` names, where it does.
     #[serde(default)]
     pub format: Option<Formatter>,

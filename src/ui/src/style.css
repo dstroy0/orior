@@ -94,6 +94,9 @@
   --ed-added: #6fdcb4;
   --ed-changed: #8ab8ff;
   --ed-removed: #ff8fa3;
+  --ed-error: #ff6b81;
+  --ed-warning: #e8c46a;
+  --ed-note: #7aa2f7;
   --ed-bracket-1: #f2d48a;
   --ed-bracket-2: #b49cff;
   --ed-bracket-3: #7fd8e8;
@@ -149,6 +152,9 @@
   --ed-added: #16935f;
   --ed-changed: #3346d3;
   --ed-removed: #b4233c;
+  --ed-error: #c4314b;
+  --ed-warning: #9a6700;
+  --ed-note: #2563eb;
   --ed-bracket-1: #8a6100;
   --ed-bracket-2: #5b3fd1;
   --ed-bracket-3: #0f6f80;
@@ -1351,6 +1357,28 @@ body[data-view="run"] .statusbar .ed-status {
   border-radius: 2px;
 }
 
+/* A diagnostic: a wave along the foot of its characters, in its severity's color. */
+.ed-diag::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  left: 0;
+  height: 3px;
+  background: var(--ed-error);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 2.5 L1.5 0.5 L3 2.5 L4.5 0.5 L6 2.5' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 2.5 L1.5 0.5 L3 2.5 L4.5 0.5 L6 2.5' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x;
+}
+
+.ed-diag.s2::after {
+  background: var(--ed-warning);
+}
+
+.ed-diag.s3::after,
+.ed-diag.s4::after {
+  background: var(--ed-note);
+}
+
 .ed-match.on {
   background: var(--ed-match-on);
   box-shadow: 0 0 0 1px var(--signal);
@@ -1484,6 +1512,18 @@ body[data-view="run"] .statusbar .ed-status {
 
 .ed-status .gap {
   flex: 1;
+}
+
+.ed-status .problems span + span {
+  margin-left: 0.6em;
+}
+
+.ed-status .problems .s1 {
+  color: var(--ed-error);
+}
+
+.ed-status .problems .s2 {
+  color: var(--ed-warning);
 }
 
 /* Tokens. Every class a grammar gives is t-<kind>, and t-<kind>-<part> beneath it. */
@@ -1648,6 +1688,29 @@ body[data-view="run"] .statusbar .ed-status {
   color: var(--t-type);
 }
 
+.ed-hover pre {
+  margin: 0.3rem 0;
+  font: 12.5px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+.ed-hover pre code {
+  color: var(--ed-fg);
+}
+
+.ed-hover .diag {
+  color: var(--ed-error);
+}
+
+.ed-hover .diag.s2 {
+  color: var(--ed-warning);
+}
+
+.ed-hover .diag.s3,
+.ed-hover .diag.s4 {
+  color: var(--ed-note);
+}
+
 .ed-hover hr {
   border: 0;
   border-top: 1px solid var(--ed-widget-line);
@@ -1715,8 +1778,30 @@ body[data-view="run"] .statusbar .ed-status {
   border-radius: 50%;
 }
 
-.ed-kind.k-operator {
+.ed-kind.k-operator,
+.ed-kind.k-function {
   background: var(--t-predefined);
+}
+
+.ed-kind.k-field {
+  background: var(--t-attribute);
+}
+
+.ed-kind.k-variable {
+  background: var(--t-variable);
+  border-radius: 50%;
+}
+
+.ed-kind.k-constant {
+  background: var(--t-number);
+}
+
+.ed-kind.k-snippet {
+  background: var(--t-string);
+}
+
+.ed-kind.k-module {
+  background: var(--t-tag);
 }
 
 .ed-suggest-detail {
