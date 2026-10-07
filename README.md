@@ -91,7 +91,7 @@ The panes at the sides collapse toward their edge a moment after the pointer lea
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 
-![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.55 s off the ruler](src/ui/docs/img/run.png)
+![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.60 s off the ruler](src/ui/docs/img/run.png)
 
 The output streams as it comes. The fuse along its foot burns on the time ruler under it, its head at the run's latest moment, and it flashes when the run ends well and sputters dark when it fails or is stopped. The ruler marks where each step started and where the output came, red where it went to stderr. The wheel over either one, or + and - with the ruler holding the keys, zooms the time down to a few milliseconds across; a drag or Left and Right moves it, and 0 or a double click fits the whole run again. A page a viewer writes opens in a window of its own.
 
@@ -111,7 +111,11 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | run the file | Ctrl+F5, or Run, Run File: it is saved, then runs in the terminal with its language's toolchain. Python, R, Ruby, JavaScript, the shells and PowerShell run as scripts; MATLAB runs with -batch, or in Octave where MATLAB is not installed; Lean with lean --run, TeX with latexmk, netlists with ngspice or LTspice, VHDL with GHDL; C, C++, CUDA and Rust are compiled to build/run/ and run. |
 | fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
 
-In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the status bar counts them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition. clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes; run it once after a clone and again after a file is added or moved.
+In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the status bar counts them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition.
+
+![A C file with factor not declared: a red wave under it, and the hover saying what clangd found](src/ui/docs/img/clangd.png)
+
+clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes; run it once after a clone and again after a file is added or moved.
 
 View turns on and off Sticky Scroll, which holds the opening line of each block the top of the screen is inside; Breadcrumbs, the folders, the file and the symbols the cursor is inside, each a click from where it points; and Bracket Pair Colorization, each pair of brackets colored by its depth.
 
@@ -137,7 +141,7 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 
 Ctrl+F finds in the file and Ctrl+H replaces, with F3 and Shift+F3 for the next and the previous match. Ctrl+Shift+F opens Find in Files, the explorer's Search pane: case, whole words and regular expressions each turn on beside the field, each file's row holds its count, and a line's row opens the file at the match. `orior edit search <text>` searches the tree from the command line.
 
-![The Search pane with makeRuler found three times in two files, beside the file it opened](src/ui/docs/img/find_in_files.png)
+![The Search pane with makeRuler found four times in three files, beside the file it opened](src/ui/docs/img/find_in_files.png)
 
 ### Version control
 
@@ -165,11 +169,15 @@ orior's own folder is `%APPDATA%\orior` on Windows and `~/.config/orior` elsewhe
 
 Each language the editor colors is a plugin. orior comes with plugins for MATLAB, Octave, R, Python, C, C++ and CUDA, Rust, JavaScript, Lean, VHDL, SHARC assembly, LTspice, ngspice, TeX, Markdown, HTML and XML, CSS, JSON, TOML, YAML, the shells and plain text. A plugin is a folder with a `plugin.json` that names the extensions it opens, its comments, brackets and quotes, a grammar, and the words and snippets it completes. File, Plugins lists every plugin with what it opens, turns each on or off, and shows what is wrong with one that does not read. Your own plugins go in `plugins` in orior's own folder; Open Plugins Folder opens it, and Reload reads them again. One of yours with the id of one that comes with orior is used in its place. Where two plugins name one extension, as MATLAB and Octave both name `.m`, yours comes first, then the first by id; the list strikes out an extension another plugin opens, and turning that plugin off hands it on.
 
+![File, Plugins: each plugin with its extensions, Octave's .m struck out where MATLAB opens it](src/ui/docs/img/plugins.png)
+
 File, New Language Plugin asks for a name, the extensions, the comments, the keywords, the types, the constants and the quotes, or starts from a plugin there already. A sample on the right shows how the plugin colors code as you type, over the `plugin.json` it will write. Create writes it to your plugins folder, with a sample file beside it, and the editor opens those extensions in it at once.
 
 ### Toolchains
 
 orior installs no compiler or language of its own. File, Toolchains lists each one the tree and the app use, from Git, Bash and Python through CUDA, MSVC, GCC, LLVM, Rust, Node.js, Ruby, R, MATLAB, Octave, Lean, TeX, ngspice, LTspice, GHDL and CrossCore Embedded Studio to the formatters Black, clang-format and Prettier, with what each is for, where orior found it and the version it says.
+
+![File, Toolchains: Git, Bash, Python, PowerShell and the GitHub CLI, then the C, C++ and CUDA compilers, each found on PATH with its version and its folder](src/ui/docs/img/toolchains.png)
 
 | shown | means | what you can do |
 | --- | --- | --- |
