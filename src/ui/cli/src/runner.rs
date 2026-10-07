@@ -189,6 +189,7 @@ fn arguments(step: &Step, values: &HashMap<String, Vec<String>>) -> Result<Vec<S
                 }
                 out.extend(said);
             }
+            Arg::Env(_) => {}
         }
     }
     Ok(out)
@@ -216,7 +217,19 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         Program::Built(_) => relative(root, &program),
     };
     full.insert(0, shown_program);
-    let shown = full.iter().map(|w| if w.contains(' ') { format!("\"{w}\"") } else { w.clone() }).collect::<Vec<_>>();
+    // each setting given goes into the step's environment, and the line shown leads with it as a
+    // shell writes it
+    let mut set = Vec::new();
+    for arg in &step.args {
+        if let Arg::Env(key) = arg {
+            if let Some(value) = values.get(key).and_then(|v| v.first()).filter(|v| !v.is_empty()) {
+                let value = if matches!(step.program, Program::Bash(_)) { for_bash(value) } else { value.clone() };
+                cmd.env(key, &value);
+                set.push(format!("{key}={value}"));
+            }
+        }
+    }
+    let shown = set.into_iter().chain(full).map(|w| if w.contains(' ') { format!("\"{w}\"") } else { w }).collect::<Vec<_>>();
     Ok((cmd, shown.join(" ")))
 }
 
@@ -395,6 +408,27 @@ impl Runs {
         quiet(&mut kill);
         kill.stdout(Stdio::null()).stderr(Stdio::null());
         kill.status().map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod settings {
+    use std::collections::HashMap;
+    use std::ffi::OsStr;
+
+    use crate::catalog::{Arg, Program, Step};
+
+    #[test]
+    fn a_setting_given_is_set_in_the_step_s_environment_and_leads_its_line() {
+        if super::bash().is_err() {
+            return;
+        }
+        let step = Step { program: Program::Bash("run.sh".into()), args: vec![Arg::Value("mode".into()), Arg::Env("KLQ_SEED".into()), Arg::Env("KLQ_TRACE".into())] };
+        let values: HashMap<String, Vec<String>> = [("mode".to_string(), vec!["pair".to_string()]), ("KLQ_SEED".to_string(), vec!["2".to_string()])].into_iter().collect();
+        let (cmd, shown) = super::command(std::path::Path::new("."), &step, &values).unwrap();
+        let envs: Vec<(&OsStr, Option<&OsStr>)> = cmd.get_envs().collect();
+        assert_eq!(envs, vec![(OsStr::new("KLQ_SEED"), Some(OsStr::new("2")))]);
+        assert_eq!(shown, "KLQ_SEED=2 bash run.sh pair");
     }
 }
 

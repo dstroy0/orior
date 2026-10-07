@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The explorer beside the editor: its panes, one over the next, each opened and closed by its head.
-// Open Editors lists the tabs, the tree's own pane holds its files, Outline lists what the open file
+// Search finds text in the tree's files, and shows from Find in Files. Open Editors lists the tabs, the tree's own pane holds its files, Outline lists what the open file
 // declares and Timeline the commits that touched it. The explorer's … menu shows or hides each pane,
 // reads the tree again, and closes every folder. Which panes show and which are open is kept between
 // visits.
@@ -17,6 +17,7 @@ import { symbolsOf } from "./outline.js";
 const KEPT = "orior.panes";
 
 const PANES = [
+  ["search", "Search"],
   ["open", "Open Editors"],
   ["folder", null],
   ["outline", "Outline"],
@@ -85,6 +86,11 @@ function setPane(name, change) {
   if (name === "outline" || name === "timeline") {
     state.hooks?.panesChanged?.();
   }
+}
+
+// Shows a pane and opens it.
+export function showPane(name) {
+  setPane(name, { shown: true, open: true });
 }
 
 export function paneOpen(name) {
@@ -245,7 +251,7 @@ export function startExplorer(hooks) {
     kept = {};
   }
   for (const [name] of PANES) {
-    state.panes[name] = { shown: kept[name]?.shown ?? true, open: kept[name]?.open ?? (name !== "timeline" && name !== "outline") };
+    state.panes[name] = { shown: kept[name]?.shown ?? name !== "search", open: kept[name]?.open ?? (name !== "timeline" && name !== "outline") };
     drawPane(name);
     paneOf(name)
       .querySelector(".pane-head")

@@ -532,7 +532,7 @@ reads has changed.
    before a cubin is written. A loop ask
    branches by its nature and is held off the part until a rule says when a loop ends.
 
-9. **The query record holds its asks and not yet their costs.** `.kqr`, the query record, holds the asks put to a
+9. **The query record holds its asks and their costs, and not yet the paths over them.** `.kqr`, the query record, holds the asks put to a
     member and the paths read off them, in that order: every probe and what came back, with costs, refusals
     and censored samples each marked, then the winning path per problem over those same asks. It takes the
     stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map
@@ -540,11 +540,13 @@ reads has changed.
     for any member of a class, and a specific block holding the best combination available for one section of
     one member. Keeping the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a
     cache of it. A refused or censored probe appears nowhere in a table of chain costs, and it separates two
-    parts that cost the same. `klq_identity.sh pair` writes `sm_86.kqr` (`src/cu/types/file_defs/kqr`, read and
-    written by `query_record.cu` in `src/cu/types/file_defs/readers`): every ask the pairs put and what came back,
-    each case's word or the refusal, then each pair and its verdict. A cycle reads it first and asks the part only
-    what no cycle asked, and an open pair is the question a further pass takes up. The costs, the censored
-    samples, the winning path over chain costs and the general and specific split are not written yet.
+    parts that cost the same. Every mode of `klq_identity.sh` writes `sm_86.kqr` (`src/cu/types/file_defs/kqr`,
+    read and written by `query_record.cu` in `src/cu/types/file_defs/readers`) beside R: every untimed ask and
+    what came back, each case's word or the refusal, censored where the watchdog ended it; every timed ask a sample
+    of its own with the nanoseconds its launches took; then each pair and its verdict. A cycle reads it first and
+    asks the part only what no cycle asked, a timed ask excepted, and an open pair is the question a further pass
+    takes up. The curve of task 1006 writes 293 samples, 278 with their cost and 15 refused. The order and the
+    seed, the winning path over chain costs and the general and specific split are not written yet.
 
 10. **The order of asks is built on the host and nothing emits it to a target.** The order, its solve and the
     contention read are proved on the host (M24 in the engine table, Q5, Q7). The device half is open: a container

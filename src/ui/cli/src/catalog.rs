@@ -40,6 +40,9 @@ pub enum Arg {
     /// The words of a param, split as a shell splits them, after `--` where the given text is not
     /// empty and the step asks for the separator.
     Words(String, bool),
+    /// No argument: the value of a param, where one is given, set in the step's environment under the
+    /// param's key as the variable's name.
+    Env(String),
 }
 
 #[derive(Clone)]
@@ -509,16 +512,72 @@ fn collect_named(under: &Path, name: &str, found: &mut Vec<PathBuf>) {
     }
 }
 
-/// The whole catalog, in the order the engine's own steps run.
+/// The modes a script's opening comment gives it: the first word after the script's own path on each
+/// line of its usage, `#     utils/maint/engine/klq_identity.sh pair`, that the script tests a word
+/// against, `= "pair"`, in the order the usage names them. A usage line with no word after the path is
+/// the script run as it stands, and a first word the script tests nothing against is an argument of
+/// its own, a ruleset `klq_write.sh` maps, given among the free words.
+fn usage_modes(text: &str, file: &str) -> Vec<String> {
+    let mut modes: Vec<String> = Vec::new();
+    for line in text.lines().map(str::trim).take_while(|line| line.starts_with('#')) {
+        let said = line.trim_start_matches('#').trim();
+        let Some(rest) = said.strip_prefix(file) else { continue };
+        let Some(mode) = rest.split_whitespace().next() else { continue };
+        let tested = text.contains(&format!("= \"{mode}\""));
+        if tested && !mode.starts_with('<') && !modes.iter().any(|known| known == mode) {
+            modes.push(mode.to_string());
+        }
+    }
+    modes
+}
+
+/// The settings a script's opening comment, `about`, names: each variable of its own family, `KLQ_TRACE` and
+/// `KLQ_SEED` for a `klq_*.sh`, its name the script's first word in capitals and a part after it, in
+/// the order the comment names them.
+fn settings_named(about: &str, file: &str) -> Vec<String> {
+    let name = file.rsplit('/').next().unwrap_or(file);
+    let family = format!("{}_", name.split('_').next().unwrap_or(name).to_uppercase());
+    let mut settings: Vec<String> = Vec::new();
+    for word in about.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
+        let named = word.len() > family.len() && word.starts_with(&family);
+        if named && word.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_') && !settings.iter().any(|known| known == word) {
+            settings.push(word.to_string());
+        }
+    }
+    settings
+}
+
 /// The scripts that write the bridge between languages and judge its pairs: every `klq_*.sh` in
-/// utils/maint/engine, each taking the words its usage names.
+/// utils/maint/engine. Each takes the modes its usage names, the settings its opening comment names,
+/// each set in the script's environment, and free words after the mode.
 fn protocol(root: &Path, jobs: &mut Vec<Job>) {
     let is_protocol = |name: &str| name.starts_with("klq_") && name.ends_with(".sh");
     for path in files_in(&root.join("utils/maint/engine"), is_protocol) {
-        jobs.push(bash_alone(root, "protocol", &path));
+        let file = relative(root, &path);
+        let text = fs::read_to_string(&path).unwrap_or_default();
+        let modes = usage_modes(&text, &file);
+        let opening: Vec<&str> = text.lines().map(str::trim).take_while(|line| line.starts_with('#')).collect();
+        let settings = settings_named(&opening.join(" "), &file);
+        let mut params = Vec::new();
+        let mut args = Vec::new();
+        if !modes.is_empty() {
+            params.push(Param { key: "mode".into(), kind: "choice", choices: modes, default: String::new(), required: false });
+            args.push(Arg::Value("mode".into()));
+        }
+        for setting in &settings {
+            params.push(param(setting, "word"));
+            args.push(Arg::Env(setting.clone()));
+        }
+        params.push(words());
+        args.push(Arg::Words("arguments".into(), false));
+        let steps = vec![Step { program: Program::Bash(file.clone()), args }];
+        let mut job = script_job(root, "protocol", &path, params, steps);
+        job.title = short(&file);
+        jobs.push(job);
     }
 }
 
+/// The whole catalog, in the order the engine's own steps run.
 pub fn read(root: &Path) -> Vec<Job> {
     let mut jobs = Vec::new();
     builds(root, &mut jobs);
@@ -554,6 +613,19 @@ mod reading {
         let source = "\"  --run names one part; the parts running in the order given: schedule, iapx-prove,\"\n \
                       \" entropy, floor\\n\"";
         assert_eq!(driver_parts(source), vec!["schedule", "iapx-prove", "entropy", "floor"]);
+    }
+
+    #[test]
+    fn a_protocol_script_gives_its_modes_and_settings() {
+        let file = "utils/maint/engine/klq_identity.sh";
+        let script = "#!/usr/bin/env bash\n# Runs it.\n#\n#     utils/maint/engine/klq_identity.sh\n\
+                      #     utils/maint/engine/klq_identity.sh stall\n#     utils/maint/engine/klq_identity.sh curve <task>...\n\
+                      #     utils/maint/engine/klq_identity.sh pair\n# Where KLQ_TRACE names the trace, from KLQ_SEED, 1 where\n\
+                      # it is not given, and KLQ_TRACE again.\n#     utils/maint/engine/klq_identity.sh sass.krs\nset -u\n\
+                      # utils/maint/engine/klq_identity.sh late\n[ \"$1\" = \"stall\" ] || [ \"$1\" = \"curve\" ] || [ \"$1\" = \"pair\" ]\n";
+        assert_eq!(usage_modes(script, file), vec!["stall", "curve", "pair"]);
+        let about = "Runs it. Where KLQ_TRACE names the trace, from KLQ_SEED, 1 where QUERY_HOLDS KLQ_ and KLQ_TRACE again.";
+        assert_eq!(settings_named(about, file), vec!["KLQ_TRACE", "KLQ_SEED"]);
     }
 
     #[test]
