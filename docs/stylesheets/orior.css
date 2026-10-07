@@ -5,49 +5,49 @@
  * these variables are what custom resolves to, one set per scheme. mkdocs.yml loads the faces.
  */
 
-/* Ink is the header and the hero, signal marks what is exact, and the link colour is the one
- * colour a reader acts on. */
+/* Ink is the header and the hero, signal marks what is exact, the link colour is the one colour a
+ * reader acts on, and in the dark scheme violet answers the pointer. */
 :root {
-  --orior-ink: #121833;
-  --orior-ink-2: #1b2347;
-  --orior-signal: #f2b33d;
-  --orior-signal-deep: #b67a06;
+  --orior-ink: #1d1850;
+  --orior-ink-2: #261f5e;
+  --orior-signal: #6fdcb4;
+  --orior-signal-deep: #0f7a53;
   --orior-head-font: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --orior-radius: 0.5rem;
 }
 
 [data-md-color-scheme="default"] {
-  --md-default-bg-color: #fbfbfc;
-  --md-default-fg-color: #161b33;
-  --md-default-fg-color--light: rgba(22, 27, 51, 0.68);
-  --md-default-fg-color--lighter: rgba(22, 27, 51, 0.36);
-  --md-default-fg-color--lightest: rgba(22, 27, 51, 0.1);
+  --md-default-bg-color: #fbfbfe;
+  --md-default-fg-color: #17163a;
+  --md-default-fg-color--light: rgba(23, 22, 58, 0.68);
+  --md-default-fg-color--lighter: rgba(23, 22, 58, 0.36);
+  --md-default-fg-color--lightest: rgba(23, 22, 58, 0.1);
   --md-primary-fg-color: var(--orior-ink);
   --md-primary-fg-color--light: var(--orior-ink-2);
-  --md-primary-fg-color--dark: #0b1026;
-  --md-primary-bg-color: #f4f5fa;
-  --md-accent-fg-color: #2f45d6;
-  --md-typeset-a-color: #2f45d6;
-  --md-code-bg-color: #f0f1f6;
-  --md-code-fg-color: #232a4d;
-  --orior-tint: #eef0f7;
+  --md-primary-fg-color--dark: #100d30;
+  --md-primary-bg-color: #f3f2fb;
+  --md-accent-fg-color: #0f7a53;
+  --md-typeset-a-color: #3346d3;
+  --md-code-bg-color: #f0eff8;
+  --md-code-fg-color: #262356;
+  --orior-tint: #efeef9;
 }
 
 [data-md-color-scheme="slate"] {
-  --md-hue: 230;
-  --md-default-bg-color: #0f1430;
-  --md-default-fg-color: #e4e7f2;
-  --md-default-fg-color--light: rgba(228, 231, 242, 0.7);
-  --md-default-fg-color--lighter: rgba(228, 231, 242, 0.4);
-  --md-default-fg-color--lightest: rgba(228, 231, 242, 0.1);
-  --md-primary-fg-color: #0b1026;
-  --md-primary-fg-color--light: var(--orior-ink);
-  --md-primary-fg-color--dark: #070a1a;
-  --md-accent-fg-color: var(--orior-signal);
-  --md-typeset-a-color: #9fb1ff;
-  --md-code-bg-color: #171e40;
-  --md-code-fg-color: #dfe3f5;
-  --orior-tint: #161d3d;
+  --md-hue: 245;
+  --md-default-bg-color: #131331;
+  --md-default-fg-color: #e4e3f5;
+  --md-default-fg-color--light: rgba(228, 227, 245, 0.7);
+  --md-default-fg-color--lighter: rgba(228, 227, 245, 0.4);
+  --md-default-fg-color--lightest: rgba(228, 227, 245, 0.1);
+  --md-primary-fg-color: var(--orior-ink);
+  --md-primary-fg-color--light: var(--orior-ink-2);
+  --md-primary-fg-color--dark: #0a0822;
+  --md-accent-fg-color: #b49cff;
+  --md-typeset-a-color: #8ab8ff;
+  --md-code-bg-color: #1b1b3d;
+  --md-code-fg-color: #e0dff5;
+  --orior-tint: #1c1940;
 }
 
 /* Header and tabs: one ink band, with a signal rule under it. */
@@ -58,7 +58,7 @@
 
 .md-header[data-md-state="shadow"],
 .md-header--shadow {
-  box-shadow: 0 0.6rem 1.2rem -1rem rgba(11, 16, 38, 0.6);
+  box-shadow: 0 0.6rem 1.2rem -1rem rgba(16, 13, 48, 0.6);
 }
 
 .md-tabs {
@@ -344,18 +344,18 @@
   margin: 0 0 2.6rem;
   padding: 4rem 2.5rem 3.4rem;
   border-radius: 0.9rem;
-  color: #f4f5fa;
+  color: #f3f2fb;
   background-color: var(--orior-ink);
-  background-image: radial-gradient(70% 90% at 50% 45%, var(--orior-ink) 35%, rgba(18, 24, 51, 0) 100%);
+  background-image: radial-gradient(70% 90% at 50% 45%, var(--orior-ink) 35%, rgba(29, 24, 80, 0) 100%);
   overflow: hidden;
   isolation: isolate;
 }
 
 /* On the dark page the hero sits a step darker than the page, inside a hairline. */
 [data-md-color-scheme="slate"] .orior-hero {
-  background-color: #090d22;
-  background-image: radial-gradient(70% 90% at 50% 45%, #090d22 35%, rgba(9, 13, 34, 0) 100%);
-  box-shadow: inset 0 0 0 1px rgba(228, 231, 242, 0.09);
+  background-color: #0f0d2e;
+  background-image: radial-gradient(70% 90% at 50% 45%, #0f0d2e 35%, rgba(15, 13, 46, 0) 100%);
+  box-shadow: inset 0 0 0 1px rgba(228, 227, 245, 0.09);
 }
 
 .orior-hero > * {
@@ -431,8 +431,8 @@
   border-radius: 1px;
   transform-origin: left center;
   transform: scaleX(0);
-  background: linear-gradient(90deg, rgba(242, 179, 61, 0), #f2b33d 70%, #ffffff);
-  box-shadow: 0 0 10px 1px rgba(242, 179, 61, 0.7);
+  background: linear-gradient(90deg, rgba(111, 220, 180, 0), #6fdcb4 70%, #ffffff);
+  box-shadow: 0 0 10px 1px rgba(111, 220, 180, 0.7);
   pointer-events: none;
 }
 
@@ -475,7 +475,7 @@
   font-weight: 500;
   line-height: 1.4;
   letter-spacing: -0.005em;
-  color: #e6e9f5;
+  color: #e8e6f7;
 }
 
 .md-typeset .orior-hero p:not(.orior-lede) {
@@ -483,7 +483,7 @@
   margin: 0 auto 1.6rem;
   font-size: 0.9rem;
   line-height: 1.65;
-  color: #b9c0dc;
+  color: #bcb8e0;
 }
 
 .md-typeset .orior-hero .md-button {
@@ -494,15 +494,15 @@
   font-family: var(--orior-head-font);
   font-size: 0.72rem;
   font-weight: 600;
-  color: #e6e9f5;
-  background-color: rgba(18, 24, 51, 0.55);
+  color: #e8e6f7;
+  background-color: rgba(29, 24, 80, 0.55);
   backdrop-filter: blur(2px);
   transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .md-typeset .orior-hero .md-button:hover {
   border-color: var(--orior-signal);
-  background-color: rgba(242, 179, 61, 0.1);
+  background-color: rgba(111, 220, 180, 0.1);
   color: #ffffff;
 }
 
@@ -514,7 +514,7 @@
 
 .md-typeset .orior-hero .md-button--primary:hover {
   color: var(--orior-ink);
-  background-color: #ffc95c;
+  background-color: #9ae8cb;
 }
 
 /* What came back: one measured number per tile, the number large and what it counts under it. The

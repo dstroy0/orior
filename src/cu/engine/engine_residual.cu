@@ -12,7 +12,8 @@ static int engine_residual_key(const EngineResidualRequest *request)
     EngineError *const error = request->error;
     if ((resident->key != NULL) &&
         (memcmp(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders)) == 0) &&
-        (memcmp(resident->background_orders, request->background_orders, sizeof(resident->background_orders)) == 0))
+        (memcmp(resident->background_orders, request->background_orders, sizeof(resident->background_orders)) == 0) &&
+        (memcmp(resident->comb, request->comb, sizeof(resident->comb)) == 0))
     {
         return 1;
     }
@@ -38,6 +39,7 @@ static int engine_residual_key(const EngineResidualRequest *request)
     resident->key = key;
     memcpy(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders));
     memcpy(resident->background_orders, request->background_orders, sizeof(resident->background_orders));
+    memcpy(resident->comb, request->comb, sizeof(resident->comb));
     return 1;
 }
 
@@ -67,26 +69,46 @@ static int engine_residual_reserve(size_t voxels, EngineError *error)
     return ok;
 }
 
-// an odd smooth order puts the residual half a voxel before its lane's voxel. It is allowed only where the request
-// gives the place to say so.
-static int engine_residual_placed(const unsigned int smooth_orders[ENGINE_AXES], int *const *offset_halves,
-                                  EngineError *error)
+// the parity of the half voxels both terms move along an axis: the smooth order's, and a comb of n's n - 1
+static unsigned int engine_residual_half(const unsigned int smooth_orders[ENGINE_AXES],
+                                         const unsigned int comb[ENGINE_AXES], unsigned int axis)
+{
+    const unsigned int comb_moves = (comb[axis] >= 2u) ? (comb[axis] - 1u) : 0u;
+    return (smooth_orders[axis] + comb_moves) & 1u;
+}
+
+// the bits a comb adds on its axis, bit_length(n - 1); 0 and 1 add none
+static unsigned long long engine_residual_comb_bits(unsigned int length)
+{
+    unsigned long long bits = 0ull;
+    for (unsigned int value = (length >= 2u) ? (length - 1u) : 0u; value != 0u; value >>= 1u)
+    {
+        bits += 1ull;
+    }
+    return bits;
+}
+
+// an odd sum of the smooth order and the comb's n - 1 puts the residual half a voxel before its lane's voxel. It is
+// allowed only where the request gives the place to say so.
+static int engine_residual_placed(const unsigned int smooth_orders[ENGINE_AXES], const unsigned int comb[ENGINE_AXES],
+                                  int *const *offset_halves, EngineError *error)
 {
     unsigned int odd = 0u;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        odd |= smooth_orders[axis] & 1u;
+        odd |= engine_residual_half(smooth_orders, comb, axis);
     }
     return ENGINE_CHECK((odd == 0u) || (*offset_halves != NULL), offset_halves, error, ENGINE_ERROR_REQUEST);
 }
 
 // the residual's place per axis in half voxels, written once the residual is made
-static void engine_residual_offset(const unsigned int smooth_orders[ENGINE_AXES], int *offset_halves)
+static void engine_residual_offset(const unsigned int smooth_orders[ENGINE_AXES], const unsigned int comb[ENGINE_AXES],
+                                   int *offset_halves)
 {
     for (unsigned int axis = 0u; (offset_halves != NULL) && (axis < ENGINE_AXES); axis += 1u)
     {
-        // an order's parity is 0 or 1, which re-signs to int exactly
-        offset_halves[axis] = -(int)(smooth_orders[axis] & 1u);
+        // a parity is 0 or 1, which re-signs to int exactly
+        offset_halves[axis] = -(int)engine_residual_half(smooth_orders, comb, axis);
     }
 }
 
@@ -105,7 +127,7 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     const int asked = ENGINE_CHECK(request->volume != NULL, &request->volume, error, ENGINE_ERROR_REQUEST) &&
                       ENGINE_CHECK((request->depth != 0u) && (request->height != 0u) && (request->width != 0u),
                                    &request->depth, error, ENGINE_ERROR_REQUEST) &&
-                      engine_residual_placed(request->smooth_orders, &request->offset_halves, error);
+                      engine_residual_placed(request->smooth_orders, request->comb, &request->offset_halves, error);
     if (asked == 0)
     {
         return ENGINE_ERROR;
@@ -147,6 +169,7 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     sweep_request.width = request->width;
     memcpy(sweep_request.smooth_orders, request->smooth_orders, sizeof(sweep_request.smooth_orders));
     memcpy(sweep_request.background_orders, request->background_orders, sizeof(sweep_request.background_orders));
+    memcpy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
     sweep_request.limbs = ENGINE_RESIDUAL_LIMBS;
     sweep_request.device_out =
         (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? resident->check : resident->residual;
@@ -194,7 +217,7 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     s_residual_results.frames += 1ull;
     s_residual_results.key_microseconds += (key_runs != 0) ? (sweep_started - key_started) : 0ull;
     s_residual_results.sweep_microseconds += (sweep_runs != 0) ? (sweep_finished - sweep_started) : 0ull;
-    engine_residual_offset(request->smooth_orders, request->offset_halves);
+    engine_residual_offset(request->smooth_orders, request->comb, request->offset_halves);
     *device_residual = resident->residual;
     return 0L;
 }
@@ -232,7 +255,8 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     unsigned long long residual_bits = (unsigned long long)request->input_bits + 1ull;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        residual_bits += (unsigned long long)request->smooth_orders[axis] + request->background_orders[axis];
+        residual_bits += (unsigned long long)request->smooth_orders[axis] + request->background_orders[axis] +
+                         engine_residual_comb_bits(request->comb[axis]);
     }
     const unsigned long long plane_voxels = (unsigned long long)request->height * request->width;
     const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFull) ? (plane_voxels * request->depth) : 0ull;
@@ -244,7 +268,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
         ENGINE_CHECK((voxels != 0ull) && (voxels <= 0xFFFFFFFFull), &request->depth, error, ENGINE_ERROR_REQUEST) &&
         ENGINE_CHECK(residual_limbs <= (0xFFFFFFFFull / 32ull), request->background_orders, error,
                      ENGINE_ERROR_REQUEST) &&
-        engine_residual_placed(request->smooth_orders, &request->offset_halves, error);
+        engine_residual_placed(request->smooth_orders, request->comb, &request->offset_halves, error);
     EngineResidualPlanesResident *const resident = &s_residual_planes_resident;
     int ok =
         asked &&
@@ -263,6 +287,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     sweep_request.width = request->width;
     memcpy(sweep_request.smooth_orders, request->smooth_orders, sizeof(sweep_request.smooth_orders));
     memcpy(sweep_request.background_orders, request->background_orders, sizeof(sweep_request.background_orders));
+    memcpy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
     // the limbs are held at or below 2^32 / 32 above. They narrow to unsigned int exactly
     sweep_request.limbs = (unsigned int)residual_limbs;
     sweep_request.device_out = resident->residual;
@@ -278,7 +303,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     }
     s_residual_results.frames += 1ull;
     s_residual_results.sweep_microseconds += engine_clock_microseconds() - sweep_started;
-    engine_residual_offset(request->smooth_orders, request->offset_halves);
+    engine_residual_offset(request->smooth_orders, request->comb, request->offset_halves);
     *device_residual = resident->residual;
     *limbs = sweep_request.limbs;
     return 0L;

@@ -8,9 +8,9 @@ TOP="$(cd "$ROOT/.." && pwd)"
 SRC="$(cd "$TOP/../src" && pwd)"
 PROGRAM="${1:-}"
 CFG="${2:-}"
-PROGRAMS="core_rule|matching_rule"
+PROGRAMS="core_rule|matching_rule|core_radius"
 case "$PROGRAM" in
-    core_rule|matching_rule) ;;
+    core_rule|matching_rule|core_radius) ;;
     *) echo "  usage: run.sh $PROGRAMS <cfg>"; exit 2 ;;
 esac
 [ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh $PROGRAMS <cfg>"; exit 2; }
