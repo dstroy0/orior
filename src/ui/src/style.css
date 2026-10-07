@@ -47,6 +47,12 @@
   --ed-mini-match: rgba(111, 220, 180, 0.7);
   --ed-mini-slider: rgba(228, 227, 245, 0.08);
   --ed-mini-slider-on: rgba(228, 227, 245, 0.16);
+  --ed-added: #6fdcb4;
+  --ed-changed: #8ab8ff;
+  --ed-removed: #ff8fa3;
+  --ed-bracket-1: #f2d48a;
+  --ed-bracket-2: #b49cff;
+  --ed-bracket-3: #7fd8e8;
   --lifted: rgba(8, 6, 30, 0.45);
   --t-comment: #6e6b99;
   --t-keyword: #a48cff;
@@ -95,6 +101,12 @@
   --ed-mini-match: rgba(15, 122, 83, 0.6);
   --ed-mini-slider: rgba(23, 22, 58, 0.07);
   --ed-mini-slider-on: rgba(23, 22, 58, 0.14);
+  --ed-added: #16935f;
+  --ed-changed: #3346d3;
+  --ed-removed: #b4233c;
+  --ed-bracket-1: #8a6100;
+  --ed-bracket-2: #5b3fd1;
+  --ed-bracket-3: #0f6f80;
   --lifted: rgba(23, 22, 58, 0.16);
   --t-comment: #8a88a8;
   --t-keyword: #5b3fd1;
@@ -1091,6 +1103,53 @@ body[data-view="run"] .statusbar .ed-status {
 
 .ed-num.on {
   color: var(--ed-fg);
+}
+
+/* How a line differs from the last commit, at the gutter's edge by the text: a bar for a line added
+ * or changed, a wedge on the edge between two lines where lines were taken out. */
+.ed-change {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  pointer-events: none;
+}
+
+.ed-change.added {
+  background: var(--ed-added);
+}
+
+.ed-change.changed {
+  background: var(--ed-changed);
+}
+
+.ed-change.removed {
+  top: -4px;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--ed-removed);
+  background: none;
+}
+
+.ed-change.removed.below {
+  top: auto;
+  bottom: -4px;
+}
+
+/* A bracket's pair colored by how deep it stands, in three colors by turns. */
+.ed-br-0 {
+  color: var(--ed-bracket-1);
+}
+
+.ed-br-1 {
+  color: var(--ed-bracket-2);
+}
+
+.ed-br-2 {
+  color: var(--ed-bracket-3);
 }
 
 .ed-fold {
@@ -2930,4 +2989,61 @@ textarea.report-field {
 
 .prefs-settings select {
   width: auto;
+}
+
+/* The breadcrumbs over the editor: the file's folders and name, then the symbols the cursor is in,
+ * each a button, a chevron between. */
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 24px;
+  padding: 0 0.7rem;
+  overflow: hidden;
+  background: var(--ed-bg);
+  font: 12.5px var(--head);
+  white-space: nowrap;
+}
+
+.crumbs[hidden] {
+  display: none;
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0 0.25rem;
+  border: 0;
+  border-radius: calc(var(--radius) * 0.5);
+  background: none;
+  color: var(--fg-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.crumb:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.crumb:focus-visible {
+  outline: 1px solid var(--signal);
+}
+
+.crumb.file,
+.crumb.symbol:last-child {
+  color: var(--fg);
+}
+
+.crumb.symbol {
+  font-family: var(--code);
+  font-size: 12px;
+}
+
+.crumb-gap {
+  flex: none;
+  padding: 0 0.1rem;
+  color: var(--fg-3);
 }
