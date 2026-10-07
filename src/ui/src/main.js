@@ -12,10 +12,10 @@ import { drawMenubar, runLaunch, startMenubar } from "./menubar.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
-import { keepPane } from "./sides.js";
+import { keepPane, settlePanes } from "./sides.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
-import { showView } from "./views.js";
+import { onView, showView } from "./views.js";
 import { startWordmark } from "./wordmark.js";
 
 async function openInEditor(path) {
@@ -65,6 +65,8 @@ async function start() {
   keepPane(document.getElementById("explorer"), "left");
   keepPane(document.getElementById("defs-side"), "right");
   await begin(await invoke("root_get"));
+  settlePanes();
+  onView(settlePanes);
   await runLaunch();
 }
 

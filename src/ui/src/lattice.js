@@ -33,6 +33,13 @@ const STAGES = [
 ];
 const LOOP = STAGES.reduce((sum, [, seconds]) => sum + seconds, 0);
 
+// Where one side is ordered: the share of the lattice before its points start to move, and the share
+// over which they go from in place to as far as they go. A point moves by the square of how far along
+// that share it stands, and stays within three pixels of its place to about 0.23 of the lattice, which
+// reads as ordered against the 0.77 that does not: about 0.3 to 1.
+const ORDERED = 0.1;
+const RAMP = 0.54;
+
 // The shades a point takes, one a level of disorder.
 const LEVELS = 24;
 
@@ -74,7 +81,7 @@ function sided(angle, u, v) {
   const dx = Math.cos(angle);
   const dy = Math.sin(angle);
   const along = 0.5 + ((u - 0.5) * dx + (v - 0.5) * dy) / (Math.abs(dx) + Math.abs(dy));
-  return clamp((along - 0.3) / 0.7);
+  return clamp((along - ORDERED) / RAMP);
 }
 
 // The loop at `seconds`: a way to read the disorder at any point.
@@ -92,8 +99,8 @@ function orderAt(seconds) {
       return (u, v) => sided(0, u, v);
     }
     if (name === "spread") {
-      const front = 0.3 + 0.7 * part;
-      return (u) => clamp((u - front) / 0.7);
+      const front = ORDERED + (1 - ORDERED) * part;
+      return (u) => clamp((u - front) / RAMP);
     }
     if (name === "invert") {
       return () => part;

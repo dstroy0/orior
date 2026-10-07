@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The panes that take the editor's room: the job list, the explorer and the definitions. A moment
-// after the pointer leaves one it collapses, giving its width back and sliding up and toward the edge
-// it stands at, and the pointer reaching that edge of the window brings it back. A pane that holds
-// the keys, or that a menu is open over, stays until both have left it. Whether panes collapse on
+// after the app loads, after its view shows, or after the pointer leaves one, it collapses, giving
+// its width back and sliding up and toward the edge it stands at, and the pointer reaching that edge
+// of the window brings it back. A pane that holds the keys, or that a menu is open over, stays until
+// both have left it. Whether panes collapse on
 // their own is the reader's to set, and kept; Ctrl+B shows or collapses the view's own pane either way.
 
 import { menuOpen } from "./menu.js";
@@ -57,7 +58,15 @@ export function keepPane(node, side) {
   node.addEventListener("pointerleave", () => collapseLater(pane));
   node.addEventListener("focusout", () => collapseLater(pane));
   edge.addEventListener("pointerenter", () => !node.hidden && setShown(pane, true));
+  // A pane hidden while it has nothing to show starts its wait again when it shows.
+  new MutationObserver(() => !node.hidden && collapseLater(pane)).observe(node, { attributes: true, attributeFilter: ["hidden"] });
   panes.push(pane);
+}
+
+// Starts every pane in sight waiting to collapse, as the app finishes loading and as a view shows:
+// a pane the pointer never comes to still goes a moment later.
+export function settlePanes() {
+  panes.forEach(collapseLater);
 }
 
 // The view's own pane, the one at its left.
