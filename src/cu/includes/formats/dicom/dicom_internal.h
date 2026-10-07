@@ -89,7 +89,7 @@ typedef struct
 
 extern DicomResident g_dicom_resident;
 
-static const DicomSlice *s_dicom_sorting;
+extern const DicomSlice *g_dicom_sorting;
 
 extern unsigned int g_dicom_keyed;
 
