@@ -1,0 +1,111 @@
+<!doctype html>
+<!-- orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational -->
+<html lang="en" data-scheme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>orior</title>
+    <style>
+      html { background: #131331; color-scheme: dark; }
+      html[data-scheme="light"] { background: #fbfbfe; color-scheme: light; }
+    </style>
+    <script src="early.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body data-view="run">
+    <header class="bar">
+      <span class="bar-mark" id="bar-mark"></span>
+      <nav class="menubar" id="menubar" role="menubar" aria-label="orior"></nav>
+      <span class="tree" id="tree-path"></span>
+      <button class="scheme" id="scheme" type="button" aria-label="Light"></button>
+    </header>
+
+    <main class="shell">
+      <section class="mode" id="mode-run" data-active="true">
+        <aside class="side" id="job-side">
+          <div class="side-inner">
+            <input class="filter" id="job-filter" type="search" placeholder="Search" spellcheck="false" />
+            <div class="jobs" id="jobs"></div>
+          </div>
+        </aside>
+        <div class="stage" id="job-stage"></div>
+      </section>
+
+      <section class="mode" id="mode-edit" data-active="false">
+        <aside class="side explorer" id="explorer">
+          <div class="side-inner">
+            <div class="explorer-head">
+              <h2>Explorer</h2>
+              <button class="explorer-more" id="explorer-more" type="button" aria-label="Views and More Actions" aria-haspopup="menu">…</button>
+            </div>
+            <input class="filter" id="file-filter" type="search" placeholder="Search" spellcheck="false" />
+            <div class="panes" id="panes">
+              <section class="pane" data-pane="open">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:open" aria-expanded="true">Open Editors</button>
+                <div class="pane-body" id="open-editors"></div>
+              </section>
+              <section class="pane" data-pane="folder">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:folder" aria-expanded="true"></button>
+                <div class="pane-body files" id="files"></div>
+              </section>
+              <section class="pane" data-pane="outline">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:outline" aria-expanded="false">Outline</button>
+                <div class="pane-body" id="outline"></div>
+              </section>
+              <section class="pane" data-pane="timeline">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:timeline" aria-expanded="false">Timeline</button>
+                <div class="pane-body" id="timeline"></div>
+              </section>
+            </div>
+          </div>
+        </aside>
+        <div class="desk">
+          <div class="tabs" id="tabs" role="tablist"></div>
+          <div class="editor" id="editor"></div>
+          <div class="binary" id="binary" hidden></div>
+          <div class="empty" id="edit-empty" hidden>
+            <canvas class="lattice" aria-hidden="true"></canvas>
+            <div class="empty-body">
+              <h1 data-wordmark>orior</h1>
+            </div>
+          </div>
+        </div>
+        <aside class="defs-side" id="defs-side">
+          <div class="side-inner defs" id="defs"></div>
+        </aside>
+      </section>
+
+      <section class="loading" id="loading">
+        <canvas class="lattice" aria-hidden="true"></canvas>
+        <div class="eye-box" aria-hidden="true">
+          <canvas class="eye"></canvas>
+          <canvas class="plasma"></canvas>
+        </div>
+      </section>
+
+      <section class="open" id="open-tree" hidden>
+        <canvas class="lattice" aria-hidden="true"></canvas>
+        <div class="open-body">
+          <h1 data-wordmark>orior</h1>
+          <p id="open-said"></p>
+          <button class="primary" id="open-button" type="button">Open</button>
+        </div>
+      </section>
+    </main>
+
+    <section class="term" id="term" hidden>
+      <div class="term-grip" id="term-grip" aria-hidden="true"></div>
+      <div class="term-view" id="term-view"></div>
+      <textarea class="term-keys" id="term-keys" aria-label="Terminal" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    </section>
+
+    <footer class="statusbar" id="statusbar">
+      <span class="status-branch" id="status-branch" hidden></span>
+      <span class="pulse" id="pulse"></span>
+      <button class="status-report" id="status-report" type="button" hidden></button>
+    </footer>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

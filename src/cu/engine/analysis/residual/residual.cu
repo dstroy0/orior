@@ -32,12 +32,15 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     const unsigned int gain =
         request->background_orders[0] + request->background_orders[1] + request->background_orders[2];
     memset(program, 0, RESIDUAL_STEPS * sizeof(EngineStep));
-    program[0].operation = ENGINE_SMOOTH;
-    memcpy(program[0].orders, request->smooth_orders, sizeof(program[0].orders));
-    program[1].operation = ENGINE_KEEP;
-    program[2].operation = ENGINE_SMOOTH;
-    memcpy(program[2].orders, request->background_orders, sizeof(program[2].orders));
-    program[3].operation = ENGINE_SCALE_SUBTRACT;
-    program[3].shift = gain;
+    // the comb runs before the keep, and both terms take it alike
+    program[0].operation = ENGINE_COMB;
+    memcpy(program[0].orders, request->comb, sizeof(program[0].orders));
+    program[1].operation = ENGINE_SMOOTH;
+    memcpy(program[1].orders, request->smooth_orders, sizeof(program[1].orders));
+    program[2].operation = ENGINE_KEEP;
+    program[3].operation = ENGINE_SMOOTH;
+    memcpy(program[3].orders, request->background_orders, sizeof(program[3].orders));
+    program[4].operation = ENGINE_SCALE_SUBTRACT;
+    program[4].shift = gain;
     return (long)RESIDUAL_STEPS;
 }
