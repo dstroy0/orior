@@ -37,10 +37,10 @@ pair	klq_decoder	order_coherence	order_coherence	a part of comparison_coherence,
 pair	klq_decoder	operation_coherence	operation_coherence	a category the texts read the pair into: a form computes a value from its operands, a shift, an add, a multiply, a bitwise or a floating operation, at any width, a bit, a word or many words
 pair	klq_decoder	commutative_coherence	commutative_coherence	a category the texts read the pair into: every instruction of a form gives one value with its first two sources taken either way round, its commutation
 pair	klq_decoder	verb_coherence	verb_coherence	a category the texts read the pair into: a form does a thing that computes no value, tests nothing and sends control nowhere, a load, a store, a move, a copy or a read of a special register
-pair	klq_decoder	range_coherencerange_coherence	a category the texts read the pair into: a form names a parameter at its .hi, working a wide value in its pieces, the low word and the high
+pair	klq_decoder	range_coherence	range_coherencea category the texts read the pair into: a form names a parameter at its .hi, working a wide value in its pieces, the low word and the high
 pair	klq_decoder	vector_coherence	vector_coherence	a category the texts read the pair into: a form reads where its lane sits or the shape of its launch
 pair	klq_decoder	control_coherence	control_coherence	a category the texts read the pair into: a form decides which form runs next, an exit, a return, a branch, a call or a convergence
 pair	klq_decoder	switch_coherence	switch_coherence	a category the texts read the pair into: a form holds no instruction, a directive or a label alone that places the forms a case reads
-pair	klq_decoder	intent_coherenceintent_coherence <value>...	the values the pair's two forms write of their own, as the ruleset gives them: our intent, imposed, each put to the pair's product with every case value and held in its concept
+pair	klq_decoder	intent_coherence	intent_coherence <value>...the values the pair's two forms write of their own, as the ruleset gives them: our intent, imposed, each put to the pair's product with every case value and held in its concept
 pair	klq_decoder	unknown_coherence	unknown_coherence	no answer has read the pair into a set: it can be anything, and is a member of every set of our coherence
 any	-	comment	# <text>	a comment

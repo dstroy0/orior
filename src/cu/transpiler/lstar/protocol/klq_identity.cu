@@ -44,6 +44,7 @@
 #include "carrier_flow.h"
 #include "code_generator.h"
 #include "concept_product.h"
+#include "query_record.h"
 #include "run_channel.h"
 #include "target_internal.h"
 extern "C"
@@ -2193,15 +2194,10 @@ static std::condition_variable s_turn_changed;
 static int s_turn = -1;
 static std::vector<std::vector<CarriedAsk>> s_round_asks;
 
-// An answer by its question's identity, its code, its registers and its cases: whatever asks it again is answered from
-// here, in the round it asks, and the part is asked it once
-struct AnswerHeld
-{
-    unsigned int outcome;
-    std::string refused;
-    std::vector<unsigned long long> answered;
-};
-static std::unordered_map<std::string, AnswerHeld> s_answers_held;
+// The part's query record, its .kqr, held in memory for the run: every ask a cycle put and what came back, by the
+// question's identity. Whatever asks one again, in this cycle or a later one, is answered from it in the round it
+// asks, and the part is asked it once
+static QueryRecord s_query_record;
 
 // what the rounds asked: the asks handed over, those answered from what was held, and the processes that carried
 // the rest
@@ -2231,19 +2227,22 @@ static std::string question_identity(const RunQuestion *question)
 }
 
 // `asked` answered from `held`
-static void answer_given(RunQuestion *asked, const AnswerHeld &held)
+static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
 {
-    asked->outcome = held.outcome;
-    snprintf(asked->refused, sizeof(asked->refused), "%s", held.refused.c_str());
-    for (size_t place = 0u; (place < held.answered.size()) && (place < RUN_CASES_MOST); place += 1u)
+    asked->outcome = (held.answer == "answers")   ? (unsigned int)RUN_ANSWERED
+                     : (held.answer == "illegal") ? (unsigned int)RUN_ILLEGAL
+                                                  : (unsigned int)RUN_NOTHING;
+    snprintf(asked->refused, sizeof(asked->refused), "%s", held.refusal.c_str());
+    for (size_t place = 0u; (place < held.words.size()) && (place < RUN_CASES_MOST); place += 1u)
     {
-        asked->answered[place] = held.answered[place];
+        asked->answered[place] = held.words[place];
     }
 }
 
-// The asks `carried` answered: each answered from what is held where its identity was asked before, and the rest
+// The asks `carried` answered: each answered from the query record where its identity was asked before, and the rest
 // carried, one ask of an identity the round holds twice, the mundane together and each dangerous one alone. Each
-// answer held after by its identity, where it is the part's: an ask the channel never carried is not held
+// answer the part gave kept in the record after by its identity: an ask the channel never carried or the gate held
+// never reached the part and is not kept
 static void asks_answered(const std::vector<CarriedAsk> &carried)
 {
     std::vector<RunQuestion *> mundane;
@@ -2256,10 +2255,10 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         RunQuestion *const question = carried[at].question;
         identities[at] = question_identity(question);
         s_round_handed += 1ull;
-        const auto held = s_answers_held.find(identities[at]);
-        if (held != s_answers_held.end())
+        const QueryRecordAsk *const held = query_record_find(s_query_record, identities[at]);
+        if (held != NULL)
         {
-            answer_given(question, held->second);
+            answer_given(question, *held);
             s_round_held += 1ull;
             continue;
         }
@@ -2293,13 +2292,25 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     for (const auto &each : first_of)
     {
         RunQuestion *const question = each.second;
-        if (question->outcome == RUN_NO_CHANNEL)
+        if ((question->outcome != RUN_ANSWERED) && (question->outcome != RUN_ILLEGAL) &&
+            (question->outcome != RUN_NOTHING))
         {
             continue;
         }
-        AnswerHeld held{question->outcome, question->refused, {}};
-        held.answered.assign(question->answered, question->answered + question->cases);
-        s_answers_held[each.first] = held;
+        QueryRecordAsk held;
+        held.identity = each.first;
+        held.answer = (question->outcome == RUN_ANSWERED)  ? "answers"
+                      : (question->outcome == RUN_ILLEGAL) ? "illegal"
+                                                           : "nothing";
+        if (question->outcome == RUN_ANSWERED)
+        {
+            held.words.assign(question->answered, question->answered + question->cases);
+        }
+        else
+        {
+            held.refusal = question->refused;
+        }
+        query_record_keep(&s_query_record, held);
     }
     for (const auto &copy : copies)
     {
@@ -2382,8 +2393,8 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
              question->blocks, record_hash(question->word, sizeof(question->word[0]) * question->cases, 0xcbf29ce484222325ull),
              hosted);
     const std::string key = keyed;
-    // R holds an ask's verdict and its first case apart, and the log what came back of every case: with the log kept,
-    // every ask is put to the part, and R written as ever
+    // R holds an ask's verdict and its first case apart, and the query record and the log what came back of every
+    // case: with the log kept, an ask is read from the query record or put to the part, and R written as ever
     const int recordable = !s_record_ksc.empty() && (question->launches == 0u);
     const auto recorded = (recordable && (s_ask_log == NULL)) ? s_record.find(key) : s_record.end();
     if (recorded != s_record.end())
@@ -4060,6 +4071,20 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         return 1;
     }
     record_open(ksc);
+    // the part's query record beside its classification, of the same stem: every ask a cycle before this one put and
+    // what came back
+    const std::string classified = ksc;
+    const size_t stem_at = classified.find_last_of("/\\") + 1u;
+    const std::string kqr = classified.substr(0u, classified.find_last_of('.')) + ".kqr";
+    std::string kqr_error;
+    if (!query_record_read(kqr, classified.substr(stem_at, classified.find_last_of('.') - stem_at), &s_query_record,
+                           &kqr_error))
+    {
+        printf("klq_identity pair: %s\n", kqr_error.c_str());
+        run_channel_close();
+        return 1;
+    }
+    const size_t recorded_before = s_query_record.asks.size();
     // each pair's question and places, held with the pair and reached from its own thread, since a pair waits on its
     // round with both
     static thread_local RunQuestion *t_question = NULL;
@@ -4860,6 +4885,20 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     fclose(file);
     printf("klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open, closed,
            unasked, klq);
+    // the query record written back: every ask it held and every ask this cycle put, then the path this cycle read
+    // off them, each pair and its verdict, an open pair the question a further pass takes up
+    s_query_record.paths.clear();
+    for (const PairPut &pair : pairs)
+    {
+        s_query_record.paths.push_back(QueryRecordPath{pair.first, pair.second, pair.verdict});
+    }
+    if (!query_record_write(kqr, s_query_record, &kqr_error))
+    {
+        printf("klq_identity pair: %s\n", kqr_error.c_str());
+        return 1;
+    }
+    printf("klq_identity pair: %zu asks held in %s, %zu of them put this cycle\n", s_query_record.asks.size(),
+           kqr.c_str(), s_query_record.asks.size() - recorded_before);
     return 0;
 }
 

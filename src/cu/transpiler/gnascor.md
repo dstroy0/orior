@@ -18,6 +18,7 @@ The eight k-file types and the two compiler faces. Doug names these; do not add 
 | `.krs` | Kolmogorov information ruleset | the coherence rules |
 | `.klq` | Kolmogorov language query | the questions put across languages and what came back |
 | `.klm` | Kolmogorov language map | a language's forms keyed to the operations it answered for |
+| `.kqr` | Kolmogorov query record | every ask put to a member and what came back, then the paths read off them |
 
 **Data.**
 
@@ -46,7 +47,7 @@ A floor is conceptual and not a fixed quantity, which leaves its definition open
 
 **`.kdm` grows to whatever specificity a part needs.** It holds as many answers as it has: a general answer block, and under it a map specific enough to be optimal on one device and nowhere else. A driver written by hand is general worst case because a person writes it once and cannot write one per device. Nobody writes these. A specific map therefore costs nothing to keep, and the general block stays as the fallback for a part with no map yet.
 
-**One face of a set has no suffix yet.** Doug names it. It holds the asks put to a member and the paths read off them: every probe and what came back, with costs, refusals and censored samples each marked, then the winning path per problem over those same asks. It takes the stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map and fingerprint it exactly. It carries the general and specific split `.kdm` carries, a generic block good for any member of a class and a specific block holding the best combination available for one section of one member. Keeping the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a cache of it: a refused or censored probe appears nowhere in a table of chain costs, and it separates two parts that cost the same.
+**`.kqr` is the query record.** It holds the asks put to a member and the paths read off them: every probe and what came back, with costs, refusals and censored samples each marked, then the winning path per problem over those same asks. It takes the stem the rest of the set takes. That face, `.kdm` and `.knf` under one stem are a member's coherence map and fingerprint it exactly. It carries the general and specific split `.kdm` carries, a generic block good for any member of a class and a specific block holding the best combination available for one section of one member. Keeping the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a cache of it: a refused or censored probe appears nowhere in a table of chain costs, and it separates two parts that cost the same.
 
 The high order face writes `a equals something; b equals something; evaluate a is identical to b`, and the shortcut face writes `a=0;b=1; x = a==b`. Both are a true or false answer, and both compile to 2 reads, 1 target and 1 store whatever the language underneath. The two are the same assembly. The reason for keeping them apart is enforcement: a block declares which face it is written in and no statement mixes them mid-sentence without an explicit flag, `__gsm__(//code)`. A semantic conditional is legal, a gsm semantic conditional is legal, and the switch exists because it gets turned.
 
