@@ -5,17 +5,16 @@
 // seconds, and its lids hold still from then on. Once it is open its iris divides, and divides again,
 // and it rolls and stares.
 //
-// The opening is an almond, pointed at both corners. Spiked lashes fan out of the heavy upper lid,
-// dark against a glow, and the lower lid's lashes run down into tongues of plasma that light up as
-// the eye opens, waver, and throw arcs.
+// The opening is an almond, pointed at both corners, between heavy dark lids. A shadowy purple
+// plasma burns all round it: a smooth glowing rim along both lids, and tongues that rise from the
+// upper lid and run down from the lower. It lights up as the eye opens, wavers, and throws arcs.
 //
 // Each iris floats free on the sphere of the eye, a disc with a mass of its area. It speeds up and
 // slows down, and irises that meet push off each other, the heavier one moving less. When the eye
 // rolls, friction draws each iris's velocity toward that of the sphere under it, by FRICTION: a
 // roll leaves them sliding and bumping, and a stare lets them come to rest turning with the eye.
 //
-// An iris is a few clear discs in the lattice's three colors, signal green, the link blue and
-// violet, each a little off the middle and turning against the next. Its pupil is dark and moves as
+// An iris is fire, flames burning out from round the pupil. Its pupil is dark and moves as
 // a lava lamp does: one round body, and smaller ones that draw out of it, part from it as pupils of
 // their own, and run back in, and it leans toward the mouse. A reader who asks the system for less
 // motion gets the eye held still and open, with one iris.
@@ -25,11 +24,12 @@ import * as plasma from "./plasma.js";
 const OPENING = 1.4;
 const OPEN_FROM = 0.1;
 
-const SIGNAL = [111, 220, 180];
-const LINK = [138, 184, 255];
-const VIOLET = [180, 156, 255];
 const DARK = [7, 6, 26];
-const HOT = [238, 234, 255];
+
+// The plasma's purples, from the shadow at its edges to the light inside it.
+const DUSK = [50, 18, 98];
+const PLUM = [94, 40, 166];
+const ORCHID = [148, 94, 232];
 
 const smooth = (x) => x * x * (3 - 2 * x);
 const mix = (a, b, x) => a + (b - a) * x;
@@ -46,16 +46,84 @@ function seeded(seed) {
   };
 }
 
-// The iris's discs, from the largest in: its radius and how far its middle sits from the iris's,
-// both as parts of the iris radius, how fast it turns in radians a second, the sign giving the way,
-// its color and how clear it is.
-const DISCS = [
-  { size: 0.96, off: 0.04, speed: 0.3, color: VIOLET, alpha: 0.5 },
-  { size: 0.84, off: 0.1, speed: -0.5, color: LINK, alpha: 0.5 },
-  { size: 0.72, off: 0.13, speed: 0.75, color: SIGNAL, alpha: 0.5 },
-  { size: 0.6, off: 0.12, speed: -1.05, color: VIOLET, alpha: 0.5 },
-  { size: 0.5, off: 0.1, speed: 1.4, color: LINK, alpha: 0.5 },
+// The iris is fire. FLAMES tongues burn out from INNER of its radius, round the pupil, each at its
+// own angle, `width` times its share of the round wide at its root, and between `reach[0]` and
+// `reach[1]` of the radius long as it flickers on two waves, `rates` and `phases`. Each sways round
+// the iris a little and leans one way and back. Over them burn KINDLING shorter ones, hotter. Under
+// them the iris glows from yellow at the pupil to a dark red at its edge.
+//
+// The fire is drawn once into BURNS pictures over a loop of LOOP seconds, each the first time it is
+// shown, and from then on each frame lays down the picture for its moment in the loop. Every wave
+// of a flame turns a whole number of times in a loop, which joins the loop's end to its start.
+const FLAMES = 30;
+const KINDLING = 16;
+const INNER = 0.26;
+const LOOP = 2;
+const BURNS = 48;
+
+function flamesOf(draw, count, reach) {
+  const turns = (fewest, most) => ((Math.PI * 2) / LOOP) * (fewest + Math.floor(draw() * (most - fewest + 1)));
+  return Array.from({ length: count }, (_, at) => ({
+    turn: ((at + (draw() - 0.5) * 0.6) / count) * Math.PI * 2,
+    width: 1.1 + draw() * 0.6,
+    reach: [reach[0] * (0.85 + draw() * 0.3), reach[1] * (0.85 + draw() * 0.15)],
+    lean: (draw() - 0.5) * 0.5,
+    rates: [turns(1, 3), turns(3, 5), turns(1, 1)],
+    phases: [draw() * Math.PI * 2, draw() * Math.PI * 2, draw() * Math.PI * 2],
+  }));
+}
+
+// A radial fill from `stops`, each a place from the middle out and an rgba color.
+function glowOf(pen, r, stops) {
+  const glow = pen.createRadialGradient(0, 0, 0, 0, 0, r);
+  for (const [at, color] of stops) {
+    glow.addColorStop(at, color);
+  }
+  return glow;
+}
+
+const GROUND = [
+  [0, "rgb(255, 196, 92)"],
+  [0.3, "rgb(232, 104, 28)"],
+  [0.65, "rgb(140, 30, 14)"],
+  [1, "rgb(34, 6, 10)"],
 ];
+const FLAME = [
+  [0, "rgba(255, 236, 150, 0.7)"],
+  [0.45, "rgba(255, 150, 40, 0.55)"],
+  [0.8, "rgba(210, 50, 15, 0.35)"],
+  [1, "rgba(120, 10, 10, 0)"],
+];
+const KINDLE = [
+  [0, "rgba(255, 250, 210, 0.75)"],
+  [0.4, "rgba(255, 210, 90, 0.6)"],
+  [0.65, "rgba(255, 140, 30, 0)"],
+];
+
+// Adds each flame's outline to the path, `seconds` into the fire, in an iris of radius r.
+function addFlames(pen, flames, r, seconds) {
+  const at = (radius, turn) => [Math.cos(turn) * radius, Math.sin(turn) * radius];
+  const root = INNER * r;
+  for (const flame of flames) {
+    const [quick, quicker, slow] = flame.rates;
+    const [one, two, three] = flame.phases;
+    const flicker = 0.5 + 0.32 * Math.sin(quick * seconds + one) + 0.18 * Math.sin(quicker * seconds + two);
+    const length = r * mix(flame.reach[0], flame.reach[1], flicker);
+    const turn = flame.turn + 0.08 * Math.sin(slow * seconds + three);
+    const lean = flame.lean + 0.25 * Math.sin(slow * seconds + two);
+    const half = (Math.PI / flames.length) * flame.width;
+    const middle = root + (length - root) * 0.55;
+    const left = at(root, turn - half);
+    const right = at(root, turn + half);
+    const tip = at(length, turn + lean * 0.4);
+    const bendLeft = at(middle, turn - half * 0.7 + lean * 0.25);
+    const bendRight = at(middle, turn + half * 0.7 + lean * 0.25);
+    pen.moveTo(left[0], left[1]);
+    pen.quadraticCurveTo(bendLeft[0], bendLeft[1], tip[0], tip[1]);
+    pen.quadraticCurveTo(bendRight[0], bendRight[1], right[0], right[1]);
+    pen.closePath();
+  }
+}
 
 // The pupil is the dark where the bodies' summed pull, each body's size squared over the squared
 // distance to it, comes to 1 or more. It is worked out on a FIELD by FIELD grid over the middle of
@@ -82,12 +150,14 @@ function lavaOf(draw) {
   return [body(0.06, 0.3), body(0.3, 0.13 + draw() * 0.05), body(0.32, 0.12 + draw() * 0.05), body(0.26, 0.11 + draw() * 0.04)];
 }
 
-// Every iris is one picture, drawn once a frame at the size of a whole iris and then laid down for
-// each iris turned by its own angle, squeezed and scaled. A divided eye costs a frame what one iris
-// costs, however many irises it holds.
-function irisPicture() {
-  const canvas = document.createElement("canvas");
-  const pen = canvas.getContext("2d");
+// Every iris is one picture at the size of a whole iris, laid down for each iris turned by its own
+// angle, squeezed and scaled. A divided eye costs a frame what one iris costs, however many irises
+// it holds.
+function irisPicture(draw) {
+  const flames = flamesOf(draw, FLAMES, [0.62, 1]);
+  const kindling = flamesOf(draw, KINDLING, [0.42, 0.62]);
+  let burns = [];
+  let burnSide = 0;
   const field = document.createElement("canvas");
   field.width = FIELD;
   field.height = FIELD;
@@ -119,38 +189,53 @@ function irisPicture() {
     fieldPen.putImageData(image, 0, 0);
   };
 
-  // Draws the picture for this moment, `across` pixels wide.
-  const paint = (across, lava, seconds) => {
-    const side = Math.max(16, Math.ceil(across));
-    if (canvas.width !== side) {
-      canvas.width = side;
-      canvas.height = side;
-    }
+  // The fire `seconds` into its loop, drawn onto a canvas of its own `side` pixels wide.
+  const burn = (side, seconds) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = side;
+    canvas.height = side;
+    const pen = canvas.getContext("2d");
     const r = side / 2;
     pen.setTransform(1, 0, 0, 1, r, r);
-    pen.clearRect(-r, -r, side, side);
-    pen.save();
     pen.beginPath();
     pen.arc(0, 0, r, 0, Math.PI * 2);
     pen.clip();
-    pen.fillStyle = "#0c0930";
+    pen.fillStyle = glowOf(pen, r, GROUND);
     pen.fillRect(-r, -r, side, side);
-    DISCS.forEach((disc, at) => {
-      const spin = at * 1.3 + disc.speed * seconds;
-      pen.fillStyle = rgba(disc.color, disc.alpha);
+    pen.globalCompositeOperation = "lighter";
+    for (const [set, stops] of [
+      [flames, FLAME],
+      [kindling, KINDLE],
+    ]) {
+      pen.fillStyle = glowOf(pen, r, stops);
       pen.beginPath();
-      pen.arc(Math.cos(spin) * disc.off * r, Math.sin(spin) * disc.off * r, disc.size * r, 0, Math.PI * 2);
+      addFlames(pen, set, r, seconds);
       pen.fill();
-    });
-    const rim = pen.createRadialGradient(0, 0, r * 0.75, 0, 0, r);
-    rim.addColorStop(0, "rgba(10, 8, 34, 0)");
-    rim.addColorStop(1, "rgba(10, 8, 34, 0.7)");
+    }
+    pen.globalCompositeOperation = "source-over";
+    const rim = pen.createRadialGradient(0, 0, r * 0.72, 0, 0, r);
+    rim.addColorStop(0, "rgba(20, 4, 8, 0)");
+    rim.addColorStop(1, "rgba(20, 4, 8, 0.75)");
     pen.fillStyle = rim;
     pen.fillRect(-r, -r, side, side);
-    drawLava(lava, seconds);
-    pen.restore();
+    return canvas;
   };
-  return { canvas, pupil: field, paint };
+
+  const picture = { canvas: null, pupil: field };
+  // Brings the picture to the moment `seconds` in, `across` pixels wide. The fire's pictures are
+  // drawn again at a new size.
+  picture.paint = (across, lava, seconds) => {
+    const side = Math.max(16, Math.ceil(across));
+    if (side !== burnSide) {
+      burns = [];
+      burnSide = side;
+    }
+    const at = Math.floor((seconds / LOOP) * BURNS) % BURNS;
+    burns[at] ??= burn(side, (at / BURNS) * LOOP);
+    picture.canvas = burns[at];
+    drawLava(lava, seconds);
+  };
+  return picture;
 }
 
 // An iris on the sphere: the discs turned by the iris's own angle, then squeezed along the line out
@@ -339,7 +424,7 @@ const frontOf = (gaze, tall) => {
 
 // The eye's place in a canvas of this size: its middle, its half width a and its half height b. It
 // sits above the canvas's middle, which leaves the room under it for the plasma.
-const placeOf = (width, height) => ({ cx: width / 2, cy: height * 0.41, a: width * 0.33, b: height * 0.18, width, height });
+const placeOf = (width, height) => ({ cx: width / 2, cy: height * 0.45, a: width * 0.33, b: height * 0.18, width, height });
 
 // The sphere of the eye in pixels: its middle and radius, for the eye's half width a and half
 // height b.
@@ -401,84 +486,57 @@ function along(lid, x) {
 const UPPER_BAND = (x) => 0.04 + 0.13 * Math.max(0, 1 - x * x) ** 0.7;
 const LOWER_BAND = (x) => 0.025 + 0.05 * Math.max(0, 1 - x * x) ** 0.7;
 
-// The lashes and the plasma, drawn from a seed once. A lash stands at x along its lid, its length a
-// part of the eye's half height, leaning `lean` radians off the way out of the lid, bent by `bend`
-// and as wide at its root as `width`. The upper lid has LASHES in three rows, long, middle and short,
-// longest over the middle, and CORNER more at each corner swept out level. The lower lid has BELOW,
-// and each runs down into a tongue of plasma.
-//
-// A tongue is `length` long and `width` wide at its widest, both parts of the eye's half height. It
-// flickers longer and shorter on two waves, `rates` and `phases`, and wavers side to side on two
-// more, `waves`. `color` is its outer glow, `heart` the light inside that, and the core is white hot.
-const LASHES = 66;
-const CORNER = 5;
+// The plasma's tongues, drawn from a seed once: ABOVE along the upper lid and BELOW along the lower,
+// spread evenly from corner to corner with a little jitter. A tongue stands at x along its lid, from
+// -1 to 1. It is `length` long and `width` wide at its widest, both parts of the eye's half height,
+// and longest over the middle; those of the upper lid are shorter, which keeps them inside the
+// canvas. It flickers longer and shorter on two waves, `rates` and `phases`, and wavers side to side
+// on two more, `waves`. `color` is its outer glow, `heart` the light inside that, and the core is
+// white hot.
+const ABOVE = 30;
 const BELOW = 26;
-function lashesOf(draw) {
-  const spread = () => (draw() - 0.5);
-  const upper = [];
-  for (let at = 0; at < LASHES; at += 1) {
-    const x = Math.max(-0.99, Math.min(0.99, -1 + (2 * (at + 0.5 + spread() * 0.8)) / LASHES));
-    const row = [1, 0.6, 0.36][at % 3];
-    const length = (0.25 + 0.7 * Math.max(0, 1 - x * x) ** 0.5) * row * (0.75 + draw() * 0.5);
-    upper.push({ x, length, lean: x * 0.55 + spread() * 0.35, bend: spread() * 1.3, width: 0.07 + draw() * 0.05 });
-  }
-  for (const side of [-1, 1]) {
-    for (let at = 0; at < CORNER; at += 1) {
-      upper.push({ x: side * (0.9 + at * 0.025), length: 0.5 + draw() * 0.45, lean: side * (0.4 + at * 0.12), bend: spread() * 0.9, width: 0.08 });
-    }
-  }
-  const lower = [];
-  for (let at = 0; at < BELOW; at += 1) {
-    const x = -0.95 + (1.9 * (at + 0.5 + spread() * 0.6)) / BELOW;
+function tonguesOf(draw) {
+  const spaced = (count, at) => -0.96 + (1.92 * (at + 0.5 + (draw() - 0.5) * 0.6)) / count;
+  const tongue = (x, reach) => {
     const round = Math.max(0, 1 - x * x);
     const heat = draw();
-    lower.push({
+    return {
       x,
-      length: (0.1 + 0.2 * round ** 0.5) * (0.7 + draw() * 0.6),
-      lean: -x * 0.35 + spread() * 0.3,
-      bend: spread() * 0.6,
-      width: 0.05 + draw() * 0.03,
-      tongue: {
-        length: (0.6 + 1.4 * round ** 1.2) * (0.7 + draw() * 0.4),
-        width: 0.13 + draw() * 0.08,
-        rates: [2 + draw() * 3, 5 + draw() * 5],
-        phases: [draw() * Math.PI * 2, draw() * Math.PI * 2],
-        waves: [
-          [1 + draw() * 1.5, 3 + draw() * 3, draw() * Math.PI * 2],
-          [2.5 + draw() * 2, 6 + draw() * 5, draw() * Math.PI * 2],
-        ],
-        color: heat < 0.6 ? VIOLET : heat < 0.88 ? LINK : SIGNAL,
-        heart: heat < 0.5 ? LINK : VIOLET,
-      },
-    });
-  }
+      length: reach(round) * (0.7 + draw() * 0.4),
+      width: 0.13 + draw() * 0.08,
+      rates: [2 + draw() * 3, 5 + draw() * 5],
+      phases: [draw() * Math.PI * 2, draw() * Math.PI * 2],
+      waves: [
+        [1 + draw() * 1.5, 3 + draw() * 3, draw() * Math.PI * 2],
+        [2.5 + draw() * 2, 6 + draw() * 5, draw() * Math.PI * 2],
+      ],
+      color: heat < 0.55 ? PLUM : heat < 0.85 ? DUSK : ORCHID,
+      heart: heat < 0.5 ? ORCHID : PLUM,
+    };
+  };
+  const upper = Array.from({ length: ABOVE }, (_, at) => tongue(spaced(ABOVE, at), (round) => 0.4 + 0.9 * round ** 1.2));
+  const lower = Array.from({ length: BELOW }, (_, at) => tongue(spaced(BELOW, at), (round) => 0.6 + 1.4 * round ** 1.2));
   return { upper, lower };
 }
 
-// Where a lash stands: its root on the outer edge of its lid, the way it points, and its tip.
-function lashLine(lid, lash, band, b) {
-  const { p, n } = along(lid, lash.x);
-  const root = [p[0] + n[0] * band(lash.x) * b * 0.85, p[1] + n[1] * band(lash.x) * b * 0.85];
-  const turn = lash.lean;
-  const way = [n[0] * Math.cos(turn) - n[1] * Math.sin(turn), n[0] * Math.sin(turn) + n[1] * Math.cos(turn)];
-  const side = [-way[1], way[0]];
-  const length = lash.length * b;
-  const tip = [root[0] + way[0] * length + side[0] * lash.bend * length * 0.12, root[1] + way[1] * length + side[1] * lash.bend * length * 0.12];
-  return { root, way, side, length, tip };
-}
-
-// A lash as a spike: wide at its root, bending one way and back, and coming to a point.
-function addLash(pen, line, lash, b) {
-  const { root, way, side, length, tip } = line;
-  const half = (lash.width * b) / 2;
-  const at = (along, off) => [root[0] + way[0] * along + side[0] * off, root[1] + way[1] * along + side[1] * off];
-  const bend = lash.bend * length;
-  const one = at(length * 0.35, bend * 0.25);
-  const two = at(length * 0.7, -bend * 0.15);
-  pen.moveTo(root[0] - side[0] * half, root[1] - side[1] * half);
-  pen.bezierCurveTo(one[0] - side[0] * half * 0.7, one[1] - side[1] * half * 0.7, two[0] - side[0] * half * 0.3, two[1] - side[1] * half * 0.3, tip[0], tip[1]);
-  pen.bezierCurveTo(two[0] + side[0] * half * 0.3, two[1] + side[1] * half * 0.3, one[0] + side[0] * half * 0.7, one[1] + side[1] * half * 0.7, root[0] + side[0] * half, root[1] + side[1] * half);
-  pen.closePath();
+// The rim the plasma burns from: the outer edge of the upper lid from corner to corner and back
+// along the outer edge of the lower, one closed line round the eye. Each point has the way out of
+// the eye there, smoothed with its neighbors, which turns the two lids' ways into one at each corner.
+function rimOf(upper, lower, b) {
+  const edge = (lid, band) => lid.map(({ x, p, n }) => ({ p: [p[0] + n[0] * band(x) * b, p[1] + n[1] * band(x) * b], n }));
+  const rim = [...edge(upper, UPPER_BAND), ...edge(lower, LOWER_BAND).reverse().slice(1, -1)];
+  for (let pass = 0; pass < 3; pass += 1) {
+    const ways = rim.map((_, at) => {
+      const before = rim[(at - 1 + rim.length) % rim.length].n;
+      const after = rim[(at + 1) % rim.length].n;
+      const own = rim[at].n;
+      const sum = [before[0] + own[0] * 2 + after[0], before[1] + own[1] * 2 + after[1]];
+      const length = Math.hypot(...sum) || 1;
+      return [sum[0] / length, sum[1] / length];
+    });
+    ways.forEach((way, at) => (rim[at].n = way));
+  }
+  return rim;
 }
 
 // A lid's band: the lid's own edge, then back along its outer edge, `band` thick.
@@ -527,11 +585,8 @@ function drawUnder(pen, size, lid) {
   pen.restore();
 }
 
-// Over the irises: the shadow the upper lid throws onto the eye, deep and wide, then the lids and
-// their lashes, dark. The upper lashes stand against a glow of their own, one stroke of the whole
-// fan wide and faint and one narrow and brighter, which outlines them; the lower lashes have a thin
-// one and take the rest of their light from the plasma under them.
-function drawOver(pen, size, lid, lashes) {
+// Over the irises: the shadow the upper lid throws onto the eye, deep and wide, then the lids, dark.
+function drawOver(pen, size, lid) {
   const { cx, cy, a, b } = size;
   pen.save();
   openingPath(pen, lid, cx, cy, a, b);
@@ -548,29 +603,7 @@ function drawOver(pen, size, lid, lashes) {
   const upper = lidOf(lid.upper, size, 1);
   const lower = lidOf(lid.lower, size, -1);
   pen.save();
-  pen.lineJoin = "round";
-  pen.beginPath();
-  for (const lash of lashes.upper) {
-    addLash(pen, lashLine(upper, lash, UPPER_BAND, b), lash, b);
-  }
-  pen.strokeStyle = rgba(VIOLET, 0.14);
-  pen.lineWidth = b * 0.12;
-  pen.stroke();
-  pen.strokeStyle = rgba(LINK, 0.3);
-  pen.lineWidth = b * 0.03;
-  pen.stroke();
   pen.fillStyle = rgba(DARK, 1);
-  pen.fill();
-
-  pen.beginPath();
-  for (const lash of lashes.lower) {
-    addLash(pen, lashLine(lower, lash, LOWER_BAND, b), lash, b);
-  }
-  pen.strokeStyle = rgba(VIOLET, 0.25);
-  pen.lineWidth = b * 0.02;
-  pen.stroke();
-  pen.fill();
-
   for (const [line, band] of [
     [upper, UPPER_BAND],
     [lower, LOWER_BAND],
@@ -582,34 +615,41 @@ function drawOver(pen, size, lid, lashes) {
 }
 
 // The plasma is drawn by the GPU on a canvas of its own over the eye, in plasma.js. Each tongue is a
-// line of STRANDS pieces from the tip of its lash, turning from the way the lash points to straight
-// down as it goes. Its glow reaches GLOW times its own width to each side and its heart, in a second
-// color, HEART times. ARCS sparks crawl down from the lashes at a time, each living a span of SPARK
+// line of STRANDS pieces from the rim, leaving it square to it and turning, by BEND of the way, to
+// straight up above the eye and straight down below it. Its glow reaches GLOW times its own width to
+// each side and its heart, in a second color, HEART times. The rim burns along its whole length:
+// a narrow bright line on it, RIM_LINE wide to each side, in a wide faint glow, RIM_GLOW wide and
+// mostly outside it. ARCS sparks crawl out from the rim at a time, each living a span of SPARK
 // seconds.
 const STRANDS = 12;
+const BEND = 0.85;
 const GLOW = 2;
 const HEART = 0.9;
+const RIM_LINE = 0.07;
+const RIM_GLOW = 0.3;
 const ARCS = 2;
 const SPARK = [0.06, 0.16];
 
 // A tongue's half width at each of its points, as a part of its widest: narrow where it leaves the
-// lash, full a quarter of the way down, and tapering to nothing at the tip.
+// rim, full a quarter of the way out, and tapering to nothing at the tip.
 const SHAPE = Array.from({ length: STRANDS + 1 }, (_, step) => {
   const s = step / STRANDS;
   return (1 - s) ** 0.8 * (0.55 + 0.45 * smooth(Math.min(1, s * 4)));
 });
 
-// A new set of arcs: each a crooked line down from the tip of a lower lash, sometimes forked.
-function sparksOf(tips, b, draw) {
+// A new set of arcs: each a crooked line out from the root of a tongue, leaning the way its tongues
+// turn, up or down, and sometimes forked. A start is the root, that way as an angle, and how far an
+// arc from it may reach, as a part of the farthest.
+function sparksOf(starts, b, draw) {
   const arcs = [];
   for (let at = 0; at < ARCS; at += 1) {
-    const start = tips[Math.floor(draw() * tips.length)];
-    let heading = Math.PI / 2 + (draw() - 0.5) * 1.2;
-    const points = [start];
-    const steps = 8 + Math.floor(draw() * 7);
+    const { p, home, reach: far } = starts[Math.floor(draw() * starts.length)];
+    let heading = home + (draw() - 0.5) * 1.2;
+    const points = [p];
+    const steps = Math.round((8 + Math.floor(draw() * 7)) * far);
     for (let step = 0; step < steps; step += 1) {
       heading += (draw() - 0.5) * 1.4;
-      heading = mix(heading, Math.PI / 2, 0.2);
+      heading = mix(heading, home, 0.2);
       const last = points[points.length - 1];
       const reach = b * (0.08 + draw() * 0.1);
       points.push([last[0] + Math.cos(heading) * reach, last[1] + Math.sin(heading) * reach]);
@@ -681,17 +721,15 @@ function addTongue(corners, middle, sides, half, color, strength) {
   }
 }
 
-// A soft round light, `wide` by `tall` about its middle, as a fan of triangles from it.
-function addGlow(corners, x, y, wide, tall, color, strength) {
-  const middle = [x, y, 0, 0, color, strength];
-  for (let step = 0; step < 32; step += 1) {
-    const rim = (at) => {
-      const turn = (at / 32) * Math.PI * 2;
-      return [x + Math.cos(turn) * wide, y + Math.sin(turn) * tall, 1, 0, color, strength];
-    };
-    corners.add(middle);
-    corners.add(rim(step));
-    corners.add(rim(step + 1));
+// A strip of light along the whole rim, `half` wide to each side of a line `out` from the rim.
+function addRim(corners, rim, out, half, color, strength) {
+  const edge = (at, way) => {
+    const { p, n } = rim[at % rim.length];
+    const off = out + half * way;
+    return [p[0] + n[0] * off, p[1] + n[1] * off, way, 0.05, color, strength];
+  };
+  for (let at = 0; at < rim.length; at += 1) {
+    corners.four(edge(at, -1), edge(at, 1), edge(at + 1, 1), edge(at + 1, -1));
   }
 }
 
@@ -712,56 +750,65 @@ function drawPlasma(size, lid, state, grown) {
   if (!state.plasma) {
     return;
   }
-  const { width, height, cx, cy, a, b } = size;
+  const { width, height, b } = size;
   const corners = state.corners;
   corners.clear();
   if (grown > 0) {
     const seconds = state.seconds;
+    const upper = lidOf(lid.upper, size, 1);
     const lower = lidOf(lid.lower, size, -1);
-    // The glow along the lower lid that the tongues come out of, breathing a little.
+    const rim = rimOf(upper, lower, b);
+    // The rim, breathing a little: its glow pushed out from it by most of its width, and the
+    // bright line on it.
     const breath = grown * (0.8 + 0.2 * Math.sin(seconds * 3.1) * Math.sin(seconds * 1.7 + 1));
-    addGlow(corners, cx, cy + b * 0.75, a * 1.05, b * 0.7, VIOLET, 0.32 * breath);
-    addGlow(corners, cx, cy + b * 0.7, a * 0.7, b * 0.4, LINK, 0.14 * breath);
-    const tips = [];
-    for (const lash of state.lashes.lower) {
-      const line = lashLine(lower, lash, LOWER_BAND, b);
-      tips.push(line.tip);
-      const tongue = lash.tongue;
-      const [slow, fast] = tongue.rates;
-      const length = tongue.length * b * grown * (0.82 + 0.12 * Math.sin(slow * seconds + tongue.phases[0]) + 0.08 * Math.sin(fast * seconds + tongue.phases[1]));
-      // The tongue's middle line, and the way square to it at each point.
-      const middle = [line.tip];
-      const sides = [];
-      for (let step = 1; step <= STRANDS; step += 1) {
-        const s = step / STRANDS;
-        const bent = [mix(line.way[0], 0, Math.min(1, s * 1.2)), mix(line.way[1], 1, Math.min(1, s * 1.2))];
-        const norm = Math.hypot(...bent) || 1;
-        const last = middle[middle.length - 1];
-        middle.push([last[0] + (bent[0] / norm) * (length / STRANDS), last[1] + (bent[1] / norm) * (length / STRANDS)]);
+    addRim(corners, rim, b * RIM_GLOW * 0.6, b * RIM_GLOW, DUSK, 0.5 * breath);
+    addRim(corners, rim, 0, b * RIM_LINE, ORCHID, 0.55 * breath);
+    const starts = [];
+    for (const [lid, band, tongues, home, reach] of [
+      [upper, UPPER_BAND, state.tongues.upper, -Math.PI / 2, 0.55],
+      [lower, LOWER_BAND, state.tongues.lower, Math.PI / 2, 1],
+    ]) {
+      const up = [Math.cos(home), Math.sin(home)];
+      for (const tongue of tongues) {
+        const { p, n } = along(lid, tongue.x);
+        const root = [p[0] + n[0] * band(tongue.x) * b, p[1] + n[1] * band(tongue.x) * b];
+        starts.push({ p: root, home, reach });
+        const [slow, fast] = tongue.rates;
+        const length = tongue.length * b * grown * (0.82 + 0.12 * Math.sin(slow * seconds + tongue.phases[0]) + 0.08 * Math.sin(fast * seconds + tongue.phases[1]));
+        // The tongue's middle line, and the way square to it at each point.
+        const middle = [root];
+        const sides = [];
+        for (let step = 1; step <= STRANDS; step += 1) {
+          const turned = Math.min(1, ((step / STRANDS) * 1.2)) * BEND;
+          const bent = [mix(n[0], up[0], turned), mix(n[1], up[1], turned)];
+          const norm = Math.hypot(...bent) || 1;
+          const last = middle[middle.length - 1];
+          middle.push([last[0] + (bent[0] / norm) * (length / STRANDS), last[1] + (bent[1] / norm) * (length / STRANDS)]);
+        }
+        for (let step = 0; step <= STRANDS; step += 1) {
+          const s = step / STRANDS;
+          const before = middle[Math.max(0, step - 1)];
+          const after = middle[Math.min(STRANDS, step + 1)];
+          const norm = Math.hypot(after[0] - before[0], after[1] - before[1]) || 1;
+          const side = [-(after[1] - before[1]) / norm, (after[0] - before[0]) / norm];
+          const [one, two] = tongue.waves;
+          const sway = 0.22 * length * s ** 1.3 * (0.65 * Math.sin(one[0] * s * Math.PI * 2 - one[1] * seconds + one[2]) + 0.35 * Math.sin(two[0] * s * Math.PI * 2 - two[1] * seconds + two[2]));
+          middle[step] = [middle[step][0] + side[0] * sway, middle[step][1] + side[1] * sway];
+          sides.push(side);
+        }
+        const wide = tongue.width * b * grown;
+        addTongue(corners, middle, sides, wide * GLOW, tongue.color, 0.4);
+        addTongue(corners, middle, sides, wide * HEART, tongue.heart, 0.3);
       }
-      for (let step = 0; step <= STRANDS; step += 1) {
-        const s = step / STRANDS;
-        const before = middle[Math.max(0, step - 1)];
-        const after = middle[Math.min(STRANDS, step + 1)];
-        const norm = Math.hypot(after[0] - before[0], after[1] - before[1]) || 1;
-        const side = [-(after[1] - before[1]) / norm, (after[0] - before[0]) / norm];
-        const [one, two] = tongue.waves;
-        const sway = 0.22 * length * s ** 1.3 * (0.65 * Math.sin(one[0] * s * Math.PI * 2 - one[1] * seconds + one[2]) + 0.35 * Math.sin(two[0] * s * Math.PI * 2 - two[1] * seconds + two[2]));
-        middle[step] = [middle[step][0] + side[0] * sway, middle[step][1] + side[1] * sway];
-        sides.push(side);
-      }
-      const wide = tongue.width * b * grown;
-      addTongue(corners, middle, sides, wide * GLOW, tongue.color, 0.34);
-      addTongue(corners, middle, sides, wide * HEART, tongue.heart, 0.26);
     }
 
     if (grown >= 1 && !state.still) {
       if (seconds >= state.sparkUntil) {
-        state.arcs = sparksOf(tips, b, state.draw);
+        state.arcs = sparksOf(starts, b, state.draw);
         state.sparkUntil = seconds + mix(SPARK[0], SPARK[1], state.draw());
       }
       for (const arc of state.arcs) {
-        addArc(corners, arc, b * 0.04, VIOLET, 0.7);
+        addArc(corners, arc, b * 0.04, ORCHID, 0.6);
       }
     }
   }
@@ -792,7 +839,7 @@ function drawEye(pen, width, height, state) {
   const lid = edges(state.open);
   const open = state.open >= 1;
   if (open && (state.layers?.width !== width || state.layers?.height !== height)) {
-    state.layers = { width, height, under: layer(size, (layerPen) => drawUnder(layerPen, size, lid)), over: layer(size, (layerPen) => drawOver(layerPen, size, lid, state.lashes)) };
+    state.layers = { width, height, under: layer(size, (layerPen) => drawUnder(layerPen, size, lid)), over: layer(size, (layerPen) => drawOver(layerPen, size, lid)) };
   }
   if (open) {
     pen.drawImage(state.layers.under, 0, 0, width, height);
@@ -829,7 +876,7 @@ function drawEye(pen, width, height, state) {
   if (open) {
     pen.drawImage(state.layers.over, 0, 0, width, height);
   } else {
-    drawOver(pen, size, lid, state.lashes);
+    drawOver(pen, size, lid);
   }
   drawPlasma(size, lid, state, smooth(Math.max(0, Math.min(1, (state.open - OPEN_FROM) / (1 - OPEN_FROM)))));
 }
@@ -857,9 +904,9 @@ export function startEye(canvas) {
     gaze: [0, 0],
     seconds: 0,
     irises: [irisAt([0, 0, 1], [0, 0, 0], 1, draw)],
-    picture: irisPicture(),
+    picture: irisPicture(draw),
     lava: lavaOf(draw),
-    lashes: lashesOf(draw),
+    tongues: tonguesOf(draw),
     plasma: lit ? plasma.plasmaOn(lit) : null,
     corners: cornersOf(),
     arcs: [],

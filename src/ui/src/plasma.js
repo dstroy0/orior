@@ -4,8 +4,9 @@
 // The eye's plasma, drawn by the GPU. Everything in it is a list of triangles laid down in one draw
 // a frame: each corner a place in the canvas's own pixels, where it lies across its shape and along
 // it, and a color and a strength. The light of each point is the shape's color, strongest down its
-// middle and gone at its edges, with a white-hot core along the middle, and fading out along it.
-// Light adds to light, and the canvas lies over the eye with each point as clear as it is dark.
+// middle and gone at its edges, with a pale core along the middle, and fading out along it. Light
+// adds to light. Each point covers what is under it SHADOW times as much as it lights it, which
+// leaves the plasma a smoke that darkens the page behind it as it glows.
 //
 // A shape is drawn the way it is filled: `across` runs from -1 at one edge through 0 at the middle
 // to 1 at the other, and `along` from 0, where the light is full, to 1, where it is gone.
@@ -28,6 +29,7 @@ void main() {
 
 const SHADE = `
 precision mediump float;
+const float SHADOW = 3.0;
 varying vec2 at;
 varying vec4 light;
 void main() {
@@ -35,8 +37,9 @@ void main() {
   float fade = pow(max(0.0, 1.0 - at.y), 1.4);
   float body = pow(edge, 1.6) * fade;
   float core = pow(edge, 12.0) * fade;
-  vec3 color = (light.rgb * body + vec3(0.93, 0.92, 1.0) * core * 0.6) * light.a;
-  gl_FragColor = vec4(color, max(color.r, max(color.g, color.b)));
+  vec3 color = (light.rgb * body + vec3(0.78, 0.64, 1.0) * core * 0.35) * light.a;
+  float lit = max(color.r, max(color.g, color.b));
+  gl_FragColor = vec4(color, min(1.0, lit * SHADOW));
 }`;
 
 const drawers = new WeakMap();
