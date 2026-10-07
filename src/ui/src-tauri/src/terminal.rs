@@ -61,6 +61,7 @@ fn shell(root: &Path) -> Result<CommandBuilder, String> {
         own
     };
     command.cwd(root);
+    command.env("PATH", orior_cli::toolchains::run_path());
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
     Ok(command)

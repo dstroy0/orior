@@ -5,31 +5,53 @@
 // that can go where the cursor is, from its completion.
 //
 // A language's hover(doc, at) answers { from, to, parts } or null, each part a short text in which
-// **bold**, `code` and _slanted_ are marked. Its complete(doc, at) answers items { label, kind,
+// **bold**, `code` and _slanted_ are marked, or { className, text } for a text drawn in a class. Its complete(doc, at) answers items { label, kind,
 // detail, doc, insert, snippet }, where a snippet's insert has stops written ${1:name}.
 
 import { pos } from "./document.js";
 import { empty, endOfSel, escapeHtml, parseSnippet, startOf } from "./view.js";
 
 // A part as markup: code first, and nothing inside it is read as bold or slanted.
+// A hover's text as HTML: a fenced block of code as it is, a line of --- as a rule, a heading as bold,
+// and in each paragraph `code`, **bold** and _italic_.
 export function markup(text) {
   return text
+    .split(/^```[^\n]*\n([\s\S]*?)^```[ \t]*$/m)
+    .map((piece, index) => (index % 2 ? `<pre><code>${escapeHtml(piece.replace(/\n$/, ""))}</code></pre>` : prose(piece)))
+    .join("");
+}
+
+const RULE = "\u0000";
+
+function inline(text) {
+  return text
+    .split(/(`[^`]*`)/)
+    .map((piece, index) => {
+      if (index % 2) {
+        return `<code>${escapeHtml(piece.slice(1, -1))}</code>`;
+      }
+      return escapeHtml(piece)
+        .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+        .replace(/(^|[^\p{L}\p{N}])_([^_]+)_(?![\p{L}\p{N}])/gu, "$1<i>$2</i>")
+        .replace(/\n/g, "<br>");
+    })
+    .join("");
+}
+
+function prose(text) {
+  return text
+    .replace(/^[ \t]*(?:-{3,}|\*{3,})[ \t]*$/gm, `\n\n${RULE}\n\n`)
+    .replace(/^(#{1,6}[ \t]+.+)$/gm, "\n\n$1\n\n")
     .split(/\n{2,}/)
-    .map((paragraph) =>
-      paragraph
-        .split(/(`[^`]*`)/)
-        .map((piece, index) => {
-          if (index % 2) {
-            return `<code>${escapeHtml(piece.slice(1, -1))}</code>`;
-          }
-          return escapeHtml(piece)
-            .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
-            .replace(/(^|[^\p{L}\p{N}])_([^_]+)_(?![\p{L}\p{N}])/gu, "$1<i>$2</i>")
-            .replace(/\n/g, "<br>");
-        })
-        .join("")
-    )
-    .map((paragraph) => `<p>${paragraph}</p>`)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => {
+      if (paragraph === RULE) {
+        return "<hr>";
+      }
+      const heading = paragraph.match(/^#{1,6}[ \t]+(.+)$/);
+      return heading ? `<p><b>${inline(heading[1])}</b></p>` : `<p>${inline(paragraph)}</p>`;
+    })
     .join("");
 }
 
@@ -52,7 +74,9 @@ export class Hover {
 
   show(found) {
     window.clearTimeout(this.wait);
-    this.el.innerHTML = found.parts.map(markup).join("<hr>");
+    this.el.innerHTML = found.parts
+      .map((part) => (typeof part === "string" ? markup(part) : `<div class="${escapeHtml(part.className ?? "")}">${markup(part.text)}</div>`))
+      .join("<hr>");
     this.el.hidden = false;
     this.shown = true;
     const host = this.ed.host.getBoundingClientRect();
@@ -156,9 +180,31 @@ export class Suggest {
     }
     const moved = !this.at || this.at.line !== prefix.from.line || this.at.col !== prefix.from.col;
     if (!this.items || moved || forced) {
-      this.items = language.complete(ed.doc, ed.primary().head) ?? [];
+      const asked = (this.asked = (this.asked ?? 0) + 1);
+      const items = language.complete(ed.doc, ed.primary().head) ?? [];
       this.at = prefix.from;
+      // A language server answers later: the list opens on its answer, if the word asked about is
+      // still the one before the cursor.
+      if (typeof items.then === "function") {
+        this.items = null;
+        items.then((answer) => {
+          const now = ed.prefix().from;
+          if (asked === this.asked && ed.s?.language === language && now.line === prefix.from.line && now.col === prefix.from.col) {
+            this.items = answer ?? [];
+            this.at = prefix.from;
+            this.filter(forced);
+          }
+        });
+        return;
+      }
+      this.items = items;
     }
+    this.filter(forced);
+  }
+
+  // Shows the items that answer the word before the cursor, best first.
+  filter(forced) {
+    const prefix = this.ed.prefix();
     const kept = this.shown[this.index]?.label;
     this.shown = this.items
       .map((item) => ({ item, score: score(item.label, prefix.text) }))
@@ -269,6 +315,7 @@ export class Suggest {
   }
 
   close() {
+    this.asked = (this.asked ?? 0) + 1;
     this.open = false;
     this.items = null;
     this.at = null;

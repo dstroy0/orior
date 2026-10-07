@@ -1,0 +1,35 @@
+{
+  "id": "yaml",
+  "name": "YAML",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["yml","yaml"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": ":\\s*$",
+  "grammar": {
+    "perLine": true,
+    "tokenizer": {
+      "root": [
+        ["^(?:---|\\.\\.\\.)\\s*$","keyword"],
+        [
+          "^(\\s*)(-\\s+)?([^\\s#'\"][^:#]*?|\"[^\"]*\"|'[^']*')(:)(?=\\s|$)",
+          ["","delimiter","variable","delimiter"]
+        ],
+        ["^\\s*-(?=\\s|$)","delimiter"],
+        ["(^|\\s)#.*$","comment"],
+        ["[&*][\\w-]+","tag"],
+        ["![\\w!-]*","type"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["'(?:[^']|'')*'","string"],
+        [{"pattern":"\\b(?:true|false|null|yes|no|on|off)\\b","flags":"i"},"keyword"],
+        ["-?\\d+(?:\\.\\d+)?\\b","number"],
+        ["[{}[\\]]","@brackets"],
+        ["[|>]-?(?=\\s*$)","operator"],
+        ["[,:]","delimiter"],
+        ["[^\\s#\"'{}[\\],:]+|\\s+|.","string"]
+      ]
+    }
+  }
+}

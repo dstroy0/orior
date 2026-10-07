@@ -1,0 +1,40 @@
+{
+  "id": "css",
+  "name": "CSS",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["css"],
+  "comments": {"block":["/*","*/"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "tokenizer": {
+      "root": [
+        {"include":"@whitespace"},
+        ["@[\\w-]+","keyword"],
+        ["\\{","@brackets","@block"],
+        ["::?[\\w-]+","attribute.name"],
+        ["[.#]?[\\w-]+","tag"],
+        ["\\[[^\\]]*\\]","attribute.name"],
+        ["[>+~,*()]","operator"]
+      ],
+      "block": [
+        {"include":"@whitespace"},
+        ["\\}","@brackets","@pop"],
+        ["\\{","@brackets","@block"],
+        ["--[\\w-]+","variable"],
+        ["[\\w-]+(?=\\s*:)","variable"],
+        ["#[\\da-fA-F]{3,8}\\b","number"],
+        ["-?\\d*\\.?\\d+(?:[a-z%]+)?","number"],
+        ["\"[^\"]*\"|'[^']*'","string"],
+        ["!important","keyword"],
+        ["[\\w-]+(?=\\()","predefined"],
+        ["[\\w-]+",""],
+        ["[:;,()/]","delimiter"]
+      ],
+      "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"]],
+      "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
+    }
+  }
+}

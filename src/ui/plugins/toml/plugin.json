@@ -1,0 +1,28 @@
+{
+  "id": "toml",
+  "name": "TOML",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["toml","ini"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "perLine": true,
+    "tokenizer": {
+      "root": [
+        ["^\\s*\\[\\[?[^\\]]*\\]\\]?","keyword"],
+        ["^(\\s*)([\\w.\\-\"']+)(\\s*)([=:])",["","variable","","operator"]],
+        ["[#;].*$","comment"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["'[^']*'","string"],
+        ["\\b(?:true|false)\\b","keyword"],
+        ["[+-]?\\d[\\d_:.eE+\\-TZ]*","number"],
+        ["[{}[\\]]","@brackets"],
+        ["[,=]","delimiter"],
+        ["[^\\s#;\"'{}[\\],=]+|\\s+",""]
+      ]
+    }
+  }
+}

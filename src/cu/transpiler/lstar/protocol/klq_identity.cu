@@ -46,6 +46,7 @@
 #include "code_generator.h"
 #include "concept_product.h"
 #include "query_record.h"
+#include "query_trace.h"
 #include "run_channel.h"
 #include "target_internal.h"
 extern "C"
@@ -2070,10 +2071,44 @@ static std::string s_record_ksc;
 // The part's query record, its .kqr beside its .ksc and of the same stem, held in memory for the run: every untimed
 // ask a cycle put and what came back, by the question's identity, every timed ask a sample of its own, and the paths
 // the last cycle read off them. Whatever asks an untimed ask again, in this cycle or a later one, is answered from it,
-// and the part is asked it once. It is read where R is read and written back where R is, and its path is empty where
-// it could not be read, so that nothing writes over a record no mode read
+// and the part is asked it once; an ask that timed out is asked again until an answer resolves it, and an ask the gate
+// censored is censored again without a process. It is read where R is read and written back where R is, and its path is
+// empty where it could not be read, so that nothing writes over a record no mode read
 static QueryRecord s_query_record;
+
+// the flags of the trace's choices, read from their table (src/cu/types/file_defs/klq/query_trace.tsv) when the pair
+// mode opens
+static QueryTrace s_query_trace;
 static std::string s_query_record_path;
+
+// The lines that place what a cycle puts in the record's order, its cycle and mode, its seed and its rounds, each
+// written before the first new ask or sample that follows it and nowhere where none follows: a cycle the record
+// answers whole adds no line to it
+static std::vector<std::pair<std::string, std::string>> s_marks_pending;
+
+// `kind words` held to be written before the next new ask or sample, a round in place of a round still pending
+static void mark_pending(const std::string &kind, const std::string &words)
+{
+    if ((kind == "round") && !s_marks_pending.empty() && (s_marks_pending.back().first == "round"))
+    {
+        s_marks_pending.back().second = words;
+        return;
+    }
+    s_marks_pending.push_back(std::make_pair(kind, words));
+}
+
+// the lines pending written to the record, a cycle numbered after every cycle it holds
+static void marks_written(void)
+{
+    for (const auto &mark : s_marks_pending)
+    {
+        const std::string words = (mark.first == "cycle")
+                                      ? (std::to_string(query_record_cycles(s_query_record) + 1u) + " " + mark.second)
+                                      : mark.second;
+        query_record_mark(&s_query_record, mark.first, words);
+    }
+    s_marks_pending.clear();
+}
 static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows);
 
 // the record written back to the .ksc it was read from, every ask a row in the order of its keys
@@ -2104,9 +2139,12 @@ static void record_close(void)
     s_query_record_path.clear();
 }
 
-// the record read from `ksc`, written back to it when the program ends
-static void record_open(const char *ksc)
+// the record read from `ksc`, written back to it when the program ends, and the query record beside it, a cycle of
+// mode `mode` pending in its order
+static void record_open(const char *ksc, const char *mode)
 {
+    s_marks_pending.clear();
+    mark_pending("cycle", mode);
     s_record.clear();
     s_record_ksc = ksc;
     std::ifstream in(ksc, std::ios::binary);
@@ -2163,7 +2201,9 @@ static thread_local FILE *s_ask_trace = NULL;
 // The log beside the trace, KLQ_TRACE's name and .log, that klq_decoder reads: the cases as `cases <case>...`,
 // written again where an ask is put over other cases, and each ask as `ask <number>` and what came back of every case
 // in the order of the cases, `=` alike, `x` apart and `-` where the host gives no bracket, or `recorded` or `refused`
-// where the part answered it nothing here. A mode writes what it put after the ask. NULL where nothing is traced. A
+// where the part answered it nothing here. A mode writes what it put after the ask, and every choice a pair's put
+// makes at a link as `choice <flags> <link>`, the flags of the trace's table ORed into one word, `-` for the link
+// where the choice is the put's own (src/cu/types/file_defs/klq/query_trace.tsv). NULL where nothing is traced. A
 // pair put in a thread of its own writes its trace and its log to files of its own, each added whole to these once
 // the pair is put, so that every put stands in one piece
 static thread_local FILE *s_ask_log = NULL;
@@ -2251,9 +2291,10 @@ static std::string question_identity(const RunQuestion *question)
 // `asked` answered from `held`
 static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
 {
-    asked->outcome = (held.answer == "answers")   ? (unsigned int)RUN_ANSWERED
-                     : (held.answer == "illegal") ? (unsigned int)RUN_ILLEGAL
-                                                  : (unsigned int)RUN_NOTHING;
+    asked->outcome = (held.answer == "answers")    ? (unsigned int)RUN_ANSWERED
+                     : (held.answer == "illegal")  ? (unsigned int)RUN_ILLEGAL
+                     : (held.answer == "censored") ? (unsigned int)RUN_HELD
+                                                   : (unsigned int)RUN_NOTHING;
     snprintf(asked->refused, sizeof(asked->refused), "%s", held.refusal.c_str());
     for (size_t place = 0u; (place < held.words.size()) && (place < RUN_CASES_MOST); place += 1u)
     {
@@ -2261,9 +2302,9 @@ static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
     }
 }
 
-// what came back of `question` as the query record writes it: answers, illegal, nothing, or censored where the
-// watchdog ended it before it came back; empty where it never reached the part, which the channel never carried or
-// the gate held
+// what came back of `question` as the query record writes it: answers, illegal, nothing, timed_out where the
+// watchdog ended it before it came back, or censored where the gate held it off the part to protect the whole; empty
+// where the channel never carried it
 static std::string answer_recorded(const RunQuestion *question)
 {
     if (question->outcome == RUN_ANSWERED)
@@ -2274,19 +2315,23 @@ static std::string answer_recorded(const RunQuestion *question)
     {
         return "illegal";
     }
+    if (question->outcome == RUN_HELD)
+    {
+        return "censored";
+    }
     if (question->outcome != RUN_NOTHING)
     {
         return std::string();
     }
-    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? "censored"
+    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? "timed_out"
                                                                                                     : "nothing";
 }
 
 // The asks `carried` answered. A timed ask is put every time and kept as a sample of its own, with its cost. An
-// untimed one is answered from the query record where its identity was asked before, and the rest are carried, one
-// ask of an identity the round holds twice: the mundane together, and alone each dangerous one and each one of a shape
-// of its own, which a process of many does not take. Each answer the part gave kept in the record after by its
-// identity
+// untimed one is answered from the query record where its identity was asked before and did not time out, and the
+// rest are carried, one ask of an identity the round holds twice: the mundane together, and alone each dangerous one
+// and each one of a shape of its own, which a process of many does not take. Each answer the part gave, and each ask
+// the gate censored, kept in the record after by its identity, an answer in place of the ask that timed out
 static void asks_answered(const std::vector<CarriedAsk> &carried)
 {
     std::vector<RunQuestion *> mundane;
@@ -2294,6 +2339,8 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     std::vector<RunQuestion *> timed;
     std::vector<std::string> identities(carried.size());
     std::map<std::string, RunQuestion *> first_of;
+    std::vector<std::string> firsts;
+    std::map<RunQuestion *, unsigned int> waiting;
     std::vector<std::pair<RunQuestion *, RunQuestion *>> copies;
     for (size_t at = 0u; at < carried.size(); at += 1u)
     {
@@ -2306,7 +2353,7 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
             continue;
         }
         const QueryRecordAsk *const held = query_record_find(s_query_record, identities[at]);
-        if (held != NULL)
+        if ((held != NULL) && (held->answer != "timed_out"))
         {
             answer_given(question, *held);
             s_round_held += 1ull;
@@ -2316,12 +2363,22 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         if (first != first_of.end())
         {
             copies.push_back(std::make_pair(question, first->second));
+            waiting[first->second] += 1u;
             continue;
         }
         first_of[identities[at]] = question;
+        firsts.push_back(identities[at]);
         const int shaped = (question->threads != 0u) || (question->blocks != 0u);
         ((carried[at].dangerous != 0) || shaped ? alone : mundane).push_back(question);
+        waiting[question] = 1u;
     }
+    // the ask that settles the most entries first: the one the most pairs of the round wait on, in the order handed
+    // where two settle as many
+    const auto settles_more = [&waiting](RunQuestion *left, RunQuestion *right) {
+        return waiting[left] > waiting[right];
+    };
+    std::stable_sort(mundane.begin(), mundane.end(), settles_more);
+    std::stable_sort(alone.begin(), alone.end(), settles_more);
     if (!mundane.empty())
     {
         run_channel_ask_many(mundane.data(), (unsigned int)mundane.size());
@@ -2347,16 +2404,17 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         const std::string answer = answer_recorded(question);
         if (!answer.empty())
         {
-            s_query_record.samples.push_back(
-                QueryRecordSample{question_identity(question), answer, question->nanoseconds,
-                                  (answer == "answers") ? std::string() : question->refused});
+            marks_written();
+            query_record_sample(&s_query_record,
+                                QueryRecordSample{question_identity(question), answer, question->nanoseconds,
+                                                  (answer == "answers") ? std::string() : question->refused});
         }
     }
-    for (const auto &each : first_of)
+    for (const std::string &identity : firsts)
     {
-        RunQuestion *const question = each.second;
+        RunQuestion *const question = first_of[identity];
         QueryRecordAsk held;
-        held.identity = each.first;
+        held.identity = identity;
         held.answer = answer_recorded(question);
         if (held.answer.empty())
         {
@@ -2369,6 +2427,10 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         else
         {
             held.refusal = question->refused;
+        }
+        if (query_record_find(s_query_record, identity) == NULL)
+        {
+            marks_written();
         }
         query_record_keep(&s_query_record, held);
     }
@@ -2727,7 +2789,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "stall");
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -2939,7 +3001,7 @@ static int identity_register(const char *engine, const char *answers, const char
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "register");
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -3138,7 +3200,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "curve");
     FILE *const table = fopen((folder + "/curve.txt").c_str(), "wb");
     if (table == NULL)
     {
@@ -3348,7 +3410,7 @@ static int identity_queue(const char *engine, const char *answers, const char *k
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "queue");
     FILE *const table = fopen((folder + "/queue.txt").c_str(), "wb");
     if (table == NULL)
     {
@@ -3467,7 +3529,7 @@ static int identity_text(const char *engine, const char *answers, const char *ks
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "text_identity");
     static RunQuestion s_question;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
@@ -4110,9 +4172,9 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             std::make_pair(chain_registers(engine, flow.first),
                            (unsigned int)carrier_operands_loaded(flow.second.first, flow.second.second).size());
     }
-    // the seed the order of the links of one magnitude is drawn from, KLQ_SEED where it is given
+    // the seed the order of the links of one magnitude is drawn from, with each put's two forms, KLQ_SEED where it is
+    // given
     const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
-    std::mt19937 drawn(seed);
     std::vector<std::string> bridge;
     std::string line;
     std::ifstream held_bridge(klq, std::ios::binary);
@@ -4125,7 +4187,15 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     {
         return 1;
     }
-    record_open(ksc);
+    record_open(ksc, "pair");
+    std::string trace_error;
+    if (!query_trace_read(query_trace_path(), &s_query_trace, &trace_error))
+    {
+        printf("klq_identity pair: %s\n", trace_error.c_str());
+        run_channel_close();
+        return 1;
+    }
+    mark_pending("seed", std::to_string(seed));
     // the asks the query record held before this cycle, read with R
     const size_t recorded_before = s_query_record.asks.size();
     // each pair's question and places, held with the pair and reached from its own thread, since a pair waits on its
@@ -4159,6 +4229,99 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         }
         std::string written;
         return (ruleset_opcode(sass, form, markers, none, written) != 0) ? written : std::string();
+    };
+    // each link a form stands at, in each carrier, with its vector: the carrier's delta before the form, the links
+    // between a case's load and the form, then the carrier's magnitude
+    struct FoundLink
+    {
+        const decltype(texts)::value_type *chain;
+        std::smatch found;
+        std::pair<long, std::pair<unsigned int, unsigned int>> vector;
+    };
+    // the links the form `text`, each parameter a marker, stands at in every carrier, the least vector first and
+    // those of one vector in an order drawn from the seed and `drawn_for`, and in `group` each marker's group in
+    // the pattern its lines are found by
+    const auto links_of = [&](const std::string &text, std::map<char, unsigned int> *group,
+                              const std::string &drawn_for) -> std::vector<FoundLink> {
+        // the pattern of the form's lines, each marker an operand, the same marker the same operand
+        std::string pattern;
+        for (size_t at = 0u; at < text.size(); at += 1u)
+        {
+            if ((text[at] == '\x01') && ((at + 2u) < text.size()) && (text[at + 2u] == '\x01'))
+            {
+                const char marker = text[at + 1u];
+                if (group->count(marker) == 0u)
+                {
+                    const unsigned int next = (unsigned int)group->size() + 1u;
+                    (*group)[marker] = next;
+                    pattern += "([^,;\\s]+?)";
+                }
+                else
+                {
+                    pattern += "\\" + std::to_string((*group)[marker]);
+                }
+                at += 2u;
+                continue;
+            }
+            const char letter = text[at];
+            const int special = (letter != '\0') && (strchr("\\^$.|?*+()[]{}", letter) != NULL);
+            pattern += special ? (std::string("\\") + letter) : std::string(1u, letter);
+        }
+        const std::regex lines(pattern);
+        std::vector<FoundLink> found_links;
+        for (const auto &chain : texts)
+        {
+            const std::sregex_iterator end;
+            for (std::sregex_iterator link_found(chain.second.begin(), chain.second.end(), lines); link_found != end;
+                 ++link_found)
+            {
+                const auto &flow = flows[chain.first];
+                const long link_at =
+                    (long)std::count(chain.second.begin(), chain.second.begin() + link_found->position(0), '\n');
+                const long delta = carrier_form_delta(flow.first, flow.second, link_found->str(0), link_at);
+                found_links.push_back(FoundLink{
+                    &chain, *link_found, std::make_pair((delta < 0) ? LONG_MAX : delta, magnitudes[chain.first])});
+            }
+        }
+        // the links in the order of their vectors, the least first: a form the cases reach as they were loaded answers
+        // of the form alone. Links of one vector are tried in an order drawn from the seed and the forms `drawn_for`
+        // names alone, so that no other pair, put or settled, moves the order of these
+        std::stable_sort(found_links.begin(), found_links.end(),
+                         [](const FoundLink &left, const FoundLink &right) { return left.vector < right.vector; });
+        const unsigned long long drawn_hash = record_hash(drawn_for.c_str(), drawn_for.size(), seed);
+        std::seed_seq drawn_seed{(unsigned int)(drawn_hash & 0xffffffffull), (unsigned int)(drawn_hash >> 32u),
+                                 (unsigned int)seed};
+        std::mt19937 drawn(drawn_seed);
+        for (size_t first = 0u; first < found_links.size();)
+        {
+            size_t last = first;
+            while ((last < found_links.size()) && (found_links[last].vector == found_links[first].vector))
+            {
+                last += 1u;
+            }
+            std::shuffle(found_links.begin() + (long)first, found_links.begin() + (long)last, drawn);
+            first = last;
+        }
+        return found_links;
+    };
+    // every choice a put makes at a link, written to the log as `choice <flags> <link>`, the flags of the trace's
+    // table that hold there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
+    // it, or why the put ended at it. The flags an open pair's links hold are the questions a further pass takes up
+    const auto chosen = [](const char *const *names, unsigned int count, const std::string &link) {
+        if (s_ask_log == NULL)
+        {
+            return;
+        }
+        unsigned long long word = 0ull;
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            word |= query_trace_flag(s_query_trace, names[at]);
+        }
+        fprintf(s_ask_log, "choice 0x%llx %s\n", word, link.c_str());
+    };
+    const auto chose = [&chosen](const char *name, const std::string &link) {
+        const char *const names[1] = {name};
+        chosen(names, 1u, link);
     };
     // `from` stood in for by `to` at each of its links in each carrier, until the part answers one apart: 1 with its
     // verdict, closed at the first link apart or open with the cases alike at every link the part answered, 0 where the
@@ -4199,69 +4362,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         {
             return 0;
         }
-        // the pattern of the form's lines, each marker an operand, the same marker the same operand
-        std::string pattern;
         std::map<char, unsigned int> group;
-        for (size_t at = 0u; at < from_text.size(); at += 1u)
-        {
-            if ((from_text[at] == '\x01') && ((at + 2u) < from_text.size()) && (from_text[at + 2u] == '\x01'))
-            {
-                const char marker = from_text[at + 1u];
-                if (group.count(marker) == 0u)
-                {
-                    const unsigned int next = (unsigned int)group.size() + 1u;
-                    group[marker] = next;
-                    pattern += "([^,;\\s]+?)";
-                }
-                else
-                {
-                    pattern += "\\" + std::to_string(group[marker]);
-                }
-                at += 2u;
-                continue;
-            }
-            const char letter = from_text[at];
-            const int special = (letter != '\0') && (strchr("\\^$.|?*+()[]{}", letter) != NULL);
-            pattern += special ? (std::string("\\") + letter) : std::string(1u, letter);
-        }
-        const std::regex lines(pattern);
-        // each link the form stands at, in each carrier, with its vector: the carrier's delta before the form, the
-        // links between a case's load and the form, then the carrier's magnitude
-        struct FoundLink
-        {
-            const decltype(texts)::value_type *chain;
-            std::smatch found;
-            std::pair<long, std::pair<unsigned int, unsigned int>> vector;
-        };
-        std::vector<FoundLink> found_links;
-        for (const auto &chain : texts)
-        {
-            const std::sregex_iterator end;
-            for (std::sregex_iterator link_found(chain.second.begin(), chain.second.end(), lines); link_found != end;
-                 ++link_found)
-            {
-                const auto &flow = flows[chain.first];
-                const long link_at = (long)std::count(chain.second.begin(),
-                                                      chain.second.begin() + link_found->position(0), '\n');
-                const long delta = carrier_form_delta(flow.first, flow.second, link_found->str(0), link_at);
-                found_links.push_back(FoundLink{&chain, *link_found,
-                                                std::make_pair((delta < 0) ? LONG_MAX : delta, magnitudes[chain.first])});
-            }
-        }
-        // the links in the order of their vectors, the least first: a form the cases reach as they were loaded answers
-        // of the form alone. Links of one vector are tried in an order drawn from the pass's seed
-        std::stable_sort(found_links.begin(), found_links.end(),
-                         [](const FoundLink &left, const FoundLink &right) { return left.vector < right.vector; });
-        for (size_t first = 0u; first < found_links.size();)
-        {
-            size_t last = first;
-            while ((last < found_links.size()) && (found_links[last].vector == found_links[first].vector))
-            {
-                last += 1u;
-            }
-            std::shuffle(found_links.begin() + (long)first, found_links.begin() + (long)last, drawn);
-            first = last;
-        }
+        const std::vector<FoundLink> found_links = links_of(from_text, &group, from + " " + to);
         // the pair's product over every put, the shapes of what the form read at each, and its verdict where a put
         // closed it
         unsigned int alike_cases = 0u;
@@ -4271,10 +4373,18 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         std::string closed;
         long band = LONG_MIN;
         int band_truthy = 0;
+        if (found_links.empty())
+        {
+            chose("no_link", "-");
+        }
         for (const FoundLink &found_link : found_links)
         {
             const auto &chain = *found_link.chain;
             const std::smatch &found = found_link.found;
+            char link_address[32];
+            snprintf(
+                link_address, sizeof(link_address), "%s:%04x", chain.first.c_str(),
+                16u * (unsigned int)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n'));
             std::map<std::string, std::string> given;
             for (const auto &each : group)
             {
@@ -4293,6 +4403,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             if (written_register.empty() ||
                 !std::regex_search(after, std::regex("(^|[^A-Za-z0-9_])" + written_register + "([^0-9]|$)")))
             {
+                chose("unread", link_address);
                 continue;
             }
             // a link of the carrier's own, the thread's index, the case's index, the bound or an address, moves the case
@@ -4301,6 +4412,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             const long link_at = (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
             if (!carrier_form_carries(flow.first, flow.second, found.str(0), link_at))
             {
+                chose("carrier_own", link_address);
                 continue;
             }
             // each of the stand-in's parameters given by name, or where a name is not given, by what the form writes
@@ -4326,6 +4438,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 }
                 else
                 {
+                    chose("parameter_unbound", link_address);
                     return 0;
                 }
             }
@@ -4333,11 +4446,13 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             std::string standing;
             if (ruleset_opcode(sass, to, arguments, none, standing) == 0)
             {
+                chose("unwritable", link_address);
                 return 0;
             }
             // a link the stand-in writes as it stood is no ask
             if (standing == found.str(0))
             {
+                chose("unchanged", link_address);
                 continue;
             }
             t_dangerous = form_dangerous(standing);
@@ -4347,6 +4462,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             const unsigned int count = sass_assemble_lines(&s_machine, changed.c_str(), SASS_CONTROL_SAFE, code.data(), code.size());
             if (count == 0u)
             {
+                chose("unassembled", link_address);
                 continue;
             }
             code.resize(16u * count);
@@ -4369,7 +4485,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 {
                     if (s_ask_log != NULL)
                     {
-                        fprintf(s_ask_log, "steered off past delta %ld\n", band);
+                        chose("steered_off", link_address);
                     }
                     break;
                 }
@@ -4382,11 +4498,16 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     .second;
             if (past_closed && !shape_new)
             {
+                chose("shape_read", link_address);
                 continue;
             }
             const int alike =
                 past_closed ? 0 : vector_alike(code, expected, places, &question, &asks, magnitudes[chain.first].first);
             const unsigned int put_outcome = past_closed ? (unsigned int)RUN_HELD : question.outcome;
+            if (!past_closed)
+            {
+                chose(alike ? "alike" : (put_outcome == RUN_ANSWERED) ? "apart" : "refused", link_address);
+            }
             if ((s_ask_trace != NULL) && !past_closed)
             {
                 fprintf(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
@@ -4670,6 +4791,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 answered = 1;
                 if (const_loaded)
                 {
+                    const char *const stop[2] = {"const_stop", "alike"};
+                    chosen(stop, 2u, link_address);
                     break;
                 }
                 continue;
@@ -4693,6 +4816,227 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             return 1;
         }
         *verdict = "open " + std::to_string(alike_cases);
+        return answered;
+    };
+    // the bridge's keys, the schema's forms, in its order
+    std::vector<std::string> keys;
+    for (const std::string &entry : bridge)
+    {
+        if (entry.rfind("key ", 0u) == 0u)
+        {
+            keys.push_back(entry.substr(4u));
+        }
+    }
+    // The lower witness: a pair whose puts asked nothing, neither form standing at a link that carries the cases, is
+    // put at the links of a third form, the first of the bridge's keys whose parameters name every parameter of both
+    // and that stands at such a link. Both forms stand in at each of its links, the part answers both over the cases,
+    // and the two answers are held against each other: the first case apart closes the pair as two operations, and
+    // alike on every case leaves it open with its count of cases. A link of a shape read before is passed over, and so
+    // is one whose writing reaches nothing the part answers, where both stand-ins answer as the chain did as it stood;
+    // two forms that read nothing but the register they write are answered at the first link left. 1 with the verdict
+    // where the part answered both at a link, 0 otherwise
+    const auto witness_lower = [&](const std::string &first, const std::string &second, std::string *verdict) -> int {
+        std::vector<std::string> first_names;
+        std::vector<std::string> second_names;
+        const std::string first_text = marked(first, &first_names);
+        const std::string second_text = marked(second, &second_names);
+        if (first_text.empty() || second_text.empty())
+        {
+            return 0;
+        }
+        unsigned int alike_cases = 0u;
+        int answered = 0;
+        for (const std::string &third : keys)
+        {
+            if ((third == first) || (third == second))
+            {
+                continue;
+            }
+            std::vector<std::string> third_names;
+            const std::string third_text = marked(third, &third_names);
+            std::set<std::string> named(third_names.begin(), third_names.end());
+            int names_all = !third_text.empty();
+            for (const std::string &name : first_names)
+            {
+                names_all &= (named.count(name) != 0u) ? 1 : 0;
+            }
+            for (const std::string &name : second_names)
+            {
+                names_all &= (named.count(name) != 0u) ? 1 : 0;
+            }
+            if (!names_all)
+            {
+                continue;
+            }
+            std::map<char, unsigned int> group;
+            const std::vector<FoundLink> found_links = links_of(third_text, &group, first + " " + second + " " + third);
+            std::set<std::string> shapes;
+            int witnessed = 0;
+            for (const FoundLink &found_link : found_links)
+            {
+                const auto &chain = *found_link.chain;
+                const std::smatch &found = found_link.found;
+                const long link_at =
+                    (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
+                char link_address[32];
+                snprintf(link_address, sizeof(link_address), "%s:%04x", chain.first.c_str(),
+                         16u * (unsigned int)link_at);
+                const auto lower = [&](const char *name) {
+                    const char *const names[2] = {"lower", name};
+                    chosen(names, 2u, link_address);
+                };
+                std::map<std::string, std::string> given;
+                for (const auto &each : group)
+                {
+                    const size_t parameter = (size_t)(each.first - 'A');
+                    if (parameter < third_names.size())
+                    {
+                        given[third_names[parameter]] = found[each.second].str();
+                    }
+                }
+                const std::string written = (group.count('A') != 0u) ? found[group['A']].str() : std::string();
+                const std::string written_register = written.substr(0u, written.find('.'));
+                const std::string after = chain.second.substr((size_t)(found.position(0) + found.length(0)));
+                if (written_register.empty() ||
+                    !std::regex_search(after, std::regex("(^|[^A-Za-z0-9_])" + written_register + "([^0-9]|$)")))
+                {
+                    lower("unread");
+                    continue;
+                }
+                const auto &flow = flows[chain.first];
+                if (!carrier_form_carries(flow.first, flow.second, found.str(0), link_at))
+                {
+                    lower("carrier_own");
+                    continue;
+                }
+                if (!shapes
+                         .insert(read_shape(flow.first, carrier_pieces(chain.second, '\n'), flow.second, found.str(0),
+                                            link_at))
+                         .second)
+                {
+                    lower("shape_read");
+                    continue;
+                }
+                if (!witnessed && (s_ask_log != NULL))
+                {
+                    fprintf(s_ask_log, "witness %s %s %s\n", first.c_str(), second.c_str(), third.c_str());
+                }
+                witnessed = 1;
+                // each form written in the link's place with the arguments the third form's link gives by name
+                std::vector<std::string> first_arguments;
+                std::vector<std::string> second_arguments;
+                for (const std::string &name : first_names)
+                {
+                    first_arguments.push_back(given[name]);
+                }
+                for (const std::string &name : second_names)
+                {
+                    second_arguments.push_back(given[name]);
+                }
+                std::string first_standing;
+                std::string second_standing;
+                if ((ruleset_opcode(sass, first, first_arguments, none, first_standing) == 0) ||
+                    (ruleset_opcode(sass, second, second_arguments, none, second_standing) == 0))
+                {
+                    lower("unwritable");
+                    continue;
+                }
+                const std::string before = chain.second.substr(0u, (size_t)found.position(0));
+                const std::string rest = chain.second.substr((size_t)(found.position(0) + found.length(0)));
+                const std::string standings[2] = {before + first_standing + rest, before + second_standing + rest};
+                std::vector<std::vector<unsigned char>> codes(2u, std::vector<unsigned char>(16u * 4096u));
+                int assembled = 1;
+                for (unsigned int side = 0u; side < 2u; side += 1u)
+                {
+                    const unsigned int count = sass_assemble_lines(
+                        &s_machine, standings[side].c_str(), SASS_CONTROL_SAFE, codes[side].data(), codes[side].size());
+                    codes[side].resize(16u * count);
+                    assembled &= (count != 0u) ? 1 : 0;
+                }
+                if (!assembled)
+                {
+                    lower("unassembled");
+                    continue;
+                }
+                // both put over the pair's cases at the carrier's registers, and again declaring every register where
+                // the part refuses one
+                std::vector<RunQuestion> sides(2u, RunQuestion());
+                const int dangerous[2] = {form_dangerous(first_standing), form_dangerous(second_standing)};
+                RunQuestion *asked[2] = {&sides[0], &sides[1]};
+                for (unsigned int side = 0u; side < 2u; side += 1u)
+                {
+                    sides[side].code = codes[side].data();
+                    sides[side].code_size = codes[side].size();
+                    sides[side].registers = magnitudes[chain.first].first;
+                    sides[side].cases = t_question->cases;
+                    memcpy(sides[side].word, t_question->word, (size_t)t_question->cases * sizeof(t_question->word[0]));
+                }
+                asks += 2ull;
+                asks_carried(asked, dangerous, 2u);
+                for (unsigned int side = 0u; side < 2u; side += 1u)
+                {
+                    if ((sides[side].outcome != RUN_ANSWERED) && (sides[side].registers != 255u))
+                    {
+                        sides[side].registers = 255u;
+                        asks += 1ull;
+                        asks_carried(&asked[side], &dangerous[side], 1u);
+                    }
+                }
+                if ((sides[0].outcome != RUN_ANSWERED) || (sides[1].outcome != RUN_ANSWERED))
+                {
+                    lower("refused");
+                    continue;
+                }
+                answered = 1;
+                unsigned int place = 0u;
+                while ((place < sides[0].cases) && (sides[0].answered[place] == sides[1].answered[place]))
+                {
+                    place += 1u;
+                }
+                if (place < sides[0].cases)
+                {
+                    lower("apart");
+                    char answers[64];
+                    snprintf(answers, sizeof(answers), "%llx/%llx", sides[0].answered[place], sides[1].answered[place]);
+                    *verdict =
+                        "closed " + std::string(link_address) + " " + case_text((*t_places)[place]) + "->" + answers;
+                    return 1;
+                }
+                // the link reaches what the part answers where a stand-in's answer leaves the host's for the chain as
+                // it stood at a case: a link whose writing reaches nothing answers alike whatever stands there
+                const std::vector<std::string> &expected = host[chain.first];
+                int reaches = 0;
+                for (unsigned int at = 0u; at < sides[0].cases; at += 1u)
+                {
+                    const std::string &bracket = expected[(*t_places)[at]];
+                    reaches |= ((bracket_holds(bracket, sides[0].answered[at]) == 0) ||
+                                (bracket_holds(bracket, sides[1].answered[at]) == 0))
+                                   ? 1
+                                   : 0;
+                }
+                if (!reaches)
+                {
+                    lower("unread");
+                    continue;
+                }
+                lower("alike");
+                alike_cases += sides[0].cases;
+                // two forms that read nothing but the register they write answer the same at every link: the first
+                // link that reaches what the part answers and both are answered at is the question answered
+                if ((first_names.size() == 1u) && (second_names.size() == 1u))
+                {
+                    break;
+                }
+            }
+            if (witnessed)
+            {
+                break;
+            }
+        }
+        if (answered)
+        {
+            *verdict = "open " + std::to_string(alike_cases);
+        }
         return answered;
     };
     std::vector<std::string> written;
@@ -4751,7 +5095,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 ranged ? " range" : "", placed ? " vector" : "", controlled ? " control" : "",
                 switched ? " switch" : "");
     };
-    // every pair of the bridge, in its order, the question and places its put asks with, and the verdict it came to
+    // every pair of the bridge, in its order, the question and places its put asks with, the hash of what its put
+    // reads, and the verdict it came to
     struct PairPut
     {
         std::string first;
@@ -4760,8 +5105,30 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         int put_whole;
         std::unique_ptr<RunQuestion> question;
         std::vector<unsigned int> places;
+        std::string reads;
     };
+    // what every put reads of the engine: each chain's text and the host's answers to its cases, by its question
+    unsigned long long engine_read = 0xcbf29ce484222325ull;
+    for (const auto &chain : texts)
+    {
+        engine_read = record_hash(chain.first.c_str(), chain.first.size() + 1u, engine_read);
+        engine_read = record_hash(chain.second.c_str(), chain.second.size() + 1u, engine_read);
+        for (const std::string &answer : host[chain.first])
+        {
+            engine_read = record_hash(answer.c_str(), answer.size() + 1u, engine_read);
+        }
+    }
+    // The scheduler: the record's gray entries are the queue. A pair closed on the record's path, whose reads are as
+    // they were, is settled: its verdict is the record's, and it is put no more, since a put runs again only where what
+    // it reads has changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
+    // the gray pairs alone
+    std::map<std::string, const QueryRecordPath *> recorded_paths;
+    for (const QueryRecordPath &path : s_query_record.paths)
+    {
+        recorded_paths[path.first + " " + path.second] = &path;
+    }
     std::vector<PairPut> pairs;
+    size_t settled = 0u;
     for (const std::string &entry : bridge)
     {
         if (entry.rfind("pair ", 0u) == 0u)
@@ -4773,8 +5140,25 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                          "open 0",
                          0,
                          std::unique_ptr<RunQuestion>(new RunQuestion()),
-                         std::vector<unsigned int>()};
+                         std::vector<unsigned int>(),
+                         std::string()};
             words >> kind >> pair.first >> pair.second;
+            std::vector<std::string> names;
+            const std::string first_text = marked(pair.first, &names);
+            const std::string second_text = marked(pair.second, &names);
+            unsigned long long reads = record_hash(first_text.c_str(), first_text.size() + 1u, engine_read);
+            reads = record_hash(second_text.c_str(), second_text.size() + 1u, reads);
+            char hashed[17];
+            snprintf(hashed, sizeof(hashed), "%016llx", reads);
+            pair.reads = hashed;
+            const auto path = recorded_paths.find(pair.first + " " + pair.second);
+            if ((path != recorded_paths.end()) && (path->second->reads == pair.reads) &&
+                (path->second->verdict.rfind("closed ", 0u) == 0u))
+            {
+                pair.verdict = path->second->verdict;
+                pair.put_whole = 1;
+                settled += 1u;
+            }
             pairs.push_back(std::move(pair));
         }
     }
@@ -4805,6 +5189,10 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     std::vector<std::thread> threads;
     for (size_t at = 0u; at < pairs.size(); at += 1u)
     {
+        if (pairs[at].put_whole)
+        {
+            continue;
+        }
         threads.emplace_back([&, at]() {
             {
                 std::unique_lock<std::mutex> lock(s_turn_lock);
@@ -4826,9 +5214,9 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             {
                 pair_facts(pair.first, pair.second);
             }
-            if (!put(pair.first, pair.second, &pair.verdict))
+            if (!put(pair.first, pair.second, &pair.verdict) && !put(pair.second, pair.first, &pair.verdict))
             {
-                put(pair.second, pair.first, &pair.verdict);
+                witness_lower(pair.first, pair.second, &pair.verdict);
             }
             if (s_log_whole != NULL)
             {
@@ -4854,7 +5242,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     // The rounds: each pair not yet put runs in its turn until it asks or is put, and the asks the round was handed
     // are answered together. The rounds loop while a pair is left to put, and end once every pair is put
     unsigned int round = 0u;
-    size_t left = pairs.size();
+    size_t left = pairs.size() - settled;
+    printf("klq_identity pair: %zu pairs settled on the record, %zu gray in the queue\n", settled, left);
     while (left != 0u)
     {
         const std::chrono::steady_clock::time_point round_began = std::chrono::steady_clock::now();
@@ -4862,6 +5251,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         const unsigned long long held_before = s_round_held;
         const unsigned long long processes_before = s_round_processes;
         round += 1u;
+        mark_pending("round", std::to_string(round));
         std::vector<CarriedAsk> carried;
         unsigned int asking = 0u;
         for (size_t at = 0u; at < pairs.size(); at += 1u)
@@ -4933,7 +5323,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     s_query_record.paths.clear();
     for (const PairPut &pair : pairs)
     {
-        s_query_record.paths.push_back(QueryRecordPath{pair.first, pair.second, pair.verdict});
+        s_query_record.paths.push_back(QueryRecordPath{pair.first, pair.second, pair.reads, pair.verdict});
     }
     printf("klq_identity pair: %zu asks held in the query record, %zu of them put this cycle\n",
            s_query_record.asks.size(), s_query_record.asks.size() - recorded_before);

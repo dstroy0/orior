@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The bar along the bottom of the window. On its left the branch the tree is on, with a star where a
-// file differs from the last commit, then the runs going and the files still being read. On its right
+// file differs from the last commit, then the runs going and the files still being read, then a word
+// for a moment from what was last done, such as what a formatter said. On its right
 // the editor's own line: where the cursor is, what is chosen, the indent, the line ends and the
 // language, shown in the edit view only. Past the runs, what the app holds in memory: its own
 // process and every process it started, the web view's among them, read again every MEMORY_EVERY
@@ -72,4 +73,21 @@ export function drawBranch(branch, changed) {
     node.replaceChildren(branchMark(), `${branch}${changed ? "*" : ""}`);
     node.title = branch;
   }
+}
+
+// How long a word on the bar stays, and a failure longer.
+const SAID_FOR = 5000;
+const FAILED_FOR = 15000;
+let saidTimer = 0;
+
+// Puts a word on the bar for a moment: its first line, and all of it over it. A press takes it away.
+export function say(text, { failed = false } = {}) {
+  const node = document.getElementById("status-said");
+  window.clearTimeout(saidTimer);
+  node.textContent = String(text).split("\n")[0];
+  node.title = String(text);
+  node.classList.toggle("failed", failed);
+  node.hidden = false;
+  node.onclick = () => (node.hidden = true);
+  saidTimer = window.setTimeout(() => (node.hidden = true), failed ? FAILED_FOR : SAID_FOR);
 }

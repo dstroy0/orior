@@ -7,11 +7,11 @@
 // oracle table's forms give those words, and each form's gloss is what hovering one shows. .gsm takes
 // its mnemonics, states and arrows from gnascor_asm_lng.tsv and .g its words from gnascor_hol_lng.tsv,
 // with C11 around them and .gsm inside __gsm__(...). A k-file that is not text has no language and
-// opens in the binary view. The tree's other languages are in editor/grammars.js.
+// opens in the binary view. Every other language is a plugin, as plugins.js reads them.
 
 import { pos, wordAt, wordBefore } from "./editor/document.js";
-import { BROUGHT, BY_EXTENSION } from "./editor/grammars.js";
 import { compile } from "./editor/tokens.js";
+import { languageForExtension } from "./plugins.js";
 
 const C11 = [
   "auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern",
@@ -328,14 +328,13 @@ export function registerLanguages(defs) {
       own.set(type.ext, lineLanguage(type));
     }
   }
-  const brought = new Map(BROUGHT.map((language) => [language.id, language]));
   const extOf = (path) => (path.includes(".") ? path.split(".").pop().toLowerCase() : "");
   return {
     types,
     // The language a path opens in.
     languageOf(path) {
       const ext = extOf(path);
-      return own.get(ext) ?? brought.get(BY_EXTENSION[ext] ?? "plaintext");
+      return own.get(ext) ?? languageForExtension(ext);
     },
     // The file type a path is, where the tree defines one.
     typeOf(path) {

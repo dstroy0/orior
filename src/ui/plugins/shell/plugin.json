@@ -1,0 +1,43 @@
+{
+  "id": "shell",
+  "name": "Shell",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["sh","bash"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "(?:\\b(?:then|do|else)|[{[(]|\\bin)\\s*$",
+  "grammar": {
+    "words": [
+      "if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done", "case", "esac", "in",
+      "function", "select", "time", "return", "local", "export", "readonly", "declare", "set", "unset",
+      "shift", "exit", "break", "continue", "source", "trap", "eval", "exec"
+    ],
+    "builtins": ["echo","printf","cd","test","read","pwd","true","false","command","type","wait","kill"],
+    "tokenizer": {
+      "root": [
+        ["\\s+",""],
+        ["#.*$","comment"],
+        ["\\$(?:\\{[^}]*\\}|[A-Za-z_]\\w*|[0-9#?@*$!-])","variable"],
+        ["\\$\\(\\(?","operator"],
+        ["\"","string","@string"],
+        ["'[^']*'","string"],
+        ["'","string","@quoted"],
+        ["[A-Za-z_][\\w-]*(?==)","variable"],
+        ["[A-Za-z_][\\w.-]*",{"cases":{"@words":"keyword","@builtins":"predefined","@default":""}}],
+        ["-{1,2}[A-Za-z][\\w-]*","attribute.name"],
+        ["\\d+","number"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!&|;]+","operator"]
+      ],
+      "string": [
+        ["\\$(?:\\{[^}]*\\}|[A-Za-z_]\\w*|[0-9#?@*$!-])","variable"],
+        ["\\\\.","string.escape"],
+        ["\"","string","@pop"],
+        ["[^\"\\\\$]+|\\$","string"]
+      ],
+      "quoted": [["'","string","@pop"],["[^']+","string"]]
+    }
+  }
+}

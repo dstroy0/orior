@@ -3,13 +3,20 @@
 
 // The text drawn small down the editor's right edge, each word a bar in its token's color, with
 // the part on screen marked by a slider that drags. Where every row fits, the map shows them all;
-// where they do not, it scrolls with the text so the slider stays over the part on screen.
+// where they do not, it scrolls with the text so the slider stays over the part on screen. Along its
+// right edge the overview strip marks the whole text.
 
 const ROW = 2;
 const CHAR = 1;
 const MARGIN = 4;
 const WIDEST = 160;
 const PLAIN = [[0, ""]];
+
+// The overview strip down the map's right edge: the whole text at once, a lane for how lines differ
+// from the last commit and a lane for find's matches and the cursors, each mark at least MARK tall.
+// A press on it goes to that part of the text.
+const STRIP = 8;
+const MARK = 2;
 
 export class Minimap {
   constructor(editor, canvas) {
@@ -136,6 +143,46 @@ export class Minimap {
     context.globalAlpha = 1;
     context.fillStyle = this.colorOf(this.dragging ? "ed-mini-slider-on" : "ed-mini-slider");
     context.fillRect(0, sliderTop, width, sliderHeight);
+    this.paintStrip(context, width, height, rows);
+  }
+
+  paintStrip(context, width, height, rows) {
+    const ed = this.ed;
+    const s = ed.s;
+    const left = width - STRIP;
+    const size = Math.max(1, rows.size);
+    const tall = Math.max(MARK, height / size);
+    const yOf = (line) => (rows.rowOf(Math.min(line, s.doc.count - 1)) / size) * height;
+    context.fillStyle = this.colorOf("ed-bg");
+    context.fillRect(left, 0, STRIP, height);
+    context.fillStyle = this.colorOf("ed-widget-line");
+    context.fillRect(left, 0, 1, height);
+    const changes = s.changes;
+    if (changes) {
+      for (const [set, color] of [
+        [changes.added, "ed-added"],
+        [changes.changed, "ed-changed"],
+      ]) {
+        context.fillStyle = this.colorOf(color);
+        for (const line of set) {
+          context.fillRect(left + 1, yOf(line), 3, tall);
+        }
+      }
+      context.fillStyle = this.colorOf("ed-removed");
+      for (const line of changes.removed) {
+        context.fillRect(left + 1, Math.max(0, yOf(line) - 1), 3, MARK);
+      }
+    }
+    if (ed.find.shown) {
+      context.fillStyle = this.colorOf("ed-mini-match");
+      for (const match of ed.find.matches) {
+        context.fillRect(left + 4, yOf(match.from.line), STRIP - 4, tall);
+      }
+    }
+    context.fillStyle = this.colorOf("ed-caret");
+    for (const sel of s.selections) {
+      context.fillRect(left + 4, yOf(sel.head.line), STRIP - 4, MARK);
+    }
   }
 
   down(event) {
@@ -147,6 +194,11 @@ export class Minimap {
     const box = this.canvas.getBoundingClientRect();
     const y = event.clientY - box.top;
     let found = this.geometry();
+    if (event.clientX - box.left >= box.width - STRIP) {
+      ed.scroller.scrollTop = (y / box.height) * found.rows.size * ed.lineHeight - ed.scroller.clientHeight / 2;
+      ed.focus();
+      return;
+    }
     if (y < found.sliderTop || y > found.sliderTop + found.sliderHeight) {
       const row = found.start + y / ROW;
       ed.scroller.scrollTop = row * ed.lineHeight - ed.scroller.clientHeight / 2;

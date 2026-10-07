@@ -542,11 +542,14 @@ reads has changed.
     cache of it. A refused or censored probe appears nowhere in a table of chain costs, and it separates two
     parts that cost the same. Every mode of `klq_identity.sh` writes `sm_86.kqr` (`src/cu/types/file_defs/kqr`,
     read and written by `query_record.cu` in `src/cu/types/file_defs/readers`) beside R: every untimed ask and
-    what came back, each case's word or the refusal, censored where the watchdog ended it; every timed ask a sample
-    of its own with the nanoseconds its launches took; then each pair and its verdict. A cycle reads it first and
-    asks the part only what no cycle asked, a timed ask excepted, and an open pair is the question a further pass
-    takes up. The curve of task 1006 writes 293 samples, 278 with their cost and 15 refused. The order and the
-    seed, the winning path over chain costs and the general and specific split are not written yet.
+    what came back, each case's word or the refusal, timed_out where the watchdog ended it and censored where the
+    gate held it off the part to protect the whole; every timed ask a sample of its own with the nanoseconds its
+    launches took; then each pair and its verdict. A cycle reads it first and asks the part only what no cycle
+    asked, a timed ask excepted and an ask that timed out asked again until an answer resolves it, and an open pair
+    is the question a further pass takes up. The curve of task 1006 writes 293 samples, 278 with their cost and 15 refused. The asks and
+    samples stand in the order they were put, each cycle that put a new one before them with its mode, its seed
+    where it draws one and its rounds, and a cycle the record answers whole writes no line. The winning path over
+    chain costs and the general and specific split are not written yet.
 
 10. **The order of asks is built on the host and nothing emits it to a target.** The order, its solve and the
     contention read are proved on the host (M24 in the engine table, Q5, Q7). The device half is open: a container
