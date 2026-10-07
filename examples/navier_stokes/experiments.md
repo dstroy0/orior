@@ -151,6 +151,32 @@ integrated residuals, (X T0_theta)_X = -X R_theta and (sqrt(2X) T0_z)_X = -R_z, 
 changed it is not. The matching route of the code and the torque and force of 4 are one identity, and it holds for
 every member of the family, whatever its weights.
 
+## 7. The walls of a medium
+
+The core's angular speed is v = r tau^(-1-h) F(X, eta) with tau = T - t and X = r^2 / (2 nu tau), as Proposition 20 of
+the millennium chapter on the coupled system takes it, tau in seconds. A medium leaves the conditions (1) is written
+for at walls: its speed passes a share of its sound speed, the light speed, or the speed at which one particle carries
+the energy that frees an electron; the radius at X falls to the spacing below which it is not a continuum; or the time
+left falls to its relaxation time, where it answers as an elastic solid.
+
+Check (`core_radius`): on [-1, 1], F at X is at least the data's c_0 - sum |c_m| less the sum of n_k (l^2 X)^k to the
+order the norms reach and B_f (l^2 X / r)^k past it, every term from the proof on one ellipse, the bound rounded down
+to a multiple of 2^-bits. With tau <= 1, v^2 >= 2 nu X F_low^2 / tau, and each wall is an exact time left the core
+passes it by. The X of a proved radius where X F_low^2 is largest is 9/8 on E_(1.1), with F_low near 0.81.
+
+| medium | first wall | its time left | speed of light | radius at the spacing |
+|---|---|---|---|---|
+| water | 3/10 of sound | 10^-12 to 10^-11 s | 10^-23 to 10^-22 s | 10^-14 to 10^-13 s |
+| air | 3/10 of sound | 10^-9 to 10^-8 s | 10^-22 to 10^-21 s | 10^-10 to 10^-9 s |
+| neutron star matter | 3/10 of sound | 10^-16 to 10^-15 s | 10^-17 to 10^-16 s | 10^-30 to 10^-29 s |
+
+In water the walls of sound, of the elastic answer, of the spacing and of the collisions that free an electron fall
+within two decades of each other, and the radius at X still halves 48 to 53 times before the Planck time. Neutron
+star matter passes the light speed thirteen decades before its radius reaches its spacing. The constants are the
+cfg's: water at 20 C by IAPWS R6-95 and R12-08, air at 20 C and 0.1 MPa from standard tables, the relaxation of each
+its order of magnitude, and neutron star matter at nuclear density with its viscosity and sound speed of order
+estimates. The data are the cfg's, F_0 = 1, and not the matched datum of 5: every wall's time scales as F_low^2.
+
 ## Order
 
-0, then 1, then 2, then 3, then 4, then 5 and 6.
+0, then 1, then 2, then 3, then 4, then 5 and 6, then 7.
