@@ -34,9 +34,12 @@ const FADE = 5;
 const SPARKS = 4;
 const SPARK_STEPS = 3;
 const SPARK_EVERY = 0.05;
-// The embers burning up off the trail behind the head, each EMBER_GAP pixels behind the last.
-const EMBERS = 6;
-const EMBER_GAP = 13;
+// The embers burning up off the trail behind the head, each EMBER_GAP pixels behind the last and
+// wider than the gap, which runs them together into one flame along the trail. Each stands on the
+// trail where it waves, as much as WAVE pixels up and down.
+const EMBERS = 24;
+const EMBER_GAP = 4;
+const WAVE = 1.2;
 // Each piece of the fuse's line is at most PIECE pixels long.
 const PIECE = 8;
 // How far a waiting head wanders, and how near, in pixels, the fire must be to where it should be
@@ -176,8 +179,8 @@ export function makeFuse() {
     const trail = failed ? DUSK : PLUM;
     strip(aim === null && !run.done ? 0 : head, width, y, 1.3, DUSK, 0.6 * (well ? life : 1), () => 0.35, 0, seconds);
     if (head > tail) {
-      strip(tail, head, y, 7, trail, 0.55 * life * boost, along, still ? 0 : 1.2, seconds);
-      strip(tail, head, y, 1.8, failed ? PLUM : ORCHID, 0.85 * life * boost, along, still ? 0 : 1.2, seconds);
+      strip(tail, head, y, 7, trail, 0.55 * life * boost, along, still ? 0 : WAVE, seconds);
+      strip(tail, head, y, 1.8, failed ? PLUM : ORCHID, 0.85 * life * boost, along, still ? 0 : WAVE, seconds);
     }
     if (!run.done && !still) {
       for (let at = 0; at < EMBERS; at += 1) {
@@ -185,8 +188,9 @@ export function makeFuse() {
         if (x < tail) {
           break;
         }
-        const flicker = 0.5 + 0.5 * Math.sin(seconds * (7 + at * 1.3) + at * 2.1);
-        ember(x, y, (8 + 9 * flicker) * (1 - (at / EMBERS) * 0.5), 3.5, Math.sin(seconds * 2 + at) * 3, at % 2 ? PLUM : ORCHID, 0.6);
+        const flicker = 0.5 + 0.3 * Math.sin(seconds * (9 + at * 0.7) + at * 2.1) + 0.2 * Math.sin(seconds * (17 + at * 1.1) + at);
+        const base = y + WAVE * Math.sin(x * 0.05 + seconds * 3);
+        ember(x, base, (6 + 12 * flicker) * (1 - (at / EMBERS) * 0.75), 4.5, Math.sin(seconds * 2 + at * 0.4) * 3, at % 2 ? PLUM : ORCHID, 0.45);
       }
       if (seconds >= fire.sparkUntil) {
         fire.sparks = sparksAt(headX, headY);
