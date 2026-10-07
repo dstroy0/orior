@@ -1,10 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! The app: the commands its window calls, and the `view` scheme its page windows load from.
+//! The app: the commands its window calls, and the `view` scheme its page windows load from. The
+//! same program is the command line, in `cli`, over the same jobs, runner and bridge.
 
 mod bridge;
 mod catalog;
+mod cli;
 mod defs;
 mod files;
 mod root;
@@ -14,10 +16,10 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::http::{Request, Response, StatusCode};
-use tauri::{AppHandle, Manager, State, UriSchemeContext, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, State, UriSchemeContext, WebviewUrl, WebviewWindowBuilder};
 
 #[derive(Default)]
 struct App {
@@ -59,7 +61,13 @@ fn definitions_read(app: State<App>) -> Result<defs::Definitions, String> {
 fn job_start(handle: AppHandle, app: State<App>, job: String, values: HashMap<String, Vec<String>>) -> Result<u64, String> {
     let root = root_of(&app)?;
     let found = catalog::read(&root).into_iter().find(|j| j.id == job).ok_or_else(|| format!("no job {job}"))?;
-    app.runs.start(handle, root, found, values)
+    let sink: runner::Sink = Arc::new(move |said| {
+        let _ = match said {
+            runner::Said::Line(line) => handle.emit("run-line", line),
+            runner::Said::End(end) => handle.emit("run-end", end),
+        };
+    });
+    app.runs.start(sink, root, found, values).map(|(run, _)| run)
 }
 
 #[tauri::command]
@@ -206,6 +214,19 @@ fn view_scheme(context: UriSchemeContext<'_, tauri::Wry>, request: Request<Vec<u
             .body(Cow::Owned(bytes))
             .expect("a file response"),
         Err(error) => refuse(StatusCode::NOT_FOUND, error.to_string()),
+    }
+}
+
+/// The program: the command line where it is given words, else the window. Returns the code to
+/// exit with.
+pub fn start() -> i32 {
+    let words: Vec<String> = std::env::args().skip(1).collect();
+    if words.is_empty() {
+        cli::console_let_go();
+        run();
+        0
+    } else {
+        cli::run(words)
     }
 }
 

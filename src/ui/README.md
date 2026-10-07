@@ -46,14 +46,35 @@ They land under `src-tauri/target/release/bundle/`, for the platform the build r
 | platform | also needs |
 | --- | --- |
 | Windows | WebView2, which Windows 10 and 11 carry, and Git for Windows for the bash the scripts run in |
+| macOS | the Xcode command line tools |
+| Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
 
 On Windows the window starts with `--disable-direct-composition`, set in `tauri.conf.json`. With
 direct composition on, a window whose page moves holds to 60 frames a second whatever the display's
 rate, and stalls for up to half a second every few seconds. The first three features that line
 turns off are the ones the window turns off when it is given no line of its own.
-| macOS | the Xcode command line tools |
-| Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
 
 The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIOR_BASH` and
 `ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
 ones to use.
+
+## The command line
+
+The program is `orior`, and it is the command line as well as the window. Given no words it opens
+the window; given words it runs them in the terminal, over the same jobs and the same bridge.
+
+```
+orior list [word]              the jobs, or those whose id, title or about holds the word
+orior show <job>               a job's file, values and the commands it runs
+orior run <job> [key=value]    run a job; a key given twice gives two values
+orior run <job> -- <words>     the words after -- are the job's arguments
+orior bridge [key]             the keys of Lstar.klq, or one key's pairs, maps and rulesets
+orior help
+```
+
+A job is named by its id, by the end of its id after a slash, or by its title, where that names only
+one: `orior run sim/wave`, `orior show build_engine.sh`. A run's steps share the terminal, its output
+streams as it comes, and `orior` exits with the code of its last step. `--root <folder>` names the
+tree, ahead of `ORIOR_ROOT`.
+
+From inside the tree, `cargo run -- list` runs it without an install.
