@@ -19,6 +19,13 @@ import { pressed, status, write } from "../status.js";
 
 const PAD = 10;
 const LINE = 20;
+
+// Sticky scroll: the most lines it holds along the top, the longest text it reads the regions of,
+// and how long an edit rests before the regions are read again, in milliseconds.
+const STICKY_MOST = 5;
+const STICKY_LINES = 300000;
+const STICKY_REST = 250;
+const STICKY_KEY = "orior.sticky";
 const SHOWN = 10000;
 const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 // The scroll speeds, in pixels a millisecond, past which a frame drops more of its work, how long
@@ -130,9 +137,37 @@ export class Editor {
     const canvas = document.createElement("canvas");
     canvas.className = "ed-mini";
     this.status = div("ed-status");
-    host.append(this.gutter, this.scroller, canvas);
+    this.sticky = div("ed-sticky");
+    this.sticky.hidden = true;
+    this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
+    this.stickyList = [];
+    this.stickyFor = null;
+    this.stickyDoc = -1;
+    this.stickyWait = 0;
+    this.stickyKey = "";
+    host.append(this.gutter, this.scroller, canvas, this.sticky);
     (statusHost ?? host).append(this.status);
     this.minimap = new Minimap(this, canvas);
+    this.sticky.addEventListener("mousedown", (event) => {
+      const row = event.target.closest(".ed-sticky-row");
+      if (!row || !this.s) {
+        return;
+      }
+      event.preventDefault();
+      const line = Number(row.dataset.line);
+      this.goTo(line);
+      this.scroller.scrollTop = this.rows().rowOf(line) * LINE;
+      this.focus();
+    });
+    this.sticky.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault();
+        this.scroller.scrollTop += event.deltaY;
+        this.scroller.scrollLeft += event.deltaX;
+      },
+      { passive: false }
+    );
     this.find = new Find(this);
     this.goto = new GoTo(this);
     this.hover = new Hover(this);
@@ -1799,6 +1834,8 @@ export class Editor {
       this.overHtml = "";
       this.status.replaceChildren();
       this.minimap.clear();
+      this.sticky.hidden = true;
+      this.stickyKey = "";
       return;
     }
     const doc = s.doc;
@@ -1944,6 +1981,7 @@ export class Editor {
       this.minimap.paint(level);
       this.drawStatus();
     }
+    this.drawSticky(rows, top);
     this.suggest.place();
     this.strained(performance.now() - began);
   }
@@ -1993,6 +2031,85 @@ export class Editor {
     const language = Object.assign(document.createElement("span"), { textContent: s.language?.id ?? "plaintext" });
     parts.push(gap, indent, eol, language);
     this.status.replaceChildren(...parts);
+  }
+
+  // Sticky scroll: the line that opens each region the editor's top row is inside, held along the
+  // top, the outermost first. A click on one goes to it, and the wheel over them scrolls the text.
+  setSticky(on) {
+    this.stickyOn = on;
+    localStorage.setItem(STICKY_KEY, String(on));
+    this.stickyKey = "";
+    this.schedule();
+  }
+
+  // The regions of the text, each [first line, last line] in order of the first, read again a moment
+  // after an edit; until then the ones before it.
+  stickyRegions() {
+    const s = this.s;
+    if (this.stickyFor !== s || this.stickyDoc !== s.doc.id) {
+      if (!this.stickyWait) {
+        this.stickyWait = window.setTimeout(
+          () => {
+            this.stickyWait = 0;
+            const now = this.s;
+            if (!now) {
+              return;
+            }
+            this.stickyList = now.doc.count > STICKY_LINES ? [] : [...now.regions()].sort((a, b) => a[0] - b[0]);
+            this.stickyFor = now;
+            this.stickyDoc = now.doc.id;
+            this.schedule();
+          },
+          this.stickyFor === s ? STICKY_REST : 0
+        );
+      }
+      if (this.stickyFor !== s) {
+        return [];
+      }
+    }
+    return this.stickyList.filter(([start]) => start < s.doc.count);
+  }
+
+  drawSticky(rows, top) {
+    const s = this.s;
+    if (!this.stickyOn || status.scroll.level >= 2) {
+      this.sticky.hidden = true;
+      this.stickyKey = "";
+      return;
+    }
+    const list = this.stickyRegions();
+    const firstRow = Math.floor(top / LINE);
+    let held = [];
+    // The held lines cover rows of their own, and they hold the regions of the row under them.
+    for (let pass = 0; pass < 3; pass += 1) {
+      const line = rows.lineOf(Math.min(rows.size - 1, firstRow + held.length));
+      const next = list.filter(([start, end]) => start < line && end >= line).map(([start]) => start).slice(-STICKY_MOST);
+      if (next.join() === held.join()) {
+        break;
+      }
+      held = next;
+    }
+    if (top <= 0) {
+      held = [];
+    }
+    const left = this.scroller.scrollLeft;
+    const gutter = this.gutter.offsetWidth;
+    const key = `${held.join()}|${s.doc.id}|${left}|${gutter}|${this.scroller.clientWidth}|${s.base}`;
+    if (key === this.stickyKey) {
+      return;
+    }
+    this.stickyKey = key;
+    this.sticky.hidden = !held.length;
+    if (!held.length) {
+      return;
+    }
+    this.sticky.style.width = `${gutter + this.scroller.clientWidth}px`;
+    this.sticky.innerHTML = held
+      .map(
+        (line) =>
+          `<div class="ed-sticky-row" data-line="${line}" style="height:${LINE}px"><span class="ed-sticky-num" style="width:${gutter}px">${s.base + line + 1}</span><span class="ed-sticky-text"><span style="display:inline-block;padding-left:${PAD}px;transform:translateX(${-left}px)">${this.rowHtml(line)}</span></span></div>`
+      )
+      .join("");
   }
 
   // Colors the minimap reads from the stylesheet, read again once the scheme changes.

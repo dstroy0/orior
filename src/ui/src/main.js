@@ -4,19 +4,22 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, openFile, startEdit } from "./edit.js";
+import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
 import { drawMenubar, runLaunch, startMenubar } from "./menubar.js";
+import { forgetFiles } from "./palette.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
+import { startSearch } from "./search.js";
 import { keepPane, settlePanes } from "./sides.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
 import { onView, showView } from "./views.js";
 import { startWordmark } from "./wordmark.js";
+import { keepZoom } from "./zoom.js";
 
 async function openInEditor(path) {
   showView("edit");
@@ -55,11 +58,16 @@ async function start() {
   catchErrors();
   startWordmark();
   keepScheme();
+  keepZoom();
   startMenus();
   keepLattices();
   watch(drawPulse);
   document.getElementById("open-button").addEventListener("click", () => openFolder());
   await startMenubar({ openFolder });
+  startSearch((path, line, col) => {
+    showView("edit");
+    openAt(path, line, col);
+  });
   await startRun(openInEditor);
   await startTerminal();
   keepPane(document.getElementById("job-side"), "left");
@@ -80,6 +88,7 @@ async function openFolder(folder) {
   try {
     const root = await invoke("root_set", { path: chosen });
     forgetTree();
+    forgetFiles();
     await begin(root);
   } catch (error) {
     document.getElementById("open-said").textContent = String(error);
@@ -102,6 +111,7 @@ async function begin(root) {
     }
     await loadRun();
     drawMenubar();
+    await restoreSession();
   } finally {
     await hideLoading();
   }

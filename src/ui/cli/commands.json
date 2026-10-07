@@ -11,6 +11,8 @@
         { "label": "Close Editor", "command": "close-editor", "keys": "Ctrl+W", "needs": "tab" },
         { "label": "Close All Editors", "command": "close-all", "needs": "tabs" },
         "-",
+        { "label": "Preferences", "command": "preferences", "keys": "Ctrl+," },
+        "-",
         { "label": "Exit", "command": "exit" }
       ]
     },
@@ -27,6 +29,8 @@
         "-",
         { "label": "Find", "command": "find", "keys": "Ctrl+F", "needs": "editor" },
         { "label": "Replace", "command": "replace", "keys": "Ctrl+H", "needs": "editor" },
+        "-",
+        { "label": "Find in Files", "command": "search", "keys": "Ctrl+Shift+F", "args": "[--case] [--word] [--regex] <text>", "console": true },
         "-",
         { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" }
       ]
@@ -51,6 +55,8 @@
     {
       "title": "View",
       "items": [
+        { "label": "Command Palette…", "command": "palette", "keys": "Ctrl+Shift+P" },
+        "-",
         { "label": "Edit", "command": "edit-view", "keys": "Ctrl+Shift+E" },
         { "label": "Run", "command": "run-view", "keys": "Ctrl+Shift+D" },
         "-",
@@ -59,6 +65,9 @@
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         "-",
         { "label": "Light", "command": "scheme", "args": "[light|dark]", "labels": { "dark": "Light", "light": "Dark" } },
+        { "label": "Zoom In", "command": "zoom-in", "keys": "Ctrl+=" },
+        { "label": "Zoom Out", "command": "zoom-out", "keys": "Ctrl+-" },
+        { "label": "Reset Zoom", "command": "zoom-reset", "keys": "Ctrl+0" },
         "-",
         { "label": "Fold All", "command": "fold-all", "keys": "Ctrl+K Ctrl+0", "needs": "editor" },
         { "label": "Unfold All", "command": "unfold-all", "keys": "Ctrl+K Ctrl+J", "needs": "editor" }
@@ -67,7 +76,12 @@
     {
       "title": "Go",
       "items": [
-        { "label": "Go to File…", "command": "file", "keys": "Ctrl+P", "args": "[path[:line]]" },
+        { "label": "Back", "command": "back", "keys": "Alt+Left" },
+        { "label": "Forward", "command": "forward", "keys": "Alt+Right" },
+        { "label": "Last Editor", "command": "last-editor", "keys": "Ctrl+Tab" },
+        "-",
+        { "label": "Go to File…", "command": "file", "keys": "Ctrl+P", "args": "[path[:line[:column]]]" },
+        { "label": "Go to Symbol in Editor…", "command": "symbol", "keys": "Ctrl+Shift+O", "args": "[name]", "needs": "text" },
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },

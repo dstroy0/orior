@@ -274,6 +274,23 @@ select {
   display: none;
 }
 
+.status-zoom {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-zoom:hover {
+  color: #ffffff;
+}
+
+.status-zoom[hidden] {
+  display: none;
+}
+
 .statusbar .ed-status {
   flex: 1;
   min-height: 0;
@@ -2439,4 +2456,270 @@ textarea.report-field {
   50% {
     opacity: 0.35;
   }
+}
+
+/* The quick open: a field along the top of the window over its rows, what matched marked in signal,
+ * a row's folder or kind after it, and its keys to the right. */
+.quick {
+  position: fixed;
+  z-index: 60;
+  top: 46px;
+  left: 50%;
+  width: min(40rem, 86vw);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  background: var(--ed-widget);
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 36px var(--lifted);
+  font: 13px var(--head);
+}
+
+.quick[hidden] {
+  display: none;
+}
+
+.quick-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: calc(var(--radius) * 0.75);
+  background: var(--well);
+  color: var(--fg);
+  font: 13.5px var(--head);
+  outline: none;
+}
+
+.quick-input:focus {
+  border-color: var(--signal);
+}
+
+.quick-list {
+  max-height: min(26rem, 60vh);
+  margin-top: 0.3rem;
+  overflow-y: auto;
+}
+
+.quick-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-height: 24px;
+  padding: 0.2rem 0.5rem;
+  border-radius: calc(var(--radius) * 0.75);
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.quick-row[aria-selected="true"] {
+  background: var(--ed-sel);
+}
+
+.quick-row.said {
+  color: var(--fg-2);
+  cursor: default;
+}
+
+.quick-label {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+.quick-row mark,
+.search-hit mark {
+  background: none;
+  color: var(--signal);
+  font-weight: 600;
+}
+
+.quick-row kbd {
+  flex: none;
+  margin-left: auto;
+  font: 11.5px var(--code);
+  color: var(--fg-2);
+}
+
+/* Find in Files: the field with its three options inside its right end, what the search found, a
+ * row a file and under it a row a line. */
+.pane.expanded[data-pane="search"] {
+  flex: 2 1 0;
+}
+
+.search-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-box {
+  position: relative;
+  margin: 0.3rem 0.75rem 0.2rem;
+}
+
+.explorer .search-box .filter {
+  width: 100%;
+  margin: 0;
+  padding-right: 5.2rem;
+}
+
+.search-options {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  display: flex;
+  gap: 0.1rem;
+  transform: translateY(-50%);
+}
+
+.search-options [data-option] {
+  padding: 0.05rem 0.3rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) * 0.6);
+  color: var(--fg-2);
+  font: 600 11.5px var(--code);
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-options [data-option="word"] {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.search-options [data-option]:hover {
+  background: var(--line);
+}
+
+.search-options [aria-checked="true"] {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.search-options [data-option]:focus-visible {
+  outline: 1px solid var(--signal);
+}
+
+.search-said {
+  margin: 0.15rem 0.85rem 0.3rem;
+  min-height: 1em;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+.search-hits {
+  min-height: 0;
+  overflow: auto;
+}
+
+.search-file .where {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.search-file .count {
+  flex: none;
+  margin-left: auto;
+  padding: 0 0.4rem;
+  border-radius: 0.6rem;
+  background: var(--line);
+  font: 11px var(--code);
+  color: var(--fg-2);
+}
+
+.search-hit {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 22px;
+  padding: 0 0.6rem 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12.5px var(--code);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-hit .guide {
+  margin-left: 12px;
+}
+
+.search-hit .line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.search-hit:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.search-hit:focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: -1px;
+}
+
+/* Sticky scroll: the lines that open each region the top of the editor is inside, held along its
+ * top, the deepest last, over a rule. */
+.ed-sticky {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-bg);
+  box-shadow: 0 3px 6px -3px var(--lifted);
+  border-bottom: 1px solid var(--ed-widget-line);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.ed-sticky[hidden] {
+  display: none;
+}
+
+.ed-sticky-row {
+  display: flex;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.ed-sticky-row:hover {
+  background: var(--ed-current);
+}
+
+.ed-sticky-num {
+  flex: none;
+  box-sizing: border-box;
+  padding-right: 22px;
+  text-align: right;
+  color: var(--ed-num);
+}
+
+.ed-sticky-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }

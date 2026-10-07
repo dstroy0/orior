@@ -18,6 +18,7 @@ use std::sync::{Arc, Mutex};
 use crate::bridge::{self, Bridge};
 use crate::catalog::{self, Job};
 use crate::commands::{self, Commands, Item, Menu};
+use crate::files;
 use crate::report;
 use crate::root;
 use crate::runner::{self, Said, Sink};
@@ -362,6 +363,8 @@ fn help(menus: &Commands) -> String {
     }
     rows.push(("orior run <job> [key=value] [-- words]".into(), "start a job, as orior run start".into()));
     rows.push(("orior list | show <job> | bridge [key]".into(), "as orior run list, run show and go bridge".into()));
+    rows.push(("orior <file>[:line[:column]]".into(), "* open a file of the tree in the window, at a line and column".into()));
+    rows.push(("orior --completions <shell>".into(), "the completions for bash, zsh, fish or powershell".into()));
     rows.push(("orior help".into(), "this".into()));
     let pad = rows.iter().map(|(usage, _)| usage.chars().count()).max().unwrap_or(0);
     let mut text = String::from(
@@ -456,6 +459,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
             return 0;
         }
         "auto-report" => return auto_report(words.first().map(String::as_str)),
+        "search" => return search(named, words),
         "report" => return report_page(named, words),
         _ => {}
     }
@@ -489,6 +493,110 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
                 run_job(root, job, &words[1..])
             }
         }
+    }
+}
+
+/// `orior edit search [--case] [--word] [--regex] <text>`: every line in the tree's files that holds
+/// the text, as path:line:column: line. Exits 1 where none does, as grep does.
+fn search(named: Option<&str>, words: &[String]) -> i32 {
+    let mut how = files::Searching::default();
+    let mut text = Vec::new();
+    for word in words {
+        match word.as_str() {
+            "--case" => how.case = true,
+            "--word" => how.word = true,
+            "--regex" => how.regex = true,
+            _ => text.push(word.as_str()),
+        }
+    }
+    let query = text.join(" ");
+    if query.is_empty() {
+        err("search needs text: orior edit search <text>");
+        return WRONG;
+    }
+    let root = match tree(named) {
+        Ok(root) => root,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    match files::search(&root, &query, how) {
+        Ok(hits) if hits.is_empty() => 1,
+        Ok(hits) => {
+            for hit in hits {
+                out(&format!("{}:{}:{}: {}", hit.path, hit.line, hit.col, hit.text.trim()));
+            }
+            0
+        }
+        Err(said) => {
+            err(&said);
+            WRONG
+        }
+    }
+}
+
+/// A word that names a file, as path, path:line or path:line:column: the path in the tree and what
+/// follows it, where the file is in the tree.
+fn file_word(named: Option<&str>, word: &str) -> Option<Result<String, String>> {
+    let mut path = word;
+    let mut place = String::new();
+    for _ in 0..2 {
+        if let Some((before, number)) = path.rsplit_once(':') {
+            if !number.is_empty() && number.bytes().all(|b| b.is_ascii_digit()) && !before.is_empty() {
+                place = format!(":{number}{place}");
+                path = before;
+            }
+        }
+    }
+    let full = dunce::canonicalize(path).ok().filter(|full| full.is_file())?;
+    Some(tree(named).and_then(|root| {
+        full.strip_prefix(&root)
+            .map(|inner| format!("{}{place}", inner.to_string_lossy().replace('\\', "/")))
+            .map_err(|_| format!("{} is not in the tree {}", full.display(), root.display()))
+    }))
+}
+
+/// The words that can follow `menu`: its commands, and its jobs or their subjects.
+fn next_words(named: Option<&str>, menus: &Commands, menu: &str) -> Vec<String> {
+    let Some(menu) = menus.menus.iter().find(|one| one.word() == menu) else {
+        return Vec::new();
+    };
+    let mut found: Vec<String> = menu.commands().map(|item| item.command.clone()).collect();
+    if let (false, Ok(root)) = (menu.groups.is_empty(), tree(named)) {
+        let jobs = catalog::read(&root).into_iter().filter(|job| menu.groups.iter().any(|g| g == job.group));
+        if menu.split.is_some() {
+            let mut subjects: Vec<String> = jobs.map(|job| subject(&job)).collect();
+            subjects.dedup();
+            found.extend(subjects);
+        } else {
+            found.extend(jobs.map(|job| job.id));
+        }
+    }
+    found
+}
+
+/// The completion script for `shell`, which asks orior itself for the words after the first.
+fn completions(shell: &str, menus: &Commands) -> Result<String, String> {
+    let mut first: Vec<String> = menus.menus.iter().map(|menu| menu.word()).collect();
+    first.extend(["list", "show", "bridge", "--root", "--help", "--version", "--completions"].map(String::from));
+    let first = first.join(" ");
+    let bash = format!(
+        "_orior() {{\n  local cur=${{COMP_WORDS[COMP_CWORD]}}\n  if [ \"$COMP_CWORD\" -eq 1 ]; then\n    COMPREPLY=($(compgen -W \"{first}\" -- \"$cur\"))\n  else\n    COMPREPLY=($(compgen -W \"$(orior __words \"${{COMP_WORDS[1]}}\" 2>/dev/null)\" -- \"$cur\"))\n  fi\n}}\ncomplete -o default -F _orior orior\n"
+    );
+    match shell {
+        "bash" => Ok(bash),
+        "zsh" => Ok(format!("autoload -U +X bashcompinit && bashcompinit\n{bash}")),
+        "fish" => Ok(format!(
+            "complete -c orior -n __fish_use_subcommand -a \"{first}\"\ncomplete -c orior -n 'not __fish_use_subcommand' -a '(orior __words (commandline -opc)[2])'\n"
+        )),
+        "powershell" => {
+            let quoted = first.split(' ').map(|word| format!("'{word}'")).collect::<Vec<_>>().join(", ");
+            Ok(format!(
+                "Register-ArgumentCompleter -Native -CommandName orior -ScriptBlock {{\n  param($word, $ast, $at)\n  $given = @($ast.CommandElements | ForEach-Object {{ $_.ToString() }})\n  if ($given.Count -le 1 -or ($given.Count -eq 2 -and $word)) {{ $all = @({quoted}) }} else {{ $all = @(& orior __words $given[1]) }}\n  $all | Where-Object {{ $_ -like \"$word*\" }} | ForEach-Object {{ [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }}\n}}\n"
+            ))
+        }
+        _ => Err(format!("orior has no completions for {shell}: bash, zsh, fish or powershell")),
     }
 }
 
@@ -613,6 +721,24 @@ pub fn run(given: Vec<String>) -> Outcome {
         out(help(&menus).trim_end());
         return Outcome::Exit(0);
     }
+    if first == "--completions" || first.starts_with("--completions=") {
+        let shell = first.strip_prefix("--completions=").map(String::from).or_else(|| words.get(1).cloned()).unwrap_or_default();
+        return match completions(&shell, &menus) {
+            Ok(script) => {
+                print!("{script}");
+                Outcome::Exit(0)
+            }
+            Err(said) => {
+                err(&said);
+                Outcome::Exit(WRONG)
+            }
+        };
+    }
+    if first == "__words" {
+        let menu = words.get(1).map(String::as_str).unwrap_or_default();
+        next_words(named, &menus, menu).iter().for_each(|word| out(word));
+        return Outcome::Exit(0);
+    }
     if matches!(first, "--version" | "-V") {
         out(&format!("orior {}", env!("CARGO_PKG_VERSION")));
         return Outcome::Exit(0);
@@ -624,6 +750,16 @@ pub fn run(given: Vec<String>) -> Outcome {
         _ => {}
     }
     let Some(menu) = menus.menus.iter().find(|menu| menu.word() == first) else {
+        // A word that is no menu and names a file of the tree opens it, as Go, Go to File does.
+        if let Some(file) = file_word(named, first) {
+            return match file {
+                Ok(file) => window("go".into(), "file".into(), vec![file]),
+                Err(said) => {
+                    err(&said);
+                    Outcome::Exit(NO_CODE)
+                }
+            };
+        }
         err(&format!("orior takes no {first}: orior help names what it takes"));
         return Outcome::Exit(WRONG);
     };

@@ -41,6 +41,21 @@
             </div>
             <input class="filter" id="file-filter" type="search" placeholder="Search" spellcheck="false" />
             <div class="panes" id="panes">
+              <section class="pane" data-pane="search">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:search" aria-expanded="true">Search</button>
+                <div class="pane-body search-body">
+                  <div class="search-box">
+                    <input class="filter" id="search-query" type="search" placeholder="Search in files" spellcheck="false" aria-label="Search in files" />
+                    <div class="search-options" id="search-options">
+                      <span role="checkbox" tabindex="0" aria-checked="false" data-option="case" title="Match Case">Aa</span>
+                      <span role="checkbox" tabindex="0" aria-checked="false" data-option="word" title="Match Whole Word">ab</span>
+                      <span role="checkbox" tabindex="0" aria-checked="false" data-option="regex" title="Use Regular Expression">.*</span>
+                    </div>
+                  </div>
+                  <p class="search-said" id="search-said" aria-live="polite"></p>
+                  <div class="search-hits" id="search-hits"></div>
+                </div>
+              </section>
               <section class="pane" data-pane="open">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:open" aria-expanded="true">Open Editors</button>
                 <div class="pane-body" id="open-editors"></div>
@@ -104,6 +119,7 @@
       <span class="status-branch" id="status-branch" hidden></span>
       <span class="pulse" id="pulse"></span>
       <button class="status-report" id="status-report" type="button" hidden></button>
+      <button class="status-zoom" id="status-zoom" type="button" hidden></button>
     </footer>
 
     <script type="module" src="main.js"></script>
