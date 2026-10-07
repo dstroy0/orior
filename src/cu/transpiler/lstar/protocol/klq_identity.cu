@@ -3516,6 +3516,47 @@ static int form_launched(const std::string &text)
     return std::regex_search(text, s_launch) ? 1 : 0;
 }
 
+// the conditions the comparisons of the form `text` test, each the word after a `SETP`'s first `.`
+static std::set<std::string> form_conditions(const std::string &text)
+{
+    static const std::regex s_condition("[A-Z]*SETP\\.([A-Z]+)");
+    std::set<std::string> conditions;
+    for (std::sregex_iterator found(text.begin(), text.end(), s_condition), end; found != end; ++found)
+    {
+        conditions.insert((*found)[1].str());
+    }
+    return conditions;
+}
+
+// 1 where the form `text` decides which form runs next: an exit, a return, a branch, a call or a convergence
+static int form_controls(const std::string &text)
+{
+    static const std::regex s_control("(^|[\\s;])(EXIT|RET|BRA|BRX|JMP|JMX|CALL|BREAK|BSSY|BSYNC)\\b");
+    return std::regex_search(text, s_control) ? 1 : 0;
+}
+
+// 1 where the form `text` holds no instruction, each of which ends at a `;`: a directive or a label alone, placing
+// the forms a case reads
+static int form_switches(const std::string &text)
+{
+    const std::vector<std::string> tokens = form_tokens(text);
+    return !tokens.empty() && (std::find(tokens.begin(), tokens.end(), ";") == tokens.end());
+}
+
+// 1 where a parameter of the form `text` is named at its `.hi`: the form works a wide value in its pieces, the low
+// word and the high
+static int form_ranged(const std::string &text)
+{
+    for (const std::string &token : form_tokens(text))
+    {
+        if ((token.size() > 3u) && (token[0] == '\x01') && (token.compare(3u, std::string::npos, ".hi") == 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // 1 where the part answers `code` over the cases `question` holds, its answers in `question`, the container declaring
 // `mark` registers and then every register its file holds where it refuses that, each ask counted in `asks`. The
 // answers are values the host does not compute, held in the log alone and never in R
@@ -4062,8 +4103,31 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         const int two_operations = !first_tokens.empty() && !second_tokens.empty() &&
                             (first_tokens[0].substr(0u, first_tokens[0].find('.')) !=
                              second_tokens[0].substr(0u, second_tokens[0].find('.')));
-        fprintf(s_ask_log, "facts %s %s%s%s%s\n", first.c_str(), second.c_str(), structural ? " structural" : "",
-                launched ? " pragmatic" : "", two_operations ? " syntactic" : "");
+        // the categories the texts read the pair into: both forms comparisons, every condition tested an equality or
+        // some an order; either form reading where its lane sits, working a wide value in pieces, deciding which
+        // form runs next, or holding no instruction
+        const std::set<std::string> first_conditions = form_conditions(first_text);
+        const std::set<std::string> second_conditions = form_conditions(second_text);
+        std::set<std::string> conditions = first_conditions;
+        conditions.insert(second_conditions.begin(), second_conditions.end());
+        const int compared = !first_conditions.empty() && !second_conditions.empty();
+        int ordered = 0;
+        int equal = compared;
+        for (const std::string &condition : conditions)
+        {
+            ordered |= ((condition == "LT") || (condition == "LE") || (condition == "GT") || (condition == "GE")) ? 1
+                                                                                                                  : 0;
+            equal &= ((condition == "EQ") || (condition == "NE")) ? 1 : 0;
+        }
+        const int placed = form_launched(first_text) || form_launched(second_text);
+        const int ranged = form_ranged(first_text) || form_ranged(second_text);
+        const int controlled = form_controls(first_text) || form_controls(second_text);
+        const int switched = form_switches(first_text) || form_switches(second_text);
+        fprintf(s_ask_log, "facts %s %s%s%s%s%s%s%s%s%s%s%s\n", first.c_str(), second.c_str(),
+                structural ? " structural" : "", launched ? " pragmatic" : "", two_operations ? " syntactic" : "",
+                compared ? " comparison" : "", equal ? " equality" : "", (compared && ordered) ? " order" : "",
+                ranged ? " range" : "", placed ? " vector" : "", controlled ? " control" : "",
+                switched ? " switch" : "");
     };
     for (const std::string &entry : bridge)
     {

@@ -16,7 +16,10 @@
 // at every put is a qualifier's. A pair is written a member of every set a test reads it into, and of every meta, each
 // a light of its own, and a pair the part answered apart in this log that no test reads into a set is written
 // unknown_coherence. A pair the log holds no answer of keeps the set line the bridge held beneath it, and one that
-// holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one
+// holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one. The
+// texts the log read of a pair read it into its categories before any ask, a comparison, an equality or an order, a
+// range, a vector, a control or a switch, each written beside its sets, and a text reads no pair out of
+// unknown_coherence
 //
 // Each answered pair whose product is whole is written beneath its set with its concept, `concept_coherence
 // <identity>`: whether its two forms write one value or two on each case, as a function of the values the form reads
@@ -237,6 +240,35 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
     return past_every_frame ? "frame_coherence" : "modifier_coherence";
 }
 
+// the metas, each written above the sets a pair is read into, in this order
+static const char *const s_metas[] = {"structural_coherence", "syntactic_coherence",    "pragmatic_coherence",
+                                      "data_quality_coherence", "noise_coherence", "folding_coherence"};
+
+// the sets, each written beneath a pair's verdict in the order the tree holds them, `unknown_coherence` last. The
+// texts read a pair into a category, and only an answer reads it out of `unknown_coherence`
+static const char *const s_sets[] = {"comparison_coherence", "equality_coherence", "order_coherence",
+                                     "frame_coherence",      "qualifier_coherence", "modifier_coherence",
+                                     "negation_coherence",   "range_coherence",     "vector_coherence",
+                                     "control_coherence",    "switch_coherence",    "unknown_coherence"};
+
+// the categories the texts read a pair into, before any ask
+static const char *const s_categories[] = {"comparison_coherence", "equality_coherence", "order_coherence",
+                                           "range_coherence",      "vector_coherence",   "control_coherence",
+                                           "switch_coherence"};
+
+// 1 where `name` is one of the `count` names of `names`
+static int named_in(const char *const *names, size_t count, const std::string &name)
+{
+    for (size_t at = 0u; at < count; at += 1u)
+    {
+        if (name == names[at])
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // the two forms of a pair, the lesser first, as one key
 static std::string pair_key(const std::string &first, const std::string &second)
 {
@@ -262,8 +294,10 @@ int main(int argc, char **argv)
     int block_answered = 0;
     std::string line;
     static const std::regex s_put("^pair (\\S+) in place of (\\S+) at (\\S+)$");
-    // each pair's metas, the internal nodes of the tree it hangs from, and the pairs whose texts the log read
+    // each pair's metas, the internal nodes of the tree it hangs from, the categories its texts read it into, and the
+    // pairs whose texts the log read
     std::map<std::string, std::set<std::string>> metas;
+    std::map<std::string, std::set<std::string>> categories;
     std::set<std::string> faceted;
     while (std::getline(log, line))
     {
@@ -280,7 +314,8 @@ int main(int argc, char **argv)
             faceted.insert(key);
             while (words >> fact)
             {
-                metas[key].insert(fact + "_coherence");
+                const std::string set = fact + "_coherence";
+                (named_in(s_categories, std::size(s_categories), set) ? categories : metas)[key].insert(set);
             }
         }
         else if (!puts.empty() && (line.rfind("binds", 0u) == 0u))
@@ -484,9 +519,43 @@ int main(int argc, char **argv)
         return (entry.find(' ') == std::string::npos) && (entry.size() > suffix.size()) &&
                (entry.compare(entry.size() - suffix.size(), suffix.size(), suffix) == 0);
     };
-    // the metas, each written above the set a pair is read into, in this order
-    static const char *const s_metas[] = {"structural_coherence", "syntactic_coherence", "pragmatic_coherence",
-                                          "data_quality_coherence", "noise_coherence"};
+    // each pair's concept as it is written, its own product's where this log answered it and otherwise the one the
+    // bridge held beneath it. A pair whose concept another pair shares is folded: one ask answers both
+    std::map<std::string, std::string> pair_concepts;
+    std::string concept_pair;
+    for (const std::string &entry : bridge)
+    {
+        if (entry.rfind("pair ", 0u) == 0u)
+        {
+            std::stringstream words(entry);
+            std::string kind;
+            std::string first;
+            std::string second;
+            words >> kind >> first >> second;
+            concept_pair = pair_key(first, second);
+        }
+        else if (!concept_pair.empty() && (entry.rfind("concept_coherence ", 0u) == 0u) &&
+                 (decoded.count(concept_pair) == 0u))
+        {
+            pair_concepts[concept_pair] = entry.substr(18u);
+        }
+    }
+    for (const auto &held : identities)
+    {
+        pair_concepts[held.first] = held.second;
+    }
+    std::map<std::string, unsigned int> pairs_of_concept;
+    for (const auto &held : pair_concepts)
+    {
+        pairs_of_concept[held.second] += 1u;
+    }
+    for (const auto &held : pair_concepts)
+    {
+        if (pairs_of_concept[held.second] > 1u)
+        {
+            metas[held.first].insert("folding_coherence");
+        }
+    }
     std::vector<std::string> written;
     std::string pair_held;
     std::vector<std::string> sets_held;
@@ -499,24 +568,63 @@ int main(int argc, char **argv)
         if (!pair_held.empty())
         {
             // a pair the log read the texts or the answers of hangs from the metas read of it now, and any other
-            // from the metas the bridge held
-            const int read_now = (faceted.count(pair_held) != 0u) || (decoded.count(pair_held) != 0u);
+            // from the metas the bridge held. The fold is read off every pair's concept, and always now
+            const int texts_read = faceted.count(pair_held) != 0u;
+            const int answered = decoded.count(pair_held) != 0u;
             for (const char *const meta : s_metas)
             {
                 const int held = std::find(metas_held.begin(), metas_held.end(), meta) != metas_held.end();
-                if (read_now ? (metas[pair_held].count(meta) != 0u) : held)
+                const int now = texts_read || answered || (std::string(meta) == "folding_coherence");
+                if (now ? (metas[pair_held].count(meta) != 0u) : held)
                 {
                     written.push_back(meta);
                     counted[meta] += 1u;
                 }
             }
-            // every set the pair is read into, each a light of its own, or the sets the bridge held of a pair this log
-            // did not answer
-            const std::vector<std::string> sets =
-                (decoded.count(pair_held) != 0u)
-                    ? std::vector<std::string>(decoded[pair_held].begin(), decoded[pair_held].end())
-                : sets_held.empty() ? std::vector<std::string>{"unknown_coherence"}
-                                    : sets_held;
+            // every set the pair is read into, each a light of its own: the categories its texts read it into and the
+            // sets its answers read it into, each read now where the log read it and otherwise as the bridge held it
+            std::set<std::string> lit;
+            for (const std::string &set : sets_held)
+            {
+                if (named_in(s_categories, std::size(s_categories), set) ? !texts_read : !answered)
+                {
+                    lit.insert(set);
+                }
+            }
+            if (answered)
+            {
+                lit.insert(decoded[pair_held].begin(), decoded[pair_held].end());
+            }
+            if (texts_read)
+            {
+                lit.insert(categories[pair_held].begin(), categories[pair_held].end());
+            }
+            // only an answer reads a pair out of `unknown_coherence`, a member of every category beneath
+            int read_down = 0;
+            for (const std::string &set : lit)
+            {
+                read_down |= (!named_in(s_categories, std::size(s_categories), set) && (set != "unknown_coherence"))
+                                 ? 1
+                                 : 0;
+            }
+            if (read_down)
+            {
+                lit.erase("unknown_coherence");
+            }
+            else
+            {
+                lit.insert("unknown_coherence");
+            }
+            std::vector<std::string> sets;
+            for (const char *const set : s_sets)
+            {
+                if (lit.count(set) != 0u)
+                {
+                    sets.push_back(set);
+                    lit.erase(set);
+                }
+            }
+            sets.insert(std::find(sets.begin(), sets.end(), "unknown_coherence"), lit.begin(), lit.end());
             for (const std::string &set : sets)
             {
                 written.push_back(set);
@@ -615,6 +723,10 @@ int main(int argc, char **argv)
         {
             lights += meta + " ";
         }
+        for (const std::string &set : categories[held.first])
+        {
+            lights += set + " ";
+        }
         for (const std::string &set : held.second)
         {
             lights += set + " ";
@@ -627,12 +739,17 @@ int main(int argc, char **argv)
     {
         shared += (held.second > 1u) ? 1u : 0u;
     }
-    printf("klq_decoder: %u puts read, %u qualifier_coherence, %u frame_coherence, %u modifier_coherence, %u "
-           "negation_coherence, %u unknown_coherence, %u concepts, %u of more than one pair; metas %u structural, %u "
-           "syntactic, %u pragmatic, %u data_quality, %u noise; written to %s\n",
-           (unsigned int)puts.size(), counted["qualifier_coherence"], counted["frame_coherence"],
-           counted["modifier_coherence"], counted["negation_coherence"], counted["unknown_coherence"],
-           (unsigned int)concepts.size(), shared, counted["structural_coherence"], counted["syntactic_coherence"],
-           counted["pragmatic_coherence"], counted["data_quality_coherence"], counted["noise_coherence"], argv[3]);
+    printf("klq_decoder: %u puts read, %u concepts, %u of more than one pair; metas", (unsigned int)puts.size(),
+           (unsigned int)concepts.size(), shared);
+    for (const char *const meta : s_metas)
+    {
+        printf(" %u %s", counted[meta], meta);
+    }
+    printf("; sets");
+    for (const char *const set : s_sets)
+    {
+        printf(" %u %s", counted[set], set);
+    }
+    printf("; written to %s\n", argv[3]);
     return 0;
 }
