@@ -8,7 +8,7 @@
 //! comes, and the program exits with the job's code.
 
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -155,8 +155,14 @@ fn list(root: &std::path::Path, word: Option<&str>) -> i32 {
     }
     let pad = jobs.iter().map(|job| job.id.chars().count()).max().unwrap_or(0).min(48);
     let room = width().saturating_sub(pad + 2);
+    // Written to a terminal, each about is cut to the line; written anywhere else, it is whole.
+    let terminal = std::io::stdout().is_terminal();
     for job in &jobs {
-        let about = if room >= 20 { cut(&job.about, room) } else { String::new() };
+        let about = match (terminal, room >= 20) {
+            (false, _) => job.about.clone(),
+            (true, true) => cut(&job.about, room),
+            (true, false) => String::new(),
+        };
         out(format!("{:pad$}  {about}", job.id).trim_end());
     }
     0
