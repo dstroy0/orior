@@ -46,11 +46,19 @@
         { "label": "Copy Line Down", "command": "copy-line-down", "keys": "Shift+Alt+Down", "needs": "editor" },
         { "label": "Move Line Up", "command": "move-line-up", "keys": "Alt+Up", "needs": "editor" },
         { "label": "Move Line Down", "command": "move-line-down", "keys": "Alt+Down", "needs": "editor" },
+        { "label": "Join Lines", "command": "join-lines", "keys": "Ctrl+J", "needs": "editor" },
+        { "label": "Sort Lines Ascending", "command": "sort-ascending", "needs": "editor" },
+        { "label": "Sort Lines Descending", "command": "sort-descending", "needs": "editor" },
+        { "label": "Delete Duplicate Lines", "command": "unique-lines", "needs": "editor" },
+        { "label": "Transform to Uppercase", "command": "upper-case", "needs": "editor" },
+        { "label": "Transform to Lowercase", "command": "lower-case", "needs": "editor" },
+        { "label": "Transform to Title Case", "command": "title-case", "needs": "editor" },
         "-",
         { "label": "Add Cursor Above", "command": "cursor-above", "keys": "Ctrl+Alt+Up", "needs": "editor" },
         { "label": "Add Cursor Below", "command": "cursor-below", "keys": "Ctrl+Alt+Down", "needs": "editor" },
         { "label": "Add Next Occurrence", "command": "next-occurrence", "keys": "Ctrl+D", "needs": "editor" },
-        { "label": "Select All Occurrences", "command": "all-occurrences", "keys": "Ctrl+Shift+L", "needs": "editor" }
+        { "label": "Select All Occurrences", "command": "all-occurrences", "keys": "Ctrl+Shift+L", "needs": "editor" },
+        { "label": "Column Selection Mode", "command": "column-mode", "args": "[on|off]", "checks": "column-mode" }
       ]
     },
     {
@@ -89,6 +97,9 @@
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },
+        "-",
+        { "label": "Next Change", "command": "next-change", "keys": "Alt+F5", "needs": "changes" },
+        { "label": "Previous Change", "command": "previous-change", "keys": "Shift+Alt+F5", "needs": "changes" },
         "-",
         { "label": "Next Match", "command": "next-match", "keys": "F3", "needs": "editor" },
         { "label": "Previous Match", "command": "previous-match", "keys": "Shift+F3", "needs": "editor" }

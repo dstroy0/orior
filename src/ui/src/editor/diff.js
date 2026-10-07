@@ -69,12 +69,14 @@ function shortest(a, b) {
 }
 
 // The marks for `now`, its lines in order, against `then`: { added, changed } sets of lines of `now`,
-// and `removed`, the lines of `now` above which lines were taken out, `now.length` for below the
-// last. Null where the two are too far apart to mark.
+// `removed`, the lines of `now` above which lines were taken out, `now.length` for below the last,
+// and `hunks`, each change in order as { now: [from, to), then: [from, to) }, the lines it spans in
+// each text. Null where the two are too far apart to mark.
 export function lineChanges(then, now) {
   const added = new Set();
   const changed = new Set();
   const removed = new Set();
+  const hunks = [];
   let start = 0;
   while (start < then.length && start < now.length && then[start] === now[start]) {
     start += 1;
@@ -99,6 +101,7 @@ export function lineChanges(then, now) {
   // Each run of steps between two kept lines is one change: lines put in where none came out are
   // added, lines put in where some came out are changed, and lines only taken out mark where.
   let line = start;
+  let thenLine = start;
   let out = 0;
   let put = [];
   const close = () => {
@@ -107,6 +110,9 @@ export function lineChanges(then, now) {
     } else if (out) {
       removed.add(line);
     }
+    if (put.length || out) {
+      hunks.push({ now: [line - put.length, line], then: [thenLine - out, thenLine] });
+    }
     out = 0;
     put = [];
   };
@@ -114,13 +120,15 @@ export function lineChanges(then, now) {
     if (kind === 0) {
       close();
       line += 1;
+      thenLine += 1;
     } else if (kind === 1) {
       out += 1;
+      thenLine += 1;
     } else {
       put.push(line);
       line += 1;
     }
   }
   close();
-  return { added, changed, removed };
+  return { added, changed, removed, hunks };
 }

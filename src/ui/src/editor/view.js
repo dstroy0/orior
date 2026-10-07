@@ -24,6 +24,9 @@ const LINE = 20;
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
 
+// Column Selection Mode's key: while it is on, a drag chooses a column, as Shift and Alt do.
+const COLUMN_KEY = "orior.column";
+
 // Sticky scroll: the most lines it holds along the top, the longest text it reads the regions of,
 // and how long an edit rests before the regions are read again, in milliseconds.
 const STICKY_MOST = 5;
@@ -121,8 +124,9 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onChangeMark, statusHost = null } = {}) {
     this.host = host;
+    this.onChangeMark = onChangeMark ?? (() => {});
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
     host.classList.add("ed");
@@ -158,6 +162,7 @@ export class Editor {
     this.sticky.hidden = true;
     this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
     this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
+    this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
     this.stickyList = [];
     this.stickyFor = null;
     this.stickyDoc = -1;
@@ -1006,6 +1011,97 @@ export class Editor {
     this.reveal(true);
   }
 
+  setColumnMode(on) {
+    this.columnMode = on;
+    localStorage.setItem(COLUMN_KEY, String(on));
+  }
+
+  // Lines.
+
+  // The spans of whole lines the selections cover, [first, last], in order and merged where they
+  // touch. A selection that only reaches the start of its last line leaves that line out, and one
+  // empty selection alone covers the whole text.
+  lineSpans() {
+    const doc = this.doc;
+    const sels = this.s.selections;
+    if (sels.length === 1 && empty(sels[0])) {
+      return [[0, doc.count - 1]];
+    }
+    const spans = sels
+      .map((sel) => {
+        const start = startOf(sel);
+        const end = endOfSel(sel);
+        return [start.line, end.line > start.line && end.col === 0 ? end.line - 1 : end.line];
+      })
+      .sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const span of spans) {
+      const last = merged.at(-1);
+      if (last && span[0] <= last[1] + 1) {
+        last[1] = Math.max(last[1], span[1]);
+      } else {
+        merged.push([...span]);
+      }
+    }
+    return merged;
+  }
+
+  // Writes each span of lines again as `make` gives it from its lines.
+  rewriteLines(make, kind) {
+    const doc = this.doc;
+    const edits = this.lineSpans().map(([first, last]) => ({ from: pos(first, 0), to: pos(last, doc.line(last).length), text: make(doc.lines.slice(first, last + 1)).join("\n") }));
+    return this.change(edits, kind);
+  }
+
+  sortLines(descending) {
+    const order = new Intl.Collator(undefined, { numeric: true }).compare;
+    this.rewriteLines((lines) => [...lines].sort((a, b) => (descending ? order(b, a) : order(a, b))), "sort");
+  }
+
+  uniqueLines() {
+    this.rewriteLines((lines) => [...new Set(lines)], "unique");
+  }
+
+  // Joins each selection's lines into one, and a cursor's line with the line after it: the space
+  // where two lines meet becomes one space, or none where either side is blank.
+  joinLines() {
+    const doc = this.doc;
+    const edits = [];
+    for (const sel of this.s.selections) {
+      const first = startOf(sel).line;
+      const last = Math.min(doc.count - 1, Math.max(endOfSel(sel).line, first + 1));
+      if (last === first) {
+        continue;
+      }
+      let joined = doc.line(first);
+      for (let line = first + 1; line <= last; line += 1) {
+        const next = doc.line(line).trimStart();
+        joined = joined.trimEnd();
+        joined = !joined.trim() ? joined + next : !next ? joined : `${joined} ${next}`;
+      }
+      edits.push({ from: pos(first, 0), to: pos(last, doc.line(last).length), text: joined });
+    }
+    this.change(edits, "join");
+  }
+
+  // Changes the case of each selection, or of the word at each cursor: upper, lower, or title, each
+  // word's first letter upper and the rest lower.
+  transformCase(kind) {
+    const make = {
+      upper: (text) => text.toUpperCase(),
+      lower: (text) => text.toLowerCase(),
+      title: (text) => text.replace(/\p{L}[\p{L}\p{N}'’]*/gu, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase()),
+    }[kind];
+    const edits = [];
+    for (const sel of this.s.selections) {
+      const span = empty(sel) ? wordAt(this.doc, sel.head) : { from: startOf(sel), to: endOfSel(sel) };
+      if (span) {
+        edits.push({ from: span.from, to: span.to, text: make(this.doc.slice(span.from, span.to)) });
+      }
+    }
+    this.change(edits, "case", (map) => this.s.selections.map((sel) => ({ anchor: map(sel.anchor, false), head: map(sel.head, true), goal: null })));
+  }
+
   selectAll() {
     this.select([{ anchor: pos(0, 0), head: this.doc.end(), goal: null }]);
   }
@@ -1372,6 +1468,7 @@ export class Editor {
       "Mod+D": () => this.addMatch(false),
       "Mod+Shift+L": () => this.addMatch(true),
       "Mod+L": () => this.selectLine(),
+      "Mod+J": () => this.joinLines(),
       "Mod+/": () => this.toggleComment(),
       "Alt+Up": () => this.moveLines(-1),
       "Alt+Down": () => this.moveLines(1),
@@ -1490,6 +1587,11 @@ export class Editor {
       this.toggleFold(Number(target.dataset.fold));
       return;
     }
+    if (target.dataset?.change !== undefined) {
+      event.preventDefault();
+      this.onChangeMark(Number(target.dataset.change));
+      return;
+    }
     event.preventDefault();
     this.focus();
     this.hover.hide();
@@ -1500,7 +1602,7 @@ export class Editor {
     let index;
     let anchorFrom;
     let anchorTo;
-    if (event.altKey && event.shiftKey && !fromGutter) {
+    if (((event.altKey && event.shiftKey) || (this.columnMode && !event.altKey && !event.shiftKey && unit === "char")) && !fromGutter) {
       const goal = (event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw;
       this.dragging = { column: { row: this.rows().rowOf(p.line), v: Math.max(0, goal) } };
       this.dragTo(event);
@@ -1888,15 +1990,15 @@ export class Editor {
     }
     let mark = "";
     if (changes.added.has(line)) {
-      mark += `<span class="ed-change added"></span>`;
+      mark += `<span class="ed-change added" data-change="${line}"></span>`;
     } else if (changes.changed.has(line)) {
-      mark += `<span class="ed-change changed"></span>`;
+      mark += `<span class="ed-change changed" data-change="${line}"></span>`;
     }
     if (changes.removed.has(line)) {
-      mark += `<span class="ed-change removed"></span>`;
+      mark += `<span class="ed-change removed" data-change="${line}"></span>`;
     }
     if (line === this.s.doc.count - 1 && changes.removed.has(line + 1)) {
-      mark += `<span class="ed-change removed below"></span>`;
+      mark += `<span class="ed-change removed below" data-change="${line + 1}"></span>`;
     }
     return mark;
   }

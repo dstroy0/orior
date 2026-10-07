@@ -11,7 +11,9 @@
 // takes the cursor to it.
 //
 // The editor's gutter marks each line that differs from the last commit, and where lines were taken
-// out, against the file as the last commit left it, read again each time the window comes back.
+// out, against the file as the last commit left it, read again each time the window comes back. A
+// press on a mark shows that change under it: the lines the commit had and the lines there now, with
+// the change before and after it a press away, and the commit's lines put back with Revert.
 //
 // The tree marks what git says of each file: its name in the color of how it differs from the last
 // commit, the state's letter after it, and a folder holding a changed file in that file's color with
@@ -372,6 +374,7 @@ async function reveal(path) {
 }
 
 function show(path) {
+  closePeek();
   if (path !== state.active && state.active && !state.moving) {
     markPlace();
   }
@@ -627,7 +630,121 @@ async function markChanges(tab) {
   }
   s.changesFor = s.doc.id;
   s.changesHead = head;
-  state.editor.setChanges(s, lineChanges(head.split(/\r?\n/), s.doc.lines));
+  s.changesThen = head.split(/\r?\n/);
+  state.editor.setChanges(s, lineChanges(s.changesThen, s.doc.lines));
+}
+
+// The change peek. A scroll in the first PEEK_SETTLES milliseconds after it shows brought its change
+// into sight, and leaves it.
+
+const PEEK_SETTLES = 400;
+
+// The change a line of the text stands in, or for lines taken out, the one above the line.
+function hunkAt(s, line) {
+  return s.changes?.hunks.find((hunk) => (hunk.now[0] === hunk.now[1] ? hunk.now[0] === line : line >= hunk.now[0] && line < hunk.now[1])) ?? null;
+}
+
+function closePeek() {
+  state.peek?.remove();
+  state.peek = null;
+}
+
+// Puts a change's lines back as the last commit had them, as one edit undo takes back.
+function revertHunk(hunk) {
+  const s = state.editor.s;
+  const doc = s.doc;
+  const [first, end] = hunk.now;
+  const then = s.changesThen.slice(hunk.then[0], hunk.then[1]);
+  const lineEnd = (line) => ({ line, col: doc.line(line).length });
+  let edit;
+  if (end > first && then.length) {
+    edit = { from: { line: first, col: 0 }, to: lineEnd(end - 1), text: then.join("\n") };
+  } else if (end > first) {
+    edit = end < doc.count ? { from: { line: first, col: 0 }, to: { line: end, col: 0 }, text: "" } : { from: first > 0 ? lineEnd(first - 1) : { line: 0, col: 0 }, to: lineEnd(end - 1), text: "" };
+  } else {
+    edit = first < doc.count ? { from: { line: first, col: 0 }, to: { line: first, col: 0 }, text: `${then.join("\n")}\n` } : { from: lineEnd(first - 1), to: lineEnd(first - 1), text: `\n${then.join("\n")}` };
+  }
+  closePeek();
+  state.editor.change([edit], "revert");
+  state.editor.focus();
+  markChanges(tabOf(state.active));
+}
+
+// Goes to the change `by` changes from this one, the first after the last and the last before the
+// first, and shows it where `peek` is set.
+function stepChange(by, peek = false) {
+  const s = state.editor?.s;
+  const hunks = s?.changes?.hunks ?? [];
+  if (!hunks.length) {
+    return;
+  }
+  const line = state.editor.head().line;
+  let at;
+  if (by > 0) {
+    at = hunks.findIndex((hunk) => hunk.now[0] > line);
+    at = at < 0 ? 0 : at;
+  } else {
+    at = hunks.findLastIndex((hunk) => Math.max(hunk.now[0], hunk.now[1] - 1) < line && hunk.now[0] < line);
+    at = at < 0 ? hunks.length - 1 : at;
+  }
+  const hunk = hunks[at];
+  jumpTo(hunk.now[0]);
+  if (peek) {
+    showPeek(hunk.now[0]);
+  }
+}
+
+function showPeek(line) {
+  const s = state.editor?.s;
+  const hunk = s && hunkAt(s, line);
+  if (!hunk || !s.changesThen) {
+    return;
+  }
+  closePeek();
+  const hunks = s.changes.hunks;
+  const index = hunks.indexOf(hunk);
+  const button = (text, title, run) => {
+    const made = element("button", { type: "button", className: "peek-button", textContent: text, title });
+    made.addEventListener("click", run);
+    return made;
+  };
+  const go = (by) => () => {
+    const next = hunks[(index + by + hunks.length) % hunks.length];
+    jumpTo(next.now[0]);
+    showPeek(next.now[0]);
+  };
+  const lines = [
+    ...s.changesThen.slice(hunk.then[0], hunk.then[1]).map((text) => element("div", { className: "peek-line removed", textContent: text || " " })),
+    ...s.doc.lines.slice(hunk.now[0], hunk.now[1]).map((text) => element("div", { className: "peek-line added", textContent: text || " " })),
+  ];
+  const panel = element(
+    "div",
+    { className: "peek", role: "dialog", ariaLabel: `Change ${index + 1} of ${hunks.length}` },
+    element(
+      "div",
+      { className: "peek-head" },
+      element("span", { className: "peek-title", textContent: `Change ${index + 1} of ${hunks.length}` }),
+      button("Revert", "Revert Change", () => revertHunk(hunk)),
+      button("↑", "Previous Change", go(-1)),
+      button("↓", "Next Change", go(1)),
+      button("×", "Close", () => {
+        closePeek();
+        state.editor.focus();
+      })
+    ),
+    element("div", { className: "peek-lines" }, ...lines)
+  );
+  const host = document.getElementById("editor");
+  panel.dataset.line = String(line);
+  host.append(panel);
+  state.peek = panel;
+  state.peekAt = performance.now();
+  const box = host.getBoundingClientRect();
+  const last = hunk.now[1] > hunk.now[0] ? hunk.now[1] - 1 : Math.max(0, hunk.now[0] - 1);
+  const below = state.editor.rectOf({ line: last, col: 0 }).bottom - box.top;
+  const above = state.editor.rectOf({ line: hunk.now[0], col: 0 }).top - box.top;
+  panel.style.left = `${state.editor.gutter.offsetWidth}px`;
+  panel.style.top = `${below + panel.offsetHeight <= host.clientHeight ? below : Math.max(0, above - panel.offsetHeight)}px`;
 }
 
 // Places: where the cursor stands, kept before each jump for Back and Forward.
@@ -980,6 +1097,7 @@ export async function startEdit(defs) {
   const cursorLine = () => (state.editor?.s ? state.editor.head().line : 0);
   state.editor = new Editor(document.getElementById("editor"), {
     statusHost: document.getElementById("statusbar"),
+    onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),
     onCursor: () => {
       cancelAnimationFrame(lighting);
       lighting = requestAnimationFrame(() => {
@@ -1037,6 +1155,21 @@ export async function startEdit(defs) {
     },
   });
   keepListKeys(document.getElementById("panes"), document.getElementById("file-filter"));
+  // The peek goes with Escape, a press outside it, a scroll of the text, or another file shown.
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape" && state.peek) {
+        event.preventDefault();
+        event.stopPropagation();
+        closePeek();
+        state.editor.focus();
+      }
+    },
+    true
+  );
+  document.addEventListener("mousedown", (event) => state.peek && !state.peek.contains(event.target) && !event.target.closest?.(".ed-change") && closePeek());
+  state.editor.scroller.addEventListener("scroll", () => state.peek && performance.now() - state.peekAt > PEEK_SETTLES && closePeek());
   menuOn(document.getElementById("files"), fileItems);
   menuOn(document.getElementById("tabs"), tabItems);
   menuOn(document.getElementById("editor"), editorItems);
@@ -1168,6 +1301,11 @@ export function editing() {
     setBrackets: (on) => state.editor?.setBrackets(on),
     sticky: () => Boolean(state.editor?.stickyOn),
     setSticky: (on) => state.editor?.setSticky(on),
+    nextChange: () => stepChange(1, true),
+    previousChange: () => stepChange(-1, true),
+    hasChanges: () => Boolean(state.editor?.s?.changes?.hunks.length),
+    columnMode: () => Boolean(state.editor?.columnMode),
+    setColumnMode: (on) => state.editor?.setColumnMode(on),
     back: () => step(-1),
     forward: () => step(1),
     lastEditor,

@@ -137,6 +137,22 @@ const COMMANDS = {
   comment: inEditor((e) => e.toggleComment()),
   "select-all": inEditor((e) => e.selectAll()),
   "select-line": inEditor((e) => e.selectLine()),
+  "join-lines": inEditor((e) => e.joinLines()),
+  "sort-ascending": inEditor((e) => e.sortLines(false)),
+  "sort-descending": inEditor((e) => e.sortLines(true)),
+  "unique-lines": inEditor((e) => e.uniqueLines()),
+  "upper-case": inEditor((e) => e.transformCase("upper")),
+  "lower-case": inEditor((e) => e.transformCase("lower")),
+  "title-case": inEditor((e) => e.transformCase("title")),
+  "column-mode": (args) => editing().setColumnMode(onOff(args) ?? !editing().columnMode()),
+  "next-change": () => {
+    showView("edit");
+    editing().nextChange();
+  },
+  "previous-change": () => {
+    showView("edit");
+    editing().previousChange();
+  },
   "copy-line-up": inEditor((e) => e.copyLines(-1)),
   "copy-line-down": inEditor((e) => e.copyLines(1)),
   "move-line-up": inEditor((e) => e.moveLines(-1)),
@@ -196,6 +212,7 @@ const CHECKS = {
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
   "sticky-scroll": () => editing().sticky(),
+  "column-mode": () => editing().columnMode(),
   "auto-save": () => saving("auto-save"),
   breadcrumbs: crumbsShown,
   "bracket-pairs": () => editing().brackets(),
@@ -206,6 +223,7 @@ const CHECKS = {
 const NEEDS = {
   editor: () => Boolean(editing().editor),
   text: () => Boolean(editing().editor),
+  changes: () => editing().hasChanges(),
   "changed-active": () => editing().activeChanged,
   changed: () => editing().changed,
   tab: () => Boolean(editing().active),
