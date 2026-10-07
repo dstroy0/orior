@@ -5,6 +5,8 @@
 
 #include "record.h"
 
+#include <algorithm>
+
 // The ellipse E_rho is the image of the circle |z| = rho under eta = (z + 1/z) / 2, drawn over the segment
 // [-1, 1] with its feet at eta = -1 and eta = +1, where d = 1 - eta^2 is 0. A field f = sum f_m T_m(eta), its
 // Chebyshev weights given by the cfg, is held by ||f||_rho = sum |f_m| rho^m. For 0 <= h <= 1/2 and
@@ -37,6 +39,7 @@
 // 2. Every ellipse of the cfg is one the bounds hold on.
 // 3. Every bound of the witness and the proof is exact and held in the build's width.
 // 4. The witness and the proof are written whole to the cfg's record, with the radius each proves.
+// 5. An X inside a proved radius has F_low past 0, and each medium of the cfg has its walls written there.
 // The request: core_radius <cfg>.
 //     bash examples/navier_stokes/run.sh core_radius examples/navier_stokes/cfg/core_radius.cfg
 
@@ -330,6 +333,21 @@ static SimRational core_radius_up(SimRational value, const AnchorExactInteger *u
     up.denominator = *unit;
     sim_rational_settle(&up);
     return up;
+}
+
+// the largest multiple of 1 / unit at or below `value`, for value >= 0: a lower bound rounded down stays a lower bound
+static SimRational core_radius_down(SimRational value, const AnchorExactInteger *unit)
+{
+    AnchorExactInteger scaled;
+    AnchorExactInteger quotient;
+    AnchorExactInteger remainder;
+    sim_rational_status_check((anchor_exact_multiply(&value.numerator, unit, &scaled) == ANCHOR_EXACT_OK) &&
+                              (anchor_exact_divide(&scaled, &value.denominator, &quotient, &remainder) == ANCHOR_EXACT_OK));
+    SimRational down;
+    down.numerator = quotient;
+    down.denominator = *unit;
+    sim_rational_settle(&down);
+    return down;
 }
 
 static void core_radius_round_up(CoreRadiusWeights *weights, const AnchorExactInteger *unit)
@@ -800,10 +818,11 @@ static SimRational core_radius_place(const CoreRadiusWeights &weights, SimRation
 }
 
 // the largest r = j step the proof on E_rho holds at, the radius r / l^2 it proves, with the norms written to the record
-// and the numbers it reads at r appended to `lean` as the witness `name`
+// and the numbers it reads at r appended to `lean` as the witness `name`; the numbers and the norms in `held` and
+// `norms`, the rate in `held` 0 where no r is proved
 static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const CoreRadiusOrders *orders, unsigned int g0, unsigned int order,
                                           unsigned int split, SimRational step, unsigned long long steps, FILE *record, const std::string &name,
-                                          const std::string &title, std::string *lean)
+                                          const std::string &title, std::string *lean, CoreRadiusProof *held, CoreRadiusSequence *norms)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -850,9 +869,12 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
     }
     const SimRational proved = core_radius_times(core_radius_number((long long)low, 1ll), step);
     const SimRational radius = core_radius_over(proved, core_radius_times(scale->l, scale->l));
+    held->rate = core_radius_number(0ll, 1ll);
+    *norms = nf;
     if ((low > 0ull) && core_radius_fixed_proof(scale, &fixed, g0, nf, nu, np, nw, order, split, proved, &proof))
     {
         *lean += core_radius_lean(name, title, split, order, &proof);
+        *held = proof;
     }
     if (record != NULL)
     {
@@ -874,6 +896,119 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
         }
     }
     return radius;
+}
+
+// The walls of a medium. With tau = T - t, X = r^2 / (2 nu tau) and the angular speed v = r tau^(-1-h) F(X, eta) of
+// Proposition 20 of the millennium chapter on the coupled system, tau in seconds, v^2 = 2 nu X tau^(-1-2h) F^2. On
+// [-1, 1] |T_m| <= 1 and |L^-1| <= l, and the proof on one ellipse gives ||f_k|| <= B_f r^-k past the split: F at X is
+// at least F_low = c_0 - sum over m >= 1 of |c_m| less sum over k >= 1 of n_k (l^2 X)^k to the order the norms reach
+// and B_f q^k past it, q = l^2 X / r < 1, the data F_0 = sum c_m T_m. For tau <= 1, tau^(-2h) >= 1 and the speed at X
+// is at least V once tau <= 2 nu X F_low^2 / V^2: each wall below is a time left before T that the core passes it by.
+// The speed V is a share of the sound speed, the light speed, or the speed sqrt(2 E / m) at which one particle of mass
+// m carries the energy E that frees an electron; the radius r = sqrt(2 nu X tau) at X falls to the spacing a below
+// which the medium is not a continuum at tau = a^2 / (2 nu X); and the medium answers as an elastic solid at tau = its
+// relaxation time.
+
+// F_low at X, from the data's weights, the norms to their order and the bound B_f past it
+static SimRational core_radius_angular_least(const std::vector<SimRational> &data, const CoreRadiusSequence &norms, SimRational l, const CoreRadiusProof *proof,
+                                             SimRational x)
+{
+    const SimRational one = core_radius_number(1ll, 1ll);
+    SimRational least = data[0];
+    for (size_t m = 1u; m < data.size(); m += 1u)
+    {
+        least = sim_rational_difference(least, sim_rational_absolute(data[m]));
+    }
+    const SimRational step = core_radius_times(core_radius_times(l, l), x);
+    SimRational power = one;
+    for (size_t k = 1u; k < norms.size(); k += 1u)
+    {
+        power = core_radius_times(power, step);
+        least = sim_rational_difference(least, core_radius_times(norms[k], power));
+    }
+    // B_f q^(N+1) / (1 - q), q = l^2 X / r
+    const SimRational q = core_radius_over(step, proof->rate);
+    SimRational tail = proof->b_f;
+    for (size_t k = 0u; k < norms.size(); k += 1u)
+    {
+        tail = core_radius_times(tail, q);
+    }
+    return sim_rational_difference(least, core_radius_over(tail, sim_rational_difference(one, q)));
+}
+
+static SimRational core_radius_least(SimRational left, SimRational right)
+{
+    return (sim_rational_sign(sim_rational_difference(left, right)) <= 0) ? left : right;
+}
+
+// the time left at which the speed at X reaches V, from V^2: 2 nu X F_low^2 / V^2, at most 1
+static SimRational core_radius_wall_speed(SimRational nu, SimRational x, SimRational least, SimRational speed_square)
+{
+    const SimRational square = core_radius_times(core_radius_times(core_radius_times(core_radius_number(2ll, 1ll), nu), x), core_radius_times(least, least));
+    return core_radius_least(core_radius_over(square, speed_square), core_radius_number(1ll, 1ll));
+}
+
+// the n with 10^-(n+1) < tau <= 10^-n, for 0 < tau <= 1
+static unsigned int core_radius_decade(SimRational tau)
+{
+    const SimRational tenth = core_radius_number(1ll, 10ll);
+    SimRational power = tenth;
+    unsigned int decade = 0u;
+    while (sim_rational_sign(sim_rational_difference(power, tau)) >= 0)
+    {
+        power = core_radius_times(power, tenth);
+        decade += 1u;
+    }
+    return decade;
+}
+
+// the times the radius at X halves from tau to the Planck time: the largest n with tau >= 4^n t_P
+static unsigned int core_radius_halves(SimRational tau, SimRational planck)
+{
+    const SimRational four = core_radius_number(4ll, 1ll);
+    SimRational power = core_radius_times(planck, four);
+    unsigned int halves = 0u;
+    while (sim_rational_sign(sim_rational_difference(tau, power)) >= 0)
+    {
+        power = core_radius_times(power, four);
+        halves += 1u;
+    }
+    return halves;
+}
+
+// one wall: its name and the time left the core passes it by
+typedef struct
+{
+    std::string name;
+    SimRational tau;
+} CoreRadiusWall;
+
+// the walls of one medium, the first, the one with the most time left, first
+static std::vector<CoreRadiusWall> core_radius_walls(SimRational nu, SimRational x, SimRational least, SimRational sound, SimRational spacing, SimRational relaxation,
+                                                     SimRational mass, SimRational ionization, SimRational light, const std::vector<SimRational> &mach,
+                                                     const std::vector<std::string> &mach_names)
+{
+    std::vector<CoreRadiusWall> walls;
+    for (size_t index = 0u; index < mach.size(); index += 1u)
+    {
+        const SimRational speed = core_radius_times(mach[index], sound);
+        walls.push_back({"speed " + mach_names[index] + " of sound", core_radius_wall_speed(nu, x, least, core_radius_times(speed, speed))});
+    }
+    if (sim_rational_sign(mass) > 0)
+    {
+        // V^2 = 2 E / m
+        walls.push_back({"collisions that free an electron", core_radius_wall_speed(nu, x, least, core_radius_over(core_radius_times(core_radius_number(2ll, 1ll), ionization), mass))});
+    }
+    walls.push_back({"speed of light", core_radius_wall_speed(nu, x, least, core_radius_times(light, light))});
+    const SimRational radius_tau = core_radius_over(core_radius_times(spacing, spacing), core_radius_times(core_radius_times(core_radius_number(2ll, 1ll), nu), x));
+    const SimRational one = core_radius_number(1ll, 1ll);
+    walls.push_back({"radius at the spacing", core_radius_least(radius_tau, one)});
+    if (sim_rational_sign(relaxation) > 0)
+    {
+        walls.push_back({"elastic answer", core_radius_least(relaxation, one)});
+    }
+    std::stable_sort(walls.begin(), walls.end(), [](const CoreRadiusWall &left, const CoreRadiusWall &right) { return sim_rational_sign(sim_rational_difference(left.tau, right.tau)) > 0; });
+    return walls;
 }
 
 // the largest r = j step, j = 1..steps, the proof holds at over the witness a, u, p, w, 0 where it holds at none, with
@@ -928,6 +1063,17 @@ int main(int count, char **arguments)
     unsigned long long carry = 0ull;
     unsigned long long bits = 0ull;
     SimRational step;
+    SimRational wall_step;
+    SimRational light;
+    SimRational planck;
+    std::vector<SimRational> mach;
+    std::string names;
+    std::vector<SimRational> viscosity;
+    std::vector<SimRational> sound;
+    std::vector<SimRational> spacing;
+    std::vector<SimRational> relaxation;
+    std::vector<SimRational> mass;
+    std::vector<SimRational> ionization;
     const int read = (count == 2) && run_cfg_open(arguments[1], &cfg, &results.line) && run_cfg_rational(&cfg, "core.anisotropy", &h) &&
                      run_cfg_rationals(&cfg, "core.axis.angular", &angular) && run_cfg_rationals(&cfg, "core.axis.axial", &axial) &&
                      run_cfg_rationals(&cfg, "core.axis.pressure", &pressure) && run_cfg_rationals(&cfg, "ellipse.outer", &outer) &&
@@ -935,11 +1081,31 @@ int main(int count, char **arguments)
                      (order >= 1ull) && run_cfg_rational(&cfg, "rate.step", &step) && (sim_rational_sign(step) > 0) &&
                      run_cfg_count(&cfg, "rate.steps", &steps) && (steps >= 1ull) && run_cfg_count(&cfg, "split", &split) && (split >= 1ull) &&
                      (order >= 2ull * split) && run_cfg_count(&cfg, "carry", &carry) && (carry >= order) &&
-                     run_cfg_count(&cfg, "bits", &bits) && (bits >= 1ull);
-    if (!read)
+                     run_cfg_count(&cfg, "bits", &bits) && (bits >= 1ull) && run_cfg_rational(&cfg, "walls.step", &wall_step) &&
+                     (sim_rational_sign(wall_step) > 0) && run_cfg_rational(&cfg, "walls.light", &light) && run_cfg_rational(&cfg, "walls.planck", &planck) &&
+                     (sim_rational_sign(planck) > 0) && run_cfg_rationals(&cfg, "walls.mach", &mach) && run_cfg_text(&cfg, "walls.names", &names) &&
+                     run_cfg_rationals(&cfg, "walls.viscosity", &viscosity) && run_cfg_rationals(&cfg, "walls.sound", &sound) &&
+                     run_cfg_rationals(&cfg, "walls.spacing", &spacing) && run_cfg_rationals(&cfg, "walls.relaxation", &relaxation) &&
+                     run_cfg_rationals(&cfg, "walls.mass", &mass) && run_cfg_rationals(&cfg, "walls.ionization", &ionization);
+    // the media's names, one to each comma
+    std::vector<std::string> media;
+    size_t from = 0u;
+    while (read && (from <= names.size()))
+    {
+        const size_t comma = names.find(',', from);
+        const size_t end = (comma == std::string::npos) ? names.size() : comma;
+        const size_t first = names.find_first_not_of(' ', from);
+        media.push_back(((first == std::string::npos) || (first >= end)) ? std::string() : names.substr(first, end - first));
+        from = end + 1u;
+    }
+    const size_t count_media = media.size();
+    const int media_read = read && (viscosity.size() == count_media) && (sound.size() == count_media) && (spacing.size() == count_media) &&
+                           (relaxation.size() == count_media) && (mass.size() == count_media) && (ionization.size() == count_media);
+    if (!media_read || (count_media == 0u))
     {
         run_cfg_missing(&results.line, "core anisotropy, axis angular, axial and pressure, ellipse outer and inner of one length, order, rate "
-                                       "step and steps, a split at least 1 with order at least twice it, a carry at least the order, and bits");
+                                       "step and steps, a split at least 1 with order at least twice it, a carry at least the order, bits, and walls "
+                                       "step, light, planck, mach, and names with one viscosity, sound, spacing, relaxation, mass and ionization each");
         sim_flush(&results);
         fprintf(stderr, "core_radius <cfg>\n");
         return 2;
@@ -980,6 +1146,11 @@ int main(int count, char **arguments)
                        "`Witness.Checks`. `Witness.tail` carries them to every order past the split.\n"
                        "-/\n\n"
                        "namespace CoreRadius\n\n";
+    int found = 0;
+    SimRational best_x = core_radius_number(0ll, 1ll);
+    SimRational best_least = core_radius_number(0ll, 1ll);
+    SimRational best_value = core_radius_number(0ll, 1ll);
+    SimRational best_ellipse = core_radius_number(0ll, 1ll);
     for (size_t index = 0u; index < outer.size(); index += 1u)
     {
         const SimRational rho_square = core_radius_times(outer[index], outer[index]);
@@ -1021,10 +1192,47 @@ int main(int count, char **arguments)
         const SimRational kept = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "exact weights");
         const std::string ellipse = "ellipse_" + std::to_string(index);
         const std::string on = "On E_rho0, rho0 = " + term_book_rational(outer[index]) + ", ";
+        CoreRadiusProof exact_proof;
+        CoreRadiusSequence exact_norms;
         const SimRational one_ellipse = core_radius_fixed_rate(&scale, &exact, g0, last, (unsigned int)split, step, steps, record, ellipse + "_exact",
-                                                               on + "each weight exact to order " + std::to_string(last) + ".", &lean);
+                                                               on + "each weight exact to order " + std::to_string(last) + ".", &lean, &exact_proof, &exact_norms);
+        CoreRadiusProof carried_proof;
+        CoreRadiusSequence carried_norms;
         const SimRational carried = core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps, record, ellipse + "_carried",
-                                                           on + "the magnitudes carried to order " + std::to_string(carry) + ".", &lean);
+                                                           on + "the magnitudes carried to order " + std::to_string(carry) + ".", &lean, &carried_proof, &carried_norms);
+        // the X of each proof's radius, stepped by the walls' step, where X F_low^2 is largest
+        const CoreRadiusProof *const proofs[2] = {&exact_proof, &carried_proof};
+        const CoreRadiusSequence *const proof_norms[2] = {&exact_norms, &carried_norms};
+        const SimRational radii[2] = {one_ellipse, carried};
+        for (unsigned int which = 0u; which < 2u; which += 1u)
+        {
+            if (sim_rational_sign(proofs[which]->rate) <= 0)
+            {
+                continue;
+            }
+            SimRational x = wall_step;
+            while (sim_rational_sign(sim_rational_difference(radii[which], x)) > 0)
+            {
+                const SimRational exact_least = core_radius_angular_least(angular, *proof_norms[which], scale.l, proofs[which], x);
+                if (sim_rational_sign(exact_least) <= 0)
+                {
+                    x = core_radius_plus(x, wall_step);
+                    continue;
+                }
+                // rounded down to a multiple of 2^-bits, held in a length the walls' products fit
+                const SimRational least = core_radius_down(exact_least, &unit);
+                const SimRational value = core_radius_times(x, core_radius_times(least, least));
+                if ((sim_rational_sign(least) > 0) && (!found || (sim_rational_sign(sim_rational_difference(value, best_value)) > 0)))
+                {
+                    found = 1;
+                    best_x = x;
+                    best_least = least;
+                    best_value = value;
+                    best_ellipse = outer[index];
+                }
+                x = core_radius_plus(x, wall_step);
+            }
+        }
         scriptura_text(&results.line, "  rho0 ");
         sim_rational_print(&results.line, outer[index]);
         scriptura_text(&results.line, ", rho_min ");
@@ -1045,6 +1253,44 @@ int main(int count, char **arguments)
         sim_flush(&results);
     }
     sim_check(&results, legal, "every ellipse of the cfg one the bounds hold on");
+    sim_check(&results, found, "an X inside a proved radius where F_low is past 0");
+    if (found)
+    {
+        const std::string at = "walls at X = " + term_book_rational(best_x) + " on E_rho0, rho0 = " + term_book_rational(best_ellipse) + ", F_low = " + term_book_rational(best_least);
+        scriptura_text(&results.line, ("  " + at + "\n").c_str());
+        if (record != NULL)
+        {
+            record_text(record, at.c_str());
+        }
+        std::vector<std::string> mach_names;
+        for (const SimRational &share : mach)
+        {
+            mach_names.push_back(term_book_rational(share));
+        }
+        for (size_t index = 0u; index < count_media; index += 1u)
+        {
+            const std::vector<CoreRadiusWall> walls = core_radius_walls(viscosity[index], best_x, best_least, sound[index], spacing[index], relaxation[index], mass[index],
+                                                                        ionization[index], light, mach, mach_names);
+            scriptura_text(&results.line, ("  " + media[index] + ", the time left before T each wall is passed by:\n").c_str());
+            if (record != NULL)
+            {
+                record_text(record, ("  " + media[index] + ": wall, time left in seconds, n with 10^-(n+1) < tau <= 10^-n, halves of the radius to the Planck time").c_str());
+            }
+            for (const CoreRadiusWall &wall : walls)
+            {
+                const unsigned int decade = core_radius_decade(wall.tau);
+                const unsigned int halves = core_radius_halves(wall.tau, planck);
+                scriptura_text(&results.line, ("    " + wall.name + ": 10^-" + std::to_string(decade + 1u) + " < tau <= 10^-" + std::to_string(decade) + " s, then " +
+                                               std::to_string(halves) + " halves of the radius to the Planck time\n")
+                                                  .c_str());
+                if (record != NULL)
+                {
+                    record_text(record, ("    " + wall.name + ", " + term_book_rational(wall.tau) + ", " + std::to_string(decade) + ", " + std::to_string(halves)).c_str());
+                }
+            }
+            sim_flush(&results);
+        }
+    }
     lean += "end CoreRadius\n";
     sim_check(&results, core_radius_lean_write(arguments[1], &cfg, "report.lean", lean), "Lean witness written");
     const int held = !run_cfg_short() && !record_short() && (s_sim_rational_wide == 0);
