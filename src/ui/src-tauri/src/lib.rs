@@ -358,6 +358,23 @@ fn toolchain_install(id: String) -> Result<String, String> {
     toolchains::open_install(&id)
 }
 
+/// What File, Clone Repository starts from: orior's own repository and the reader's home.
+#[tauri::command]
+fn clone_start() -> serde_json::Value {
+    serde_json::json!({ "url": git::ORIOR, "parent": git::clone_parent().display().to_string() })
+}
+
+/// Clones `url` into a new folder under `parent`, telling the page each line of git's progress as
+/// "clone-progress", and answers the folder made.
+#[tauri::command(async)]
+fn repo_clone(handle: AppHandle, url: String, parent: String) -> Result<String, String> {
+    let target = git::clone_folder(&url, Path::new(&parent))?;
+    git::clone(&url, &target, |line, _| {
+        let _ = handle.emit("clone-progress", line);
+    })
+    .map(|dir| dir.display().to_string())
+}
+
 /// The shell line that installs a toolchain, for the terminal to run.
 #[tauri::command]
 fn toolchain_setup(id: String) -> Result<String, String> {
@@ -633,6 +650,8 @@ fn open(launch: Launch) {
             toolchain_version,
             toolchain_install,
             toolchain_setup,
+            clone_start,
+            repo_clone,
             toolchain_add_path,
             toolchain_use,
             toolchain_forget,

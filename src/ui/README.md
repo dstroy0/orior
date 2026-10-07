@@ -41,7 +41,11 @@ cd src/ui/src-tauri
 cargo tauri build
 ```
 
-They land under `src-tauri/target/release/bundle/`, for the platform the build runs on.
+They land under `src-tauri/target/release/bundle/`, for the platform the build runs on. Each
+published release carries them for Windows, macOS and Linux, built by `.github/workflows/app.yml`.
+Without a clone, `cargo install --git https://github.com/dstroy0/orior orior-ui --locked` builds and
+installs the program `orior`. A plain cargo build puts the page inside the program, as the installers
+do; `cargo tauri dev` serves it from `src/` as it changes.
 
 orior files the errors it meets as issues on dstroy0/orior on its own, and asks once whether to,
 yes the answer given by default. The Windows installer asks as it installs (`src-tauri/windows/hooks.nsh`);

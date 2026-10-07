@@ -19,6 +19,7 @@
 // into the last, a menu of menus.
 
 import { invoke } from "./bridge.js";
+import { showClone } from "./clone.js";
 import { crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
@@ -188,6 +189,7 @@ const COMMANDS = {
   "new-plugin": (args) => showGenerator(sheet, args),
   "reload-plugins": () => loadPlugins(),
   toolchains: (args) => runToolchains(sheet, args),
+  clone: (args) => showClone(sheet, state.openFolder, args),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),

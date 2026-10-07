@@ -42,18 +42,31 @@ Most of the parts are old, and they are named as old. The shuffle is a permutati
 
 ## Quick start
 
-From a fresh clone, at the repository root:
+The easiest way in is [the app](#the-app): one window that lists every job the tree holds, sets its values and runs it, and edits every file of the tree beside it.
+
+1. **Install orior.** [The latest release](https://github.com/dstroy0/orior/releases/latest) holds an installer for each system: the `setup.exe` or the `.msi` on Windows, the `.dmg` on macOS, and the `.deb`, the `.rpm` or the `.AppImage` on Linux. With Rust 1.77 or later, one command builds and installs it instead:
+
+   ```sh
+   cargo install --git https://github.com/dstroy0/orior orior-ui --locked
+   ```
+
+   The installers carry no certificate's signature. Windows warns before the first run, where More info, Run anyway starts it; on macOS, a right click on the app and Open starts it the first time.
+2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
+3. **Run a job.** The Run tab lists every job. Choose one, set its values and press F5.
+
+File, Clone Repository does the same at any time, and `orior file clone` does it from a terminal.
+
+To work from a terminal instead, clone the repository and run these at its root:
 
 ```sh
+git clone https://github.com/dstroy0/orior.git && cd orior
 utils/maint/engine/build_engine.sh                                  # the C engine: configure, build, run the graders
 python examples/any_corpus/4_measure/collision_entropy.py           # a reading that knows nothing about its corpus
 python examples/crystallography/6_oracle/proof_positive_control.py  # the positive control, against published cells
 sh utils/maint/texbuild/build_theory.sh                             # the research papers
 ```
 
-On Windows PowerShell the engine builds with `utils/maint/engine/build_engine.ps1`. Python needs only `numpy` to start. [Setup](docs/setup.md) covers the rest.
-
-Every one of these is a job in [the app](#the-app) as well: `cd src/ui/src-tauri && cargo run` opens a window that lists each job the tree holds, sets its values and runs it, and edits every file of the tree beside it. It is the easiest way in.
+On Windows PowerShell the engine builds with `utils/maint/engine/build_engine.ps1`. Python needs only `numpy` to start. [Setup](docs/setup.md) covers the rest. Every one of these is a job in the app as well.
 
 ## The app
 
@@ -61,15 +74,15 @@ Every one of these is a job in [the app](#the-app) as well: `cd src/ui/src-tauri
 
 ### Get started
 
-It needs Rust 1.77 or later. From a fresh clone:
+[Quick start](#quick-start) installs it and clones the tree from it. In a clone, it also runs with no install, given Rust 1.77 or later:
 
 ```sh
 cd src/ui/src-tauri
 cargo run                       # build it and open the window
-cargo run -- run list           # the same program given words, with no install
+cargo run -- run list           # the same program given words
 ```
 
-The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it asks for a folder, and File, Open Folder moves it to another tree at any time. Each tree keeps its own open tabs. [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
+The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it offers Open and Clone Repository, and File, Open Folder and File, Clone Repository move it to another tree at any time. Each tree keeps its own open tabs. [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
 
 ### The window
 
@@ -251,6 +264,7 @@ orior view scheme dark                  any window command, here switching to th
 orior file plugins                      every plugin, where it comes from and what it opens
 orior file new-plugin <name> --ext <e>  write a language plugin; orior help names its other words
 orior file user-css                     the path of user.css, made where it is not there
+orior file clone [url] [folder]         clone a repository, orior's where none is named, into a folder
 orior file toolchains                   each toolchain, where it was found and its version
 orior file toolchains install <tool>    run its installer where orior has one, else open its install page
 orior file toolchains add-path <tool>   put its folder on your PATH; add-path orior adds orior
