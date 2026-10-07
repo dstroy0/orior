@@ -7,8 +7,11 @@
 // sits there with them. An odd b would center them half a voxel apart. Every lane of the key's residual and of the
 // unit sweeps' is checked against the residual counted here from that definition, on odd, even and mixed orders over
 // extents that include a single voxel and an axis one voxel long, and an odd background order errors at each of the
-// three sites as a request error from its own module. The test is one job on the device's tessera daemon, submitted
-// before its first device work.
+// three sites as a request error from its own module. The comb of n on an axis is a running sum of n voxels taken on
+// both terms before the smooth: its row is the binomial's times n ones, its window starts floor(T / 2) before the voxel
+// for a row of T taps, and an even n moves both terms half a voxel as an odd smooth order does. The sets with combs
+// hold odd and even n, n of 0 and 1, and n past the extent. The test is one job on the device's tessera daemon,
+// submitted before its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
@@ -23,7 +26,9 @@
 
 #define ODD_TEST_EXTENTS 5u
 
-#define ODD_TEST_ORDER_SETS 6u
+#define ODD_TEST_ORDER_SETS 11u
+
+#define ODD_TEST_TAPS_MAX 64u
 
 #define ODD_TEST_VOXELS_MAX (5u * 9u * 11u)
 
@@ -38,10 +43,16 @@ static const unsigned int ODD_TEST_EXTENT[ODD_TEST_EXTENTS][ENGINE_AXES] = {
     {1u, 1u, 1u}, {3u, 1u, 7u}, {5u, 9u, 11u}, {4u, 6u, 5u}, {2u, 8u, 3u}};
 
 static const unsigned int ODD_TEST_SMOOTH[ODD_TEST_ORDER_SETS][ENGINE_AXES] = {
-    {1u, 1u, 1u}, {3u, 0u, 5u}, {5u, 3u, 1u}, {0u, 1u, 0u}, {1u, 2u, 3u}, {2u, 4u, 4u}};
+    {1u, 1u, 1u}, {3u, 0u, 5u}, {5u, 3u, 1u}, {0u, 1u, 0u}, {1u, 2u, 3u}, {2u, 4u, 4u},
+    {0u, 0u, 0u}, {1u, 0u, 1u}, {0u, 1u, 0u}, {2u, 2u, 2u}, {0u, 0u, 0u}};
 
 static const unsigned int ODD_TEST_BACKGROUND[ODD_TEST_ORDER_SETS][ENGINE_AXES] = {
-    {2u, 2u, 2u}, {4u, 2u, 0u}, {6u, 6u, 2u}, {0u, 2u, 0u}, {2u, 0u, 4u}, {6u, 6u, 6u}};
+    {2u, 2u, 2u}, {4u, 2u, 0u}, {6u, 6u, 2u}, {0u, 2u, 0u}, {2u, 0u, 4u}, {6u, 6u, 6u},
+    {2u, 2u, 2u}, {2u, 2u, 2u}, {0u, 2u, 4u}, {4u, 4u, 4u}, {2u, 0u, 2u}};
+
+static const unsigned int ODD_TEST_COMB[ODD_TEST_ORDER_SETS][ENGINE_AXES] = {
+    {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u},
+    {2u, 2u, 2u}, {4u, 4u, 2u}, {3u, 4u, 5u}, {6u, 7u, 8u}, {1u, 0u, 9u}};
 
 typedef struct
 {
@@ -88,31 +99,50 @@ static unsigned long long odd_test_binomial(unsigned int order, unsigned int tap
     return value;
 }
 
-// one axis of one term: each voxel's weighted sum over the order's window along the axis, the window starting
-// floor((order + 1) / 2) before the voxel
-static void odd_test_axis(const unsigned int *extent, unsigned int axis, unsigned int order,
+// one axis's row: the binomial of the order times n ones for a comb of n, T taps, T at most ODD_TEST_TAPS_MAX
+static unsigned int odd_test_row(unsigned int order, unsigned int comb, unsigned long long row[ODD_TEST_TAPS_MAX])
+{
+    const unsigned int ones = (comb < 2u) ? 1u : comb;
+    const unsigned int taps = order + ones;
+    for (unsigned int tap = 0u; tap < taps; tap += 1u)
+    {
+        row[tap] = 0ull;
+        for (unsigned int one = 0u; one < ones; one += 1u)
+        {
+            row[tap] += ((one <= tap) && ((tap - one) <= order)) ? odd_test_binomial(order, tap - one) : 0ull;
+        }
+    }
+    return taps;
+}
+
+// one axis of one term: each voxel's weighted sum over the row's window along the axis, the window of T taps
+// starting floor(T / 2) before the voxel
+static void odd_test_axis(const unsigned int *extent, unsigned int axis, unsigned int order, unsigned int comb,
                           const unsigned long long *from, unsigned long long *to)
 {
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
     const unsigned int stride = (axis == 0u) ? (extent[1] * extent[2]) : ((axis == 1u) ? extent[2] : 1u);
-    const long long start = (long long)((order + 1u) / 2u);
+    unsigned long long row[ODD_TEST_TAPS_MAX];
+    const unsigned int taps = odd_test_row(order, comb, row);
+    const long long start = (long long)(taps / 2u);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         const unsigned int coordinate = (voxel / stride) % extent[axis];
         const unsigned int line = voxel - (coordinate * stride);
         unsigned long long sum = 0ull;
-        for (unsigned int tap = 0u; tap <= order; tap += 1u)
+        for (unsigned int tap = 0u; tap < taps; tap += 1u)
         {
             const unsigned int read =
                 odd_test_reflect((long long)coordinate - start + (long long)tap, (long long)extent[axis]);
-            sum += odd_test_binomial(order, tap) * from[line + (read * stride)];
+            sum += row[tap] * from[line + (read * stride)];
         }
         to[voxel] = sum;
     }
 }
 
-// one term, B_orders applied to the volume axis by axis, into `along`
-static void odd_test_term(const unsigned int *extent, const unsigned int *orders, OddTestHost *host)
+// one term, B_orders times the combs applied to the volume axis by axis, into `along`
+static void odd_test_term(const unsigned int *extent, const unsigned int *orders, const unsigned int *comb,
+                          OddTestHost *host)
 {
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
@@ -121,14 +151,14 @@ static void odd_test_term(const unsigned int *extent, const unsigned int *orders
     }
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        odd_test_axis(extent, axis, orders[axis], host->along, host->across);
+        odd_test_axis(extent, axis, orders[axis], comb[axis], host->along, host->across);
         memcpy(host->along, host->across, (size_t)voxels * sizeof(unsigned long long));
     }
 }
 
 // the residual from its definition: the narrow term times 2^gain less the wide term
 static void odd_test_expect(const unsigned int *extent, const unsigned int *smooth, const unsigned int *background,
-                            OddTestHost *host)
+                            const unsigned int *comb, OddTestHost *host)
 {
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
     unsigned int wide[ENGINE_AXES];
@@ -138,16 +168,17 @@ static void odd_test_expect(const unsigned int *extent, const unsigned int *smoo
         wide[axis] = smooth[axis] + background[axis];
         gain += background[axis];
     }
-    odd_test_term(extent, smooth, host);
+    odd_test_term(extent, smooth, comb, host);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
-        // the narrow term is below 2^(16 + 15) and the gain at most 18: the shifted term is below 2^49
+        // the narrow term is below 2^(16 + 15 + 10), a comb of n adding bit_length(n - 1), and the gain at most 18:
+        // the shifted term is below 2^59
         host->expected[voxel] = (long long)(host->along[voxel] << gain);
     }
-    odd_test_term(extent, wide, host);
+    odd_test_term(extent, wide, comb, host);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
-        // the wide term is below 2^(16 + 33), inside a signed word
+        // the wide term is below 2^(16 + 33 + 10), inside a signed word
         host->expected[voxel] -= (long long)host->along[voxel];
     }
 }
@@ -182,6 +213,7 @@ static int odd_test_read(const unsigned int *device_lanes, unsigned int voxels, 
 
 // the key's residual: the program residual_program writes, encoded, laid out and run on the one atom
 static int odd_test_key(const unsigned int *extent, const unsigned int *smooth, const unsigned int *background,
+                        const unsigned int *comb,
                         const OddTestDevice *device, OddTestHost *host)
 {
     EngineError error;
@@ -190,6 +222,7 @@ static int odd_test_key(const unsigned int *extent, const unsigned int *smooth, 
     memset(&residual, 0, sizeof(residual));
     memcpy(residual.smooth_orders, smooth, sizeof(residual.smooth_orders));
     memcpy(residual.background_orders, background, sizeof(residual.background_orders));
+    memcpy(residual.comb, comb, sizeof(residual.comb));
     residual.error = &error;
     EngineStep program[RESIDUAL_STEPS];
     EngineKey math;
@@ -217,6 +250,7 @@ static int odd_test_key(const unsigned int *extent, const unsigned int *smooth, 
 }
 
 static int odd_test_sweep(const unsigned int *extent, const unsigned int *smooth, const unsigned int *background,
+                          const unsigned int *comb,
                           const OddTestDevice *device, OddTestHost *host)
 {
     EngineError error;
@@ -229,6 +263,7 @@ static int odd_test_sweep(const unsigned int *extent, const unsigned int *smooth
     request.width = extent[2];
     memcpy(request.smooth_orders, smooth, sizeof(request.smooth_orders));
     memcpy(request.background_orders, background, sizeof(request.background_orders));
+    memcpy(request.comb, comb, sizeof(request.comb));
     request.limbs = ENGINE_RESIDUAL_LIMBS;
     request.device_out = device->sweep_out;
     request.error = &error;
@@ -242,6 +277,7 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
     const unsigned int *const smooth = ODD_TEST_SMOOTH[orders];
     const unsigned int *const background = ODD_TEST_BACKGROUND[orders];
+    const unsigned int *const comb = ODD_TEST_COMB[orders];
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         const unsigned long long draw = sim_draw(key, voxel);
@@ -253,7 +289,7 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
         // a value of at most 16 bits narrows to unsigned short exactly
         host->volume[voxel] = (unsigned short)value;
     }
-    odd_test_expect(extent, smooth, background, host);
+    odd_test_expect(extent, smooth, background, comb, host);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         counts->nonzero += (host->expected[voxel] != 0ll) ? 1ull : 0ull;
@@ -261,11 +297,11 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
     counts->lanes += voxels;
     const int placed = (cudaMemcpy(device->volume, host->volume, (size_t)voxels * sizeof(unsigned short),
                                    cudaMemcpyHostToDevice) == cudaSuccess);
-    const int keyed = placed && odd_test_key(extent, smooth, background, device, host);
+    const int keyed = placed && odd_test_key(extent, smooth, background, comb, device, host);
     sim_check(results, keyed, "the key is encoded from the residual's program and run");
     const unsigned long long key_differ = keyed ? odd_test_differ(host, voxels) : voxels;
     sim_check(results, key_differ == 0ull, "every lane of the key's residual is the residual's definition");
-    const int swept = placed && odd_test_sweep(extent, smooth, background, device, host);
+    const int swept = placed && odd_test_sweep(extent, smooth, background, comb, device, host);
     sim_check(results, swept, "the unit sweeps run on the same orders");
     const unsigned long long sweep_differ = swept ? odd_test_differ(host, voxels) : voxels;
     sim_check(results, sweep_differ == 0ull, "every lane of the unit sweeps' residual is the residual's definition");
@@ -287,6 +323,12 @@ static void odd_test_report(SimResults *results, unsigned int orders, const OddT
         scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
         scriptura_decimal(&results->line, ODD_TEST_BACKGROUND[orders][axis], 1u);
     }
+    scriptura_text(&results->line, "} comb ");
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
+        scriptura_decimal(&results->line, ODD_TEST_COMB[orders][axis], 1u);
+    }
     scriptura_text(&results->line, "}: ");
     scriptura_decimal(&results->line, counts->lanes, 1u);
     scriptura_text(&results->line, " lanes over the extents, ");
@@ -299,17 +341,79 @@ static void odd_test_report(SimResults *results, unsigned int orders, const OddT
     sim_flush(results);
 }
 
+// the lanes read back that are zero in every limb, over the voxels whose window of `taps` along the line lies inside it
+static unsigned long long odd_test_inside_nonzero(const OddTestHost *host, unsigned int length, unsigned int taps)
+{
+    unsigned long long nonzero = 0ull;
+    const unsigned int start = taps / 2u;
+    for (unsigned int voxel = start; (voxel + taps) <= (length + start); voxel += 1u)
+    {
+        unsigned int bits = 0u;
+        for (unsigned int limb = 0u; limb < ENGINE_RESIDUAL_LIMBS; limb += 1u)
+        {
+            bits |= host->lanes[((size_t)voxel * ENGINE_RESIDUAL_LIMBS) + limb];
+        }
+        nonzero += (bits != 0u) ? 1ull : 0ull;
+    }
+    return nonzero;
+}
+
+// a period of n planted along x: the comb of n sends it to a constant, and every lane whose window lies inside the line
+// is zero on the key and on the unit sweeps; without the comb those lanes are not all zero
+static void odd_test_period(SimResults *results, const OddTestDevice *device, OddTestHost *host)
+{
+    static const unsigned int PERIOD_TEST_VALUES[5] = {0u, 9000u, 300u, 65535u, 4242u};
+    const unsigned int extent[ENGINE_AXES] = {1u, 1u, 41u};
+    const unsigned int smooth[ENGINE_AXES] = {0u, 0u, 0u};
+    const unsigned int background[ENGINE_AXES] = {0u, 0u, 4u};
+    for (unsigned int period = 4u; period <= 5u; period += 1u)
+    {
+        for (unsigned int voxel = 0u; voxel < extent[2]; voxel += 1u)
+        {
+            // a value of at most 16 bits narrows to unsigned short exactly
+            host->volume[voxel] = (unsigned short)PERIOD_TEST_VALUES[voxel % period];
+        }
+        const int placed = (cudaMemcpy(device->volume, host->volume, (size_t)extent[2] * sizeof(unsigned short),
+                                       cudaMemcpyHostToDevice) == cudaSuccess);
+        const unsigned int combed[ENGINE_AXES] = {0u, 0u, period};
+        const unsigned int bare[ENGINE_AXES] = {0u, 0u, 0u};
+        const unsigned int taps = period + background[2];
+        const int key_combed = placed && odd_test_key(extent, smooth, background, combed, device, host);
+        const unsigned long long key_left = key_combed ? odd_test_inside_nonzero(host, extent[2], taps) : 1ull;
+        const int sweep_combed = placed && odd_test_sweep(extent, smooth, background, combed, device, host);
+        const unsigned long long sweep_left = sweep_combed ? odd_test_inside_nonzero(host, extent[2], taps) : 1ull;
+        const int key_bare = placed && odd_test_key(extent, smooth, background, bare, device, host);
+        const unsigned long long bare_left =
+            key_bare ? odd_test_inside_nonzero(host, extent[2], background[2] + 1u) : 0ull;
+        sim_check(results, (key_left == 0ull) && (sweep_left == 0ull),
+                  "a comb of n sends a period of n to zero on every lane inside the line, key and unit sweeps alike");
+        sim_check(results, bare_left != 0ull, "without the comb the same lanes are not all zero");
+        scriptura_text(&results->line, "  a period of ");
+        scriptura_decimal(&results->line, period, 1u);
+        scriptura_text(&results->line, " along 41 voxels: with its comb, ");
+        scriptura_decimal(&results->line, key_left, 1u);
+        scriptura_text(&results->line, " lanes inside are not zero on the key and ");
+        scriptura_decimal(&results->line, sweep_left, 1u);
+        scriptura_text(&results->line, " on the unit sweeps; without it, ");
+        scriptura_decimal(&results->line, bare_left, 1u);
+        scriptura_character(&results->line, '\n');
+        sim_flush(results);
+    }
+}
+
 // an odd background order at each of the three sites: residual_program, the key's encoding and the unit sweeps
 static void odd_test_errors(SimResults *results, const OddTestDevice *device)
 {
     const unsigned int smooth[ENGINE_AXES] = {1u, 2u, 3u};
     const unsigned int background[ENGINE_AXES] = {2u, 3u, 2u};
+    const unsigned int comb[ENGINE_AXES] = {0u, 4u, 0u};
     EngineError error;
     memset(&error, 0, sizeof(error));
     EngineResidualRequest residual;
     memset(&residual, 0, sizeof(residual));
     memcpy(residual.smooth_orders, smooth, sizeof(residual.smooth_orders));
     memcpy(residual.background_orders, background, sizeof(residual.background_orders));
+    memcpy(residual.comb, comb, sizeof(residual.comb));
     residual.error = &error;
     EngineStep program[RESIDUAL_STEPS];
     sim_check(results,
@@ -317,13 +421,15 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
                   (error.module == ENGINE_MODULE_RESIDUAL),
               "an odd background order errors on the residual's program, a request error from residual");
     memset(program, 0, sizeof(program));
-    program[0].operation = ENGINE_SMOOTH;
-    memcpy(program[0].orders, smooth, sizeof(program[0].orders));
-    program[1].operation = ENGINE_KEEP;
-    program[2].operation = ENGINE_SMOOTH;
-    memcpy(program[2].orders, background, sizeof(program[2].orders));
-    program[3].operation = ENGINE_SCALE_SUBTRACT;
-    program[3].shift = background[0] + background[1] + background[2];
+    program[0].operation = ENGINE_COMB;
+    memcpy(program[0].orders, comb, sizeof(program[0].orders));
+    program[1].operation = ENGINE_SMOOTH;
+    memcpy(program[1].orders, smooth, sizeof(program[1].orders));
+    program[2].operation = ENGINE_KEEP;
+    program[3].operation = ENGINE_SMOOTH;
+    memcpy(program[3].orders, background, sizeof(program[3].orders));
+    program[4].operation = ENGINE_SCALE_SUBTRACT;
+    program[4].shift = background[0] + background[1] + background[2];
     memset(&error, 0, sizeof(error));
     EngineKey math;
     memset(&math, 0, sizeof(math));
@@ -341,6 +447,7 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     request.width = ODD_TEST_EXTENT[3][2];
     memcpy(request.smooth_orders, smooth, sizeof(request.smooth_orders));
     memcpy(request.background_orders, background, sizeof(request.background_orders));
+    memcpy(request.comb, comb, sizeof(request.comb));
     request.limbs = ENGINE_RESIDUAL_LIMBS;
     request.device_out = device->sweep_out;
     request.error = &error;
@@ -383,6 +490,7 @@ int main(int count, char **arguments)
     }
     if (passed)
     {
+        odd_test_period(&results, &device, host);
         odd_test_errors(&results, &device);
     }
     if (admitted != 0)

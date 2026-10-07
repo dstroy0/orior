@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cubin_run.c: one question carried to the part: its code put in the container the system accepted, held to
+// cubin_run.c: a question carried to the part: its code put in the container the system accepted, held to
 // cubin_safe on the host, and run over its cases, a thread a case. This is the run channel's carrier for a part behind
-// NVIDIA's driver (run_channel.h), and a question is carried in a process of its own, so a part that refuses one
-// takes this process with it and nothing else.
+// NVIDIA's driver (run_channel.h). A question is carried in a process of its own, so a part that refuses one takes
+// this process with it and nothing else, or with --list, many untimed questions in one process, the driver opened
+// once, each answered to its own file as it is carried: a part that refuses one takes the process with it, every
+// answer written before it stands, and the questions after it are left for the channel to carry again.
 //
 //     cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]
+//     cubin_run <machine file> <ksc> --list <list>      a line a question, <code> <registers> <cases> <answers>
 //
 // The code is the question's machine code, sixteen bytes an instruction. The .ksc's container rows hold the container
 // (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
 // eight words in hex, the words a line leaves out zero, and the kernel is handed the stick's frame: in, eight words a
 // thread, out, two words a thread, and the count of threads. It is launched in blocks of <threads>, <blocks> of them,
-// one block of 256 where the question names no shape, and every thread is given a case, thread t case t of the cases
-// taken round: the cases are answered by the first threads, and the rest do the same work over again. One line is
-// written to the answers:
+// blocks of 256 where the question names no shape, as many as give every case a thread, and every thread is given a
+// case, thread t case t of the cases taken round: the cases are answered by the first threads, and the rest do the
+// same work over again. One line is written to the answers:
 //
 //     answered <answer>...      each case's two words as one value in hex, in the order of the cases
 //     skipped <verdict> <name>  cubin_safe held it off the part, and the driver never saw it
@@ -41,12 +44,12 @@
 // the most bytes a container and its code take, and the longest line of the cases
 #define CUBIN_RUN_BYTES 262144u
 #define CUBIN_RUN_LINE 1024u
-// the words of a case and of an answer, the stick's frame; the most cases a question gives, and the threads a block
-// holds where the question names no shape of its own
+// the words of a case and of an answer, the stick's frame, and the threads a block holds where the question names
+// no shape of its own
 #define CUBIN_RUN_IN_WORDS 8u
 #define CUBIN_RUN_OUT_WORDS 2u
 #define CUBIN_RUN_THREADS 256u
-// the most threads one launch gives a case each
+// the most threads one launch gives a case each, and the most cases a question gives: every case is a thread's
 #define CUBIN_RUN_THREADS_MOST (1u << 20u)
 // the exits a question's code holds at most
 #define CUBIN_RUN_EXITS 256u
@@ -84,6 +87,8 @@ typedef struct
     CubinRunStatus (*event_synchronize)(void *);
     CubinRunStatus (*event_elapsed)(float *, void *, void *);
     CubinRunStatus (*event_destroy)(void *);
+    CubinRunStatus (*module_unload)(void *);
+    CubinRunStatus (*release)(CubinRunAddress);
 } CubinRunDriver;
 
 static SassMachine s_machine;
@@ -91,9 +96,9 @@ static unsigned char s_pattern[CUBIN_RUN_BYTES];
 static unsigned char s_code[CUBIN_RUN_BYTES];
 static unsigned char s_container[CUBIN_RUN_BYTES];
 static unsigned int s_exits[CUBIN_RUN_EXITS];
-static unsigned int s_cases[CUBIN_RUN_THREADS][CUBIN_RUN_IN_WORDS];
+static unsigned int s_cases[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_IN_WORDS];
 static unsigned int s_case_count;
-static unsigned int s_answers[CUBIN_RUN_THREADS][CUBIN_RUN_OUT_WORDS];
+static unsigned int s_answers[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_OUT_WORDS];
 
 // `path` read whole into `bytes`, which holds `room`: the bytes read, or 0 where it was not read or does not fit
 static unsigned long long cubin_run_file(const char *path, unsigned char *bytes, unsigned long long room)
@@ -129,7 +134,7 @@ static int cubin_run_cases(const char *path)
         {
             continue;
         }
-        fits = (count < CUBIN_RUN_THREADS);
+        fits = (count < CUBIN_RUN_THREADS_MOST);
         if (fits)
         {
             memcpy(s_cases[count], words, sizeof(words));
@@ -183,12 +188,15 @@ static int cubin_run_driver(CubinRunDriver *driver)
     *(void **)&driver->event_synchronize = cubin_run_entry(library, "cuEventSynchronize");
     *(void **)&driver->event_elapsed = cubin_run_entry(library, "cuEventElapsedTime");
     *(void **)&driver->event_destroy = cubin_run_entry(library, "cuEventDestroy_v2");
-    return (driver->init != NULL) && (driver->device_get != NULL) && (driver->context_retain != NULL) &&
-           (driver->context_set != NULL) && (driver->module_load != NULL) && (driver->function_get != NULL) &&
-           (driver->allocate != NULL) && (driver->copy_in != NULL) && (driver->clear != NULL) &&
-           (driver->launch != NULL) && (driver->synchronize != NULL) && (driver->copy_out != NULL) &&
-           (driver->error_name != NULL) && (driver->event_create != NULL) && (driver->event_record != NULL) &&
-           (driver->event_synchronize != NULL) && (driver->event_elapsed != NULL) && (driver->event_destroy != NULL);
+    *(void **)&driver->module_unload = cubin_run_entry(library, "cuModuleUnload");
+    *(void **)&driver->release = cubin_run_entry(library, "cuMemFree_v2");
+    return (driver->module_unload != NULL) && (driver->release != NULL) && (driver->init != NULL) &&
+           (driver->device_get != NULL) && (driver->context_retain != NULL) && (driver->context_set != NULL) &&
+           (driver->module_load != NULL) && (driver->function_get != NULL) && (driver->allocate != NULL) &&
+           (driver->copy_in != NULL) && (driver->clear != NULL) && (driver->launch != NULL) &&
+           (driver->synchronize != NULL) && (driver->copy_out != NULL) && (driver->error_name != NULL) &&
+           (driver->event_create != NULL) && (driver->event_record != NULL) && (driver->event_synchronize != NULL) &&
+           (driver->event_elapsed != NULL) && (driver->event_destroy != NULL);
 }
 
 // `launches` launches of `function` over `arguments` timed together, between two events the part stamps from its own
@@ -269,32 +277,49 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
     status = ((status == 0) && (launches != 0u))
                  ? cubin_run_timed(driver, function, arguments, shape, launches, nanoseconds)
                  : status;
+    // what the question held given back, so that a process carrying many holds one question's at a time
+    if (in != 0ull)
+    {
+        driver->release(in);
+    }
+    if (out != 0ull)
+    {
+        driver->release(out);
+    }
+    if (module != NULL)
+    {
+        driver->module_unload(module);
+    }
     return status;
 }
 
-int main(int count, char **words)
+// the driver, opened once a question first passes the gate, and 1 once it is
+static CubinRunDriver s_driver;
+static int s_driver_opened = 0;
+
+// One question carried: its code at `code_path` put in the container of `pattern_size` bytes in s_pattern, its kernel
+// `kernel`, declaring `registers`, over the cases at `cases_path`, launched as `shape` says where `shaped`, timed over
+// `launches` where that is not 0, and its line written to `answers_path`. 0 where a line was written, 1 where the line
+// is the driver's or the part's refusal of a launch, after which the context answers no other question, and 2
+// where the files, the machine or the driver were not reached
+static int cubin_run_question(const char *kernel, unsigned long long pattern_size, const char *code_path,
+                              unsigned int registers, const char *cases_path, const char *answers_path,
+                              unsigned int launches, CubinRunShape shape, int shaped)
 {
-    if ((count != 7) && (count != 8) && (count != 10))
+    const unsigned long long code_size = cubin_run_file(code_path, s_code, sizeof(s_code));
+    FILE *const answers = fopen(answers_path, "wb");
+    if ((pattern_size == 0ull) || (code_size == 0ull) || !cubin_run_cases(cases_path) || (answers == NULL))
     {
-        fprintf(stderr,
-                "cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]\n");
+        fprintf(stderr, "the container, the code, the cases or the answers did not read\n");
+        if (answers != NULL)
+        {
+            fclose(answers);
+        }
         return 2;
     }
-    const unsigned int launches = (count >= 8) ? (unsigned int)strtoul(words[7], NULL, 10) : 0u;
-    const CubinRunShape shape = {(count == 10) ? (unsigned int)strtoul(words[8], NULL, 10) : CUBIN_RUN_THREADS,
-                                 (count == 10) ? (unsigned int)strtoul(words[9], NULL, 10) : 1u};
-    char kernel[256];
-    const unsigned long long pattern_size = cubin_pattern_read(words[2], s_pattern, sizeof(s_pattern), kernel,
-                                                               sizeof(kernel));
-    const unsigned long long code_size = cubin_run_file(words[3], s_code, sizeof(s_code));
-    FILE *const answers = fopen(words[6], "wb");
-    if ((pattern_size == 0ull) || (code_size == 0ull) || !cubin_run_cases(words[5]) || (answers == NULL) ||
-        !sass_machine_read(&s_machine, words[1]))
-    {
-        fprintf(stderr, "the container, the code, the cases, the answers or the machine file did not read\n");
-        return 2;
-    }
-    // a launch gives every case a thread, and gives a case each to no more threads than it holds them for
+    // a question that names no shape is given blocks of CUBIN_RUN_THREADS, as many as give every case a thread. A
+    // launch gives every case a thread, and gives a case each to no more threads than it holds them for
+    shape.blocks = shaped ? shape.blocks : ((s_case_count + CUBIN_RUN_THREADS - 1u) / CUBIN_RUN_THREADS);
     const unsigned long long threads = (unsigned long long)shape.threads * shape.blocks;
     if ((threads < s_case_count) || (threads > CUBIN_RUN_THREADS_MOST))
     {
@@ -310,7 +335,7 @@ int main(int count, char **words)
     written.kernel = kernel;
     written.code = s_code;
     written.code_size = code_size;
-    written.registers = (unsigned int)strtoul(words[4], NULL, 10);
+    written.registers = registers;
     written.exit_count = cubin_exits_find(s_code, code_size, sass_exit_encoding(&s_machine), s_exits, CUBIN_RUN_EXITS);
     written.exits = s_exits;
     unsigned long long size = 0ull;
@@ -329,23 +354,26 @@ int main(int count, char **words)
         fclose(answers);
         return 0;
     }
-    CubinRunDriver driver;
-    memset(&driver, 0, sizeof(driver));
-    if (!cubin_run_driver(&driver))
+    if (!s_driver_opened)
     {
-        fprintf(stderr, "the driver was not reached\n");
-        fclose(answers);
-        return 2;
+        memset(&s_driver, 0, sizeof(s_driver));
+        if (!cubin_run_driver(&s_driver))
+        {
+            fprintf(stderr, "the driver was not reached\n");
+            fclose(answers);
+            return 2;
+        }
+        s_driver_opened = 1;
     }
     unsigned long long nanoseconds = 0ull;
-    const CubinRunStatus status = cubin_run_launch(&driver, kernel, &shape, launches, &nanoseconds);
+    const CubinRunStatus status = cubin_run_launch(&s_driver, kernel, &shape, launches, &nanoseconds);
     if (status != 0)
     {
         const char *name = NULL;
-        driver.error_name(status, &name);
+        s_driver.error_name(status, &name);
         fprintf(answers, "refused %s\n", (name != NULL) ? name : "unnamed");
         fclose(answers);
-        return 0;
+        return 1;
     }
     fprintf(answers, "answered");
     for (unsigned int place = 0u; place < s_case_count; place += 1u)
@@ -359,4 +387,63 @@ int main(int count, char **words)
     }
     fclose(answers);
     return 0;
+}
+
+int main(int count, char **words)
+{
+    const int listed = (count == 5) && (strcmp(words[3], "--list") == 0);
+    if (!listed && (count != 7) && (count != 8) && (count != 10))
+    {
+        fprintf(
+            stderr,
+            "cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]\n"
+            "cubin_run <machine file> <ksc> --list <list>\n");
+        return 2;
+    }
+    char kernel[256];
+    const unsigned long long pattern_size =
+        cubin_pattern_read(words[2], s_pattern, sizeof(s_pattern), kernel, sizeof(kernel));
+    if (!sass_machine_read(&s_machine, words[1]))
+    {
+        fprintf(stderr, "the machine file did not read\n");
+        return 2;
+    }
+    const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
+    if (!listed)
+    {
+        const unsigned int launches = (count >= 8) ? (unsigned int)strtoul(words[7], NULL, 10) : 0u;
+        const CubinRunShape shape = {(count == 10) ? (unsigned int)strtoul(words[8], NULL, 10) : CUBIN_RUN_THREADS,
+                                     (count == 10) ? (unsigned int)strtoul(words[9], NULL, 10) : 1u};
+        const int carried =
+            cubin_run_question(kernel, pattern_size, words[3], (unsigned int)strtoul(words[4], NULL, 10), words[5],
+                               words[6], launches, (count == 10) ? shape : unshaped, count == 10);
+        return (carried == 2) ? 2 : 0;
+    }
+    // Each line of the list one untimed question of no shape of its own, `<code> <registers> <cases> <answers>`, all
+    // carried in this one process and each answered to its own file as it is carried. A launch the driver or the part
+    // refuses leaves a context that answers no other question, and the questions after it are left unanswered, for the
+    // channel to carry in a process of their own
+    FILE *const list = fopen(words[4], "rb");
+    if (list == NULL)
+    {
+        fprintf(stderr, "the list did not read\n");
+        return 2;
+    }
+    char line[4u * CUBIN_RUN_LINE];
+    int carried = 0;
+    while ((carried == 0) && (fgets(line, sizeof(line), list) != NULL))
+    {
+        char code_path[CUBIN_RUN_LINE];
+        char cases_path[CUBIN_RUN_LINE];
+        char answers_path[CUBIN_RUN_LINE];
+        unsigned int registers = 0u;
+        if (sscanf(line, "%1023s %u %1023s %1023s", code_path, &registers, cases_path, answers_path) != 4)
+        {
+            continue;
+        }
+        carried =
+            cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, 0u, unshaped, 0);
+    }
+    fclose(list);
+    return (carried == 2) ? 2 : 0;
 }

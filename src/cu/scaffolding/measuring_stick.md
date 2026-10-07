@@ -4,10 +4,10 @@ Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring
 
 - kernels: 1016
 - instructions: 55072
-- operations nvcc writes over the stick: 326, of which sass.krs writes 56
+- operations nvcc writes over the stick: 326, of which sass.krs writes 58
 
-- kernels the engine answers: 350, of which at parity with nvcc: 167; kernels that put a question: 666
-- the engine's instructions: 16122 in its lanes' text, 16122 read back by nvdisasm, 16122 of them the operation the text wrote
+- kernels the engine answers: 452, of which at parity with nvcc: 204; kernels that put a question: 564
+- the engine's instructions: 18177 in its lanes' text, 18177 read back by nvdisasm, 18177 of them the operation the text wrote
 
 ## The engine against nvcc
 
@@ -29,6 +29,8 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0013 | `unsigned short a - b` | 17 | 19 | 19 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 1 |
 | 0014 | `int a - b` | 16 | 18 | 18 |  |  |
 | 0015 | `unsigned int a - b` | 16 | 18 | 18 |  |  |
+| 0016 | `long long a - b` | 15 | 18 | 18 |  |  |
+| 0017 | `unsigned long long a - b` | 15 | 18 | 18 |  |  |
 | 0020 | `signed char a * b` | 17 | 20 | 19 | MOV 1 |  |
 | 0021 | `unsigned char a * b` | 17 | 19 | 19 |  |  |
 | 0022 | `short a * b` | 17 | 20 | 19 | MOV 1 |  |
@@ -43,30 +45,40 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0051 | `unsigned short a & b` | 17 | 18 | 19 | LDG.E.U16 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0052 | `int a & b` | 16 | 18 | 18 |  |  |
 | 0053 | `unsigned int a & b` | 16 | 18 | 18 |  |  |
+| 0054 | `long long a & b` | 15 | 18 | 18 |  |  |
+| 0055 | `unsigned long long a & b` | 15 | 18 | 18 |  |  |
 | 0056 | `signed char a \| b` | 17 | 20 | 19 | MOV 1 |  |
 | 0057 | `unsigned char a \| b` | 17 | 18 | 19 | LDG.E.U8 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0058 | `short a \| b` | 17 | 20 | 19 | MOV 1 |  |
 | 0059 | `unsigned short a \| b` | 17 | 18 | 19 | LDG.E.U16 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0060 | `int a \| b` | 16 | 18 | 18 |  |  |
 | 0061 | `unsigned int a \| b` | 16 | 18 | 18 |  |  |
+| 0062 | `long long a \| b` | 15 | 18 | 18 |  |  |
+| 0063 | `unsigned long long a \| b` | 15 | 18 | 18 |  |  |
 | 0064 | `signed char a ^ b` | 17 | 20 | 19 | MOV 1 |  |
 | 0065 | `unsigned char a ^ b` | 17 | 18 | 19 | LDG.E.U8 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0066 | `short a ^ b` | 17 | 20 | 19 | MOV 1 |  |
 | 0067 | `unsigned short a ^ b` | 17 | 18 | 19 | LDG.E.U16 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0068 | `int a ^ b` | 16 | 18 | 18 |  |  |
 | 0069 | `unsigned int a ^ b` | 16 | 18 | 18 |  |  |
+| 0070 | `long long a ^ b` | 15 | 18 | 18 |  |  |
+| 0071 | `unsigned long long a ^ b` | 15 | 18 | 18 |  |  |
 | 0072 | `signed char a << b` | 18 | 20 | 19 | LDG.E.S8 1, MOV 1 | LDG.E 1 |
 | 0073 | `unsigned char a << b` | 18 | 19 | 19 | LDG.E.U8 1 | LDG.E 1 |
 | 0074 | `short a << b` | 18 | 20 | 19 | LDG.E.S16 1, MOV 1 | LDG.E 1 |
 | 0075 | `unsigned short a << b` | 18 | 19 | 19 | LDG.E.U16 1 | LDG.E 1 |
 | 0076 | `int a << b` | 16 | 18 | 18 |  |  |
 | 0077 | `unsigned int a << b` | 16 | 18 | 18 |  |  |
+| 0078 | `long long a << b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
+| 0079 | `unsigned long long a << b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
 | 0080 | `signed char a >> b` | 19 | 20 | 19 | MOV 1 |  |
 | 0081 | `unsigned char a >> b` | 19 | 19 | 19 |  |  |
 | 0082 | `short a >> b` | 19 | 20 | 19 | MOV 1 |  |
 | 0083 | `unsigned short a >> b` | 19 | 19 | 19 |  |  |
 | 0084 | `int a >> b` | 16 | 18 | 18 |  |  |
 | 0085 | `unsigned int a >> b` | 16 | 18 | 18 |  |  |
+| 0086 | `long long a >> b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
+| 0087 | `unsigned long long a >> b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
 | 0088 | `signed char a == b` | 19 | 20 | 19 | LDG.E.U8 2, LOP3.LUT 2 | ISETP.NE.AND 1, LDG.E.S8 2 |
 | 0089 | `unsigned char a == b` | 19 | 20 | 19 | LOP3.LUT 2 | ISETP.NE.AND 1 |
 | 0090 | `short a == b` | 19 | 21 | 19 | IMAD.MOV.U32 1, LDG.E.U16 2, LOP3.LUT 1, PRMT 1 | LDG.E.S16 2, MOV 1 |
@@ -145,6 +157,8 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0181 | `unsigned short a -= b` | 17 | 19 | 19 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 1 |
 | 0182 | `int a -= b` | 16 | 18 | 18 |  |  |
 | 0183 | `unsigned int a -= b` | 16 | 18 | 18 |  |  |
+| 0184 | `long long a -= b` | 15 | 18 | 18 |  |  |
+| 0185 | `unsigned long long a -= b` | 15 | 18 | 18 |  |  |
 | 0188 | `signed char a *= b` | 17 | 20 | 19 | MOV 1 |  |
 | 0189 | `unsigned char a *= b` | 17 | 19 | 19 |  |  |
 | 0190 | `short a *= b` | 17 | 20 | 19 | MOV 1 |  |
@@ -159,30 +173,48 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0219 | `unsigned short a &= b` | 17 | 18 | 19 | LDG.E.U16 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0220 | `int a &= b` | 16 | 18 | 18 |  |  |
 | 0221 | `unsigned int a &= b` | 16 | 18 | 18 |  |  |
+| 0222 | `long long a &= b` | 15 | 18 | 18 |  |  |
+| 0223 | `unsigned long long a &= b` | 15 | 18 | 18 |  |  |
 | 0224 | `signed char a \|= b` | 17 | 20 | 19 | MOV 1 |  |
 | 0225 | `unsigned char a \|= b` | 17 | 18 | 19 | LDG.E.U8 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0226 | `short a \|= b` | 17 | 20 | 19 | MOV 1 |  |
 | 0227 | `unsigned short a \|= b` | 17 | 18 | 19 | LDG.E.U16 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0228 | `int a \|= b` | 16 | 18 | 18 |  |  |
 | 0229 | `unsigned int a \|= b` | 16 | 18 | 18 |  |  |
+| 0230 | `long long a \|= b` | 15 | 18 | 18 |  |  |
+| 0231 | `unsigned long long a \|= b` | 15 | 18 | 18 |  |  |
 | 0232 | `signed char a ^= b` | 17 | 20 | 19 | MOV 1 |  |
 | 0233 | `unsigned char a ^= b` | 17 | 18 | 19 | LDG.E.U8 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0234 | `short a ^= b` | 17 | 20 | 19 | MOV 1 |  |
 | 0235 | `unsigned short a ^= b` | 17 | 18 | 19 | LDG.E.U16 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0236 | `int a ^= b` | 16 | 18 | 18 |  |  |
 | 0237 | `unsigned int a ^= b` | 16 | 18 | 18 |  |  |
+| 0238 | `long long a ^= b` | 15 | 18 | 18 |  |  |
+| 0239 | `unsigned long long a ^= b` | 15 | 18 | 18 |  |  |
 | 0240 | `signed char a <<= b` | 18 | 20 | 19 | LDG.E.S8 1, MOV 1 | LDG.E 1 |
 | 0241 | `unsigned char a <<= b` | 18 | 19 | 19 | LDG.E.U8 1 | LDG.E 1 |
 | 0242 | `short a <<= b` | 18 | 20 | 19 | LDG.E.S16 1, MOV 1 | LDG.E 1 |
 | 0243 | `unsigned short a <<= b` | 18 | 19 | 19 | LDG.E.U16 1 | LDG.E 1 |
 | 0244 | `int a <<= b` | 16 | 18 | 18 |  |  |
 | 0245 | `unsigned int a <<= b` | 16 | 18 | 18 |  |  |
+| 0246 | `long long a <<= b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
+| 0247 | `unsigned long long a <<= b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
 | 0248 | `signed char a >>= b` | 19 | 20 | 19 | MOV 1 |  |
 | 0249 | `unsigned char a >>= b` | 19 | 19 | 19 |  |  |
 | 0250 | `short a >>= b` | 19 | 20 | 19 | MOV 1 |  |
 | 0251 | `unsigned short a >>= b` | 19 | 19 | 19 |  |  |
 | 0252 | `int a >>= b` | 16 | 18 | 18 |  |  |
 | 0253 | `unsigned int a >>= b` | 16 | 18 | 18 |  |  |
+| 0254 | `long long a >>= b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
+| 0255 | `unsigned long long a >>= b` | 15 | 18 | 18 | LDG.E 1 | LDG.E.64 1 |
+| 0256 | `signed char -a` | 16 | 21 | 18 | IMAD.MOV.U32 1, IMAD.X 1, SHF.L.U32 2, SHF.R.S32.HI 1, UMOV 1 | IMAD.SHL.U32 1, MOV 1, PRMT 1 |
+| 0257 | `unsigned char -a` | 16 | 18 | 18 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 1 |
+| 0258 | `short -a` | 16 | 21 | 18 | IMAD.MOV.U32 1, IMAD.X 1, SHF.L.U32 2, SHF.R.S32.HI 1, UMOV 1 | IMAD.SHL.U32 1, MOV 1, PRMT 1 |
+| 0259 | `unsigned short -a` | 16 | 18 | 18 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 1 |
+| 0260 | `int -a` | 15 | 19 | 17 | IADD3.X 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, UMOV 1 | MOV 1, SHF.L.U32 1 |
+| 0261 | `unsigned int -a` | 15 | 17 | 17 |  |  |
+| 0262 | `long long -a` | 15 | 17 | 19 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0263 | `unsigned long long -a` | 15 | 17 | 19 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
 | 0266 | `signed char +a` | 15 | 16 | 16 |  |  |
 | 0267 | `unsigned char +a` | 15 | 16 | 16 |  |  |
 | 0268 | `short +a` | 15 | 16 | 16 |  |  |
@@ -197,6 +229,8 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0279 | `unsigned short ~a` | 16 | 17 | 18 | LDG.E.U16 1, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 1, LOP3.LUT 1 |
 | 0280 | `int ~a` | 15 | 17 | 17 |  |  |
 | 0281 | `unsigned int ~a` | 15 | 17 | 17 |  |  |
+| 0282 | `long long ~a` | 14 | 17 | 17 |  |  |
+| 0283 | `unsigned long long ~a` | 14 | 17 | 17 |  |  |
 | 0284 | `signed char !a` | 17 | 18 | 18 | LDG.E.U8 1 | LDG.E.S8 1 |
 | 0285 | `unsigned char !a` | 17 | 18 | 18 |  |  |
 | 0286 | `short !a` | 17 | 18 | 18 | LDG.E.U16 1 | LDG.E.S16 1 |
@@ -227,12 +261,24 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0317 | `unsigned short --a` | 17 | 18 | 18 | LDG.E 1 | LDG.E.U16 1 |
 | 0318 | `int --a` | 15 | 17 | 17 |  |  |
 | 0319 | `unsigned int --a` | 15 | 17 | 17 |  |  |
+| 0320 | `long long --a` | 15 | 17 | 19 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0321 | `unsigned long long --a` | 15 | 17 | 19 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
 | 0324 | `signed char a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, PRMT 1 |
 | 0325 | `unsigned char a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LOP3.LUT 1 |
 | 0326 | `short a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, PRMT 1 |
 | 0327 | `unsigned short a--` | 17 | 16 | 18 | MOV 1, SHF.L.U32 1 | IADD3 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, LOP3.LUT 1 |
 | 0328 | `int a--` | 15 | 16 | 17 |  | IADD3 1 |
 | 0329 | `unsigned int a--` | 15 | 16 | 17 |  | IADD3 1 |
+| 0330 | `long long a--` | 15 | 15 | 19 | SHF.L.U32 1 | IADD3 1, IADD3.X 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0331 | `unsigned long long a--` | 15 | 15 | 19 | SHF.L.U32 1 | IADD3 1, IADD3.X 1, IMAD.MOV.U32 1, IMAD.SHL.U32 1, MOV 1 |
+| 0334 | `(signed char)(bool)` | 17 | 19 | 20 | MOV 1 | PRMT 1, SHF.R.S32.HI 1 |
+| 0335 | `(unsigned char)(bool)` | 17 | 19 | 20 |  | LOP3.LUT 1 |
+| 0336 | `(short)(bool)` | 17 | 19 | 20 | MOV 1 | PRMT 1, SHF.R.S32.HI 1 |
+| 0337 | `(unsigned short)(bool)` | 17 | 19 | 20 |  | LOP3.LUT 1 |
+| 0338 | `(int)(bool)` | 16 | 19 | 19 |  |  |
+| 0339 | `(unsigned int)(bool)` | 16 | 19 | 19 |  |  |
+| 0340 | `(long long)(bool)` | 16 | 19 | 19 |  |  |
+| 0341 | `(unsigned long long)(bool)` | 16 | 19 | 19 |  |  |
 | 0344 | `(bool)(signed char)` | 17 | 19 | 18 | ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E.U8 1 | ISETP.NE.AND 1, LDG.E.S8 1 |
 | 0345 | `(unsigned char)(signed char)` | 15 | 16 | 16 |  |  |
 | 0346 | `(short)(signed char)` | 16 | 16 | 17 |  | PRMT 1 |
@@ -297,6 +343,15 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0419 | `(int)(unsigned long long)` | 14 | 16 | 16 |  |  |
 | 0420 | `(unsigned int)(unsigned long long)` | 14 | 16 | 16 |  |  |
 | 0421 | `(long long)(unsigned long long)` | 13 | 15 | 15 |  |  |
+| 0444 | `c ? a : b over bool` | 22 | 27 | 27 | IMAD.MOV.U32 2, LOP3.LUT 1 | MOV 2, SEL 1 |
+| 0445 | `c ? a : b over signed char` | 21 | 22 | 22 | IMAD.MOV.U32 1, LDG.E.U16 2 | LDG.E.S8 2, SEL 1 |
+| 0446 | `c ? a : b over unsigned char` | 21 | 21 | 22 | LDG.E 2 | LDG.E.U8 2, SEL 1 |
+| 0447 | `c ? a : b over short` | 21 | 22 | 22 | IMAD.MOV.U32 1, LDG.E.U16 2 | LDG.E.S16 2, SEL 1 |
+| 0448 | `c ? a : b over unsigned short` | 21 | 21 | 22 | LDG.E 2 | LDG.E.U16 2, SEL 1 |
+| 0449 | `c ? a : b over int` | 18 | 20 | 21 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 1, SEL 1 |
+| 0450 | `c ? a : b over unsigned int` | 18 | 21 | 21 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, SEL 1 |
+| 0451 | `c ? a : b over long long` | 17 | 21 | 23 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 3 |
+| 0452 | `c ? a : b over unsigned long long` | 17 | 21 | 23 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 3 |
 | 0471 | `int r = (b > 0) ? ((a > 0) ? 1 : 2) : ((a > 0) ? 3 : 4);` | 23 | 24 | 25 | IMAD.MOV.U32 3, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GT.AND 1, MOV 1, SEL 1, SHF.R.S32.HI 1 |
 | 0488 | `threadIdx.y` | 12 | 14 | 14 |  |  |
 | 0489 | `threadIdx.z` | 12 | 14 | 14 |  |  |
@@ -310,44 +365,91 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0498 | `gridDim.z` | 12 | 14 | 14 |  |  |
 | 0499 | `warpSize` | 12 | 14 | 14 |  |  |
 | 0913 | `int (a == b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0914 | `int (a == b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0915 | `int (a == b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.EQ.OR 1, ISETP.NE.AND 1 | ISETP.EQ.AND 1, ISETP.NE.OR 1 |
 | 0916 | `int (a != b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0917 | `int (a != b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0918 | `int (a != b) \|\| (c != 0)` | 19 | 21 | 21 |  |  |
 | 0919 | `int (a < b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0920 | `int (a < b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0921 | `int (a < b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.LT.OR 1, ISETP.NE.AND 1 | ISETP.LT.AND 1, ISETP.NE.OR 1 |
 | 0922 | `int (a > b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0923 | `int (a > b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0924 | `int (a > b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.GT.OR 1, ISETP.NE.AND 1 | ISETP.GT.AND 1, ISETP.NE.OR 1 |
 | 0925 | `int (a <= b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0926 | `int (a <= b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0927 | `int (a <= b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.LE.OR 1, ISETP.NE.AND 1 | ISETP.LE.AND 1, ISETP.NE.OR 1 |
 | 0928 | `int (a >= b) ? a : b` | 18 | 19 | 20 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 1 |
+| 0929 | `int (a >= b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0930 | `int (a >= b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.GE.OR 1, ISETP.NE.AND 1 | ISETP.GE.AND 1, ISETP.NE.OR 1 |
 | 0931 | `int a == 0` | 18 | 18 | 20 |  | LDG.E 2 |
 | 0932 | `int a != 0` | 18 | 18 | 20 |  | LDG.E 2 |
 | 0933 | `int (a != 0) && (c != 0)` | 19 | 20 | 21 |  | LDG.E 1 |
 | 0934 | `int (a != 0) \|\| (c != 0)` | 19 | 19 | 21 | LOP3.LUT 1 | ISETP.NE.AND 1, ISETP.NE.OR 1, LDG.E 1 |
 | 0935 | `int a < 0` | 18 | 18 | 20 | LDG.E.64 1, LOP3.LUT 1, SHF.R.U64 1 | ISETP.GE.AND 1, LDG.E 3, SEL 1 |
 | 0936 | `unsigned int (a == b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0937 | `unsigned int (a == b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0938 | `unsigned int (a == b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.EQ.OR 1, ISETP.NE.AND 1 | ISETP.EQ.AND 1, ISETP.NE.OR 1 |
 | 0939 | `unsigned int (a != b) ? a : b` | 18 | 16 | 20 | MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND 1, LDG.E 2, SEL 1 |
+| 0940 | `unsigned int (a != b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0941 | `unsigned int (a != b) \|\| (c != 0)` | 19 | 21 | 21 |  |  |
 | 0942 | `unsigned int (a < b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0943 | `unsigned int (a < b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0944 | `unsigned int (a < b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.LT.U32.OR 1, ISETP.NE.AND 1 | ISETP.LT.U32.AND 1, ISETP.NE.OR 1 |
 | 0945 | `unsigned int (a > b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0946 | `unsigned int (a > b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0947 | `unsigned int (a > b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.GT.U32.OR 1, ISETP.NE.AND 1 | ISETP.GT.U32.AND 1, ISETP.NE.OR 1 |
 | 0948 | `unsigned int (a <= b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0949 | `unsigned int (a <= b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0950 | `unsigned int (a <= b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.LE.U32.OR 1, ISETP.NE.AND 1 | ISETP.LE.U32.AND 1, ISETP.NE.OR 1 |
 | 0951 | `unsigned int (a >= b) ? a : b` | 18 | 19 | 20 |  | LDG.E 1 |
+| 0952 | `unsigned int (a >= b) && (c != 0)` | 19 | 21 | 21 |  |  |
+| 0953 | `unsigned int (a >= b) \|\| (c != 0)` | 19 | 21 | 21 | ISETP.GE.U32.OR 1, ISETP.NE.AND 1 | ISETP.GE.U32.AND 1, ISETP.NE.OR 1 |
 | 0954 | `unsigned int a == 0` | 18 | 18 | 20 |  | LDG.E 2 |
 | 0955 | `unsigned int a != 0` | 18 | 18 | 20 |  | LDG.E 2 |
 | 0956 | `unsigned int (a != 0) && (c != 0)` | 19 | 20 | 21 |  | LDG.E 1 |
 | 0957 | `unsigned int (a != 0) \|\| (c != 0)` | 19 | 19 | 21 | LOP3.LUT 1 | ISETP.NE.AND 1, ISETP.NE.OR 1, LDG.E 1 |
 | 0958 | `long long (a == b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0959 | `long long (a == b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0960 | `long long (a == b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.EQ.OR.EX 1, ISETP.NE.AND 1 | ISETP.EQ.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0961 | `long long (a != b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0962 | `long long (a != b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0963 | `long long (a != b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.NE.AND 1, ISETP.NE.OR.EX 1 | ISETP.NE.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0964 | `long long (a < b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.AND.EX 1, ISETP.LT.U32.AND 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.AND.EX 1, ISETP.GE.U32.AND 1, LDG.E 1, MOV 3 |
+| 0965 | `long long (a < b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0966 | `long long (a < b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.LT.OR.EX 1, ISETP.NE.AND 1 | ISETP.LT.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0967 | `long long (a > b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 3 |
+| 0968 | `long long (a > b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0969 | `long long (a > b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.GT.OR.EX 1, ISETP.NE.AND 1 | ISETP.GT.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0970 | `long long (a <= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.AND.EX 1, ISETP.LT.U32.AND 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GT.AND.EX 1, ISETP.GT.U32.AND 1, LDG.E 1, MOV 3 |
+| 0971 | `long long (a <= b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0972 | `long long (a <= b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.LE.OR.EX 1, ISETP.NE.AND 1 | ISETP.LE.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0973 | `long long (a >= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.GT.AND.EX 1, ISETP.GT.U32.AND 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.AND.EX 1, ISETP.GE.U32.AND 1, LDG.E 1, MOV 3 |
+| 0974 | `long long (a >= b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0975 | `long long (a >= b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.GE.OR.EX 1, ISETP.NE.AND 1 | ISETP.GE.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0976 | `long long a == 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
 | 0977 | `long long a != 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
 | 0978 | `long long (a != 0) && (c != 0)` | 19 | 21 | 22 | IMAD.MOV.U32 1 | LDG.E.64 1, MOV 1 |
 | 0979 | `long long (a != 0) \|\| (c != 0)` | 19 | 21 | 22 | IMAD.MOV.U32 1 | LDG.E.64 1, MOV 1 |
 | 0980 | `long long a < 0` | 19 | 17 | 23 | SHF.L.U32 1, SHF.R.U32.HI 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.GE.AND.EX 1, ISETP.GE.U32.AND 1, LDG.E.64 2, MOV 1, SEL 1 |
 | 0981 | `unsigned long long (a == b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0982 | `unsigned long long (a == b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0983 | `unsigned long long (a == b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.EQ.OR.EX 1, ISETP.NE.AND 1 | ISETP.EQ.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0984 | `unsigned long long (a != b) ? a : b` | 17 | 15 | 23 | SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, ISETP.NE.AND.EX 1, ISETP.NE.U32.AND 1, LDG.E 1, LDG.E.64 1, MOV 1, SEL 2 |
+| 0985 | `unsigned long long (a != b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0986 | `unsigned long long (a != b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.NE.AND 1, ISETP.NE.OR.EX 1 | ISETP.NE.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0987 | `unsigned long long (a < b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.AND.EX 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.U32.AND 1, ISETP.GE.U32.AND.EX 1, LDG.E 1, MOV 3 |
 | 0988 | `unsigned long long (a < b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0989 | `unsigned long long (a < b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.LT.U32.OR.EX 1, ISETP.NE.AND 1 | ISETP.LT.U32.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0990 | `unsigned long long (a > b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, SHF.L.U32 1 | IMAD.SHL.U32 1, LDG.E 1, MOV 3 |
+| 0991 | `unsigned long long (a > b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0992 | `unsigned long long (a > b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.GT.U32.OR.EX 1, ISETP.NE.AND 1 | ISETP.GT.U32.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0993 | `unsigned long long (a <= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.LT.U32.AND 1, ISETP.LT.U32.AND.EX 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.AND.EX 1, LDG.E 1, MOV 3 |
+| 0994 | `unsigned long long (a <= b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0995 | `unsigned long long (a <= b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.LE.U32.OR.EX 1, ISETP.NE.AND 1 | ISETP.LE.U32.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0996 | `unsigned long long (a >= b) ? a : b` | 17 | 20 | 23 | IMAD.MOV.U32 1, ISETP.GT.U32.AND 1, ISETP.GT.U32.AND.EX 1, SHF.L.U32 1 | IMAD.SHL.U32 1, ISETP.GE.U32.AND 1, ISETP.GE.U32.AND.EX 1, LDG.E 1, MOV 3 |
+| 0997 | `unsigned long long (a >= b) && (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1 | MOV 1 |
+| 0998 | `unsigned long long (a >= b) \|\| (c != 0)` | 19 | 22 | 22 | IMAD.MOV.U32 1, ISETP.GE.U32.OR.EX 1, ISETP.NE.AND 1 | ISETP.GE.U32.AND.EX 1, ISETP.NE.OR 1, MOV 1 |
 | 0999 | `unsigned long long a == 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
 | 1000 | `unsigned long long a != 0` | 18 | 19 | 21 |  | LDG.E 1, LDG.E.64 1 |
 | 1001 | `unsigned long long (a != 0) && (c != 0)` | 19 | 21 | 22 | IMAD.MOV.U32 1 | LDG.E.64 1, MOV 1 |
@@ -379,20 +481,8 @@ Each kernel the engine does not answer, by the question it puts.
 | a call or an element nothing here types: max | 4 | 0534 |
 | a call or an element nothing here types: min | 4 | 0530 |
 | a statement nothing here reads: int r; | 4 | 0456 |
-| no reading of (((c@word!=0u))?a:b) through cu.krs | 4 | 0449 |
-| no reading of (-a) through cu.krs | 4 | 0260 |
 | no reading of (a%b) through cu.krs | 4 | 0045 |
-| no reading of (a&b) through cu.krs | 4 | 0054 |
-| no reading of (a-b) through cu.krs | 4 | 0016 |
 | no reading of (a/b) through cu.krs | 4 | 0035 |
-| no reading of (a<<b) through cu.krs | 4 | 0078 |
-| no reading of (a^b) through cu.krs | 4 | 0070 |
-| no reading of (a\|b) through cu.krs | 4 | 0062 |
-| no reading of (stick_kept_0-(unsignedlonglong)1u) through cu.krs | 4 | 0320 |
-| no reading of (unsignedlonglong)(((((a!=b)&&(c!=0u))))?1u:0u) through cu.krs | 4 | 0917 |
-| no reading of (unsignedlonglong)(((((a!=b)\|\|(c!=0u))))?1u:0u) through cu.krs | 4 | 0918 |
-| no reading of (unsignedlonglong)(((((a==b)&&(c!=0u))))?1u:0u) through cu.krs | 4 | 0914 |
-| no reading of (unsignedlonglong)(((((a==b)\|\|(c!=0u))))?1u:0u) through cu.krs | 4 | 0915 |
 | a call or an element nothing here types: atomicAdd | 3 | 0854 |
 | a call or an element nothing here types: atomicAnd | 3 | 0878 |
 | a call or an element nothing here types: atomicCAS | 3 | 0875 |
@@ -403,30 +493,18 @@ Each kernel the engine does not answer, by the question it puts.
 | a name nothing here types: const | 2 | 0485 |
 | a statement nothing here reads: double o1[4] = {(double)in[(4u * thread) + 0u], (double)in[(4u * thread) + 1u], (double)in[(4u * thread) + 2u], (double)in[(4u * thread) + 3u]} | 2 | 0841 |
 | a statement nothing here reads: float o1[4] = {(float)in[(4u * thread) + 0u], (float)in[(4u * thread) + 1u], (float)in[(4u * thread) + 2u], (float)in[(4u * thread) + 3u]} | 2 | 0818 |
-| no reading of (((a@word!=0u))?1u:0u) through cu.krs | 2 | 0338 |
 | no reading of ((int)a%(int)b) through cu.krs | 2 | 0044 |
 | no reading of ((int)a/(int)b) through cu.krs | 2 | 0034 |
 | no reading of ((longlong)a%(longlong)b) through cu.krs | 2 | 0046 |
 | no reading of ((longlong)a/(longlong)b) through cu.krs | 2 | 0036 |
-| no reading of ((longlong)a>>b) through cu.krs | 2 | 0086 |
-| no reading of (a>>b) through cu.krs | 2 | 0087 |
 | no reading of (short)((int)(short)a@word%(int)(short)b@word) through cu.krs | 2 | 0042 |
 | no reading of (short)((int)(short)a@word/(int)(short)b@word) through cu.krs | 2 | 0032 |
 | no reading of (signedchar)((int)(signedchar)a@word%(int)(signedchar)b@word) through cu.krs | 2 | 0040 |
 | no reading of (signedchar)((int)(signedchar)a@word/(int)(signedchar)b@word) through cu.krs | 2 | 0030 |
 | no reading of (unsignedchar)((unsignedchar)a@word%(unsignedchar)b@word) through cu.krs | 2 | 0041 |
 | no reading of (unsignedchar)((unsignedchar)a@word/(unsignedchar)b@word) through cu.krs | 2 | 0031 |
-| no reading of (unsignedlonglong)(((((a<=b)&&(c!=0u))))?1u:0u) through cu.krs | 2 | 0949 |
-| no reading of (unsignedlonglong)(((((a<=b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0950 |
-| no reading of (unsignedlonglong)(((((a<b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0944 |
-| no reading of (unsignedlonglong)(((((a>=b)&&(c!=0u))))?1u:0u) through cu.krs | 2 | 0952 |
-| no reading of (unsignedlonglong)(((((a>=b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0953 |
-| no reading of (unsignedlonglong)(((((a>b)&&(c!=0u))))?1u:0u) through cu.krs | 2 | 0946 |
-| no reading of (unsignedlonglong)(((((a>b)\|\|(c!=0u))))?1u:0u) through cu.krs | 2 | 0947 |
-| no reading of (unsignedlonglong)(((a@word!=0u))?1u:0u) through cu.krs | 2 | 0340 |
 | no reading of (unsignedshort)((unsignedshort)a@word%(unsignedshort)b@word) through cu.krs | 2 | 0043 |
 | no reading of (unsignedshort)((unsignedshort)a@word/(unsignedshort)b@word) through cu.krs | 2 | 0033 |
-| no reading of (~a) through cu.krs | 2 | 0282 |
 | a call or an element nothing here types: __activemask | 1 | 0890 |
 | a call or an element nothing here types: __all_sync | 1 | 0887 |
 | a call or an element nothing here types: __any_sync | 1 | 0888 |
@@ -513,36 +591,6 @@ Each kernel the engine does not answer, by the question it puts.
 | a statement nothing here reads: while (r > 1) { r = ((r & 1) != 0) ? ((3 * r) + 1) : (r / 2); if (r == b) { break; } } | 1 | 0473 |
 | a value of type long | 1 | 0539 |
 | no reading of ((((a!=0u)&&((int)((int)b/(int)a)>(int)1u)))?1u:0u) through cu.krs | 1 | 0472 |
-| no reading of (short)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0336 |
-| no reading of (short)(((c@word!=0u))?(short)a@word:(short)b@word) through cu.krs | 1 | 0447 |
-| no reading of (short)(-a@word) through cu.krs | 1 | 0258 |
-| no reading of (signedchar)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0334 |
-| no reading of (signedchar)(((c@word!=0u))?(signedchar)a@word:(signedchar)b@word) through cu.krs | 1 | 0445 |
-| no reading of (signedchar)(-a@word) through cu.krs | 1 | 0256 |
-| no reading of (unsignedchar)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0335 |
-| no reading of (unsignedchar)(((c@word!=0u))?(unsignedchar)a@word:(unsignedchar)b@word) through cu.krs | 1 | 0446 |
-| no reading of (unsignedchar)(-a@word) through cu.krs | 1 | 0257 |
-| no reading of (unsignedlonglong)(((((((c@word!=0u))?(((a@word!=0u))?1u:0u):(((b@word!=0u))?1u:0u))!=0u)))?1u:0u) through cu.krs | 1 | 0444 |
-| no reading of (unsignedlonglong)((((((int)a<(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0920 |
-| no reading of (unsignedlonglong)((((((int)a<(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0921 |
-| no reading of (unsignedlonglong)((((((int)a<=(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0926 |
-| no reading of (unsignedlonglong)((((((int)a<=(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0927 |
-| no reading of (unsignedlonglong)((((((int)a>(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0923 |
-| no reading of (unsignedlonglong)((((((int)a>(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0924 |
-| no reading of (unsignedlonglong)((((((int)a>=(int)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0929 |
-| no reading of (unsignedlonglong)((((((int)a>=(int)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0930 |
-| no reading of (unsignedlonglong)((((((longlong)a<(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0965 |
-| no reading of (unsignedlonglong)((((((longlong)a<(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0966 |
-| no reading of (unsignedlonglong)((((((longlong)a<=(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0971 |
-| no reading of (unsignedlonglong)((((((longlong)a<=(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0972 |
-| no reading of (unsignedlonglong)((((((longlong)a>(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0968 |
-| no reading of (unsignedlonglong)((((((longlong)a>(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0969 |
-| no reading of (unsignedlonglong)((((((longlong)a>=(longlong)b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0974 |
-| no reading of (unsignedlonglong)((((((longlong)a>=(longlong)b)\|\|(c!=0u))))?1u:0u) through cu.krs | 1 | 0975 |
-| no reading of (unsignedlonglong)(((((a<b)&&(c!=0u))))?1u:0u) through cu.krs | 1 | 0943 |
-| no reading of (unsignedshort)(((a@word!=0u))?1u:0u) through cu.krs | 1 | 0337 |
-| no reading of (unsignedshort)(((c@word!=0u))?(unsignedshort)a@word:(unsignedshort)b@word) through cu.krs | 1 | 0448 |
-| no reading of (unsignedshort)(-a@word) through cu.krs | 1 | 0259 |
 | sass.krs's exit_if assembles with no reading of its operands | 1 | 0470 |
 | sass.krs's wide_from_word_if assembles with no reading of its operands | 1 | 0455 |
 
@@ -624,7 +672,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `BREAK` | 17 | 0619 | `float __fdiv_rd(a, b)` |
 | `FFMA.RZ` | 17 | 0038 | `float a / b` |
 | `FLO.U32` | 17 | 0507 | `int __clz(a)` |
-| `SHF.R.U64` | 16 | 0087 | `unsigned long long a >> b` |
 | `FFMA.RP` | 15 | 0038 | `float a / b` |
 | `DSETP.GT.AND` | 14 | 0127 | `double a > b` |
 | `F2I.U32.TRUNC.NTZ` | 14 | 0031 | `unsigned char a / b` |
@@ -675,7 +722,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `DSETP.NE.AND` | 5 | 0670 | `double __dsqrt_rn(a)` |
 | `I2FP.F32.U32.RZ` | 5 | 0031 | `unsigned char a / b` |
 | `IMNMX.U32` | 5 | 0459 | `int r; switch (b) { case 1: r = a; break; case 100: r = a + 1; break; case 10000: r = a + 2; break; case -7: r = a + 3; break; default: r = 0; break; }` |
-| `SHF.R.S64` | 5 | 0086 | `long long a >> b` |
 | `ATOMG.E.ADD.STRONG.GPU` | 4 | 0854 | `int atomicAdd` |
 | `BREV` | 4 | 0504 | `unsigned int __brev(a)` |
 | `F2I.U32.F64.TRUNC` | 4 | 0436 | `(unsigned char)(double)` |

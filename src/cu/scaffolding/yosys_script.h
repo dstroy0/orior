@@ -5,7 +5,7 @@
 // Yosys's synthesis of a lane GHDL wrote as Verilog, as a script its ruleset yosys.krs writes: which passes run is the
 // ruleset's, not the caller's. It writes no lane: program() is always empty, and synthesis() writes the script
 
-#include "../transpiler/codegen/target.h"
+#include "../engine/rmc/target.h"
 
 class YosysScript : public Target
 {

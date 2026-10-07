@@ -1,0 +1,22 @@
+{
+  "id": "tsv",
+  "name": "Tables",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["tsv","csv"],
+  "comments": {"line":"#"},
+  "pairs": [],
+  "quotes": [],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "perLine": true,
+    "tokenizer": {
+      "root": [["^#.*$","comment"],["[^\\t]+","identifier"],["\\t","delimiter","@c1"]],
+      "c1": [["[^\\t]+","type"],["\\t","delimiter","@c2"]],
+      "c2": [["[^\\t]+","variable"],["\\t","delimiter","@c3"]],
+      "c3": [["[^\\t]+","string"],["\\t","delimiter","@c4"]],
+      "c4": [["[^\\t]+","keyword"],["\\t","delimiter","@c5"]],
+      "c5": [["[^\\t]+","number"],["\\t","delimiter","@c1"]]
+    }
+  }
+}

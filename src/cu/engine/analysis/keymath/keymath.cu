@@ -86,6 +86,24 @@ static void encode_unit_step(std::vector<ExactLimbs> &row)
     row.swap(stepped);
 }
 
+// the row times 1 + z + ... + z^(length - 1): each tap the sum of the `length` taps ending at it
+static void encode_comb(std::vector<ExactLimbs> &row, unsigned int length)
+{
+    const ExactLimbs zero(1u, 0u);
+    std::vector<ExactLimbs> summed(row.size() + length - 1u, zero);
+    for (size_t tap = 0u; tap < summed.size(); tap += 1u)
+    {
+        for (unsigned int back = 0u; (back < length) && (back <= tap); back += 1u)
+        {
+            if ((tap - back) < row.size())
+            {
+                summed[tap] = exact_sum(summed[tap], row[tap - back]);
+            }
+        }
+    }
+    row.swap(summed);
+}
+
 extern "C" long keymath_encode(const KeymathEncodeRequest *request)
 {
     if ((request == NULL) || (request->error == NULL))
@@ -127,6 +145,23 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
                     {
                         encode_unit_step(term.rows[axis]);
                     }
+                }
+            }
+        }
+        else if (doing.operation == ENGINE_COMB)
+        {
+            for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+            {
+                const unsigned int length = doing.orders[axis];
+                if (length < 2u)
+                {
+                    continue;
+                }
+                // a comb of n widens the window by n - 1 taps, and moves the center as an order of n - 1 does
+                running_half[axis] ^= (length - 1u) & 1u;
+                for (EncodeTerm &term : running)
+                {
+                    encode_comb(term.rows[axis], length);
                 }
             }
         }

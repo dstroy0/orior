@@ -1,0 +1,93 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#
+# Builds the app's installers on Windows, macOS and Linux and attaches them to a release when the
+# release is published, each named for the release's version. Run by hand, or on a pull request that
+# changes this file, it builds them and keeps them as the run's artifacts, on no release.
+#
+# Windows gets the NSIS setup and an MSI, macOS one disk image for Apple silicon and Intel together,
+# and Linux a .deb, an .rpm and an AppImage. None of them is signed by a certificate: Windows warns
+# before the first run, and macOS opens the app from a right click, Open.
+
+name: app
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - ".github/workflows/app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  installers:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            bundles: nsis,msi
+            target: ""
+          - os: macos-latest
+            bundles: app,dmg
+            target: universal-apple-darwin
+          - os: ubuntu-22.04
+            bundles: deb,rpm,appimage
+            target: ""
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev build-essential file patchelf
+
+      - name: Both macOS targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Tauri's command
+        run: cargo install tauri-cli --version "^2" --locked
+
+      # The release's tag, less its v, is the installers' version; a build on no release keeps the
+      # version tauri.conf.json gives.
+      - name: Build
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          BUNDLES: ${{ matrix.bundles }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          cd src/ui/src-tauri
+          args=(--bundles "$BUNDLES")
+          if [ -n "$TARGET" ]; then args+=(--target "$TARGET"); fi
+          if [ -n "$TAG" ]; then args+=(--config "{\"version\":\"${TAG#v}\"}"); fi
+          cargo tauri build "${args[@]}"
+
+      - name: Gather
+        run: |
+          mkdir -p dist
+          find src/ui/src-tauri/target -path '*/release/bundle/*' -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -exec cp {} dist/ \;
+          ls -l dist
+          test -n "$(ls dist)"
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/* --clobber
+
+      - name: Keep as artifacts
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ runner.os }}
+          path: dist/

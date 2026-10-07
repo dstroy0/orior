@@ -1,0 +1,40 @@
+name: Bug report
+description: Something in orior went wrong.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - library
+        - cli
+        - ui
+        - unknown
+      default: 3
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: input
+    id: version
+    attributes:
+      label: Version
+  - type: input
+    id: system
+    attributes:
+      label: System
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      render: text

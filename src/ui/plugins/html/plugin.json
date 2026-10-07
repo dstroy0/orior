@@ -1,0 +1,29 @@
+{
+  "id": "html",
+  "name": "HTML and XML",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["html","htm","svg","xml"],
+  "comments": {"block":["<!--","-->"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "<(?!\\/|br|hr|img|input|meta|link)[\\w-]+[^>]*>\\s*$",
+  "grammar": {
+    "tokenizer": {
+      "root": [
+        ["<!--","comment","@comment"],
+        ["<!\\w[^>]*>","keyword"],
+        ["(<\\/?)([\\w-]+)",["delimiter","tag"],"@tag"],
+        ["&\\w+;|&#\\d+;","variable"],
+        ["[^<&]+|.",""]
+      ],
+      "tag": [
+        ["\\s+",""],
+        ["([\\w:@.-]+)(\\s*=\\s*)(\"[^\"]*\"|'[^']*'|[^\\s>]+)",["attribute.name","delimiter","string"]],
+        ["[\\w:@.-]+","attribute.name"],
+        ["\\/?>","delimiter","@pop"]
+      ],
+      "comment": [["-->","comment","@pop"],["[^-]+|-","comment"]]
+    }
+  }
+}

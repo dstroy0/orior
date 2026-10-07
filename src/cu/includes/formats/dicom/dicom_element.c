@@ -4,6 +4,8 @@
 
 DicomResident g_dicom_resident;
 
+const DicomSlice *g_dicom_sorting;
+
 unsigned int g_dicom_keyed;
 
 unsigned long long dicom_little(const unsigned char *bytes, unsigned int count)

@@ -323,7 +323,6 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         report->crystal_bytes += record->crystal_bytes;
         report->voxels += lanes;
     }
-    zip_resident_release();
     ok = ok && entry_set_root(sample_roots, report->sealed, &report->set_root, error);
     free(sample_roots);
     report->microseconds = engine_clock_microseconds() - began;

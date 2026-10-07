@@ -72,9 +72,9 @@ def checked_file(path):
     """Whether this tool reads this path at all."""
     return path.endswith(CHECKED) or build_file(path)
 
-# Fetched or generated, and none of it authored here. fixtures holds the positive control for
-# machine_distance.py, written deliberately in the register being detected. Repairing it deletes
-# the only sample of the thing.
+# Fetched or generated, and none of it authored here. target is what cargo writes for src/ui.
+# fixtures holds the positive control for machine_distance.py, written deliberately in the register
+# being detected. Repairing it deletes the only sample of the thing.
 #
 # A directory holding its own `.git` is the root of another checkout: a linked worktree, which is a
 # full copy of this tree, or a repository nested in it. Neither is read. A repository with N linked
@@ -89,6 +89,7 @@ SKIP_DIRS = (
     "__pycache__",
     ".vscode",
     "fixtures",
+    "target",
 )
 
 

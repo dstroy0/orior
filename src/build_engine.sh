@@ -70,7 +70,7 @@ MODULES=(engine/formats/stack cu/includes/formats/stack cu/engine/parser
          cu/engine/analysis/noise_detector engine/runtime/schedule cu/engine/runtime/schedule
          engine/compiler/keymath cu/engine/analysis/keymath engine/compiler/key_schedule
          cu/engine/analysis/key_schedule engine/compiler/cycle cu/engine/analysis/cycle
-         engine/compiler/codegen cu/transpiler/codegen cu/transpiler/lstar/parser engine/runtime/radix_keys
+         engine/compiler/codegen cu/engine/rmc cu/types/file_defs/readers engine/runtime/radix_keys
          engine/analysis/unit_sweep cu/engine/analysis/unit_sweep engine/runtime/obsignatio
          cu/engine/runtime/obsignatio engine/analysis/residual cu/engine/analysis/residual
          engine/nbody/max_tree cu/engine/nbody/max_tree engine/nbody/flatten cu/engine/nbody/flatten
@@ -84,9 +84,10 @@ MODULES=(engine/formats/stack cu/includes/formats/stack cu/engine/parser
          cu/engine/nbody/contact_side engine/nbody/box_history cu/engine/nbody/box_history
          engine/nbody/heaviest_matching engine/arithmetic/double_fields cu/types/integerfloats/double_fields engine/arithmetic/decimal_double
          engine/runtime/scriptura engine/analysis/period cu/engine/analysis/period)
-INGEST=(engine/formats/cfg_json engine/formats/zarr engine/codecs/zstd engine/codecs/inflate engine/codecs/deflate
-        engine/codecs/lz4 engine/codecs/snappy engine/codecs/blosc engine/formats/tiff engine/formats/hdf5
-        engine/codecs/zip engine/formats/dicom engine/formats/npy engine/formats/nrrd engine/formats/nifti)
+INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate
+        cu/includes/codecs/deflate cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc
+        cu/includes/formats/tiff cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom
+        cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti)
 MODULES+=("${INGEST[@]}")
 MODULE_INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc")
 MODULE_SOURCES=("$TOP/src/cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
@@ -97,10 +98,13 @@ for module in "${MODULES[@]}"; do
     done
 done
 PORTABLE_OBJECTS=()
-for portable in engine/nbody/body_overlap engine/nbody/heaviest_matching engine/analysis/shift_agreement \
-                engine/nbody/max_tree engine/compiler/cycle engine/nbody/marginal engine/arithmetic/double_fields \
-                engine/arithmetic/decimal_double engine/runtime/scriptura "${INGEST[@]}"; do
+for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
+                cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/marginal \
+                cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
+                cu/types/integers/exact_record "${INGEST[@]}"; do
+    # A folder with no C file leaves the pattern unexpanded, and it names no file to build.
     for source in "$TOP/src/$portable"/*.c; do
+        [ -f "$source" ] || continue
         name="$(basename "$source" .c)"
         OBJECT="$OUT/${name}_portable.o"
         case "$(uname -s)" in

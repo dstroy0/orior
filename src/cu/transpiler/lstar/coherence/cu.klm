@@ -90,6 +90,7 @@ key wide_mul_word wide_mul_word
 key wide_add wide_add
 breaks wide_add word_add
 key wide_shl wide_shl
+breaks wide_shl word_shl
 key wide_select wide_select
 key wide_div wide_div
 breaks wide_div word_div
@@ -179,3 +180,17 @@ key test_signed_wide_lt test_signed_wide_lt
 key test_signed_wide_le test_signed_wide_le
 key test_signed_wide_gt test_signed_wide_gt
 key test_signed_wide_ge test_signed_wide_ge
+key wide_sub wide_sub
+breaks wide_sub word_sub
+key wide_bitand wide_bitand
+breaks wide_bitand word_bitand
+key wide_bitor wide_bitor
+breaks wide_bitor word_bitor
+key wide_bitxor wide_bitxor
+breaks wide_bitxor word_bitxor
+breaks wide_bitxor predicate_bitxor
+key wide_not wide_not
+breaks wide_not word_not
+key wide_shr wide_shr
+breaks wide_shr word_shr
+key signed_wide_shr signed_wide_shr

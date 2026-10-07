@@ -80,15 +80,64 @@ does not. No order of the core and no length of a blend enters.
 ## 5. The pressure datum
 
 The datum Pi_0 = G(Pi_0) is stated as a relation on a held function Pi_0 of eta, never taken by steps. Whether it has
-exactly one solution is the lemma of the workbook's chapter on terms to put back, and waits on the space it names.
+exactly one solution is the lemma of the workbook's chapter on terms to put back. G reads the core out to X_b, and the
+first thing the lemma needs is a radius in X the core's series is proved to reach, every bound of the proof exact.
+
+Check (`core_radius`): on the ellipses E_rho over the segment [-1, 1], one scale per order,
+|f|_k = sup ||f||_rho (rho0 - rho)^k, the rule of 2 bounds |F_k|_k, |U_k|_k, |P_k|_k and |v_k|_(k+1) order by order
+from the data: a witness, exact to an order N. Two inequalities at N carry x_k <= B r^-k / (k + 1) to every order past
+N, and the series reaches X < r (rho0 - rho_min). The derivative d f' is held at the feet eta = -1 and eta = +1, where
+d is 0: (1 - eta^2) T_m' = m (T_(m-1) - T_(m+1)) / 2 bounds it with no rho_min, and that bound proves three to nine
+times the radius the bound through f' alone does.
+
+A witness of one bound per order grows by one ratio from its first orders, and the proof reaches that ratio: each order
+loses Delta in eta, and a radius near 1/10 is what any ellipse of the cfg proves, where X_b near 2 is asked. The
+witness by weights keeps each order apart as its Chebyshev weights, f_k with F_k = f_k / L^(2k): a derivative scales
+mode m by m, a product is a sum over modes, and no ellipse is carried through the orders. One is read only where the
+order is bounded, sum |f_(k,m)| rho^m. The weights' magnitudes prove about three times the radius of the bounds. The
+exact weights keep every cancellation, and on E_2 they shrink by a ratio near 5 an order, the series' own X near 2.5
+on that ellipse.
+
+The proof on one ellipse: the rule fixes the length of each order's weights, at most g0 + (g0 + 4) k + 1 for the
+data's degree g0, and on E_rho a derivative costs that length times 2 rho / (rho^2 - 1), or (rho + 1/rho) / 2 at the
+feet. No ellipse is lost, and the proof reaches X < r / l^2 on E_rho itself. The Cauchy sums split at an order N0:
+a part with one index below N0 reads the exact weights, and only a part with both indices at N0 or past it reads the
+bound. At N = 24 it proves X < 0.95 on E_(3/2) and X < 0.75 on E_2, where the exact weights shrink by a ratio near
+3.5 an order on E_(3/2), the series' own X past 3 on that ellipse.
+
+The parts linear in the order past N fall as 1 / N, and the largest of them is the transport U_0 d F_k', its
+derivative charged at the whole length of F_k's weights. Read as amplitudes in [0, 1] over the place t = m / G_k in
+[0, 1], the exact weights sit near t = 0.11 on E_(3/2), 0.2 on E_2 and 0.35 on E_3 at every order the record holds:
+the length charges a derivative about ten times what the weights ask on E_(3/2).
+
+A bound past N of the binomial shape binom(k + m, m) s^-m r^-k, whose mean mode grows as k, does not hold in the
+Chebyshev weights: D eta F_k' reaches every lower mode, and below the bound's peak the bound rises with m. At mode 0 the
+bound grows as (s rho / (s rho - 1))^k.
+
+The carry: the exact weights to N at their magnitudes, carried past N mode by mode by the magnitudes of the rule. Each
+carried order bounds the exact one where its weight sits, with no shape assumed, and each is rounded up to a multiple
+of 2^-bits. Carried from N = 24 to 36 it proves X < 1.18 on E_(1.1), X < 1.24 on E_(5/4) and
+X < 1.14 on E_(3/2).
+
+The wall: the first carried order gives up every cancellation of its step at once, about ten times the exact one, and
+past it the carried weights shrink by about 2.3 an order on E_(1.1), where X = 2 asks 2.09. With the split at 12 the
+parts that read the bound vanish, and the parts linear in the order ask a carry near 100: hours on the host, at a cost
+that grows as the fourth power of the carry. The questions it leaves:
+
+- The carry on the device, every order rounded up the same way.
+- The loss in eta comes from U d F_eta, a transport in eta. Along the flow of that transport no derivative is lost.
+- The series continued from a point X_0 inside the radius: whether the scale of ellipses starts again there, or
+  whether each center loses Delta again.
 
 ## 6. The paper's system against this one
 
 The paper's text (arXiv 2609.17642v1) holds the operators T_b and Z_b of its (3), the system (4), the rule (17) and
 (18) with the products of lower orders named and not written, the heat exterior E = c X^(-A) H(2d/X) as the solution
 of T_{-(A+1/2)} F - 2 (X F)_XX = 0, the stresses tau_theta = X^-1 int x R_theta and tau_z = (2X)^(-1/2) int R_z, and
-the exterior pressure -int F_ext^2. The family of axis data and annulus content and the fits are in its code instead of its
-text.
+the exterior pressure -int F_ext^2. Its code (gitlab.umiacs.umd.edu/ramanid/swirl-collapse, `axis_cone.py`) holds
+the family and the matching route: F_0 and U_0 Chebyshev sums in eta, the annulus content a bump in X times a tensor
+Chebyshev sum, and the six functions taken from the stress T_0 of OpenAI 2026, eqs. (4.11) and (4.15)-(4.16), built
+from the five cumulative integrals M, I, J, S and Pi.
 
 Check (`core_rule`): the system of 2 is the paper's (3) and (4) term for term. The paper's (17) and (18) as printed
 hold -(A + 1/2) F_k and -A U_k inside L^-1, where its own (3) gives +(A + 1/2) and +A: they differ from (3) and (4) at
@@ -96,6 +145,38 @@ order k by exactly 2 (A + 1/2) L^-1 F_k and 2 A L^-1 U_k, and the rule of 2 is w
 H(Z) = Z^(-1-h) U(1 + h, 2, 1/Z), the paper's exterior is F_ext of 3, and `matching_rule` checks that it solves the
 equation the paper names.
 
+Check (`matching_rule`): with M_X = U, I_X = 2 X F, J_X = 2 X F U, S_X = U^2 - X F^2 and Pi_X = F^2, continuity
+integrated from the axis is V = X v0 = L^-1 (2 eta X U - 2 D eta M - d M_eta), and the code's stress is minus the
+integrated residuals, (X T0_theta)_X = -X R_theta and (sqrt(2X) T0_z)_X = -R_z, for any F and U; with one part of Q_s
+changed it is not. The matching route of the code and the torque and force of 4 are one identity, and it holds for
+every member of the family, whatever its weights.
+
+## 7. The walls of a medium
+
+The core's angular speed is v = r tau^(-1-h) F(X, eta) with tau = T - t and X = r^2 / (2 nu tau), as Proposition 20 of
+the millennium chapter on the coupled system takes it, tau in seconds. A medium leaves the conditions (1) is written
+for at walls: its speed passes a share of its sound speed, the light speed, or the speed at which one particle carries
+the energy that frees an electron; the radius at X falls to the spacing below which it is not a continuum; or the time
+left falls to its relaxation time, where it answers as an elastic solid.
+
+Check (`core_radius`): on [-1, 1], F at X is at least the data's c_0 - sum |c_m| less the sum of n_k (l^2 X)^k to the
+order the norms reach and B_f (l^2 X / r)^k past it, every term from the proof on one ellipse, the bound rounded down
+to a multiple of 2^-bits. With tau <= 1, v^2 >= 2 nu X F_low^2 / tau, and each wall is an exact time left the core
+passes it by. The X of a proved radius where X F_low^2 is largest is 9/8 on E_(1.1), with F_low near 0.81.
+
+| medium | first wall | its time left | speed of light | radius at the spacing |
+|---|---|---|---|---|
+| water | 3/10 of sound | 10^-12 to 10^-11 s | 10^-23 to 10^-22 s | 10^-14 to 10^-13 s |
+| air | 3/10 of sound | 10^-9 to 10^-8 s | 10^-22 to 10^-21 s | 10^-10 to 10^-9 s |
+| neutron star matter | 3/10 of sound | 10^-16 to 10^-15 s | 10^-17 to 10^-16 s | 10^-30 to 10^-29 s |
+
+In water the walls of sound, of the elastic answer, of the spacing and of the collisions that free an electron fall
+within two decades of each other, and the radius at X still halves 48 to 53 times before the Planck time. Neutron
+star matter passes the light speed thirteen decades before its radius reaches its spacing. The constants are the
+cfg's: water at 20 C by IAPWS R6-95 and R12-08, air at 20 C and 0.1 MPa from standard tables, the relaxation of each
+its order of magnitude, and neutron star matter at nuclear density with its viscosity and sound speed of order
+estimates. The data are the cfg's, F_0 = 1, and not the matched datum of 5: every wall's time scales as F_low^2.
+
 ## Order
 
-0, then 1, then 2, then 3, then 4, then 5 and 6.
+0, then 1, then 2, then 3, then 4, then 5 and 6, then 7.

@@ -49,7 +49,8 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
             FLATTEN_IO(fwrite(names[sample], 1u, length, file) == length, names[sample], error) &&
             FLATTEN_IO(krep_limbs_write(file, orders[sample].smooth, ENGINE_AXES) != 0, orders[sample].smooth, error) &&
             FLATTEN_IO(krep_limbs_write(file, orders[sample].background, ENGINE_AXES) != 0, orders[sample].background,
-                       error);
+                       error) &&
+            FLATTEN_IO(krep_limbs_write(file, orders[sample].comb, ENGINE_AXES) != 0, orders[sample].comb, error);
     }
     ok = ok && FLATTEN_IO(krep_words_write(file, &bodies, 1u) != 0, &bodies, error) &&
          FLATTEN_IO(krep_limbs_write(file, magnitudes, words) != 0, magnitudes, error);
@@ -84,6 +85,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
              FLATTEN_IO(krep_limbs_read(file, read_orders.smooth, ENGINE_AXES) != 0, read_orders.smooth, error) &&
              FLATTEN_IO(krep_limbs_read(file, read_orders.background, ENGINE_AXES) != 0, read_orders.background,
                         error) &&
+             FLATTEN_IO(krep_limbs_read(file, read_orders.comb, ENGINE_AXES) != 0, read_orders.comb, error) &&
              FLATTEN_CHECK(memcmp(&read_orders, &orders[sample], sizeof(read_orders)) == 0, &read_orders, error,
                            ENGINE_ERROR_LOGIC);
     }
@@ -143,13 +145,16 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
              FLATTEN_CHECK(resident->names[sample] != NULL, &resident->names[sample], error, ENGINE_ERROR_RESOURCE) &&
              FLATTEN_IO(fread(resident->names[sample], 1u, length, file) == length, resident->names[sample], error) &&
              FLATTEN_IO(krep_limbs_read(file, orders->smooth, ENGINE_AXES) != 0, orders->smooth, error) &&
-             FLATTEN_IO(krep_limbs_read(file, orders->background, ENGINE_AXES) != 0, orders->background, error);
+             FLATTEN_IO(krep_limbs_read(file, orders->background, ENGINE_AXES) != 0, orders->background, error) &&
+             FLATTEN_IO(krep_limbs_read(file, orders->comb, ENGINE_AXES) != 0, orders->comb, error);
         for (unsigned int axis = 0u; ok && (axis < ENGINE_AXES); axis += 1u)
         {
             ok = FLATTEN_CHECK((orders->background[axis] & 1u) == 0u, &orders->background[axis], error,
                                ENGINE_ERROR_LOGIC);
-            // an order's parity is 0 or 1, which re-signs to int exactly
-            resident->offset_halves[((size_t)sample * ENGINE_AXES) + axis] = -(int)(orders->smooth[axis] & 1u);
+            const unsigned int comb_moves = (orders->comb[axis] >= 2u) ? (orders->comb[axis] - 1u) : 0u;
+            // a parity is 0 or 1, which re-signs to int exactly
+            resident->offset_halves[((size_t)sample * ENGINE_AXES) + axis] =
+                -(int)((orders->smooth[axis] + comb_moves) & 1u);
         }
     }
     ok =
@@ -214,6 +219,7 @@ static int flatten_orders(const FlattenSetRequest *request, FlattenOrders *order
         {
             memcpy(orders[sample].smooth, request->smooth_orders, sizeof(orders[sample].smooth));
             memcpy(orders[sample].background, request->background_orders, sizeof(orders[sample].background));
+            memset(orders[sample].comb, 0, sizeof(orders[sample].comb));
         }
         for (unsigned int axis = 0u; ok && (axis < ENGINE_AXES); axis += 1u)
         {
@@ -309,6 +315,7 @@ int flatten_set(const FlattenSetRequest *request)
             memcpy(residual_request.smooth_orders, orders[sample].smooth, sizeof(residual_request.smooth_orders));
             memcpy(residual_request.background_orders, orders[sample].background,
                    sizeof(residual_request.background_orders));
+            memcpy(residual_request.comb, orders[sample].comb, sizeof(residual_request.comb));
             residual_request.unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
             residual_request.offset_halves = offset_halves;
             residual_request.error = error;
