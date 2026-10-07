@@ -11,12 +11,18 @@
 // the case words it reads (carrier_flow.h). A pair apart where a case word decides it that a flag only the form it
 // stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms name the same operands,
 // apart where a case word the link reads decides it, is a modifier's, and a frame's where it is alike on every case
-// whose operands every frame reads as themselves. A pair of forms of a flag that name the same operands, apart whatever
-// the link reads, is a negation's: the two members of one node. A pair answered alike at every put is a qualifier's.
-// A pair the part answered apart in this log that no test reads into a set is written unknown_coherence. A pair the
-// log holds no answer of keeps the set line the bridge held beneath it, and one that holds none is written
-// unknown_coherence: no answer has read it into a set, and it is a member of every one
+// whose values, as the part holds them at the link, every frame reads as themselves. A pair of forms of a flag that name
+// the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair answered alike
+// at every put is a qualifier's. A pair the part answered apart in this log that no test reads into one set is written
+// unknown_coherence. A pair the log holds no answer of keeps the set line the bridge held beneath it, and one that
+// holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one
+//
+// Each answered pair whose product is whole is written beneath its set with its concept, `concept_coherence
+// <identity>`: whether its two forms write one value or two on each case, as a function of the values the form reads
+// there, over every put the part answered (concept_product.h). A concept is its product and cares for nothing that made
+// it, and two pairs of one product are one concept whatever forms name them
 #include "carrier_flow.h"
+#include "concept_product.h"
 
 #include <stdio.h>
 
@@ -42,7 +48,24 @@ struct LoggedPut
     std::string came_back;
     // the cases the ask was put over, by their place in the log's case sets
     size_t cases_at;
+    // each register the form reads that a case reaches, as the form writes it, and its value on every case as the part
+    // holds it at the form, empty where the part refused the read
+    std::vector<std::pair<std::string, std::vector<unsigned long long>>> reads;
+    // the value the form writes and the value its stand-in writes on every case, each read just after the form
+    std::vector<unsigned long long> writes_from;
+    std::vector<unsigned long long> writes_to;
 };
+
+// 1 where the part answered every read of `put` on every case it was put over
+static int put_read(const LoggedPut &put)
+{
+    int read = !put.reads.empty();
+    for (const auto &each : put.reads)
+    {
+        read &= (each.second.size() >= put.came_back.size()) ? 1 : 0;
+    }
+    return read;
+}
 
 // the values every frame reads as themselves lie below the top of a byte read signed
 static const unsigned long long s_frame_free_below = 0x80ull;
@@ -94,53 +117,9 @@ static std::set<unsigned long long> operands_deciding(const std::vector<std::vec
     return deciding;
 }
 
-// A pair's relation over the cases, its identity, the relation being what it is and no name being needed for it: what
-// came back of each case read as a function of the case words `read`, each combination of their values alike, apart,
-// or both where a word outside `read` decides it among the cases holding it. The combinations are written in the order
-// of their values for each order of the words, the least writing taken, a carrier naming the words in any order, and
-// hashed to sixteen hexadecimal digits
-static std::string relation_identity(const std::vector<std::vector<std::string>> &cases, const std::string &came_back,
-                                     const std::set<unsigned long long> &read)
-{
-    std::vector<unsigned long long> order(read.begin(), read.end());
-    std::string least;
-    do
-    {
-        std::map<std::string, std::set<char>> by_values;
-        for (size_t place = 0u; (place < cases.size()) && (place < came_back.size()); place += 1u)
-        {
-            if (came_back[place] == '-')
-            {
-                continue;
-            }
-            std::string values;
-            for (const unsigned long long operand : order)
-            {
-                values += ((operand < cases[place].size()) ? cases[place][(size_t)operand] : std::string("-")) + ",";
-            }
-            by_values[values].insert(came_back[place]);
-        }
-        std::string written;
-        for (const auto &held : by_values)
-        {
-            written += held.first + ((held.second.size() > 1u) ? "?" : std::string(1u, *held.second.begin())) + ";";
-        }
-        least = (least.empty() || (written < least)) ? written : least;
-    } while (std::next_permutation(order.begin(), order.end()));
-    unsigned long long hashed = 0xcbf29ce484222325ull;
-    for (const char letter : least)
-    {
-        hashed = (hashed ^ (unsigned char)letter) * 0x100000001b3ull;
-    }
-    char identity[24];
-    snprintf(identity, sizeof(identity), "%016llx", hashed);
-    return identity;
-}
-
-// the set of our coherence a put apart is read into, and empty where it is read into none, its relation's identity in
-// `identity`
+// the set of our coherence a put apart is read into, and empty where it is read into none
 static std::string put_decoded(const LoggedPut &put, const std::vector<std::vector<std::string>> &cases,
-                               const std::string &folder, std::string *identity)
+                               const std::string &folder)
 {
     const size_t colon = put.address.find(':');
     std::ifstream carrier(folder + "/" + put.address.substr(0u, colon) + ".sass", std::ios::binary);
@@ -191,9 +170,6 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
         form_written.insert(link.written);
         line_at += 1;
     }
-    std::set<unsigned long long> link_words = qualified;
-    link_words.insert(qualifying.begin(), qualifying.end());
-    *identity = relation_identity(cases, put.came_back, link_words);
     const std::set<unsigned long long> deciding = operands_deciding(cases, put.came_back);
     // a case word the carrier reads after the link decides the cases apart beside the words the link reads, and is
     // read by neither side of the pair
@@ -233,19 +209,25 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
     {
         return std::string();
     }
-    // two readings of the same bits under two frames agree wherever every operand fits every frame, below the top of
-    // a byte read signed, the narrowest signed width the cases hold: a modifier apart only past that is the frame's
+    // two readings of the same bits under two frames agree wherever every value the form reads fits every frame,
+    // below the top of a byte read signed, the narrowest signed width the cases hold: a modifier apart only past that
+    // is the frame's. The values are the form's own, read at the form, and a put the part held no read of is read
+    // into no set
+    if (!put_read(put))
+    {
+        return std::string();
+    }
     int past_every_frame = 1;
-    for (size_t place = 0u; (place < cases.size()) && (place < put.came_back.size()); place += 1u)
+    for (size_t place = 0u; place < put.came_back.size(); place += 1u)
     {
         if (put.came_back[place] != 'x')
         {
             continue;
         }
         int fits = 1;
-        for (const std::string &operand : cases[place])
+        for (const auto &each : put.reads)
         {
-            fits &= (std::stoull(operand, nullptr, 16) < s_frame_free_below) ? 1 : 0;
+            fits &= (each.second[place] < s_frame_free_below) ? 1 : 0;
         }
         past_every_frame &= fits ? 0 : 1;
     }
@@ -306,7 +288,7 @@ int main(int argc, char **argv)
         else if (std::regex_match(line, found, s_put))
         {
             puts.push_back(LoggedPut{found[2].str(), found[1].str(), found[3].str(), std::string(), std::string(), {},
-                                     came_back, case_sets.empty() ? 0u : case_sets.size() - 1u});
+                                     came_back, case_sets.empty() ? 0u : case_sets.size() - 1u, {}, {}, {}});
             came_back.clear();
             block_answered = 0;
         }
@@ -318,6 +300,31 @@ int main(int argc, char **argv)
         {
             puts.back().to_text = line.substr(3u);
         }
+        else if (!puts.empty() && (line.rfind("reads ", 0u) == 0u))
+        {
+            std::stringstream words(line.substr(6u));
+            std::string read;
+            std::string value;
+            words >> read;
+            std::vector<unsigned long long> values;
+            while ((words >> value) && (value != "refused"))
+            {
+                values.push_back(std::stoull(value, nullptr, 16));
+            }
+            puts.back().reads.push_back(std::make_pair(read, values));
+        }
+        else if (!puts.empty() && (line.rfind("writes ", 0u) == 0u))
+        {
+            std::stringstream words(line.substr(7u));
+            std::string side;
+            std::string value;
+            words >> side;
+            std::vector<unsigned long long> &values = (side == "from") ? puts.back().writes_from : puts.back().writes_to;
+            while ((words >> value) && (value != "refused"))
+            {
+                values.push_back(std::stoull(value, nullptr, 16));
+            }
+        }
         else if (!puts.empty() && (line.rfind("only", 0u) == 0u))
         {
             std::stringstream words(line.substr(4u));
@@ -328,15 +335,30 @@ int main(int argc, char **argv)
             }
         }
     }
-    // each pair's set, read off its put apart, or a qualifier's where every put the part answered came back alike
+    // each pair's set, read off its puts apart, or a qualifier's where every put the part answered came back alike
     std::map<std::string, std::string> decoded;
-    // each answered pair's relation, its identity, whatever its forms' texts: the put apart's where it has one
-    std::map<std::string, std::string> identities;
+    // each answered pair's product, its rows over every put the part answered and read
+    std::vector<unsigned long long> operands;
+    for (const auto &cases : case_sets)
+    {
+        for (const auto &each : cases)
+        {
+            for (const std::string &operand : each)
+            {
+                operands.push_back(std::stoull(operand, nullptr, 16));
+            }
+        }
+    }
+    const std::vector<std::set<unsigned long long>> cased = concept_values(operands);
+    std::map<std::string, ConceptProduct> products;
+    std::map<std::string, std::set<std::string>> apart_sets;
     std::map<std::string, int> apart_held;
     std::map<std::string, int> alike_held;
     for (const LoggedPut &put : puts)
     {
         const std::string key = pair_key(put.from, put.to);
+        // a put past the pair's first case apart asks nothing of its verdict, and holds its product alone
+        concept_product_held(put.reads, put.writes_from, put.writes_to, cased, &products[key]);
         if ((put.came_back == "recorded") || (put.came_back == "refused") || put.came_back.empty() ||
             case_sets.empty())
         {
@@ -346,23 +368,36 @@ int main(int argc, char **argv)
         if (put.came_back.find('x') == std::string::npos)
         {
             alike_held[key] |= one_text ? 1 : 2;
-            if (apart_held.count(key) == 0u)
-            {
-                identities[key] = relation_identity(case_sets[put.cases_at], put.came_back, {});
-            }
             continue;
         }
         apart_held[key] = 1;
-        std::string identity;
-        const std::string set = put_decoded(put, case_sets[put.cases_at], argv[2], &identity);
-        identities[key] = identity;
-        decoded[key] = (set.empty() || !one_text) ? std::string("unknown_coherence") : set;
+        const std::string set = put_decoded(put, case_sets[put.cases_at], argv[2]);
+        if (!set.empty())
+        {
+            apart_sets[key].insert(one_text ? set : std::string("unknown_coherence"));
+        }
+    }
+    // a pair the puts apart read into one set is its member, and one read into none, or into two, no answer has read
+    // into a set we know
+    for (const auto &held : apart_held)
+    {
+        const std::set<std::string> &sets = apart_sets[held.first];
+        decoded[held.first] = (sets.size() == 1u) ? *sets.begin() : std::string("unknown_coherence");
     }
     for (const auto &held : alike_held)
     {
         if (apart_held.count(held.first) == 0u)
         {
             decoded[held.first] = (held.second == 1) ? "qualifier_coherence" : "unknown_coherence";
+        }
+    }
+    std::map<std::string, std::string> identities;
+    for (const auto &held : products)
+    {
+        const std::string identity = concept_identity(held.second, cased);
+        if (!identity.empty())
+        {
+            identities[held.first] = identity;
         }
     }
     std::vector<std::string> bridge;
@@ -382,7 +417,7 @@ int main(int argc, char **argv)
     std::string set_held;
     std::string identity_held;
     std::map<std::string, unsigned int> counted;
-    std::set<std::string> relations;
+    std::map<std::string, unsigned int> concepts;
     const auto pair_closed = [&]() {
         if (!pair_held.empty())
         {
@@ -391,13 +426,15 @@ int main(int argc, char **argv)
                                                                       : set_held;
             written.push_back(set);
             counted[set] += 1u;
+            // a pair answered in this log is the concept its own product is, and none until that product is whole
             const std::string identity = (identities.count(pair_held) != 0u)
-                                             ? ("relation_identity " + identities[pair_held])
-                                             : identity_held;
+                                             ? ("concept_coherence " + identities[pair_held])
+                                         : (decoded.count(pair_held) != 0u) ? std::string()
+                                                                            : identity_held;
             if (!identity.empty())
             {
                 written.push_back(identity);
-                relations.insert(identity);
+                concepts[identity] += 1u;
             }
         }
         pair_held.clear();
@@ -412,7 +449,7 @@ int main(int argc, char **argv)
             set_held = entry;
             continue;
         }
-        if (!pair_held.empty() && (entry.rfind("relation_identity ", 0u) == 0u))
+        if (!pair_held.empty() && (entry.rfind("concept_coherence ", 0u) == 0u))
         {
             identity_held = entry;
             continue;
@@ -448,12 +485,18 @@ int main(int argc, char **argv)
     fclose(file);
     for (const auto &held : decoded)
     {
-        printf("  %s: %s\n", held.first.c_str(), held.second.c_str());
+        printf("  %s: %s %s\n", held.first.c_str(), held.second.c_str(),
+               (identities.count(held.first) != 0u) ? identities[held.first].c_str() : "-");
+    }
+    unsigned int shared = 0u;
+    for (const auto &held : concepts)
+    {
+        shared += (held.second > 1u) ? 1u : 0u;
     }
     printf("klq_decoder: %u puts read, %u qualifier_coherence, %u frame_coherence, %u modifier_coherence, %u "
-           "negation_coherence, %u unknown_coherence, %u relation identities, written to %s\n",
+           "negation_coherence, %u unknown_coherence, %u concepts, %u of more than one pair, written to %s\n",
            (unsigned int)puts.size(), counted["qualifier_coherence"], counted["frame_coherence"],
            counted["modifier_coherence"], counted["negation_coherence"], counted["unknown_coherence"],
-           (unsigned int)relations.size(), argv[3]);
+           (unsigned int)concepts.size(), shared, argv[3]);
     return 0;
 }

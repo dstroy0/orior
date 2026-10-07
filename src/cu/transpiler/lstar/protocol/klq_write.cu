@@ -181,8 +181,8 @@ int main(int argc, char **argv)
     // the identities between texts the bridge holds, each with its verdict, kept whole: no ruleset writes them, and
     // they are written again after the keys as they were read
     std::vector<std::string> identities;
-    // each pair's verdict as the bridge held it, the set of our coherence klq_decoder read it into and its relation's
-    // identity, each written again beneath the pair
+    // each pair's verdict as the bridge held it, the set of our coherence klq_decoder read it into and its concept,
+    // each written again beneath the pair
     std::map<std::string, std::string> verdicts;
     std::map<std::string, std::string> sets;
     std::map<std::string, std::string> relations;
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
         {
             sets[pair_held] = line;
         }
-        const int relation = (line.rfind("relation_identity ", 0u) == 0u);
+        const int relation = (line.rfind("concept_coherence ", 0u) == 0u);
         if (relation && !pair_held.empty())
         {
             relations[pair_held] = line;
