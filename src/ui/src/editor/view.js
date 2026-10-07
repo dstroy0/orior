@@ -14,11 +14,15 @@ import { hiddenSpans, indentOf, Rows } from "./folding.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
+import { selectionPath } from "./shape.js";
 import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
 
 const PAD = 10;
 const LINE = 20;
+
+// How round a selection's corners are, in pixels.
+const SELECTION_ROUND = 4;
 
 // Sticky scroll: the most lines it holds along the top, the longest text it reads the regions of,
 // and how long an edit rests before the regions are read again, in milliseconds.
@@ -26,6 +30,14 @@ const STICKY_MOST = 5;
 const STICKY_LINES = 300000;
 const STICKY_REST = 250;
 const STICKY_KEY = "orior.sticky";
+
+// Bracket pairs colored by depth: the setting's key, the most lines a text has for its brackets to be
+// colored, the most lines read in one frame to learn a line's depth, and the tokens whose brackets
+// do not count.
+const BRACKETS_KEY = "orior.brackets";
+const BRACKETS_LINES = 200000;
+const BRACKETS_READ = 20000;
+const UNBRACKETED = /\bt-(?:comment|string|regexp)/;
 const SHOWN = 10000;
 const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 // The scroll speeds, in pixels a millisecond, past which a frame drops more of its work, how long
@@ -128,7 +140,12 @@ export class Editor {
     this.input.setAttribute("autocorrect", "off");
     this.input.setAttribute("autocapitalize", "off");
     this.input.setAttribute("aria-label", "Text");
-    this.space.append(this.under, this.text, this.over, this.input);
+    // The selections, each one shape over the characters it covers, under the text.
+    this.picked = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    this.picked.setAttribute("class", "ed-picked");
+    this.picked.setAttribute("aria-hidden", "true");
+    this.pickedHtml = "";
+    this.space.append(this.under, this.picked, this.text, this.over, this.input);
     this.textLayer = new Layer(this.text);
     this.underLayer = new Layer(this.under);
     this.gutterLayer = new Layer(this.gutterRows);
@@ -140,6 +157,7 @@ export class Editor {
     this.sticky = div("ed-sticky");
     this.sticky.hidden = true;
     this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
+    this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
     this.stickyList = [];
     this.stickyFor = null;
     this.stickyDoc = -1;
@@ -1767,12 +1785,60 @@ export class Editor {
     }
   }
 
+  // Bracket pairs: each bracket outside a comment or a string colored by how deep it stands, the
+  // depth at the start of each line kept on the session until an edit reaches it.
+  setBrackets(on) {
+    this.bracketsOn = on;
+    localStorage.setItem(BRACKETS_KEY, String(on));
+    this.textLayer.clear();
+    this.schedule();
+  }
+
+  // The depth at the end of a line that starts at `depth`, a closing bracket never taking it below 0.
+  bracketEnd(line, depth) {
+    const text = this.s.doc.line(line);
+    const runs = this.s.highlight.runsOf(line);
+    for (let index = 0; index < runs.length; index += 1) {
+      const [start, name] = runs[index];
+      if (UNBRACKETED.test(name)) {
+        continue;
+      }
+      const end = runs[index + 1]?.[0] ?? text.length;
+      for (let at = start; at < end; at += 1) {
+        const char = text[at];
+        if (char === "(" || char === "[" || char === "{") {
+          depth += 1;
+        } else if ((char === ")" || char === "]" || char === "}") && depth > 0) {
+          depth -= 1;
+        }
+      }
+    }
+    return depth;
+  }
+
+  // The depth at the start of a line, or null where it is too far below what is read to read now.
+  depthAt(line) {
+    const s = this.s;
+    if (!s.depths) {
+      s.depths = [0];
+    }
+    let at = s.depths.length - 1;
+    if (line - at > BRACKETS_READ) {
+      return null;
+    }
+    for (; at < line; at += 1) {
+      s.depths[at + 1] = this.bracketEnd(at, s.depths[at]);
+    }
+    return s.depths[line];
+  }
+
   rowHtml(line) {
     const s = this.s;
     const text = s.doc.line(line);
     const level = status.scroll.level;
     const runs = level >= 3 ? [[0, ""]] : level === 2 ? s.highlight.cached(line) ?? [[0, ""]] : s.highlight.runsOf(line);
     const shown = Math.min(text.length, SHOWN);
+    let depth = this.bracketsOn && level < 2 && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
     let html = "";
     for (let index = 0; index < runs.length; index += 1) {
       const [start, name] = runs[index];
@@ -1780,13 +1846,67 @@ export class Editor {
       if (end <= start) {
         continue;
       }
-      const part = escapeHtml(text.slice(start, end));
+      let part;
+      if (depth === null || UNBRACKETED.test(name)) {
+        part = escapeHtml(text.slice(start, end));
+      } else {
+        part = "";
+        let from = start;
+        for (let at = start; at < end; at += 1) {
+          const char = text[at];
+          const opens = char === "(" || char === "[" || char === "{";
+          const closes = char === ")" || char === "]" || char === "}";
+          if (!opens && !closes) {
+            continue;
+          }
+          if (closes && depth > 0) {
+            depth -= 1;
+          }
+          part += `${escapeHtml(text.slice(from, at))}<span class="ed-br-${depth % 3}">${char}</span>`;
+          if (opens) {
+            depth += 1;
+          }
+          from = at + 1;
+        }
+        part += escapeHtml(text.slice(from, end));
+      }
       html += name ? `<span class="${name}">${part}</span>` : part;
     }
     if (s.folded.has(line) && s.endOf(line) >= 0) {
       html += `<span class="ed-folded" data-fold="${line}">⋯</span>`;
     }
     return html;
+  }
+
+  // The gutter's mark of how a line differs from the last commit: a bar for a line added or
+  // changed, and a wedge at the line's top edge where lines above it were taken out, at the last
+  // line's foot for lines taken out below it.
+  changeMark(line) {
+    const changes = this.s.changes;
+    if (!changes) {
+      return "";
+    }
+    let mark = "";
+    if (changes.added.has(line)) {
+      mark += `<span class="ed-change added"></span>`;
+    } else if (changes.changed.has(line)) {
+      mark += `<span class="ed-change changed"></span>`;
+    }
+    if (changes.removed.has(line)) {
+      mark += `<span class="ed-change removed"></span>`;
+    }
+    if (line === this.s.doc.count - 1 && changes.removed.has(line + 1)) {
+      mark += `<span class="ed-change removed below"></span>`;
+    }
+    return mark;
+  }
+
+  // Sets the marks of how a session's lines differ from the last commit, or takes them away.
+  setChanges(session, changes) {
+    session.changes = changes;
+    if (session === this.s) {
+      this.schedule();
+    }
   }
 
   box(name, x, y, width, height = LINE) {
@@ -1907,7 +2027,7 @@ export class Editor {
       const foldable = s.folded.has(line) || (level <= 1 && s.opens(line));
       const folded = foldable && s.folded.has(line);
       const mark = foldable ? `<span class="ed-fold${folded ? " shut" : ""}" data-fold="${line}">${folded ? "▸" : "▾"}</span>` : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", number + mark]);
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", number + mark + this.changeMark(line)]);
     }
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {
@@ -1929,23 +2049,33 @@ export class Editor {
         }
       }
     }
+    // Each selection covers its characters on each row it reaches, and a line's end inside it as
+    // one blank character, the rows' spans drawn as one shape.
+    const shapes = [];
     for (const sel of sels) {
       if (empty(sel)) {
         continue;
       }
       const start = startOf(sel);
       const end = endOfSel(sel);
-      const firstLine = Math.max(start.line, rows.lineOf(first));
-      const lastLine = Math.min(end.line, rows.lineOf(last));
-      for (let line = firstLine; line <= lastLine; line += 1) {
-        const row = visible(line);
-        if (row < 0) {
+      const spans = [];
+      for (let row = Math.max(first, rows.rowOf(start.line)); row <= Math.min(last, rows.rowOf(end.line)); row += 1) {
+        const line = rows.lineOf(row);
+        if (line < start.line || line > end.line) {
           continue;
         }
+        const text = doc.line(line);
         const from = line === start.line ? start.col : 0;
-        const to = line === end.line ? end.col : doc.line(line).length;
-        band(row, this.span(focused ? "ed-sel" : "ed-sel idle", line, row, from, to, line !== end.line));
+        const ends = line < end.line;
+        const to = line === end.line ? end.col : text.length;
+        spans.push([row, PAD + this.vcolOf(text, from) * cw, PAD + this.vcolOf(text, to) * cw + (ends ? cw : 0)]);
       }
+      shapes.push(selectionPath(spans, LINE, SELECTION_ROUND));
+    }
+    const picked = shapes.join("") ? `<path class="${focused ? "ed-sel" : "ed-sel idle"}" d="${shapes.join("")}"/>` : "";
+    if (picked !== this.pickedHtml) {
+      this.picked.innerHTML = picked;
+      this.pickedHtml = picked;
     }
     for (const sel of sels) {
       const row = visible(sel.head.line);

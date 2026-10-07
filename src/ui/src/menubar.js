@@ -20,7 +20,7 @@
 // into the last, a menu of menus.
 
 import { invoke } from "./bridge.js";
-import { editing, openAt as openFileAt, openFile, recentFiles } from "./edit.js";
+import { crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
 import { showPreferences } from "./preferences.js";
@@ -46,6 +46,9 @@ const TITLES_AT = [
 ];
 
 const state = { bar: null, menus: [], open: -1, titles: [], held: false, before: null, openFolder: () => {} };
+
+// The words on and off as true and false, and anything else as undefined, for the setting to flip.
+const onOff = (args) => (args[0] === "on" ? true : args[0] === "off" ? false : undefined);
 
 // The editor's command: the run view gives way to the edit view, and the editor takes the keys.
 const inEditor = (act) => () => {
@@ -145,8 +148,20 @@ const COMMANDS = {
   "edit-view": () => showView("edit"),
   "side-bar": (args) => togglePane(args[0] === "show" ? true : args[0] === "hide" ? false : undefined),
   "auto-collapse": (args) => setAutoCollapse(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
+  "auto-save": (args) => setSaving("auto-save", onOff(args)),
+  breadcrumbs: (args) => setCrumbs(onOff(args)),
+  "bracket-pairs": (args) => editing().setBrackets(onOff(args) ?? !editing().brackets()),
   "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
-  preferences: () => showPreferences(sheet, { menus: state.menus, runCommand, checks: CHECKS }),
+  preferences: () =>
+    showPreferences(sheet, {
+      menus: state.menus,
+      runCommand,
+      checks: CHECKS,
+      more: [
+        { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },
+        { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
+      ],
+    }),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
@@ -181,6 +196,9 @@ const CHECKS = {
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
   "sticky-scroll": () => editing().sticky(),
+  "auto-save": () => saving("auto-save"),
+  breadcrumbs: crumbsShown,
+  "bracket-pairs": () => editing().brackets(),
   "auto-report": () => state.autoReport,
 };
 

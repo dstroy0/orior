@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// File, Preferences: the color theme of each scheme and every color of its palette, the zoom, and
-// each item of the menus that is set on or off. A color changed in the scheme's own theme starts a
-// theme of the reader's from it, and every change shows at once. A theme copies out as text and reads
-// back in from the clipboard.
+// File, Preferences: the color theme of each scheme and every color of its palette, the zoom, each
+// item of the menus that is set on or off, and the settings no menu lists. A color changed in the
+// scheme's own theme starts a theme of the reader's from it, and every change shows at once. A
+// theme copies out as text and reads back in from the clipboard.
 
 import { clipText, copyText } from "./menu.js";
 import { scheme, setScheme } from "./scheme.js";
@@ -58,7 +58,7 @@ function groupOf(name) {
   return "--*";
 }
 
-export function showPreferences(sheet, { menus, runCommand, checks }) {
+export function showPreferences(sheet, { menus, runCommand, checks, more = [] }) {
   const body = element("div", { className: "sheet-prefs" });
   const state = { filter: "" };
 
@@ -252,6 +252,14 @@ export function showPreferences(sheet, { menus, runCommand, checks }) {
         });
         rows.push(element("label", { className: "report-check" }, box, element("span", { textContent: item.label })));
       }
+    }
+    for (const setting of more) {
+      const box = element("input", { type: "checkbox", checked: setting.on() });
+      box.addEventListener("change", () => {
+        setting.set(box.checked);
+        box.checked = setting.on();
+      });
+      rows.push(element("label", { className: "report-check" }, box, element("span", { textContent: setting.label })));
     }
     return element("section", { className: "prefs-settings" }, ...rows);
   }
