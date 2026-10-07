@@ -2333,6 +2333,7 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     std::vector<std::string> identities(carried.size());
     std::map<std::string, RunQuestion *> first_of;
     std::vector<std::string> firsts;
+    std::map<RunQuestion *, unsigned int> waiting;
     std::vector<std::pair<RunQuestion *, RunQuestion *>> copies;
     for (size_t at = 0u; at < carried.size(); at += 1u)
     {
@@ -2355,13 +2356,22 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         if (first != first_of.end())
         {
             copies.push_back(std::make_pair(question, first->second));
+            waiting[first->second] += 1u;
             continue;
         }
         first_of[identities[at]] = question;
         firsts.push_back(identities[at]);
         const int shaped = (question->threads != 0u) || (question->blocks != 0u);
         ((carried[at].dangerous != 0) || shaped ? alone : mundane).push_back(question);
+        waiting[question] = 1u;
     }
+    // the ask that settles the most entries first: the one the most pairs of the round wait on, in the order handed
+    // where two settle as many
+    const auto settles_more = [&waiting](RunQuestion *left, RunQuestion *right) {
+        return waiting[left] > waiting[right];
+    };
+    std::stable_sort(mundane.begin(), mundane.end(), settles_more);
+    std::stable_sort(alone.begin(), alone.end(), settles_more);
     if (!mundane.empty())
     {
         run_channel_ask_many(mundane.data(), (unsigned int)mundane.size());
@@ -4155,9 +4165,9 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             std::make_pair(chain_registers(engine, flow.first),
                            (unsigned int)carrier_operands_loaded(flow.second.first, flow.second.second).size());
     }
-    // the seed the order of the links of one magnitude is drawn from, KLQ_SEED where it is given
+    // the seed the order of the links of one magnitude is drawn from, with each put's two forms, KLQ_SEED where it is
+    // given
     const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
-    std::mt19937 drawn(seed);
     std::vector<std::string> bridge;
     std::string line;
     std::ifstream held_bridge(klq, std::ios::binary);
@@ -4295,9 +4305,15 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             }
         }
         // the links in the order of their vectors, the least first: a form the cases reach as they were loaded answers
-        // of the form alone. Links of one vector are tried in an order drawn from the pass's seed
+        // of the form alone. Links of one vector are tried in an order drawn from the seed and this put's two forms
+        // alone, so that no other pair, put or settled, moves the order of this one
         std::stable_sort(found_links.begin(), found_links.end(),
                          [](const FoundLink &left, const FoundLink &right) { return left.vector < right.vector; });
+        const std::string drawn_for = from + " " + to;
+        const unsigned long long drawn_hash = record_hash(drawn_for.c_str(), drawn_for.size(), seed);
+        std::seed_seq drawn_seed{(unsigned int)(drawn_hash & 0xffffffffull), (unsigned int)(drawn_hash >> 32u),
+                                 (unsigned int)seed};
+        std::mt19937 drawn(drawn_seed);
         for (size_t first = 0u; first < found_links.size();)
         {
             size_t last = first;
@@ -4797,7 +4813,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 ranged ? " range" : "", placed ? " vector" : "", controlled ? " control" : "",
                 switched ? " switch" : "");
     };
-    // every pair of the bridge, in its order, the question and places its put asks with, and the verdict it came to
+    // every pair of the bridge, in its order, the question and places its put asks with, the hash of what its put
+    // reads, and the verdict it came to
     struct PairPut
     {
         std::string first;
@@ -4806,8 +4823,30 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         int put_whole;
         std::unique_ptr<RunQuestion> question;
         std::vector<unsigned int> places;
+        std::string reads;
     };
+    // what every put reads of the engine: each chain's text and the host's answers to its cases, by its question
+    unsigned long long engine_read = 0xcbf29ce484222325ull;
+    for (const auto &chain : texts)
+    {
+        engine_read = record_hash(chain.first.c_str(), chain.first.size() + 1u, engine_read);
+        engine_read = record_hash(chain.second.c_str(), chain.second.size() + 1u, engine_read);
+        for (const std::string &answer : host[chain.first])
+        {
+            engine_read = record_hash(answer.c_str(), answer.size() + 1u, engine_read);
+        }
+    }
+    // The scheduler: the record's gray entries are the queue. A pair closed on the record's path, whose reads are as
+    // they were, is settled: its verdict is the record's, and it is put no more, since a put runs again only where what
+    // it reads has changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
+    // the gray pairs alone
+    std::map<std::string, const QueryRecordPath *> recorded_paths;
+    for (const QueryRecordPath &path : s_query_record.paths)
+    {
+        recorded_paths[path.first + " " + path.second] = &path;
+    }
     std::vector<PairPut> pairs;
+    size_t settled = 0u;
     for (const std::string &entry : bridge)
     {
         if (entry.rfind("pair ", 0u) == 0u)
@@ -4819,8 +4858,25 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                          "open 0",
                          0,
                          std::unique_ptr<RunQuestion>(new RunQuestion()),
-                         std::vector<unsigned int>()};
+                         std::vector<unsigned int>(),
+                         std::string()};
             words >> kind >> pair.first >> pair.second;
+            std::vector<std::string> names;
+            const std::string first_text = marked(pair.first, &names);
+            const std::string second_text = marked(pair.second, &names);
+            unsigned long long reads = record_hash(first_text.c_str(), first_text.size() + 1u, engine_read);
+            reads = record_hash(second_text.c_str(), second_text.size() + 1u, reads);
+            char hashed[17];
+            snprintf(hashed, sizeof(hashed), "%016llx", reads);
+            pair.reads = hashed;
+            const auto path = recorded_paths.find(pair.first + " " + pair.second);
+            if ((path != recorded_paths.end()) && (path->second->reads == pair.reads) &&
+                (path->second->verdict.rfind("closed ", 0u) == 0u))
+            {
+                pair.verdict = path->second->verdict;
+                pair.put_whole = 1;
+                settled += 1u;
+            }
             pairs.push_back(std::move(pair));
         }
     }
@@ -4851,6 +4907,10 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     std::vector<std::thread> threads;
     for (size_t at = 0u; at < pairs.size(); at += 1u)
     {
+        if (pairs[at].put_whole)
+        {
+            continue;
+        }
         threads.emplace_back([&, at]() {
             {
                 std::unique_lock<std::mutex> lock(s_turn_lock);
@@ -4900,7 +4960,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     // The rounds: each pair not yet put runs in its turn until it asks or is put, and the asks the round was handed
     // are answered together. The rounds loop while a pair is left to put, and end once every pair is put
     unsigned int round = 0u;
-    size_t left = pairs.size();
+    size_t left = pairs.size() - settled;
+    printf("klq_identity pair: %zu pairs settled on the record, %zu gray in the queue\n", settled, left);
     while (left != 0u)
     {
         const std::chrono::steady_clock::time_point round_began = std::chrono::steady_clock::now();
@@ -4980,7 +5041,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     s_query_record.paths.clear();
     for (const PairPut &pair : pairs)
     {
-        s_query_record.paths.push_back(QueryRecordPath{pair.first, pair.second, pair.verdict});
+        s_query_record.paths.push_back(QueryRecordPath{pair.first, pair.second, pair.reads, pair.verdict});
     }
     printf("klq_identity pair: %zu asks held in the query record, %zu of them put this cycle\n",
            s_query_record.asks.size(), s_query_record.asks.size() - recorded_before);

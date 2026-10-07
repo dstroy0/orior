@@ -65,6 +65,14 @@ int query_record_read(const std::string &path, const std::string &member, QueryR
             QueryRecordPath held;
             words >> held.first >> held.second;
             std::getline(words >> std::ws, held.verdict);
+            // the hash of the pair's reads, sixteen hex digits ahead of the verdict, where the record holds one
+            const size_t gap = held.verdict.find(' ');
+            const std::string first_word = held.verdict.substr(0u, gap);
+            if ((gap == 16u) && (first_word.find_first_not_of("0123456789abcdef") == std::string::npos))
+            {
+                held.reads = first_word;
+                held.verdict = held.verdict.substr(gap + 1u);
+            }
             if (held.verdict.empty())
             {
                 *error = path + ":" + std::to_string(number) + ": a pair with no verdict";
@@ -165,7 +173,8 @@ int query_record_write(const std::string &path, const QueryRecord &record, std::
     }
     for (const QueryRecordPath &held : record.paths)
     {
-        fprintf(file, "pair %s %s %s\n", held.first.c_str(), held.second.c_str(), held.verdict.c_str());
+        fprintf(file, "pair %s %s %s%s%s\n", held.first.c_str(), held.second.c_str(), held.reads.c_str(),
+                held.reads.empty() ? "" : " ", held.verdict.c_str());
     }
     if (fclose(file) != 0)
     {

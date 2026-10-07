@@ -30,11 +30,13 @@ struct QueryRecordSample
     std::string refusal;
 };
 
-// a path read off the asks: a pair of the bridge and its verdict as the bridge writes it beneath the pair
+// a path read off the asks: a pair of the bridge, the hash of what its put reads, and its verdict as the bridge writes
+// it beneath the pair; `reads` empty where the record holds no hash of them
 struct QueryRecordPath
 {
     std::string first;
     std::string second;
+    std::string reads;
     std::string verdict;
 };
 
