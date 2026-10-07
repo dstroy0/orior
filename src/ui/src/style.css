@@ -690,6 +690,28 @@ select {
   letter-spacing: -0.04em;
 }
 
+/* The eye in the name stands in for the i. It keeps the drawing's proportions and its line weight,
+ * and its lids sit centered on the height of the o and the r. */
+.wordmark .eye-mark {
+  width: 1.164em;
+  height: 1.15em;
+  margin: 0 0.02em 0 0.04em;
+  vertical-align: -0.32em;
+  overflow: visible;
+}
+
+.eye-mark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.eye-mark .iris {
+  fill: currentColor;
+}
+
 .empty-body p,
 .open-body p {
   margin: 0.8rem auto 1.2rem;

@@ -14,6 +14,7 @@ import { keepScheme } from "./scheme.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
 import { showView } from "./views.js";
+import { setWordmarks } from "./wordmark.js";
 
 async function openInEditor(path) {
   showView("edit");
@@ -48,6 +49,7 @@ function drawPulse(held) {
 }
 
 async function start() {
+  setWordmarks();
   keepScheme();
   startMenus();
   keepLattices();

@@ -12,6 +12,7 @@ import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { copyText, menuOn } from "./menu.js";
 import { coloredHtml } from "./screen.js";
 import { write } from "./status.js";
+import { wordmark } from "./wordmark.js";
 
 // The groups in the order the engine's own steps run, and then what reads its results.
 const ORDER = ["build", "protocol", "ingest", "run", "render", "sim", "view", "pipeline", "stage", "test"];
@@ -187,7 +188,7 @@ function drawStage() {
   if (!job) {
     const canvas = element("canvas", { className: "lattice" });
     const tree = document.getElementById("tree-path").textContent;
-    const body = element("div", { className: "empty-body" }, element("h1", { textContent: "orior" }), element("p", { textContent: tree }));
+    const body = element("div", { className: "empty-body" }, wordmark("h1"), element("p", { textContent: tree }));
     stage.replaceChildren(element("div", { className: "empty" }, canvas, body));
     keepLattice(canvas);
     return;

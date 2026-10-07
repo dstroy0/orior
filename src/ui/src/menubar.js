@@ -25,6 +25,7 @@ import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, su
 import { scheme, setScheme, toggleScheme } from "./scheme.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { onView, shownView, showView } from "./views.js";
+import { wordmark } from "./wordmark.js";
 
 // The most titles the bar shows at a window width: [narrowest width in pixels, titles]. The rest go
 // into the last title's menu, and so do more where even these do not fit.
@@ -218,7 +219,7 @@ async function showAbout() {
   const version = await invoke("app_version").catch(() => "");
   body.append(
     Object.assign(document.createElement("span"), { className: "mark", textContent: "Σ", ariaHidden: "true" }),
-    Object.assign(document.createElement("h2"), { textContent: "orior" }),
+    wordmark("h2"),
     Object.assign(document.createElement("p"), { textContent: version }),
     Object.assign(document.createElement("p"), { className: "tree", textContent: document.getElementById("tree-path").textContent }),
   );
