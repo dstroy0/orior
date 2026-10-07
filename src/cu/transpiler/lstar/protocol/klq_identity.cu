@@ -46,6 +46,7 @@
 #include "code_generator.h"
 #include "concept_product.h"
 #include "query_record.h"
+#include "query_trace.h"
 #include "run_channel.h"
 #include "target_internal.h"
 extern "C"
@@ -2074,6 +2075,10 @@ static std::string s_record_ksc;
 // censored is censored again without a process. It is read where R is read and written back where R is, and its path is
 // empty where it could not be read, so that nothing writes over a record no mode read
 static QueryRecord s_query_record;
+
+// the flags of the trace's choices, read from their table (src/cu/types/file_defs/klq/query_trace.tsv) when the pair
+// mode opens
+static QueryTrace s_query_trace;
 static std::string s_query_record_path;
 
 // The lines that place what a cycle puts in the record's order, its cycle and mode, its seed and its rounds, each
@@ -2196,7 +2201,9 @@ static thread_local FILE *s_ask_trace = NULL;
 // The log beside the trace, KLQ_TRACE's name and .log, that klq_decoder reads: the cases as `cases <case>...`,
 // written again where an ask is put over other cases, and each ask as `ask <number>` and what came back of every case
 // in the order of the cases, `=` alike, `x` apart and `-` where the host gives no bracket, or `recorded` or `refused`
-// where the part answered it nothing here. A mode writes what it put after the ask. NULL where nothing is traced. A
+// where the part answered it nothing here. A mode writes what it put after the ask, and every choice a pair's put
+// makes at a link as `choice <flags> <link>`, the flags of the trace's table ORed into one word, `-` for the link
+// where the choice is the put's own (src/cu/types/file_defs/klq/query_trace.tsv). NULL where nothing is traced. A
 // pair put in a thread of its own writes its trace and its log to files of its own, each added whole to these once
 // the pair is put, so that every put stands in one piece
 static thread_local FILE *s_ask_log = NULL;
@@ -4181,6 +4188,13 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         return 1;
     }
     record_open(ksc, "pair");
+    std::string trace_error;
+    if (!query_trace_read(query_trace_path(), &s_query_trace, &trace_error))
+    {
+        printf("klq_identity pair: %s\n", trace_error.c_str());
+        run_channel_close();
+        return 1;
+    }
     mark_pending("seed", std::to_string(seed));
     // the asks the query record held before this cycle, read with R
     const size_t recorded_before = s_query_record.asks.size();
@@ -4333,10 +4347,37 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         std::string closed;
         long band = LONG_MIN;
         int band_truthy = 0;
+        // every choice the put makes at a link, written to the log as `choice <flags> <link>`, the flags of the trace's
+        // table that hold there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
+        // it, or why the put ended at it. The flags an open pair's links hold are the questions a further pass takes up
+        const auto chosen = [&](const char *const *names, unsigned int count, const std::string &link) {
+            if (s_ask_log == NULL)
+            {
+                return;
+            }
+            unsigned long long word = 0ull;
+            for (unsigned int at = 0u; at < count; at += 1u)
+            {
+                word |= query_trace_flag(s_query_trace, names[at]);
+            }
+            fprintf(s_ask_log, "choice 0x%llx %s\n", word, link.c_str());
+        };
+        const auto chose = [&](const char *name, const std::string &link) {
+            const char *const names[1] = {name};
+            chosen(names, 1u, link);
+        };
+        if (found_links.empty())
+        {
+            chose("no_link", "-");
+        }
         for (const FoundLink &found_link : found_links)
         {
             const auto &chain = *found_link.chain;
             const std::smatch &found = found_link.found;
+            char link_address[32];
+            snprintf(
+                link_address, sizeof(link_address), "%s:%04x", chain.first.c_str(),
+                16u * (unsigned int)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n'));
             std::map<std::string, std::string> given;
             for (const auto &each : group)
             {
@@ -4355,6 +4396,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             if (written_register.empty() ||
                 !std::regex_search(after, std::regex("(^|[^A-Za-z0-9_])" + written_register + "([^0-9]|$)")))
             {
+                chose("unread", link_address);
                 continue;
             }
             // a link of the carrier's own, the thread's index, the case's index, the bound or an address, moves the case
@@ -4363,6 +4405,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             const long link_at = (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
             if (!carrier_form_carries(flow.first, flow.second, found.str(0), link_at))
             {
+                chose("carrier_own", link_address);
                 continue;
             }
             // each of the stand-in's parameters given by name, or where a name is not given, by what the form writes
@@ -4388,6 +4431,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 }
                 else
                 {
+                    chose("parameter_unbound", link_address);
                     return 0;
                 }
             }
@@ -4395,11 +4439,13 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             std::string standing;
             if (ruleset_opcode(sass, to, arguments, none, standing) == 0)
             {
+                chose("unwritable", link_address);
                 return 0;
             }
             // a link the stand-in writes as it stood is no ask
             if (standing == found.str(0))
             {
+                chose("unchanged", link_address);
                 continue;
             }
             t_dangerous = form_dangerous(standing);
@@ -4409,6 +4455,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             const unsigned int count = sass_assemble_lines(&s_machine, changed.c_str(), SASS_CONTROL_SAFE, code.data(), code.size());
             if (count == 0u)
             {
+                chose("unassembled", link_address);
                 continue;
             }
             code.resize(16u * count);
@@ -4431,7 +4478,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 {
                     if (s_ask_log != NULL)
                     {
-                        fprintf(s_ask_log, "steered off past delta %ld\n", band);
+                        chose("steered_off", link_address);
                     }
                     break;
                 }
@@ -4444,11 +4491,16 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     .second;
             if (past_closed && !shape_new)
             {
+                chose("shape_read", link_address);
                 continue;
             }
             const int alike =
                 past_closed ? 0 : vector_alike(code, expected, places, &question, &asks, magnitudes[chain.first].first);
             const unsigned int put_outcome = past_closed ? (unsigned int)RUN_HELD : question.outcome;
+            if (!past_closed)
+            {
+                chose(alike ? "alike" : (put_outcome == RUN_ANSWERED) ? "apart" : "refused", link_address);
+            }
             if ((s_ask_trace != NULL) && !past_closed)
             {
                 fprintf(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
@@ -4732,6 +4784,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 answered = 1;
                 if (const_loaded)
                 {
+                    const char *const stop[2] = {"const_stop", "alike"};
+                    chosen(stop, 2u, link_address);
                     break;
                 }
                 continue;

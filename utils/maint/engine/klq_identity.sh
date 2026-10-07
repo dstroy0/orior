@@ -133,7 +133,7 @@ if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" =
     if [ "$MODE" = "pair" ] && [ -n "${KLQ_TRACE:-}" ]; then
         DECODER="$OUT/klq_decoder"
         rm -f "$DECODER"
-        c++ -std=c++17 -O2 -Wall -Wextra -I "$PROTOCOL" -o "$DECODER" -x c++ "$PROTOCOL/klq_decoder.cu" -static ||
+        c++ -std=c++17 -O2 -Wall -Wextra -I "$PROTOCOL" -I "$PARSER" -o "$DECODER" -x c++ "$PROTOCOL/klq_decoder.cu" "$PARSER/query_trace.cu" -static ||
             { echo "  build failed: klq_decoder did not compile"; exit 1; }
         "$BINARY" "$MODE" "$STICK/engine" "$WORK/host_answers.txt" "$COHERENCE/sm_86.ksc" "$WORK/$MODE" "$@" -- \
             "$CARRIER" "$COHERENCE/sm_86" "$COHERENCE/sm_86.ksc" || exit 1

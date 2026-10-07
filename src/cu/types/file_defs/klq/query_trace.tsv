@@ -1,0 +1,14 @@
+flag	name	gloss
+0x1	unread	nothing reads after the link what it writes, and the link answers alike whatever stands in for it
+0x2	carrier_own	the link is the carrier's own, the thread's index, the case's index, the bound or an address, and moves the case every thread reads
+0x4	unchanged	the stand-in writes the link as it stood, and the link is no ask
+0x8	unassembled	the chain with the stand-in in the link's place does not assemble
+0x10	steered_off	the link stands past a falsy band past the first case apart, and the steer leaves it and every farther link
+0x20	shape_read	past the first case apart, the form reads at the link in a shape a link read before it, and the link is no branch of its own
+0x40	alike	the part answers the stand-in alike with the host on every case it computes
+0x80	apart	the part answers the stand-in apart from the host at a case
+0x100	refused	the part refuses the stand-in, leaves it nothing, or the gate holds it
+0x200	const_stop	the put of a const load and a plain one stops at its first link alike, its question open
+0x400	parameter_unbound	a parameter of the stand-in has no argument the form gives it, and the put is a malformed question
+0x800	unwritable	the ruleset writes no stand-in of the arguments the form gives it, and the put is a malformed question
+0x1000	no_link	the form stands at no link of any carrier, and its line carries no link

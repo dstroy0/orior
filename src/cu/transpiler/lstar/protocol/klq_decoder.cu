@@ -28,6 +28,7 @@
 // it, and two pairs of one product are one concept whatever forms name them
 #include "carrier_flow.h"
 #include "concept_product.h"
+#include "query_trace.h"
 
 #include <stdio.h>
 
@@ -302,11 +303,35 @@ int main(int argc, char **argv)
     std::map<std::string, std::set<std::string>> metas;
     std::map<std::string, std::set<std::string>> categories;
     std::set<std::string> faceted;
+    // the choices each pair's puts made, read off the log's `choice <flags> <link>` lines by the trace's table: how
+    // many of its links held each flag, and how many of every pair's
+    QueryTrace trace;
+    std::string trace_error;
+    if (!query_trace_read(query_trace_path(), &trace, &trace_error))
+    {
+        printf("klq_decoder: %s\n", trace_error.c_str());
+        return 1;
+    }
+    std::string choosing;
+    std::map<std::string, std::map<unsigned long long, unsigned int>> choices;
+    std::map<unsigned long long, unsigned int> chosen;
     while (std::getline(log, line))
     {
         line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
         std::smatch found;
-        if (line.rfind("facts ", 0u) == 0u)
+        if (line.rfind("choice ", 0u) == 0u)
+        {
+            const unsigned long long word = std::stoull(line.substr(7u), nullptr, 16);
+            for (const auto &flag : trace.named)
+            {
+                if ((word & flag.first) != 0ull)
+                {
+                    choices[choosing][flag.first] += 1u;
+                    chosen[flag.first] += 1u;
+                }
+            }
+        }
+        else if (line.rfind("facts ", 0u) == 0u)
         {
             std::stringstream words(line.substr(6u));
             std::string first;
@@ -314,6 +339,7 @@ int main(int argc, char **argv)
             std::string fact;
             words >> first >> second;
             const std::string key = pair_key(first, second);
+            choosing = key;
             faceted.insert(key);
             while (words >> fact)
             {
@@ -753,6 +779,31 @@ int main(int argc, char **argv)
     for (const auto &held : concepts)
     {
         shared += (held.second > 1u) ? 1u : 0u;
+    }
+    // the choices of every pair's puts by the trace's flags, and those of each pair the part answered nothing of, the
+    // questions a further pass takes up
+    const auto choices_written = [&trace](const std::map<unsigned long long, unsigned int> &held) {
+        std::string written;
+        for (const auto &flag : trace.named)
+        {
+            const auto count = held.find(flag.first);
+            if (count != held.end())
+            {
+                written += (written.empty() ? "" : ", ") + std::to_string(count->second) + " " + flag.second;
+            }
+        }
+        return written;
+    };
+    if (!chosen.empty())
+    {
+        printf("  choices: %s\n", choices_written(chosen).c_str());
+    }
+    for (const auto &held : choices)
+    {
+        if (!held.first.empty() && (decoded.count(held.first) == 0u))
+        {
+            printf("  answered nothing, %s: %s\n", held.first.c_str(), choices_written(held.second).c_str());
+        }
     }
     // each set's pairs, those a whole product names, and its signal against its noise in rows of the products
     for (const char *const set : s_sets)
