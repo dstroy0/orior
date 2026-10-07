@@ -11,6 +11,7 @@
 // as they finish. A stopped pass resumes from its files.
 //
 //   knee_period --daemon <tessera_daemon> --out <dir> <set> [<set> ...]
+//   knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>   (knee_ingest below)
 #include "engine.h"
 #include "obsignatio.h"
 #include "period.h"
@@ -517,8 +518,119 @@ static int knee_path(char **out, const char *directory, const char *leaf)
     return good;
 }
 
+// the ingest: every series named in the list, one a line, read from the source and sealed into the set as a crystal,
+// one job each. A series whose crystal's head already reads is kept as it is, and a stopped ingest resumes from the
+// set. A series that does not ingest is reported and the next one runs; the exit is 1 where any did not
+//
+//   knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>
+static int knee_ingest(int argc, char **argv)
+{
+    const char *source = NULL;
+    const char *set = NULL;
+    const char *list = NULL;
+    for (int at = 1; (at + 1) < argc; at += 2)
+    {
+        const char *const value = argv[at + 1];
+        s_daemon = (strcmp(argv[at], "--daemon") == 0) ? value : s_daemon;
+        source = (strcmp(argv[at], "--source") == 0) ? value : source;
+        set = (strcmp(argv[at], "--set") == 0) ? value : set;
+        list = (strcmp(argv[at], "--list") == 0) ? value : list;
+    }
+    FILE *const named = (list != NULL) ? fopen(list, "rb") : NULL;
+    if ((s_daemon == NULL) || (source == NULL) || (set == NULL) || (named == NULL))
+    {
+        fprintf(stderr,
+                "usage: knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>\n");
+        if (named != NULL)
+        {
+            fclose(named);
+        }
+        return 2;
+    }
+    unsigned long long count = 0ull;
+    unsigned long long kept = 0ull;
+    unsigned long long sealed = 0ull;
+    unsigned long long failed = 0ull;
+    char *sample = NULL;
+    while ((sample = knee_line(named)) != NULL)
+    {
+        if (sample[0] == '\0')
+        {
+            free(sample);
+            continue;
+        }
+        count += 1ull;
+        EngineError error;
+        memset(&error, 0, sizeof(error));
+        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        if (engine_iapx_head(set, sample, extent, &error) == 0L)
+        {
+            kept += 1ull;
+            free(sample);
+            continue;
+        }
+        memset(&error, 0, sizeof(error));
+        unsigned long long lanes = 0ull;
+        int good = engine_source_lanes(source, sample, &lanes, &error) == 0L;
+        const unsigned long long shape[KNEE_RANK] = {lanes, 0ull, 0ull};
+        KneeJob job;
+        good = good && knee_job_submit("knee ingest", shape,
+                                       knee_allocation_bytes(lanes * sizeof(unsigned short)) +
+                                           tower_reserve_bytes(lanes) + compression_reserve_bytes(lanes),
+                                       &job);
+        const unsigned long long started = knee_now_microseconds();
+        if (good)
+        {
+            memset(&error, 0, sizeof(error));
+            EngineSampleRecord record;
+            memset(&record, 0, sizeof(record));
+            EngineSetReport report;
+            memset(&report, 0, sizeof(report));
+            report.samples = &record;
+            char *const samples[1] = {sample};
+            const EngineIngestRequest ingest = {source, set, samples, 1u, NULL, 0u, &error, &report};
+            good = (engine_ingest_set(&ingest) == 0L) && (report.sealed == 1ull);
+            good = knee_job_release("knee ingest", &job) && good;
+        }
+        const unsigned long long spent = knee_now_microseconds() - started;
+        if (good)
+        {
+            sealed += 1ull;
+            printf("  ingest %llu  %s  %llu lanes  %llu us\n", count, sample, lanes, spent);
+        }
+        else
+        {
+            failed += 1ull;
+            fprintf(stderr, "  %s did not ingest (kind %u, module %u, site %u)\n", sample, error.kind, error.module,
+                    error.site);
+            printf("  ingest %llu  %s  did not ingest\n", count, sample);
+        }
+        free(sample);
+    }
+    fclose(named);
+    printf("  the ingest is done: %llu series named, %llu kept, %llu sealed, %llu did not ingest\n", count, kept,
+           sealed, failed);
+    return (failed == 0ull) ? 0 : 1;
+}
+
 int main(int argc, char **argv)
 {
+    if ((argc > 1) && (strcmp(argv[1], "ingest") == 0))
+    {
+#if defined(_WIN32)
+        // the card is shared: the ingest runs below every normal process
+        SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+#endif
+        setvbuf(stdout, NULL, _IONBF, 0u);
+        int device = 0;
+        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
+            || (cudaFree(0) != cudaSuccess))
+        {
+            fprintf(stderr, "  the device's context was not made\n");
+            return 1;
+        }
+        return knee_ingest(argc - 1, argv + 1);
+    }
     const char *out = NULL;
     int first_set = 1;
     while ((first_set + 1) < argc)
