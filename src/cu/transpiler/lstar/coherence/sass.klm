@@ -133,6 +133,13 @@ key test_signed_wide_lt test_signed_wide_lt
 key test_signed_wide_le test_signed_wide_le
 key test_signed_wide_gt test_signed_wide_gt
 key test_signed_wide_ge test_signed_wide_ge
+key wide_sub wide_sub
+key wide_bitand wide_bitand
+key wide_bitor wide_bitor
+key wide_bitxor wide_bitxor
+key wide_not wide_not
+key wide_shr wide_shr
+key signed_wide_shr signed_wide_shr
 key launch_open launch_open
 key launch_load_wide launch_load_wide
 key cast_global cast_global

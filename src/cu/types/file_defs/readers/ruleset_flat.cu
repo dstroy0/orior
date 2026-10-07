@@ -12,7 +12,7 @@ static std::string ruleset_part_folder(void)
     const std::string file = __FILE__;
     const size_t slash = file.find_last_of("/\\");
     const std::string here = (slash == std::string::npos) ? std::string() : file.substr(0u, slash + 1u);
-    return here + "../coherence";
+    return here + "../../../transpiler/lstar/coherence";
 }
 
 // the file at `path` read whole onto the end of `text`: 1, or 0 where it could not be opened. Reading stops once the

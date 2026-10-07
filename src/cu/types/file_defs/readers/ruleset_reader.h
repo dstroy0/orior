@@ -6,7 +6,7 @@
 // and no caller outside the code generator reads: a ruleset as read, the schema a language reads it against, and the
 // writer a language writes its forms with
 
-#include "target.h"
+#include "../../../engine/rmc/target.h"
 
 #include <functional>
 #include <initializer_list>

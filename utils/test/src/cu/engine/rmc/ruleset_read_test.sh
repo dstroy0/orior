@@ -8,9 +8,9 @@ set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
-CODEGEN="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU="$TOP/src/cu/transpiler/codegen"
-CODEGEN_CU_2="$TOP/src/cu/transpiler/lstar/parser"
+CODEGEN="$TOP/src/cu/engine/rmc"
+CODEGEN_CU="$TOP/src/cu/engine/rmc"
+CODEGEN_CU_2="$TOP/src/cu/types/file_defs/readers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp ruleset_read_test
 

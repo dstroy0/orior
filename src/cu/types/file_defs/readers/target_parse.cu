@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // target_parse.cu: where rulesets are found; their lines are read by ruleset_core.h
-#include "target_internal.h"
+#include "../../../engine/rmc/target_internal.h"
 
 // The rulesets a lane is written in, one a language, each read once a process from its .krs file in
 // src/cu/transpiler/lstar/coherence, or in the folder $CYCLE_RULESETS names. The format is the comment the rulesets'
@@ -10,8 +10,8 @@
 // the record machine sends its programs on to another language or the interpreter. A form is kept cut at its
 // parameters: writing one appends its pieces with each argument between them
 
-// the folder rulesets are read from: $CYCLE_RULESETS, else ../lstar/coherence from this file's folder in the tree it
-// was built from
+// the folder rulesets are read from: $CYCLE_RULESETS, else ../../../transpiler/lstar/coherence from this file's folder
+// in the tree it was built from
 std::string ruleset_folder(void)
 {
     const char *const named = getenv("CYCLE_RULESETS");
@@ -21,8 +21,8 @@ std::string ruleset_folder(void)
     }
     const std::string file = __FILE__;
     const size_t slash = file.find_last_of("/\\");
-    return (slash == std::string::npos) ? std::string("../lstar/coherence")
-                                        : (file.substr(0u, slash + 1u) + "../lstar/coherence");
+    return (slash == std::string::npos) ? std::string("../../../transpiler/lstar/coherence")
+                                        : (file.substr(0u, slash + 1u) + "../../../transpiler/lstar/coherence");
 }
 
 // the place of `word` among `count` names, or `count` where it is none of them

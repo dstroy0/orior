@@ -25,7 +25,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../.." && pwd)"
 CUBIN="$TOP/src/cu/scaffolding"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-KRS_C="$TOP/src/cu/transpiler/lstar/parser"
+KRS_C="$TOP/src/cu/types/file_defs/readers"
 OUT="$TOP/build/unprinted"
 mkdir -p "$OUT"
 

@@ -3,8 +3,8 @@
 #ifndef TARGET_INTERNAL_H
 #define TARGET_INTERNAL_H
 
-#include "../lstar/parser/ruleset_flat.h"
-#include "ruleset_reader.h"
+#include "../../types/file_defs/readers/ruleset_flat.h"
+#include "../../types/file_defs/readers/ruleset_reader.h"
 #include "target.h"
 
 #include <stddef.h>

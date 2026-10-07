@@ -8,7 +8,7 @@
 #include "../../engine/analysis/keymath/keymath.h"
 #include "asm_printer.h"
 #include "asm_printer_core.h"
-#include "ruleset_reader.h"
+#include "../../types/file_defs/readers/ruleset_reader.h"
 
 #include <stddef.h>
 #include <stdio.h>
