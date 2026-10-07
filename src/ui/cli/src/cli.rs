@@ -19,6 +19,7 @@ use crate::bridge::{self, Bridge};
 use crate::catalog::{self, Job};
 use crate::commands::{self, Commands, Item, Menu};
 use crate::files;
+use crate::format;
 use crate::home;
 use crate::plugins;
 use crate::report;
@@ -467,6 +468,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "new-plugin" => return new_plugin(words),
         "user-css" => return user_css(),
         "toolchains" => return toolchains_words(words),
+        "format" => return format_files(words),
         "report" => return report_page(named, words),
         _ => {}
     }
@@ -677,6 +679,55 @@ fn toolchains_words(words: &[String]) -> i32 {
         Err(said) => err(&said),
     }
     0
+}
+
+/// `orior edit format [--check] <file>...`: formats each file in place with its language's formatter,
+/// as format.rs says, and names each it changed. With --check it changes none, names each it would,
+/// and exits 1 where there is one.
+fn format_files(words: &[String]) -> i32 {
+    let check = words.iter().any(|word| word == "--check");
+    let files: Vec<&String> = words.iter().filter(|word| *word != "--check").collect();
+    if files.is_empty() || files.iter().any(|word| word.starts_with("--")) {
+        err("format takes [--check] and the files to format");
+        return WRONG;
+    }
+    let mut code = 0;
+    for file in files {
+        let path = PathBuf::from(file);
+        let full = dunce::canonicalize(&path).unwrap_or_else(|_| path.clone());
+        let Some(language) = format::language_of(&path) else {
+            err(&format!("{file}: no plugin opens it, and so no formatter knows it"));
+            code = NO_CODE;
+            continue;
+        };
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                err(&format!("{file}: {error}"));
+                code = NO_CODE;
+                continue;
+            }
+        };
+        match format::format(&full, &language, &text) {
+            Ok(formatted) if formatted == text => {}
+            Ok(_) if check => {
+                out(&format!("{file} would change"));
+                code = NO_CODE;
+            }
+            Ok(formatted) => match std::fs::write(&path, formatted) {
+                Ok(()) => out(&format!("{file} formatted")),
+                Err(error) => {
+                    err(&format!("{file}: {error}"));
+                    code = NO_CODE;
+                }
+            },
+            Err(said) => {
+                err(&said);
+                code = NO_CODE;
+            }
+        }
+    }
+    code
 }
 
 /// `orior file user-css`: names the stylesheet the window lays over its own, and makes it, empty but

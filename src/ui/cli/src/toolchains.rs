@@ -48,6 +48,9 @@ pub struct Tool {
     pub not_in: Vec<String>,
     #[serde(default)]
     pub formats: Vec<String>,
+    /// How the tool formats a text of a language `formats` names, where it does.
+    #[serde(default)]
+    pub format: Option<Formatter>,
     /// The one system the tool is for, where it is for one.
     #[serde(default)]
     pub only: Option<String>,
@@ -55,6 +58,15 @@ pub struct Tool {
     pub install: HashMap<String, String>,
     #[serde(default)]
     pub places: HashMap<String, Vec<String>>,
+}
+
+/// A formatter's program, which is one of the tool's or beside them, and its words: it reads the
+/// text on its input and writes it formatted on its output, and {file} in a word is the file's path,
+/// by which it finds the project's own settings.
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct Formatter {
+    pub program: String,
+    pub args: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -123,7 +135,7 @@ fn files_of(name: &str) -> Vec<String> {
 }
 
 /// The first of `names` in `dir`, as a file there.
-fn program_in(dir: &Path, names: &[String]) -> Option<PathBuf> {
+pub fn program_in(dir: &Path, names: &[String]) -> Option<PathBuf> {
     names.iter().flat_map(|name| files_of(name)).map(|file| dir.join(file)).find(|path| path.is_file())
 }
 

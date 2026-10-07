@@ -16,6 +16,7 @@ pub mod cli;
 pub mod commands;
 pub mod defs;
 pub mod files;
+pub mod format;
 pub mod git;
 pub mod home;
 pub mod plugins;

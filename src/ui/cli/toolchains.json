@@ -133,6 +133,7 @@
       "programs": ["cargo", "rustc", "rustfmt"],
       "version": ["--version"],
       "formats": ["rust"],
+      "format": {"program": "rustfmt", "args": ["--edition", "2021"]},
       "install": {"any": "https://rustup.rs/"},
       "places": {"windows": ["%USERPROFILE%\\.cargo\\bin"], "any": ["~/.cargo/bin"]}
     },
@@ -251,6 +252,7 @@
       "programs": ["black"],
       "version": ["--version"],
       "formats": ["python"],
+      "format": {"program": "black", "args": ["-q", "--stdin-filename", "{file}", "-"]},
       "install": {"any": "https://black.readthedocs.io/en/stable/getting_started.html"},
       "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin"]}
     },
@@ -262,6 +264,7 @@
       "programs": ["clang-format"],
       "version": ["--version"],
       "formats": ["c"],
+      "format": {"program": "clang-format", "args": ["--assume-filename={file}"]},
       "install": {"any": "https://github.com/llvm/llvm-project/releases"},
       "places": {"windows": ["%ProgramFiles%\\LLVM\\bin", "%ProgramFiles%\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\Llvm\\x64\\bin", "%ProgramFiles(x86)%\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\Llvm\\x64\\bin"], "macos": ["/opt/homebrew/opt/llvm/bin", "/opt/homebrew/bin"], "linux": ["/usr/bin"]}
     },
@@ -273,6 +276,7 @@
       "programs": ["prettier"],
       "version": ["--version"],
       "formats": ["javascript", "css", "html", "json", "markdown", "yaml"],
+      "format": {"program": "prettier", "args": ["--stdin-filepath", "{file}"]},
       "install": {"any": "https://prettier.io/docs/install"},
       "places": {"windows": ["%APPDATA%\\npm"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"], "linux": ["/usr/local/bin", "/usr/bin"]}
     }

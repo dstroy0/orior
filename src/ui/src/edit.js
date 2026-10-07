@@ -41,7 +41,7 @@ import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
 import { togglePane } from "./sides.js";
-import { drawBranch } from "./statusbar.js";
+import { drawBranch, say } from "./statusbar.js";
 
 const state = {
   editor: null,
@@ -427,6 +427,9 @@ async function saveActive() {
   }
   // A file still being read is written only once all of it is in.
   await tab.reading;
+  if (saving("format")) {
+    await formatTab(tab, { saving: true });
+  }
   tidy(tab);
   const writing = tab.session.doc.id;
   await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
@@ -470,10 +473,17 @@ export async function openAt(path, line, col = 0) {
 
 // Saving: on its own a moment after typing rests where Auto Save is on, and each file saved with
 // the spaces and tabs at its lines' ends taken off and a line end after its last line where those
-// are on. A Markdown file keeps its lines' ends, where two spaces break a line.
+// are on. A Markdown file keeps its lines' ends, where two spaces break a line. Where Format on Save
+// is on, a file is formatted first, on every save but Auto Save's, which comes while the reader is
+// still at work in it.
 
 const AUTO_SAVE_REST = 1000;
-const SAVING = { "auto-save": ["orior.autosave", false], trim: ["orior.trim", false], "final-newline": ["orior.final-newline", false] };
+const SAVING = {
+  "auto-save": ["orior.autosave", false],
+  trim: ["orior.trim", false],
+  "final-newline": ["orior.final-newline", false],
+  format: ["orior.format-on-save", false],
+};
 
 export function saving(name) {
   const [key, fallback] = SAVING[name];
@@ -483,6 +493,73 @@ export function saving(name) {
 
 export function setSaving(name, on = !saving(name)) {
   localStorage.setItem(SAVING[name][0], String(on));
+}
+
+// Formatting: Edit, Format Document, and saving where Format on Save is on. The tab's text goes to the
+// formatter its language has, as format.rs in the command line's crate runs it, and comes back as
+// one edit for each run of lines that changed, which one undo takes back. A text changed while the
+// formatter worked is left as it is. A save says nothing of a language no formatter knows.
+
+let formattable = null;
+
+// The edit for a run of `doc`'s lines [from, to) written again as `lines`.
+function linesEdit(doc, from, to, lines) {
+  if (to < doc.count) {
+    return { from: { line: from, col: 0 }, to: { line: to, col: 0 }, text: lines.map((line) => `${line}\n`).join("") };
+  }
+  if (lines.length) {
+    return from < doc.count ? { from: { line: from, col: 0 }, to: doc.end(), text: lines.join("\n") } : { from: doc.end(), to: doc.end(), text: `\n${lines.join("\n")}` };
+  }
+  return from === 0 ? { from: { line: 0, col: 0 }, to: doc.end(), text: "" } : { from: { line: from - 1, col: doc.line(from - 1).length }, to: doc.end(), text: "" };
+}
+
+async function formatTab(tab, { saving: onSave = false } = {}) {
+  const s = tab?.session;
+  if (!s || s.readOnly || s.window) {
+    return;
+  }
+  formattable ??= new Set(await invoke("format_languages").catch(() => []));
+  const language = s.language?.id ?? "plaintext";
+  if (!formattable.has(language)) {
+    if (!onSave) {
+      say(`No formatter formats ${s.language?.name ?? "plain text"}: File, Toolchains lists those there are.`);
+    }
+    return;
+  }
+  await tab.reading;
+  const doc = s.doc;
+  const version = doc.id;
+  const before = doc.lines.join("\n");
+  let formatted;
+  try {
+    formatted = await invoke("format_text", { path: tab.path, language, text: before });
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  if (doc.id !== version) {
+    say("The file changed while it was formatted, and was left as it is.");
+    return;
+  }
+  const lines = formatted.replace(/\r\n?/g, "\n").split("\n");
+  if (lines.join("\n") === before) {
+    if (!onSave) {
+      say("Already formatted.");
+    }
+    return;
+  }
+  const changes = lineChanges(doc.lines, lines);
+  const edits = changes ? changes.hunks.map((hunk) => linesEdit(doc, hunk.then[0], hunk.then[1], lines.slice(hunk.now[0], hunk.now[1]))) : [{ from: { line: 0, col: 0 }, to: doc.end(), text: lines.join("\n") }];
+  if (state.editor?.s === s) {
+    state.editor.change(edits, "format");
+  } else {
+    doc.change(edits, "format", s.selections);
+    s.selections = s.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
+    doc.settle(s.selections);
+  }
+  if (!onSave) {
+    say(`Formatted ${changes ? changes.hunks.length : 1} ${changes?.hunks.length === 1 ? "place" : "places"}.`);
+  }
 }
 
 // Takes the ends of a tab's lines off and puts a line end after its last line, as the settings say,
@@ -1130,7 +1207,7 @@ export async function startEdit(defs) {
       marking = window.setTimeout(() => markChanges(tabOf(state.active)), 400);
       window.clearTimeout(autoSaving);
       if (saving("auto-save")) {
-        autoSaving = window.setTimeout(() => editing().saveAll(), AUTO_SAVE_REST);
+        autoSaving = window.setTimeout(() => editing().saveAll({ auto: true }), AUTO_SAVE_REST);
       }
       drawTabs();
       window.clearTimeout(outlining);
@@ -1287,10 +1364,14 @@ export function editing() {
     activeChanged: Boolean(tabOf(state.active) && dirty(tabOf(state.active))),
     open: state.tabs.length > 0,
     save: saveActive,
-    saveAll: async () => {
+    format: () => formatTab(tabOf(state.active)),
+    saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {
         await tab.reading;
+        if (!auto && saving("format")) {
+          await formatTab(tab, { saving: true });
+        }
         tidy(tab);
         const writing = tab.session.doc.id;
         await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });

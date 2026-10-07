@@ -8,6 +8,7 @@
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
         { "label": "Save All", "command": "save-all", "needs": "changed" },
         { "label": "Auto Save", "command": "auto-save", "args": "[on|off]", "checks": "auto-save" },
+        { "label": "Format on Save", "command": "format-on-save", "args": "[on|off]", "checks": "format-on-save" },
         "-",
         { "label": "Close Editor", "command": "close-editor", "keys": "Ctrl+W", "needs": "tab" },
         { "label": "Close All Editors", "command": "close-all", "needs": "tabs" },
@@ -39,7 +40,8 @@
         "-",
         { "label": "Find in Files", "command": "search", "keys": "Ctrl+Shift+F", "args": "[--case] [--word] [--regex] <text>", "console": true },
         "-",
-        { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" }
+        { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" },
+        { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true }
       ]
     },
     {

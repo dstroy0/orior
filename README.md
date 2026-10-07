@@ -107,11 +107,12 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | move or copy lines | Alt+Up and Alt+Down move them; Shift+Alt+Up and Shift+Alt+Down copy them |
 | rework lines | Selection holds Join Lines (Ctrl+J), Sort Lines Ascending and Descending, Delete Duplicate Lines, and the case changes. With nothing selected, sorting and duplicates take the whole text and a case change takes the word at the cursor. |
 | comment lines | Ctrl+/ |
+| format the file | Shift+Alt+F, or Edit, Format Document: Black for Python, clang-format for C, C++ and CUDA, rustfmt for Rust, Prettier for JavaScript, CSS, HTML, JSON, Markdown and YAML. Each keeps to the project's own pyproject.toml, .clang-format, rustfmt.toml or .prettierrc, and one undo takes it back. |
 | fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
 
 View turns on and off Sticky Scroll, which holds the opening line of each block the top of the screen is inside; Breadcrumbs, the folders, the file and the symbols the cursor is inside, each a click from where it points; and Bracket Pair Colorization, each pair of brackets colored by its depth.
 
-Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save saves each file a moment after it changes. A tab with changes not yet saved asks for a second click before it closes. Closing the app with changes open keeps them: they come back, still unsaved, the next time the tree opens.
+Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save saves each file a moment after it changes. File, Format on Save formats each file as Ctrl+S or Save All writes it, though not as Auto Save does; a formatter that fails says why on the status bar and the file is written as it was. A tab with changes not yet saved asks for a second click before it closes. Closing the app with changes open keeps them: they come back, still unsaved, the next time the tree opens.
 
 ### Find your way
 
@@ -188,6 +189,7 @@ Ctrl+` opens and closes the terminal, and Ctrl+Shift+` starts a new shell. Closi
 | Ctrl+Shift+E, Ctrl+Shift+D | the Edit view, the Run view |
 | F5, Shift+F5 | start the job, stop it |
 | Ctrl+S | save |
+| Shift+Alt+F | format the file |
 | Ctrl+B | show or collapse the side pane |
 | Ctrl+` | the terminal |
 | Alt+Left, Alt+Right | back, forward |
@@ -207,6 +209,7 @@ orior run show <job>                    a job's file, values and the commands it
 orior run <job> [key=value] [-- words]  run a job; a key given twice gives two values
 orior build [job]                       the build jobs, or one of them; each kind of job is a word
 orior edit search [--case] [--word] [--regex] <text>
+orior edit format [--check] <file>...   format files in place; --check names those that would change
 orior go bridge [key]                   the keys of Lstar.klq, or one key's pairs, maps and rulesets
 orior view scheme dark                  any window command, here switching to the dark scheme
 orior file plugins                      every plugin, where it comes from and what it opens

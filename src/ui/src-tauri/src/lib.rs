@@ -11,7 +11,7 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, git, home, plugins, report, root, runner, toolchains};
+use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, runner, toolchains};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -258,6 +258,18 @@ fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> 
 struct Toolchains {
     tools: Vec<toolchains::Found>,
     own: Option<toolchains::Own>,
+}
+
+/// `text`, the file at `path` as the editor holds it, formatted by its language's formatter.
+#[tauri::command(async)]
+fn format_text(app: State<App>, path: String, language: String, text: String) -> Result<String, String> {
+    format::format(&root_of(&app)?.join(path), &language, &text)
+}
+
+/// Every language a formatter formats.
+#[tauri::command]
+fn format_languages() -> Vec<String> {
+    format::languages()
 }
 
 /// Every toolchain as toolchains.rs finds it, and whether orior itself is on the PATH.
@@ -533,6 +545,8 @@ fn open(launch: Launch) {
             plugin_create,
             user_css_read,
             home_reveal,
+            format_text,
+            format_languages,
             toolchains_check,
             toolchain_version,
             toolchain_install,
