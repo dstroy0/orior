@@ -40,8 +40,11 @@ const SPARK_EVERY = 0.05;
 const EMBERS = 24;
 const EMBER_GAP = 4;
 const WAVE = 1.2;
-// Each piece of the fuse's line is at most PIECE pixels long.
+// Each piece of the fuse's line is at most PIECE pixels long, and NOSE near its ends, where it
+// rounds off over TAPER pixels.
 const PIECE = 8;
+const NOSE = 2;
+const TAPER = 12;
 // How far a waiting head wanders, and how near, in pixels, the fire must be to where it should be
 // for it to count as waiting.
 const JITTER = 3;
@@ -72,14 +75,18 @@ export function makeFuse() {
     return null;
   };
 
-  // A line of light from x0 to x1 about the height y, `half` to each side, waving `wave` pixels.
+  // A line of light from x0 to x1 about the height y, `half` to each side, waving `wave` pixels. Its
+  // width rounds off to a point within TAPER of each end, where it is cut into pieces NOSE pixels
+  // long to keep the curve smooth.
   const strip = (x0, x1, y, half, color, strength, along, wave, seconds) => {
-    const pieces = Math.max(1, Math.ceil((x1 - x0) / PIECE));
-    const at = (x, way) => [x, y + wave * Math.sin(x * 0.05 + seconds * 3) + half * way, way, along(x), color, strength];
-    for (let piece = 0; piece < pieces; piece += 1) {
-      const left = mix(x0, x1, piece / pieces);
-      const right = mix(x0, x1, (piece + 1) / pieces);
+    const width = (x) => half * Math.sqrt(Math.max(0, Math.min(1, (x - x0) / TAPER, (x1 - x) / TAPER)));
+    const at = (x, way) => [x, y + wave * Math.sin(x * 0.05 + seconds * 3) + width(x) * way, way, along(x), color, strength];
+    let left = x0;
+    while (left < x1) {
+      const near = Math.min(left - x0, x1 - left) < TAPER;
+      const right = Math.min(x1, left + (near ? NOSE : PIECE));
       corners.four(at(left, -1), at(left, 1), at(right, 1), at(right, -1));
+      left = right;
     }
   };
 
