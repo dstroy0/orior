@@ -17,8 +17,9 @@
 // a light of its own, and a pair the part answered apart in this log that no test reads into a set is written
 // unknown_coherence. A pair the log holds no answer of keeps the set line the bridge held beneath it, and one that
 // holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one. The
-// texts the log read of a pair read it into its categories before any ask, a comparison, an equality or an order, a
-// range, a vector, a control or a switch, each written beside its sets, and a text reads no pair out of
+// texts the log read of a pair read it into its categories before any ask, a comparison, an equality or an order, an
+// operation, a commutation, a verb, a range, a vector, a control or a switch, each written beside its sets, and a text
+// reads no pair out of
 // unknown_coherence
 //
 // Each answered pair whose product is whole is written beneath its set with its concept, `concept_coherence
@@ -246,13 +247,15 @@ static const char *const s_metas[] = {"structural_coherence", "syntactic_coheren
 
 // the sets, each written beneath a pair's verdict in the order the tree holds them, `unknown_coherence` last. The
 // texts read a pair into a category, and only an answer reads it out of `unknown_coherence`
-static const char *const s_sets[] = {"comparison_coherence", "equality_coherence", "order_coherence",
-                                     "frame_coherence",      "qualifier_coherence", "modifier_coherence",
-                                     "negation_coherence",   "range_coherence",     "vector_coherence",
-                                     "control_coherence",    "switch_coherence",    "unknown_coherence"};
+static const char *const s_sets[] = {"comparison_coherence", "equality_coherence",    "order_coherence",
+                                     "operation_coherence",  "commutative_coherence", "verb_coherence",
+                                     "frame_coherence",      "qualifier_coherence",   "modifier_coherence",
+                                     "negation_coherence",   "range_coherence",       "vector_coherence",
+                                     "control_coherence",    "switch_coherence",      "unknown_coherence"};
 
 // the categories the texts read a pair into, before any ask
 static const char *const s_categories[] = {"comparison_coherence", "equality_coherence", "order_coherence",
+                                           "operation_coherence",  "commutative_coherence", "verb_coherence",
                                            "range_coherence",      "vector_coherence",   "control_coherence",
                                            "switch_coherence"};
 

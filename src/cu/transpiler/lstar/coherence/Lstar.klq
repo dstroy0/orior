@@ -42,6 +42,7 @@ pair word_copy thread_idx_x
 closed 0970:0110 0,8000000000000000,0->8000000000000000
 syntactic_coherence
 noise_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 concept_coherence 951dc2176ce5f853
@@ -49,6 +50,7 @@ pair word_copy warp_size
 closed 0973:0110 0,0,0->0
 structural_coherence
 folding_coherence
+verb_coherence
 qualifier_coherence
 concept_coherence 6452a1710ae17f57
 intent_coherence 20
@@ -57,6 +59,8 @@ key word_bitand
 pair word_bitand word_from_byte
 closed 0418:00b0 100,0,0->100
 structural_coherence
+operation_coherence
+commutative_coherence
 unknown_coherence
 concept_coherence 43eb7d8a1b06dc4e
 intent_coherence c0 ff
@@ -69,6 +73,7 @@ key word_funnel_right
 key signed_word_shr
 pair signed_word_shr word_shr
 closed 0350:00b0 80,0,0->ffffffffffffff80
+operation_coherence
 frame_coherence
 concept_coherence 2bc95003068f8ed3
 key word_mul
@@ -77,6 +82,8 @@ pair word_mul_add word_mul
 closed 1004:00d0 0,0,1->1
 structural_coherence
 data_quality_coherence
+operation_coherence
+commutative_coherence
 unknown_coherence
 key word_div
 key word_select
@@ -93,6 +100,7 @@ pair test_word_zero test_word_nonzero
 closed 0354:00b0 0,0,0->0
 comparison_coherence
 equality_coherence
+commutative_coherence
 negation_coherence
 concept_coherence fa221ae5f080379b
 key test_signed_word_negative
@@ -105,6 +113,7 @@ closed 0960:00d0 0,1,0->0
 structural_coherence
 comparison_coherence
 equality_coherence
+commutative_coherence
 range_coherence
 unknown_coherence
 concept_coherence 6a92acda607aaa4d
@@ -113,6 +122,7 @@ pair test_wide_lt test_wide_eq
 closed 0989:00d0 0,0,0->0
 comparison_coherence
 order_coherence
+commutative_coherence
 modifier_coherence
 range_coherence
 concept_coherence 1dea25630fb5d87c
@@ -133,6 +143,7 @@ pair word_from_wide warp_size
 closed 0973:0110 0,0,0->0
 structural_coherence
 folding_coherence
+verb_coherence
 qualifier_coherence
 concept_coherence 6452a1710ae17f57
 intent_coherence 20
@@ -140,6 +151,7 @@ key wide_pack
 pair wide_pack wide_from_word
 open 0
 structural_coherence
+verb_coherence
 range_coherence
 unknown_coherence
 key wide_unpack
@@ -172,12 +184,14 @@ key thread_idx_y
 pair thread_idx_y thread_idx_x
 open 0
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key thread_idx_z
 pair thread_idx_z thread_idx_x
 open 0
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key block_idx_x
@@ -186,6 +200,7 @@ pair block_idx_y block_idx_x
 open 0
 syntactic_coherence
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key block_idx_z
@@ -193,11 +208,13 @@ pair block_idx_z block_idx_x
 open 0
 syntactic_coherence
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 pair block_idx_z block_idx_y
 open 0
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key block_dim_x
@@ -205,12 +222,14 @@ key block_dim_y
 pair block_dim_y block_dim_x
 open 0
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key block_dim_z
 pair block_dim_z block_dim_x
 open 0
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key grid_dim_x
@@ -218,12 +237,14 @@ key grid_dim_y
 pair grid_dim_y grid_dim_x
 open 0
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key grid_dim_z
 pair grid_dim_z grid_dim_x
 open 0
 pragmatic_coherence
+verb_coherence
 vector_coherence
 unknown_coherence
 key warp_size
@@ -235,15 +256,19 @@ key wide_mul_word_add
 pair wide_mul_word_add wide_mul_word
 open 0
 structural_coherence
+operation_coherence
+commutative_coherence
 unknown_coherence
 key global_load_word
 pair global_load_word global_load_constant_word
 open 259776
+verb_coherence
 qualifier_coherence
 concept_coherence bbf04f410a71e3c1
 key global_load_wide
 pair global_load_wide global_load_word
 closed 0341:00a0 100000000,0,0->1
+verb_coherence
 frame_coherence
 concept_coherence a813ac273deeff09
 key global_store_wide
@@ -270,12 +295,14 @@ structural_coherence
 folding_coherence
 comparison_coherence
 equality_coherence
+commutative_coherence
 unknown_coherence
 concept_coherence 7061978d5839073b
 pair test_word_ne test_word_lt
 closed 0285:00b0 1,0,0->0
 comparison_coherence
 order_coherence
+commutative_coherence
 modifier_coherence
 concept_coherence 902ac697e90f8a60
 key test_word_eq
@@ -285,12 +312,14 @@ structural_coherence
 folding_coherence
 comparison_coherence
 equality_coherence
+commutative_coherence
 unknown_coherence
 concept_coherence 7061978d5839073b
 pair test_word_eq test_word_lt
 closed 0915:00d0 0,0,0->1
 comparison_coherence
 order_coherence
+commutative_coherence
 modifier_coherence
 concept_coherence 5e51f003a719504e
 key test_word_gt
@@ -344,12 +373,14 @@ pair test_wide_ne test_word_nonzero
 open 0
 comparison_coherence
 equality_coherence
+commutative_coherence
 range_coherence
 unknown_coherence
 pair test_wide_ne test_wide_eq
 closed 0105:00c0 0,0,0->0
 comparison_coherence
 equality_coherence
+commutative_coherence
 negation_coherence
 range_coherence
 concept_coherence 195a6d0ab9c56ae1
@@ -358,6 +389,7 @@ pair test_wide_le test_wide_eq
 closed 0994:00d0 0,1,1->1
 comparison_coherence
 order_coherence
+commutative_coherence
 modifier_coherence
 range_coherence
 concept_coherence 3a4681728561ee18
@@ -366,6 +398,7 @@ pair test_wide_gt test_wide_eq
 closed 0135:00c0 0,0,0->1
 comparison_coherence
 order_coherence
+commutative_coherence
 modifier_coherence
 range_coherence
 concept_coherence eeae788c37accbc8
@@ -374,6 +407,7 @@ pair test_wide_ge test_wide_eq
 closed 0145:00c0 1,0,0->1
 comparison_coherence
 order_coherence
+commutative_coherence
 modifier_coherence
 range_coherence
 concept_coherence 7f7615b37be4f7e4
@@ -418,6 +452,7 @@ pair test_wide_zero test_wide_nonzero
 closed 0336:00b0 0,0,0->0
 comparison_coherence
 equality_coherence
+commutative_coherence
 negation_coherence
 range_coherence
 concept_coherence f340fd04bcb6df95
@@ -428,21 +463,25 @@ key word_from_signed_halfword
 key global_load_byte
 pair global_load_byte global_load_word
 closed 0359:00a0 100,0,0->0
+verb_coherence
 frame_coherence
 concept_coherence c15d4f6ab6cf82e6
 key global_load_signed_byte
 pair global_load_signed_byte global_load_byte
 closed 0266:00a0 80,0,0->ffffffffffffff80
+verb_coherence
 frame_coherence
 concept_coherence 3dd1f3a53868a8cd
 key global_load_halfword
 pair global_load_halfword global_load_word
 closed 0381:00a0 7fffffff,0,0->ffff
+verb_coherence
 frame_coherence
 concept_coherence db68f78e701006d2
 key global_load_signed_halfword
 pair global_load_signed_halfword global_load_signed_byte
 closed 0316:00a0 80,0,0->7f
+verb_coherence
 frame_coherence
 concept_coherence ecf31afd8c2d8318
 key test_word_nonzero_and
@@ -451,6 +490,7 @@ closed 0153:00d0 1,0,0->0
 structural_coherence
 comparison_coherence
 equality_coherence
+commutative_coherence
 qualifier_coherence
 concept_coherence 0e4e2f0f3d476c2c
 key test_word_nonzero_or
@@ -458,6 +498,7 @@ pair test_word_nonzero_or test_word_nonzero_and
 closed 0163:00d0 0,1,0->1
 comparison_coherence
 equality_coherence
+commutative_coherence
 modifier_coherence
 concept_coherence b28ca05a484e7755
 key test_wide_nonzero_and
@@ -466,6 +507,7 @@ closed 1001:00e0 1,0,0->0
 structural_coherence
 comparison_coherence
 equality_coherence
+commutative_coherence
 qualifier_coherence
 range_coherence
 concept_coherence b3c98c0982a2243c
@@ -474,6 +516,7 @@ pair test_wide_nonzero_or test_wide_nonzero_and
 closed 1002:00e0 1,0,0->1
 comparison_coherence
 equality_coherence
+commutative_coherence
 modifier_coherence
 range_coherence
 concept_coherence 5d68b179efb90ce1
@@ -486,6 +529,7 @@ key wide_shr
 key signed_wide_shr
 pair signed_wide_shr wide_shr
 closed 0086:00c0 8000000000000000,1,0->c000000000000000
+operation_coherence
 frame_coherence
 range_coherence
 concept_coherence 996964d9431b5d31

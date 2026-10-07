@@ -3528,11 +3528,147 @@ static std::set<std::string> form_conditions(const std::string &text)
     return conditions;
 }
 
+// each instruction of the form `text`, its opcode with its modifiers first and then its operands, a label and a guard
+// before it passed over
+static std::vector<std::vector<std::string>> form_instructions(const std::string &text)
+{
+    std::vector<std::vector<std::string>> instructions;
+    for (const std::string &line : carrier_pieces(text, ';'))
+    {
+        std::stringstream words(carrier_trimmed(line));
+        std::string opcode;
+        words >> opcode;
+        while (!opcode.empty() && ((opcode.back() == ':') || (opcode[0] == '@')))
+        {
+            opcode.clear();
+            words >> opcode;
+        }
+        if (opcode.empty() || !isupper((unsigned char)opcode[0]))
+        {
+            continue;
+        }
+        std::string rest;
+        std::getline(words, rest);
+        std::vector<std::string> instruction{opcode};
+        for (const std::string &operand : carrier_pieces(rest, ','))
+        {
+            instruction.push_back(carrier_trimmed(operand));
+        }
+        instructions.push_back(instruction);
+    }
+    return instructions;
+}
+
+// the operation `opcode` names, its word before the first `.`
+static std::string opcode_stem(const std::string &opcode)
+{
+    return opcode.substr(0u, opcode.find('.'));
+}
+
+// 1 where `opcode` decides which instruction runs next: an exit, a return, a branch, a call or a convergence
+static int opcode_controls(const std::string &opcode)
+{
+    static const std::regex s_control("(EXIT|RET|BRA|BRX|JMP|JMX|CALL|BREAK|BSSY|BSYNC)");
+    return std::regex_match(opcode_stem(opcode), s_control) ? 1 : 0;
+}
+
+// 1 where `opcode` tests its operands and sets a flag
+static int opcode_compares(const std::string &opcode)
+{
+    static const std::regex s_compare("U?[A-Z]?SETP2?");
+    return std::regex_match(opcode_stem(opcode), s_compare) ? 1 : 0;
+}
+
+// 1 where `opcode` computes a value from its operands at any width, a bit, a word or many words: an add, a multiply,
+// a shift, a bitwise or a floating operation. `IMAD.MOV` moves a value and computes nothing
+static int opcode_operates(const std::string &opcode)
+{
+    static const std::regex s_operation("U?(IADD3|IADD|IMAD|IMUL|IMNMX|IABS|ISCADD|LEA|LOP3|LOP|SHF|SHL|SHR|POPC|FLO|"
+                                        "BREV|BMSK|SGXT|PRMT|BFE|BFI|IDP|VABSDIFF|FADD|FMUL|FFMA|FMNMX|DADD|DMUL|DFMA|"
+                                        "HADD2|HMUL2|HFMA2|MUFU)");
+    return std::regex_match(opcode_stem(opcode), s_operation) && (opcode.find(".MOV") == std::string::npos);
+}
+
+// 1 where `instruction` gives one value with its first two sources taken either way round: an add, a multiply, a
+// least or a most, a bitwise table that reads its first two inputs alike, or an equality
+static int instruction_commutes(const std::vector<std::string> &instruction)
+{
+    static const std::regex s_commutes("U?(IADD3|IMAD|IMUL|IMNMX|VABSDIFF|FADD|FMUL|FFMA|FMNMX|DADD|DMUL|DFMA|HADD2|HMUL2|"
+                                       "HFMA2)");
+    const std::string &opcode = instruction[0];
+    const std::string stem = opcode_stem(opcode);
+    if (opcode_compares(opcode))
+    {
+        const size_t dot = opcode.find('.');
+        const std::string condition = (dot == std::string::npos) ? std::string()
+                                                                 : opcode.substr(dot + 1u, opcode.find('.', dot + 1u) -
+                                                                                               dot - 1u);
+        return (condition == "EQ") || (condition == "NE");
+    }
+    if (std::regex_match(stem, std::regex("U?LOP3")))
+    {
+        // the table's bit at `a`, `b`, `c` is read off its place `4a + 2b + c`: the first two inputs read alike where
+        // the bits at `a` = 1, `b` = 0 and at `a` = 0, `b` = 1 agree for each `c`
+        if ((instruction.size() < 6u) || (instruction[5].rfind("0x", 0u) != 0u))
+        {
+            return 0;
+        }
+        const unsigned long table = std::stoul(instruction[5], nullptr, 16);
+        return (((table >> 4u) & 1u) == ((table >> 2u) & 1u)) && (((table >> 5u) & 1u) == ((table >> 3u) & 1u));
+    }
+    if (std::regex_match(stem, std::regex("U?LOP")))
+    {
+        return (opcode.find(".AND") != std::string::npos) || (opcode.find(".OR") != std::string::npos) ||
+               (opcode.find(".XOR") != std::string::npos);
+    }
+    return std::regex_match(stem, s_commutes) && (opcode.find(".MOV") == std::string::npos);
+}
+
 // 1 where the form `text` decides which form runs next: an exit, a return, a branch, a call or a convergence
 static int form_controls(const std::string &text)
 {
-    static const std::regex s_control("(^|[\\s;])(EXIT|RET|BRA|BRX|JMP|JMX|CALL|BREAK|BSSY|BSYNC)\\b");
-    return std::regex_search(text, s_control) ? 1 : 0;
+    int controls = 0;
+    for (const std::vector<std::string> &instruction : form_instructions(text))
+    {
+        controls |= opcode_controls(instruction[0]);
+    }
+    return controls;
+}
+
+// 1 where the form `text` computes a value from its operands
+static int form_operates(const std::string &text)
+{
+    int operates = 0;
+    for (const std::vector<std::string> &instruction : form_instructions(text))
+    {
+        operates |= opcode_operates(instruction[0]);
+    }
+    return operates;
+}
+
+// 1 where every instruction of the form `text` gives one value with its first two sources taken either way round
+static int form_commutes(const std::string &text)
+{
+    const std::vector<std::vector<std::string>> instructions = form_instructions(text);
+    int commutes = !instructions.empty();
+    for (const std::vector<std::string> &instruction : instructions)
+    {
+        commutes &= instruction_commutes(instruction);
+    }
+    return commutes;
+}
+
+// 1 where the form `text` does a thing that computes no value, tests nothing and sends control nowhere: a load, a
+// store, a move, a copy or a read of a special register
+static int form_verbs(const std::string &text)
+{
+    int verbs = 0;
+    for (const std::vector<std::string> &instruction : form_instructions(text))
+    {
+        const std::string &opcode = instruction[0];
+        verbs |= (!opcode_operates(opcode) && !opcode_compares(opcode) && !opcode_controls(opcode)) ? 1 : 0;
+    }
+    return verbs;
 }
 
 // 1 where the form `text` holds no instruction, each of which ends at a `;`: a directive or a label alone, placing
@@ -4123,9 +4259,15 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         const int ranged = form_ranged(first_text) || form_ranged(second_text);
         const int controlled = form_controls(first_text) || form_controls(second_text);
         const int switched = form_switches(first_text) || form_switches(second_text);
-        fprintf(s_ask_log, "facts %s %s%s%s%s%s%s%s%s%s%s%s\n", first.c_str(), second.c_str(),
+        // either form an operation, at any width; either form's every instruction one value with its first two
+        // sources either way round; either form a doing word that computes no value
+        const int operated = form_operates(first_text) || form_operates(second_text);
+        const int commuted = form_commutes(first_text) || form_commutes(second_text);
+        const int verbed = form_verbs(first_text) || form_verbs(second_text);
+        fprintf(s_ask_log, "facts %s %s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", first.c_str(), second.c_str(),
                 structural ? " structural" : "", launched ? " pragmatic" : "", two_operations ? " syntactic" : "",
                 compared ? " comparison" : "", equal ? " equality" : "", (compared && ordered) ? " order" : "",
+                operated ? " operation" : "", commuted ? " commutative" : "", verbed ? " verb" : "",
                 ranged ? " range" : "", placed ? " vector" : "", controlled ? " control" : "",
                 switched ? " switch" : "");
     };
