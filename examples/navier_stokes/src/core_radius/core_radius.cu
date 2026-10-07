@@ -21,7 +21,10 @@
 // The rule of core_rule.cu then bounds a_k = |F_k|_k, u_k = |U_k|_k, p_k = |P_k|_k and w_k = |v_k|_(k+1) order by
 // order from the data: the witness, exact to the order N. Each d f' is bounded both ways, by (1 + rho0^2) / 2 times
 // 3 K and by the feet's 3 (1 + rho0^2) / 4, and each gives its own witness. The weights of each order kept apart, as
-// magnitudes and exact, give two more, read on the ellipse only where the order is bounded.
+// magnitudes and exact, give two more, read on the ellipse only where the order is bounded. The exact weights to N,
+// carried past N to the cfg's carry by magnitudes mode by mode, give a last one: each carried order bounds the exact
+// one where its weight sits, and each is rounded up to a multiple of 2^-bits, a bound held in a length that does not
+// grow with the order.
 // The proof: with B_x = max over k <= N of x_k r^k (k + 1), B_w raised to at least C_w B_u, C_w = l (2 rho0 Delta + E),
 // E the constant of d f', and B_p to at least 2 r Delta B_a^2 H_(N+1) / (N + 1), two inequalities at k = N, each a sum
 // of terms that fall as k grows, carry x_k <= B_x r^-k / (k + 1) from every order to the next past N. The 1 / (k + 1)
@@ -29,7 +32,8 @@
 // as N grows: r is bounded by the witness alone. On E_rho the core's series is bounded by
 // sum B_a (X / (r (rho0 - rho)))^k / (k + 1) and reaches every X < r (rho0 - rho).
 // Checks:
-// 1. Every order's weights are within the length the rule fixes, the length the proof on one ellipse reads.
+// 1. Every order's weights, carried ones too, are within the length the rule fixes, the length the proof on one
+//    ellipse reads.
 // 2. Every ellipse of the cfg is one the bounds hold on.
 // 3. Every bound of the witness and the proof is exact and held in the build's width.
 // 4. The witness and the proof are written whole to the cfg's record, with the radius each proves.
@@ -304,10 +308,44 @@ typedef struct
     std::vector<CoreRadiusWeights> inflow;
 } CoreRadiusOrders;
 
-// the weights of every order to `order`, exact at s = -1 and magnitudes at s = +1, read on no ellipse: they depend on
-// h alone
-static void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &angular, const CoreRadiusWeights &axial,
-                                const CoreRadiusWeights &pressure, unsigned int order, SimRational s, CoreRadiusOrders *orders)
+// the least multiple of 1 / unit at or above `value`, for value >= 0: every operation on magnitudes is monotone, and a
+// bound rounded up stays a bound, held in a length that does not grow with the order
+static SimRational core_radius_up(SimRational value, const AnchorExactInteger *unit)
+{
+    AnchorExactInteger scaled;
+    AnchorExactInteger quotient;
+    AnchorExactInteger remainder;
+    AnchorExactInteger zero;
+    AnchorExactInteger one;
+    sim_exact_unsigned(&zero, 0ull);
+    sim_exact_unsigned(&one, 1ull);
+    sim_rational_status_check((anchor_exact_multiply(&value.numerator, unit, &scaled) == ANCHOR_EXACT_OK) &&
+                              (anchor_exact_divide(&scaled, &value.denominator, &quotient, &remainder) == ANCHOR_EXACT_OK));
+    if (anchor_exact_compare(&remainder, &zero) != 0)
+    {
+        sim_rational_status_check(anchor_exact_add(&quotient, &one, &quotient) == ANCHOR_EXACT_OK);
+    }
+    SimRational up;
+    up.numerator = quotient;
+    up.denominator = *unit;
+    sim_rational_settle(&up);
+    return up;
+}
+
+static void core_radius_round_up(CoreRadiusWeights *weights, const AnchorExactInteger *unit)
+{
+    for (SimRational &weight : *weights)
+    {
+        weight = core_radius_up(weight, unit);
+    }
+}
+
+// The orders of `orders` carried to `order`: for every k <= order the inflow and the Z parts are taken from f_k and
+// u_k, and every order past those `orders` holds is built from the rule. Exact at s = -1, magnitudes at s = +1: with
+// s = +1 and the orders it is given at their magnitudes, each new order bounds the magnitudes of the exact one mode by
+// mode.
+static void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const AnchorExactInteger *unit,
+                               CoreRadiusOrders *orders)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -315,27 +353,11 @@ static void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWe
     const SimRational angular_c = core_radius_plus(two, core_radius_times(two, scale->h));
     const SimRational along_c = core_radius_times(two, scale->a);
     const SimRational pressure_c = core_radius_times(core_radius_number(4ll, 1ll), scale->a);
-    const int exact = sim_rational_sign(s) < 0;
     std::vector<CoreRadiusWeights> &f = orders->f;
     std::vector<CoreRadiusWeights> &g = orders->g;
     std::vector<CoreRadiusWeights> &q = orders->q;
     std::vector<CoreRadiusWeights> &inflow = orders->inflow;
-    f = {CoreRadiusWeights()};
-    g = {CoreRadiusWeights()};
-    q = {CoreRadiusWeights()};
     inflow.clear();
-    for (const SimRational &weight : angular)
-    {
-        f[0].push_back(exact ? weight : sim_rational_absolute(weight));
-    }
-    for (const SimRational &weight : axial)
-    {
-        g[0].push_back(exact ? weight : sim_rational_absolute(weight));
-    }
-    for (const SimRational &weight : pressure)
-    {
-        q[0].push_back(exact ? weight : sim_rational_absolute(weight));
-    }
     std::vector<CoreRadiusWeights> angular_turned;
     std::vector<CoreRadiusWeights> along_turned;
     for (unsigned int k = 0u; k <= order; k += 1u)
@@ -345,6 +367,16 @@ static void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWe
         along_turned.push_back(core_radius_turned_weights(g[k], along_c, k, scale->h, s));
         inflow.push_back(core_radius_scaled(along_turned[k], core_radius_times(s, sim_rational_reciprocal(next))));
         angular_turned.push_back(core_radius_turned_weights(f[k], angular_c, k, scale->h, s));
+        if (unit != NULL)
+        {
+            core_radius_round_up(&along_turned[k], unit);
+            core_radius_round_up(&inflow[k], unit);
+            core_radius_round_up(&angular_turned[k], unit);
+        }
+        if (k + 1u < f.size())
+        {
+            continue;
+        }
         const SimRational d_eight = core_radius_times(core_radius_times(eight_h, order_k), scale->d);
         CoreRadiusWeights spin = core_radius_scaled(core_radius_l(f[k], scale->h, s), core_radius_plus(next, scale->h));
         spin = core_radius_sum(spin, core_radius_scaled(core_radius_eta(core_radius_l(core_radius_slope(f[k]), scale->h, s)), scale->d));
@@ -367,7 +399,66 @@ static void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWe
         f.push_back(core_radius_scaled(spin, sim_rational_reciprocal(core_radius_times(core_radius_times(two, next), core_radius_plus(next, one)))));
         g.push_back(core_radius_scaled(along, sim_rational_reciprocal(core_radius_times(two, core_radius_times(next, next)))));
         q.push_back(core_radius_scaled(core_radius_l(core_radius_l(square, scale->h, s), scale->h, s), sim_rational_reciprocal(next)));
+        if (unit != NULL)
+        {
+            core_radius_round_up(&f.back(), unit);
+            core_radius_round_up(&g.back(), unit);
+            core_radius_round_up(&q.back(), unit);
+        }
     }
+}
+
+// the weights of every order to `order` from the data, exact at s = -1 and magnitudes at s = +1, read on no ellipse:
+// they depend on h alone
+static void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &angular, const CoreRadiusWeights &axial,
+                                const CoreRadiusWeights &pressure, unsigned int order, SimRational s, CoreRadiusOrders *orders)
+{
+    const int exact = sim_rational_sign(s) < 0;
+    orders->f = {CoreRadiusWeights()};
+    orders->g = {CoreRadiusWeights()};
+    orders->q = {CoreRadiusWeights()};
+    for (const SimRational &weight : angular)
+    {
+        orders->f[0].push_back(exact ? weight : sim_rational_absolute(weight));
+    }
+    for (const SimRational &weight : axial)
+    {
+        orders->g[0].push_back(exact ? weight : sim_rational_absolute(weight));
+    }
+    for (const SimRational &weight : pressure)
+    {
+        orders->q[0].push_back(exact ? weight : sim_rational_absolute(weight));
+    }
+    core_radius_extend(scale, s, order, NULL, orders);
+}
+
+// the exact orders to `order` at their magnitudes, carried by magnitudes to `last`: every order a bound of the exact
+// one mode by mode, each its weight kept where it holds it
+static void core_radius_continued(const CoreRadiusScale *scale, const CoreRadiusOrders *exact, unsigned int order, unsigned int last,
+                                  const AnchorExactInteger *unit, CoreRadiusOrders *continued)
+{
+    continued->f.clear();
+    continued->g.clear();
+    continued->q.clear();
+    for (unsigned int k = 0u; k <= order; k += 1u)
+    {
+        continued->f.push_back(CoreRadiusWeights());
+        continued->g.push_back(CoreRadiusWeights());
+        continued->q.push_back(CoreRadiusWeights());
+        for (const SimRational &weight : exact->f[k])
+        {
+            continued->f[k].push_back(sim_rational_absolute(weight));
+        }
+        for (const SimRational &weight : exact->g[k])
+        {
+            continued->g[k].push_back(sim_rational_absolute(weight));
+        }
+        for (const SimRational &weight : exact->q[k])
+        {
+            continued->q[k].push_back(sim_rational_absolute(weight));
+        }
+    }
+    core_radius_extend(scale, core_radius_number(1ll, 1ll), last, unit, continued);
 }
 
 // the scalars the proof reads on one ellipse: l^(2k) ||.||_rho0 Delta^k, and l^(2k+2) ||w_k||_rho0 Delta^(k+1)
@@ -715,6 +806,8 @@ int main(int count, char **arguments)
     unsigned long long order = 0ull;
     unsigned long long steps = 0ull;
     unsigned long long split = 0ull;
+    unsigned long long carry = 0ull;
+    unsigned long long bits = 0ull;
     SimRational step;
     const int read = (count == 2) && run_cfg_open(arguments[1], &cfg, &results.line) && run_cfg_rational(&cfg, "core.anisotropy", &h) &&
                      run_cfg_rationals(&cfg, "core.axis.angular", &angular) && run_cfg_rationals(&cfg, "core.axis.axial", &axial) &&
@@ -722,11 +815,12 @@ int main(int count, char **arguments)
                      run_cfg_rationals(&cfg, "ellipse.inner", &inner) && (outer.size() == inner.size()) && run_cfg_count(&cfg, "order", &order) &&
                      (order >= 1ull) && run_cfg_rational(&cfg, "rate.step", &step) && (sim_rational_sign(step) > 0) &&
                      run_cfg_count(&cfg, "rate.steps", &steps) && (steps >= 1ull) && run_cfg_count(&cfg, "split", &split) && (split >= 1ull) &&
-                     (order >= 2ull * split);
+                     (order >= 2ull * split) && run_cfg_count(&cfg, "carry", &carry) && (carry >= order) &&
+                     run_cfg_count(&cfg, "bits", &bits) && (bits >= 1ull);
     if (!read)
     {
         run_cfg_missing(&results.line, "core anisotropy, axis angular, axial and pressure, ellipse outer and inner of one length, order, rate "
-                                       "step and steps, and a split at least 1 with order at least twice it");
+                                       "step and steps, a split at least 1 with order at least twice it, a carry at least the order, and bits");
         sim_flush(&results);
         fprintf(stderr, "core_radius <cfg>\n");
         return 2;
@@ -745,12 +839,17 @@ int main(int count, char **arguments)
     core_radius_weights(&constants, angular, axial, pressure, (unsigned int)order, core_radius_number(-1ll, 1ll), &exact);
     // g0, the data's degree, and every order's weights within the length G_k + 1 the rule fixes, w_k within G_k + 4
     const unsigned int g0 = (unsigned int)std::max(std::max(angular.size(), axial.size()), pressure.size()) - 1u;
+    CoreRadiusOrders continued;
+    // the carried magnitudes rounded up to multiples of 2^-bits
+    AnchorExactInteger unit;
+    sim_rational_status_check(sim_exact_power(2ull, bits, &unit));
+    core_radius_continued(&constants, &exact, (unsigned int)order, (unsigned int)carry, &unit, &continued);
     int fixed_length = 1;
-    for (unsigned int k = 0u; k <= (unsigned int)order; k += 1u)
+    for (unsigned int k = 0u; k <= (unsigned int)carry; k += 1u)
     {
         const size_t length = (size_t)g0 + (size_t)(g0 + 4u) * k + 1u;
-        fixed_length = fixed_length && (exact.f[k].size() <= length) && (exact.g[k].size() <= length) && (exact.q[k].size() <= length) &&
-                       (exact.inflow[k].size() <= length + 3u);
+        fixed_length = fixed_length && (continued.f[k].size() <= length) && (continued.g[k].size() <= length) && (continued.q[k].size() <= length) &&
+                       (continued.inflow[k].size() <= length + 3u);
     }
     sim_check(&results, fixed_length, "every order's weights within the length the rule fixes");
     for (size_t index = 0u; index < outer.size(); index += 1u)
@@ -793,6 +892,7 @@ int main(int count, char **arguments)
         core_radius_weights_witness(&scale, &exact, last, &a, &u, &p, &w);
         const SimRational kept = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "exact weights");
         const SimRational one_ellipse = core_radius_fixed_rate(&scale, &exact, g0, last, (unsigned int)split, step, steps, record);
+        const SimRational carried = core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps, record);
         scriptura_text(&results.line, "  rho0 ");
         sim_rational_print(&results.line, outer[index]);
         scriptura_text(&results.line, ", rho_min ");
@@ -807,7 +907,9 @@ int main(int count, char **arguments)
         sim_rational_print(&results.line, core_radius_times(kept, scale.delta));
         scriptura_text(&results.line, " with each weight exact, X < ");
         sim_rational_print(&results.line, one_ellipse);
-        scriptura_text(&results.line, " on E_rho0 alone\n");
+        scriptura_text(&results.line, " on E_rho0 alone, X < ");
+        sim_rational_print(&results.line, carried);
+        scriptura_text(&results.line, " with the magnitudes carried to the order of the cfg's carry\n");
         sim_flush(&results);
     }
     sim_check(&results, legal, "every ellipse of the cfg one the bounds hold on");

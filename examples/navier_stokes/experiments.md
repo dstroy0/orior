@@ -105,13 +105,26 @@ a part with one index below N0 reads the exact weights, and only a part with bot
 bound. At N = 24 it proves X < 0.95 on E_(3/2) and X < 0.75 on E_2, where the exact weights shrink by a ratio near
 3.5 an order on E_(3/2), the series' own X past 3 on that ellipse.
 
-The wall: the parts linear in the order past N fall as 1 / N, and the largest of them is the transport U_0 d F_k',
-its derivative charged at the whole length of F_k's weights. At X = 2 they ask N near 160. The questions it leaves:
+The parts linear in the order past N fall as 1 / N, and the largest of them is the transport U_0 d F_k', its
+derivative charged at the whole length of F_k's weights. Read as amplitudes in [0, 1] over the place t = m / G_k in
+[0, 1], the exact weights sit near t = 0.11 on E_(3/2), 0.2 on E_2 and 0.35 on E_3 at every order the record holds:
+the length charges a derivative about ten times what the weights ask on E_(3/2).
 
-- A derivative charged at the place F_k holds its weight. Read as amplitudes in [0, 1] over the
-  place t = m / G_k in [0, 1], the exact weights sit near t = 0.11 on E_(3/2), 0.2 on E_2 and 0.35 on E_3 at every
-  order the record holds: the mean mode grows with k, at about a tenth of the length on E_(3/2). A bound past N with
-  that shape is one in the single scale tau = X / r + m / s, binom(k + m, m) s^-m r^-k, whose mean mode grows as k.
+A bound past N of the binomial shape binom(k + m, m) s^-m r^-k, whose mean mode grows as k, does not hold in the
+Chebyshev weights: D eta F_k' reaches every lower mode, and below the bound's peak the bound rises with m. At mode 0 the
+bound grows as (s rho / (s rho - 1))^k.
+
+The carry: the exact weights to N at their magnitudes, carried past N mode by mode by the magnitudes of the rule. Each
+carried order bounds the exact one where its weight sits, with no shape assumed, and each is rounded up to a multiple
+of 2^-bits. Carried from N = 24 to 36 it proves X < 1.18 on E_(1.1), X < 1.24 on E_(5/4) and
+X < 1.14 on E_(3/2).
+
+The wall: the first carried order gives up every cancellation of its step at once, about ten times the exact one, and
+past it the carried weights shrink by about 2.3 an order on E_(1.1), where X = 2 asks 2.09. With the split at 12 the
+parts that read the bound vanish, and the parts linear in the order ask a carry near 100: hours on the host, at a cost
+that grows as the fourth power of the carry. The questions it leaves:
+
+- The carry on the device, every order rounded up the same way.
 - The loss in eta comes from U d F_eta, a transport in eta. Along the flow of that transport no derivative is lost.
 - The series continued from a point X_0 inside the radius: whether the scale of ellipses starts again there, or
   whether each center loses Delta again.
