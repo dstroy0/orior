@@ -453,6 +453,48 @@ static void cycle_sum_subtract(unsigned int *sum, unsigned int limbs, unsigned i
     }
 }
 
+// the sum's device totals and negative counts, kept between calls and grown to the most bytes asked so far, so that a
+// sum asked once a sweep allocates nothing after the first
+typedef struct
+{
+    unsigned long long *totals;
+    unsigned long long *negatives;
+    size_t total_bytes;
+    size_t negative_bytes;
+} CycleSumScratch;
+
+static CycleSumScratch g_cycle_sum_scratch;
+
+static int cycle_sum_scratch(size_t total_bytes, size_t negative_bytes, EngineError *error)
+{
+    CycleSumScratch *const scratch = &g_cycle_sum_scratch;
+    int ok = 1;
+    if (total_bytes > scratch->total_bytes)
+    {
+        cudaFree(scratch->totals);
+        scratch->totals = NULL;
+        scratch->total_bytes = 0u;
+        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&scratch->totals, total_bytes), &scratch->totals, error);
+        scratch->total_bytes = (ok != 0) ? total_bytes : 0u;
+    }
+    if ((ok != 0) && (negative_bytes > scratch->negative_bytes))
+    {
+        cudaFree(scratch->negatives);
+        scratch->negatives = NULL;
+        scratch->negative_bytes = 0u;
+        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&scratch->negatives, negative_bytes), &scratch->negatives, error);
+        scratch->negative_bytes = (ok != 0) ? negative_bytes : 0u;
+    }
+    return ok;
+}
+
+extern "C" void cycle_record_sum_release(void)
+{
+    cudaFree(g_cycle_sum_scratch.totals);
+    cudaFree(g_cycle_sum_scratch.negatives);
+    memset(&g_cycle_sum_scratch, 0, sizeof(g_cycle_sum_scratch));
+}
+
 extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
 {
     if ((request == NULL) || (request->error == NULL))
@@ -472,14 +514,13 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     const unsigned int blocks = (unsigned int)((threads + CYCLE_BLOCK - 1ull) / CYCLE_BLOCK);
     const size_t total_bytes = (size_t)(runs * field_limbs) * sizeof(unsigned long long);
     const size_t negative_bytes = (size_t)runs * sizeof(unsigned long long);
-    unsigned long long *device_totals = NULL;
-    unsigned long long *device_negatives = NULL;
     unsigned long long *totals = (unsigned long long *)malloc(total_bytes);
     unsigned long long *negatives = (unsigned long long *)malloc(negative_bytes);
     int ok = CYCLE_CHECK((totals != NULL) && (negatives != NULL), request, error, ENGINE_ERROR_RESOURCE) &&
-             CYCLE_STATUS_CHECK(cudaMalloc((void **)&device_totals, total_bytes), &device_totals, error) &&
-             CYCLE_STATUS_CHECK(cudaMalloc((void **)&device_negatives, negative_bytes), &device_negatives, error) &&
-             CYCLE_STATUS_CHECK(cudaMemset(device_totals, 0, total_bytes), device_totals, error) &&
+             cycle_sum_scratch(total_bytes, negative_bytes, error);
+    unsigned long long *const device_totals = g_cycle_sum_scratch.totals;
+    unsigned long long *const device_negatives = g_cycle_sum_scratch.negatives;
+    ok = ok && CYCLE_STATUS_CHECK(cudaMemset(device_totals, 0, total_bytes), device_totals, error) &&
              CYCLE_STATUS_CHECK(cudaMemset(device_negatives, 0, negative_bytes), device_negatives, error);
     if (ok != 0)
     {
@@ -503,8 +544,6 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
         }
         cycle_sum_subtract(sum, request->sum_limbs, request->bits, negatives[run]);
     }
-    cudaFree(device_totals);
-    cudaFree(device_negatives);
     free(totals);
     free(negatives);
     return (ok != 0) ? (long)request->count : CYCLE_ERROR;

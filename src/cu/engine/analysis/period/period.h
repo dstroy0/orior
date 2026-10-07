@@ -75,6 +75,25 @@ extern "C"
 
     int period_print(const PeriodMeasurement *measurement, FILE *file);
 
+    // The period on the record machine, from the same request to the same measurement as period_read and period_draw.
+    // Each lag's agreement is a record program swept over the pairs that lag reaches and summed by cycle_record_sum,
+    // and the counts equal period_read's word for word. An axis's null keys every voxel of each line along it by
+    // period's line hash of the content and the draw, cycle_record_sort orders each line by its keys, and two sweeps
+    // gather the line through that order. The programs are made once a process and read every extent from a shared
+    // record. A lattice of more than 2^31 voxels errors: a sweep's index names a voxel by an output one bit wider than
+    // its register, and 32 bits hold it.
+    long period_record_read(const PeriodRequest *request);
+
+    long period_record_draw(const PeriodRequest *request, unsigned long long draw, PeriodMargin *heights);
+
+    // The bytes of the device pool period_record_read and period_record_draw keep after they return, for `voxels` lanes:
+    // the lanes widened to a limb, the shuffled line, each voxel's key and place, the order and the places it gathers,
+    // and the histogram. 0 for no voxels or more than 2^31.
+    unsigned long long period_record_reserve_bytes(unsigned long long voxels);
+
+    // the programs and the pool given back
+    void period_record_release(void);
+
 #ifdef __cplusplus
 }
 #endif

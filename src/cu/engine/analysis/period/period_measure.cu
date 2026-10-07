@@ -14,11 +14,11 @@ __global__ void period_histogram_kernel(const unsigned short *lanes, unsigned lo
     }
 }
 
-__global__ void period_agreement_kernel(const unsigned short *lanes, PeriodLattice lattice,
-                                        unsigned long long *agreement)
+__global__ void period_agreement_kernel(const unsigned short *lanes, PeriodLattice lattice, unsigned long long begin,
+                                        unsigned long long end, unsigned long long *agreement)
 {
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long entry = blockIdx.y; entry < lattice.lag_total; entry += gridDim.y)
+    for (unsigned long long entry = begin + blockIdx.y; entry < end; entry += gridDim.y)
     {
         unsigned int axis = 0u;
         while (((axis + 1u) < lattice.rank) && (entry >= lattice.first[axis + 1u]))

@@ -237,6 +237,12 @@ fn report_open(url: String) -> Result<(), String> {
     report::open_page(&url)
 }
 
+/// A file's text as the last commit left it, for the editor's marks of what changed since.
+#[tauri::command]
+fn file_head(app: State<App>, path: String) -> Result<Option<String>, String> {
+    Ok(git::head_text(&root_of(&app)?, &path))
+}
+
 #[tauri::command]
 fn file_commits(app: State<App>, path: String) -> Result<Vec<git::Commit>, String> {
     git::commits(&root_of(&app)?, &path)
@@ -460,6 +466,7 @@ fn open(launch: Launch) {
             report_asked,
             report_open,
             file_commits,
+            file_head,
             file_at,
             file_read,
             file_window,
