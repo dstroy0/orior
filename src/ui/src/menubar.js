@@ -23,6 +23,7 @@ import { invoke } from "./bridge.js";
 import { editing, openAt as openFileAt, openFile, recentFiles } from "./edit.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
+import { showPreferences } from "./preferences.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
@@ -144,6 +145,8 @@ const COMMANDS = {
   "edit-view": () => showView("edit"),
   "side-bar": (args) => togglePane(args[0] === "show" ? true : args[0] === "hide" ? false : undefined),
   "auto-collapse": (args) => setAutoCollapse(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
+  "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
+  preferences: () => showPreferences(sheet, { menus: state.menus, runCommand, checks: CHECKS }),
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
@@ -177,6 +180,7 @@ const COMMANDS = {
 const CHECKS = {
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
+  "sticky-scroll": () => editing().sticky(),
   "auto-report": () => state.autoReport,
 };
 
@@ -194,7 +198,7 @@ const NEEDS = {
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
 export function runCommand(command, args = []) {
-  COMMANDS[command]?.(args);
+  return COMMANDS[command]?.(args);
 }
 
 // Every command the menus list that can act now, for the quick open's >.

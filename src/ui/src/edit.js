@@ -972,6 +972,8 @@ export function editing() {
     },
     close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
     closeAll: () => [...state.tabs].forEach(closeTab),
+    sticky: () => Boolean(state.editor?.stickyOn),
+    setSticky: (on) => state.editor?.setSticky(on),
     back: () => step(-1),
     forward: () => step(1),
     lastEditor,

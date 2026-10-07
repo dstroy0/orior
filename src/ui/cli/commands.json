@@ -62,6 +62,7 @@
         "-",
         { "label": "Primary Side Bar", "command": "side-bar", "keys": "Ctrl+B", "args": "[show|hide]", "checks": "side-bar" },
         { "label": "Auto Collapse Panes", "command": "auto-collapse", "args": "[on|off]", "checks": "auto-collapse" },
+        { "label": "Sticky Scroll", "command": "sticky-scroll", "args": "[on|off]", "checks": "sticky-scroll" },
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         "-",
         { "label": "Light", "command": "scheme", "args": "[light|dark]", "labels": { "dark": "Light", "light": "Dark" } },

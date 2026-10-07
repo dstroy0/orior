@@ -7,7 +7,7 @@
 import { invoke } from "./bridge.js";
 
 const KEY = "orior.zoom";
-const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+export const STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
 export function zoom() {
   const kept = Number(localStorage.getItem(KEY));
