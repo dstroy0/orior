@@ -10,8 +10,8 @@
 
 // one untimed ask and what came back: its identity, the hash of its code, the registers, threads, blocks and launches
 // it was put with, its count of cases and the hash of its cases, seven words apart by one space; answers, illegal,
-// nothing or censored, censored where the watchdog ended it; and the word of every case where it answered, or the
-// refusal where it did not
+// nothing, timed_out or censored, timed_out where the watchdog ended it and censored where the gate held it off the
+// member to protect the whole; and the word of every case where it answered, or the refusal where it did not
 struct QueryRecordAsk
 {
     std::string identity;
@@ -60,7 +60,8 @@ int query_record_write(const std::string &path, const QueryRecord &record, std::
 // the ask of `identity` the record holds, NULL where it holds none
 const QueryRecordAsk *query_record_find(const QueryRecord &record, const std::string &identity);
 
-// `ask` held by the record after every ask before it, where the record holds no ask of its identity
+// `ask` held by the record after every ask before it, where the record holds no ask of its identity, and in place of
+// the one it holds where that one timed out: a later answer resolves it
 void query_record_keep(QueryRecord *record, const QueryRecordAsk &ask);
 
 #endif

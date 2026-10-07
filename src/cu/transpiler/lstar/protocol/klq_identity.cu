@@ -2070,8 +2070,9 @@ static std::string s_record_ksc;
 // The part's query record, its .kqr beside its .ksc and of the same stem, held in memory for the run: every untimed
 // ask a cycle put and what came back, by the question's identity, every timed ask a sample of its own, and the paths
 // the last cycle read off them. Whatever asks an untimed ask again, in this cycle or a later one, is answered from it,
-// and the part is asked it once. It is read where R is read and written back where R is, and its path is empty where
-// it could not be read, so that nothing writes over a record no mode read
+// and the part is asked it once; an ask that timed out is asked again until an answer resolves it, and an ask the gate
+// censored is censored again without a process. It is read where R is read and written back where R is, and its path is
+// empty where it could not be read, so that nothing writes over a record no mode read
 static QueryRecord s_query_record;
 static std::string s_query_record_path;
 static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows);
@@ -2251,9 +2252,10 @@ static std::string question_identity(const RunQuestion *question)
 // `asked` answered from `held`
 static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
 {
-    asked->outcome = (held.answer == "answers")   ? (unsigned int)RUN_ANSWERED
-                     : (held.answer == "illegal") ? (unsigned int)RUN_ILLEGAL
-                                                  : (unsigned int)RUN_NOTHING;
+    asked->outcome = (held.answer == "answers")    ? (unsigned int)RUN_ANSWERED
+                     : (held.answer == "illegal")  ? (unsigned int)RUN_ILLEGAL
+                     : (held.answer == "censored") ? (unsigned int)RUN_HELD
+                                                   : (unsigned int)RUN_NOTHING;
     snprintf(asked->refused, sizeof(asked->refused), "%s", held.refusal.c_str());
     for (size_t place = 0u; (place < held.words.size()) && (place < RUN_CASES_MOST); place += 1u)
     {
@@ -2261,9 +2263,9 @@ static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
     }
 }
 
-// what came back of `question` as the query record writes it: answers, illegal, nothing, or censored where the
-// watchdog ended it before it came back; empty where it never reached the part, which the channel never carried or
-// the gate held
+// what came back of `question` as the query record writes it: answers, illegal, nothing, timed_out where the
+// watchdog ended it before it came back, or censored where the gate held it off the part to protect the whole; empty
+// where the channel never carried it
 static std::string answer_recorded(const RunQuestion *question)
 {
     if (question->outcome == RUN_ANSWERED)
@@ -2274,19 +2276,23 @@ static std::string answer_recorded(const RunQuestion *question)
     {
         return "illegal";
     }
+    if (question->outcome == RUN_HELD)
+    {
+        return "censored";
+    }
     if (question->outcome != RUN_NOTHING)
     {
         return std::string();
     }
-    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? "censored"
+    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? "timed_out"
                                                                                                     : "nothing";
 }
 
 // The asks `carried` answered. A timed ask is put every time and kept as a sample of its own, with its cost. An
-// untimed one is answered from the query record where its identity was asked before, and the rest are carried, one
-// ask of an identity the round holds twice: the mundane together, and alone each dangerous one and each one of a shape
-// of its own, which a process of many does not take. Each answer the part gave kept in the record after by its
-// identity
+// untimed one is answered from the query record where its identity was asked before and did not time out, and the
+// rest are carried, one ask of an identity the round holds twice: the mundane together, and alone each dangerous one
+// and each one of a shape of its own, which a process of many does not take. Each answer the part gave, and each ask
+// the gate censored, kept in the record after by its identity, an answer in place of the ask that timed out
 static void asks_answered(const std::vector<CarriedAsk> &carried)
 {
     std::vector<RunQuestion *> mundane;
@@ -2306,7 +2312,7 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
             continue;
         }
         const QueryRecordAsk *const held = query_record_find(s_query_record, identities[at]);
-        if (held != NULL)
+        if ((held != NULL) && (held->answer != "timed_out"))
         {
             answer_given(question, *held);
             s_round_held += 1ull;

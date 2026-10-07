@@ -22,7 +22,8 @@ static int query_record_answer_read(std::stringstream &words, std::string *ident
     }
     words >> *answer;
     return (std::count(identity->begin(), identity->end(), ' ') == (long)(QUERY_RECORD_IDENTITY_WORDS - 1u)) &&
-           ((*answer == "answers") || (*answer == "illegal") || (*answer == "nothing") || (*answer == "censored"));
+           ((*answer == "answers") || (*answer == "illegal") || (*answer == "nothing") || (*answer == "timed_out") ||
+            (*answer == "censored"));
 }
 
 int query_record_read(const std::string &path, const std::string &member, QueryRecord *record, std::string *error)
@@ -167,8 +168,11 @@ const QueryRecordAsk *query_record_find(const QueryRecord &record, const std::st
 
 void query_record_keep(QueryRecord *record, const QueryRecordAsk &ask)
 {
-    if (record->asked.count(ask.identity) != 0u)
+    const auto held = record->asked.find(ask.identity);
+    if (held != record->asked.end())
     {
+        QueryRecordAsk &kept = record->asks[held->second];
+        kept = (kept.answer == "timed_out") ? ask : kept;
         return;
     }
     record->asked[ask.identity] = record->asks.size();
