@@ -2,21 +2,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Popup menus: the one a right click opens, or the menu key, or Shift+F10, over whatever part of the
-// app is under it. A part says what its menu holds with menuOn, and the innermost part under the
-// pointer answers. A text field no part answers for gets the field's own menu, and anywhere else the
-// web view's menu, which offers nothing the app does, stays shut.
+// app is under it, and the ones the menu bar opens. A part says what its menu holds with menuOn, and
+// the innermost part under the pointer answers. A text field no part answers for gets the field's own
+// menu, and anywhere else the web view's menu, which offers nothing the app does, stays shut.
 //
 // A menu is a list of items, each a label, the keys that do the same where there are some, and what
-// it does, with "-" for a line between items. An item that cannot act now is drawn but cannot be
-// chosen. Up and Down step through the items, Home and End go to the ends, a letter goes to the next
-// item it begins, Enter or Space chooses, and Escape or Tab closes. A choice closes the menu and hands
-// the keys back to what held them before it opened, then acts. A command for the editor or the
-// terminal finds it as it was.
+// it does, with "-" for a line between items. An item with items of its own opens them beside it, as
+// the pointer rests on it or as Right, Enter or Space is pressed on it, and Left or Escape closes them
+// again. An item that cannot act now is drawn but cannot be chosen. Up and Down step through the
+// items, Home and End go to the ends, a letter goes to the next item it begins, Enter or Space
+// chooses, and Escape or Tab closes. A choice closes every open menu and hands the keys back to what
+// held them before the first opened, then acts. A command for the editor or the terminal finds it as
+// it was. A menu too long for the window scrolls.
 
 import { invoke } from "./bridge.js";
 
 const parts = [];
-const state = { menu: null, back: null, anchor: null };
+// `stack` holds the open menus, the first one and then each opened from an item of the one before.
+// `side` is told of Left and Right in the first menu, which the menu bar uses to step between its
+// menus, and a pointer pressed in `keep` leaves the menus to it.
+const state = { stack: [], back: null, anchor: null, side: null, keep: null, onClose: null, rest: 0 };
+
+// How long the pointer rests on an item before the items under it open.
+const REST = 180;
 
 const TEXT_FIELD = 'input:not([type="button"]):not([type="checkbox"]):not([type="radio"]), textarea:not(.term-keys)';
 
@@ -26,26 +34,41 @@ export function menuOn(part, itemsFor) {
   parts.push({ part, itemsFor });
 }
 
+export function menuOpen() {
+  return state.stack.length > 0;
+}
+
+// Closes the menus from `level` down, the first being level 0.
+function closeFrom(level) {
+  window.clearTimeout(state.rest);
+  for (const menu of state.stack.splice(level)) {
+    menu.parentItem?.removeAttribute("aria-expanded");
+    menu.remove();
+  }
+}
+
 export function closeMenu(refocus = true) {
-  if (!state.menu) {
+  if (!state.stack.length) {
     return;
   }
-  state.menu.remove();
-  state.menu = null;
+  closeFrom(0);
   delete state.anchor?.dataset.menu;
   state.anchor = null;
+  state.side = null;
+  state.keep = null;
+  const onClose = state.onClose;
+  state.onClose = null;
+  onClose?.();
   if (refocus && state.back?.isConnected) {
     state.back.focus();
   }
   state.back = null;
 }
 
-function enabled() {
-  return [...state.menu.querySelectorAll(".menu-item:not([disabled])")];
-}
+const enabledIn = (menu) => [...menu.querySelectorAll(":scope > .menu-item:not([disabled])")];
 
-function step(by) {
-  const items = enabled();
+function step(menu, by) {
+  const items = enabledIn(menu);
   const at = items.indexOf(document.activeElement);
   items[(at + by + items.length) % items.length]?.focus();
 }
@@ -55,17 +78,45 @@ function choose(item) {
   item.run();
 }
 
-// Shows a menu with its top left corner at x, y, turned in from the window's edges. The row it was
-// opened on, where there is one, stays marked while it is open.
-export function showMenu(x, y, items, anchor = null) {
-  closeMenu(false);
-  state.back = document.activeElement;
-  state.anchor = anchor;
-  if (anchor) {
-    anchor.dataset.menu = "open";
+// Places a menu at x, y, turned in from the window's edges. `beside` is the box of the item it opens
+// from, which it moves to the other side of where there is no room to the right.
+function place(menu, x, y, beside = null) {
+  const box = menu.getBoundingClientRect();
+  let left = x;
+  if (beside && left + box.width > window.innerWidth - 4) {
+    left = beside.left - box.width + 2;
   }
+  left = Math.max(4, Math.min(left, window.innerWidth - box.width - 4));
+  let top = y;
+  if (top + box.height > window.innerHeight - 4) {
+    top = beside ? window.innerHeight - 4 - box.height : y - box.height;
+  }
+  menu.style.left = `${left}px`;
+  menu.style.top = `${Math.max(4, top)}px`;
+}
+
+function openUnder(button, item, level, focusFirst) {
+  if (state.stack[level + 1]?.parentItem === button) {
+    if (focusFirst) {
+      enabledIn(state.stack[level + 1])[0]?.focus();
+    }
+    return;
+  }
+  closeFrom(level + 1);
+  const box = button.getBoundingClientRect();
+  const menu = build(item.items, level + 1);
+  menu.parentItem = button;
+  button.setAttribute("aria-expanded", "true");
+  place(menu, box.right - 2, box.top - 5, box);
+  if (focusFirst) {
+    enabledIn(menu)[0]?.focus();
+  }
+}
+
+function build(items, level) {
   const menu = document.createElement("div");
   menu.className = "menu";
+  menu.tabIndex = -1;
   menu.setAttribute("role", "menu");
   for (const item of items) {
     if (item === "-") {
@@ -75,24 +126,59 @@ export function showMenu(x, y, items, anchor = null) {
     const button = Object.assign(document.createElement("button"), { type: "button", className: "menu-item", disabled: Boolean(item.disabled) });
     button.setAttribute("role", "menuitem");
     button.append(Object.assign(document.createElement("span"), { textContent: item.label }));
-    if (item.keys) {
+    if (item.items) {
+      button.setAttribute("aria-haspopup", "menu");
+      button.append(Object.assign(document.createElement("i"), { className: "menu-more", ariaHidden: "true" }));
+    } else if (item.keys) {
       button.append(Object.assign(document.createElement("kbd"), { textContent: item.keys }));
     }
-    button.addEventListener("click", () => choose(item));
-    button.addEventListener("pointermove", () => button.disabled || button.focus());
+    button.addEventListener("click", () => (item.items ? openUnder(button, item, level, true) : choose(item)));
+    button.addEventListener("pointermove", () => {
+      if (button.disabled || document.activeElement === button) {
+        return;
+      }
+      button.focus();
+      window.clearTimeout(state.rest);
+      if (item.items) {
+        state.rest = window.setTimeout(() => openUnder(button, item, level, false), REST);
+      } else if (state.stack.length > level + 1) {
+        state.rest = window.setTimeout(() => closeFrom(level + 1), REST);
+      }
+    });
+    button.item = item;
     menu.append(button);
   }
   menu.addEventListener("keydown", (event) => {
-    const keys = { ArrowDown: () => step(1), ArrowUp: () => step(-1), Home: () => enabled()[0]?.focus(), End: () => enabled().at(-1)?.focus() };
-    if (keys[event.key]) {
-      keys[event.key]();
-    } else if (event.key === "Escape") {
-      closeMenu();
-    } else if (event.key === "Tab") {
+    const focused = document.activeElement.closest?.(".menu-item");
+    const item = focused?.item;
+    const moves = { ArrowDown: () => step(menu, 1), ArrowUp: () => step(menu, -1), Home: () => enabledIn(menu)[0]?.focus(), End: () => enabledIn(menu).at(-1)?.focus() };
+    if (moves[event.key]) {
+      moves[event.key]();
+    } else if (event.key === "ArrowRight") {
+      if (item?.items) {
+        openUnder(focused, item, level, true);
+      } else if (state.side) {
+        state.side(1);
+      }
+    } else if (event.key === "ArrowLeft" || (event.key === "Escape" && level > 0)) {
+      if (level > 0) {
+        const parent = menu.parentItem;
+        closeFrom(level);
+        parent.focus();
+      } else if (event.key === "ArrowLeft" && state.side) {
+        state.side(-1);
+      }
+    } else if (event.key === "Enter" || event.key === " ") {
+      if (item?.items) {
+        openUnder(focused, item, level, true);
+      } else if (item && !focused.disabled) {
+        choose(item);
+      }
+    } else if (event.key === "Escape" || event.key === "Tab") {
       closeMenu();
     } else if (event.key.length === 1 && /\S/.test(event.key) && !event.ctrlKey && !event.altKey) {
-      const items = enabled();
-      const at = items.indexOf(document.activeElement);
+      const items = enabledIn(menu);
+      const at = items.indexOf(focused);
       const letter = event.key.toLowerCase();
       const ordered = [...items.slice(at + 1), ...items.slice(0, at + 1)];
       ordered.find((one) => one.textContent.toLowerCase().startsWith(letter))?.focus();
@@ -103,13 +189,31 @@ export function showMenu(x, y, items, anchor = null) {
     event.stopPropagation();
   });
   document.body.append(menu);
-  state.menu = menu;
-  const box = menu.getBoundingClientRect();
-  const left = Math.max(4, Math.min(x, window.innerWidth - box.width - 4));
-  const top = y + box.height > window.innerHeight - 4 ? Math.max(4, y - box.height) : y;
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
-  enabled()[0]?.focus();
+  state.stack[level] = menu;
+  return menu;
+}
+
+// Shows a menu with its top left corner at x, y, turned in from the window's edges. `anchor` is the
+// row it was opened on, which stays marked while it is open; `side`, `keep` and `onClose`, told when
+// the menus close, are the menu bar's.
+export function showMenu(x, y, items, { anchor = null, side = null, keep = null, onClose = null, focusFirst = true } = {}) {
+  const back = state.stack.length ? state.back : document.activeElement;
+  closeMenu(false);
+  state.back = back;
+  state.anchor = anchor;
+  state.side = side;
+  state.keep = keep;
+  state.onClose = onClose;
+  if (anchor) {
+    anchor.dataset.menu = "open";
+  }
+  const menu = build(items, 0);
+  place(menu, x, y);
+  // A menu with nothing to choose still takes the keys, which step to the menus beside it or close it.
+  if (focusFirst) {
+    (enabledIn(menu)[0] ?? menu).focus();
+  }
+  return menu;
 }
 
 // Pastes text into a text field where its selection is, as typing it would.
@@ -141,11 +245,13 @@ export function copyText(text) {
   return navigator.clipboard.writeText(text).catch(() => {});
 }
 
+const inMenus = (target) => state.stack.some((menu) => menu.contains(target));
+
 export function startMenus() {
   document.addEventListener("contextmenu", (event) => {
     event.preventDefault();
     const target = event.target instanceof Element ? event.target : event.target.parentElement;
-    if (state.menu?.contains(target)) {
+    if (inMenus(target)) {
       return;
     }
     // A menu opened from the keyboard has no pointer to stand at, and stands at the part instead.
@@ -159,7 +265,7 @@ export function startMenus() {
     for (const { itemsFor } of holders) {
       const items = itemsFor(event);
       if (items) {
-        showMenu(x, y, items, target.closest("[data-key], .tab"));
+        showMenu(x, y, items, { anchor: target.closest("[data-key], .tab") });
         return;
       }
     }
@@ -171,7 +277,11 @@ export function startMenus() {
     }
     closeMenu();
   });
-  const outside = (event) => state.menu && !state.menu.contains(event.target) && closeMenu(false);
+  const outside = (event) => {
+    if (state.stack.length && !inMenus(event.target) && !state.keep?.contains(event.target)) {
+      closeMenu(false);
+    }
+  };
   document.addEventListener("pointerdown", outside, true);
   document.addEventListener("wheel", outside, true);
   window.addEventListener("blur", () => closeMenu(false));

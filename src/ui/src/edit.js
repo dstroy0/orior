@@ -599,6 +599,41 @@ function editorItems() {
   ];
 }
 
+// What the menu bar does to the editor: the editor where a file of text is open in it, saving one
+// file or all of them, and closing one tab or all of them.
+export function editing() {
+  return {
+    editor: state.editor?.s ? state.editor : null,
+    active: state.active,
+    changed: state.tabs.some(dirty),
+    activeChanged: Boolean(tabOf(state.active) && dirty(tabOf(state.active))),
+    open: state.tabs.length > 0,
+    save: saveActive,
+    saveAll: async () => {
+      const shown = state.active;
+      for (const tab of state.tabs.filter(dirty)) {
+        await tab.reading;
+        const saving = tab.session.doc.id;
+        await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
+        tab.saved = saving;
+        tab.closing = false;
+        if (inBridge(tab.path)) {
+          loadBridge().then(drawDefs);
+        }
+      }
+      state.active = shown;
+      drawTabs();
+    },
+    close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
+    closeAll: () => [...state.tabs].forEach(closeTab),
+    find: () => {
+      const filter = document.getElementById("file-filter");
+      filter.focus();
+      filter.select();
+    },
+  };
+}
+
 // Forgets the folders read so far, for a tree opened in place of this one.
 export function forgetTree() {
   state.children.clear();

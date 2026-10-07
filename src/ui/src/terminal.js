@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The terminal: a panel under both views with a shell in it, opened and closed by the bar's button
-// or Ctrl+`. The shell starts the first time the panel opens, in the tree's top folder, and closing
+// The terminal: a panel under both views with a shell in it, opened and closed from the Terminal menu
+// or by Ctrl+`. The shell starts the first time the panel opens, in the tree's top folder, and closing
 // the panel leaves it running. A shell that ends says so, and the next key starts another.
 //
 // Keys go to the shell as an xterm sends them. Ctrl+C copies where text is chosen in the panel and
@@ -143,7 +143,6 @@ function openShell() {
 // whatever held them before it opened.
 function toggle(open = parts.panel.hidden) {
   parts.panel.hidden = !open;
-  parts.button.setAttribute("aria-pressed", String(open));
   if (open) {
     const holder = document.activeElement;
     state.before = holder && holder !== document.body && holder !== parts.keys ? holder : null;
@@ -200,6 +199,31 @@ function onPaste(event) {
   pasteText(event.clipboardData.getData("text/plain"));
 }
 
+export function toggleTerminal(open) {
+  toggle(open);
+}
+
+// Ends the shell, which the panel says, and opens the panel with a new one.
+export async function newTerminal() {
+  if (state.id !== null) {
+    await invoke("term_close", { id: state.id }).catch(() => {});
+    state.id = null;
+  }
+  toggle(true);
+}
+
+export function killTerminal() {
+  if (state.id !== null) {
+    invoke("term_close", { id: state.id }).catch(() => {});
+  }
+}
+
+export function clearTerminal() {
+  if (state.id !== null) {
+    send("\x0c");
+  }
+}
+
 // Opens the panel with its shell in `folder`, a path under the tree's top folder.
 export function terminalAt(folder) {
   toggle(true);
@@ -244,7 +268,6 @@ export async function startTerminal() {
     ["view", "term-view"],
     ["keys", "term-keys"],
     ["grip", "term-grip"],
-    ["button", "term-toggle"],
   ]) {
     parts[name] = document.getElementById(id);
   }
@@ -271,7 +294,6 @@ export async function startTerminal() {
     },
     true,
   );
-  parts.button.addEventListener("click", () => toggle());
   parts.keys.addEventListener("keydown", onKey);
   parts.keys.addEventListener("paste", onPaste);
   // Text an input method composes reaches the hidden field without a key the terminal sends.

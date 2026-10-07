@@ -8,18 +8,15 @@ import { forgetTree, openFile, startEdit } from "./edit.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
+import { drawMenubar, startMenubar } from "./menubar.js";
 import { loadRun, startRun } from "./run.js";
 import { keepScheme } from "./scheme.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
-
-function mode(name) {
-  document.querySelectorAll(".modes button").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.mode === name)));
-  document.querySelectorAll(".mode").forEach((section) => (section.dataset.active = String(section.id === `mode-${name}`)));
-}
+import { showView } from "./views.js";
 
 async function openInEditor(path) {
-  mode("edit");
+  showView("edit");
   await openFile(path);
 }
 
@@ -28,7 +25,6 @@ async function settle(root, said) {
   const pane = document.getElementById("open-tree");
   document.getElementById("tree-path").textContent = root ?? "";
   pane.hidden = Boolean(root);
-  document.querySelector(".modes").hidden = !root;
   if (!root) {
     document.getElementById("open-said").textContent = said ?? "";
     return false;
@@ -41,7 +37,7 @@ function drawPulse(held) {
   const parts = [];
   if (held.runs.size) {
     const runs = Object.assign(document.createElement("button"), { type: "button", textContent: `${held.runs.size} running` });
-    runs.addEventListener("click", () => mode("run"));
+    runs.addEventListener("click", () => showView("run"));
     parts.push(runs);
   }
   for (const [path, { read, size }] of held.reads) {
@@ -56,23 +52,26 @@ async function start() {
   startMenus();
   keepLattices();
   watch(drawPulse);
-  document.querySelectorAll(".modes button").forEach((button) => button.addEventListener("click", () => mode(button.dataset.mode)));
-  document.getElementById("open-button").addEventListener("click", async () => {
-    const chosen = await pick("dir");
-    if (typeof chosen !== "string") {
-      return;
-    }
-    try {
-      const root = await invoke("root_set", { path: chosen });
-      forgetTree();
-      await begin(root);
-    } catch (error) {
-      document.getElementById("open-said").textContent = String(error);
-    }
-  });
+  document.getElementById("open-button").addEventListener("click", openFolder);
+  startMenubar({ openFolder });
   await startRun(openInEditor);
   await startTerminal();
   await begin(await invoke("root_get"));
+}
+
+// Asks for a folder and works on the tree in it in place of the one open.
+async function openFolder() {
+  const chosen = await pick("dir");
+  if (typeof chosen !== "string") {
+    return;
+  }
+  try {
+    const root = await invoke("root_set", { path: chosen });
+    forgetTree();
+    await begin(root);
+  } catch (error) {
+    document.getElementById("open-said").textContent = String(error);
+  }
 }
 
 let started = false;
@@ -90,6 +89,7 @@ async function begin(root) {
       await startEdit(defs);
     }
     await loadRun();
+    drawMenubar();
   } finally {
     await hideLoading();
   }

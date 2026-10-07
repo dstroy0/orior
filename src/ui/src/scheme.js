@@ -24,7 +24,11 @@ function set(name) {
   listeners.forEach((listener) => listener(name));
 }
 
+export function toggleScheme() {
+  set(scheme() === "dark" ? "light" : "dark");
+}
+
 export function keepScheme() {
   set(localStorage.getItem(KEY) === "light" ? "light" : "dark");
-  document.getElementById("scheme").addEventListener("click", () => set(scheme() === "dark" ? "light" : "dark"));
+  document.getElementById("scheme").addEventListener("click", toggleScheme);
 }

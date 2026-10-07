@@ -57,7 +57,8 @@ function liveOf(id) {
   return runsOf(id).some((run) => !run.done);
 }
 
-function subject(job) {
+// What a stage job works on, which the stage group is split by.
+export function subject(job) {
   return job.file.split("/")[1] || job.file;
 }
 
@@ -374,6 +375,36 @@ function choose(id) {
   state.chosen = id;
   drawList();
   drawStage();
+}
+
+// The jobs as the catalog lists them, for the menu bar.
+export function listedJobs() {
+  return state.jobs;
+}
+
+// Shows a job in the run view, its form ready, and the list scrolled to it.
+export function showJob(id) {
+  choose(id);
+  document.querySelector(`#jobs .item[data-key="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest" });
+}
+
+export function chosenJob() {
+  return state.jobs.find((job) => job.id === state.chosen) ?? null;
+}
+
+export function chosenLive() {
+  return state.chosen !== null && liveOf(state.chosen);
+}
+
+// Starts the chosen job as its Start button does, with what its form holds.
+export function startChosen() {
+  document.querySelector("#job-stage .actions .primary")?.click();
+}
+
+export function stopChosen() {
+  runsOf(state.chosen)
+    .filter((run) => !run.done)
+    .forEach((run) => invoke("job_stop", { run: run.run }).catch(() => {}));
 }
 
 export async function startRun(openFile) {

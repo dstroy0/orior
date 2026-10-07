@@ -154,9 +154,9 @@ select {
 .bar {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  gap: 0.7rem;
   height: 2.9rem;
-  padding: 0 1rem;
+  padding: 0 0.8rem 0 1rem;
   background: var(--ink);
   color: #f3f2fb;
   border-bottom: 2px solid #6fdcb4;
@@ -168,46 +168,77 @@ select {
   color: #6fdcb4;
 }
 
-.name {
-  font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
-}
-
-.modes {
+/* The menu bar takes the room its titles need, and gives up room before the folder's path does
+   only where the window is too narrow for both. */
+.menubar {
   display: flex;
-  gap: 0.25rem;
-  margin-left: 0.6rem;
+  align-items: stretch;
+  align-self: stretch;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.modes button {
+.bar-title {
+  flex: none;
+  margin: 0.45rem 0.1rem;
+  padding: 0 0.75rem;
   border: 0;
+  border-radius: 0.3rem;
   background: none;
-  padding: 0.3rem 0.7rem;
-  border-radius: var(--radius);
-  color: rgba(243, 242, 251, 0.72);
-  font-weight: 600;
+  color: rgba(243, 242, 251, 0.78);
+  font: 13px var(--head);
   cursor: pointer;
 }
 
-.modes button:hover {
-  color: #b49cff;
+.bar-title:hover,
+.bar-title[aria-expanded="true"] {
+  background: rgba(243, 242, 251, 0.1);
+  color: #ffffff;
 }
 
-.modes button[aria-selected="true"] {
+.bar-title[aria-current="true"] {
   color: #ffffff;
   box-shadow: inset 0 -2px 0 #6fdcb4;
-  border-radius: 0;
+  border-radius: 0.3rem 0.3rem 0 0;
+}
+
+.bar-title:focus-visible {
+  outline-offset: -2px;
+}
+
+.bar-title u {
+  text-decoration: none;
+}
+
+.alt-held .bar-title u,
+.menubar.held .bar-title u {
+  text-decoration: underline;
+}
+
+/* The tree's folder, in the middle of what the menus leave. */
+.tree {
+  flex: 1 1 0;
+  min-width: 0;
+  font: 12.5px var(--code);
+  color: rgba(243, 242, 251, 0.6);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The status block's reading: runs going and files still being read, in signal. */
 .pulse {
   display: flex;
   gap: 0.9rem;
-  margin-left: auto;
   font: 12px var(--code);
   color: #6fdcb4;
   white-space: nowrap;
+}
+
+.pulse:empty {
+  display: none;
 }
 
 .pulse button {
@@ -223,21 +254,8 @@ select {
   text-decoration: underline;
 }
 
-.pulse:empty + .tree {
-  margin-left: auto;
-}
-
-.tree {
-  margin-left: 1.2rem;
-  font: 12.5px var(--code);
-  color: rgba(243, 242, 251, 0.6);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 45vw;
-}
-
 .scheme {
+  flex: none;
   width: 2rem;
   height: 2rem;
   border: 0;
@@ -250,24 +268,6 @@ select {
 
 .scheme:hover {
   color: #b49cff;
-}
-
-.term-toggle {
-  border: 0;
-  background: none;
-  padding: 0.3rem 0.6rem;
-  font: 12.5px var(--code);
-  color: rgba(243, 242, 251, 0.72);
-  cursor: pointer;
-}
-
-.term-toggle:hover {
-  color: #b49cff;
-}
-
-.term-toggle[aria-pressed="true"] {
-  color: #ffffff;
-  box-shadow: inset 0 -2px 0 #6fdcb4;
 }
 
 .shell {
@@ -1707,6 +1707,116 @@ select {
   border-radius: var(--radius);
   box-shadow: 0 10px 28px var(--lifted);
   font: 13px var(--head);
+  max-height: calc(100vh - 3.5rem);
+  overflow-y: auto;
+}
+
+.menu-item[aria-expanded="true"] {
+  background: var(--ed-sel-idle);
+}
+
+/* The mark of an item with items of its own: a chevron pointing to where they open. */
+.menu-more {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+/* A sheet over the app, for the keys and for what the app is. */
+.sheet {
+  min-width: 22rem;
+  max-width: min(46rem, 90vw);
+  max-height: 80vh;
+  padding: 1.2rem 1.4rem 1.4rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--ed-widget);
+  color: var(--fg);
+  box-shadow: 0 16px 40px var(--lifted);
+}
+
+.sheet::backdrop {
+  background: rgba(8, 6, 30, 0.45);
+}
+
+.sheet-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.sheet-close:hover {
+  color: var(--hover);
+}
+
+.sheet-keys {
+  columns: 2 18rem;
+  column-gap: 2rem;
+  font: 13px var(--head);
+}
+
+.sheet-keys section {
+  break-inside: avoid;
+  margin-bottom: 1rem;
+}
+
+.sheet-keys h3 {
+  margin: 0 0 0.35rem;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+.sheet-keys div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.12rem 0;
+}
+
+.sheet-keys kbd {
+  font: 12px var(--code);
+  color: var(--fg-2);
+}
+
+.sheet-about {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0.6rem 1.4rem 0;
+  text-align: center;
+}
+
+.sheet-about .mark {
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--signal);
+}
+
+.sheet-about h2 {
+  margin: 0;
+  font: 700 1.6rem var(--head);
+  letter-spacing: -0.02em;
+}
+
+.sheet-about p {
+  margin: 0;
+  font: 12.5px var(--code);
+  color: var(--fg-2);
+}
+
+.sheet-about .tree {
+  flex: none;
+  max-width: 36rem;
+  white-space: normal;
+  word-break: break-all;
 }
 
 .menu-item {

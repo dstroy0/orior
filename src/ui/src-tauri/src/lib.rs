@@ -109,6 +109,18 @@ fn term_close(app: State<App>, id: u64) -> Result<(), String> {
     app.terms.close(id)
 }
 
+/// The app's version, as its package gives it.
+#[tauri::command]
+fn app_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
+/// Ends the app, every window of it, from the File menu.
+#[tauri::command]
+fn app_exit(handle: AppHandle) {
+    handle.exit(0);
+}
+
 /// The text on the system clipboard, read here so the page never asks the reader for leave to read
 /// it. Empty where the clipboard holds no text.
 #[tauri::command]
@@ -291,6 +303,8 @@ pub fn run() {
             term_resize,
             term_close,
             clip_read,
+            app_version,
+            app_exit,
             tree_list,
             tree_find,
             file_read,
