@@ -261,6 +261,73 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
     }
 }
 
+// `pairs` pairs [1, 2, 1] along the axis whose taps are `spacing` voxels apart, each reading the line reflected at its
+// edges. A pair is symmetric about the voxel and keeps the line's reflection about the half voxel past each end,
+// and the pairs, the unit pairs and the comb's centered part may run in any order and still give the key's window.
+__global__ static void unit_sweep_spaced_kernel(unsigned int *planes, UnitSweepExtent extent, unsigned int axis,
+                                                unsigned int limbs, unsigned int pairs, unsigned int spacing,
+                                                unsigned int bits)
+{
+    extern __shared__ unsigned int shared_line[];
+    const unsigned int length = extent.extent[axis];
+    const unsigned long long line = blockIdx.x;
+    const unsigned long long plane = (unsigned long long)extent.extent[1] * extent.extent[2];
+    const unsigned long long stride =
+        (axis == 0u) ? plane : ((axis == 1u) ? (unsigned long long)extent.extent[2] : 1ull);
+    const unsigned long long base =
+        (axis == 0u) ? line
+                     : ((axis == 1u) ? (((line / extent.extent[2]) * plane) + (line % extent.extent[2]))
+                                     : (line * extent.extent[2]));
+    unsigned int *front = shared_line;
+    unsigned int *back = &shared_line[(size_t)length * limbs];
+    const unsigned int input_limbs = (bits + 31u) / 32u;
+    for (unsigned int place = threadIdx.x; place < length; place += blockDim.x)
+    {
+        for (unsigned int limb = 0u; limb < limbs; limb += 1u)
+        {
+            front[(limb * length) + place] =
+                (limb < input_limbs) ? planes[((unsigned long long)limb * extent.voxels) + base + (place * stride)]
+                                     : 0u;
+            back[(limb * length) + place] = 0u;
+        }
+    }
+    __syncthreads();
+    for (unsigned int pair = 0u; pair < pairs; pair += 1u)
+    {
+        const unsigned int grown_limbs = (bits + (2u * (pair + 1u)) + 31u) / 32u;
+        const unsigned int live_limbs = (grown_limbs < limbs) ? grown_limbs : limbs;
+        for (unsigned int place = threadIdx.x; place < length; place += blockDim.x)
+        {
+            const unsigned int left = unit_sweep_reflect((long long)place - (long long)spacing, (long long)length);
+            const unsigned int right = unit_sweep_reflect((long long)place + (long long)spacing, (long long)length);
+            unsigned long long carry = 0ull;
+            for (unsigned int limb = 0u; limb < live_limbs; limb += 1u)
+            {
+                const unsigned int *const row = &front[limb * length];
+                const unsigned long long total = (unsigned long long)row[left] +
+                                                 (2ull * (unsigned long long)row[place]) +
+                                                 (unsigned long long)row[right] + carry;
+                back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFull);
+                carry = total >> 32u;
+            }
+        }
+        __syncthreads();
+        unsigned int *const former_front = front;
+        front = back;
+        back = former_front;
+    }
+    const unsigned int final_limbs = (bits + (2u * pairs) + 31u) / 32u;
+    const unsigned int stored_limbs = (final_limbs < limbs) ? final_limbs : limbs;
+    for (unsigned int place = threadIdx.x; place < length; place += blockDim.x)
+    {
+        for (unsigned int limb = 0u; limb < stored_limbs; limb += 1u)
+        {
+            planes[((unsigned long long)limb * extent.voxels) + base + (place * stride)] =
+                front[(limb * length) + place];
+        }
+    }
+}
+
 __global__ static void unit_sweep_residual_kernel(const unsigned int *narrow_planes, unsigned int narrow_limbs,
                                                   const unsigned int *wide_planes, unsigned int wide_limbs,
                                                   unsigned long long voxels, unsigned int gain, unsigned int limbs,
@@ -420,6 +487,41 @@ static int unit_sweep_axes(unsigned int *planes, const UnitSweepExtent *extent, 
     return ok;
 }
 
+// each axis's spaced pairs, spaced[axis][j] of them with taps 2^j apart, the spacings in ascending order. `bits`
+// bounds the planes' width going in.
+static int unit_sweep_spaced(unsigned int *planes, const UnitSweepExtent *extent, unsigned int limbs,
+                             const unsigned int spaced[ENGINE_AXES][ENGINE_SPACINGS], unsigned int bits,
+                             EngineError *error)
+{
+    int ok = 1;
+    for (unsigned int axis = 0u; (ok != 0) && (axis < ENGINE_AXES); axis += 1u)
+    {
+        for (unsigned int spacing = 0u; (ok != 0) && (spacing < ENGINE_SPACINGS); spacing += 1u)
+        {
+            const unsigned int pairs = spaced[axis][spacing];
+            const unsigned int input_bits = bits;
+            bits += 2u * pairs;
+            if (pairs == 0u)
+            {
+                continue;
+            }
+            const unsigned long long lines = extent->voxels / extent->extent[axis];
+            const size_t shared_bytes = 2u * (size_t)extent->extent[axis] * limbs * sizeof(unsigned int);
+            ok = UNIT_SWEEP_CHECK(lines <= 0x7FFFFFFFull, &extent->extent[axis], error, ENGINE_ERROR_REQUEST) &&
+                 UNIT_SWEEP_CHECK(shared_bytes <= UNIT_SWEEP_SHARED_BYTES_MAX, &extent->extent[axis], error,
+                                  ENGINE_ERROR_REQUEST);
+            if (ok != 0)
+            {
+                // lines was held at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
+                unit_sweep_spaced_kernel<<<(unsigned int)lines, UNIT_SWEEP_THREADS, shared_bytes>>>(
+                    planes, *extent, axis, limbs, pairs, 1u << spacing, input_bits);
+                ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), planes, error);
+            }
+        }
+    }
+    return ok;
+}
+
 static int unit_sweep_planes_load(const UnitSweepRequest *request, const UnitSweepExtent *extent,
                                   unsigned int narrow_limbs, unsigned int blocks, UnitSweepResident *buffers,
                                   EngineError *error)
@@ -467,8 +569,25 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
         return UNIT_SWEEP_ERROR;
     }
     const unsigned int input_bits = (planes_given != 0) ? request->input_bits : UNIT_SWEEP_INPUT_BITS;
-    unsigned int narrow_bits = input_bits;
-    unsigned int gain = 0u;
+    // the spaced pairs' bits, 2 a pair: both terms take the smooth's, and the background's term its own as well
+    unsigned long long smooth_spaced_bits = 0ull;
+    unsigned long long background_spaced_bits = 0ull;
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
+        {
+            smooth_spaced_bits += 2ull * request->smooth_spaced[axis][spacing];
+            background_spaced_bits += 2ull * request->background_spaced[axis][spacing];
+        }
+    }
+    if (!UNIT_SWEEP_CHECK((smooth_spaced_bits + background_spaced_bits) <= (32ull * request->limbs),
+                          request->smooth_spaced, error, ENGINE_ERROR_REQUEST))
+    {
+        return UNIT_SWEEP_ERROR;
+    }
+    // both are held at or below 32 limbs' bits above, and narrow to unsigned int exactly
+    unsigned int narrow_bits = input_bits + (unsigned int)smooth_spaced_bits;
+    unsigned int gain = (unsigned int)background_spaced_bits;
     // the narrow term's pairs: the smooth order's, and one more where an odd smooth order and an even comb each leave
     // a unit step [1, 1], which together are one pair [1, 2, 1]; the background's pairs; and the one unit step left
     // where the smooth order and the comb's n - 1 sum to an odd number
@@ -519,6 +638,10 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     {
         paired_bits += 2u * narrow_pairs[axis];
     }
+    ok = ok && unit_sweep_spaced(buffers->narrow_planes, &extent, narrow_limbs, request->smooth_spaced, paired_bits,
+                                 error);
+    // the smooth's spaced bits are held at or below 32 limbs' bits above, and narrow to unsigned int exactly
+    paired_bits += (unsigned int)smooth_spaced_bits;
     ok = ok && unit_sweep_combs(buffers->narrow_planes, &extent, narrow_limbs, request->comb, paired_bits, error);
     if (ok != 0)
     {
@@ -527,6 +650,13 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
         ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), buffers->wide_planes, error);
     }
     ok = ok && unit_sweep_axes(buffers->wide_planes, &extent, wide_limbs, background_pairs, narrow_bits, 0, error);
+    unsigned int background_paired_bits = narrow_bits;
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        background_paired_bits += 2u * background_pairs[axis];
+    }
+    ok = ok && unit_sweep_spaced(buffers->wide_planes, &extent, wide_limbs, request->background_spaced,
+                                 background_paired_bits, error);
     // the odd unit steps last, on both terms alike, once every pair and comb has run
     ok = ok && unit_sweep_axes(buffers->narrow_planes, &extent, narrow_limbs, halves, narrow_bits, 1, error) &&
          unit_sweep_axes(buffers->wide_planes, &extent, wide_limbs, halves, narrow_bits + gain, 1, error);

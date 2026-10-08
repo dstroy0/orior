@@ -11,8 +11,9 @@ extern "C"
 
 #define RESIDUAL_ERROR (-1L)
 
-// the comb, the smooth, the keep, the background's smooth and the scaled subtraction
-#define RESIDUAL_STEPS 5u
+// the comb, the smooth, its spaced pairs at each spacing, the keep, the background's smooth, its spaced pairs at each
+// spacing and the scaled subtraction
+#define RESIDUAL_STEPS (5u + (2u * ENGINE_SPACINGS))
 
     long residual_program(const EngineResidualRequest *request, EngineStep program[RESIDUAL_STEPS]);
 

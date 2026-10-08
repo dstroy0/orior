@@ -10,8 +10,11 @@
 // three sites as a request error from its own module. The comb of n on an axis is a running sum of n voxels taken on
 // both terms before the smooth: its row is the binomial's times n ones, its window starts floor(T / 2) before the voxel
 // for a row of T taps, and an even n moves both terms half a voxel as an odd smooth order does. The sets with combs
-// hold odd and even n, n of 0 and 1, and n past the extent. The test is one job on the device's tessera daemon,
-// submitted before its first device work.
+// hold odd and even n, n of 0 and 1, and n past the extent. A spaced pair at 2^j is the row times 1 + 2 z^(2^j) +
+// z^(2^(j + 1)); it widens the window by 2^(j + 1) taps, moves no center, and adds 2 bits to its term and, on the
+// background, to the gain. The sets with spaced pairs hold pairs on the smooth and on the background, more than one at
+// a spacing, and spacings past the extent. The test is one job on the device's tessera daemon, submitted before its
+// first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
@@ -26,7 +29,10 @@
 
 #define ODD_TEST_EXTENTS 5u
 
-#define ODD_TEST_ORDER_SETS 11u
+#define ODD_TEST_ORDER_SETS 15u
+
+// the spacings the sets' spaced pairs take, 2^j for j below this
+#define ODD_TEST_SPACINGS 5u
 
 #define ODD_TEST_TAPS_MAX 64u
 
@@ -43,16 +49,49 @@ static const unsigned int ODD_TEST_EXTENT[ODD_TEST_EXTENTS][ENGINE_AXES] = {
     {1u, 1u, 1u}, {3u, 1u, 7u}, {5u, 9u, 11u}, {4u, 6u, 5u}, {2u, 8u, 3u}};
 
 static const unsigned int ODD_TEST_SMOOTH[ODD_TEST_ORDER_SETS][ENGINE_AXES] = {
-    {1u, 1u, 1u}, {3u, 0u, 5u}, {5u, 3u, 1u}, {0u, 1u, 0u}, {1u, 2u, 3u}, {2u, 4u, 4u},
-    {0u, 0u, 0u}, {1u, 0u, 1u}, {0u, 1u, 0u}, {2u, 2u, 2u}, {0u, 0u, 0u}};
+    {1u, 1u, 1u}, {3u, 0u, 5u}, {5u, 3u, 1u}, {0u, 1u, 0u}, {1u, 2u, 3u}, {2u, 4u, 4u}, {0u, 0u, 0u}, {1u, 0u, 1u},
+    {0u, 1u, 0u}, {2u, 2u, 2u}, {0u, 0u, 0u}, {1u, 0u, 2u}, {0u, 0u, 0u}, {1u, 1u, 1u}, {0u, 2u, 1u}};
 
 static const unsigned int ODD_TEST_BACKGROUND[ODD_TEST_ORDER_SETS][ENGINE_AXES] = {
-    {2u, 2u, 2u}, {4u, 2u, 0u}, {6u, 6u, 2u}, {0u, 2u, 0u}, {2u, 0u, 4u}, {6u, 6u, 6u},
-    {2u, 2u, 2u}, {2u, 2u, 2u}, {0u, 2u, 4u}, {4u, 4u, 4u}, {2u, 0u, 2u}};
+    {2u, 2u, 2u}, {4u, 2u, 0u}, {6u, 6u, 2u}, {0u, 2u, 0u}, {2u, 0u, 4u}, {6u, 6u, 6u}, {2u, 2u, 2u}, {2u, 2u, 2u},
+    {0u, 2u, 4u}, {4u, 4u, 4u}, {2u, 0u, 2u}, {2u, 2u, 0u}, {0u, 0u, 0u}, {2u, 2u, 2u}, {0u, 0u, 2u}};
 
 static const unsigned int ODD_TEST_COMB[ODD_TEST_ORDER_SETS][ENGINE_AXES] = {
-    {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u},
-    {2u, 2u, 2u}, {4u, 4u, 2u}, {3u, 4u, 5u}, {6u, 7u, 8u}, {1u, 0u, 9u}};
+    {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {0u, 0u, 0u}, {2u, 2u, 2u}, {4u, 4u, 2u},
+    {3u, 4u, 5u}, {6u, 7u, 8u}, {1u, 0u, 9u}, {0u, 0u, 0u}, {0u, 0u, 3u}, {2u, 4u, 5u}, {0u, 0u, 0u}};
+
+// the spaced pairs on each axis at spacings 1, 2, 4, 8 and 16; the sets before the last four take none
+static const unsigned int ODD_TEST_SMOOTH_SPACED[ODD_TEST_ORDER_SETS][ENGINE_AXES][ODD_TEST_SPACINGS] = {
+    {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+    {{0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 1u, 0u, 0u, 0u}},
+    {{0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 0u, 1u, 0u, 0u}},
+    {{0u, 0u, 0u, 0u, 0u}, {0u, 1u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}},
+    {{0u, 0u, 1u, 0u, 0u}, {1u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}}};
+
+static const unsigned int ODD_TEST_BACKGROUND_SPACED[ODD_TEST_ORDER_SETS][ENGINE_AXES][ODD_TEST_SPACINGS] = {
+    {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+    {{0u, 1u, 0u, 0u, 0u}, {0u, 0u, 1u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}},
+    {{0u, 1u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 2u, 0u, 0u, 0u}},
+    {{0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 0u, 1u, 0u, 0u}},
+    {{0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 1u, 0u}, {0u, 0u, 0u, 0u, 1u}}};
+
+typedef struct
+{
+    const unsigned int *smooth;
+    const unsigned int *background;
+    const unsigned int *comb;
+    const unsigned int (*smooth_spaced)[ODD_TEST_SPACINGS];
+    const unsigned int (*background_spaced)[ODD_TEST_SPACINGS];
+} OddTestOrders;
+
+static OddTestOrders odd_test_orders(unsigned int set)
+{
+    const OddTestOrders orders = {ODD_TEST_SMOOTH[set], ODD_TEST_BACKGROUND[set], ODD_TEST_COMB[set],
+                                  ODD_TEST_SMOOTH_SPACED[set], ODD_TEST_BACKGROUND_SPACED[set]};
+    return orders;
+}
+
+static const unsigned int ODD_TEST_NONE_SPACED[ENGINE_AXES][ODD_TEST_SPACINGS] = {};
 
 typedef struct
 {
@@ -99,11 +138,13 @@ static unsigned long long odd_test_binomial(unsigned int order, unsigned int tap
     return value;
 }
 
-// one axis's row: the binomial of the order times n ones for a comb of n, T taps, T at most ODD_TEST_TAPS_MAX
-static unsigned int odd_test_row(unsigned int order, unsigned int comb, unsigned long long row[ODD_TEST_TAPS_MAX])
+// one axis's row: the binomial of the order times n ones for a comb of n, times each spaced pair, T taps, T at most
+// ODD_TEST_TAPS_MAX
+static unsigned int odd_test_row(unsigned int order, unsigned int comb, const unsigned int spaced[ODD_TEST_SPACINGS],
+                                 unsigned long long row[ODD_TEST_TAPS_MAX])
 {
     const unsigned int ones = (comb < 2u) ? 1u : comb;
-    const unsigned int taps = order + ones;
+    unsigned int taps = order + ones;
     for (unsigned int tap = 0u; tap < taps; tap += 1u)
     {
         row[tap] = 0ull;
@@ -112,18 +153,37 @@ static unsigned int odd_test_row(unsigned int order, unsigned int comb, unsigned
             row[tap] += ((one <= tap) && ((tap - one) <= order)) ? odd_test_binomial(order, tap - one) : 0ull;
         }
     }
+    for (unsigned int spacing = 0u; spacing < ODD_TEST_SPACINGS; spacing += 1u)
+    {
+        const unsigned int apart = 1u << spacing;
+        for (unsigned int pair = 0u; pair < spaced[spacing]; pair += 1u)
+        {
+            unsigned long long paired[ODD_TEST_TAPS_MAX];
+            const unsigned int wider = taps + (2u * apart);
+            for (unsigned int tap = 0u; tap < wider; tap += 1u)
+            {
+                paired[tap] = ((tap < taps) ? row[tap] : 0ull) +
+                              (((tap >= apart) && ((tap - apart) < taps)) ? (2ull * row[tap - apart]) : 0ull) +
+                              (((tap >= (2u * apart)) && ((tap - (2u * apart)) < taps)) ? row[tap - (2u * apart)]
+                                                                                         : 0ull);
+            }
+            memcpy(row, paired, (size_t)wider * sizeof(unsigned long long));
+            taps = wider;
+        }
+    }
     return taps;
 }
 
 // one axis of one term: each voxel's weighted sum over the row's window along the axis, the window of T taps
 // starting floor(T / 2) before the voxel
 static void odd_test_axis(const unsigned int *extent, unsigned int axis, unsigned int order, unsigned int comb,
-                          const unsigned long long *from, unsigned long long *to)
+                          const unsigned int spaced[ODD_TEST_SPACINGS], const unsigned long long *from,
+                          unsigned long long *to)
 {
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
     const unsigned int stride = (axis == 0u) ? (extent[1] * extent[2]) : ((axis == 1u) ? extent[2] : 1u);
     unsigned long long row[ODD_TEST_TAPS_MAX];
-    const unsigned int taps = odd_test_row(order, comb, row);
+    const unsigned int taps = odd_test_row(order, comb, spaced, row);
     const long long start = (long long)(taps / 2u);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
@@ -140,9 +200,9 @@ static void odd_test_axis(const unsigned int *extent, unsigned int axis, unsigne
     }
 }
 
-// one term, B_orders times the combs applied to the volume axis by axis, into `along`
+// one term, B_orders times the combs and the spaced pairs applied to the volume axis by axis, into `along`
 static void odd_test_term(const unsigned int *extent, const unsigned int *orders, const unsigned int *comb,
-                          OddTestHost *host)
+                          const unsigned int (*spaced)[ODD_TEST_SPACINGS], OddTestHost *host)
 {
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
@@ -151,31 +211,37 @@ static void odd_test_term(const unsigned int *extent, const unsigned int *orders
     }
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        odd_test_axis(extent, axis, orders[axis], comb[axis], host->along, host->across);
+        odd_test_axis(extent, axis, orders[axis], comb[axis], spaced[axis], host->along, host->across);
         memcpy(host->along, host->across, (size_t)voxels * sizeof(unsigned long long));
     }
 }
 
 // the residual from its definition: the narrow term times 2^gain less the wide term
-static void odd_test_expect(const unsigned int *extent, const unsigned int *smooth, const unsigned int *background,
-                            const unsigned int *comb, OddTestHost *host)
+static void odd_test_expect(const unsigned int *extent, const OddTestOrders *orders, OddTestHost *host)
 {
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
     unsigned int wide[ENGINE_AXES];
+    unsigned int wide_spaced[ENGINE_AXES][ODD_TEST_SPACINGS];
     unsigned int gain = 0u;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        wide[axis] = smooth[axis] + background[axis];
-        gain += background[axis];
+        wide[axis] = orders->smooth[axis] + orders->background[axis];
+        gain += orders->background[axis];
+        for (unsigned int spacing = 0u; spacing < ODD_TEST_SPACINGS; spacing += 1u)
+        {
+            wide_spaced[axis][spacing] =
+                orders->smooth_spaced[axis][spacing] + orders->background_spaced[axis][spacing];
+            gain += 2u * orders->background_spaced[axis][spacing];
+        }
     }
-    odd_test_term(extent, smooth, comb, host);
+    odd_test_term(extent, orders->smooth, orders->comb, orders->smooth_spaced, host);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
-        // the narrow term is below 2^(16 + 15 + 10), a comb of n adding bit_length(n - 1), and the gain at most 18:
-        // the shifted term is below 2^59
+        // the narrow term is below 2^(16 + 15 + 10), a comb of n adding bit_length(n - 1) and a spaced pair 2, and the
+        // gain at most 18: the shifted term is below 2^59
         host->expected[voxel] = (long long)(host->along[voxel] << gain);
     }
-    odd_test_term(extent, wide, comb, host);
+    odd_test_term(extent, wide, orders->comb, wide_spaced, host);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         // the wide term is below 2^(16 + 33 + 10), inside a signed word
@@ -211,18 +277,30 @@ static int odd_test_read(const unsigned int *device_lanes, unsigned int voxels, 
                        cudaMemcpyDeviceToHost) == cudaSuccess);
 }
 
+// a set's spaced pairs into a request's, which holds ENGINE_SPACINGS spacings to the set's ODD_TEST_SPACINGS
+static void odd_test_spaced(const unsigned int (*from)[ODD_TEST_SPACINGS],
+                            unsigned int to[ENGINE_AXES][ENGINE_SPACINGS])
+{
+    memset(to, 0, ENGINE_AXES * ENGINE_SPACINGS * sizeof(unsigned int));
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        memcpy(to[axis], from[axis], ODD_TEST_SPACINGS * sizeof(unsigned int));
+    }
+}
+
 // the key's residual: the program residual_program writes, encoded, laid out and run on the one atom
-static int odd_test_key(const unsigned int *extent, const unsigned int *smooth, const unsigned int *background,
-                        const unsigned int *comb,
-                        const OddTestDevice *device, OddTestHost *host)
+static int odd_test_key(const unsigned int *extent, const OddTestOrders *orders, const OddTestDevice *device,
+                        OddTestHost *host)
 {
     EngineError error;
     memset(&error, 0, sizeof(error));
     EngineResidualRequest residual;
     memset(&residual, 0, sizeof(residual));
-    memcpy(residual.smooth_orders, smooth, sizeof(residual.smooth_orders));
-    memcpy(residual.background_orders, background, sizeof(residual.background_orders));
-    memcpy(residual.comb, comb, sizeof(residual.comb));
+    memcpy(residual.smooth_orders, orders->smooth, sizeof(residual.smooth_orders));
+    memcpy(residual.background_orders, orders->background, sizeof(residual.background_orders));
+    memcpy(residual.comb, orders->comb, sizeof(residual.comb));
+    odd_test_spaced(orders->smooth_spaced, residual.smooth_spaced);
+    odd_test_spaced(orders->background_spaced, residual.background_spaced);
     residual.error = &error;
     EngineStep program[RESIDUAL_STEPS];
     EngineKey math;
@@ -249,9 +327,8 @@ static int odd_test_key(const unsigned int *extent, const unsigned int *smooth, 
     return ok;
 }
 
-static int odd_test_sweep(const unsigned int *extent, const unsigned int *smooth, const unsigned int *background,
-                          const unsigned int *comb,
-                          const OddTestDevice *device, OddTestHost *host)
+static int odd_test_sweep(const unsigned int *extent, const OddTestOrders *orders, const OddTestDevice *device,
+                          OddTestHost *host)
 {
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -261,9 +338,11 @@ static int odd_test_sweep(const unsigned int *extent, const unsigned int *smooth
     request.depth = extent[0];
     request.height = extent[1];
     request.width = extent[2];
-    memcpy(request.smooth_orders, smooth, sizeof(request.smooth_orders));
-    memcpy(request.background_orders, background, sizeof(request.background_orders));
-    memcpy(request.comb, comb, sizeof(request.comb));
+    memcpy(request.smooth_orders, orders->smooth, sizeof(request.smooth_orders));
+    memcpy(request.background_orders, orders->background, sizeof(request.background_orders));
+    memcpy(request.comb, orders->comb, sizeof(request.comb));
+    odd_test_spaced(orders->smooth_spaced, request.smooth_spaced);
+    odd_test_spaced(orders->background_spaced, request.background_spaced);
     request.limbs = ENGINE_RESIDUAL_LIMBS;
     request.device_out = device->sweep_out;
     request.error = &error;
@@ -275,9 +354,7 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
                           const OddTestDevice *device, OddTestHost *host, OddTestResults *counts)
 {
     const unsigned int voxels = extent[0] * extent[1] * extent[2];
-    const unsigned int *const smooth = ODD_TEST_SMOOTH[orders];
-    const unsigned int *const background = ODD_TEST_BACKGROUND[orders];
-    const unsigned int *const comb = ODD_TEST_COMB[orders];
+    const OddTestOrders set = odd_test_orders(orders);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         const unsigned long long draw = sim_draw(key, voxel);
@@ -289,7 +366,7 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
         // a value of at most 16 bits narrows to unsigned short exactly
         host->volume[voxel] = (unsigned short)value;
     }
-    odd_test_expect(extent, smooth, background, comb, host);
+    odd_test_expect(extent, &set, host);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         counts->nonzero += (host->expected[voxel] != 0ll) ? 1ull : 0ull;
@@ -297,11 +374,11 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
     counts->lanes += voxels;
     const int placed = (cudaMemcpy(device->volume, host->volume, (size_t)voxels * sizeof(unsigned short),
                                    cudaMemcpyHostToDevice) == cudaSuccess);
-    const int keyed = placed && odd_test_key(extent, smooth, background, comb, device, host);
+    const int keyed = placed && odd_test_key(extent, &set, device, host);
     sim_check(results, keyed, "the key is encoded from the residual's program and run");
     const unsigned long long key_differ = keyed ? odd_test_differ(host, voxels) : voxels;
     sim_check(results, key_differ == 0ull, "every lane of the key's residual is the residual's definition");
-    const int swept = placed && odd_test_sweep(extent, smooth, background, comb, device, host);
+    const int swept = placed && odd_test_sweep(extent, &set, device, host);
     sim_check(results, swept, "the unit sweeps run on the same orders");
     const unsigned long long sweep_differ = swept ? odd_test_differ(host, voxels) : voxels;
     sim_check(results, sweep_differ == 0ull, "every lane of the unit sweeps' residual is the residual's definition");
@@ -329,7 +406,29 @@ static void odd_test_report(SimResults *results, unsigned int orders, const OddT
         scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
         scriptura_decimal(&results->line, ODD_TEST_COMB[orders][axis], 1u);
     }
-    scriptura_text(&results->line, "}: ");
+    scriptura_character(&results->line, '}');
+    // a spaced pair is written as axis:spacing, s for the smooth's and b for the background's
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        for (unsigned int spacing = 0u; spacing < ODD_TEST_SPACINGS; spacing += 1u)
+        {
+            for (unsigned int pair = 0u; pair < ODD_TEST_SMOOTH_SPACED[orders][axis][spacing]; pair += 1u)
+            {
+                scriptura_text(&results->line, " s");
+                scriptura_decimal(&results->line, axis, 1u);
+                scriptura_character(&results->line, ':');
+                scriptura_decimal(&results->line, 1ull << spacing, 1u);
+            }
+            for (unsigned int pair = 0u; pair < ODD_TEST_BACKGROUND_SPACED[orders][axis][spacing]; pair += 1u)
+            {
+                scriptura_text(&results->line, " b");
+                scriptura_decimal(&results->line, axis, 1u);
+                scriptura_character(&results->line, ':');
+                scriptura_decimal(&results->line, 1ull << spacing, 1u);
+            }
+        }
+    }
+    scriptura_text(&results->line, ": ");
     scriptura_decimal(&results->line, counts->lanes, 1u);
     scriptura_text(&results->line, " lanes over the extents, ");
     scriptura_decimal(&results->line, counts->nonzero, 1u);
@@ -378,11 +477,13 @@ static void odd_test_period(SimResults *results, const OddTestDevice *device, Od
         const unsigned int combed[ENGINE_AXES] = {0u, 0u, period};
         const unsigned int bare[ENGINE_AXES] = {0u, 0u, 0u};
         const unsigned int taps = period + background[2];
-        const int key_combed = placed && odd_test_key(extent, smooth, background, combed, device, host);
+        const OddTestOrders with_comb = {smooth, background, combed, ODD_TEST_NONE_SPACED, ODD_TEST_NONE_SPACED};
+        const OddTestOrders without = {smooth, background, bare, ODD_TEST_NONE_SPACED, ODD_TEST_NONE_SPACED};
+        const int key_combed = placed && odd_test_key(extent, &with_comb, device, host);
         const unsigned long long key_left = key_combed ? odd_test_inside_nonzero(host, extent[2], taps) : 1ull;
-        const int sweep_combed = placed && odd_test_sweep(extent, smooth, background, combed, device, host);
+        const int sweep_combed = placed && odd_test_sweep(extent, &with_comb, device, host);
         const unsigned long long sweep_left = sweep_combed ? odd_test_inside_nonzero(host, extent[2], taps) : 1ull;
-        const int key_bare = placed && odd_test_key(extent, smooth, background, bare, device, host);
+        const int key_bare = placed && odd_test_key(extent, &without, device, host);
         const unsigned long long bare_left =
             key_bare ? odd_test_inside_nonzero(host, extent[2], background[2] + 1u) : 0ull;
         sim_check(results, (key_left == 0ull) && (sweep_left == 0ull),
@@ -433,7 +534,8 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     memset(&error, 0, sizeof(error));
     EngineKey math;
     memset(&math, 0, sizeof(math));
-    const KeymathEncodeRequest encode_request = {program, RESIDUAL_STEPS, &math, &error};
+    // the five steps written here: the comb, the smooth, the keep, the background's smooth and the subtraction
+    const KeymathEncodeRequest encode_request = {program, 5u, &math, &error};
     sim_check(results,
               (keymath_encode(&encode_request) == KEYMATH_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_KEYMATH),
