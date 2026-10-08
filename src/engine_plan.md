@@ -481,16 +481,16 @@ reads has changed.
      the guard NVIDIA keeps from the source.
    - The harness walks the alphabet tree one level where a precept has no word.
 
-3. **`.kdm` costs count nodes.** `utils/maint/engine/chain_check.sh` writes 3068 arrangements over 27.6M tried, add
-   1202, take 1047, up 411, down 408, and nothing for same, places or product at three nodes.
+3. **`.kdm` costs count nodes.** `utils/maint/engine/chain_check.sh` writes 2857 arrangements over 27.6M tried, add
+   1140, take 904, up 409, down 404, each once, and nothing for same, places or product at three nodes.
    `utils/maint/engine/klq_identity.sh cost` puts each one whose nodes are words `sass.krs` writes at a link of its
    operator's word in a chain of ours, holds it to the host, and reads the part's clock over it, every question in one
-   round: all 3068 are costed, every one alike with the host, at 4 clocks a node. `word_nand`, `word_nor`, `word_rol`
+   round: all 2857 are costed, every one alike with the host, at 4 clocks a node. `word_nand`, `word_nor`, `word_rol`
    and `word_ror` are written from the forms the part answers each precept for (`interface_sass_writings.md`), and the
-   stall walk reads each rotate's soonest in the arrangements that hold it. The safe word stalls each link the soonest its writer's result is
-   read whether the next link reads it or not, and every operation the arrangements use is read soonest at 4: a cost
-   counts nodes. Arrangements of one count of nodes are told apart only by a word that stalls where a link reads
-   the one before it.
+   stall walk reads each rotate's soonest in the arrangements that hold it. The safe word stalls each link the
+   soonest its writer's result is read whether the next link reads it or not, and every operation the arrangements
+   use is read soonest at 4: a cost counts nodes. Arrangements of one count of nodes are told apart only by a word
+   that stalls where a link reads the one before it.
 
 4. **`.krs` has no derived half.** Five are written. None can be completed by asking. A partly written one is the
    normal case and not a failure.

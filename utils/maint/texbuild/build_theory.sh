@@ -48,6 +48,14 @@ else
 fi
 STATUS=0
 
+# A research paper's chapters are written from the markdown beside them (theory_tex.py) before any paper is set,
+# THEORY_GENERATE or not: the markdown is the source, and a chapter that is not written from it is one the
+# markdown no longer says
+if ! python "$ROOT/utils/maint/texbuild/theory_tex.py"; then
+    echo "  theory_tex.py failed, and no chapter is written from its markdown"
+    exit 1
+fi
+
 for research_paper in $RESEARCH_PAPERS; do
     src="$ROOT/theory/$research_paper"
     out="$ROOT/build/theory/$research_paper"
