@@ -183,6 +183,44 @@ cfg's: water at 20 C by IAPWS R6-95 and R12-08, air at 20 C and 0.1 MPa from sta
 its order of magnitude, and neutron star matter at nuclear density with its viscosity and sound speed of order
 estimates. The data are the cfg's, F_0 = 1, and not the matched datum of 5: every wall's time scales as F_low^2.
 
+## 8. The datum's tangent
+
+The datum's right side G(Pi_0) = -int_0^(X_b) F_blend^2 dX - int_(X_b)^inf F_ext^2 dX holds the exterior, and the
+exterior is not analytic at eta = -1 and +1: F_ext is the second solution U of Kummer's equation at X / (2d), and
+its expansion as d falls to 0 diverges. G therefore leaves every space of functions analytic on an ellipse about [-1, 1], and the datum is held on
+a cut |eta| <= a < 1, where the exterior is analytic. The rule is local in eta, its integrals all in X, and the cut
+problem is closed.
+
+Check (`core_radius` with `cfg/core_radius_cut.cfg`): the rule in xi = eta / a, with eta = a xi, d/deta = (1 / a)
+d/dxi, L = (1 - h a^2) - h a^2 T_2, d = (1 - a^2 / 2) - (a^2 / 2) T_2 and d f_eta = (1 / a) [(1 - xi^2) f_xi +
+(1 - a^2) xi^2 f_xi], gives at a = 1 the record of 5 to the last bit. At a = 9/10 the proof carried to 100 on the
+device gives X < 1.73 on E_(1.1), X < 1.88 on E_(5/4) and X < 1.77 on E_(3/2), below X_b = 2: the cut loses the
+feet's exact form, and the radius with it.
+
+The datum enters the core through Z_{-2A} Pi alone, and each order takes one eta-derivative and pays
+1 / (2 (k+1)^2) for it. Along a datum direction e^(mu eta) every order of the tangent is exactly e^(mu eta) times a
+polynomial in mu, and only a path that takes the derivative of e^(mu eta) at every order reaches mu^k at order k.
+
+Check (`core_tangent`): to order 20, du_k has degree k in mu and df_k degree k from k = 2, and their top weights are
+the products du_1 = L d / 2, du_(k+1) = sigma L du_k / (2 (k+1)^2), dw_k = -L d du_k / (k + 1) and
+df_(k+1) = (sigma L df_k + F_0 dw_k) / (2 (k+1)(k+2)), sigma = D eta + U_0 d, every weight exact. At eta = 1/2 on the
+cut 9/10, sigma = 173/400 and the top coefficient of dF_k is below 0 at every order: the coefficient of mu^k grows
+by a factor near sigma mu / (2 k^2) an order.
+
+The sum of every path that takes one derivative a step is a system in X at a fixed eta. With Y = X / L^2, V' = dU and
+the inflow W = -mu L d V / Y,
+    2 (Y V'')' - mu s(Y) V' + mu L d U'(Y) V = mu L d,   2 (Y dF)'' = mu s(Y) dF + W (Y F)',
+s(Y) = L (D eta + d U(Y, eta)), and a path that skips a derivative is smaller by mu^(-1/2). The growth of the tangent
+is e^(sqrt(mu) Phi(Y)) with Phi(Y) = int_0^Y sqrt(s(y) / (2 y)) dy, which at Y near 0 is the Bessel series the top
+weights sum to. s holds the core's axial field along X, and the core holds the datum from U_1 on: the exponent of
+the growth is the datum's own. The derivative of G on a direction of eta-frequency mu then grows as e^(c sqrt(mu)),
+with c set by the datum, and the lemma of the workbook, Kantorovich's, asks a bound on that derivative over a ball
+that no fixed space of functions in eta gives.
+
+What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
+bounds; the amplitude's eta-derivatives, by Cauchy's estimates on disks of radius near mu^(-1/2); and the
+integral of G against the blend near X_b.
+
 ## Order
 
-0, then 1, then 2, then 3, then 4, then 5 and 6, then 7.
+0, then 1, then 2, then 3, then 4, then 5 and 6, then 7, then 8.
