@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /**
  * @file isotope_table.c
- * @brief Writes engine/representation/mass/isotope_table.h from NIST's table of every isotope.
+ * @brief Writes isotope_table.h beside it from NIST's table of every isotope.
  *
  * Usage: isotope_table NIST_TEXT OUTPUT_HEADER
  *

@@ -515,7 +515,7 @@ static int ingest_laid(SimResults *results, const char *program, const IngestLoa
 
 static int ingest_sample_name(char *out, unsigned int group, unsigned int column, const char *part)
 {
-    const int written = snprintf(out, INGEST_SAMPLE_BYTES, "row_group_%u/%s.%s", group, ingest_part_path(column), part);
+    const int written = snprintf(out, INGEST_SAMPLE_BYTES, "row_group_%u.%s.%s", group, ingest_part_path(column), part);
     return (written > 0) && (written < (int)INGEST_SAMPLE_BYTES);
 }
 

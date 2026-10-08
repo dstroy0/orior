@@ -4,7 +4,7 @@
  * @brief Exact masses: an element's isotopes, a formula's monoisotopic mass and an adduct's ion.
  *
  * A mass is an integer count of femtodaltons, 10^-15 Da. Every isotope NIST lists is held at that
- * unit exactly, from the decimal NIST wrote (isotope_table.h, written at build by isotope_table.c),
+ * unit exactly, from the decimal NIST wrote (isotope_table.h, written by isotope_table.c from NIST's text),
  * and the electron is CODATA's, exact at the same unit or one place finer. No element is left out and
  * no set of elements is assumed. A measured m/z is never set against these here: that is the device's,
  * in the window and match programs, from the stored double's own bits.

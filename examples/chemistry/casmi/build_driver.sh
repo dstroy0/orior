@@ -104,7 +104,7 @@ done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     PORTABLE+=("$EXACT_ROOT/$name.c")
 done
-PORTABLE+=("$ROOT/src/parquet/parquet.c")
+PORTABLE+=("$ROOT/src/parquet/parquet.c" "$ROOT/src/mass/mass.c")
 for source in "${PORTABLE[@]}"; do
     object="$OUT/$(basename "$source" .c)_casmi_driver.$EXTENSION"
     rm -f "$object"
@@ -151,6 +151,7 @@ done
 rm -f "$BINARY"
 nvcc "${COMPILE_FLAGS[@]}" "${LINK_FLAGS[@]}" \
     -o "$BINARY" "$ROOT/src/casmi_driver/casmi_driver.cu" "$ROOT/src/ingest/ingest.cu" "$ROOT/src/forms/forms.cu" \
+    "$ROOT"/src/rank/rank*.cu \
     "${ENGINE_OBJECTS[@]}" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build casmi_driver"; exit 1; }
 echo "  built $BINARY"
