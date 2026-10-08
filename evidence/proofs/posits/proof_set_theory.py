@@ -4,7 +4,7 @@
 # Catalog: PRF-x-008
 #
 # The set theory the precision work rests on, proven by construction: the generation operator is a
-# Moore closure, and the set of exactly-nameable quantities is countable and of measure zero inside the
+# Moore closure, and the set of exactly nameable quantities is countable and of measure zero inside the
 # uncountable reals. The measurement floor is that boundary, where a physical value falls off the
 # countable set into the continuum.
 #
@@ -224,7 +224,7 @@ def prove_measure_zero(out):
         % (terms, total, epsilon, within)
     )
     out.write(
-        "    the unit interval has measure %s, not coverable to epsilon: %s (the null)\n\n"
+        "    the unit interval has measure %s and cannot be covered to within epsilon: %s (the null)\n\n"
         % (interval_measure, interval_not_coverable)
     )
     return within and interval_not_coverable

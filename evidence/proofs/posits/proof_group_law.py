@@ -28,7 +28,7 @@
 #   Z-module         [m]([n]P) = [mn]P and [m]P + [n]P = [m+n]P, and [-1]P = -P.
 #   Nagell-Lutz      a torsion point has integer coordinates. Verified on the two torsion groups, and its
 #                    converse is refused: (-4, 6) is integral yet has infinite order, its double already
-#                    non-integral, which makes integrality necessary and not sufficient.
+#                    non-integral; integrality is therefore necessary and not sufficient.
 #
 # Positive control: every axiom holds exactly on a curve with both torsion and an infinite point. Two
 # routes: associativity by the two groupings, and [6]P computed three ways, [2]([3]P), [3]([2]P) and

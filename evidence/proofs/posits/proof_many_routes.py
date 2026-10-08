@@ -242,7 +242,7 @@ def main():
     results = [report_pi(out), report_sqrt_two(out), report_ntt(out), report_crt(out)]
     if all(results):
         out.write("  every result agrees across all its routes, and every null breaks: the routes are\n")
-        out.write("  independent and the agreement is a fact, not one computation trusting itself.\n")
+        out.write("  independent, and their agreement rests on no one computation trusting itself.\n")
     else:
         out.write("  a result disagreed across routes, or a null held: refuted as stated.\n")
     out.flush()
