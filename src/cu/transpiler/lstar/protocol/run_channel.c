@@ -254,7 +254,8 @@ unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
             remove(answers_path);
             asked[at]->refused[0] = '\0';
             written = run_channel_write(asked[at], code_path, cases_path) &&
-                      (fprintf(list, "%s %u %s %s\n", code_path, asked[at]->registers, cases_path, answers_path) > 0);
+                      (fprintf(list, "%s %u %s %s %u\n", code_path, asked[at]->registers, cases_path, answers_path,
+                               asked[at]->launches) > 0);
         }
         if ((list == NULL) || (fclose(list) != 0) || !written)
         {

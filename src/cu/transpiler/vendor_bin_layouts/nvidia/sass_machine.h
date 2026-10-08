@@ -122,6 +122,9 @@ typedef struct
     SassSoonest soonest[SASS_MACHINE_SOONEST];
     unsigned int soonests;
     unsigned int register_last;
+    // where each form's operands sit and the bits it leaves open, held once by sass_encoding_places_hold
+    // (sass_assemble.h) for every encoding read after; NULL where each read finds them again
+    void *places_held;
 } SassMachine;
 
 // `text` read into its parts, whatever it holds: an operand the reader does not know is kept with the kind
