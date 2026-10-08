@@ -182,24 +182,14 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
                            (read->text[word.first + word.length - 1u] == '}') && (colon != word.length);
         if (braced)
         {
-            const unsigned int bank =
-                ruleset_core_find(read, schema->banks, schema->bank_count, ruleset_core_part(word, 1u, colon - 1u));
-            const RulesetCoreSpan digits = ruleset_core_part(word, colon + 1u, word.length - colon - 2u);
-            int counted = (digits.length != 0u) && (digits.length < 6u);
+            unsigned int bank = 0u;
             unsigned int number = 0u;
-            for (unsigned int digit = 0u; digit < digits.length; digit += 1u)
-            {
-                const unsigned char letter = read->text[digits.first + digit];
-                counted = counted && (letter >= '0') && (letter <= '9');
-                number = (number * 10u) + (unsigned int)(letter - '0');
-            }
-            if ((bank == schema->bank_count) || !counted)
+            if (!ruleset_core_scratch_word(read, ruleset_core_part(word, 1u, word.length - 2u), &bank, &number))
             {
                 return ruleset_core_ended(read, RULESET_CORE_SCRATCH_WORD, read->building, word);
             }
             argument.kind = RULESET_CORE_SCRATCH;
             argument.slot = bank;
-            // five digits at most, which fits in 32 bits
             argument.number = number;
         }
         read->arguments[read->argument_count] = argument;

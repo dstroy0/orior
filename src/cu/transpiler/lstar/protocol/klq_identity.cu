@@ -4344,19 +4344,34 @@ static void carriers_read(const char *engine, const std::map<std::string, std::v
     }
 }
 
-// form `form` as `sass` writes it with each parameter a marker, and its parameters' names; empty where it gives no
-// form of the name
+// the scratch a form written into a chain takes, registers past the `held` the chain names, an even one first so
+// that a wide's pair is aligned, the next each time the writing asks
+static std::function<std::string(const std::string &)> scratch_past(unsigned int held, unsigned int *taken)
+{
+    return [held, taken](const std::string &bank) {
+        const unsigned int first = ((held + 1u) & ~1u) + *taken;
+        *taken += (bank == "wide") ? 2u : 1u;
+        return "R" + std::to_string(first);
+    };
+}
+
+// form `form` as `sass` writes it with each parameter a marker, and each scratch register the writing takes a marker
+// of its own past them, and its parameters' names; empty where it gives no form of the name
 static std::string marked(const Ruleset *sass, const std::string &form, std::vector<std::string> *names)
 {
-    const auto none = [](const std::string &) { return std::string(); };
     *names = ruleset_parameters(sass, form);
     std::vector<std::string> markers;
     for (size_t at = 0u; at < names->size(); at += 1u)
     {
         markers.push_back(std::string("\x01") + (char)('A' + at) + "\x01");
     }
+    size_t scratch_marker = names->size();
+    const auto scratch = [&scratch_marker](const std::string &) {
+        scratch_marker += 1u;
+        return std::string("\x01") + (char)('A' + scratch_marker - 1u) + "\x01";
+    };
     std::string written;
-    return (ruleset_opcode(sass, form, markers, none, written) != 0) ? written : std::string();
+    return (ruleset_opcode(sass, form, markers, scratch, written) != 0) ? written : std::string();
 }
 
 // each link a form stands at, in each carrier, with its vector: the carrier's delta before the form, the links
@@ -4559,7 +4574,6 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     }
     const std::vector<std::set<unsigned long long>> cased = concept_values(operands);
     unsigned long long asks = 0ull;
-    const auto none = [](const std::string &) { return std::string(); };
     // every choice a put makes at a link, written to the log as `choice <flags> <link>`, the flags of the trace's
     // table that hold there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
     // it, or why the put ended at it. The flags an open pair's links hold are the questions a further pass takes up
@@ -4698,9 +4712,12 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     return 0;
                 }
             }
-            // a stand-in the ruleset cannot write is a malformed question: the put exits, settled
+            // a stand-in the ruleset cannot write is a malformed question: the put exits, settled. Its scratch is
+            // registers past the chain's own
             std::string standing;
-            if (ruleset_opcode(sass, to, arguments, none, standing) == 0)
+            unsigned int scratch_taken = 0u;
+            if (ruleset_opcode(sass, to, arguments, scratch_past(magnitudes[chain.first].first, &scratch_taken),
+                               standing) == 0)
             {
                 chose("unwritable", link_address);
                 return 0;
@@ -5228,8 +5245,14 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 arguments_of(second_names, second_unified, second_bound, first_names, given, &second_arguments);
                 std::string first_standing;
                 std::string second_standing;
-                if ((ruleset_opcode(sass, first, first_arguments, none, first_standing) == 0) ||
-                    (ruleset_opcode(sass, second, second_arguments, none, second_standing) == 0))
+                unsigned int first_scratch = 0u;
+                unsigned int second_scratch = 0u;
+                if ((ruleset_opcode(sass, first, first_arguments,
+                                    scratch_past(magnitudes[chain.first].first, &first_scratch),
+                                    first_standing) == 0) ||
+                    (ruleset_opcode(sass, second, second_arguments,
+                                    scratch_past(magnitudes[chain.first].first, &second_scratch),
+                                    second_standing) == 0))
                 {
                     lower("unwritable");
                     continue;

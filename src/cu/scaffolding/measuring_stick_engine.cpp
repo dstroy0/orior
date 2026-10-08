@@ -656,6 +656,13 @@ static std::string stick_constant(const std::string &text)
     return written;
 }
 
+// a register a form's scratch is written with where its text is only looked at or assembled, and never run: one no
+// stand-in names
+static std::string stick_scratch_stand_in(const std::string &bank)
+{
+    return (bank == "wide") ? std::string("R200") : ((bank == "predicate") ? std::string("P5") : std::string("R202"));
+}
+
 // The width of the registers sass.krs's text for `form` takes each parameter in, by the parameter's place: a pair
 // where the text writes the parameter's high word or reads it as a 64-bit address, STICK_COUNT_BITS for a shift's
 // count, else one register
@@ -670,8 +677,7 @@ static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsig
     }
     std::vector<unsigned int> bits(count, STICK_REGISTER_BITS);
     std::string text;
-    const auto none = [](const std::string &) { return std::string(); };
-    if (ruleset_opcode(sass, s_form_names[form], markers, none, text) == 0)
+    if (ruleset_opcode(sass, s_form_names[form], markers, stick_scratch_stand_in, text) == 0)
     {
         return bits;
     }
@@ -868,8 +874,7 @@ static std::string stick_operation(const Ruleset *sass, unsigned int form)
 {
     std::vector<std::string> arguments(sass->schema->forms[form].parameters, std::string("R2"));
     std::string text;
-    const auto none = [](const std::string &) { return std::string(); };
-    if (ruleset_opcode(sass, s_form_names[form], arguments, none, text) == 0)
+    if (ruleset_opcode(sass, s_form_names[form], arguments, stick_scratch_stand_in, text) == 0)
     {
         return std::string();
     }
@@ -905,6 +910,9 @@ class StickKernel
     StickAsked asked;
     // the count of registers the kernel names, its high water mark once assign() has given them
     unsigned int registers_held = 0u;
+    // each register the kernel holds, one a line: the register, what holds it, a name of the kernel's or a fixed
+    // register by its name, and the lines of the text that claim it and release it, written by assign()
+    std::string held_lines;
 
     // `expression` read and written into a register, its value; empty where it is not read, `question` then saying why
     StickValue value(const std::string &expression)
@@ -1163,6 +1171,9 @@ class StickKernel
         // the lowest both of which are free. The high water mark, from the first past the ones kernel_open writes,
         // rises only where no register under it is free
         std::map<std::string, unsigned int> given;
+        std::map<std::string, size_t> first_line;
+        // each name's last line as the text names it, before the walk marks a name let go by moving it past every line
+        const std::map<std::string, size_t> named_last = last_line;
         std::set<unsigned int> free;
         unsigned int high_water = 2u;
         for (size_t line = 0u; line < line_names.size(); line += 1u)
@@ -1198,6 +1209,7 @@ class StickKernel
                     high_water = number + ((even != 0) ? 2u : 1u);
                 }
                 given[root] = number;
+                first_line[root] = line;
             }
             for (const std::string &root : line_names[line])
             {
@@ -1268,17 +1280,91 @@ class StickKernel
         const std::regex itself("^\\s*MOV\\s+(\\S+)\\s*,\\s*(\\S+)\\s*;\\s*$");
         std::smatch move;
         text.clear();
+        // each line of the text before a move of a register into itself is left out, by its number in the text after,
+        // counted from 1, and 0 where it is left out
+        std::vector<size_t> kept_as;
         size_t line_at = 0u;
         while (line_at < written.size())
         {
             const size_t line_end = written.find('\n', line_at);
             const std::string line =
                 written.substr(line_at, (line_end == std::string::npos) ? std::string::npos : (line_end - line_at));
-            if (!std::regex_match(line, move, itself) || (move[1] != move[2]))
+            const int kept = !std::regex_match(line, move, itself) || (move[1] != move[2]);
+            if (kept)
             {
                 text += line + "\n";
             }
+            kept_as.push_back(kept ? (size_t)std::count(text.begin(), text.end(), '\n') : 0u);
             line_at = (line_end == std::string::npos) ? written.size() : (line_end + 1u);
+        }
+        held_written(given, first_line, named_last, kept_as);
+    }
+
+    // The register each name of the kernel was given, claimed at the line that first names it and released after the
+    // line that last names it, those lines numbered as the text holds them once a move of a register into itself is
+    // left out: a claim at a line left out is at the next line kept, and a release at one at the line kept before it.
+    // Then each fixed register the text names, claimed at the first line naming it and released at the last
+    void held_written(const std::map<std::string, unsigned int> &given, const std::map<std::string, size_t> &first_line,
+                      const std::map<std::string, size_t> &last_line, const std::vector<size_t> &kept_as)
+    {
+        const auto claimed_at = [&](size_t line) {
+            while ((line < kept_as.size()) && (kept_as[line] == 0u))
+            {
+                line += 1u;
+            }
+            return (line < kept_as.size()) ? kept_as[line] : 0u;
+        };
+        const auto released_at = [&](size_t line) {
+            size_t at = (line < kept_as.size()) ? (line + 1u) : kept_as.size();
+            while ((at != 0u) && (kept_as[at - 1u] == 0u))
+            {
+                at -= 1u;
+            }
+            return (at != 0u) ? kept_as[at - 1u] : 0u;
+        };
+        std::vector<std::pair<size_t, std::string>> order;
+        for (const auto &first : first_line)
+        {
+            order.push_back(std::make_pair(first.second, first.first));
+        }
+        std::sort(order.begin(), order.end());
+        held_lines.clear();
+        for (const auto &each : order)
+        {
+            const std::string &name = each.second;
+            const auto last = last_line.find(name);
+            const std::string bank = (name[1] == 'w') ? "wide" : "temporary";
+            held_lines += ruleset_register(sass, bank, given.at(name)) + " " + name + " claimed " +
+                          std::to_string(claimed_at(each.first)) + " released " +
+                          std::to_string(released_at((last != last_line.end()) ? last->second : each.first)) + "\n";
+        }
+        for (unsigned int fixed = 0u; fixed < sass->schema->fixed_count; fixed += 1u)
+        {
+            const std::string held = sass->fixed[fixed];
+            if (held.empty() || (held == "RZ") || (held == "PT"))
+            {
+                continue;
+            }
+            const std::regex named_fixed("(^|[^A-Za-z0-9_])" + held + "([^0-9]|$)");
+            size_t first = 0u;
+            size_t last = 0u;
+            size_t number = 0u;
+            for (size_t at = 0u; at < text.size(); at += 1u)
+            {
+                const size_t end = std::min(text.find('\n', at), text.size());
+                number += 1u;
+                if (std::regex_search(text.substr(at, end - at), named_fixed))
+                {
+                    first = (first == 0u) ? number : first;
+                    last = number;
+                }
+                at = end;
+            }
+            if (first != 0u)
+            {
+                held_lines += held + " " + sass->schema->fixed[fixed].text + " claimed " + std::to_string(first) +
+                              " released " + std::to_string(last) + "\n";
+            }
         }
     }
 
@@ -1388,8 +1474,11 @@ class StickKernel
             listed += " " + argument;
         }
         stick_trace("write %s%s", name.c_str(), listed.c_str());
-        const auto none = [](const std::string &) { return std::string(); };
-        if (ruleset_opcode(sass, name, arguments, none, text) == 0)
+        // a scratch register the form takes is a fresh one of the kernel's, held over the form's lines alone
+        const auto taken = [this](const std::string &bank) {
+            return fresh((bank == "wide") ? 64u : ((bank == "predicate") ? STICK_PREDICATE_BITS : 32u)).name;
+        };
+        if (ruleset_opcode(sass, name, arguments, taken, text) == 0)
         {
             ask("sass.krs writes no " + name);
             return 0;
@@ -1833,8 +1922,7 @@ class StickKernel
         std::vector<std::string> given = {"\x01"};
         given.insert(given.end(), arguments.begin(), arguments.end());
         std::string lines;
-        const auto none = [](const std::string &) { return std::string(); };
-        if (ruleset_opcode(sass, s_form_names[form], given, none, lines) == 0)
+        if (ruleset_opcode(sass, s_form_names[form], given, stick_scratch_stand_in, lines) == 0)
         {
             return std::string();
         }
@@ -1860,9 +1948,8 @@ class StickKernel
     int copied(unsigned int form) const
     {
         std::string lines;
-        const auto none = [](const std::string &) { return std::string(); };
         if ((sass->schema->forms[form].parameters != 2u) ||
-            (ruleset_opcode(sass, s_form_names[form], {"\x01", "\x02"}, none, lines) == 0))
+            (ruleset_opcode(sass, s_form_names[form], {"\x01", "\x02"}, stick_scratch_stand_in, lines) == 0))
         {
             return 0;
         }
@@ -1915,8 +2002,7 @@ class StickKernel
         const std::vector<std::string> operands = stand_ins(children, 8u);
         arguments.insert(arguments.end(), operands.begin(), operands.end());
         std::string lines;
-        const auto none = [](const std::string &) { return std::string(); };
-        if (ruleset_opcode(sass, s_form_names[form], arguments, none, lines) == 0)
+        if (ruleset_opcode(sass, s_form_names[form], arguments, stick_scratch_stand_in, lines) == 0)
         {
             return 0;
         }
@@ -2912,7 +2998,10 @@ int main(int argc, char **argv)
         }
         std::ofstream(out + "/" + source.number + ".bin", std::ios::binary)
             .write((const char *)code.data(), (std::streamsize)code.size());
-        std::ofstream(out + "/" + source.number + ".registers", std::ios::binary) << kernel.registers_held << "\n";
+        // the count of registers the kernel names, then each register it holds and the lines that claim and release
+        // it
+        std::ofstream(out + "/" + source.number + ".registers", std::ios::binary) << kernel.registers_held << "\n"
+                                                                                  << kernel.held_lines;
         fprintf(table, "%s\tanswered\t%u\t%u\t\n", source.number.c_str(), kernel.forms, count);
         answered += 1u;
     }

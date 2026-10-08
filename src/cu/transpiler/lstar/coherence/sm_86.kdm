@@ -2892,10 +2892,11 @@ product	0	-	-	0
 #    c[0x0][0x160]. A lane written as a function leaves R1, R20 and R21 alone.
 #  - The banks are all the one file, so a writer must give numbers that do not collide across them. The code generator
 #    numbers each bank from 0 and needs an allocation before it writes SASS; the cell's probe gives its own numbers.
-#  - The lane's fixed registers, reserved at the top of the file, and P6 and R237, this file's own scratch: P6 carries
-#    a chain's carry and the low half of a wide comparison, and R237 holds the 1 global_add_atomic_word adds, since
-#    the part's reduction reads what it adds from a register, a wide product's cross products, and a select's chosen
-#    word. R236 holds sign_base. R238 and R239 hold the launch the lane was called with, which launch_open puts there.
+#  - The lane's fixed registers, reserved at the top of the file, and P6, this file's own: P6 carries a chain's carry
+#    and the low half of a wide comparison. A form that needs a register for one writing names {temporary:0}, and the
+#    writer takes one for it: the 1 global_add_atomic_word adds, since the part's reduction reads what it adds from a
+#    register, a wide product's cross products, and a select's chosen word. R236 holds sign_base. The launch the lane
+#    was called with is the fixed register launch, which launch_open puts there.
 #    A lane of more than 236 registers, or of more than the three predicates P0 to P2, is past what this file
 #    reserves.
 #  - The last register a kernel's code names is the part's answer on the run channel, sm_86.ksc's
@@ -2952,8 +2953,8 @@ form wide_from_word_if where to from = \tSEL \t{to}, {from}, {to}, {where};\n\tS
 # the resident's counter, one added to a word of memory by every lane that reaches it. The part's reduction takes what
 # it adds from a register and never an immediate - RED.E.ADD.STRONG.GPU [R2.64], R7 is the whole of what the listing
 # gives, and turning its bits one at a time reaches MIN, MAX, DEC, the other widths and the other scopes, and no
-# coding that reads a number out of the instruction - so the 1 is moved into R237 first
-form global_add_atomic_word address = \tMOV \tR237, 1;\n\tRED.E.ADD.STRONG.GPU \t[{address}.64], R237;\n
+# coding that reads a number out of the instruction - so the 1 is moved into a register of the writing's own first
+form global_add_atomic_word address = \tMOV \t{temporary:0}, 1;\n\tRED.E.ADD.STRONG.GPU \t[{address}.64], {temporary:0};\n
 
 # a 64-bit word moved to and from its two registers (wide_from_word, word_from_wide, wide_pack, wide_unpack)
 form wide_from_word to from = \tMOV \t{to}, {from};\n\tMOV \t{to}.hi, RZ;\n

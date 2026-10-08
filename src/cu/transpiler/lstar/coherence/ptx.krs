@@ -12,8 +12,9 @@ krs 1
 #   construct <name> <parameter>...    a form built from more basic ones, its lines to `end`, each a form or a
 #                                      construct and its arguments
 # A form's text is the rest of its line after "= ", byte for byte, where \t is a tab, \n a line's end and \\ a
-# backslash, and {p} is parameter p's argument; a brace that does not close a parameter's name is itself. A line that
-# begins with # is a comment, and a blank line is nothing.
+# backslash, {p} is parameter p's argument, {r} is fixed register r as its fixed line writes it, and {b:n} is register
+# n of bank b taken for the one writing, the writer's scratch; a brace that closes none of these is itself. A line
+# that begins with # is a comment, and a blank line is nothing.
 ruleset ptx
 toolchain nvjitlink
 header probe_nvrtc

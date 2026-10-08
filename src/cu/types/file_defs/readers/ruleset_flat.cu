@@ -468,8 +468,16 @@ void ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat)
             }
         }
     }
+    // each form's slots end to end, the scratch its text names among them
+    for (const InstrTemplate &form : rules->forms)
+    {
+        flat->form_slot_first.push_back((unsigned int)flat->form_slots.size());
+        flat->form_slots.insert(flat->form_slots.end(), form.slots.begin(), form.slots.end());
+    }
+    flat->form_slot_first.push_back((unsigned int)flat->form_slots.size());
     // a vector's data is NULL where it is empty
     flat->constructs.push_back(RulesetCoreConstruct{0u, 0u});
     flat->lines.push_back(RulesetCoreLine{0u, 0u, 0u});
     flat->arguments.push_back(RulesetCoreArgument{0u, 0u, 0u, RulesetCoreSpan{0u, 0u}});
+    flat->form_slots.push_back(0u);
 }
