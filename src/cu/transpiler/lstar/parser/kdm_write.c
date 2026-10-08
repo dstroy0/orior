@@ -38,6 +38,9 @@ typedef struct
 
 static KdmRow s_held[KDM_ROWS];
 
+// the texts of the rows one operator has written, each once
+static char s_written[CHAIN_MOST][KDM_TEXT_LONGEST];
+
 // Whether `text` is an exact rational written in decimal: digits, an optional leading minus, and at most one /
 // with digits after it
 static int kdm_exact_text(const char *text)
@@ -230,9 +233,22 @@ int main(int count, char **word)
         chain_shuffle(&set, seed + anchor);
         printf("  %-8s %2u cases  %5u chains  %8u tried", s_anchor_text[anchor], found, chains, set.tried);
         printf("%s\n", (set.over != 0u) ? "  and more than the set holds" : "");
+        // an arrangement is named by its text, and two chains of the set that write one text are one row: the first
+        unsigned int distinct = 0u;
         for (unsigned int at = 0u; at < chains; at += 1u)
         {
             chain_text(&set.chain[at], text, sizeof(text));
+            unsigned int seen = 0u;
+            while ((seen < distinct) && (strcmp(s_written[seen], text) != 0))
+            {
+                seen += 1u;
+            }
+            if (seen < distinct)
+            {
+                continue;
+            }
+            memcpy(s_written[distinct], text, sizeof(text));
+            distinct += 1u;
             const KdmRow *const held = kdm_cost(text);
             if (held == NULL)
             {
