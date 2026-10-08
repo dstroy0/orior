@@ -199,7 +199,7 @@ static void rank_rational(const RankColumn *column, unsigned long long row, unsi
     const unsigned int term = column->term[row];
     if (column->form[value] == RANK_FORM_KEPT)
     {
-        const unsigned long long stored = column->kept[value];
+        const unsigned long long stored = column->unit[value];
         const unsigned long long biased = (stored >> RANK_MANTISSA_BITS) & RANK_EXPONENT_MASK;
         const unsigned long long fraction = stored & ((1ull << RANK_MANTISSA_BITS) - 1ull);
         *numerator = fraction | ((biased != 0ull) ? (1ull << RANK_MANTISSA_BITS) : 0ull);
@@ -1182,34 +1182,40 @@ int rank_run(SimResults *results, int count, char **arguments)
     // ---- peaks ----
     std::vector<unsigned int> intensity_flat;
     unsigned int intensity_limbs = 1u;
-    // each spectrum's intensities on its row's one scale, every peak's in one array at the widest width: the rows are
-    // read once for the width and once to write them
-    unsigned int intensity_bits = 1u;
+    // Each spectrum's intensities on its row's one scale. A row of one form takes its integers as they are, each below
+    // 2^60; a row of no one form has its integers on the row's least common denominator, written into a side array at
+    // the widest of them, its rows read once for the width and once to write them
+    unsigned int intensity_bits = 61u;
+    std::vector<unsigned long long> side_first((size_t)spectra + 1u, ~0ull);
+    unsigned long long side_values = 0ull;
     for (unsigned int pass = 0u; ok && (pass < 2u); pass += 1u)
     {
         if (pass == 1u)
         {
             intensity_limbs = (intensity_bits + 31u) / 32u;
-            intensity_flat.assign((size_t)(set.intensity.unit.size() * intensity_limbs), 0u);
+            intensity_flat.assign((size_t)(side_values * intensity_limbs), 0u);
+            side_values = 0ull;
         }
         for (unsigned long long spectrum = 0ull; ok && (spectrum < spectra); spectrum += 1ull)
         {
-            if (!reference[spectrum] && (set.text[RANK_LIBRARY][spectrum] != held_out))
+            const int each_form = (set.intensity.term[spectrum] % RANK_TERM_FORMS) == RANK_ROW_EACH;
+            if ((!reference[spectrum] && (set.text[RANK_LIBRARY][spectrum] != held_out)) || !each_form)
             {
                 continue;
             }
             std::vector<AnchorExactInteger> row;
             ok = rank_intensity_row(&set, spectrum, &row);
-            const unsigned long long first = set.intensity.row_start[spectrum];
+            side_first[spectrum] = side_values;
             for (size_t peak = 0u; ok && (peak < row.size()); peak += 1u)
             {
                 intensity_bits = (pass == 0u) ? std::max(intensity_bits, rank_bits(&row[peak]) + 1u) : intensity_bits;
                 if (pass == 1u)
                 {
-                    memcpy(&intensity_flat[(first + peak) * intensity_limbs], row[peak].limb,
+                    memcpy(&intensity_flat[(side_values + peak) * intensity_limbs], row[peak].limb,
                            intensity_limbs * sizeof(unsigned int));
                 }
             }
+            side_values += row.size();
         }
     }
     if (!ok)
@@ -1240,8 +1246,16 @@ int rank_run(SimResults *results, int count, char **arguments)
             rank_rational(&set.mz, spectrum, value, RANK_UNIT_PLACES_MZ, &numerator, &code);
             rank_put_unsigned(atom, 0u, peak_layout.numerator_bits, numerator);
             rank_put_unsigned(atom, peak_layout.code_offset, RANK_CODE_BITS, code);
-            rank_bits_copy(atom, peak_layout.intensity_offset, &intensity_flat[value * intensity_limbs],
-                           std::min(peak_layout.intensity_bits, 32u * intensity_limbs));
+            if (side_first[spectrum] != ~0ull)
+            {
+                rank_bits_copy(atom, peak_layout.intensity_offset,
+                               &intensity_flat[(side_first[spectrum] + (value - first)) * intensity_limbs],
+                               std::min(peak_layout.intensity_bits, 32u * intensity_limbs));
+            }
+            else
+            {
+                rank_put_unsigned(atom, peak_layout.intensity_offset, peak_layout.intensity_bits, set.intensity.unit[value]);
+            }
         }
     };
     RankMachine match;

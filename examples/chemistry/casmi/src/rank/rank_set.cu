@@ -93,7 +93,8 @@ static int rank_part_load(SimResults *results, const char *set, unsigned int gro
 }
 
 // A double column's row group appended: its planes joined into each value's integer, its form, the 64 stored bits of
-// each kept value, each row's term, ROW_EACH where the column holds none, and each row's start from `starts`
+// each kept value in its integer's place, each row's term, ROW_EACH where the column holds none, and each row's start
+// from `counts`
 static int rank_column_load(SimResults *results, const char *set, unsigned int group, const RankGroupSamples *samples,
                             const char *path, unsigned int first_form, const std::vector<unsigned long long> &counts,
                             RankColumn *column)
@@ -106,7 +107,6 @@ static int rank_column_load(SimResults *results, const char *set, unsigned int g
     const unsigned long long base = column->unit.size();
     column->unit.resize(base + values, 0ull);
     column->form.resize(base + values, (unsigned char)first_form);
-    column->kept.resize(base + values, 0ull);
     if (column->row_start.empty())
     {
         column->row_start.push_back(0ull);
@@ -166,7 +166,7 @@ static int rank_column_load(SimResults *results, const char *set, unsigned int g
             {
                 stored = (stored << RANK_PLANE_BITS) | lanes[((plane - 1u) * kept) + at];
             }
-            column->kept[base + value] = stored;
+            column->unit[base + value] = stored;
             at += 1ull;
         }
         ok = ok && (at == kept);

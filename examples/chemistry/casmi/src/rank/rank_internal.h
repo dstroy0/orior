@@ -37,13 +37,12 @@
 // an absent entry of a list of record numbers
 #define RANK_ABSENT 0xFFFFFFFFu
 
-// One double column as the ranker holds it: each value's integer on its row's unit and its form, each kept value's
-// stored bits, each row's term, and row r's values from row_start[r] up to row_start[r + 1]
+// One double column as the ranker holds it: each value's integer on its row's unit, a kept value's stored bits in its
+// place, and its form, each row's term, and row r's values from row_start[r] up to row_start[r + 1]
 typedef struct
 {
     std::vector<unsigned long long> unit;
     std::vector<unsigned char> form;
-    std::vector<unsigned long long> kept;
     std::vector<unsigned short> term;
     std::vector<unsigned long long> row_start;
 } RankColumn;
