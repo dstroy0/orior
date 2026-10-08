@@ -282,7 +282,8 @@ void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read)
     // every letter written is one of the file's or stands for an escape of two; every piece begins a text or follows a
     // slot, each at least three letters of the file, and every text is at least a line's; every word is at least a
     // letter and a space, and a head's parameters are its words
-    read->letter_capacity = text_length + 1u;
+    // a form's fixed registers are folded into its text past the letters read, at most once each
+    read->letter_capacity = (2u * text_length) + 2u;
     read->piece_capacity = (2u * text_length) + 2u;
     read->word_capacity = text_length + 2u;
 }

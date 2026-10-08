@@ -599,7 +599,16 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
         const RulesetCoreSpan named = (text[entry->text.first + letter] == '{')
                                           ? ruleset_core_relation_braced(relations, entry, letter)
                                           : ruleset_core_relation_after(entry->text, entry->text.length);
-        if ((named.length != 0u) && (ruleset_core_relation_place(relations, entry, named) == count))
+        // a place naming a fixed register of the set is that register, and a place the head need not take
+        int fixed_named = 0;
+        for (unsigned int fixed = 0u; (named.length != 0u) && (fixed_named == 0) && (fixed < relations->entry_count);
+             fixed += 1u)
+        {
+            fixed_named = (relations->entries[fixed].kind == RULESET_CORE_ENTRY_FIXED) &&
+                          ruleset_core_relation_same(text, named, relations->entries[fixed].name);
+        }
+        if ((named.length != 0u) && (fixed_named == 0) &&
+            (ruleset_core_relation_place(relations, entry, named) == count))
         {
             ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_PLACE_UNKNOWN, at, letter);
             break;

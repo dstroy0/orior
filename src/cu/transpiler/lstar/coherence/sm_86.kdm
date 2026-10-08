@@ -2936,7 +2936,7 @@ fixed ok = P5
 # move because RZ reads zero already. The launch lives in R238 and R239, under the fixed registers and over sign_base,
 # the scratch and the file (register_file_holds answers 236), and it is written here by its number as ptx.krs writes
 # %launch by its name
-form launch_open = \tMOV \tR238, R4;\n\tMOV \tR239, R5;\n\tMOV \tR240, R6;\n\tMOV \tR241, R7;\n
+form launch_open = \tMOV \tR238, R4;\n\tMOV \tR239, R5;\n\tMOV \t{lane_number}, R6;\n\tMOV \t{lane_number}.hi, R7;\n
 # one 64-bit word of the launch, in one instruction: a ruleset does no arithmetic and cannot write {offset}+4 for the
 # second half, and LDG.E.64.CONSTANT writes the pair (asked of the part, R8 reads 0xb and R9 reads 0x7)
 form launch_load_wide to offset = \tLDG.E.64.CONSTANT \t{to}, [R238.64+{offset}];\n
@@ -2963,7 +2963,7 @@ form wide_unpack low high from = \tMOV \t{low}, {from};\n\tMOV \t{high}, {from}.
 # memory: the members' and the tables' words and the record's words (the frame's own loads and stores). An address is
 # the pair at the register named, and .CONSTANT is PTX's ld.global.nc
 form global_load_constant_word to address offset = \tLDG.E.CONSTANT \t{to}, [{address}.64+{offset}];\n
-form record_store_word offset from = \tSTG.E \t[R242.64+{offset}], {from};\n
+form record_store_word offset from = \tSTG.E \t[{record}.64+{offset}], {from};\n
 
 # the thread's and the block's numbers read from the special registers, and the sizes and every parameter read from
 # the constant bank, the parameters at the target's base, 0x160
