@@ -1,13 +1,19 @@
-# Orior: a unified computational foundation
+# Orior: measuring structure with exact integers
 
 **Purpose:** Find an object's information entropy, and compile the program that measures it to any part.
 **Scope:** the whole repository; [the site](https://dstroy0.github.io/orior/) holds the rest
 
 [Setup](docs/setup.md) · [The app](#the-app) · [Using it](docs/usage.md) · [The algorithm](docs/method.md) · [The engine](docs/engine.md) · [Areas of research](docs/research.md) · [Licensing](docs/licensing.md)
 
-Orior finds the pattern in anything, from a crystal to a language to a file. It compares the thing with a shuffled copy of itself, and the pattern is what the copy lost. Every number is exact, with nothing rounded, guessed or trained.
+Orior is an engine, in C, CUDA and Python, that measures how much structure an object holds. It keeps the object's counts, shuffles their arrangement, and measures what the shuffle destroyed. That is a permutation null, an old statistical test, run here with every number an exact integer: nothing is rounded, guessed or trained.
 
-Some of what follows will read as too much, and a reader who has met claims like these before has every reason to doubt them. Nothing here asks to be believed. Every result names the file that holds it and the run that checks it, every one was measured against a null that could have said no, and every claim the work took back is kept beside the measurement that took it back.
+The first result to check is a positive control. The engine is asked for the cell edge of every right angled crystal the [Crystallography Open Database](https://www.crystallography.net/cod/) will give it, a number someone else measured before this engine existed, and the comparison is equality, with no tolerance to set. A near miss counts as a miss.
+
+```sh
+python examples/crystallography/6_oracle/proof_positive_control.py
+```
+
+Every result below names the file that holds it and the run that checks it, every one was measured against a null that could have said no, and every claim the work took back is kept beside the measurement that took it back. A few words are borrowed from physics as names for parts of the engine; [Words used here](#words-used-here) says what each means.
 
 Most of the parts are old, and they are named as old. The shuffle is a permutation null. Exact integers of any width are what every big number library holds. The new parts are an engine that never leaves exact integers, from the first read to the last bit written, and what came back when it was pointed at a crystal, a language, a digest and a camera.
 
@@ -25,7 +31,7 @@ Most of the parts are old, and they are named as old. The shuffle is a permutati
 
 6. **One program at every width.** Sums, differences, products, exclusive or and AND read only the lowest bits of what they are given, and a program of them gives the same answer at every width. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and keeps the answer. On the device, the part that writes the text writes its own text byte for byte. For the lambda calculus written in bits, two exact bounds put Chaitin's Omega below one eighth, and its first two bits are proved. [Two crystals](theory/workbooks/engine/two_crystals.md) · [The engine, part by part](theory/workbooks/engine/engine_table.md)
 
-7. **Laplace's demon, and its bill.** The demon knows a boundary and computes what is inside. Measured, a boundary can refuse and cannot predict: a point it has excluded is excluded for good and for free, and no proper part of a pattern determines the rest. Reading finer detail off a boundary needs precision that grows exponentially as the detail gets finer. There is no wall of principle in the way, only that bill. The resemblance to physics is an analogy, and nothing here tests it. [Thought experiments](theory/thought_experiments/orior)
+7. **A boundary can refuse and cannot predict.** A point a boundary has excluded is excluded for good and for free, and no proper part of a pattern determines the rest. Reading finer detail off a boundary needs precision that grows exponentially as the detail gets finer. There is no wall of principle in the way, only that cost. The thought experiments put this as Laplace's demon reading a boundary; the resemblance to physics is an analogy, and nothing here tests it. [Thought experiments](theory/thought_experiments/orior)
 
 8. **What an input stops reaching is a clock.** A value that stops depending on an input is a hard fact the machine gets for free. In SHA-256, no input reaches 214 of 256 positions at round seven, the support grows by about nine a round, and it closes near round 30 of 64. Nothing here claims a weakness in SHA-256. [Instruments](theory/theory/instruments) · [Cryptography](theory/theory/cryptography)
 
@@ -39,6 +45,16 @@ Most of the parts are old, and they are named as old. The shuffle is a permutati
 - It is not a model and nothing in it is trained.
 - Several results were found first by others, and where that is known the published work is named.
 - [Thought experiments](theory/thought_experiments) holds the ideas whose experiment cannot be built as written. They are kept apart from the results, and none of them is one.
+
+## Words used here
+
+Some names here come from physics and mathematics. Each is the name of a part of the engine, and means this:
+
+| word | means here |
+| --- | --- |
+| the null, the shuffle | the object with its counts kept and its arrangement shuffled: the background a pattern is measured against |
+| the demon | the null space of a reading, worked out before any object is read: every change to an object that the reading cannot see, known up front from rank and nullity instead of found by experiment. [null_first.py](examples/00_blob_viz_tools/null_first.py) builds it. Laplace's name is borrowed for that position only. |
+| the boundary, holographic | the contents of a volume read from how they are arranged on its two dimensional boundary. The holographic principle in physics is an analogy for it, and nothing here tests that principle. |
 
 ## Quick start
 
