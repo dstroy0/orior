@@ -1,4 +1,4 @@
-# Orior: measuring structure with exact integers
+# Orior: a unified computational foundation
 
 **Purpose:** Find an object's information entropy, and compile the program that measures it to any part.
 **Scope:** the whole repository; [the site](https://dstroy0.github.io/orior/) holds the rest
