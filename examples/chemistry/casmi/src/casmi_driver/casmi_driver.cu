@@ -77,6 +77,15 @@ typedef struct
     CycleRecord *record;
 } DriverLoaded;
 
+// what one column of one row group sealed: the planes that hold anything, whether its form plane is sealed, and its
+// kept values
+typedef struct
+{
+    unsigned int planes;
+    int form;
+    unsigned long long kept;
+} DriverSealed;
+
 // what one row group's sealing came to, summed over the run
 typedef struct
 {
@@ -156,7 +165,7 @@ static int driver_column_read(const char *path, unsigned int group, const char *
 }
 
 static int driver_load(ExactRecordProgram *program, const unsigned int *outputs, unsigned int output_count,
-                       unsigned int members, DriverLoaded *loaded, EngineError *error)
+                       const unsigned int *member_limbs, unsigned int members, DriverLoaded *loaded, EngineError *error)
 {
     memset(error, 0, sizeof(*error));
     memset(loaded, 0, sizeof(*loaded));
@@ -167,10 +176,11 @@ static int driver_load(ExactRecordProgram *program, const unsigned int *outputs,
     {
         return 0;
     }
-    // every member's records are doubles
-    const unsigned int limbs[ENGINE_RECORD_MEMBERS_MAX] = {DRIVER_LIMBS_PER_VALUE,
-                                                           (members > 1u) ? DRIVER_LIMBS_PER_VALUE : 0u,
-                                                           (members > 2u) ? DRIVER_LIMBS_PER_VALUE : 0u};
+    unsigned int limbs[ENGINE_RECORD_MEMBERS_MAX] = {0u, 0u, 0u};
+    for (unsigned int member = 0u; member < members; member += 1u)
+    {
+        limbs[member] = member_limbs[member];
+    }
     const KeyScheduleRecordRequest layout = {&loaded->key, program->field_offset, program->fields, limbs, 1,
                                              &loaded->layout, error};
     if (key_schedule_record_layout(&layout) == KEY_SCHEDULE_ERROR)
@@ -370,8 +380,10 @@ static int driver_seal(SimResults *results, const char *set, const char *sample,
 // One column of one row group read into its forms on the device and sealed: its planes that hold anything, its form
 // plane where any value is not in the column's first form, and its kept values' lanes as four planes
 static int driver_column_forms(SimResults *results, const char *set, unsigned int group, unsigned int column,
-                               const DriverColumn *values, const DriverColumn *bases, DriverTally *tally)
+                               const DriverColumn *values, const DriverColumn *bases, DriverTally *tally,
+                               DriverSealed *sealed)
 {
+    memset(sealed, 0, sizeof(*sealed));
     const unsigned long long count = values->values;
     if (count == 0ull)
     {
@@ -393,7 +405,9 @@ static int driver_column_forms(SimResults *results, const char *set, unsigned in
     const unsigned int members = (column == DRIVER_INTENSITIES) ? 2u : 1u;
     DriverLoaded loaded;
     EngineError error;
-    if (driver_load(&program, outputs, DRIVER_PLANES + 1u, members, &loaded, &error) == 0)
+    const unsigned int doubles[ENGINE_RECORD_MEMBERS_MAX] = {DRIVER_LIMBS_PER_VALUE, DRIVER_LIMBS_PER_VALUE,
+                                                             DRIVER_LIMBS_PER_VALUE};
+    if (driver_load(&program, outputs, DRIVER_PLANES + 1u, doubles, members, &loaded, &error) == 0)
     {
         driver_error_line(results, "the forms program did not load", &error);
         exact_record_close(&program);
@@ -507,12 +521,15 @@ static int driver_column_forms(SimResults *results, const char *set, unsigned in
         snprintf(part, sizeof(part), "unit%u", plane);
         ok = ok && (!holds || (driver_sample_name(sample, group, column, part) &&
                                driver_seal(results, set, sample, device_planes + (plane * count), line, column, tally)));
+        sealed->planes |= (ok && holds) ? (1u << plane) : 0u;
     }
     if (ok && (form_count[first_form] != count))
     {
         ok = driver_sample_name(sample, group, column, "form") &&
              driver_seal(results, set, sample, device_planes + (DRIVER_PLANES * count), line, column, tally);
+        sealed->form = ok;
     }
+    sealed->kept = form_count[DRIVER_FORM_KEPT];
     const unsigned long long kept = form_count[DRIVER_FORM_KEPT];
     if (ok && (kept != 0ull))
     {
@@ -536,7 +553,7 @@ static int driver_column_forms(SimResults *results, const char *set, unsigned in
         unsigned int *device_kept = NULL;
         unsigned short *device_kept_planes = NULL;
         const int copy_loaded =
-            (kept_index != NULL) && driver_load(&copy, copy_outputs, DRIVER_KEPT_PLANES, 1u, &copied, &error);
+            (kept_index != NULL) && driver_load(&copy, copy_outputs, DRIVER_KEPT_PLANES, doubles, 1u, &copied, &error);
         const int copy_laid =
             copy_loaded && driver_laid(results, "the kept values' program", &copied, copy_outputs, DRIVER_KEPT_PLANES);
         sim_check(results, copy_laid, "the kept values' program lays each plane at its own 16 bits");
@@ -590,6 +607,282 @@ static int driver_column_forms(SimResults *results, const char *set, unsigned in
     driver_release(&loaded);
     exact_record_close(&program);
     return ok;
+}
+
+// The check program: each value's stored double, member 0, against what the set's crystals hold for it, member 1, its
+// planes and its form one lane each, and for the intensities its row's base, member 2. The integer u the planes make
+// is held against the double's preimage in the value's form: u / 10^places a decimal, u / B a count, u / 10^places a
+// decimal the double is that over a divisor. A kept value reads 1 here and is held against its lanes apart
+static void driver_check_program(ExactRecordProgram *program, unsigned int column, unsigned long long most_placed,
+                                 unsigned int shift_bits, unsigned int *output)
+{
+    const unsigned int places = DRIVER_UNIT_PLACES[column];
+    FormsFields fields;
+    forms_fields(program, &fields);
+    FormsDouble value;
+    forms_double(program, &fields, 0u, &value);
+    FormsPreimage preimage;
+    forms_preimage(program, &value, most_placed, shift_bits, &preimage);
+    const unsigned int plane_size = exact_record_power_two(program, DRIVER_PLANE_BITS);
+    unsigned int unit = exact_record_constant(program, 0ull);
+    unsigned int weight = exact_record_constant(program, 1ull);
+    for (unsigned int plane = 0u; plane < DRIVER_PLANES; plane += 1u)
+    {
+        const unsigned int field = exact_record_member_field(program, DRIVER_PLANE_BITS, plane * DRIVER_LANE_BITS);
+        unit = exact_record_sum(program, unit,
+                                exact_record_product(program, exact_record_read_unsigned(program, field, 1u), weight));
+        weight = exact_record_product(program, weight, plane_size);
+    }
+    const unsigned int form_field = exact_record_member_field(program, DRIVER_PLANE_BITS, DRIVER_PLANES * DRIVER_LANE_BITS);
+    const unsigned int form = exact_record_read_unsigned(program, form_field, 1u);
+    const unsigned int ten = exact_record_constant(program, forms_ten(places));
+    unsigned int verdict = exact_record_product(
+        program, exact_record_equal(program, form, exact_record_constant(program, DRIVER_FORM_DECIMAL)),
+        forms_contains(program, &preimage, ten, unit));
+    verdict = exact_record_sum(
+        program, verdict, exact_record_equal(program, form, exact_record_constant(program, DRIVER_FORM_KEPT)));
+    if (column == DRIVER_INTENSITIES)
+    {
+        FormsDouble base;
+        forms_double(program, &fields, 2u, &base);
+        unsigned int whole_base = 0u;
+        unsigned int whole = 0u;
+        forms_whole(program, &base, &whole_base, &whole);
+        verdict = exact_record_sum(
+            program, verdict,
+            exact_record_product(
+                program, exact_record_equal(program, form, exact_record_constant(program, DRIVER_FORM_COUNT)),
+                exact_record_product(program, whole, forms_contains(program, &preimage, whole_base, unit))));
+        for (unsigned int divisor = 0u; divisor < DRIVER_DIVISORS; divisor += 1u)
+        {
+            FormsPreimage divided;
+            unsigned int exists = 0u;
+            forms_divided(program, &preimage, DRIVER_DIVISOR[divisor], &divided, &exists);
+            verdict = exact_record_sum(
+                program, verdict,
+                exact_record_product(
+                    program,
+                    exact_record_equal(program, form, exact_record_constant(program, DRIVER_FORM_DIVIDED + divisor)),
+                    exact_record_product(program, exists, forms_contains(program, &divided, ten, unit))));
+        }
+    }
+    *output = driver_lane(program, verdict);
+}
+
+// One column of one row group read back from the set: its crystals loaded, each value's planes and form laid beside
+// each other into a record of its own on the device by strided copies, and the check program run over every value
+// against its stored double, the verdicts summed on the device. The kept values' lanes are rebuilt from their crystal
+// and held against the stored bytes of the values whose form is kept
+static int driver_column_check(SimResults *results, const char *set, unsigned int group, unsigned int column,
+                               const DriverColumn *values, const DriverColumn *bases, const DriverSealed *sealed)
+{
+    const unsigned long long count = values->values;
+    if (count == 0ull)
+    {
+        return 1;
+    }
+    const size_t lane_bytes = sizeof(unsigned short);
+    const unsigned int part_limbs = (((DRIVER_PLANES + 1u) * DRIVER_LANE_BITS) + DRIVER_WORD_BITS - 1u) / DRIVER_WORD_BITS;
+    const size_t part_bytes = (size_t)part_limbs * sizeof(unsigned int);
+    const unsigned int first_form = (column == DRIVER_INTENSITIES) ? DRIVER_FORM_COUNT : DRIVER_FORM_DECIMAL;
+    char sample[DRIVER_SAMPLE_BYTES];
+    // the parts as planes: each loaded crystal's lanes, 0 for a plane not sealed and the first form for a form plane
+    unsigned short *const parts = (unsigned short *)calloc((size_t)(count * (DRIVER_PLANES + 1u)), lane_bytes);
+    int ok = parts != NULL;
+    for (unsigned long long value = 0ull; ok && !sealed->form && (value < count); value += 1ull)
+    {
+        parts[(DRIVER_PLANES * count) + value] = (unsigned short)first_form;
+    }
+    const unsigned long long started = engine_clock_microseconds();
+    for (unsigned int plane = 0u; ok && (plane <= DRIVER_PLANES); plane += 1u)
+    {
+        const int held = (plane < DRIVER_PLANES) ? ((sealed->planes >> plane) & 1u) : sealed->form;
+        if (!held)
+        {
+            continue;
+        }
+        char part[16];
+        if (plane < DRIVER_PLANES)
+        {
+            snprintf(part, sizeof(part), "unit%u", plane);
+        }
+        else
+        {
+            snprintf(part, sizeof(part), "form");
+        }
+        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned short *volume = NULL;
+        EngineSignum root;
+        EngineError error;
+        memset(&error, 0, sizeof(error));
+        ok = driver_sample_name(sample, group, column, part) &&
+             (engine_iapx_load(set, sample, extent, &volume, &root, NULL, &error) == 0L) && (extent[3] == count);
+        if (ok)
+        {
+            memcpy(parts + (plane * count), volume, (size_t)count * lane_bytes);
+        }
+        else
+        {
+            driver_error_line(results, "a crystal did not load", &error);
+        }
+        free(volume);
+    }
+    const unsigned long long loaded_at = engine_clock_microseconds();
+    // the kept values, from their crystal's five planes, against the stored bytes of the values kept
+    unsigned long long kept_apart = 0ull;
+    if (ok && (sealed->kept != 0ull))
+    {
+        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned short *volume = NULL;
+        EngineSignum root;
+        EngineError error;
+        memset(&error, 0, sizeof(error));
+        ok = driver_sample_name(sample, group, column, "kept") &&
+             (engine_iapx_load(set, sample, extent, &volume, &root, NULL, &error) == 0L) &&
+             (extent[2] == DRIVER_KEPT_PLANES) && (extent[3] == sealed->kept);
+        unsigned long long at = 0ull;
+        for (unsigned long long value = 0ull; ok && (value < count); value += 1ull)
+        {
+            if (parts[(DRIVER_PLANES * count) + value] != DRIVER_FORM_KEPT)
+            {
+                continue;
+            }
+            unsigned long long stored = 0ull;
+            for (unsigned int plane = DRIVER_KEPT_PLANES; plane > 0u; plane -= 1u)
+            {
+                stored = (stored << DRIVER_PLANE_BITS) | volume[((plane - 1u) * sealed->kept) + at];
+            }
+            kept_apart += (memcmp(&stored, values->bytes + (value * 8ull), 8u) == 0) ? 0ull : 1ull;
+            at += 1ull;
+        }
+        ok = ok && (at == sealed->kept);
+        free(volume);
+    }
+    // each value's parts laid into its record on the device
+    unsigned short *device_parts = NULL;
+    unsigned int *device_records = NULL;
+    unsigned int *device_values = NULL;
+    unsigned int *device_bases = NULL;
+    unsigned int *device_index = NULL;
+    unsigned int *device_out = NULL;
+    ok = ok && (cudaMalloc((void **)&device_parts, (size_t)(count * (DRIVER_PLANES + 1u)) * lane_bytes) == cudaSuccess) &&
+         (cudaMemcpy(device_parts, parts, (size_t)(count * (DRIVER_PLANES + 1u)) * lane_bytes, cudaMemcpyHostToDevice) ==
+          cudaSuccess) &&
+         (cudaMalloc((void **)&device_records, (size_t)count * part_bytes) == cudaSuccess) &&
+         (cudaMemset(device_records, 0, (size_t)count * part_bytes) == cudaSuccess);
+    for (unsigned int plane = 0u; ok && (plane <= DRIVER_PLANES); plane += 1u)
+    {
+        ok = cudaMemcpy2D((unsigned char *)device_records + (plane * lane_bytes), part_bytes,
+                          device_parts + (plane * count), lane_bytes, lane_bytes, (size_t)count,
+                          cudaMemcpyDeviceToDevice) == cudaSuccess;
+    }
+    cudaFree(device_parts);
+    free(parts);
+    unsigned long long least_placed = 0ull;
+    unsigned long long most_placed = 0ull;
+    driver_exponents(values, &least_placed, &most_placed);
+    const unsigned int shift_bits = exact_record_bits_of(FORMS_LIFT - least_placed) + 1u;
+    ExactRecordProgram program;
+    exact_record_open(&program);
+    unsigned int output = 0u;
+    driver_check_program(&program, column, most_placed, shift_bits, &output);
+    const unsigned int members = (column == DRIVER_INTENSITIES) ? 3u : 2u;
+    const unsigned int limbs[ENGINE_RECORD_MEMBERS_MAX] = {DRIVER_LIMBS_PER_VALUE, part_limbs, DRIVER_LIMBS_PER_VALUE};
+    DriverLoaded loaded;
+    EngineError error;
+    const int program_loaded = ok && driver_load(&program, &output, 1u, limbs, members, &loaded, &error);
+    ok = program_loaded;
+    if (!ok)
+    {
+        driver_error_line(results, "the check program did not load", &error);
+    }
+    // for the intensities, each value's index triple: its own record, its own parts and its row's base
+    const unsigned long long base_records = (bases != NULL) ? (bases->values + 1ull) : 0ull;
+    if (ok && (column == DRIVER_INTENSITIES))
+    {
+        unsigned int *const index = (unsigned int *)malloc((size_t)(count * 3ull) * sizeof(unsigned int));
+        unsigned char *const base_bytes = (unsigned char *)calloc((size_t)(base_records * 8ull), 1u);
+        ok = (index != NULL) && (base_bytes != NULL) && (bases->rows == values->rows);
+        if (ok)
+        {
+            memcpy(base_bytes, bases->bytes, (size_t)(bases->values * 8ull));
+            for (unsigned long long row = 0ull; row < values->rows; row += 1ull)
+            {
+                const int present = bases->row_start[row + 1ull] > bases->row_start[row];
+                const unsigned int base_record = (unsigned int)(present ? bases->row_start[row] : bases->values);
+                for (unsigned long long value = values->row_start[row]; value < values->row_start[row + 1ull];
+                     value += 1ull)
+                {
+                    index[value * 3ull] = (unsigned int)value;
+                    index[(value * 3ull) + 1ull] = (unsigned int)value;
+                    index[(value * 3ull) + 2ull] = base_record;
+                }
+            }
+        }
+        ok = ok && (cudaMalloc((void **)&device_bases, (size_t)(base_records * 8ull)) == cudaSuccess) &&
+             (cudaMemcpy(device_bases, base_bytes, (size_t)(base_records * 8ull), cudaMemcpyHostToDevice) ==
+              cudaSuccess) &&
+             (cudaMalloc((void **)&device_index, (size_t)(count * 3ull) * sizeof(unsigned int)) == cudaSuccess) &&
+             (cudaMemcpy(device_index, index, (size_t)(count * 3ull) * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
+              cudaSuccess);
+        free(index);
+        free(base_bytes);
+    }
+    const unsigned int out_limbs = program_loaded ? loaded.layout.out_limbs : 0u;
+    ok = ok && (cudaMalloc((void **)&device_values, (size_t)(count * 8ull)) == cudaSuccess) &&
+         (cudaMemcpy(device_values, values->bytes, (size_t)(count * 8ull), cudaMemcpyHostToDevice) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_out, (size_t)count * out_limbs * sizeof(unsigned int)) == cudaSuccess);
+    memset(&error, 0, sizeof(error));
+    if (ok)
+    {
+        const CycleRecordRunRequest run = {loaded.record,
+                                           {device_values, device_records, device_bases},
+                                           {count, count, base_records},
+                                           device_index,
+                                           count,
+                                           device_out,
+                                           &error};
+        ok = cycle_record_run(&run) != CYCLE_ERROR;
+        if (!ok)
+        {
+            driver_error_line(results, "the check program's run errored", &error);
+        }
+    }
+    // the verdicts summed on the device: every value whose parts read back to its double counts 1
+    unsigned int sum[2] = {0u, 0u};
+    if (ok)
+    {
+        const DeviceRecordStep place = loaded.layout.step_table[output];
+        const CycleRecordSumRequest total = {device_out,    count, count, out_limbs, place.out_offset, place.out_bits,
+                                             2u,            sum,   &error};
+        ok = cycle_record_sum(&total) != CYCLE_ERROR;
+        if (!ok)
+        {
+            driver_error_line(results, "the verdicts' sum errored", &error);
+        }
+    }
+    const unsigned long long checked_at = engine_clock_microseconds();
+    const unsigned long long read_back = ((unsigned long long)sum[1] << 32u) | sum[0];
+    cudaFree(device_records);
+    cudaFree(device_values);
+    cudaFree(device_bases);
+    cudaFree(device_index);
+    cudaFree(device_out);
+    if (program_loaded)
+    {
+        driver_release(&loaded);
+    }
+    exact_record_close(&program);
+    scriptura_text(&results->line, "   ");
+    scriptura_text(&results->line, DRIVER_COLUMN_PATH[column]);
+    driver_line_decimal(results, " read back: ", read_back);
+    driver_line_decimal(results, " of ", count);
+    driver_line_decimal(results, " values hold their stored double; kept lanes apart ", kept_apart);
+    driver_line_decimal(results, "; loaded in ", loaded_at - started);
+    driver_line_decimal(results, " us, checked in ", checked_at - loaded_at);
+    scriptura_text(&results->line, " us");
+    driver_line_end(results);
+    return ok && (read_back == count) && (kept_apart == 0ull);
 }
 
 // each row's value count as one plane of 16-bit lanes, sealed where every count fits one
@@ -668,9 +961,13 @@ static int driver_ingest(SimResults *results, int count, char **arguments)
         }
         for (unsigned int column = 0u; ok && (column < DRIVER_BASES); column += 1u)
         {
-            ok = driver_column_forms(results, set, group, column, &columns[column],
-                                     (column == DRIVER_INTENSITIES) ? &columns[DRIVER_BASES] : NULL, &tally);
+            const DriverColumn *const bases = (column == DRIVER_INTENSITIES) ? &columns[DRIVER_BASES] : NULL;
+            DriverSealed sealed;
+            ok = driver_column_forms(results, set, group, column, &columns[column], bases, &tally, &sealed);
             sim_check(results, ok, "the column's forms are read on the device and sealed");
+            const int read_back = ok && driver_column_check(results, set, group, column, &columns[column], bases, &sealed);
+            sim_check(results, read_back, "every value read back from the set's crystals is its stored double");
+            ok = ok && read_back;
         }
         // the bases as they are stored, a value's lanes as four planes, and which rows hold one
         if (ok && (columns[DRIVER_BASES].values != 0ull))

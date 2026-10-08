@@ -78,4 +78,12 @@ unsigned int forms_floor(ExactRecordProgram *program, const FormsPreimage *preim
 void forms_count(ExactRecordProgram *program, const FormsPreimage *preimage, const FormsDouble *base,
                  unsigned int *held, unsigned int *count);
 
+// the base a double holds as a whole number, and `whole` 1 where it is one from 1 to 2^53
+void forms_whole(ExactRecordProgram *program, const FormsDouble *base, unsigned int *value, unsigned int *whole);
+
+// 1 where value / scale lies inside the preimage, its ends closed or open as the preimage holds them: value times the
+// divisor against the ends times the scale, exact
+unsigned int forms_contains(ExactRecordProgram *program, const FormsPreimage *preimage, unsigned int scale,
+                            unsigned int value);
+
 #endif

@@ -196,8 +196,7 @@ void forms_divided(ExactRecordProgram *program, const FormsPreimage *preimage, u
     divided->divisor = exact_record_product(program, four, preimage->divisor);
 }
 
-void forms_count(ExactRecordProgram *program, const FormsPreimage *preimage, const FormsDouble *base,
-                 unsigned int *held, unsigned int *count)
+void forms_whole(ExactRecordProgram *program, const FormsDouble *base, unsigned int *value, unsigned int *whole)
 {
     const unsigned int zero = exact_record_constant(program, 0ull);
     const unsigned int one = exact_record_constant(program, 1ull);
@@ -212,11 +211,39 @@ void forms_count(ExactRecordProgram *program, const FormsPreimage *preimage, con
     const unsigned int drop =
         exact_record_select(program, in_range, exact_record_difference(program, base_most, base->biased), zero);
     const unsigned int step = exact_record_two_to(program, drop, FORMS_SHIFT_BITS);
-    const unsigned int whole_base = exact_record_quotient(program, base_mantissa, step);
-    const unsigned int whole = exact_record_equal(program, exact_record_product(program, whole_base, step), base_mantissa);
+    *value = exact_record_quotient(program, base_mantissa, step);
+    *whole = exact_record_product(
+        program, in_range, exact_record_equal(program, exact_record_product(program, *value, step), base_mantissa));
+}
+
+void forms_count(ExactRecordProgram *program, const FormsPreimage *preimage, const FormsDouble *base,
+                 unsigned int *held, unsigned int *count)
+{
+    unsigned int whole_base = 0u;
+    unsigned int whole = 0u;
+    forms_whole(program, base, &whole_base, &whole);
     unsigned int least = 0u;
     unsigned int found = 0u;
     forms_integer(program, preimage, whole_base, &least, &found);
-    *held = exact_record_product(program, exact_record_product(program, in_range, whole), found);
+    *held = exact_record_product(program, whole, found);
     *count = exact_record_product(program, *held, least);
+}
+
+unsigned int forms_contains(ExactRecordProgram *program, const FormsPreimage *preimage, unsigned int scale,
+                            unsigned int value)
+{
+    const unsigned int one = exact_record_constant(program, 1ull);
+    const unsigned int placed = exact_record_product(program, value, preimage->divisor);
+    const unsigned int low = exact_record_product(program, preimage->low, scale);
+    const unsigned int high = exact_record_product(program, preimage->high, scale);
+    // above the low end, or on it where it is closed; below the high end, or on it where it is closed
+    const unsigned int past_low = exact_record_sum(
+        program, exact_record_above(program, placed, low),
+        exact_record_product(program, exact_record_equal(program, placed, low),
+                             exact_record_difference(program, one, preimage->odd_low)));
+    const unsigned int short_of_high = exact_record_sum(
+        program, exact_record_above(program, high, placed),
+        exact_record_product(program, exact_record_equal(program, placed, high),
+                             exact_record_difference(program, one, preimage->odd_high)));
+    return exact_record_product(program, past_low, short_of_high);
 }
