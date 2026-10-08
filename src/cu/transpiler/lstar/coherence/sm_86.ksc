@@ -16,7 +16,7 @@ class illegal  the question was refused: the system will not take it as it stand
 class folds    the compiler answered but folded the operand the question varied away, so the answer names a form of its own and not the operator
 
 # every question put, counted by the channel it went out on and what came back
-count run      answers  3464
+count run      answers  3496
 count run      nothing  0
 count run      illegal  53
 count run      folds    0
@@ -118,9 +118,14 @@ run answers 000000ff curve 1014 128
 run answers 000000ff curve 1014 256
 run answers 00000020 curve 1014 threads
 run answers 000000fc register last
+run answers 00000004 stall IADD3 IADD3
 run answers 00000004 stall IADD3 LOP3.LUT
 run answers 00000004 stall IADD3 PRMT
+run answers 00000004 stall IADD3 SHF.L.U32
+run answers 00000004 stall IADD3 SHF.L.W.U32.HI
 run answers 00000004 stall IADD3 SHF.R.S32.HI
+run answers 00000004 stall IADD3 SHF.R.U32.HI
+run answers 00000004 stall IADD3 SHF.R.W.U32
 run answers 00000005 stall IADD3.X LDG.E
 run answers 00000005 stall IADD3.X LDG.E.64
 run answers 00000005 stall IADD3.X LDG.E.S16
@@ -204,9 +209,14 @@ run answers 00000004 stall ISETP.NE.OR SEL
 run answers 00000004 stall ISETP.NE.OR.EX SEL
 run answers 00000004 stall ISETP.NE.U32.AND ISETP.NE.AND.EX
 run answers 00000004 stall ISETP.NE.U32.AND ISETP.NE.OR.EX
+run answers 00000004 stall LOP3.LUT IADD3
 run answers 00000004 stall LOP3.LUT LOP3.LUT
 run answers 00000004 stall LOP3.LUT PRMT
+run answers 00000004 stall LOP3.LUT SHF.L.U32
+run answers 00000004 stall LOP3.LUT SHF.L.W.U32.HI
 run answers 00000004 stall LOP3.LUT SHF.R.S32.HI
+run answers 00000004 stall LOP3.LUT SHF.R.U32.HI
+run answers 00000004 stall LOP3.LUT SHF.R.W.U32
 run answers 00000005 stall MOV IMAD.WIDE.U32
 run answers 00000005 stall MOV LDG.E
 run answers 00000005 stall MOV LDG.E.64
@@ -219,12 +229,34 @@ run answers 00000004 stall PRMT SHF.R.S32.HI
 run answers 00000004 stall SEL LOP3.LUT
 run answers 00000004 stall SEL PRMT
 run answers 00000004 stall SEL SHF.R.S32.HI
+run answers 00000000 stall SHF.L.U32 IADD3
 run answers 00000004 stall SHF.L.U32 LOP3.LUT
 run answers 00000004 stall SHF.L.U32 PRMT
+run answers 00000004 stall SHF.L.U32 SHF.L.W.U32.HI
 run answers 00000004 stall SHF.L.U32 SHF.R.S32.HI
+run answers 00000004 stall SHF.L.U32 SHF.R.U32.HI
+run answers 00000004 stall SHF.L.U32 SHF.R.W.U32
+run answers 00000004 stall SHF.L.W.U32.HI IADD3
+run answers 00000004 stall SHF.L.W.U32.HI LOP3.LUT
+run answers 00000004 stall SHF.L.W.U32.HI SHF.L.U32
+run answers 00000004 stall SHF.L.W.U32.HI SHF.R.S32.HI
+run answers 00000004 stall SHF.L.W.U32.HI SHF.R.U32.HI
+run answers 00000004 stall SHF.L.W.U32.HI SHF.R.W.U32
+run answers 00000004 stall SHF.R.S32.HI LOP3.LUT
 run answers 00000004 stall SHF.R.S32.HI PRMT
+run answers 00000004 stall SHF.R.S32.HI SHF.L.U32
+run answers 00000004 stall SHF.R.S32.HI SHF.L.W.U32.HI
 run answers 00000004 stall SHF.R.S32.HI SHF.R.S32.HI
+run answers 00000004 stall SHF.R.U32.HI IADD3
 run answers 00000004 stall SHF.R.U32.HI LOP3.LUT
+run answers 00000004 stall SHF.R.U32.HI SHF.L.U32
+run answers 00000004 stall SHF.R.U32.HI SHF.L.W.U32.HI
+run answers 00000004 stall SHF.R.U32.HI SHF.R.W.U32
+run answers 00000004 stall SHF.R.W.U32 IADD3
+run answers 00000004 stall SHF.R.W.U32 LOP3.LUT
+run answers 00000004 stall SHF.R.W.U32 SHF.L.U32
+run answers 00000004 stall SHF.R.W.U32 SHF.L.W.U32.HI
+run answers 00000004 stall SHF.R.W.U32 SHF.R.U32.HI
 run answers ffffffff ask 00073745e04d4c5e 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 0022a2ad8b31a0ec 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
 run answers ffffffff ask 00233fe57fbe358f 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa

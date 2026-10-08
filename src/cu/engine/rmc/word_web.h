@@ -43,8 +43,9 @@ typedef struct
 //  global_add_atomic_word). A load is not a
 //    gate and reduces to nothing in the alphabet: a target either reaches memory or does not.
 //  - Every word whose tree counts the register's width. This is the larger half, and one missing node accounts for
-//    all of it. An adder is a rank of gates per bit; a multiply is one adder per bit again; a rotate is a shift left by
-//    the amount ORed with a shift right by the width less the amount; a sign spread is a carry right by the width
+//    all of it. An adder is a rank of gates per bit; a multiply is one adder per bit again; a rotate written over the
+//    shifts is a shift left by the amount ORed with a shift right by the width less the amount, where ROL and ROR
+//    alone are one node each and are here; a sign spread is a carry right by the width
 //    less one; a test against zero is the word ORed down to a single bit, taking as many ranks as the width has
 //    powers of two. Each of those is a real tree and none of them is fixed arity, because the width sets the count
 //    of nodes. A width-counted node is a second kind of node and is not designed yet. Writing any of these as a
@@ -58,12 +59,17 @@ static const Word s_word_web[] = {
     {"word_bitor", 2u, 1u, {{PRECEPT_BITOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_bitxor", 2u, 1u, {{PRECEPT_BITXOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_not", 1u, 1u, {{PRECEPT_NOT, PRECEPT_ARG_AT(0u), PRECEPT_NONE}}},
+    {"word_nand", 2u, 1u, {{PRECEPT_NAND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_nor", 2u, 1u, {{PRECEPT_NOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // a copy
     {"word_copy", 1u, 1u, {{PRECEPT_MOV, PRECEPT_ARG_AT(0u), PRECEPT_NONE}}},
-    // the shifts, whose amount is an operand and needs no width; the signed one carries the sign in
+    // the shifts and the rotates, whose amount is an operand and needs no width; the signed shift carries the sign in,
+    // and a rotate carries the bits that leave back in at the other end
     {"word_shl", 2u, 1u, {{PRECEPT_SHL, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_shr", 2u, 1u, {{PRECEPT_SHR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"signed_word_shr", 2u, 1u, {{PRECEPT_ASR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_rol", 2u, 1u, {{PRECEPT_ROL, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_ror", 2u, 1u, {{PRECEPT_ROR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // one limb of arithmetic, the precept itself with nothing around it. The carry chains running these over limbs are
     // width counted and are not here
     {"word_add", 2u, 1u, {{PRECEPT_ADD, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
