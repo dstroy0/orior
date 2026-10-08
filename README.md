@@ -5,9 +5,11 @@
 
 [Setup](docs/setup.md) · [The app](#the-app) · [Using it](docs/usage.md) · [The algorithm](docs/method.md) · [The engine](docs/engine.md) · [Areas of research](docs/research.md) · [Licensing](docs/licensing.md)
 
-Orior is an engine, in C, CUDA and Python, that measures how much structure an object holds. It keeps the object's counts, shuffles their arrangement, and measures what the shuffle destroyed. That is a permutation null, an old statistical test, run here with every number an exact integer: nothing is rounded, guessed or trained.
+**Orior is a unified computational foundation: one engine and one transpiler, both in exact integers.**
 
-The first result to check is a positive control. The engine is asked for the cell edge of every right angled crystal the [Crystallography Open Database](https://www.crystallography.net/cod/) will give it, a number someone else measured before this engine existed, and the comparison is equality, with no tolerance to set. A near miss counts as a miss.
+The engine measures the structure in any object against a permutation null: it keeps the object's counts, shuffles their arrangement, and measures what the shuffle destroyed, with nothing rounded, guessed or trained. The transpiler compiles a program written in [gnascor](docs/gnascor.md) into each target language, and L\* works out the definitions of a target nobody has described.
+
+Check it in one command: the engine is asked for the cell edge of every right angled crystal the [Crystallography Open Database](https://www.crystallography.net/cod/) will give it, a number someone else measured before this engine existed, and the answer is compared by equality. A near miss counts as a miss.
 
 ```sh
 python examples/crystallography/6_oracle/proof_positive_control.py
