@@ -64,7 +64,7 @@ MODULES=(cu/includes/formats/cfg_json cu/includes/formats/stack cu/engine/parser
          cu/engine/analysis/compression cu/engine/analysis/tower cu/engine/runtime/device_pool
          cu/engine/analysis/entropy_history cu/engine/analysis/noise_detector cu/engine/runtime/schedule
          cu/engine/analysis/keymath cu/engine/analysis/key_schedule cu/engine/analysis/cycle
-         cu/transpiler/codegen cu/transpiler/lstar/parser
+         cu/engine/rmc cu/types/file_defs/readers
          cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep cu/engine/runtime/obsignatio
          cu/engine/analysis/residual cu/engine/nbody/max_tree cu/engine/nbody/flatten cu/engine/analysis/golden_bands
          cu/engine/analysis/residual_survey cu/engine/nbody/grow cu/engine/analysis/shift_agreement
@@ -124,7 +124,8 @@ tessera_build casmi_driver "${SCRIPTURA_OBJECTS[@]}" || exit 1
 
 rm -f "$BINARY"
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${LINK_FLAGS[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
-    -o "$BINARY" "$ROOT/src/casmi_driver/casmi_driver.cu" "$TOP/src/sims/cu/sim_job.cu" "${SOURCES[@]}" \
+    -o "$BINARY" "$ROOT/src/casmi_driver/casmi_driver.cu" "$ROOT/src/forms/forms.cu" "$TOP/src/sims/cu/sim_job.cu" \
+    "${SOURCES[@]}" \
     "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build casmi_driver"; exit 1; }
 echo "  built $BINARY"

@@ -13,8 +13,8 @@ build_stamp casmi_check
 
 SOURCE="$TOP/src/cu"
 CYCLE="$SOURCE/engine/analysis/cycle"
-CODEGEN="$SOURCE/transpiler/codegen"
-PARSER="$SOURCE/transpiler/lstar/parser"
+CODEGEN="$SOURCE/engine/rmc"
+PARSER="$SOURCE/types/file_defs/readers"
 KEYMATH="$SOURCE/engine/analysis/keymath"
 KEY_SCHEDULE="$SOURCE/engine/analysis/key_schedule"
 TOWER="$SOURCE/engine/analysis/tower"
