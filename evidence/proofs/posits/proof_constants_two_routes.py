@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: PRF-x-015
 #
-# The natural constants are computed, not stored, and the check that each is right is two routes agreeing,
-# not a pasted expansion. A stored expansion is an oracle, an answer from outside the sample, and a natural
+# The natural constants are computed, not stored, and the check that each is right is two routes agreeing.
+# A stored expansion is an oracle, an answer from outside the sample, and a natural
 # constant is not that: it is derivable from within to any precision. Here it is derived, and the two
 # derivations meeting is the test. This exercises representation/constants/naturals.py at a precision no table would
 # carry and shows the agreement, the algebraic identities that give a third independent check where one
@@ -27,7 +27,7 @@
 #
 # Floor: this verifies the implementation reaches each constant by two routes and refuses a wrong one. It
 # does not reprove the classical identities the routes rest on (Machin 1706, Euler, the continued fractions),
-# which are named and used, not derived here.
+# which are named and used without being derived here.
 
 import io
 import os

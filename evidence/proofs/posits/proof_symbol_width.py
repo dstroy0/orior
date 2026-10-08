@@ -44,7 +44,7 @@ def build(rng):
             seen.add(word)
             words.append(word)
 
-    # Each topic favors a few words, and the topic changes slowly, which makes a word recur in bursts. That is
+    # Each topic favors a few words, and the topic changes slowly, and a word therefore recurs in bursts. That is
     # the arrangement the measure looks for, and it exists only between units
     topics = [rng.sample(range(VOCAB), 6) for _ in range(TOPICS)]
     out = bytearray()

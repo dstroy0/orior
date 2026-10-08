@@ -84,7 +84,7 @@ def ratio(upper, lower):
 
 
 def matching_places(left, right):
-    """How many leading decimal places two scaled integers agree to. Reports the depth, not a verdict."""
+    """How many leading decimal places two scaled integers agree to. Reports the depth and leaves the verdict to the caller."""
     difference = abs(left - right)
     if difference == 0:
         return WORK_DIGITS
