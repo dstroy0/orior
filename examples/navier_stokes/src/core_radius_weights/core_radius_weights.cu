@@ -686,6 +686,21 @@ int core_radius_same(const CoreRadiusWeights &left, const CoreRadiusWeights &rig
     return 1;
 }
 
+SimRational core_radius_value(const CoreRadiusWeights &weights, SimRational xi)
+{
+    SimRational after = core_radius_number(0ll, 1ll);
+    SimRational later = core_radius_number(0ll, 1ll);
+    const SimRational twice = core_radius_times(core_radius_number(2ll, 1ll), xi);
+    for (size_t m = weights.size(); m > 1u; m -= 1u)
+    {
+        const SimRational current = sim_rational_difference(core_radius_plus(weights[m - 1u], core_radius_times(twice, after)), later);
+        later = after;
+        after = current;
+    }
+    const SimRational first = weights.empty() ? core_radius_number(0ll, 1ll) : weights[0];
+    return sim_rational_difference(core_radius_plus(first, core_radius_times(xi, after)), later);
+}
+
 void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &angular, const CoreRadiusWeights &axial,
                                 const CoreRadiusWeights &pressure, unsigned int order, SimRational s, CoreRadiusOrders *orders)
 {

@@ -153,22 +153,6 @@ static size_t core_tangent_degree(const CoreTangentPowers &powers)
     return degree;
 }
 
-// sum c_m T_m(xi), the three-term rule taken from the top weight down, exact
-static SimRational core_tangent_value(const CoreRadiusWeights &weights, SimRational xi)
-{
-    SimRational after = core_radius_number(0ll, 1ll);
-    SimRational later = core_radius_number(0ll, 1ll);
-    const SimRational twice = core_radius_times(core_radius_number(2ll, 1ll), xi);
-    for (size_t m = weights.size(); m > 1u; m -= 1u)
-    {
-        const SimRational current = sim_rational_difference(core_radius_plus(weights[m - 1u], core_radius_times(twice, after)), later);
-        later = after;
-        after = current;
-    }
-    const SimRational first = weights.empty() ? core_radius_number(0ll, 1ll) : weights[0];
-    return sim_rational_difference(core_radius_plus(first, core_radius_times(xi, after)), later);
-}
-
 int main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
@@ -294,7 +278,7 @@ int main(int count, char **arguments)
     const SimRational eta_square = core_radius_times(eta_point, eta_point);
     const SimRational l_point = sim_rational_difference(one, core_radius_times(core_radius_times(two, h), eta_square));
     const SimRational d_point = sim_rational_difference(one, eta_square);
-    const SimRational u0_point = core_tangent_value(u0, xi);
+    const SimRational u0_point = core_radius_value(u0, xi);
     const SimRational sigma_point = core_radius_plus(core_radius_times(scale.d, eta_point), core_radius_times(u0_point, d_point));
     int sign = 0;
     int one_sign = (sim_rational_sign(sigma_point) > 0) && (sim_rational_sign(d_point) > 0) && (sim_rational_sign(l_point) > 0);
@@ -311,7 +295,7 @@ int main(int count, char **arguments)
         std::string row = "  " + std::to_string(k);
         for (size_t n = 0u; n < df[k].size(); n += 1u)
         {
-            row += " " + term_book_rational(core_radius_over(core_tangent_value(df[k][n], xi), l_power));
+            row += " " + term_book_rational(core_radius_over(core_radius_value(df[k][n], xi), l_power));
         }
         if (record != NULL)
         {
@@ -319,7 +303,7 @@ int main(int count, char **arguments)
         }
         if (k >= 2u)
         {
-            const int top_sign = sim_rational_sign(core_tangent_value(df[k][k], xi));
+            const int top_sign = sim_rational_sign(core_radius_value(df[k][k], xi));
             one_sign = one_sign && (top_sign != 0) && ((sign == 0) || (top_sign == sign));
             sign = top_sign;
         }

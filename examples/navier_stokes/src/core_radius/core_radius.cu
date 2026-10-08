@@ -44,6 +44,7 @@
 // 5. An X inside a proved radius has F_low past 0, and each medium of the cfg has its walls written there.
 // 6. The carry on the device holds every sum below the product of its primes, and is the host's to the last bit at
 //    every order both reach.
+// 7. Where the cfg holds a principal system, s_eff and (Y F)' are past 0 on its [0, Y_1] at its point.
 // The request: core_radius <cfg>. The norms of the reach's orders on E_rho carry rho^m to its last mode, and ask the
 // width of 256 limbs.
 //     SIM_EXACT_LIMBS=256 bash examples/navier_stokes/run.sh core_radius examples/navier_stokes/cfg/core_radius.cfg
@@ -617,6 +618,114 @@ static unsigned int core_radius_halves(SimRational tau, SimRational planck)
     return halves;
 }
 
+// The principal system at a point eta of the cut. Along a datum direction e^(mu eta), the paths that take one
+// derivative of e^(mu eta) at every step sum, with Y = X / L^2 and the fields' numerators read at eta, to
+//     2 (Y y')' = mu s y + mu L d - mu L d U' V,   V' = y,   2 (Y G)'' = mu s G + W (Y F)',   W = -mu L d V / Y,
+// y the tangent's axial field, G its swirl, s = L (D eta + d U). On [0, Y_1] let s_eff = s - L d Y max(U', 0). Where
+// s_eff >= s_least > 0: y and y' stay at least 0, V <= Y y, and 2 (Y y')' >= mu s_least y + mu L d, and comparison with
+// z = (L d / s_least) (I_0(sqrt(2 s_least mu Y)) - 1), which solves it with equality, gives y >= z. Where (Y F)' is
+// past 0 as well, W <= 0 drives G below 0, and -G grows as z does. The fields are read at the point from the exact
+// orders, past them from the magnitudes carried on the device, and past those from the tail B r^-k of the proof.
+
+// one field's series at the point: its exact coefficients, the magnitudes past them, and the proof's B and r past those
+typedef struct
+{
+    CoreRadiusSequence exact;
+    CoreRadiusSequence magnitudes;
+    SimRational most;
+    SimRational rate;
+} CoreRadiusSeries;
+
+enum
+{
+    CORE_RADIUS_VALUE = 0,
+    CORE_RADIUS_SLOPE = 1,
+    CORE_RADIUS_GROWN_SLOPE = 2
+};
+
+// the tail past `last` of sum c_k y^k (value), sum k c_k y^(k-1) (slope) or sum (k + 1) c_k y^k ((Y F)'), with
+// |c_k| <= B r^-k, q = y / r < 1, K = last + 1
+static SimRational core_radius_far_tail(unsigned int kind, SimRational most, SimRational rate, SimRational y, unsigned int last)
+{
+    const SimRational one = core_radius_number(1ll, 1ll);
+    const SimRational q = core_radius_over(y, rate);
+    const SimRational rest = sim_rational_difference(one, q);
+    const SimRational order_k = core_radius_number((long long)last + 1ll, 1ll);
+    SimRational power = one;
+    for (unsigned int k = 0u; k <= last; k += 1u)
+    {
+        power = core_radius_times(power, q);
+    }
+    // power = q^K
+    if (kind == CORE_RADIUS_VALUE)
+    {
+        return core_radius_over(core_radius_times(most, power), rest);
+    }
+    const SimRational square_rest = core_radius_times(rest, rest);
+    if (kind == CORE_RADIUS_SLOPE)
+    {
+        const SimRational before = core_radius_over(power, q);
+        return core_radius_times(core_radius_over(most, rate),
+                                 core_radius_plus(core_radius_over(core_radius_times(order_k, before), rest), core_radius_over(power, square_rest)));
+    }
+    return core_radius_times(most, core_radius_plus(core_radius_over(core_radius_times(core_radius_plus(order_k, one), power), rest),
+                                                    core_radius_over(core_radius_times(power, q), square_rest)));
+}
+
+// a bound on [low, high], 0 <= low < high, of the series of `kind`: the exact part at `low` moved by at most the width
+// times the bound of its slope, and the rest at most its magnitudes and the tail at `high`; lower at sign -1, upper at +1
+static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsigned int kind, SimRational low, SimRational high, int sign)
+{
+    const SimRational zero = core_radius_number(0ll, 1ll);
+    const SimRational one = core_radius_number(1ll, 1ll);
+    SimRational at_low = zero;
+    SimRational slope_most = zero;
+    const unsigned int exact_last = (unsigned int)series->exact.size() - 1u;
+    for (unsigned int k = 0u; k <= exact_last; k += 1u)
+    {
+        // the term a y^e: a = c_k, k c_k or (k + 1) c_k, and e = k, k - 1 or k
+        const SimRational multiplier = (kind == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((kind == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
+        const SimRational a = core_radius_times(multiplier, series->exact[k]);
+        if ((kind == CORE_RADIUS_SLOPE) && (k == 0u))
+        {
+            continue;
+        }
+        const unsigned int e = (kind == CORE_RADIUS_SLOPE) ? k - 1u : k;
+        SimRational low_power = one;
+        SimRational high_power = one;
+        for (unsigned int n = 0u; n < e; n += 1u)
+        {
+            low_power = core_radius_times(low_power, low);
+        }
+        for (unsigned int n = 1u; n < e; n += 1u)
+        {
+            high_power = core_radius_times(high_power, high);
+        }
+        at_low = core_radius_plus(at_low, core_radius_times(a, low_power));
+        if (e >= 1u)
+        {
+            slope_most = core_radius_plus(slope_most, core_radius_times(core_radius_times(sim_rational_absolute(a), core_radius_number((long long)e, 1ll)), high_power));
+        }
+    }
+    SimRational rest = zero;
+    for (size_t index = 0u; index < series->magnitudes.size(); index += 1u)
+    {
+        const unsigned int k = exact_last + 1u + (unsigned int)index;
+        const SimRational multiplier = (kind == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((kind == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
+        const unsigned int e = (kind == CORE_RADIUS_SLOPE) ? k - 1u : k;
+        SimRational power = one;
+        for (unsigned int n = 0u; n < e; n += 1u)
+        {
+            power = core_radius_times(power, high);
+        }
+        rest = core_radius_plus(rest, core_radius_times(core_radius_times(multiplier, series->magnitudes[index]), power));
+    }
+    const unsigned int last = exact_last + (unsigned int)series->magnitudes.size();
+    rest = core_radius_plus(rest, core_radius_far_tail(kind, series->most, series->rate, high, last));
+    const SimRational moved = core_radius_plus(core_radius_times(sim_rational_difference(high, low), slope_most), rest);
+    return (sign < 0) ? sim_rational_difference(at_low, moved) : core_radius_plus(at_low, moved);
+}
+
 // one wall: its name and the time left the core passes it by
 typedef struct
 {
@@ -732,6 +841,12 @@ int main(int count, char **arguments)
                      run_cfg_rationals(&cfg, "walls.viscosity", &viscosity) && run_cfg_rationals(&cfg, "walls.sound", &sound) &&
                      run_cfg_rationals(&cfg, "walls.spacing", &spacing) && run_cfg_rationals(&cfg, "walls.relaxation", &relaxation) &&
                      run_cfg_rationals(&cfg, "walls.mass", &mass) && run_cfg_rationals(&cfg, "walls.ionization", &ionization);
+    // the principal system, read where the cfg holds it
+    SimRational principal_eta;
+    SimRational principal_reach;
+    unsigned long long principal_pieces = 0ull;
+    const int principal = read && run_cfg_rational(&cfg, "principal.eta", &principal_eta) && run_cfg_rational(&cfg, "principal.reach", &principal_reach) &&
+                          (sim_rational_sign(principal_reach) > 0) && run_cfg_count(&cfg, "principal.pieces", &principal_pieces) && (principal_pieces >= 1ull);
     // the media's names, one to each comma
     std::vector<std::string> media;
     size_t from = 0u;
@@ -818,6 +933,10 @@ int main(int count, char **arguments)
                        "`Witness.Checks`. `Witness.tail` carries them to every order past the split.\n"
                        "-/\n\n"
                        "namespace CoreRadius\n\n";
+    // the reached proof of the largest radius, read by the principal system
+    CoreRadiusProof principal_proof;
+    principal_proof.rate = core_radius_number(0ll, 1ll);
+    SimRational principal_far = core_radius_number(0ll, 1ll);
     int found = 0;
     SimRational best_x = core_radius_number(0ll, 1ll);
     SimRational best_least = core_radius_number(0ll, 1ll);
@@ -889,6 +1008,11 @@ int main(int count, char **arguments)
         const SimRational far = core_radius_fixed_rate(&scale, &reached, g0, (unsigned int)reach, (unsigned int)reach_split, step, steps, record, ellipse + "_reached",
                                                        on + "the magnitudes carried on the device to order " + std::to_string(reach) + ".", &lean, &reached_proof,
                                                        &reached_norms);
+        if ((sim_rational_sign(reached_proof.rate) > 0) && (sim_rational_sign(sim_rational_difference(far, principal_far)) > 0))
+        {
+            principal_proof = reached_proof;
+            principal_far = far;
+        }
         // the X of each proof's radius, stepped by the walls' step, where X F_low^2 is largest
         const CoreRadiusProof *const proofs[3] = {&exact_proof, &carried_proof, &reached_proof};
         const CoreRadiusSequence *const proof_norms[3] = {&exact_norms, &carried_norms, &reached_norms};
@@ -944,6 +1068,71 @@ int main(int count, char **arguments)
         sim_flush(&results);
     }
     sim_check(&results, legal, "every ellipse of the cfg one the bounds hold on");
+    if (principal)
+    {
+        // the fields at the point: exact to the cfg's order, magnitudes to the reach, the reached proof's tail past it
+        const SimRational xi = core_radius_over(principal_eta, cut);
+        const SimRational eta_square = core_radius_times(principal_eta, principal_eta);
+        const SimRational l_point = sim_rational_difference(one, core_radius_times(core_radius_times(core_radius_number(2ll, 1ll), h), eta_square));
+        const SimRational d_point = sim_rational_difference(one, eta_square);
+        CoreRadiusSeries along;
+        CoreRadiusSeries spin;
+        for (unsigned int k = 0u; k <= (unsigned int)order; k += 1u)
+        {
+            along.exact.push_back(core_radius_value(exact.g[k], xi));
+            spin.exact.push_back(core_radius_value(exact.f[k], xi));
+        }
+        for (unsigned int k = (unsigned int)order + 1u; k <= (unsigned int)reach; k += 1u)
+        {
+            along.magnitudes.push_back(core_radius_norm(reached.g[k], one));
+            spin.magnitudes.push_back(core_radius_norm(reached.f[k], one));
+        }
+        along.most = principal_proof.b_u;
+        spin.most = principal_proof.b_f;
+        along.rate = principal_proof.rate;
+        spin.rate = principal_proof.rate;
+        const int inside = (sim_rational_sign(principal_proof.rate) > 0) && (sim_rational_sign(sim_rational_difference(principal_proof.rate, principal_reach)) > 0) &&
+                           (sim_rational_sign(core_radius_plus(xi, one)) > 0) && (sim_rational_sign(sim_rational_difference(one, xi)) > 0);
+        SimRational s_least = core_radius_number(0ll, 1ll);
+        SimRational grown_least = core_radius_number(0ll, 1ll);
+        if (inside)
+        {
+            for (unsigned long long piece = 0ull; piece < principal_pieces; piece += 1ull)
+            {
+                const SimRational low = core_radius_times(principal_reach, core_radius_number((long long)piece, (long long)principal_pieces));
+                const SimRational high = core_radius_times(principal_reach, core_radius_number((long long)piece + 1ll, (long long)principal_pieces));
+                const SimRational u_low = core_radius_series_bound(&along, CORE_RADIUS_VALUE, low, high, -1);
+                const SimRational slope_high = core_radius_series_bound(&along, CORE_RADIUS_SLOPE, low, high, 1);
+                const SimRational grown_low = core_radius_series_bound(&spin, CORE_RADIUS_GROWN_SLOPE, low, high, -1);
+                // s_eff = L (D eta + d U) - L d Y max(U', 0), its least on the piece
+                const SimRational s_low = core_radius_times(l_point, core_radius_plus(core_radius_times(constants.d, principal_eta), core_radius_times(d_point, u_low)));
+                const SimRational climb = core_radius_most(slope_high, core_radius_number(0ll, 1ll));
+                const SimRational s_eff = sim_rational_difference(s_low, core_radius_times(core_radius_times(l_point, d_point), core_radius_times(high, climb)));
+                s_least = (piece == 0ull) ? s_eff : core_radius_least(s_least, s_eff);
+                grown_least = (piece == 0ull) ? grown_low : core_radius_least(grown_least, grown_low);
+            }
+        }
+        const int principal_held = inside && (sim_rational_sign(s_least) > 0) && (sim_rational_sign(grown_least) > 0) && (sim_rational_sign(l_point) > 0) &&
+                                   (sim_rational_sign(d_point) > 0);
+        sim_check(&results, principal_held, "on [0, Y_1] at the point, s_eff and (Y F)' past 0: the principal tangent grows as I_0(sqrt(2 s_least mu Y))");
+        const std::string reading = "principal system at eta " + term_book_rational(principal_eta) + " on [0, " + term_book_rational(principal_reach) +
+                                    "] in Y = X / L^2: s_eff >= " + term_book_rational(s_least) + ", (Y F)' >= " + term_book_rational(grown_least) +
+                                    ", L = " + term_book_rational(l_point) + ", d = " + term_book_rational(d_point);
+        if (record != NULL)
+        {
+            record_text(record, reading.c_str());
+        }
+        scriptura_text(&results.line, "  principal system at eta ");
+        sim_rational_print(&results.line, principal_eta);
+        scriptura_text(&results.line, " on Y in [0, ");
+        sim_rational_print(&results.line, principal_reach);
+        scriptura_text(&results.line, "]: s_eff >= ");
+        sim_rational_print(&results.line, core_radius_down(s_least, &unit));
+        scriptura_text(&results.line, ", (Y F)' >= ");
+        sim_rational_print(&results.line, core_radius_down(grown_least, &unit));
+        scriptura_text(&results.line, "\n");
+        sim_flush(&results);
+    }
     sim_check(&results, found, "an X inside a proved radius where F_low is past 0");
     if (found)
     {

@@ -185,6 +185,9 @@ void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned in
 // 1 where two orders' weights are the same, a 0 past either's last weight
 int core_radius_same(const CoreRadiusWeights &left, const CoreRadiusWeights &right);
 
+// sum c_m T_m(xi), the three-term rule taken from the top weight down, exact
+SimRational core_radius_value(const CoreRadiusWeights &weights, SimRational xi);
+
 // the weights of every order to `order` from the data, given in eta and held in xi, exact at s = -1 and magnitudes at
 // s = +1, read on no ellipse: they depend on h and the cut alone
 void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &angular, const CoreRadiusWeights &axial,

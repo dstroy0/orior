@@ -217,8 +217,18 @@ the growth is the datum's own. The derivative of G on a direction of eta-frequen
 with c set by the datum, and the lemma of the workbook, Kantorovich's, asks a bound on that derivative over a ball
 that no fixed space of functions in eta gives.
 
+On [0, Y_1], let s_eff = s - L d Y max(U', 0). Where s_eff >= s_least > 0, y = V' and y' stay at least 0, V <= Y y,
+and 2 (Y y')' >= mu s_least y + mu L d; z = (L d / s_least) (I_0(sqrt(2 s_least mu Y)) - 1) solves it with equality,
+and y - z, 0 at Y = 0, stays at least 0. Where (Y F)' is past 0 as well, W <= 0 drives dF below 0, and -dF grows
+as z does.
+
+Check (`core_radius` with the cut's `principal`): at eta = 1/2 on Y in [0, 1], cut in 64 pieces, the core's U, U' and
+(Y F)' read from the exact orders to 24, the device's magnitudes to 100 and the reached proof's tail past it give
+s_eff >= 0.3363 and (Y F)' >= 0.9960, every bound exact. The principal tangent's axial field is then at least
+(L d / s_least) (I_0(sqrt(2 s_least mu Y)) - 1) for every mu, and its swirl below 0 with the same growth.
+
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
-bounds; the amplitude's eta-derivatives, by Cauchy's estimates on disks of radius near mu^(-1/2); and the
+bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of radius near mu^(-1/2); and the
 integral of G against the blend near X_b.
 
 ## Order
