@@ -106,6 +106,34 @@ void forms_unit(ExactRecordProgram *program, const FormsPreimage *preimage, unsi
     *unit = picked;
 }
 
+void forms_places(ExactRecordProgram *program, const FormsPreimage *preimage, unsigned int most, unsigned int *places,
+                  unsigned int *least)
+{
+    const unsigned int zero = exact_record_constant(program, 0ull);
+    const unsigned int one = exact_record_constant(program, 1ull);
+    unsigned int none = one;
+    unsigned int counted = zero;
+    unsigned int picked = zero;
+    for (unsigned int place = 0u; place <= most; place += 1u)
+    {
+        // 10^p as one constant below 2^64, and past it as 10^19 times the rest
+        const unsigned int scale =
+            (place < FORMS_TENS)
+                ? exact_record_constant(program, forms_ten(place))
+                : exact_record_product(program, exact_record_constant(program, forms_ten(FORMS_TENS - 1u)),
+                                       exact_record_constant(program, forms_ten(place - (FORMS_TENS - 1u))));
+        unsigned int k_least = 0u;
+        unsigned int holds = 0u;
+        forms_integer(program, preimage, scale, &k_least, &holds);
+        const unsigned int first = exact_record_product(program, none, holds);
+        picked = exact_record_sum(program, picked, exact_record_product(program, first, k_least));
+        none = exact_record_product(program, none, exact_record_difference(program, one, holds));
+        counted = exact_record_sum(program, counted, none);
+    }
+    *places = counted;
+    *least = picked;
+}
+
 unsigned int forms_floor(ExactRecordProgram *program, const FormsPreimage *preimage, unsigned int places)
 {
     unsigned int floor = 0u;

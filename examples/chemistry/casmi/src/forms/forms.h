@@ -70,6 +70,12 @@ void forms_divided(ExactRecordProgram *program, const FormsPreimage *preimage, u
 void forms_unit(ExactRecordProgram *program, const FormsPreimage *preimage, unsigned int places, unsigned int *held,
                 unsigned int *unit);
 
+// The least places p from 0 to `most` at which an integer k has k 10^-p inside the preimage, and the least such k:
+// `places` counts the places tried before the first that holds, most + 1 where none does, and `least` is k there and 0
+// where none holds
+void forms_places(ExactRecordProgram *program, const FormsPreimage *preimage, unsigned int most, unsigned int *places,
+                  unsigned int *least);
+
 // floor(10^places x) of the double x the preimage is of
 unsigned int forms_floor(ExactRecordProgram *program, const FormsPreimage *preimage, unsigned int places);
 
