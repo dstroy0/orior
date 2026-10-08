@@ -17,9 +17,10 @@
 //
 // The carrier is a program of the system's own (vendor_bin_layouts/<vendor>), and the channel knows it only as the
 // command it is given. The carrier puts the code in the container the system accepted, holds it to the system's gate
-// on the host, and runs it a thread a case. A question is carried in a process of its own, and many untimed questions
-// can be carried in one: a part that refuses a question ends that process, its ending is that question's answer, and
-// the channel goes on to the next in a process of its own.
+// on the host, and runs it a thread a case. A question is carried in a process of its own, and many questions of no
+// shape of their own can be carried in one, each timed one over its own launches: a part that refuses a question
+// ends that process, its ending is that question's answer, and the channel goes on to the next in a process of its
+// own.
 //
 // A part whose bus is addressed without a driver is the same channel with a shorter carrier, and the interface does
 // not move.
@@ -85,10 +86,10 @@ int run_channel_open(const char *const *carrier, const char *folder, unsigned lo
 // `asked` put and answered. 1 where the outcome is RUN_ANSWERED, 0 otherwise, with `asked->outcome` saying which
 int run_channel_ask(RunQuestion *asked);
 
-// The `count` questions of `asked`, each untimed and of no shape of its own, put together: carried in one process,
-// each answered as it is carried. A question the part refuses ends that process, its ending is its answer, and the
-// questions after it are carried in a process of their own, so that one refusal costs no other question its answer.
-// The count of those answered, each with its own outcome
+// The `count` questions of `asked`, each of no shape of its own, put together: carried in one process, each answered
+// as it is carried, and each timed one timed over its own launches. A question the part refuses ends that process,
+// its ending is its answer, and the questions after it are carried in a process of their own, so that one refusal
+// costs no other question its answer. The count of those answered, each with its own outcome
 unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count);
 
 // the channel closed, and what it held given back

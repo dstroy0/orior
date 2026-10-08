@@ -5,6 +5,8 @@
 
 #include "precepts.h"
 
+#include <stddef.h>
+
 // The word web, the layer above precepts.h. The language's alphabet web comes first, then the word web, and then the
 // coherence the clock measures.
 //
@@ -55,11 +57,13 @@ static const Word s_word_web[] = {
     {"word_bitand", 2u, 1u, {{PRECEPT_BITAND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_bitor", 2u, 1u, {{PRECEPT_BITOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_bitxor", 2u, 1u, {{PRECEPT_BITXOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"word_not", 1u, 1u, {{PRECEPT_NOT, PRECEPT_ARG_AT(0u), PRECEPT_NONE}}},
     // a copy
     {"word_copy", 1u, 1u, {{PRECEPT_MOV, PRECEPT_ARG_AT(0u), PRECEPT_NONE}}},
-    // the two shifts, whose amount is an operand and needs no width
+    // the shifts, whose amount is an operand and needs no width; the signed one carries the sign in
     {"word_shl", 2u, 1u, {{PRECEPT_SHL, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_shr", 2u, 1u, {{PRECEPT_SHR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
+    {"signed_word_shr", 2u, 1u, {{PRECEPT_ASR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // one limb of arithmetic, the precept itself with nothing around it. The carry chains running these over limbs are
     // width counted and are not here
     {"word_add", 2u, 1u, {{PRECEPT_ADD, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
@@ -74,5 +78,19 @@ static const Word s_word_web[] = {
 };
 
 #define WORD_WEB_COUNT (sizeof(s_word_web) / sizeof(s_word_web[0]))
+
+// the word of the web whose tree is the precept `precept` alone over its operands in order, or NULL where none is
+static inline const Word *word_web_word_for(unsigned int precept)
+{
+    for (unsigned int at = 0u; at < WORD_WEB_COUNT; at += 1u)
+    {
+        const Word *const word = &s_word_web[at];
+        if ((word->nodes == 1u) && (word->node[0].precept == precept) && (word->node[0].left == PRECEPT_ARG_AT(0u)))
+        {
+            return word;
+        }
+    }
+    return NULL;
+}
 
 #endif

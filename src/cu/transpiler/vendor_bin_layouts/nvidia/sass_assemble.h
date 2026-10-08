@@ -50,6 +50,11 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
 int sass_encoding_read(const SassMachine *machine, unsigned long long low, unsigned long long high,
                        unsigned long long address, char *text, size_t room);
 
+// Where each form of `machine` places its operands and the bits it leaves open, found once and held in the machine
+// for every encoding read after, which otherwise finds them again for every form at every encoding. They are the
+// forms' own and no encoding's, and a read answers the same either way. 1, or 0 where they could not be held
+int sass_encoding_places_hold(SassMachine *machine);
+
 // A loop is an address added to until it comes back where it began. The walk evaluates one encoding as the
 // instruction that takes a loop back: its guard is the flag the loop is steered on alone, and it is taken
 // only where the flag is true; one of its label or immediate operands, added to the address after it and kept to the

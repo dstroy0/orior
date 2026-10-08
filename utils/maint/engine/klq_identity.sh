@@ -14,6 +14,7 @@
 #     utils/maint/engine/klq_identity.sh queue
 #     utils/maint/engine/klq_identity.sh text_identity
 #     utils/maint/engine/klq_identity.sh pair
+#     utils/maint/engine/klq_identity.sh cost
 #
 # With no arguments the forms are sass.krs's. Given stall alone, it runs nothing else: the soonest each operation's
 # result is read is walked down on the part over the engine's writing of the stick, every question carried by
@@ -31,7 +32,9 @@
 # KLQ_TRACE names the trace, the log beside it is read by klq_decoder, and the set of our coherence each pair is read
 # into is written beneath its verdict with its concept, read off the values the part holds at each link. Each pair is
 # put at its links' least vector first, the links between a case's load and the form, then the registers the chain
-# names, and links of one vector are tried in an order drawn from KLQ_SEED, 1 where it is not given.
+# names, and links of one vector are tried in an order drawn from KLQ_SEED, 1 where it is not given. Given cost
+# alone, each arrangement of sm_86.kdm whose nodes sass.krs writes is put in a chain of ours in place of the link its
+# operator stands at, timed on the part's clock where it answers alike, and its cost and runs written in its row.
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -118,7 +121,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "text_identity" ]; then
         "$COHERENCE/Lstar.klq" "$SIDES/measuring_stick.tsv" -- "$CARRIER" "$COHERENCE/sm_86" "$COHERENCE/sm_86.ksc"
 fi
 
-if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" = "queue" ] || [ "$1" = "pair" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
+if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" = "queue" ] || [ "$1" = "pair" ] || [ "$1" = "cost" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
     [ -f "$WORK/host_answers.txt" ] || { echo "  no host answers: run utils/maint/engine/klq_identity.sh first"; exit 1; }
     CARRIER="$OUT/cubin_run"
     cc -std=c11 -O2 -Wall -o "$CARRIER" "$LAYOUTS/nvidia/cubin_run.c" "$LAYOUTS/nvidia/cubin_safe.c" \
@@ -129,6 +132,8 @@ if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" =
     shift
     [ "$MODE" = "queue" ] && set -- "$STICK/measuring_stick.tsv"
     [ "$MODE" = "pair" ] && set -- "$COHERENCE/Lstar.klq" "$COHERENCE/sm_86"
+    [ "$MODE" = "stall" ] && set -- "$COHERENCE/sm_86"
+    [ "$MODE" = "cost" ] && set -- "$COHERENCE/sm_86.kdm" "$COHERENCE/sm_86"
     mkdir -p "$WORK/$MODE"
     if [ "$MODE" = "pair" ] && [ -n "${KLQ_TRACE:-}" ]; then
         DECODER="$OUT/klq_decoder"

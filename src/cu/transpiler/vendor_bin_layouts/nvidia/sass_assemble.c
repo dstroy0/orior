@@ -794,26 +794,69 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
     return away ? -1 : (differs ? 1 : 0);
 }
 
+// one form's operands placed and the bits it leaves open, as the encoding reader finds them
+typedef struct
+{
+    int placed;
+    SassPlace places[SASS_MACHINE_OPERANDS];
+    unsigned int open;
+    unsigned long long open_low;
+    unsigned long long open_high;
+} SassFormPlaced;
+
+int sass_encoding_places_hold(SassMachine *machine)
+{
+    SassFormPlaced *const held = malloc((size_t)machine->forms * sizeof(SassFormPlaced) + 1u);
+    if (held == NULL)
+    {
+        return 0;
+    }
+    for (unsigned int number = 0u; number < machine->forms; number += 1u)
+    {
+        unsigned int unplaced = 0u;
+        held[number].placed = sass_places_find(&machine->form[number], held[number].places, &unplaced);
+        held[number].open = held[number].placed ? sass_open_bits(&machine->form[number], held[number].places,
+                                                                 &held[number].open_low, &held[number].open_high)
+                                                : 0u;
+    }
+    machine->places_held = held;
+    return 1;
+}
+
 static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned long long low, unsigned long long high,
                                           SassPlace *places)
 {
     SassHolder holders[SASS_HOLDERS];
     unsigned int held = 0u;
+    const SassFormPlaced *const placed = (const SassFormPlaced *)machine->places_held;
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         SassHolder holder;
         holder.form = &machine->form[number];
-        unsigned int unplaced = 0u;
-        if (!sass_places_find(holder.form, holder.places, &unplaced))
-        {
-            continue;
-        }
         unsigned long long open_low = 0ull;
         unsigned long long open_high = 0ull;
-        holder.open = sass_open_bits(holder.form, holder.places, &open_low, &open_high);
-        if ((((low ^ holder.form->low) & ~open_low) != 0ull) || (((high ^ holder.form->high) & ~open_high) != 0ull))
+        if (placed != NULL)
         {
-            continue;
+            if (!placed[number].placed || (((low ^ holder.form->low) & ~placed[number].open_low) != 0ull) ||
+                (((high ^ holder.form->high) & ~placed[number].open_high) != 0ull))
+            {
+                continue;
+            }
+            memcpy(holder.places, placed[number].places, sizeof(holder.places));
+            holder.open = placed[number].open;
+        }
+        else
+        {
+            unsigned int unplaced = 0u;
+            if (!sass_places_find(holder.form, holder.places, &unplaced))
+            {
+                continue;
+            }
+            holder.open = sass_open_bits(holder.form, holder.places, &open_low, &open_high);
+            if ((((low ^ holder.form->low) & ~open_low) != 0ull) || (((high ^ holder.form->high) & ~open_high) != 0ull))
+            {
+                continue;
+            }
         }
         // a holder past the most the reader weighs is refused and not dropped: the form it would have been is unknown
         if (held == SASS_HOLDERS)

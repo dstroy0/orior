@@ -6,7 +6,7 @@
 //   klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
 //   klq_identity permute <nvcc listing> <manifest> <folder>
 //   klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...
-//   klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...
+//   klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...
 //   klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...
 //   klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...
 //   klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...
@@ -22,8 +22,8 @@
 // a question. Where two carriers contend, the one whose most basal member sits first comes first, and an identity's
 // address is its first carrier's.
 //
-// A chain reads in its grammar and holds its whole intent, and a member's place in that grammar is its context: for each
-// register its link names, the nearest link before it and the nearest after it in its own chain that name the same
+// A chain reads in its grammar and holds its whole intent, and a member's place in that grammar is its context: for
+// each register its link names, the nearest link before it and the nearest after it in its own chain that name the same
 // register, with the slot each names it in. No link's meaning is read, only the names links share. The carriers of one
 // identity are gathered by context, each context the same members in one place of the grammar, addressed by its most
 // basal carrier and given a verdict of its own.
@@ -45,10 +45,12 @@
 #include "carrier_flow.h"
 #include "code_generator.h"
 #include "concept_product.h"
+#include "precept_value.h"
 #include "query_record.h"
 #include "query_trace.h"
 #include "run_channel.h"
 #include "target_internal.h"
+#include "word_web.h"
 extern "C"
 {
 #include "../../vendor_bin_layouts/nvidia/sass_assemble.h"
@@ -69,6 +71,7 @@ extern "C"
 #include <map>
 #include <memory>
 #include <mutex>
+#include <numeric>
 #include <random>
 #include <regex>
 #include <set>
@@ -2072,7 +2075,8 @@ static std::string s_record_ksc;
 // ask a cycle put and what came back, by the question's identity, every timed ask a sample of its own, and the paths
 // the last cycle read off them. Whatever asks an untimed ask again, in this cycle or a later one, is answered from it,
 // and the part is asked it once; an ask that timed out is asked again until an answer resolves it, and an ask the gate
-// censored is censored again without a process. It is read where R is read and written back where R is, and its path is
+// censored or the part answered illegal, timed or not, is censored without a process every time after, the part's
+// answer kept as it gave it. It is read where R is read and written back where R is, and its path is
 // empty where it could not be read, so that nothing writes over a record no mode read
 static QueryRecord s_query_record;
 
@@ -2110,6 +2114,9 @@ static void marks_written(void)
     s_marks_pending.clear();
 }
 static int ksc_answers_write(const char *ksc, const std::string &asked, const std::vector<std::string> &rows);
+static void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
+                       const RunQuestion *question, unsigned long long *asks, unsigned int mark,
+                       std::vector<RunQuestion> *asked);
 
 // the record written back to the .ksc it was read from, every ask a row in the order of its keys
 static void record_close(void)
@@ -2288,13 +2295,13 @@ static std::string question_identity(const RunQuestion *question)
     return identity;
 }
 
-// `asked` answered from `held`
+// `asked` answered from `held`. A question the part answered illegal is censored: the record keeps the part's answer
+// and its refusal, and the question is held off the part from then on, as one the gate censored is
 static void answer_given(RunQuestion *asked, const QueryRecordAsk &held)
 {
-    asked->outcome = (held.answer == "answers")    ? (unsigned int)RUN_ANSWERED
-                     : (held.answer == "illegal")  ? (unsigned int)RUN_ILLEGAL
-                     : (held.answer == "censored") ? (unsigned int)RUN_HELD
-                                                   : (unsigned int)RUN_NOTHING;
+    asked->outcome = (held.answer == "answers")                                    ? (unsigned int)RUN_ANSWERED
+                     : ((held.answer == "illegal") || (held.answer == "censored")) ? (unsigned int)RUN_HELD
+                                                                                   : (unsigned int)RUN_NOTHING;
     snprintf(asked->refused, sizeof(asked->refused), "%s", held.refusal.c_str());
     for (size_t place = 0u; (place < held.words.size()) && (place < RUN_CASES_MOST); place += 1u)
     {
@@ -2327,7 +2334,8 @@ static std::string answer_recorded(const RunQuestion *question)
                                                                                                     : "nothing";
 }
 
-// The asks `carried` answered. A timed ask is put every time and kept as a sample of its own, with its cost. An
+// The asks `carried` answered. A timed ask is put every time and kept as a sample of its own, with its cost: those of
+// no shape of their own together, and alone each dangerous one and each one of a shape of its own. An
 // untimed one is answered from the query record where its identity was asked before and did not time out, and the
 // rest are carried, one ask of an identity the round holds twice: the mundane together, and alone each dangerous one
 // and each one of a shape of its own, which a process of many does not take. Each answer the part gave, and each ask
@@ -2337,19 +2345,39 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
     std::vector<RunQuestion *> mundane;
     std::vector<RunQuestion *> alone;
     std::vector<RunQuestion *> timed;
+    std::vector<RunQuestion *> timed_together;
     std::vector<std::string> identities(carried.size());
     std::map<std::string, RunQuestion *> first_of;
     std::vector<std::string> firsts;
     std::map<RunQuestion *, unsigned int> waiting;
     std::vector<std::pair<RunQuestion *, RunQuestion *>> copies;
+    // the timed asks the part answered illegal or the gate censored, each with its refusal, censored again unput
+    std::unordered_map<std::string, std::string> timed_censored;
+    for (const QueryRecordSample &sample : s_query_record.samples)
+    {
+        if ((sample.answer == "illegal") || (sample.answer == "censored"))
+        {
+            timed_censored[sample.identity] = sample.refusal;
+        }
+    }
     for (size_t at = 0u; at < carried.size(); at += 1u)
     {
         RunQuestion *const question = carried[at].question;
         identities[at] = question_identity(question);
         s_round_handed += 1ull;
+        const auto censored = timed_censored.find(identities[at]);
+        if ((question->launches != 0u) && (censored != timed_censored.end()))
+        {
+            question->outcome = RUN_HELD;
+            snprintf(question->refused, sizeof(question->refused), "%s", censored->second.c_str());
+            s_round_held += 1ull;
+            continue;
+        }
         if (question->launches != 0u)
         {
-            timed.push_back(question);
+            const int timed_alone =
+                (carried[at].dangerous != 0) || (question->threads != 0u) || (question->blocks != 0u);
+            (timed_alone ? timed : timed_together).push_back(question);
             continue;
         }
         const QueryRecordAsk *const held = query_record_find(s_query_record, identities[at]);
@@ -2397,10 +2425,20 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
         }
         s_round_processes += 1ull;
     }
+    // timed asks of no shape of their own carried together, each timed over its own launches, and each other one alone
+    if (!timed_together.empty())
+    {
+        run_channel_ask_many(timed_together.data(), (unsigned int)timed_together.size());
+        s_round_processes += 1ull;
+    }
     for (RunQuestion *const question : timed)
     {
         run_channel_ask(question);
         s_round_processes += 1ull;
+    }
+    timed.insert(timed.end(), timed_together.begin(), timed_together.end());
+    for (RunQuestion *const question : timed)
+    {
         const std::string answer = answer_recorded(question);
         if (!answer.empty())
         {
@@ -2517,7 +2555,10 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
     if (recorded != s_record.end())
     {
         const AskRecorded &held = recorded->second;
-        question->outcome = (held.answer == "answers") ? RUN_ANSWERED : (held.answer == "illegal") ? RUN_ILLEGAL : RUN_NOTHING;
+        // an ask the part answered illegal is censored, its answer kept in R as the part gave it
+        question->outcome = (held.answer == "answers")   ? RUN_ANSWERED
+                            : (held.answer == "illegal") ? RUN_HELD
+                                                         : RUN_NOTHING;
         snprintf(question->refused, sizeof(question->refused), "%s", held.refusal.c_str());
         const int alike = (held.answer == "answers") && (held.word == 0xffffffffu);
         s_apart_at = (held.answer == "answers") ? held.word : 0xffffffffu;
@@ -2762,17 +2803,27 @@ static int ksc_answers_write(const char *ksc, const std::string &asked, const st
     return 1;
 }
 
-// The soonest each operation's result is read, asked of the part and walked down. Every chain of ours the host also
-// computes is a probe where an instruction that writes a register is read by the very next: with every stall the
-// longest, the chain answers alike with the host, and each stall the walk puts at the writer is truthy while every
-// probe of its pair answers alike and falsy once one answers apart. The walk starts at the longest, which is truthy,
-// and steps down one at a time until a stall is falsy; the soonest is the last truthy one, since a stall longer than
-// a truthy one is truthy too. An instruction that sets a write barrier is read behind the barrier and not behind its
-// stall, and is not walked. Each pair's soonest is written to the .ksc as the part's answer on the run channel,
-// `run answers <stall> stall <writer> <reader>`, in place of those it held, and <folder>/stall.txt holds every pair
-// with its probes and its asks
+// the most questions one process carries, for the memory each holds while it is put
+#define STALL_CARRIED_MOST 1024u
+
+// The soonest each operation's result is read, asked of the part. Every chain of ours the host also computes is put
+// with every stall the longest, all in one round, and a chain the part answers alike with the host there is a probe
+// wherever an instruction that writes a register is read by the very next. Every stall of each pair's writer below the
+// longest is then put on each of its probes, at most three, all in one round, since none waits on another's answer. A
+// stall is truthy where every probe of its pair answers alike, and the soonest is the least stall from which every
+// longer one is truthy: a shorter stall is not answered as no worse than a longer one, and at 0 a pair answers alike
+// where it is refused at 1. An instruction that sets a write barrier is read behind the barrier and not behind its
+// stall, and is not asked. A load's address is written in every chain of ours by IMAD.WIDE.U32, and each probe of a
+// pair whose reader loads through the pair the multiply writes is written again with the address written last by each
+// other word sass.krs writes a pair with: wide_add, the base read from the constant bank by wide_pack and the offset
+// by wide_mul_word, added; and wide_pack, the multiply's pair moved into the address's. Each is asked at every stall of
+// the word's last link, the one the load reads after, every other stall the longest, in the same round. A round is
+// carried STALL_CARRIED_MOST questions to a process. Each pair's soonest is written to the .ksc as the part's answer on
+// the run channel, `run answers <stall> stall <writer> <reader>`, in place of those it held, and <folder>/stall.txt
+// holds every pair with its probes and what came back at every stall: `=` alike on every probe, `x` apart on one, `!`
+// refused on one
 static int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                          const char *const *carrier)
+                          const char *machine_path, const char *const *carrier)
 {
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("write_barrier") == 0u))
@@ -2794,10 +2845,37 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
     unsigned long long asks = 0ull;
-    // the probes of each pair, a writer's operation and its reader's
-    std::map<std::pair<std::string, std::string>, std::vector<StallProbe>> pairs;
-    unsigned int chains = 0u;
-    unsigned int unanswered = 0u;
+    // the questions put together, STALL_CARRIED_MOST to a process, none waiting on another's answer: each one's mark,
+    // `=` alike with the host's answers to the chain `numbers` names at its place on every case, `x` apart on one, `!`
+    // refused
+    const auto asked_marks = [&](const std::vector<std::vector<unsigned char>> &codes,
+                                 const std::vector<std::string> &numbers) -> std::string {
+        std::string marks;
+        for (size_t first = 0u; first < codes.size(); first += STALL_CARRIED_MOST)
+        {
+            const size_t count = std::min((size_t)STALL_CARRIED_MOST, codes.size() - first);
+            const std::vector<std::vector<unsigned char>> carried(codes.begin() + (long)first,
+                                                                  codes.begin() + (long)(first + count));
+            std::vector<RunQuestion> asked;
+            cuts_asked(carried, std::vector<int>(count, 0), &s_question, &asks, 255u, &asked);
+            for (size_t at = 0u; at < count; at += 1u)
+            {
+                char mark = (asked[at].outcome != RUN_ANSWERED) ? '!' : '=';
+                for (unsigned int place = 0u; (mark == '=') && (place < s_question.cases); place += 1u)
+                {
+                    mark = (bracket_holds(host[numbers[first + at]][places[place]], asked[at].answered[place]) == 0)
+                               ? 'x'
+                               : mark;
+                }
+                marks += mark;
+            }
+        }
+        return marks;
+    };
+    // every chain of ours with every stall the longest, put in one round
+    std::vector<std::string> chain_numbers;
+    std::vector<std::vector<unsigned char>> chain_codes;
+    std::vector<std::vector<Link>> chain_links;
     for (const auto &held : host)
     {
         std::vector<unsigned char> code;
@@ -2810,14 +2888,24 @@ static int identity_stall(const char *engine, const char *answers, const char *k
         {
             stall_bits_write(&code, index, stall, longest);
         }
-        // a chain is a probe only where, with every stall the longest, the part answers it alike with the host
-        chains += 1u;
-        if (!stall_alike(code, held.second, places, &s_question, &asks))
+        chain_numbers.push_back(held.first);
+        chain_codes.push_back(code);
+        chain_links.push_back(links);
+    }
+    const std::string chain_marks = asked_marks(chain_codes, chain_numbers);
+    // the probes of each pair, a writer's operation and its reader's, in the chains the part answers alike
+    std::map<std::pair<std::string, std::string>, std::vector<StallProbe>> pairs;
+    unsigned int unanswered = 0u;
+    for (size_t chain = 0u; chain < chain_codes.size(); chain += 1u)
+    {
+        if (chain_marks[chain] != '=')
         {
             unanswered += 1u;
-            printf("  %s: not alike at the longest stalls (%s), and no probe\n", held.first.c_str(), s_question.refused);
+            printf("  %s: not alike at the longest stalls, and no probe\n", chain_numbers[chain].c_str());
             continue;
         }
+        const std::vector<unsigned char> &code = chain_codes[chain];
+        const std::vector<Link> &links = chain_links[chain];
         for (size_t index = 0u; (index + 1u) < links.size(); index += 1u)
         {
             const size_t place = (size_t)std::stoul(links[index].position, nullptr, 16) / 16u;
@@ -2836,11 +2924,11 @@ static int identity_stall(const char *engine, const char *answers, const char *k
             std::vector<std::string> operands;
             const std::pair<std::string, std::string> pair(stall_operation(links[index], &operands),
                                                            stall_operation(links[index + 1u], &operands));
-            pairs[pair].push_back(StallProbe{held.first, code, place});
+            pairs[pair].push_back(StallProbe{chain_numbers[chain], code, place});
         }
     }
-    printf("klq_identity stall: %u chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n", chains,
-           unanswered, pairs.size(), run_channel_carrier());
+    printf("klq_identity stall: %zu chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n",
+           chain_codes.size(), unanswered, pairs.size(), run_channel_carrier());
     // the probes a pair is walked over at most, each from a chain of its own
     const size_t most = 3u;
     std::vector<std::string> rows;
@@ -2851,51 +2939,177 @@ static int identity_stall(const char *engine, const char *answers, const char *k
         run_channel_close();
         return 1;
     }
+    // every stall below the longest of each pair's writer, on each of its probes; the longest each probe answered alike
+    struct StallAsk
+    {
+        std::pair<std::string, std::string> pair;
+        std::string number;
+        unsigned long long step;
+    };
+    std::vector<StallAsk> stall_asks;
+    std::vector<std::vector<unsigned char>> stall_codes;
     for (const auto &pair : pairs)
     {
-        std::vector<const StallProbe *> probes;
         std::set<std::string> numbers;
         for (const StallProbe &probe : pair.second)
         {
-            if ((probes.size() < most) && numbers.insert(probe.number).second)
+            if ((numbers.size() >= most) || !numbers.insert(probe.number).second)
             {
-                probes.push_back(&probe);
+                continue;
+            }
+            for (unsigned long long step = 0ull; step < longest; step += 1ull)
+            {
+                std::vector<unsigned char> turned = probe.code;
+                stall_bits_write(&turned, probe.writer, stall, step);
+                stall_codes.push_back(turned);
+                stall_asks.push_back(StallAsk{pair.first, probe.number, step});
             }
         }
-        unsigned long long soonest = longest;
-        const unsigned long long before = asks;
-        for (unsigned long long step = longest; step-- > 0ull;)
+    }
+    // the load's address written last by the other words that write a pair, every stall of the last link, in the round
+    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
+    static SassMachine s_machine;
+    const int writable = (sass != NULL) && (sass_machine_read(&s_machine, machine_path) != 0);
+    const auto none_named = [](const std::string &) { return std::string(); };
+    const std::regex wide_written("^\\s*IMAD\\.WIDE\\.U32\\s+(R[0-9]+),\\s*(R[0-9]+),\\s*(R[0-9]+),\\s*"
+                                  "c\\[0x0\\]\\[(0x[0-9a-fA-F]+)\\+([0-9]+)\\];?\\s*$");
+    const std::regex first_word("^\\s*(\\S+)");
+    for (const auto &pair : pairs)
+    {
+        if (!writable || (pair.first.first != "IMAD.WIDE.U32") || (pair.first.second.compare(0u, 3u, "LDG") != 0))
         {
-            int truthy = 1;
-            for (const StallProbe *probe : probes)
+            continue;
+        }
+        std::set<std::string> numbers;
+        for (const StallProbe &probe : pair.second)
+        {
+            if ((numbers.size() >= most) || !numbers.insert(probe.number).second)
             {
-                std::vector<unsigned char> turned = probe->code;
-                stall_bits_write(&turned, probe->writer, stall, step);
-                truthy = truthy && stall_alike(turned, host[probe->number], places, &s_question, &asks);
-                if (!truthy)
+                continue;
+            }
+            std::ifstream chain(std::string(engine) + "/" + probe.number + ".sass", std::ios::binary);
+            const std::string chain_text((std::istreambuf_iterator<char>(chain)), std::istreambuf_iterator<char>());
+            const std::vector<std::string> lines = carrier_pieces(chain_text, '\n');
+            // the line of the probe's writer, its instructions counted past the labels
+            size_t line_at = lines.size();
+            size_t instructions = 0u;
+            for (size_t at = 0u; at < lines.size(); at += 1u)
+            {
+                const std::string kept = trimmed(lines[at]);
+                if (kept.empty() || (kept.back() == ':'))
                 {
+                    continue;
+                }
+                if (instructions == probe.writer)
+                {
+                    line_at = at;
                     break;
                 }
+                instructions += 1u;
             }
-            if (!truthy)
+            std::smatch found;
+            if ((line_at == lines.size()) || !std::regex_match(lines[line_at], found, wide_written))
             {
-                break;
+                continue;
             }
-            soonest = step;
+            const unsigned int base = (chain_registers(engine, probe.number) + 1u) & ~1u;
+            const std::string held = "R" + std::to_string(base);
+            const std::string offset = "R" + std::to_string(base + 2u);
+            const std::string low = "c[0x0][" + found[4].str() + "+" + found[5].str() + "]";
+            const std::string high =
+                "c[0x0][" + found[4].str() + "+" + std::to_string(std::stoul(found[5].str()) + 4u) + "]";
+            std::string by_add;
+            std::string by_pack =
+                "\tIMAD.WIDE.U32 \t" + held + ", " + found[2].str() + ", " + found[3].str() + ", " + low + ";\n";
+            // each word appended to its own probe's text, as the ruleset writes it
+            int ways = ruleset_opcode(sass, "wide_pack", {held, low, high}, none_named, by_add);
+            ways = ways &&
+                   ruleset_opcode(sass, "wide_mul_word", {offset, found[2].str(), found[3].str()}, none_named, by_add);
+            ways = ways && ruleset_opcode(sass, "wide_add", {found[1].str(), held, offset}, none_named, by_add);
+            ways = ways && ruleset_opcode(sass, "wide_pack", {found[1].str(), held, held + ".hi"}, none_named, by_pack);
+            if (!ways)
+            {
+                continue;
+            }
+            std::string before;
+            std::string after;
+            for (size_t at = 0u; at < lines.size(); at += 1u)
+            {
+                (at < line_at) ? (before += lines[at] + "\n") : (at > line_at) ? (after += lines[at] + "\n") : before;
+            }
+            for (const std::string &way : {by_add, by_pack})
+            {
+                std::vector<unsigned char> code(16u * 4096u);
+                const unsigned int written_count = sass_assemble_lines(&s_machine, (before + way).c_str(),
+                                                                       SASS_CONTROL_SAFE, code.data(), code.size());
+                const unsigned int count = sass_assemble_lines(&s_machine, (before + way + after).c_str(),
+                                                               SASS_CONTROL_SAFE, code.data(), code.size());
+                const std::vector<std::string> way_lines = carrier_pieces(way, '\n');
+                std::smatch last;
+                if ((written_count == 0u) || (count == 0u) || way_lines.empty() ||
+                    !std::regex_search(way_lines.back(), last, first_word))
+                {
+                    continue;
+                }
+                code.resize(16u * count);
+                for (size_t index = 0u; index < count; index += 1u)
+                {
+                    stall_bits_write(&code, index, stall, longest);
+                }
+                for (unsigned long long step = 0ull; step <= longest; step += 1ull)
+                {
+                    std::vector<unsigned char> turned = code;
+                    stall_bits_write(&turned, written_count - 1u, stall, step);
+                    stall_codes.push_back(turned);
+                    stall_asks.push_back(
+                        StallAsk{std::make_pair(last[1].str(), pair.first.second), probe.number, step});
+                }
+            }
+        }
+    }
+    // the one round, and what came back at every stall of each pair
+    std::vector<std::string> stall_numbers;
+    for (const StallAsk &each : stall_asks)
+    {
+        stall_numbers.push_back(each.number);
+    }
+    printf("klq_identity stall: %zu questions, every stall of every pair, put in one round\n", stall_codes.size());
+    const std::string marks = asked_marks(stall_codes, stall_numbers);
+    std::map<std::pair<std::string, std::string>, std::string> came_back;
+    std::map<std::pair<std::string, std::string>, std::set<std::string>> asked_over;
+    for (size_t at = 0u; at < stall_asks.size(); at += 1u)
+    {
+        const StallAsk &each = stall_asks[at];
+        std::string &pair_marks = came_back[each.pair];
+        pair_marks.resize((size_t)longest + 1u, '=');
+        asked_over[each.pair].insert(each.number);
+        char &held_mark = pair_marks[(size_t)each.step];
+        held_mark = (held_mark == '!') ? '!' : (marks[at] != '=') ? marks[at] : held_mark;
+    }
+    for (const auto &each : came_back)
+    {
+        // the soonest is the least stall from which every longer one answers alike
+        unsigned long long soonest = longest + 1ull;
+        while ((soonest > 0ull) && (each.second[(size_t)soonest - 1u] == '='))
+        {
+            soonest -= 1ull;
         }
         std::string over;
-        for (const StallProbe *probe : probes)
+        for (const std::string &number : asked_over[each.first])
         {
-            over += " " + probe->number;
+            over += " " + number;
         }
-        fprintf(table, "%s %s soonest %llu, %llu asks, over%s\n", pair.first.first.c_str(), pair.first.second.c_str(),
-                soonest, asks - before, over.c_str());
-        printf("  %s then %s: soonest %llu (%llu asks)\n", pair.first.first.c_str(), pair.first.second.c_str(), soonest,
-               asks - before);
-        char row[256];
-        snprintf(row, sizeof(row), "run answers %08llx stall %s %s", soonest, pair.first.first.c_str(),
-                 pair.first.second.c_str());
-        rows.push_back(row);
+        fprintf(table, "%s %s soonest %llu, stalls 0 to %llu: %s, over%s\n", each.first.first.c_str(),
+                each.first.second.c_str(), soonest, longest, each.second.c_str(), over.c_str());
+        printf("  %s then %s: soonest %llu, stalls 0 to %llu %s\n", each.first.first.c_str(), each.first.second.c_str(),
+               soonest, longest, each.second.c_str());
+        if (soonest <= longest)
+        {
+            char row[256];
+            snprintf(row, sizeof(row), "run answers %08llx stall %s %s", soonest, each.first.first.c_str(),
+                     each.first.second.c_str());
+            rows.push_back(row);
+        }
     }
     fclose(table);
     run_channel_close();
@@ -2904,7 +3118,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
         printf("klq_identity stall: %s could not be written\n", ksc);
         return 1;
     }
-    printf("klq_identity stall: %zu pairs walked over %llu asks, written to %s\n", pairs.size(), asks, ksc);
+    printf("klq_identity stall: %zu pairs over %llu asks, written to %s\n", pairs.size(), asks, ksc);
     return 0;
 }
 
@@ -4072,6 +4286,135 @@ static int form_ranged(const std::string &text)
     return 0;
 }
 
+// Every carrier of ours the host computes: its text by its question, its links read for what each writes, reads and
+// loads with the link writing the register its cases are loaded through, and its vector at its least, the registers its
+// chain names, then the operands of a case it loads
+struct Carriers
+{
+    std::map<std::string, std::string> texts;
+    std::map<std::string, std::pair<std::vector<CarrierLink>, long>> flows;
+    std::map<std::string, std::pair<unsigned int, unsigned int>> magnitudes;
+};
+
+// the carriers of the chains in `engine` the host computes, by `host`, into `carriers`
+static void carriers_read(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
+                          Carriers *carriers)
+{
+    for (const auto &held : host)
+    {
+        std::ifstream chain(std::string(engine) + "/" + held.first + ".sass", std::ios::binary);
+        if (chain)
+        {
+            carriers->texts[held.first] =
+                std::string((std::istreambuf_iterator<char>(chain)), std::istreambuf_iterator<char>());
+        }
+    }
+    for (const auto &chain : carriers->texts)
+    {
+        long cases_defined = -2;
+        const std::vector<CarrierLink> links = carrier_read(chain.second, &cases_defined);
+        carriers->flows[chain.first] = std::make_pair(links, cases_defined);
+    }
+    for (const auto &flow : carriers->flows)
+    {
+        carriers->magnitudes[flow.first] =
+            std::make_pair(chain_registers(engine, flow.first),
+                           (unsigned int)carrier_operands_loaded(flow.second.first, flow.second.second).size());
+    }
+}
+
+// form `form` as `sass` writes it with each parameter a marker, and its parameters' names; empty where it gives no
+// form of the name
+static std::string marked(const Ruleset *sass, const std::string &form, std::vector<std::string> *names)
+{
+    const auto none = [](const std::string &) { return std::string(); };
+    *names = ruleset_parameters(sass, form);
+    std::vector<std::string> markers;
+    for (size_t at = 0u; at < names->size(); at += 1u)
+    {
+        markers.push_back(std::string("\x01") + (char)('A' + at) + "\x01");
+    }
+    std::string written;
+    return (ruleset_opcode(sass, form, markers, none, written) != 0) ? written : std::string();
+}
+
+// each link a form stands at, in each carrier, with its vector: the carrier's delta before the form, the links
+// between a case's load and the form, then the carrier's magnitude
+struct FoundLink
+{
+    const std::pair<const std::string, std::string> *chain;
+    std::smatch found;
+    std::pair<long, std::pair<unsigned int, unsigned int>> vector;
+};
+
+// the links the form `text`, each parameter a marker, stands at in every carrier of `carriers`, the least vector
+// first and those of one vector in an order drawn from `seed` and `drawn_for`, and in `group` each marker's group in
+// the pattern its lines are found by
+static std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const std::string &text,
+                                       std::map<char, unsigned int> *group, const std::string &drawn_for)
+{
+    // the pattern of the form's lines, each marker an operand, the same marker the same operand
+    std::string pattern;
+    for (size_t at = 0u; at < text.size(); at += 1u)
+    {
+        if ((text[at] == '\x01') && ((at + 2u) < text.size()) && (text[at + 2u] == '\x01'))
+        {
+            const char marker = text[at + 1u];
+            if (group->count(marker) == 0u)
+            {
+                const unsigned int next = (unsigned int)group->size() + 1u;
+                (*group)[marker] = next;
+                pattern += "([^,;\\s]+?)";
+            }
+            else
+            {
+                pattern += "\\" + std::to_string((*group)[marker]);
+            }
+            at += 2u;
+            continue;
+        }
+        const char letter = text[at];
+        const int special = (letter != '\0') && (strchr("\\^$.|?*+()[]{}", letter) != NULL);
+        pattern += special ? (std::string("\\") + letter) : std::string(1u, letter);
+    }
+    const std::regex lines(pattern);
+    std::vector<FoundLink> found_links;
+    for (const auto &chain : carriers.texts)
+    {
+        const std::sregex_iterator end;
+        for (std::sregex_iterator link_found(chain.second.begin(), chain.second.end(), lines); link_found != end;
+             ++link_found)
+        {
+            const auto &flow = carriers.flows[chain.first];
+            const long link_at =
+                (long)std::count(chain.second.begin(), chain.second.begin() + link_found->position(0), '\n');
+            const long delta = carrier_form_delta(flow.first, flow.second, link_found->str(0), link_at);
+            found_links.push_back(FoundLink{
+                &chain, *link_found, std::make_pair((delta < 0) ? LONG_MAX : delta, carriers.magnitudes[chain.first])});
+        }
+    }
+    // the links in the order of their vectors, the least first: a form the cases reach as they were loaded answers
+    // of the form alone. Links of one vector are tried in an order drawn from the seed and the forms `drawn_for`
+    // names alone, so that no other pair, put or settled, moves the order of these
+    std::stable_sort(found_links.begin(), found_links.end(),
+                     [](const FoundLink &left, const FoundLink &right) { return left.vector < right.vector; });
+    const unsigned long long drawn_hash = record_hash(drawn_for.c_str(), drawn_for.size(), seed);
+    std::seed_seq drawn_seed{(unsigned int)(drawn_hash & 0xffffffffull), (unsigned int)(drawn_hash >> 32u),
+                             (unsigned int)seed};
+    std::mt19937 drawn(drawn_seed);
+    for (size_t first = 0u; first < found_links.size();)
+    {
+        size_t last = first;
+        while ((last < found_links.size()) && (found_links[last].vector == found_links[first].vector))
+        {
+            last += 1u;
+        }
+        std::shuffle(found_links.begin() + (long)first, found_links.begin() + (long)last, drawn);
+        first = last;
+    }
+    return found_links;
+}
+
 // The cuts `codes` put together over the cases `question` holds, each dangerous where `dangerous` says: each container
 // declaring `mark` registers, and every register its file holds where the part refuses that, those put together in
 // the round after. Each cut's question into `asked`, in the order of `codes`, its outcome, answers and refusal its own,
@@ -4145,33 +4488,11 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         printf("klq_identity pair: sass.krs or the machine file %s is not read\n", machine_path);
         return 1;
     }
-    // every carrier's text, by its question
-    std::map<std::string, std::string> texts;
-    for (const auto &held : host)
-    {
-        std::ifstream chain(std::string(engine) + "/" + held.first + ".sass", std::ios::binary);
-        if (chain)
-        {
-            texts[held.first] = std::string((std::istreambuf_iterator<char>(chain)), std::istreambuf_iterator<char>());
-        }
-    }
-    // every carrier's links, read for what each writes, reads and loads, and the link writing the register its cases
-    // are loaded through
-    std::map<std::string, std::pair<std::vector<CarrierLink>, long>> flows;
-    for (const auto &chain : texts)
-    {
-        long cases_defined = -2;
-        const std::vector<CarrierLink> links = carrier_read(chain.second, &cases_defined);
-        flows[chain.first] = std::make_pair(links, cases_defined);
-    }
-    // each carrier's vector at its least: the registers its chain names, then the operands of a case it loads
-    std::map<std::string, std::pair<unsigned int, unsigned int>> magnitudes;
-    for (const auto &flow : flows)
-    {
-        magnitudes[flow.first] =
-            std::make_pair(chain_registers(engine, flow.first),
-                           (unsigned int)carrier_operands_loaded(flow.second.first, flow.second.second).size());
-    }
+    Carriers carriers;
+    carriers_read(engine, host, &carriers);
+    const std::map<std::string, std::string> &texts = carriers.texts;
+    std::map<std::string, std::pair<std::vector<CarrierLink>, long>> &flows = carriers.flows;
+    std::map<std::string, std::pair<unsigned int, unsigned int>> &magnitudes = carriers.magnitudes;
     // the seed the order of the links of one magnitude is drawn from, with each put's two forms, KLQ_SEED where it is
     // given
     const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
@@ -4218,92 +4539,6 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     const std::vector<std::set<unsigned long long>> cased = concept_values(operands);
     unsigned long long asks = 0ull;
     const auto none = [](const std::string &) { return std::string(); };
-    // form `form` as sass.krs writes it with each parameter a marker, and its parameters' names; empty where it gives
-    // no form of the name
-    const auto marked = [&](const std::string &form, std::vector<std::string> *names) -> std::string {
-        *names = ruleset_parameters(sass, form);
-        std::vector<std::string> markers;
-        for (size_t at = 0u; at < names->size(); at += 1u)
-        {
-            markers.push_back(std::string("\x01") + (char)('A' + at) + "\x01");
-        }
-        std::string written;
-        return (ruleset_opcode(sass, form, markers, none, written) != 0) ? written : std::string();
-    };
-    // each link a form stands at, in each carrier, with its vector: the carrier's delta before the form, the links
-    // between a case's load and the form, then the carrier's magnitude
-    struct FoundLink
-    {
-        const decltype(texts)::value_type *chain;
-        std::smatch found;
-        std::pair<long, std::pair<unsigned int, unsigned int>> vector;
-    };
-    // the links the form `text`, each parameter a marker, stands at in every carrier, the least vector first and
-    // those of one vector in an order drawn from the seed and `drawn_for`, and in `group` each marker's group in
-    // the pattern its lines are found by
-    const auto links_of = [&](const std::string &text, std::map<char, unsigned int> *group,
-                              const std::string &drawn_for) -> std::vector<FoundLink> {
-        // the pattern of the form's lines, each marker an operand, the same marker the same operand
-        std::string pattern;
-        for (size_t at = 0u; at < text.size(); at += 1u)
-        {
-            if ((text[at] == '\x01') && ((at + 2u) < text.size()) && (text[at + 2u] == '\x01'))
-            {
-                const char marker = text[at + 1u];
-                if (group->count(marker) == 0u)
-                {
-                    const unsigned int next = (unsigned int)group->size() + 1u;
-                    (*group)[marker] = next;
-                    pattern += "([^,;\\s]+?)";
-                }
-                else
-                {
-                    pattern += "\\" + std::to_string((*group)[marker]);
-                }
-                at += 2u;
-                continue;
-            }
-            const char letter = text[at];
-            const int special = (letter != '\0') && (strchr("\\^$.|?*+()[]{}", letter) != NULL);
-            pattern += special ? (std::string("\\") + letter) : std::string(1u, letter);
-        }
-        const std::regex lines(pattern);
-        std::vector<FoundLink> found_links;
-        for (const auto &chain : texts)
-        {
-            const std::sregex_iterator end;
-            for (std::sregex_iterator link_found(chain.second.begin(), chain.second.end(), lines); link_found != end;
-                 ++link_found)
-            {
-                const auto &flow = flows[chain.first];
-                const long link_at =
-                    (long)std::count(chain.second.begin(), chain.second.begin() + link_found->position(0), '\n');
-                const long delta = carrier_form_delta(flow.first, flow.second, link_found->str(0), link_at);
-                found_links.push_back(FoundLink{
-                    &chain, *link_found, std::make_pair((delta < 0) ? LONG_MAX : delta, magnitudes[chain.first])});
-            }
-        }
-        // the links in the order of their vectors, the least first: a form the cases reach as they were loaded answers
-        // of the form alone. Links of one vector are tried in an order drawn from the seed and the forms `drawn_for`
-        // names alone, so that no other pair, put or settled, moves the order of these
-        std::stable_sort(found_links.begin(), found_links.end(),
-                         [](const FoundLink &left, const FoundLink &right) { return left.vector < right.vector; });
-        const unsigned long long drawn_hash = record_hash(drawn_for.c_str(), drawn_for.size(), seed);
-        std::seed_seq drawn_seed{(unsigned int)(drawn_hash & 0xffffffffull), (unsigned int)(drawn_hash >> 32u),
-                                 (unsigned int)seed};
-        std::mt19937 drawn(drawn_seed);
-        for (size_t first = 0u; first < found_links.size();)
-        {
-            size_t last = first;
-            while ((last < found_links.size()) && (found_links[last].vector == found_links[first].vector))
-            {
-                last += 1u;
-            }
-            std::shuffle(found_links.begin() + (long)first, found_links.begin() + (long)last, drawn);
-            first = last;
-        }
-        return found_links;
-    };
     // every choice a put makes at a link, written to the log as `choice <flags> <link>`, the flags of the trace's
     // table that hold there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
     // it, or why the put ended at it. The flags an open pair's links hold are the questions a further pass takes up
@@ -4331,8 +4566,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         std::vector<unsigned int> &places = *t_places;
         std::vector<std::string> from_names;
         std::vector<std::string> to_names;
-        const std::string from_text = marked(from, &from_names);
-        const std::string to_text = marked(to, &to_names);
+        const std::string from_text = marked(sass, from, &from_names);
+        const std::string to_text = marked(sass, to, &to_names);
         // the stand-in read against the form token by token: what the form writes in place of each of the stand-in's
         // parameters, and each of the form's parameters the stand-in writes a literal in place of
         std::map<char, std::string> bound;
@@ -4363,7 +4598,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             return 0;
         }
         std::map<char, unsigned int> group;
-        const std::vector<FoundLink> found_links = links_of(from_text, &group, from + " " + to);
+        const std::vector<FoundLink> found_links = links_of(carriers, seed, from_text, &group, from + " " + to);
         // the pair's product over every put, the shapes of what the form read at each, and its verdict where a put
         // closed it
         unsigned int alike_cases = 0u;
@@ -4838,8 +5073,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     const auto witness_lower = [&](const std::string &first, const std::string &second, std::string *verdict) -> int {
         std::vector<std::string> first_names;
         std::vector<std::string> second_names;
-        const std::string first_text = marked(first, &first_names);
-        const std::string second_text = marked(second, &second_names);
+        const std::string first_text = marked(sass, first, &first_names);
+        const std::string second_text = marked(sass, second, &second_names);
         if (first_text.empty() || second_text.empty())
         {
             return 0;
@@ -4896,7 +5131,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 continue;
             }
             std::vector<std::string> third_names;
-            const std::string third_text = marked(third, &third_names);
+            const std::string third_text = marked(sass, third, &third_names);
             std::map<std::string, std::string> named;
             for (const std::string &name : third_names)
             {
@@ -4910,7 +5145,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 continue;
             }
             std::map<char, unsigned int> group;
-            const std::vector<FoundLink> found_links = links_of(third_text, &group, first + " " + second + " " + third);
+            const std::vector<FoundLink> found_links =
+                links_of(carriers, seed, third_text, &group, first + " " + second + " " + third);
             std::set<std::string> shapes;
             int witnessed = 0;
             for (const FoundLink &found_link : found_links)
@@ -5092,8 +5328,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     const auto pair_facts = [&](const std::string &first, const std::string &second) {
         std::vector<std::string> first_names;
         std::vector<std::string> second_names;
-        const std::string first_text = marked(first, &first_names);
-        const std::string second_text = marked(second, &second_names);
+        const std::string first_text = marked(sass, first, &first_names);
+        const std::string second_text = marked(sass, second, &second_names);
         std::map<char, std::string> bound;
         std::map<char, std::string> fixed;
         const int structural = (form_unified(first_text, second_text, &bound, &fixed) && !fixed.empty()) ||
@@ -5186,8 +5422,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                          std::string()};
             words >> kind >> pair.first >> pair.second;
             std::vector<std::string> names;
-            const std::string first_text = marked(pair.first, &names);
-            const std::string second_text = marked(pair.second, &names);
+            const std::string first_text = marked(sass, pair.first, &names);
+            const std::string second_text = marked(sass, pair.second, &names);
             unsigned long long reads = record_hash(first_text.c_str(), first_text.size() + 1u, engine_read);
             reads = record_hash(second_text.c_str(), second_text.size() + 1u, reads);
             char hashed[17];
@@ -5372,6 +5608,526 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     return 0;
 }
 
+// the times an arrangement is written over itself in one timed block
+#define COST_REPEATS 16u
+
+#define COST_PRECEPT_TEXT(name_, text_, arity_) text_,
+#define COST_PRECEPT_ARITY(name_, text_, arity_) arity_,
+static const char *const s_precept_text[] = {PRECEPTS(COST_PRECEPT_TEXT)};
+static const unsigned int s_precept_arity[] = {PRECEPTS(COST_PRECEPT_ARITY)};
+#undef COST_PRECEPT_TEXT
+#undef COST_PRECEPT_ARITY
+
+// The tree the arrangement `text` writes from `at`, as chain_build.c writes one: a precept applied to its children, or
+// a leaf, an operand `w<place>`, `zero` or `ones`. Its nodes appended to `nodes` children first, and the node or the
+// leaf it is into `child`. 1, or 0 where the text is no tree over the precepts
+static int arrangement_read(const std::string &text, size_t *at, std::vector<PreceptNode> *nodes, unsigned char *child)
+{
+    while ((*at < text.size()) && (text[*at] == ' '))
+    {
+        *at += 1u;
+    }
+    size_t end = *at;
+    while ((end < text.size()) && (isalnum((unsigned char)text[end]) != 0))
+    {
+        end += 1u;
+    }
+    const std::string name = text.substr(*at, end - *at);
+    *at = end;
+    if ((name == "zero") || (name == "ones"))
+    {
+        *child = (name == "zero") ? PRECEPT_ZERO : PRECEPT_ONES;
+        return 1;
+    }
+    if ((name.size() == 2u) && (name[0] == 'w') && (isdigit((unsigned char)name[1]) != 0))
+    {
+        *child = PRECEPT_ARG_AT((unsigned int)(name[1] - '0'));
+        return 1;
+    }
+    unsigned int precept = PRECEPT_COUNT;
+    for (unsigned int each = 0u; each < PRECEPT_COUNT; each += 1u)
+    {
+        precept = (name == s_precept_text[each]) ? each : precept;
+    }
+    if ((precept == PRECEPT_COUNT) || (s_precept_arity[precept] == 0u) || (*at >= text.size()) || (text[*at] != '('))
+    {
+        return 0;
+    }
+    *at += 1u;
+    unsigned char left = PRECEPT_NONE;
+    unsigned char right = PRECEPT_NONE;
+    if (!arrangement_read(text, at, nodes, &left))
+    {
+        return 0;
+    }
+    if (s_precept_arity[precept] == 2u)
+    {
+        if ((*at >= text.size()) || (text[*at] != ','))
+        {
+            return 0;
+        }
+        *at += 1u;
+        if (!arrangement_read(text, at, nodes, &right))
+        {
+            return 0;
+        }
+    }
+    if ((*at >= text.size()) || (text[*at] != ')') || (nodes->size() >= PRECEPT_NODES))
+    {
+        return 0;
+    }
+    *at += 1u;
+    // a node the tree holds already is that node, as chain_build.c counts it, and is written once
+    for (size_t held = 0u; held < nodes->size(); held += 1u)
+    {
+        const PreceptNode &node = (*nodes)[held];
+        if ((node.precept == precept) && (node.left == left) && (node.right == right))
+        {
+            *child = (unsigned char)held;
+            return 1;
+        }
+    }
+    nodes->push_back(PreceptNode{(unsigned char)precept, left, right});
+    *child = (unsigned char)(nodes->size() - 1u);
+    return 1;
+}
+
+// the word of the web of two reads whose tree answers as `nodes` does on every pair of the low words of the values a
+// question is put with: the word an operator's arrangements produce, or NULL where none is
+static const Word *word_produced(const std::vector<PreceptNode> &nodes)
+{
+    for (unsigned int at = 0u; at < WORD_WEB_COUNT; at += 1u)
+    {
+        const Word *const word = &s_word_web[at];
+        int alike = (word->reads == 2u);
+        for (size_t left = 0u; alike && (left < IDENTITY_VALUES); left += 1u)
+        {
+            for (size_t right = 0u; alike && (right < IDENTITY_VALUES); right += 1u)
+            {
+                PreceptCase given = {};
+                given.operands = 2u;
+                given.operand[0] = (unsigned int)(s_values[left] & 0xffffffffull);
+                given.operand[1] = (unsigned int)(s_values[right] & 0xffffffffull);
+                unsigned int by_word = 0u;
+                unsigned int by_nodes = 0u;
+                alike = precept_value(word->node, word->nodes, &given, &by_word) &&
+                        precept_value(nodes.data(), (unsigned int)nodes.size(), &given, &by_nodes) &&
+                        (by_word == by_nodes);
+            }
+        }
+        if (alike)
+        {
+            return word;
+        }
+    }
+    return NULL;
+}
+
+// The arrangement `nodes` written through `sass` node by node, each node in the form of the web's word that is its
+// precept alone (word_web.h): a leaf the operand of `operands` at its place, RZ for a word of zeroes and `ones` for a
+// word of ones, every node but the root written to a register of its own numbered from `next` on, and the root to
+// `to`. Empty where a precept has no such word or the ruleset writes none of it
+static std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes,
+                                       const std::vector<std::string> &operands, const std::string &ones,
+                                       const std::string &to, unsigned int next)
+{
+    const auto none = [](const std::string &) { return std::string(); };
+    std::vector<std::string> held;
+    std::string written;
+    for (size_t at = 0u; at < nodes.size(); at += 1u)
+    {
+        const Word *const word = word_web_word_for(nodes[at].precept);
+        if ((word == NULL) || (ruleset_parameters(sass, word->name).size() != (1u + word->reads)))
+        {
+            return std::string();
+        }
+        held.push_back(((at + 1u) == nodes.size()) ? to : ("R" + std::to_string(next + at)));
+        std::vector<std::string> arguments = {held[at]};
+        const unsigned char child[2] = {nodes[at].left, nodes[at].right};
+        for (unsigned int which = 0u; which < word->reads; which += 1u)
+        {
+            const unsigned char leaf = child[which];
+            const size_t place = (size_t)(leaf - PRECEPT_ARG);
+            if (((leaf == PRECEPT_ONES) && ones.empty()) || ((leaf >= PRECEPT_ARG) && (leaf != PRECEPT_ZERO) &&
+                                                             (leaf != PRECEPT_ONES) && (place >= operands.size())))
+            {
+                return std::string();
+            }
+            arguments.push_back((leaf == PRECEPT_ZERO)   ? std::string("RZ")
+                                : (leaf == PRECEPT_ONES) ? ones
+                                : (leaf >= PRECEPT_ARG)  ? operands[place]
+                                                         : held[leaf]);
+        }
+        std::string line;
+        if (ruleset_opcode(sass, word->name, arguments, none, line) == 0)
+        {
+            return std::string();
+        }
+        written += line;
+    }
+    return written;
+}
+
+// The arrangements of a part's .kdm costed on the part (P6, the rank). An operator's arrangements are put at one link
+// of a carrier of ours that holds the word they produce (word_web.h): the first link, in the order the pair puts
+// links, whose result a later link reads, that carries the cases, and whose operands and result are registers. The
+// link's operands are the arrangement's and its result the arrangement's root's. An arrangement each of whose nodes is
+// the precept of a word sass.krs writes is written node by node through it, and one with a node no such word writes is
+// left. Each is asked two questions over every case the host computes the carrier on: the carrier with the arrangement
+// in the link's place, held against the host's answers; and the part's clock read before and after the arrangement
+// written COST_REPEATS times, each time over the last time's result, the difference stored in place of the carrier's
+// answer. Each link is asked its clock read twice with nothing between, the clock's own. No question waits on another's
+// answer, and every one is written before any is put: all are put in one round, in an order drawn from KLQ_SEED, and
+// the round after puts again only those the part refused, declaring every register its file holds (cuts_asked). The
+// clock's reading is the words the part stores and no launch's time: each is an ask the query record answers once it is
+// asked, and a question the record holds is never put again. An arrangement the part answers apart or refuses keeps
+// no cost. Its cost is the least difference any case read, less the least its link's clock read alone, over
+// COST_REPEATS, in the part's clock count: written in its row of the .kdm with 1 run, the one reading.
+// <folder>/cost.txt holds every arrangement with its link and what came of it
+static int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                         const char *kdm, const char *machine_path, const char *const *carrier)
+{
+    std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
+    const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
+    static SassMachine s_machine;
+    if ((sass == NULL) || (sass_machine_read(&s_machine, machine_path) == 0))
+    {
+        printf("klq_identity cost: sass.krs or the machine file %s is not read\n", machine_path);
+        return 1;
+    }
+    Carriers carriers;
+    carriers_read(engine, host, &carriers);
+    const unsigned long seed = (getenv("KLQ_SEED") != NULL) ? std::stoul(getenv("KLQ_SEED")) : 1ul;
+    // the .kdm's lines, and each arrangement's row among them
+    std::vector<std::string> lines;
+    std::string line;
+    std::ifstream held_kdm(kdm, std::ios::binary);
+    while (std::getline(held_kdm, line))
+    {
+        lines.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
+    }
+    held_kdm.close();
+    struct CostRow
+    {
+        size_t line;
+        std::vector<std::string> fields;
+        std::vector<PreceptNode> nodes;
+        std::string verdict;
+        unsigned long long least;
+    };
+    std::vector<CostRow> rows;
+    std::map<std::string, std::vector<size_t>> operators;
+    for (size_t at = 0u; at < lines.size(); at += 1u)
+    {
+        std::vector<std::string> fields;
+        std::stringstream fielded(lines[at]);
+        std::string field;
+        while (std::getline(fielded, field, '\t'))
+        {
+            fields.push_back(field);
+        }
+        if ((fields.size() != 5u) || fields[0].empty() || (fields[0][0] == '#') || (fields[2] == "-"))
+        {
+            continue;
+        }
+        CostRow row{at, fields, {}, "", ULLONG_MAX};
+        size_t read_at = 0u;
+        unsigned char root = PRECEPT_NONE;
+        if (!arrangement_read(fields[2], &read_at, &row.nodes, &root) || (read_at != fields[2].size()) ||
+            (root >= PRECEPT_ARG))
+        {
+            row.verdict = "unread";
+        }
+        operators[fields[0]].push_back(rows.size());
+        rows.push_back(row);
+    }
+    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    {
+        return 1;
+    }
+    record_open(ksc, "cost");
+    mark_pending("seed", std::to_string(seed));
+    FILE *const table = fopen((folder + "/cost.txt").c_str(), "wb");
+    if (table == NULL)
+    {
+        printf("klq_identity cost: %s/cost.txt could not be written\n", folder.c_str());
+        run_channel_close();
+        return 1;
+    }
+    const std::unique_ptr<RunQuestion> question(new RunQuestion());
+    std::vector<unsigned int> places;
+    stall_cases(question.get(), &places);
+    unsigned long long asks = 0ull;
+    const auto assembled = [&](const std::string &text) -> std::vector<unsigned char> {
+        std::vector<unsigned char> code(16u * 4096u);
+        const unsigned int count =
+            text.empty() ? 0u
+                         : sass_assemble_lines(&s_machine, text.c_str(), SASS_CONTROL_SAFE, code.data(), code.size());
+        code.resize(16u * count);
+        return code;
+    };
+    // every question of the job, written before any is put: its code, the registers it declares, the row it asks of,
+    // or the link whose clock it reads alone where it is past every row, and whether it holds the row against the host
+    // or reads its clock
+    struct Planned
+    {
+        std::vector<unsigned char> code;
+        unsigned int mark;
+        size_t row;
+        int held_to_host;
+        std::string chain;
+    };
+    std::vector<Planned> planned;
+    std::vector<unsigned long long> clock_least;
+    std::map<size_t, size_t> row_link;
+    const auto own_left = [&rows](const std::vector<size_t> &own, const std::string &verdict) {
+        for (const size_t at : own)
+        {
+            rows[at].verdict = rows[at].verdict.empty() ? verdict : rows[at].verdict;
+        }
+    };
+    for (const auto &each : operators)
+    {
+        const std::vector<size_t> &own = each.second;
+        const Word *word = NULL;
+        for (size_t at = 0u; (word == NULL) && (at < own.size()); at += 1u)
+        {
+            word = rows[own[at]].nodes.empty() ? NULL : word_produced(rows[own[at]].nodes);
+        }
+        std::vector<std::string> names;
+        const std::string text = (word == NULL) ? std::string() : marked(sass, word->name, &names);
+        if (text.empty() || (names.size() != 3u))
+        {
+            fprintf(table, "%s: its arrangements produce no word of two reads sass.krs writes\n", each.first.c_str());
+            own_left(own, "unwritable");
+            continue;
+        }
+        // the link
+        std::map<char, unsigned int> group;
+        const std::vector<FoundLink> found_links = links_of(carriers, seed, text, &group, each.first);
+        const std::regex named_register("R[0-9]+");
+        const FoundLink *link = NULL;
+        std::vector<std::string> operands;
+        std::string to;
+        std::string clock_cut;
+        unsigned int base = 0u;
+        for (const FoundLink &found_link : found_links)
+        {
+            const auto &chain = *found_link.chain;
+            const std::smatch &found = found_link.found;
+            std::map<std::string, std::string> given;
+            for (const auto &marker : group)
+            {
+                const size_t parameter = (size_t)(marker.first - 'A');
+                if (parameter < names.size())
+                {
+                    given[names[parameter]] = found[marker.second].str();
+                }
+            }
+            const std::string written = given[names[0]];
+            const std::string after = chain.second.substr((size_t)(found.position(0) + found.length(0)));
+            const long link_at = (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
+            const auto &flow = carriers.flows[chain.first];
+            if (!std::regex_match(written, named_register) || !std::regex_match(given[names[1]], named_register) ||
+                !std::regex_match(given[names[2]], named_register) ||
+                !std::regex_search(after, std::regex("(^|[^A-Za-z0-9_])" + written + "([^0-9]|$)")) ||
+                !carrier_form_carries(flow.first, flow.second, found.str(0), link_at) ||
+                (carriers.magnitudes[chain.first].first == 0u))
+            {
+                continue;
+            }
+            base = carriers.magnitudes[chain.first].first;
+            const std::string start = "R" + std::to_string(base + 1u);
+            const std::string end = "R" + std::to_string(base + 2u);
+            const std::string clock = "\tCS2R.32 \t" + start + ", SR_CLOCKLO;\n\tCS2R.32 \t" + end + ", SR_CLOCKLO;\n" +
+                                      arrangement_written(sass, {{PRECEPT_SUB, PRECEPT_LEFT, PRECEPT_RIGHT}},
+                                                          {end, start}, "", end, base + 4u);
+            const std::string found_text = found.str(0);
+            const long form_lines = (long)std::count(found_text.begin(), found_text.end(), '\n') +
+                                    ((!found_text.empty() && (found_text.back() == '\n')) ? 0 : 1);
+            clock_cut = carrier_cut_at_read(flow.first, flow.second, chain.second, link_at, form_lines, end, clock);
+            if (clock_cut.empty())
+            {
+                continue;
+            }
+            link = &found_link;
+            operands = {given[names[1]], given[names[2]]};
+            to = written;
+            break;
+        }
+        if (link == NULL)
+        {
+            fprintf(table, "%s: no link of %s carries the cases with registers alone and can be cut\n",
+                    each.first.c_str(), word->name);
+            own_left(own, "no_link");
+            continue;
+        }
+        const auto &chain = *link->chain;
+        const std::smatch &found = link->found;
+        const auto &flow = carriers.flows[chain.first];
+        const long link_at = (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
+        const std::string found_text = found.str(0);
+        const long form_lines = (long)std::count(found_text.begin(), found_text.end(), '\n') +
+                                ((!found_text.empty() && (found_text.back() == '\n')) ? 0 : 1);
+        char address[64];
+        snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * (unsigned int)link_at);
+        fprintf(table, "%s at %s, %s in place of %s", each.first.c_str(), address, word->name, found_text.c_str());
+        fprintf(table, "%s", (!found_text.empty() && (found_text.back() == '\n')) ? "" : "\n");
+        const std::string ones = "R" + std::to_string(base);
+        const std::string start = "R" + std::to_string(base + 1u);
+        const std::string end = "R" + std::to_string(base + 2u);
+        const std::string last = "R" + std::to_string(base + 3u);
+        const unsigned int mark = base + 4u + PRECEPT_NODES;
+        const std::string ones_written =
+            arrangement_written(sass, {{PRECEPT_NOT, PRECEPT_ZERO, PRECEPT_NONE}}, {}, "", ones, base + 4u);
+        const std::string before = chain.second.substr(0u, (size_t)found.position(0));
+        const std::string past = chain.second.substr((size_t)(found.position(0) + found.length(0)));
+        const size_t clock_at = clock_least.size();
+        clock_least.push_back(ULLONG_MAX);
+        planned.push_back(Planned{assembled(clock_cut), mark, rows.size() + clock_at, 0, chain.first});
+        // each arrangement written at the link, and its clock read over it written COST_REPEATS times, each time
+        // reading the last time's result as its first operand
+        for (const size_t at : own)
+        {
+            CostRow &row = rows[at];
+            if (!row.verdict.empty())
+            {
+                continue;
+            }
+            const std::string standing = arrangement_written(sass, row.nodes, operands, ones, to, base + 4u);
+            if (standing.empty() || ones_written.empty())
+            {
+                row.verdict = "unwritable";
+                continue;
+            }
+            std::vector<unsigned char> code = assembled(before + ones_written + standing + past);
+            if (code.empty())
+            {
+                row.verdict = "unassembled";
+                continue;
+            }
+            std::string block = ones_written + "\tCS2R.32 \t" + start + ", SR_CLOCKLO;\n";
+            for (unsigned int again = 0u; again < COST_REPEATS; again += 1u)
+            {
+                block += arrangement_written(sass, row.nodes, {(again == 0u) ? operands[0] : last, operands[1]}, ones,
+                                             last, base + 4u);
+            }
+            block += "\tCS2R.32 \t" + end + ", SR_CLOCKLO;\n" +
+                     arrangement_written(sass, {{PRECEPT_SUB, PRECEPT_LEFT, PRECEPT_RIGHT}}, {end, start}, "", end,
+                                         base + 4u);
+            std::vector<unsigned char> clocked =
+                assembled(carrier_cut_at_read(flow.first, flow.second, chain.second, link_at, form_lines, end, block));
+            if (clocked.empty())
+            {
+                row.verdict = "unassembled";
+                continue;
+            }
+            planned.push_back(Planned{code, mark, at, 1, chain.first});
+            planned.push_back(Planned{clocked, mark, at, 0, chain.first});
+            row_link[at] = clock_at;
+        }
+    }
+    // every question in one round, in an order drawn from the seed
+    std::seed_seq order_seed{(unsigned int)seed};
+    std::mt19937 drawn(order_seed);
+    std::shuffle(planned.begin(), planned.end(), drawn);
+    std::vector<std::vector<unsigned char>> round;
+    unsigned int mark = 0u;
+    for (const Planned &each : planned)
+    {
+        round.push_back(each.code);
+        mark = std::max(mark, each.mark);
+    }
+    printf("  %zu questions written, put in one round\n", round.size());
+    std::vector<RunQuestion> asked;
+    cuts_asked(round, std::vector<int>(round.size(), 0), question.get(), &asks, mark, &asked);
+    // a row alike where the part answers it as the host does on every case, and the least each clock read
+    for (size_t at = 0u; at < planned.size(); at += 1u)
+    {
+        const Planned &each = planned[at];
+        const RunQuestion &answer = asked[at];
+        if (each.held_to_host)
+        {
+            CostRow &row = rows[each.row];
+            if (answer.outcome != RUN_ANSWERED)
+            {
+                row.verdict = std::string("refused ") + answer.refused;
+                continue;
+            }
+            for (unsigned int place = 0u; row.verdict.empty() && (place < question->cases); place += 1u)
+            {
+                if (bracket_holds(host[each.chain][places[place]], answer.answered[place]) == 0)
+                {
+                    row.verdict = "apart at case " + std::to_string(places[place]);
+                }
+            }
+            row.verdict = row.verdict.empty() ? std::string("alike") : row.verdict;
+            continue;
+        }
+        if (answer.outcome != RUN_ANSWERED)
+        {
+            continue;
+        }
+        unsigned long long least = ULLONG_MAX;
+        for (unsigned int place = 0u; place < question->cases; place += 1u)
+        {
+            least = std::min(least, answer.answered[place] & 0xffffffffull);
+        }
+        unsigned long long &kept =
+            (each.row < rows.size()) ? rows[each.row].least : clock_least[each.row - rows.size()];
+        kept = std::min(kept, least);
+    }
+    run_channel_close();
+    // each cost an exact rational in the part's clock count
+    unsigned int costed = 0u;
+    std::map<std::string, unsigned int> left;
+    for (CostRow &row : rows)
+    {
+        const auto linked = row_link.find((size_t)(&row - rows.data()));
+        const unsigned long long clock = (linked == row_link.end()) ? ULLONG_MAX : clock_least[linked->second];
+        if ((row.verdict != "alike") || (row.least == ULLONG_MAX) || (clock == ULLONG_MAX))
+        {
+            const std::string reason = row.verdict.substr(0u, row.verdict.find_first_of(" ,"));
+            left[(row.verdict == "alike") ? std::string("untimed") : reason] += 1u;
+            fprintf(table, "  %s: %s\n", row.fields[2].c_str(),
+                    row.verdict.empty() ? "unwritable" : row.verdict.c_str());
+            continue;
+        }
+        long long numerator = (long long)row.least - (long long)clock;
+        long long denominator = COST_REPEATS;
+        const long long divisor = std::gcd(numerator < 0 ? -numerator : numerator, denominator);
+        numerator /= (divisor == 0) ? 1 : divisor;
+        denominator /= (divisor == 0) ? 1 : divisor;
+        row.fields[3] = std::to_string(numerator) + ((denominator == 1) ? "" : ("/" + std::to_string(denominator)));
+        row.fields[4] = "1";
+        lines[row.line] =
+            row.fields[0] + "\t" + row.fields[1] + "\t" + row.fields[2] + "\t" + row.fields[3] + "\t" + row.fields[4];
+        fprintf(table, "  %s: alike, %llu clocks over %u, the clock alone %llu: %s\n", row.fields[2].c_str(), row.least,
+                COST_REPEATS, clock, row.fields[3].c_str());
+        costed += 1u;
+    }
+    fclose(table);
+    FILE *const written = fopen(kdm, "wb");
+    if (written == NULL)
+    {
+        printf("klq_identity cost: %s could not be written\n", kdm);
+        return 1;
+    }
+    for (const std::string &each : lines)
+    {
+        fprintf(written, "%s\n", each.c_str());
+    }
+    fclose(written);
+    printf("klq_identity cost: %zu arrangements, %u costed over %llu asks and written to %s", rows.size(), costed, asks,
+           kdm);
+    for (const auto &each : left)
+    {
+        printf(", %u %s", each.second, each.first.c_str());
+    }
+    printf("\n");
+    return 0;
+}
+
 int main(int count, char **words)
 {
     if ((count >= 10) && (std::string(words[1]) == "pair") && (std::string(words[8]) == "--"))
@@ -5379,6 +6135,12 @@ int main(int count, char **words)
         std::vector<const char *> carrier(words + 9, words + count);
         carrier.push_back(NULL);
         return identity_pair(words[2], words[3], words[4], words[5], words[6], words[7], carrier.data());
+    }
+    if ((count >= 10) && (std::string(words[1]) == "cost") && (std::string(words[8]) == "--"))
+    {
+        std::vector<const char *> carrier(words + 9, words + count);
+        carrier.push_back(NULL);
+        return identity_cost(words[2], words[3], words[4], words[5], words[6], words[7], carrier.data());
     }
     if ((count >= 10) && (std::string(words[1]) == "text_identity") && (std::string(words[8]) == "--"))
     {
@@ -5393,11 +6155,11 @@ int main(int count, char **words)
         return identity_queue(words[2], words[3], words[4], words[5], words[6], carrier.data());
     }
     // the carrier's words follow a lone --
-    if ((count >= 8) && (std::string(words[1]) == "stall") && (std::string(words[6]) == "--"))
+    if ((count >= 9) && (std::string(words[1]) == "stall") && (std::string(words[7]) == "--"))
     {
-        std::vector<const char *> carrier(words + 7, words + count);
+        std::vector<const char *> carrier(words + 8, words + count);
         carrier.push_back(NULL);
-        return identity_stall(words[2], words[3], words[4], words[5], carrier.data());
+        return identity_stall(words[2], words[3], words[4], words[5], words[6], carrier.data());
     }
     if ((count >= 8) && (std::string(words[1]) == "register") && (std::string(words[6]) == "--"))
     {
@@ -5455,12 +6217,13 @@ int main(int count, char **words)
     printf("klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
     printf("klq_identity permute <nvcc listing> <manifest> <folder>\n");
     printf("klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
-    printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
+    printf("klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...\n");
     printf("klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...\n");
     printf("klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <machine> -- <carrier>...\n");
     printf("klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> -- "
            "<carrier>...\n");
     printf("klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");
+    printf("klq_identity cost <ours folder> <host answers> <ksc> <folder> <kdm> <machine> -- <carrier>...\n");
     return 1;
 }
