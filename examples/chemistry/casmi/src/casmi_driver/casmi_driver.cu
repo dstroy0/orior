@@ -34,6 +34,19 @@
 static const char *const DRIVER_COLUMN_PATH[DRIVER_COLUMNS] = {
     "precursor_mz", "ms2_mzs.list.element", "ms2_normalized_intensities.list.element", "base_peak_intensity"};
 
+// the text columns: each sealed as its distinct strings and each row's index among them; a file without one of them
+// has it left out
+#define DRIVER_TEXTS 7u
+static const char *const DRIVER_TEXT_PATH[DRIVER_TEXTS] = {"ingest_lib",        "ionization_mode", "adduct",
+                                                           "molecular_formula", "inchikey14",      "normalized_smiles",
+                                                           "molecule_id"};
+
+// a sealed part's name: a double column, or a text column past them
+static const char *driver_part_path(unsigned int column)
+{
+    return (column < DRIVER_COLUMNS) ? DRIVER_COLUMN_PATH[column] : DRIVER_TEXT_PATH[column - DRIVER_COLUMNS];
+}
+
 // each column's unit, 10^-places; the bases have none and are kept
 static const unsigned int DRIVER_UNIT_PLACES[DRIVER_COLUMNS] = {4u, 4u, 6u, 0u};
 
@@ -90,9 +103,9 @@ typedef struct
 typedef struct
 {
     unsigned long long crystals;
-    unsigned long long crystal_bytes[DRIVER_COLUMNS];
-    unsigned long long raw_bytes[DRIVER_COLUMNS];
-    unsigned long long forms[DRIVER_COLUMNS][DRIVER_FORM_KEPT + 1u];
+    unsigned long long crystal_bytes[DRIVER_COLUMNS + DRIVER_TEXTS];
+    unsigned long long raw_bytes[DRIVER_COLUMNS + DRIVER_TEXTS];
+    unsigned long long forms[DRIVER_COLUMNS + DRIVER_TEXTS][DRIVER_FORM_KEPT + 1u];
 } DriverTally;
 
 static void driver_line_decimal(SimResults *results, const char *before, unsigned long long value)
@@ -346,7 +359,7 @@ static int driver_laid(SimResults *results, const char *program, const DriverLoa
 
 static int driver_sample_name(char *out, unsigned int group, unsigned int column, const char *part)
 {
-    const int written = snprintf(out, DRIVER_SAMPLE_BYTES, "row_group_%u/%s.%s", group, DRIVER_COLUMN_PATH[column], part);
+    const int written = snprintf(out, DRIVER_SAMPLE_BYTES, "row_group_%u/%s.%s", group, driver_part_path(column), part);
     return (written > 0) && (written < (int)DRIVER_SAMPLE_BYTES);
 }
 
@@ -885,6 +898,206 @@ static int driver_column_check(SimResults *results, const char *set, unsigned in
     return ok && (read_back == count) && (kept_apart == 0ull);
 }
 
+// A text column of one row group: its distinct strings, their bytes one after another from start[d] up to
+// start[d + 1], and each row's string as its index among them, DRIVER_TEXT_NONE for a row with none
+typedef struct
+{
+    unsigned long long rows;
+    unsigned long long distinct;
+    unsigned long long raw_bytes;
+    unsigned char *bytes;
+    unsigned long long *start;
+    unsigned int *index;
+} DriverText;
+
+#define DRIVER_TEXT_NONE 0xFFFFFFFFu
+
+static void driver_text_release(DriverText *text)
+{
+    free(text->bytes);
+    free(text->start);
+    free(text->index);
+    memset(text, 0, sizeof(*text));
+}
+
+// FNV-1a over a string's bytes, the table's place for it
+static unsigned long long driver_text_hash(const unsigned char *bytes, unsigned long long length)
+{
+    unsigned long long hash = 0xCBF29CE484222325ull;
+    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    {
+        hash = (hash ^ bytes[at]) * 0x100000001B3ull;
+    }
+    return hash;
+}
+
+// One row group's text column read as its distinct strings and each row's index among them; 0 where the file has no
+// such column or it did not read
+static int driver_text_read(const char *path, unsigned int group, const char *leaf_path, DriverText *out)
+{
+    memset(out, 0, sizeof(*out));
+    const CasmiParquetLeafFind find = {&s_footer, leaf_path};
+    const long long leaf = casmi_parquet_leaf_find(&find);
+    if ((leaf < 0ll) || (s_footer.leaf[leaf].physical != CASMI_PARQUET_BYTE_ARRAY))
+    {
+        return 0;
+    }
+    CasmiParquetColumn column;
+    memset(&column, 0, sizeof(column));
+    // the leaf is below CASMI_PARQUET_LEAVES_MOST
+    const CasmiParquetColumnRead read = {path, &s_footer, group, (unsigned int)leaf, &column};
+    int ok = casmi_parquet_column_bound(&read) >= 0ll;
+    column.row_start = ok ? (unsigned long long *)malloc((size_t)(column.row_start_room * 8ull) + 8u) : NULL;
+    column.value_bytes = ok ? (unsigned char *)malloc((size_t)column.value_bytes_room + 8u) : NULL;
+    column.value_offset = ok ? (unsigned long long *)malloc((size_t)(column.value_offset_room * 8ull) + 8u) : NULL;
+    column.value_length = ok ? (unsigned long long *)malloc((size_t)(column.value_offset_room * 8ull) + 8u) : NULL;
+    column.scratch = ok ? (unsigned char *)malloc((size_t)column.scratch_room + 8u) : NULL;
+    ok = ok && (column.row_start != NULL) && (column.value_bytes != NULL) && (column.value_offset != NULL) &&
+         (column.value_length != NULL) && (column.scratch != NULL) && (casmi_parquet_column_read(&read) >= 0ll);
+    if (ok)
+    {
+        column.row_start[column.rows] = column.values;
+    }
+    // the distinct strings, by an open table twice the values' count, a power of two
+    unsigned long long slots = 2ull;
+    while (ok && (slots < (2ull * column.values) + 2ull))
+    {
+        slots *= 2ull;
+    }
+    unsigned int *const table = ok ? (unsigned int *)malloc((size_t)slots * sizeof(unsigned int)) : NULL;
+    unsigned long long *const first = ok ? (unsigned long long *)malloc((size_t)(column.values + 1ull) * 8u) : NULL;
+    out->index = ok ? (unsigned int *)malloc((size_t)(column.rows + 1ull) * sizeof(unsigned int)) : NULL;
+    out->start = ok ? (unsigned long long *)malloc((size_t)(column.values + 2ull) * 8u) : NULL;
+    ok = ok && (table != NULL) && (first != NULL) && (out->index != NULL) && (out->start != NULL) &&
+         (column.values < DRIVER_TEXT_NONE);
+    if (ok)
+    {
+        memset(table, 0xFF, (size_t)slots * sizeof(unsigned int));
+    }
+    unsigned long long distinct_bytes = 0ull;
+    for (unsigned long long row = 0ull; ok && (row < column.rows); row += 1ull)
+    {
+        out->index[row] = DRIVER_TEXT_NONE;
+        if (column.row_start[row + 1ull] == column.row_start[row])
+        {
+            continue;
+        }
+        const unsigned long long value = column.row_start[row];
+        const unsigned char *const bytes = column.value_bytes + column.value_offset[value];
+        const unsigned long long length = column.value_length[value];
+        out->raw_bytes += length;
+        unsigned long long slot = driver_text_hash(bytes, length) & (slots - 1ull);
+        while (table[slot] != DRIVER_TEXT_NONE)
+        {
+            const unsigned long long held = first[table[slot]];
+            if ((column.value_length[held] == length) &&
+                (memcmp(column.value_bytes + column.value_offset[held], bytes, (size_t)length) == 0))
+            {
+                break;
+            }
+            slot = (slot + 1ull) & (slots - 1ull);
+        }
+        if (table[slot] == DRIVER_TEXT_NONE)
+        {
+            table[slot] = (unsigned int)out->distinct;
+            first[out->distinct] = value;
+            distinct_bytes += length;
+            out->distinct += 1ull;
+        }
+        out->index[row] = table[slot];
+    }
+    // the distinct strings' bytes, in the order they first appear
+    out->bytes = ok ? (unsigned char *)malloc((size_t)distinct_bytes + 2u) : NULL;
+    ok = ok && (out->bytes != NULL);
+    unsigned long long at = 0ull;
+    for (unsigned long long each = 0ull; ok && (each < out->distinct); each += 1ull)
+    {
+        out->start[each] = at;
+        const unsigned long long value = first[each];
+        memcpy(out->bytes + at, column.value_bytes + column.value_offset[value], (size_t)column.value_length[value]);
+        at += column.value_length[value];
+    }
+    if (ok)
+    {
+        out->start[out->distinct] = at;
+        out->rows = column.rows;
+    }
+    free(table);
+    free(first);
+    free(column.row_start);
+    free(column.value_bytes);
+    free(column.value_offset);
+    free(column.value_length);
+    free(column.scratch);
+    if (!ok)
+    {
+        driver_text_release(out);
+    }
+    return ok;
+}
+
+// host lanes sealed as a crystal of the set through the device
+static int driver_seal_host(SimResults *results, const char *set, const char *sample, const unsigned short *lanes,
+                            const unsigned long long extent[4], unsigned int column, DriverTally *tally)
+{
+    const unsigned long long count = extent[0] * extent[1] * extent[2] * extent[3];
+    unsigned short *device_lanes = NULL;
+    const int ok = (cudaMalloc((void **)&device_lanes, (size_t)count * sizeof(unsigned short)) == cudaSuccess) &&
+                   (cudaMemcpy(device_lanes, lanes, (size_t)count * sizeof(unsigned short), cudaMemcpyHostToDevice) ==
+                    cudaSuccess) &&
+                   driver_seal(results, set, sample, device_lanes, extent, column, tally);
+    cudaFree(device_lanes);
+    return ok;
+}
+
+// One text column of one row group sealed: its distinct strings' bytes, two to a lane, their lengths, one lane each,
+// and each row's index, one past it and 0 for none, as two planes of 16 bits
+static int driver_text_seal(SimResults *results, const char *set, unsigned int group, unsigned int text,
+                            const DriverText *read, DriverTally *tally)
+{
+    const unsigned int column = DRIVER_COLUMNS + text;
+    const unsigned long long byte_count = read->start[read->distinct];
+    const unsigned long long lanes = (byte_count + 1ull) / 2ull;
+    unsigned short *const bytes = (unsigned short *)calloc((size_t)lanes + 1u, sizeof(unsigned short));
+    unsigned short *const lengths = (unsigned short *)malloc((size_t)read->distinct * sizeof(unsigned short) + 2u);
+    unsigned short *const index = (unsigned short *)malloc((size_t)(read->rows * 2ull) * sizeof(unsigned short) + 2u);
+    int ok = (bytes != NULL) && (lengths != NULL) && (index != NULL) && (read->distinct != 0ull);
+    if (ok)
+    {
+        memcpy(bytes, read->bytes, (size_t)byte_count);
+    }
+    for (unsigned long long each = 0ull; ok && (each < read->distinct); each += 1ull)
+    {
+        const unsigned long long length = read->start[each + 1ull] - read->start[each];
+        ok = length < (1ull << DRIVER_LANE_BITS);
+        lengths[each] = (unsigned short)length;
+    }
+    for (unsigned long long row = 0ull; ok && (row < read->rows); row += 1ull)
+    {
+        const unsigned long long named = (read->index[row] == DRIVER_TEXT_NONE) ? 0ull : (read->index[row] + 1ull);
+        index[row] = (unsigned short)(named & 0xFFFFull);
+        index[read->rows + row] = (unsigned short)(named >> DRIVER_LANE_BITS);
+    }
+    char sample[DRIVER_SAMPLE_BYTES];
+    const unsigned long long byte_extent[4] = {1ull, 1ull, 1ull, (lanes != 0ull) ? lanes : 1ull};
+    const unsigned long long length_extent[4] = {1ull, 1ull, 1ull, read->distinct};
+    const unsigned long long index_planes = ((read->distinct + 1ull) >> DRIVER_LANE_BITS) != 0ull ? 2ull : 1ull;
+    const unsigned long long index_extent[4] = {1ull, 1ull, index_planes, read->rows};
+    ok = ok && driver_sample_name(sample, group, column, "text") &&
+         driver_seal_host(results, set, sample, bytes, byte_extent, column, tally) &&
+         driver_sample_name(sample, group, column, "lengths") &&
+         driver_seal_host(results, set, sample, lengths, length_extent, column, tally) &&
+         driver_sample_name(sample, group, column, "index") &&
+         driver_seal_host(results, set, sample, index, index_extent, column, tally);
+    tally->raw_bytes[column] += read->raw_bytes;
+    tally->forms[column][0] += read->distinct;
+    tally->forms[column][1] += read->rows;
+    free(bytes);
+    free(lengths);
+    free(index);
+    return ok;
+}
+
 // each row's value count as one plane of 16-bit lanes, sealed where every count fits one
 static int driver_rows_seal(SimResults *results, const char *set, unsigned int group, unsigned int column,
                             const DriverColumn *values, DriverTally *tally)
@@ -996,6 +1209,17 @@ static int driver_ingest(SimResults *results, int count, char **arguments)
             cudaFree(device_planes);
         }
         ok = ok && driver_rows_seal(results, set, group, DRIVER_PEAKS, &columns[DRIVER_PEAKS], &tally);
+        for (unsigned int each = 0u; ok && (each < DRIVER_TEXTS); each += 1u)
+        {
+            DriverText read;
+            if (!driver_text_read(path, group, DRIVER_TEXT_PATH[each], &read))
+            {
+                continue;
+            }
+            ok = driver_text_seal(results, set, group, each, &read, &tally);
+            sim_check(results, ok, "the text column seals as its distinct strings and each row's index");
+            driver_text_release(&read);
+        }
         for (unsigned int column = 0u; column < DRIVER_COLUMNS; column += 1u)
         {
             driver_column_release(&columns[column]);
@@ -1004,20 +1228,32 @@ static int driver_ingest(SimResults *results, int count, char **arguments)
     const unsigned long long finished = engine_clock_microseconds();
     unsigned long long crystal_total = 0ull;
     unsigned long long raw_total = 0ull;
-    for (unsigned int column = 0u; column < DRIVER_COLUMNS; column += 1u)
+    for (unsigned int column = 0u; column < DRIVER_COLUMNS + DRIVER_TEXTS; column += 1u)
     {
+        if (tally.raw_bytes[column] == 0ull)
+        {
+            continue;
+        }
         scriptura_text(&results->line, "  ");
-        scriptura_text(&results->line, DRIVER_COLUMN_PATH[column]);
+        scriptura_text(&results->line, driver_part_path(column));
         driver_line_decimal(results, ": crystals ", tally.crystal_bytes[column]);
         driver_line_decimal(results, " bytes of ", tally.raw_bytes[column]);
         driver_line_decimal(results, " raw, that is ",
                             (tally.raw_bytes[column] != 0ull)
                                 ? ((tally.crystal_bytes[column] * 1000ull) / tally.raw_bytes[column])
                                 : 0ull);
-        scriptura_text(&results->line, " per mille, floored; forms");
-        for (unsigned int form = 0u; form <= DRIVER_FORM_KEPT; form += 1u)
+        if (column < DRIVER_COLUMNS)
         {
-            driver_line_decimal(results, " ", tally.forms[column][form]);
+            scriptura_text(&results->line, " per mille, floored; forms");
+            for (unsigned int form = 0u; form <= DRIVER_FORM_KEPT; form += 1u)
+            {
+                driver_line_decimal(results, " ", tally.forms[column][form]);
+            }
+        }
+        else
+        {
+            driver_line_decimal(results, " per mille, floored; distinct strings ", tally.forms[column][0]);
+            driver_line_decimal(results, " of rows ", tally.forms[column][1]);
         }
         driver_line_end(results);
         crystal_total += tally.crystal_bytes[column];
