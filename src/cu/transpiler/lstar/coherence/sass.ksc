@@ -76,11 +76,11 @@ equal mul.lo.u32 mul.lo.s32
 # forms the system folds into one instruction of its own, as the ruleset beside this file reads
 # them after its own lines and its part's.
 form word_mul_add to left right added = \tIMAD \t{to}, {left}, {right}, {added};\n
-form test_wide_lt_and where left right also = \tISETP.LT.U32.AND \tP6, PT, {left}, {right}, PT;\n\tISETP.LT.U32.AND.EX \t{where}, PT, {left}.hi, {right}.hi, {also}, P6;\n
+form test_wide_lt_and where left right also = \tISETP.LT.U32.AND \t{predicate:0}, PT, {left}, {right}, PT;\n\tISETP.LT.U32.AND.EX \t{where}, PT, {left}.hi, {right}.hi, {also}, {predicate:0};\n
 form test_word_nonzero_and where value also = \tISETP.NE.AND \t{where}, PT, {value}, RZ, {also};\n
 form test_word_nonzero_or where value also = \tISETP.NE.OR \t{where}, PT, {value}, RZ, {also};\n
-form test_wide_nonzero_and where value also = \tISETP.NE.U32.AND \tP6, PT, {value}, RZ, PT;\n\tISETP.NE.AND.EX \t{where}, PT, {value}.hi, RZ, {also}, P6;\n
-form test_wide_nonzero_or where value also = \tISETP.NE.U32.AND \tP6, PT, {value}, RZ, PT;\n\tISETP.NE.OR.EX \t{where}, PT, {value}.hi, RZ, {also}, P6;\n
+form test_wide_nonzero_and where value also = \tISETP.NE.U32.AND \t{predicate:0}, PT, {value}, RZ, PT;\n\tISETP.NE.AND.EX \t{where}, PT, {value}.hi, RZ, {also}, {predicate:0};\n
+form test_wide_nonzero_or where value also = \tISETP.NE.U32.AND \t{predicate:0}, PT, {value}, RZ, PT;\n\tISETP.NE.OR.EX \t{where}, PT, {value}.hi, RZ, {also}, {predicate:0};\n
 form block_idx_y to = \tS2UR \tUR6, SR_CTAID.Y;\n\tMOV \t{to}, UR6;\n
 form block_idx_z to = \tS2UR \tUR6, SR_CTAID.Z;\n\tMOV \t{to}, UR6;\n
 form wide_mul_word_add to left right added = \tIMAD.WIDE.U32 \t{to}, {left}, {right}, {added};\n

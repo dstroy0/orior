@@ -324,4 +324,102 @@ CODEGEN_CORE unsigned long long codegen_unit(unsigned int at)
     return (at < PROGRAM_UNIT_PARAMETERS) ? values[at] : 0ull;
 }
 
+// one register a lane holds: its bank, or REGCLASS_COUNT with the fixed register's place for a fixed register; its
+// number in the bank; the step it is the step's own in, CODEGEN_HELD_LANE for a register the lane holds throughout; the
+// item that claims it, the first that names it, and the item that releases it, the last; and the item whose scratch it
+// is, CODEGEN_HELD_LANE where it is no item's
+struct CodegenHeld
+{
+    unsigned int bank;
+    unsigned int number;
+    unsigned long long step;
+    unsigned long long claimed;
+    unsigned long long released;
+    unsigned long long scratch_of;
+};
+
+#define CODEGEN_HELD_LANE 0xFFFFFFFFFFFFFFFFull
+
+// register `bank` `number` of step `step` named by item `at`, claimed there where nothing named it before and released
+// there however often it is named after; `scratch_of` the item whose scratch it is, CODEGEN_HELD_LANE where it is no
+// item's. An item naming another item's scratch sets `*collided` to itself the first time. The count held, past
+// `capacity` never
+CODEGEN_CORE unsigned int codegen_held_named(CodegenHeld *held, unsigned int count, unsigned int capacity,
+                                             unsigned int bank, unsigned int number, unsigned long long step,
+                                             unsigned long long at, unsigned long long scratch_of,
+                                             unsigned long long *collided)
+{
+    unsigned int found = count;
+    for (unsigned int each = 0u; (found == count) && (each < count); each += 1u)
+    {
+        found =
+            ((held[each].bank == bank) && (held[each].number == number) && (held[each].step == step)) ? each : found;
+    }
+    if (found == count)
+    {
+        if (count < capacity)
+        {
+            const CodegenHeld claimed = {bank, number, step, at, at, scratch_of};
+            held[count] = claimed;
+            count += 1u;
+        }
+        return count;
+    }
+    held[found].released = at;
+    const int another = ((held[found].scratch_of != CODEGEN_HELD_LANE) && (held[found].scratch_of != at)) ||
+                        ((scratch_of != CODEGEN_HELD_LANE) && (held[found].scratch_of != scratch_of));
+    *collided = (another && (*collided == CODEGEN_HELD_LANE)) ? at : *collided;
+    return count;
+}
+
+// Every register `items` name, each claimed by the first item naming it and released by the last, and each scratch
+// register an item takes, the scratch `scratch` lays out four words a form (ruleset_scratch) in the banks
+// `scratch_banks`, held by that item alone. A temporary, a 64-bit temporary and a predicate are the step's own, a new
+// one at each step's note, and every other register the lane's throughout, a fixed register by its place past the
+// banks. The count held, at most `capacity`, and in `*collided` the first item naming a register another item holds
+// as its scratch, CODEGEN_HELD_LANE where none does
+CODEGEN_CORE unsigned int codegen_held(const MachineInstr *items, unsigned long long item_count,
+                                       const unsigned int *scratch, const unsigned int *scratch_banks,
+                                       CodegenHeld *held, unsigned int capacity, unsigned long long *collided)
+{
+    *collided = CODEGEN_HELD_LANE;
+    unsigned int count = 0u;
+    unsigned long long step = 0ull;
+    for (unsigned long long at = 0ull; at < item_count; at += 1ull)
+    {
+        const MachineInstr *const item = &items[at];
+        if (item->form >= OPCODE_COUNT)
+        {
+            continue;
+        }
+        step = (item->form == OPCODE_STEP_NOTE) ? at : step;
+        for (unsigned int bank_index = 0u; bank_index < 3u; bank_index += 1u)
+        {
+            for (unsigned int taken = 0u; taken < scratch[(4u * item->form) + bank_index]; taken += 1u)
+            {
+                count = codegen_held_named(held, count, capacity, scratch_banks[bank_index],
+                                           item->scratch[bank_index] + taken, step, at, at, collided);
+            }
+        }
+        for (unsigned int argument = 0u; (argument < item->count) && (argument < MACHINE_INSTR_OPERANDS);
+             argument += 1u)
+        {
+            const MachineOperand given = item->arguments[argument];
+            if ((given.kind == OPERAND_REGISTER) && (given.which != REGCLASS_IMMEDIATE))
+            {
+                const int own = (given.which == REGCLASS_TEMPORARY) || (given.which == REGCLASS_WIDE) ||
+                                (given.which == REGCLASS_PREDICATE);
+                count = codegen_held_named(held, count, capacity, given.which, given.number,
+                                           own ? step : CODEGEN_HELD_LANE, at, CODEGEN_HELD_LANE, collided);
+            }
+            else if (given.kind == OPERAND_PHYSREG)
+            {
+                count = codegen_held_named(held, count, capacity, REGCLASS_COUNT + given.which, 0u, CODEGEN_HELD_LANE,
+                                           at, CODEGEN_HELD_LANE, collided);
+            }
+        }
+    }
+    return count;
+}
+
 #endif

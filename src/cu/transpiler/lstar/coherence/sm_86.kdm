@@ -2892,9 +2892,9 @@ product	0	-	-	0
 #    c[0x0][0x160]. A lane written as a function leaves R1, R20 and R21 alone.
 #  - The banks are all the one file, so a writer must give numbers that do not collide across them. The code generator
 #    numbers each bank from 0 and needs an allocation before it writes SASS; the cell's probe gives its own numbers.
-#  - The lane's fixed registers, reserved at the top of the file, and P6, this file's own: P6 carries a chain's carry
-#    and the low half of a wide comparison. A form that needs a register for one writing names {temporary:0}, and the
-#    writer takes one for it: the 1 global_add_atomic_word adds, since the part's reduction reads what it adds from a
+#  - The lane's fixed registers, reserved at the top of the file, carry among them: P6, which a chain's forms hold
+#    from its first limb to its last. A form that needs a register for one writing names one of a bank, {temporary:0}
+#    or {predicate:0}, and the writer takes one for it: a wide comparison's low half, a wide add's carry, the 1 global_add_atomic_word adds, since the part's reduction reads what it adds from a
 #    register, a wide product's cross products, and a select's chosen word. R236 holds sign_base. The launch the lane
 #    was called with is the fixed register launch, which launch_open puts there.
 #    A lane of more than 236 registers, or of more than the three predicates P0 to P2, is past what this file
@@ -2921,6 +2921,7 @@ fixed indexed = P3
 fixed one = P4
 fixed ok = P5
 fixed launch = R238
+fixed carry = P6
 
 # The lane's opening and close. The lane is a function the resident calls and returns from through R20 (`return`
 # below), and what the resident hands it is a calling convention nobody else sets: we write both sides of that call,

@@ -4345,10 +4345,14 @@ static void carriers_read(const char *engine, const std::map<std::string, std::v
 }
 
 // the scratch a form written into a chain takes, registers past the `held` the chain names, an even one first so
-// that a wide's pair is aligned, the next each time the writing asks
+// that a wide's pair is aligned, the next each time the writing asks; a predicate P5, which no chain of ours names
 static std::function<std::string(const std::string &)> scratch_past(unsigned int held, unsigned int *taken)
 {
     return [held, taken](const std::string &bank) {
+        if (bank == "predicate")
+        {
+            return std::string("P5");
+        }
         const unsigned int first = ((held + 1u) & ~1u) + *taken;
         *taken += (bank == "wide") ? 2u : 1u;
         return "R" + std::to_string(first);

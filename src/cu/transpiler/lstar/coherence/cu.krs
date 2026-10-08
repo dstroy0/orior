@@ -31,6 +31,7 @@ fixed indexed = indexed
 fixed one = one
 fixed ok = ok
 fixed launch = launch
+fixed carry = carry
 
 # the program's text around the lane
 form program_note steps major minor compiler_major compiler_minor block = // a record program of {steps} steps, for sm_{major}{minor}, NVRTC {compiler_major}.{compiler_minor}, as C for the target {block}\n

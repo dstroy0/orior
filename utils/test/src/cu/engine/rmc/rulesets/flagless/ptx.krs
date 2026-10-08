@@ -44,6 +44,8 @@ fixed indexed = %indexed
 fixed one = %one
 fixed ok = %ok
 fixed launch = %launch
+# the carry is the condition code add.cc and addc set and read, which no register names
+fixed carry =
 
 # the program's text around the lane
 form program_note steps major minor compiler_major compiler_minor block = // a record program of {steps} steps, for sm_{major}{minor}, NVRTC {compiler_major}.{compiler_minor}, as PTX for the target {block}\n
