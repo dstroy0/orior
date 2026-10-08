@@ -107,6 +107,17 @@ async function openFolder(folder) {
   }
 }
 
+// Says which of the toolchains every job needs, as toolchains.json marks them, orior cannot find,
+// a press on the word opening File, Toolchains.
+async function checkNeeded() {
+  const read = await invoke("toolchains_check").catch(() => null);
+  const missing = (read?.tools ?? []).filter((tool) => tool.needed && tool.state === "missing").map((tool) => tool.name);
+  if (missing.length) {
+    const names = missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing.at(-1)}` : missing[0];
+    say(`${names} not found, and the jobs need ${missing.length > 1 ? "them" : "it"}: press here for File, Toolchains`, { failed: true, act: () => runCommand("toolchains") });
+  }
+}
+
 let started = false;
 
 // Reads the tree behind the eye, and takes the eye away whether the read succeeds or fails.
@@ -124,6 +135,7 @@ async function begin(root) {
     await loadRun();
     drawMenubar();
     await restoreSession();
+    checkNeeded();
   } finally {
     await hideLoading();
   }
