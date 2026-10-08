@@ -98,7 +98,7 @@ can see it.
 The rest of the protocol, the pair states and the mnemonics the bits resolve to, is in
 [src/cu/transpiler/gnascor.md](cu/transpiler/gnascor.md). Every step of it, what backs it and the run behind its
 status is in the query protocol's own table,
-[theory/workbooks/engine/query_protocol_table.md](../theory/workbooks/engine/query_protocol_table.md). A step
+[theory/workbooks/Lstar_protocol/query_protocol_table.md](../theory/workbooks/Lstar_protocol/query_protocol_table.md). A step
 changes status there and nowhere else.
 
 **The gate is the engine's own descent.** Each candidate arrangement is an alignment and a relation's cases are

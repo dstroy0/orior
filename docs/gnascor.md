@@ -24,7 +24,7 @@ Every question the engine asks takes the same form, and working out a language i
 - **The qualifier** is a yes or no question asked at that address. It always asks the target to confirm a state and never asks it for data.
 - **The cost bound** is the most the target may spend to answer. Nobody writes this field by hand. A question asked with no bound gets back the cost instead of a bit. The spread of those costs becomes the baseline, and every later bound is set against it.
 
-**Gate first, then rank. Never one combined score.** A relation either holds or it doesn't, and that answer has no noise in it. A cost is measured, and every measured cost has noise. The gate decides which candidates are allowed, and the rank puts the survivors in order. The two are never added together. [query_protocol_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/query_protocol_table.md) walks through the protocol step by step.
+**Gate first, then rank. Never one combined score.** A relation either holds or it doesn't, and that answer has no noise in it. A cost is measured, and every measured cost has noise. The gate decides which candidates are allowed, and the rank puts the survivors in order. The two are never added together. [query_protocol_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/Lstar_protocol/query_protocol_table.md) walks through the protocol step by step.
 
 Two branches combine into a pair, and each pair has a four-letter name:
 
