@@ -76,6 +76,7 @@
     form_(WORD_MUL, "word_mul", 3u)                       \
     form_(WORD_MUL_ADD, "word_mul_add", 4u)               \
     form_(WORD_DIV, "word_div", 3u)                           \
+    form_(WORD_REM, "word_rem", 3u)                           \
     form_(WORD_SELECT, "word_select", 4u)                           \
     form_(WORD_MUL_LOW, "word_mul_low", 4u)               \
     form_(WORD_MUL_HIGH, "word_mul_high", 3u)             \

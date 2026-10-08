@@ -100,6 +100,7 @@ err word_ror to from bits
 form word_mul to left right =     {to} = {left} * {right};\n
 form word_mul_add to left right added =     {to} = ({left} * {right}) + {added};\n
 form word_div to left right =     {to} = {left} / {right};\n
+form word_rem to left right =     {to} = {left} % {right};\n
 form word_select to chosen otherwise where =     {to} = ({where}) ? (u32){chosen} : (u32){otherwise};\n
 form word_mul_low to left right added =     {to} = cycle_c_product_low({left}, {right}, {added}, &carry);\n
 form word_mul_high to left right =     {to} = (u32)(((u64){left} * (u64){right}) >> 32u) + carry;\n

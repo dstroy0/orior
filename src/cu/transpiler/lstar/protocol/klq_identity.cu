@@ -3132,6 +3132,31 @@ static int identity_stall(const char *engine, const char *answers, const char *k
             rows.push_back(row);
         }
     }
+    // every pair the .ksc answers that this round did not put keeps its answer
+    {
+        std::ifstream held(ksc, std::ios::binary);
+        std::string line;
+        while (std::getline(held, line))
+        {
+            line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
+            std::stringstream words(line);
+            std::string channel;
+            std::string answered;
+            std::string word;
+            std::string kind;
+            std::string writer;
+            std::string reader;
+            words >> channel >> answered >> word >> kind >> writer >> reader;
+            if ((channel == "run") && (kind == "stall") && !reader.empty() &&
+                (came_back.count(std::make_pair(writer, reader)) == 0u))
+            {
+                rows.push_back(line);
+            }
+        }
+    }
+    std::sort(rows.begin(), rows.end(), [](const std::string &left, const std::string &right) {
+        return left.substr(left.find(" stall ")) < right.substr(right.find(" stall "));
+    });
     fclose(table);
     run_channel_close();
     if (!ksc_answers_write(ksc, "stall", rows))

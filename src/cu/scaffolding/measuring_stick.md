@@ -4,10 +4,10 @@ Written by `measuring_stick.sh` whole on every run. Each kernel of the measuring
 
 - kernels: 1016
 - instructions: 55072
-- operations nvcc writes over the stick: 326, of which sass.krs writes 60
+- operations nvcc writes over the stick: 326, of which sass.krs writes 63
 
-- kernels the engine answers: 452, of which at parity with nvcc: 192; kernels that put a question: 564
-- the engine's instructions: 18292 in its lanes' text, 18292 read back by nvdisasm, 18292 of them the operation the text wrote
+- kernels the engine answers: 464, of which at parity with nvcc: 192; kernels that put a question: 552
+- the engine's instructions: 18726 in its lanes' text, 18726 read back by nvdisasm, 18726 of them the operation the text wrote
 
 ## The engine against nvcc
 
@@ -39,6 +39,12 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0025 | `unsigned int a * b` | 16 | 18 | 18 |  |  |
 | 0026 | `long long a * b` | 15 | 20 | 20 |  |  |
 | 0027 | `unsigned long long a * b` | 15 | 20 | 20 |  |  |
+| 0031 | `unsigned char a / b` | 19 | 40 | 37 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2FP.F32.U32.RZ 1, IMAD.MOV.U32 5, IMAD.SHL.U32 1, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 3, IMAD 2, IMAD.HI.U32 2, IMAD.MOV 2, ISETP.GE.U32.AND 2, MOV 1, SHF.L.U32 1 |
+| 0033 | `unsigned short a / b` | 19 | 40 | 37 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2FP.F32.U32.RZ 1, IMAD.MOV.U32 5, IMAD.SHL.U32 1, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 3, IMAD 2, IMAD.HI.U32 2, IMAD.MOV 2, ISETP.GE.U32.AND 2, MOV 1, SHF.L.U32 1 |
+| 0035 | `unsigned int a / b` | 16 | 35 | 36 | IMAD.MOV.U32 1, IMAD.SHL.U32 1 | MOV 2, SHF.L.U32 1 |
+| 0041 | `unsigned char a % b` | 19 | 42 | 36 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2F.U16.RZ 1, IMAD.MOV.U32 4, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 2, IMAD 1, IMAD.HI.U32 2, IMAD.IADD 1, ISETP.GE.U32.AND 2 |
+| 0043 | `unsigned short a % b` | 19 | 42 | 36 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2F.U16.RZ 1, IMAD.MOV.U32 4, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 2, IMAD 1, IMAD.HI.U32 2, IMAD.IADD 1, ISETP.GE.U32.AND 2 |
+| 0045 | `unsigned int a % b` | 16 | 34 | 35 | IMAD.MOV.U32 2, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 3 |
 | 0048 | `signed char a & b` | 17 | 20 | 19 | MOV 1 |  |
 | 0049 | `unsigned char a & b` | 17 | 18 | 19 | LDG.E.U8 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0050 | `short a & b` | 17 | 20 | 19 | MOV 1 |  |
@@ -167,6 +173,12 @@ Each kernel the engine answers: its record steps, nvcc's instructions and the en
 | 0193 | `unsigned int a *= b` | 16 | 18 | 18 |  |  |
 | 0194 | `long long a *= b` | 15 | 20 | 20 |  |  |
 | 0195 | `unsigned long long a *= b` | 15 | 20 | 20 |  |  |
+| 0199 | `unsigned char a /= b` | 19 | 40 | 37 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2FP.F32.U32.RZ 1, IMAD.MOV.U32 5, IMAD.SHL.U32 1, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 3, IMAD 2, IMAD.HI.U32 2, IMAD.MOV 2, ISETP.GE.U32.AND 2, MOV 1, SHF.L.U32 1 |
+| 0201 | `unsigned short a /= b` | 19 | 40 | 37 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2FP.F32.U32.RZ 1, IMAD.MOV.U32 5, IMAD.SHL.U32 1, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 3, IMAD 2, IMAD.HI.U32 2, IMAD.MOV 2, ISETP.GE.U32.AND 2, MOV 1, SHF.L.U32 1 |
+| 0203 | `unsigned int a /= b` | 16 | 35 | 36 | IMAD.MOV.U32 1, IMAD.SHL.U32 1 | MOV 2, SHF.L.U32 1 |
+| 0209 | `unsigned char a %= b` | 19 | 42 | 36 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2F.U16.RZ 1, IMAD.MOV.U32 4, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 2, IMAD 1, IMAD.HI.U32 2, IMAD.IADD 1, ISETP.GE.U32.AND 2 |
+| 0211 | `unsigned short a %= b` | 19 | 42 | 36 | CALL.REL.NOINC 1, F2I.U32.TRUNC.NTZ 1, FMUL 2, FMUL.RZ 1, FSEL 2, FSETP.GEU.AND 1, FSETP.GT.AND 1, I2F.U16 1, I2F.U16.RZ 1, IMAD.MOV.U32 4, RET.REL.NODEC 1 | F2I.FTZ.U32.TRUNC.NTZ 1, I2F.U32.RP 1, IADD3 2, IMAD 1, IMAD.HI.U32 2, IMAD.IADD 1, ISETP.GE.U32.AND 2 |
+| 0213 | `unsigned int a %= b` | 16 | 34 | 35 | IMAD.MOV.U32 2, SHF.L.U32 1 | IMAD.SHL.U32 1, MOV 3 |
 | 0216 | `signed char a &= b` | 17 | 20 | 19 | MOV 1 |  |
 | 0217 | `unsigned char a &= b` | 17 | 18 | 19 | LDG.E.U8 2, MOV 1, SHF.L.U32 1 | IMAD.MOV.U32 1, IMAD.SHL.U32 1, LDG.E 2, LOP3.LUT 1 |
 | 0218 | `short a &= b` | 17 | 20 | 19 | MOV 1 |  |
@@ -481,8 +493,6 @@ Each kernel the engine does not answer, by the question it puts.
 | a call or an element nothing here types: max | 4 | 0534 |
 | a call or an element nothing here types: min | 4 | 0530 |
 | a statement nothing here reads: int r; | 4 | 0456 |
-| no reading of (a%b) through cu.krs | 4 | 0045 |
-| no reading of (a/b) through cu.krs | 4 | 0035 |
 | a call or an element nothing here types: atomicAdd | 3 | 0854 |
 | a call or an element nothing here types: atomicAnd | 3 | 0878 |
 | a call or an element nothing here types: atomicCAS | 3 | 0875 |
@@ -497,14 +507,12 @@ Each kernel the engine does not answer, by the question it puts.
 | no reading of ((int)a/(int)b) through cu.krs | 2 | 0034 |
 | no reading of ((longlong)a%(longlong)b) through cu.krs | 2 | 0046 |
 | no reading of ((longlong)a/(longlong)b) through cu.krs | 2 | 0036 |
+| no reading of (a%b) through cu.krs | 2 | 0047 |
+| no reading of (a/b) through cu.krs | 2 | 0037 |
 | no reading of (short)((int)(short)a@word%(int)(short)b@word) through cu.krs | 2 | 0042 |
 | no reading of (short)((int)(short)a@word/(int)(short)b@word) through cu.krs | 2 | 0032 |
 | no reading of (signedchar)((int)(signedchar)a@word%(int)(signedchar)b@word) through cu.krs | 2 | 0040 |
 | no reading of (signedchar)((int)(signedchar)a@word/(int)(signedchar)b@word) through cu.krs | 2 | 0030 |
-| no reading of (unsignedchar)((unsignedchar)a@word%(unsignedchar)b@word) through cu.krs | 2 | 0041 |
-| no reading of (unsignedchar)((unsignedchar)a@word/(unsignedchar)b@word) through cu.krs | 2 | 0031 |
-| no reading of (unsignedshort)((unsignedshort)a@word%(unsignedshort)b@word) through cu.krs | 2 | 0043 |
-| no reading of (unsignedshort)((unsignedshort)a@word/(unsignedshort)b@word) through cu.krs | 2 | 0033 |
 | a call or an element nothing here types: __activemask | 1 | 0890 |
 | a call or an element nothing here types: __all_sync | 1 | 0887 |
 | a call or an element nothing here types: __any_sync | 1 | 0888 |
@@ -638,7 +646,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `FSETP.GEU.AND` | 81 | 0031 | `unsigned char a / b` |
 | `FSETP.NEU.AND` | 74 | 0039 | `double a / b` |
 | `DFMA` | 71 | 0039 | `double a / b` |
-| `MUFU.RCP` | 71 | 0030 | `signed char a / b` |
 | `DADD` | 69 | 0009 | `double a + b` |
 | `FADD` | 69 | 0008 | `float a + b` |
 | `LEA.HI` | 54 | 0524 | `unsigned int __uhadd(a, b)` |
@@ -654,7 +661,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `FSETP.GE.AND` | 27 | 0146 | `float a >= b` |
 | `MUFU.RSQ64H` | 26 | 0670 | `double __dsqrt_rn(a)` |
 | `PLOP3.LUT` | 26 | 0038 | `float a / b` |
-| `F2I.FTZ.U32.TRUNC.NTZ` | 25 | 0030 | `signed char a / b` |
 | `I2FP.F32.S32` | 25 | 0392 | `(float)(int)` |
 | `UMOV` | 25 | 0256 | `signed char -a` |
 | `FADD.FTZ` | 24 | 0038 | `float a / b` |
@@ -681,7 +687,6 @@ Each kernel the engine does not answer, by the question it puts.
 | `IMAD.U32` | 14 | 0110 | `short a < b` |
 | `DSETP.GEU.AND` | 13 | 0117 | `double a < b` |
 | `I2F.F64` | 13 | 0393 | `(double)(int)` |
-| `I2F.U32.RP` | 13 | 0035 | `unsigned int a / b` |
 | `F2I.F64` | 12 | 0547 | `int __double2int_rn(a)` |
 | `FMUL.FTZ` | 12 | 0637 | `float __fsqrt_rd(a)` |
 | `I2F.F64.S64` | 12 | 0413 | `(double)(long long)` |

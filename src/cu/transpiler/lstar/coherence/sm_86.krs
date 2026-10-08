@@ -8,8 +8,10 @@ krs 1
 #  - A carry is a predicate, not a flag: IADD3 leaves it in the predicate it names, IADD3.X takes it back, and a
 #    chain's last limb either keeps it (word_sub_middle) or drops it (word_add_last).
 #  - A 64-bit form is two instructions, and holds only where its destination is neither of its sources: the first
-#    instruction has written half the destination before the second reads them. A form's text can take no scratch to
-#    stand between, so the writer gives a destination apart.
+#    instruction has written half the destination before the second reads them, so the writer gives a destination
+#    apart.
+#  - A form that needs a register for one writing names it in its bank, {temporary:0}, {wide:0} or {predicate:0},
+#    and the writer takes one for it that no operand names.
 #
 # What this file writes as a construct, because the part has the operation and no question ever made the compiler
 # write it: predicate_bitxor and predicate_bitand. The compiler folded both into the ISETP that set the operand
@@ -17,10 +19,8 @@ krs 1
 # the listings give, which is what a construct is for.
 #
 # What this file does not write, each form left empty where it stands, with what the probes did see:
-#  - word_div and wide_div. The part has no integer divide. For 32 bits the compiler writes a 14-instruction
-#    reciprocal (I2F.U32.RP, MUFU.RCP, F2I.FTZ.U32.TRUNC.NTZ, IMAD.HI.U32, ...) over four scratch registers, and for
-#    64 bits a CALL.ABS.NOINC to __cuda_sm20_div_u64, a function the cubin must hold. A form's text can take no
-#    scratch, and only a construct can, whose lines must be forms this schema names.
+#  - wide_div. The part has no integer divide, and for 64 bits the compiler writes a CALL.ABS.NOINC to
+#    __cuda_sm20_div_u64, a function the cubin must hold.
 
 # a branch to a label where a predicate holds, or does not
 form error_open_unless where = \t@!{where} BRA \t`(.L_error_open);\n
@@ -67,13 +67,21 @@ form signed_word_shr to from bits = \tSHF.R.S32.HI \t{to}, RZ, {bits}, {from};\n
 form word_rol to from bits = \tSHF.L.W.U32.HI \t{to}, {from}, {bits}, {from};\n
 form word_ror to from bits = \tSHF.R.W.U32 \t{to}, {from}, {bits}, {from};\n
 form word_mul to left right = \tIMAD \t{to}, {left}, {right}, RZ;\n
-err word_div to left right
+# a word quotient as the compiler writes it, the part having no integer divide: the divisor's reciprocal estimated in
+# floating point, one Newton step taking its error out, IMAD.HI.U32 adding the pair whose high word is the estimate and
+# whose low is 0; the dividend's high product with it, corrected up to twice by the remainder, and a zero divisor
+# giving all ones
+form word_div to left right = \tI2F.U32.RP \t{temporary:0}, {right};\n\tMUFU.RCP \t{temporary:0}, {temporary:0};\n\tIADD3 \t{wide:0}, {temporary:0}, 0xffffffe, RZ;\n\tF2I.FTZ.U32.TRUNC.NTZ \t{wide:0}.hi, {wide:0};\n\tMOV \t{wide:0}, RZ;\n\tIMAD.MOV \t{temporary:0}, RZ, RZ, -{right};\n\tIMAD \t{temporary:0}, {temporary:0}, {wide:0}.hi, RZ;\n\tIMAD.HI.U32 \t{wide:0}.hi, {wide:0}.hi, {temporary:0}, {wide:0};\n\tIMAD.HI.U32 \t{temporary:1}, {wide:0}.hi, {left}, RZ;\n\tIMAD.MOV \t{temporary:0}, RZ, RZ, -{temporary:1};\n\tIMAD \t{temporary:0}, {right}, {temporary:0}, {left};\n\tISETP.GE.U32.AND \t{predicate:0}, PT, {temporary:0}, {right}, PT;\n\t@{predicate:0} IADD3 \t{temporary:0}, -{right}, {temporary:0}, RZ;\n\t@{predicate:0} IADD3 \t{temporary:1}, {temporary:1}, 0x1, RZ;\n\tISETP.GE.U32.AND \t{predicate:0}, PT, {temporary:0}, {right}, PT;\n\t@{predicate:0} IADD3 \t{temporary:1}, {temporary:1}, 0x1, RZ;\n\tISETP.NE.U32.AND \t{predicate:0}, PT, {right}, RZ, PT;\n\t@!{predicate:0} LOP3.LUT \t{temporary:1}, RZ, {right}, RZ, 0x33, !PT;\n\tMOV \t{to}, {temporary:1};\n
+# its remainder, written the same way: the dividend less the divisor times the quotient's estimate, corrected
+# down to under the divisor, a zero divisor giving all ones. With word_div, a = q * d + r and r < d for every d
+# but 0
+form word_rem to left right = \tI2F.U32.RP \t{temporary:0}, {right};\n\tMUFU.RCP \t{temporary:0}, {temporary:0};\n\tIADD3 \t{wide:0}, {temporary:0}, 0xffffffe, RZ;\n\tF2I.FTZ.U32.TRUNC.NTZ \t{wide:0}.hi, {wide:0};\n\tMOV \t{wide:0}, RZ;\n\tIADD3 \t{temporary:0}, RZ, -{right}, RZ;\n\tIMAD \t{temporary:0}, {temporary:0}, {wide:0}.hi, RZ;\n\tIMAD.HI.U32 \t{wide:0}.hi, {wide:0}.hi, {temporary:0}, {wide:0};\n\tIMAD.HI.U32 \t{temporary:0}, {wide:0}.hi, {left}, RZ;\n\tIADD3 \t{temporary:0}, -{temporary:0}, RZ, RZ;\n\tIMAD \t{temporary:0}, {right}, {temporary:0}, {left};\n\tISETP.GE.U32.AND \t{predicate:0}, PT, {temporary:0}, {right}, PT;\n\t@{predicate:0} IMAD.IADD \t{temporary:0}, {temporary:0}, 0x1, -{right};\n\tISETP.GE.U32.AND \t{predicate:0}, PT, {temporary:0}, {right}, PT;\n\t@{predicate:0} IADD3 \t{temporary:0}, -{right}, {temporary:0}, RZ;\n\tISETP.NE.U32.AND \t{predicate:0}, PT, {right}, RZ, PT;\n\t@!{predicate:0} LOP3.LUT \t{temporary:0}, RZ, {right}, RZ, 0x33, !PT;\n\tMOV \t{to}, {temporary:0};\n
 form word_select to chosen otherwise where = \tSEL \t{to}, {chosen}, {otherwise}, {where};\n
 # The two halves of a word product, which carry between them: the low is the product's low word plus the addend,
-# keeping its carry in the fixed register carry, and the high is the product's high word plus that carry. The compiler wrote the pair as
-# one IMAD.WIDE.U32 into an aligned pair (form_13: MOV R7, RZ then IMAD.WIDE.U32 R6, R9, R0, R6), which needs the
-# two destinations to be a pair; the core names them apart, so each is written on its own out of instructions every
-# listing gave. Asked of the part, 0xffffffff squared plus 0xffffffff: the low answers 0 and the high
+# keeping its carry in the fixed register carry, and the high is the product's high word plus that carry. The
+# compiler wrote the pair as one IMAD.WIDE.U32 into an aligned pair (form_13: MOV R7, RZ then IMAD.WIDE.U32 R6, R9,
+# R0, R6), which needs the two destinations to be a pair; the core names them apart, so each is written on its own
+# out of instructions every listing gave. Asked of the part, 0xffffffff squared plus 0xffffffff: the low answers 0 and the high
 # 0xffffffff, as the question says
 form word_mul_low to left right added = \tIMAD \t{temporary:0}, {left}, {right}, RZ;\n\tIADD3 \t{to}, {carry}, {temporary:0}, {added}, RZ;\n
 form word_mul_high to left right = \tIMAD.HI.U32 \t{temporary:0}, {left}, {right}, RZ;\n\tIMAD.X \t{to}, {temporary:0}, 0x1, RZ, {carry};\n

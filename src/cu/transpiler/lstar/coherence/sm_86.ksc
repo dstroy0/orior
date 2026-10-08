@@ -16,7 +16,7 @@ class illegal  the question was refused: the system will not take it as it stand
 class folds    the compiler answered but folded the operand the question varied away, so the answer names a form of its own and not the operator
 
 # every question put, counted by the channel it went out on and what came back
-count run      answers  3847
+count run      answers  3960
 count run      nothing  0
 count run      illegal  53
 count run      folds    0
@@ -118,7 +118,9 @@ run answers 000000ff curve 1014 128
 run answers 000000ff curve 1014 256
 run answers 00000020 curve 1014 threads
 run answers 000000fc register last
+run answers 00000004 stall IADD3 F2I.FTZ.U32.TRUNC.NTZ
 run answers 00000004 stall IADD3 IADD3
+run answers 00000005 stall IADD3 IMAD
 run answers 00000004 stall IADD3 LOP3.LUT
 run answers 00000004 stall IADD3 PRMT
 run answers 00000004 stall IADD3 SHF.L.U32
@@ -133,10 +135,16 @@ run answers 00000005 stall IADD3.X LDG.E.S8
 run answers 00000005 stall IADD3.X LDG.E.U16
 run answers 00000005 stall IADD3.X LDG.E.U8
 run answers 00000004 stall IMAD IMAD
+run answers 00000004 stall IMAD IMAD.HI.U32
 run answers 00000000 stall IMAD ISETP.GE.U32.AND
 run answers 00000005 stall IMAD LOP3.LUT
 run answers 00000005 stall IMAD PRMT
 run answers 00000005 stall IMAD SHF.R.S32.HI
+run answers 00000005 stall IMAD.HI.U32 IADD3
+run answers 00000004 stall IMAD.HI.U32 IMAD.HI.U32
+run answers 00000004 stall IMAD.HI.U32 IMAD.MOV
+run answers 00000005 stall IMAD.IADD ISETP.GE.U32.AND
+run answers 00000004 stall IMAD.MOV IMAD
 run answers 00000005 stall IMAD.WIDE.U32 IADD3
 run answers 00000003 stall IMAD.WIDE.U32 LDG.E
 run answers 00000003 stall IMAD.WIDE.U32 LDG.E.64
@@ -157,6 +165,8 @@ run answers 00000004 stall ISETP.GE.AND.EX ISETP.NE.AND
 run answers 00000004 stall ISETP.GE.AND.EX ISETP.NE.OR
 run answers 00000004 stall ISETP.GE.AND.EX SEL
 run answers 0000000d stall ISETP.GE.U32.AND EXIT
+run answers 0000000d stall ISETP.GE.U32.AND IADD3
+run answers 0000000d stall ISETP.GE.U32.AND IMAD.IADD
 run answers 00000004 stall ISETP.GE.U32.AND ISETP.GE.AND.EX
 run answers 00000004 stall ISETP.GE.U32.AND ISETP.GE.U32.AND.EX
 run answers 00000004 stall ISETP.GE.U32.AND ISETP.NE.AND
@@ -209,8 +219,11 @@ run answers 00000004 stall ISETP.NE.OR SEL
 run answers 00000004 stall ISETP.NE.OR.EX SEL
 run answers 00000004 stall ISETP.NE.U32.AND ISETP.NE.AND.EX
 run answers 00000004 stall ISETP.NE.U32.AND ISETP.NE.OR.EX
+run answers 0000000d stall ISETP.NE.U32.AND LOP3.LUT
 run answers 00000004 stall LOP3.LUT IADD3
+run answers 00000004 stall LOP3.LUT ISETP.NE.AND
 run answers 00000004 stall LOP3.LUT LOP3.LUT
+run answers 00000000 stall LOP3.LUT MOV
 run answers 00000004 stall LOP3.LUT PRMT
 run answers 00000004 stall LOP3.LUT SHF.L.U32
 run answers 00000004 stall LOP3.LUT SHF.L.W.U32.HI
@@ -224,12 +237,13 @@ run answers 00000005 stall MOV LDG.E.S16
 run answers 00000005 stall MOV LDG.E.S8
 run answers 00000005 stall MOV LDG.E.U16
 run answers 00000005 stall MOV LDG.E.U8
+run answers 00000004 stall MOV LOP3.LUT
 run answers 00000004 stall MOV SEL
 run answers 00000004 stall PRMT SHF.R.S32.HI
 run answers 00000004 stall SEL LOP3.LUT
 run answers 00000004 stall SEL PRMT
 run answers 00000004 stall SEL SHF.R.S32.HI
-run answers 00000000 stall SHF.L.U32 IADD3
+run answers 00000004 stall SHF.L.U32 IADD3
 run answers 00000004 stall SHF.L.U32 LOP3.LUT
 run answers 00000004 stall SHF.L.U32 PRMT
 run answers 00000004 stall SHF.L.U32 SHF.L.W.U32.HI
@@ -324,6 +338,7 @@ run answers 00000001 ask 04c04413602e42a9 10 0 0 8786cfcd63ae10d1 3e9124b8a3984b
 run answers ffffffff ask 04c04413602e42a9 255 0 0 8786cfcd63ae10d1 456062552342d645
 run answers ffffffff ask 04c288639df9ae80 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
 run answers ffffffff ask 04ea951af300fb38 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
+run answers ffffffff ask 0523ed8cece996f7 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers 00000005 ask 058ddf07d78ad590 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 05e3c1c64bec0886 12 0 0 8786cfcd63ae10d1 73472102cb58fa54
 run answers ffffffff ask 05e3c1c64bec0886 255 0 0 8786cfcd63ae10d1 73472102cb58fa54
@@ -421,6 +436,7 @@ run answers ffffffff ask 0bddbd300bb0c535 255 0 0 8786cfcd63ae10d1 a67728924bf18
 run answers ffffffff ask 0be562abee508cd0 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
 run answers ffffffff ask 0be615c19d0fe344 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
 run answers ffffffff ask 0bf122550b3e7b76 255 0 0 8786cfcd63ae10d1 7a1af9b4d4f2d8a4
+run answers ffffffff ask 0bfc86005e3671b3 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
 run answers ffffffff ask 0c017f0fd1c14f22 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
 run answers ffffffff ask 0c01b03a608af916 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
 run answers ffffffff ask 0c3639e4e08460ba 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3
@@ -480,6 +496,7 @@ run answers ffffffff ask 0e8df75ccf45d2b2 12 0 0 8786cfcd63ae10d1 c8706ed8a69da1
 run answers ffffffff ask 0e8df75ccf45d2b2 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
 run answers ffffffff ask 0e98c974d96daf3a 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
 run answers ffffffff ask 0eb399bae611be0a 255 0 0 8786cfcd63ae10d1 8c6ecdf21e861235
+run answers ffffffff ask 0eb5147d503b076b 255 0 0 8786cfcd63ae10d1 cc10e8c9653a9175
 run answers ffffffff ask 0ee25c14b2761d3e 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run illegal 00000000 ask 0ee86d17b16b89d5 255 0 0 8786cfcd63ae10d1 3b8869f71ecab5ed refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 0ef32d5661d2131e 255 0 0 8786cfcd63ae10d1 8c6ecdf21e861235
@@ -499,6 +516,7 @@ run answers ffffffff ask 0ff0c275e7917e03 255 0 0 8786cfcd63ae10d1 52307d915bd2c
 run answers ffffffff ask 10095aa922cf66c6 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
 run answers ffffffff ask 1016b2cdb330b4da 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
 run answers ffffffff ask 101cbd5e48477b16 255 0 0 8786cfcd63ae10d1 161cc9836b253025
+run answers ffffffff ask 102a686e8cd7da84 255 0 0 8786cfcd63ae10d1 0b65c69cef6dda4d
 run answers ffffffff ask 1032e74ce95522f0 255 0 0 8786cfcd63ae10d1 662ba18589e655a5
 run answers ffffffff ask 1037e952370208ca 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25
 run answers ffffffff ask 103b8db0f4e4c77a 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
@@ -551,6 +569,7 @@ run answers ffffffff ask 1302415927400c78 10 0 0 8786cfcd63ae10d1 7579b2dfe2a89a
 run answers ffffffff ask 1302415927400c78 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
 run answers ffffffff ask 131b0cfa5d8d065e 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 131d5136e1734ca0 255 0 0 8786cfcd63ae10d1 2f1008ab37790844
+run answers ffffffff ask 1326d00e3c1d0ef1 255 0 0 8786cfcd63ae10d1 ef4c0092b6fc2879
 run answers ffffffff ask 133508922e9ec306 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
 run answers ffffffff ask 133b70f6088c96b7 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
 run answers ffffffff ask 133e207c172d6970 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045
@@ -569,7 +588,9 @@ run answers ffffffff ask 13c4ea7dcc9f5b44 255 0 0 8786cfcd63ae10d1 d26be45f244a4
 run answers ffffffff ask 13c7807cbf1d800c 255 0 0 8786cfcd63ae10d1 0f01d798c1d2330d
 run answers ffffffff ask 13fbd89b0c2d3c7e 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205
 run answers ffffffff ask 13fe787d2516bff0 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
+run answers ffffffff ask 14045a5fc6ea0e2b 255 0 0 8786cfcd63ae10d1 7adb1730387baae5
 run answers ffffffff ask 140c9a43fe580da6 255 0 0 8786cfcd63ae10d1 0f01d798c1d2330d
+run answers ffffffff ask 142add44a9cd64eb 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6005
 run answers 00000001 ask 142f4227656d6482 10 0 0 8786cfcd63ae10d1 18828f2a1db80005
 run answers 00000000 ask 142f4227656d6482 10 0 0 8786cfcd63ae10d1 85c5171c213185e5
 run answers 00000000 ask 142f4227656d6482 255 0 0 8786cfcd63ae10d1 85c5171c213185e5
@@ -582,6 +603,7 @@ run answers ffffffff ask 148a065d2c641474 12 0 0 8786cfcd63ae10d1 d9affb01627322
 run answers ffffffff ask 148a065d2c641474 255 0 0 8786cfcd63ae10d1 d9affb0162732234
 run answers ffffffff ask 149748fc1d3cb9b0 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3
 run answers ffffffff ask 149aefd1a63b3d15 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
+run answers ffffffff ask 14a31e1baada9c71 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 14dd888b1bc929f2 12 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
 run answers ffffffff ask 14dd888b1bc929f2 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
 run answers ffffffff ask 14fdee9ea32d6043 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d
@@ -613,6 +635,7 @@ run answers ffffffff ask 16a5b07dd86defb7 10 0 0 8786cfcd63ae10d1 57091fa3774760
 run answers ffffffff ask 16a5b07dd86defb7 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask 16c31694f2b5db08 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
 run answers ffffffff ask 16f3e3526adbd57c 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205
+run answers ffffffff ask 1700fdb2db6f0b47 255 0 0 8786cfcd63ae10d1 9da584cdcb889065
 run answers ffffffff ask 1701e95d46b310bd 255 0 0 8786cfcd63ae10d1 da35d90c917d2fa5
 run answers ffffffff ask 17290264a2edc1a8 255 0 0 8786cfcd63ae10d1 2551c92cf0650585
 run answers 00000001 ask 172972fa7c53c4d1 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed
@@ -684,6 +707,7 @@ run answers ffffffff ask 1b959c0227813b48 255 0 0 8786cfcd63ae10d1 583a29afda87a
 run answers ffffffff ask 1b9cbfb68ec32f7a 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 1bba1358979ffa7e 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c
 run answers ffffffff ask 1bef08df8fbdaf7c 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
+run answers ffffffff ask 1bf699971238888c 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
 run answers ffffffff ask 1c28172816b7ed08 255 0 0 8786cfcd63ae10d1 4bc2afea5c10ddc3
 run answers ffffffff ask 1c29eabe0637adb4 255 0 0 8786cfcd63ae10d1 53100b8f6b981159
 run answers ffffffff ask 1c2c7edae6a82a26 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
@@ -691,6 +715,7 @@ run answers ffffffff ask 1c3c8f403ee5b777 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb
 run answers ffffffff ask 1c433a464f41cf18 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
 run answers ffffffff ask 1c52c34d5428b118 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
 run answers ffffffff ask 1c6ffd3d161e5054 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec
+run answers ffffffff ask 1c83e150bd1104c7 255 0 0 8786cfcd63ae10d1 1201763a1f7f08ad
 run answers ffffffff ask 1ca34dffbefd782c 255 0 0 8786cfcd63ae10d1 2551c92cf0650585
 run answers ffffffff ask 1ca89b734024825c 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 1cc04371998f693f 255 0 0 8786cfcd63ae10d1 7c06912dd5ffcfaa
@@ -750,17 +775,20 @@ run answers ffffffff ask 2036ac4b5c0a0a98 255 0 0 8786cfcd63ae10d1 5d38f0b72949f
 run answers ffffffff ask 2084a809df92b890 255 0 0 8786cfcd63ae10d1 8c6ecdf21e861235
 run answers ffffffff ask 209ee233f1c1053c 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec
 run answers ffffffff ask 20c3b76c0f703b46 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
+run answers ffffffff ask 20cc5d8852d8888c 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
 run answers ffffffff ask 20db606c8dc9532a 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
 run answers ffffffff ask 20ef02fffb2e9f86 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask 20f08aa49c5602c4 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
 run answers ffffffff ask 210d3c3158d04e59 255 0 0 8786cfcd63ae10d1 1aef9f104974045d
 run answers ffffffff ask 210f24765b8c27fc 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
+run answers ffffffff ask 21130a23a54a4051 255 0 0 8786cfcd63ae10d1 0cff690e2011a5dd
 run answers ffffffff ask 2137a659ac597ae4 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
 run answers ffffffff ask 21af5d6ba3f77248 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask 21c7ea92fa48e87e 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 21c8a0ea2332c534 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
 run answers ffffffff ask 22061692da4fedb5 255 0 0 8786cfcd63ae10d1 8a912e8178d48b65
 run answers ffffffff ask 22062dc5980f82a0 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
+run answers ffffffff ask 22323188dfec9506 255 0 0 8786cfcd63ae10d1 1035267d15e1626b
 run answers ffffffff ask 223db6c68ade1ef1 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
 run answers ffffffff ask 225bc8b13e92a0b6 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f
 run answers ffffffff ask 227104f396ab7a62 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
@@ -835,12 +863,14 @@ run answers ffffffff ask 25bc2856c184f0f6 255 0 0 8786cfcd63ae10d1 2f1008ab37790
 run answers ffffffff ask 25c89a19cd9e1ffb 10 0 0 8786cfcd63ae10d1 2fc271347814833d
 run answers ffffffff ask 25c89a19cd9e1ffb 255 0 0 8786cfcd63ae10d1 2fc271347814833d
 run answers ffffffff ask 25e01ad6fbece470 255 0 0 8786cfcd63ae10d1 85c5171c213185e5
+run answers ffffffff ask 25f8123e3fda7f11 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask 25faf7c8295da3d3 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45
 run answers 000000fd ask 2643c620993768cb 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
 run answers ffffffff ask 2650a935899da767 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask 265b6a5e6fae27f5 255 0 0 8786cfcd63ae10d1 c792c71030dcf385
 run answers ffffffff ask 266057c9f08a0e66 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
 run answers ffffffff ask 2668e64317b112c7 255 0 0 8786cfcd63ae10d1 2fc271347814833d
+run answers ffffffff ask 26760ba8e47692fb 255 0 0 8786cfcd63ae10d1 5c1895d02ec8cde9
 run answers ffffffff ask 267c85c462722712 10 0 0 8786cfcd63ae10d1 249c629be01ffc65
 run answers ffffffff ask 267c85c462722712 255 0 0 8786cfcd63ae10d1 249c629be01ffc65
 run answers ffffffff ask 2682e96088cd4ad5 255 0 0 8786cfcd63ae10d1 5c1895d02ec8cde9
@@ -937,6 +967,7 @@ run answers ffffffff ask 2d3ab14a34f5194d 255 0 0 8786cfcd63ae10d1 9da5fe633d957
 run answers ffffffff ask 2d3ea0a570c42af4 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
 run answers ffffffff ask 2d4a2b9db9b3e89e 255 0 0 8786cfcd63ae10d1 249c629be01ffc65
 run answers ffffffff ask 2d7c7f8db9380ed6 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
+run answers ffffffff ask 2d96e312a9ece47c 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb
 run answers ffffffff ask 2d9c91bcf8ca0f4e 255 0 0 8786cfcd63ae10d1 7aa722ead1172205
 run answers ffffffff ask 2da7b7c97b1d6c68 10 0 0 8786cfcd63ae10d1 12de53eeced0d8fd
 run answers ffffffff ask 2da7b7c97b1d6c68 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd
@@ -961,6 +992,7 @@ run answers ffffffff ask 2edb15af57c43c1e 255 0 0 8786cfcd63ae10d1 26dfd63cb7866
 run answers ffffffff ask 2eed8ddd414e849b 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
 run answers ffffffff ask 2efde25a29812459 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9
 run answers ffffffff ask 2f0e409071dbfb01 255 0 0 8786cfcd63ae10d1 38dd1be41d947515
+run answers ffffffff ask 2f366335fd18d8d7 255 0 0 8786cfcd63ae10d1 1a2ef0a58beee9e5
 run answers ffffffff ask 2f383743c9d8f6b0 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
 run answers ffffffff ask 2f4952ec0d5e3ff2 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask 2f570b7001551de4 255 0 0 8786cfcd63ae10d1 bde32aeee5b8b2c5
@@ -1081,6 +1113,7 @@ run answers ffffffff ask 37d5e80a959f16ec 255 0 0 8786cfcd63ae10d1 768d15fdacb6a
 run answers ffffffff ask 37e3cd4e0456a199 10 0 0 8786cfcd63ae10d1 4a5e2e5fcdac1e7d
 run answers ffffffff ask 37e3cd4e0456a199 255 0 0 8786cfcd63ae10d1 4a5e2e5fcdac1e7d
 run answers ffffffff ask 37f92822fc2e100e 255 0 0 8786cfcd63ae10d1 a6cadde1086c497b
+run answers ffffffff ask 37faa01c5c140374 255 0 0 8786cfcd63ae10d1 45186009230be39d
 run answers ffffffff ask 3802415f039bb54f 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers ffffffff ask 38038c8c39bf15e1 255 0 0 8786cfcd63ae10d1 4b7adda9d4cbd9eb
 run answers ffffffff ask 38144e7947a06f56 255 0 0 8786cfcd63ae10d1 a6e7abc147e24c2c
@@ -1125,6 +1158,7 @@ run answers ffffffff ask 3b6c72638c0f0b5c 255 0 0 8786cfcd63ae10d1 c84b2a7255707
 run answers ffffffff ask 3ba081a82b5a00e4 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd
 run answers 0000007e ask 3bb0bcfbccc0306f 10 0 0 8786cfcd63ae10d1 8a912e8178d48b65
 run answers ffffffff ask 3bb0bcfbccc0306f 255 0 0 8786cfcd63ae10d1 2b29eb49d737da55
+run answers ffffffff ask 3bb87779222aeda6 255 0 0 8786cfcd63ae10d1 90c73b39e59d3e41
 run answers ffffffff ask 3bcbca603260341d 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5
 run answers ffffffff ask 3bcd5752419a3dd5 255 0 0 8786cfcd63ae10d1 63b871c4eacb53b9
 run answers ffffffff ask 3bdb69f5cc3a1a9a 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
@@ -1160,6 +1194,7 @@ run answers ffffffff ask 3da3f5be93208c7c 255 0 0 8786cfcd63ae10d1 85c5171c21318
 run answers ffffffff ask 3dafed6ef5a52dc2 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25
 run answers ffffffff ask 3dc6b01d8e3d64a6 12 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
 run answers ffffffff ask 3dc6b01d8e3d64a6 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
+run answers ffffffff ask 3dc81aab57563b0b 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
 run answers ffffffff ask 3dcadc76f5757504 12 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask 3dcadc76f5757504 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask 3dd0274ddc271cf2 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
@@ -1199,6 +1234,7 @@ run answers ffffffff ask 3ffcb2aa16ce58d3 255 0 0 8786cfcd63ae10d1 942d4baba6d6d
 run illegal 00000000 ask 400bff521a828076 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask 400f5060003aac43 255 0 0 8786cfcd63ae10d1 e71ff10be1a561d9
 run answers ffffffff ask 403226fd864bc35c 255 0 0 8786cfcd63ae10d1 5765a1b7e9f3a6c5
+run answers ffffffff ask 4037c39cbd671bf7 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 40513d1b3bfa40e4 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
 run answers 00000010 ask 40770edecf6a3fae 12 0 0 8786cfcd63ae10d1 be7373cdd36d4f25
 run answers ffffffff ask 40770edecf6a3fae 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5
@@ -1223,6 +1259,8 @@ run answers ffffffff ask 4211ad9dc727f00a 255 0 0 8786cfcd63ae10d1 b2c60bca809b1
 run answers ffffffff ask 422786d9812125ca 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 42310b157918ab74 255 0 0 8786cfcd63ae10d1 7a1af9b4d4f2d8a4
 run answers 00000001 ask 4232606922a67523 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
+run answers ffffffff ask 42361a8cf6d9b88c 255 0 0 8786cfcd63ae10d1 27df478d4d887739
+run answers ffffffff ask 42425c024a8c6db0 255 0 0 8786cfcd63ae10d1 30d7beb6a5b3d6bd
 run answers ffffffff ask 42574a78bd2021ac 255 0 0 8786cfcd63ae10d1 c71a3b98fa5bbfc5
 run answers ffffffff ask 4286096d66e92e53 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
 run answers ffffffff ask 4287a6096470a7e6 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
@@ -1256,6 +1294,7 @@ run answers ffffffff ask 4515a4bd423c5409 255 0 0 8786cfcd63ae10d1 7c06912dd5ffc
 run answers ffffffff ask 451dc6866c18a730 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
 run answers ffffffff ask 45429a63b7596a04 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 455c5f131d699af6 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
+run answers ffffffff ask 4569b691802c0349 255 0 0 8786cfcd63ae10d1 c298a91c007d5f6f
 run answers ffffffff ask 456d9747261d2c02 255 0 0 8786cfcd63ae10d1 c91c6e9560c71d44
 run answers ffffffff ask 457e8cae9ec11024 12 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run answers ffffffff ask 457e8cae9ec11024 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
@@ -1319,12 +1358,14 @@ run illegal 00000000 ask 48c21c04c065960d 255 0 0 8786cfcd63ae10d1 e71ff10be1a56
 run answers ffffffff ask 48ce9c6f86ca70df 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask 48f815418be7b7ef 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259
 run answers ffffffff ask 48f896b23375821f 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
+run answers ffffffff ask 48ff80b83d7dfcd8 255 0 0 8786cfcd63ae10d1 4a1433812e64b341
 run answers ffffffff ask 491bf9d5e8c74472 12 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
 run answers ffffffff ask 491bf9d5e8c74472 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
 run answers 00000000 ask 491ca763d4ef7084 13 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask 4921c290ff09b188 255 0 0 8786cfcd63ae10d1 110fe21681f5fe75
 run answers ffffffff ask 492827f81ea1c132 255 0 0 8786cfcd63ae10d1 db6052284c532d85
 run answers ffffffff ask 49361ba3c00d949a 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5
+run answers ffffffff ask 4939fba1b26dc55f 255 0 0 8786cfcd63ae10d1 662ba18589e655a5
 run answers ffffffff ask 49448865eaf1bc19 10 0 0 8786cfcd63ae10d1 92621cbee857f9db
 run answers ffffffff ask 49448865eaf1bc19 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
 run answers ffffffff ask 49634951b9c4e128 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145
@@ -1342,10 +1383,12 @@ run answers ffffffff ask 4a25311f822c87de 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579
 run answers 000000c6 ask 4a3fd7fd5d6fa7a6 10 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
 run answers ffffffff ask 4a6894a9a1e51ca0 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
 run answers ffffffff ask 4a69d5bed4900121 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
+run answers ffffffff ask 4a774fca367110c7 255 0 0 8786cfcd63ae10d1 68d01fd9a717d6c3
 run answers ffffffff ask 4a8692c4386e2513 255 0 0 8786cfcd63ae10d1 ef3ac012912b1551
 run answers ffffffff ask 4a9349ddf386d894 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
 run answers ffffffff ask 4a9a7c3df1a98a3a 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc
 run answers ffffffff ask 4ab22bbce2a5efd2 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
+run answers 00000001 ask 4ab9697aefaa41e2 255 0 0 8786cfcd63ae10d1 27df478d4d887739
 run illegal 00000000 ask 4aff768833204c5d 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask 4b28d8c19a7b02b7 255 0 0 8786cfcd63ae10d1 9da584cdcb889065
 run answers ffffffff ask 4b3a3a0fc8234e94 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
@@ -1411,8 +1454,10 @@ run answers ffffffff ask 4e34d62cfed7f85e 255 0 0 8786cfcd63ae10d1 3cf2a52639a95
 run answers ffffffff ask 4e5b8f6c337ba1a4 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run answers ffffffff ask 4e5f3f5973ea6ea0 10 0 0 8786cfcd63ae10d1 c91919f9f2b5b015
 run answers ffffffff ask 4e5f3f5973ea6ea0 255 0 0 8786cfcd63ae10d1 c91919f9f2b5b015
+run answers ffffffff ask 4e6b1f3a57cfe072 255 0 0 8786cfcd63ae10d1 eba034ce47e76c31
 run answers ffffffff ask 4e75ac1cf0209910 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers ffffffff ask 4e7fecfe276d575f 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed
+run answers ffffffff ask 4e9de010243fc11d 255 0 0 8786cfcd63ae10d1 aba7c592e56be0c5
 run answers ffffffff ask 4ea69d35158bb77d 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run illegal 00000000 ask 4ed0d1b731557cd8 230 0 0 8786cfcd63ae10d1 32795f135db4d3dd refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run illegal 00000000 ask 4ed0d1b731557cd8 231 0 0 8786cfcd63ae10d1 32795f135db4d3dd refused CUDA_ERROR_ILLEGAL_INSTRUCTION
@@ -1470,12 +1515,14 @@ run answers ffffffff ask 5284a4dea33e3d6e 10 0 0 8786cfcd63ae10d1 a9d010c6c5c9ed
 run answers ffffffff ask 5284a4dea33e3d6e 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5
 run answers ffffffff ask 528f3b7abc72f068 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
 run answers ffffffff ask 5290f805a47ed308 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
+run answers ffffffff ask 52aedd4a2e37f6bb 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5
 run answers ffffffff ask 52d6a4557bf16a82 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc
 run answers ffffffff ask 52db63537dce73ac 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
 run answers ffffffff ask 52e599aa1b99ef10 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
 run answers ffffffff ask 52fc69430345b1f5 255 0 0 8786cfcd63ae10d1 eba034ce47e76c31
 run answers ffffffff ask 531f1caab10b5c57 255 0 0 8786cfcd63ae10d1 3b8869f71ecab5ed
 run answers ffffffff ask 5324f0d8ab68960a 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f
+run answers ffffffff ask 533dac570dcbe4ff 255 0 0 8786cfcd63ae10d1 d3ccda22ec4ced7d
 run answers ffffffff ask 5341f9c1ae608798 10 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
 run answers ffffffff ask 5341f9c1ae608798 255 0 0 8786cfcd63ae10d1 fe98db109b3a9f05
 run answers ffffffff ask 5342a2945e15c8bf 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
@@ -1635,6 +1682,7 @@ run answers ffffffff ask 5bd338fbf1c14a0f 255 0 0 8786cfcd63ae10d1 da35d90c917d2
 run answers ffffffff ask 5bee853395f0fcab 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers 00000154 ask 5bfcd81ddab9a318 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
 run answers ffffffff ask 5c2d92b5f02e0637 255 0 0 8786cfcd63ae10d1 1201763a1f7f08ad
+run answers ffffffff ask 5c841efa186c6f22 255 0 0 8786cfcd63ae10d1 3dac3d242e51a9e5
 run answers ffffffff ask 5ca0f07f3389ee5d 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask 5ca912dac656a247 255 0 0 8786cfcd63ae10d1 2e33658a01c80371
 run answers ffffffff ask 5cc97d16883f8e2c 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
@@ -1645,6 +1693,7 @@ run answers ffffffff ask 5d04628a78d41a98 255 0 0 8786cfcd63ae10d1 ef41ef69e5e54
 run answers ffffffff ask 5d05a4a15493fb0a 255 0 0 8786cfcd63ae10d1 d9affb0162732234
 run answers ffffffff ask 5d2fa09f6fc6f7fe 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
 run answers 00000001 ask 5d3ddae14ef39bda 10 0 0 8786cfcd63ae10d1 fa8de9f2dc10a0a5
+run answers ffffffff ask 5d41df7e5b8bc4ef 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
 run answers ffffffff ask 5d43853646461411 10 0 0 8786cfcd63ae10d1 ef3ac012912b1551
 run answers ffffffff ask 5d43853646461411 255 0 0 8786cfcd63ae10d1 ef3ac012912b1551
 run answers ffffffff ask 5d6e5c12e55c888c 255 0 0 8786cfcd63ae10d1 4c94ba3e650c871d
@@ -1655,11 +1704,13 @@ run answers ffffffff ask 5d9282550eaa5004 12 0 0 8786cfcd63ae10d1 b2c60bca809b1f
 run answers ffffffff ask 5d9282550eaa5004 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask 5d93afd67aeda37c 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84
 run answers ffffffff ask 5d9d57cf085d0125 255 0 0 8786cfcd63ae10d1 52307d915bd2c2d9
+run answers ffffffff ask 5de635dbdb3ccf3a 255 0 0 8786cfcd63ae10d1 7412d9fd66bae261
 run answers ffffffff ask 5df615a2fd22627c 10 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
 run answers ffffffff ask 5df615a2fd22627c 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
 run answers ffffffff ask 5e03c1cc53822b0e 255 0 0 8786cfcd63ae10d1 edad53d17425a3ec
 run answers ffffffff ask 5e2da0f1c53915ea 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers ffffffff ask 5e3ad0b9f45d327c 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
+run answers ffffffff ask 5e4106d16155aa86 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 5e4b1c0d76f4237f 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers 00000010 ask 5e601e605ce86432 12 0 0 8786cfcd63ae10d1 de85e591664f8ffc
 run answers ffffffff ask 5e601e605ce86432 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
@@ -1669,6 +1720,7 @@ run answers ffffffff ask 5e9df75db790d3f8 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba29
 run answers ffffffff ask 5ebed98926186616 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 5ed9f44d9d584258 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
 run answers ffffffff ask 5edc645d30ff011c 255 0 0 8786cfcd63ae10d1 22921b39e3d75875
+run answers ffffffff ask 5ede67a1ac378ee1 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5
 run answers ffffffff ask 5ee3ebfcae791e84 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f
 run answers ffffffff ask 5f18bf9094f53327 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask 5f1ac9712a59ef6f 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
@@ -1773,6 +1825,7 @@ run answers ffffffff ask 65e450eb35ecd7cc 255 0 0 8786cfcd63ae10d1 584678d47f519
 run answers ffffffff ask 65fe95c58818ddbf 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
 run answers ffffffff ask 66126074f60e5927 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask 6612dfcd4cf2d05a 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5
+run answers ffffffff ask 66176fdd696b8982 255 0 0 8786cfcd63ae10d1 12de53eeced0d8fd
 run answers ffffffff ask 661814508256a1be 255 0 0 8786cfcd63ae10d1 65a97cf27ef95275
 run answers ffffffff ask 662afbedb9b2e5f8 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers ffffffff ask 6630d9dc6d333000 10 0 0 8786cfcd63ae10d1 82e085dbdb819b15
@@ -1913,6 +1966,7 @@ run answers ffffffff ask 70d224508c7af0ea 255 0 0 8786cfcd63ae10d1 7397aa1619b9e
 run answers ffffffff ask 70ee43299e4ab0cd 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
 run answers ffffffff ask 70f20a5b6a83a972 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
 run answers 00000012 ask 70f4cbb00da165c0 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
+run answers ffffffff ask 710a59507d9fc39b 255 0 0 8786cfcd63ae10d1 94312d505e95117d
 run answers ffffffff ask 711344ad59d15dd7 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d
 run answers ffffffff ask 7117ba489e0d8c5d 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask 713c02703d199b78 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
@@ -1926,6 +1980,7 @@ run answers ffffffff ask 71b0aebafe4c9c32 255 0 0 8786cfcd63ae10d1 5d6613604fd70
 run answers ffffffff ask 71b8a8019e73cc48 12 0 0 8786cfcd63ae10d1 faab8c21584a66c4
 run answers ffffffff ask 71b8a8019e73cc48 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
 run answers ffffffff ask 71ba73687f341368 255 0 0 8786cfcd63ae10d1 a6e7abc147e24c2c
+run answers ffffffff ask 71ddf701ea936bb8 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
 run answers ffffffff ask 7213692b818d2efe 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
 run answers ffffffff ask 723122d00a2bcdc1 255 0 0 8786cfcd63ae10d1 35a0f03f12fe9259
 run answers ffffffff ask 723c41f939d6a42d 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
@@ -1988,6 +2043,7 @@ run answers 00000144 ask 74f99fad7b348572 255 0 0 8786cfcd63ae10d1 ef41ef69e5e54
 run answers ffffffff ask 74fdf8cf4589a9dc 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask 751ec0abaeaa8c6a 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 751f6e96219ef67b 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
+run answers ffffffff ask 754d7d83affd1173 255 0 0 8786cfcd63ae10d1 a8b4f586f775b8a1
 run answers ffffffff ask 7558de3f36e8d798 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad
 run answers ffffffff ask 757ccf90e6daffe4 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
 run answers ffffffff ask 759aa150f8c74d66 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3
@@ -2009,6 +2065,7 @@ run answers ffffffff ask 76a6507e74720523 255 0 0 8786cfcd63ae10d1 2e33658a01c80
 run answers ffffffff ask 76b559fe2ef64dc9 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers ffffffff ask 76c6e4408295d334 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c
 run answers ffffffff ask 76cbba946325f575 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
+run answers 00000001 ask 76dcae65924f1421 255 0 0 8786cfcd63ae10d1 92d971d40c6caff5
 run answers ffffffff ask 76f470d657917a85 255 0 0 8786cfcd63ae10d1 c91919f9f2b5b015
 run answers ffffffff ask 770d9cd8b350b313 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
 run answers ffffffff ask 772aad2bb71ff89f 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
@@ -2049,6 +2106,7 @@ run answers ffffffff ask 79e4514962bd1daa 255 0 0 8786cfcd63ae10d1 fa8de9f2dc10a
 run answers ffffffff ask 79f73af299815260 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 79fdb5eb8b40c5a2 255 0 0 8786cfcd63ae10d1 07e9a0fca9663265
 run answers ffffffff ask 7a039f41fff299c0 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
+run answers ffffffff ask 7a216e33ed861978 255 0 0 8786cfcd63ae10d1 584678d47f519a19
 run answers ffffffff ask 7a840b8db555e679 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask 7a85316aa60760d8 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6005
 run answers ffffffff ask 7a8ff97416ac7309 255 0 0 8786cfcd63ae10d1 57091fa377476019
@@ -2079,6 +2137,7 @@ run answers ffffffff ask 7c27f3fd574492e4 255 0 0 8786cfcd63ae10d1 de85e591664f8
 run answers ffffffff ask 7c354090f791537c 255 0 0 8786cfcd63ae10d1 744c1d66448115d5
 run answers ffffffff ask 7c3d3e0ad8dab2b2 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84
 run answers ffffffff ask 7c5749fd93a671bb 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
+run answers ffffffff ask 7c59db30ff3aaf49 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
 run answers ffffffff ask 7c83462487160bc8 255 0 0 8786cfcd63ae10d1 b5d8f88456417029
 run answers ffffffff ask 7c8eb070a086be82 255 0 0 8786cfcd63ae10d1 1035267d15e1626b
 run answers 00000144 ask 7caf3e797513a6fc 255 0 0 8786cfcd63ae10d1 fa9dc8debed51d0c
@@ -2234,6 +2293,7 @@ run answers ffffffff ask 854d9604f6cb7e1e 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be
 run answers ffffffff ask 857e3b389a6b2f56 255 0 0 8786cfcd63ae10d1 0711855a632eafd5
 run answers ffffffff ask 858fdb235aef4818 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
 run answers ffffffff ask 85afa8462d79e7fc 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
+run answers ffffffff ask 85b0cc758a45b113 255 0 0 8786cfcd63ae10d1 2315ef25ab3c63b6
 run answers ffffffff ask 85b591d9908ec8e8 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run answers ffffffff ask 85fef66e9b11fbd1 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers ffffffff ask 860f332a08b8d9e8 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
@@ -2257,9 +2317,11 @@ run answers ffffffff ask 8785605eb971c8ce 255 0 0 8786cfcd63ae10d1 2f1008ab37790
 run answers 00000012 ask 878abf8002b2d55f 13 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask 8795eaabf0dfe61a 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25
 run answers ffffffff ask 87c27d36a0fc1d68 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
+run answers ffffffff ask 87c74561d5718ca5 255 0 0 8786cfcd63ae10d1 e09da4bb4b0802a5
 run answers ffffffff ask 87cf4541085ea060 255 0 0 8786cfcd63ae10d1 22921b39e3d75875
 run answers ffffffff ask 87dab164f68b1303 255 0 0 8786cfcd63ae10d1 8434f799cdffec69
 run answers ffffffff ask 87e36f1a1183e341 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
+run answers ffffffff ask 87e57a7f43061894 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
 run answers ffffffff ask 87f3fc15f95ab17c 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
 run answers ffffffff ask 87fcea4012525f2e 10 0 0 8786cfcd63ae10d1 0711855a632eafd5
 run answers ffffffff ask 87fcea4012525f2e 255 0 0 8786cfcd63ae10d1 0711855a632eafd5
@@ -2279,6 +2341,7 @@ run answers ffffffff ask 89153abffd6dae9c 255 0 0 8786cfcd63ae10d1 c71a3b98fa5bb
 run answers ffffffff ask 892047611bdfb690 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
 run answers ffffffff ask 89510484d3f4fa06 255 0 0 8786cfcd63ae10d1 a520250bff9463d5
 run answers ffffffff ask 895276020a601d16 255 0 0 8786cfcd63ae10d1 0f01d798c1d2330d
+run answers ffffffff ask 896736bb85a883e7 255 0 0 8786cfcd63ae10d1 38dd1be41d947515
 run answers ffffffff ask 898922352c4ef503 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
 run answers ffffffff ask 89bd31d293dc218c 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
 run answers ffffffff ask 89c549cb2c88ec1c 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
@@ -2310,6 +2373,7 @@ run answers ffffffff ask 8b949ed731ecfc9f 255 0 0 8786cfcd63ae10d1 4d75db63b61e4
 run answers ffffffff ask 8ba4c76ab6c25b1f 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45
 run answers ffffffff ask 8bbc4a3cf93ff026 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c
 run answers ffffffff ask 8bc4f79b2f698318 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5
+run answers ffffffff ask 8be0c5bca546386d 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
 run answers ffffffff ask 8c29a411b0c6473f 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers ffffffff ask 8c3ad8357f4d64c2 10 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
 run answers ffffffff ask 8c3ad8357f4d64c2 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
@@ -2333,6 +2397,7 @@ run answers ffffffff ask 8d298ff88664bebc 255 0 0 8786cfcd63ae10d1 3e21ce1792386
 run answers ffffffff ask 8d4e1b9fa8c4af85 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask 8d63bdf99cf4dd41 12 0 0 8786cfcd63ae10d1 aca5cd49cf474425
 run answers ffffffff ask 8d63bdf99cf4dd41 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
+run answers ffffffff ask 8d646a9226025c8c 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
 run answers ffffffff ask 8d78f7f19a62ad3f 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535
 run answers ffffffff ask 8d90ec0bc8b274ea 255 0 0 8786cfcd63ae10d1 63b871c4eacb53b9
 run answers ffffffff ask 8da046eae2faab9a 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
@@ -2344,6 +2409,7 @@ run answers ffffffff ask 8dcc15ac39ad4fef 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef8
 run answers ffffffff ask 8ddfc42e05c8b932 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205
 run answers ffffffff ask 8e0b20fc01ac84a0 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask 8e211ebc5bed3738 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25
+run answers ffffffff ask 8e308e7356a5ff4c 255 0 0 8786cfcd63ae10d1 bcfc78e8813ad2ad
 run answers ffffffff ask 8e53f7ac6b5e5331 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 8e5dd661ba03d78e 255 0 0 8786cfcd63ae10d1 e75ccacaf75af43f
 run answers ffffffff ask 8e661858208bf1ac 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
@@ -2401,6 +2467,7 @@ run answers ffffffff ask 91222de97a5de2a0 255 0 0 8786cfcd63ae10d1 0ee4da6992b18
 run answers ffffffff ask 91276150ffc8e92f 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
 run answers ffffffff ask 912ccfd1d1617e70 255 0 0 8786cfcd63ae10d1 2551c92cf0650585
 run answers ffffffff ask 9162806b20b34038 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
+run answers ffffffff ask 91653d664acd74c6 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 91910a124b930324 255 0 0 8786cfcd63ae10d1 2f1008ab37790844
 run answers ffffffff ask 91993a0765b8563d 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers ffffffff ask 91c9a509a9da2403 255 0 0 8786cfcd63ae10d1 4c5a3cc43bde1365
@@ -2443,6 +2510,7 @@ run answers ffffffff ask 94099803c919ceac 255 0 0 8786cfcd63ae10d1 4a1433812e64b
 run answers ffffffff ask 941b4bd9b7c3996a 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc
 run answers ffffffff ask 941bb029c40ffba8 255 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425
 run answers ffffffff ask 942bce4da9c600cb 255 0 0 8786cfcd63ae10d1 e71ff10be1a561d9
+run answers ffffffff ask 9441b08c21e88afc 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 944e819538422974 255 0 0 8786cfcd63ae10d1 81f93cffc677a1dd
 run answers ffffffff ask 9452e9df8cab97fe 255 0 0 8786cfcd63ae10d1 3b00e42715f8bbec
 run answers ffffffff ask 94530b2a5ce6a164 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
@@ -2466,6 +2534,7 @@ run answers ffffffff ask 95ae968078dedb34 10 0 0 8786cfcd63ae10d1 53100b8f6b9811
 run answers ffffffff ask 95ae968078dedb34 255 0 0 8786cfcd63ae10d1 53100b8f6b981159
 run answers ffffffff ask 95b69fb51d720627 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 95c0807dddaca26a 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
+run answers ffffffff ask 95e219a8094743c9 255 0 0 8786cfcd63ae10d1 ffc057fdceac8e79
 run answers ffffffff ask 95fc47409727602a 255 0 0 8786cfcd63ae10d1 744c1d66448115d5
 run answers ffffffff ask 96272865d9080408 255 0 0 8786cfcd63ae10d1 3c6f9d52f7579aa5
 run answers ffffffff ask 96a8c69dc701bec0 12 0 0 8786cfcd63ae10d1 0cff690e2011a5dd
@@ -2529,12 +2598,15 @@ run answers ffffffff ask 9bdb877341992c98 255 0 0 8786cfcd63ae10d1 fe98db109b3a9
 run answers ffffffff ask 9bea5b057d7a9e42 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
 run answers ffffffff ask 9bf4d9946463427c 255 0 0 8786cfcd63ae10d1 7aa722ead1172205
 run answers ffffffff ask 9bfa39e2fcf4b522 255 0 0 8786cfcd63ae10d1 c71a3b98fa5bbfc5
+run answers ffffffff ask 9c01ae9ca0210c0f 255 0 0 8786cfcd63ae10d1 4a5e2e5fcdac1e7d
 run answers ffffffff ask 9c10b82bea9d0a8d 255 0 0 8786cfcd63ae10d1 e71ff10be1a561d9
 run answers ffffffff ask 9c287d25d646a5b8 12 0 0 8786cfcd63ae10d1 3e21ce179238691c
 run answers ffffffff ask 9c287d25d646a5b8 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
 run answers ffffffff ask 9c45356bf442e21c 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25
 run answers ffffffff ask 9c65f5be0713bc52 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
+run answers ffffffff ask 9c73d4bc4e4bce7e 255 0 0 8786cfcd63ae10d1 662ba18589e655a5
 run answers ffffffff ask 9c894613cb2eecbc 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
+run answers ffffffff ask 9c906a546d6d8b7e 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask 9c9576f656bf619b 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers ffffffff ask 9c9eb16f5db193b0 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask 9cab83951ddd6e65 255 0 0 8786cfcd63ae10d1 456062552342d645
@@ -2586,12 +2658,14 @@ run answers ffffffff ask 9ffe44a820856f38 255 0 0 8786cfcd63ae10d1 57091fa377476
 run answers ffffffff ask a004f7854f7c43d0 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc
 run answers ffffffff ask a007ead034644440 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
 run answers ffffffff ask a02071e978e18c99 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
+run answers ffffffff ask a021258cd09bd034 255 0 0 8786cfcd63ae10d1 399f941cccac5f51
 run answers ffffffff ask a0296663eed0b38f 255 0 0 8786cfcd63ae10d1 3b8869f71ecab5ed
 run answers ffffffff ask a04f38980e930a05 255 0 0 8786cfcd63ae10d1 858d7bbc17e989cd
 run answers ffffffff ask a05aed01918fe4fd 10 0 0 8786cfcd63ae10d1 bb4119d44c30358f
 run answers ffffffff ask a05aed01918fe4fd 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
 run answers ffffffff ask a068890f7ba7e47c 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
 run answers ffffffff ask a071a08815127882 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
+run answers ffffffff ask a08cef5ab1aedce8 255 0 0 8786cfcd63ae10d1 a520250bff9463d5
 run answers ffffffff ask a092e66e6565e4e0 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
 run answers ffffffff ask a0ab6b81e5224694 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask a0b4e090be279caa 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
@@ -2716,8 +2790,10 @@ run answers ffffffff ask a7b8e7eb096fd0b2 255 0 0 8786cfcd63ae10d1 6994424641253
 run answers ffffffff ask a7cc0733c6c8baab 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask a7e4bfd8af0bbdf5 255 0 0 8786cfcd63ae10d1 cfab2fd4d67deabd
 run answers ffffffff ask a80ba6e1d7113bec 255 0 0 8786cfcd63ae10d1 0711855a632eafd5
+run answers ffffffff ask a82836cbce6e7217 255 0 0 8786cfcd63ae10d1 864efac930fa432d
 run answers ffffffff ask a82f1a82ffbe164f 12 0 0 8786cfcd63ae10d1 634b62b9412683e5
 run answers ffffffff ask a82f1a82ffbe164f 255 0 0 8786cfcd63ae10d1 634b62b9412683e5
+run answers ffffffff ask a830439f9099286b 255 0 0 8786cfcd63ae10d1 32795f135db4d3dd
 run answers ffffffff ask a8369db873d07d52 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask a8498538cf5b6680 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
 run illegal 00000000 ask a87138d7fe5109f8 134 0 0 8786cfcd63ae10d1 8c5c9ff830be6c2b refused CUDA_ERROR_ILLEGAL_INSTRUCTION
@@ -2789,6 +2865,7 @@ run answers 00000001 ask ac065ada925389b4 12 0 0 8786cfcd63ae10d1 c91c6e9560c71d
 run answers ffffffff ask ac065ada925389b4 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
 run answers 00000000 ask ac065ada925389b4 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
 run answers 00000144 ask ac0af6d7eaf081ca 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
+run answers ffffffff ask ac14e19b32987fc9 255 0 0 8786cfcd63ae10d1 a67728924bf1857d
 run answers ffffffff ask ac2cde0a50fe5e58 255 0 0 8786cfcd63ae10d1 32795f135db4d3dd
 run answers ffffffff ask ac34692a54da63f9 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
 run answers 00000010 ask ac48661c80947ad2 12 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045
@@ -2849,6 +2926,7 @@ run answers ffffffff ask b000e654b01ce278 255 0 0 8786cfcd63ae10d1 2551c92cf0650
 run answers ffffffff ask b009997370fe04b5 255 0 0 8786cfcd63ae10d1 2e33658a01c80371
 run answers ffffffff ask b01a200e7c6aae4c 255 0 0 8786cfcd63ae10d1 c8810a9f0cc784ac
 run answers ffffffff ask b045f3fe3a003702 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
+run answers ffffffff ask b05d945fe76755d7 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
 run answers ffffffff ask b07dc735f486b5c8 255 0 0 8786cfcd63ae10d1 7579b2dfe2a89aa5
 run answers ffffffff ask b08fd363a4ce789e 12 0 0 8786cfcd63ae10d1 ba71b117839113ac
 run answers ffffffff ask b08fd363a4ce789e 255 0 0 8786cfcd63ae10d1 ba71b117839113ac
@@ -2870,6 +2948,7 @@ run answers ffffffff ask b1db36e0f5705c6a 255 0 0 8786cfcd63ae10d1 2f1008ab37790
 run answers ffffffff ask b239f8d72e1da022 255 0 0 8786cfcd63ae10d1 6994424641253594
 run answers ffffffff ask b24a36bbd220cc02 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
 run answers 00000020 ask b26a9a2b6f4ec43a 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
+run answers ffffffff ask b2779db9315b88f2 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55
 run answers ffffffff ask b293fba6b436a302 255 0 0 8786cfcd63ae10d1 c8706ed8a69da17c
 run answers ffffffff ask b29eb6272921a24a 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb
 run answers ffffffff ask b2a45367d516a2ec 255 0 0 8786cfcd63ae10d1 4ec744c79b9087a4
@@ -2946,6 +3025,7 @@ run answers ffffffff ask b5f299a042891ef5 10 0 0 8786cfcd63ae10d1 a16f0098e9425a
 run answers ffffffff ask b5f299a042891ef5 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55
 run answers ffffffff ask b6188b99ab63a481 255 0 0 8786cfcd63ae10d1 3e9124b8a3984b45
 run answers ffffffff ask b61c6092aef9234d 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
+run answers ffffffff ask b62b51cc292162ba 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask b6360efe4b0cdf16 255 0 0 8786cfcd63ae10d1 bde32aeee5b8b2c5
 run answers ffffffff ask b63aae5520c0806e 255 0 0 8786cfcd63ae10d1 18828f2a1db80005
 run answers ffffffff ask b6596046c5789e56 255 0 0 8786cfcd63ae10d1 703d27dbbba1886d
@@ -3094,6 +3174,7 @@ run answers ffffffff ask c116968661dd91ef 255 0 0 8786cfcd63ae10d1 b1b5e600d481d
 run answers ffffffff ask c11d14d1fcde8f06 255 0 0 8786cfcd63ae10d1 a520250bff9463d5
 run answers ffffffff ask c13467f2f5a2f8f0 255 0 0 8786cfcd63ae10d1 7aa722ead1172205
 run answers ffffffff ask c15ccde9353bcafe 255 0 0 8786cfcd63ae10d1 a594133d669aae5d
+run answers ffffffff ask c1663d9fc8f80cc2 255 0 0 8786cfcd63ae10d1 c2171aef1d9d1265
 run answers ffffffff ask c168c6c3cc8de966 255 0 0 8786cfcd63ae10d1 82e085dbdb819b15
 run answers ffffffff ask c16a500307ba1375 255 0 0 8786cfcd63ae10d1 192daaa07bdfaaa5
 run answers ffffffff ask c20107abd49baad2 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
@@ -3152,6 +3233,7 @@ run answers ffffffff ask c57f11688625a68c 255 0 0 8786cfcd63ae10d1 fea8f5482a733
 run answers 00000000 ask c5bb2a8610b2fc3a 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc
 run illegal 00000000 ask c5e37644a9097259 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_INSTRUCTION
 run answers ffffffff ask c5e48c01559adb02 255 0 0 8786cfcd63ae10d1 5d6613604fd704bc
+run answers ffffffff ask c63c019109980cc2 255 0 0 8786cfcd63ae10d1 0a5386ac83a967a5
 run answers ffffffff ask c669d03d66ed1c8e 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask c674f2478fbdf779 255 0 0 8786cfcd63ae10d1 2dfc1874fef34759
 run answers ffffffff ask c67e3b67f9821cdb 255 0 0 8786cfcd63ae10d1 92621cbee857f9db
@@ -3182,6 +3264,7 @@ run answers ffffffff ask c85b87401a1d8a4e 255 0 0 8786cfcd63ae10d1 768d15fdacb6a
 run answers ffffffff ask c85bf888d99ed3a4 255 0 0 8786cfcd63ae10d1 1035267d15e1626b
 run answers ffffffff ask c85c568a60d9021e 255 0 0 8786cfcd63ae10d1 ba71b117839113ac
 run answers ffffffff ask c864d3733b3e212e 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
+run answers ffffffff ask c87cac1651dbff77 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773
 run answers 00000005 ask c898ebf93be044e2 10 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425
 run answers 00000005 ask c898ebf93be044e2 255 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425
 run answers ffffffff ask c8a43eb8ea58aa44 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
@@ -3212,6 +3295,7 @@ run answers ffffffff ask ca1b11964cfef3e3 255 0 0 8786cfcd63ae10d1 9da584cdcb889
 run answers ffffffff ask ca28e9a73aebaa1a 255 0 0 8786cfcd63ae10d1 d5b8c4a777fe2045
 run answers ffffffff ask ca360656f95ee8f8 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask ca45433f411cd753 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
+run answers ffffffff ask ca4ea8ec49bc3323 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask ca54050e768d450e 255 0 0 8786cfcd63ae10d1 583a29afda87a8b5
 run answers ffffffff ask ca7741cdfdfb4e01 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d
 run answers ffffffff ask ca953bf2571e6a13 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
@@ -3274,6 +3358,7 @@ run answers ffffffff ask ceaa36be85aa20fb 10 0 0 8786cfcd63ae10d1 cfab2fd4d67dea
 run answers ffffffff ask ceaa36be85aa20fb 255 0 0 8786cfcd63ae10d1 cfab2fd4d67deabd
 run answers ffffffff ask ceb03f5409d485cb 255 0 0 8786cfcd63ae10d1 add41e3e2865afc1
 run answers ffffffff ask ceb498214d5707e4 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
+run answers ffffffff ask cecb076664a5db01 255 0 0 8786cfcd63ae10d1 584678d47f519a19
 run answers ffffffff ask cedd069085a4c98e 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad
 run answers ffffffff ask cede155fdd27a236 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask cee5fceecc613d3f 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
@@ -3285,8 +3370,10 @@ run answers 00000121 ask cf952737c5f6d8ea 12 0 0 8786cfcd63ae10d1 5ff620375ef4d3
 run answers 00000121 ask cf952737c5f6d8ea 255 0 0 8786cfcd63ae10d1 5ff620375ef4d3c9
 run answers ffffffff ask cf952737c5f6d8ea 255 0 0 8786cfcd63ae10d1 8434f799cdffec69
 run answers ffffffff ask cf977495ccee9b8e 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba297d5
+run answers 00000001 ask cfaaa9c0ca0fa002 255 0 0 8786cfcd63ae10d1 09d027687bbc02cd
 run answers ffffffff ask cfd8afc1152fe788 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c
 run answers ffffffff ask cfe3d2562b9cad41 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
+run answers ffffffff ask cfed2ef05d4707a8 255 0 0 8786cfcd63ae10d1 7ac7ea0a441be7f1
 run answers ffffffff ask cfee3f1d8ca6deeb 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
 run answers ffffffff ask d00628478f2ae5ab 255 0 0 8786cfcd63ae10d1 78f8c03869767b65
 run answers ffffffff ask d02c8d16e1f3600e 255 0 0 8786cfcd63ae10d1 0ee4da6992b186cb
@@ -3295,6 +3382,7 @@ run answers ffffffff ask d05d05401a2b7042 255 0 0 8786cfcd63ae10d1 faab8c21584a6
 run answers ffffffff ask d087c9e2df94acb1 255 0 0 8786cfcd63ae10d1 942d4baba6d6d545
 run answers ffffffff ask d093b43be1fbee6b 10 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
 run answers ffffffff ask d093b43be1fbee6b 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
+run answers ffffffff ask d09e6362e69763cb 255 0 0 8786cfcd63ae10d1 8c5c9ff830be6c2b
 run answers ffffffff ask d0baf8b862e37d89 255 0 0 8786cfcd63ae10d1 0734f6fea166e615
 run answers ffffffff ask d0bebeb73d5efdb2 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
 run answers ffffffff ask d0c01101f0aaf3fc 255 0 0 8786cfcd63ae10d1 fea8f5482a733534
@@ -3323,6 +3411,7 @@ run answers ffffffff ask d331581f17684586 255 0 0 8786cfcd63ae10d1 be7373cdd36d4
 run answers ffffffff ask d34413b074952aeb 255 0 0 8786cfcd63ae10d1 ebeded7f66fb2b15
 run answers ffffffff ask d35f4509f3cc2068 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
 run answers ffffffff ask d36697b925f8fb06 255 0 0 8786cfcd63ae10d1 f63df2c4cdf7bea5
+run answers ffffffff ask d37cf08e557b2f53 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask d38a727d51584678 12 0 0 8786cfcd63ae10d1 2129cadff1feaadd
 run answers ffffffff ask d38a727d51584678 255 0 0 8786cfcd63ae10d1 2129cadff1feaadd
 run answers ffffffff ask d397da48b0c9feac 255 0 0 8786cfcd63ae10d1 7397aa1619b9ed45
@@ -3365,12 +3454,14 @@ run answers ffffffff ask d5aaf55171797201 255 0 0 8786cfcd63ae10d1 7c06912dd5ffc
 run answers ffffffff ask d5ae0390356b79c4 255 0 0 8786cfcd63ae10d1 6994424641253594
 run answers ffffffff ask d5c3ca8b4e5915e2 255 0 0 8786cfcd63ae10d1 0bd423b37ffa833c
 run answers ffffffff ask d5fb5b7ea2e161b3 255 0 0 8786cfcd63ae10d1 7d927a1cf3796cdb
+run answers ffffffff ask d61590fb47320ac5 255 0 0 8786cfcd63ae10d1 17d816e2e70e9b15
 run answers ffffffff ask d62212c376ff1050 255 0 0 8786cfcd63ae10d1 ef41ef69e5e5442d
 run answers ffffffff ask d623031d91c773d0 255 0 0 8786cfcd63ae10d1 53100b8f6b981159
 run answers ffffffff ask d628df5861716e82 255 0 0 8786cfcd63ae10d1 be7373cdd36d4f25
 run answers ffffffff ask d62cf057394dddb4 255 0 0 8786cfcd63ae10d1 5d7c35298dbbbf7c
 run answers ffffffff ask d6585262f9c9e0c2 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205
 run answers 00000144 ask d65a4ab14a649aab 255 0 0 8786cfcd63ae10d1 4a1433812e64b341
+run answers ffffffff ask d6662ccc4859aea8 255 0 0 8786cfcd63ae10d1 09d027687bbc02cd
 run answers ffffffff ask d67109e2d135f576 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
 run answers ffffffff ask d67c14849d34f153 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask d68c636842f30a46 255 0 0 8786cfcd63ae10d1 07e9a0fca9663265
@@ -3393,10 +3484,12 @@ run answers ffffffff ask d7649e971a0924d2 255 0 0 8786cfcd63ae10d1 22921b39e3d75
 run answers ffffffff ask d7664929dbc10508 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145
 run answers ffffffff ask d77a096e5cb62cde 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64
 run answers ffffffff ask d7850e60ae6ab22a 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad
+run answers 00000001 ask d79438a41e09d83c 255 0 0 8786cfcd63ae10d1 90c73b39e59d3e41
 run answers ffffffff ask d7960a561d964cf1 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
 run answers ffffffff ask d7a26befe78c1fe6 10 0 0 8786cfcd63ae10d1 77eda38657688891
 run answers ffffffff ask d7a26befe78c1fe6 255 0 0 8786cfcd63ae10d1 77eda38657688891
 run answers ffffffff ask d7a344e762d09bde 255 0 0 8786cfcd63ae10d1 bf635e0376d30714
+run answers ffffffff ask d7ba1870e3c1c53a 255 0 0 8786cfcd63ae10d1 343722621eab0f33
 run answers ffffffff ask d7caa41e601aeca8 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask d7dde4444fc6206e 255 0 0 8786cfcd63ae10d1 4c71d3e2f46eb6a5
 run answers ffffffff ask d808aaca9352f221 255 0 0 8786cfcd63ae10d1 aca5cd49cf474425
@@ -3406,6 +3499,7 @@ run answers ffffffff ask d83ccd7f6f5c5d11 255 0 0 8786cfcd63ae10d1 858d7bbc17e98
 run answers ffffffff ask d85b4b113f5ea215 255 0 0 8786cfcd63ae10d1 38dd1be41d947515
 run answers ffffffff ask d85ccfb6e31d3c54 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
 run answers 00000012 ask d87e02b2c33d11c4 13 0 0 8786cfcd63ae10d1 add41e3e2865afc1
+run answers ffffffff ask d8b0574c4294987b 255 0 0 8786cfcd63ae10d1 110fe21681f5fe75
 run answers ffffffff ask d8c0919296afbdd6 12 0 0 8786cfcd63ae10d1 6994424641253594
 run answers ffffffff ask d8c0919296afbdd6 255 0 0 8786cfcd63ae10d1 6994424641253594
 run answers ffffffff ask d8e2146257b4d6c0 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
@@ -3424,12 +3518,14 @@ run answers ffffffff ask d9e5000c59af80a9 12 0 0 8786cfcd63ae10d1 47e4e8413a1fec
 run answers ffffffff ask d9e5000c59af80a9 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a
 run answers ffffffff ask d9f7229d36f5ef84 255 0 0 8786cfcd63ae10d1 07e9a0fca9663265
 run answers ffffffff ask d9fc6d64f9c9035c 255 0 0 8786cfcd63ae10d1 25dc9a7696fdd205
+run answers ffffffff ask da021d688606d101 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
 run answers ffffffff ask da135f5064d932ff 255 0 0 8786cfcd63ae10d1 0734f6fea166e615
 run answers ffffffff ask da18061700cb3eea 255 0 0 8786cfcd63ae10d1 906b56ae5c2f5a65
 run answers ffffffff ask da2952b00d86a517 255 0 0 8786cfcd63ae10d1 7412d9fd66bae261
 run answers ffffffff ask da41b0edffcd48ea 255 0 0 8786cfcd63ae10d1 a07a37e7918b3cd5
 run answers ffffffff ask da4364f1024faa60 255 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask da461fb836164256 255 0 0 8786cfcd63ae10d1 a9c79a9666fa9b84
+run answers ffffffff ask da60d7f9003afb3a 255 0 0 8786cfcd63ae10d1 714c9dd82f1ddb25
 run answers ffffffff ask da96159c0e3456e6 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
 run answers ffffffff ask da9c5e29ca6d60df 12 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask da9c5e29ca6d60df 255 0 0 8786cfcd63ae10d1 57091fa377476019
@@ -3437,6 +3533,7 @@ run answers ffffffff ask daa3f4ee92aa0db7 255 0 0 8786cfcd63ae10d1 bfa6b6b3c9ef8
 run answers ffffffff ask daa6cfe3ed33f91d 12 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers ffffffff ask daa6cfe3ed33f91d 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers ffffffff ask dac2fede944817d5 255 0 0 8786cfcd63ae10d1 aba7c592e56be0c5
+run answers 00000001 ask db0158f3e58921f7 255 0 0 8786cfcd63ae10d1 c298a91c007d5f6f
 run answers ffffffff ask db02048d570acd8c 255 0 0 8786cfcd63ae10d1 8efd949f9545e2d5
 run answers ffffffff ask db192211496376a9 12 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a
 run answers ffffffff ask db192211496376a9 255 0 0 8786cfcd63ae10d1 47e4e8413a1fec0a
@@ -3458,6 +3555,7 @@ run answers ffffffff ask dc0651f915f96812 255 0 0 8786cfcd63ae10d1 fe6bc4da0ba29
 run answers ffffffff ask dc29139c2473792e 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask dc2a2df2044745df 12 0 0 8786cfcd63ae10d1 57091fa377476019
 run answers ffffffff ask dc2a2df2044745df 255 0 0 8786cfcd63ae10d1 57091fa377476019
+run answers 00000001 ask dc315080c7ec5b65 255 0 0 8786cfcd63ae10d1 a8b4f586f775b8a1
 run answers ffffffff ask dc349fac270dde1d 12 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers ffffffff ask dc349fac270dde1d 255 0 0 8786cfcd63ae10d1 1f156c5074e43ee5
 run answers ffffffff ask dc3d465e35eb149f 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
@@ -3485,6 +3583,7 @@ run answers ffffffff ask dd7ddcb010e994e6 255 0 0 8786cfcd63ae10d1 2315ef25ab3c6
 run answers ffffffff ask dd8b8893daf5a7cd 255 0 0 8786cfcd63ae10d1 4d75db63b61e48d1
 run answers 00000001 ask dd8d556ef788970c 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
 run answers ffffffff ask dd902263b5f27276 255 0 0 8786cfcd63ae10d1 744c1d66448115d5
+run answers ffffffff ask dd90a5ed84b9fd8b 255 0 0 8786cfcd63ae10d1 a90fb041674c41c5
 run answers ffffffff ask dda51e12ed6d4fa2 255 0 0 8786cfcd63ae10d1 eac2719480e6cb34
 run answers ffffffff ask ddb99353e4f2da30 255 0 0 8786cfcd63ae10d1 b3be35a4cd75cbf5
 run answers ffffffff ask de6aad71b9087973 255 0 0 8786cfcd63ae10d1 2e33658a01c80371
@@ -3503,11 +3602,13 @@ run answers ffffffff ask df32a891fc68cb38 206 0 0 8786cfcd63ae10d1 45ac04dd3c0e9
 run answers ffffffff ask df32a891fc68cb38 213 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
 run answers ffffffff ask df32a891fc68cb38 227 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
 run answers ffffffff ask df32a891fc68cb38 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
+run answers ffffffff ask df5d6c8623d8e07c 255 0 0 8786cfcd63ae10d1 767fde5d7c4edc7d
 run answers ffffffff ask df703ef86c322330 255 0 0 8786cfcd63ae10d1 557a49eacfb7996c
 run answers ffffffff ask df74b2cabf53c574 255 0 0 8786cfcd63ae10d1 faab8c21584a66c4
 run answers ffffffff ask df81a56314d3d2ec 255 0 0 8786cfcd63ae10d1 de85e591664f8ffc
 run answers ffffffff ask df8bfb5498e1a6f5 10 0 0 8786cfcd63ae10d1 a16f0098e9425a55
 run answers ffffffff ask df8bfb5498e1a6f5 255 0 0 8786cfcd63ae10d1 a16f0098e9425a55
+run answers ffffffff ask dfbbe2ea57dbaaab 255 0 0 8786cfcd63ae10d1 b9cc5bd908c09945
 run answers ffffffff ask dfbea27ca8567faf 255 0 0 8786cfcd63ae10d1 343722621eab0f33
 run answers ffffffff ask dfce16779a1f5d71 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5
 run answers ffffffff ask dfd0d6b765f6a7f6 255 0 0 8786cfcd63ae10d1 8efd949f9545e2d5
@@ -3557,7 +3658,9 @@ run answers ffffffff ask e2ba83dbad04202b 255 0 0 8786cfcd63ae10d1 5e48cad4cb6e6
 run answers ffffffff ask e2bac066fc6bd872 255 0 0 8786cfcd63ae10d1 d77abee75c1a674d
 run answers ffffffff ask e2d0c8b62bbf697e 255 0 0 8786cfcd63ae10d1 b6f3cb729df9873c
 run answers ffffffff ask e30a8d26f045a706 255 0 0 8786cfcd63ae10d1 2551c92cf0650585
+run answers ffffffff ask e32cc06e8b0064af 255 0 0 8786cfcd63ae10d1 faff065bf0835f0f
 run answers ffffffff ask e34a0010402caad6 255 0 0 8786cfcd63ae10d1 5d38f0b72949ff55
+run answers ffffffff ask e3681f2e5f4e6919 255 0 0 8786cfcd63ae10d1 da35d90c917d2fa5
 run answers ffffffff ask e39bc897508205c9 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
 run answers ffffffff ask e3a0a3a8cb52cd00 12 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
 run answers ffffffff ask e3a0a3a8cb52cd00 255 0 0 8786cfcd63ae10d1 448ef2e77b8cd514
@@ -3567,6 +3670,7 @@ run answers ffffffff ask e3cb0719f0478800 255 0 0 8786cfcd63ae10d1 a07a37e7918b3
 run answers ffffffff ask e3f0195c4f639c8e 255 0 0 8786cfcd63ae10d1 b1074340445ab6ad
 run answers ffffffff ask e41f3f8fda508854 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask e421548d971687fe 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
+run answers ffffffff ask e444b6b0012c478b 255 0 0 8786cfcd63ae10d1 b3be35a4cd75cbf5
 run answers ffffffff ask e4559fd300455497 255 0 0 8786cfcd63ae10d1 241b5609ad63a965
 run answers ffffffff ask e4732c37d98dd279 255 0 0 8786cfcd63ae10d1 eb7c63fbaa282773
 run answers ffffffff ask e478c12aae7b7172 255 0 0 8786cfcd63ae10d1 3cf2a52639a95145
@@ -3574,6 +3678,7 @@ run answers ffffffff ask e480e281fef8ec19 255 0 0 8786cfcd63ae10d1 88422d8ed0a71
 run answers ffffffff ask e49785725b3e1d5e 255 0 0 8786cfcd63ae10d1 4d75db63b61e48d1
 run illegal 00000000 ask e4a692a141685ee9 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745 refused CUDA_ERROR_ILLEGAL_ADDRESS
 run answers ffffffff ask e4b52e5ee3a125cc 255 0 0 8786cfcd63ae10d1 744c1d66448115d5
+run answers ffffffff ask e4beb185bd0df5cc 255 0 0 8786cfcd63ae10d1 7e960eae3e02b6ad
 run answers ffffffff ask e4dc1e6333bc4575 10 0 0 8786cfcd63ae10d1 eba034ce47e76c31
 run answers ffffffff ask e4dc1e6333bc4575 255 0 0 8786cfcd63ae10d1 eba034ce47e76c31
 run answers ffffffff ask e5057ffa2144df4f 255 0 0 8786cfcd63ae10d1 ccbdfbbfcad219a5
@@ -3621,6 +3726,8 @@ run answers ffffffff ask e75d0c3db5cc4f1f 255 0 0 8786cfcd63ae10d1 aca5cd49cf474
 run answers ffffffff ask e75dc2dac2fb8c22 255 0 0 8786cfcd63ae10d1 718313e03ee46cc4
 run answers ffffffff ask e7689894d4f147db 255 0 0 8786cfcd63ae10d1 456062552342d645
 run answers ffffffff ask e77e15dfe4ee867b 255 0 0 8786cfcd63ae10d1 2fc271347814833d
+run answers ffffffff ask e7d18432a0fd8cd9 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
+run answers ffffffff ask e7e870c97f41c879 255 0 0 8786cfcd63ae10d1 726ffecc34d32881
 run answers ffffffff ask e7f63a9f700c6536 12 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
 run answers ffffffff ask e7f63a9f700c6536 255 0 0 8786cfcd63ae10d1 601f84ce2ed7f20c
 run answers ffffffff ask e80b0d443c255111 255 0 0 8786cfcd63ae10d1 2fc271347814833d
@@ -3723,6 +3830,7 @@ run answers ffffffff ask ef6dc67bacf8ea14 255 0 0 8786cfcd63ae10d1 c8810a9f0cc78
 run answers ffffffff ask ef7e05e65a222bb4 255 0 0 8786cfcd63ae10d1 0439f274e7d00a8d
 run answers ffffffff ask ef7e4843301e5f12 255 0 0 8786cfcd63ae10d1 0cff690e2011a5dd
 run answers ffffffff ask efd14625ea3c830b 255 0 0 8786cfcd63ae10d1 3b8869f71ecab5ed
+run answers ffffffff ask efda20f5e8e23f9c 255 0 0 8786cfcd63ae10d1 703d27dbbba1886d
 run answers ffffffff ask efde9eba4ef479d2 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers 0000000c ask efe07ca93c579d05 255 0 0 8786cfcd63ae10d1 bb4119d44c30358f
 run answers ffffffff ask efe818a972e6f156 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
@@ -3750,6 +3858,7 @@ run answers ffffffff ask f14c7aa0ad5c34b9 255 0 0 8786cfcd63ae10d1 456062552342d
 run answers ffffffff ask f1a312ad6344ac68 255 0 0 8786cfcd63ae10d1 9ca47865b57eee05
 run answers ffffffff ask f1b5ed40a9b6eaf8 255 0 0 8786cfcd63ae10d1 a520250bff9463d5
 run answers ffffffff ask f1c7e8959bef200c 255 0 0 8786cfcd63ae10d1 7aa722ead1172205
+run answers ffffffff ask f1fb20b69e6ae7ba 255 0 0 8786cfcd63ae10d1 0734f6fea166e615
 run answers ffffffff ask f2109b9dc57f76ee 255 0 0 8786cfcd63ae10d1 a9d010c6c5c9edf5
 run answers ffffffff ask f2111a35f2a57658 255 0 0 8786cfcd63ae10d1 c84b2a7255707d64
 run answers ffffffff ask f21690427db5f965 255 0 0 8786cfcd63ae10d1 0734f6fea166e615
@@ -3775,6 +3884,7 @@ run answers ffffffff ask f362b54cc9747f4e 255 0 0 8786cfcd63ae10d1 7397aa1619b9e
 run answers 00000000 ask f396fe5aafadcf22 255 0 0 8786cfcd63ae10d1 6b16685ab6f70f1b
 run answers ffffffff ask f39c0c8ad044a68b 255 0 0 8786cfcd63ae10d1 45ac04dd3c0e9cb1
 run answers ffffffff ask f3a60993bc5cdc37 255 0 0 8786cfcd63ae10d1 c1c49e2a7fadb1f5
+run answers ffffffff ask f3af9541c8add504 255 0 0 8786cfcd63ae10d1 8c6ecdf21e861235
 run answers ffffffff ask f3d085004a0af0ae 255 0 0 8786cfcd63ae10d1 3e21ce179238691c
 run answers ffffffff ask f3dc4e3b60a0440d 255 0 0 8786cfcd63ae10d1 7412d9fd66bae261
 run answers ffffffff ask f3e0bac1ccdae1c8 255 0 0 8786cfcd63ae10d1 63e1cc3a8e92e425
@@ -3782,6 +3892,7 @@ run answers ffffffff ask f3e888c08c46968d 255 0 0 8786cfcd63ae10d1 e09da4bb4b080
 run answers ffffffff ask f404326b83cde732 255 0 0 8786cfcd63ae10d1 6bed3c4c518c6715
 run answers ffffffff ask f406765851f028dc 255 0 0 8786cfcd63ae10d1 eaeb76bfcdc238f5
 run answers ffffffff ask f41beae42ea3ba38 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
+run answers ffffffff ask f44ec9cb0e52425d 255 0 0 8786cfcd63ae10d1 e79a68d03b88c2f5
 run answers ffffffff ask f48548ce6a6b75a2 255 0 0 8786cfcd63ae10d1 343722621eab0f33
 run answers ffffffff ask f4a9958dca5c3ce0 255 0 0 8786cfcd63ae10d1 768d15fdacb6a6b5
 run answers ffffffff ask f4c2607f132f3974 12 0 0 8786cfcd63ae10d1 d9affb0162732234
@@ -3857,6 +3968,7 @@ run answers ffffffff ask f92a7c84ecabdf64 255 0 0 8786cfcd63ae10d1 f63df2c4cdf7b
 run answers ffffffff ask f951abf7eab8d007 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535
 run answers ffffffff ask f954cf304ff2cc7b 255 0 0 8786cfcd63ae10d1 2ec9006976af14ed
 run answers ffffffff ask f960a933e2dbf044 255 0 0 8786cfcd63ae10d1 22921b39e3d75875
+run answers ffffffff ask f97b77f87bc010fe 255 0 0 8786cfcd63ae10d1 22921b39e3d75875
 run answers ffffffff ask f989800e4df84be4 255 0 0 8786cfcd63ae10d1 c6a487ae3648e0c5
 run answers ffffffff ask f9936192c0a72bf3 10 0 0 8786cfcd63ae10d1 c7f6ab741d381f85
 run answers ffffffff ask f9936192c0a72bf3 255 0 0 8786cfcd63ae10d1 c7f6ab741d381f85
@@ -3886,6 +3998,7 @@ run answers ffffffff ask fbacdfc644e0d403 255 0 0 8786cfcd63ae10d1 2315ef25ab3c6
 run answers ffffffff ask fbe7dbc603837b8d 255 0 0 8786cfcd63ae10d1 631a0ffef18291cd
 run answers ffffffff ask fbfd1b4b635bf7dc 255 0 0 8786cfcd63ae10d1 b2c60bca809b1fd4
 run answers ffffffff ask fbfed1e50a9ab6c9 255 0 0 8786cfcd63ae10d1 88422d8ed0a71745
+run answers ffffffff ask fc176ad938226205 255 0 0 8786cfcd63ae10d1 b1b5e600d481d62d
 run answers ffffffff ask fc184965984def9b 255 0 0 8786cfcd63ae10d1 bcfc78e8813ad2ad
 run answers ffffffff ask fc19974aa1a93d51 255 0 0 8786cfcd63ae10d1 0b06bd58123c0535
 run answers ffffffff ask fc4af4ff7fe3ebf8 255 0 0 8786cfcd63ae10d1 538d01cf263f81c3

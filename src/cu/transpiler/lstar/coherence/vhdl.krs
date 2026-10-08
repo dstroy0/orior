@@ -113,6 +113,7 @@ err word_ror to from bits
 form word_mul to left right =             {to} := resize(word_of({left}) * word_of({right}), 32);\n
 form word_mul_add to left right added =             {to} := resize(word_of({left}) * word_of({right}) + word_of({added}), 32);\n
 form word_div to left right =             {to} := word_of({left}) / word_of({right});\n
+err word_rem to left right
 form word_select to chosen otherwise where =             if {where} then\n                {to} := word_of({chosen});\n            else\n                {to} := word_of({otherwise});\n            end if;\n
 form word_mul_low to left right added =             product := word_of({left}) * word_of({right});\n            total := resize(product(31 downto 0), 33) + word_of({added});\n            {to} := total(31 downto 0);\n            carry := to_integer(total(32 downto 32));\n
 form word_mul_high to left right =             product := word_of({left}) * word_of({right});\n            {to} := product(63 downto 32) + carry;\n

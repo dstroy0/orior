@@ -530,33 +530,38 @@ static std::string stick_pipe_choice(const std::string &instruction, std::string
     const std::string text = (!instruction.empty() && (instruction.back() == ';'))
                                  ? stick_squeeze(instruction.substr(0u, instruction.size() - 1u))
                                  : instruction;
-    const std::string word = "(R[0-9]+(?:\\.hi)?)";
-    if (std::regex_match(text, found, std::regex("^IADD3\\.X " + word + ", " + word + ", " + word +
-                                                 ", RZ, (P[0-6]), !PT$")))
+    // each pattern compiled once, the first time a line is put to it
+    static const std::string word = "(R[0-9]+(?:\\.hi)?)";
+    static const std::regex carried_add("^IADD3\\.X " + word + ", " + word + ", " + word + ", RZ, (P[0-6]), !PT$");
+    static const std::regex carried_product("^IMAD\\.X " + word + ", " + word + ", 0x1, " + word + ", (P[0-6])$");
+    static const std::regex moved("^MOV (R[0-9]+), (c\\[.+\\])$");
+    static const std::regex moved_product("^IMAD\\.MOV\\.U32 (R[0-9]+), RZ, RZ, (c\\[.+\\])$");
+    static const std::regex shifted("^SHF\\.L\\.U32 (R[0-9]+), (R[0-9]+), (0x[0-9a-f]+|[0-9]+), RZ$");
+    static const std::regex shifted_product("^IMAD\\.SHL\\.U32 (R[0-9]+), (R[0-9]+), (0x[0-9a-f]+|[0-9]+), RZ$");
+    if (std::regex_match(text, found, carried_add))
     {
         *writing = "IMAD.X " + std::string(found[1]) + ", " + std::string(found[2]) + ", 0x1, " +
                    std::string(found[3]) + ", " + std::string(found[4]);
         return "IADD3.X";
     }
-    if (std::regex_match(text, found, std::regex("^IMAD\\.X " + word + ", " + word + ", 0x1, " + word + ", (P[0-6])$")))
+    if (std::regex_match(text, found, carried_product))
     {
         *writing = text;
         return "IADD3.X";
     }
-    if (std::regex_match(text, found, std::regex("^MOV (R[0-9]+), (c\\[.+\\])$")) ||
-        std::regex_match(text, found, std::regex("^IMAD\\.MOV\\.U32 (R[0-9]+), RZ, RZ, (c\\[.+\\])$")))
+    if (std::regex_match(text, found, moved) || std::regex_match(text, found, moved_product))
     {
         *writing = "IMAD.MOV.U32 " + std::string(found[1]) + ", RZ, RZ, " + std::string(found[2]);
         return "MOV";
     }
-    if (std::regex_match(text, found, std::regex("^SHF\\.L\\.U32 (R[0-9]+), (R[0-9]+), (0x[0-9a-f]+|[0-9]+), RZ$")))
+    if (std::regex_match(text, found, shifted))
     {
         const unsigned long bits = strtoul(std::string(found[3]).c_str(), NULL, 0);
         *writing = "IMAD.SHL.U32 " + std::string(found[1]) + ", " + std::string(found[2]) + ", " +
                    std::to_string(1ul << bits) + ", RZ";
         return "SHF.L.U32";
     }
-    if (std::regex_match(text, found, std::regex("^IMAD\\.SHL\\.U32 (R[0-9]+), (R[0-9]+), (0x[0-9a-f]+|[0-9]+), RZ$")))
+    if (std::regex_match(text, found, shifted_product))
     {
         *writing = text;
         return "SHF.L.U32";
@@ -633,7 +638,7 @@ static std::string stick_hex(unsigned int number)
 // is no such word
 static std::string stick_constant(const std::string &text)
 {
-    const std::regex word("^c\\[([0-9a-fA-Fx]+)\\]\\[([0-9a-fA-Fx+]+)\\]$");
+    static const std::regex word("^c\\[([0-9a-fA-Fx]+)\\]\\[([0-9a-fA-Fx+]+)\\]$");
     std::smatch found;
     const std::string bare = stick_bare(text);
     if (!std::regex_match(bare, found, word))
@@ -891,6 +896,10 @@ static std::string stick_fold_line(const Ruleset *sass, unsigned int form, const
     return (opening != 0) ? line : (line + ((parameter < names.size()) ? names[parameter] : std::string()));
 }
 
+// every writing put to a machine's assembler, and 1 where it assembled: a writing is put once, its answer read here
+// every time after
+static std::map<std::pair<const SassMachine *, std::string>, int> s_stick_assembled;
+
 // a kernel read and written: the rulesets, the machine file a form is gated on, whether it folds, the values and
 // parameters it holds, the text written so far, and what it asks of nvcc's listing
 class StickKernel
@@ -1145,7 +1154,7 @@ class StickKernel
             pair_of[tie.second] = tie.first;
         }
         // each name's first and last line, a name tied into another's pair counted as that other's
-        const std::regex named("%[rw][0-9]+");
+        static const std::regex named("%[rw][0-9]+");
         const auto root_of = [&](const std::string &name)
         {
             const auto tie = ties.find(name);
@@ -1233,7 +1242,7 @@ class StickKernel
         // past the mark, the second register of a pair and the pair it begins kept even, the mark rising over it: the
         // kernel's registers lie next to each other, and it declares the mark. A number the text names before the
         // kernel's names are given is a form's, since every register of the kernel's own is named by %r or %w
-        const std::regex pinned("\\bR([0-9]+)(\\.hi)?\\b");
+        static const std::regex pinned("\\bR([0-9]+)(\\.hi)?\\b");
         std::map<unsigned int, int> pinned_pairs;
         for (std::sregex_iterator found(text.begin(), text.end(), pinned), end; found != end; ++found)
         {
@@ -1277,7 +1286,7 @@ class StickKernel
             last = (size_t)found->position() + found->str().size();
         }
         written += text.substr(last);
-        const std::regex itself("^\\s*MOV\\s+(\\S+)\\s*,\\s*(\\S+)\\s*;\\s*$");
+        static const std::regex itself("^\\s*MOV\\s+(\\S+)\\s*,\\s*(\\S+)\\s*;\\s*$");
         std::smatch move;
         text.clear();
         // each line of the text before a move of a register into itself is left out, by its number in the text after,
@@ -2011,9 +2020,16 @@ class StickKernel
         {
             count += (letter == '\n') ? 1u : 0u;
         }
-        unsigned char code[256];
-        return (count <= 16u) &&
-               (sass_assemble_lines(machine, lines.c_str(), SASS_CONTROL_SAFE, code, sizeof(code)) == count);
+        const auto asked = s_stick_assembled.find(std::make_pair(machine, lines));
+        if (asked != s_stick_assembled.end())
+        {
+            return asked->second;
+        }
+        std::vector<unsigned char> code(16u * (count + 1u));
+        const int assembled =
+            sass_assemble_lines(machine, lines.c_str(), SASS_CONTROL_SAFE, code.data(), code.size()) == count;
+        s_stick_assembled.emplace(std::make_pair(machine, lines), assembled);
+        return assembled;
     }
 
     // Of form `form` over `spans`, its outputs `outputs`, the reading of fewest forms whose text assembles, kept in

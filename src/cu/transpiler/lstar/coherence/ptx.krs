@@ -111,6 +111,7 @@ err word_ror to from bits
 form word_mul to left right = \tmul.lo.u32 \t{to}, {left}, {right};\n
 form word_mul_add to left right added = \tmad.lo.s32 \t{to}, {left}, {right}, {added};\n
 form word_div to left right = \tdiv.u32 \t{to}, {left}, {right};\n
+form word_rem to left right = \trem.u32 \t{to}, {left}, {right};\n
 form word_select to chosen otherwise where = \tselp.b32 \t{to}, {chosen}, {otherwise}, {where};\n
 form word_mul_low to left right added = \tmad.lo.cc.u32 \t{to}, {left}, {right}, {added};\n
 form word_mul_high to left right = \tmadc.hi.u32 \t{to}, {left}, {right}, %zero;\n
