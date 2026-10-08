@@ -2919,6 +2919,7 @@ fixed sign_base = R236
 fixed indexed = P3
 fixed one = P4
 fixed ok = P5
+fixed launch = R238
 
 # The lane's opening and close. The lane is a function the resident calls and returns from through R20 (`return`
 # below), and what the resident hands it is a calling convention nobody else sets: we write both sides of that call,
@@ -2936,10 +2937,10 @@ fixed ok = P5
 # move because RZ reads zero already. The launch lives in R238 and R239, under the fixed registers and over sign_base,
 # the scratch and the file (register_file_holds answers 236), and it is written here by its number as ptx.krs writes
 # %launch by its name
-form launch_open = \tMOV \tR238, R4;\n\tMOV \tR239, R5;\n\tMOV \t{lane_number}, R6;\n\tMOV \t{lane_number}.hi, R7;\n
+form launch_open = \tMOV \t{launch}, R4;\n\tMOV \t{launch}.hi, R5;\n\tMOV \t{lane_number}, R6;\n\tMOV \t{lane_number}.hi, R7;\n
 # one 64-bit word of the launch, in one instruction: a ruleset does no arithmetic and cannot write {offset}+4 for the
 # second half, and LDG.E.64.CONSTANT writes the pair (asked of the part, R8 reads 0xb and R9 reads 0x7)
-form launch_load_wide to offset = \tLDG.E.64.CONSTANT \t{to}, [R238.64+{offset}];\n
+form launch_load_wide to offset = \tLDG.E.64.CONSTANT \t{to}, [{launch}.64+{offset}];\n
 # an address is global and generic alike here: PTX's cvta.to.global left no instruction in any listing
 nop cast_global to
 err shared_open

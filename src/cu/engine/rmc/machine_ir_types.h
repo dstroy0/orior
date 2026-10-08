@@ -194,7 +194,8 @@
 #define PHYSREGS(fixed_)                                                                                               \
     fixed_(ZERO, "zero") fixed_(LANE_NUMBER, "lane_number") fixed_(RECORD, "record") fixed_(INDEX, "index")            \
         fixed_(BODY, "body") fixed_(BODIES, "bodies") fixed_(TABLES, "tables") fixed_(THREADS, "threads")              \
-            fixed_(SIGN_BASE, "sign_base") fixed_(INDEXED, "indexed") fixed_(ONE, "one") fixed_(OK, "ok")
+            fixed_(SIGN_BASE, "sign_base") fixed_(INDEXED, "indexed") fixed_(ONE, "one") fixed_(OK, "ok")              \
+                fixed_(LAUNCH, "launch")
 
 #define OPCODE_NAMED(name_, text_, parameters_) OPCODE_##name_,
 #define REGCLASS_NAMED(name_, text_) REGCLASS_##name_,
