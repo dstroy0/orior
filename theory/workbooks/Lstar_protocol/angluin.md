@@ -1,0 +1,83 @@
+# Angluin's L* and the Lstar protocol
+
+**Purpose:** The learner the protocol is named for, set beside the protocol term by term: what [Angluin](#src:Angluin-1987) proves of L*, what each of its parts is in the protocol, and where the protocol asks past it.
+**Scope:** L* of [Angluin](#src:Angluin-1987), sections 1 to 4, against [query_protocol_table.md](query_protocol_table.md). Statuses follow the engine workbook's [README.md](../engine/README.md).
+
+## L*
+
+L* learns an unknown regular set U over a finite alphabet A from a *minimally adequate Teacher*, one that answers two questions correctly ([Angluin](#src:Angluin-1987), section 1.1). A *membership query* puts a string and is answered yes or no. A *conjecture* puts a description of a regular set and is answered yes where it is U, and otherwise with a *counterexample*, a string in the symmetric difference of the two.
+
+The learner keeps what it has asked in an *observation table* (S, E, T): S a prefix-closed set of strings, E a suffix-closed set, and T the answers on (S ∪ S·A)·E. A row is the answers one string gives across E. The table is *closed* where every row of S·A is a row of S, and *consistent* where two strings of S with one row give one row after every letter. A closed, consistent table gives an acceptor M(S, E, T) whose states are the rows of S, and no acceptor consistent with T and inequivalent to M has as few states (Theorem 1).
+
+L* asks membership queries until the table is closed and consistent, conjectures M, and takes a counterexample with every prefix of it into S. Each time the table is not closed or not consistent, the count of distinct rows grows by one, and it never passes n, the states of the minimum acceptor for U. Each counterexample adds at least one state. L* ends after at most n conjectures with the minimum acceptor for U, in time polynomial in n and m, the length of the longest counterexample (Theorem 6); the table holds at most (k + 1)(n + m(n − 1))n = O(mn²) entries for an alphabet of k letters.
+
+With no Teacher able to test a conjecture, a random sampling oracle EX() stands in: L*_a takes a sample apart from the conjecture as its counterexample, and ends with an ε-approximation of U with probability at least 1 − δ after O(n + (1/ε)(n log(1/δ) + n²)) calls (section 4, Theorem 7).
+
+## The terms, side by side
+
+| L* | the Lstar protocol | where | status |
+|---|---|---|---|
+| U, the unknown regular set | the rules of one member: what a part answers, or a language's ruleset | P11, P12 | **built** for sm_86 |
+| A, the alphabet | the forms a member's machine file holds, and the cases K a form is put over | P11, Step 8 | **built** |
+| the membership query | the ask, `[address] -> (qualifier) -> [cost] -> bit`; over the bridge a relation of two forms on K | Q1, P1 | **built** |
+| yes or no | alike, apart, or gray; refused, censored and timed out each kept as itself | P1, Q9 | **built** |
+| the minimally adequate Teacher | the answerer of a category: the part for what it answers, the host for the exact answer h(k) | P12 | **built** |
+| the conjecture and its test | not asked: no answerer gives a counterexample, and K stands in for one | Step 8 | **built** |
+| the counterexample | the first case apart: a pair closed at its link and its case | Step 7 | **built** |
+| the observation table | the query record, every ask by its identity with what came back, and `Lstar.klq`, every pair with its verdict | Q9 | **built** |
+| a row of S, a column of E | a form, and the links and cases it is put at | P11 | **built** |
+| closed and consistent | no counterpart: a closed pair in the protocol is a pair answered apart, and a table closed in L*'s sense is one with no new row | P1, P13 | none |
+| M(S, E, T), the minimum acceptor | the ruleset, one form a slot ranked by its cost, and the sets of C* | P6, P11, P12 | **built** |
+| termination, at most n conjectures | none: every set is open, and a cycle asks only what no cycle asked | P12, P13, Q9 | **built** |
+| time polynomial in n and m | each identity asked once over every cycle, and each tier of a cycle asked in one round | Q9, the rounds | **measured** |
+| EX(), ε and δ | not sampled: K is drawn from the values a concept holds, and every case of K is put | Step 8 | **built** |
+
+## Where the protocol asks past L*
+
+### A living language has no last state
+
+Theorem 6 ends L* because U is fixed: its minimum acceptor has n states, every counterexample brings L* a state nearer, and n bounds the run. A language that is spoken, written and revised has no fixed U. Every rule it holds is a rule of one moment of it, and a learner that has ended holds the acceptor of a language that has since moved on, with no Teacher left to give it the counterexample.
+
+C is such a language. One text means different things in different revisions of it ([ANSI C](#src:ANSI-C-1989), [C99](#src:ISO-C-1999), [C11](#src:ISO-C-2011), [C17](#src:ISO-C-2018), [C23](#src:ISO-C-2024)):
+
+- `auto x = 1;` gives x automatic storage and the type int in C89, which reads a declaration with no type as int; C99 refuses a declaration with no type; C23 reads `auto` as the type of the initializer.
+- `int f();` declares f with its parameters unsaid in C89 through C17, and with none in C23. A definition with its parameters' types listed after the parentheses is C from C89 through C17, and is no C in C23.
+- A call to a function with no declaration declares it to return int in C89, and is refused from C99 on.
+- A signed integer is two's complement, ones' complement or sign and magnitude by the implementation through C17, and two's complement in C23.
+- `gets` is C89's and C99's, and no C11 holds it. A variable length array is required in C99 and an implementation's choice in C11.
+- `bool`, `true` and `false` are a header's macros over `_Bool` from C99, and keywords in C23, which adds `nullptr`, `constexpr` and `typeof`.
+
+C is held to be a fixed language, and its revisions show it is a living one: a text's meaning moves from one revision to the next. Some of it does not move, as in any living language. From C89 to C23 unsigned arithmetic wraps modulo 2^N, `sizeof(char)` is 1, `a[i]` is `*(a + i)`, `&&` and `||` stop at the first operand that decides them, and the operators bind as they did. A rule holds still where it is the best solution for its context, as wrapping arithmetic is for a machine's words, or where it is everywhere already, as two's complement was before C23 wrote it down: C23 made law of what every implementation did. These are a language's anchors. The protocol's ladder holds the same kind of anchor, relations every system that computes agrees about, 1, 1 → 2 among them (`ladder.h`, the coherence anchors), and a relation witnessed on the entries of every member asked is an anchor of all of them.
+
+A learner that ended on C89 holds an acceptor that takes K&R definitions and implicit int, and refuses `bool`. Its Teacher answered for C89, and no counterexample from C23 ever reached it. In the protocol each revision is a member with entries of its own. A relation witnessed on C89's entries holds of them on every set holding them (P10, P12), and C23's entries are entries apart from them. Where one text is two forms across two members, the map between their rulesets says so: a name one text in one set and two in the other breaks, and two in one and one in the other collapses (`ruleset_core_relation.h`, the map). The record keeps every cycle's asks, an open pair is asked again in a later cycle (Q9), and a member added is asked as the others were (P13). Nothing is learned to an end, and nothing learned is undone by what comes after.
+
+### The Teacher is not minimally adequate
+
+A minimally adequate Teacher answers every membership query, and correctly; T* of section 1.2 answers by tracing the acceptor it holds. The part holds no description the protocol can read, answers membership alone, and answers in more than two ways:
+
+- It refuses a question, `illegal`, where its rules do not take it. The refusal is its answer, kept as the part gave it, and the question is censored in every cycle after (Q9).
+- A question can harm it. The gate holds off the part what would hurt the whole, and the censor withholds a question the part has already called illegal (P9).
+- It can fail to answer at all, and an ask the watchdog ended is asked again until an answer resolves it (Q9).
+- The host answers only where it computes: a case its C leaves undefined has no bracket and gates nothing, and a category the host does not compute has no answerer (P12, Collapse 1).
+
+### The sets in place of the conjecture
+
+A conjecture of L* is one acceptor, and its states are the classes of one relation, two strings alike on every column of E. L* takes two strings alike on E for one state, and only a counterexample later splits them. The protocol takes no such step. Two forms alike over K are gray and never one (P1: no answer of the part confirms two names one operation), and only a case apart is witnessed.
+
+In place of the one relation, the protocol keeps a set of relations, C*, open at every node: equality, order, commutation, negation, the witnessed sets and the rest of the tree of P13, each holding its own `unknown_coherence` for what is not decided. A pair the bridge cannot answer is kept in one of them, where L* has no place for a question its table has not settled. The sets range over the forms of many members at once, where one table ranges over the strings of one language.
+
+L* gains a new column only from the Teacher, by a counterexample or by an inconsistency the Teacher's answers made. The protocol finds its own distinguishing contexts: a pair is put at the links of every carrier that holds its form, and a pair no carrier separates is put at the links of a third form whose parameters name both (the lower witness, `witness_coherence`).
+
+### What is bounded when nothing ends
+
+The bound of Theorem 6 is on one run over one fixed U. The protocol has no last run and gives no bound on the whole. Each cycle and each question has its bound:
+
+- Each question is asked of the part once over every cycle, by its identity: its code, registers, shape, launches and cases. A cycle the record answers whole asks nothing and starts no process (Q9).
+- Each question that waits on no answer but the tier's before it is written before any is put, and a tier is one round (the rounds). **Measured** on sm_86: the stall walk is two rounds, 5058 questions in the second, in 43 s with the record answering what it holds; the cost of every arrangement of the `.kdm` is one round of 6140.
+- One ask answers a form over every case of K at once, 648 on sm_86, where L* puts one string a query (P5).
+
+Theorem 6 is the protocol's asymptote. On a member that holds still, U fixed as one revision of C or one part is, the protocol's cycles ask fewer new questions each time, and a cycle the record answers whole asks none: the bound of L* is the limit the protocol nears as a language stops moving, and a language that moves again moves the protocol off it. **Measured** on sm_86: the pair mode's second cycle answers all 384 asks of the first from the record and starts no process, and `queue` put again reads all 441 chains from R (Q9, P13).
+
+## Status
+
+Every row of the side-by-side table marked **built** is held by code named in the row's section of the query protocol table, and its runs are there. The revisions of C as members of their own are **theory**: the tree holds one C ruleset, `c.krs`, and no member for a revision.
