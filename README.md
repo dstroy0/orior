@@ -5,9 +5,17 @@
 
 [Setup](docs/setup.md) · [The app](#the-app) · [Using it](docs/usage.md) · [The algorithm](docs/method.md) · [The engine](docs/engine.md) · [Areas of research](docs/research.md) · [Licensing](docs/licensing.md)
 
-Orior finds the pattern in anything, from a crystal to a language to a file. It compares the thing with a shuffled copy of itself, and the pattern is what the copy lost. Every number is exact, with nothing rounded, guessed or trained.
+**Orior is a unified computational foundation: one engine and one transpiler, both in exact integers.**
 
-Some of what follows will read as too much, and a reader who has met claims like these before has every reason to doubt them. Nothing here asks to be believed. Every result names the file that holds it and the run that checks it, every one was measured against a null that could have said no, and every claim the work took back is kept beside the measurement that took it back.
+The engine measures the structure in any object against a permutation null: it keeps the object's counts, shuffles their arrangement, and measures what the shuffle destroyed, with nothing rounded, guessed or trained. The transpiler compiles a program written in [gnascor](docs/gnascor.md) into each target language, and L\* works out the definitions of a target nobody has described.
+
+Check it in one command: the engine is asked for the cell edge of every right angled crystal the [Crystallography Open Database](https://www.crystallography.net/cod/) will give it, a number someone else measured before this engine existed, and the answer is compared by equality. A near miss counts as a miss.
+
+```sh
+python examples/crystallography/6_oracle/proof_positive_control.py
+```
+
+Every result below names the file that holds it and the run that checks it, every one was measured against a null that could have said no, and every claim the work took back is kept beside the measurement that took it back. A few words are borrowed from physics as names for parts of the engine; [Words used here](#words-used-here) says what each means.
 
 Most of the parts are old, and they are named as old. The shuffle is a permutation null. Exact integers of any width are what every big number library holds. The new parts are an engine that never leaves exact integers, from the first read to the last bit written, and what came back when it was pointed at a crystal, a language, a digest and a camera.
 
@@ -25,7 +33,7 @@ Most of the parts are old, and they are named as old. The shuffle is a permutati
 
 6. **One program at every width.** Sums, differences, products, exclusive or and AND read only the lowest bits of what they are given, and a program of them gives the same answer at every width. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and keeps the answer. On the device, the part that writes the text writes its own text byte for byte. For the lambda calculus written in bits, two exact bounds put Chaitin's Omega below one eighth, and its first two bits are proved. [Two crystals](theory/workbooks/engine/two_crystals.md) · [The engine, part by part](theory/workbooks/engine/engine_table.md)
 
-7. **Laplace's demon, and its bill.** The demon knows a boundary and computes what is inside. Measured, a boundary can refuse and cannot predict: a point it has excluded is excluded for good and for free, and no proper part of a pattern determines the rest. Reading finer detail off a boundary needs precision that grows exponentially as the detail gets finer. There is no wall of principle in the way, only that bill. The resemblance to physics is an analogy, and nothing here tests it. [Thought experiments](theory/thought_experiments/orior)
+7. **A boundary can refuse and cannot predict.** A point a boundary has excluded is excluded for good and for free, and no proper part of a pattern determines the rest. Reading finer detail off a boundary needs precision that grows exponentially as the detail gets finer. There is no wall of principle in the way, only that cost. The thought experiments put this as Laplace's demon reading a boundary; the resemblance to physics is an analogy, and nothing here tests it. [Thought experiments](theory/thought_experiments/orior)
 
 8. **What an input stops reaching is a clock.** A value that stops depending on an input is a hard fact the machine gets for free. In SHA-256, no input reaches 214 of 256 positions at round seven, the support grows by about nine a round, and it closes near round 30 of 64. Nothing here claims a weakness in SHA-256. [Instruments](theory/theory/instruments) · [Cryptography](theory/theory/cryptography)
 
@@ -40,6 +48,16 @@ Most of the parts are old, and they are named as old. The shuffle is a permutati
 - Several results were found first by others, and where that is known the published work is named.
 - [Thought experiments](theory/thought_experiments) holds the ideas whose experiment cannot be built as written. They are kept apart from the results, and none of them is one.
 
+## Words used here
+
+Some names here come from physics and mathematics. Each is the name of a part of the engine, and means this:
+
+| word | means here |
+| --- | --- |
+| the null, the shuffle | the object with its counts kept and its arrangement shuffled: the background a pattern is measured against |
+| the demon | the null space of a reading, worked out before any object is read: every change to an object that the reading cannot see, known up front from rank and nullity instead of found by experiment. [null_first.py](examples/00_blob_viz_tools/null_first.py) builds it. Laplace's name is borrowed for that position only. |
+| the boundary, holographic | the contents of a volume read from how they are arranged on its two dimensional boundary. The holographic principle in physics is an analogy for it, and nothing here tests that principle. |
+
 ## Quick start
 
 The easiest way in is [the app](#the-app): one window that lists every job the tree holds, sets its values and runs it, and edits every file of the tree beside it.
@@ -51,7 +69,9 @@ The easiest way in is [the app](#the-app): one window that lists every job the t
    ```
 
    The installers carry no certificate's signature. Windows warns before the first run, where More info, Run anyway starts it; on macOS, a right click on the app and Open starts it the first time.
-2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
+2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. The next clone starts in the same folder. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
+
+   ![Clone Repository with orior's address, the folder to clone into, and the fuse two thirds burnt while git receives the objects](src/ui/docs/img/clone.png)
 3. **Run a job.** The Run tab lists every job. Choose one, set its values and press F5.
 
 File, Clone Repository does the same at any time, and `orior file clone` does it from a terminal.
@@ -98,7 +118,7 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 | 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
 | 7 | Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
 
-The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open. While the window's frame is dragged or its edges pulled, every animation stops and each moving picture holds as a still one, and they take up where they stopped when the drag ends.
+The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open. From the moment the title bar or an edge of the window is pressed until it is let go, the window does nothing but follow it: every animation stops, each moving picture holds as a still one, and a run's output, the terminal and the panes wait. All of it takes up where it stopped when the button is let go.
 
 ### Run a job
 
@@ -215,6 +235,8 @@ orior installs no compiler or language of its own. File, Toolchains lists each o
 | installed, not on PATH | found where it usually installs | Add to PATH, or Use This Folder |
 | not found | not on your PATH or in its usual folders | Install Page opens its makers' download page; Choose Folder takes its `bin` folder. For Lean, Install runs elan's installer in the terminal. |
 | from your folder | orior runs it from the folder you gave | Forget Folder |
+
+Every job needs Git, Bash and Python. As a tree opens, the status bar names any of them orior cannot find, and a press on it opens File, Toolchains.
 
 Above the list, Add orior to PATH puts orior's own folder on your PATH, and `orior` then works in any terminal. On Windows a folder goes on your own Path in the registry, and its `%VARIABLES%` stay as written; elsewhere it is a line at the end of `~/.profile`. orior's runs and its terminal read the PATH anew each time and put the folders you gave first: a change shows there at once; a terminal opened before it does not have it. The folders you gave are kept in `toolchains.json` in orior's own folder.
 

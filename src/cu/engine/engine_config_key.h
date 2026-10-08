@@ -26,7 +26,9 @@ extern "C"
         ENGINE_KEEP = 2,
         ENGINE_SCALE_SUBTRACT = 3,
         // a running sum of `orders[axis]` voxels along each axis; 0 and 1 leave the axis as it is
-        ENGINE_COMB = 4
+        ENGINE_COMB = 4,
+        // `orders[axis]` pairs [1, 2, 1] along each axis whose taps are 2^shift voxels apart
+        ENGINE_SPACED = 5
     } EngineOperation;
 
     typedef struct

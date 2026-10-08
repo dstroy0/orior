@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Whether the app's animation may run. It stops while the window's frame is dragged or its edges
-// pulled, and while the page is hidden, and starts again when both have passed. A window without
-// focus goes on animating. A
-// loop asks `still()` before each frame; while it is still the loop ends, and `whenMoving` starts it
-// again once motion comes back. The page's own animations pause with the root's `still` class.
+// Whether the app's animation may run. It stops from the moment the window's frame is pressed, on
+// the title bar or an edge, until it is let go, and while the page is hidden, and starts again when
+// both have passed. A window without focus goes on animating. While the frame is held, the events
+// from the app wait as well, and the work that polls asks `still()` and waits with them. A loop asks
+// `still()` before each frame; while it is still the loop ends, and `whenMoving` starts it again once
+// motion comes back. The page's own animations pause with the root's `still` class.
 //
 // Animation keeps its time on `clock()`, which stands still while motion is stopped: an animation
 // that comes back takes up where it stood, and none of the stopped time passes in it.
@@ -14,7 +15,7 @@
 // picture of itself as it stands, and hidden: the page the drag moves holds no canvas at all. The pictures go and the
 // canvases come back as the drag ends.
 
-import { listen } from "./bridge.js";
+import { holdEvents, listen } from "./bridge.js";
 
 const ANIMATED = "canvas.lattice, canvas.eye, canvas.plasma, canvas.fuse, canvas.ruler";
 
@@ -95,18 +96,27 @@ export async function startMotion() {
     state.hidden = document.hidden;
     settle();
   });
-  await listen("window-drag", ({ payload }) => {
-    const dragging = Boolean(payload);
-    if (dragging === state.dragging) {
-      return;
-    }
-    state.dragging = dragging;
-    if (dragging) {
-      freeze();
-    } else {
-      thaw();
-    }
-    settle();
-  });
+  // Everything stops first, the events, the loops and the page's own animations, and the pictures
+  // are taken after; as the frame is let go, the canvases come back before the held events.
+  await listen(
+    "window-drag",
+    ({ payload }) => {
+      const dragging = Boolean(payload);
+      if (dragging === state.dragging) {
+        return;
+      }
+      state.dragging = dragging;
+      if (dragging) {
+        holdEvents(true);
+        settle();
+        freeze();
+      } else {
+        thaw();
+        settle();
+        holdEvents(false);
+      }
+    },
+    { always: true },
+  );
   settle();
 }

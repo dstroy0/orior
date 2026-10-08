@@ -365,9 +365,13 @@ fn clone_start() -> serde_json::Value {
 }
 
 /// Clones `url` into a new folder under `parent`, telling the page each line of git's progress as
-/// "clone-progress", and answers the folder made.
+/// "clone-progress", and answers the folder made. `parent` is a full path: the window has no working
+/// folder a reader knows of for a relative one to start from.
 #[tauri::command(async)]
 fn repo_clone(handle: AppHandle, url: String, parent: String) -> Result<String, String> {
+    if !Path::new(&parent).is_absolute() {
+        return Err(format!("{parent} is not a full path, such as one Choose Folder gives"));
+    }
     let target = git::clone_folder(&url, Path::new(&parent))?;
     git::clone(&url, &target, |line, _| {
         let _ = handle.emit("clone-progress", line);

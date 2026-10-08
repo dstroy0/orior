@@ -2652,8 +2652,15 @@ textarea.report-field {
   pointer-events: none;
 }
 
+/* The pane that asks for a tree is dark in both schemes; the button's edge follows its text. */
 .open-body .secondary {
   margin-left: 0.6rem;
+  border-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+
+.open-body .secondary:hover {
+  border-color: currentColor;
+  color: inherit;
 }
 
 .report-said {
@@ -3690,9 +3697,10 @@ textarea.report-field {
   }
 }
 
-/* While the window's frame is dragged, every animation of the page holds. */
+/* While the window's frame is held, every animation of the page holds and no transition runs. */
 .still *,
 .still *::before,
 .still *::after {
   animation-play-state: paused !important;
+  transition: none !important;
 }

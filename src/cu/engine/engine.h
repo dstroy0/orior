@@ -81,6 +81,9 @@ extern "C"
         EngineError *error;
         // the comb, as EngineResidualRequest's
         unsigned int comb[ENGINE_AXES];
+        // the spaced pairs, as EngineResidualRequest's
+        unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
+        unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
     } EngineResidualPlanesRequest;
 
     long engine_residual_planes(const EngineResidualPlanesRequest *request, const unsigned int **device_residual,

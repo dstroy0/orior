@@ -13,7 +13,9 @@ static int engine_residual_key(const EngineResidualRequest *request)
     if ((resident->key != NULL) &&
         (memcmp(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders)) == 0) &&
         (memcmp(resident->background_orders, request->background_orders, sizeof(resident->background_orders)) == 0) &&
-        (memcmp(resident->comb, request->comb, sizeof(resident->comb)) == 0))
+        (memcmp(resident->comb, request->comb, sizeof(resident->comb)) == 0) &&
+        (memcmp(resident->smooth_spaced, request->smooth_spaced, sizeof(resident->smooth_spaced)) == 0) &&
+        (memcmp(resident->background_spaced, request->background_spaced, sizeof(resident->background_spaced)) == 0))
     {
         return 1;
     }
@@ -40,6 +42,8 @@ static int engine_residual_key(const EngineResidualRequest *request)
     memcpy(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders));
     memcpy(resident->background_orders, request->background_orders, sizeof(resident->background_orders));
     memcpy(resident->comb, request->comb, sizeof(resident->comb));
+    memcpy(resident->smooth_spaced, request->smooth_spaced, sizeof(resident->smooth_spaced));
+    memcpy(resident->background_spaced, request->background_spaced, sizeof(resident->background_spaced));
     return 1;
 }
 
@@ -170,6 +174,8 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     memcpy(sweep_request.smooth_orders, request->smooth_orders, sizeof(sweep_request.smooth_orders));
     memcpy(sweep_request.background_orders, request->background_orders, sizeof(sweep_request.background_orders));
     memcpy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
+    memcpy(sweep_request.smooth_spaced, request->smooth_spaced, sizeof(sweep_request.smooth_spaced));
+    memcpy(sweep_request.background_spaced, request->background_spaced, sizeof(sweep_request.background_spaced));
     sweep_request.limbs = ENGINE_RESIDUAL_LIMBS;
     sweep_request.device_out =
         (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? resident->check : resident->residual;
@@ -257,6 +263,11 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     {
         residual_bits += (unsigned long long)request->smooth_orders[axis] + request->background_orders[axis] +
                          engine_residual_comb_bits(request->comb[axis]);
+        for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
+        {
+            residual_bits += 2ull * ((unsigned long long)request->smooth_spaced[axis][spacing] +
+                                     request->background_spaced[axis][spacing]);
+        }
     }
     const unsigned long long plane_voxels = (unsigned long long)request->height * request->width;
     const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFull) ? (plane_voxels * request->depth) : 0ull;
@@ -288,6 +299,8 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     memcpy(sweep_request.smooth_orders, request->smooth_orders, sizeof(sweep_request.smooth_orders));
     memcpy(sweep_request.background_orders, request->background_orders, sizeof(sweep_request.background_orders));
     memcpy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
+    memcpy(sweep_request.smooth_spaced, request->smooth_spaced, sizeof(sweep_request.smooth_spaced));
+    memcpy(sweep_request.background_spaced, request->background_spaced, sizeof(sweep_request.background_spaced));
     // the limbs are held at or below 2^32 / 32 above. They narrow to unsigned int exactly
     sweep_request.limbs = (unsigned int)residual_limbs;
     sweep_request.device_out = resident->residual;

@@ -19,6 +19,9 @@ function element(tag, props = {}, ...children) {
 // How long a clone made flashes before the sheet closes, in milliseconds.
 const FLASHED = 900;
 
+// Where the folder the last clone was made in is kept, which the next clone starts from.
+const PARENT = "orior.clone.parent";
+
 // Each stage git writes its progress for, and the stretch of the fuse it burns: the server counting
 // and packing, the objects coming, the changes worked out between them, and the files written out.
 const STAGES = [
@@ -67,7 +70,7 @@ export async function showClone(sheet, openFolder, given = []) {
   }
   const start = await invoke("clone_start").catch(() => ({ url: "", parent: "" }));
   const url = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[0] ?? start.url, ariaLabel: "Repository" });
-  const parent = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[1] ?? start.parent, ariaLabel: "Folder" });
+  const parent = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[1] ?? localStorage.getItem(PARENT) ?? start.parent, ariaLabel: "Folder" });
   const choose = element("button", { className: "prefs-button", type: "button", textContent: "Choose Folder…" });
   const said = element("p", { className: "report-said", ariaLive: "polite" });
   const go = element("button", { className: "primary", type: "submit", textContent: "Clone" });
@@ -115,6 +118,7 @@ export async function showClone(sheet, openFolder, given = []) {
       const made = await invoke("repo_clone", { url: url.value.trim(), parent: parent.value.trim() });
       Object.assign(run, { part: 1, done: true, code: 0 });
       fuse.follow(run);
+      localStorage.setItem(PARENT, parent.value.trim());
       said.textContent = `Cloned into ${made}.`;
       await new Promise((resolve) => window.setTimeout(resolve, FLASHED));
       dialog.close();

@@ -10,6 +10,7 @@
 // while the window shows.
 
 import { invoke } from "./bridge.js";
+import { still } from "./motion.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -47,7 +48,7 @@ const megabytes = (bytes) => {
 // and what it has reserved in all.
 async function drawMemory() {
   const node = document.getElementById("status-memory");
-  if (document.hidden) {
+  if (still()) {
     return;
   }
   const read = await invoke("memory_use").catch(() => null);
@@ -80,14 +81,18 @@ const SAID_FOR = 5000;
 const FAILED_FOR = 15000;
 let saidTimer = 0;
 
-// Puts a word on the bar for a moment: its first line, and all of it over it. A press takes it away.
-export function say(text, { failed = false } = {}) {
+// Puts a word on the bar for a moment: its first line, and all of it over it. A press takes it away,
+// and does `act` first where there is one.
+export function say(text, { failed = false, act = null } = {}) {
   const node = document.getElementById("status-said");
   window.clearTimeout(saidTimer);
   node.textContent = String(text).split("\n")[0];
   node.title = String(text);
   node.classList.toggle("failed", failed);
   node.hidden = false;
-  node.onclick = () => (node.hidden = true);
+  node.onclick = () => {
+    node.hidden = true;
+    act?.();
+  };
   saidTimer = window.setTimeout(() => (node.hidden = true), failed ? FAILED_FOR : SAID_FOR);
 }

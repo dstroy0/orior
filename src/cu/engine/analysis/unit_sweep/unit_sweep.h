@@ -26,6 +26,9 @@ extern "C"
         EngineError *error;
         // the comb, as EngineResidualRequest's
         unsigned int comb[ENGINE_AXES];
+        // the spaced pairs, as EngineResidualRequest's
+        unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
+        unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
     } UnitSweepRequest;
 
     long unit_sweep_residual(const UnitSweepRequest *request);

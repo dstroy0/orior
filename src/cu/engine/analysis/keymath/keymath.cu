@@ -104,6 +104,22 @@ static void encode_comb(std::vector<ExactLimbs> &row, unsigned int length)
     row.swap(summed);
 }
 
+// the row times 1 + 2 z^spacing + z^(2 spacing): a pair [1, 2, 1] whose taps are `spacing` apart, two taps of the
+// row's own spacing and none between
+static void encode_spaced_pair(std::vector<ExactLimbs> &row, unsigned long long spacing)
+{
+    const ExactLimbs zero(1u, 0u);
+    std::vector<ExactLimbs> paired(row.size() + (size_t)(2ull * spacing), zero);
+    for (size_t tap = 0u; tap < row.size(); tap += 1u)
+    {
+        const ExactLimbs twice = exact_sum(row[tap], row[tap]);
+        paired[tap] = exact_sum(paired[tap], row[tap]);
+        paired[tap + (size_t)spacing] = exact_sum(paired[tap + (size_t)spacing], twice);
+        paired[tap + (size_t)(2ull * spacing)] = exact_sum(paired[tap + (size_t)(2ull * spacing)], row[tap]);
+    }
+    row.swap(paired);
+}
+
 extern "C" long keymath_encode(const KeymathEncodeRequest *request)
 {
     if ((request == NULL) || (request->error == NULL))
@@ -162,6 +178,24 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
                 for (EncodeTerm &term : running)
                 {
                     encode_comb(term.rows[axis], length);
+                }
+            }
+        }
+        else if (doing.operation == ENGINE_SPACED)
+        {
+            // a spaced pair is symmetric about the voxel: it widens the window by 2 · 2^shift taps and moves no center
+            if (!KEYMATH_CHECK(doing.shift < ENGINE_SPACINGS, &doing, error, ENGINE_ERROR_REQUEST))
+            {
+                return KEYMATH_ERROR;
+            }
+            for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+            {
+                for (EncodeTerm &term : running)
+                {
+                    for (unsigned int pair = 0u; pair < doing.orders[axis]; pair += 1u)
+                    {
+                        encode_spaced_pair(term.rows[axis], 1ull << doing.shift);
+                    }
                 }
             }
         }

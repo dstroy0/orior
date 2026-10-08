@@ -350,6 +350,34 @@ impl Launch {
     }
 }
 
+/// The widest a usage in the help's left column is; a wider one stands on lines of its own, its
+/// label under it in the column.
+const HELP_COLUMN: usize = 44;
+
+/// The width the help's lines are wrapped to.
+const HELP_WIDTH: usize = 100;
+
+/// `text` broken at spaces into lines of at most `width` characters, each after the first indented
+/// `indent` more. A word wider than the width stands alone on its line.
+fn wrapped(text: &str, width: usize, indent: usize) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    let mut line = String::new();
+    for word in text.split(' ') {
+        let lead = if lines.is_empty() { 0 } else { indent };
+        if !line.is_empty() && lead + line.chars().count() + 1 + word.chars().count() > width {
+            lines.push(format!("{:lead$}{line}", ""));
+            line.clear();
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    let lead = if lines.is_empty() { 0 } else { indent };
+    lines.push(format!("{:lead$}{line}", ""));
+    lines
+}
+
 /// The help, made from the menus: a line for each command, the ones that act in the window marked.
 fn help(menus: &Commands) -> String {
     let mut rows: Vec<(String, String)> = vec![("orior".into(), "open the window".into())];
@@ -373,13 +401,22 @@ fn help(menus: &Commands) -> String {
     rows.push(("orior <file>[:line[:column]]".into(), "* open a file of the tree in the window, at a line and column".into()));
     rows.push(("orior --completions <shell>".into(), "the completions for bash, zsh, fish or powershell".into()));
     rows.push(("orior help".into(), "this".into()));
-    let pad = rows.iter().map(|(usage, _)| usage.chars().count()).max().unwrap_or(0);
+    let pad = rows.iter().map(|(usage, _)| usage.chars().count()).filter(|&wide| wide <= HELP_COLUMN).max().unwrap_or(HELP_COLUMN);
     let mut text = String::from(
         "orior: the window, and every job it runs, from one program. A menu's title and one of its\n\
          commands are the words for it here. A command marked * acts in the window, which it opens.\n\n",
     );
     for (usage, said) in rows {
-        text.push_str(&format!("  {usage:pad$}  {said}\n"));
+        let alone = usage.chars().count() > pad;
+        if alone {
+            for line in wrapped(&usage, HELP_WIDTH - 2, 2) {
+                text.push_str(&format!("  {line}\n"));
+            }
+        }
+        for (at, line) in wrapped(&said, HELP_WIDTH - pad - 4, 0).iter().enumerate() {
+            let left = if at == 0 && !alone { usage.as_str() } else { "" };
+            text.push_str(&format!("  {left:pad$}  {line}\n"));
+        }
     }
     text.push_str(
         "\n  --root <folder>  the orior tree to work on; else ORIOR_ROOT, else the tree the working\n\
@@ -1223,6 +1260,36 @@ pub fn console_let_go() {
 
 #[cfg(not(windows))]
 pub fn console_let_go() {}
+
+#[cfg(test)]
+mod help_text {
+    use super::*;
+
+    #[test]
+    fn wrapping_keeps_every_word_and_the_width() {
+        let text = "orior file new-plugin <name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] [--keywords <a,b>]";
+        let lines = wrapped(text, 40, 2);
+        assert!(lines.len() > 1);
+        assert!(lines.iter().all(|line| line.chars().count() <= 40));
+        assert!(lines[1..].iter().all(|line| line.starts_with("  ") && !line.starts_with("   ")));
+        assert_eq!(lines.iter().map(|line| line.trim()).collect::<Vec<_>>().join(" "), text);
+        assert_eq!(wrapped("short", 40, 2), vec!["short"]);
+    }
+
+    #[test]
+    fn the_help_keeps_to_its_width_and_names_every_command() {
+        let menus = commands::read();
+        let text = help(&menus);
+        for line in text.lines() {
+            assert!(line.chars().count() <= HELP_WIDTH, "too wide: {line}");
+        }
+        for menu in &menus.menus {
+            for item in menu.commands() {
+                assert!(text.contains(&format!("orior {} {}", menu.word(), item.command)), "{} is missing", item.command);
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod words {

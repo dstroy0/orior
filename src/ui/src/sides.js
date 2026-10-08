@@ -6,11 +6,13 @@
 // its width back and sliding up and toward the edge it stands at, and the pointer reaching that edge
 // of the window brings it back; one brought back that the pointer never comes onto goes again a
 // moment later. A pane that holds the pointer or the keys, or that a menu is open over, stays until
-// all have left it, and is looked at again every REST while it stays: a row redrawn under the keys
+// all have left it, as every pane does while the window's frame is held, and is looked at again
+// every REST while it stays: a row redrawn under the keys
 // takes them from the pane with no event to say so. Whether panes collapse on their own is the
 // reader's to set, and kept; Ctrl+B shows or collapses the view's own pane either way.
 
 import { menuOpen } from "./menu.js";
+import { still } from "./motion.js";
 
 const AUTO = "orior.panes.auto";
 
@@ -39,7 +41,7 @@ function tryCollapse(pane) {
   if (!autoCollapse() || node.hidden || node.classList.contains("collapsed") || node.offsetParent === null) {
     return;
   }
-  if (node.matches(":hover") || node.contains(document.activeElement) || menuOpen()) {
+  if (node.matches(":hover") || node.contains(document.activeElement) || menuOpen() || still()) {
     collapseLater(pane);
     return;
   }

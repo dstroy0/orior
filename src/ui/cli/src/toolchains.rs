@@ -68,6 +68,9 @@ pub struct Tool {
     pub setup: HashMap<String, String>,
     #[serde(default)]
     pub places: HashMap<String, Vec<String>>,
+    /// Whether the tree's jobs cannot run without it, which the window checks for as a tree opens.
+    #[serde(default)]
+    pub needed: bool,
 }
 
 /// A formatter's program, which is one of the tool's or beside them, and its words: it reads the
@@ -103,6 +106,7 @@ pub struct Found {
     pub install: Option<String>,
     pub setup: bool,
     pub versioned: bool,
+    pub needed: bool,
 }
 
 /// orior itself: its own folder, and whether that folder is on the PATH.
@@ -340,6 +344,7 @@ pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> F
         install: for_system(&tool.install).cloned(),
         setup: for_system(&tool.setup).is_some(),
         versioned: tool.version.is_some(),
+        needed: tool.needed,
     };
     let mut set = |state: &'static str, program: PathBuf| {
         found.state = state;
@@ -629,6 +634,12 @@ mod registry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_jobs_need_git_bash_and_python() {
+        let needed: Vec<String> = manifest().into_iter().filter(|tool| tool.needed).map(|tool| tool.id).collect();
+        assert_eq!(needed, ["git", "bash", "python"]);
+    }
 
     #[test]
     fn the_manifest_reads_and_each_id_is_one_tool() {
