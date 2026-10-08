@@ -222,14 +222,31 @@ and 2 (Y y')' >= mu s_least y + mu L d; z = (L d / s_least) (I_0(sqrt(2 s_least 
 and y - z, 0 at Y = 0, stays at least 0. Where (Y F)' is past 0 as well, W <= 0 drives dF below 0, and -dF grows
 as z does.
 
-Check (`core_radius` with the cut's `principal`): at eta = 1/2 on Y in [0, 1], cut in 64 pieces, the core's U, U' and
-(Y F)' read from the exact orders to 24, the device's magnitudes to 100 and the reached proof's tail past it give
-s_eff >= 0.3363 and (Y F)' >= 0.9960, every bound exact. The principal tangent's axial field is then at least
-(L d / s_least) (I_0(sqrt(2 s_least mu Y)) - 1) for every mu, and its swirl below 0 with the same growth.
+The point is the vertex eta_v = a (rho0 + 1 / rho0) / 2 of the ellipse. The Chebyshev weights of e^(mu eta) in xi are
+2 I_m(mu a), all past 0, and its norm on E_rho0 is e^(mu eta_v); a field's norm is at least its value at the vertex,
+since |T_m(xi_v)| <= rho0^m there. The ratio of the derivative of G on e^(mu eta) to e^(mu eta)'s own norm is then at
+least the growth the tangent has at the vertex, and a point inside the cut would set e^(mu eta) against
+e^(mu eta_v) and lose.
+
+Check (`core_radius` with the cut's `principal`): at the vertex of each ellipse, on Y in [0, 1.25] cut in 64 pieces, the
+core's U, U' and (Y F)' read from the exact orders to 24, the device's magnitudes on E_rho0 to 100 and the reached
+proof's tail past it give, every bound exact,
+
+| ellipse | vertex eta_v | s_eff at least | (Y F)' at least |
+|---|---|---|---|
+| E_(1.1) | 0.9041 | 0.3941 | 0.9951 |
+| E_(5/4) | 0.9225 | 0.4085 | 0.9951 |
+| E_(3/2) | 0.9750 | 0.4550 | 0.9951 |
+
+Check (`lean/CoreRadius/Principal.lean`): `principal_comparison` puts y above theta z for theta in [0, 1) by a
+continuous induction on p - theta p_z, `principal_lower` takes theta to 1, and `principal_growth` puts y above
+(c / s0) sum_(k=1..K) (s0 mu Y / 2)^k / (k!)^2 for every K, the partial sums of (c / s0) (I_0(sqrt(2 s0 mu Y)) - 1),
+each a polynomial that solves the inequality: the kernel checks it on the axioms propext, Classical.choice and
+Quot.sound alone.
 
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
-bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of radius near mu^(-1/2); and the
-integral of G against the blend near X_b.
+bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
+radius near mu^(-1/2); and the integral of G against the blend near X_b.
 
 ## Order
 

@@ -3,3 +3,4 @@ import CoreRadius.Tail
 import CoreRadius.Witness
 import CoreRadius.Record
 import CoreRadius.Cut
+import CoreRadius.Principal
