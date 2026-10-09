@@ -53,6 +53,13 @@ export function cornersOf() {
       }
     },
     add,
+    // Moves every corner written so far by dx across and dy down.
+    shift(dx, dy) {
+      for (let at = 0; at < count * CORNER; at += CORNER) {
+        list[at] += dx;
+        list[at + 1] += dy;
+      }
+    },
     get list() {
       return list;
     },

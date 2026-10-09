@@ -1136,11 +1136,14 @@ body[data-view="run"] .statusbar .ed-status {
   overflow: hidden;
 }
 
-/* The fuse along the foot of the output, burning while the run goes. */
+/* The fuse along the foot of the output, burning while the run goes. The fuse and the ruler stand in
+   from the console's sides by the fuse's reach, and the fire's sparks and glow show whole at either
+   end. */
 .console .fuse-box {
   display: flex;
   flex-direction: column;
   flex: none;
+  padding: 0 24px;
   cursor: grab;
 }
 
@@ -1152,10 +1155,15 @@ body[data-view="run"] .statusbar .ed-status {
   outline-offset: -2px;
 }
 
+/* The fuse's canvas reaches 24px past its 30px box on every side, over the output and the ruler, and
+   draws the fuse itself on the box. */
 .console .fuse {
+  position: relative;
+  z-index: 2;
   display: block;
-  width: 100%;
-  height: 30px;
+  width: calc(100% + 48px);
+  height: calc(30px + 48px);
+  margin: -24px;
   pointer-events: none;
 }
 
@@ -3825,9 +3833,11 @@ textarea.report-field {
 }
 
 .sheet-clone .fuse {
+  position: relative;
   display: block;
-  width: 100%;
-  height: 30px;
+  width: calc(100% + 44px);
+  height: calc(30px + 48px);
+  margin: -24px -22px;
   pointer-events: none;
 }
 

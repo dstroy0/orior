@@ -45,6 +45,9 @@ const NOSE = 2;
 const TAPER = 12;
 // How far the head wanders.
 const JITTER = 3;
+// How far the canvas reaches past the fuse's box on every side, its glow, its sparks and its embers
+// drawn whole there over what lies beside it, and the fuse itself laid out on the box alone.
+export const REACH = 24;
 
 const mix = (a, b, x) => a + (b - a) * x;
 
@@ -112,7 +115,8 @@ export function makeFuse(place) {
       canvas.width = wide;
       canvas.height = high;
     }
-    const { width, height } = box;
+    const width = box.width - 2 * REACH;
+    const height = box.height - 2 * REACH;
     const y = height * 0.7;
     corners.clear();
     const { run } = fire;
@@ -120,7 +124,7 @@ export function makeFuse(place) {
     const PLUM = rgbOf("--fuse-burn");
     const ORCHID = rgbOf("--fuse-fire");
     if (!run) {
-      drawer.draw(corners.list, 0, width, height);
+      drawer.draw(corners.list, 0, box.width, box.height);
       return false;
     }
     if (run.done && fire.endedAt === null) {
@@ -188,7 +192,8 @@ export function makeFuse(place) {
     if (headLife > 0 && !(well && ended > PEAK)) {
       addSpot(corners, headX, headY, 12 * (1 + fire.flare * 0.8), ORCHID, (0.7 + 0.6 * fire.flare) * headLife * boost);
     }
-    drawer.draw(corners.list, corners.count, width, height);
+    corners.shift(REACH, REACH);
+    drawer.draw(corners.list, corners.count, box.width, box.height);
     return going;
   };
 
