@@ -48,8 +48,6 @@
 #include "../protocol/query/answer_read.h"
 #include "../protocol/teacher/run_channel.h"
 
-#include "../../vendor_bin_layouts/nvidia/sass_machine.h"
-
 #include "../interface/interface.h"
 
 #include <stdio.h>
@@ -177,47 +175,35 @@ static void khw_run_write(unsigned long long *low, unsigned long long *high, uns
     }
 }
 
-// the kernel into `code`, every instruction of it waiting on all six barriers
+// the kernel into `code`, as the part accepted it. The carrier makes every instruction wait on all six barriers
+// before the part sees it; nothing of the scheduler's own word is set here (P9)
 static void khw_kernel_put(unsigned char *code)
 {
     memcpy(code, s_kernel_text, (size_t)s_kernel_places * KHW_INSTRUCTION);
-    for (unsigned int at = 0u; at < s_kernel_places; at += 1u)
-    {
-        unsigned long long held_low = khw_word_read(&code[at * KHW_INSTRUCTION], 0u);
-        unsigned long long held_high = khw_word_read(&code[at * KHW_INSTRUCTION], 8u);
-        khw_run_write(&held_low, &held_high, SASS_WAIT_FIRST, SASS_WAIT_FIRST + 5u, SASS_WAIT_EVERY);
-        khw_word_write(&code[at * KHW_INSTRUCTION], 0u, held_low);
-        khw_word_write(&code[at * KHW_INSTRUCTION], 8u, held_high);
-    }
 }
 
-// The question's code, into `code`: the kernel, every instruction of it waiting on all six barriers, with `low` and
-// `high` at
-// `place`, whose stall is the longest and whose barriers are none. The part has answered no soonest for a form it
-// has not named, and a barrier nothing releases leaves the wait after it standing (P9, cubin_safe.h)
+// The question's code, into `code`: the kernel with `low` and `high` at `place`. The slot the question names is sent
+// to the carrier, which there makes the slot wait on all six barriers, stall the longest and hold no barrier; a
+// form the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it standing
+// (P9, cubin_safe.h)
 static void khw_code_put(unsigned char *code, unsigned int place, unsigned long long low, unsigned long long high)
 {
     khw_kernel_put(code);
-    unsigned long long put_low = low;
-    unsigned long long put_high = high;
-    khw_run_write(&put_low, &put_high, SASS_WAIT_FIRST, SASS_WAIT_FIRST + 5u, SASS_WAIT_EVERY);
-    khw_run_write(&put_low, &put_high, SASS_STALL_FIRST, SASS_STALL_FIRST + 3u, SASS_STALL_LONGEST);
-    khw_run_write(&put_low, &put_high, SASS_WRITE_BARRIER_FIRST, SASS_WRITE_BARRIER_FIRST + 2u, SASS_BARRIER_NONE);
-    khw_run_write(&put_low, &put_high, SASS_READ_BARRIER_FIRST, SASS_READ_BARRIER_FIRST + 2u, SASS_BARRIER_NONE);
-    khw_word_write(&code[place * KHW_INSTRUCTION], 0u, put_low);
-    khw_word_write(&code[place * KHW_INSTRUCTION], 8u, put_high);
+    khw_word_write(&code[place * KHW_INSTRUCTION], 0u, low);
+    khw_word_write(&code[place * KHW_INSTRUCTION], 8u, high);
 }
 
-// The question in s_code put over `count` cases, each case's two words from `word`, and each answer into `answered`.
-// 1 where the part answered every case, 0 where it refused the question, the gate held it off the part or nothing
-// carried it
-static int khw_asked(const unsigned int word[][2], unsigned int count, unsigned long long *answered)
+// The question in s_code put over `count` cases, each case's two words from `word`, the carrier making the slot at
+// `slot` conservative (RUN_SLOT_NONE where the code holds no slot), and each answer into `answered`. 1 where the part
+// answered every case, 0 where it refused the question, the gate held it off the part or nothing carried it
+static int khw_asked(const unsigned int word[][2], unsigned int count, unsigned int slot, unsigned long long *answered)
 {
     memset(&s_question, 0, sizeof(s_question));
     s_question.code = s_code;
     s_question.code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     s_question.registers = s_registers;
     s_question.cases = count;
+    s_question.slot = slot;
     s_question.launches = s_launches;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
@@ -261,6 +247,7 @@ static unsigned int khw_pooled(unsigned int place, unsigned long long low, unsig
     question->code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     question->registers = s_registers;
     question->cases = count;
+    question->slot = (place < s_kernel_places) ? place : RUN_SLOT_NONE;
     for (unsigned int each = 0u; each < count; each += 1u)
     {
         question->word[each][0] = word[each][0];
@@ -470,7 +457,7 @@ static int khw_relation_read(KhwAnswered *held)
 {
     static unsigned long long s_answered[RUN_CASES_MOST];
     khw_union_written();
-    khw_asked(s_union_word, s_union_cases, s_answered);
+    khw_asked(s_union_word, s_union_cases, s_slot, s_answered);
     return khw_relation_of(&s_question, held);
 }
 
@@ -536,7 +523,7 @@ static int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned lon
     khw_kernel_put(s_code);
     const unsigned int count = khw_anchor_cases(kernel->anchor, kernel->swapped, s_word, s_plain, s_signed);
     s_launches = KHW_LAUNCHES;
-    const int timed = khw_asked(s_word, count, s_answered);
+    const int timed = khw_asked(s_word, count, RUN_SLOT_NONE, s_answered);
     s_launches = 0u;
     *nanoseconds = timed ? s_question.nanoseconds : 0ull;
     return 1;
@@ -564,6 +551,23 @@ static int khw_turning_case(unsigned int anchor, int swapped, unsigned int *word
     return 0;
 }
 
+// The first round of `held`'s fields put: each bit from KHW_TURN_FIRST to KHW_TURN_LAST turned one at a time over
+// `word`, each a question of the slot, and the round carried. What came back is left in s_pool, a question a turned
+// bit in its order. The code a turned bit holds is the form's with that one bit over, and no answer is needed to put
+// it: a dry run writes every one of them to the folder, where the vendor's own disassembler reads them back
+static void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][2])
+{
+    s_pooled = 0u;
+    for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
+    {
+        unsigned long long low = held->low;
+        unsigned long long high = held->high;
+        khw_run_write(&low, &high, bit, bit, khw_run_read(low, high, bit, bit) ^ 1ull);
+        khw_pooled(s_slot, low, high, word, 1u);
+    }
+    khw_round_carried();
+}
+
 // The runs of bits the operands of `held` sit in, asked of the part: each bit from 12 to 104 turned one at a time
 // over one case, the adjacent bits whose turning changes the answer gathered into runs, and each run set to the
 // number of each of the two registers the kernel left a case word in. A run that answers two different words there
@@ -583,21 +587,13 @@ static void khw_fields_asked(KhwAnswered *held)
         return;
     }
     khw_code_put(s_code, s_slot, held->low, held->high);
-    if (!khw_asked(word, 1u, answered) || (answered[0] != (unsigned long long)expected))
+    if (!khw_asked(word, 1u, s_slot, answered) || (answered[0] != (unsigned long long)expected))
     {
         return;
     }
     const unsigned long long base = answered[0];
     int turned[KHW_TURN_LAST + 1u];
-    s_pooled = 0u;
-    for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
-    {
-        unsigned long long low = held->low;
-        unsigned long long high = held->high;
-        khw_run_write(&low, &high, bit, bit, khw_run_read(low, high, bit, bit) ^ 1ull);
-        khw_pooled(s_slot, low, high, word, 1u);
-    }
-    khw_round_carried();
+    khw_turns_asked(held, word);
     for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
     {
         const RunQuestion *const question = &s_pool[bit - KHW_TURN_FIRST];
@@ -879,6 +875,22 @@ static int khw_vendor_run(const char *mode, const char *answers)
     return 1;
 }
 
+// The slot's first field-finding round emitted off the part: the kernel's instruction at `slot` turned one bit at a
+// time and each put as a question, none carried; a dry run writes the round to the folder for the vendor's own
+// disassembler to read back. The slot is the protocol's own, read from a part before; the vendor names none of the
+// questions and no byte of its knowledge enters a form. It is how the process is tuned against questions the part has
+// not yet answered, off the part (measuring_stick_query.sh)
+static void khw_enumerate(unsigned int slot)
+{
+    s_slot = slot;
+    KhwAnswered held;
+    memset(&held, 0, sizeof(held));
+    held.low = khw_word_read(&s_kernel_text[slot * KHW_INSTRUCTION], 0u);
+    held.high = khw_word_read(&s_kernel_text[slot * KHW_INSTRUCTION], 8u);
+    const unsigned int word[1][2] = {{3u, 5u}};
+    khw_turns_asked(&held, word);
+}
+
 int main(int count, char **word)
 {
     int split = 0;
@@ -898,7 +910,22 @@ int main(int count, char **word)
     s_mnemonics = word[4];
     s_folder = word[5];
     s_machine_writer = word[6];
-    const unsigned int rounds = (split > 7) ? (unsigned int)strtoul(word[7], NULL, 10) : 1u;
+    // [<rounds>] and, for a dry run tuned off the part, [--slot <n>]: the slot whose first field-finding round is
+    // emitted for the vendor's disassembler, in place of the learn loop (khw_enumerate)
+    unsigned int rounds = 1u;
+    unsigned int enumerate = 0xffffffffu;
+    for (int at = 7; at < split; at += 1)
+    {
+        if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
+        {
+            enumerate = (unsigned int)strtoul(word[at + 1], NULL, 10);
+            at += 1;
+        }
+        else
+        {
+            rounds = (unsigned int)strtoul(word[at], NULL, 10);
+        }
+    }
     if (!khw_kernel_read())
     {
         return 1;
@@ -938,6 +965,21 @@ int main(int count, char **word)
         printf("  khw_write: no room for a round's questions\n");
         run_channel_close();
         return 1;
+    }
+    // tuned off the part: the slot's first field-finding round emitted for the vendor's disassembler, the learn loop
+    // left for a run that reaches the part
+    if (enumerate != 0xffffffffu)
+    {
+        if (enumerate >= s_kernel_places)
+        {
+            printf("  khw_write: the slot %u is past the kernel's %u places\n", enumerate, s_kernel_places);
+            run_channel_close();
+            return 1;
+        }
+        khw_enumerate(enumerate);
+        run_channel_close();
+        printf("  enumerated the slot %u's first field-finding round off the part, %llu asks\n", enumerate, s_asks);
+        return 0;
     }
     KhwAnswered kernel;
     memset(&kernel, 0, sizeof(kernel));

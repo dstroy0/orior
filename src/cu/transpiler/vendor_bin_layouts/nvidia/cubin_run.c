@@ -6,8 +6,8 @@
 // once, each answered to its own file as it is carried: a part that refuses one takes the process with it, every
 // answer written before it stands, and the questions after it are left for the channel to carry again.
 //
-//     cubin_run <machine file> <layout> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]
-//     cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers> <cases> <answers>
+//     cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> <blocks>]]
+//     cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers> <cases> <answers> <slot>
 //     [<launches>]
 //     cubin_run --dry <machine file> <layout> ...          either of the above, with the part taken out
 //
@@ -15,6 +15,16 @@
 // `skipped dry, the part taken out`, and what it would have handed the part is added to dry.txt beside its answers
 // (cubin_run_dry_written). Handed the list a dry run of the protocol writes (run_channel.h), it checks every
 // question the protocol put.
+//
+// After --dry come the facets, each popping out one object of the carry so it can be read off the part; --full pops
+// them all:
+//   --query                      the query object: every place of the code read back as our reader names it, not
+//                                only the places that are not as the run's first question holds them
+//   --gate-check                 the safety word laid on and cubin_safe's verdict on what it then holds
+//   --diff-output-against-vendor the post-safety-word container as it would reach the part, written beside the answers
+//                                with .cubin, for scaffolding to read against the vendor's own disassembler, the same
+//                                C compiled through the vendor's compiler beside it. Our gate judges by operation key;
+//                                only the vendor's reader knows a whole encoding illegal
 //
 // The code is the question's machine code, sixteen bytes an instruction. The layout's container rows hold the container
 // (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
@@ -42,6 +52,7 @@
 #include "cubin_safe.h"
 #include "cubin_write.h"
 #include "sass_assemble.h"
+#include "sass_machine.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -350,10 +361,88 @@ static int s_driver_opened = 0;
 // 1 where the run is dry: every question is written and held to the gate as ever, and none reaches the driver
 static int s_dry = 0;
 
+// the facets a dry run pops out, each the object a stage of the carry hands on, for any one to be examined off
+// the part. The flags that set them come after --dry; --full sets them all
+#define CUBIN_FACET_QUERY 1u     // --query: the query object, the whole code read back, every place our reader names it
+#define CUBIN_FACET_GATE 2u      // --gate-check: the safety word laid on and cubin_safe's verdict on what it then holds
+#define CUBIN_FACET_VENDOR 4u    // --diff-output-against-vendor: the post-safety-word container written out to be read
+                                 // against the vendor's own disassembler, which scaffolding compiles the same C through
+static unsigned int s_facets = 0u;
+
+// the encodings the vendor's disassembler held off the part, read from the --held file the scaffolding cross-check
+// writes (measuring_stick_query): a slot instruction matching one is held here before the driver sees it, however our
+// own gate read it. The file names no operation and carries no knowledge of the vendor's: it holds the exact words
+// not to ask; a question the vendor called illegal never reaches the part, and nothing the vendor said enters a form.
+// The scheduler's bits are left out of the match, since the carrier sets them with the safety word
+#define CUBIN_RUN_HELD_MOST 4096u
+#define CUBIN_RUN_SCHED_KEPT_HIGH 0x000001ffffffffffull
+static unsigned long long s_held_low[CUBIN_RUN_HELD_MOST];
+static unsigned long long s_held_high[CUBIN_RUN_HELD_MOST];
+static unsigned int s_held_count = 0u;
+
+// the --held file read into s_held, a line `<low> <high>` in hex, the scheduler's bits masked off each. 1, or 0 with
+// the reason printed
+static int cubin_run_held_read(const char *path)
+{
+    FILE *const file = fopen(path, "rb");
+    if (file == NULL)
+    {
+        fprintf(stderr, "the held list %s did not read\n", path);
+        return 0;
+    }
+    s_held_count = 0u;
+    char line[CUBIN_RUN_LINE];
+    while ((s_held_count < CUBIN_RUN_HELD_MOST) && (fgets(line, sizeof(line), file) != NULL))
+    {
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        if (sscanf(line, "%llx %llx", &low, &high) == 2)
+        {
+            s_held_low[s_held_count] = low;
+            s_held_high[s_held_count] = high & CUBIN_RUN_SCHED_KEPT_HIGH;
+            s_held_count += 1u;
+        }
+    }
+    fclose(file);
+    return 1;
+}
+
+// 1 where the instruction `low` and `high`, its scheduler's bits masked off, is one the vendor held
+static int cubin_run_held(unsigned long long low, unsigned long long high)
+{
+    const unsigned long long kept = high & CUBIN_RUN_SCHED_KEPT_HIGH;
+    for (unsigned int at = 0u; at < s_held_count; at += 1u)
+    {
+        if ((s_held_low[at] == low) && (s_held_high[at] == kept))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// The container as it would reach the part, `size` bytes of it, written beside `answers_path` with .cubin for its
+// extension: the --diff-output-against-vendor facet's object, for scaffolding to read against the vendor's own
+// disassembler. It is the post-safety-word container, written whatever the gate's verdict; a question the gate
+// held is read too
+static void cubin_run_container_out(const char *answers_path, const unsigned char *container, unsigned long long size)
+{
+    char path[CUBIN_RUN_LINE];
+    const char *const dot = strrchr(answers_path, '.');
+    const int stem = (dot != NULL) ? (int)(dot - answers_path) : (int)strlen(answers_path);
+    snprintf(path, sizeof(path), "%.*s.cubin", stem, answers_path);
+    FILE *const out = fopen(path, "wb");
+    if (out != NULL)
+    {
+        fwrite(container, 1u, (size_t)size, out);
+        fclose(out);
+    }
+}
+
 // What a dry run would have handed the part, added to dry.txt in the folder of `answers_path`: the question's
-// shape, the gate's verdict, its cases, and each place of its code that is not as the run's first question holds
-// it, as our reader reads it back. The first question's code is kept beside it as dry_base.bin, and every place
-// of it is written
+// shape, the gate's verdict, its cases, and each place of its code. With the --query facet every place is written;
+// without it, only the places that are not as the run's first question holds them, read back as our reader reads them.
+// The first question's code is kept beside it as dry_base.bin, and every place of it is written
 static void cubin_run_dry_written(const char *answers_path, unsigned long long code_size, unsigned int registers,
                                   unsigned int launches, const CubinRunShape *shape, unsigned int verdict,
                                   unsigned long long at)
@@ -399,7 +488,7 @@ static void cubin_run_dry_written(const char *answers_path, unsigned long long c
     for (unsigned long long place = 0ull; (place + 16ull) <= code_size; place += 16ull)
     {
         const int base_held = ((place + 16ull) <= base_size) && (memcmp(&s_code[place], &s_base[place], 16u) == 0);
-        if (base_held)
+        if (base_held && !(s_facets & CUBIN_FACET_QUERY))
         {
             continue;
         }
@@ -425,9 +514,63 @@ static void cubin_run_dry_written(const char *answers_path, unsigned long long c
 // `launches` where that is not 0, and its line written to `answers_path`. 0 where a line was written, 1 where the line
 // is the driver's or the part's refusal of a launch, after which the context answers no other question, and 2
 // where the files, the machine or the driver were not reached
+// one word of an instruction in `code` at `byte`, read and written back
+static unsigned long long cubin_run_word(const unsigned char *code, unsigned int byte)
+{
+    unsigned long long value = 0ull;
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        value |= (unsigned long long)code[byte + at] << (8u * at);
+    }
+    return value;
+}
+
+static void cubin_run_word_set(unsigned char *code, unsigned int byte, unsigned long long value)
+{
+    for (unsigned int at = 0u; at < 8u; at += 1u)
+    {
+        code[byte + at] = (unsigned char)((value >> (8u * at)) & 0xffull);
+    }
+}
+
+// the bits `first` to `last` of the instruction `low` and `high` make set to `value`
+static void cubin_run_bits_set(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int last,
+                               unsigned long long value)
+{
+    for (unsigned int bit = first; bit <= last; bit += 1u)
+    {
+        unsigned long long *const word = (bit < 64u) ? low : high;
+        const unsigned long long one = (value >> (bit - first)) & 1ull;
+        *word = (*word & ~(1ull << (bit % 64u))) | (one << (bit % 64u));
+    }
+}
+
+// The safety word applied to `code` before the part sees it (P9): every instruction made to wait on all six barriers,
+// and the slot at `slot`, where the code holds one, made to stall the longest and hold no barrier; a form the part
+// has not named then waits on everything, and a barrier nothing releases leaves the wait after it standing. The protocol
+// sends the code as the part accepted it and names the slot; the scheduler's own word is the carrier's to set
+static void cubin_run_safe_word(unsigned char *code, unsigned long long code_size, unsigned int slot)
+{
+    const unsigned int places = (unsigned int)(code_size / 16ull);
+    for (unsigned int place = 0u; place < places; place += 1u)
+    {
+        unsigned long long low = cubin_run_word(code, place * 16u);
+        unsigned long long high = cubin_run_word(code, (place * 16u) + 8u);
+        cubin_run_bits_set(&low, &high, SASS_WAIT_FIRST, SASS_WAIT_FIRST + 5u, SASS_WAIT_EVERY);
+        if (place == slot)
+        {
+            cubin_run_bits_set(&low, &high, SASS_STALL_FIRST, SASS_STALL_FIRST + 3u, SASS_STALL_LONGEST);
+            cubin_run_bits_set(&low, &high, SASS_WRITE_BARRIER_FIRST, SASS_WRITE_BARRIER_FIRST + 2u, SASS_BARRIER_NONE);
+            cubin_run_bits_set(&low, &high, SASS_READ_BARRIER_FIRST, SASS_READ_BARRIER_FIRST + 2u, SASS_BARRIER_NONE);
+        }
+        cubin_run_word_set(code, place * 16u, low);
+        cubin_run_word_set(code, (place * 16u) + 8u, high);
+    }
+}
+
 static int cubin_run_question(const char *kernel, unsigned long long pattern_size, const char *code_path,
                               unsigned int registers, const char *cases_path, const char *answers_path,
-                              unsigned int launches, CubinRunShape shape, int shaped)
+                              unsigned int slot, unsigned int launches, CubinRunShape shape, int shaped)
 {
     const unsigned long long code_size = cubin_run_file(code_path, s_code, sizeof(s_code));
     FILE *const answers = fopen(answers_path, "wb");
@@ -451,6 +594,9 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
         fclose(answers);
         return 0;
     }
+    // the scheduler's own word set here, before the gate and the part: the protocol sent the code as the part
+    // accepted it and named the slot
+    cubin_run_safe_word(s_code, code_size, slot);
     CubinWrite written;
     memset(&written, 0, sizeof(written));
     written.pattern = s_pattern;
@@ -473,6 +619,10 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, &at);
     if (s_dry)
     {
+        if (s_facets & CUBIN_FACET_VENDOR)
+        {
+            cubin_run_container_out(answers_path, s_container, size);
+        }
         cubin_run_dry_written(answers_path, code_size, registers, launches, &shape, verdict, at);
     }
     if (verdict != CUBIN_SAFE)
@@ -485,6 +635,15 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     if (s_dry)
     {
         fprintf(answers, "skipped dry, the part taken out\n");
+        fclose(answers);
+        return 0;
+    }
+    // the vendor's feedback, where a --held list was given: a slot instruction the vendor's disassembler held off the
+    // part is held here before the driver, however our own gate read it (cubin_run_held_read)
+    if ((s_held_count > 0u) && (slot < (unsigned int)(code_size / 16ull)) &&
+        cubin_run_held(cubin_run_word(s_code, slot * 16u), cubin_run_word(s_code, (slot * 16u) + 8u)))
+    {
+        fprintf(answers, "skipped held, the vendor held the slot off the part\n");
         fclose(answers);
         return 0;
     }
@@ -533,13 +692,55 @@ int main(int count, char **words)
         words += 1;
         count -= 1;
     }
-    const int listed = (count == 5) && (strcmp(words[3], "--list") == 0);
-    if (!listed && (count != 7) && (count != 8) && (count != 10))
+    // the facets come after --dry, each popping out one object of the carry to be read off the part; --full pops
+    // them all. A dry run with no facet pops out the diff from its first question, as ever. --held <file> takes the
+    // vendor's feedback, the encodings its disassembler held, and a matching slot is held before the part on a live run
+    while ((count >= 2) && (strncmp(words[1], "--", 2u) == 0) && (strcmp(words[1], "--list") != 0))
     {
-        fprintf(
-            stderr,
-            "cubin_run <machine file> <layout> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]\n"
-            "cubin_run <machine file> <layout> --list <list>\n");
+        if (strcmp(words[1], "--held") == 0)
+        {
+            if ((count < 3) || !cubin_run_held_read(words[2]))
+            {
+                return 2;
+            }
+            words[2] = words[0];
+            words += 2;
+            count -= 2;
+            continue;
+        }
+        if (strcmp(words[1], "--full") == 0)
+        {
+            s_facets = CUBIN_FACET_QUERY | CUBIN_FACET_GATE | CUBIN_FACET_VENDOR;
+        }
+        else if (strcmp(words[1], "--query") == 0)
+        {
+            s_facets |= CUBIN_FACET_QUERY;
+        }
+        else if (strcmp(words[1], "--gate-check") == 0)
+        {
+            s_facets |= CUBIN_FACET_GATE;
+        }
+        else if (strcmp(words[1], "--diff-output-against-vendor") == 0)
+        {
+            s_facets |= CUBIN_FACET_VENDOR;
+        }
+        else
+        {
+            break;
+        }
+        words[1] = words[0];
+        words += 1;
+        count -= 1;
+    }
+    const int listed = (count == 5) && (strcmp(words[3], "--list") == 0);
+    if (!listed && (count != 8) && (count != 9) && (count != 11))
+    {
+        fprintf(stderr,
+                "cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> "
+                "<blocks>]]\n"
+                "cubin_run <machine file> <layout> --list <list>\n"
+                "cubin_run [--dry [--full|--query|--gate-check|--diff-output-against-vendor]...] [--held <file>] "
+                "<machine file> ...\n");
         return 2;
     }
     char kernel[256];
@@ -555,19 +756,20 @@ int main(int count, char **words)
     const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
     if (!listed)
     {
-        const unsigned int launches = (count >= 8) ? (unsigned int)strtoul(words[7], NULL, 10) : 0u;
-        const CubinRunShape shape = {(count == 10) ? (unsigned int)strtoul(words[8], NULL, 10) : CUBIN_RUN_THREADS,
-                                     (count == 10) ? (unsigned int)strtoul(words[9], NULL, 10) : 1u};
+        const unsigned int slot = (unsigned int)strtoul(words[7], NULL, 10);
+        const unsigned int launches = (count >= 9) ? (unsigned int)strtoul(words[8], NULL, 10) : 0u;
+        const CubinRunShape shape = {(count == 11) ? (unsigned int)strtoul(words[9], NULL, 10) : CUBIN_RUN_THREADS,
+                                     (count == 11) ? (unsigned int)strtoul(words[10], NULL, 10) : 1u};
         const int carried =
             cubin_run_question(kernel, pattern_size, words[3], (unsigned int)strtoul(words[4], NULL, 10), words[5],
-                               words[6], launches, (count == 10) ? shape : unshaped, count == 10);
+                               words[6], slot, launches, (count == 11) ? shape : unshaped, count == 11);
         return (carried == 2) ? 2 : 0;
     }
-    // Each line of the list one question of no shape of its own, `<code> <registers> <cases> <answers> [<launches>]`,
-    // timed over its launches where it gives a count that is not 0, all carried in this one process and each answered
-    // to its own file as it is carried, each timed question's time its own. A launch the driver or the part refuses
-    // leaves a context that answers no other question, and the questions after it are left unanswered, for the channel
-    // to carry in a process of their own
+    // Each line of the list one question of no shape of its own, `<code> <registers> <cases> <answers> <slot>
+    // [<launches>]`, timed over its launches where it gives a count that is not 0, all carried in this one process and
+    // each answered to its own file as it is carried, each timed question's time its own. A launch the driver or the
+    // part refuses leaves a context that answers no other question, and the questions after it are left unanswered, for
+    // the channel to carry in a process of their own
     FILE *const list = fopen(words[4], "rb");
     if (list == NULL)
     {
@@ -582,13 +784,15 @@ int main(int count, char **words)
         char cases_path[CUBIN_RUN_LINE];
         char answers_path[CUBIN_RUN_LINE];
         unsigned int registers = 0u;
+        unsigned int slot = 0u;
         unsigned int launches = 0u;
-        if (sscanf(line, "%1023s %u %1023s %1023s %u", code_path, &registers, cases_path, answers_path, &launches) < 4)
+        if (sscanf(line, "%1023s %u %1023s %1023s %u %u", code_path, &registers, cases_path, answers_path, &slot,
+                   &launches) < 5)
         {
             continue;
         }
-        carried = cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, launches,
-                                     unshaped, 0);
+        carried = cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, slot,
+                                     launches, unshaped, 0);
     }
     fclose(list);
     return (carried == 2) ? 2 : 0;

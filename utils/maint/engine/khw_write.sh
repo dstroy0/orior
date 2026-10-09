@@ -59,9 +59,17 @@ cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" \
     { echo "  build failed: khw_machine_write did not compile"; exit 1; }
 
 if [ "$DRY" = "0" ]; then
+    # the vendor's feedback, where a cross-check has written it (measuring_stick_query.sh): the carrier holds every
+    # encoding it names off the part before the driver sees it, however our own gate read it
+    HELD="$TOP/build/measuring_stick_query/held.txt"
+    HELD_WORDS=()
+    if [ -s "$HELD" ]; then
+        HELD_WORDS=(--held "$HELD")
+        echo "  the vendor's feedback holds $(wc -l < "$HELD") encodings off the part this run"
+    fi
     exec "$BINARY" sm_86 "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" \
         "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" "$WORK" "$WRITER" "$ROUNDS" -- \
-        "$CARRIER" "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
+        "$CARRIER" "${HELD_WORDS[@]}" "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
 fi
 
 # the protocol, dry: every question it puts written to the folder and listed, none carried

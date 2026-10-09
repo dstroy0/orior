@@ -36,6 +36,9 @@ extern "C"
 #define RUN_OUT_WORDS 2u
 #define RUN_CASES_MOST 4096u
 
+// a question's slot where its code holds none: the carrier makes no place conservative past the wait on all six
+#define RUN_SLOT_NONE 0xffffffffu
+
 // what a run came to
 typedef enum
 {
@@ -59,6 +62,9 @@ typedef struct
     unsigned long long code_size;
     // how many registers a thread of it holds, which the container states and no instruction declares
     unsigned int registers;
+    // the place the carrier makes conservative before the part sees it, RUN_SLOT_NONE where the code holds no slot and
+    // every instruction only waits on all six barriers
+    unsigned int slot;
     // the cases it is run over, a thread a case, and how many
     unsigned int word[RUN_CASES_MOST][RUN_IN_WORDS];
     unsigned int cases;

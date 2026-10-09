@@ -163,8 +163,8 @@ static void run_channel_dry_written(RunQuestion *asked)
     run_channel_path(list_path, "questions.txt");
     FILE *const list = fopen(list_path, "ab");
     const int written = run_channel_write(asked, code_path, cases_path) && (list != NULL) &&
-                        (fprintf(list, "%s %u %s %s %u\n", code_path, asked->registers, cases_path, answers_path,
-                                 asked->launches) > 0);
+                        (fprintf(list, "%s %u %s %s %u %u\n", code_path, asked->registers, cases_path, answers_path,
+                                 asked->slot, asked->launches) > 0);
     if (list != NULL)
     {
         fclose(list);
@@ -309,6 +309,7 @@ static int run_channel_carried(RunQuestion *asked)
     char answers_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
     char output_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
     char registers[16];
+    char slot[16];
     char launches[16];
     char threads[16];
     char blocks[16];
@@ -317,6 +318,7 @@ static int run_channel_carried(RunQuestion *asked)
     run_channel_path(answers_path, "answers.txt");
     run_channel_path(output_path, "carrier.txt");
     snprintf(registers, sizeof(registers), "%u", asked->registers);
+    snprintf(slot, sizeof(slot), "%u", asked->slot);
     snprintf(launches, sizeof(launches), "%u", asked->launches);
     snprintf(threads, sizeof(threads), "%u", asked->threads);
     snprintf(blocks, sizeof(blocks), "%u", asked->blocks);
@@ -338,7 +340,8 @@ static int run_channel_carried(RunQuestion *asked)
     command[words + 1u] = registers;
     command[words + 2u] = cases_path;
     command[words + 3u] = answers_path;
-    words += 4u;
+    command[words + 4u] = slot;
+    words += 5u;
     // an untimed question of no shape of its own is carried with the words it always was; a timed one with its count
     // of launches after, and one with a shape with its count of launches, 0 where it is untimed, and its shape
     const int shaped = (asked->threads != 0u) || (asked->blocks != 0u);
@@ -458,8 +461,8 @@ static unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned
             remove(answers_path);
             asked[at]->refused[0] = '\0';
             written = run_channel_write(asked[at], code_path, cases_path) &&
-                      (fprintf(list, "%s %u %s %s %u\n", code_path, asked[at]->registers, cases_path, answers_path,
-                               asked[at]->launches) > 0);
+                      (fprintf(list, "%s %u %s %s %u %u\n", code_path, asked[at]->registers, cases_path, answers_path,
+                               asked[at]->slot, asked[at]->launches) > 0);
         }
         if ((list == NULL) || (fclose(list) != 0) || !written)
         {
