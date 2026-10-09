@@ -46,7 +46,7 @@ function openGroup(group) {
   }
   showView("edit");
   showGroup(group);
-  togglePane(true, { take: false });
+  togglePane(true, { take: false, pin: false });
 }
 
 // The strip's icons: each its name, label, keys, what a press does, and whether its window shows.
@@ -141,7 +141,7 @@ function leftPreview(event) {
   endPreview();
   showView(view);
   showGroup(group);
-  sidePanes().forEach((node, at) => togglePaneNode(node, shown[at]));
+  sidePanes().forEach((node, at) => togglePaneNode(node, shown[at], { pin: false }));
   window.requestAnimationFrame(refreshStrip);
 }
 
@@ -153,7 +153,7 @@ const showGroupPane = (group) => {
   }
   showView("edit");
   showGroup(group);
-  togglePane(true, { take: false });
+  togglePane(true, { take: false, pin: false });
 };
 const HOVERED = new Map([
   ...["explorer", "structure", "commit", "problems", "git"].map((group) => [group, () => showGroupPane(group)]),
@@ -163,7 +163,7 @@ const HOVERED = new Map([
       if (shownView() !== "run") {
         showView("run");
       }
-      togglePane(true, { take: false });
+      togglePane(true, { take: false, pin: false });
     },
   ],
 ]);

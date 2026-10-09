@@ -25,6 +25,24 @@ const REST = 700;
 
 const panes = [];
 
+// What the pointer is over, or null once it has left the window: the window's own record of where
+// the pointer is, which a pointer gone out of the window over a pane does not leave standing.
+let pointerAt = null;
+document.addEventListener("pointerover", (event) => (pointerAt = event.target), true);
+document.addEventListener("pointermove", (event) => (pointerAt = event.target), true);
+document.addEventListener(
+  "pointerout",
+  (event) => {
+    if (!event.relatedTarget) {
+      pointerAt = null;
+    }
+  },
+  true,
+);
+window.addEventListener("blur", () => (pointerAt = null));
+
+const holdsPointer = (node) => Boolean(node && pointerAt && node.contains(pointerAt));
+
 export function autoCollapse() {
   return localStorage.getItem(AUTO) !== "false";
 }
@@ -47,8 +65,8 @@ function tryCollapse(pane) {
   }
   const typing = pane.keyed && node.contains(document.activeElement);
   // The tool strip beside a left pane is a part of it: the pointer on the strip keeps it.
-  const onStrip = node.classList.contains("toward-left") && document.getElementById("strip")?.matches(":hover");
-  if (node.matches(":hover") || onStrip || typing || pane.pinned || menuOpen() || still()) {
+  const onStrip = node.classList.contains("toward-left") && holdsPointer(document.getElementById("strip"));
+  if (holdsPointer(node) || onStrip || typing || pane.pinned || menuOpen() || still()) {
     collapseLater(pane);
     return;
   }
@@ -113,8 +131,9 @@ export function paneShown() {
 
 // Shows the view's own pane or collapses it. A pane shown from the keys takes them, and stays while
 // it holds them; one shown with `take` off leaves the keys where they are and stays until the pointer
-// has been on it.
-export function togglePane(shown = !paneShown(), { take = true } = {}) {
+// has been on it, or, with `pin` off as well, as the strip shows it, only while the pointer is on
+// the pane or on the strip.
+export function togglePane(shown = !paneShown(), { take = true, pin = true } = {}) {
   const pane = leftPane();
   if (!pane) {
     return;
@@ -124,7 +143,7 @@ export function togglePane(shown = !paneShown(), { take = true } = {}) {
     pane.keyed = true;
     pane.node.querySelector("input, button")?.focus();
   } else if (shown) {
-    pane.pinned = true;
+    pane.pinned = pin;
   }
   if (shown) {
     collapseLater(pane);
@@ -137,15 +156,15 @@ export function paneNodeShown(node) {
 }
 
 // Shows the pane at `node` or collapses it, a pane shown this way staying until the pointer has been
-// on it.
-export function togglePaneNode(node, shown = !paneNodeShown(node)) {
+// on it, or with `pin` off only while the pointer is on it or on the strip.
+export function togglePaneNode(node, shown = !paneNodeShown(node), { pin = true } = {}) {
   const pane = panes.find((one) => one.node === node);
   if (!pane) {
     return;
   }
   setShown(pane, shown);
   if (shown) {
-    pane.pinned = true;
+    pane.pinned = pin;
     collapseLater(pane);
   }
 }
