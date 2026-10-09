@@ -246,7 +246,7 @@ Quot.sound alone.
 
 Measured (`core_tangent` with `measure`): at the vertex of E_(1.1), to order 32, the base's s(Y) gives
 Phi(Y) = sqrt(2 s_0 Y) sum e_k Y^k / (2k + 1) exactly, and the principal and the full tangent are summed exactly for
-mu = 1, 4, 16 and 64 on Y = 1/8 to 1. The principal axial field follows the measured Phi with the Bessel prefactor:
+mu = 1, 4, 16 and 64 on Y = 1/8 to 1. The principal axial field follows the measured Phi with the Bessel factor:
 ln|y| - sqrt(mu) Phi(Y) + ln(mu) / 4 at Y = 1 is -3.35, -2.43, -1.99 and -1.90, and from mu = 16 on it is flat in Y to
 0.01. The full tangent over the principal, less 1, is
 
