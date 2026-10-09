@@ -152,13 +152,18 @@ function drawName(node, box, scale) {
 // funnel forms between the name and the point on the view's top edge under the name in the bar,
 // its sides bending sideways from the name's ends to the bar name's as they rise, and the name pours
 // up it a row of pixels at a time, every row level, each as wide as the funnel where it stands and
-// shorter the nearer the tip, until the view's edge takes the last of it. The name in the bar then
-// shows and stays. Each time the view shows again it stands and goes again.
+// shorter the nearer the tip, until the view's edge takes the last of it. The eye in the bar then
+// shows and stays. The name stands and goes once as the app loads; an empty view shown after it has
+// reached the bar holds the lattice alone.
 function fly(node) {
   const home = document.getElementById("bar-mark");
   window.clearTimeout(flights.get(node));
   settle(node);
   node.getAnimations().forEach((one) => one.cancel());
+  if (home.classList.contains("home")) {
+    node.style.visibility = "hidden";
+    return;
+  }
   node.style.visibility = "";
   flights.set(
     node,
