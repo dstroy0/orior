@@ -42,7 +42,12 @@
         { "label": "Find in Files", "command": "search", "keys": "Ctrl+Shift+F", "args": "[--case] [--word] [--regex] <text>", "console": true },
         "-",
         { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" },
-        { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true }
+        { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true },
+        "-",
+        { "label": "Rename Symbol…", "command": "rename", "keys": "F2", "also": "Shift+F6", "needs": "editor" },
+        { "label": "Quick Fix…", "command": "quick-fix", "keys": "Ctrl+.", "also": "Alt+Enter", "needs": "editor" },
+        { "label": "Parameter Info", "command": "parameter-info", "keys": "Ctrl+Shift+Space", "needs": "editor" },
+        { "label": "Quick Documentation", "command": "quick-doc", "keys": "Ctrl+K Ctrl+I", "also": "Ctrl+Q", "needs": "editor" }
       ]
     },
     {
@@ -107,6 +112,7 @@
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },
         { "label": "Go to Definition", "command": "definition", "keys": "F12", "needs": "editor" },
+        { "label": "Find Usages", "command": "usages", "keys": "Shift+F12", "also": "Alt+F7", "needs": "editor" },
         "-",
         { "label": "Next Problem", "command": "next-problem", "keys": "F8", "needs": "editor" },
         { "label": "Previous Problem", "command": "previous-problem", "keys": "Shift+F8", "needs": "editor" },

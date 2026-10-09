@@ -35,6 +35,7 @@ import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
 import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
+import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
@@ -64,6 +65,8 @@ const state = {
   cycle: null,
   // Each file's text as the last commit left it, as it is being read or once it is: null for none.
   heads: new Map(),
+  // The keys of the menus' commands for the editor.
+  editorKeys: [],
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
@@ -380,6 +383,7 @@ async function reveal(path) {
 
 function show(path) {
   closePeek();
+  closeSignature();
   if (path !== state.active && state.active && !state.moving) {
     markPlace();
   }
@@ -1268,6 +1272,7 @@ export async function startEdit(defs) {
     statusHost: document.getElementById("statusbar"),
     onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),
     onCursor: () => {
+      moved();
       cancelAnimationFrame(lighting);
       lighting = requestAnimationFrame(() => {
         light();
@@ -1282,6 +1287,7 @@ export async function startEdit(defs) {
       if (tab) {
         tab.closing = false;
         changed(tab);
+        typed();
         if (tab.validated) {
           tab.validated = false;
           session.diagnostics = null;
@@ -1301,7 +1307,26 @@ export async function startEdit(defs) {
     },
   });
   state.editor.onDefinition = (p) => goToDefinition(p);
+  state.editor.addKeys(state.editorKeys);
   startServers({ tabs: () => state.tabs, paint: () => state.editor.schedule() });
+  startIntel({
+    editor: () => state.editor,
+    tab: () => tabOf(state.active),
+    tabs: () => state.tabs,
+    lineOf: (path, line) => {
+      const s = state.tabs.find((tab) => tab.file === path && !tab.commit && tab.session && !tab.session.window)?.session;
+      return s ? s.doc.line(line - s.base) : null;
+    },
+    openAt: (path, line, col) => openAt(path, line, col),
+    touched: (tab) => {
+      changed(tab);
+      drawTabs();
+    },
+    refresh: async () => {
+      await loadChanges();
+      await drawTree();
+    },
+  });
   onScheme(() => state.editor.refreshColors());
   let wait = 0;
   document.getElementById("file-filter").addEventListener("input", () => {
@@ -1428,7 +1453,13 @@ function editorItems() {
     editor.focus();
     editor.paste({ preventDefault() {}, clipboardData: { getData: () => text } });
   };
+  const served = Boolean(tabOf(state.active)?.served);
   return [
+    { label: "Go to Definition", keys: "F12", disabled: !served, run: () => goToDefinition(editor.head()) },
+    { label: "Find Usages", keys: "Shift+F12", run: findUsages },
+    { label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
+    { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served, run: quickFix },
+    "-",
     { label: "Cut", keys: "Ctrl+X", run: held("cut") },
     { label: "Copy", keys: "Ctrl+C", run: held("copy") },
     { label: "Paste", keys: "Ctrl+V", run: pasted },
@@ -1440,6 +1471,13 @@ function editorItems() {
     "-",
     { label: "Save", keys: "Ctrl+S", disabled: !dirty(tabOf(state.active)), run: saveActive },
   ];
+}
+
+// Gives the editor the keys of the menus' commands for it, each as `{ keys, run }`, now or as it is
+// made.
+export function bindEditorKeys(list) {
+  state.editorKeys = list;
+  state.editor?.addKeys(list);
 }
 
 // What the menu bar does to the editor: the editor where a file of text is open in it, saving one
@@ -1455,6 +1493,11 @@ export function editing() {
     format: () => formatTab(tabOf(state.active)),
     runFile: () => runTab(tabOf(state.active)),
     definition: () => state.editor?.s && goToDefinition(state.editor.head()),
+    usages: findUsages,
+    rename: renameSymbol,
+    quickFix,
+    parameterInfo: () => parameterInfo(),
+    quickDoc,
     validate: () => validateTab(tabOf(state.active)),
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;

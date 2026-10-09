@@ -20,7 +20,7 @@ export function startServers({ tabs, paint }) {
   listen("lsp-diagnostics", (event) => {
     const { path, items } = event.payload;
     for (const tab of tabsOf()) {
-      if (tab.served && tab.file === path) {
+      if ((tab.served || tab.serving) && tab.file === path) {
         tab.session.diagnostics = items;
       }
     }
@@ -40,7 +40,10 @@ export async function serve(tab) {
   if (!language) {
     return;
   }
+  // The diagnostics a server already holds for the file can come before it answers.
+  tab.serving = true;
   const took = await invoke("lsp_open", { path: tab.file, language, text: s.doc.text() }).catch(() => false);
+  tab.serving = false;
   if (took && tabsOf().includes(tab)) {
     tab.served = true;
     s.diagnostics ??= [];
@@ -63,6 +66,7 @@ export function wrap(tab) {
     served: true,
     async hover(doc, p) {
       const parts = [];
+      await flush(tab);
       const said = await invoke("lsp_hover", at(p)).catch(() => null);
       if (said) {
         parts.push(said);
@@ -85,6 +89,7 @@ export function wrap(tab) {
       return { from: { line: p.line, col: from }, to: { line: p.line, col: to }, parts };
     },
     async complete(doc, p) {
+      await flush(tab);
       const items = await invoke("lsp_complete", at(p)).catch(() => []);
       return items.length ? items : (own.complete?.(doc, p) ?? []);
     },
@@ -97,16 +102,24 @@ export function changed(tab) {
     return;
   }
   window.clearTimeout(tab.telling);
-  tab.telling = window.setTimeout(() => {
-    if (tab.served) {
-      invoke("lsp_change", { path: tab.file, text: tab.session.doc.text() }).catch(() => {});
-    }
-  }, CHANGE_REST);
+  tab.untold = true;
+  tab.telling = window.setTimeout(() => flush(tab), CHANGE_REST);
+}
+
+// Tells the server of a change to a served tab now, where one is waiting for typing to rest, so
+// that what is asked next is asked of the text as it stands.
+export async function flush(tab) {
+  window.clearTimeout(tab?.telling);
+  if (tab?.served && tab.untold) {
+    tab.untold = false;
+    await invoke("lsp_change", { path: tab.file, text: tab.session.doc.text() }).catch(() => {});
+  }
 }
 
 export function stopServing(tab) {
   if (tab?.served) {
     tab.served = false;
+    tab.untold = false;
     window.clearTimeout(tab.telling);
     invoke("lsp_close", { path: tab.file }).catch(() => {});
   }
@@ -118,5 +131,6 @@ export async function definition(tab, p) {
   if (!tab?.served) {
     return [];
   }
+  await flush(tab);
   return invoke("lsp_definition", { path: tab.file, line: tab.session.base + p.line, col: p.col }).catch(() => []);
 }
