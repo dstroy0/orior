@@ -4,5 +4,3 @@ forms 1
 # the instruction it was seen as. The format is the comment at the head of sass_machine.h.
 part sm_86
 form IADD register,register,register,register,register 0x0000000700077210 0x004fca0007ffe0ff 0:18-18;1:24-27;2:32-34;3:63-63;4:72-72 IADD R1, R0, R7, R0, R0
-form IADD register,register,register,register,register,register,register,register 0x0000000700077210 0x004fca0007ffe4ff 0:18-18;1:24-27;2:32-34;3:63-63;4:72-72;5:75-75;6:77-80;7:87-90 IADD R1, R0, R7, R0, R0, R0, R15, R15
-form IADD register,register,register,register,register,register 0x0000000700077210 0x004fca0007ffe8ff 0:18-18;1:24-27;2:32-34;3:63-63;4:72-72;5:74-74 IADD R1, R0, R7, R0, R0, R0

@@ -3908,3 +3908,123 @@ cycle 2 khw_write
 sample fa42ffdc71789263 10 0 0 100 8 61f60a6d48cda265 answers 1649791
 cycle 3 khw_write
 sample fa42ffdc71789263 10 0 0 100 8 61f60a6d48cda265 answers 1153344
+cycle 4 khw_write
+ask be24121910341cab 10 0 0 0 43 8fbce62ba340a9ed answers 2 0 1 1 a c c 80000000 80000000 7ffffffe 7ffffffe 0 8 8 10 10 0 0 80000000 80000000 4 4 5 5 80000001 80000001 3 3 7 7 5 5 b b 3 3 6 8 8 d d 18 18
+ask 5cf753c33deef64a 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask c97568617f19468c 10 0 0 0 1 0d97b57868eb3f53 answers 0
+ask cd6894ee9c711487 10 0 0 0 1 0d97b57868eb3f53 answers ffffffffffffffff
+ask 67d2052cfc21f65e 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 49c5ea3a72fa118d 10 0 0 0 1 0d97b57868eb3f53 answers 0
+ask 738d7f05a6ae43dd 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 33aaa8c44a89f6e6 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_MISALIGNED_ADDRESS
+ask ac6f299873ddfde7 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask c20fbdefb1680f1b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_ADDRESS
+ask 402315fcab3150a4 10 0 0 0 1 0d97b57868eb3f53 answers 825
+ask 266ba22f31be5dad 10 0 0 0 1 0d97b57868eb3f53 answers 2
+ask 2f88c2a18a51b54c 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 3576fba58a9b6f89 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_ADDRESS
+ask fe595fd466d45c09 10 0 0 0 1 0d97b57868eb3f53 answers ffffffff00000008
+ask 289d62a6491bf621 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 00bea9c82531b33f 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask b959ef0867df28ed 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask 64c23cf0d849106f 10 0 0 0 1 0d97b57868eb3f53 answers ffffffff
+ask 9feed941c076abd5 10 0 0 0 1 0d97b57868eb3f53 censored skipped 7 no EXIT without a guard at byte 2544
+ask 3a68e490c69ff36b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+sample be24121910341cab 10 0 0 100 8 61f60a6d48cda265 answers 1508703
+ask be24121910341cab 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 34d73c4b0ed310bb 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask c47d5fdbb881a90b 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask 42670dfdc6abf3eb 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask 59e4d6dc3308fe2b 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask 5a981d1040a60d46 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask e698d25829c854c9 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_ADDRESS
+ask 7a2d3bff92a8efaf 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask be1940d2d7417fa3 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask bc6f4d7fac945b1b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 78c405751d22748b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 2da5727d22584eeb 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 30619fdaea61b42b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 3315f5f0aa8d2728 10 0 0 0 1 0d97b57868eb3f53 answers fffec5
+ask 63b5c5123831e665 10 0 0 0 1 0d97b57868eb3f53 answers 8400005
+ask 66482ec105b09fdf 10 0 0 0 1 0d97b57868eb3f53 answers 8402005
+ask e7e5a8528b7f4253 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask e5fb93e168b7ab3b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 925871eafef47a0b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask de1d321c539195eb 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 91511f194cd4422b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask d7edd862ad9e002e 10 0 0 0 1 0d97b57868eb3f53 answers 3
+ask 26e153e14e4b78b9 10 0 0 0 1 0d97b57868eb3f53 answers 16
+ask 220b3fd1154a458f 10 0 0 0 1 0d97b57868eb3f53 answers 16
+ask c6436fa48cbb59e3 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 83bdb24a1c93687b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask fad43de99a53098b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 81f9b651045e916b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask d2b5d65c576c792b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask fb223a3497d42ad0 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 451e8bc3be81cfb1 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 7fbbf4f1ba714e37 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 45200e88de6fb883 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask afa5bc22e4842dbb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask ba1a5f8b63e3e30b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 2da10d5d1d7067eb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 3058d59ae091e62b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 2b1a140a6727ff86 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask e17373ce2afce949 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask f692195c4b5e4eaf 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 222e1eb230138473 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask da98b58db57574fb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 600b6143dd2e968b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask fc342a1aa27092eb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 3dd948f34bfe452b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask baac6098a389eb58 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask b34f03b2f9242ec1 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 271db8742576a817 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask e2111b3e9cd61ad3 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 4dc5285f67e8803b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 607a846b2e535bcb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 367c15a2d0c3206b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask cf9dc309465aea2b 10 0 0 0 1 0d97b57868eb3f53 answers fffffffe
+ask 039695c73e2b59de 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask c11381735e6f2b99 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 1460bcd23ff63a4f 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask b3bd15244b3be963 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 9732982403406d9b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask a320bcf69f328e4b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask b9d064b3de1bed6b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask 426333220ae7312b 10 0 0 0 1 0d97b57868eb3f53 illegal refused CUDA_ERROR_ILLEGAL_INSTRUCTION
+ask d48306c0a8da9b60 10 0 0 0 1 0d97b57868eb3f53 answers 2
+ask 98f4ccc372eac465 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask ddea21adbca699df 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask c535921226a8cd93 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 83657736a816265b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask b63648659fbb62cb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask b784350aea7c5feb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 51430880bc2e142b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask cc8a131903b0cbb6 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask cfc54772c62468a9 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 6c3070111de7fa2f 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask aa3dc181dc2c2ee3 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 021311f0d0067d3b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 2ac39e1828e1c08b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 9919a0e971783b6b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask b85272882b00032b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 542f28a911448768 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 9178421075b10021 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 70b786d87fae1717 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask b246cc2282e635c3 10 0 0 0 1 0d97b57868eb3f53 censored skipped held, the vendor held the slot off the part
+ask ec3a80f752971bfb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 7cf34a1e8d0a220b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask b352e2836fbce5eb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask f545f45912072e2b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask bdf4ec715fc886fe 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 246f88580d5f127d 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask eb3de608b153209f 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask dabd71322a7c72f3 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 6ec78c24bc4d3abb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 82c89a0d4240aa4b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask c9b93f6976a362eb 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 2212ae251fd4282b 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 8dbc5787d9cbb520 10 0 0 0 1 0d97b57868eb3f53 answers 8
+ask 62120f9c4e5ec8b6 10 0 0 0 1 0d97b57868eb3f53 answers 5
+ask 199357c5394efbae 10 0 0 0 1 0d97b57868eb3f53 answers a
+ask 5d7209c89e773758 10 0 0 0 1 0d97b57868eb3f53 answers 6
