@@ -4,8 +4,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Responsiveness
 
-1. **Smooth motion measured.** A fast scroll, the lattice and the fuse hold a frame every sixtieth of a second, with the dropped frames counted.
-2. **Start measured.** The time from launching the app to a window that takes keys, kept.
+1. **Start measured.** The time from launching the app to a window that takes keys, kept.
+2. **Scrolling at the display's rate.** A fast scroll holds every frame a display of 120 a second draws, and not only every other one.
 
 ## Code intelligence
 
