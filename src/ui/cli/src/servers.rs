@@ -465,6 +465,12 @@ impl Servers {
         }
     }
 
+    /// Starts the server for `language` at `root` where it is not running, ahead of any file of it
+    /// opened, and says whether `language` has one.
+    pub fn warm(&self, root: &Path, language: &str, emit: &Emit) -> Result<bool, String> {
+        Ok(self.server(root, language, emit)?.is_some())
+    }
+
     /// Hands the file at `path` to its language's server. Says whether one took it.
     pub fn open(&self, root: &Path, path: &Path, language: &str, text: &str, emit: &Emit) -> Result<bool, String> {
         let Some((server, spec)) = self.server(root, language, emit)? else {

@@ -1,6 +1,12 @@
 # The orior app: roadmap
 
-What the window does not do yet, by area. Each item says what it gives the reader. Within an area, the items stand in the order they are to be built.
+What the window does not do yet, by area. Each item says what it gives the reader. Within an area, the items stand in the order they are to be built. What is done moves to [the completed roadmap](COMPLETED_ROADMAP.md).
+
+## Responsiveness
+
+1. **Large files measured.** A file of many megabytes opens, scrolls to its end, and takes typing there as quickly as a small one, with the times kept.
+2. **Smooth motion measured.** A fast scroll, the lattice and the fuse hold a frame every sixtieth of a second, with the dropped frames counted.
+3. **Start measured.** The time from launching the app to a window that takes keys, kept.
 
 ## Code intelligence
 

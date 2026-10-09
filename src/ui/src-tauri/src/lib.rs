@@ -379,8 +379,12 @@ fn tree_edits(root: &Path, files: Vec<servers::FileEdit>) -> Vec<servers::FileEd
 #[tauri::command(async)]
 fn lsp_open(handle: AppHandle, app: State<App>, path: String, language: String, text: String) -> Result<bool, String> {
     let root = root_of(&app)?;
-    let tree = root.clone();
-    let emit: servers::Emit = Arc::new(move |told| match told {
+    app.servers.open(&root, &root.join(path), &language, &text, &emitter(handle, root.clone()))
+}
+
+/// What a server tells the page, each path as `tree_path` gives it under `tree`.
+fn emitter(handle: AppHandle, tree: PathBuf) -> servers::Emit {
+    Arc::new(move |told| match told {
         servers::Told::Diagnostics(mut diagnostics) => {
             diagnostics.path = tree_path(&tree, &diagnostics.path);
             let _ = handle.emit("lsp-diagnostics", diagnostics);
@@ -388,8 +392,16 @@ fn lsp_open(handle: AppHandle, app: State<App>, path: String, language: String, 
         servers::Told::Edits(files) => {
             let _ = handle.emit("lsp-edits", tree_edits(&tree, files));
         }
-    });
-    app.servers.open(&root, &root.join(path), &language, &text, &emit)
+    })
+}
+
+/// Starts the server for each of `languages` that has one and is not running, as a tree opens, and
+/// gives the languages one took.
+#[tauri::command(async)]
+fn lsp_warm(handle: AppHandle, app: State<App>, languages: Vec<String>) -> Result<Vec<String>, String> {
+    let root = root_of(&app)?;
+    let emit = emitter(handle, root.clone());
+    Ok(languages.into_iter().filter(|language| app.servers.warm(&root, language, &emit).unwrap_or(false)).collect())
 }
 
 /// Every place the symbol at a place is used, each path as `tree_path` gives it.
@@ -947,6 +959,7 @@ fn open(launch: Launch) {
             run_file_line,
             validate_file,
             lsp_open,
+            lsp_warm,
             lsp_change,
             lsp_close,
             lsp_hover,

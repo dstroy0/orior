@@ -2427,9 +2427,14 @@ export class Editor {
     const headRow = rows.rowOf(primary.head.line);
     this.input.style.left = `${this.xOf(primary.head)}px`;
     this.input.style.top = `${headRow * LINE}px`;
-    // Off the rows on screen: the map and the status line wait while input is active.
-    if (!status.input.active) {
+    // Off the rows on screen: the map and the status line wait while input is active, except that a
+    // map whose text has scrolled draws in the same frame as the text, its slider never behind it.
+    const scrolled = this.mapTop !== this.scroller.scrollTop;
+    if (!status.input.active || scrolled) {
       this.minimap.paint(level);
+      this.mapTop = this.scroller.scrollTop;
+    }
+    if (!status.input.active) {
       this.drawStatus();
     }
     this.drawSticky(rows, top);

@@ -4,7 +4,7 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
+import { forgetTree, openAt, openFile, restoreSession, startEdit, warmServers } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
@@ -26,6 +26,20 @@ import { keepZoom } from "./zoom.js";
 import { keepMemory, say } from "./statusbar.js";
 import { startMotion } from "./motion.js";
 import { keepUserCss } from "./usercss.js";
+
+// The web view offers what was typed before under any field that does not refuse it, over what the
+// field shows; every field of the window refuses it, those made after this among them, as each
+// takes the keys.
+document.addEventListener(
+  "focusin",
+  (event) => {
+    const field = event.target;
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+      field.autocomplete = "off";
+    }
+  },
+  true,
+);
 
 async function openInEditor(path) {
   showView("edit");
@@ -143,6 +157,7 @@ async function begin(root) {
     await loadRun();
     drawMenubar();
     await restoreSession();
+    warmServers();
     checkNeeded();
   } finally {
     await hideLoading();

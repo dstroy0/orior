@@ -198,8 +198,47 @@ function tabOf(path) {
   return state.tabs.find((tab) => tab.path === path);
 }
 
+// A text's length and a hash of it, which say whether two texts are the same without either kept.
+function printOf(text) {
+  let hash = 0x811c9dc5;
+  for (let at = 0; at < text.length; at += 1) {
+    hash = Math.imul(hash ^ text.charCodeAt(at), 0x01000193);
+  }
+  return { length: text.length, hash: hash >>> 0 };
+}
+
+// Marks a tab saved at its document's state now, `text` being what the file holds.
+function markSaved(tab, text = tab.session.doc.text()) {
+  tab.saved = tab.session.doc.id;
+  tab.print = tab.session.window ? null : printOf(text);
+  tab.printedAt = null;
+}
+
+// A tab has changes not saved while its text differs from what was saved. The document's state
+// says so at once where it is the saved one; where it is not, as after a letter typed and taken
+// out again, the text is held against the saved text's print, once for each state. A file read as
+// a window has no print, and any edit to it is a change.
 function dirty(tab) {
-  return Boolean(tab.session && !tab.readOnly && tab.session.doc.id !== tab.saved);
+  if (!tab.session || tab.readOnly) {
+    return false;
+  }
+  const doc = tab.session.doc;
+  if (doc.id === tab.saved) {
+    return false;
+  }
+  if (!tab.print) {
+    return true;
+  }
+  if (tab.printedAt !== doc.id) {
+    tab.printedAt = doc.id;
+    let length = doc.eol.length * (doc.count - 1);
+    for (const line of doc.lines) {
+      length += line.length;
+    }
+    const print = length === tab.print.length ? printOf(doc.text()) : null;
+    tab.same = Boolean(print && print.hash === tab.print.hash);
+  }
+  return !tab.same;
 }
 
 // The file a tab shows: its own path, or for a file as a commit left it, the file's.
@@ -347,13 +386,16 @@ async function load(path) {
       const shown = await invoke("file_window", { path, line: place?.line ?? 0, half: HALF });
       const held = { start: shown.start, end: shown.end, size: shown.size };
       tab.session = new Session(shown.text, state.known.languageOf(path), { base: shown.line, window: held });
-      tab.saved = tab.session.doc.id;
+      markSaved(tab);
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
       const kept = localStorage.getItem(backupKey(path));
       tab.session = new Session(kept ?? opened.text, state.known.languageOf(path));
       // Kept text that differs from the file's is a change not saved, and the tab says so.
-      tab.saved = kept === null || kept === opened.text ? tab.session.doc.id : -1;
+      markSaved(tab, opened.text);
+      if (kept !== null && kept !== opened.text) {
+        tab.saved = -1;
+      }
       settleAt(tab.session, place);
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
@@ -510,8 +552,15 @@ async function saveActive() {
   }
   tidy(tab);
   const writing = tab.session.doc.id;
-  await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
-  tab.saved = writing;
+  const written = tab.session.doc.text();
+  await invoke("file_write", { path: tab.path, text: written });
+  if (tab.session.doc.id === writing) {
+    markSaved(tab, written);
+  } else {
+    tab.saved = writing;
+    tab.print = printOf(written);
+    tab.printedAt = null;
+  }
   tab.closing = false;
   forgetBackup(tab.path);
   drawTabs();
@@ -728,7 +777,7 @@ async function reloadFromDisk(paths) {
       continue;
     }
     if (replaceText(tab, opened.text, "rollback")) {
-      tab.saved = tab.session.doc.id;
+      markSaved(tab);
       forgetBackup(tab.path);
     }
   }
@@ -1227,6 +1276,14 @@ function keepBackups() {
       forgetBackup(tab.path);
     }
   }
+}
+
+// Starts the language servers for the languages the tree's files are in, as the tree opens. A
+// server is then running before the first file of its language opens.
+export async function warmServers() {
+  const files = await invoke("tree_files").catch(() => []);
+  const languages = new Set(files.map((file) => state.known.languageOf(file)?.id).filter(Boolean));
+  invoke("lsp_warm", { languages: [...languages] }).catch(() => {});
 }
 
 // Opens the tabs the tree had open, and shows the one it showed.
@@ -1800,8 +1857,11 @@ export function editing() {
         }
         tidy(tab);
         const writing = tab.session.doc.id;
-        await invoke("file_write", { path: tab.path, text: tab.session.doc.text() });
+        const written = tab.session.doc.text();
+        await invoke("file_write", { path: tab.path, text: written });
         tab.saved = writing;
+        tab.print = printOf(written);
+        tab.printedAt = null;
         tab.closing = false;
         forgetBackup(tab.path);
         if (inBridge(tab.path)) {

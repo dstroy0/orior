@@ -179,6 +179,11 @@ export class Suggest {
       return;
     }
     const moved = !this.at || this.at.line !== prefix.from.line || this.at.col !== prefix.from.col;
+    // A question already asked for the word begun here is answered for every letter typed since:
+    // its answer is filtered by the word as it stands when it comes, and no letter asks again.
+    if (this.waiting && !moved && !forced) {
+      return;
+    }
     if (!this.items || moved || forced) {
       const asked = (this.asked = (this.asked ?? 0) + 1);
       const items = language.complete(ed.doc, ed.primary().head) ?? [];
@@ -187,14 +192,22 @@ export class Suggest {
       // still the one before the cursor.
       if (typeof items.then === "function") {
         this.items = null;
-        items.then((answer) => {
-          const now = ed.prefix().from;
-          if (asked === this.asked && ed.s?.language === language && now.line === prefix.from.line && now.col === prefix.from.col) {
-            this.items = answer ?? [];
-            this.at = prefix.from;
-            this.filter(forced);
-          }
-        });
+        this.waiting = true;
+        items.then(
+          (answer) => {
+            if (asked !== this.asked) {
+              return;
+            }
+            this.waiting = false;
+            const now = ed.prefix().from;
+            if (ed.s?.language === language && now.line === prefix.from.line && now.col === prefix.from.col) {
+              this.items = answer ?? [];
+              this.at = prefix.from;
+              this.filter(forced);
+            }
+          },
+          () => asked === this.asked && (this.waiting = false),
+        );
         return;
       }
       this.items = items;
@@ -316,6 +329,7 @@ export class Suggest {
 
   close() {
     this.asked = (this.asked ?? 0) + 1;
+    this.waiting = false;
     this.open = false;
     this.items = null;
     this.at = null;

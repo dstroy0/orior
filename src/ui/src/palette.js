@@ -14,6 +14,10 @@
 import { fuzzy, marked } from "./fuzzy.js";
 
 const MOST = 200;
+
+// What a file named exactly as typed scores over the match itself, and one whose name starts with
+// it half that.
+const EXACT = 40;
 const RECENT_COMMANDS = "orior.palette.recent";
 
 // How long the tree's list of files is held before it is read again, in milliseconds.
@@ -139,10 +143,21 @@ async function fileRows(query) {
   }
   const rows = [];
   const kept = new Set(recent);
+  // A name the same as what was typed comes first, then one that starts with it, ahead of a longer
+  // name that only holds it.
+  const asked = path.toLowerCase().split("/").pop();
+  const named = (file) => {
+    const name = file.slice(file.lastIndexOf("/") + 1).toLowerCase();
+    const stem = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
+    if (name === asked || stem === asked) {
+      return EXACT;
+    }
+    return name.startsWith(asked) ? EXACT / 2 : 0;
+  };
   for (const file of files) {
     const found = fuzzy(path, file, file.lastIndexOf("/") + 1);
     if (found) {
-      rows.push(rowOf(file, found.hits, found.score + (kept.has(file) ? 6 : 0)));
+      rows.push(rowOf(file, found.hits, found.score + (kept.has(file) ? 6 : 0) + named(file)));
     }
   }
   rows.sort((a, b) => b.score - a.score);

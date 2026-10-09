@@ -48,6 +48,9 @@ export async function serve(tab) {
     tab.served = true;
     s.diagnostics ??= [];
     wrap(tab);
+    // A question asked now, its answer let go, has the server read the file through before the
+    // reader asks one: the first Go to Definition answers as quickly as the next.
+    invoke("lsp_hover", { path: tab.file, line: 0, col: 0 }).catch(() => {});
   } else if (took) {
     invoke("lsp_close", { path: tab.file }).catch(() => {});
   }
