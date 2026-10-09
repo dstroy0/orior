@@ -102,6 +102,49 @@ export function refreshStrip() {
 // How long the pointer rests on an icon, in milliseconds, before its pane shows.
 const RESTS = 350;
 
+// A pane shown by the pointer resting on its icon is a preview: a press on the icon or in the pane
+// keeps it, and the pointer leaving the strip and the pane without one brings back the view, the
+// group and the panes that showed before the first rest. `kept` is what showed then, or null where
+// no preview is open.
+const preview = { kept: null, showing: null };
+
+const sidePanes = () => [document.getElementById("explorer"), document.getElementById("job-side")];
+
+function startPreview() {
+  if (preview.kept) {
+    return;
+  }
+  preview.kept = { view: shownView(), group: shownGroup(), shown: sidePanes().map((node) => paneNodeShown(node)) };
+  document.addEventListener("pointermove", leftPreview, true);
+}
+
+function endPreview() {
+  preview.kept = null;
+  document.removeEventListener("pointermove", leftPreview, true);
+}
+
+// Keeps what the preview shows.
+function keepPreview() {
+  if (preview.kept) {
+    endPreview();
+  }
+}
+
+// Brings back what showed before the preview, once the pointer is on neither the strip nor the side
+// pane of the view showing.
+function leftPreview(event) {
+  const pane = shownView() === "run" ? document.getElementById("job-side") : document.getElementById("explorer");
+  if (!preview.kept || event.target.closest?.("#strip") || pane.contains(event.target)) {
+    return;
+  }
+  const { view, group, shown } = preview.kept;
+  endPreview();
+  showView(view);
+  showGroup(group);
+  sidePanes().forEach((node, at) => togglePaneNode(node, shown[at]));
+  window.requestAnimationFrame(refreshStrip);
+}
+
 // The icons whose windows are side panes, each with what shows its pane as the pointer rests on it,
 // from either view: the explorer on a group of its panes, or the Run view's jobs.
 const showGroupPane = (group) => {
@@ -129,7 +172,14 @@ function stripButton(name, glyph, label, keys, run, shown) {
   const button = element("button", { className: `strip-button strip-${name}`, type: "button", title: keys ? `${label} (${keys})` : label }, icon(glyph));
   button.setAttribute("aria-label", label);
   button.addEventListener("click", () => {
-    run(button);
+    // A press on the icon whose pane the preview shows keeps it, where a press would otherwise
+    // close it.
+    if (preview.kept && preview.showing === name) {
+      keepPreview();
+    } else {
+      keepPreview();
+      run(button);
+    }
     window.requestAnimationFrame(refreshStrip);
   });
   // The pointer resting on one of them for RESTS shows its pane, and the pane stays open while the
@@ -140,6 +190,8 @@ function stripButton(name, glyph, label, keys, run, shown) {
     button.addEventListener("pointerenter", () => {
       window.clearTimeout(resting);
       resting = window.setTimeout(() => {
+        startPreview();
+        preview.showing = name;
         HOVERED.get(name)();
         window.requestAnimationFrame(refreshStrip);
       }, RESTS);
@@ -265,6 +317,9 @@ export function startStrip(hooks) {
   const jobs = element("div", { className: "strip-group strip-jobs", id: "strip-jobs" });
   const foot = element("div", { className: "strip-group strip-foot" }, ...STRIP.foot.map((one) => stripButton(...one)));
   strip.replaceChildren(top, jobs, foot);
+  for (const node of sidePanes()) {
+    node.addEventListener("pointerdown", keepPreview, true);
+  }
   drawJobs();
   window.addEventListener("menus-drawn", drawJobs);
   startWindow();
