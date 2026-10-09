@@ -279,6 +279,7 @@ const COMMANDS = {
   rename: inEditor(() => editing().rename()),
   "extract-variable": inEditor(() => editing().extractVariable()),
   "extract-constant": inEditor(() => editing().extractConstant()),
+  "extract-function": inEditor(() => editing().extractFunction()),
   "inline-variable": inEditor(() => editing().inlineVariable()),
   "quick-fix": inEditor(() => editing().quickFix()),
   "parameter-info": inEditor(() => editing().parameterInfo()),

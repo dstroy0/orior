@@ -65,6 +65,7 @@
           "items": [
             { "label": "Extract Variable", "command": "extract-variable", "keys": "Ctrl+Alt+V", "needs": "editor" },
             { "label": "Extract Constant", "command": "extract-constant", "keys": "Ctrl+Alt+C", "needs": "editor" },
+            { "label": "Extract Function", "command": "extract-function", "keys": "Ctrl+Alt+M", "needs": "editor" },
             { "label": "Inline Variable", "command": "inline-variable", "keys": "Ctrl+Alt+N", "needs": "editor" }
           ]
         },

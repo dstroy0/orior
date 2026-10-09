@@ -39,6 +39,7 @@ import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
 import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
 import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
+import { extractFunction } from "./extract.js";
 import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -1808,6 +1809,7 @@ function editorItems() {
       items: [
         { label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
         { label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
+        { label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor) },
         { label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
       ],
     },
@@ -1863,6 +1865,7 @@ export function editing() {
     rename: renameSymbol,
     extractVariable: () => state.editor?.s && extractVariable(editing().editor ?? state.editor, fileOf(state.active)),
     extractConstant: () => state.editor?.s && extractConstant(editing().editor ?? state.editor),
+    extractFunction: () => state.editor?.s && extractFunction(editing().editor ?? state.editor),
     inlineVariable: () => state.editor?.s && inlineVariable(editing().editor ?? state.editor),
     quickFix,
     parameterInfo: () => parameterInfo(),
