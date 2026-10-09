@@ -13,6 +13,9 @@ extern "C"
 
 #define ENGINE_RESIDUAL_LIMBS 9u
 
+// the spacings a spaced pair takes, 2^j for every j below this: each one an unsigned int holds
+#define ENGINE_SPACINGS 32u
+
     typedef struct
     {
         unsigned long long moments[6];
@@ -76,6 +79,12 @@ extern "C"
         // kernel still sums to zero. 0 and 1 leave the axis as it is. A comb of n moves both terms' centers by n - 1
         // half voxels, as a smooth order of n - 1 does: the place an odd smooth order gives is set by s + n - 1.
         unsigned int comb[ENGINE_AXES];
+        // the spaced pairs: smooth_spaced[axis][j] pairs [1, 2, 1] whose taps are 2^j voxels apart, taken by both terms
+        // after the smooth order, and background_spaced[axis][j] more taken by the background's term after its order,
+        // the spacings in ascending order. A pair is symmetric about the voxel and moves no center. It adds 2 bits and
+        // the variance of an order 2 · 4^j: a smooth of wide variance costs bits in the count of its pairs.
+        unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
+        unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
     } EngineResidualRequest;
 
 #define ENGINE_RESIDUAL_BY_UNIT_SWEEP 0u

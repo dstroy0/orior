@@ -41,9 +41,11 @@ form word_sub_last to left right = \tIMAD.X \t{to}, {left}, 0x1, ~{right}, P6;\n
 # the carry is 1 where the chain did not borrow, so -1 with it added is 0 there and all ones where it did
 form word_borrow_read borrow where = \tIMAD.X \t{borrow}, RZ, 0x1, ~RZ, P6;\n\tISETP.NE.U32.AND \t{where}, PT, {borrow}, RZ, PT;\n
 
-# a word's arithmetic (word_copy, word_set; word_bitand, word_bitor, word_bitxor; word_shl, word_shr;
-# word_funnel_right; word_mul, word_mul_add; word_select, test_word_nonzero). A bitwise operation is one LOP3
-# over a lookup of its three inputs: 0xc0 is a and b, 0xfc a or b, and 0x3c a xor b
+# a word's arithmetic (word_copy, word_set; word_bitand, word_bitor, word_bitxor, word_not, word_nand, word_nor;
+# word_shl, word_shr, word_rol, word_ror; word_funnel_right; word_mul, word_mul_add; word_select, test_word_nonzero). A
+# bitwise operation is one LOP3 over a lookup of its three inputs: 0xc0 is a and b, 0xfc a or b, 0x3c a xor b, 0x3f
+# not a and b, and 0x03 not a or b. Each of word_nand, word_nor, word_rol and word_ror is a form the part answers its
+# precept for on every case (interface_sass_writings.md)
 form word_copy to from = \tMOV \t{to}, {from};\n
 # a word set to a number is the move of it
 construct word_set to value
@@ -53,12 +55,17 @@ form word_bitand to left right = \tLOP3.LUT \t{to}, {left}, {right}, RZ, 0xc0, !
 form word_bitor to left right = \tLOP3.LUT \t{to}, {right}, {left}, RZ, 0xfc, !PT;\n
 form word_bitxor to left right = \tLOP3.LUT \t{to}, {right}, {left}, RZ, 0x3c, !PT;\n
 form word_not to from = \tLOP3.LUT \t{to}, RZ, {from}, RZ, 0x33, !PT;\n
+form word_nand to left right = \tLOP3.LUT \t{to}, {left}, {right}, RZ, 0x3f, !PT;\n
+form word_nor to left right = \tLOP3.LUT \t{to}, {left}, {right}, RZ, 0x03, !PT;\n
 # a funnel shift of the pair (high, low) by the amount clamped to the width: a plain shift names RZ for the half it
 # does not have, and .HI takes the result's high word
 form word_shl to from bits = \tSHF.L.U32 \t{to}, {from}, {bits}, RZ;\n
 form word_shr to from bits = \tSHF.R.U32.HI \t{to}, RZ, {bits}, {from};\n
 form word_funnel_right to low high bits = \tSHF.R.U32 \t{to}, {low}, {bits}, {high};\n
 form signed_word_shr to from bits = \tSHF.R.S32.HI \t{to}, RZ, {bits}, {from};\n
+# a rotate is the funnel shift of the word with itself, .W wrapping the amount at the width
+form word_rol to from bits = \tSHF.L.W.U32.HI \t{to}, {from}, {bits}, {from};\n
+form word_ror to from bits = \tSHF.R.W.U32 \t{to}, {from}, {bits}, {from};\n
 form word_mul to left right = \tIMAD \t{to}, {left}, {right}, RZ;\n
 err word_div to left right
 form word_select to chosen otherwise where = \tSEL \t{to}, {chosen}, {otherwise}, {where};\n

@@ -98,7 +98,7 @@ can see it.
 The rest of the protocol, the pair states and the mnemonics the bits resolve to, is in
 [src/cu/transpiler/gnascor.md](cu/transpiler/gnascor.md). Every step of it, what backs it and the run behind its
 status is in the query protocol's own table,
-[theory/workbooks/engine/query_protocol_table.md](../theory/workbooks/engine/query_protocol_table.md). A step
+[theory/workbooks/Lstar_protocol/query_protocol_table.md](../theory/workbooks/Lstar_protocol/query_protocol_table.md). A step
 changes status there and nowhere else.
 
 **The gate is the engine's own descent.** Each candidate arrangement is an alignment and a relation's cases are
@@ -481,17 +481,21 @@ reads has changed.
      the guard NVIDIA keeps from the source.
    - The harness walks the alphabet tree one level where a precept has no word.
 
-3. **`.kdm` holds no cost.** `utils/maint/engine/chain_check.sh` writes one: 3068 arrangements over 27.6M tried, add
-   1202, take 1047, up 411, down 408, and nothing for same, places or product at three nodes. Every cost reads `-`.
-   The clock already reads codings against one another in the part's own time, and that reading is thrown away
-   instead of kept against a row here. Every row runs on the part (`interface_sass_chains.md`), which leaves each one
-   a cubin a reading can be kept against. The safe word stalls each instruction the soonest its result is read, and
-   a reading no longer counts nodes alone.
+3. **`.kdm` costs count nodes.** `utils/maint/engine/chain_check.sh` writes 2857 arrangements over 27.6M tried, add
+   1140, take 904, up 409, down 404, each once, and nothing for same, places or product at three nodes.
+   `utils/maint/engine/klq_identity.sh cost` puts each one whose nodes are words `sass.krs` writes at a link of its
+   operator's word in a chain of ours, holds it to the host, and reads the part's clock over it, every question in one
+   round: all 2857 are costed, every one alike with the host, at 4 clocks a node. `word_nand`, `word_nor`, `word_rol`
+   and `word_ror` are written from the forms the part answers each precept for (`interface_sass_writings.md`), and the
+   stall walk reads each rotate's soonest in the arrangements that hold it. The safe word stalls each link the
+   soonest its writer's result is read whether the next link reads it or not, and every operation the arrangements
+   use is read soonest at 4: a cost counts nodes. Arrangements of one count of nodes are told apart only by a word
+   that stalls where a link reads the one before it.
 
 4. **`.krs` has no derived half.** Five are written. None can be completed by asking. A partly written one is the
    normal case and not a failure.
 
-5. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 12 words, both typed.
+5. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 18 words, both typed.
    `machines/sm_86` is one run's output read back as an input. These are for checking a derivation against. Nothing
    that derives may read them.
 

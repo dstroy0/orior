@@ -150,20 +150,6 @@ static int emit_register(const std::string &operand)
     return (operand.size() > 1u) && (operand[0] == 'R') && (operand[1] >= '0') && (operand[1] <= '9');
 }
 
-// the word of the web whose tree is precept `precept` alone over its two operands in order, or nullptr
-static const Word *emit_word_for(unsigned int precept)
-{
-    for (unsigned int at = 0u; at < WORD_WEB_COUNT; at += 1u)
-    {
-        const Word &word = s_word_web[at];
-        if ((word.nodes == 1u) && (word.node[0].precept == precept) && (word.node[0].left == PRECEPT_ARG_AT(0u)))
-        {
-            return &word;
-        }
-    }
-    return nullptr;
-}
-
 // the alphabet web's tree for `precept`, written as text, or empty where it has none
 static std::string emit_alphabet(unsigned int precept)
 {
@@ -811,7 +797,7 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     }
 
     // the precept as our compiler writes it: the word whose tree is that precept alone, through sass.krs
-    const Word *const word = emit_word_for(precept);
+    const Word *const word = word_web_word_for(precept);
     if (word == nullptr)
     {
         const std::string tree = emit_alphabet(precept);

@@ -110,7 +110,7 @@ Before any cost is read, the gate decides which arrangements hold the relation a
 
 An ask between languages is put at a key of `Lstar.klq`, a schema form name and no target's, read through a language's `.klm`. The qualifier is a relation of the entries the key names, and the relation is witnessed or open. The text witnesses that two names are one operation, and only the part witnesses that they are two: two forms put on the key's cases are closed as two operations by the first case apart, and alike on every case asked they stay open with their count of cases. No set of entries is known to be whole, and a reading of a part of one takes three values. A witnessed relation that holds reads 1 in every set holding the part, a name given reads 0 against its absence in every such set, and the rest is gray, no answer. A map from one language to another is read through the bridge, `cu.klm` to `Lstar.klq` to `sass.klm`. Every language is mapped once, to the bridge, and never to each other language.
 
-Every step above, its status and the run behind it is in the query protocol's own table, [query_protocol_table.md](../../../theory/workbooks/engine/query_protocol_table.md).
+Every step above, its status and the run behind it is in the query protocol's own table, [query_protocol_table.md](../../../theory/workbooks/Lstar_protocol/query_protocol_table.md).
 
 The method does not get more complicated than this at any layer. Ask, and remember the answer. The baseline is remembered asks, the profile is remembered asks at every cut, and the winning path is the comparison of two sets of remembered asks. Nothing is modeled and nothing is predicted.
 

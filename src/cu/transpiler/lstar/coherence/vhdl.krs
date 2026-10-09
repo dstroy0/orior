@@ -100,10 +100,14 @@ form word_bitand to left right =             {to} := word_of({left}) and word_of
 form word_bitor to left right =             {to} := word_of({left}) or word_of({right});\n
 form word_bitxor to left right =             {to} := word_of({left}) xor word_of({right});\n
 err word_not to from
+err word_nand to left right
+err word_nor to left right
 form word_shl to from bits =             {to} := shift_left(word_of({from}), {bits});\n
 form word_shr to from bits =             {to} := shift_right(word_of({from}), {bits});\n
 form word_funnel_right to low high bits =             {to} := resize(shift_right(word_of({high}) & word_of({low}), {bits}), 32);\n
 err signed_word_shr to from bits
+err word_rol to from bits
+err word_ror to from bits
 form word_mul to left right =             {to} := resize(word_of({left}) * word_of({right}), 32);\n
 form word_mul_add to left right added =             {to} := resize(word_of({left}) * word_of({right}) + word_of({added}), 32);\n
 form word_div to left right =             {to} := word_of({left}) / word_of({right});\n

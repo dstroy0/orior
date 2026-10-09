@@ -65,10 +65,14 @@
     form_(WORD_BITOR, "word_bitor", 3u)                                   \
     form_(WORD_BITXOR, "word_bitxor", 3u)                                 \
     form_(WORD_NOT, "word_not", 2u)                                       \
+    form_(WORD_NAND, "word_nand", 3u)                                     \
+    form_(WORD_NOR, "word_nor", 3u)                                       \
     form_(WORD_SHL, "word_shl", 3u)                   \
     form_(WORD_SHR, "word_shr", 3u)                 \
     form_(WORD_FUNNEL_RIGHT, "word_funnel_right", 4u)               \
     form_(SIGNED_WORD_SHR, "signed_word_shr", 3u)                   \
+    form_(WORD_ROL, "word_rol", 3u)                                       \
+    form_(WORD_ROR, "word_ror", 3u)                                       \
     form_(WORD_MUL, "word_mul", 3u)                       \
     form_(WORD_MUL_ADD, "word_mul_add", 4u)               \
     form_(WORD_DIV, "word_div", 3u)                           \

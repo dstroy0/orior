@@ -91,10 +91,14 @@ form word_bitand to left right = \tand.b32 \t{to}, {left}, {right};\n
 form word_bitor to left right = \tor.b32 \t{to}, {left}, {right};\n
 form word_bitxor to left right = \txor.b32 \t{to}, {left}, {right};\n
 err word_not to from
+err word_nand to left right
+err word_nor to left right
 form word_shl to from bits = \tshl.b32 \t{to}, {from}, {bits};\n
 form word_shr to from bits = \tshr.b32 \t{to}, {from}, {bits};\n
 form word_funnel_right to low high bits = \tshf.r.clamp.b32 \t{to}, {low}, {high}, {bits};\n
 err signed_word_shr to from bits
+err word_rol to from bits
+err word_ror to from bits
 form word_mul to left right = \tmul.lo.u32 \t{to}, {left}, {right};\n
 form word_mul_add to left right added = \tmad.lo.u32 \t{to}, {left}, {right}, {added};\n
 form word_div to left right = \tdiv.u32 \t{to}, {left}, {right};\n

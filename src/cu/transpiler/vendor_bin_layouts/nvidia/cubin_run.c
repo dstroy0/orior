@@ -8,6 +8,7 @@
 //
 //     cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]
 //     cubin_run <machine file> <ksc> --list <list>      a line a question, <code> <registers> <cases> <answers>
+//     [<launches>]
 //
 // The code is the question's machine code, sixteen bytes an instruction. The .ksc's container rows hold the container
 // (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
@@ -19,6 +20,8 @@
 //
 //     answered <answer>...      each case's two words as one value in hex, in the order of the cases
 //     skipped <verdict> <name>  cubin_safe held it off the part, and the driver never saw it
+//     skipped <reason>          the container could not be written, or its launch gives the cases no thread each
+//                               or more threads than a launch holds, and the driver never saw it
 //     refused <error>           the driver or the part would not take it
 //
 // Given a count of launches, a question that answered is launched that many times more, and a second line gives the
@@ -30,6 +33,7 @@
 // against. Exit 0 where a line was written, 2 where the files, the machine or the driver were not reached.
 #include "cubin_safe.h"
 #include "cubin_write.h"
+#include "sass_assemble.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -323,7 +327,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     const unsigned long long threads = (unsigned long long)shape.threads * shape.blocks;
     if ((threads < s_case_count) || (threads > CUBIN_RUN_THREADS_MOST))
     {
-        fprintf(answers, "refused a launch of %u threads in %u blocks for %u cases\n", shape.threads, shape.blocks,
+        fprintf(answers, "skipped a launch of %u threads in %u blocks for %u cases\n", shape.threads, shape.blocks,
                 s_case_count);
         fclose(answers);
         return 0;
@@ -341,7 +345,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     unsigned long long size = 0ull;
     if (!cubin_write(&written, s_container, sizeof(s_container), &size))
     {
-        fprintf(answers, "refused not written\n");
+        fprintf(answers, "skipped not written\n");
         fclose(answers);
         return 0;
     }
@@ -408,6 +412,8 @@ int main(int count, char **words)
         fprintf(stderr, "the machine file did not read\n");
         return 2;
     }
+    // the gate reads every instruction of every question against the forms, and the forms' places are found once
+    sass_encoding_places_hold(&s_machine);
     const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
     if (!listed)
     {
@@ -419,10 +425,11 @@ int main(int count, char **words)
                                words[6], launches, (count == 10) ? shape : unshaped, count == 10);
         return (carried == 2) ? 2 : 0;
     }
-    // Each line of the list one untimed question of no shape of its own, `<code> <registers> <cases> <answers>`, all
-    // carried in this one process and each answered to its own file as it is carried. A launch the driver or the part
-    // refuses leaves a context that answers no other question, and the questions after it are left unanswered, for the
-    // channel to carry in a process of their own
+    // Each line of the list one question of no shape of its own, `<code> <registers> <cases> <answers> [<launches>]`,
+    // timed over its launches where it gives a count that is not 0, all carried in this one process and each answered
+    // to its own file as it is carried, each timed question's time its own. A launch the driver or the part refuses
+    // leaves a context that answers no other question, and the questions after it are left unanswered, for the channel
+    // to carry in a process of their own
     FILE *const list = fopen(words[4], "rb");
     if (list == NULL)
     {
@@ -437,12 +444,13 @@ int main(int count, char **words)
         char cases_path[CUBIN_RUN_LINE];
         char answers_path[CUBIN_RUN_LINE];
         unsigned int registers = 0u;
-        if (sscanf(line, "%1023s %u %1023s %1023s", code_path, &registers, cases_path, answers_path) != 4)
+        unsigned int launches = 0u;
+        if (sscanf(line, "%1023s %u %1023s %1023s %u", code_path, &registers, cases_path, answers_path, &launches) < 4)
         {
             continue;
         }
-        carried =
-            cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, 0u, unshaped, 0);
+        carried = cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, launches,
+                                     unshaped, 0);
     }
     fclose(list);
     return (carried == 2) ? 2 : 0;
