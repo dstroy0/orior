@@ -43,6 +43,7 @@ const RULES = {
   c: [
     [/^()#\s*define\s+([A-Za-z_]\w*)/, "constant"],
     [/^()(?:typedef\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)\s*\{?\s*$/, "class"],
+    [/^()(?!(?:if|for|while|switch|return|else|do|typedef|struct|enum|union)\b)[A-Za-z_][\w\s*&:<>,]*?\b([A-Za-z_]\w*)\s*\([^)]*\)\s*(?:const\s*)?\{/, "function"],
     [/^()(?!(?:if|for|while|switch|return|else|do|typedef|struct|enum|union)\b)[A-Za-z_][\w\s*&:<>,]*?\b([A-Za-z_]\w*)\s*\([^;]*$/, "function"],
   ],
   css: [

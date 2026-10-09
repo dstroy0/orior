@@ -17,6 +17,7 @@
         "minHeight": 600,
         "backgroundColor": "#131331",
         "visible": false,
+        "decorations": false,
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-direct-composition"
       }
     ],

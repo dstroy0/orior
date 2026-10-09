@@ -15,6 +15,11 @@
 //!
 //! The folders the reader gave are kept in toolchains.json in orior's own folder, by tool, and every
 //! job and terminal orior starts has them at the front of its PATH.
+//!
+//! The reader adds toolchains and groups of their own, kept in user_toolchains.json in orior's own
+//! folder as { "groups": [...], "tools": [...] }, each tool written as toolchains.json writes one.
+//! They come after orior's own in every list, each group after the groups orior's tools are in, and
+//! a group may stand empty until a tool is added to it. Only what the reader added can be taken out.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
@@ -40,36 +45,43 @@ pub struct Tool {
     pub programs: Vec<String>,
     /// The words that make the first program found say its version; none where running it to ask
     /// opens a window or takes long.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub env: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub not_in: Vec<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub formats: Vec<String>,
     /// The shell line that runs a file, by its language, or by its language and extension, as
     /// run_file.rs reads it.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub runs: HashMap<String, String>,
     /// The language server the tool has for the editor, as servers.rs starts it, where it has one.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server: Option<crate::servers::ServerSpec>,
+    /// The debug adapter the tool has, as debug.rs starts it, where it has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub debugger: Option<crate::debug::DebuggerSpec>,
+    /// The words that build a file for debugging, by its language or by its language and extension
+    /// as `runs` keys them, as debug.rs reads them.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub builds: HashMap<String, Vec<String>>,
     /// How the tool formats a text of a language `formats` names, where it does.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub format: Option<Formatter>,
     /// The one system the tool is for, where it is for one.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub only: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub install: HashMap<String, String>,
     /// The shell line that installs it on each system, where its makers give one to run.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub setup: HashMap<String, String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub places: HashMap<String, Vec<String>>,
     /// Whether the tree's jobs cannot run without it, which the window checks for as a tree opens.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub needed: bool,
 }
 
@@ -107,6 +119,8 @@ pub struct Found {
     pub setup: bool,
     pub versioned: bool,
     pub needed: bool,
+    /// Whether the reader added it, which only such a tool can be taken out for.
+    pub added: bool,
 }
 
 /// orior itself: its own folder, and whether that folder is on the PATH.
@@ -116,9 +130,166 @@ pub struct Own {
     pub on_path: bool,
 }
 
-pub fn manifest() -> Vec<Tool> {
+/// The toolchains and groups the reader added.
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct Added {
+    #[serde(default)]
+    pub groups: Vec<String>,
+    #[serde(default)]
+    pub tools: Vec<Tool>,
+}
+
+fn bundled() -> Vec<Tool> {
     let read: Manifest = serde_json::from_str(TEXT).expect("toolchains.json is part of the program");
-    read.tools.into_iter().filter(|tool| tool.only.as_deref().map_or(true, |only| only == system())).collect()
+    read.tools
+}
+
+/// orior's own toolchains, then the reader's, those for another system left out.
+pub fn manifest() -> Vec<Tool> {
+    bundled().into_iter().chain(added().tools).filter(|tool| tool.only.as_deref().map_or(true, |only| only == system())).collect()
+}
+
+fn added_file() -> Option<PathBuf> {
+    crate::home::folder().map(|folder| folder.join("user_toolchains.json"))
+}
+
+/// What the reader added, or nothing where they have added nothing or the file does not read.
+pub fn added() -> Added {
+    added_file().map(|path| added_in(&path)).unwrap_or_default()
+}
+
+fn added_in(path: &Path) -> Added {
+    std::fs::read_to_string(path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default()
+}
+
+fn keep_added(path: &Path, added: &Added) -> Result<(), String> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|error| format!("{}: {error}", dir.display()))?;
+    }
+    let text = serde_json::to_string_pretty(added).map_err(|error| error.to_string())?;
+    std::fs::write(path, text + "\n").map_err(|error| format!("{}: {error}", path.display()))
+}
+
+fn added_path() -> Result<PathBuf, String> {
+    added_file().ok_or_else(|| "orior has no folder of its own to keep toolchains in".to_string())
+}
+
+/// Every group, in the order the sheet and the command line list them: those of orior's tools as
+/// they first come, then those the reader added.
+pub fn groups() -> Vec<String> {
+    groups_of(&bundled(), &added())
+}
+
+fn groups_of(bundled: &[Tool], added: &Added) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for group in bundled.iter().chain(&added.tools).map(|tool| &tool.group).chain(&added.groups) {
+        if !found.contains(group) {
+            found.push(group.clone());
+        }
+    }
+    found
+}
+
+/// An id made from a name: its letters and digits in lower case, each run of anything else a dash.
+fn id_of(name: &str) -> String {
+    let mut id = String::new();
+    for char in name.trim().to_lowercase().chars() {
+        if char.is_alphanumeric() {
+            id.push(char);
+        } else if !id.ends_with('-') && !id.is_empty() {
+            id.push('-');
+        }
+    }
+    id.trim_end_matches('-').to_string()
+}
+
+/// Adds the reader's toolchain `tool`, its id made from its name where it has none, and its group
+/// with it where the group is new. Gives the id.
+pub fn add(tool: Tool) -> Result<String, String> {
+    add_in(&added_path()?, tool)
+}
+
+fn add_in(path: &Path, mut tool: Tool) -> Result<String, String> {
+    tool.name = tool.name.trim().to_string();
+    tool.group = tool.group.trim().to_string();
+    tool.uses = tool.uses.trim().to_string();
+    tool.programs = tool.programs.iter().map(|program| program.trim().to_string()).filter(|program| !program.is_empty()).collect();
+    if tool.id.trim().is_empty() {
+        tool.id = id_of(&tool.name);
+    }
+    tool.id = tool.id.trim().to_string();
+    if tool.name.is_empty() || tool.id.is_empty() {
+        return Err("a toolchain needs a name".into());
+    }
+    if tool.group.is_empty() {
+        return Err(format!("{} needs a group", tool.name));
+    }
+    if tool.programs.is_empty() {
+        return Err(format!("{} needs the name of at least one program to look for", tool.name));
+    }
+    let mut added = added_in(path);
+    if bundled().iter().chain(&added.tools).any(|one| one.id == tool.id) {
+        return Err(format!("there is a toolchain {} already", tool.id));
+    }
+    if !groups_of(&bundled(), &added).contains(&tool.group) {
+        added.groups.push(tool.group.clone());
+    }
+    let id = tool.id.clone();
+    added.tools.push(tool);
+    keep_added(path, &added)?;
+    Ok(id)
+}
+
+/// Adds an empty group of the reader's.
+pub fn add_group(name: &str) -> Result<(), String> {
+    add_group_in(&added_path()?, name)
+}
+
+fn add_group_in(path: &Path, name: &str) -> Result<(), String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("a group needs a name".into());
+    }
+    let mut added = added_in(path);
+    if groups_of(&bundled(), &added).iter().any(|group| group == name) {
+        return Err(format!("there is a group {name} already"));
+    }
+    added.groups.push(name.to_string());
+    keep_added(path, &added)
+}
+
+/// Takes out a toolchain the reader added, and the folder they gave for it.
+pub fn remove(id: &str) -> Result<(), String> {
+    remove_in(&added_path()?, id)?;
+    forget(id)
+}
+
+fn remove_in(path: &Path, id: &str) -> Result<(), String> {
+    let mut added = added_in(path);
+    let before = added.tools.len();
+    added.tools.retain(|tool| tool.id != id);
+    if added.tools.len() == before {
+        return Err(if bundled().iter().any(|tool| tool.id == id) { format!("{id} comes with orior: only a toolchain you added can be taken out") } else { format!("there is no toolchain {id}") });
+    }
+    keep_added(path, &added)
+}
+
+/// Takes out an empty group the reader added.
+pub fn remove_group(name: &str) -> Result<(), String> {
+    remove_group_in(&added_path()?, name)
+}
+
+fn remove_group_in(path: &Path, name: &str) -> Result<(), String> {
+    let mut added = added_in(path);
+    if bundled().iter().chain(&added.tools).any(|tool| tool.group == name) {
+        return Err(format!("{name} holds toolchains: take them out first, or it is one of orior's own"));
+    }
+    let before = added.groups.len();
+    added.groups.retain(|group| group != name);
+    if added.groups.len() == before {
+        return Err(format!("there is no group {name}"));
+    }
+    keep_added(path, &added)
 }
 
 fn tool(id: &str) -> Result<Tool, String> {
@@ -324,7 +495,9 @@ pub fn choose(id: &str, folder: &str) -> Result<String, String> {
 /// Has orior forget the folder the reader gave for tool `id`.
 pub fn forget(id: &str) -> Result<(), String> {
     let mut all = chosen();
-    all.remove(id);
+    if all.remove(id).is_none() {
+        return Ok(());
+    }
     keep_chosen(&all)
 }
 
@@ -345,6 +518,7 @@ pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> F
         setup: for_system(&tool.setup).is_some(),
         versioned: tool.version.is_some(),
         needed: tool.needed,
+        added: false,
     };
     let mut set = |state: &'static str, program: PathBuf| {
         found.state = state;
@@ -376,7 +550,11 @@ pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> F
 pub fn check() -> Vec<Found> {
     let path = path_folders();
     let kept = chosen();
-    manifest().iter().map(|tool| find(tool, &path, &kept)).collect()
+    let mine: HashSet<String> = added().tools.into_iter().map(|tool| tool.id).collect();
+    manifest()
+        .iter()
+        .map(|tool| Found { added: mine.contains(&tool.id), ..find(tool, &path, &kept) })
+        .collect()
 }
 
 /// The program orior runs for tool `id` where the reader gave a folder for it.
@@ -513,6 +691,19 @@ fn add_folder(_variable: &str, folder: &str) -> Result<(), String> {
 
 /// The PATH a job or a terminal orior starts gets: the folders the reader gave, then the PATH as
 /// path_folders reads it.
+/// The folders that exist of those written by system as `places` writes them, each pattern's in
+/// order.
+pub fn folders_for(by_system: &HashMap<String, Vec<String>>) -> Vec<PathBuf> {
+    for_system(by_system).cloned().unwrap_or_default().iter().flat_map(|pattern| folders_of(pattern)).filter(|dir| dir.is_dir()).collect()
+}
+
+/// The PATH jobs run with, with `ahead` in front of it.
+pub fn run_path_with(ahead: &[PathBuf]) -> OsString {
+    let mut dirs: Vec<PathBuf> = ahead.to_vec();
+    dirs.extend(std::env::split_paths(&run_path()));
+    std::env::join_paths(dirs).unwrap_or_else(|_| run_path())
+}
+
 pub fn run_path() -> OsString {
     let kept = chosen();
     let mut dirs: Vec<PathBuf> = kept.values().map(PathBuf::from).filter(|dir| dir.is_dir()).collect();
@@ -651,6 +842,26 @@ mod tests {
             assert!(tool.install.values().all(|url| url.starts_with("https://")), "{} has a page that is not https", tool.id);
             assert!(!tool.install.is_empty(), "{} has no install page", tool.id);
         }
+    }
+
+    #[test]
+    fn a_reader_adds_and_takes_out_toolchains_and_groups() {
+        let path = std::env::temp_dir().join(format!("orior-user-toolchains-{}.json", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let tool = |name: &str, group: &str| Tool { name: name.into(), group: group.into(), programs: vec!["zig".into()], ..serde_json::from_str(r#"{"id":"","name":"","group":"","for":"","programs":[]}"#).unwrap() };
+        assert_eq!(add_in(&path, tool("Zig 0.13", "Systems")).unwrap(), "zig-0-13");
+        assert!(add_in(&path, tool("Zig 0.13", "Systems")).unwrap_err().contains("already"));
+        assert!(add_in(&path, tool("Git", "Systems")).is_err(), "an id orior has is refused");
+        add_group_in(&path, "Proof assistants").unwrap();
+        let read = added_in(&path);
+        assert_eq!(read.groups, ["Systems", "Proof assistants"]);
+        assert!(groups_of(&bundled(), &read).ends_with(&["Systems".to_string(), "Proof assistants".to_string()]));
+        assert!(remove_group_in(&path, "Systems").is_err(), "a group holding a tool stays");
+        assert!(remove_in(&path, "git").unwrap_err().contains("comes with orior"));
+        remove_in(&path, "zig-0-13").unwrap();
+        remove_group_in(&path, "Systems").unwrap();
+        assert_eq!(added_in(&path).groups, ["Proof assistants"]);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

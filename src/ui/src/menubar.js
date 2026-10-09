@@ -9,8 +9,9 @@
 // are given to the editor, which acts on them while it holds the keys.
 //
 // A menu of jobs lists the catalog's groups it names, split by what each job works on where it says
-// so, and a group with no job in the tree has no menu. A job chosen from a menu shows in the run view
-// with its form, and starts only from there or from Run, Start.
+// so, and a group with no job in the tree has no menu. A menu commands.json gives a `strip` icon is
+// on the tool strip in place of the bar. A job chosen from a menu shows in the run view with its
+// form, and starts only from there or from Run, Start.
 //
 // A press of the menu bar opens its menu, and while one is open the pointer moving
 // to another title opens that one instead. Alt held marks each title's letter, Alt and the letter
@@ -19,8 +20,12 @@
 // either side. Past a number of titles set by the window's width, and past what fits, the titles go
 // into the last, a menu of menus.
 
-import { invoke } from "./bridge.js";
+import { invoke, pick } from "./bridge.js";
 import { showClone } from "./clone.js";
+import { showCreate, showInit } from "./create.js";
+import { say } from "./statusbar.js";
+import { showBookmarks, toggleBookmark } from "./bookmarks.js";
+import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
 import { bindEditorKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
@@ -33,7 +38,7 @@ import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
-import { scheme, setScheme, toggleScheme } from "./scheme.js";
+import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { showView } from "./views.js";
@@ -112,9 +117,64 @@ async function goToBridge(args = []) {
   openFileAt(klq.path, klq.keys?.[args[0]]?.line ?? 0);
 }
 
+// File, Create, File and Folder: the path the command line gave, made at once, or one asked for. A
+// file made opens.
+async function create(folder, given) {
+  const made = async (path) => {
+    await editing().treeChanged();
+    if (!folder) {
+      showView("edit");
+      await openFile(path);
+    }
+  };
+  if (!given) {
+    showCreate(sheet, { folder, start: editing().folderHere(), made });
+    return;
+  }
+  try {
+    await invoke(folder ? "folder_create" : "file_create", { path: given });
+    await made(given);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+// File, Create, Repository: the open tree made a repository, or a folder chosen.
+function createRepository(given) {
+  showInit(sheet, {
+    given,
+    made: async (folder, here) => {
+      if (here) {
+        await editing().treeChanged();
+      }
+      say(`${folder} is a repository now.`);
+    },
+  });
+}
+
+// File, Open, File: a file of the tree, the one the command line named or one the picker gives.
+async function openAnyFile(given) {
+  const chosen = given ?? (await pick("file"));
+  if (typeof chosen !== "string") {
+    return;
+  }
+  const path = (await invoke("tree_relative", { path: chosen }).catch(() => null)) ?? (/^[a-zA-Z]:|^\//.test(chosen) ? null : chosen);
+  if (!path) {
+    say(`${chosen} is outside the open tree.`, { failed: true });
+    return;
+  }
+  showView("edit");
+  await openFile(path);
+}
+
 // What each command does in the window, given the words the command line passed it, if any.
 const COMMANDS = {
+  "create-file": (args) => create(false, args[0]),
+  "create-folder": (args) => create(true, args[0]),
+  "create-repository": (args) => createRepository(args[0] ?? null),
+  "open-file": (args) => openAnyFile(args[0]),
   "open-folder": (args) => state.openFolder(args[0]),
+  "open-repository": (args) => showClone(sheet, state.openFolder, args, { open: true }),
   save: () => editing().save(),
   "save-all": () => editing().saveAll(),
   "close-editor": () => editing().close(),
@@ -194,9 +254,19 @@ const COMMANDS = {
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
+  "scheme-system": (args) => setFollowSystem(onOff(args) ?? !followsSystem()),
+  "split-right": () => (showView("edit"), editing().split("right")),
+  "split-down": () => (showView("edit"), editing().split("down")),
+  unsplit: () => editing().unsplit(),
   "fold-all": inEditor((e) => e.foldAll(true)),
   "unfold-all": inEditor((e) => e.foldAll(false)),
   file: goToFile,
+  "search-everywhere": () => openPalette("", { everywhere: true }),
+  bookmark: inEditor(() => toggleBookmark()),
+  bookmarks: () => showBookmarks(),
+  "expand-selection": inEditor((e) => e.expandSelection()),
+  "shrink-selection": inEditor((e) => e.shrinkSelection()),
+  "recent-files": () => openPalette(""),
   line: (args) => inEditor((e) => (args[0] ? e.goTo(Math.max(0, Number(args[0]) - 1)) : e.goto.open()))(),
   bracket: inEditor((e) => e.jumpBracket()),
   bridge: goToBridge,
@@ -206,6 +276,19 @@ const COMMANDS = {
   "quick-fix": inEditor(() => editing().quickFix()),
   "parameter-info": inEditor(() => editing().parameterInfo()),
   "quick-doc": inEditor(() => editing().quickDoc()),
+  debug: () => {
+    showView("edit");
+    debugFile();
+  },
+  "restart-debug": () => restartDebug(),
+  continue: () => step("continue"),
+  "step-over": () => step("next"),
+  "step-into": () => step("stepIn"),
+  "step-out": () => step("stepOut"),
+  pause: () => step("pause"),
+  "stop-debug": () => stopDebug(),
+  breakpoint: inEditor(() => toggleBreakpointHere()),
+  "debug-view": () => toggleDebugPanel(),
   "next-problem": inEditor((e) => e.stepProblem(1)),
   "previous-problem": inEditor((e) => e.stepProblem(-1)),
   "next-match": inEditor((e) => e.find.step(1)),
@@ -241,6 +324,8 @@ const CHECKS = {
   breadcrumbs: crumbsShown,
   "bracket-pairs": () => editing().brackets(),
   "auto-report": () => state.autoReport,
+  "scheme-system": followsSystem,
+  split: () => editing().splitShown(),
 };
 
 // What a command needs before it can act, by the name commands.json gives the need.
@@ -254,6 +339,10 @@ const NEEDS = {
   tabs: () => editing().open,
   job: () => Boolean(chosenJob()),
   live: () => chosenLive(),
+  debugging: () => debugging(),
+  debugged: () => debugging() || Boolean(editing().active),
+  paused: () => isPaused(),
+  running: () => debugging() && !isPaused(),
 };
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
@@ -265,8 +354,8 @@ export function runCommand(command, args = []) {
 function paletteCommands() {
   const found = [];
   for (const menu of state.menus) {
-    for (const item of menu.items ?? []) {
-      if (item === "-" || item.command === "palette" || (item.needs && !NEEDS[item.needs]?.())) {
+    for (const item of menu.all) {
+      if (item.command === "palette" || (item.needs && !NEEDS[item.needs]?.())) {
         continue;
       }
       const label = item.labels?.[scheme()] ?? item.label;
@@ -291,17 +380,19 @@ const jobsIn = (groups) => listedJobs().filter((job) => groups.includes(job.grou
 // A menu's items: its commands, then the jobs of its groups, split by what each works on where the
 // menu says so.
 function itemsOf(menu) {
-  const items = (menu.items ?? []).map((item) =>
+  const shown = (item) =>
     item === "-"
       ? "-"
-      : {
-          label: item.labels?.[scheme()] ?? item.label,
-          keys: item.keys,
-          checked: item.checks ? Boolean(CHECKS[item.checks]?.()) : undefined,
-          disabled: Boolean(item.needs && !NEEDS[item.needs]?.()),
-          run: () => runCommand(item.command),
-        },
-  );
+      : item.items
+        ? { label: item.label, items: item.items.map(shown) }
+        : {
+            label: item.labels?.[scheme()] ?? item.label,
+            keys: item.keys,
+            checked: item.checks ? Boolean(CHECKS[item.checks]?.()) : undefined,
+            disabled: Boolean(item.needs && !NEEDS[item.needs]?.()),
+            run: () => runCommand(item.command),
+          };
+  const items = (menu.items ?? []).map(shown);
   const groups = menu.groups ?? [];
   let jobs;
   if (menu.split) {
@@ -321,7 +412,7 @@ function showShortcuts() {
   const body = document.createElement("div");
   body.className = "sheet-keys";
   for (const menu of state.menus) {
-    const rows = (menu.items ?? []).filter((item) => item !== "-" && item.keys);
+    const rows = menu.all.filter((item) => item.keys);
     if (!rows.length) {
       continue;
     }
@@ -366,7 +457,13 @@ function sheet(body) {
 
 // The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
 function shownMenus() {
-  return state.menus.filter((menu) => menu.items?.length || jobsIn(menu.groups ?? []).length);
+  return state.menus.filter((menu) => !menu.strip && (menu.items?.length || jobsIn(menu.groups ?? []).length));
+}
+
+// The menus of jobs the tool strip holds in place of the bar, each its title, its icon and its
+// items, where its groups have a job in the tree.
+export function stripMenus() {
+  return state.menus.filter((menu) => menu.strip && jobsIn(menu.groups ?? []).length).map((menu) => ({ title: menu.title, icon: menu.strip, items: () => itemsOf(menu) }));
 }
 
 // Gives each title the first of its letters no title before it has.
@@ -426,12 +523,14 @@ export function drawMenubar() {
     button.addEventListener("click", () => (state.open === at && menuOpen() ? closeMenu() : openAt(at, true)));
     button.addEventListener("pointerenter", () => menuOpen() && state.open >= 0 && state.open !== at && openAt(at, false));
   });
+  // The tool strip draws the menus it holds again with the bar's.
+  window.dispatchEvent(new Event("menus-drawn"));
 }
 
 // The keys a command lists, or undefined where it lists none.
 export function keysOf(command) {
   for (const menu of state.menus) {
-    const item = (menu.items ?? []).find((one) => one !== "-" && one.command === command);
+    const item = menu.all.find((one) => one.command === command);
     if (item) {
       return item.keys;
     }
@@ -504,21 +603,28 @@ function pressed(keys, event) {
 
 // Runs the command whose keys an event is, where nothing nearer the focus took the keys first. The
 // keys of a command for the editor are the editor's own, and a text field or the run's output keeps
-// them for itself. A key bound here never reaches the web view, even where its command cannot act.
+// them for itself. Of two commands with the same keys, the first that can act now runs, as F5
+// continues a stopped program and otherwise starts the chosen job. A key bound here never reaches
+// the web view, even where no command of it can act.
 function onShortcut(event) {
   if (event.defaultPrevented || menuOpen()) {
     return;
   }
+  let bound = false;
   for (const menu of state.menus) {
-    for (const item of menu.items ?? []) {
-      if (item !== "-" && item.needs !== "editor" && (pressed(item.keys, event) || pressed(item.also, event))) {
-        event.preventDefault();
+    for (const item of menu.all) {
+      if (item.needs !== "editor" && (pressed(item.keys, event) || pressed(item.also, event))) {
+        bound = true;
         if (!item.needs || NEEDS[item.needs]?.()) {
+          event.preventDefault();
           runCommand(item.command);
+          return;
         }
-        return;
       }
     }
+  }
+  if (bound) {
+    event.preventDefault();
   }
 }
 
@@ -534,9 +640,12 @@ export async function startMenubar({ openFolder }) {
   state.bar = document.getElementById("menubar");
   state.openFolder = openFolder;
   state.menus = JSON.parse(await invoke("commands_read")).menus;
+  // Each menu's commands in one list, those of its groups among them.
+  const flat = (items) => items.flatMap((item) => (item === "-" ? [] : item.items ? flat(item.items) : [item]));
+  state.menus.forEach((menu) => (menu.all = flat(menu.items ?? [])));
   bindEditorKeys(
     state.menus.flatMap((menu) =>
-      (menu.items ?? []).filter((item) => item !== "-" && item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
+      menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
     ),
   );
   state.autoReport = await invoke("report_auto").catch(() => true);

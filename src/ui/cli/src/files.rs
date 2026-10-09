@@ -65,6 +65,8 @@ pub struct Slice {
     pub end: u64,
     pub size: u64,
     pub line: u64,
+    /// The lines in the whole file, counted for a window and 0 for a slice.
+    pub lines: u64,
     pub text: String,
 }
 
@@ -384,7 +386,7 @@ fn newlines(handle: &mut fs::File, from: u64, to: u64) -> std::io::Result<u64> {
 
 fn slice_of(handle: &mut fs::File, start: u64, end: u64, size: u64, line: u64) -> std::io::Result<Slice> {
     let bytes = bytes_at(handle, start, (end - start) as usize)?;
-    Ok(Slice { start, end, size, line, text: String::from_utf8_lossy(&bytes).into_owned() })
+    Ok(Slice { start, end, size, line, lines: 0, text: String::from_utf8_lossy(&bytes).into_owned() })
 }
 
 /// The lines around line `line`, about `half` bytes either side of where it starts, cut at line
@@ -418,7 +420,9 @@ pub fn window(root: &Path, file: &str, line: u64, half: u64) -> Result<Slice, St
     let start = line_start(&mut handle, target.saturating_sub(half), size).map_err(said)?.min(target);
     let end = line_start(&mut handle, (target + half).min(size), size).map_err(said)?;
     let first = target_line - newlines(&mut handle, start, target).map_err(said)?;
-    slice_of(&mut handle, start, end.max(start), size, first).map_err(said)
+    let mut shown = slice_of(&mut handle, start, end.max(start), size, first).map_err(said)?;
+    shown.lines = newlines(&mut handle, 0, size).map_err(said)? + 1;
+    Ok(shown)
 }
 
 /// The whole lines from about `start` to about `end`, each moved on to the next line start. Its
@@ -431,6 +435,28 @@ pub fn slice(root: &Path, file: &str, start: u64, end: u64) -> Result<Slice, Str
     let from = line_start(&mut handle, start, size).map_err(said)?;
     let to = line_start(&mut handle, end, size).map_err(said)?.max(from);
     slice_of(&mut handle, from, to, size, 0).map_err(said)
+}
+
+/// Makes an empty file at `file`, and each folder above it that is not there yet. A file or folder
+/// there already is left as it is.
+pub fn create_file(root: &Path, file: &str) -> Result<(), String> {
+    let path = inside(root, file)?;
+    if path.exists() {
+        return Err(format!("{file} is there already"));
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("{file}: {e}"))?;
+    }
+    fs::File::create_new(&path).map(drop).map_err(|e| format!("{file}: {e}"))
+}
+
+/// Makes a folder at `dir`, and each folder above it that is not there yet.
+pub fn create_folder(root: &Path, dir: &str) -> Result<(), String> {
+    let path = inside(root, dir)?;
+    if path.exists() {
+        return Err(format!("{dir} is there already"));
+    }
+    fs::create_dir_all(&path).map_err(|e| format!("{dir}: {e}"))
 }
 
 /// Writes the text beside the file and moves it over the file. A failed write leaves the file as
