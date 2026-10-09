@@ -5,14 +5,19 @@
 //
 //     khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
-// Three modes. In `kernel` the container the layout holds is read and the kernel the system accepted is written to
+// Four modes. In `krs` the file at `path.khw` is read and each form that answered a relation is written to `answers`
+// for the protocol, one a line: the relation, 1 where the answers read a word signed and 0 where not, and the form's
+// text with each operand that stands in the relation's tuple written as its place, {<place>}, for the protocol to
+// name; nothing else is read. In `kernel` the container the layout holds is read and the kernel the system accepted is written to
 // `answers` for the protocol: a header of its places and the registers a thread holds, then one line a place with the
 // place's encoding. In `gate` the file holds those same places, one form a place, so that the gate reads every
 // question of a round against what the part has already run (cubin_safe.h). In `final` the file holds the forms the
 // part answered for, read from the answers file the protocol wrote, each named from the vendor's table
 // (mnemonic_nvidia.tsv) and laid out as the instruction its runs make; a form the table names none of is no form of
 // the file. The answers file is one form a line: the relation the protocol read, whether it read a word signed and
-// whether it asked, the encoding, how many runs its operands sit in, and each run's first and last bit.
+// whether it asked, the encoding, how many runs its operands sit in, and each run's first and last bit and its place
+// in the relation's tuple, - where it has none. Each form is written with its relation, its signedness and its runs'
+// places as the protocol read them.
 #include "cubin_write.h"
 #include "sass_machine.h"
 
@@ -72,7 +77,7 @@ static SassMachine s_machine;
 
 // What the protocol answered of one form, read from the answers file: the relation every case of it answered, whether
 // the answers read a word signed and whether a case of the relation let the part answer so, the encoding, and the
-// runs of bits its operands sit in
+// runs of bits its operands sit in with each run's place in the relation's tuple
 typedef struct
 {
     char relation[KHW_READS];
@@ -83,6 +88,7 @@ typedef struct
     unsigned int runs;
     unsigned int first[SASS_MACHINE_RUNS];
     unsigned int last[SASS_MACHINE_RUNS];
+    unsigned int place[SASS_MACHINE_RUNS];
 } KhwForm;
 
 // one word of an instruction
@@ -271,12 +277,15 @@ static int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *
     {
         return 0;
     }
+    snprintf(kept->relation, sizeof(kept->relation), "%s", held->relation);
+    kept->signed_read = held->signed_read;
     kept->runs = 0u;
     for (unsigned int run = 0u; (run < held->runs) && (kept->runs < SASS_MACHINE_RUNS); run += 1u)
     {
         kept->run[kept->runs].operand = run;
         kept->run[kept->runs].first = held->first[run];
         kept->run[kept->runs].last = held->last[run];
+        kept->run[kept->runs].place = held->place[run];
         kept->runs += 1u;
     }
     return 1;
@@ -361,6 +370,51 @@ static unsigned int khw_kernel_forms_kept(void)
     return kept;
 }
 
+// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place,
+// or two, its first bit and its last, where the line holds no place, every run then holding none. 1, or 0 where the
+// words are neither
+static int khw_runs_read(KhwForm *held, const char *text)
+{
+    unsigned int words = 0u;
+    for (const char *at = text; *at != '\0';)
+    {
+        at += strspn(at, " \t\r\n");
+        const size_t length = strcspn(at, " \t\r\n");
+        words += (length != 0u) ? 1u : 0u;
+        at += length;
+    }
+    const unsigned int each = (words == (3u * held->runs)) ? 3u : ((words == (2u * held->runs)) ? 2u : 0u);
+    if (each == 0u)
+    {
+        return 0;
+    }
+    const char *rest = text;
+    for (unsigned int run = 0u; run < held->runs; run += 1u)
+    {
+        int step = 0;
+        char place[16];
+        held->place[run] = SASS_RUN_NO_PLACE;
+        if (each == 2u)
+        {
+            if (sscanf(rest, "%u %u %n", &held->first[run], &held->last[run], &step) != 2)
+            {
+                return 0;
+            }
+        }
+        else
+        {
+            if (sscanf(rest, "%u %u %15s %n", &held->first[run], &held->last[run], place, &step) != 3)
+            {
+                return 0;
+            }
+            held->place[run] = (strcmp(place, SASS_RUN_NO_PLACE_TEXT) == 0) ? SASS_RUN_NO_PLACE
+                                                                             : (unsigned int)strtoul(place, NULL, 10);
+        }
+        rest += step;
+    }
+    return 1;
+}
+
 // the forms the protocol answered for, read from the answers file at `path` into `form`, as many as `room` holds. The
 // count read
 static unsigned int khw_answers_read(const char *path, KhwForm *form, unsigned int room)
@@ -387,19 +441,7 @@ static unsigned int khw_answers_read(const char *path, KhwForm *form, unsigned i
         {
             continue;
         }
-        if (held.runs > SASS_MACHINE_RUNS)
-        {
-            held.runs = SASS_MACHINE_RUNS;
-        }
-        const char *rest = line + at;
-        int ok = 1;
-        for (unsigned int run = 0u; (run < held.runs) && ok; run += 1u)
-        {
-            int step = 0;
-            ok = (sscanf(rest, "%u %u %n", &held.first[run], &held.last[run], &step) == 2);
-            rest += step;
-        }
-        if (!ok)
+        if ((held.runs > SASS_MACHINE_RUNS) || !khw_runs_read(&held, line + at))
         {
             continue;
         }
@@ -446,6 +488,35 @@ int main(int count, char **word)
         }
         fclose(out);
         printf("  the kernel %s: %u places, %u registers a thread\n", s_kernel, s_kernel_places, s_registers);
+        return 0;
+    }
+    if (strcmp(mode, "krs") == 0)
+    {
+        if (!sass_machine_read(&s_machine, path))
+        {
+            return 1;
+        }
+        FILE *const out = fopen(answers, "wb");
+        if (out == NULL)
+        {
+            printf("  khw_machine_write: %s could not be written\n", answers);
+            return 1;
+        }
+        unsigned int written = 0u;
+        for (unsigned int at = 0u; at < s_machine.forms; at += 1u)
+        {
+            const SassForm *const form = &s_machine.form[at];
+            char placed[SASS_MACHINE_TEXT];
+            if ((form->relation[0] == '\0') || !sass_text_placed(form, placed, sizeof(placed)))
+            {
+                continue;
+            }
+            fprintf(out, "%s %d %s\n", form->relation, (form->signed_read != 0) ? 1 : 0, placed);
+            written += 1u;
+        }
+        fclose(out);
+        printf("  khw_machine_write: %u of the %u forms of %s answered a relation, written to %s\n", written,
+               s_machine.forms, path, answers);
         return 0;
     }
     if (!khw_pieces_read(mnemonics))

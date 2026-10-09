@@ -200,6 +200,7 @@ static int sass_form_unprinted(SassForm *form, const SassInstructionParts *base,
             form->run[form->runs].operand = added;
             form->run[form->runs].first = first;
             form->run[form->runs].last = bit - 1u;
+            form->run[form->runs].place = SASS_RUN_NO_PLACE;
             form->runs += 1u;
             running = 0;
         }
@@ -240,6 +241,7 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
             form->run[form->runs].operand = running;
             form->run[form->runs].first = first;
             form->run[form->runs].last = bit - 1u;
+            form->run[form->runs].place = SASS_RUN_NO_PLACE;
             form->runs += 1u;
             // an operand that prints the same field is given the same run
             const unsigned int twin = sass_operand_twin(&base, s_texts[1u + first], running);

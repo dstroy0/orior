@@ -59,6 +59,13 @@ static const int s_ladder_measured[] = {LADDER_ANCHORS(LADDER_MEASURED)};
 
 #undef LADDER_MEASURED
 
+#define LADDER_WORDS_OF(name_, text_, words_, measured_) words_,
+
+// how many words a question of each anchor carries, and the place of the answer in its tuple
+static const unsigned int s_ladder_words[] = {LADDER_ANCHORS(LADDER_WORDS_OF)};
+
+#undef LADDER_WORDS_OF
+
 // the most words a question carries
 #define LADDER_WORDS 4u
 
@@ -181,6 +188,26 @@ static inline int ladder_answer(unsigned int anchor, const unsigned int *word, u
     default:
         return 0;
     }
+}
+
+// What the host answers for `anchor` on the two words `word` where the word it reads is signed. The two readings of a
+// case differ only where a word is moved toward the low end: the high place comes back as itself read signed and as
+// nothing read unsigned. Every other relation of the ladder answers alike either way at one width
+static inline unsigned int ladder_signed_answer(unsigned int anchor, const unsigned int *word)
+{
+    unsigned int answered = 0u;
+    if (anchor != (unsigned int)LADDER_DOWN)
+    {
+        return ladder_answer(anchor, word, 2u, &answered) ? answered : 0u;
+    }
+    const unsigned int count = word[1] & (LADDER_PLACES_ASSUMED - 1u);
+    if (count == 0u)
+    {
+        return word[0];
+    }
+    const unsigned int moved = word[0] >> count;
+    const unsigned int filled = ((word[0] & 0x80000000u) != 0u) ? (0xffffffffu << (LADDER_PLACES_ASSUMED - count)) : 0u;
+    return moved | filled;
 }
 
 // the words a sweep is put with, from a generator written here so the same words come back on every run and two

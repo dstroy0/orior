@@ -29,7 +29,10 @@
 //                  of each of the two registers the kernel left a case word in answers two different words where it
 //                  carries a register, and one word where it does not: an operand's run answers two words and a
 //                  modifier's run one. The run whose setting leaves the answer at the case's second word is where the form
-//                  writes its result, and every other run is a source it reads.
+//                  writes its result. A run that answers the relation at one register and the relation over that
+//                  register's word twice at the other reads that word. Each run keeps its place in the relation's
+//                  tuple, the words in their order and then the answer, as 1,1 -> 2 holds them, and a run neither
+//                  test reads keeps none.
 //   the name       no name is composed here: the protocol keeps the relation answered, how many sources the fields
 //                  found, and whether the answers read the form signed, and the vendor's writer (`machine writer`
 //                  above, run through the interface) names it from its own table (mnemonic_nvidia.tsv) and writes it.
@@ -79,6 +82,10 @@
 // register, and the two words differ: an operand field answers two different words, a modifier one
 #define KHW_FIRST_REGISTER 0u
 #define KHW_SECOND_REGISTER 7u
+
+// the place of a run that carries no word of the relation's tuple, and the text it is written under
+#define KHW_PLACE_NONE 0xffffffffu
+#define KHW_PLACE_NONE_TEXT "-"
 
 // the name a form's relation is written under in the answers file, for the vendor's writer to name it from
 #define KHW_READS_LADDER "ladder."
@@ -134,8 +141,9 @@ typedef struct
     unsigned int runs;
     unsigned int first[KHW_RUNS];
     unsigned int last[KHW_RUNS];
-    // the run the form writes its result through, past every run where the part answered none
-    unsigned int written;
+    // each run's place in the relation's tuple, the words in their order and then the answer, KHW_PLACE_NONE where
+    // the part answered it none
+    unsigned int place[KHW_RUNS];
     // the count of the relation read's candidates that survived the gate, its reading (Q11)
     unsigned int survivors;
     // how far the form has been asked, one of KHW_PHASE_*
@@ -281,26 +289,6 @@ static void khw_round_carried(void)
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 #undef LADDER_TEXT
 
-// What the host answers for `anchor` on `word` where the word it reads is signed. The two readings of a case differ
-// only where a word is moved toward the low end: the high place comes back as itself read signed and as nothing read
-// unsigned. Every other relation of the ladder answers alike either way at one width
-static unsigned int khw_signed_answer(unsigned int anchor, const unsigned int *word)
-{
-    unsigned int answered = 0u;
-    if (anchor != (unsigned int)LADDER_DOWN)
-    {
-        return ladder_answer(anchor, word, 2u, &answered) ? answered : 0u;
-    }
-    const unsigned int count = word[1] & (LADDER_PLACES_ASSUMED - 1u);
-    if (count == 0u)
-    {
-        return word[0];
-    }
-    const unsigned int moved = word[0] >> count;
-    const unsigned int filled = ((word[0] & 0x80000000u) != 0u) ? (0xffffffffu << (LADDER_PLACES_ASSUMED - count)) : 0u;
-    return moved | filled;
-}
-
 // the cases of `anchor` the host computes both readings of, their words into `word` in the order `swapped` says, and
 // each reading into `plain` and `signed_read`. The count found
 static unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int word[][2], unsigned int *plain,
@@ -319,7 +307,7 @@ static unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned 
         word[found][0] = (swapped != 0) ? held->word[1] : held->word[0];
         word[found][1] = (swapped != 0) ? held->word[0] : held->word[1];
         plain[found] = answered;
-        signed_read[found] = khw_signed_answer(anchor, held->word);
+        signed_read[found] = ladder_signed_answer(anchor, held->word);
         found += 1u;
     }
     return found;
@@ -342,7 +330,7 @@ static unsigned int khw_candidate_answer(const KhwCandidate *candidate, const un
     unsigned int answered = 0u;
     if (candidate->signed_read != 0)
     {
-        return khw_signed_answer(candidate->anchor, read);
+        return ladder_signed_answer(candidate->anchor, read);
     }
     return ladder_answer(candidate->anchor, read, 2u, &answered) ? answered : 0u;
 }
@@ -589,7 +577,6 @@ static int khw_fields_turns(KhwAnswered *held)
     unsigned int expected = 0u;
     unsigned long long answered[1];
     held->runs = 0u;
-    held->written = KHW_RUNS;
     if (!khw_turning_case(held->anchor, held->swapped, word[0], &expected))
     {
         return 0;
@@ -621,6 +608,7 @@ static int khw_fields_turns(KhwAnswered *held)
         }
         held->first[held->runs] = bit;
         held->last[held->runs] = end;
+        held->place[held->runs] = KHW_PLACE_NONE;
         held->runs += 1u;
         bit = end;
     }
@@ -631,8 +619,9 @@ static int khw_fields_turns(KhwAnswered *held)
 // The register-runs of `held`, the second field-finding pass: each candidate run its turns found set to the number of
 // each of the two registers the kernel left a case word in, over the same case. A run that answers two different words
 // there carries a register and is an operand's, kept; a run that answers one is a modifier, left out. The run whose
-// setting leaves the answer at the register the kernel stores is where the form writes its result. The runs held after
-// are the operands', and the phase is classified. 1 where the case was there to ask over, 0 where it was not
+// setting leaves the answer at the register the kernel stores is where the form writes its result, and another run
+// reads the word its two answers name. The runs held after are the operands', each with its place in the relation's
+// tuple, and the phase is classified. 1 where the case was there to ask over, 0 where it was not
 static int khw_fields_registers(KhwAnswered *held)
 {
     unsigned int word[1][2];
@@ -666,7 +655,14 @@ static int khw_fields_registers(KhwAnswered *held)
         khw_round_carried();
     }
     held->runs = 0u;
-    held->written = KHW_RUNS;
+    // the host's answers for the form, in its order and its signedness: to the case, and to each of the case's two
+    // words put twice, which a run reading one word answers at the register holding the other
+    const KhwCandidate form = {held->anchor, held->swapped, held->signed_read};
+    const unsigned int first_twice[2] = {word[0][0], word[0][0]};
+    const unsigned int second_twice[2] = {word[0][1], word[0][1]};
+    const unsigned long long answer = khw_candidate_answer(&form, word[0]);
+    const unsigned long long first_twice_answer = khw_candidate_answer(&form, first_twice);
+    const unsigned long long second_twice_answer = khw_candidate_answer(&form, second_twice);
     for (unsigned int run = 0u; run < runs; run += 1u)
     {
         const RunQuestion *const first_question = &s_pool[2u * run];
@@ -677,14 +673,27 @@ static int khw_fields_registers(KhwAnswered *held)
         const unsigned long long second_answer = second_question->answered[0];
         if (first_held && second_held && (first_answer != second_answer) && (held->runs < KHW_RUNS))
         {
+            unsigned int place = KHW_PLACE_NONE;
             // the run that leaves the answer at the word the kernel's own register still holds wrote nothing: that is
-            // where this form writes its result
+            // where this form writes its result, the answer's place, past the words
             if ((first_answer == (unsigned long long)word[0][1]) || (second_answer == (unsigned long long)word[0][1]))
             {
-                held->written = held->runs;
+                place = s_ladder_words[held->anchor];
+            }
+            // a run that answers the case at the first register and the second word twice at the second reads the
+            // first word the host put, and the other way round; the host put the relation's words swapped where the
+            // form reads them so
+            else if ((first_answer == answer) && (second_answer == second_twice_answer))
+            {
+                place = (held->swapped != 0) ? 1u : 0u;
+            }
+            else if ((second_answer == answer) && (first_answer == first_twice_answer))
+            {
+                place = (held->swapped != 0) ? 0u : 1u;
             }
             held->first[held->runs] = first[run];
             held->last[held->runs] = last[run];
+            held->place[held->runs] = place;
             held->runs += 1u;
         }
     }
@@ -883,10 +892,66 @@ static unsigned int khw_widened(unsigned int from, int discover)
     return found;
 }
 
+// run `run` of `held` written to `file` as its first bit, its last and its place, KHW_PLACE_NONE_TEXT where it has none
+static void khw_run_printed(FILE *file, const KhwAnswered *held, unsigned int run)
+{
+    if (held->place[run] == KHW_PLACE_NONE)
+    {
+        fprintf(file, " %u %u %s", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT);
+        return;
+    }
+    fprintf(file, " %u %u %u", held->first[run], held->last[run], held->place[run]);
+}
+
+// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place,
+// or two, its first bit and its last, where the line holds no place, every run then holding none. 1, or 0 where the
+// words are neither
+static int khw_runs_read(KhwAnswered *held, const char *text)
+{
+    unsigned int words = 0u;
+    for (const char *at = text; *at != '\0';)
+    {
+        at += strspn(at, " \t\r\n");
+        const size_t length = strcspn(at, " \t\r\n");
+        words += (length != 0u) ? 1u : 0u;
+        at += length;
+    }
+    const unsigned int each = (words == (3u * held->runs)) ? 3u : ((words == (2u * held->runs)) ? 2u : 0u);
+    if (each == 0u)
+    {
+        return 0;
+    }
+    const char *rest = text;
+    for (unsigned int run = 0u; run < held->runs; run += 1u)
+    {
+        int step = 0;
+        char place[16];
+        held->place[run] = KHW_PLACE_NONE;
+        if (each == 2u)
+        {
+            if (sscanf(rest, "%u %u %n", &held->first[run], &held->last[run], &step) != 2)
+            {
+                return 0;
+            }
+        }
+        else
+        {
+            if (sscanf(rest, "%u %u %15s %n", &held->first[run], &held->last[run], place, &step) != 3)
+            {
+                return 0;
+            }
+            held->place[run] =
+                (strcmp(place, KHW_PLACE_NONE_TEXT) == 0) ? KHW_PLACE_NONE : (unsigned int)strtoul(place, NULL, 10);
+        }
+        rest += step;
+    }
+    return 1;
+}
+
 // the forms the part answered for written to the answers file at `path`, one a line, for the vendor's writer to name
 // and lay out: the relation the gate read, whether the answers read a word signed and whether the part was asked, the
-// encoding, and each run's first and last bit. A form not yet classified, or one with no operand run, names nothing;
-// the vendor lays out none of them. 1, or 0 with the reason printed
+// encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet classified, or one
+// with no operand run, names nothing; the vendor lays out none of them. 1, or 0 with the reason printed
 static int khw_answers_written(const char *path)
 {
     FILE *const file = fopen(path, "wb");
@@ -906,7 +971,7 @@ static int khw_answers_written(const char *path)
                 held->signed_read, held->signedness_asked, held->low, held->high, held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {
-            fprintf(file, " %u %u", held->first[run], held->last[run]);
+            khw_run_printed(file, held, run);
         }
         fprintf(file, "\n");
     }
@@ -915,8 +980,9 @@ static int khw_answers_written(const char *path)
 }
 
 // The working set written to `path`, every form of it a line read back by khw_forms_read the next pass: its phase and
-// the order its words were read, the relation, the signedness, the encoding, and its runs. A discovered form carries
-// no run, a turned form the candidates its register-runs will sort, a classified form the operands kept. It is the
+// the order its words were read, the relation, the signedness, the encoding, and its runs with their places. A
+// discovered form carries no run, a turned form the candidates its register-runs will sort, each with no place, a
+// classified form the operands kept. It is the
 // state the passes of the split hand each other, kept apart from what the vendor lays out. 1, or 0 with the reason
 // printed
 static int khw_forms_work_written(const char *path)
@@ -935,7 +1001,7 @@ static int khw_forms_work_written(const char *path)
                 held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {
-            fprintf(file, " %u %u", held->first[run], held->last[run]);
+            khw_run_printed(file, held, run);
         }
         fprintf(file, "\n");
     }
@@ -1019,19 +1085,7 @@ static unsigned int khw_forms_read(const char *path)
                 break;
             }
         }
-        if (held.runs > KHW_RUNS)
-        {
-            held.runs = KHW_RUNS;
-        }
-        const char *rest = line + at;
-        int ok = 1;
-        for (unsigned int run = 0u; (run < held.runs) && ok; run += 1u)
-        {
-            int step = 0;
-            ok = (sscanf(rest, "%u %u %n", &held.first[run], &held.last[run], &step) == 2);
-            rest += step;
-        }
-        if (!ok)
+        if ((held.runs > KHW_RUNS) || !khw_runs_read(&held, line + at))
         {
             continue;
         }

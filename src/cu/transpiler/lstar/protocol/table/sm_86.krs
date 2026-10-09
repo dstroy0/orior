@@ -1,0 +1,2 @@
+krs 1
+form word_add to left right = IADD {to}, {left}, {right}, R0, R0\n
