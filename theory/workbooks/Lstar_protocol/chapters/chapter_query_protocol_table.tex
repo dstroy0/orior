@@ -21,11 +21,11 @@
 
 Every file the protocol is made of, by what it holds. Paths are from the root of the tree.
 
-\textbf{The ask and the bus.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}}
+\textbf{The ask and the bus.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query/\allowbreak{}}
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4218\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5782\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4203\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5797\linewidth-2\tabcolsep\relax}}
 \toprule
 file & holds \\
 \midrule
@@ -37,30 +37,116 @@ file & holds \\
 \texttt{classify\_\allowbreak{}walk.\allowbreak{}c} & the program a classify walk runs as: the kind ask at each address of a span \\
 \texttt{bus\_\allowbreak{}enum.\allowbreak{}h}, \texttt{bus\_\allowbreak{}enum.\allowbreak{}c} & the enumeration region found in a run of kinds: a fixed identifier beside a live sizing register at one stride \\
 \texttt{bus\_\allowbreak{}enum\_\allowbreak{}walk.\allowbreak{}h}, \texttt{bus\_\allowbreak{}enum\_\allowbreak{}walk.\allowbreak{}c} & the classify walk driven over a span in probes, and the region read from it \\
-\texttt{run\_\allowbreak{}channel.\allowbreak{}h} & the run channel: a container in, eight words put, four read back (Q1, Q15) \\
+\texttt{answer\_\allowbreak{}read.\allowbreak{}h}, \texttt{answer\_\allowbreak{}read.\allowbreak{}c} & what the part answered of an ask, alike, apart, refused or nothing against the host's bracket at the result's width, and gray where no answer decides it (P11) \\
 \bottomrule
 \end{longtable}
 }
 
-\textbf{The gate, the order and the rank.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}}
+\textbf{The channel.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}teacher/\allowbreak{}}
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4384\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5616\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4151\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5849\linewidth-2\tabcolsep\relax}}
+\toprule
+file & holds \\
+\midrule
+\endhead
+\texttt{run\_\allowbreak{}channel.\allowbreak{}h}, \texttt{run\_\allowbreak{}channel.\allowbreak{}c} & the run channel: a container in, eight words put, four read back, and an outcome of answered, nothing, illegal or no channel (Q1, Q15) \\
+\bottomrule
+\end{longtable}
+}
+
+\textbf{The gate.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}gate/\allowbreak{}}
+
+{\small
+\setlength{\tabcolsep}{6pt}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4258\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5742\linewidth-2\tabcolsep\relax}}
+\toprule
+file & holds \\
+\midrule
+\endhead
+\texttt{chain\_\allowbreak{}build.\allowbreak{}h}, \texttt{chain\_\allowbreak{}build.\allowbreak{}c} & every arrangement of primitives that answers a relation's cases (Q4) \\
+\texttt{survivors.\allowbreak{}h}, \texttt{survivors.\allowbreak{}c} & the candidates that fail no case, the descent's order with the most-failed case first, and the price of an order (P2, Q4, Q11) \\
+\bottomrule
+\end{longtable}
+}
+
+\textbf{The ladder.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}counterexample/\allowbreak{}}
+
+{\small
+\setlength{\tabcolsep}{6pt}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3501\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6499\linewidth-2\tabcolsep\relax}}
 \toprule
 file & holds \\
 \midrule
 \endhead
 \texttt{ladder.\allowbreak{}h} & the relations known before anything is met, written as cases \\
-\texttt{chain\_\allowbreak{}build.\allowbreak{}h}, \texttt{chain\_\allowbreak{}build.\allowbreak{}c} & every arrangement of primitives that answers a relation's cases (Q4) \\
-\texttt{ask\_\allowbreak{}order.\allowbreak{}h}, \texttt{ask\_\allowbreak{}order.\allowbreak{}c} & the known order of asks, its solve, and the read of whether the links contend (Q5, Q7, P3, P4) \\
-\texttt{query\_\allowbreak{}order.\allowbreak{}h}, \texttt{query\_\allowbreak{}order.\allowbreak{}c} & the known order put through the protocol, each cost an exact rational (Q5) \\
-\texttt{stem\_\allowbreak{}group.\allowbreak{}h}, \texttt{stem\_\allowbreak{}group.\allowbreak{}c} & members grouped on anchors by a rule the members alone fix (Q13) \\
 \bottomrule
 \end{longtable}
 }
 
-\textbf{The part.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}}
+\textbf{The order and the rank.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}order/\allowbreak{}}
+
+{\small
+\setlength{\tabcolsep}{6pt}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4375\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5625\linewidth-2\tabcolsep\relax}}
+\toprule
+file & holds \\
+\midrule
+\endhead
+\texttt{ask\_\allowbreak{}order.\allowbreak{}h}, \texttt{ask\_\allowbreak{}order.\allowbreak{}c} & the known order of asks, its solve, and the read of whether the links contend (Q5, Q7, P3, P4) \\
+\texttt{query\_\allowbreak{}order.\allowbreak{}h}, \texttt{query\_\allowbreak{}order.\allowbreak{}c} & the known order put through the protocol, each cost an exact rational (Q5) \\
+\texttt{stem\_\allowbreak{}group.\allowbreak{}h}, \texttt{stem\_\allowbreak{}group.\allowbreak{}c} & members grouped on anchors by a rule the members alone fix (Q13) \\
+\texttt{scheduler.\allowbreak{}h}, \texttt{scheduler.\allowbreak{}c} & the gray entries of every set as a queue, the ask that settles the most put first, carried in rounds through the channel (P13) \\
+\bottomrule
+\end{longtable}
+}
+
+\textbf{The record.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}record\_\allowbreak{}R/\allowbreak{}}
+
+{\small
+\setlength{\tabcolsep}{6pt}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3352\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6648\linewidth-2\tabcolsep\relax}}
+\toprule
+file & holds \\
+\midrule
+\endhead
+\texttt{record.\allowbreak{}h}, \texttt{record.\allowbreak{}c} & R: every ask with its answer, the part and the size it was read on, read whole when opened and written whole when closed, an ask it holds not put again (Q9, Q10, P13) \\
+\bottomrule
+\end{longtable}
+}
+
+\textbf{The interface.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}interface/\allowbreak{}}
+
+{\small
+\setlength{\tabcolsep}{6pt}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4159\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5841\linewidth-2\tabcolsep\relax}}
+\toprule
+file & holds \\
+\midrule
+\endhead
+\texttt{interface.\allowbreak{}h}, \texttt{interface.\allowbreak{}c} & the probe runner: a probe asks the target one question in a process the interface can lose, and its ending is read, exited, signaled, faulted or out of time, the fault named the same on every host \\
+\texttt{interface\_\allowbreak{}names.\allowbreak{}c} & the name of each ending and each fault \\
+\bottomrule
+\end{longtable}
+}
+
+\textbf{The machine files, written.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}parser/\allowbreak{}}
+
+{\small
+\setlength{\tabcolsep}{6pt}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3010\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6990\linewidth-2\tabcolsep\relax}}
+\toprule
+file & holds \\
+\midrule
+\endhead
+\texttt{khw\_\allowbreak{}write.\allowbreak{}c} & a part's forms learned by asking the part and its \texttt{.\allowbreak{}khw} written from the answers: the slot found, the relation asked, the fields turned and the runs set to the two registers (P8, P9, Q16, Q17) \\
+\texttt{kdm\_\allowbreak{}write.\allowbreak{}c} & a part's \texttt{.\allowbreak{}kdm}, the arrangements of primitives that produce each operator, found from the relations alone, costs carried forward across a rewrite (Q2) \\
+\bottomrule
+\end{longtable}
+}
+
+\textbf{The part.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}vendor\_\allowbreak{}bin\_\allowbreak{}layouts/\allowbreak{}nvidia/\allowbreak{}}
 
 {\small
 \setlength{\tabcolsep}{6pt}
@@ -89,13 +175,31 @@ file & holds \\
 \end{longtable}
 }
 
-\textbf{The bridge.} \texttt{klq\_\allowbreak{}write.\allowbreak{}sh} writes \texttt{Lstar.\allowbreak{}klq} and each language's \texttt{.\allowbreak{}klm} beside the rulesets in \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}table}, and each is tracked: \texttt{cu.\allowbreak{}klm}, \texttt{sass.\allowbreak{}klm} and \texttt{openqasm2\_\allowbreak{}0.\allowbreak{}klm}. \texttt{klq\_\allowbreak{}identity.\allowbreak{}sh pair} writes each pair's verdict beneath it, and \texttt{klq\_\allowbreak{}decoder} its set and its concept.
+\textbf{The bridge.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}table/\allowbreak{}}
+
+{\small
+\setlength{\tabcolsep}{6pt}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3818\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6182\linewidth-2\tabcolsep\relax}}
+\toprule
+file & holds \\
+\midrule
+\endhead
+\texttt{klq\_\allowbreak{}write.\allowbreak{}cu} & the bridge written: \texttt{Lstar.\allowbreak{}klq} and each language's \texttt{.\allowbreak{}klm}, run by \texttt{klq\_\allowbreak{}write.\allowbreak{}sh} \\
+\texttt{klq\_\allowbreak{}identity.\allowbreak{}cu} & a candidate chain sifted through the identities of nvcc's writing of the stick before any of it is put to the part (Q19) \\
+\texttt{klq\_\allowbreak{}decoder.\allowbreak{}cu} & a pair's verdict read back to its set and its concept, written beneath the pair \\
+\texttt{carrier\_\allowbreak{}flow.\allowbreak{}h} & a carrier's links read as what each writes, reads and loads, each register followed back to the operands of a case (P13) \\
+\texttt{concept\_\allowbreak{}product.\allowbreak{}h} & a pair's product, what its two forms make of what they read, held put by put and named a concept once it is whole (P13) \\
+\bottomrule
+\end{longtable}
+}
+
+The rulesets \texttt{c.\allowbreak{}krs}, \texttt{cu.\allowbreak{}krs}, \texttt{pcie.\allowbreak{}krs}, \texttt{vhdl.\allowbreak{}krs} and \texttt{yosys.\allowbreak{}krs} are tracked here, and of the \texttt{.\allowbreak{}klm} \texttt{cu.\allowbreak{}klm} and \texttt{openqasm2\_\allowbreak{}0.\allowbreak{}klm}; \texttt{Lstar.\allowbreak{}klq}, \texttt{sass.\allowbreak{}klm} and \texttt{sass.\allowbreak{}krs} the bridge writes as the SASS forms are learned. \texttt{klq\_\allowbreak{}identity.\allowbreak{}sh pair} writes each pair's verdict beneath it.
 
 \textbf{The checks.} \texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}}, built and run by \texttt{utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4571\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5429\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4297\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5703\linewidth-2\tabcolsep\relax}}
 \toprule
 file & holds \\
 \midrule
@@ -110,13 +214,17 @@ file & holds \\
 \texttt{query\_\allowbreak{}order\_\allowbreak{}check.\allowbreak{}c}, \texttt{query\_\allowbreak{}descent.\allowbreak{}h} & the known order put to the host, its run size and passes steered by the part (Q5) \\
 \texttt{branch\_\allowbreak{}side\_\allowbreak{}check.\allowbreak{}c} & whether the side a branch is asked from leaves a mark (gnascor Open 4) \\
 \texttt{stem\_\allowbreak{}group\_\allowbreak{}check.\allowbreak{}c} & the stem rule held to what it says (Q13) \\
+\texttt{survivors\_\allowbreak{}check.\allowbreak{}c} & the survivors a conjunction, no order of the cases changing which stand, and the descent's price (P2, Q4) \\
+\texttt{answer\_\allowbreak{}read\_\allowbreak{}check.\allowbreak{}c} & the four answers read against the host's bracket, and gray where no answer decides (P11) \\
+\texttt{scheduler\_\allowbreak{}check.\allowbreak{}c} & the queue of gray entries, the most-settling ask first, carried in rounds (P13) \\
+\texttt{record\_\allowbreak{}check.\allowbreak{}c} & R read whole and written whole, an ask it holds not put again (Q9) \\
 \bottomrule
 \end{longtable}
 }
 
 \textbf{The relations, checked.} \texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}engine/\allowbreak{}rmc/\allowbreak{}ruleset\_\allowbreak{}read\_\allowbreak{}test.\allowbreak{}cu}, run by \texttt{ruleset\_\allowbreak{}read\_\allowbreak{}test.\allowbreak{}sh}: every target's files and the map between cu's and sass's (Q19).
 
-\textbf{The part, asked.} \texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}interface/\allowbreak{}}: the SASS probe (\texttt{interface\_\allowbreak{}sass\_\allowbreak{}probe\_\allowbreak{}*.\allowbreak{}c}, \texttt{interface\_\allowbreak{}sass\_\allowbreak{}probe.\allowbreak{}h}), its runs (\texttt{interface\_\allowbreak{}sass\_\allowbreak{}*.\allowbreak{}sh}) and their records (\texttt{interface\_\allowbreak{}sass\_\allowbreak{}*.\allowbreak{}md}) (Q16, Q17). The probe goes through the toolkit and is scaffolding, an answer key and never the run channel.
+\textbf{The part, asked.} \texttt{src/\allowbreak{}cu/\allowbreak{}scaffolding/\allowbreak{}}: the SASS probe (\texttt{interface\_\allowbreak{}sass\_\allowbreak{}probe\_\allowbreak{}*.\allowbreak{}c}, \texttt{interface\_\allowbreak{}sass\_\allowbreak{}probe.\allowbreak{}h}), its runs (\texttt{interface\_\allowbreak{}sass\_\allowbreak{}*.\allowbreak{}sh}) and their records (\texttt{interface\_\allowbreak{}sass\_\allowbreak{}*.\allowbreak{}md}) (Q16, Q17). The probe goes through the toolkit and is scaffolding, an answer key and never the run channel.
 
 \textbf{The readings.} \texttt{utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}}: \texttt{measure\_\allowbreak{}check.\allowbreak{}py} (Q5, Q6, Q7), \texttt{order\_\allowbreak{}check.\allowbreak{}py} (Q10 to Q14), \texttt{gnascor\_\allowbreak{}read.\allowbreak{}py}, \texttt{gnascor\_\allowbreak{}trace.\allowbreak{}c}, \texttt{gnascor\_\allowbreak{}scenario.\allowbreak{}txt} and \texttt{gnascor\_\allowbreak{}measure.\allowbreak{}py} (the state machine read off asks).
 
@@ -126,8 +234,8 @@ file & holds \\
 \begin{description}
 \item[{the algebra it holds to}] \texttt{[address] -\allowbreak{}> (qualifier) -\allowbreak{}> [cost] -\allowbreak{}> bit}. The qualifier asks for a state validation and never a data payload. Over the bridge the address is a key of \texttt{Lstar.\allowbreak{}klq} read through a language's \texttt{.\allowbreak{}klm}, \texttt{[key] -\allowbreak{}> (relation) -\allowbreak{}> [cost] -\allowbreak{}> bit}, and the qualifier asks one relation of the entries the key names. A relation of the text carries no cost, and its bit is 1, 0 or gray (P1).
 \item[{does}] \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}teacher/\allowbreak{}run\_\allowbreak{}channel.\allowbreak{}h} declares the channel: a container in, eight words put, four read back, and an outcome of answered, nothing, illegal or no channel. Nothing implements \texttt{run\_\allowbreak{}channel\_\allowbreak{}ask} and nothing calls it.
-\item[{wants}] Every ask put with \texttt{host\_\allowbreak{}put} and read with \texttt{host\_\allowbreak{}read} (\texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query/\allowbreak{}host\_\allowbreak{}entry.\allowbreak{}h}) and nothing between them and the part: no compiler, assembler, disassembler, object reader, vendor runtime or driver library. Where a part's addresses lie is itself asked, an address holding, fixed, live or answering nothing. The SASS probe under \texttt{test/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}interface/\allowbreak{}} runs through the toolkit and is scaffolding, an answer key and never this channel. An ask at a key carries the key and the language it is read through, and its answer is written to the key's entry in \texttt{Lstar.\allowbreak{}klq}.
-\item[{tried, and what it gave}] \textbf{Proved} on the host (\texttt{test/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}query\_\allowbreak{}ask\_\allowbreak{}check.\allowbreak{}c}, run by \texttt{maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}, 16 checks, 0 failed): \texttt{query\_\allowbreak{}ask} (\texttt{src/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}query\_\allowbreak{}ask.\allowbreak{}\{h,c\}}) finds memory the test owns holding and leaves it as it was, reads a written word as that word and no other, reads a word nothing writes as not advancing, and reads a bound with no clock as past the bound. \textbf{Measured}: the host's interrupt time at a fixed address advances under the ask, in steps of half a millisecond to a millisecond, and an ask clocked on it reads a cost of a whole step or nothing. A bound from it judges a run of asks. \textbf{Proved} from inside the interface (\texttt{test/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}query\_\allowbreak{}interface\_\allowbreak{}check.\allowbreak{}c}, 8 checks, 0 failed): \texttt{query\_\allowbreak{}interface\_\allowbreak{}walk} (\texttt{src/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}query\_\allowbreak{}interface.\allowbreak{}\{h,c\}}) runs \texttt{query\_\allowbreak{}walk} in a probe and keeps an ending as the answer of the address that caused it. A read at address 0 ends the asker on an address fault, the page every Windows process shares answers 64 reads in one child and ends the asker on a put at each word, and of its first sixteen words the walk finds the two its layout names as counters, at 0x8 and 0x14.
+\item[{wants}] Every ask put with \texttt{host\_\allowbreak{}put} and read with \texttt{host\_\allowbreak{}read} (\texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query/\allowbreak{}host\_\allowbreak{}entry.\allowbreak{}h}) and nothing between them and the part: no compiler, assembler, disassembler, object reader, vendor runtime or driver library. Where a part's addresses lie is itself asked, an address holding, fixed, live or answering nothing. The SASS probe under \texttt{src/\allowbreak{}cu/\allowbreak{}scaffolding/\allowbreak{}} runs through the toolkit and is scaffolding, an answer key and never this channel. An ask at a key carries the key and the language it is read through, and its answer is written to the key's entry in \texttt{Lstar.\allowbreak{}klq}.
+\item[{tried, and what it gave}] \textbf{Proved} on the host (\texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query\_\allowbreak{}ask\_\allowbreak{}check.\allowbreak{}c}, run by \texttt{utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}, 16 checks, 0 failed): \texttt{query\_\allowbreak{}ask} (\texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query/\allowbreak{}query\_\allowbreak{}ask.\allowbreak{}\{h,c\}}) finds memory the test owns holding and leaves it as it was, reads a written word as that word and no other, reads a word nothing writes as not advancing, and reads a bound with no clock as past the bound. \textbf{Measured}: the host's interrupt time at a fixed address advances under the ask, in steps of half a millisecond to a millisecond, and an ask clocked on it reads a cost of a whole step or nothing. A bound from it judges a run of asks. \textbf{Proved} from inside the interface (\texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query\_\allowbreak{}interface\_\allowbreak{}check.\allowbreak{}c}, 8 checks, 0 failed): \texttt{query\_\allowbreak{}interface\_\allowbreak{}walk} (\texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query/\allowbreak{}query\_\allowbreak{}interface.\allowbreak{}\{h,c\}}) runs \texttt{query\_\allowbreak{}walk} in a probe and keeps an ending as the answer of the address that caused it. A read at address 0 ends the asker on an address fault, the page every Windows process shares answers 64 reads in one child and ends the asker on a put at each word, and of its first sixteen words the walk finds the two its layout names as counters, at 0x8 and 0x14.
 \item[{status}] \textbf{proved} (the ask on the host, the walk from the interface), \textbf{measured} (the host clock's step)
 \item[{next}] The run channel made of asks of this form (Open 2 in the plan): the enumeration space found not by a written address but by its answer, a FIXED identifier beside a LIVE sizing register repeating at one stride, the kind from \texttt{host\_\allowbreak{}address\_\allowbreak{}ask} and the stride from \texttt{period\_\allowbreak{}read}; a region's width read from the mask a LIVE register gives back when written all ones, the part setting it.
 \end{description}
@@ -155,7 +263,7 @@ file & holds \\
 \tablerecord{\textbf{Q4. The gate, as the engine's own descent}}
 \begin{description}
 \item[{the algebra it holds to}] Each candidate arrangement is an alignment, the relation's cases are the needle, and the oracle answers whether arrangement (\texttt{corpus\_\allowbreak{}at -\allowbreak{} needle\_\allowbreak{}at}) gives case \texttt{needle\_\allowbreak{}at} the relation's word. \texttt{anchor\_\allowbreak{}steer\_\allowbreak{}spawn\_\allowbreak{}coarms} places the case that prunes most, stops where the best case prunes nothing, and leaves the survivors as its output. Over the bridge the candidates are the forms a language's \texttt{.\allowbreak{}klm} and the part's machine file give for a key, the cases are the key's in \texttt{Lstar.\allowbreak{}klq}, and the survivors are written back to the key. The reader's relations are a gate of the same form over a set of files: a set holding a witnessed absurd relation is refused, and no order of the files or of their lines changes which sets are refused (P2).
-\item[{does}] \texttt{test/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}gate\_\allowbreak{}descent.\allowbreak{}c}, built and run by \texttt{maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}, over every relation the ladder holds, against \texttt{chain\_\allowbreak{}build}'s candidates and its own 512 sweep words.
+\item[{does}] \texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}gate\_\allowbreak{}descent.\allowbreak{}c}, built and run by \texttt{utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}, over every relation the ladder holds, against \texttt{chain\_\allowbreak{}build}'s candidates and its own 512 sweep words.
 \item[{wants}] The descent run on the host before any target is asked, and only the cases it placed put to the target.
 \item[{tried, and what it gave}] \textbf{Proved}, every relation: the descent's survivors equal every candidate asked every case, and both equal what \texttt{chain\_\allowbreak{}build} keeps with its sweep on (add 1,202 of 1,227, take 1,047 of 1,083, up 411 of 698, down 408 of 559, same 0 of 8), 0 lost. A descent with the destroy rule off leaves the same count as one with it on. \textbf{Measured}, what decides each relation: one full-width sweep word decides add, take and same, and up and down need a second whose count reads zero (\texttt{0x43f96f40}, \texttt{0x3ef25a20}). No case the ladder holds is among them. Every impostor the ladder lets through, 507 in all, dies at the first or second case placed. \textbf{Measured}, the planning: a level reads every case against every survivor, 924,931 to 1,888,145 questions per relation. It runs on the host for that reason. \textbf{Measured} on the part (\texttt{interface\_\allowbreak{}sass\_\allowbreak{}descent.\allowbreak{}md}): the cases \texttt{gate\_\allowbreak{}descent} places for each relation, one or two, are put to every arrangement it descends over, 3575 of them, on the part alone. What stands on the part stands on the host for every relation, and no verdict differs.
 \item[{status}] \textbf{proved} (survivors), \textbf{measured} (deciding cases, planning cost, the placed cases on the part)
@@ -165,9 +273,9 @@ file & holds \\
 \tablerecord{\textbf{Q5. The order of asks for slicing}}
 \begin{description}
 \item[{the algebra it holds to}] A chain of \texttt{n} links measured by asks that each cover half the links, any two overlapping on a quarter: ask \texttt{r} covers link \texttt{c} where \texttt{(r + 1) \& (c + 1)} has an odd count of ones, the rows of a Hadamard matrix of order \texttt{n + 1} with its first row and column dropped. One ask informs every link at once. The per-link solve is \texttt{(n + 1)·x = 4·Sᵀb -\allowbreak{} 2·(Σb)·1}, integer adds and a division by a power of two. Over the bridge a link is a key: a construct's lines, each read through a language's \texttt{.\allowbreak{}klm} to its key, and each link's solved cost is kept at that key.
-\item[{does}] \texttt{src/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}ask\_\allowbreak{}order.\allowbreak{}\{h,c\}}: \texttt{ask\_\allowbreak{}order\_\allowbreak{}covers} gives the order from the link count alone and stores nothing, and \texttt{ask\_\allowbreak{}order\_\allowbreak{}solve} gives every link's cost scaled by \texttt{n + 1}. A count one short of a power of two, 3 to 63, has a known order, and every other count is refused and writes nothing.
+\item[{does}] \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}order/\allowbreak{}ask\_\allowbreak{}order.\allowbreak{}\{h,c\}}: \texttt{ask\_\allowbreak{}order\_\allowbreak{}covers} gives the order from the link count alone and stores nothing, and \texttt{ask\_\allowbreak{}order\_\allowbreak{}solve} gives every link's cost scaled by \texttt{n + 1}. A count one short of a power of two, 3 to 63, has a known order, and every other count is refused and writes nothing.
 \item[{wants}] A chain composed to a length a known order holds, and its asks emitted to a target (Q1).
-\item[{tried, and what it gave}] \textbf{Proved} (\texttt{test/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}ask\_\allowbreak{}order\_\allowbreak{}check.\allowbreak{}c}, run by \texttt{maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}, 1,231 checks, 0 failed, at 3, 7, 15, 31 and 63 links): \texttt{4·Sᵀ -\allowbreak{} 2·J} times \texttt{S} is \texttt{(n + 1)} times the identity entry by entry; every ask covers \texttt{(n + 1)/\allowbreak{}2} links and any two share \texttt{(n + 1)/\allowbreak{}4}; integer link costs solve back exactly at 1 to 8 passes; a fixed cost on every ask, and a cost growing with the square of the count an ask covers, each move every link by one amount and leave their order as it was; every count 0 to 127 without a known order is refused. \textbf{Measured}, against one ask per link at one budget (\texttt{python maint/\allowbreak{}engine/\allowbreak{}measure\_\allowbreak{}check.\allowbreak{}py}, check 4): the gain is (n + 1)/(2·√n), 1.09x at 3 links, 2.07x at 15, 8.16x at 255, against 1.15, 2.07 and 8.02 predicted. \textbf{Measured}, against a drawn order at the budget with nothing spare (check 5): the known order wins by 5.5x at the median worst-link error, 33.7x at the 95th and 125.1x at the worst of 400, and 17 of 400 drawn orders do not come apart at all. \textbf{Measured} on the host through the protocol (\texttt{test/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}query\_\allowbreak{}order\_\allowbreak{}check.\allowbreak{}c}, run by \texttt{maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}): \texttt{query\_\allowbreak{}order\_\allowbreak{}put} (\texttt{src/\allowbreak{}engine/\allowbreak{}compiler/\allowbreak{}bootstrap/\allowbreak{}query\_\allowbreak{}order.\allowbreak{}\{h,c\}}) puts seven links, each a QUERY\_\allowbreak{}ADVANCES ask at a word nothing writes and link k reading it 1 + 64·k times, on the clock the protocol finds by asking, read finely by counting reads of it between turns: each run's cost an exact rational, each of 64 passes solved on its own in exact integers, nothing rounded, summed or cut to a least. The run size is read off the part, the size whose weakest neighbor pair leans hardest; the floor against size has a least between the counting's spread and the interference long runs gather, and the size named moves from run to run (2\textasciicircum{}10 to 2\textasciicircum{}14 puts). Every neighbor pair reads dearer in 44 to 54 of 64 passes, past twice the spread. One read against five, QUERY\_\allowbreak{}EQUALS against QUERY\_\allowbreak{}HOLDS, does not order: an ask's own overhead is larger than four reads.
+\item[{tried, and what it gave}] \textbf{Proved} (\texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}ask\_\allowbreak{}order\_\allowbreak{}check.\allowbreak{}c}, run by \texttt{utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}, 1,231 checks, 0 failed, at 3, 7, 15, 31 and 63 links): \texttt{4·Sᵀ -\allowbreak{} 2·J} times \texttt{S} is \texttt{(n + 1)} times the identity entry by entry; every ask covers \texttt{(n + 1)/\allowbreak{}2} links and any two share \texttt{(n + 1)/\allowbreak{}4}; integer link costs solve back exactly at 1 to 8 passes; a fixed cost on every ask, and a cost growing with the square of the count an ask covers, each move every link by one amount and leave their order as it was; every count 0 to 127 without a known order is refused. \textbf{Measured}, against one ask per link at one budget (\texttt{python utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}measure\_\allowbreak{}check.\allowbreak{}py}, check 4): the gain is (n + 1)/(2·√n), 1.09x at 3 links, 2.07x at 15, 8.16x at 255, against 1.15, 2.07 and 8.02 predicted. \textbf{Measured}, against a drawn order at the budget with nothing spare (check 5): the known order wins by 5.5x at the median worst-link error, 33.7x at the 95th and 125.1x at the worst of 400, and 17 of 400 drawn orders do not come apart at all. \textbf{Measured} on the host through the protocol (\texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}query\_\allowbreak{}order\_\allowbreak{}check.\allowbreak{}c}, run by \texttt{utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}chain\_\allowbreak{}check.\allowbreak{}sh}): \texttt{query\_\allowbreak{}order\_\allowbreak{}put} (\texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}order/\allowbreak{}query\_\allowbreak{}order.\allowbreak{}\{h,c\}}) puts seven links, each a QUERY\_\allowbreak{}ADVANCES ask at a word nothing writes and link k reading it 1 + 64·k times, on the clock the protocol finds by asking, read finely by counting reads of it between turns: each run's cost an exact rational, each of 64 passes solved on its own in exact integers, nothing rounded, summed or cut to a least. The run size is read off the part, the size whose weakest neighbor pair leans hardest; the floor against size has a least between the counting's spread and the interference long runs gather, and the size named moves from run to run (2\textasciicircum{}10 to 2\textasciicircum{}14 puts). Every neighbor pair reads dearer in 44 to 54 of 64 passes, past twice the spread. One read against five, QUERY\_\allowbreak{}EQUALS against QUERY\_\allowbreak{}HOLDS, does not order: an ask's own overhead is larger than four reads.
 \item[{status}] \textbf{proved} (the order, the solve and what the count's square does to it), \textbf{measured} (gain, known against drawn; the order put to the host)
 \item[{next}] Emit the order to the device once the run channel reaches its addresses.
 \end{description}
@@ -217,7 +325,7 @@ file & holds \\
 \item[{the algebra it holds to}] A reading answers for the part it was taken on and the size it was taken at, and for nothing else by default. Over the bridge the part and the size are carried in the key's entry beside each answer, and a verdict of the text, which no part gave, carries neither.
 \item[{does}] Nothing records either.
 \item[{wants}] The part and the size carried beside every answer. A generic block is the fallback for a member with nothing measured, never a result borrowed from one that has.
-\item[{tried, and what it gave}] \textbf{Measured}, on modeled costs (\texttt{python maint/\allowbreak{}engine/\allowbreak{}order\_\allowbreak{}check.\allowbreak{}py}, check 11): the arrangement winning at size 3 costs 79.4x the best at size 300, a winner carried to another part costs 3.06x that part's best, and the two penalties multiply.
+\item[{tried, and what it gave}] \textbf{Measured}, on modeled costs (\texttt{python utils/\allowbreak{}maint/\allowbreak{}engine/\allowbreak{}order\_\allowbreak{}check.\allowbreak{}py}, check 11): the arrangement winning at size 3 costs 79.4x the best at size 300, a winner carried to another part costs 3.06x that part's best, and the two penalties multiply.
 \item[{status}] \textbf{measured}
 \item[{next}] Carry both in Q9's record.
 \end{description}
@@ -459,6 +567,8 @@ The scheduler word is set once for a run and no turned bit reaches it. The assem
 \item \textbf{Measured} over the tree's CUDA sources built by NVIDIA's compiler for sm\_\allowbreak{}86 (\texttt{monolith\_\allowbreak{}scheduler.\allowbreak{}md}, 72 cubins, 96976 instructions, each named by our reader and its bits 105 to 127 read through the krs's fields, no listing read): NVIDIA gives a write barrier at every place to \texttt{LDG}, \texttt{LDS.\allowbreak{}64}, \texttt{LDS.\allowbreak{}128}, \texttt{S2R}, \texttt{S2UR}, \texttt{F2I}, \texttt{I2F} and \texttt{ATOMG}, and at most places to \texttt{LDS}, \texttt{MUFU.\allowbreak{}RCP} and \texttt{F2I.\allowbreak{}FTZ}; to 94 other operations at none. A barrier counts its producers, and a wait on it holds until every one of them is back: of 1716 first reads of a late result with its own barrier, a wait on that barrier stands before all 1716, at the reader or at an instruction before it. A late result NVIDIA gives no barrier is held behind another of the same operation out of the same unit: 20 first reads, 16 of \texttt{LDS} and 4 of \texttt{MUFU.\allowbreak{}RCP}, stand behind a wait on a later one's barrier, the results coming back in the order they were put; 6 of \texttt{MUFU.\allowbreak{}RCP} stand behind a wait on an earlier one's barrier and at least 16 cycles past it. No first read of a late result stands behind no wait. Every \texttt{STG}, \texttt{STL}, \texttt{ST}, \texttt{STS} and \texttt{RED} takes a read barrier at most or every place. A fixed result is first read no sooner than 4 cycles on all 21 integer operations timed over 67443 reads, 5 on \texttt{IMAD.\allowbreak{}U32}, \texttt{IMAD.\allowbreak{}WIDE} and \texttt{IMAD.\allowbreak{}WIDE.\allowbreak{}U32.\allowbreak{}X}, and 6 on \texttt{CS2R}. The safe word waits on all six barriers at every instruction, which holds every one of these. Six barriers on every part from SM75 on, each a count its producers raise and a wait drains, and loads that keep their order sharing one barrier, are as the published reverse engineering of the scheduling word gives them (cited from knowledge: the ptxas execution model at gh.evko.io/crucible-notes, and the control codes of the maxas assembler, github.com/NervanaSystems/maxas/wiki/Control-Codes).
 \item \textbf{Measured} on the part: a barrier set by an operation whose result is back in a measured count is never released, and a wait on it does not return. \texttt{sass\_\allowbreak{}control\_\allowbreak{}safe} sets none on such an operation, and \texttt{cubin\_\allowbreak{}safe} refuses one that does (its rule 5). A pair a link writes and the next link loads through, read too soon, is read before it is back, and the load ends on an illegal address: the early read is legal, and the address it reads is none of the question's. Written by \texttt{IMAD.\allowbreak{}WIDE.\allowbreak{}U32}, the part refuses the load at stalls 1 and 2 and answers it from 3; written last by \texttt{IADD3.\allowbreak{}X} (\texttt{wide\_\allowbreak{}add}) or \texttt{MOV} (\texttt{wide\_\allowbreak{}pack}), at 1 to 4 and from 5 (\texttt{klq\_\allowbreak{}identity.\allowbreak{}sh stall}, every load the stick holds, 18 probes a writer). Every other pair read too soon answers apart and is never refused.
 \end{itemize}
+
+The gate (\texttt{cubin\_\allowbreak{}safe}) reads a turn by its key, and a straight key is not a legal instruction: the key names the operation at bits 0 to 11, and the operation's own layout can refuse what the other bits hold. Where the machine file holds no form of a key, the gate passes a turn of it on the key alone, and an encoding only the operation's layout refuses falls through. Before a round reaches the part, each question is read against NVIDIA's disassembler off the part (\texttt{measuring\_\allowbreak{}stick\_\allowbreak{}query.\allowbreak{}sh}, \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}vendor\_\allowbreak{}bin\_\allowbreak{}layouts/\allowbreak{}nvidia}): the carrier (\texttt{cubin\_\allowbreak{}run}) writes each container with the part taken out, the disassembler reads it back, and a question it calls an illegal instruction, or a control transfer at the slot, is held off the part on the live run however the gate read it. The disassembler names no operation and nothing it says enters a form: the held list is only the exact encodings not to ask. A round's forms are read in two passes, the turns of each form and then the register-runs its turns find, and neither reaches the part before the disassembler has read it (\texttt{khw\_\allowbreak{}learn.\allowbreak{}sh}). \textbf{Measured} on the RTX 3070, sm\_\allowbreak{}86: of the add's 93 turns one is held, the flip of bit 91, an illegal encoding the gate's key passed; the part learns the form with that one held and no reset (\texttt{khw\_\allowbreak{}write.\allowbreak{}sh}, kept in \texttt{sm\_\allowbreak{}86.\allowbreak{}khw}).
 
 \subsection{\texorpdfstring{P10. Absurdity from a part of a set (Q19)}{P10. Absurdity from a part of a set (Q19)}}
 
