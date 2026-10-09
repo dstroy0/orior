@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zip_archive.c: opening an archive and walking its entries
 #include "zip_internal.h"
+#include "zip_crc_tables.h"
 
 static const unsigned char zip_central[4u] = {'P', 'K', 0x01u, 0x02u};
 
@@ -39,24 +40,30 @@ int zip_fetch(const EngineIngestTools *tools, const char *path, unsigned long lo
     return ((got >= 0LL) && ((unsigned long long)got == bytes)) ? 1 : 0;
 }
 
+// eight bytes a step through the precomputed tables (zip_crc_tables.h), each byte read through the row of the bytes
+// after it, then the bytes short of eight one at a time through row 0
 unsigned long long zip_crc32(const unsigned char *bytes, unsigned long long length)
 {
-    unsigned long long table[256u];
-    for (unsigned long long entry = 0ull; entry < 256ull; entry += 1ull)
+    unsigned int crc = 0xFFFFFFFFu;
+    unsigned long long at = 0ull;
+    for (; (length - at) >= 8ull; at += 8ull)
     {
-        unsigned long long value = entry;
-        for (unsigned int bit = 0u; bit < 8u; bit += 1u)
-        {
-            value = ((value & 1ull) != 0ull) ? ((value >> 1u) ^ 0xEDB88320ull) : (value >> 1u);
-        }
-        table[entry] = value;
+        // the eight bytes as two little-endian words, assembled byte by byte so no alignment is asked of `bytes`
+        const unsigned int low = crc ^ ((unsigned int)bytes[at] | ((unsigned int)bytes[at + 1ull] << 8u) |
+                                        ((unsigned int)bytes[at + 2ull] << 16u) |
+                                        ((unsigned int)bytes[at + 3ull] << 24u));
+        const unsigned int high = (unsigned int)bytes[at + 4ull] | ((unsigned int)bytes[at + 5ull] << 8u) |
+                                  ((unsigned int)bytes[at + 6ull] << 16u) | ((unsigned int)bytes[at + 7ull] << 24u);
+        crc = zip_crc_slices[7][low & 0xFFu] ^ zip_crc_slices[6][(low >> 8u) & 0xFFu] ^
+              zip_crc_slices[5][(low >> 16u) & 0xFFu] ^ zip_crc_slices[4][low >> 24u] ^
+              zip_crc_slices[3][high & 0xFFu] ^ zip_crc_slices[2][(high >> 8u) & 0xFFu] ^
+              zip_crc_slices[1][(high >> 16u) & 0xFFu] ^ zip_crc_slices[0][high >> 24u];
     }
-    unsigned long long crc = ZIP_WORD;
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    for (; at < length; at += 1ull)
     {
-        crc = table[(crc ^ bytes[at]) & 0xFFull] ^ (crc >> 8u);
+        crc = zip_crc_slices[0][(crc ^ bytes[at]) & 0xFFu] ^ (crc >> 8u);
     }
-    return crc ^ ZIP_WORD;
+    return (unsigned long long)(crc ^ 0xFFFFFFFFu);
 }
 
 int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchive *archive, EngineError *error)

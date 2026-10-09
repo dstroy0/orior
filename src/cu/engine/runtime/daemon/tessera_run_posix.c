@@ -24,6 +24,13 @@ int run_cpu(const RunChild *child, unsigned long long *microseconds)
     return hertz > 0L;
 }
 
+int run_processors_named(unsigned long long processors)
+{
+    char text[24];
+    const int written = snprintf(text, sizeof(text), "%llu", processors);
+    return (written > 0) && (setenv("TESSERA_RUN_PROCESSORS", text, 1) == 0);
+}
+
 int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel)
 {
     (void)count;

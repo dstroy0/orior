@@ -215,27 +215,52 @@ static int dicom_prefix_length(const unsigned char *name, unsigned long long len
     return (last != 0ull) ? 1 : 0;
 }
 
+// one slice's work, run on a worker: its member unpacked from the series' span and parsed, its error its own
+typedef struct
+{
+    const EngineIngestTools *tools;
+    const ZipSpan *span;
+    const ZipEntry *entries;
+    DicomSlice *slices;
+    EngineError *errors;
+} DicomGatherWork;
+
+static int dicom_gather_slice(void *context, unsigned long long item)
+{
+    const DicomGatherWork *const work = (const DicomGatherWork *)context;
+    DicomSlice *const slice = &work->slices[item];
+    EngineError *const error = &work->errors[item];
+    return (zip_span_member(work->tools, work->span, &work->entries[item], slice->member, slice->member_bytes,
+                            error) != ZIP_ERROR) &&
+           dicom_parse(slice, error);
+}
+
+// The series' slices: their entries named in order, their bytes read in one fetch as the span they lie in, then each
+// unpacked, held to its CRC and parsed on the workers the tools hand over (`each`), or one at a time where they hand
+// none. The first slice in order that failed gives the error
 int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArchive *archive, unsigned long long first,
                  unsigned long long count, EngineError *error)
 {
     DicomResident *const resident = &g_dicom_resident;
     resident->slices = (DicomSlice *)calloc((size_t)count + 1u, sizeof(DicomSlice));
     resident->order = (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
-    if (!DICOM_CHECK((resident->slices != NULL) && (resident->order != NULL), &resident->slices, error,
-                     ENGINE_ERROR_RESOURCE))
+    ZipEntry *const entries = (ZipEntry *)calloc((size_t)count + 1u, sizeof(ZipEntry));
+    EngineError *const errors = (EngineError *)calloc((size_t)count + 1u, sizeof(EngineError));
+    if (!DICOM_CHECK((resident->slices != NULL) && (resident->order != NULL) && (entries != NULL) && (errors != NULL),
+                     &resident->slices, error, ENGINE_ERROR_RESOURCE))
     {
+        free(entries);
+        free(errors);
         return 0;
     }
     const unsigned char *series = NULL;
     unsigned long long series_length = 0ull;
-    for (unsigned long long slot = first; slot < (first + count); slot += 1ull)
+    int ok = 1;
+    for (unsigned long long slot = first; ok && (slot < (first + count)); slot += 1ull)
     {
         ZipEntry entry;
-        if (!zip_entry_at(archive, slot, &entry, error))
-        {
-            return 0;
-        }
-        if ((entry.name_length == 0ull) || (entry.name[entry.name_length - 1ull] == '/'))
+        ok = zip_entry_at(archive, slot, &entry, error);
+        if (!ok || (entry.name_length == 0ull) || (entry.name[entry.name_length - 1ull] == '/'))
         {
             continue;
         }
@@ -246,32 +271,49 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
             series = entry.name;
             series_length = prefix;
         }
-        if (!DICOM_CHECK(named && (prefix == series_length) && (memcmp(entry.name, series, (size_t)prefix) == 0),
-                         entry.name, error, ENGINE_ERROR_REQUEST))
+        ok = DICOM_CHECK(named && (prefix == series_length) && (memcmp(entry.name, series, (size_t)prefix) == 0),
+                         entry.name, error, ENGINE_ERROR_REQUEST);
+        DicomSlice *const slice = ok ? &resident->slices[resident->count] : NULL;
+        if (!ok)
         {
-            return 0;
+            continue;
         }
-        DicomSlice *const slice = &resident->slices[resident->count];
         slice->member = (unsigned char *)malloc((size_t)entry.uncompressed + 1u);
         slice->name = (char *)malloc((size_t)entry.name_length + 1u);
-        if (!DICOM_CHECK((slice->member != NULL) && (slice->name != NULL), &entry, error, ENGINE_ERROR_RESOURCE))
-        {
-            resident->count += 1ull;
-            return 0;
-        }
+        entries[resident->count] = entry;
         resident->count += 1ull;
+        ok = DICOM_CHECK((slice->member != NULL) && (slice->name != NULL), &entry, error, ENGINE_ERROR_RESOURCE);
+        if (!ok)
+        {
+            continue;
+        }
         memcpy(slice->name, entry.name, (size_t)entry.name_length);
         slice->name[entry.name_length] = '\0';
         slice->name_length = entry.name_length;
         slice->member_crc = entry.crc;
         slice->member_bytes = entry.uncompressed;
-        if ((zip_member_read(tools, path, archive, &entry, slice->member, entry.uncompressed, error) == ZIP_ERROR) ||
-            !dicom_parse(slice, error))
-        {
-            return 0;
-        }
     }
-    return DICOM_CHECK(resident->count != 0ull, archive, error, ENGINE_ERROR_REQUEST);
+    ok = ok && DICOM_CHECK(resident->count != 0ull, archive, error, ENGINE_ERROR_REQUEST);
+    ZipSpan span;
+    memset(&span, 0, sizeof(span));
+    ok = ok && zip_span_read(tools, path, archive, entries, resident->count, &span, error);
+    const DicomGatherWork work = {tools, &span, entries, resident->slices, errors};
+    if (ok && (tools->each != NULL))
+    {
+        ok = tools->each(resident->count, dicom_gather_slice, (void *)&work);
+    }
+    for (unsigned long long item = 0ull; ok && (tools->each == NULL) && (item < resident->count); item += 1ull)
+    {
+        ok = dicom_gather_slice((void *)&work, item);
+    }
+    for (unsigned long long item = 0ull; (item < resident->count) && (error->kind == ENGINE_ERROR_NONE); item += 1ull)
+    {
+        *error = (errors[item].kind != ENGINE_ERROR_NONE) ? errors[item] : *error;
+    }
+    zip_span_release(&span);
+    free(entries);
+    free(errors);
+    return ok;
 }
 
 int dicom_agree(EngineError *error)

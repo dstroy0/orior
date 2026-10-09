@@ -10,10 +10,10 @@ REPOSITORY="$(cd "$TOP/.." && pwd)"
 source "$REPOSITORY/utils/maint/engine/build_stamp.sh"
 TOP="$REPOSITORY" build_stamp tessera_test
 
-SCRIPTURA="$TOP/c/engine/runtime/scriptura"
-OBSIGNATIO="$TOP/c/engine/runtime/obsignatio"
+SCRIPTURA="$TOP/cu/engine/runtime/scriptura"
+OBSIGNATIO="$TOP/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$TOP/cu/engine/runtime/obsignatio"
-INCLUDES=(-I "$TOP/c/engine" -I "$MODULE" -I "$SCRIPTURA" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
+INCLUDES=(-I "$TOP/cu/engine" -I "$MODULE" -I "$SCRIPTURA" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"

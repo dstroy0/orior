@@ -2,6 +2,9 @@
 // engine_files.cu: directories, decoders and the JSON reader of an entry
 #include "engine_internal.h"
 
+#include <atomic>
+#include <thread>
+
 static int entry_directory_end(const char *walk, size_t at, size_t length, int include_last)
 {
     const int separator = (walk[at] == '/') || (walk[at] == '\\');
@@ -119,12 +122,226 @@ static long long entry_raw_decode(const EngineBytesRequest *request)
 
 static EngineIngestTools s_ingest_tools;
 
+// the workers a run of items takes: the whole processors tessera_run handed on ($TESSERA_RUN_PROCESSORS), 1 where it
+// names none, and never more than the items
+static unsigned long long entry_each_workers(unsigned long long items)
+{
+    const char *const named = getenv("TESSERA_RUN_PROCESSORS");
+    char *end = NULL;
+    const unsigned long long held =
+        ((named != NULL) && (named[0] >= '1') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ull;
+    const unsigned long long workers = ((held != 0ull) && (end != NULL) && (*end == '\0')) ? held : 1ull;
+    return (workers < items) ? workers : items;
+}
+
+// every item on the workers, each taking the next item from one counter until none is left or one has failed
+static int entry_each(unsigned long long items, EngineEachWork work, void *context)
+{
+    std::atomic<unsigned long long> next(0ull);
+    std::atomic<int> failed(0);
+    const auto run = [&]() {
+        for (;;)
+        {
+            const unsigned long long item = next.fetch_add(1ull);
+            if ((item >= items) || (failed.load() != 0))
+            {
+                return;
+            }
+            if (work(context, item) == 0)
+            {
+                failed.store(1);
+            }
+        }
+    };
+    const unsigned long long workers = entry_each_workers(items);
+    std::vector<std::thread> started;
+    for (unsigned long long worker = 1ull; worker < workers; worker += 1ull)
+    {
+        started.emplace_back(run);
+    }
+    run();
+    for (std::thread &running : started)
+    {
+        running.join();
+    }
+    return (failed.load() == 0) ? 1 : 0;
+}
+
 static long long entry_blosc_decode(const EngineBytesRequest *request)
 {
     BloscDecodeRequest blosc;
     blosc.bytes = *request;
     blosc.decode = s_ingest_tools.decode;
     return blosc_decode(&blosc);
+}
+
+// Spans of one archive read ahead, each on a thread of its own: two are held, the one being read from and the one
+// after it. Only one reader runs at a time, since two readers on one disk seek against each other: a span asked for
+// while the other's reader runs waits, and starts the moment the thread that asked for both joins that reader. Every
+// read the tools make comes from that thread: the slots need no lock. The process's last act on them joins a reader
+// still running
+#define ENTRY_HELD_SPANS 2u
+
+struct EntryHeld
+{
+    std::thread reader;
+    char path[ENTRY_PATH_CAPACITY];
+    unsigned long long first;
+    unsigned long long length;
+    unsigned char *bytes;
+    long long read;
+    unsigned long long asked;
+    int waiting;
+
+    ~EntryHeld()
+    {
+        if (reader.joinable())
+        {
+            reader.join();
+        }
+        free(bytes);
+    }
+};
+
+static EntryHeld s_held[ENTRY_HELD_SPANS];
+
+static unsigned long long s_held_asked;
+
+static void entry_held_release(EntryHeld *held)
+{
+    if (held->reader.joinable())
+    {
+        held->reader.join();
+    }
+    free(held->bytes);
+    held->bytes = NULL;
+    held->path[0] = '\0';
+    held->first = 0ull;
+    held->length = 0ull;
+    held->read = 0ll;
+    held->asked = 0ull;
+    held->waiting = 0;
+}
+
+static void entry_held_start(EntryHeld *held)
+{
+    held->waiting = 0;
+    held->reader = std::thread([held]() {
+        const EngineFileRange range = {held->path, held->first, held->length, held->bytes};
+        held->read = stack_file_read(&range);
+    });
+}
+
+// a range inside a held span is copied from it once its reader is done, and a span waiting behind that reader starts;
+// any other range is read from the file
+static long long entry_held_read(const EngineFileRange *range)
+{
+    EntryHeld *held = NULL;
+    for (unsigned int slot = 0u; (held == NULL) && (slot < ENTRY_HELD_SPANS); slot += 1u)
+    {
+        EntryHeld *const candidate = &s_held[slot];
+        const int inside = (range != NULL) && (range->path != NULL) && (candidate->bytes != NULL) &&
+                           (strcmp(range->path, candidate->path) == 0) && (range->offset >= candidate->first) &&
+                           ((range->offset - candidate->first) <= candidate->length) &&
+                           (range->bytes <= (candidate->length - (range->offset - candidate->first)));
+        held = inside ? candidate : NULL;
+    }
+    if (held == NULL)
+    {
+        return stack_file_read(range);
+    }
+    if (held->waiting != 0)
+    {
+        entry_held_start(held);
+    }
+    if (held->reader.joinable())
+    {
+        held->reader.join();
+    }
+    for (unsigned int slot = 0u; slot < ENTRY_HELD_SPANS; slot += 1u)
+    {
+        if (s_held[slot].waiting != 0)
+        {
+            entry_held_start(&s_held[slot]);
+        }
+    }
+    // a span the reader did not read whole is let go, and the range is read from the file
+    if (held->read != (long long)held->length)
+    {
+        entry_held_release(held);
+        return stack_file_read(range);
+    }
+    memcpy(range->out, held->bytes + (range->offset - held->first), (size_t)range->bytes);
+    // a range's bytes are held to the span's length above, which a long long holds
+    return (long long)range->bytes;
+}
+
+extern "C" long engine_source_prefetch(const char *source, const char *sample, EngineError *error)
+{
+    if (error == NULL)
+    {
+        return ENGINE_ERROR;
+    }
+    // the span asked for longest ago is let go for this one
+    EntryHeld *slot = &s_held[0];
+    for (unsigned int other = 1u; other < ENTRY_HELD_SPANS; other += 1u)
+    {
+        slot = (s_held[other].asked < slot->asked) ? &s_held[other] : slot;
+    }
+    entry_held_release(slot);
+    const EngineIngestTools *const tools = entry_ingest_tools();
+    const ZipArchive *const archive =
+        ((source != NULL) && (sample != NULL) && entry_is_file(source)) ? zip_archive_cached(tools, source, error)
+                                                                         : NULL;
+    unsigned long long first = 0ull;
+    unsigned long long count = 0ull;
+    if ((archive == NULL) || !zip_folder_find(archive, sample, &first, &count) || (count == 0ull) ||
+        (strlen(source) >= sizeof(slot->path)))
+    {
+        return ENGINE_ERROR;
+    }
+    // the members' span, from the first local header to past the last member's data: its local header is 30 bytes,
+    // and its name and extra field at most 65,535 bytes each
+    unsigned long long begin = ~0ull;
+    unsigned long long end = 0ull;
+    for (unsigned long long slot = first; slot < (first + count); slot += 1ull)
+    {
+        ZipEntry entry;
+        if (!zip_entry_at(archive, slot, &entry, error))
+        {
+            return ENGINE_ERROR;
+        }
+        const unsigned long long past = entry.local_offset + 30ull + (2ull * 65535ull) + entry.compressed;
+        begin = (entry.local_offset < begin) ? entry.local_offset : begin;
+        end = (past > end) ? past : end;
+    }
+    end = (end < archive->file_bytes) ? end : archive->file_bytes;
+    slot->bytes = (end > begin) ? (unsigned char *)malloc((size_t)(end - begin)) : NULL;
+    if (!ENGINE_CHECK(slot->bytes != NULL, &slot->bytes, error, ENGINE_ERROR_RESOURCE))
+    {
+        return ENGINE_ERROR;
+    }
+    memcpy(slot->path, source, strlen(source) + 1u);
+    slot->first = begin;
+    slot->length = end - begin;
+    slot->read = 0ll;
+    s_held_asked += 1ull;
+    slot->asked = s_held_asked;
+    // it starts now where no other reader runs, and otherwise once the thread that asked joins the one that does
+    int running = 0;
+    for (unsigned int other = 0u; other < ENTRY_HELD_SPANS; other += 1u)
+    {
+        running |= ((&s_held[other] != slot) && s_held[other].reader.joinable()) ? 1 : 0;
+    }
+    if (running != 0)
+    {
+        slot->waiting = 1;
+    }
+    else
+    {
+        entry_held_start(slot);
+    }
+    return 0L;
 }
 
 const EngineIngestTools *entry_ingest_tools(void)
@@ -141,8 +358,9 @@ const EngineIngestTools *entry_ingest_tools(void)
     tools->decode[ENGINE_CODEC_BLOSCLZ] = blosclz_decode;
     tools->decode[ENGINE_CODEC_BLOSC] = entry_blosc_decode;
     tools->decode[ENGINE_CODEC_LZ4_SIZED] = lz4_numcodecs_decode;
-    tools->read = stack_file_read;
+    tools->read = entry_held_read;
     tools->size = stack_file_size;
+    tools->each = entry_each;
     return tools;
 }
 
