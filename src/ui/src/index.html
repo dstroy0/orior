@@ -13,7 +13,7 @@
     <script src="early.js"></script>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body data-view="run">
+  <body data-view="edit">
     <header class="bar">
       <span class="bar-mark" id="bar-mark"></span>
       <nav class="menubar" id="menubar" role="menubar" aria-label="orior"></nav>
@@ -29,7 +29,7 @@
     <nav class="strip" id="strip" aria-label="Tool windows"></nav>
     <div class="work">
     <main class="shell">
-      <section class="mode" id="mode-run" data-active="true">
+      <section class="mode" id="mode-run" data-active="false">
         <aside class="side" id="job-side">
           <div class="side-inner">
             <input class="filter" id="job-filter" type="search" placeholder="Search" spellcheck="false" />
@@ -39,7 +39,7 @@
         <div class="stage" id="job-stage"></div>
       </section>
 
-      <section class="mode" id="mode-edit" data-active="false">
+      <section class="mode" id="mode-edit" data-active="true">
         <aside class="side explorer" id="explorer">
           <div class="side-inner">
             <div class="explorer-head">

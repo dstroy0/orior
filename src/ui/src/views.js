@@ -8,7 +8,7 @@
 const listeners = [];
 
 export function shownView() {
-  return document.querySelector('.mode[data-active="true"]')?.id.replace("mode-", "") ?? "run";
+  return document.querySelector('.mode[data-active="true"]')?.id.replace("mode-", "") ?? "edit";
 }
 
 export function onView(listener) {
