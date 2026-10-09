@@ -42,8 +42,14 @@
 //                               or more threads than a launch holds, and the driver never saw it
 //     refused <error>           the driver or the part would not take it
 //
-// Given a count of launches, a question that answered is launched that many times more, and a second line gives the
-// time they took together on the part's own timer, which the driver's events stamp (cubin_run_timed):
+// Every launch, the one that answers and each timed one, is carried alone under cubin_safe's rule 6: between two events
+// the part stamps, its stop event read without waiting on it until the part reaches it, the driver gives an error, or
+// CUBIN_SAFE_LAUNCH_BOUND passes on the host's clock (cubin_run_bounded). The time between the events is the launch's
+// block latency. A launch the driver times out, or one past the bound with its stop event unreached, is answered
+// `refused CUDA_ERROR_LAUNCH_TIMEOUT`, and nothing is launched after it in the process.
+//
+// Given a count of launches, a question that answered is launched that many times more, one at a time, and a second
+// line gives the block latencies of those launches summed (cubin_run_timed):
 //
 //     timed <launches> <nanoseconds>
 //
@@ -62,6 +68,8 @@
 #include <windows.h>
 #else
 #include <dlfcn.h>
+#include <sched.h>
+#include <time.h>
 #endif
 
 // the most bytes a container and its code take, and the longest line of the cases
@@ -113,6 +121,7 @@ typedef struct
     CubinRunStatus (*event_create)(void **, unsigned int);
     CubinRunStatus (*event_record)(void *, void *);
     CubinRunStatus (*event_synchronize)(void *);
+    CubinRunStatus (*event_query)(void *);
     CubinRunStatus (*event_elapsed)(float *, void *, void *);
     CubinRunStatus (*event_destroy)(void *);
     CubinRunStatus (*module_unload)(void *);
@@ -214,6 +223,7 @@ static int cubin_run_driver(CubinRunDriver *driver)
     *(void **)&driver->event_create = cubin_run_entry(library, "cuEventCreate");
     *(void **)&driver->event_record = cubin_run_entry(library, "cuEventRecord");
     *(void **)&driver->event_synchronize = cubin_run_entry(library, "cuEventSynchronize");
+    *(void **)&driver->event_query = cubin_run_entry(library, "cuEventQuery");
     *(void **)&driver->event_elapsed = cubin_run_entry(library, "cuEventElapsedTime");
     *(void **)&driver->event_destroy = cubin_run_entry(library, "cuEventDestroy_v2");
     *(void **)&driver->module_unload = cubin_run_entry(library, "cuModuleUnload");
@@ -224,28 +234,83 @@ static int cubin_run_driver(CubinRunDriver *driver)
            (driver->copy_in != NULL) && (driver->clear != NULL) && (driver->launch != NULL) &&
            (driver->synchronize != NULL) && (driver->copy_out != NULL) && (driver->error_name != NULL) &&
            (driver->event_create != NULL) && (driver->event_record != NULL) && (driver->event_synchronize != NULL) &&
-           (driver->event_elapsed != NULL) && (driver->event_destroy != NULL);
+           (driver->event_query != NULL) && (driver->event_elapsed != NULL) && (driver->event_destroy != NULL);
 }
 
-// `launches` launches of `function` over `arguments` timed together, between two events the part stamps from its own
-// timer, the time in nanoseconds into `nanoseconds`: 0, or the status the driver gave. The timer is the part's and
-// not the host's, and counts the same whatever clock the part's multiprocessors run at
-static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *function, void **arguments,
-                                      const CubinRunShape *shape, unsigned int launches,
-                                      unsigned long long *nanoseconds)
+// the host's clock in nanoseconds, from a start of its own and only ever read against itself
+static unsigned long long cubin_run_host_now(void)
+{
+#if defined(_WIN32)
+    LARGE_INTEGER counter;
+    LARGE_INTEGER frequency;
+    QueryPerformanceCounter(&counter);
+    QueryPerformanceFrequency(&frequency);
+    return (unsigned long long)(((double)counter.QuadPart * 1000000000.0) / (double)frequency.QuadPart);
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return ((unsigned long long)now.tv_sec * 1000000000ull) + (unsigned long long)now.tv_nsec;
+#endif
+}
+
+// the host's turn given up while the part runs, so that reading the stop event does not hold the processor
+static void cubin_run_host_yield(void)
+{
+#if defined(_WIN32)
+    Sleep(0);
+#else
+    sched_yield();
+#endif
+}
+
+// 1 where the last launch broke cubin_safe's rule 6: the process launches nothing after it and leaves what the launch
+// holds where it is, since a launch the part has not given back may still hold it
+static int s_launch_timed_out = 0;
+
+// One launch of `function` over `arguments` carried under cubin_safe's rule 6: alone between two events the part stamps
+// from its own timer, its stop event read without waiting on it until the part reaches it, the driver gives an error,
+// or CUBIN_SAFE_LAUNCH_BOUND passes on the host's clock. Its block latency in nanoseconds into `nanoseconds`. 0, the
+// status the driver gave, or CUDA_ERROR_LAUNCH_TIMEOUT where the rule was broken, the driver's own or the bound's
+static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *function, void **arguments,
+                                        const CubinRunShape *shape, unsigned long long *nanoseconds)
 {
     void *start = NULL;
     void *stop = NULL;
     float milliseconds = 0.0f;
+    *nanoseconds = 0ull;
+    if (s_launch_timed_out)
+    {
+        return CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT;
+    }
     CubinRunStatus status = driver->event_create(&start, 0u);
     status = (status == 0) ? driver->event_create(&stop, 0u) : status;
     status = (status == 0) ? driver->event_record(start, NULL) : status;
-    for (unsigned int launch = 0u; (status == 0) && (launch < launches); launch += 1u)
-    {
-        status = driver->launch(function, shape->blocks, 1u, 1u, shape->threads, 1u, 1u, 0u, NULL, arguments, NULL);
-    }
+    status = (status == 0) ? driver->launch(function, shape->blocks, 1u, 1u, shape->threads, 1u, 1u, 0u, NULL,
+                                            arguments, NULL)
+                           : status;
     status = (status == 0) ? driver->event_record(stop, NULL) : status;
-    status = (status == 0) ? driver->event_synchronize(stop) : status;
+    const unsigned long long began = cubin_run_host_now();
+    unsigned long long waited = 0ull;
+    while (status == 0)
+    {
+        const CubinRunStatus reached = driver->event_query(stop);
+        waited = cubin_run_host_now() - began;
+        if (reached == 0)
+        {
+            break;
+        }
+        if ((reached != CUBIN_SAFE_STATUS_NOT_READY) || (cubin_safe_launch(reached, waited) != CUBIN_SAFE))
+        {
+            status = reached;
+            break;
+        }
+        cubin_run_host_yield();
+    }
+    if (cubin_safe_launch(status, waited) != CUBIN_SAFE)
+    {
+        s_launch_timed_out = 1;
+        return CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT;
+    }
     status = (status == 0) ? driver->event_elapsed(&milliseconds, start, stop) : status;
     // the driver gives the time as milliseconds in a float; a nanosecond is a millionth of one
     *nanoseconds = (unsigned long long)((double)milliseconds * 1000000.0);
@@ -256,6 +321,25 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
     if (stop != NULL)
     {
         driver->event_destroy(stop);
+    }
+    return status;
+}
+
+// `launches` launches of `function` over `arguments`, one at a time, each under cubin_safe's rule 6, their block
+// latencies summed into `nanoseconds`: 0, or the status the driver gave the first launch that did not return clean,
+// none launched after it. The timer is the part's and not the host's, and counts the same whatever clock the part's
+// multiprocessors run at
+static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *function, void **arguments,
+                                      const CubinRunShape *shape, unsigned int launches,
+                                      unsigned long long *nanoseconds)
+{
+    CubinRunStatus status = 0;
+    *nanoseconds = 0ull;
+    for (unsigned int launch = 0u; (status == 0) && (launch < launches); launch += 1u)
+    {
+        unsigned long long latency = 0ull;
+        status = cubin_run_bounded(driver, function, arguments, shape, &latency);
+        *nanoseconds += latency;
     }
     return status;
 }
@@ -324,10 +408,14 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
     free(given);
     status = (status == 0) ? driver->clear(out, CUBIN_RUN_FILL, out_bytes) : status;
     void *arguments[] = {&in, &out, &count};
-    status = (status == 0) ? driver->launch(function, shape->blocks, 1u, 1u, shape->threads, 1u, 1u, 0u, NULL,
-                                            arguments, NULL)
-                           : status;
-    status = (status == 0) ? driver->synchronize() : status;
+    unsigned long long answered_latency = 0ull;
+    status = (status == 0) ? cubin_run_bounded(driver, function, arguments, shape, &answered_latency) : status;
+    if (s_launch_timed_out)
+    {
+        free(written);
+        *nanoseconds = 0ull;
+        return status;
+    }
     status = (status == 0) ? driver->copy_out(written, out, out_bytes) : status;
     if (status == 0)
     {
@@ -338,6 +426,10 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
     status = ((status == 0) && (launches != 0u))
                  ? cubin_run_timed(driver, function, arguments, shape, launches, nanoseconds)
                  : status;
+    if (s_launch_timed_out)
+    {
+        return status;
+    }
     // what the question held given back, so that a process carrying many holds one question's at a time
     if (in != 0ull)
     {

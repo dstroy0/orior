@@ -164,6 +164,16 @@ unsigned int cubin_safe_image(const SassMachine *machine, const unsigned char *i
     return CUBIN_SAFE;
 }
 
+unsigned int cubin_safe_launch(int status, unsigned long long waited)
+{
+    if (status == CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT)
+    {
+        return CUBIN_SAFE_LAUNCH_TIMEOUT;
+    }
+    return ((status == CUBIN_SAFE_STATUS_NOT_READY) && (waited > CUBIN_SAFE_LAUNCH_BOUND)) ? CUBIN_SAFE_LAUNCH_TIMEOUT
+                                                                                            : CUBIN_SAFE;
+}
+
 const char *cubin_safe_name(unsigned int verdict)
 {
     static const char *const s_names[] = {"safe",
@@ -174,6 +184,7 @@ const char *cubin_safe_name(unsigned int verdict)
                                           "an operation key unknown or holding a control transfer or a wait",
                                           "a second instruction no form holds",
                                           "no EXIT without a guard",
-                                          "a barrier set by an operation whose result is back in a measured count"};
+                                          "a barrier set by an operation whose result is back in a measured count",
+                                          "a launch the driver timed out, or not back inside the bound"};
     return (verdict < (sizeof(s_names) / sizeof(s_names[0]))) ? s_names[verdict] : "unknown";
 }

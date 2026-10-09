@@ -202,6 +202,32 @@ static void check_cases(void)
     }
 }
 
+// rule 6 held to what it says of one launch: the driver's status on the stop event and the nanoseconds the host read it
+static void check_launch(const char *name, int status, unsigned long long waited, unsigned int wanted)
+{
+    const unsigned int verdict = cubin_safe_launch(status, waited);
+    s_checks += 1u;
+    if (verdict != wanted)
+    {
+        s_failed += 1u;
+        printf("  FAILED: %s: %s, where %s\n", name, cubin_safe_name(verdict), cubin_safe_name(wanted));
+        return;
+    }
+    printf("  %s: %s\n", name, cubin_safe_name(verdict));
+}
+
+// the launch cases, which need no machine file
+static void check_launches(void)
+{
+    check_launch("a launch reached inside the bound", 0, 1000ull, CUBIN_SAFE);
+    check_launch("a launch the driver timed out", CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT, 0ull, CUBIN_SAFE_LAUNCH_TIMEOUT);
+    check_launch("a launch not reached yet, inside the bound", CUBIN_SAFE_STATUS_NOT_READY, CUBIN_SAFE_LAUNCH_BOUND,
+                 CUBIN_SAFE);
+    check_launch("a launch not reached past the bound", CUBIN_SAFE_STATUS_NOT_READY, CUBIN_SAFE_LAUNCH_BOUND + 1ull,
+                 CUBIN_SAFE_LAUNCH_TIMEOUT);
+    check_launch("a launch the part refused", 700, 0ull, CUBIN_SAFE);
+}
+
 int main(int count, char **words)
 {
     if ((count < 2) || !sass_machine_read(&s_machine, words[1]))
@@ -209,6 +235,7 @@ int main(int count, char **words)
         fprintf(stderr, "cubin_safe_check <machine file> [<cubin>...]\n");
         return 2;
     }
+    check_launches();
     check_cases();
     unsigned int safe = 0u;
     for (int at = 2; at < count; at += 1)
