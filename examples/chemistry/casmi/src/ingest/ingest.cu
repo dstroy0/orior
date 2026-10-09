@@ -98,9 +98,13 @@ static const unsigned long long INGEST_DIVISOR[INGEST_DIVISORS] = {100ull, 999ul
 
 #define INGEST_SAMPLE_BYTES 256u
 
-// the device bytes a value of the widest row group holds at once: its stored double, its places record of up to 30
-// limbs, its record and its planes from the units program, its index and the check's record of its parts
-#define INGEST_DECLARED_PER_VALUE (8ull + 120ull + 12ull + (2ull * (INGEST_PLANES + 1u)) + 12ull + 12ull)
+// The programs run over a column a piece at a time, each piece whole rows of at most INGEST_PIECE_VALUES values, and
+// one row at least. The device bytes a value of the widest row group holds for its whole column: its stored double
+// and its planes. And a value of a piece: its index pair, its places record of up to 30 limbs and its record from the
+// units program, more than the check's piece holds
+#define INGEST_PIECE_VALUES (1ull << 22u)
+#define INGEST_DECLARED_PER_VALUE (8ull + (2ull * (INGEST_PLANES + 1u)))
+#define INGEST_DECLARED_PER_PIECE_VALUE (8ull + 120ull + 12ull)
 
 static CasmiParquetFooter s_footer;
 
@@ -313,18 +317,49 @@ static unsigned int *ingest_rows_build(const IngestColumn *values, const IngestC
     return rows;
 }
 
-// each value's index: `members` record numbers, the value's own for every member before the last and its row's for
-// the last
-static unsigned int *ingest_index_build(const IngestColumn *values, unsigned int members)
+// the row past a piece's last, from row_first: the most whole rows whose values INGEST_PIECE_VALUES holds, and one at
+// least
+static unsigned long long ingest_piece_past(const IngestColumn *values, unsigned long long row_first)
 {
-    unsigned int *const index = (unsigned int *)malloc((size_t)(values->values * members) * sizeof(unsigned int) + 4u);
-    for (unsigned long long row = 0ull; (index != NULL) && (row < values->rows); row += 1ull)
+    unsigned long long past = row_first + 1ull;
+    while ((past < values->rows) &&
+           ((values->row_start[past + 1ull] - values->row_start[row_first]) <= INGEST_PIECE_VALUES))
+    {
+        past += 1ull;
+    }
+    return past;
+}
+
+// the most values any piece of a column holds
+static unsigned long long ingest_piece_most(const IngestColumn *values)
+{
+    unsigned long long most = 0ull;
+    for (unsigned long long row = 0ull; row < values->rows;)
+    {
+        const unsigned long long past = ingest_piece_past(values, row);
+        const unsigned long long held = values->row_start[past] - values->row_start[row];
+        most = (held > most) ? held : most;
+        row = past;
+    }
+    return most;
+}
+
+// each value's index over a piece's rows, from row_first up to row_past: `members` record numbers, the value's own
+// from the piece's first value for every member before the last, and its row's from row_first for the last
+static unsigned int *ingest_index_build(const IngestColumn *values, unsigned int members, unsigned long long row_first,
+                                        unsigned long long row_past)
+{
+    const unsigned long long first = values->row_start[row_first];
+    const unsigned long long held = values->row_start[row_past] - first;
+    unsigned int *const index = (unsigned int *)malloc((size_t)(held * members) * sizeof(unsigned int) + 4u);
+    for (unsigned long long row = row_first; (index != NULL) && (row < row_past); row += 1ull)
     {
         for (unsigned long long value = values->row_start[row]; value < values->row_start[row + 1ull]; value += 1ull)
         {
             for (unsigned int member = 0u; member < members; member += 1u)
             {
-                index[(value * members) + member] = (unsigned int)(((member + 1u) == members) ? row : value);
+                index[((value - first) * members) + member] =
+                    (unsigned int)(((member + 1u) == members) ? (row - row_first) : (value - first));
             }
         }
     }
@@ -571,21 +606,15 @@ static int ingest_column_forms(SimResults *results, const char *set, unsigned in
     }
     const unsigned int shift_bits = exact_record_bits_of(FORMS_LIFT - least_placed) + 1u;
     const size_t lane_bytes = sizeof(unsigned short);
-    // each row's record, its base and its term, and each value's index pair, its own record and its row's
+    // each row's record, its base and its term
     unsigned int *const rows = ingest_rows_build(values, bases);
-    unsigned int *const index = ingest_index_build(values, 2u);
     unsigned int *device_rows = NULL;
-    unsigned int *device_index = NULL;
     unsigned int *device_values = NULL;
     const size_t rows_bytes = (size_t)values->rows * INGEST_ROW_LIMBS * sizeof(unsigned int);
-    int ok = (rows != NULL) && (index != NULL) &&
-             (cudaMalloc((void **)&device_values, (size_t)(count * 8ull)) == cudaSuccess) &&
+    int ok = (rows != NULL) && (cudaMalloc((void **)&device_values, (size_t)(count * 8ull)) == cudaSuccess) &&
              (cudaMemcpy(device_values, values->bytes, (size_t)(count * 8ull), cudaMemcpyHostToDevice) == cudaSuccess) &&
              (cudaMalloc((void **)&device_rows, rows_bytes) == cudaSuccess) &&
-             (cudaMemcpy(device_rows, rows, rows_bytes, cudaMemcpyHostToDevice) == cudaSuccess) &&
-             (cudaMalloc((void **)&device_index, (size_t)(count * 2ull) * sizeof(unsigned int)) == cudaSuccess) &&
-             (cudaMemcpy(device_index, index, (size_t)(count * 2ull) * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-              cudaSuccess);
+             (cudaMemcpy(device_rows, rows, rows_bytes, cudaMemcpyHostToDevice) == cudaSuccess);
     // the first pass: each value's places for every form
     ExactRecordProgram places_program;
     exact_record_open(&places_program);
@@ -604,56 +633,6 @@ static int ingest_column_forms(SimResults *results, const char *set, unsigned in
     ok = places_held && ingest_laid(results, "the places program", &places_loaded, places_outputs, INGEST_PLACES_LANES);
     sim_check(results, ok, "the places program lays each value's places at its own 16 bits");
     const size_t places_record_bytes = places_held ? ((size_t)places_loaded.layout.out_limbs * sizeof(unsigned int)) : 0u;
-    unsigned int *device_places = NULL;
-    ok = ok && (cudaMalloc((void **)&device_places, (size_t)count * places_record_bytes) == cudaSuccess);
-    memset(&error, 0, sizeof(error));
-    const unsigned long long run_start = engine_clock_microseconds();
-    if (ok)
-    {
-        const CycleRecordRunRequest run = {places_loaded.record, {device_values, device_rows, NULL},
-                                           {count, values->rows, 0ull},  device_index,
-                                           count,                       device_places,
-                                           &error};
-        ok = cycle_record_run(&run) != CYCLE_ERROR;
-        if (!ok)
-        {
-            ingest_error_line(results, "the places program's run errored", &error);
-        }
-    }
-    // each row's form: the first that holds every value of the row, at the most places any of them needs
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)(count * INGEST_PLACES_LANES) * lane_bytes + 2u);
-    ok = ok && (lanes != NULL) &&
-         (cudaMemcpy2D(lanes, INGEST_PLACES_LANES * lane_bytes, device_places, places_record_bytes,
-                       INGEST_PLACES_LANES * lane_bytes, (size_t)count, cudaMemcpyDeviceToHost) == cudaSuccess);
-    unsigned long long row_forms[INGEST_TERM_FORMS];
-    memset(row_forms, 0, sizeof(row_forms));
-    unsigned short *const terms = (unsigned short *)malloc((size_t)values->rows * lane_bytes + 2u);
-    ok = ok && (terms != NULL);
-    for (unsigned long long row = 0ull; ok && (row < values->rows); row += 1ull)
-    {
-        unsigned int term = INGEST_ROW_EACH;
-        const unsigned long long first = values->row_start[row];
-        const unsigned long long past = values->row_start[row + 1ull];
-        for (unsigned int form = 0u; (column != INGEST_PRECURSOR) && (past > first) && (term == INGEST_ROW_EACH) &&
-                                     (form <= INGEST_DECIMALS);
-             form += 1u)
-        {
-            int all = 1;
-            unsigned int places = 0u;
-            for (unsigned long long value = first; all && (value < past); value += 1ull)
-            {
-                const unsigned int lane = lanes[(value * INGEST_PLACES_LANES) + form];
-                all = (form == INGEST_FORM_COUNT) ? (lane == 1u) : (lane <= ingest_kind_most(column, form - 1u));
-                places = ((form != INGEST_FORM_COUNT) && (lane > places)) ? lane : places;
-            }
-            term = all ? (form + (INGEST_TERM_FORMS * places)) : term;
-        }
-        terms[row] = (unsigned short)term;
-        rows[(row * INGEST_ROW_LIMBS) + INGEST_LIMBS_PER_VALUE] = term;
-        row_forms[term % INGEST_TERM_FORMS] += 1ull;
-    }
-    free(lanes);
-    ok = ok && (cudaMemcpy(device_rows, rows, rows_bytes, cudaMemcpyHostToDevice) == cudaSuccess);
     // the second pass: each value's integer on its row's unit, or on the column's where the row holds no one form
     ExactRecordProgram program;
     exact_record_open(&program);
@@ -674,36 +653,113 @@ static int ingest_column_forms(SimResults *results, const char *set, unsigned in
     sim_check(results, ok, "the units program lays each plane at its own 16 bits");
     const unsigned int out_limbs = units_held ? loaded.layout.out_limbs : 0u;
     const size_t record_bytes = (size_t)out_limbs * sizeof(unsigned int);
+    // a piece's index pairs, places records and records, and the whole column's planes
+    const unsigned long long piece_most = ingest_piece_most(values);
+    unsigned int *device_index = NULL;
+    unsigned int *device_places = NULL;
     unsigned int *device_out = NULL;
     unsigned short *device_planes = NULL;
-    ok = ok && (cudaMalloc((void **)&device_out, (size_t)count * record_bytes) == cudaSuccess) &&
+    ok = ok && (cudaMalloc((void **)&device_index, (size_t)(piece_most * 2ull) * sizeof(unsigned int)) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_places, (size_t)piece_most * places_record_bytes) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_out, (size_t)piece_most * record_bytes) == cudaSuccess) &&
          (cudaMalloc((void **)&device_planes, (size_t)(count * (INGEST_PLANES + 1u)) * lane_bytes) == cudaSuccess);
-    if (ok)
+    unsigned short *const lanes = (unsigned short *)malloc((size_t)(piece_most * INGEST_PLACES_LANES) * lane_bytes + 2u);
+    unsigned short *const terms = (unsigned short *)malloc((size_t)values->rows * lane_bytes + 2u);
+    ok = ok && (lanes != NULL) && (terms != NULL);
+    unsigned long long row_forms[INGEST_TERM_FORMS];
+    memset(row_forms, 0, sizeof(row_forms));
+    unsigned long long run_microseconds = 0ull;
+    memset(&error, 0, sizeof(error));
+    for (unsigned long long row_first = 0ull; ok && (row_first < values->rows);)
     {
-        const CycleRecordRunRequest run = {loaded.record, {device_places, device_rows, NULL},
-                                           {count, values->rows, 0ull}, device_index,
-                                           count,                       device_out,
-                                           &error};
-        ok = cycle_record_run(&run) != CYCLE_ERROR;
-        if (!ok)
+        const unsigned long long row_past = ingest_piece_past(values, row_first);
+        const unsigned long long first = values->row_start[row_first];
+        const unsigned long long held = values->row_start[row_past] - first;
+        const unsigned long long held_rows = row_past - row_first;
+        unsigned int *const index = ingest_index_build(values, 2u, row_first, row_past);
+        ok = (index != NULL) && (cudaMemcpy(device_index, index, (size_t)(held * 2ull) * sizeof(unsigned int),
+                                            cudaMemcpyHostToDevice) == cudaSuccess);
+        free(index);
+        const unsigned long long places_start = engine_clock_microseconds();
+        if (ok && (held != 0ull))
         {
-            ingest_error_line(results, "the units program's run errored", &error);
+            const CycleRecordRunRequest run = {places_loaded.record,
+                                               {device_values + (first * INGEST_LIMBS_PER_VALUE),
+                                                device_rows + (row_first * INGEST_ROW_LIMBS), NULL},
+                                               {held, held_rows, 0ull},
+                                               device_index,
+                                               held,
+                                               device_places,
+                                               &error};
+            ok = cycle_record_run(&run) != CYCLE_ERROR;
+            if (!ok)
+            {
+                ingest_error_line(results, "the places program's run errored", &error);
+            }
         }
+        run_microseconds += engine_clock_microseconds() - places_start;
+        // each row's form: the first that holds every value of the row, at the most places any of them needs
+        ok = ok && ((held == 0ull) ||
+                    (cudaMemcpy2D(lanes, INGEST_PLACES_LANES * lane_bytes, device_places, places_record_bytes,
+                                  INGEST_PLACES_LANES * lane_bytes, (size_t)held, cudaMemcpyDeviceToHost) == cudaSuccess));
+        for (unsigned long long row = row_first; ok && (row < row_past); row += 1ull)
+        {
+            unsigned int term = INGEST_ROW_EACH;
+            const unsigned long long row_start = values->row_start[row];
+            const unsigned long long past = values->row_start[row + 1ull];
+            for (unsigned int form = 0u; (column != INGEST_PRECURSOR) && (past > row_start) &&
+                                         (term == INGEST_ROW_EACH) && (form <= INGEST_DECIMALS);
+                 form += 1u)
+            {
+                int all = 1;
+                unsigned int places = 0u;
+                for (unsigned long long value = row_start; all && (value < past); value += 1ull)
+                {
+                    const unsigned int lane = lanes[((value - first) * INGEST_PLACES_LANES) + form];
+                    all = (form == INGEST_FORM_COUNT) ? (lane == 1u) : (lane <= ingest_kind_most(column, form - 1u));
+                    places = ((form != INGEST_FORM_COUNT) && (lane > places)) ? lane : places;
+                }
+                term = all ? (form + (INGEST_TERM_FORMS * places)) : term;
+            }
+            terms[row] = (unsigned short)term;
+            rows[(row * INGEST_ROW_LIMBS) + INGEST_LIMBS_PER_VALUE] = term;
+            row_forms[term % INGEST_TERM_FORMS] += 1ull;
+        }
+        ok = ok && (cudaMemcpy(device_rows + (row_first * INGEST_ROW_LIMBS), rows + (row_first * INGEST_ROW_LIMBS),
+                               (size_t)(held_rows * INGEST_ROW_LIMBS) * sizeof(unsigned int),
+                               cudaMemcpyHostToDevice) == cudaSuccess);
+        const unsigned long long units_start = engine_clock_microseconds();
+        if (ok && (held != 0ull))
+        {
+            const CycleRecordRunRequest run = {loaded.record,
+                                               {device_places, device_rows + (row_first * INGEST_ROW_LIMBS), NULL},
+                                               {held, held_rows, 0ull},
+                                               device_index,
+                                               held,
+                                               device_out,
+                                               &error};
+            ok = cycle_record_run(&run) != CYCLE_ERROR;
+            if (!ok)
+            {
+                ingest_error_line(results, "the units program's run errored", &error);
+            }
+        }
+        run_microseconds += engine_clock_microseconds() - units_start;
+        // plane j of every record, gathered beside the others into the column's plane: one strided copy on the device
+        for (unsigned int plane = 0u; ok && (held != 0ull) && (plane <= INGEST_PLANES); plane += 1u)
+        {
+            ok = cudaMemcpy2D(device_planes + (plane * count) + first, lane_bytes,
+                              (const unsigned char *)device_out + (plane * lane_bytes), record_bytes, lane_bytes,
+                              (size_t)held, cudaMemcpyDeviceToDevice) == cudaSuccess;
+        }
+        row_first = row_past;
     }
-    const unsigned long long run_end = engine_clock_microseconds();
-    // plane j of every record, gathered beside the others: one strided copy on the device a plane
-    for (unsigned int plane = 0u; ok && (plane <= INGEST_PLANES); plane += 1u)
-    {
-        ok = cudaMemcpy2D(device_planes + (plane * count), lane_bytes,
-                          (const unsigned char *)device_out + (plane * lane_bytes), record_bytes, lane_bytes,
-                          (size_t)count, cudaMemcpyDeviceToDevice) == cudaSuccess;
-    }
+    free(lanes);
     cudaFree(device_out);
     cudaFree(device_places);
     cudaFree(device_rows);
     cudaFree(device_index);
     free(rows);
-    free(index);
     if (places_held)
     {
         ingest_release(&places_loaded);
@@ -867,7 +923,7 @@ static int ingest_column_forms(SimResults *results, const char *set, unsigned in
     scriptura_text(&results->line, INGEST_COLUMN_PATH[column]);
     ingest_line_decimal(results, ": ", count);
     ingest_line_decimal(results, " values, forms program ", program.count);
-    ingest_line_decimal(results, " steps, device ", run_end - run_start);
+    ingest_line_decimal(results, " steps, device ", run_microseconds);
     scriptura_text(&results->line, " us; forms");
     for (unsigned int form = 0u; form <= INGEST_FORM_KEPT; form += 1u)
     {
@@ -1044,26 +1100,6 @@ static int ingest_column_check(SimResults *results, const char *set, unsigned in
         ok = ok && (at == sealed->kept);
         free(volume);
     }
-    // each value's parts laid into its record on the device
-    unsigned short *device_parts = NULL;
-    unsigned int *device_records = NULL;
-    unsigned int *device_values = NULL;
-    unsigned int *device_bases = NULL;
-    unsigned int *device_index = NULL;
-    unsigned int *device_out = NULL;
-    ok = ok && (cudaMalloc((void **)&device_parts, (size_t)(count * (INGEST_PLANES + 1u)) * lane_bytes) == cudaSuccess) &&
-         (cudaMemcpy(device_parts, parts, (size_t)(count * (INGEST_PLANES + 1u)) * lane_bytes, cudaMemcpyHostToDevice) ==
-          cudaSuccess) &&
-         (cudaMalloc((void **)&device_records, (size_t)count * part_bytes) == cudaSuccess) &&
-         (cudaMemset(device_records, 0, (size_t)count * part_bytes) == cudaSuccess);
-    for (unsigned int plane = 0u; ok && (plane <= INGEST_PLANES); plane += 1u)
-    {
-        ok = cudaMemcpy2D((unsigned char *)device_records + (plane * lane_bytes), part_bytes,
-                          device_parts + (plane * count), lane_bytes, lane_bytes, (size_t)count,
-                          cudaMemcpyDeviceToDevice) == cudaSuccess;
-    }
-    cudaFree(device_parts);
-    free(parts);
     unsigned long long least_placed = 0ull;
     unsigned long long most_placed = 0ull;
     ingest_exponents(values, &least_placed, &most_placed);
@@ -1082,11 +1118,9 @@ static int ingest_column_check(SimResults *results, const char *set, unsigned in
     {
         ingest_error_line(results, "the check program did not load", &error);
     }
-    // each row's record, its base and its term as the row's crystal holds it, and each value's index triple: its own
-    // record, its own parts and its row's record
+    // each row's record, its base and its term as the row's crystal holds it
     unsigned int *const rows = ok ? ingest_rows_build(values, bases) : NULL;
-    unsigned int *const index = ok ? ingest_index_build(values, 3u) : NULL;
-    ok = ok && (rows != NULL) && (index != NULL);
+    ok = ok && (rows != NULL);
     for (unsigned long long row = 0ull; ok && !sealed->rows && (row < values->rows); row += 1ull)
     {
         rows[(row * INGEST_ROW_LIMBS) + INGEST_LIMBS_PER_VALUE] = INGEST_ROW_EACH;
@@ -1105,50 +1139,84 @@ static int ingest_column_check(SimResults *results, const char *set, unsigned in
         }
         free(volume);
     }
+    // a piece's parts, the records they lay into, its stored doubles, its index triples, each value's own record, its
+    // own parts and its row's record, and its verdicts
+    const unsigned long long piece_most = ingest_piece_most(values);
+    const unsigned int out_limbs = program_loaded ? loaded.layout.out_limbs : 0u;
     const size_t rows_bytes = (size_t)values->rows * INGEST_ROW_LIMBS * sizeof(unsigned int);
+    unsigned short *device_parts = NULL;
+    unsigned int *device_records = NULL;
+    unsigned int *device_values = NULL;
+    unsigned int *device_bases = NULL;
+    unsigned int *device_index = NULL;
+    unsigned int *device_out = NULL;
     ok = ok && (cudaMalloc((void **)&device_bases, rows_bytes) == cudaSuccess) &&
          (cudaMemcpy(device_bases, rows, rows_bytes, cudaMemcpyHostToDevice) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_index, (size_t)(count * 3ull) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_index, index, (size_t)(count * 3ull) * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-          cudaSuccess);
+         (cudaMalloc((void **)&device_parts, (size_t)(piece_most * (INGEST_PLANES + 1u)) * lane_bytes) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_records, (size_t)piece_most * part_bytes) == cudaSuccess) &&
+         (cudaMemset(device_records, 0, (size_t)piece_most * part_bytes) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_values, (size_t)(piece_most * 8ull)) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_index, (size_t)(piece_most * 3ull) * sizeof(unsigned int)) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_out, (size_t)piece_most * out_limbs * sizeof(unsigned int)) == cudaSuccess);
     free(rows);
-    free(index);
-    const unsigned long long base_records = values->rows;
-    const unsigned int out_limbs = program_loaded ? loaded.layout.out_limbs : 0u;
-    ok = ok && (cudaMalloc((void **)&device_values, (size_t)(count * 8ull)) == cudaSuccess) &&
-         (cudaMemcpy(device_values, values->bytes, (size_t)(count * 8ull), cudaMemcpyHostToDevice) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_out, (size_t)count * out_limbs * sizeof(unsigned int)) == cudaSuccess);
+    unsigned long long read_back = 0ull;
     memset(&error, 0, sizeof(error));
-    if (ok)
+    for (unsigned long long row_first = 0ull; ok && (row_first < values->rows);)
     {
-        const CycleRecordRunRequest run = {loaded.record,
-                                           {device_values, device_records, device_bases},
-                                           {count, count, base_records},
-                                           device_index,
-                                           count,
-                                           device_out,
-                                           &error};
-        ok = cycle_record_run(&run) != CYCLE_ERROR;
-        if (!ok)
+        const unsigned long long row_past = ingest_piece_past(values, row_first);
+        const unsigned long long first = values->row_start[row_first];
+        const unsigned long long held = values->row_start[row_past] - first;
+        // the piece's parts laid into its records on the device, beside its doubles and its index
+        for (unsigned int plane = 0u; ok && (held != 0ull) && (plane <= INGEST_PLANES); plane += 1u)
         {
-            ingest_error_line(results, "the check program's run errored", &error);
+            ok = (cudaMemcpy(device_parts + (plane * piece_most), parts + (plane * count) + first,
+                             (size_t)held * lane_bytes, cudaMemcpyHostToDevice) == cudaSuccess) &&
+                 (cudaMemcpy2D((unsigned char *)device_records + (plane * lane_bytes), part_bytes,
+                               device_parts + (plane * piece_most), lane_bytes, lane_bytes, (size_t)held,
+                               cudaMemcpyDeviceToDevice) == cudaSuccess);
         }
-    }
-    // the verdicts summed on the device: every value whose parts read back to its double counts 1
-    unsigned int sum[2] = {0u, 0u};
-    if (ok)
-    {
-        const DeviceRecordStep place = loaded.layout.step_table[output];
-        const CycleRecordSumRequest total = {device_out,    count, count, out_limbs, place.out_offset, place.out_bits,
-                                             2u,            sum,   &error};
-        ok = cycle_record_sum(&total) != CYCLE_ERROR;
-        if (!ok)
+        unsigned int *const index = ingest_index_build(values, 3u, row_first, row_past);
+        ok = ok && (index != NULL) &&
+             (cudaMemcpy(device_index, index, (size_t)(held * 3ull) * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
+              cudaSuccess) &&
+             (cudaMemcpy(device_values, values->bytes + (first * 8ull), (size_t)(held * 8ull), cudaMemcpyHostToDevice) ==
+              cudaSuccess);
+        free(index);
+        if (ok && (held != 0ull))
         {
-            ingest_error_line(results, "the verdicts' sum errored", &error);
+            const CycleRecordRunRequest run = {loaded.record,
+                                               {device_values, device_records,
+                                                device_bases + (row_first * INGEST_ROW_LIMBS)},
+                                               {held, held, row_past - row_first},
+                                               device_index,
+                                               held,
+                                               device_out,
+                                               &error};
+            ok = cycle_record_run(&run) != CYCLE_ERROR;
+            if (!ok)
+            {
+                ingest_error_line(results, "the check program's run errored", &error);
+            }
         }
+        // the piece's verdicts summed on the device: every value whose parts read back to its double counts 1
+        unsigned int sum[2] = {0u, 0u};
+        if (ok && (held != 0ull))
+        {
+            const DeviceRecordStep place = loaded.layout.step_table[output];
+            const CycleRecordSumRequest total = {device_out, held, held, out_limbs, place.out_offset, place.out_bits,
+                                                 2u,         sum,  &error};
+            ok = cycle_record_sum(&total) != CYCLE_ERROR;
+            if (!ok)
+            {
+                ingest_error_line(results, "the verdicts' sum errored", &error);
+            }
+        }
+        read_back += ((unsigned long long)sum[1] << 32u) | sum[0];
+        row_first = row_past;
     }
+    free(parts);
     const unsigned long long checked_at = engine_clock_microseconds();
-    const unsigned long long read_back = ((unsigned long long)sum[1] << 32u) | sum[0];
+    cudaFree(device_parts);
     cudaFree(device_records);
     cudaFree(device_values);
     cudaFree(device_bases);
@@ -1371,24 +1439,32 @@ static int ingest_text_seal(SimResults *results, const char *set, unsigned int g
     return ok;
 }
 
-// each row's value count as one plane of 16-bit lanes, sealed where every count fits one
+// each row's value count as a plane of 16-bit lanes, its low 16 bits, and a second of its high 16 where any count
+// passes 2^16
 static int ingest_rows_seal(SimResults *results, const char *set, unsigned int group, unsigned int column,
                             const IngestColumn *values, IngestTally *tally)
 {
-    unsigned short *const counts = (unsigned short *)malloc((size_t)values->rows * sizeof(unsigned short) + 2u);
-    int ok = counts != NULL;
+    unsigned long long widest = 0ull;
+    for (unsigned long long row = 0ull; row < values->rows; row += 1ull)
+    {
+        const unsigned long long held = values->row_start[row + 1ull] - values->row_start[row];
+        widest = (held > widest) ? held : widest;
+    }
+    const unsigned long long planes = ((widest >> INGEST_LANE_BITS) != 0ull) ? 2ull : 1ull;
+    unsigned short *const counts = (unsigned short *)malloc((size_t)(values->rows * 2ull) * sizeof(unsigned short) + 2u);
+    int ok = (counts != NULL) && ((widest >> (2u * INGEST_LANE_BITS)) == 0ull);
     for (unsigned long long row = 0ull; ok && (row < values->rows); row += 1ull)
     {
         const unsigned long long held = values->row_start[row + 1ull] - values->row_start[row];
-        ok = held < (1ull << INGEST_LANE_BITS);
-        counts[row] = (unsigned short)held;
+        counts[row] = (unsigned short)(held & 0xFFFFull);
+        counts[values->rows + row] = (unsigned short)(held >> INGEST_LANE_BITS);
     }
+    const size_t count_bytes = (size_t)(values->rows * planes) * sizeof(unsigned short);
     unsigned short *device_counts = NULL;
-    ok = ok && (cudaMalloc((void **)&device_counts, (size_t)values->rows * sizeof(unsigned short)) == cudaSuccess) &&
-         (cudaMemcpy(device_counts, counts, (size_t)values->rows * sizeof(unsigned short), cudaMemcpyHostToDevice) ==
-          cudaSuccess);
+    ok = ok && (cudaMalloc((void **)&device_counts, count_bytes) == cudaSuccess) &&
+         (cudaMemcpy(device_counts, counts, count_bytes, cudaMemcpyHostToDevice) == cudaSuccess);
     char sample[INGEST_SAMPLE_BYTES];
-    const unsigned long long line[4] = {1ull, 1ull, 1ull, values->rows};
+    const unsigned long long line[4] = {1ull, 1ull, planes, values->rows};
     ok = ok && ingest_sample_name(sample, group, column, "rows") &&
          ingest_seal(results, set, sample, device_counts, line, column, tally);
     cudaFree(device_counts);
@@ -1397,8 +1473,9 @@ static int ingest_rows_seal(SimResults *results, const char *set, unsigned int g
     return ok;
 }
 
-// the device bytes the widest row group holds: its values, records, planes and bases, and the tower's and the coder's
-// pools for the widest plane
+// The device bytes the widest row group holds at once: each value's stored double and planes over its column, a
+// piece's index pairs and records, and the tower's and the coder's pools for one plane of the widest column. The kept
+// values' lattice, a share of a column's values, and the bases', one value a row, are left to the kept peak
 static unsigned long long ingest_declared(void)
 {
     unsigned long long widest = 0ull;
@@ -1410,8 +1487,9 @@ static unsigned long long ingest_declared(void)
             widest = (levels > widest) ? levels : widest;
         }
     }
-    const unsigned long long lanes = widest * INGEST_LANES_PER_VALUE;
-    return (widest * INGEST_DECLARED_PER_VALUE) + tower_reserve_bytes(lanes) + compression_reserve_bytes(lanes);
+    const unsigned long long piece = (widest < INGEST_PIECE_VALUES) ? widest : INGEST_PIECE_VALUES;
+    return (widest * INGEST_DECLARED_PER_VALUE) + (piece * INGEST_DECLARED_PER_PIECE_VALUE) + tower_reserve_bytes(widest) +
+           compression_reserve_bytes(widest);
 }
 
 int ingest_run(SimResults *results, int count, char **arguments)
@@ -1425,7 +1503,10 @@ int ingest_run(SimResults *results, int count, char **arguments)
         ingest_line_end(results);
         return 0;
     }
-    if (sim_job_submit(results, "casmi_driver", count, arguments, ingest_declared()) == 0)
+    const unsigned long long declared = ingest_declared();
+    ingest_line_decimal(results, "  device bytes declared for the widest row group: ", declared);
+    ingest_line_end(results);
+    if (sim_job_submit(results, "casmi_driver", count, arguments, declared) == 0)
     {
         return 0;
     }

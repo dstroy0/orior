@@ -277,10 +277,11 @@ int rank_set_load(SimResults *results, const char *set, RankSet *out)
         unsigned short *base_lanes = NULL;
         ok = rank_part_load(results, set, group, RANK_MZ_PATH, "rows", extent, &peaks);
         const unsigned long long rows = ok ? extent[3] : 0ull;
+        const int wide = ok && (extent[2] > 1ull);
         std::vector<unsigned long long> counts((size_t)rows);
         for (unsigned long long row = 0ull; ok && (row < rows); row += 1ull)
         {
-            counts[row] = peaks[row];
+            counts[row] = peaks[row] | (wide ? ((unsigned long long)peaks[rows + row] << 16u) : 0ull);
         }
         free(peaks);
         char part[RANK_SAMPLE_BYTES];
