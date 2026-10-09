@@ -3,8 +3,8 @@
 
 // The name: "or", the eye in place of the i, "or". The eye is line art in the text's color and
 // follows the scheme, and the name still reads as orior to a screen reader. The bar along the top
-// holds it small, and an empty view holds it large until it goes there. Either opens orior's
-// repository.
+// holds the eye alone, and an empty view holds the whole name large until it goes there. Either
+// opens orior's repository.
 
 import { invoke } from "./bridge.js";
 
@@ -71,11 +71,11 @@ function eye() {
   return svg;
 }
 
-// Sets the name in `node`: or, the eye, or.
-export function setWordmark(node) {
+// Sets the name in `node`: or, the eye, or; or, with `eyeOnly`, the eye alone, as the bar holds it.
+export function setWordmark(node, { eyeOnly = false } = {}) {
   node.setAttribute("aria-label", "orior");
   node.classList.add("wordmark");
-  node.replaceChildren("or", eye(), "or");
+  node.replaceChildren(...(eyeOnly ? [eye()] : ["or", eye(), "or"]));
   return node;
 }
 
@@ -284,7 +284,7 @@ function linkHome(node) {
 // Sets the name in the bar and in every heading the page marks for it, each of those set to go to
 // the bar once it shows.
 export function startWordmark() {
-  linkHome(setWordmark(document.getElementById("bar-mark")));
+  linkHome(setWordmark(document.getElementById("bar-mark"), { eyeOnly: true }));
   document.querySelectorAll("[data-wordmark]").forEach((node) => {
     linkHome(setWordmark(node));
     watch(node);

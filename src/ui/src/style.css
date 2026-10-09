@@ -1351,6 +1351,14 @@ body[data-view="run"] .statusbar .ed-status {
   border-radius: var(--radius);
 }
 
+/* The bar holds the eye alone, a quarter larger than it stands in the name. */
+.bar-mark .eye-mark {
+  width: calc(1.164em * 1.25);
+  height: calc(1.15em * 1.25);
+  margin: 0;
+  vertical-align: middle;
+}
+
 .bar-mark .eye-mark path {
   stroke-width: 9;
 }
