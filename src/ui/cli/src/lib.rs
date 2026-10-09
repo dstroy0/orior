@@ -14,6 +14,8 @@ pub mod bridge;
 pub mod catalog;
 pub mod cli;
 pub mod commands;
+pub mod dap;
+pub mod debug;
 pub mod defs;
 pub mod files;
 pub mod format;

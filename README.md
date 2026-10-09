@@ -156,6 +156,19 @@ In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code 
 | see a call's parameters | Ctrl+Shift+Space, Edit, Parameter Info. It opens on its own as ( or , is typed in a call, the parameter the cursor is at in bold. |
 | read a name's documentation | Ctrl+K Ctrl+I or Ctrl+Q, Edit, Quick Documentation |
 
+### Debug a file
+
+Run, Debug File (Shift+F9) runs the file in the editor under its language's debugger: lldb-dap for C, C++ and Rust, built first with clang or rustc into build/debug/, gdb on Linux and macOS, and debugpy for Python. A press in the gutter's strip left of a line's number, or F9, sets a breakpoint there, and the dot is hollow where the debugger could not bind it to code. Where the program stops, its file opens at the line, marked until it runs on, and the Debug window under the editor (View, Debug, Alt+5) shows the calls in Frames, the chosen frame's variables and the watches in Variables, and the program's output in Console, whose field evaluates in that frame.
+
+| to | press |
+| --- | --- |
+| continue | F5 |
+| step over, into, out | F10; F11 or F7; Shift+F11 |
+| pause | F6 |
+| stop, or start again | Shift+F5 or Ctrl+F2; Ctrl+Shift+F5 |
+
+lldb-dap from the LLVM release loads Python 3.11's library, and orior gives it the folder Python 3.11 installs to; File, Toolchains says what is missing where it does not start. debugpy goes into the Python orior uses with `python -m pip install debugpy`.
+
 ![A C file with factor not declared: a red wave under it, and the hover saying what clangd found](src/ui/docs/img/clangd.png)
 
 clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes; run it once after a clone and again after a file is added or moved.

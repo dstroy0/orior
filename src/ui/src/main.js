@@ -5,6 +5,7 @@
 
 import { invoke, pick } from "./bridge.js";
 import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
+import { loadBreakpoints } from "./debug.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
@@ -33,6 +34,7 @@ async function openInEditor(path) {
 async function settle(root, said) {
   const pane = document.getElementById("open-tree");
   document.getElementById("tree-path").textContent = root ?? "";
+  loadBreakpoints();
   pane.hidden = Boolean(root);
   if (!root) {
     document.getElementById("open-said").textContent = said ?? "";

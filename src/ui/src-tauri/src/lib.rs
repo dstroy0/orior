@@ -11,7 +11,7 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
+use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -30,6 +30,7 @@ struct App {
     runs: runner::Runs,
     terms: terminal::Terms,
     servers: Arc<servers::Servers>,
+    debugger: Arc<debug::Debugger>,
     windows: AtomicU64,
 }
 
@@ -390,6 +391,67 @@ fn lsp_complete(app: State<App>, path: String, line: u32, col: u32) -> Result<Ve
     app.servers.complete(&root_of(&app)?.join(path), line, col)
 }
 
+/// Builds where it is built, and debugs, the file at `path` in `language`, with `breakpoints`, each
+/// file's lines. The adapter's events come as "debug-event", { event, body }. Says which toolchain
+/// debugs it.
+#[tauri::command(async)]
+fn debug_start(handle: AppHandle, app: State<App>, path: String, language: String, breakpoints: HashMap<String, Vec<u32>>) -> Result<String, String> {
+    let root = root_of(&app)?;
+    let debugger = app.debugger.clone();
+    let emit: debug::Emit = Arc::new(move |event, body| {
+        if event == "terminated" || event == "adapterStopped" {
+            debugger.ended();
+        }
+        let _ = handle.emit("debug-event", serde_json::json!({"event": event, "body": body}));
+    });
+    app.debugger.start(&root, &root.join(path), &language, &breakpoints, emit)
+}
+
+#[tauri::command(async)]
+fn debug_breakpoints(app: State<App>, path: String, lines: Vec<u32>) -> Result<Vec<(u32, bool)>, String> {
+    app.debugger.breakpoints(&root_of(&app)?.join(path), &lines)
+}
+
+#[tauri::command(async)]
+fn debug_threads(app: State<App>) -> Result<Vec<debug::Thread>, String> {
+    app.debugger.threads()
+}
+
+/// The stopped thread's frames, each path as `tree_path` gives it.
+#[tauri::command(async)]
+fn debug_stack(app: State<App>, thread: i64) -> Result<Vec<debug::Frame>, String> {
+    let root = root_of(&app)?;
+    Ok(app.debugger.stack(thread)?.into_iter().map(|mut frame| {
+        frame.path = frame.path.map(|path| tree_path(&root, &path));
+        frame
+    }).collect())
+}
+
+#[tauri::command(async)]
+fn debug_scopes(app: State<App>, frame: i64) -> Result<Vec<debug::Scope>, String> {
+    app.debugger.scopes(frame)
+}
+
+#[tauri::command(async)]
+fn debug_variables(app: State<App>, reference: i64) -> Result<Vec<debug::Variable>, String> {
+    app.debugger.variables(reference)
+}
+
+#[tauri::command(async)]
+fn debug_evaluate(app: State<App>, expression: String, frame: Option<i64>, context: String) -> Result<debug::Variable, String> {
+    app.debugger.evaluate(&expression, frame, &context)
+}
+
+#[tauri::command(async)]
+fn debug_step(app: State<App>, how: String, thread: i64) -> Result<(), String> {
+    app.debugger.step(&how, thread)
+}
+
+#[tauri::command(async)]
+fn debug_stop(app: State<App>) {
+    app.debugger.stop();
+}
+
 /// The file at `path`, under the tree, validated by the tool plugin for `language`.
 #[tauri::command(async)]
 fn validate_file(app: State<App>, path: String, language: String) -> Result<validate::Report, String> {
@@ -727,6 +789,15 @@ fn open(launch: Launch) {
             lsp_act,
             lsp_signature,
             edits_write,
+            debug_start,
+            debug_breakpoints,
+            debug_threads,
+            debug_stack,
+            debug_scopes,
+            debug_variables,
+            debug_evaluate,
+            debug_step,
+            debug_stop,
             toolchains_check,
             toolchain_version,
             toolchain_install,
@@ -779,6 +850,7 @@ fn open(launch: Launch) {
             // A language server orior started ends with it: on Windows a child outlives its parent.
             if let tauri::RunEvent::Exit = event {
                 handle.state::<App>().servers.stop_all();
+                handle.state::<App>().debugger.stop();
             }
         });
 }

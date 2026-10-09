@@ -55,6 +55,13 @@ pub struct Tool {
     /// The language server the tool has for the editor, as servers.rs starts it, where it has one.
     #[serde(default)]
     pub server: Option<crate::servers::ServerSpec>,
+    /// The debug adapter the tool has, as debug.rs starts it, where it has one.
+    #[serde(default)]
+    pub debugger: Option<crate::debug::DebuggerSpec>,
+    /// The words that build a file for debugging, by its language or by its language and extension
+    /// as `runs` keys them, as debug.rs reads them.
+    #[serde(default)]
+    pub builds: HashMap<String, Vec<String>>,
     /// How the tool formats a text of a language `formats` names, where it does.
     #[serde(default)]
     pub format: Option<Formatter>,
@@ -513,6 +520,19 @@ fn add_folder(_variable: &str, folder: &str) -> Result<(), String> {
 
 /// The PATH a job or a terminal orior starts gets: the folders the reader gave, then the PATH as
 /// path_folders reads it.
+/// The folders that exist of those written by system as `places` writes them, each pattern's in
+/// order.
+pub fn folders_for(by_system: &HashMap<String, Vec<String>>) -> Vec<PathBuf> {
+    for_system(by_system).cloned().unwrap_or_default().iter().flat_map(|pattern| folders_of(pattern)).filter(|dir| dir.is_dir()).collect()
+}
+
+/// The PATH jobs run with, with `ahead` in front of it.
+pub fn run_path_with(ahead: &[PathBuf]) -> OsString {
+    let mut dirs: Vec<PathBuf> = ahead.to_vec();
+    dirs.extend(std::env::split_paths(&run_path()));
+    std::env::join_paths(dirs).unwrap_or_else(|_| run_path())
+}
+
 pub fn run_path() -> OsString {
     let kept = chosen();
     let mut dirs: Vec<PathBuf> = kept.values().map(PathBuf::from).filter(|dir| dir.is_dir()).collect();

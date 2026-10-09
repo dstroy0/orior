@@ -122,6 +122,27 @@
       </section>
     </main>
 
+    <section class="debug" id="debug" hidden aria-label="Debug">
+      <div class="term-grip" id="debug-grip" aria-hidden="true"></div>
+      <div class="debug-bar" id="debug-bar"><span class="debug-said" id="debug-said" aria-live="polite"></span></div>
+      <div class="debug-body">
+        <section class="debug-col debug-frames-col" aria-label="Frames">
+          <h3>Frames</h3>
+          <div class="debug-list" id="debug-frames"></div>
+        </section>
+        <section class="debug-col" aria-label="Variables">
+          <h3>Variables</h3>
+          <input class="debug-field" id="debug-watch" type="text" placeholder="Add a watch: an expression, then Enter" spellcheck="false" />
+          <div class="debug-list" id="debug-vars"></div>
+        </section>
+        <section class="debug-col debug-console" aria-label="Console">
+          <h3>Console</h3>
+          <div class="debug-out" id="debug-out"></div>
+          <input class="debug-field" id="debug-repl" type="text" placeholder="Evaluate in the chosen frame, then Enter" spellcheck="false" />
+        </section>
+      </div>
+    </section>
+
     <section class="term" id="term" hidden>
       <div class="term-grip" id="term-grip" aria-hidden="true"></div>
       <div class="term-view" id="term-view"></div>

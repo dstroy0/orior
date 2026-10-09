@@ -2496,6 +2496,304 @@ body[data-view="run"] .statusbar .ed-status {
   border-top: 1px solid var(--line);
 }
 
+/* The Debug window: a bar of steps and what the program is doing, then Frames, Variables with the
+ * watches over them, and Console, side by side. */
+.debug {
+  flex: none;
+  height: 15rem;
+  min-height: 120px;
+  max-height: min(70vh, calc(100vh - 16rem));
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--well);
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.debug-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0.15rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.debug-step {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.debug-step svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.debug-step.continue svg,
+.debug-step.stop-debug svg,
+.debug-step.pause svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.debug-step.continue:not(:disabled) {
+  color: var(--signal);
+}
+
+.debug-step.stop-debug:not(:disabled) {
+  color: var(--fail);
+}
+
+.debug-step:hover:not(:disabled) {
+  background: var(--line);
+}
+
+.debug-step:focus-visible {
+  outline: 1px solid var(--hover);
+}
+
+.debug-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.debug-said {
+  margin-left: 0.6rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debug-said.failed {
+  color: var(--fail);
+}
+
+.debug-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.4fr) minmax(14rem, 1.6fr);
+}
+
+.debug-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+}
+
+.debug-col:last-child {
+  border-right: 0;
+}
+
+.debug-col h3 {
+  flex: none;
+  margin: 0;
+  padding: 0.3rem 0.6rem 0.15rem;
+  color: var(--fg-3);
+  font: 600 11.5px/1.4 var(--head);
+}
+
+.debug-list,
+.debug-out {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.debug-empty {
+  margin: 0.3rem 0.6rem;
+  color: var(--fg-3);
+}
+
+.debug-frame {
+  display: flex;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.1rem 0.6rem;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12.5px/1.5 var(--code);
+  text-align: left;
+  cursor: pointer;
+}
+
+.debug-frame[aria-current="true"] {
+  background: color-mix(in srgb, var(--ed-warning) 16%, transparent);
+}
+
+.debug-frame:hover {
+  background: var(--line);
+}
+
+.debug-frame-name {
+  flex: none;
+}
+
+.debug-frame-where {
+  margin-left: auto;
+  min-width: 0;
+  color: var(--fg-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-var {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding-right: 0.6rem;
+  font: 12.5px/1.6 var(--code);
+  white-space: nowrap;
+}
+
+.debug-var.debug-scope {
+  font-family: var(--head);
+  color: var(--fg-2);
+}
+
+.debug-twisty {
+  flex: none;
+  width: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.debug-twisty:disabled {
+  cursor: default;
+}
+
+.debug-var-name {
+  color: var(--t-type);
+}
+
+.debug-watch .debug-var-name {
+  color: var(--hover);
+}
+
+.debug-var-value {
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debug-var-value.failed {
+  color: var(--fail);
+}
+
+.debug-var-kind {
+  margin-left: auto;
+  padding-left: 0.6rem;
+  color: var(--fg-3);
+}
+
+.debug-field {
+  flex: none;
+  margin: 0.15rem 0.5rem 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  background: var(--ed-bg);
+  color: var(--fg);
+  font: 12.5px var(--code);
+}
+
+.debug-field:focus {
+  outline: none;
+  border-color: var(--hover);
+}
+
+.debug-out {
+  padding: 0 0.6rem;
+  font: 12.5px/1.45 var(--code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.debug-line[data-kind="stderr"] {
+  color: var(--fail);
+}
+
+.debug-line[data-kind="console"] {
+  color: var(--fg-3);
+}
+
+.debug-line[data-kind="input"] {
+  color: var(--hover);
+}
+
+/* A breakpoint in the gutter's strip: a dot in the error's color, hollow where the debugger could not
+ * bind it, and a faint one under the pointer where none is set. The line a program is stopped on is
+ * marked by an arrow over the strip and a band across the text. */
+.ed-num::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ed-error);
+  opacity: 0;
+}
+
+.ed-num:hover::before {
+  opacity: 0.3;
+}
+
+.ed-break {
+  position: absolute;
+  left: 3px;
+  top: calc(50% - 5px);
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ed-error);
+}
+
+.ed-break.unbound {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--ed-error);
+}
+
+.ed-pc {
+  position: absolute;
+  left: 2px;
+  top: calc(50% - 6px);
+  z-index: 2;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 11px solid var(--ed-warning);
+}
+
+.ed-paused {
+  background: color-mix(in srgb, var(--ed-warning) 18%, transparent);
+}
+
 .term-grip {
   flex: none;
   height: 6px;

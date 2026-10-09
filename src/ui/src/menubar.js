@@ -21,6 +21,7 @@
 
 import { invoke } from "./bridge.js";
 import { showClone } from "./clone.js";
+import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
 import { bindEditorKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
@@ -206,6 +207,19 @@ const COMMANDS = {
   "quick-fix": inEditor(() => editing().quickFix()),
   "parameter-info": inEditor(() => editing().parameterInfo()),
   "quick-doc": inEditor(() => editing().quickDoc()),
+  debug: () => {
+    showView("edit");
+    debugFile();
+  },
+  "restart-debug": () => restartDebug(),
+  continue: () => step("continue"),
+  "step-over": () => step("next"),
+  "step-into": () => step("stepIn"),
+  "step-out": () => step("stepOut"),
+  pause: () => step("pause"),
+  "stop-debug": () => stopDebug(),
+  breakpoint: inEditor(() => toggleBreakpointHere()),
+  "debug-view": () => toggleDebugPanel(),
   "next-problem": inEditor((e) => e.stepProblem(1)),
   "previous-problem": inEditor((e) => e.stepProblem(-1)),
   "next-match": inEditor((e) => e.find.step(1)),
@@ -254,6 +268,10 @@ const NEEDS = {
   tabs: () => editing().open,
   job: () => Boolean(chosenJob()),
   live: () => chosenLive(),
+  debugging: () => debugging(),
+  debugged: () => debugging() || Boolean(editing().active),
+  paused: () => isPaused(),
+  running: () => debugging() && !isPaused(),
 };
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
@@ -504,21 +522,28 @@ function pressed(keys, event) {
 
 // Runs the command whose keys an event is, where nothing nearer the focus took the keys first. The
 // keys of a command for the editor are the editor's own, and a text field or the run's output keeps
-// them for itself. A key bound here never reaches the web view, even where its command cannot act.
+// them for itself. Of two commands with the same keys, the first that can act now runs, as F5
+// continues a stopped program and otherwise starts the chosen job. A key bound here never reaches
+// the web view, even where no command of it can act.
 function onShortcut(event) {
   if (event.defaultPrevented || menuOpen()) {
     return;
   }
+  let bound = false;
   for (const menu of state.menus) {
     for (const item of menu.items ?? []) {
       if (item !== "-" && item.needs !== "editor" && (pressed(item.keys, event) || pressed(item.also, event))) {
-        event.preventDefault();
+        bound = true;
         if (!item.needs || NEEDS[item.needs]?.()) {
+          event.preventDefault();
           runCommand(item.command);
+          return;
         }
-        return;
       }
     }
+  }
+  if (bound) {
+    event.preventDefault();
   }
 }
 

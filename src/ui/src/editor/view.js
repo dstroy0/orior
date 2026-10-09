@@ -19,6 +19,8 @@ import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
 
 const PAD = 10;
+// How wide the gutter's strip for breakpoints is, in pixels.
+const BREAK_STRIP = 16;
 // The height of a row, read from the code's line height each time the editor measures.
 let LINE = 20;
 
@@ -1615,6 +1617,12 @@ export class Editor {
     if (!fromGutter && (event.clientX - box.left >= this.scroller.clientWidth || event.clientY - box.top >= this.scroller.clientHeight)) {
       return;
     }
+    // A press in the gutter's strip by its left edge sets or clears a breakpoint on the line.
+    if (fromGutter && this.onBreakpoint && event.clientX - this.gutter.getBoundingClientRect().left < BREAK_STRIP) {
+      event.preventDefault();
+      this.onBreakpoint(this.s.base + this.posAt(event).line);
+      return;
+    }
     const target = event.target;
     if (target.dataset?.fold !== undefined) {
       event.preventDefault();
@@ -2139,7 +2147,9 @@ export class Editor {
     const level = status.scroll.level;
     const base = s.base;
     const total = s.window ? Math.max(base + doc.count, Math.round((base + doc.count) * (s.window.size / Math.max(1, s.window.end - s.window.start)))) : doc.count;
-    this.gutter.style.width = `${Math.round(String(total).length * cw + 36)}px`;
+    // The gutter holds, left to right, the strip a breakpoint is set in, the line numbers, and the
+    // fold arrows and change marks.
+    this.gutter.style.width = `${Math.round(String(total).length * cw + 36 + BREAK_STRIP)}px`;
     this.size();
     const top = this.scroller.scrollTop;
     const height = this.scroller.clientHeight;
@@ -2154,6 +2164,10 @@ export class Editor {
     const primary = this.primary();
     const caretLines = new Set(sels.filter(empty).map((sel) => sel.head.line));
     const headLines = new Set(sels.map((sel) => sel.head.line));
+    // The session's breakpoints, each file line mapped to whether it is bound to code, and the file
+    // line a debugged program is stopped on, as the editor's owner gives them.
+    const breaks = this.breakpointsOf?.(s) ?? null;
+    const paused = this.pausedOf?.(s) ?? null;
 
     const text = new Map();
     const under = new Map();
@@ -2186,6 +2200,9 @@ export class Editor {
       if (caretLines.has(line)) {
         band(row, this.box("ed-current", 0, row * LINE, spaceWidth));
       }
+      if (paused === base + line) {
+        band(row, this.box("ed-paused", 0, row * LINE, spaceWidth));
+      }
       const levels = level >= 1 ? 0 : this.guides(line);
       for (let step = 0; step < levels; step += 1) {
         band(row, this.box("ed-guide", PAD + step * s.indent.size * cw, row * LINE, 1));
@@ -2202,7 +2219,10 @@ export class Editor {
       const foldable = s.folded.has(line) || (level <= 1 && s.opens(line));
       const folded = foldable && s.folded.has(line);
       const mark = foldable ? `<span class="ed-fold${folded ? " shut" : ""}" data-fold="${line}">${folded ? "▸" : "▾"}</span>` : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", number + mark + this.changeMark(line)]);
+      const stop = breaks?.get(base + line);
+      const dot = stop === undefined ? "" : `<span class="ed-break${stop ? "" : " unbound"}"></span>`;
+      const here = paused === base + line ? '<span class="ed-pc"></span>' : "";
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + number + mark + this.changeMark(line)]);
     }
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {

@@ -36,6 +36,7 @@ import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
 import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
 import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
+import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
@@ -1308,6 +1309,37 @@ export async function startEdit(defs) {
   });
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
+  // The debugger's marks in the gutter, by the file a session shows. A file as a commit left it has
+  // none.
+  const fileOfSession = (s) => state.tabs.find((tab) => tab.session === s && !tab.commit)?.file ?? null;
+  state.editor.breakpointsOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? breakpointsOf(file) : null;
+  };
+  state.editor.pausedOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? pausedLineOf(file) : null;
+  };
+  state.editor.onBreakpoint = (line) => {
+    const file = fileOfSession(state.editor.s);
+    if (file) {
+      toggleBreakpoint(file, line);
+    }
+  };
+  startDebug({
+    editor: () => state.editor,
+    tab: () => tabOf(state.active),
+    save: async (tab) => {
+      if (dirty(tab) && !tab.readOnly) {
+        state.active = tab.path;
+        await saveActive();
+      }
+    },
+    open: (path) => openFile(path),
+    openAt: (path, line, col) => openAt(path, line, col),
+    repaint: () => state.editor?.schedule(),
+    run: (command) => import("./menubar.js").then((menus) => menus.runCommand(command)),
+  });
   startServers({ tabs: () => state.tabs, paint: () => state.editor.schedule() });
   startIntel({
     editor: () => state.editor,
@@ -1558,6 +1590,7 @@ export function editing() {
 // Forgets the folders read so far and the tabs, for a tree opened in place of this one. What the tabs
 // held stays kept with the tree they were open in.
 export function forgetTree() {
+  stopDebug();
   keepBackups();
   state.tabs.forEach(stopServing);
   state.restored = false;
