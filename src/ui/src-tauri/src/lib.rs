@@ -295,7 +295,7 @@ fn window_act(window: tauri::WebviewWindow, act: String) -> Result<bool, String>
             }
         }
         "close" => window.close(),
-        "drag" => window.start_dragging(),
+        "drag" => return dragging::start_drag(&window).map(|()| window.is_maximized().unwrap_or(false)),
         "state" => Ok(()),
         other => return Err(format!("{other} is not something the window does")),
     };
@@ -925,7 +925,6 @@ fn open(launch: Launch) {
             // A page that never asks for the window still has it shown after SHOW_ANYWAY.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_background_color(Some(tauri::window::Color(0x13, 0x13, 0x31, 0xff)));
-                dragging::watch(app.handle(), &window);
                 std::thread::spawn(move || {
                     std::thread::sleep(SHOW_ANYWAY);
                     let _ = window.show();

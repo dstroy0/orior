@@ -124,7 +124,7 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 | 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views. What scrolls off its top goes to a file the system deletes when the app closes, and the window holds only the lines in sight and those just above the prompt, reading the rest back as it is scrolled to. |
 | 7 | Status bar | the open file's breadcrumbs, its folders, it and the symbols the cursor is in; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line:column, the selection, the line ends, the encoding, the indent, and a lock that makes the file read-only for as long as its tab is open. |
 
-The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open. From the moment the title bar or an edge of the window is pressed until it is let go, the window does nothing but follow it: every animation stops, each moving picture holds as a still one, and a run's output, the terminal and the panes wait. All of it takes up where it stopped when the button is let go.
+The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open.
 
 ### Run a job
 
