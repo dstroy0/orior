@@ -40,33 +40,98 @@ static int dicom_transfer_syntax(const unsigned char *value, unsigned long long 
     return DICOM_CHECK(0, value, error, ENGINE_ERROR_REQUEST);
 }
 
-static int dicom_parse(DicomSlice *slice, EngineError *error)
+// the preamble and the group 0002 elements; leaves the walk on the first element of the data set
+static int dicom_meta(DicomWalk *walk, int *explicit_vr, EngineError *error)
 {
-    const unsigned char *const bytes = slice->member;
-    if (!DICOM_CHECK((slice->member_bytes >= (DICOM_PREAMBLE + 4ull)) &&
-                         (memcmp(bytes + DICOM_PREAMBLE, "DICM", 4u) == 0),
+    const unsigned char *const bytes = walk->bytes;
+    if (!DICOM_CHECK((walk->length >= (DICOM_PREAMBLE + 4ull)) && (memcmp(bytes + DICOM_PREAMBLE, "DICM", 4u) == 0),
                      bytes, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
-    DicomWalk walk = {bytes, slice->member_bytes, DICOM_PREAMBLE + 4ull};
-    int explicit_vr = -1;
-    while (((walk.length - walk.at) >= 8ull) && (dicom_little(bytes + walk.at, 2u) == 0x0002ull))
+    walk->at = DICOM_PREAMBLE + 4ull;
+    *explicit_vr = -1;
+    while (((walk->length - walk->at) >= 8ull) && (dicom_little(bytes + walk->at, 2u) == 0x0002ull))
     {
         DicomElement element;
-        if (!dicom_element(&walk, 1, &element, error) ||
+        if (!dicom_element(walk, 1, &element, error) ||
             !DICOM_CHECK(element.undefined == 0, bytes + element.value_at, error, ENGINE_ERROR_REQUEST))
         {
             return 0;
         }
         if ((element.element == 0x0010u) &&
-            !dicom_transfer_syntax(bytes + element.value_at, element.value_length, &explicit_vr, error))
+            !dicom_transfer_syntax(bytes + element.value_at, element.value_length, explicit_vr, error))
         {
             return 0;
         }
+        walk->at = element.value_at + element.value_length;
+    }
+    return DICOM_CHECK(*explicit_vr >= 0, bytes, error, ENGINE_ERROR_REQUEST);
+}
+
+int dicom_side_decimal_list(const EngineSideBytes *side, unsigned long long leaf, unsigned int group,
+                            unsigned int tag, unsigned int want, DicomDecimal *out, unsigned int *found,
+                            EngineError *error)
+{
+    if (!DICOM_CHECK((side != NULL) && (out != NULL) && (found != NULL) && (leaf < side->leaves) && (want != 0u),
+                     side, error, ENGINE_ERROR_REQUEST))
+    {
+        return 0;
+    }
+    *found = 0u;
+    // a leaf's bytes run up to the start of its pixel value; the elements wanted here all come before it
+    const unsigned long long start = side->byte_start[leaf];
+    const unsigned long long end = side->byte_start[leaf + 1ull];
+    const unsigned long long kept = (side->pixel_at[leaf] <= (end - start)) ? side->pixel_at[leaf] : (end - start);
+    DicomWalk walk = {side->bytes + start, kept, 0ull};
+    int explicit_vr = -1;
+    if (!dicom_meta(&walk, &explicit_vr, error))
+    {
+        return 0;
+    }
+    const unsigned long long wanted = ((unsigned long long)group << 16u) | (unsigned long long)tag;
+    while ((walk.length - walk.at) >= 8ull)
+    {
+        const unsigned long long seen =
+            (dicom_little(walk.bytes + walk.at, 2u) << 16u) | dicom_little(walk.bytes + walk.at + 2u, 2u);
+        if ((seen > wanted) || (seen == 0x7FE00010ull))
+        {
+            return 1;
+        }
+        DicomElement element;
+        if (!dicom_element(&walk, explicit_vr, &element, error))
+        {
+            return 0;
+        }
+        if (element.undefined != 0)
+        {
+            const int nested_explicit = ((element.vr[0] == 'U') && (element.vr[1] == 'N')) ? 0 : explicit_vr;
+            if (!dicom_skip_sequence(&walk, nested_explicit, error))
+            {
+                return 0;
+            }
+            continue;
+        }
+        if ((seen == wanted) && (element.value_length != 0ull))
+        {
+            if (!dicom_decimal_list(walk.bytes + element.value_at, element.value_length, want, out, error))
+            {
+                return 0;
+            }
+            *found = 1u;
+            return 1;
+        }
         walk.at = element.value_at + element.value_length;
     }
-    if (!DICOM_CHECK(explicit_vr >= 0, bytes, error, ENGINE_ERROR_REQUEST))
+    return 1;
+}
+
+static int dicom_parse(DicomSlice *slice, EngineError *error)
+{
+    const unsigned char *const bytes = slice->member;
+    DicomWalk walk = {bytes, slice->member_bytes, 0ull};
+    int explicit_vr = -1;
+    if (!dicom_meta(&walk, &explicit_vr, error))
     {
         return 0;
     }
