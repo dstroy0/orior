@@ -30,7 +30,7 @@ import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawOpenEditors, drawOutline, drawTimeline, guides, iconOf, lightOutline, startExplorer } from "./explorer.js";
+import { drawChanges, drawGit, drawOpenEditors, drawOutline, drawProblems, drawTimeline, guides, iconOf, lightOutline, startExplorer } from "./explorer.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
@@ -101,6 +101,9 @@ async function childrenOf(dir) {
 async function loadChanges() {
   const [changed, branch] = await Promise.all([invoke("tree_changed").catch(() => []), invoke("tree_branch").catch(() => null)]);
   state.changes = new Map(changed.map(({ path, state: mark }) => [path, mark]));
+  state.branch = branch;
+  drawChanges(state.changes);
+  drawGit(branch);
   state.rolled = new Map();
   for (const [path, mark] of state.changes) {
     let at = path.lastIndexOf("/");
@@ -622,11 +625,25 @@ ${finding.lifted}` : finding.message,
       source: finding.kind,
     }));
     tab.validated = true;
+    problemsChanged();
     state.editor.schedule();
     say(`${name} ${report.holds ? "holds" : "does not hold"}: ${report.verdict}`, { failed: !report.holds });
   } catch (error) {
     say(String(error), { failed: true });
   }
+}
+
+// The open files' diagnostics, a file at a time, for the Problems pane.
+function problemFiles() {
+  return state.tabs.filter((tab) => !tab.commit && tab.session?.diagnostics?.length).map((tab) => ({ path: tab.file, items: tab.session.diagnostics }));
+}
+
+// Draws the Problems pane again, and tells the tool strip how many errors and warnings there are.
+function problemsChanged() {
+  const files = problemFiles();
+  drawProblems(files);
+  const all = files.flatMap((file) => file.items);
+  window.dispatchEvent(new CustomEvent("problems-changed", { detail: { errors: all.filter((one) => one.severity === 1).length, warnings: all.filter((one) => one.severity === 2).length } }));
 }
 
 // Go to Definition, and a click with Ctrl held: where the language server says the symbol at `p`
@@ -1292,6 +1309,7 @@ export async function startEdit(defs) {
         if (tab.validated) {
           tab.validated = false;
           session.diagnostics = null;
+          problemsChanged();
         }
       }
       window.clearTimeout(backing);
@@ -1320,6 +1338,19 @@ export async function startEdit(defs) {
     const file = fileOfSession(s);
     return file ? pausedLineOf(file) : null;
   };
+  // The status bar's lock: a file of the tree turns between read-only and writable for as long as its
+  // tab is open, and a file as a commit left it stays read-only.
+  state.editor.onLock = (s) => {
+    const tab = state.tabs.find((one) => one.session === s);
+    if (!tab || tab.commit) {
+      say("A file as a commit left it is read-only.");
+      return;
+    }
+    s.readOnly = !s.readOnly;
+    tab.readOnly = s.readOnly;
+    state.editor.schedule();
+    drawTabs();
+  };
   state.editor.onBreakpoint = (line) => {
     const file = fileOfSession(state.editor.s);
     if (file) {
@@ -1340,7 +1371,13 @@ export async function startEdit(defs) {
     repaint: () => state.editor?.schedule(),
     run: (command) => import("./menubar.js").then((menus) => menus.runCommand(command)),
   });
-  startServers({ tabs: () => state.tabs, paint: () => state.editor.schedule() });
+  startServers({
+    tabs: () => state.tabs,
+    paint: () => {
+      state.editor.schedule();
+      problemsChanged();
+    },
+  });
   startIntel({
     editor: () => state.editor,
     tab: () => tabOf(state.active),
@@ -1385,7 +1422,11 @@ export async function startEdit(defs) {
     panesChanged: () => {
       drawOutline(tabOf(state.active)?.session ?? null);
       drawTimeline(state.active ? fileOf(state.active) : null);
+      drawChanges(state.changes);
+      drawProblems(problemFiles());
+      drawGit(state.branch);
     },
+    openAt: (path, line, col) => openAt(path, line, col),
   });
   keepListKeys(document.getElementById("panes"), document.getElementById("file-filter"));
   // The peek goes with Escape, a press outside it, a scroll of the text, or another file shown.

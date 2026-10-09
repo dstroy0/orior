@@ -251,6 +251,12 @@ fn file_commits(app: State<App>, path: String) -> Result<Vec<git::Commit>, Strin
     git::commits(&root_of(&app)?, &path)
 }
 
+/// The commits of the branch the tree is on, the newest first.
+#[tauri::command(async)]
+fn tree_commits(app: State<App>) -> Result<Vec<git::Commit>, String> {
+    Ok(git::log(&root_of(&app)?))
+}
+
 #[tauri::command]
 fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> {
     git::text_at(&root_of(&app)?, &path, &id)
@@ -835,6 +841,7 @@ fn open(launch: Launch) {
             report_asked,
             report_open,
             file_commits,
+            tree_commits,
             file_head,
             file_at,
             file_read,

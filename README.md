@@ -72,7 +72,7 @@ The easiest way in is [the app](#the-app): one window that lists every job the t
 2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. The next clone starts in the same folder. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
 
    ![Clone Repository with orior's address, the folder to clone into, and the fuse two thirds burnt while git receives the objects](src/ui/docs/img/clone.png)
-3. **Run a job.** The Run tab lists every job. Choose one, set its values and press F5.
+3. **Run a job.** The Run view, from the chart icon at the foot of the tool strip, lists every job. Choose one, set its values and press F5.
 
 File, Clone Repository does the same at any time, and `orior file clone` does it from a terminal.
 
@@ -110,19 +110,19 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 
 | | part | what it holds |
 | --- | --- | --- |
-| 1 | Menu bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help. A key shown beside a command runs it from anywhere in the window. |
-| 2 | Run and Edit | the two views, a tab each on the line under the menus. Run holds every job the tree holds, the values each takes and each run's output; Edit holds the parts below. Ctrl+Shift+D shows Run and Ctrl+Shift+E shows Edit, and with a tab holding the keys, Left and Right switch. |
-| 3 | Explorer | the panes Search, Open Editors, the tree's files, Outline and Timeline. Its … menu shows or hides each pane. |
-| 4 | Editor | a tab for each file, the breadcrumbs over it, and the minimap down its right edge |
+| 1 | Top bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help, then the tree's name and its branch, with a star where a file differs from the last commit. At its right end Preferences, Notifications, which keeps what the status bar has said, Toolchains, and m, which shows or hides the definitions. A key shown beside a command runs it from anywhere in the window. |
+| 2 | Tool strip | an icon for each tool window down the left edge, the one open marked in signal; a press on it again closes it. At the top Explorer (the Edit view and its files, Ctrl+Shift+E), Structure (the open file's outline), Commit (the files that differ from the last commit, and the Timeline), and more panes. At the foot Run (the Run view and its jobs, Ctrl+Shift+D), Debug, Terminal, Problems (the open files' diagnostics, marked while there are errors) and Git (the branch's commits). |
+| 3 | Explorer | the panes of the icon chosen. For Explorer: Search, Usages, Open Editors and the tree's files. Its … menu shows or hides each pane. |
+| 4 | Editor | a tab for each file, and the minimap down its right edge |
 | 5 | Definitions | the definition of the open file's type, and in a coherence file, the bridge |
 | 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
-| 7 | Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
+| 7 | Status bar | the open file's breadcrumbs, its folders, it and the symbols the cursor is in; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line:column, the selection, the line ends, the encoding, the indent, and a lock that makes the file read-only for as long as its tab is open. |
 
 The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open. From the moment the title bar or an edge of the window is pressed until it is let go, the window does nothing but follow it: every animation stops, each moving picture holds as a still one, and a run's output, the terminal and the panes wait. All of it takes up where it stopped when the button is let go.
 
 ### Run a job
 
-1. Choose the Run tab (Ctrl+Shift+D), or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
+1. Choose Run at the foot of the tool strip (Ctrl+Shift+D), or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 
@@ -146,7 +146,7 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | run the file | Ctrl+F5, or Run, Run File: it is saved, then runs in the terminal with its language's toolchain. Python, R, Ruby, JavaScript, the shells and PowerShell run as scripts; MATLAB runs with -batch, or in Octave where MATLAB is not installed; Lean with lean --run, TeX with latexmk, netlists with ngspice or LTspice, VHDL with GHDL; C, C++, CUDA and Rust are compiled to build/run/ and run. |
 | fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
 
-In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means; in Rust it asks rust-analyzer, and in Python Pyright. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the status bar counts them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition.
+In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means; in Rust it asks rust-analyzer, and in Python Pyright. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the tool strip's Problems lists them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition.
 
 | to | press |
 | --- | --- |

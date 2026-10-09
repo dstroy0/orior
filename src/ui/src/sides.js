@@ -128,6 +128,25 @@ export function togglePane(shown = !paneShown(), { take = true } = {}) {
   }
 }
 
+// Whether the pane at `node` shows.
+export function paneNodeShown(node) {
+  return !node.hidden && !node.classList.contains("collapsed");
+}
+
+// Shows the pane at `node` or collapses it, a pane shown this way staying until the pointer has been
+// on it.
+export function togglePaneNode(node, shown = !paneNodeShown(node)) {
+  const pane = panes.find((one) => one.node === node);
+  if (!pane) {
+    return;
+  }
+  setShown(pane, shown);
+  if (shown) {
+    pane.pinned = true;
+    collapseLater(pane);
+  }
+}
+
 export function setAutoCollapse(on = !autoCollapse()) {
   localStorage.setItem(AUTO, String(on));
   for (const pane of panes) {

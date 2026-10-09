@@ -1,12 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The explorer beside the editor: its panes, one over the next, each opened and closed by its head.
-// Search finds text in the tree's files, and shows from Find in Files. Usages lists where a symbol is
-// used, and shows from Find Usages. Open Editors lists the tabs, the tree's own pane holds its files, Outline lists what the open file
-// declares and Timeline the commits that touched it. The explorer's … menu shows or hides each pane,
-// reads the tree again, and closes every folder. Which panes show and which are open is kept between
-// visits.
+// The explorer beside the editor: its panes, one over the next, each opened and closed by its head,
+// in groups the tool strip's icons choose between, one group shown at a time. Explorer holds Search,
+// which finds text in the tree's files and shows from Find in Files; Usages, which lists where a
+// symbol is used and shows from Find Usages; Open Editors, which lists the tabs; and the tree's own
+// pane of its files. Structure holds the Outline of what the open file declares. Commit holds
+// Changes, the files that differ from the last commit, and the Timeline of commits that touched the
+// open file. Problems lists the open files' diagnostics, and Git the commits of the branch. The
+// explorer's … menu shows or hides each pane of the group, reads the tree again, and closes every
+// folder. Which group shows, and which panes show and are open, is kept between visits.
 //
 // A pane's head is a row of the explorer's list one level above its rows, and the list's keys open
 // and close it as they do a folder.
@@ -24,7 +27,23 @@ const PANES = [
   ["folder", null],
   ["outline", "Outline"],
   ["timeline", "Timeline"],
+  ["changes", "Changes"],
+  ["problems", "Problems"],
+  ["git", "Git"],
 ];
+
+// The panes each icon of the tool strip shows, one group at a time.
+const GROUPS = {
+  explorer: ["search", "usages", "open", "folder"],
+  structure: ["outline"],
+  commit: ["changes", "timeline"],
+  problems: ["problems"],
+  git: ["git"],
+};
+
+const GROUP_KEPT = "orior.panes.group";
+
+const groupOf = (name) => Object.keys(GROUPS).find((group) => GROUPS[group].includes(name));
 
 const state = {
   panes: {},
@@ -76,7 +95,7 @@ function paneOf(name) {
 function drawPane(name) {
   const pane = paneOf(name);
   const { shown, open } = state.panes[name];
-  pane.hidden = !shown;
+  pane.hidden = !shown || groupOf(name) !== state.group;
   pane.classList.toggle("expanded", open);
   pane.querySelector(".pane-head").setAttribute("aria-expanded", String(open));
 }
@@ -85,14 +104,53 @@ function setPane(name, change) {
   Object.assign(state.panes[name], change);
   drawPane(name);
   keep();
-  if (name === "outline" || name === "timeline") {
+  if (["outline", "timeline", "changes", "problems", "git"].includes(name)) {
     state.hooks?.panesChanged?.();
   }
 }
 
-// Shows a pane and opens it.
+// The group of panes the explorer shows.
+export function shownGroup() {
+  return state.group;
+}
+
+const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", git: "Git" };
+
+// The explorer's title, and its group on it, which shows the tree's filter only with the files.
+function drawGroupTitle() {
+  const title = document.querySelector("#explorer .explorer-head h2");
+  if (title) {
+    title.textContent = GROUP_TITLES[state.group];
+  }
+  document.getElementById("explorer").dataset.group = state.group;
+}
+
+// Shows the panes of `group` in the explorer in place of the ones it showed.
+export function showGroup(group) {
+  state.group = GROUPS[group] ? group : "explorer";
+  localStorage.setItem(GROUP_KEPT, state.group);
+  drawGroupTitle();
+  // A group of one pane is that pane, shown and open.
+  if (GROUPS[state.group].length === 1) {
+    Object.assign(state.panes[GROUPS[state.group][0]], { shown: true, open: true });
+    keep();
+  }
+  PANES.forEach(([name]) => drawPane(name));
+  state.hooks?.panesChanged?.();
+  window.dispatchEvent(new Event("panes-changed"));
+}
+
+// Shows a pane and opens it, with the group it is in.
 export function showPane(name) {
+  if (groupOf(name) !== state.group) {
+    showGroup(groupOf(name));
+  }
   setPane(name, { shown: true, open: true });
+}
+
+// The panes that are not in a group of their own on the tool strip, for its … menu.
+export function morePanes() {
+  return GROUPS.explorer.concat("timeline").map((name) => ({ name, label: PANES.find(([one]) => one === name)[1] ?? "Files" }));
 }
 
 export function paneOpen(name) {
@@ -102,11 +160,12 @@ export function paneOpen(name) {
 // The … menu, and each pane head's own menu: the panes to show, then reading the tree again and
 // closing its folders.
 function paneItems() {
+  const group = GROUPS[state.group];
   return [
-    ...PANES.map(([name, label]) => ({
+    ...PANES.filter(([name]) => group.includes(name)).map(([name, label]) => ({
       label: label ?? document.querySelector('.pane[data-pane="folder"] .pane-head').textContent,
       checked: state.panes[name].shown,
-      disabled: state.panes[name].shown && PANES.filter(([one]) => state.panes[one].shown).length === 1,
+      disabled: state.panes[name].shown && group.filter((one) => state.panes[one].shown).length === 1,
       run: () => setPane(name, { shown: !state.panes[name].shown }),
     })),
     "-",
@@ -239,6 +298,80 @@ function timelineItems(event) {
   ];
 }
 
+// Changes: a row a file git says differs from the last commit, marked with how, in the color the
+// tree marks it.
+
+const MARKS = { M: "modified", A: "added", D: "deleted", R: "renamed", U: "untracked", C: "conflicted" };
+
+export function drawChanges(changes) {
+  const body = document.getElementById("changes");
+  if (!paneOpen("changes") || state.group !== "commit") {
+    return;
+  }
+  const rows = [...changes].sort(([a], [b]) => a.localeCompare(b)).map(([path, mark]) => {
+    const cut = path.lastIndexOf("/");
+    const row = element("button", { className: "node change-row", type: "button", title: `${path}: ${MARKS[mark] ?? mark}` });
+    row.dataset.key = `change:${path}`;
+    row.dataset.depth = "0";
+    row.dataset.change = mark;
+    row.append(iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "change", textContent: mark }));
+    row.addEventListener("click", () => mark !== "D" && state.hooks.show(path));
+    return row;
+  });
+  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No file differs from the last commit." })]));
+}
+
+// Problems: each open file's diagnostics, a row a file and under it a row a diagnostic, the worst first.
+
+export function drawProblems(files) {
+  const body = document.getElementById("problems");
+  if (!paneOpen("problems") || state.group !== "problems") {
+    return;
+  }
+  const rows = [];
+  for (const { path, items } of files) {
+    if (!items.length) {
+      continue;
+    }
+    const cut = path.lastIndexOf("/");
+    const head = element("div", { className: "node problem-file" }, iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(items.length) }));
+    rows.push(head);
+    for (const item of [...items].sort((a, b) => a.severity - b.severity || a.from.line - b.from.line)) {
+      const row = element("button", { className: `problem s${item.severity}`, type: "button", title: `${path}:${item.from.line + 1}:${item.from.col + 1}\n${item.message}` });
+      row.dataset.key = `problem:${path}:${item.from.line}:${item.from.col}`;
+      row.dataset.depth = "1";
+      row.append(element("i", { className: "guide" }), element("span", { className: "problem-mark" }), element("span", { className: "name", textContent: item.message.split("\n")[0] }), element("span", { className: "where", textContent: `${item.from.line + 1}:${item.from.col + 1}` }));
+      row.addEventListener("click", () => state.hooks.openAt(path, item.from.line, item.from.col));
+      rows.push(row);
+    }
+  }
+  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No problems in the open files. A language server or Run, Validate finds them." })]));
+}
+
+// Git: the branch the tree is on, and its commits, the newest first.
+
+export async function drawGit(branch) {
+  const body = document.getElementById("git-log");
+  if (!paneOpen("git") || state.group !== "git") {
+    return;
+  }
+  const commits = await invoke("tree_commits").catch(() => []);
+  const head = element("div", { className: "node git-branch" }, element("span", { className: "name", textContent: branch ?? "no branch" }), element("span", { className: "where", textContent: `${commits.length} commit${commits.length === 1 ? "" : "s"} shown` }));
+  body.replaceChildren(
+    head,
+    ...commits.map((commit) => {
+      const row = element("button", { className: "commit", type: "button", title: `${commit.id.slice(0, 8)}  ${day(commit.when)} ${time(commit.when)}\n${commit.subject}` });
+      row.dataset.key = commit.id;
+      row.dataset.depth = "0";
+      const dot = element("span", { className: "icon commit-dot" });
+      dot.setAttribute("aria-hidden", "true");
+      row.append(dot, element("span", { className: "name", textContent: commit.subject }), element("span", { className: "where", textContent: day(commit.when) }));
+      row.addEventListener("click", () => copyText(commit.id));
+      return row;
+    }),
+  );
+}
+
 // The lines down from each folder above a row to the row, one a level.
 export function guides(depth) {
   return Array.from({ length: depth }, () => element("i", { className: "guide" }));
@@ -252,8 +385,10 @@ export function startExplorer(hooks) {
   } catch {
     kept = {};
   }
+  state.group = GROUPS[localStorage.getItem(GROUP_KEPT)] ? localStorage.getItem(GROUP_KEPT) : "explorer";
+  drawGroupTitle();
   for (const [name] of PANES) {
-    state.panes[name] = { shown: kept[name]?.shown ?? (name !== "search" && name !== "usages"), open: kept[name]?.open ?? (name !== "timeline" && name !== "outline") };
+    state.panes[name] = { shown: kept[name]?.shown ?? (name !== "search" && name !== "usages"), open: kept[name]?.open ?? name !== "timeline" };
     drawPane(name);
     paneOf(name)
       .querySelector(".pane-head")

@@ -93,10 +93,17 @@ pub fn commits(root: &Path, file: &str) -> Result<Vec<Commit>, String> {
     inside(root, file)?;
     let limit = format!("-n{COMMITS_LIMIT}");
     let shown = format!("./{file}");
-    let Some(out) = git(root, &["log", "--follow", &limit, "--format=%H%x1f%ct%x1f%s", "--", &shown]) else {
-        return Ok(Vec::new());
-    };
-    Ok(String::from_utf8_lossy(&out)
+    Ok(git(root, &["log", "--follow", &limit, "--format=%H%x1f%ct%x1f%s", "--", &shown]).map(|out| commits_of(&out)).unwrap_or_default())
+}
+
+/// The commits of the branch the tree is on, the newest first.
+pub fn log(root: &Path) -> Vec<Commit> {
+    let limit = format!("-n{COMMITS_LIMIT}");
+    git(root, &["log", &limit, "--format=%H%x1f%ct%x1f%s"]).map(|out| commits_of(&out)).unwrap_or_default()
+}
+
+fn commits_of(out: &[u8]) -> Vec<Commit> {
+    String::from_utf8_lossy(out)
         .lines()
         .filter_map(|line| {
             let mut parts = line.splitn(3, '\u{1f}');
@@ -105,7 +112,7 @@ pub fn commits(root: &Path, file: &str) -> Result<Vec<Commit>, String> {
             let subject = parts.next().unwrap_or_default().to_string();
             Some(Commit { id, when, subject })
         })
-        .collect())
+        .collect()
 }
 
 /// The text of `file` as commit `id` left it.

@@ -17,6 +17,7 @@ import { Minimap } from "./minimap.js";
 import { selectionPath } from "./shape.js";
 import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
+import { icon } from "../icons.js";
 
 const PAD = 10;
 // How wide the gutter's strip for breakpoints is, in pixels.
@@ -2359,7 +2360,7 @@ export class Editor {
     const read = s.window ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
     const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
     const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
-    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings].join("|");
+    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings, s.readOnly].join("|");
     if (said === this.statusSaid) {
       return;
     }
@@ -2367,7 +2368,8 @@ export class Editor {
     const parts = [];
     const where = document.createElement("button");
     where.type = "button";
-    where.textContent = `Ln ${s.base + head.line + 1}, Col ${this.vcol(head) + 1}`;
+    where.textContent = `${s.base + head.line + 1}:${this.vcol(head) + 1}`;
+    where.title = `Line ${s.base + head.line + 1}, column ${this.vcol(head) + 1}: Go to Line (Ctrl+G)`;
     where.addEventListener("click", () => this.goto.open());
     parts.push(where);
     if (picked) {
@@ -2379,29 +2381,27 @@ export class Editor {
     if (s.selections.length > 1) {
       parts.push(Object.assign(document.createElement("span"), { textContent: `${s.selections.length} cursors` }));
     }
-    if (s.diagnostics) {
-      const problems = document.createElement("button");
-      problems.type = "button";
-      problems.className = "problems";
-      problems.title = "Next Problem (F8)";
-      problems.append(
-        Object.assign(document.createElement("span"), { className: errors ? "s1" : "", textContent: `${errors} ${errors === 1 ? "error" : "errors"}` }),
-        Object.assign(document.createElement("span"), { className: warnings ? "s2" : "", textContent: `${warnings} ${warnings === 1 ? "warning" : "warnings"}` }),
-      );
-      problems.addEventListener("click", () => this.stepProblem(1));
-      parts.push(problems);
-    }
-    const gap = Object.assign(document.createElement("span"), { className: "gap" });
+    // Then the line ends, the encoding every file is read and written in, the indent, which a press
+    // turns between tabs and spaces, and the lock, which a press turns where the editor's owner says
+    // the text can be written.
+    const eol = Object.assign(document.createElement("span"), { textContent: s.doc.eol === "\r\n" ? "CRLF" : "LF", title: "Line ends" });
+    const encoding = Object.assign(document.createElement("span"), { textContent: "UTF-8", title: "Encoding" });
     const indent = document.createElement("button");
     indent.type = "button";
-    indent.textContent = s.indent.tabs ? `Tabs ${s.indent.size}` : `Spaces ${s.indent.size}`;
+    indent.textContent = s.indent.tabs ? `Tab ${s.indent.size}` : `${s.indent.size} spaces`;
+    indent.title = s.indent.tabs ? "Indent with tabs: a press indents with spaces" : "Indent with spaces: a press indents with tabs";
     indent.addEventListener("click", () => {
       s.indent.tabs = !s.indent.tabs;
       this.paint();
     });
-    const eol = Object.assign(document.createElement("span"), { textContent: s.doc.eol === "\r\n" ? "CRLF" : "LF" });
-    const language = Object.assign(document.createElement("span"), { textContent: s.language?.id ?? "plaintext" });
-    parts.push(gap, indent, eol, language);
+    const lock = document.createElement("button");
+    lock.type = "button";
+    lock.className = "status-lock";
+    lock.title = s.readOnly ? "Read-only: a press makes it writable" : "Writable: a press makes it read-only";
+    lock.setAttribute("aria-label", s.readOnly ? "Read-only" : "Writable");
+    lock.append(icon(s.readOnly ? "lock" : "unlock"));
+    lock.addEventListener("click", () => this.onLock?.(s));
+    parts.push(eol, encoding, indent, lock);
     this.status.replaceChildren(...parts);
   }
 

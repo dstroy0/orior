@@ -273,40 +273,227 @@ select {
   text-decoration: underline;
 }
 
-/* The views' tabs, a row of their own under the menus, the view shown underlined in
-   signal, as the site marks the page it is on. */
-.modes {
+/* The frame: the top bar, the tool strip down the left and the status bar along the foot, one ink
+   around the work, and the work beside the strip: the views over the Debug and Terminal panels. */
+.frame {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: stretch;
-  gap: 0.15rem;
-  height: 2.1rem;
-  padding: 0 0.8rem 0 1rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  flex: none;
 }
 
-.mode-tab {
-  padding: 0 0.95rem;
+.work {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The tool strip: an icon a tool window, the windows that show marked in signal on a square of it. */
+.strip {
+  flex: none;
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px 0;
+  background: var(--ink);
+  border-right: 1px solid var(--status-line);
+}
+
+.strip-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.strip-button,
+.bar-tool {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border: 0;
+  border-radius: 0.45rem;
   background: none;
-  color: var(--fg-2);
-  font: 13px var(--head);
+  color: var(--status-fg);
   cursor: pointer;
 }
 
-.mode-tab:hover {
-  color: var(--fg);
-  background: var(--line);
+.strip-button:hover,
+.bar-tool:hover {
+  background: var(--bar-title-hover);
+  color: var(--bar-bright);
 }
 
-.mode-tab[aria-selected="true"] {
-  color: var(--fg);
-  box-shadow: inset 0 -2px 0 var(--signal);
+.strip-button.on {
+  background: color-mix(in srgb, var(--bar-signal) 18%, transparent);
+  color: var(--bar-signal);
 }
 
-.mode-tab:focus-visible {
-  outline-offset: -2px;
+.strip-button:focus-visible,
+.bar-tool:focus-visible {
+  outline: 1px solid var(--bar-signal);
+  outline-offset: 0;
+}
+
+/* A dot over an icon whose window has something to read: errors in Problems, unread notifications. */
+.strip-button.marked::after,
+.bar-tool.unread::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bar-signal);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.strip-button.marked::after,
+.bar-tool.marked::after {
+  background: var(--ed-error);
+}
+
+/* The icons: lines of one weight with round ends, in the color of what holds them. */
+.glyph {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.glyph .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.icon-letter {
+  font: italic 600 16px/1 var(--head);
+}
+
+#explorer:not([data-group="explorer"]) #file-filter {
+  display: none;
+}
+
+/* The top bar's tree name and branch, then its tools at the right end. */
+.bar-project {
+  flex: none;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--bar-fg);
+  font: 600 13px var(--head);
+}
+
+.bar .status-branch {
+  flex: none;
+  color: var(--bar-path);
+  font: 12.5px var(--head);
+}
+
+.bar .status-branch .glyph {
+  width: 15px;
+  height: 15px;
+}
+
+.bar-gap {
+  flex: 1;
+}
+
+.bar-tools {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Notifications: what the status bar has said, the newest first, under the bell. */
+.notices {
+  position: fixed;
+  z-index: 40;
+  width: min(26rem, calc(100vw - 2rem));
+  max-height: min(28rem, calc(100vh - 6rem));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px var(--ed-suggest-shadow);
+}
+
+.notices-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.notices-head h3 {
+  margin: 0;
+  font: 600 13px var(--head);
+}
+
+.notices-clear {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.notices-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notices-list {
+  overflow: auto;
+  padding: 0.25rem 0;
+}
+
+.notice {
+  display: flex;
+  gap: 0.8rem;
+  padding: 0.35rem 0.7rem;
+  font: 12.5px/1.45 var(--head);
+  color: var(--fg);
+}
+
+.notice + .notice {
+  border-top: 1px solid var(--line);
+}
+
+.notice.failed .notice-text {
+  color: var(--fail);
+}
+
+.notice-text {
+  flex: 1;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notice-time {
+  flex: none;
+  color: var(--fg-3);
+}
+
+.notices-empty {
+  margin: 0.6rem 0.7rem;
+  color: var(--fg-3);
+  font: 12.5px var(--head);
 }
 
 /* The tree's folder, in the middle of what the menus leave. */
@@ -415,14 +602,65 @@ select {
 }
 
 .statusbar .ed-status {
-  flex: 1;
+  flex: none;
+  margin-left: auto;
   min-height: 0;
-  min-width: 0;
   padding: 0;
   border: 0;
   background: none;
   color: inherit;
   font: 12px var(--head);
+}
+
+.statusbar .status-lock {
+  display: grid;
+  place-items: center;
+}
+
+.statusbar .status-lock .glyph {
+  width: 14px;
+  height: 14px;
+}
+
+/* The breadcrumbs on the status bar's left: the open file's folders, then it, then the symbols the
+   cursor is in, each a press that goes there. */
+.statusbar .crumbs {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  background: none;
+  font: 12px var(--head);
+}
+
+.statusbar .crumb {
+  color: var(--status-fg);
+}
+
+.statusbar .crumb:hover {
+  background: var(--bar-title-hover);
+  color: var(--bar-bright);
+}
+
+.statusbar .crumb.file,
+.statusbar .crumb.symbol:last-child {
+  color: var(--bar-bright);
+}
+
+.statusbar .crumb-gap {
+  color: var(--bar-path);
+}
+
+body[data-view="run"] .statusbar .crumbs {
+  display: none;
+}
+
+.statusbar .status-memory {
+  margin-left: auto;
+}
+
+.statusbar .status-memory:not([hidden]) ~ .ed-status {
+  margin-left: 0;
 }
 
 .statusbar .ed-status button:hover {
@@ -3330,6 +3568,100 @@ textarea.report-field {
 .search-hits {
   min-height: 0;
   overflow: auto;
+}
+
+/* Problems: a file's row, then its diagnostics, each marked in its severity's color. */
+.problem-file,
+.git-branch {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 24px;
+  padding: 0 0.6rem;
+  color: var(--fg);
+  font: 13px var(--head);
+}
+
+.problem-file .where,
+.git-branch .where {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.problem-file .count {
+  margin-left: auto;
+  padding: 0 0.4rem;
+  border-radius: 0.6rem;
+  background: var(--line);
+  font: 11px var(--code);
+  color: var(--fg-2);
+}
+
+.git-branch .name {
+  font-weight: 600;
+}
+
+.problem {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  height: 22px;
+  padding: 0 0.6rem 0 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12.5px var(--head);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.problem .guide {
+  margin-left: 12px;
+}
+
+.problem .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.problem .where {
+  flex: none;
+  margin-left: auto;
+  font: 11px var(--code);
+  color: var(--fg-3);
+}
+
+.problem:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.problem-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hover);
+}
+
+.problem.s1 .problem-mark {
+  background: var(--ed-error);
+}
+
+.problem.s2 .problem-mark {
+  background: var(--ed-warning);
+}
+
+.pane-empty {
+  margin: 0.4rem 0.7rem;
+  color: var(--fg-3);
+  font: 12.5px var(--head);
 }
 
 .search-file .where {

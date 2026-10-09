@@ -9,7 +9,8 @@ import { loadBreakpoints } from "./debug.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, keysOf, runCommand, runLaunch, startMenubar } from "./menubar.js";
+import { drawMenubar, runCommand, runLaunch, startMenubar } from "./menubar.js";
+import { startStrip } from "./strip.js";
 import { forgetFiles } from "./palette.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
@@ -18,7 +19,7 @@ import { startSearch } from "./search.js";
 import { keepPane, settlePanes } from "./sides.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
-import { onView, showView, startModes } from "./views.js";
+import { onView, showView } from "./views.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
 import { keepMemory, say } from "./statusbar.js";
@@ -34,6 +35,9 @@ async function openInEditor(path) {
 async function settle(root, said) {
   const pane = document.getElementById("open-tree");
   document.getElementById("tree-path").textContent = root ?? "";
+  const project = document.getElementById("bar-project");
+  project.textContent = root ? root.replace(/[\\/]+$/, "").split(/[\\/]/).pop() : "";
+  project.title = root ?? "";
   loadBreakpoints();
   pane.hidden = Boolean(root);
   if (!root) {
@@ -73,7 +77,6 @@ async function start() {
   document.getElementById("open-button").addEventListener("click", () => openFolder());
   document.getElementById("clone-button").addEventListener("click", () => runCommand("clone"));
   await startMenubar({ openFolder });
-  startModes((view) => keysOf(`${view}-view`));
   startSearch((path, line, col) => {
     showView("edit");
     openAt(path, line, col);
@@ -83,6 +86,7 @@ async function start() {
   keepPane(document.getElementById("job-side"), "left");
   keepPane(document.getElementById("explorer"), "left");
   keepPane(document.getElementById("defs-side"), "right");
+  startStrip({ run: runCommand });
   await begin(await invoke("root_get"));
   settlePanes();
   onView(settlePanes);
