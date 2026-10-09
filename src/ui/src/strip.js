@@ -99,8 +99,11 @@ export function refreshStrip() {
   bell?.classList.toggle("unread", noticesUnseen() > 0);
 }
 
-// The icons whose windows are side panes, each with what shows its pane as the pointer comes over
-// it, from either view: the explorer on a group of its panes, or the Run view's jobs.
+// How long the pointer rests on an icon, in milliseconds, before its pane shows.
+const RESTS = 350;
+
+// The icons whose windows are side panes, each with what shows its pane as the pointer rests on it,
+// from either view: the explorer on a group of its panes, or the Run view's jobs.
 const showGroupPane = (group) => {
   if (explorerShown(group)) {
     return;
@@ -129,13 +132,19 @@ function stripButton(name, glyph, label, keys, run, shown) {
     run(button);
     window.requestAnimationFrame(refreshStrip);
   });
-  // The pointer over one of them shows its pane, and the pane stays open while the pointer is on the
-  // strip or on it.
+  // The pointer resting on one of them for RESTS shows its pane, and the pane stays open while the
+  // pointer is on the strip or on it. A pointer that only passes over it on the way elsewhere
+  // changes nothing.
   if (HOVERED.has(name)) {
+    let resting = 0;
     button.addEventListener("pointerenter", () => {
-      HOVERED.get(name)();
-      window.requestAnimationFrame(refreshStrip);
+      window.clearTimeout(resting);
+      resting = window.setTimeout(() => {
+        HOVERED.get(name)();
+        window.requestAnimationFrame(refreshStrip);
+      }, RESTS);
     });
+    button.addEventListener("pointerleave", () => window.clearTimeout(resting));
   }
   state.buttons.set(name, { button, shown });
   return button;
