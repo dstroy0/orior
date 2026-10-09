@@ -298,29 +298,6 @@ function timelineItems(event) {
   ];
 }
 
-// Changes: a row a file git says differs from the last commit, marked with how, in the color the
-// tree marks it.
-
-const MARKS = { M: "modified", A: "added", D: "deleted", R: "renamed", U: "untracked", C: "conflicted" };
-
-export function drawChanges(changes) {
-  const body = document.getElementById("changes");
-  if (!paneOpen("changes") || state.group !== "commit") {
-    return;
-  }
-  const rows = [...changes].sort(([a], [b]) => a.localeCompare(b)).map(([path, mark]) => {
-    const cut = path.lastIndexOf("/");
-    const row = element("button", { className: "node change-row", type: "button", title: `${path}: ${MARKS[mark] ?? mark}` });
-    row.dataset.key = `change:${path}`;
-    row.dataset.depth = "0";
-    row.dataset.change = mark;
-    row.append(iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "change", textContent: mark }));
-    row.addEventListener("click", () => mark !== "D" && state.hooks.show(path));
-    return row;
-  });
-  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No file differs from the last commit." })]));
-}
-
 // Problems: each open file's diagnostics, a row a file and under it a row a diagnostic, the worst first.
 
 export function drawProblems(files) {

@@ -3,8 +3,10 @@
 
 //! What git says of the tree: the branch it is on, the files that differ from the last commit and
 //! how, the commits that touched a file, and a file's text as one of those commits left it or as the
-//! last did. In a tree git cannot read, each of these comes back empty. Here too is the clone of a
-//! repository into a folder of its own, for File, Clone Repository and `orior file clone`.
+//! last did. In a tree git cannot read, each of these comes back empty. What git is asked to do, for
+//! the Commit window: commit chosen files, push, pull where nothing would merge, and put a file back
+//! as the last commit left it, each giving git's own words where it refuses. Here too is the clone of
+//! a repository into a folder of its own, for File, Clone Repository and `orior file clone`.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -86,6 +88,79 @@ pub fn changed(root: &Path) -> Vec<Changed> {
         }
     }
     found
+}
+
+/// Runs git at `root` with nothing to answer a prompt with, and gives what it wrote, or what it said
+/// went wrong.
+fn run(root: &Path, args: &[&str]) -> Result<String, String> {
+    let mut command = Command::new("git");
+    command.args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").stdin(Stdio::null());
+    crate::runner::quiet(&mut command);
+    let out = command.output().map_err(|error| format!("git: {error}"))?;
+    let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    if out.status.success() {
+        Ok(said.trim().to_string())
+    } else {
+        Err(if said.trim().is_empty() { format!("git {} failed", args.first().unwrap_or(&"")) } else { said.trim().to_string() })
+    }
+}
+
+/// Commits the files at `paths` with `message`, each as it stands, whether changed, new or gone, and
+/// leaves every other file as it was. Gives git's line for the commit made.
+pub fn commit(root: &Path, message: &str, paths: &[String]) -> Result<String, String> {
+    if message.trim().is_empty() {
+        return Err("a commit needs a message".into());
+    }
+    if paths.is_empty() {
+        return Err("no file is chosen to commit".into());
+    }
+    for path in paths {
+        inside(root, path)?;
+    }
+    let shown: Vec<String> = paths.iter().map(|path| format!("./{path}")).collect();
+    let mut add = vec!["add", "-A", "--"];
+    add.extend(shown.iter().map(String::as_str));
+    run(root, &add)?;
+    let mut commit = vec!["commit", "-m", message.trim(), "--"];
+    commit.extend(shown.iter().map(String::as_str));
+    let said = run(root, &commit)?;
+    Ok(said.lines().find(|line| line.starts_with('[')).unwrap_or(said.lines().next().unwrap_or_default()).to_string())
+}
+
+/// Pushes the branch to the remote it follows, or to origin under its own name where it follows none.
+pub fn push(root: &Path) -> Result<String, String> {
+    if run(root, &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]).is_ok() {
+        run(root, &["push"])
+    } else {
+        run(root, &["push", "-u", "origin", "HEAD"])
+    }
+}
+
+/// Brings in the commits of the remote branch the tree's follows, only where its own commits are all
+/// among them, so that nothing is merged or rewritten.
+pub fn pull(root: &Path) -> Result<String, String> {
+    run(root, &["pull", "--ff-only"])
+}
+
+/// How many commits the branch has that its remote does not, and the other way, or None where it
+/// follows no remote.
+pub fn ahead_behind(root: &Path) -> Option<(u32, u32)> {
+    let said = git(root, &["rev-list", "--left-right", "--count", "HEAD...@{u}"])?;
+    let text = String::from_utf8_lossy(&said);
+    let mut counts = text.split_whitespace().filter_map(|count| count.parse().ok());
+    Some((counts.next()?, counts.next()?))
+}
+
+/// Puts the file at `path` back as the last commit left it, taking back its changes in the tree and
+/// in what is staged. A file the last commit does not hold is refused, as taking it back would delete
+/// it.
+pub fn rollback(root: &Path, path: &str) -> Result<(), String> {
+    inside(root, path)?;
+    let shown = format!("./{path}");
+    if git(root, &["cat-file", "-e", &format!("HEAD:{shown}")]).is_none() {
+        return Err(format!("{path} is not in the last commit: delete it from the tree to take it back"));
+    }
+    run(root, &["restore", "--source=HEAD", "--staged", "--worktree", "--", &shown]).map(|_| ())
 }
 
 /// The commits that touched `file`, the newest first, following it through renames.
@@ -240,5 +315,53 @@ mod states {
         assert_eq!(state_of(b'R', b' '), 'R');
         assert_eq!(state_of(b'U', b'U'), 'C');
         assert_eq!(state_of(b'A', b'A'), 'C');
+    }
+}
+
+#[cfg(test)]
+mod committing {
+    use std::path::Path;
+
+    use super::{ahead_behind, changed, commit, pull, push, rollback, run};
+
+    fn write(dir: &Path, name: &str, text: &str) {
+        std::fs::write(dir.join(name), text).unwrap();
+    }
+
+    #[test]
+    #[ignore = "commits through git as it is set up here, signing and all"]
+    fn chosen_files_commit_push_and_come_back_with_a_pull() {
+        let base = std::env::temp_dir().join(format!("orior-commit-{}", std::process::id()));
+        let (remote, here, there) = (base.join("remote.git"), base.join("here"), base.join("there"));
+        std::fs::create_dir_all(&here).unwrap();
+        run(&base, &["init", "--bare", "-b", "main", "remote.git"]).unwrap();
+        run(&here, &["init", "-b", "main"]).unwrap();
+        run(&here, &["remote", "add", "origin", &remote.display().to_string()]).unwrap();
+        write(&here, "a.txt", "one\n");
+        write(&here, "b.txt", "two\n");
+        assert!(commit(&here, "Begin.", &["a.txt".into(), "b.txt".into()]).unwrap().contains("Begin."));
+        push(&here).unwrap();
+        assert_eq!(ahead_behind(&here), Some((0, 0)));
+
+        write(&here, "a.txt", "one changed\n");
+        write(&here, "b.txt", "two changed\n");
+        write(&here, "c.txt", "three\n");
+        commit(&here, "Change a and add c.", &["a.txt".into(), "c.txt".into()]).unwrap();
+        let left: Vec<String> = changed(&here).into_iter().map(|one| one.path).collect();
+        assert_eq!(left, vec!["b.txt".to_string()], "only the file not chosen is left changed");
+        rollback(&here, "b.txt").unwrap();
+        assert!(changed(&here).is_empty());
+        write(&here, "d.txt", "new\n");
+        assert!(rollback(&here, "d.txt").unwrap_err().contains("not in the last commit"));
+        assert_eq!(ahead_behind(&here), Some((1, 0)));
+        push(&here).unwrap();
+
+        run(&base, &["clone", &remote.display().to_string(), "there"]).unwrap();
+        write(&here, "a.txt", "one again\n");
+        commit(&here, "Change a again.", &["a.txt".into()]).unwrap();
+        push(&here).unwrap();
+        pull(&there).unwrap();
+        assert_eq!(std::fs::read_to_string(there.join("a.txt")).unwrap().trim(), "one again");
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

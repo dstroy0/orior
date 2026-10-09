@@ -6,6 +6,7 @@
 // its width back and sliding up and toward the edge it stands at, and the pointer reaching that edge
 // of the window brings it back; one brought back that the pointer never comes onto goes again a
 // moment later. A pane that holds the pointer, that is being typed in, or that a menu is open over,
+// or a left pane with the pointer on the tool strip beside it,
 // stays until all have left it, as every pane does while the window's frame is held, and is looked
 // at again every REST while it stays. A pane is being typed in from a key pressed in it until the
 // next press of the pointer anywhere: what a click leaves the keys on does not keep it. A pane that
@@ -45,7 +46,9 @@ function tryCollapse(pane) {
     return;
   }
   const typing = pane.keyed && node.contains(document.activeElement);
-  if (node.matches(":hover") || typing || pane.pinned || menuOpen() || still()) {
+  // The tool strip beside a left pane is a part of it: the pointer on the strip keeps it.
+  const onStrip = node.classList.contains("toward-left") && document.getElementById("strip")?.matches(":hover");
+  if (node.matches(":hover") || onStrip || typing || pane.pinned || menuOpen() || still()) {
     collapseLater(pane);
     return;
   }

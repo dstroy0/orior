@@ -30,7 +30,9 @@ import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawChanges, drawGit, drawOpenEditors, drawOutline, drawProblems, drawTimeline, guides, iconOf, lightOutline, startExplorer } from "./explorer.js";
+import { drawGit, drawOpenEditors, drawOutline, drawProblems, drawTimeline, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawCommit, startCommit } from "./commit.js";
+import { closeDiff, showDiff } from "./diffview.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
@@ -102,7 +104,7 @@ async function loadChanges() {
   const [changed, branch] = await Promise.all([invoke("tree_changed").catch(() => []), invoke("tree_branch").catch(() => null)]);
   state.changes = new Map(changed.map(({ path, state: mark }) => [path, mark]));
   state.branch = branch;
-  drawChanges(state.changes);
+  drawCommit(state.changes);
   drawGit(branch);
   state.rolled = new Map();
   for (const [path, mark] of state.changes) {
@@ -631,6 +633,50 @@ ${finding.lifted}` : finding.message,
   } catch (error) {
     say(String(error), { failed: true });
   }
+}
+
+// A file's changes from the last commit side by side over the editor: its text as the open tab
+// holds it, or as the tree does where no tab holds it.
+async function openDiff(path, mark) {
+  const tab = state.tabs.find((one) => one.file === path && !one.commit && one.session && !one.session.window);
+  const then = mark === "U" || mark === "A" ? null : await invoke("file_head", { path }).catch(() => null);
+  let now = "";
+  if (tab) {
+    now = tab.session.doc.text();
+  } else if (mark !== "D") {
+    now = (await invoke("file_read", { path }).catch(() => null))?.text ?? "";
+  }
+  showDiff(document.querySelector("#mode-edit .desk"), path, then, now);
+}
+
+// Gives each open tab of `paths` its file's text as the tree holds it now, as one step undo takes
+// back, after the Commit window rolled the files back.
+async function reloadFromDisk(paths) {
+  for (const path of paths) {
+    const tab = state.tabs.find((one) => one.file === path && !one.commit && one.session && !one.session.window);
+    if (!tab) {
+      continue;
+    }
+    const opened = await invoke("file_read", { path }).catch(() => null);
+    if (typeof opened?.text !== "string") {
+      continue;
+    }
+    const doc = tab.session.doc;
+    if (doc.text() === opened.text) {
+      continue;
+    }
+    const edit = [{ from: { line: 0, col: 0 }, to: doc.end(), text: opened.text.replace(/\r\n/g, "\n") }];
+    if (state.editor.s === tab.session) {
+      state.editor.change(edit, "rollback");
+    } else {
+      doc.change(edit, "rollback", tab.session.selections);
+      tab.session.selections = tab.session.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
+      doc.settle(tab.session.selections);
+    }
+    tab.saved = doc.id;
+    forgetBackup(tab.path);
+  }
+  drawTabs();
 }
 
 // The open files' diagnostics, a file at a time, for the Problems pane.
@@ -1357,6 +1403,17 @@ export async function startEdit(defs) {
       toggleBreakpoint(file, line);
     }
   };
+  startCommit({
+    shown: () => paneOpen("changes") && shownGroup() === "commit",
+    saveAll: () => editing().saveAll(),
+    reload: (paths) => reloadFromDisk(paths),
+    refresh: async () => {
+      await loadChanges();
+      await drawTree();
+    },
+    diff: (path, mark) => openDiff(path, mark),
+    open: (path) => openFile(path),
+  });
   startDebug({
     editor: () => state.editor,
     tab: () => tabOf(state.active),
@@ -1422,7 +1479,7 @@ export async function startEdit(defs) {
     panesChanged: () => {
       drawOutline(tabOf(state.active)?.session ?? null);
       drawTimeline(state.active ? fileOf(state.active) : null);
-      drawChanges(state.changes);
+      drawCommit(state.changes);
       drawProblems(problemFiles());
       drawGit(state.branch);
     },

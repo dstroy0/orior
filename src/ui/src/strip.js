@@ -3,7 +3,9 @@
 
 // The tool strip down the window's left edge, and the tools at the top bar's right end.
 //
-// The strip's icons each open a tool window, and a press on the one open closes it. At its top:
+// The strip's icons each open a tool window, and a press on the one open closes it. In the edit view
+// the pointer over an icon of the explorer's panes opens the explorer on them, and the explorer stays
+// open while the pointer is on the strip or on it. At its top:
 // Explorer, the edit view with its files; Structure, the open file's outline; Commit, the files that
 // differ from the last commit; and more, a menu of the explorer's other panes. At its foot: Run, the
 // run view and its jobs; Debug and Terminal, the panels under the views; Problems, the open files'
@@ -97,6 +99,9 @@ export function refreshStrip() {
   bell?.classList.toggle("unread", noticesUnseen() > 0);
 }
 
+// The icons whose windows are groups of the explorer's panes, which the pointer over them shows.
+const HOVERED = new Set(["explorer", "structure", "commit", "problems", "git"]);
+
 function stripButton(name, glyph, label, keys, run, shown) {
   const button = element("button", { className: `strip-button strip-${name}`, type: "button", title: keys ? `${label} (${keys})` : label }, icon(glyph));
   button.setAttribute("aria-label", label);
@@ -104,6 +109,18 @@ function stripButton(name, glyph, label, keys, run, shown) {
     run(button);
     window.requestAnimationFrame(refreshStrip);
   });
+  // In the edit view the pointer over one of them opens the explorer on its panes, and it stays open
+  // while the pointer is on the strip or on it.
+  if (HOVERED.has(name)) {
+    button.addEventListener("pointerenter", () => {
+      if (shownView() !== "edit" || explorerShown(name)) {
+        return;
+      }
+      showGroup(name);
+      togglePane(true, { take: false });
+      window.requestAnimationFrame(refreshStrip);
+    });
+  }
   state.buttons.set(name, { button, shown });
   return button;
 }

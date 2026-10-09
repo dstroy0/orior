@@ -156,6 +156,10 @@ In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code 
 | see a call's parameters | Ctrl+Shift+Space, Edit, Parameter Info. It opens on its own as ( or , is typed in a call, the parameter the cursor is at in bold. |
 | read a name's documentation | Ctrl+K Ctrl+I or Ctrl+Q, Edit, Quick Documentation |
 
+### Commit, push and pull
+
+Commit on the tool strip lists every file that differs from the last commit, each with a box that says whether the next commit takes it, and every box ticked until one is cleared. A press on a file shows its changes side by side over the editor, the last commit on the left; F7 and Shift+F7 step through them and Escape closes them. Under the files, the message, then Commit, or Commit and Push, which save the open files first and run the tree's own hooks and signing. Where git refuses, what it said shows under the buttons. The window's bar reads the tree again, rolls the files taken back to the last commit after a second press, pulls only where nothing would merge, and pushes, beside how many commits the branch is behind and ahead of its remote. Git on the strip lists the branch's commits.
+
 ### Debug a file
 
 Run, Debug File (Shift+F9) runs the file in the editor under its language's debugger: lldb-dap for C, C++ and Rust, built first with clang or rustc into build/debug/, gdb on Linux and macOS, and debugpy for Python. A press in the gutter's strip left of a line's number, or F9, sets a breakpoint there, and the dot is hollow where the debugger could not bind it to code. Where the program stops, its file opens at the line, marked until it runs on, and the Debug window under the editor (View, Debug, Alt+5) shows the calls in Frames, the chosen frame's variables and the watches in Variables, and the program's output in Console, whose field evaluates in that frame.

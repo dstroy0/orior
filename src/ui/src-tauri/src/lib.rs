@@ -274,6 +274,35 @@ fn window_act(window: tauri::WebviewWindow, act: String) -> Result<bool, String>
     Ok(window.is_maximized().unwrap_or(false))
 }
 
+/// Commits the files at `paths`, each under the tree, with `message`, git's hooks and signing as the
+/// tree has them, and gives git's line for the commit.
+#[tauri::command(async)]
+fn git_commit(app: State<App>, message: String, paths: Vec<String>) -> Result<String, String> {
+    git::commit(&root_of(&app)?, &message, &paths)
+}
+
+#[tauri::command(async)]
+fn git_push(app: State<App>) -> Result<String, String> {
+    git::push(&root_of(&app)?)
+}
+
+#[tauri::command(async)]
+fn git_pull(app: State<App>) -> Result<String, String> {
+    git::pull(&root_of(&app)?)
+}
+
+#[tauri::command(async)]
+fn git_rollback(app: State<App>, path: String) -> Result<(), String> {
+    git::rollback(&root_of(&app)?, &path)
+}
+
+/// How many commits the branch has that its remote does not, and the other way, or null where it
+/// follows no remote.
+#[tauri::command(async)]
+fn git_ahead_behind(app: State<App>) -> Result<Option<(u32, u32)>, String> {
+    Ok(git::ahead_behind(&root_of(&app)?))
+}
+
 /// The commits of the branch the tree is on, the newest first.
 #[tauri::command(async)]
 fn tree_commits(app: State<App>) -> Result<Vec<git::Commit>, String> {
@@ -865,6 +894,11 @@ fn open(launch: Launch) {
             report_open,
             file_commits,
             tree_commits,
+            git_commit,
+            git_push,
+            git_pull,
+            git_rollback,
+            git_ahead_behind,
             window_act,
             file_head,
             file_at,

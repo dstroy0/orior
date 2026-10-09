@@ -1360,13 +1360,13 @@ body[data-view="run"] .statusbar .ed-status {
   opacity: 0;
 }
 
-/* The eye floats in the pane's bottom right corner, a fifth of an inch in from the right and above the
-   status bar. Its drawing leaves 17% of the box to each side of the lids and 22% under the plasma,
-   which the box reaches past the corner by. */
+/* The eye floats in the pane's bottom right corner, three tenths of an inch in from the right and a
+   fifth above the status bar. Its drawing leaves 17% of the box to each side of the lids and 22% under
+   the plasma, which the box reaches past the corner by. */
 .loading .eye-box {
-  --eye-size: min(11rem, 18vw, 23vh);
+  --eye-size: min(7.26rem, 11.88vw, 15.18vh);
   position: absolute;
-  right: calc(0.2in - var(--eye-size) * 0.17);
+  right: calc(0.3in - var(--eye-size) * 0.17);
   bottom: calc(0.2in - var(--eye-size) * 0.22);
   width: var(--eye-size);
   aspect-ratio: 1;
@@ -1390,7 +1390,295 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 /* The editor's desk: tabs over the editor, or over the binary view where a file is not text. */
+/* The Commit window: its bar of tools, the files with their boxes, the message and the buttons, and
+   what git said where it refused. */
+.commit-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0.25rem 0.45rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.commit-gap {
+  flex: 1;
+}
+
+.commit-tool {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.35rem;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.commit-tool .glyph {
+  width: 16px;
+  height: 16px;
+}
+
+.commit-tool:hover:not(:disabled) {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.commit-tool:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.commit-tool.asking {
+  color: var(--fail);
+  background: color-mix(in srgb, var(--fail) 14%, transparent);
+}
+
+.commit-count {
+  margin: 0 0.3rem 0 -0.1rem;
+  font: 11px var(--code);
+  color: var(--signal);
+}
+
+.commit-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--fg-2);
+  font: 12.5px var(--head);
+  cursor: pointer;
+}
+
+.commit-take {
+  flex: none;
+  margin: 0;
+  accent-color: var(--signal);
+  cursor: pointer;
+}
+
+.commit-list {
+  max-height: 45vh;
+  overflow: auto;
+}
+
+.commit-list .change-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 24px;
+  padding: 0 0.6rem;
+  cursor: pointer;
+  font: 13px var(--head);
+}
+
+.commit-list .change-row:hover {
+  background: var(--line);
+}
+
+.commit-list .change-row .where {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.commit-list .change-row .change {
+  margin-left: auto;
+}
+
+.commit-message {
+  display: block;
+  width: calc(100% - 1.2rem);
+  margin: 0.5rem 0.6rem 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ed-bg);
+  color: var(--fg);
+  font: 13px/1.45 var(--head);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.commit-message:focus {
+  outline: none;
+  border-color: var(--hover);
+}
+
+.commit-buttons {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0 0.6rem 0.6rem;
+}
+
+.commit-button {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  background: none;
+  color: var(--fg);
+  font: 12.5px var(--head);
+  cursor: pointer;
+}
+
+.commit-button.primary-ish:not(:disabled) {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: var(--on-signal);
+}
+
+.commit-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.commit-said {
+  margin: 0 0.6rem 0.6rem;
+  padding: 0.4rem 0.5rem;
+  max-height: 14rem;
+  overflow: auto;
+  border-left: 2px solid var(--fail);
+  background: color-mix(in srgb, var(--fail) 8%, transparent);
+  color: var(--fg);
+  font: 11.5px/1.45 var(--code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A file's changes side by side over the editor: the last commit's text on the left, the text as
+   it stands on the right, each change marked in the color the gutter marks it. */
+.diff-view {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-bg);
+}
+
+.diff-view:focus {
+  outline: none;
+}
+
+.diff-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 34px;
+  padding: 0 0.4rem 0 0.8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  font: 12.5px var(--head);
+}
+
+.diff-name {
+  color: var(--fg);
+  font-family: var(--code);
+}
+
+.diff-sides,
+.diff-where {
+  color: var(--fg-3);
+}
+
+.diff-where {
+  margin-left: auto;
+}
+
+.diff-button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.35rem;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.diff-button:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.diff-button .glyph {
+  width: 16px;
+  height: 16px;
+  transform: rotate(90deg);
+}
+
+.diff-button.diff-up .glyph {
+  transform: rotate(-90deg);
+}
+
+.diff-button:last-child .glyph {
+  transform: none;
+}
+
+.diff-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font: var(--code-size) / var(--code-line) var(--code);
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr);
+}
+
+.diff-num {
+  padding-right: 0.6rem;
+  text-align: right;
+  color: var(--ed-num);
+  user-select: none;
+}
+
+.diff-text {
+  padding-left: 0.5rem;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ed-fg);
+}
+
+.diff-text.left {
+  border-right: 1px solid var(--line);
+}
+
+.diff-row.changed .diff-text {
+  background: color-mix(in srgb, var(--ed-changed) 16%, transparent);
+}
+
+.diff-row.added .diff-text.right {
+  background: color-mix(in srgb, var(--ed-added) 16%, transparent);
+}
+
+.diff-row.removed .diff-text.left {
+  background: color-mix(in srgb, var(--ed-removed) 16%, transparent);
+}
+
+.diff-text.diff-gap {
+  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
+}
+
+.diff-empty {
+  margin: 1.2rem;
+  color: var(--fg-3);
+  font: 13px var(--head);
+}
+
 .desk {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
