@@ -25,12 +25,6 @@
 
 typedef struct
 {
-    AnchorExactInteger mantissa;
-    long long exponent;
-} DicomDecimal;
-
-typedef struct
-{
     unsigned char *member;
     unsigned long long member_bytes;
     unsigned long long member_crc;

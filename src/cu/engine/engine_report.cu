@@ -198,7 +198,6 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
              ENGINE_STATUS_CHECK(
                  cudaMemcpy(device_lanes, host_lanes, (size_t)lanes * sizeof(unsigned short), cudaMemcpyHostToDevice),
                  device_lanes, error);
-        free(host_lanes);
 
         EngineStream written;
         unsigned int floors = 0u;
@@ -232,20 +231,17 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         krep_side_release(&back);
         krep_seal_release(&back_seal);
         cudaFree(device_lanes);
-        unsigned long long again[4] = {0ull, 0ull, 0ull, 0ull};
-        unsigned short *disk = NULL;
-        ok = ok &&
-             ENGINE_CHECK(engine_source_read(&source, again, &disk) == 0L, source_path, error, ENGINE_ERROR_REQUEST) &&
-             ENGINE_CHECK(memcmp(again, extent, sizeof(again)) == 0, again, error, ENGINE_ERROR_LOGIC);
-        if (ok)
+        // the crystal read back from disk and rebuilt, against the lanes the source gave: the pixels are counted only
+        // where the two are not one block of bytes
+        if (ok && (memcmp(host_lanes, rebuilt.data(), (size_t)lanes * sizeof(unsigned short)) != 0))
         {
             for (size_t pixel = 0u; pixel < (size_t)lanes; pixel += 1u)
             {
-                pixels_differ += (disk[pixel] != rebuilt[pixel]) ? 1ull : 0ull;
+                pixels_differ += (host_lanes[pixel] != rebuilt[pixel]) ? 1ull : 0ull;
             }
-            ok = ENGINE_CHECK(pixels_differ == 0ull, &pixels_differ, error, ENGINE_ERROR_LOGIC);
         }
-        free(disk);
+        ok = ok && ENGINE_CHECK(pixels_differ == 0ull, &pixels_differ, error, ENGINE_ERROR_LOGIC);
+        free(host_lanes);
         record->floors = floors;
         record->crystal_bytes = krep_crystal_bytes(&written, &section, &seal);
         record->raw_bytes = lanes * 2ull;

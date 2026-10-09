@@ -297,6 +297,8 @@ tessera_run --processors <count> [--name <text>] [--child] -- <command> [argumen
 - **The command** starts once the job is admitted, pinned to the mask at below normal priority. On Windows it runs in a
   job object of its own (`JOB_OBJECT_LIMIT_AFFINITY`), created with `BELOW_NORMAL_PRIORITY_CLASS`, which every process
   it starts inherits. On Linux the child sets `sched_setaffinity` and at least nice 10 before its exec.
+- **Its processors.** `$TESSERA_RUN_PROCESSORS` holds the whole processors in the job's reservation, at least 1, for
+  the command and every process it starts: a command that runs workers starts that many.
 - **Its program**, named with no folder, is found along `PATH` as the shell that started `tessera_run` finds it.
   `CreateProcess` alone looks in the system folders first, where `bash` is WSL's launcher: the tracker's first builds
   under `tessera_run` ran WSL's bash on a Windows path and exited 127.

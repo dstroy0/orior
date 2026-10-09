@@ -193,6 +193,11 @@ extern "C"
 
     long engine_source_lanes(const char *source, const char *sample, unsigned long long *lanes, EngineError *error);
 
+    // starts reading the sample's span of an archive source on a thread of its own, the span the next read of that
+    // sample asks for. One span is held at a time, and asking for another lets the last one go. A source that is not
+    // an archive, or a sample it does not hold, is an error and holds nothing
+    long engine_source_prefetch(const char *source, const char *sample, EngineError *error);
+
     unsigned int engine_source_samples(const char *source, char ***names);
 
     unsigned int engine_set_samples(const char *set, char ***names);
