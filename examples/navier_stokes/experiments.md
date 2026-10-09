@@ -259,6 +259,25 @@ ln|y| - sqrt(mu) Phi(Y) + ln(mu) / 4 at Y = 1 is -3.35, -2.43, -1.99 and -1.90, 
 and times sqrt(mu) it falls toward a constant near -5 at Y = 1: the paths that skip a derivative are a part of order
 mu^(-1/2) whose constant is large, and below mu = 16 they outweigh the principal part and turn its sign.
 
+Taken apart (`core_tangent` with `apart`): the tangent with mu fixed and each part the principal system leaves out
+switched on alone, the slope P_eta of d/deta (e^(mu eta) P), the plain terms that take no derivative, and the pressure
+dp_k past k = 0, at the same vertex to order 28. With every part off the weights read at the vertex are the principal
+system's at every order, exactly. At Y = 1, each part's share of the principal axial field is
+
+| part | mu = 4 | mu = 16 | mu = 64 |
+|---|---|---|---|
+| slope | -0.64 | -0.59 | -0.46 |
+| plain | -2.63 | -0.60 | -0.07 |
+| pressure | -0.0004 | -0.005 | -0.027 |
+| the parts together, less their sum | -0.24 | -0.09 | -0.02 |
+
+The plain terms fall as mu^(-1) or faster, and the pressure stays a few in a hundred. The slope does not fall: it is a
+share of order 1 that grows along Y, -0.15 at Y = 1/4 and -0.46 at Y = 1 for mu = 64, and at mu = 64 it is most of
+the rest, of the axial field and of the swirl. The phase varies along eta with s(Y, eta), and d/deta of
+e^(mu eta + sqrt(mu) Phi) brings mu + sqrt(mu) Phi_eta: a share of mu^(-1/2) at each order, over orders near
+sqrt(mu) in number, makes a factor of order 1. The principal system at one point holds Phi as if it did not vary
+along eta, and the growth's amplitude reads that variation.
+
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
 bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
 radius near mu^(-1/2); and the integral of G against the blend near X_b.

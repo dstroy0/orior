@@ -29,6 +29,7 @@
 // 3. At the cfg's eta, sigma and d are past 0 and the top coefficient of dF_k = df_k / L^(2k) keeps one sign.
 // 4. Every exact value is held in the build's width.
 // 5. Every coefficient at the cfg's eta is written whole to the cfg's record.
+// 6. Where the cfg holds `apart`, the tangent with every part off is the principal system at the vertex, order by order.
 // The request: core_tangent <cfg>.
 //     bash examples/navier_stokes/run.sh core_tangent examples/navier_stokes/cfg/core_tangent.cfg
 
@@ -163,27 +164,43 @@ static size_t core_tangent_degree(const CoreTangentPowers &powers)
 //     Phi(Y) = sqrt(2 s_0 Y) sum e_k Y^k / (2 k + 1),
 // every e_k exact. The record holds each value whole.
 
-// mu P + P_eta for mu fixed
-static CoreRadiusWeights core_tangent_slope_at(const CoreRadiusWeights &weights, SimRational mu, const CoreRadiusScale *scale)
+// The parts of the full tangent the principal system leaves out: the slope, P_eta in d/deta (e^(mu eta) P); the plain
+// terms, every term that takes no derivative; and the pressure, dp_k past k = 0. With every part off the full tangent is
+// the principal one, and with every part on it is the full one.
+typedef struct
 {
-    return core_radius_sum(core_radius_scaled(weights, mu), core_radius_scaled(core_radius_slope(weights), sim_rational_reciprocal(scale->cut)));
+    int slope;
+    int plain;
+    int pressure;
+} CoreTangentParts;
+
+// mu P + P_eta for mu fixed, P_eta where the slope is on
+static CoreRadiusWeights core_tangent_slope_at(const CoreRadiusWeights &weights, SimRational mu, const CoreRadiusScale *scale, const CoreTangentParts *parts)
+{
+    const CoreRadiusWeights carried = core_radius_scaled(weights, mu);
+    return parts->slope ? core_radius_sum(carried, core_radius_scaled(core_radius_slope(weights), sim_rational_reciprocal(scale->cut))) : carried;
 }
 
-// (Z_b g)_j for mu fixed: -(c + 2 j) eta L g + L d (mu g + g_eta) + 8 h j eta d g
-static CoreRadiusWeights core_tangent_turned_at(const CoreRadiusWeights &g, SimRational c, unsigned int j, SimRational mu, const CoreRadiusScale *scale)
+// (Z_b g)_j for mu fixed: L d (mu g + g_eta), and the plain -(c + 2 j) eta L g + 8 h j eta d g where the plain terms are on
+static CoreRadiusWeights core_tangent_turned_at(const CoreRadiusWeights &g, SimRational c, unsigned int j, SimRational mu, const CoreRadiusScale *scale,
+                                                const CoreTangentParts *parts)
 {
     const SimRational minus = core_radius_number(-1ll, 1ll);
     const SimRational order_j = core_radius_number((long long)j, 1ll);
-    const SimRational eta_turn = core_radius_times(minus, core_radius_plus(c, core_radius_times(core_radius_number(2ll, 1ll), order_j)));
-    CoreRadiusWeights turned = core_radius_scaled(core_radius_eta(core_radius_l(g, scale, minus)), core_radius_times(eta_turn, scale->cut));
-    turned = core_radius_sum(turned, core_radius_l(core_radius_d(core_tangent_slope_at(g, mu, scale), scale, minus), scale, minus));
-    const SimRational eight_h_j = core_radius_times(core_radius_times(core_radius_number(8ll, 1ll), scale->h), order_j);
-    return core_radius_sum(turned, core_radius_scaled(core_radius_eta(core_radius_d(g, scale, minus)), core_radius_times(eight_h_j, scale->cut)));
+    CoreRadiusWeights turned = core_radius_l(core_radius_d(core_tangent_slope_at(g, mu, scale, parts), scale, minus), scale, minus);
+    if (parts->plain)
+    {
+        const SimRational eta_turn = core_radius_times(minus, core_radius_plus(c, core_radius_times(core_radius_number(2ll, 1ll), order_j)));
+        turned = core_radius_sum(turned, core_radius_scaled(core_radius_eta(core_radius_l(g, scale, minus)), core_radius_times(eta_turn, scale->cut)));
+        const SimRational eight_h_j = core_radius_times(core_radius_times(core_radius_number(8ll, 1ll), scale->h), order_j);
+        turned = core_radius_sum(turned, core_radius_scaled(core_radius_eta(core_radius_d(g, scale, minus)), core_radius_times(eight_h_j, scale->cut)));
+    }
+    return turned;
 }
 
-// the full tangent's axial and swirl numerators at the point, order by order to `last`, for mu fixed
+// the tangent's axial and swirl numerators at the point, order by order to `last`, for mu fixed, with the parts given
 static void core_tangent_full_at(const CoreRadiusOrders *exact, unsigned int last, SimRational mu, const CoreRadiusScale *scale, SimRational xi,
-                                 CoreRadiusSequence *axial_at, CoreRadiusSequence *swirl_at)
+                                 const CoreTangentParts *parts, CoreRadiusSequence *axial_at, CoreRadiusSequence *swirl_at)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -212,27 +229,40 @@ static void core_tangent_full_at(const CoreRadiusOrders *exact, unsigned int las
     {
         const SimRational order_k = core_radius_number((long long)k, 1ll);
         const SimRational next = core_radius_plus(order_k, one);
-        du_turned.push_back(core_tangent_turned_at(du[k], along_c, k, mu, scale));
-        df_turned.push_back(core_tangent_turned_at(df[k], angular_c, k, mu, scale));
+        du_turned.push_back(core_tangent_turned_at(du[k], along_c, k, mu, scale, parts));
+        df_turned.push_back(core_tangent_turned_at(df[k], angular_c, k, mu, scale, parts));
         dw.push_back(core_radius_scaled(du_turned[k], core_radius_times(minus, sim_rational_reciprocal(next))));
         const SimRational d_eight = core_radius_times(core_radius_times(eight_h, order_k), scale->d);
         const SimRational eta_d = core_radius_times(scale->cut, scale->d);
-        CoreRadiusWeights spin = core_radius_scaled(core_radius_l(df[k], scale, minus), core_radius_plus(next, scale->h));
-        spin = core_radius_sum(spin, core_radius_scaled(core_radius_eta(core_radius_l(core_tangent_slope_at(df[k], mu, scale), scale, minus)), eta_d));
-        spin = core_radius_sum(spin, core_radius_scaled(core_radius_eta_square(df[k], scale), d_eight));
-        CoreRadiusWeights along = core_radius_scaled(core_radius_l(du[k], scale, minus), core_radius_plus(order_k, scale->a));
-        along = core_radius_sum(along, core_radius_scaled(core_radius_eta(core_radius_l(core_tangent_slope_at(du[k], mu, scale), scale, minus)), eta_d));
-        along = core_radius_sum(along, core_radius_scaled(core_radius_eta_square(du[k], scale), d_eight));
-        along = core_radius_sum(along, core_tangent_turned_at(dp[k], pressure_c, k, mu, scale));
+        CoreRadiusWeights spin = core_radius_scaled(core_radius_eta(core_radius_l(core_tangent_slope_at(df[k], mu, scale, parts), scale, minus)), eta_d);
+        CoreRadiusWeights along = core_radius_scaled(core_radius_eta(core_radius_l(core_tangent_slope_at(du[k], mu, scale, parts), scale, minus)), eta_d);
+        if (parts->plain)
+        {
+            spin = core_radius_sum(spin, core_radius_scaled(core_radius_l(df[k], scale, minus), core_radius_plus(next, scale->h)));
+            spin = core_radius_sum(spin, core_radius_scaled(core_radius_eta_square(df[k], scale), d_eight));
+            along = core_radius_sum(along, core_radius_scaled(core_radius_l(du[k], scale, minus), core_radius_plus(order_k, scale->a)));
+            along = core_radius_sum(along, core_radius_scaled(core_radius_eta_square(du[k], scale), d_eight));
+        }
+        if ((k == 0u) || parts->pressure)
+        {
+            along = core_radius_sum(along, core_tangent_turned_at(dp[k], pressure_c, k, mu, scale, parts));
+        }
         CoreRadiusWeights square;
         for (unsigned int i = 0u; i <= k; i += 1u)
         {
             const unsigned int j = k - i;
             const SimRational rest = core_radius_number((long long)j, 1ll);
-            spin = core_radius_sum(spin, core_radius_scaled(core_radius_sum(core_radius_product(f[j], dw[i]), core_radius_product(w[i], df[j])), core_radius_plus(rest, one)));
-            spin = core_radius_sum(spin, core_radius_sum(core_radius_product(angular_turned[j], du[i]), core_radius_product(u[i], df_turned[j])));
-            along = core_radius_sum(along, core_radius_scaled(core_radius_sum(core_radius_product(u[j], dw[i]), core_radius_product(w[i], du[j])), rest));
-            along = core_radius_sum(along, core_radius_sum(core_radius_product(along_turned[j], du[i]), core_radius_product(u[i], du_turned[j])));
+            spin = core_radius_sum(spin, core_radius_scaled(core_radius_product(f[j], dw[i]), core_radius_plus(rest, one)));
+            spin = core_radius_sum(spin, core_radius_product(u[i], df_turned[j]));
+            along = core_radius_sum(along, core_radius_scaled(core_radius_product(u[j], dw[i]), rest));
+            along = core_radius_sum(along, core_radius_product(u[i], du_turned[j]));
+            if (parts->plain)
+            {
+                spin = core_radius_sum(spin, core_radius_scaled(core_radius_product(w[i], df[j]), core_radius_plus(rest, one)));
+                spin = core_radius_sum(spin, core_radius_product(angular_turned[j], du[i]));
+                along = core_radius_sum(along, core_radius_scaled(core_radius_product(w[i], du[j]), rest));
+                along = core_radius_sum(along, core_radius_product(along_turned[j], du[i]));
+            }
             square = core_radius_sum(square, core_radius_scaled(core_radius_product(f[i], df[j]), two));
         }
         df.push_back(core_radius_scaled(spin, sim_rational_reciprocal(core_radius_times(core_radius_times(two, next), core_radius_plus(next, one)))));
@@ -528,7 +558,8 @@ int main(int count, char **arguments)
         {
             CoreRadiusSequence axial_full;
             CoreRadiusSequence swirl_full;
-            core_tangent_full_at(&base, reach, mu, &scale, xi_v, &axial_full, &swirl_full);
+            const CoreTangentParts every = {1, 1, 1};
+            core_tangent_full_at(&base, reach, mu, &scale, xi_v, &every, &axial_full, &swirl_full);
             CoreRadiusSequence axial_principal;
             CoreRadiusSequence swirl_principal;
             core_tangent_principal_at(u_v, f_v, l_v, d_v, eta_v, scale.d, reach, mu, &axial_principal, &swirl_principal);
@@ -548,6 +579,79 @@ int main(int count, char **arguments)
         }
         scriptura_text(&results.line, "  measurement at the vertex written to the record\n");
         sim_flush(&results);
+    }
+    // the remainder taken apart at the vertex, where the cfg holds it: each part the principal system leaves out, alone
+    SimRational apart_rho;
+    SimRational apart_step;
+    unsigned long long apart_order = 0ull;
+    unsigned long long apart_count = 0ull;
+    std::vector<SimRational> apart_mu;
+    const int apart = run_cfg_rational(&cfg, "apart.rho", &apart_rho) && (sim_rational_sign(sim_rational_difference(apart_rho, one)) > 0) &&
+                      run_cfg_count(&cfg, "apart.order", &apart_order) && (apart_order >= 2ull) && run_cfg_rationals(&cfg, "apart.mu", &apart_mu) &&
+                      run_cfg_rational(&cfg, "apart.step", &apart_step) && run_cfg_count(&cfg, "apart.count", &apart_count);
+    if (apart)
+    {
+        const unsigned int reach = (unsigned int)apart_order;
+        CoreRadiusOrders base;
+        core_radius_weights(&scale, angular, axial, pressure, reach, minus, &base);
+        const SimRational xi_v = core_radius_over(core_radius_plus(apart_rho, sim_rational_reciprocal(apart_rho)), two);
+        const SimRational eta_v = core_radius_times(cut, xi_v);
+        const SimRational eta_v_square = core_radius_times(eta_v, eta_v);
+        const SimRational l_v = sim_rational_difference(one, core_radius_times(core_radius_times(two, h), eta_v_square));
+        const SimRational d_v = sim_rational_difference(one, eta_v_square);
+        CoreRadiusSequence u_v;
+        CoreRadiusSequence f_v;
+        for (unsigned int k = 0u; k <= reach; k += 1u)
+        {
+            u_v.push_back(core_radius_value(base.g[k], xi_v));
+            f_v.push_back(core_radius_value(base.f[k], xi_v));
+        }
+        // none, the slope alone, the plain terms alone, the pressure alone, and every part
+        const CoreTangentParts choices[5] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 1, 1}};
+        int principal_same = 1;
+        if (record != NULL)
+        {
+            record_text(record, ("remainder taken apart at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(apart_rho) +
+                                 ", to order " + std::to_string(reach) +
+                                 ": for each mu, Y, then axial and swirl each for the principal, the slope alone, the plain terms alone, the pressure alone, and every part")
+                                    .c_str());
+        }
+        for (const SimRational &mu : apart_mu)
+        {
+            CoreRadiusSequence axial_parts[5];
+            CoreRadiusSequence swirl_parts[5];
+            for (unsigned int choice = 0u; choice < 5u; choice += 1u)
+            {
+                core_tangent_full_at(&base, reach, mu, &scale, xi_v, &choices[choice], &axial_parts[choice], &swirl_parts[choice]);
+            }
+            CoreRadiusSequence axial_principal;
+            CoreRadiusSequence swirl_principal;
+            core_tangent_principal_at(u_v, f_v, l_v, d_v, eta_v, scale.d, reach, mu, &axial_principal, &swirl_principal);
+            for (unsigned int k = 0u; k <= reach; k += 1u)
+            {
+                principal_same = principal_same && (sim_rational_sign(sim_rational_difference(axial_parts[0][k], axial_principal[k])) == 0) &&
+                                 (sim_rational_sign(sim_rational_difference(swirl_parts[0][k], swirl_principal[k])) == 0);
+            }
+            if (record != NULL)
+            {
+                record_text(record, ("mu " + term_book_rational(mu)).c_str());
+                for (unsigned long long index = 1ull; index <= apart_count; index += 1ull)
+                {
+                    const SimRational y_point = core_radius_times(apart_step, core_radius_number((long long)index, 1ll));
+                    std::string row = "  " + term_book_rational(y_point);
+                    for (unsigned int choice = 0u; choice < 5u; choice += 1u)
+                    {
+                        row += " " + term_book_rational(core_tangent_sum_at(axial_parts[choice], y_point));
+                    }
+                    for (unsigned int choice = 0u; choice < 5u; choice += 1u)
+                    {
+                        row += " " + term_book_rational(core_tangent_sum_at(swirl_parts[choice], y_point));
+                    }
+                    record_text(record, row.c_str());
+                }
+            }
+        }
+        sim_check(&results, principal_same, "with every part off the tangent's weights read at the vertex are the principal system's, order by order");
     }
     const int held = !run_cfg_short() && !record_short() && (s_sim_rational_wide == 0);
     scriptura_text(&results.line, held ? "  every value is exact and held in the build's width\n" : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
