@@ -8,6 +8,7 @@
 
 mod dragging;
 mod memory;
+mod scrollback;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
@@ -29,6 +30,7 @@ struct App {
     launch: Mutex<Option<Launch>>,
     runs: runner::Runs,
     terms: terminal::Terms,
+    scrollbacks: scrollback::Scrollbacks,
     servers: Arc<servers::Servers>,
     debugger: Arc<debug::Debugger>,
     windows: AtomicU64,
@@ -111,6 +113,33 @@ fn term_resize(app: State<App>, id: u64, cols: u16, rows: u16) -> Result<(), Str
 #[tauri::command]
 fn term_close(app: State<App>, id: u64) -> Result<(), String> {
     app.terms.close(id)
+}
+
+/// A scrollback on disk for a terminal screen, and its number.
+#[tauri::command]
+fn scrollback_open(app: State<App>) -> Result<u64, String> {
+    app.scrollbacks.open()
+}
+
+/// Adds the lines that scrolled off a terminal screen to its scrollback, and answers how many it holds.
+#[tauri::command(async)]
+fn scrollback_keep(app: State<App>, id: u64, lines: Vec<String>) -> Result<u64, String> {
+    app.scrollbacks.keep(id, &lines)
+}
+
+#[tauri::command(async)]
+fn scrollback_read(app: State<App>, id: u64, from: u64, count: u64) -> Result<Vec<String>, String> {
+    app.scrollbacks.read(id, from, count)
+}
+
+#[tauri::command]
+fn scrollback_close(app: State<App>, id: u64) {
+    app.scrollbacks.close(id);
+}
+
+#[tauri::command]
+fn scrollback_reset(app: State<App>) {
+    app.scrollbacks.reset();
 }
 
 /// The menus, as the command line reads them.
@@ -957,6 +986,11 @@ fn open(launch: Launch) {
             file_commits,
             tree_commits,
             history_list,
+            scrollback_open,
+            scrollback_keep,
+            scrollback_read,
+            scrollback_close,
+            scrollback_reset,
             history_read,
             repos_folder,
             repo_opened,
