@@ -1293,13 +1293,6 @@ function keepBackups() {
   }
 }
 
-// Starts the language servers for the languages the tree's files are in, as the tree opens. A
-// server is then running before the first file of its language opens.
-export async function warmServers() {
-  const files = await invoke("tree_files").catch(() => []);
-  const languages = new Set(files.map((file) => state.known.languageOf(file)?.id).filter(Boolean));
-  invoke("lsp_warm", { languages: [...languages] }).catch(() => {});
-}
 
 // Opens the tabs the tree had open, and shows the one it showed.
 export async function restoreSession() {

@@ -51,7 +51,14 @@ fn root_set(app: State<App>, path: String) -> Result<String, String> {
     if !root::holds_tree(&path) {
         return Err(format!("{} holds no orior tree", path.display()));
     }
-    *app.root.lock().map_err(|e| e.to_string())? = Some(path.clone());
+    let mut root = app.root.lock().map_err(|e| e.to_string())?;
+    let moved = root.as_ref() != Some(&path);
+    *root = Some(path.clone());
+    drop(root);
+    // A server answers for the tree it started in. Another tree starts its own as its files open.
+    if moved {
+        app.servers.let_go();
+    }
     Ok(path.to_string_lossy().into_owned())
 }
 
@@ -393,15 +400,6 @@ fn emitter(handle: AppHandle, tree: PathBuf) -> servers::Emit {
             let _ = handle.emit("lsp-edits", tree_edits(&tree, files));
         }
     })
-}
-
-/// Starts the server for each of `languages` that has one and is not running, as a tree opens, and
-/// gives the languages one took.
-#[tauri::command(async)]
-fn lsp_warm(handle: AppHandle, app: State<App>, languages: Vec<String>) -> Result<Vec<String>, String> {
-    let root = root_of(&app)?;
-    let emit = emitter(handle, root.clone());
-    Ok(languages.into_iter().filter(|language| app.servers.warm(&root, language, &emit).unwrap_or(false)).collect())
 }
 
 /// Every place the symbol at a place is used, each path as `tree_path` gives it.
@@ -967,7 +965,6 @@ fn open(launch: Launch) {
             run_file_line,
             validate_file,
             lsp_open,
-            lsp_warm,
             lsp_change,
             lsp_close,
             lsp_hover,

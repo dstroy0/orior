@@ -4,7 +4,7 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, openAt, openFile, restoreSession, startEdit, warmServers } from "./edit.js";
+import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
@@ -157,7 +157,6 @@ async function begin(root) {
     await loadRun();
     drawMenubar();
     await restoreSession();
-    warmServers();
     checkNeeded();
   } finally {
     await hideLoading();
