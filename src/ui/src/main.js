@@ -78,13 +78,17 @@ function drawPulse(held) {
   document.getElementById("pulse").replaceChildren(...parts);
 }
 
+// The window and the keys come first: the window is asked for, and the commands the keys run read,
+// before anything else, and the reader's stylesheet is read beside the menu bar's start and not
+// ahead of it.
 async function start() {
   invoke("window_show").catch(() => {});
+  const commands = invoke("commands_read");
   catchErrors();
   await startMotion();
   startWordmark();
   keepScheme();
-  await keepUserCss();
+  const styled = keepUserCss();
   keepZoom();
   keepMemory();
   startMenus();
@@ -92,7 +96,8 @@ async function start() {
   watch(drawPulse);
   document.getElementById("open-button").addEventListener("click", () => openFolder());
   document.getElementById("clone-button").addEventListener("click", () => runCommand("clone"));
-  await startMenubar({ openFolder });
+  await startMenubar({ openFolder, commands });
+  await styled;
   startSearch((path, line, col) => {
     showView("edit");
     openAt(path, line, col);

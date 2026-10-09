@@ -636,10 +636,13 @@ export async function runLaunch() {
   }
 }
 
-export async function startMenubar({ openFolder }) {
+// Starts the menu bar and every key its commands are bound to. `commands` is the reading of the
+// commands, where it was asked for already. The page marks the moment the keys are bound as
+// "keys-bound" in its timeline.
+export async function startMenubar({ openFolder, commands = invoke("commands_read") }) {
   state.bar = document.getElementById("menubar");
   state.openFolder = openFolder;
-  state.menus = JSON.parse(await invoke("commands_read")).menus;
+  state.menus = JSON.parse(await commands).menus;
   // Each menu's commands in one list, those of its groups among them.
   const flat = (items) => items.flatMap((item) => (item === "-" ? [] : item.items ? flat(item.items) : [item]));
   state.menus.forEach((menu) => (menu.all = flat(menu.items ?? [])));
@@ -648,13 +651,6 @@ export async function startMenubar({ openFolder }) {
       menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
     ),
   );
-  state.autoReport = await invoke("report_auto").catch(() => true);
-  const [asked, question] = await invoke("report_asked").catch(() => [true, ""]);
-  if (!asked) {
-    askReports(sheet, question, (on) => {
-      state.autoReport = on;
-    });
-  }
   startPalette({
     commands: paletteCommands,
     files: () => invoke("tree_files"),
@@ -730,4 +726,12 @@ export async function startMenubar({ openFolder }) {
     wait = window.setTimeout(drawMenubar, 120);
   });
   drawMenubar();
+  performance.mark("keys-bound");
+  state.autoReport = await invoke("report_auto").catch(() => true);
+  const [asked, question] = await invoke("report_asked").catch(() => [true, ""]);
+  if (!asked) {
+    askReports(sheet, question, (on) => {
+      state.autoReport = on;
+    });
+  }
 }
