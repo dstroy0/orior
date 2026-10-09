@@ -278,6 +278,8 @@ orior installs no compiler or language of its own. File, Toolchains lists each o
 
 Every job needs Git, Bash and Python. As a tree opens, the status bar names any of them orior cannot find, and a press on it opens File, Toolchains.
 
+The list takes toolchains and groups of your own. Add Toolchain asks for its name, its group, one there already or a new one, what it is for, the programs it runs as, the words that make it say its version, and its install page; orior then finds it and offers it as it does its own. Add Group adds a group that stands empty until a toolchain goes in it. Remove on a toolchain you added, and Remove Group on an empty group, take them out again; orior's own stay. They are kept in `user_toolchains.json` in orior's own folder, each written as orior's own `toolchains.json` writes one. A field the sheet does not ask for, such as how a file runs or the language server it starts, can be added there by hand. `orior file toolchains add <name> --group <group> --program <name,...>`, `add-group`, `remove` and `remove-group` do the same from a terminal.
+
 Above the list, Add orior to PATH puts orior's own folder on your PATH, and `orior` then works in any terminal. On Windows a folder goes on your own Path in the registry, and its `%VARIABLES%` stay as written; elsewhere it is a line at the end of `~/.profile`. orior's runs and its terminal read the PATH anew each time and put the folders you gave first: a change shows there at once; a terminal opened before it does not have it. The folders you gave are kept in `toolchains.json` in orior's own folder.
 
 ### The terminal

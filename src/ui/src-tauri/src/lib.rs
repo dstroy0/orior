@@ -346,6 +346,7 @@ fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> 
 #[derive(serde::Serialize)]
 struct Toolchains {
     tools: Vec<toolchains::Found>,
+    groups: Vec<String>,
     own: Option<toolchains::Own>,
 }
 
@@ -562,7 +563,28 @@ fn format_languages() -> Vec<String> {
 /// Every toolchain as toolchains.rs finds it, and whether orior itself is on the PATH.
 #[tauri::command(async)]
 fn toolchains_check() -> Toolchains {
-    Toolchains { tools: toolchains::check(), own: toolchains::own().ok() }
+    Toolchains { tools: toolchains::check(), groups: toolchains::groups(), own: toolchains::own().ok() }
+}
+
+/// Adds a toolchain of the reader's, and gives its id.
+#[tauri::command]
+fn toolchain_add(tool: toolchains::Tool) -> Result<String, String> {
+    toolchains::add(tool)
+}
+
+#[tauri::command]
+fn toolchain_add_group(name: String) -> Result<(), String> {
+    toolchains::add_group(&name)
+}
+
+#[tauri::command]
+fn toolchain_remove(id: String) -> Result<(), String> {
+    toolchains::remove(&id)
+}
+
+#[tauri::command]
+fn toolchain_remove_group(name: String) -> Result<(), String> {
+    toolchains::remove_group(&name)
 }
 
 /// What a toolchain says its version is.
@@ -948,6 +970,10 @@ fn open(launch: Launch) {
             debug_step,
             debug_stop,
             toolchains_check,
+            toolchain_add,
+            toolchain_add_group,
+            toolchain_remove,
+            toolchain_remove_group,
             toolchain_version,
             toolchain_install,
             toolchain_setup,

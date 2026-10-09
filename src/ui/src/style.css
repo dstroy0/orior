@@ -4804,6 +4804,39 @@ textarea.report-field {
   margin-top: 0.2rem;
 }
 
+/* An empty group's heading holds the button that takes it out, at its right. */
+.tools-list h3:has(.tools-group-remove) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* The form that adds a toolchain or a group, between the sheet's buttons and the list. */
+.tools-add {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 0.9rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tools-add[hidden] {
+  display: none;
+}
+
+.tools-add h3,
+.tools-add .prefs-actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.tools-add h3 {
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
 .tools-row {
   display: grid;
   grid-template-columns: auto minmax(12rem, 1.1fr) minmax(10rem, 1fr) auto;
