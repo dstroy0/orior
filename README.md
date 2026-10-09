@@ -71,7 +71,7 @@ The easiest way in is [the app](#the-app): one window that lists every job the t
    The installers carry no certificate's signature. Windows warns before the first run, where More info, Run anyway starts it; on macOS, a right click on the app and Open starts it the first time.
 2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. The next clone starts in the same folder. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
 
-   ![Clone Repository with orior's address, the folder to clone into, and the fuse two thirds burnt while git receives the objects](src/ui/docs/img/clone.png)
+   ![Clone Repository with orior's address, the folder to clone into, beside the open tree or somewhere else, and the fuse burnt part way while git receives the objects](src/ui/docs/img/clone.png)
 3. **Run a job.** The Run view, from the chart icon at the foot of the tool strip, lists every job. Choose one, set its values and press F5.
 
 File, Clone Repository does the same at any time, and asks whether the clone goes beside the open tree or in another folder. `orior file clone` does it from a terminal.
@@ -132,7 +132,7 @@ The panes at the sides collapse toward their edge a moment after the pointer lea
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 
-![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.60 s off the ruler](src/ui/docs/img/run.png)
+![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.09 s off the ruler](src/ui/docs/img/run.png)
 
 The output streams as it comes. The fuse along its foot burns on the time ruler under it, its head at the run's latest moment, and it flashes when the run ends well and sputters dark when it fails or is stopped. The ruler marks where each step started and where the output came, red where it went to stderr. The wheel over either one, or + and - with the ruler holding the keys, zooms the time down to a few milliseconds across; a drag or Left and Right moves it, and 0 or a double click fits the whole run again. A page a viewer writes opens in a window of its own.
 
