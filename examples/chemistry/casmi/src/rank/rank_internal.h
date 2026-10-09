@@ -13,6 +13,7 @@
 #include "sim.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // the text columns the ranker reads, in the order the ingest seals them
@@ -48,12 +49,14 @@ typedef struct
 } RankColumn;
 
 // The set: each spectrum's text ids, one a text column and RANK_ABSENT where the row has none, its base's stored bits
-// and whether it has one, and the three double columns; each text column's distinct strings over every row group
+// and whether it has one, and the three double columns; each text column's distinct strings over every row group of
+// every set read into it, and each string's id
 typedef struct
 {
     unsigned long long spectra;
     std::vector<unsigned int> text[RANK_TEXTS];
     std::vector<std::string> strings[RANK_TEXTS];
+    std::unordered_map<std::string, unsigned int> table[RANK_TEXTS];
     std::vector<unsigned long long> base;
     std::vector<unsigned char> base_held;
     RankColumn precursor;
@@ -87,7 +90,7 @@ void rank_line_end(SimResults *results);
 
 void rank_error_line(SimResults *results, const char *what, const EngineError *error);
 
-// the set's crystals read into the ranker's form, every row group in order
+// a set's crystals read into the ranker's form, every row group in order, after the spectra of any set read before it
 int rank_set_load(SimResults *results, const char *set, RankSet *out);
 
 // a built program loaded with `members` members of the limbs given; 0 where it errored, the error printed

@@ -246,9 +246,7 @@ static int rank_text_load(SimResults *results, const char *set, unsigned int gro
 
 int rank_set_load(SimResults *results, const char *set, RankSet *out)
 {
-    out->spectra = 0ull;
-    out->row_groups = 0u;
-    std::unordered_map<std::string, unsigned int> table[RANK_TEXTS];
+    const unsigned long long spectra_before = out->spectra;
     char **listed = NULL;
     const unsigned int listed_count = engine_set_samples(set, &listed);
     int ok = 1;
@@ -315,7 +313,7 @@ int rank_set_load(SimResults *results, const char *set, RankSet *out)
                               &out->intensity);
         for (unsigned int text = 0u; ok && (text < RANK_TEXTS); text += 1u)
         {
-            ok = rank_text_load(results, set, group, &samples, text, rows, &table[text], out);
+            ok = rank_text_load(results, set, group, &samples, text, rows, &out->table[text], out);
         }
         out->spectra += rows;
         out->row_groups += 1u;
@@ -325,6 +323,6 @@ int rank_set_load(SimResults *results, const char *set, RankSet *out)
         free(listed[each]);
     }
     free(listed);
-    ok = ok && (out->spectra != 0ull);
+    ok = ok && (out->spectra != spectra_before);
     return ok;
 }

@@ -15,15 +15,17 @@ int main(int count, char **arguments)
     SimResults results;
     sim_open(&results, capacity);
     const int ingest = (count == 4) && (strcmp(arguments[1], "--ingest") == 0);
-    const int rank = (count == 5) && (strcmp(arguments[1], "--rank") == 0);
+    const int rank = ((count == 5) || (count == 6)) && (strcmp(arguments[1], "--rank") == 0);
     if (!ingest && !rank)
     {
         scriptura_text(&results.line, "usage: casmi_driver --ingest FILE.parquet SET\n"
                                       "       casmi_driver --rank SET CFG validate\n"
+                                      "       casmi_driver --rank SET CFG test TEST_SET\n"
                                       "  --ingest: read the file's columns into their forms on the device and seal"
                                       " them as crystals of the set SET\n"
                                       "  --rank: rank each query molecule's structures from the set, CFG's envelope"
-                                      " and query library\n");
+                                      " and query library; test ranks TEST_SET's molecules against every spectrum of"
+                                      " the set and writes CFG's output.submission\n");
         sim_flush(&results);
         return 2;
     }

@@ -6,8 +6,9 @@
 
 #include "sim.h"
 
-// casmi_driver --rank SET CFG validate: arguments[2] the set, arguments[3] the cfg and arguments[4] the mode; the job
-// submitted on the device's tessera daemon here. 1 where every stage ran
+// casmi_driver --rank SET CFG validate, or --rank SET CFG test TEST_SET: arguments[2] the set, arguments[3] the cfg,
+// arguments[4] the mode and arguments[5] the test set; the job submitted on the device's tessera daemon here. 1 where
+// every stage ran
 int rank_run(SimResults *results, int count, char **arguments);
 
 #endif

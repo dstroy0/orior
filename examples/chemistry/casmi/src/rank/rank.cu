@@ -15,9 +15,13 @@
 //   score:   (M^2, Q R), put in order by COMPARE(M_a^2 Q_b R_b, M_b^2 Q_a R_a)
 //   list:    a molecule's structures, the scored by repeated tournaments heaviest first, then the unscored in
 //            structure order, the first 25 written
+//
+// validate holds out the cfg's query library and places each molecule's answer in its list; test reads a test set
+// after the set, ranks its molecules against every spectrum of the set and writes their lists' SMILES
 #include "rank.h"
 #include "rank_internal.h"
 
+#include "../../../../../src/cu/engine/engine.h"
 #include "../../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
 #include "../mass/mass.h"
 
@@ -607,10 +611,11 @@ int rank_run(SimResults *results, int count, char **arguments)
 {
     const char *const set_path = arguments[2];
     const char *const cfg_path = arguments[3];
-    const int validate = strcmp(arguments[4], "validate") == 0;
-    if (!validate)
+    const int validate = (count == 5) && (strcmp(arguments[4], "validate") == 0);
+    const int test = (count == 6) && (strcmp(arguments[4], "test") == 0);
+    if (!validate && !test)
     {
-        scriptura_text(&results->line, "  --rank runs validate; test ranks a test set this build does not read yet");
+        scriptura_text(&results->line, "  --rank SET CFG validate, or --rank SET CFG test TEST_SET");
         rank_line_end(results);
         return 0;
     }
@@ -635,8 +640,11 @@ int rank_run(SimResults *results, int count, char **arguments)
     static const char *const envelope_name[RANK_ENVELOPE_FIELDS] = {"low_D", "low_N", "high_D", "high_N"};
     const unsigned int envelope_block = cfg_json_member(cfg_text, tokens, 0u, "envelope");
     const unsigned int validate_block = cfg_json_member(cfg_text, tokens, 0u, "validate");
+    const unsigned int output_block = cfg_json_member(cfg_text, tokens, 0u, "output");
     char query_library[RANK_PATH_BYTES];
-    int ok = rank_cfg_string(cfg_text, tokens, validate_block, "query_library", query_library);
+    char submission_path[RANK_PATH_BYTES];
+    int ok = rank_cfg_string(cfg_text, tokens, validate_block, "query_library", query_library) &&
+             rank_cfg_string(cfg_text, tokens, output_block, "submission", submission_path);
     RankEnvelope envelope[RANK_MODES];
     RankEnvelopeLayout envelope_layout;
     memset(&envelope_layout, 0, sizeof(envelope_layout));
@@ -655,7 +663,8 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     if (!ok)
     {
-        scriptura_text(&results->line, "  the cfg lacks validate.query_library or an envelope with a positive N");
+        scriptura_text(&results->line,
+                       "  the cfg lacks validate.query_library, output.submission or an envelope with a positive N");
         rank_line_end(results);
         return 0;
     }
@@ -676,16 +685,24 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
     }
 
-    // the set
+    // the set, and in test the test set read after it, whose spectra are the queries
     static RankSet set;
-    if (!rank_set_load(results, set_path, &set))
+    const int set_read = rank_set_load(results, set_path, &set);
+    const unsigned long long set_spectra = set.spectra;
+    if (!set_read || (test && !rank_set_load(results, arguments[5], &set)))
     {
         scriptura_text(&results->line, "  the set did not read: ");
-        scriptura_text(&results->line, set_path);
+        scriptura_text(&results->line, set_read ? arguments[5] : set_path);
         rank_line_end(results);
         return 0;
     }
     const unsigned long long spectra = set.spectra;
+    if (test)
+    {
+        rank_line_decimal(results, "  test set: ", spectra - set_spectra);
+        scriptura_text(&results->line, " spectra");
+        rank_line_end(results);
+    }
     rank_line_decimal(results, "  set: ", spectra);
     rank_line_decimal(results, " spectra in ", (unsigned long long)set.row_groups);
     rank_line_decimal(results, " row groups, ", set.mz.unit.size());
@@ -706,13 +723,21 @@ int rank_run(SimResults *results, int count, char **arguments)
         const unsigned int named = set.text[RANK_MODE][spectrum];
         mode[spectrum] = (named == mode_of_string[0]) ? 0u : (named == mode_of_string[1]) ? 1u : RANK_ABSENT;
     }
-    const unsigned int held_out = rank_string_find(&set, RANK_LIBRARY, query_library);
-    if (held_out == RANK_ABSENT)
+    const unsigned int held_out = validate ? rank_string_find(&set, RANK_LIBRARY, query_library) : RANK_ABSENT;
+    if (validate && (held_out == RANK_ABSENT))
     {
         scriptura_text(&results->line, "  validate.query_library is no library of the set: ");
         scriptura_text(&results->line, query_library);
         rank_line_end(results);
         return 0;
+    }
+    // each spectrum a query or a reference: in validate the held-out library's spectra and every other, in test the
+    // test set's and the set's
+    std::vector<unsigned char> is_query((size_t)spectra, 0u);
+    for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
+    {
+        is_query[spectrum] =
+            (unsigned char)(validate ? (set.text[RANK_LIBRARY][spectrum] == held_out) : (spectrum >= set_spectra));
     }
     const unsigned long long structures = set.strings[RANK_KEY].size();
     std::vector<unsigned char> reference((size_t)spectra, 0u);
@@ -721,8 +746,8 @@ int rank_run(SimResults *results, int count, char **arguments)
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
         const unsigned int structure = set.text[RANK_KEY][spectrum];
-        reference[spectrum] = (unsigned char)((mode[spectrum] != RANK_ABSENT) && (structure != RANK_ABSENT) &&
-                                              (set.text[RANK_LIBRARY][spectrum] != held_out));
+        reference[spectrum] =
+            (unsigned char)((mode[spectrum] != RANK_ABSENT) && (structure != RANK_ABSENT) && !is_query[spectrum]);
         if (reference[spectrum])
         {
             structure_reference_first[structure + 1ull] += 1ull;
@@ -749,32 +774,33 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, "  reference spectra: ", reference_count);
     rank_line_end(results);
 
-    // the queries and their molecules: the held-out library's spectra of a known mode, grouped by structure
+    // the queries and their molecules: the query spectra of a known mode, grouped by structure in validate and by
+    // molecule_id in test
+    const unsigned int molecule_text = validate ? RANK_KEY : RANK_MOLECULE;
     std::vector<unsigned int> query;
-    std::vector<unsigned int> molecule_of_key((size_t)structures + 1u, RANK_ABSENT);
-    std::vector<unsigned int> molecule_key;
+    std::vector<unsigned int> molecule_of_name(set.strings[molecule_text].size() + 1u, RANK_ABSENT);
+    std::vector<unsigned int> molecule_name;
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
-        const unsigned int structure = set.text[RANK_KEY][spectrum];
-        if ((set.text[RANK_LIBRARY][spectrum] != held_out) || (mode[spectrum] == RANK_ABSENT) ||
-            (structure == RANK_ABSENT))
+        const unsigned int name = set.text[molecule_text][spectrum];
+        if (!is_query[spectrum] || (mode[spectrum] == RANK_ABSENT) || (name == RANK_ABSENT))
         {
             continue;
         }
-        if (molecule_of_key[structure] == RANK_ABSENT)
+        if (molecule_of_name[name] == RANK_ABSENT)
         {
-            molecule_of_key[structure] = (unsigned int)molecule_key.size();
-            molecule_key.push_back(structure);
+            molecule_of_name[name] = (unsigned int)molecule_name.size();
+            molecule_name.push_back(name);
         }
         query.push_back((unsigned int)spectrum);
     }
     const unsigned long long query_count = query.size();
-    const unsigned long long molecule_count = molecule_key.size();
+    const unsigned long long molecule_count = molecule_name.size();
     std::vector<unsigned long long> molecule_query_first((size_t)molecule_count + 2u, 0ull);
     std::vector<unsigned int> molecule_query((size_t)query_count + 1u);
     for (unsigned long long each = 0ull; each < query_count; each += 1ull)
     {
-        molecule_query_first[molecule_of_key[set.text[RANK_KEY][query[each]]] + 1ull] += 1ull;
+        molecule_query_first[molecule_of_name[set.text[molecule_text][query[each]]] + 1ull] += 1ull;
     }
     for (unsigned long long molecule = 0ull; molecule < molecule_count; molecule += 1ull)
     {
@@ -784,7 +810,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         std::vector<unsigned long long> filled((size_t)molecule_count + 1u, 0ull);
         for (unsigned long long each = 0ull; each < query_count; each += 1ull)
         {
-            const unsigned int molecule = molecule_of_key[set.text[RANK_KEY][query[each]]];
+            const unsigned int molecule = molecule_of_name[set.text[molecule_text][query[each]]];
             molecule_query[molecule_query_first[molecule] + filled[molecule]] = (unsigned int)each;
             filled[molecule] += 1ull;
         }
@@ -1199,7 +1225,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         for (unsigned long long spectrum = 0ull; ok && (spectrum < spectra); spectrum += 1ull)
         {
             const int each_form = (set.intensity.term[spectrum] % RANK_TERM_FORMS) == RANK_ROW_EACH;
-            if ((!reference[spectrum] && (set.text[RANK_LIBRARY][spectrum] != held_out)) || !each_form)
+            if ((!reference[spectrum] && !is_query[spectrum]) || !each_form)
             {
                 continue;
             }
@@ -1722,8 +1748,33 @@ int rank_run(SimResults *results, int count, char **arguments)
         return 0;
     }
 
-    // each molecule's list: the chosen structures, then its unscored candidates in structure order, to 25; the
-    // answer's place in it
+    // each molecule's list: the chosen structures, then its unscored candidates in structure order, to 25. In validate
+    // the answer's place in it; in test the list's SMILES, each structure's from its first reference spectrum that
+    // holds one, written as the molecule's line of the submission
+    FILE *submission = NULL;
+    std::vector<unsigned int> structure_smiles((size_t)structures + 1u, RANK_ABSENT);
+    std::vector<unsigned char> molecule_written(set.strings[RANK_MOLECULE].size() + 1u, 0u);
+    if (test)
+    {
+        for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
+        {
+            const unsigned int structure = set.text[RANK_KEY][spectrum];
+            if (reference[spectrum] && (structure_smiles[structure] == RANK_ABSENT))
+            {
+                structure_smiles[structure] = set.text[RANK_SMILES][spectrum];
+            }
+        }
+        submission = (engine_directories_make(submission_path, 0) != 0) ? fopen(submission_path, "wb") : NULL;
+        if (submission == NULL)
+        {
+            scriptura_text(&results->line, "  the submission did not open: ");
+            scriptura_text(&results->line, submission_path);
+            rank_line_end(results);
+            return 0;
+        }
+        fprintf(submission, "molecule_id,smiles\n");
+    }
+    unsigned long long given_none = 0ull;
     std::vector<unsigned char> structure_mark((size_t)structures + 1u, 0u);
     unsigned long long rank_counts[RANK_LIST_MOST + 1u];
     memset(rank_counts, 0, sizeof(rank_counts));
@@ -1774,24 +1825,45 @@ int rank_run(SimResults *results, int count, char **arguments)
                 listed += 1u;
             }
         }
-        const unsigned int truth = molecule_key[molecule];
-        unsigned int place = 0u;
-        for (unsigned int at = 0u; at < listed; at += 1u)
+        if (test)
         {
-            place = ((place == 0u) && (list[at] == truth)) ? (at + 1u) : place;
+            // the molecule's id, then its list's SMILES joined by ';', or C where it lists none
+            unsigned int written = 0u;
+            fprintf(submission, "%s,", set.strings[RANK_MOLECULE][molecule_name[molecule]].c_str());
+            for (unsigned int at = 0u; at < listed; at += 1u)
+            {
+                const unsigned int smiles = structure_smiles[list[at]];
+                if (smiles != RANK_ABSENT)
+                {
+                    fprintf(submission, "%s%s", (written == 0u) ? "" : ";", set.strings[RANK_SMILES][smiles].c_str());
+                    written += 1u;
+                }
+            }
+            fprintf(submission, "%s\n", (written == 0u) ? "C" : "");
+            given_none += (written == 0u) ? 1ull : 0ull;
+            molecule_written[molecule_name[molecule]] = 1u;
         }
-        rank_counts[place] += 1ull;
-        const int has_reference = structure_reference_first[truth + 1ull] != structure_reference_first[truth];
-        const int is_candidate = std::binary_search(candidate.begin(), candidate.end(), truth);
-        int is_scored = 0;
-        for (unsigned long long group = molecule_group_first[molecule]; group < molecule_group_first[molecule + 1ull];
-             group += 1ull)
+        else
         {
-            is_scored = is_scored || (group_structure[group] == truth);
+            const unsigned int truth = molecule_name[molecule];
+            unsigned int place = 0u;
+            for (unsigned int at = 0u; at < listed; at += 1u)
+            {
+                place = ((place == 0u) && (list[at] == truth)) ? (at + 1u) : place;
+            }
+            rank_counts[place] += 1ull;
+            const int has_reference = structure_reference_first[truth + 1ull] != structure_reference_first[truth];
+            const int is_candidate = std::binary_search(candidate.begin(), candidate.end(), truth);
+            int is_scored = 0;
+            for (unsigned long long group = molecule_group_first[molecule]; group < molecule_group_first[molecule + 1ull];
+                 group += 1ull)
+            {
+                is_scored = is_scored || (group_structure[group] == truth);
+            }
+            truth_no_reference += has_reference ? 0ull : 1ull;
+            truth_outside += (has_reference && !is_candidate) ? 1ull : 0ull;
+            truth_unscored += (is_candidate && !is_scored) ? 1ull : 0ull;
         }
-        truth_no_reference += has_reference ? 0ull : 1ull;
-        truth_outside += (has_reference && !is_candidate) ? 1ull : 0ull;
-        truth_unscored += (is_candidate && !is_scored) ? 1ull : 0ull;
         for (size_t each = 0u; each < candidate.size(); each += 1u)
         {
             structure_mark[candidate[each]] = 0u;
@@ -1801,6 +1873,30 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             structure_mark[group_structure[group]] = 0u;
         }
+    }
+    if (test)
+    {
+        // a test molecule with no query of a known mode lists none: given C
+        unsigned long long unranked = 0ull;
+        for (unsigned long long spectrum = set_spectra; spectrum < spectra; spectrum += 1ull)
+        {
+            const unsigned int name = set.text[RANK_MOLECULE][spectrum];
+            if ((name != RANK_ABSENT) && (molecule_written[name] == 0u))
+            {
+                fprintf(submission, "%s,C\n", set.strings[RANK_MOLECULE][name].c_str());
+                molecule_written[name] = 1u;
+                unranked += 1ull;
+            }
+        }
+        const int closed = fclose(submission) == 0;
+        scriptura_text(&results->line, "  submission ");
+        scriptura_text(&results->line, submission_path);
+        rank_line_decimal(results, ": molecules ", molecule_count + unranked);
+        rank_line_decimal(results, "; with no candidate, given C, ", given_none);
+        rank_line_decimal(results, "; with no query of a known mode, given C, ", unranked);
+        rank_line_end(results);
+        sim_check(results, closed, "the submission is written");
+        return closed;
     }
     rank_line_decimal(results, "  answers: molecules ", molecule_count);
     rank_line_decimal(results, "; with no reference spectrum ", truth_no_reference);

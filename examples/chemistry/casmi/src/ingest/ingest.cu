@@ -161,6 +161,7 @@ static void ingest_error_line(SimResults *results, const char *what, const Engin
     ingest_line_decimal(results, ": module ", (unsigned long long)error->module);
     ingest_line_decimal(results, ", site ", (unsigned long long)error->site);
     ingest_line_decimal(results, ", kind ", (unsigned long long)error->kind);
+    ingest_line_decimal(results, ", status ", (unsigned long long)(unsigned int)error->status);
     ingest_line_end(results);
 }
 
@@ -1555,8 +1556,9 @@ int ingest_run(SimResults *results, int count, char **arguments)
             char sample[INGEST_SAMPLE_BYTES];
             const unsigned long long extent[4] = {1ull, 1ull, INGEST_LANES_PER_VALUE, bases->values};
             ok = ok && ingest_sample_name(sample, group, INGEST_BASES, "kept") &&
-                 ingest_seal(results, set, sample, device_planes, extent, INGEST_BASES, &tally) &&
-                 ingest_rows_seal(results, set, group, INGEST_BASES, bases, &tally);
+                 ingest_seal(results, set, sample, device_planes, extent, INGEST_BASES, &tally);
+            sim_check(results, ok, "the bases' lanes seal as four planes");
+            ok = ok && ingest_rows_seal(results, set, group, INGEST_BASES, bases, &tally);
             tally.raw_bytes[INGEST_BASES] += bases->values * 8ull;
             cudaFree(device_lanes);
             cudaFree(device_planes);
