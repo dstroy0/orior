@@ -875,20 +875,106 @@ static int khw_vendor_run(const char *mode, const char *answers)
     return 1;
 }
 
-// The slot's first field-finding round emitted off the part: the kernel's instruction at `slot` turned one bit at a
-// time and each put as a question, none carried; a dry run writes the round to the folder for the vendor's own
-// disassembler to read back. The slot is the protocol's own, read from a part before; the vendor names none of the
-// questions and no byte of its knowledge enters a form. It is how the process is tuned against questions the part has
-// not yet answered, off the part (measuring_stick_query.sh)
-static void khw_enumerate(unsigned int slot)
+// The forms a prior run learned, read from the answers file at `path` into s_named for the enumeration to seed from:
+// each form's encoding and the runs its operands sit in, the relation and the signedness read past. The count read, 0
+// where the file holds none or is not there
+static unsigned int khw_forms_read(const char *path)
+{
+    FILE *const file = fopen(path, "rb");
+    if (file == NULL)
+    {
+        return 0u;
+    }
+    char line[2048];
+    unsigned int read = 0u;
+    while ((fgets(line, sizeof(line), file) != NULL) && (read < KHW_FORMS))
+    {
+        if ((line[0] == '#') || (line[0] == '\n') || (line[0] == '\0'))
+        {
+            continue;
+        }
+        KhwAnswered held;
+        memset(&held, 0, sizeof(held));
+        char relation[256];
+        int at = 0;
+        if (sscanf(line, "%255s %d %d %llx %llx %u %n", relation, &held.signed_read, &held.signedness_asked, &held.low,
+                   &held.high, &held.runs, &at) != 6)
+        {
+            continue;
+        }
+        if (held.runs > KHW_RUNS)
+        {
+            held.runs = KHW_RUNS;
+        }
+        const char *rest = line + at;
+        int ok = 1;
+        for (unsigned int run = 0u; (run < held.runs) && ok; run += 1u)
+        {
+            int step = 0;
+            ok = (sscanf(rest, "%u %u %n", &held.first[run], &held.last[run], &step) == 2);
+            rest += step;
+        }
+        if (!ok)
+        {
+            continue;
+        }
+        s_named[read] = held;
+        read += 1u;
+    }
+    fclose(file);
+    return read;
+}
+
+// The register-run probes of `held` emitted: each run set to the number of each of the two registers the kernel left
+// a case word in, a question of the slot, and the round carried. These are the questions khw_fields_asked puts after
+// its turns, the ones a single bit's turn never makes, for the vendor's disassembler to read before the part does
+static void khw_enumerate_runs(const KhwAnswered *held, const unsigned int word[1][2])
+{
+    if (held->runs == 0u)
+    {
+        return;
+    }
+    s_pooled = 0u;
+    for (unsigned int run = 0u; run < held->runs; run += 1u)
+    {
+        unsigned long long low = held->low;
+        unsigned long long high = held->high;
+        khw_run_write(&low, &high, held->first[run], held->last[run], KHW_FIRST_REGISTER);
+        khw_pooled(s_slot, low, high, word, 1u);
+        low = held->low;
+        high = held->high;
+        khw_run_write(&low, &high, held->first[run], held->last[run], KHW_SECOND_REGISTER);
+        khw_pooled(s_slot, low, high, word, 1u);
+    }
+    khw_round_carried();
+}
+
+// The slot's questions emitted off the part for the vendor's disassembler to read back: each known form's fields and
+// register-runs, none carried, a dry run writing them to the folder (measuring_stick_query.sh). Where `forms` names a
+// file a prior run learned, every form it holds is read and each one's bits turned one at a time (its fields and, with
+// them, every bit a widening would turn) and its runs set to the two registers; where it names none, the kernel's own
+// slot form alone, its bits turned. The slot and the forms are the protocol's own, read from a part before; the vendor
+// names none of the questions and no byte of its knowledge enters a form. It is how the process is tuned against
+// questions the part has not yet answered, off the part
+static void khw_enumerate(unsigned int slot, const char *forms)
 {
     s_slot = slot;
-    KhwAnswered held;
-    memset(&held, 0, sizeof(held));
-    held.low = khw_word_read(&s_kernel_text[slot * KHW_INSTRUCTION], 0u);
-    held.high = khw_word_read(&s_kernel_text[slot * KHW_INSTRUCTION], 8u);
     const unsigned int word[1][2] = {{3u, 5u}};
-    khw_turns_asked(&held, word);
+    const unsigned int known = (forms != NULL) ? khw_forms_read(forms) : 0u;
+    if (known == 0u)
+    {
+        KhwAnswered held;
+        memset(&held, 0, sizeof(held));
+        held.low = khw_word_read(&s_kernel_text[slot * KHW_INSTRUCTION], 0u);
+        held.high = khw_word_read(&s_kernel_text[slot * KHW_INSTRUCTION], 8u);
+        khw_turns_asked(&held, word);
+        return;
+    }
+    for (unsigned int at = 0u; at < known; at += 1u)
+    {
+        khw_turns_asked(&s_named[at], word);
+        khw_enumerate_runs(&s_named[at], word);
+    }
 }
 
 int main(int count, char **word)
@@ -910,15 +996,22 @@ int main(int count, char **word)
     s_mnemonics = word[4];
     s_folder = word[5];
     s_machine_writer = word[6];
-    // [<rounds>] and, for a dry run tuned off the part, [--slot <n>]: the slot whose first field-finding round is
-    // emitted for the vendor's disassembler, in place of the learn loop (khw_enumerate)
+    // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <path>]: the slot whose questions are
+    // emitted for the vendor's disassembler, and the forms a prior run learned to seed them from, in place of the learn
+    // loop (khw_enumerate)
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
+    const char *forms = NULL;
     for (int at = 7; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
         {
             enumerate = (unsigned int)strtoul(word[at + 1], NULL, 10);
+            at += 1;
+        }
+        else if ((strcmp(word[at], "--forms") == 0) && ((at + 1) < split))
+        {
+            forms = word[at + 1];
             at += 1;
         }
         else
@@ -976,9 +1069,10 @@ int main(int count, char **word)
             run_channel_close();
             return 1;
         }
-        khw_enumerate(enumerate);
+        khw_enumerate(enumerate, forms);
         run_channel_close();
-        printf("  enumerated the slot %u's first field-finding round off the part, %llu asks\n", enumerate, s_asks);
+        printf("  enumerated the slot %u's questions off the part%s, %llu asks\n", enumerate,
+               (forms != NULL) ? " from the forms a prior run learned" : "", s_asks);
         return 0;
     }
     KhwAnswered kernel;
