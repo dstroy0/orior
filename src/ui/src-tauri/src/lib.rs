@@ -757,7 +757,7 @@ fn bridge_read(app: State<App>) -> Result<bridge::Bridge, String> {
     Ok(bridge::read(&root_of(&app)?))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn file_window(app: State<App>, path: String, line: u64, half: u64) -> Result<files::Slice, String> {
     files::window(&root_of(&app)?, &path, line, half)
 }

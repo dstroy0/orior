@@ -198,26 +198,31 @@ function tabOf(path) {
   return state.tabs.find((tab) => tab.path === path);
 }
 
-// A text's length and a hash of it, which say whether two texts are the same without either kept.
-function printOf(text) {
-  let hash = 0x811c9dc5;
-  for (let at = 0; at < text.length; at += 1) {
-    hash = Math.imul(hash ^ text.charCodeAt(at), 0x01000193);
-  }
-  return { length: text.length, hash: hash >>> 0 };
+// The lines a tab's file holds as saved: the document's own where its text is the file's, each
+// costing a reference and not a copy, or `text` split as the document splits it.
+function keepSaved(tab, text) {
+  const doc = tab.session.doc;
+  tab.savedLines = text === undefined ? doc.lines.slice() : text.split(/\r?\n/);
+  tab.savedEol = doc.eol;
+  tab.comparedAt = null;
 }
 
-// Marks a tab saved at its document's state now, `text` being what the file holds.
-function markSaved(tab, text = tab.session.doc.text()) {
+// Marks a tab saved at its document's state now, `text` being what the file holds where the
+// document does not hold it. A file still being read as a window keeps no lines until it is whole.
+function markSaved(tab, text) {
   tab.saved = tab.session.doc.id;
-  tab.print = tab.session.window ? null : printOf(text);
-  tab.printedAt = null;
+  if (tab.session.window) {
+    tab.savedLines = null;
+  } else {
+    keepSaved(tab, text);
+  }
 }
 
 // A tab has changes not saved while its text differs from what was saved. The document's state
 // says so at once where it is the saved one; where it is not, as after a letter typed and taken
-// out again, the text is held against the saved text's print, once for each state. A file read as
-// a window has no print, and any edit to it is a change.
+// out again, its lines are held against the saved ones, once for each state, a line not edited
+// since the save matching on its reference alone. A file still being read has no saved lines, and
+// any edit to it is a change.
 function dirty(tab) {
   if (!tab.session || tab.readOnly) {
     return false;
@@ -226,17 +231,13 @@ function dirty(tab) {
   if (doc.id === tab.saved) {
     return false;
   }
-  if (!tab.print) {
+  if (!tab.savedLines) {
     return true;
   }
-  if (tab.printedAt !== doc.id) {
-    tab.printedAt = doc.id;
-    let length = doc.eol.length * (doc.count - 1);
-    for (const line of doc.lines) {
-      length += line.length;
-    }
-    const print = length === tab.print.length ? printOf(doc.text()) : null;
-    tab.same = Boolean(print && print.hash === tab.print.hash);
+  if (tab.comparedAt !== doc.id) {
+    tab.comparedAt = doc.id;
+    const saved = tab.savedLines;
+    tab.same = doc.eol === tab.savedEol && doc.lines.length === saved.length && doc.lines.every((line, at) => line === saved[at]);
   }
   return !tab.same;
 }
@@ -379,6 +380,10 @@ async function readOutward(tab) {
   }
   write("reads", [tab.path, null]);
   s.window = null;
+  // Read whole with no edit made on the way, the file's lines are the document's.
+  if (s.doc.id === tab.saved) {
+    keepSaved(tab);
+  }
   state.editor.schedule();
 }
 
@@ -395,7 +400,7 @@ async function load(path) {
     const place = placeOf(path);
     if (opened.windowed) {
       const shown = await invoke("file_window", { path, line: place?.line ?? 0, half: HALF });
-      const held = { start: shown.start, end: shown.end, size: shown.size };
+      const held = { start: shown.start, end: shown.end, size: shown.size, lines: shown.lines };
       tab.session = new Session(shown.text, state.known.languageOf(path), { base: shown.line, window: held });
       markSaved(tab);
       settleAt(tab.session, place);
@@ -563,15 +568,14 @@ async function saveActive() {
   }
   tidy(tab);
   const writing = tab.session.doc.id;
+  const lines = tab.session.doc.lines.slice();
+  const eol = tab.session.doc.eol;
   const written = tab.session.doc.text();
   await invoke("file_write", { path: tab.path, text: written });
-  if (tab.session.doc.id === writing) {
-    markSaved(tab, written);
-  } else {
-    tab.saved = writing;
-    tab.print = printOf(written);
-    tab.printedAt = null;
-  }
+  tab.saved = writing;
+  tab.savedLines = lines;
+  tab.savedEol = eol;
+  tab.comparedAt = null;
   tab.closing = false;
   forgetBackup(tab.path);
   drawTabs();
@@ -1868,11 +1872,14 @@ export function editing() {
         }
         tidy(tab);
         const writing = tab.session.doc.id;
+        const lines = tab.session.doc.lines.slice();
+        const eol = tab.session.doc.eol;
         const written = tab.session.doc.text();
         await invoke("file_write", { path: tab.path, text: written });
         tab.saved = writing;
-        tab.print = printOf(written);
-        tab.printedAt = null;
+        tab.savedLines = lines;
+        tab.savedEol = eol;
+        tab.comparedAt = null;
         tab.closing = false;
         forgetBackup(tab.path);
         if (inBridge(tab.path)) {

@@ -166,6 +166,8 @@ export class Editor {
     this.layers.append(this.under, this.picked, this.text, this.over, this.input);
     this.sheet.append(this.layers);
     this.originRow = 0;
+    this.pad = 0;
+    this.below = 0;
     this.textLayer = new Layer(this.text);
     this.underLayer = new Layer(this.under);
     this.gutterLayer = new Layer(this.gutterRows);
@@ -358,7 +360,6 @@ export class Editor {
       this.textLayer.shift(added);
       this.underLayer.shift(added);
       this.gutterLayer.shift(added);
-      this.place(this.scroller.scrollTop + added * LINE);
     }
     if (this.find.shown) {
       window.clearTimeout(this.findWait);
@@ -370,15 +371,37 @@ export class Editor {
   // Sizes the scrolling space to every row and the widest line.
   size() {
     const rows = this.rows();
-    this.space.style.height = `${rows.size * LINE + LINE}px`;
+    // A file read a window at a time is scrolled as the whole file from the start: the lines above
+    // the window and below it, counted as the file opened, stand as padding. A line read in takes
+    // its place from the padding, and the scroll and the scrollbar stay where they are.
+    const s = this.s;
+    if (s?.window) {
+      this.pad = s.base * LINE;
+      this.below = Math.max(0, this.linesInFile() - s.base - s.doc.count) * LINE;
+    } else {
+      this.pad = 0;
+      this.below = 0;
+    }
+    this.space.style.height = `${this.pad + rows.size * LINE + LINE + this.below}px`;
     this.space.style.width = `${Math.max(this.scroller.clientWidth, PAD + (this.widest() + 4) * this.cw)}px`;
     this.sheet.style.width = `${this.scroller.clientWidth}px`;
     this.sheet.style.height = `${this.scroller.clientHeight}px`;
   }
 
+  // How far the view is scrolled from the first row read, in pixels.
+  scrollY() {
+    return this.scroller.scrollTop - this.pad;
+  }
+
+  // How many rows the scrolling space stands for: those read, and while a file is still being
+  // read, those above and below them.
+  allRows() {
+    return (this.pad + this.below) / LINE + this.rows().size;
+  }
+
   // Moves the sheet and the gutter's numbers to where the view is scrolled, from the origin.
   follow() {
-    const down = this.originRow * LINE - this.scroller.scrollTop;
+    const down = this.originRow * LINE - this.scrollY();
     this.layers.style.transform = `translate(${-this.scroller.scrollLeft}px, ${down}px)`;
     this.gutterRows.style.transform = `translateY(${down}px)`;
   }
@@ -391,7 +414,7 @@ export class Editor {
   posAt(event) {
     const rect = this.space.getBoundingClientRect();
     const rows = this.rows();
-    const row = Math.floor((event.clientY - rect.top) / LINE);
+    const row = Math.floor((event.clientY - rect.top - this.pad) / LINE);
     if (row < 0) {
       return pos(rows.lineOf(0), 0);
     }
@@ -407,7 +430,7 @@ export class Editor {
 
   show(session) {
     if (this.s) {
-      this.s.top = this.scroller.scrollTop / LINE;
+      this.s.top = this.scrollY() / LINE;
       this.s.left = this.scroller.scrollLeft;
       this.s.view = null;
     }
@@ -554,7 +577,7 @@ export class Editor {
     }
     this.size();
     const y = this.rows().rowOf(head.line) * LINE;
-    const top = this.scroller.scrollTop;
+    const top = this.scrollY();
     const height = this.scroller.clientHeight;
     if (center && (y < top || y + LINE > top + height)) {
       this.place(y - height / 2);
@@ -1047,7 +1070,7 @@ export class Editor {
 
   page(direction, extend) {
     const by = Math.max(1, Math.floor(this.scroller.clientHeight / LINE) - 1);
-    this.place(this.scroller.scrollTop + direction * by * LINE);
+    this.place(this.scrollY() + direction * by * LINE);
     this.moveBy((sel) => this.vertical(sel, direction * by), extend);
   }
 
@@ -2024,7 +2047,7 @@ export class Editor {
   // as lines are read in above it. The scroll that follows is not counted as speed.
   place(top) {
     const was = this.scroller.scrollTop;
-    this.scroller.scrollTop = top;
+    this.scroller.scrollTop = top + this.pad;
     this.placedTop = this.scroller.scrollTop === was ? null : this.scroller.scrollTop;
   }
 
@@ -2106,7 +2129,7 @@ export class Editor {
     }
     const rows = this.rows();
     const shown = Math.ceil(this.scroller.clientHeight / LINE);
-    const first = Math.floor(this.scroller.scrollTop / LINE);
+    const first = Math.floor(this.scrollY() / LINE);
     const heading = status.scroll.heading;
     const from = heading > 0 ? first + shown : Math.max(0, first - 1);
     let row = from;
@@ -2261,6 +2284,19 @@ export class Editor {
     }
   }
 
+  // How many lines the session's file holds: every one once it is read whole, and while it is read
+  // a window at a time, as many as were counted as it opened.
+  linesInFile() {
+    const s = this.s;
+    if (!s) {
+      return 0;
+    }
+    if (!s.window) {
+      return s.base + s.doc.count;
+    }
+    return Math.max(s.window.lines ?? 0, s.base + s.doc.count);
+  }
+
   // Where a row stands in the sheet, from the origin.
   yOf(row) {
     return (row - this.originRow) * LINE;
@@ -2320,12 +2356,12 @@ export class Editor {
     const cw = this.cw;
     const level = status.scroll.level;
     const base = s.base;
-    const total = s.window ? Math.max(base + doc.count, Math.round((base + doc.count) * (s.window.size / Math.max(1, s.window.end - s.window.start)))) : doc.count;
+    const total = this.linesInFile();
     // The gutter holds, left to right, the strip a breakpoint is set in, the line numbers, and the
     // fold arrows and change marks.
     this.gutter.style.width = `${Math.round(String(total).length * cw + 36 + BREAK_STRIP)}px`;
     this.size();
-    const top = this.scroller.scrollTop;
+    const top = this.scrollY();
     const height = this.scroller.clientHeight;
     // The rows past each edge of the screen, more of them the way the view heads the faster it
     // goes. The page's own scroll never shows a row before a frame draws it.
@@ -2681,7 +2717,8 @@ export class Editor {
   rectOf(p) {
     const rect = this.space.getBoundingClientRect();
     const row = this.rows().rowOf(p.line);
-    return { left: rect.left + this.xOf(p), top: rect.top + row * LINE, bottom: rect.top + (row + 1) * LINE };
+    const top = rect.top + this.pad;
+    return { left: rect.left + this.xOf(p), top: top + row * LINE, bottom: top + (row + 1) * LINE };
   }
 
   // The word before the primary cursor, which completion replaces.

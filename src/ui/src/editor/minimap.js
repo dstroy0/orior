@@ -61,10 +61,28 @@ export class Minimap {
     const fit = Math.max(1, Math.floor(height / ROW));
     const scroller = ed.scroller;
     const range = Math.max(1, scroller.scrollHeight - scroller.clientHeight);
-    const ratio = Math.min(1, scroller.scrollTop / range);
-    const start = rows.size <= fit ? 0 : Math.round(ratio * (rows.size - fit));
     const onScreen = scroller.clientHeight / ed.lineHeight;
-    const sliderTop = (scroller.scrollTop / ed.lineHeight - start) * ROW;
+    const s = ed.s;
+    const viewRow = ed.scrollY() / ed.lineHeight;
+    // The view's line in the whole file. Lines read in above the view leave it where it is.
+    const fileTop = (s?.base ?? 0) + viewRow;
+    let start = 0;
+    if (this.held && this.held.session === s && this.held.fileTop === fileTop) {
+      // The view has not moved in the file since the map last stood: the map stands where it did
+      // beside it, however many lines have been read in around it since.
+      start = viewRow - this.held.offset;
+    } else if (s?.window) {
+      // A file still being read: the map stands where the view stands in the whole file, its line
+      // count as counted when the file opened, and not in the part read so far.
+      const total = ed.linesInFile();
+      const ratio = Math.min(1, Math.max(0, fileTop / Math.max(1, total - onScreen)));
+      start = Math.round(ratio * Math.max(0, total - fit)) - s.base;
+    } else if (rows.size > fit) {
+      start = Math.round(Math.min(1, scroller.scrollTop / range) * (rows.size - fit));
+    }
+    start = Math.round(Math.max(0, Math.min(Math.max(0, rows.size - fit), start)));
+    this.held = { session: s, fileTop, offset: viewRow - start };
+    const sliderTop = (viewRow - start) * ROW;
     return { rows, fit, start, range, onScreen, sliderTop, sliderHeight: Math.max(8, onScreen * ROW) };
   }
 
@@ -150,9 +168,11 @@ export class Minimap {
     const ed = this.ed;
     const s = ed.s;
     const left = width - STRIP;
-    const size = Math.max(1, rows.size);
+    // The strip stands for the whole file, a file still being read among them.
+    const size = Math.max(1, ed.allRows());
+    const above = ed.pad / ed.lineHeight;
     const tall = Math.max(MARK, height / size);
-    const yOf = (line) => (rows.rowOf(Math.min(line, s.doc.count - 1)) / size) * height;
+    const yOf = (line) => ((above + rows.rowOf(Math.min(line, s.doc.count - 1))) / size) * height;
     context.fillStyle = this.colorOf("ed-bg");
     context.fillRect(left, 0, STRIP, height);
     context.fillStyle = this.colorOf("ed-widget-line");
@@ -195,13 +215,13 @@ export class Minimap {
     const y = event.clientY - box.top;
     let found = this.geometry();
     if (event.clientX - box.left >= box.width - STRIP) {
-      ed.scroller.scrollTop = (y / box.height) * found.rows.size * ed.lineHeight - ed.scroller.clientHeight / 2;
+      ed.scroller.scrollTop = (y / box.height) * ed.allRows() * ed.lineHeight - ed.scroller.clientHeight / 2;
       ed.focus();
       return;
     }
     if (y < found.sliderTop || y > found.sliderTop + found.sliderHeight) {
       const row = found.start + y / ROW;
-      ed.scroller.scrollTop = row * ed.lineHeight - ed.scroller.clientHeight / 2;
+      ed.place(row * ed.lineHeight - ed.scroller.clientHeight / 2);
       found = this.geometry();
     }
     const startY = event.clientY;

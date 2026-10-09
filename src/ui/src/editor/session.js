@@ -123,7 +123,7 @@ export class Session {
     }
     made.selections = this.selections.map((sel) => ({ ...sel }));
     made.primary = this.primary;
-    made.top = this.view ? this.view.scroller.scrollTop / this.view.lineHeight : this.top;
+    made.top = this.view ? this.view.scrollY() / this.view.lineHeight : this.top;
     made.left = this.view ? this.view.scroller.scrollLeft : this.left;
     this.shared = true;
     made.shared = true;

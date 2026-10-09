@@ -20,7 +20,7 @@ pub fn start_drag(window: &WebviewWindow) -> Result<(), String> {
     unsafe {
         ReleaseCapture();
         // SC_MOVE with HTCAPTION in its low bits is a move by the mouse.
-        if PostMessageW(hwnd, WM_SYSCOMMAND, (SC_MOVE | HTCAPTION as u32) as usize, 0) == 0 {
+        if PostMessageW(hwnd, WM_SYSCOMMAND, (SC_MOVE | HTCAPTION) as usize, 0) == 0 {
             return Err("the window could not be moved".into());
         }
     }
