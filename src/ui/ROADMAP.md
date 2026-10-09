@@ -4,9 +4,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Responsiveness
 
-1. **Large files measured.** A file of many megabytes opens, scrolls to its end, and takes typing there as quickly as a small one, with the times kept.
-2. **Smooth motion measured.** A fast scroll, the lattice and the fuse hold a frame every sixtieth of a second, with the dropped frames counted.
-3. **Start measured.** The time from launching the app to a window that takes keys, kept.
+1. **Smooth motion measured.** A fast scroll, the lattice and the fuse hold a frame every sixtieth of a second, with the dropped frames counted.
+2. **Start measured.** The time from launching the app to a window that takes keys, kept.
 
 ## Code intelligence
 

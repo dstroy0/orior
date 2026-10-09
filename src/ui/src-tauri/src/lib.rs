@@ -762,9 +762,17 @@ fn file_window(app: State<App>, path: String, line: u64, half: u64) -> Result<fi
     files::window(&root_of(&app)?, &path, line, half)
 }
 
-#[tauri::command]
-fn file_slice(app: State<App>, path: String, start: u64, end: u64) -> Result<files::Slice, String> {
-    files::slice(&root_of(&app)?, &path, start, end)
+/// The whole lines from about `start` to about `end`, sent as bytes and not as JSON: the slice's
+/// start, end and the file's size, each 8 bytes little-endian, then the text.
+#[tauri::command(async)]
+fn file_slice(app: State<App>, path: String, start: u64, end: u64) -> Result<tauri::ipc::Response, String> {
+    let slice = files::slice(&root_of(&app)?, &path, start, end)?;
+    let mut sent = Vec::with_capacity(24 + slice.text.len());
+    sent.extend_from_slice(&slice.start.to_le_bytes());
+    sent.extend_from_slice(&slice.end.to_le_bytes());
+    sent.extend_from_slice(&slice.size.to_le_bytes());
+    sent.extend_from_slice(slice.text.as_bytes());
+    Ok(tauri::ipc::Response::new(sent))
 }
 
 #[tauri::command]

@@ -28,6 +28,12 @@ let LINE = 20;
 // How round a selection's corners are, in pixels.
 const SELECTION_ROUND = 4;
 
+// Rows are placed from an origin, a row near the screen and a whole number of ORIGIN_ROWS from
+// the first, and never from the first row itself. A row of a long file placed from the first stands
+// millions of pixels down, where the page draws text a pixel off, and a row drawn again there lands
+// over what it was and not on it.
+const ORIGIN_ROWS = 512;
+
 // Column Selection Mode's key: while it is on, a drag chooses a column, as Shift and Alt do.
 const COLUMN_KEY = "orior.column";
 
@@ -153,7 +159,13 @@ export class Editor {
     this.picked.setAttribute("class", "ed-picked");
     this.picked.setAttribute("aria-hidden", "true");
     this.pickedHtml = "";
-    this.space.append(this.under, this.picked, this.text, this.over, this.input);
+    // The scrolling space holds nothing and only sizes the scroll. What is drawn stands in a sheet
+    // over it that lets the pointer through, moved as the view scrolls, the gutter's numbers with it.
+    this.sheet = div("ed-sheet");
+    this.layers = div("ed-layers");
+    this.layers.append(this.under, this.picked, this.text, this.over, this.input);
+    this.sheet.append(this.layers);
+    this.originRow = 0;
     this.textLayer = new Layer(this.text);
     this.underLayer = new Layer(this.under);
     this.gutterLayer = new Layer(this.gutterRows);
@@ -172,7 +184,7 @@ export class Editor {
     this.stickyDoc = -1;
     this.stickyWait = 0;
     this.stickyKey = "";
-    host.append(this.gutter, this.scroller, canvas, this.sticky);
+    host.append(this.gutter, this.scroller, this.sheet, canvas, this.sticky);
     (statusHost ?? host).append(this.status);
     this.minimap = new Minimap(this, canvas);
     this.sticky.addEventListener("mousedown", (event) => {
@@ -183,7 +195,7 @@ export class Editor {
       event.preventDefault();
       const line = Number(row.dataset.line);
       this.goTo(line);
-      this.scroller.scrollTop = this.rows().rowOf(line) * LINE;
+      this.place(this.rows().rowOf(line) * LINE);
       this.focus();
     });
     this.sticky.addEventListener(
@@ -340,7 +352,13 @@ export class Editor {
     this.rowsKey = "";
     this.size();
     if (added) {
-      this.scroller.scrollTop += added * LINE;
+      // The rows on screen take new numbers, and the origin moves with them: each stays where it
+      // was drawn, and the next frame has nothing to draw again.
+      this.originRow += added;
+      this.textLayer.shift(added);
+      this.underLayer.shift(added);
+      this.gutterLayer.shift(added);
+      this.place(this.scroller.scrollTop + added * LINE);
     }
     if (this.find.shown) {
       window.clearTimeout(this.findWait);
@@ -354,6 +372,15 @@ export class Editor {
     const rows = this.rows();
     this.space.style.height = `${rows.size * LINE + LINE}px`;
     this.space.style.width = `${Math.max(this.scroller.clientWidth, PAD + (this.widest() + 4) * this.cw)}px`;
+    this.sheet.style.width = `${this.scroller.clientWidth}px`;
+    this.sheet.style.height = `${this.scroller.clientHeight}px`;
+  }
+
+  // Moves the sheet and the gutter's numbers to where the view is scrolled, from the origin.
+  follow() {
+    const down = this.originRow * LINE - this.scroller.scrollTop;
+    this.layers.style.transform = `translate(${-this.scroller.scrollLeft}px, ${down}px)`;
+    this.gutterRows.style.transform = `translateY(${down}px)`;
   }
 
   xOf(p) {
@@ -395,7 +422,7 @@ export class Editor {
       session.view = this;
       this.text.style.tabSize = String(session.indent.size);
       this.size();
-      this.scroller.scrollTop = session.top * LINE;
+      this.place(session.top * LINE);
       this.scroller.scrollLeft = session.left;
       this.find.refresh();
     }
@@ -530,11 +557,11 @@ export class Editor {
     const top = this.scroller.scrollTop;
     const height = this.scroller.clientHeight;
     if (center && (y < top || y + LINE > top + height)) {
-      this.scroller.scrollTop = y - height / 2;
+      this.place(y - height / 2);
     } else if (y < top) {
-      this.scroller.scrollTop = y;
+      this.place(y);
     } else if (y + LINE > top + height) {
-      this.scroller.scrollTop = y + LINE - height;
+      this.place(y + LINE - height);
     }
     const x = this.xOf(head);
     const left = this.scroller.scrollLeft;
@@ -1020,7 +1047,7 @@ export class Editor {
 
   page(direction, extend) {
     const by = Math.max(1, Math.floor(this.scroller.clientHeight / LINE) - 1);
-    this.scroller.scrollTop += direction * by * LINE;
+    this.place(this.scroller.scrollTop + direction * by * LINE);
     this.moveBy((sel) => this.vertical(sel, direction * by), extend);
   }
 
@@ -1993,10 +2020,29 @@ export class Editor {
   // a throttle: a frame that runs past BUDGET raises `strain`, and the level is whichever of the two
   // is higher. A slow frame costs detail and never smoothness.
 
+  // Scrolls the view to `top` itself, for a jump to a line or a page, or to hold the text in place
+  // as lines are read in above it. The scroll that follows is not counted as speed.
+  place(top) {
+    const was = this.scroller.scrollTop;
+    this.scroller.scrollTop = top;
+    this.placedTop = this.scroller.scrollTop === was ? null : this.scroller.scrollTop;
+  }
+
   onScroll() {
     this.hover.hide();
     const now = performance.now();
     const top = this.scroller.scrollTop;
+    if (top === this.placedTop) {
+      // The view's own jump: however far it went, nothing moved fast, and the level stands.
+      this.placedTop = null;
+      this.lastTop = top;
+      this.lastScroll = now;
+      this.follow();
+      this.rest();
+      this.schedule();
+      return;
+    }
+    this.placedTop = null;
     const moved = top - (this.lastTop ?? top);
     const spent = Math.max(1, now - (this.lastScroll ?? now - 16));
     this.lastTop = top;
@@ -2005,16 +2051,28 @@ export class Editor {
     const speed = 0.6 * status.scroll.speed + 0.4 * (Math.abs(moved) / spent);
     const level = Math.max(status.frame.strain, DROPS.filter((drop) => speed > drop).length);
     write("scroll", { speed, level, heading: moved ? Math.sign(moved) : status.scroll.heading });
-    // The gutter sits outside the scrolling space. It follows now and not a frame late.
-    this.gutterRows.style.transform = `translateY(${-top}px)`;
+    // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late.
+    this.follow();
+    this.rest();
+    this.schedule();
+  }
+
+  // Once the view has rested REST, the speed and the strain fall to nothing and a frame draws
+  // everything. A strain no frame comes after to ease it would otherwise hold background work back
+  // for good. The frame drawn at rest does not wait for another rest, however long it takes.
+  rest() {
     window.clearTimeout(this.restWait);
     this.restWait = window.setTimeout(() => {
       write("scroll", { speed: 0, level: 0 });
       write("frame", { strain: 0 });
-      this.paint();
+      this.resting = true;
+      try {
+        this.paint();
+      } finally {
+        this.resting = false;
+      }
       this.warm();
     }, REST);
-    this.schedule();
   }
 
   // The throttle: how long the last frame took moves the strain up at once or down a step.
@@ -2031,6 +2089,9 @@ export class Editor {
       }
     }
     write("frame", { spent, strain });
+    if (strain > 0 && !this.resting) {
+      this.rest();
+    }
     if (status.scroll.speed) {
       write("scroll", { level: Math.max(strain, DROPS.filter((drop) => status.scroll.speed > drop).length) });
     }
@@ -2200,6 +2261,11 @@ export class Editor {
     }
   }
 
+  // Where a row stands in the sheet, from the origin.
+  yOf(row) {
+    return (row - this.originRow) * LINE;
+  }
+
   box(name, x, y, width, height = LINE) {
     return `<div class="${name}" style="left:${x}px;top:${y}px;width:${Math.max(0, width)}px;height:${height}px"></div>`;
   }
@@ -2209,7 +2275,7 @@ export class Editor {
     const text = this.doc.line(line);
     const x = PAD + this.vcolOf(text, from) * this.cw;
     const width = (this.vcolOf(text, to) - this.vcolOf(text, from)) * this.cw + (past ? this.cw * 0.6 : 0);
-    return this.box(name, x, row * LINE, width);
+    return this.box(name, x, this.yOf(row), width);
   }
 
   guides(line) {
@@ -2266,6 +2332,13 @@ export class Editor {
     const lead = 2 + Math.min(80, Math.ceil((status.scroll.speed * 48) / LINE));
     const first = Math.max(0, Math.floor(top / LINE) - (status.scroll.heading < 0 ? lead : 2));
     const last = Math.min(rows.size - 1, Math.ceil((top + height) / LINE) + (status.scroll.heading > 0 ? lead : 2));
+    // The origin moves only once the rows drawn have left the two spans of ORIGIN_ROWS below it. A
+    // new origin moves every row, and the layers that place a row once as they make it start over.
+    if (first < this.originRow || first >= this.originRow + 2 * ORIGIN_ROWS) {
+      this.originRow = Math.floor(first / ORIGIN_ROWS) * ORIGIN_ROWS;
+      this.textLayer.clear();
+      this.gutterLayer.clear();
+    }
     const spaceWidth = this.space.offsetWidth;
     const focused = this.hasFocus();
     const sels = s.selections;
@@ -2307,14 +2380,14 @@ export class Editor {
       const line = rows.lineOf(row);
       text.set(row, ["ed-row", this.rowHtml(line)]);
       if (caretLines.has(line)) {
-        band(row, this.box("ed-current", 0, row * LINE, spaceWidth));
+        band(row, this.box("ed-current", 0, this.yOf(row), spaceWidth));
       }
       if (paused === base + line) {
-        band(row, this.box("ed-paused", 0, row * LINE, spaceWidth));
+        band(row, this.box("ed-paused", 0, this.yOf(row), spaceWidth));
       }
       const levels = level >= 1 ? 0 : this.guides(line);
       for (let step = 0; step < levels; step += 1) {
-        band(row, this.box("ed-guide", PAD + step * s.indent.size * cw, row * LINE, 1));
+        band(row, this.box("ed-guide", PAD + step * s.indent.size * cw, this.yOf(row), 1));
       }
       if (occurrence) {
         const lineText = doc.line(line);
@@ -2389,7 +2462,7 @@ export class Editor {
         const from = line === start.line ? start.col : 0;
         const ends = line < end.line;
         const to = line === end.line ? end.col : text.length;
-        spans.push([row, PAD + this.vcolOf(text, from) * cw, PAD + this.vcolOf(text, to) * cw + (ends ? cw : 0)]);
+        spans.push([row - this.originRow, PAD + this.vcolOf(text, from) * cw, PAD + this.vcolOf(text, to) * cw + (ends ? cw : 0)]);
       }
       shapes.push(selectionPath(spans, LINE, SELECTION_ROUND));
     }
@@ -2401,7 +2474,7 @@ export class Editor {
     for (const sel of sels) {
       const row = visible(sel.head.line);
       if (row >= 0) {
-        over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) - 1, row * LINE, 2));
+        over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) - 1, this.yOf(row), 2));
       }
     }
     const pair = level === 0 ? this.bracketPair() : null;
@@ -2414,7 +2487,7 @@ export class Editor {
       }
     }
 
-    const rowTop = (row) => row * LINE;
+    const rowTop = (row) => this.yOf(row);
     this.textLayer.draw(text, rowTop);
     this.underLayer.draw(new Map([...under].map(([row, html]) => [row, ["ed-band", html]])));
     this.gutterLayer.draw(gutter, rowTop);
@@ -2423,10 +2496,10 @@ export class Editor {
       this.over.innerHTML = marks;
       this.overHtml = marks;
     }
-    this.gutterRows.style.transform = `translateY(${-top}px)`;
+    this.follow();
     const headRow = rows.rowOf(primary.head.line);
     this.input.style.left = `${this.xOf(primary.head)}px`;
-    this.input.style.top = `${headRow * LINE}px`;
+    this.input.style.top = `${this.yOf(headRow)}px`;
     // Off the rows on screen: the map and the status line wait while input is active, except that a
     // map whose text has scrolled draws in the same frame as the text, its slider never behind it.
     const scrolled = this.mapTop !== this.scroller.scrollTop;

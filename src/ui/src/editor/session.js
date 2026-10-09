@@ -207,7 +207,7 @@ export class Session {
     if (this.snippet) {
       this.snippet.stops = this.snippet.stops.map((stop) => ({ from: down(stop.from), to: down(stop.to) }));
     }
-    this.highlight.forget(0);
+    this.highlight.shift(added);
     this.foundAt = -1;
     this.top += added * (this.view?.lineHeight ?? 0);
     this.view?.grown(this, added, parts.slice(0, added));

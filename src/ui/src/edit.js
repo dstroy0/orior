@@ -338,6 +338,17 @@ function settleAt(session, place) {
   session.top = Math.max(0, line - 8);
 }
 
+const textOf = new TextDecoder();
+
+// A slice of a file as file_slice sends it: its start, its end and the file's size, each 8 bytes
+// little-endian, then the text.
+async function sliceAt(path, start, end) {
+  const sent = await invoke("file_slice", { path, start, end });
+  const head = new DataView(sent, 0, 24);
+  const at = (offset) => Number(head.getBigUint64(offset, true));
+  return { start: at(0), end: at(8), size: at(16), text: textOf.decode(new Uint8Array(sent, 24)) };
+}
+
 // Reads the rest of a windowed file, a slice at a time, standing back whenever the status block says
 // the view is pressed, and writing how far it has read there.
 async function readOutward(tab) {
@@ -353,13 +364,13 @@ async function readOutward(tab) {
     const goBelow = s.window.end < s.window.size && (below || !canAbove);
     below = !below;
     if (goBelow) {
-      const got = await invoke("file_slice", { path: tab.path, start: s.window.end, end: s.window.end + SLICE });
+      const got = await sliceAt(tab.path, s.window.end, s.window.end + SLICE);
       s.grow(got.text, false);
       s.window.end = got.end > s.window.end ? got.end : s.window.size;
     } else {
-      let got = await invoke("file_slice", { path: tab.path, start: Math.max(0, s.window.start - SLICE), end: s.window.start });
+      let got = await sliceAt(tab.path, Math.max(0, s.window.start - SLICE), s.window.start);
       if (got.start >= s.window.start) {
-        got = await invoke("file_slice", { path: tab.path, start: 0, end: s.window.start });
+        got = await sliceAt(tab.path, 0, s.window.start);
       }
       s.grow(got.text, true);
       s.window.start = got.start;

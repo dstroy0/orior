@@ -2070,9 +2070,27 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .ed-scroll {
+  grid-area: 1 / 2;
   position: relative;
   overflow: auto;
   cursor: text;
+}
+
+/* What the editor draws, over the scrolling space and as large as what it shows, the scrollbars
+   left clear. The pointer goes through it to the space. */
+.ed-sheet {
+  grid-area: 1 / 2;
+  align-self: start;
+  justify-self: start;
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ed-layers {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .ed-space {
@@ -2157,7 +2175,7 @@ body[data-view="run"] .statusbar .ed-status {
   min-width: 2px;
 }
 
-/* The selections, one shape each, drawn under the text in the space it scrolls in. */
+/* The selections, one shape each, drawn under the text in the sheet. */
 .ed-picked {
   position: absolute;
   top: 0;

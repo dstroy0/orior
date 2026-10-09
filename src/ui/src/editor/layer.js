@@ -42,6 +42,14 @@ export class Layer {
     }
   }
 
+  // The rows' numbers moved on by `by`, as lines are put in above them. Each node keeps its place
+  // and its markup under its new number.
+  shift(by) {
+    if (by) {
+      this.held = new Map([...this.held].map(([row, held]) => [row + by, held]));
+    }
+  }
+
   clear() {
     for (const held of this.held.values()) {
       held.node.remove();
