@@ -244,6 +244,21 @@ continuous induction on p - theta p_z, `principal_lower` takes theta to 1, and `
 each a polynomial that solves the inequality: the kernel checks it on the axioms propext, Classical.choice and
 Quot.sound alone.
 
+Measured (`core_tangent` with `measure`): at the vertex of E_(1.1), to order 32, the base's s(Y) gives
+Phi(Y) = sqrt(2 s_0 Y) sum e_k Y^k / (2k + 1) exactly, and the principal and the full tangent are summed exactly for
+mu = 1, 4, 16 and 64 on Y = 1/8 to 1. The principal axial field follows the measured Phi with the Bessel prefactor:
+ln|y| - sqrt(mu) Phi(Y) + ln(mu) / 4 at Y = 1 is -3.35, -2.43, -1.99 and -1.90, and from mu = 16 on it is flat in Y to
+0.01. The full tangent over the principal, less 1, is
+
+| Y | mu = 4 | mu = 16 | mu = 64 |
+|---|---|---|---|
+| 1/4, axial | -2.75 | -0.80 | -0.30 |
+| 1, axial | -3.51 | -1.28 | -0.58 |
+| 1, swirl | -8.45 | -1.68 | -0.66 |
+
+and times sqrt(mu) it falls toward a constant near -5 at Y = 1: the paths that skip a derivative are a part of order
+mu^(-1/2) whose constant is large, and below mu = 16 they outweigh the principal part and turn its sign.
+
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
 bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
 radius near mu^(-1/2); and the integral of G against the blend near X_b.
