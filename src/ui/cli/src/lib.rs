@@ -20,6 +20,7 @@ pub mod defs;
 pub mod files;
 pub mod format;
 pub mod git;
+pub mod history;
 pub mod home;
 pub mod lsp;
 pub mod plugins;

@@ -6,6 +6,7 @@
 import { invoke, pick } from "./bridge.js";
 import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
+import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
@@ -39,6 +40,7 @@ async function settle(root, said) {
   project.textContent = root ? root.replace(/[\\/]+$/, "").split(/[\\/]/).pop() : "";
   project.title = root ?? "";
   loadBreakpoints();
+  loadBookmarks();
   pane.hidden = Boolean(root);
   if (!root) {
     document.getElementById("open-said").textContent = said ?? "";

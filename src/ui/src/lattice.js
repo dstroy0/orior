@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The lattice the docs site draws behind its hero: a square grid of points, each moved off its place
+// The lattice the docs site draws behind its hero: a grid of points, each moved off its place
 // by an amount that is zero where the lattice is ordered and grows where it is not. A point in place
 // is signal green, and a moved one passes through the link blue to violet. Each point's way off its
 // place is seeded and the same every time; how far it goes is the lattice's order where it stands.
@@ -17,7 +17,9 @@ import { rgbOf } from "./colors.js";
 import { clock, still as paused, whenMoving } from "./motion.js";
 import { onScheme } from "./scheme.js";
 
-const STEP = 22;
+// The spacing of the points, and how far the most disordered point goes from its place, in pixels.
+const STEP = 22 / Math.sqrt(3);
+const REACH = 22 * 2.4;
 const SEED = 1729;
 // The colors from ordered to disordered, the stylesheet's --lattice-1 to --lattice-3.
 const STOPS = ["--lattice-1", "--lattice-2", "--lattice-3"];
@@ -76,7 +78,7 @@ function pensOf() {
     const loose = level / (LEVELS - 1);
     const kept = 1 - loose;
     const [red, green, blue] = shade(loose);
-    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.36 + 0.16 * kept).toFixed(3)})`, size: 1.3 + 0.4 * kept };
+    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.36 + 0.16 * kept).toFixed(3)})`, size: 0.52 + 0.16 * kept };
   });
   return pens;
 }
@@ -137,8 +139,18 @@ function layOut(canvas) {
   canvas.height = Math.round(box.height * scale);
   const draw = random(SEED);
   const points = [];
-  for (let y = STEP / 2; y < box.height; y += STEP) {
-    for (let x = STEP / 2; x < box.width; x += STEP) {
+  // The points stand half a STEP in from every edge, and the spacing across and down each stretches
+  // or shrinks from STEP by the least that lands the last point there.
+  const spaced = (length) => {
+    const gaps = Math.max(1, Math.round((length - STEP) / STEP));
+    return { gaps, step: (length - STEP) / gaps };
+  };
+  const across = spaced(box.width);
+  const down = spaced(box.height);
+  for (let row = 0; row <= down.gaps; row += 1) {
+    const y = STEP / 2 + row * down.step;
+    for (let col = 0; col <= across.gaps; col += 1) {
+      const x = STEP / 2 + col * across.step;
       const turn = draw() * Math.PI * 2;
       const reach = draw();
       points.push(x, y, Math.cos(turn) * reach, Math.sin(turn) * reach);
@@ -160,7 +172,7 @@ function paint(canvas, laid, seconds) {
     const x = points[at];
     const y = points[at + 1];
     const loose = order(x / width, y / height);
-    const shift = loose * loose * STEP * 2.4;
+    const shift = loose * loose * REACH;
     levels[Math.round(loose * (LEVELS - 1))].push(x + points[at + 2] * shift, y + points[at + 3] * shift);
   }
   levels.forEach((placed, level) => {

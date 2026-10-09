@@ -70,6 +70,13 @@
                   <div class="search-hits" id="usages-hits"></div>
                 </div>
               </section>
+              <section class="pane" data-pane="todo">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:todo" aria-expanded="true">TODO</button>
+                <div class="pane-body search-body">
+                  <p class="search-said" id="todo-said" aria-live="polite"></p>
+                  <div class="search-hits" id="todo-hits"></div>
+                </div>
+              </section>
               <section class="pane" data-pane="open">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:open" aria-expanded="true">Open Editors</button>
                 <div class="pane-body" id="open-editors"></div>
@@ -89,6 +96,10 @@
               <section class="pane" data-pane="timeline">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:timeline" aria-expanded="false">Timeline</button>
                 <div class="pane-body" id="timeline"></div>
+              </section>
+              <section class="pane" data-pane="local">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:local" aria-expanded="true">Local History</button>
+                <div class="pane-body" id="local-history"></div>
               </section>
               <section class="pane" data-pane="problems">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:problems" aria-expanded="true">Problems</button>

@@ -433,6 +433,28 @@ pub fn slice(root: &Path, file: &str, start: u64, end: u64) -> Result<Slice, Str
     slice_of(&mut handle, from, to, size, 0).map_err(said)
 }
 
+/// Makes an empty file at `file`, and each folder above it that is not there yet. A file or folder
+/// there already is left as it is.
+pub fn create_file(root: &Path, file: &str) -> Result<(), String> {
+    let path = inside(root, file)?;
+    if path.exists() {
+        return Err(format!("{file} is there already"));
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("{file}: {e}"))?;
+    }
+    fs::File::create_new(&path).map(drop).map_err(|e| format!("{file}: {e}"))
+}
+
+/// Makes a folder at `dir`, and each folder above it that is not there yet.
+pub fn create_folder(root: &Path, dir: &str) -> Result<(), String> {
+    let path = inside(root, dir)?;
+    if path.exists() {
+        return Err(format!("{dir} is there already"));
+    }
+    fs::create_dir_all(&path).map_err(|e| format!("{dir}: {e}"))
+}
+
 /// Writes the text beside the file and moves it over the file. A failed write leaves the file as
 /// it was.
 pub fn write(root: &Path, file: &str, text: &str) -> Result<(), String> {

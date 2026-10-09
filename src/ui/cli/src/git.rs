@@ -217,6 +217,20 @@ pub fn clone_parent() -> PathBuf {
     std::env::var_os(home).map(PathBuf::from).unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
 }
 
+/// The folder File, Open, Repository clones into: one of orior's own, apart from the reader's.
+pub fn opened_parent() -> Option<PathBuf> {
+    crate::home::folder().map(|folder| folder.join("repositories"))
+}
+
+/// Makes `folder` a repository, as git init does, and answers what git said. A folder that is a
+/// repository already is left as it is.
+pub fn init(folder: &Path) -> Result<String, String> {
+    if folder.join(".git").exists() {
+        return Err(format!("{} is a repository already", folder.display()));
+    }
+    run(folder, &["init"])
+}
+
 /// The folder a clone of `url` makes under `parent`: the last part of the address, without `.git`,
 /// as git itself names it.
 pub fn clone_folder(url: &str, parent: &Path) -> Result<PathBuf, String> {

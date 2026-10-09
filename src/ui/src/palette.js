@@ -6,6 +6,10 @@
 // for the menus' commands, the ones run last first; : for a line of the open file, as :line:column;
 // and @ for what the open file declares. Up and Down choose, Enter goes, and Escape gives the keys
 // back to what had them.
+//
+// Search Everywhere, which Shift pressed twice opens, reads what is typed as all of these at once:
+// the files that answer it, then what the open file declares, then the commands, each under its
+// heading.
 
 import { fuzzy, marked } from "./fuzzy.js";
 
@@ -15,7 +19,12 @@ const RECENT_COMMANDS = "orior.palette.recent";
 // How long the tree's list of files is held before it is read again, in milliseconds.
 const FILES_HELD = 20000;
 
-const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, files: null, read: 0, drawing: 0 };
+const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, files: null, read: 0, drawing: 0, everywhere: false, custom: null };
+
+// How many of each kind Search Everywhere shows, and how close two presses of Shift come to open it,
+// in milliseconds.
+const EVERYWHERE_EACH = 8;
+const DOUBLE_SHIFT = 400;
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -140,7 +149,28 @@ async function fileRows(query) {
   return rows.slice(0, MOST);
 }
 
+// A heading over the rows of one kind, which the keys step past.
+const heading = (label) => ({ label, hits: [], run: null, heading: true });
+
+async function everywhereRows(text) {
+  const query = text.trim();
+  const files = (await fileRows(query)).slice(0, EVERYWHERE_EACH);
+  const symbols = state.hooks.symbols() ? symbolRows(query).slice(0, EVERYWHERE_EACH) : [];
+  const commands = commandRows(query).slice(0, EVERYWHERE_EACH);
+  return [
+    ...(files.length ? [heading("Files"), ...files] : []),
+    ...(symbols.length ? [heading("Symbols"), ...symbols] : []),
+    ...(commands.length ? [heading("Actions"), ...commands] : []),
+  ];
+}
+
 async function rowsFor(text) {
+  if (state.custom) {
+    return state.custom.rows(text.trim());
+  }
+  if (state.everywhere) {
+    return everywhereRows(text);
+  }
   if (text.startsWith(">")) {
     return commandRows(text.slice(1).trim());
   }
@@ -154,6 +184,12 @@ async function rowsFor(text) {
 }
 
 function placeholderOf(text) {
+  if (state.custom) {
+    return state.custom.placeholder;
+  }
+  if (state.everywhere) {
+    return "Search everywhere: files, symbols and actions";
+  }
   if (text.startsWith(">")) {
     return "Type the name of a command to run.";
   }
@@ -168,7 +204,9 @@ function drawRows() {
       row.setAttribute("role", "option");
       row.id = `quick-row-${at}`;
       row.setAttribute("aria-selected", String(at === chosen));
-      if (!item.run) {
+      if (item.heading) {
+        row.classList.add("heading");
+      } else if (!item.run) {
         row.classList.add("said");
       }
       row.append(element("span", { className: "quick-label" }, ...marked(item.label, item.hits)));
@@ -198,10 +236,10 @@ async function draw() {
     return;
   }
   state.items = items;
-  state.chosen = 0;
+  state.chosen = Math.max(0, items.findIndex((item) => !item.heading));
   state.input.placeholder = placeholderOf(text);
   if (!items.length) {
-    state.items = [{ label: text.startsWith(">") ? "No matching commands" : "No matching results", hits: [], run: null }];
+    state.items = [{ label: state.custom?.empty ?? (text.startsWith(">") ? "No matching commands" : "No matching results"), hits: [], run: null }];
   }
   drawRows();
 }
@@ -227,11 +265,15 @@ function go() {
 }
 
 // Opens the quick open holding `text`: "" for files, ">" for commands, ":" for a line, "@" for what
-// the file declares.
-export function openPalette(text = "") {
+// the file declares. With `everywhere` it searches all of them at once, and with `custom`, as
+// { placeholder, rows(query) }, it lists the rows that gives.
+export function openPalette(text = "", { everywhere = false, custom = null } = {}) {
   if (state.node.hidden) {
     state.before = document.activeElement;
   }
+  state.everywhere = everywhere;
+  state.custom = custom;
+  state.node.classList.toggle("everywhere", everywhere);
   state.node.hidden = false;
   state.input.value = text;
   state.input.focus();
@@ -265,7 +307,14 @@ export function startPalette(hooks) {
     if (step) {
       event.preventDefault();
       const count = state.items.length;
-      state.chosen = Math.max(0, Math.min(count - 1, state.chosen + step));
+      let next = Math.max(0, Math.min(count - 1, state.chosen + step));
+      // A heading is passed over, in the way the keys go, or back where there is nothing past it.
+      while (state.items[next]?.heading && next + Math.sign(step) >= 0 && next + Math.sign(step) < count) {
+        next += Math.sign(step);
+      }
+      if (!state.items[next]?.heading) {
+        state.chosen = next;
+      }
       drawRows();
     } else if (event.key === "Enter") {
       event.preventDefault();
@@ -277,4 +326,35 @@ export function startPalette(hooks) {
     }
   });
   state.input.addEventListener("blur", () => close(false));
+  // Shift pressed and let go twice, with no other key between, opens Search Everywhere.
+  let shiftAt = 0;
+  let other = false;
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Shift") {
+        other = true;
+      } else if (!event.repeat) {
+        other = event.ctrlKey || event.altKey || event.metaKey;
+      }
+    },
+    true,
+  );
+  window.addEventListener(
+    "keyup",
+    (event) => {
+      if (event.key !== "Shift" || other) {
+        shiftAt = 0;
+        return;
+      }
+      const now = performance.now();
+      if (now - shiftAt < DOUBLE_SHIFT) {
+        shiftAt = 0;
+        openPalette("", { everywhere: true });
+      } else {
+        shiftAt = now;
+      }
+    },
+    true,
+  );
 }

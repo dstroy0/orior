@@ -11,7 +11,7 @@ mod memory;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
+use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -569,6 +569,51 @@ fn repo_clone(handle: AppHandle, url: String, parent: String) -> Result<String, 
     .map(|dir| dir.display().to_string())
 }
 
+/// The folder File, Open, Repository clones into, made where it is not there yet.
+#[tauri::command]
+fn repos_folder() -> Result<String, String> {
+    let folder = git::opened_parent().ok_or("orior has no folder of its own here")?;
+    std::fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    Ok(folder.display().to_string())
+}
+
+/// The folder File, Open, Repository cloned `url` into before, or null where it has not.
+#[tauri::command]
+fn repo_opened(url: String) -> Option<String> {
+    let folder = git::clone_folder(&url, &git::opened_parent()?).ok()?;
+    folder.join(".git").exists().then(|| folder.display().to_string())
+}
+
+/// Makes `folder` a repository, or the open tree where none is given, and answers the folder.
+#[tauri::command(async)]
+fn repo_init(app: State<App>, folder: Option<String>) -> Result<String, String> {
+    let folder = match folder {
+        Some(folder) => PathBuf::from(folder),
+        None => root_of(&app)?,
+    };
+    git::init(&folder)?;
+    Ok(folder.display().to_string())
+}
+
+#[tauri::command]
+fn file_create(app: State<App>, path: String) -> Result<(), String> {
+    files::create_file(&root_of(&app)?, &path)
+}
+
+#[tauri::command]
+fn folder_create(app: State<App>, path: String) -> Result<(), String> {
+    files::create_folder(&root_of(&app)?, &path)
+}
+
+/// A full path as the tree names it, relative and with forward slashes, or null where it is outside
+/// the tree.
+#[tauri::command]
+fn tree_relative(app: State<App>, path: String) -> Option<String> {
+    let root = root_of(&app).ok()?;
+    let full = dunce::canonicalize(&path).ok()?;
+    full.starts_with(&root).then(|| root::relative(&root, &full))
+}
+
 /// The shell line that installs a toolchain, for the terminal to run.
 #[tauri::command]
 fn toolchain_setup(id: String) -> Result<String, String> {
@@ -661,7 +706,24 @@ fn file_slice(app: State<App>, path: String, start: u64, end: u64) -> Result<fil
 
 #[tauri::command]
 fn file_write(app: State<App>, path: String, text: String) -> Result<(), String> {
-    files::write(&root_of(&app)?, &path, &text)
+    let root = root_of(&app)?;
+    let before = std::fs::read_to_string(root.join(&path)).ok();
+    files::write(&root, &path, &text)?;
+    if let Err(error) = history::keep(&root, &path, before.as_deref(), &text) {
+        eprintln!("orior: local history of {path}: {error}");
+    }
+    Ok(())
+}
+
+/// The Local History of the file at `path`, the newest first.
+#[tauri::command(async)]
+fn history_list(app: State<App>, path: String) -> Result<Vec<history::Snapshot>, String> {
+    Ok(history::list(&root_of(&app)?, &path))
+}
+
+#[tauri::command(async)]
+fn history_read(app: State<App>, path: String, at: u64) -> Result<String, String> {
+    history::read(&root_of(&app)?, &path, at)
 }
 
 /// The system's picker, opened from Rust so the page needs no script of the picker's own. Async,
@@ -894,6 +956,14 @@ fn open(launch: Launch) {
             report_open,
             file_commits,
             tree_commits,
+            history_list,
+            history_read,
+            repos_folder,
+            repo_opened,
+            repo_init,
+            file_create,
+            folder_create,
+            tree_relative,
             git_commit,
             git_push,
             git_pull,

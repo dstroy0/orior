@@ -74,8 +74,9 @@ function step(direction) {
 }
 
 // Shows `path`'s changes from `then`, the last commit's text or null where it holds none, to `now`,
-// over `host`.
-export function showDiff(host, path, then, now) {
+// over `host`. `sides` names the two texts, and `same` says they do not differ, where the left one
+// is not the last commit.
+export function showDiff(host, path, then, now, { sides = "last commit, then as it stands", same = "No change from the last commit." } = {}) {
   closeDiff();
   const old = (then ?? "").split(/\r?\n/);
   const fresh = now.split(/\r?\n/);
@@ -90,7 +91,7 @@ export function showDiff(host, path, then, now) {
     "div",
     { className: "diff-bar" },
     element("span", { className: "diff-name", textContent: path }),
-    element("span", { className: "diff-sides", textContent: then === null ? "not in the last commit" : "last commit, then as it stands" }),
+    element("span", { className: "diff-sides", textContent: then === null ? "not in the last commit" : sides }),
     element("span", { className: "diff-where" }),
     button("chevron", "Next Change (F7)", () => step(1)),
     button("chevron", "Previous Change (Shift+F7)", () => step(-1)),
@@ -101,7 +102,7 @@ export function showDiff(host, path, then, now) {
   if (!found) {
     body.append(element("p", { className: "diff-empty", textContent: "The two texts are too far apart to set side by side." }));
   } else if (!found.starts.length) {
-    body.append(element("p", { className: "diff-empty", textContent: "No change from the last commit." }));
+    body.append(element("p", { className: "diff-empty", textContent: same }));
   } else {
     let html = "";
     found.rows.forEach(([left, right, kind], at) => {

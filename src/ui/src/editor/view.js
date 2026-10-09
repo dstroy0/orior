@@ -557,7 +557,9 @@ export class Editor {
       return false;
     }
     const before = this.copySelections();
+    s.doc.writer = s;
     const { edits: written } = s.doc.change(edits, kind, before);
+    s.doc.writer = null;
     const map = (p, after = false) => mapThrough(p, written, after);
     const next = place
       ? place(map)
@@ -920,7 +922,9 @@ export class Editor {
     if (this.s.readOnly) {
       return;
     }
+    this.doc.writer = this.s;
     const found = back ? this.doc.undo() : this.doc.redo();
+    this.doc.writer = null;
     if (!found) {
       return;
     }
@@ -1282,6 +1286,107 @@ export class Editor {
     return null;
   }
 
+  // Extend Selection: the primary selection grows to the next span that holds it, the word, the inside
+  // of the string it is in, the string, the inside of the brackets around it, the brackets, its whole
+  // lines, then the whole text. Shrink Selection takes each step back.
+  expandSelection() {
+    const s = this.s;
+    const sel = this.primary();
+    const [from, to] = cmp(sel.anchor, sel.head) <= 0 ? [sel.anchor, sel.head] : [sel.head, sel.anchor];
+    const holds = (span) => cmp(span[0], from) <= 0 && cmp(to, span[1]) <= 0 && (cmp(span[0], from) < 0 || cmp(to, span[1]) < 0);
+    const spans = [];
+    const word = wordAt(s.doc, from);
+    if (word && from.line === to.line) {
+      spans.push([word.from, word.to]);
+    }
+    // The string the selection is in, on its line: inside its quotes, then with them.
+    if (from.line === to.line) {
+      const text = s.doc.line(from.line);
+      const quoted = /(["'`])(?:\\.|(?!\1).)*\1/g;
+      for (let found = quoted.exec(text); found; found = quoted.exec(text)) {
+        const start = found.index;
+        const end = start + found[0].length;
+        if (start <= from.col && to.col <= end) {
+          spans.push([pos(from.line, start + 1), pos(from.line, end - 1)], [pos(from.line, start), pos(from.line, end)]);
+        }
+      }
+    }
+    // The brackets around it, found outward from both ends, past comments and strings.
+    const plain = (line, col) => !/t-comment|t-string/.test(s.highlight.classAt(line, col));
+    const opens = { "(": ")", "[": "]", "{": "}" };
+    const closes = { ")": "(", "]": "[", "}": "{" };
+    let depth = {};
+    let open = null;
+    for (let line = from.line, col = from.col - 1, seen = 0; line >= 0 && seen < 4000 && !open; seen += 1) {
+      const text = s.doc.line(line);
+      for (; col >= 0; col -= 1) {
+        const char = text[col];
+        if (char in closes && plain(line, col)) {
+          depth[char] = (depth[char] ?? 0) + 1;
+        } else if (char in opens && plain(line, col)) {
+          if (depth[opens[char]]) {
+            depth[opens[char]] -= 1;
+          } else {
+            open = { at: pos(line, col), char };
+            break;
+          }
+        }
+      }
+      line -= 1;
+      col = line >= 0 ? s.doc.line(line).length - 1 : -1;
+    }
+    if (open) {
+      const mate = opens[open.char];
+      let level = 0;
+      let close = null;
+      for (let line = to.line, col = to.col, seen = 0; line < s.doc.count && seen < 4000 && !close; seen += 1) {
+        const text = s.doc.line(line);
+        for (; col < text.length; col += 1) {
+          const char = text[col];
+          if (char === open.char && plain(line, col)) {
+            level += 1;
+          } else if (char === mate && plain(line, col)) {
+            if (level) {
+              level -= 1;
+            } else {
+              close = pos(line, col);
+              break;
+            }
+          }
+        }
+        line += 1;
+        col = 0;
+      }
+      if (close) {
+        spans.push([pos(open.at.line, open.at.col + 1), close], [open.at, pos(close.line, close.col + 1)]);
+      }
+    }
+    const lastLine = to.col === 0 && to.line > from.line ? to.line - 1 : to.line;
+    spans.push([pos(from.line, 0), pos(lastLine, s.doc.line(lastLine).length)], [pos(0, 0), s.doc.end()]);
+    const next = spans.filter(holds).sort((a, b) => cmp(b[0], a[0]) || cmp(a[1], b[1]))[0];
+    if (!next) {
+      return;
+    }
+    this.grown = [...(this.stillGrown() ? this.grown : []), { anchor: sel.anchor, head: sel.head }];
+    this.select([{ anchor: next[0], head: next[1], goal: null }]);
+    this.grownTo = { anchor: next[0], head: next[1] };
+  }
+
+  // Whether the selection is still the one Extend Selection last made, and so can shrink back.
+  stillGrown() {
+    const sel = this.primary();
+    return Boolean(this.grownTo && this.s.selections.length === 1 && same(sel.anchor, this.grownTo.anchor) && same(sel.head, this.grownTo.head));
+  }
+
+  shrinkSelection() {
+    if (!this.stillGrown() || !this.grown?.length) {
+      return;
+    }
+    const back = this.grown.pop();
+    this.select([{ anchor: back.anchor, head: back.head, goal: null }]);
+    this.grownTo = { anchor: back.anchor, head: back.head };
+  }
+
   jumpBracket() {
     const pair = this.bracketPair();
     if (pair) {
@@ -1495,6 +1600,8 @@ export class Editor {
       "Alt+Up": () => this.moveLines(-1),
       "Alt+Down": () => this.moveLines(1),
       "Shift+Alt+Up": () => this.copyLines(-1),
+      "Alt+Shift+Right": () => this.expandSelection(),
+      "Alt+Shift+Left": () => this.shrinkSelection(),
       "Shift+Alt+Down": () => this.copyLines(1),
       "Alt+Shift+Up": () => this.copyLines(-1),
       "Alt+Shift+Down": () => this.copyLines(1),
@@ -2168,6 +2275,7 @@ export class Editor {
     // The session's breakpoints, each file line mapped to whether it is bound to code, and the file
     // line a debugged program is stopped on, as the editor's owner gives them.
     const breaks = this.breakpointsOf?.(s) ?? null;
+    const marked = this.bookmarksOf?.(s) ?? null;
     const paused = this.pausedOf?.(s) ?? null;
 
     const text = new Map();
@@ -2223,7 +2331,8 @@ export class Editor {
       const stop = breaks?.get(base + line);
       const dot = stop === undefined ? "" : `<span class="ed-break${stop ? "" : " unbound"}"></span>`;
       const here = paused === base + line ? '<span class="ed-pc"></span>' : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + number + mark + this.changeMark(line)]);
+      const ribbon = marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + number + mark + this.changeMark(line)]);
     }
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {

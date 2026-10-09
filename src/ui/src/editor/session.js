@@ -51,8 +51,10 @@ function detectIndent(doc) {
 const FAR = Number.MAX_SAFE_INTEGER;
 
 export class Session {
-  constructor(text, language, { base = 0, window = null, readOnly = false } = {}) {
-    this.doc = new Doc(text);
+  // A session given `doc` holds that text with another session, each with its own selections, folds
+  // and place, as a split editor shows one file twice.
+  constructor(text, language, { base = 0, window = null, readOnly = false, doc = null } = {}) {
+    this.doc = doc ?? new Doc(text);
     // A session that is read only takes no edit, and nothing it holds is ever written.
     this.readOnly = readOnly;
     this.setLanguage(language);
@@ -71,7 +73,20 @@ export class Session {
     this.indent = detectIndent(this.doc);
     this.snippet = null;
     this.view = null;
-    this.doc.watch(({ edits, first }) => {
+    this.unwatch = this.doc.watch(({ edits, first }) => {
+      // A text two sessions hold is written by one view at a time. Every session but the writer has
+      // its selections carried through what was written and its view drawn again.
+      const writer = this.doc.writer;
+      if (this.shared && writer !== this) {
+        if (writer || this.of) {
+          // A cursor with nothing chosen stays one, carried to the end of what was written at it.
+          this.selections = this.selections.map((sel) => {
+            const empty = sel.anchor.line === sel.head.line && sel.anchor.col === sel.head.col;
+            return { anchor: mapThrough(sel.anchor, edits, empty), head: mapThrough(sel.head, edits, true), goal: null };
+          });
+        }
+        this.view?.schedule();
+      }
       this.highlight.forget(first);
       if (this.depths && this.depths.length > first + 1) {
         this.depths.length = first + 1;
@@ -95,6 +110,32 @@ export class Session {
         }
       }
     });
+  }
+
+  // A session of this one's text, its colors and indent the same, its selections and place a
+  // copy of these. `of` is the session it was made from. A file still being read has none.
+  twin() {
+    const made = new Session("", this.language, { base: this.base, readOnly: this.readOnly, doc: this.doc });
+    made.of = this;
+    // What the app marks on a file, and how it reads and colors it, is the first session's.
+    for (const name of ["language", "highlight", "indent", "readOnly", "diagnostics", "changes"]) {
+      Object.defineProperty(made, name, { get: () => this[name], set: () => {}, configurable: true });
+    }
+    made.selections = this.selections.map((sel) => ({ ...sel }));
+    made.primary = this.primary;
+    made.top = this.view ? this.view.scroller.scrollTop / this.view.lineHeight : this.top;
+    made.left = this.view ? this.view.scroller.scrollLeft : this.left;
+    this.shared = true;
+    made.shared = true;
+    return made;
+  }
+
+  // Stops following the text, as a twin closed asks.
+  drop() {
+    this.unwatch();
+    if (this.of) {
+      this.of.shared = false;
+    }
   }
 
   // Colors the text in `language` from here on, as a plugin read again asks.

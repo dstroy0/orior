@@ -6,8 +6,8 @@
 // which finds text in the tree's files and shows from Find in Files; Usages, which lists where a
 // symbol is used and shows from Find Usages; Open Editors, which lists the tabs; and the tree's own
 // pane of its files. Structure holds the Outline of what the open file declares. Commit holds
-// Changes, the files that differ from the last commit, and the Timeline of commits that touched the
-// open file. Problems lists the open files' diagnostics, and Git the commits of the branch. The
+// Changes, the files that differ from the last commit, the Timeline of commits that touched the open
+// file, and its Local History, the file as each save left it. Problems lists the open files' diagnostics, and Git the commits of the branch. The
 // explorer's … menu shows or hides each pane of the group, reads the tree again, and closes every
 // folder. Which group shows, and which panes show and are open, is kept between visits.
 //
@@ -23,10 +23,12 @@ const KEPT = "orior.panes";
 const PANES = [
   ["search", "Search"],
   ["usages", "Usages"],
+  ["todo", "TODO"],
   ["open", "Open Editors"],
   ["folder", null],
   ["outline", "Outline"],
   ["timeline", "Timeline"],
+  ["local", "Local History"],
   ["changes", "Changes"],
   ["problems", "Problems"],
   ["git", "Git"],
@@ -34,9 +36,9 @@ const PANES = [
 
 // The panes each icon of the tool strip shows, one group at a time.
 const GROUPS = {
-  explorer: ["search", "usages", "open", "folder"],
+  explorer: ["search", "usages", "todo", "open", "folder"],
   structure: ["outline"],
-  commit: ["changes", "timeline"],
+  commit: ["changes", "timeline", "local"],
   problems: ["problems"],
   git: ["git"],
 };
@@ -50,6 +52,7 @@ const state = {
   hooks: null,
   outline: { session: null, symbols: [], rows: [] },
   timeline: { path: null, commits: [] },
+  local: { path: null, snapshots: [] },
 };
 
 function element(tag, props = {}, ...children) {
@@ -104,7 +107,7 @@ function setPane(name, change) {
   Object.assign(state.panes[name], change);
   drawPane(name);
   keep();
-  if (["outline", "timeline", "changes", "problems", "git"].includes(name)) {
+  if (["outline", "timeline", "local", "changes", "problems", "git", "todo"].includes(name)) {
     state.hooks?.panesChanged?.();
   }
 }
@@ -298,6 +301,110 @@ function timelineItems(event) {
   ];
 }
 
+// Local History: the open file as each save left it, the newest first, kept apart from git. A row
+// shows its difference from the text as it stands; its menu takes the file back to it.
+
+const clock = (ms) => {
+  const date = new Date(ms);
+  return [date.getHours(), date.getMinutes(), date.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":");
+};
+
+const bytes = (size) => (size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`);
+
+export async function drawLocalHistory(path, again = false) {
+  const body = document.getElementById("local-history");
+  if (!paneOpen("local")) {
+    state.local.path = null;
+    return;
+  }
+  if (path === state.local.path && !again) {
+    return;
+  }
+  state.local.path = path;
+  const snapshots = path ? await invoke("history_list", { path }).catch(() => []) : [];
+  if (state.local.path !== path) {
+    return;
+  }
+  state.local.snapshots = snapshots;
+  body.replaceChildren(
+    ...snapshots.map((snapshot) => {
+      const row = element("button", { className: "commit", type: "button", title: `${day(snapshot.at / 1000)} ${clock(snapshot.at)}, ${bytes(snapshot.size)}` });
+      row.dataset.key = String(snapshot.at);
+      row.dataset.depth = "0";
+      const dot = element("span", { className: "icon commit-dot" });
+      dot.setAttribute("aria-hidden", "true");
+      row.append(dot, element("span", { className: "name", textContent: `${day(snapshot.at / 1000)} ${clock(snapshot.at)}` }), element("span", { className: "where", textContent: bytes(snapshot.size) }));
+      row.addEventListener("click", () => state.hooks.showSnapshot(path, snapshot.at));
+      return row;
+    })
+  );
+}
+
+function localItems(event) {
+  const row = event.target.closest(".commit");
+  const at = Number(row?.dataset.key);
+  if (!row || !state.local.path) {
+    return null;
+  }
+  const path = state.local.path;
+  return [
+    { label: "Show Difference", run: () => state.hooks.showSnapshot(path, at) },
+    { label: "Revert to This", run: () => state.hooks.revertSnapshot(path, at) },
+  ];
+}
+
+// TODO: every TODO, FIXME, XXX and HACK in the tree's files, as whole words, a row a file and under
+// it a row a line, read again each time the pane opens or the explorer is refreshed.
+
+const TODO_WORDS = "TODO|FIXME|XXX|HACK";
+
+export async function drawTodo() {
+  const said = document.getElementById("todo-said");
+  const body = document.getElementById("todo-hits");
+  if (!paneOpen("todo") || state.group !== "explorer") {
+    return;
+  }
+  said.textContent = "Reading the tree…";
+  const hits = await invoke("tree_search", { query: TODO_WORDS, how: { case: true, word: true, regex: true } }).catch((error) => {
+    said.textContent = String(error);
+    return null;
+  });
+  if (!hits) {
+    return;
+  }
+  const files = new Map();
+  for (const hit of hits) {
+    if (!files.has(hit.path)) {
+      files.set(hit.path, []);
+    }
+    files.get(hit.path).push(hit);
+  }
+  said.textContent = hits.length ? `${hits.length} item${hits.length === 1 ? "" : "s"} in ${files.size} file${files.size === 1 ? "" : "s"}` : "No TODO, FIXME, XXX or HACK in the tree.";
+  const rows = [];
+  for (const [path, found] of files) {
+    const cut = path.lastIndexOf("/");
+    const head = element("div", { className: "node problem-file" }, iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(found.length) }));
+    rows.push(head);
+    for (const hit of found) {
+      const text = hit.text.trim();
+      const word = text.match(new RegExp(`\\b(${TODO_WORDS})\\b`));
+      const row = element("button", { className: "search-hit", type: "button", title: `${path}:${hit.line}` });
+      row.dataset.key = `todo:${path}:${hit.line}`;
+      row.dataset.depth = "1";
+      const line = element("span", { className: "line" });
+      if (word) {
+        line.append(text.slice(0, word.index), element("mark", { textContent: word[0] }), text.slice(word.index + word[0].length, word.index + 160));
+      } else {
+        line.textContent = text.slice(0, 160);
+      }
+      row.append(element("i", { className: "guide" }), line);
+      row.addEventListener("click", () => state.hooks.openAt(path, hit.line - 1, hit.col - 1));
+      rows.push(row);
+    }
+  }
+  body.replaceChildren(...rows);
+}
+
 // Problems: each open file's diagnostics, a row a file and under it a row a diagnostic, the worst first.
 
 export function drawProblems(files) {
@@ -365,7 +472,7 @@ export function startExplorer(hooks) {
   state.group = GROUPS[localStorage.getItem(GROUP_KEPT)] ? localStorage.getItem(GROUP_KEPT) : "explorer";
   drawGroupTitle();
   for (const [name] of PANES) {
-    state.panes[name] = { shown: kept[name]?.shown ?? (name !== "search" && name !== "usages"), open: kept[name]?.open ?? name !== "timeline" };
+    state.panes[name] = { shown: kept[name]?.shown ?? !["search", "usages", "todo"].includes(name), open: kept[name]?.open ?? name !== "timeline" };
     drawPane(name);
     paneOf(name)
       .querySelector(".pane-head")
@@ -381,4 +488,5 @@ export function startExplorer(hooks) {
   }
   menuOn(document.getElementById("open-editors"), (event) => hooks.tabMenu(event.target.closest(".open-row")?.dataset.key));
   menuOn(document.getElementById("timeline"), timelineItems);
+  menuOn(document.getElementById("local-history"), localItems);
 }

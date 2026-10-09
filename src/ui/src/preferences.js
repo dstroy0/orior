@@ -242,8 +242,8 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
     zoomSelect.addEventListener("change", () => setZoom(Number(zoomSelect.value)));
     rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Zoom" }), zoomSelect));
     for (const menu of menus) {
-      for (const item of menu.items ?? []) {
-        if (item === "-" || !item.checks || item.args !== "[on|off]") {
+      for (const item of menu.all ?? []) {
+        if (!item.checks || item.args !== "[on|off]") {
           continue;
         }
         const box = element("input", { type: "checkbox", checked: Boolean(checks[item.checks]?.()) });

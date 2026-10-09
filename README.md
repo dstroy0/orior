@@ -74,7 +74,7 @@ The easiest way in is [the app](#the-app): one window that lists every job the t
    ![Clone Repository with orior's address, the folder to clone into, and the fuse two thirds burnt while git receives the objects](src/ui/docs/img/clone.png)
 3. **Run a job.** The Run view, from the chart icon at the foot of the tool strip, lists every job. Choose one, set its values and press F5.
 
-File, Clone Repository does the same at any time, and `orior file clone` does it from a terminal.
+File, Clone Repository does the same at any time, and asks whether the clone goes beside the open tree or in another folder. `orior file clone` does it from a terminal.
 
 To work from a terminal instead, clone the repository and run these at its root:
 
@@ -102,7 +102,13 @@ cargo run                       # build it and open the window
 cargo run -- run list           # the same program given words
 ```
 
-The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it offers Open and Clone Repository, and File, Open Folder and File, Clone Repository move it to another tree at any time. Each tree keeps its own open tabs. [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
+The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it offers Open and Clone Repository, and File, Open, Folder and File, Clone Repository move it to another tree at any time. Each tree keeps its own open tabs.
+
+| File | holds |
+| --- | --- |
+| Create | File (Ctrl+N) and Folder, each named by its path from the tree's top, the open file's folder to start with; and Repository, which asks whether git makes it here in the open tree or in a folder chosen |
+| Open | File (Ctrl+O), a file of the tree from the system's picker; Folder, another tree; and Repository, an address that is cloned into orior's own folder and opened, or opened as it is where it was cloned before |
+| Clone Repository | an address and the folder its clone goes in: beside the open tree, or somewhere else | [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
 
 ### The window
 
@@ -111,8 +117,8 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 | | part | what it holds |
 | --- | --- | --- |
 | 1 | Top bar | File, Edit, Selection, View, Go and Run, the Build and Test jobs, Terminal and Help, then the tree's name and its branch, with a star where a file differs from the last commit. At its right end Preferences, Notifications, which keeps what the status bar has said, Toolchains, and m, which shows or hides the definitions, then the window's own minimize, maximize and close. The bar is what the window moves by: a press on its empty middle drags it, and a double press maximizes or restores it. A key shown beside a command runs it from anywhere in the window. |
-| 2 | Tool strip | an icon for each tool window down the left edge, the one open marked in signal; a press on it again closes it. At the top Explorer (the Edit view and its files, Ctrl+Shift+E), Structure (the open file's outline), Commit (the files that differ from the last commit, and the Timeline), and more panes; under them, a line apart, the jobs of Protocol, Ingest, Render, Sim, Pipeline and Stage, each a menu beside its icon. At the foot Run (the Run view and its jobs, Ctrl+Shift+D), Debug, Terminal, Problems (the open files' diagnostics, marked while there are errors) and Git (the branch's commits). |
-| 3 | Explorer | the panes of the icon chosen. For Explorer: Search, Usages, Open Editors and the tree's files. Its … menu shows or hides each pane. |
+| 2 | Tool strip | an icon for each tool window down the left edge, the one open marked in signal; a press on it again closes it. At the top Explorer (the Edit view and its files, Ctrl+Shift+E), Structure (the open file's outline), Commit (the files that differ from the last commit, the Timeline and Local History), and more panes; under them, a line apart, the jobs of Protocol, Ingest, Render, Sim, Pipeline and Stage, each a menu beside its icon. At the foot Run (the Run view and its jobs, Ctrl+Shift+D), Debug, Terminal, Problems (the open files' diagnostics, marked while there are errors) and Git (the branch's commits). |
+| 3 | Explorer | the panes of the icon chosen. For Explorer: Search, Usages, TODO, Open Editors and the tree's files. Its … menu shows or hides each pane. |
 | 4 | Editor | a tab for each file, and the minimap down its right edge |
 | 5 | Definitions | the definition of the open file's type, and in a coherence file, the bridge |
 | 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
@@ -145,6 +151,8 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | format the file | Shift+Alt+F, or Edit, Format Document: Black for Python, clang-format for C, C++ and CUDA, rustfmt for Rust, Prettier for JavaScript, CSS, HTML, JSON, Markdown and YAML. Each keeps to the project's own pyproject.toml, .clang-format, rustfmt.toml or .prettierrc, and one undo takes it back. |
 | run the file | Ctrl+F5, or Run, Run File: it is saved, then runs in the terminal with its language's toolchain. Python, R, Ruby, JavaScript, the shells and PowerShell run as scripts; MATLAB runs with -batch, or in Octave where MATLAB is not installed; Lean with lean --run, TeX with latexmk, netlists with ngspice or LTspice, VHDL with GHDL; C, C++, CUDA and Rust are compiled to build/run/ and run. |
 | fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
+| grow the selection | Shift+Alt+Right takes in the word, then the string or brackets around it, the line and each block out from there; Shift+Alt+Left gives each step back |
+| see a file twice | View, Split Right (Ctrl+\) or Split Down, or a tab's menu: a second editor on the file beside the first or under it, the text the same in both and the cursor and place each its own. The menus act on the one last pressed in. View, Unsplit, the × over it, or closing the file's tab closes it. |
 
 In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means; in Rust it asks rust-analyzer, and in Python Pyright. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the tool strip's Problems lists them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition.
 
@@ -200,7 +208,10 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 
 | to go to | press |
 | --- | --- |
+| anything | Shift twice, Go, Search Everywhere: files, the open file's symbols and commands, each under its heading |
 | a file | Ctrl+P, then part of its name. `path:line:column` goes to a place in it, and the files opened last come first. |
+| a file opened lately | Ctrl+E, Go, Recent Files |
+| a line marked | Ctrl+F11, Go, Toggle Bookmark, marks the cursor's line with a ribbon in the gutter; Ctrl+Shift+F11, Go, Bookmarks, lists every line marked in the tree, each a press from its place |
 | a command | Ctrl+Shift+P, or `>` in Go to File |
 | a symbol in the file | Ctrl+Shift+O, or `@` in Go to File. The Outline pane lists them all. |
 | a line | Ctrl+G, or `:` in Go to File |
@@ -225,6 +236,10 @@ In the editor, the gutter marks each line added or changed since the last commit
 ![A changed line open under its gutter mark: the line the last commit had, the line there now, and Revert](src/ui/docs/img/change.png)
 
 The Timeline pane lists the commits that touched the open file. Open shows the file as a commit left it, read only, in a tab of its own.
+
+Local History, under Commit on the tool strip, lists the open file as each save left it, newest first, with the text it held before the first of them. orior keeps these in its own folder, apart from git, the newest hundred of each file. A press on one shows it beside the file as it stands, and Revert to This in its menu puts it back as one edit, which Ctrl+Z takes back.
+
+TODO, in the Explorer's … menu, lists every TODO, FIXME, XXX and HACK in the tree as a whole word, by file, each line a press from its place.
 
 ### Settings and themes
 

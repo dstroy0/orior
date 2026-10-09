@@ -1310,6 +1310,16 @@ body[data-view="run"] .statusbar .ed-status {
   margin-inline: auto;
 }
 
+/* The canvas the name pours up to the bar on, over the view it leaves. */
+.genie {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* The name small at the left of the bar, shown once the large one has first reached it. */
 .bar-mark {
   flex: none;
@@ -1733,6 +1743,83 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .editor {
+  flex: 1;
+  min-height: 0;
+}
+
+/* A split: the second editor to the right of the first or under it, the tabs across both, a line
+   between them, and over the second the file it shows and its close button. */
+.desk[data-split] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.desk[data-split="right"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.desk[data-split] > .tabs {
+  grid-column: 1 / -1;
+}
+
+.desk[data-split] > .editor {
+  grid-row: 2;
+  grid-column: 1;
+}
+
+.desk[data-split="right"] > .split {
+  grid-row: 2;
+  grid-column: 2;
+  border-left: 1px solid var(--line);
+}
+
+.desk[data-split="down"] > .split {
+  grid-row: 3;
+  border-top: 1px solid var(--line);
+}
+
+.split {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.4rem 0.2rem 0.85rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  font: 12px var(--code);
+  color: var(--fg-2);
+}
+
+.split-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.split-close {
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg-3);
+  font: inherit;
+  cursor: pointer;
+}
+
+.split-close:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.split > .editor {
   flex: 1;
   min-height: 0;
 }
@@ -3437,6 +3524,18 @@ body[data-view="run"] .statusbar .ed-status {
   box-shadow: inset 0 0 0 1.5px var(--ed-error);
 }
 
+/* A bookmark: a ribbon in signal at the gutter's edge, beside where a breakpoint is drawn. */
+.ed-bookmark {
+  position: absolute;
+  left: 0;
+  top: calc(50% - 6px);
+  z-index: 1;
+  width: 5px;
+  height: 12px;
+  background: var(--signal);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
+
 .ed-pc {
   position: absolute;
   left: 2px;
@@ -3695,6 +3794,36 @@ textarea.report-field {
   gap: 0.5rem;
 }
 
+/* Where a clone or a repository goes: beside or in the open tree, or a folder given. */
+.clone-where {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--fg-2);
+}
+
+.clone-where legend {
+  padding: 0 0 0.25rem;
+}
+
+.clone-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.5rem;
+  row-gap: 0.3rem;
+}
+
+.clone-choice .clone-folder {
+  grid-column: 2;
+}
+
+.clone-choice input[type="radio"] {
+  accent-color: var(--signal);
+}
+
 .sheet-clone .fuse {
   display: block;
   width: 100%;
@@ -3888,6 +4017,20 @@ textarea.report-field {
 .quick-row.said {
   color: var(--fg-2);
   cursor: default;
+}
+
+/* A heading over one kind of row in Search Everywhere. */
+.quick-row.heading {
+  min-height: 0;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  color: var(--fg-3);
+  font: 600 11.5px var(--head);
+  cursor: default;
+}
+
+.quick-row.heading:first-child {
+  margin-top: 0;
 }
 
 .quick-label {

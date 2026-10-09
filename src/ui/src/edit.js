@@ -30,7 +30,7 @@ import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawGit, drawOpenEditors, drawOutline, drawProblems, drawTimeline, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
 import { symbolsOf } from "./outline.js";
@@ -39,6 +39,7 @@ import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
 import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
 import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
+import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
@@ -50,6 +51,8 @@ import { drawBranch, say } from "./statusbar.js";
 
 const state = {
   editor: null,
+  // The split editor beside the first, { node, editor, session, focused }, or null.
+  split: null,
   known: null,
   head: null,
   tabs: [],
@@ -251,6 +254,9 @@ function closeTab(tab) {
   }
   state.tabs = state.tabs.filter((one) => one !== tab);
   state.used = state.used.filter((path) => path !== tab.path);
+  if (state.split && state.split.session.of === tab.session) {
+    unsplit();
+  }
   stopServing(tab);
   forgetBackup(tab.path);
   if (state.active === tab.path) {
@@ -373,6 +379,48 @@ async function openCommit(path, commit) {
   show(key);
 }
 
+// Split: a second editor beside the first or under it, on the file the first one shows, the text
+// the same in both and the selections, folds and place each its own. The menus act on the one last
+// pressed in. It closes with Unsplit, its own close button, or the file's tab.
+function splitEditor(direction) {
+  const tab = tabOf(state.active);
+  if (!tab?.session || tab.session.window || tab.commit) {
+    say("Split shows a file of the tree that is open and read whole.");
+    return;
+  }
+  unsplit();
+  const desk = document.querySelector("#mode-edit .desk");
+  const host = element("div", { className: "editor split-editor" });
+  const close = element("button", { className: "split-close", type: "button", title: "Unsplit" }, "×");
+  close.setAttribute("aria-label", "Unsplit");
+  close.addEventListener("click", unsplit);
+  const node = element("section", { className: "split" }, element("div", { className: "split-head" }, element("span", { className: "split-name", textContent: tab.file }), close), host);
+  node.setAttribute("aria-label", `${tab.file}, split`);
+  desk.append(node);
+  desk.dataset.split = direction;
+  const editor = new Editor(host, { ...state.editorHooks, statusHost: element("div"), onChange: (s) => state.editorHooks.onChange(s.of ?? s) });
+  state.lendTo(editor);
+  const session = tab.session.twin();
+  state.split = { node, editor, session, focused: true };
+  editor.input.addEventListener("focus", () => state.split && (state.split.focused = true));
+  editor.show(session);
+  editor.focus();
+}
+
+function unsplit() {
+  if (!state.split) {
+    return;
+  }
+  const { node, editor, session } = state.split;
+  state.split = null;
+  editor.show(null);
+  session.drop();
+  node.remove();
+  delete document.querySelector("#mode-edit .desk").dataset.split;
+  state.editor.schedule();
+  state.editor.focus();
+}
+
 // Opens every folder above a file in the tree and brings its row into sight.
 async function reveal(path) {
   if (!path || tabOf(path)?.commit) {
@@ -424,6 +472,7 @@ function show(path) {
   reveal(path);
   drawOutline(tab?.session ?? null);
   drawTimeline(tab ? tab.file : null);
+  drawLocalHistory(tab?.commit ? null : (tab?.file ?? null));
 }
 
 // With no file open the desk shows the name over the lattice, as the run view does with no job
@@ -453,6 +502,7 @@ async function saveActive() {
   if (inBridge(tab.path)) {
     loadBridge().then(drawDefs);
   }
+  drawLocalHistory(tab.file, true);
   await loadChanges();
   drawTree();
 }
@@ -661,22 +711,61 @@ async function reloadFromDisk(paths) {
     if (typeof opened?.text !== "string") {
       continue;
     }
-    const doc = tab.session.doc;
-    if (doc.text() === opened.text) {
-      continue;
+    if (replaceText(tab, opened.text, "rollback")) {
+      tab.saved = tab.session.doc.id;
+      forgetBackup(tab.path);
     }
-    const edit = [{ from: { line: 0, col: 0 }, to: doc.end(), text: opened.text.replace(/\r\n/g, "\n") }];
-    if (state.editor.s === tab.session) {
-      state.editor.change(edit, "rollback");
-    } else {
-      doc.change(edit, "rollback", tab.session.selections);
-      tab.session.selections = tab.session.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
-      doc.settle(tab.session.selections);
-    }
-    tab.saved = doc.id;
-    forgetBackup(tab.path);
   }
   drawTabs();
+}
+
+// Gives a tab `text` in place of all it holds, as one step undo takes back, and says whether that
+// changed it.
+function replaceText(tab, text, why) {
+  const doc = tab.session.doc;
+  const fresh = text.replace(/\r\n/g, "\n");
+  if (doc.text() === fresh) {
+    return false;
+  }
+  const edit = [{ from: { line: 0, col: 0 }, to: doc.end(), text: fresh }];
+  if (state.editor.s === tab.session) {
+    state.editor.change(edit, why);
+  } else {
+    doc.change(edit, why, tab.session.selections);
+    tab.session.selections = tab.session.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
+    doc.settle(tab.session.selections);
+  }
+  return true;
+}
+
+// The text of a file as it stands: its open tab's, or the tree's where no tab holds it.
+async function textNow(path) {
+  const tab = state.tabs.find((one) => one.file === path && !one.commit && one.session && !one.session.window);
+  return tab ? tab.session.doc.text() : ((await invoke("file_read", { path }).catch(() => null))?.text ?? "");
+}
+
+// Shows a file's Local History snapshot kept at `at` beside the file as it stands.
+async function showSnapshot(path, at) {
+  const then = await invoke("history_read", { path, at });
+  const date = new Date(at);
+  const when = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+  showDiff(document.querySelector("#mode-edit .desk"), path, then, await textNow(path), { sides: `saved ${when}, then as it stands`, same: `No change from the save at ${when}.` });
+}
+
+// Takes a file back to its Local History snapshot kept at `at`, in its tab as one step undo takes
+// back, the tab opened for it where none is.
+async function revertSnapshot(path, at) {
+  const then = await invoke("history_read", { path, at });
+  if (!tabOf(path)) {
+    await openFile(path);
+  }
+  const tab = tabOf(path);
+  await tab?.reading;
+  if (tab?.session && !tab.readOnly) {
+    closeDiff();
+    replaceText(tab, then, "revert");
+    drawTabs();
+  }
 }
 
 // The open files' diagnostics, a file at a time, for the Problems pane.
@@ -1332,8 +1421,7 @@ export async function startEdit(defs) {
   window.addEventListener("blur", endCycle);
   const cursorLine = () => (state.editor?.s ? state.editor.head().line : 0);
   onFonts(() => state.editor?.restyle());
-  state.editor = new Editor(document.getElementById("editor"), {
-    statusHost: document.getElementById("statusbar"),
+  state.editorHooks = {
     onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),
     onCursor: () => {
       moved();
@@ -1370,23 +1458,42 @@ export async function startEdit(defs) {
       window.clearTimeout(outlining);
       outlining = window.setTimeout(() => drawOutline(tabOf(state.active)?.session ?? null), 300);
     },
-  });
+  };
+  state.editor = new Editor(document.getElementById("editor"), { ...state.editorHooks, statusHost: document.getElementById("statusbar") });
+  state.editor.input.addEventListener("focus", () => state.split && (state.split.focused = false));
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
-  // The debugger's marks in the gutter, by the file a session shows. A file as a commit left it has
-  // none.
-  const fileOfSession = (s) => state.tabs.find((tab) => tab.session === s && !tab.commit)?.file ?? null;
+  // The debugger's marks in the gutter, by the file a session shows, a split's the same as the
+  // session it was made from. A file as a commit left it has none.
+  const fileOfSession = (s) => state.tabs.find((tab) => tab.session === (s?.of ?? s) && !tab.commit)?.file ?? null;
   state.editor.breakpointsOf = (s) => {
     const file = fileOfSession(s);
     return file ? breakpointsOf(file) : null;
   };
+  state.editor.bookmarksOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? bookmarksOf(file) : null;
+  };
+  startBookmarks({
+    here: () => {
+      const tab = tabOf(state.active);
+      return tab?.session && !tab.commit && state.editor.s === tab.session ? { path: tab.file, line: tab.session.base + state.editor.head().line } : null;
+    },
+    lineOf: (path, line) => {
+      const s = state.tabs.find((tab) => tab.file === path && !tab.commit && tab.session && !tab.session.window)?.session;
+      return s ? s.doc.line(line - s.base) : null;
+    },
+    openAt: (path, line, col) => openAt(path, line, col),
+    repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+  });
   state.editor.pausedOf = (s) => {
     const file = fileOfSession(s);
     return file ? pausedLineOf(file) : null;
   };
   // The status bar's lock: a file of the tree turns between read-only and writable for as long as its
   // tab is open, and a file as a commit left it stays read-only.
-  state.editor.onLock = (s) => {
+  state.editor.onLock = (given) => {
+    const s = given.of ?? given;
     const tab = state.tabs.find((one) => one.session === s);
     if (!tab || tab.commit) {
       say("A file as a commit left it is read-only.");
@@ -1395,6 +1502,7 @@ export async function startEdit(defs) {
     s.readOnly = !s.readOnly;
     tab.readOnly = s.readOnly;
     state.editor.schedule();
+    state.split?.editor.schedule();
     drawTabs();
   };
   state.editor.onBreakpoint = (line) => {
@@ -1402,6 +1510,20 @@ export async function startEdit(defs) {
     if (file) {
       toggleBreakpoint(file, line);
     }
+  };
+  // A split editor takes the first one's keys and marks, and its breakpoints are the file's.
+  state.lendTo = (editor) => {
+    editor.onDefinition = state.editor.onDefinition;
+    editor.addKeys(state.editorKeys);
+    for (const name of ["breakpointsOf", "bookmarksOf", "pausedOf", "onLock"]) {
+      editor[name] = state.editor[name];
+    }
+    editor.onBreakpoint = (line) => {
+      const file = fileOfSession(editor.s);
+      if (file) {
+        toggleBreakpoint(file, line);
+      }
+    };
   };
   startCommit({
     shown: () => paneOpen("changes") && shownGroup() === "commit",
@@ -1425,13 +1547,14 @@ export async function startEdit(defs) {
     },
     open: (path) => openFile(path),
     openAt: (path, line, col) => openAt(path, line, col),
-    repaint: () => state.editor?.schedule(),
+    repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
     run: (command) => import("./menubar.js").then((menus) => menus.runCommand(command)),
   });
   startServers({
     tabs: () => state.tabs,
     paint: () => {
       state.editor.schedule();
+      state.split?.editor.schedule();
       problemsChanged();
     },
   });
@@ -1466,11 +1589,15 @@ export async function startEdit(defs) {
     goTo: (line) => jumpTo(line),
     cursorLine,
     openCommit,
+    showSnapshot,
+    revertSnapshot,
     refresh: async () => {
       state.children.clear();
       await loadChanges();
       await drawTree();
       drawTimeline(fileOf(state.active), true);
+      drawLocalHistory(fileOf(state.active), true);
+      drawTodo();
     },
     collapse: () => {
       state.expanded = new Set([""]);
@@ -1479,9 +1606,11 @@ export async function startEdit(defs) {
     panesChanged: () => {
       drawOutline(tabOf(state.active)?.session ?? null);
       drawTimeline(state.active ? fileOf(state.active) : null);
+      drawLocalHistory(state.active ? fileOf(state.active) : null);
       drawCommit(state.changes);
       drawProblems(problemFiles());
       drawGit(state.branch);
+      drawTodo();
     },
     openAt: (path, line, col) => openAt(path, line, col),
   });
@@ -1562,6 +1691,9 @@ function tabMenu(tab) {
     { label: "Close others", disabled: !others.length, run: () => others.forEach(closeTab) },
     { label: "Close all", run: () => [...state.tabs].forEach(closeTab) },
     "-",
+    { label: "Split Right", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("right")) },
+    { label: "Split Down", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("down")) },
+    "-",
     { label: "Copy path", run: () => copyText(tab.file) },
   ];
 }
@@ -1614,8 +1746,22 @@ export function bindEditorKeys(list) {
 // file or all of them, and closing one tab or all of them.
 export function editing() {
   return {
-    editor: state.editor?.s ? state.editor : null,
+    editor: state.split?.focused ? state.split.editor : state.editor?.s ? state.editor : null,
     active: state.active,
+    split: splitEditor,
+    unsplit,
+    // The tree read again after a file, a folder or a repository was made in it.
+    treeChanged: async () => {
+      state.children.clear();
+      await loadChanges();
+      await drawTree();
+    },
+    // The folder of the file open, as the start of a path for a file or folder to make.
+    folderHere: () => {
+      const file = fileOf(state.active);
+      return file?.includes("/") ? file.slice(0, file.lastIndexOf("/") + 1) : "";
+    },
+    splitShown: () => Boolean(state.split),
     changed: state.tabs.some(dirty),
     activeChanged: Boolean(tabOf(state.active) && dirty(tabOf(state.active))),
     open: state.tabs.length > 0,
@@ -1648,6 +1794,7 @@ export function editing() {
       }
       state.active = shown;
       drawTabs();
+      drawLocalHistory(fileOf(state.active), true);
       await loadChanges();
       drawTree();
     },

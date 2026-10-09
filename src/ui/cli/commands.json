@@ -3,7 +3,22 @@
     {
       "title": "File",
       "items": [
-        { "label": "Open Folder…", "command": "open-folder", "args": "[folder]" },
+        {
+          "label": "Create",
+          "items": [
+            { "label": "File…", "command": "create-file", "keys": "Ctrl+N", "args": "[path]" },
+            { "label": "Folder…", "command": "create-folder", "args": "[path]" },
+            { "label": "Repository…", "command": "create-repository", "args": "[folder]" }
+          ]
+        },
+        {
+          "label": "Open",
+          "items": [
+            { "label": "File…", "command": "open-file", "keys": "Ctrl+O", "args": "[file]" },
+            { "label": "Folder…", "command": "open-folder", "args": "[folder]" },
+            { "label": "Repository…", "command": "open-repository", "args": "[url]" }
+          ]
+        },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
         "-",
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
@@ -72,6 +87,8 @@
         { "label": "Add Cursor Below", "command": "cursor-below", "keys": "Ctrl+Alt+Down", "needs": "editor" },
         { "label": "Add Next Occurrence", "command": "next-occurrence", "keys": "Ctrl+D", "needs": "editor" },
         { "label": "Select All Occurrences", "command": "all-occurrences", "keys": "Ctrl+Shift+L", "needs": "editor" },
+        { "label": "Expand Selection", "command": "expand-selection", "keys": "Shift+Alt+Right", "needs": "editor" },
+        { "label": "Shrink Selection", "command": "shrink-selection", "keys": "Shift+Alt+Left", "needs": "editor" },
         { "label": "Column Selection Mode", "command": "column-mode", "args": "[on|off]", "checks": "column-mode" }
       ]
     },
@@ -91,6 +108,10 @@
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         { "label": "Debug", "command": "debug-view", "keys": "Alt+5" },
         "-",
+        { "label": "Split Right", "command": "split-right", "keys": "Ctrl+\\", "needs": "editor" },
+        { "label": "Split Down", "command": "split-down", "needs": "editor" },
+        { "label": "Unsplit", "command": "unsplit", "checks": "split" },
+        "-",
         { "label": "Light", "command": "scheme", "args": "[light|dark]", "labels": { "dark": "Light", "light": "Dark" } },
         { "label": "Follow System Theme", "command": "scheme-system", "args": "[on|off]", "checks": "scheme-system" },
         { "label": "Zoom In", "command": "zoom-in", "keys": "Ctrl+=" },
@@ -108,10 +129,14 @@
         { "label": "Forward", "command": "forward", "keys": "Alt+Right" },
         { "label": "Last Editor", "command": "last-editor", "keys": "Ctrl+Tab" },
         "-",
+        { "label": "Search Everywhere…", "command": "search-everywhere", "keys": "Shift Shift" },
+        { "label": "Recent Files…", "command": "recent-files", "keys": "Ctrl+E" },
         { "label": "Go to File…", "command": "file", "keys": "Ctrl+P", "args": "[path[:line[:column]]]" },
         { "label": "Go to Symbol in Editor…", "command": "symbol", "keys": "Ctrl+Shift+O", "args": "[name]", "needs": "text" },
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
+        { "label": "Toggle Bookmark", "command": "bookmark", "keys": "Ctrl+F11", "needs": "editor" },
+        { "label": "Bookmarks…", "command": "bookmarks", "keys": "Ctrl+Shift+F11" },
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },
         { "label": "Go to Definition", "command": "definition", "keys": "F12", "needs": "editor" },
         { "label": "Find Usages", "command": "usages", "keys": "Shift+F12", "also": "Alt+F7", "needs": "editor" },
