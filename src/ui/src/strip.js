@@ -99,8 +99,28 @@ export function refreshStrip() {
   bell?.classList.toggle("unread", noticesUnseen() > 0);
 }
 
-// The icons whose windows are groups of the explorer's panes, which the pointer over them shows.
-const HOVERED = new Set(["explorer", "structure", "commit", "problems", "git"]);
+// The icons whose windows are side panes, each with what shows its pane as the pointer comes over
+// it, from either view: the explorer on a group of its panes, or the Run view's jobs.
+const showGroupPane = (group) => {
+  if (explorerShown(group)) {
+    return;
+  }
+  showView("edit");
+  showGroup(group);
+  togglePane(true, { take: false });
+};
+const HOVERED = new Map([
+  ...["explorer", "structure", "commit", "problems", "git"].map((group) => [group, () => showGroupPane(group)]),
+  [
+    "run",
+    () => {
+      if (shownView() !== "run") {
+        showView("run");
+      }
+      togglePane(true, { take: false });
+    },
+  ],
+]);
 
 function stripButton(name, glyph, label, keys, run, shown) {
   const button = element("button", { className: `strip-button strip-${name}`, type: "button", title: keys ? `${label} (${keys})` : label }, icon(glyph));
@@ -109,15 +129,11 @@ function stripButton(name, glyph, label, keys, run, shown) {
     run(button);
     window.requestAnimationFrame(refreshStrip);
   });
-  // In the edit view the pointer over one of them opens the explorer on its panes, and it stays open
-  // while the pointer is on the strip or on it.
+  // The pointer over one of them shows its pane, and the pane stays open while the pointer is on the
+  // strip or on it.
   if (HOVERED.has(name)) {
     button.addEventListener("pointerenter", () => {
-      if (shownView() !== "edit" || explorerShown(name)) {
-        return;
-      }
-      showGroup(name);
-      togglePane(true, { take: false });
+      HOVERED.get(name)();
       window.requestAnimationFrame(refreshStrip);
     });
   }
