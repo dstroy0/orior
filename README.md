@@ -110,8 +110,8 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 
 | | part | what it holds |
 | --- | --- | --- |
-| 1 | Top bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help, then the tree's name and its branch, with a star where a file differs from the last commit. At its right end Preferences, Notifications, which keeps what the status bar has said, Toolchains, and m, which shows or hides the definitions. A key shown beside a command runs it from anywhere in the window. |
-| 2 | Tool strip | an icon for each tool window down the left edge, the one open marked in signal; a press on it again closes it. At the top Explorer (the Edit view and its files, Ctrl+Shift+E), Structure (the open file's outline), Commit (the files that differ from the last commit, and the Timeline), and more panes. At the foot Run (the Run view and its jobs, Ctrl+Shift+D), Debug, Terminal, Problems (the open files' diagnostics, marked while there are errors) and Git (the branch's commits). |
+| 1 | Top bar | File, Edit, Selection, View, Go and Run, the Build and Test jobs, Terminal and Help, then the tree's name and its branch, with a star where a file differs from the last commit. At its right end Preferences, Notifications, which keeps what the status bar has said, Toolchains, and m, which shows or hides the definitions, then the window's own minimize, maximize and close. The bar is what the window moves by: a press on its empty middle drags it, and a double press maximizes or restores it. A key shown beside a command runs it from anywhere in the window. |
+| 2 | Tool strip | an icon for each tool window down the left edge, the one open marked in signal; a press on it again closes it. At the top Explorer (the Edit view and its files, Ctrl+Shift+E), Structure (the open file's outline), Commit (the files that differ from the last commit, and the Timeline), and more panes; under them, a line apart, the jobs of Protocol, Ingest, Render, Sim, Pipeline and Stage, each a menu beside its icon. At the foot Run (the Run view and its jobs, Ctrl+Shift+D), Debug, Terminal, Problems (the open files' diagnostics, marked while there are errors) and Git (the branch's commits). |
 | 3 | Explorer | the panes of the icon chosen. For Explorer: Search, Usages, Open Editors and the tree's files. Its … menu shows or hides each pane. |
 | 4 | Editor | a tab for each file, and the minimap down its right edge |
 | 5 | Definitions | the definition of the open file's type, and in a coherence file, the bridge |
@@ -122,7 +122,7 @@ The panes at the sides collapse toward their edge a moment after the pointer lea
 
 ### Run a job
 
-1. Choose Run at the foot of the tool strip (Ctrl+Shift+D), or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
+1. Choose Run at the foot of the tool strip (Ctrl+Shift+D), or open the menu for the kind of job: Build or Test on the top bar, or Protocol, Ingest, Render, Sim, Pipeline or Stage on the tool strip.
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 
@@ -224,7 +224,7 @@ The Timeline pane lists the commits that touched the open file. Open shows the f
 
 ### Settings and themes
 
-File, Preferences (Ctrl+,) holds the zoom, every setting the menus turn on and off, Trim Trailing Whitespace and Insert Final Newline on save, the fonts and the colors. Ctrl+=, Ctrl+- and Ctrl+0 zoom in, out and back, and View switches between light and dark.
+File, Preferences (Ctrl+,) holds the zoom, every setting the menus turn on and off, Trim Trailing Whitespace and Insert Final Newline on save, the fonts and the colors. Ctrl+=, Ctrl+- and Ctrl+0 zoom in, out and back. View switches between light and dark, and View, Follow System Theme takes the scheme from the system, changing as it does.
 
 To make a theme of your own, choose Light or Dark under Color Theme and press New. Each color of the palette is then yours to change, from the editor's and the menu bar's to the eye's, the fuse's and the lattice's; Search narrows the list, and ↺ puts one color back. Export copies the theme to the clipboard, and Import reads one from it. Themes are kept between runs and the one chosen shows from the first frame.
 

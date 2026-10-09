@@ -9,8 +9,9 @@
 // are given to the editor, which acts on them while it holds the keys.
 //
 // A menu of jobs lists the catalog's groups it names, split by what each job works on where it says
-// so, and a group with no job in the tree has no menu. A job chosen from a menu shows in the run view
-// with its form, and starts only from there or from Run, Start.
+// so, and a group with no job in the tree has no menu. A menu commands.json gives a `strip` icon is
+// on the tool strip in place of the bar. A job chosen from a menu shows in the run view with its
+// form, and starts only from there or from Run, Start.
 //
 // A press of the menu bar opens its menu, and while one is open the pointer moving
 // to another title opens that one instead. Alt held marks each title's letter, Alt and the letter
@@ -34,7 +35,7 @@ import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
-import { scheme, setScheme, toggleScheme } from "./scheme.js";
+import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
 import { showView } from "./views.js";
@@ -195,6 +196,7 @@ const COMMANDS = {
   "run-view": () => showView("run"),
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
+  "scheme-system": (args) => setFollowSystem(onOff(args) ?? !followsSystem()),
   "fold-all": inEditor((e) => e.foldAll(true)),
   "unfold-all": inEditor((e) => e.foldAll(false)),
   file: goToFile,
@@ -255,6 +257,7 @@ const CHECKS = {
   breadcrumbs: crumbsShown,
   "bracket-pairs": () => editing().brackets(),
   "auto-report": () => state.autoReport,
+  "scheme-system": followsSystem,
 };
 
 // What a command needs before it can act, by the name commands.json gives the need.
@@ -384,7 +387,13 @@ function sheet(body) {
 
 // The menus the bar has a title for: each of commands, and each of jobs that has a job in the tree.
 function shownMenus() {
-  return state.menus.filter((menu) => menu.items?.length || jobsIn(menu.groups ?? []).length);
+  return state.menus.filter((menu) => !menu.strip && (menu.items?.length || jobsIn(menu.groups ?? []).length));
+}
+
+// The menus of jobs the tool strip holds in place of the bar, each its title, its icon and its
+// items, where its groups have a job in the tree.
+export function stripMenus() {
+  return state.menus.filter((menu) => menu.strip && jobsIn(menu.groups ?? []).length).map((menu) => ({ title: menu.title, icon: menu.strip, items: () => itemsOf(menu) }));
 }
 
 // Gives each title the first of its letters no title before it has.
@@ -444,6 +453,8 @@ export function drawMenubar() {
     button.addEventListener("click", () => (state.open === at && menuOpen() ? closeMenu() : openAt(at, true)));
     button.addEventListener("pointerenter", () => menuOpen() && state.open >= 0 && state.open !== at && openAt(at, false));
   });
+  // The tool strip draws the menus it holds again with the bar's.
+  window.dispatchEvent(new Event("menus-drawn"));
 }
 
 // The keys a command lists, or undefined where it lists none.

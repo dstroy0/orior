@@ -251,6 +251,29 @@ fn file_commits(app: State<App>, path: String) -> Result<Vec<git::Commit>, Strin
     git::commits(&root_of(&app)?, &path)
 }
 
+/// The window's own controls, for the frame the page draws in place of the system's: minimize,
+/// maximize, which restores a maximized window, close, and drag, which moves the window with the
+/// pointer from a press on the top bar until it is let go. Says whether the window is maximized after.
+#[tauri::command]
+fn window_act(window: tauri::WebviewWindow, act: String) -> Result<bool, String> {
+    let done = match act.as_str() {
+        "minimize" => window.minimize(),
+        "maximize" => {
+            if window.is_maximized().unwrap_or(false) {
+                window.unmaximize()
+            } else {
+                window.maximize()
+            }
+        }
+        "close" => window.close(),
+        "drag" => window.start_dragging(),
+        "state" => Ok(()),
+        other => return Err(format!("{other} is not something the window does")),
+    };
+    done.map_err(|error| error.to_string())?;
+    Ok(window.is_maximized().unwrap_or(false))
+}
+
 /// The commits of the branch the tree is on, the newest first.
 #[tauri::command(async)]
 fn tree_commits(app: State<App>) -> Result<Vec<git::Commit>, String> {
@@ -842,6 +865,7 @@ fn open(launch: Launch) {
             report_open,
             file_commits,
             tree_commits,
+            window_act,
             file_head,
             file_at,
             file_read,

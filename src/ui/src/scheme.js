@@ -1,11 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Dark and light, as the docs site offers them. Dark is the scheme the app opens in, and a reader's
-// choice is kept for the next time.
+// Dark and light. Dark is the scheme the app opens in, a reader's choice is kept for the next time,
+// and where the reader follows the system the scheme is the system's, changing as it does. View,
+// Light or Dark, Preferences and the command palette choose it.
 
 const KEY = "orior.scheme";
+const SYSTEM = "system";
 const listeners = [];
+const dark = window.matchMedia("(prefers-color-scheme: dark)");
 
 export function scheme() {
   return document.documentElement.dataset.scheme;
@@ -20,24 +23,38 @@ export function notifyScheme() {
   listeners.forEach((listener) => listener(scheme()));
 }
 
-function set(name) {
+// Whether the scheme follows the system's.
+export function followsSystem() {
+  return localStorage.getItem(KEY) === SYSTEM;
+}
+
+function show(name) {
   document.documentElement.dataset.scheme = name;
-  const button = document.getElementById("scheme");
-  button.textContent = name === "dark" ? "☀" : "☾";
-  button.setAttribute("aria-label", name === "dark" ? "Light" : "Dark");
-  localStorage.setItem(KEY, name);
   listeners.forEach((listener) => listener(name));
 }
 
+// Chooses a scheme, which stops following the system's.
 export function setScheme(name) {
-  set(name);
+  localStorage.setItem(KEY, name);
+  show(name);
 }
 
 export function toggleScheme() {
-  set(scheme() === "dark" ? "light" : "dark");
+  setScheme(scheme() === "dark" ? "light" : "dark");
+}
+
+// Follows the system's scheme, or keeps the one shown as the reader's own.
+export function setFollowSystem(on = !followsSystem()) {
+  if (on) {
+    localStorage.setItem(KEY, SYSTEM);
+    show(dark.matches ? "dark" : "light");
+  } else {
+    setScheme(scheme());
+  }
 }
 
 export function keepScheme() {
-  set(localStorage.getItem(KEY) === "light" ? "light" : "dark");
-  document.getElementById("scheme").addEventListener("click", toggleScheme);
+  const kept = localStorage.getItem(KEY);
+  show(kept === SYSTEM ? (dark.matches ? "dark" : "light") : kept === "light" ? "light" : "dark");
+  dark.addEventListener("change", () => followsSystem() && show(dark.matches ? "dark" : "light"));
 }

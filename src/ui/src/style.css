@@ -282,11 +282,99 @@ select {
 }
 
 .work {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Each pane's corners, where its dividing lines meet another line: a small curve filled in the lines'
+   color, leaving one line and ending on the other. A pane lays them over itself and passes through the
+   pointer. A corner on a scrollbar, or on the window's own edge, stays square. */
+:root {
+  --fillet-tl: radial-gradient(circle at 100% 100%, transparent 6.4px, var(--line) 7px);
+  --fillet-tr: radial-gradient(circle at 0 100%, transparent 6.4px, var(--line) 7px);
+  --fillet-bl: radial-gradient(circle at 100% 0, transparent 6.4px, var(--line) 7px);
+}
+
+.side,
+.defs-side,
+.stage,
+.debug-col {
+  position: relative;
+}
+
+.side::after,
+.defs-side::after,
+.stage::after,
+.ed::after,
+.term::after,
+.debug::after,
+.debug-col::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background-size: 7px 7px;
+  background-repeat: no-repeat;
+}
+
+/* A side pane: its three corners off its scrolling lists' bar. */
+.side::after {
+  background-image: var(--fillet-tl), var(--fillet-tr), var(--fillet-bl);
+  background-position: left top, right top, left bottom;
+}
+
+/* The definitions, on the inside of the line down their left. */
+.defs-side::after {
+  background-image: var(--fillet-tl), var(--fillet-bl);
+  background-position: left 1px top, left 1px bottom;
+}
+
+.stage::after {
+  background-image: var(--fillet-tl), var(--fillet-bl);
+  background-position: left top, left bottom;
+}
+
+/* The code: its own left corners, and the preview's left corners on the inside of the line down it. */
+.ed::after {
+  background-image: var(--fillet-tl), var(--fillet-bl), var(--fillet-tl), var(--fillet-bl);
+  background-position: left top, left bottom, right 76px top, right 76px bottom;
+}
+
+.term::after,
+.debug::after {
+  bottom: auto;
+  height: 7px;
+  background-image: var(--fillet-tl);
+  background-position: left top;
+}
+
+.debug-col::after {
+  background-image: var(--fillet-tl), var(--fillet-tr), var(--fillet-bl);
+  background-position: left top, right top, left bottom;
+}
+
+.debug-col:last-child::after {
+  background-image: var(--fillet-tl), var(--fillet-bl);
+  background-position: left top, left bottom;
+}
+
+/* The corner where the strip's line meets the status bar's: a small curve filled in the lines' color,
+   leaving the strip's line and ending on the status bar's. */
+.work::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 30;
+  width: 7px;
+  height: 7px;
+  background: radial-gradient(circle at 100% 0, transparent 6.4px, var(--status-line) 7px);
+  pointer-events: none;
 }
 
 /* The tool strip: an icon a tool window, the windows that show marked in signal on a square of it. */
@@ -295,7 +383,6 @@ select {
   width: 40px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   padding: 6px 0;
   background: var(--ink);
   border-right: 1px solid var(--status-line);
@@ -306,6 +393,26 @@ select {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+}
+
+/* The menus of jobs, a short line apart from the tool windows over them. */
+.strip-jobs {
+  margin-top: 8px;
+  padding-top: 8px;
+  background: linear-gradient(var(--status-line), var(--status-line)) top center / 20px 1px no-repeat;
+}
+
+.strip-jobs[hidden] {
+  display: none;
+}
+
+.strip-foot {
+  margin-top: auto;
+}
+
+.strip-button[data-menu="open"] {
+  background: var(--bar-title-hover);
+  color: var(--bar-bright);
 }
 
 .strip-button,
@@ -414,6 +521,47 @@ select {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+/* The window's own controls, the full height of the bar at its right end, in place of the system's
+   frame; close turns to the error's color under the pointer. */
+.window-controls {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  margin: 0 -0.8rem 0 0.4rem;
+}
+
+.window-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--status-fg);
+  cursor: pointer;
+}
+
+.window-button .glyph {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.2;
+}
+
+.window-button:hover {
+  background: var(--bar-title-hover);
+  color: var(--bar-bright);
+}
+
+.window-button.window-close:hover {
+  background: var(--ed-error);
+  color: #ffffff;
+}
+
+.window-button:focus-visible {
+  outline: 1px solid var(--bar-signal);
+  outline-offset: -2px;
 }
 
 /* Notifications: what the status bar has said, the newest first, under the bell. */
@@ -695,22 +843,6 @@ body[data-view="run"] .statusbar .ed-status {
 
 .pulse button:hover {
   text-decoration: underline;
-}
-
-.scheme {
-  flex: none;
-  width: 2rem;
-  height: 2rem;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  cursor: pointer;
-  color: var(--bar-scheme);
-  font-size: 1rem;
-}
-
-.scheme:hover {
-  color: var(--bar-scheme-hover);
 }
 
 .shell {
@@ -1281,6 +1413,7 @@ body[data-view="run"] .statusbar .ed-status {
   padding: 0 0.4rem 0 0.85rem;
   border: 0;
   border-right: 1px solid var(--line);
+  border-radius: 6px 6px 0 0;
   background: none;
   font: 12.5px var(--code);
   color: var(--fg-2);

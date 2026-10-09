@@ -8,11 +8,17 @@
 // differ from the last commit; and more, a menu of the explorer's other panes. At its foot: Run, the
 // run view and its jobs; Debug and Terminal, the panels under the views; Problems, the open files'
 // diagnostics, its icon marked while there are errors; and Git, the branch's commits. The icon of
-// each window that shows is drawn in signal on a square of it.
+// each window that shows is drawn in signal on a square of it. Under the top icons, a line apart, the
+// menus of jobs commands.json puts on the strip, Protocol, Ingest, Render, Sim, Pipeline and Stage,
+// each an icon whose press opens its menu beside it, and each there only where the tree has its jobs.
 //
 // The top bar's tools: Preferences, Notifications, which lists what the status bar has said and is
-// marked while some of it is unread, Toolchains, and the definitions beside the editor.
+// marked while some of it is unread, Toolchains, and the definitions beside the editor. Past them the
+// window's own controls, minimize, maximize and close, in place of the system's frame: a press on
+// the top bar where nothing else takes it moves the window, and a second press at once maximizes it
+// or restores it.
 
+import { invoke } from "./bridge.js";
 import { showGroup, shownGroup, morePanes, showPane } from "./explorer.js";
 import { icon } from "./icons.js";
 import { showMenu } from "./menu.js";
@@ -160,13 +166,66 @@ function toggleDefinitions() {
   togglePaneNode(side);
 }
 
-// `hooks` runs a command of the menus by its name.
+// The menus of jobs on the strip, drawn again as the menu bar is.
+function drawJobs() {
+  const group = document.getElementById("strip-jobs");
+  const menus = state.hooks.jobMenus();
+  group.hidden = !menus.length;
+  group.replaceChildren(
+    ...menus.map((menu) => {
+      const button = element("button", { className: "strip-button strip-job", type: "button", title: menu.title }, icon(menu.icon));
+      button.setAttribute("aria-label", menu.title);
+      button.setAttribute("aria-haspopup", "menu");
+      button.addEventListener("click", () => {
+        const box = button.getBoundingClientRect();
+        showMenu(box.right + 4, box.top, menu.items(), { anchor: button });
+      });
+      return button;
+    }),
+  );
+}
+
+// The window's controls, and the top bar as the handle the window moves by.
+function startWindow() {
+  const act = (what) => invoke("window_act", { act: what }).catch(() => false);
+  const maximize = element("button", { className: "window-button", type: "button" });
+  const drawMaximized = (maximized) => {
+    maximize.replaceChildren(icon(maximized ? "restore" : "maximize"));
+    maximize.title = maximized ? "Restore" : "Maximize";
+    maximize.setAttribute("aria-label", maximize.title);
+  };
+  const control = (glyph, label, what, className = "") => {
+    const button = element("button", { className: `window-button ${className}`.trim(), type: "button", title: label }, icon(glyph));
+    button.setAttribute("aria-label", label);
+    button.addEventListener("click", () => act(what).then(drawMaximized));
+    return button;
+  };
+  maximize.addEventListener("click", () => act("maximize").then(drawMaximized));
+  document.getElementById("window-controls").replaceChildren(control("minimize", "Minimize", "minimize"), maximize, control("close", "Close", "close", "window-close"));
+  act("state").then(drawMaximized);
+  window.addEventListener("resize", () => act("state").then(drawMaximized));
+  // A press on the bar itself, its tree name or its empty middle moves the window; a press on a menu,
+  // a tool or a control does what it does.
+  document.querySelector("header.bar").addEventListener("mousedown", (event) => {
+    if (event.button !== 0 || event.target.closest("button, nav, .bar-tools, .window-controls, input")) {
+      return;
+    }
+    event.preventDefault();
+    act(event.detail === 2 ? "maximize" : "drag").then(drawMaximized);
+  });
+}
+
+// `hooks` runs a command of the menus by its name, and gives the menus of jobs the strip holds.
 export function startStrip(hooks) {
   state.hooks = hooks;
   const strip = document.getElementById("strip");
   const top = element("div", { className: "strip-group" }, ...STRIP.top.map((one) => stripButton(...one)));
+  const jobs = element("div", { className: "strip-group strip-jobs", id: "strip-jobs" });
   const foot = element("div", { className: "strip-group strip-foot" }, ...STRIP.foot.map((one) => stripButton(...one)));
-  strip.replaceChildren(top, foot);
+  strip.replaceChildren(top, jobs, foot);
+  drawJobs();
+  window.addEventListener("menus-drawn", drawJobs);
+  startWindow();
   document
     .getElementById("bar-tools")
     .replaceChildren(

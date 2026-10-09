@@ -9,7 +9,7 @@ import { loadBreakpoints } from "./debug.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, runCommand, runLaunch, startMenubar } from "./menubar.js";
+import { drawMenubar, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
 import { startStrip } from "./strip.js";
 import { forgetFiles } from "./palette.js";
 import { loadRun, startRun } from "./run.js";
@@ -86,7 +86,7 @@ async function start() {
   keepPane(document.getElementById("job-side"), "left");
   keepPane(document.getElementById("explorer"), "left");
   keepPane(document.getElementById("defs-side"), "right");
-  startStrip({ run: runCommand });
+  startStrip({ run: runCommand, jobMenus: stripMenus });
   await begin(await invoke("root_get"));
   settlePanes();
   onView(settlePanes);
