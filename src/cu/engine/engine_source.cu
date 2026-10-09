@@ -58,14 +58,35 @@ static EntrySourceKind entry_source_kind(const char *path, const char *member)
     {
         return ENTRY_SOURCE_STACK;
     }
+    // a file's first bytes are read once and kept with its path: a run that describes many samples of one archive
+    // reads its head once
+    static char held_path[ENTRY_PATH_CAPACITY];
+    static unsigned char held_head[352];
+    static long long held_read = -1ll;
     unsigned char head[352];
     memset(head, 0, sizeof(head));
-    EngineFileRange range;
-    range.path = path;
-    range.offset = 0ull;
-    range.bytes = sizeof(head);
-    range.out = head;
-    const long long bytes_read = stack_file_read(&range);
+    long long bytes_read = -1ll;
+    if ((held_read >= 0ll) && (strcmp(held_path, path) == 0))
+    {
+        memcpy(head, held_head, sizeof(head));
+        bytes_read = held_read;
+    }
+    else
+    {
+        EngineFileRange range;
+        range.path = path;
+        range.offset = 0ull;
+        range.bytes = sizeof(head);
+        range.out = head;
+        bytes_read = stack_file_read(&range);
+        const int keep = (bytes_read >= 0ll) && (strlen(path) < sizeof(held_path));
+        held_read = keep ? bytes_read : -1ll;
+        if (keep)
+        {
+            memcpy(held_path, path, strlen(path) + 1u);
+            memcpy(held_head, head, sizeof(head));
+        }
+    }
     if (bytes_read < 8ll)
     {
         return ENTRY_SOURCE_NONE;

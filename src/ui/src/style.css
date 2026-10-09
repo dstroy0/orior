@@ -1592,10 +1592,11 @@ body[data-view="run"] .statusbar .ed-status {
   font-style: italic;
 }
 
-/* The panels over the editor: find, go to line, hover and completion. */
+/* The panels over the editor: find, go to line, hover, completion, parameter info and rename. */
 .ed-find,
 .ed-goto,
 .ed-hover,
+.ed-signature,
 .ed-suggest {
   position: absolute;
   z-index: 4;
@@ -1702,6 +1703,98 @@ body[data-view="run"] .statusbar .ed-status {
 
 .ed-hover pre code {
   color: var(--ed-fg);
+}
+
+.ed-signature {
+  max-width: 40rem;
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0.3rem 0.6rem;
+  font: 13px/1.45 var(--text);
+}
+
+.ed-signature pre {
+  margin: 0.15rem 0;
+  font: 12.5px/1.45 var(--code);
+  white-space: pre-wrap;
+  color: var(--ed-fg);
+}
+
+.ed-signature pre b {
+  color: var(--t-type);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ed-signature p {
+  margin: 0.25rem 0;
+}
+
+.ed-rename {
+  position: absolute;
+  z-index: 5;
+  padding: 1px 2px;
+  border: 1px solid var(--hover);
+  border-radius: 0.25rem;
+  background: var(--ed-bg);
+  color: var(--ed-fg);
+  font: inherit;
+  font-family: var(--code);
+  box-shadow: 0 4px 14px var(--ed-suggest-shadow);
+}
+
+.ed-rename:focus {
+  outline: none;
+}
+
+.ed-rename-hint {
+  position: absolute;
+  z-index: 5;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: 0.25rem;
+  background: var(--ed-widget);
+  color: var(--fg-3);
+  font: 11.5px/1.4 var(--head);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The fix mark sits in the fold column of the cursor's line, over its fold arrow. */
+.ed-fix {
+  position: absolute;
+  z-index: 3;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.2rem;
+  background: var(--ed-bg);
+  color: var(--ed-warning);
+  cursor: pointer;
+}
+
+.ed-fix[data-severity="1"] {
+  color: var(--ed-error);
+}
+
+.ed-fix[data-severity="3"],
+.ed-fix[data-severity="4"] {
+  color: var(--hover);
+}
+
+.ed-fix svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.ed-fix:hover {
+  background: var(--ed-widget);
+}
+
+.ed-fix:focus-visible {
+  outline: 1px solid var(--hover);
 }
 
 .ed-hover .diag {

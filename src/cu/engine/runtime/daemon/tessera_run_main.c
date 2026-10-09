@@ -73,6 +73,13 @@ int main(int count, char **arguments)
     RunChild child;
     memset(&child, 0, sizeof(child));
     int code = RUN_NOT_STARTED;
+    // the whole processors of the reservation, and never none: a job reserves its kept peak where that is more than
+    // it named, and the count of whole ones in it is what the command may run on
+    const unsigned long long whole = ticket.granted / TESSERA_HOST_PROCESSOR;
+    if (!run_processors_named((whole != 0ull) ? whole : 1ull))
+    {
+        fprintf(stderr, "  tessera_run: the processors granted were not handed on to %s\n", label);
+    }
     const unsigned long long started = run_now();
     if (run_start(&child, words, started_count, mask, &channel))
     {

@@ -123,8 +123,13 @@ function later() {
   state.wait = window.setTimeout(run, REST);
 }
 
-// Fills the field with `text` where it is given, and gives it the keys.
-export function focusSearch(text) {
+// Fills the field with `text` where it is given, and gives it the keys. `how` turns case, whole
+// words and regular expressions on or off where it names them.
+export function focusSearch(text, how = {}) {
+  for (const [name, on] of Object.entries(how)) {
+    state.how[name] = on;
+    document.querySelector(`#search-options [data-option="${name}"]`)?.setAttribute("aria-checked", String(on));
+  }
   if (text !== undefined && text !== null) {
     state.query.value = text;
     run();

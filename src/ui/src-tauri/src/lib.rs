@@ -276,17 +276,87 @@ fn tree_path(root: &Path, path: &str) -> String {
     path.strip_prefix(&root).map(|inside| inside.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| path.display().to_string())
 }
 
+/// Each file's edits, each path as `tree_path` gives it.
+fn tree_edits(root: &Path, files: Vec<servers::FileEdit>) -> Vec<servers::FileEdit> {
+    files.into_iter().map(|mut file| {
+        file.path = tree_path(root, &file.path);
+        file
+    }).collect()
+}
+
 /// Hands a file the editor opened to its language's server, starting it where it is not running.
-/// Says whether a server took it; the file's diagnostics come as "lsp-diagnostics".
+/// Says whether a server took it; the file's diagnostics come as "lsp-diagnostics", and an edit the
+/// server asks for as "lsp-edits".
 #[tauri::command(async)]
 fn lsp_open(handle: AppHandle, app: State<App>, path: String, language: String, text: String) -> Result<bool, String> {
     let root = root_of(&app)?;
     let tree = root.clone();
-    let emit: servers::Emit = Arc::new(move |mut diagnostics: servers::Diagnostics| {
-        diagnostics.path = tree_path(&tree, &diagnostics.path);
-        let _ = handle.emit("lsp-diagnostics", diagnostics);
+    let emit: servers::Emit = Arc::new(move |told| match told {
+        servers::Told::Diagnostics(mut diagnostics) => {
+            diagnostics.path = tree_path(&tree, &diagnostics.path);
+            let _ = handle.emit("lsp-diagnostics", diagnostics);
+        }
+        servers::Told::Edits(files) => {
+            let _ = handle.emit("lsp-edits", tree_edits(&tree, files));
+        }
     });
     app.servers.open(&root, &root.join(path), &language, &text, &emit)
+}
+
+/// Every place the symbol at a place is used, each path as `tree_path` gives it.
+#[tauri::command(async)]
+fn lsp_references(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Usage>, String> {
+    let root = root_of(&app)?;
+    let found = app.servers.references(&root.join(path), line, col)?;
+    Ok(found.into_iter().map(|mut one| {
+        one.path = tree_path(&root, &one.path);
+        one
+    }).collect())
+}
+
+#[tauri::command(async)]
+fn lsp_renamable(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Renamable>, String> {
+    app.servers.renamable(&root_of(&app)?.join(path), line, col)
+}
+
+#[tauri::command(async)]
+fn lsp_rename(app: State<App>, path: String, line: u32, col: u32, name: String) -> Result<Vec<servers::FileEdit>, String> {
+    let root = root_of(&app)?;
+    Ok(tree_edits(&root, app.servers.rename(&root.join(path), line, col, &name)?))
+}
+
+#[tauri::command(async)]
+fn lsp_actions(app: State<App>, path: String, from: servers::Place, to: servers::Place) -> Result<Vec<servers::Action>, String> {
+    app.servers.actions(&root_of(&app)?.join(path), from, to)
+}
+
+#[tauri::command(async)]
+fn lsp_act(app: State<App>, path: String, raw: serde_json::Value) -> Result<Vec<servers::FileEdit>, String> {
+    let root = root_of(&app)?;
+    Ok(tree_edits(&root, app.servers.act(&root.join(path), &raw)?))
+}
+
+#[tauri::command(async)]
+fn lsp_signature(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Signature>, String> {
+    app.servers.signature(&root_of(&app)?.join(path), line, col)
+}
+
+/// Writes edits to files the editor does not have open, each under the tree. Says how many files it
+/// wrote; a file outside the tree is left as it is and named.
+#[tauri::command(async)]
+fn edits_write(app: State<App>, files: Vec<servers::FileEdit>) -> Result<usize, String> {
+    let root = root_of(&app)?;
+    let mut written = 0;
+    for file in files {
+        let path = root.join(&file.path);
+        if Path::new(&file.path).is_absolute() || file.path.split('/').any(|part| part == "..") {
+            return Err(format!("{} is outside the tree and was not changed", file.path));
+        }
+        let text = std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", file.path))?;
+        std::fs::write(&path, servers::apply(&text, &file.edits)).map_err(|error| format!("{}: {error}", file.path))?;
+        written += 1;
+    }
+    Ok(written)
 }
 
 #[tauri::command(async)]
@@ -650,6 +720,13 @@ fn open(launch: Launch) {
             lsp_hover,
             lsp_definition,
             lsp_complete,
+            lsp_references,
+            lsp_renamable,
+            lsp_rename,
+            lsp_actions,
+            lsp_act,
+            lsp_signature,
+            edits_write,
             toolchains_check,
             toolchain_version,
             toolchain_install,

@@ -293,11 +293,20 @@ extern "C"
 
     typedef long long (*EngineFileSize)(const char *path);
 
+    // one item of `items` independent ones: 1 where it is done, 0 where it failed
+    typedef int (*EngineEachWork)(void *context, unsigned long long item);
+
+    // runs `work` on every item, on as many workers as the process holds processors ($TESSERA_RUN_PROCESSORS, 1 where
+    // it is not set), and returns 1 where every item is done. Once an item fails no item is started after it
+    typedef int (*EngineEach)(unsigned long long items, EngineEachWork work, void *context);
+
+    // `each` may be NULL, and a module that is handed none runs its items one at a time
     typedef struct
     {
         EngineBytesDecode decode[ENGINE_CODECS];
         EngineFileRead read;
         EngineFileSize size;
+        EngineEach each;
     } EngineIngestTools;
 
 #define ENGINE_ARRAY_RANK 8u

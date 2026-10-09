@@ -139,14 +139,29 @@
       "id": "rust",
       "name": "Rust",
       "group": "Languages",
-      "for": "cargo and rustc, which build orior itself, and rustfmt",
+      "for": "cargo and rustc, which build orior itself, rustfmt, and rust-analyzer, which reads Rust for an editor",
       "programs": ["cargo", "rustc", "rustfmt"],
       "runs": {"rust": "{rustc} {file} -o {out} && {out}"},
+      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml"},
       "version": ["--version"],
       "formats": ["rust"],
       "format": {"program": "rustfmt", "args": ["--edition", "2021"]},
       "install": {"any": "https://rustup.rs/"},
       "places": {"windows": ["%USERPROFILE%\\.cargo\\bin"], "any": ["~/.cargo/bin"]}
+    },
+    {
+      "id": "pyright",
+      "name": "Pyright",
+      "group": "Languages",
+      "for": "reads Python for an editor",
+      "programs": ["pyright-langserver"],
+      "server": {"program": "pyright-langserver", "args": ["--stdio"], "languages": ["python"]},
+      "install": {"any": "https://microsoft.github.io/pyright/#/installation"},
+      "places": {
+        "windows": ["%APPDATA%\\npm", "%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"],
+        "macos": ["/opt/homebrew/bin", "/usr/local/bin"],
+        "any": ["~/.local/bin"]
+      }
     },
     {
       "id": "node",

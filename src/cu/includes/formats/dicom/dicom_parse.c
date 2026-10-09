@@ -40,33 +40,98 @@ static int dicom_transfer_syntax(const unsigned char *value, unsigned long long 
     return DICOM_CHECK(0, value, error, ENGINE_ERROR_REQUEST);
 }
 
-static int dicom_parse(DicomSlice *slice, EngineError *error)
+// the preamble and the group 0002 elements; leaves the walk on the first element of the data set
+static int dicom_meta(DicomWalk *walk, int *explicit_vr, EngineError *error)
 {
-    const unsigned char *const bytes = slice->member;
-    if (!DICOM_CHECK((slice->member_bytes >= (DICOM_PREAMBLE + 4ull)) &&
-                         (memcmp(bytes + DICOM_PREAMBLE, "DICM", 4u) == 0),
+    const unsigned char *const bytes = walk->bytes;
+    if (!DICOM_CHECK((walk->length >= (DICOM_PREAMBLE + 4ull)) && (memcmp(bytes + DICOM_PREAMBLE, "DICM", 4u) == 0),
                      bytes, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
-    DicomWalk walk = {bytes, slice->member_bytes, DICOM_PREAMBLE + 4ull};
-    int explicit_vr = -1;
-    while (((walk.length - walk.at) >= 8ull) && (dicom_little(bytes + walk.at, 2u) == 0x0002ull))
+    walk->at = DICOM_PREAMBLE + 4ull;
+    *explicit_vr = -1;
+    while (((walk->length - walk->at) >= 8ull) && (dicom_little(bytes + walk->at, 2u) == 0x0002ull))
     {
         DicomElement element;
-        if (!dicom_element(&walk, 1, &element, error) ||
+        if (!dicom_element(walk, 1, &element, error) ||
             !DICOM_CHECK(element.undefined == 0, bytes + element.value_at, error, ENGINE_ERROR_REQUEST))
         {
             return 0;
         }
         if ((element.element == 0x0010u) &&
-            !dicom_transfer_syntax(bytes + element.value_at, element.value_length, &explicit_vr, error))
+            !dicom_transfer_syntax(bytes + element.value_at, element.value_length, explicit_vr, error))
         {
             return 0;
         }
+        walk->at = element.value_at + element.value_length;
+    }
+    return DICOM_CHECK(*explicit_vr >= 0, bytes, error, ENGINE_ERROR_REQUEST);
+}
+
+int dicom_side_decimal_list(const EngineSideBytes *side, unsigned long long leaf, unsigned int group,
+                            unsigned int tag, unsigned int want, DicomDecimal *out, unsigned int *found,
+                            EngineError *error)
+{
+    if (!DICOM_CHECK((side != NULL) && (out != NULL) && (found != NULL) && (leaf < side->leaves) && (want != 0u),
+                     side, error, ENGINE_ERROR_REQUEST))
+    {
+        return 0;
+    }
+    *found = 0u;
+    // a leaf's bytes run up to the start of its pixel value; the elements wanted here all come before it
+    const unsigned long long start = side->byte_start[leaf];
+    const unsigned long long end = side->byte_start[leaf + 1ull];
+    const unsigned long long kept = (side->pixel_at[leaf] <= (end - start)) ? side->pixel_at[leaf] : (end - start);
+    DicomWalk walk = {side->bytes + start, kept, 0ull};
+    int explicit_vr = -1;
+    if (!dicom_meta(&walk, &explicit_vr, error))
+    {
+        return 0;
+    }
+    const unsigned long long wanted = ((unsigned long long)group << 16u) | (unsigned long long)tag;
+    while ((walk.length - walk.at) >= 8ull)
+    {
+        const unsigned long long seen =
+            (dicom_little(walk.bytes + walk.at, 2u) << 16u) | dicom_little(walk.bytes + walk.at + 2u, 2u);
+        if ((seen > wanted) || (seen == 0x7FE00010ull))
+        {
+            return 1;
+        }
+        DicomElement element;
+        if (!dicom_element(&walk, explicit_vr, &element, error))
+        {
+            return 0;
+        }
+        if (element.undefined != 0)
+        {
+            const int nested_explicit = ((element.vr[0] == 'U') && (element.vr[1] == 'N')) ? 0 : explicit_vr;
+            if (!dicom_skip_sequence(&walk, nested_explicit, error))
+            {
+                return 0;
+            }
+            continue;
+        }
+        if ((seen == wanted) && (element.value_length != 0ull))
+        {
+            if (!dicom_decimal_list(walk.bytes + element.value_at, element.value_length, want, out, error))
+            {
+                return 0;
+            }
+            *found = 1u;
+            return 1;
+        }
         walk.at = element.value_at + element.value_length;
     }
-    if (!DICOM_CHECK(explicit_vr >= 0, bytes, error, ENGINE_ERROR_REQUEST))
+    return 1;
+}
+
+static int dicom_parse(DicomSlice *slice, EngineError *error)
+{
+    const unsigned char *const bytes = slice->member;
+    DicomWalk walk = {bytes, slice->member_bytes, 0ull};
+    int explicit_vr = -1;
+    if (!dicom_meta(&walk, &explicit_vr, error))
     {
         return 0;
     }
@@ -215,27 +280,52 @@ static int dicom_prefix_length(const unsigned char *name, unsigned long long len
     return (last != 0ull) ? 1 : 0;
 }
 
+// one slice's work, run on a worker: its member unpacked from the series' span and parsed, its error its own
+typedef struct
+{
+    const EngineIngestTools *tools;
+    const ZipSpan *span;
+    const ZipEntry *entries;
+    DicomSlice *slices;
+    EngineError *errors;
+} DicomGatherWork;
+
+static int dicom_gather_slice(void *context, unsigned long long item)
+{
+    const DicomGatherWork *const work = (const DicomGatherWork *)context;
+    DicomSlice *const slice = &work->slices[item];
+    EngineError *const error = &work->errors[item];
+    return (zip_span_member(work->tools, work->span, &work->entries[item], slice->member, slice->member_bytes,
+                            error) != ZIP_ERROR) &&
+           dicom_parse(slice, error);
+}
+
+// The series' slices: their entries named in order, their bytes read in one fetch as the span they lie in, then each
+// unpacked, held to its CRC and parsed on the workers the tools hand over (`each`), or one at a time where they hand
+// none. The first slice in order that failed gives the error
 int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArchive *archive, unsigned long long first,
                  unsigned long long count, EngineError *error)
 {
     DicomResident *const resident = &g_dicom_resident;
     resident->slices = (DicomSlice *)calloc((size_t)count + 1u, sizeof(DicomSlice));
     resident->order = (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
-    if (!DICOM_CHECK((resident->slices != NULL) && (resident->order != NULL), &resident->slices, error,
-                     ENGINE_ERROR_RESOURCE))
+    ZipEntry *const entries = (ZipEntry *)calloc((size_t)count + 1u, sizeof(ZipEntry));
+    EngineError *const errors = (EngineError *)calloc((size_t)count + 1u, sizeof(EngineError));
+    if (!DICOM_CHECK((resident->slices != NULL) && (resident->order != NULL) && (entries != NULL) && (errors != NULL),
+                     &resident->slices, error, ENGINE_ERROR_RESOURCE))
     {
+        free(entries);
+        free(errors);
         return 0;
     }
     const unsigned char *series = NULL;
     unsigned long long series_length = 0ull;
-    for (unsigned long long slot = first; slot < (first + count); slot += 1ull)
+    int ok = 1;
+    for (unsigned long long slot = first; ok && (slot < (first + count)); slot += 1ull)
     {
         ZipEntry entry;
-        if (!zip_entry_at(archive, slot, &entry, error))
-        {
-            return 0;
-        }
-        if ((entry.name_length == 0ull) || (entry.name[entry.name_length - 1ull] == '/'))
+        ok = zip_entry_at(archive, slot, &entry, error);
+        if (!ok || (entry.name_length == 0ull) || (entry.name[entry.name_length - 1ull] == '/'))
         {
             continue;
         }
@@ -246,32 +336,49 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
             series = entry.name;
             series_length = prefix;
         }
-        if (!DICOM_CHECK(named && (prefix == series_length) && (memcmp(entry.name, series, (size_t)prefix) == 0),
-                         entry.name, error, ENGINE_ERROR_REQUEST))
+        ok = DICOM_CHECK(named && (prefix == series_length) && (memcmp(entry.name, series, (size_t)prefix) == 0),
+                         entry.name, error, ENGINE_ERROR_REQUEST);
+        DicomSlice *const slice = ok ? &resident->slices[resident->count] : NULL;
+        if (!ok)
         {
-            return 0;
+            continue;
         }
-        DicomSlice *const slice = &resident->slices[resident->count];
         slice->member = (unsigned char *)malloc((size_t)entry.uncompressed + 1u);
         slice->name = (char *)malloc((size_t)entry.name_length + 1u);
-        if (!DICOM_CHECK((slice->member != NULL) && (slice->name != NULL), &entry, error, ENGINE_ERROR_RESOURCE))
-        {
-            resident->count += 1ull;
-            return 0;
-        }
+        entries[resident->count] = entry;
         resident->count += 1ull;
+        ok = DICOM_CHECK((slice->member != NULL) && (slice->name != NULL), &entry, error, ENGINE_ERROR_RESOURCE);
+        if (!ok)
+        {
+            continue;
+        }
         memcpy(slice->name, entry.name, (size_t)entry.name_length);
         slice->name[entry.name_length] = '\0';
         slice->name_length = entry.name_length;
         slice->member_crc = entry.crc;
         slice->member_bytes = entry.uncompressed;
-        if ((zip_member_read(tools, path, archive, &entry, slice->member, entry.uncompressed, error) == ZIP_ERROR) ||
-            !dicom_parse(slice, error))
-        {
-            return 0;
-        }
     }
-    return DICOM_CHECK(resident->count != 0ull, archive, error, ENGINE_ERROR_REQUEST);
+    ok = ok && DICOM_CHECK(resident->count != 0ull, archive, error, ENGINE_ERROR_REQUEST);
+    ZipSpan span;
+    memset(&span, 0, sizeof(span));
+    ok = ok && zip_span_read(tools, path, archive, entries, resident->count, &span, error);
+    const DicomGatherWork work = {tools, &span, entries, resident->slices, errors};
+    if (ok && (tools->each != NULL))
+    {
+        ok = tools->each(resident->count, dicom_gather_slice, (void *)&work);
+    }
+    for (unsigned long long item = 0ull; ok && (tools->each == NULL) && (item < resident->count); item += 1ull)
+    {
+        ok = dicom_gather_slice((void *)&work, item);
+    }
+    for (unsigned long long item = 0ull; (item < resident->count) && (error->kind == ENGINE_ERROR_NONE); item += 1ull)
+    {
+        *error = (errors[item].kind != ENGINE_ERROR_NONE) ? errors[item] : *error;
+    }
+    zip_span_release(&span);
+    free(entries);
+    free(errors);
+    return ok;
 }
 
 int dicom_agree(EngineError *error)

@@ -211,7 +211,13 @@ export class Editor {
       this.measure();
       this.schedule();
     });
-    new ResizeObserver(() => this.schedule()).observe(host);
+    // A hidden editor measures nothing, and measures again once it shows.
+    new ResizeObserver(() => {
+      if (!this.measured) {
+        this.measure();
+      }
+      this.schedule();
+    }).observe(host);
     this.bind();
     this.show(null);
   }
@@ -222,7 +228,9 @@ export class Editor {
     const probe = document.createElement("span");
     probe.textContent = "M".repeat(100);
     this.text.append(probe);
-    this.cw = probe.getBoundingClientRect().width / 100 || 7.8;
+    const width = probe.getBoundingClientRect().width;
+    this.measured = width > 0;
+    this.cw = width / 100 || this.cw || 7.8;
     probe.remove();
     LINE = Math.round(Number.parseFloat(getComputedStyle(this.host).lineHeight)) || LINE;
   }
@@ -1539,6 +1547,21 @@ export class Editor {
       }
     }
     return keys;
+  }
+
+  // Binds keys written as a menu lists them, such as "Shift+Alt+F" or "Ctrl+K Ctrl+I", each to its
+  // `run`. A key the editor already binds keeps its own.
+  addKeys(list) {
+    const named = (press) => {
+      const parts = press.split("+");
+      const key = parts.pop() || "+";
+      const held = [parts.includes("Ctrl") && "Mod", parts.includes("Alt") && "Alt", parts.includes("Shift") && "Shift"].filter(Boolean);
+      return [...held, key].join("+");
+    };
+    for (const { keys, run } of list) {
+      const name = keys.split(" ").map(named).join(" ");
+      this.keys[name] ??= run;
+    }
   }
 
   onKey(event) {

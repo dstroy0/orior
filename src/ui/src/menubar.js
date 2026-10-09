@@ -4,8 +4,9 @@
 // The menu bar, as commands.json lists it: the list the command line reads too, so that each item
 // here is `orior <menu> <command>` there. What each command does in the window is COMMANDS below,
 // what it needs before it can act is NEEDS, whether an item that is on or off is on is CHECKS, and
-// the keys an item lists are bound here as well. A key the editor or the terminal takes first stays
-// theirs.
+// the keys an item lists are bound here as well, with its `also`, a second key that does the same. A
+// key the editor or the terminal takes first stays theirs, and the keys of a command for the editor
+// are given to the editor, which acts on them while it holds the keys.
 //
 // A menu of jobs lists the catalog's groups it names, split by what each job works on where it says
 // so, and a group with no job in the tree has no menu. A job chosen from a menu shows in the run view
@@ -20,7 +21,7 @@
 
 import { invoke } from "./bridge.js";
 import { showClone } from "./clone.js";
-import { crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
+import { bindEditorKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
 import { showPreferences } from "./preferences.js";
@@ -200,6 +201,11 @@ const COMMANDS = {
   bracket: inEditor((e) => e.jumpBracket()),
   bridge: goToBridge,
   definition: inEditor(() => editing().definition()),
+  usages: inEditor(() => editing().usages()),
+  rename: inEditor(() => editing().rename()),
+  "quick-fix": inEditor(() => editing().quickFix()),
+  "parameter-info": inEditor(() => editing().parameterInfo()),
+  "quick-doc": inEditor(() => editing().quickDoc()),
   "next-problem": inEditor((e) => e.stepProblem(1)),
   "previous-problem": inEditor((e) => e.stepProblem(-1)),
   "next-match": inEditor((e) => e.find.step(1)),
@@ -323,7 +329,7 @@ function showShortcuts() {
     block.append(Object.assign(document.createElement("h3"), { textContent: menu.title }));
     for (const item of rows) {
       const row = document.createElement("div");
-      row.append(Object.assign(document.createElement("span"), { textContent: item.labels?.[scheme()] ?? item.label }), Object.assign(document.createElement("kbd"), { textContent: item.keys }));
+      row.append(Object.assign(document.createElement("span"), { textContent: item.labels?.[scheme()] ?? item.label }), Object.assign(document.createElement("kbd"), { textContent: item.also ? `${item.keys}, ${item.also}` : item.keys }));
       block.append(row);
     }
     body.append(block);
@@ -505,7 +511,7 @@ function onShortcut(event) {
   }
   for (const menu of state.menus) {
     for (const item of menu.items ?? []) {
-      if (item !== "-" && item.needs !== "editor" && pressed(item.keys, event)) {
+      if (item !== "-" && item.needs !== "editor" && (pressed(item.keys, event) || pressed(item.also, event))) {
         event.preventDefault();
         if (!item.needs || NEEDS[item.needs]?.()) {
           runCommand(item.command);
@@ -528,6 +534,11 @@ export async function startMenubar({ openFolder }) {
   state.bar = document.getElementById("menubar");
   state.openFolder = openFolder;
   state.menus = JSON.parse(await invoke("commands_read")).menus;
+  bindEditorKeys(
+    state.menus.flatMap((menu) =>
+      (menu.items ?? []).filter((item) => item !== "-" && item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
+    ),
+  );
   state.autoReport = await invoke("report_auto").catch(() => true);
   const [asked, question] = await invoke("report_asked").catch(() => [true, ""]);
   if (!asked) {
