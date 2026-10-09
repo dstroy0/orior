@@ -198,6 +198,10 @@ const COMMANDS = {
     showView("edit");
     openPalette(`@${args.join(" ")}`);
   },
+  "symbol-tree": (args) => {
+    showView("edit");
+    openPalette(`#${args.join(" ")}`);
+  },
   replace: inEditor((e) => e.find.open(true)),
   comment: inEditor((e) => e.toggleComment()),
   format: () => editing().format(),
@@ -656,6 +660,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     files: () => invoke("tree_files"),
     recent: recentFiles,
     symbols: () => editing().symbols(),
+    treeSymbols: (query) => invoke("symbols_find", { query }),
     lineCount: () => editing().lineCount(),
     goLine: (line, col) => editing().goLine(line, col),
     openFile: (path, line, col) => {

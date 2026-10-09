@@ -9,10 +9,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Code intelligence
 
-1. **Symbols of the whole tree.** Search Everywhere and Go to Symbol find a declaration in any file of the tree, not only in the file open, from an index the language servers and the outline readers keep up to date as files change.
-2. **Refactorings of orior's own.** Extract a variable, a constant or a function from a selection; inline one again; change a function's parameters across every call; move a declaration to another file. Each is one step that undo takes back, and each works where the language server offers none.
-3. **Inspections.** Checks of orior's own over the tree's languages, run as files change, each listed in Problems beside the servers' diagnostics with a quick fix where one applies.
-4. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
+1. **Refactorings of orior's own.** Extract a variable, a constant or a function from a selection; inline one again; change a function's parameters across every call; move a declaration to another file. Each is one step that undo takes back, and each works where the language server offers none.
+2. **Inspections.** Checks of orior's own over the tree's languages, run as files change, each listed in Problems beside the servers' diagnostics with a quick fix where one applies.
+3. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
 
 ## Version control
 

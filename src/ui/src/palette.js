@@ -4,11 +4,11 @@
 // The quick open along the top of the window, which reads what is typed by its first letter: a file
 // of the tree by default, the files opened last first, and path:line:column going to that place; >
 // for the menus' commands, the ones run last first; : for a line of the open file, as :line:column;
-// and @ for what the open file declares. Up and Down choose, Enter goes, and Escape gives the keys
-// back to what had them.
+// @ for what the open file declares; and # for what any file of the tree declares. Up and Down
+// choose, Enter goes, and Escape gives the keys back to what had them.
 //
 // Search Everywhere, which Shift pressed twice opens, reads what is typed as all of these at once:
-// the files that answer it, then what the open file declares, then the commands, each under its
+// the files that answer it, then what the tree's files declare, then the commands, each under its
 // heading.
 
 import { fuzzy, marked } from "./fuzzy.js";
@@ -122,6 +122,25 @@ function symbolRows(query) {
   return rows.sort((a, b) => b.score - a.score);
 }
 
+// What the tree's files declare whose names answer `query`, from the index the app keeps of them.
+// While the index is still being read, a last row says more may be found.
+async function treeSymbolRows(query) {
+  const found = await state.hooks.treeSymbols(query).catch(() => null);
+  if (!found) {
+    return [{ label: "Open a tree to go to what its files declare.", hits: [], run: null }];
+  }
+  const rows = found.symbols.map((symbol) => ({
+    label: symbol.name,
+    hits: fuzzy(query, symbol.name)?.hits ?? [],
+    detail: `${symbol.kind}, ${symbol.path}:${symbol.line + 1}`,
+    run: () => state.hooks.openFile(symbol.path, symbol.line, 0),
+  }));
+  if (found.reading) {
+    rows.push({ label: "Reading the tree's files: more may be found.", hits: [], run: null });
+  }
+  return rows;
+}
+
 async function fileRows(query) {
   const { path, line, col } = placeOf(query.trim());
   const files = await treeFiles();
@@ -170,7 +189,8 @@ const heading = (label) => ({ label, hits: [], run: null, heading: true });
 async function everywhereRows(text) {
   const query = text.trim();
   const files = (await fileRows(query)).slice(0, EVERYWHERE_EACH);
-  const symbols = state.hooks.symbols() ? symbolRows(query).slice(0, EVERYWHERE_EACH) : [];
+  // With nothing typed, what the open file declares; with a query, what the whole tree does.
+  const symbols = query ? (await treeSymbolRows(query)).filter((row) => row.run).slice(0, EVERYWHERE_EACH) : state.hooks.symbols() ? symbolRows(query).slice(0, EVERYWHERE_EACH) : [];
   const commands = commandRows(query).slice(0, EVERYWHERE_EACH);
   return [
     ...(files.length ? [heading("Files"), ...files] : []),
@@ -195,6 +215,9 @@ async function rowsFor(text) {
   if (text.startsWith("@")) {
     return symbolRows(text.slice(1).trim());
   }
+  if (text.startsWith("#")) {
+    return treeSymbolRows(text.slice(1).trim());
+  }
   return fileRows(text);
 }
 
@@ -208,7 +231,7 @@ function placeholderOf(text) {
   if (text.startsWith(">")) {
     return "Type the name of a command to run.";
   }
-  return "Search files by name (append :line to go to a line, or type > for commands, : for a line, @ for a symbol)";
+  return "Search files by name (append :line to go to a line, or type > for commands, : for a line, @ for a symbol here, # for one in the tree)";
 }
 
 function drawRows() {
@@ -300,7 +323,7 @@ export function paletteOpen() {
   return Boolean(state.node && !state.node.hidden);
 }
 
-// `hooks` gives the palette what it reads: commands(), files(), recent(), symbols(), lineCount(),
+// `hooks` gives the palette what it reads: commands(), files(), recent(), symbols(), treeSymbols(query), lineCount(),
 // goLine(line, col) and openFile(path, line, col).
 export function startPalette(hooks) {
   state.hooks = hooks;

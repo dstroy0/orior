@@ -12,7 +12,7 @@ mod scrollback;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
+use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, plugins, report, root, run_file, runner, servers, symbols, toolchains, validate};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -32,6 +32,7 @@ struct App {
     terms: terminal::Terms,
     scrollbacks: scrollback::Scrollbacks,
     servers: Arc<servers::Servers>,
+    symbols: symbols::Index,
     debugger: Arc<debug::Debugger>,
     windows: AtomicU64,
 }
@@ -58,6 +59,7 @@ fn root_set(app: State<App>, path: String) -> Result<String, String> {
     // A server answers for the tree it started in. Another tree starts its own as its files open.
     if moved {
         app.servers.let_go();
+        app.symbols.forget();
     }
     Ok(path.to_string_lossy().into_owned())
 }
@@ -207,6 +209,19 @@ fn tree_find(app: State<App>, query: String) -> Result<Vec<String>, String> {
 #[tauri::command]
 fn tree_files(app: State<App>) -> Result<Vec<String>, String> {
     Ok(files::all(&root_of(&app)?))
+}
+
+/// The most declarations one search of the tree's symbols gives.
+const SYMBOLS_MOST: usize = 200;
+
+/// The declarations in the tree's files whose names answer `query`, the best first, and whether
+/// the index was still being read. Each search brings the index up to date behind it.
+#[tauri::command(async)]
+fn symbols_find(app: State<App>, query: String) -> Result<symbols::Found, String> {
+    let root = root_of(&app)?;
+    let listed = root.clone();
+    app.symbols.refresh(&root, move || files::all(&listed));
+    Ok(app.symbols.find(&query, SYMBOLS_MOST))
 }
 
 /// Every line in the tree's files that holds the query, for Find in Files.
@@ -1016,6 +1031,7 @@ fn open(launch: Launch) {
             tree_list,
             tree_find,
             tree_files,
+            symbols_find,
             tree_search,
             zoom_set,
             tree_changed,

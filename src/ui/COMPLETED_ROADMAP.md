@@ -12,4 +12,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 6. **A tab back at its saved text shows no change.** Typing a letter and taking it out again leaves the tab marked as saved.
 7. **A large file as quick as a small one.** A file of 50 MB and 870,025 lines opens in about 120 ms, goes to its end in about 170 ms, takes a letter there in about 60 ms and pages in about 120 ms: each the time the file of 2,677 lines takes, and each settled as soon. The rest of the file is read in behind the view, by the page's clock 2.6 s from its top or 5.3 s from its end, and a row far down it is drawn as sharply as the first.
 8. **Smooth motion counted.** Counted frame by frame on a display that draws 120 frames a second: the lattice draws at about 114 a second and misses none of 60, and a burning fuse holds all 120. A fast scroll through a file of 2,677 lines or of 870,025 holds 60 a second, missing at most 4 frames in 4 s, and reaches 77 to 88 of the display's 120.
-9. **Start measured.** Launched cold from the release build, the window shows in about 1.25 s and takes its first key, Ctrl+P opening Go to File, in about 1.75 s: the middle of five launches, each timed from the launch with the keys pressed until one is taken.
+9. **Start measured.** Launched cold from the release build, the window is drawn in about 0.96 s and its keys are bound in about 1.04 s: the middle of five launches, each read from the page's own clock against the moment of the launch. The page itself starts about 0.65 s in.
+
+## Code intelligence
+
+1. **Symbols of the whole tree.** Go to Symbol in Tree, Ctrl+T or `#` in Go to File, and Search Everywhere find a declaration in any file of the tree, from an index of what each file declares, read by the line as the outline reads the open file. A file is read again once it changes. The whole of this repository is read in about 1.1 s, behind the window, and a search answers in about 70 ms.

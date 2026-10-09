@@ -133,6 +133,7 @@
         { "label": "Recent Files…", "command": "recent-files", "keys": "Ctrl+E" },
         { "label": "Go to File…", "command": "file", "keys": "Ctrl+P", "args": "[path[:line[:column]]]" },
         { "label": "Go to Symbol in Editor…", "command": "symbol", "keys": "Ctrl+Shift+O", "args": "[name]", "needs": "text" },
+        { "label": "Go to Symbol in Tree…", "command": "symbol-tree", "keys": "Ctrl+T", "args": "[name]" },
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
         { "label": "Toggle Bookmark", "command": "bookmark", "keys": "Ctrl+F11", "needs": "editor" },
