@@ -48,7 +48,6 @@
 #include "../protocol/query/answer_read.h"
 #include "../protocol/teacher/run_channel.h"
 
-#include "../../vendor_bin_layouts/nvidia/cubin_write.h"
 #include "../../vendor_bin_layouts/nvidia/sass_machine.h"
 
 #include "../interface/interface.h"
@@ -57,8 +56,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a container takes, the most places its code holds, and the bytes of one instruction
-#define KHW_PATTERN_BYTES 262144u
+// the most places a kernel's code holds, and the bytes of one instruction
 #define KHW_PLACES 256u
 #define KHW_INSTRUCTION 16u
 
@@ -79,10 +77,7 @@
 // the name a form's relation is written under in the answers file, for the vendor's writer to name it from
 #define KHW_READS_LADDER "ladder."
 
-// the container the system accepted, the part it enters at, and how many registers a thread of it holds
-static unsigned char s_pattern[KHW_PATTERN_BYTES];
-static unsigned long long s_pattern_size;
-static char s_kernel[128];
+// how many registers a thread of the kernel holds, read with the kernel
 static unsigned int s_registers;
 
 // the kernel, the question's code written from it, how many places it holds, the place the slot stands at, and the
@@ -668,37 +663,48 @@ static void khw_fields_asked(KhwAnswered *held)
     s_pooled = 0u;
 }
 
-// the kernel, read out of the container the layout at `path` holds: the container's bytes, the part it enters at, the
-// registers a thread of it holds, and its code. 1, or 0 with the reason printed
-static int khw_kernel_read(const char *path)
+static int khw_vendor_run(const char *mode, const char *answers);
+
+// the kernel the vendor's writer reads out of the container, got through the interface and read back from the file it
+// writes (khw_machine_write, kernel mode): the places it holds into s_kernel_places, the registers a thread holds into
+// s_registers, and each place's encoding into s_kernel_text. 1, or 0 with the reason printed
+static int khw_kernel_read(void)
 {
-    s_pattern_size = cubin_pattern_read(path, s_pattern, sizeof(s_pattern), s_kernel, sizeof(s_kernel));
-    if (s_pattern_size == 0ull)
+    char kernel_path[1024];
+    snprintf(kernel_path, sizeof(kernel_path), "%s/kernel.txt", s_folder);
+    if (!khw_vendor_run("kernel", kernel_path))
     {
         return 0;
     }
-    unsigned long long offsets[KHW_PLACES];
-    unsigned long long sizes[KHW_PLACES];
-    const unsigned int sections = cubin_code_sections(s_pattern, s_pattern_size, offsets, sizes, KHW_PLACES);
-    if (sections == 0u)
+    FILE *const file = fopen(kernel_path, "rb");
+    if (file == NULL)
     {
-        printf("  khw_write: the container at %s holds no code the kernel is read from\n", path);
+        printf("  khw_write: %s could not be read\n", kernel_path);
         return 0;
     }
-    if ((sizes[0] == 0ull) || ((sizes[0] % KHW_INSTRUCTION) != 0ull) ||
-        (sizes[0] > (unsigned long long)sizeof(s_kernel_text)))
+    char line[256];
+    if ((fgets(line, sizeof(line), file) == NULL) ||
+        (sscanf(line, "kernel %u %u", &s_kernel_places, &s_registers) != 2) || (s_kernel_places == 0u) ||
+        (s_kernel_places > KHW_PLACES) || (s_registers == 0u))
     {
-        printf("  khw_write: the kernel is %llu bytes, which is no whole count of places the kernel holds\n", sizes[0]);
+        printf("  khw_write: %s holds no kernel this reads\n", kernel_path);
+        fclose(file);
         return 0;
     }
-    memcpy(s_kernel_text, &s_pattern[offsets[0]], (size_t)sizes[0]);
-    s_kernel_places = (unsigned int)(sizes[0] / KHW_INSTRUCTION);
-    s_registers = cubin_registers_read(s_pattern, s_pattern_size, s_kernel);
-    if (s_registers == 0u)
+    for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
     {
-        printf("  khw_write: the container says how many registers no thread of %s holds\n", s_kernel);
-        return 0;
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        if ((fgets(line, sizeof(line), file) == NULL) || (sscanf(line, "%llx %llx", &low, &high) != 2))
+        {
+            printf("  khw_write: %s holds %u places, fewer than its header says\n", kernel_path, place);
+            fclose(file);
+            return 0;
+        }
+        khw_word_write(&s_kernel_text[place * KHW_INSTRUCTION], 0u, low);
+        khw_word_write(&s_kernel_text[place * KHW_INSTRUCTION], 8u, high);
     }
+    fclose(file);
     return 1;
 }
 
@@ -893,11 +899,10 @@ int main(int count, char **word)
     s_folder = word[5];
     s_machine_writer = word[6];
     const unsigned int rounds = (split > 7) ? (unsigned int)strtoul(word[7], NULL, 10) : 1u;
-    if (!khw_kernel_read(s_layout))
+    if (!khw_kernel_read())
     {
         return 1;
     }
-    printf("  khw_write: %s, %u places of kernel, %u registers a thread\n", s_kernel, s_kernel_places, s_registers);
     char forms_path[1024];
     snprintf(forms_path, sizeof(forms_path), "%s/forms.txt", s_folder);
     // the gate's file written before asking: the vendor's writer lays the kernel's places out, and the carrier reads

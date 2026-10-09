@@ -3906,3 +3906,5 @@ ask 587393d8953c06bd 10 0 0 0 1 0d97b57868eb3f53 answers a
 ask 3567bdc17b3ff417 10 0 0 0 1 0d97b57868eb3f53 answers 6
 cycle 2 khw_write
 sample fa42ffdc71789263 10 0 0 100 8 61f60a6d48cda265 answers 1649791
+cycle 3 khw_write
+sample fa42ffdc71789263 10 0 0 100 8 61f60a6d48cda265 answers 1153344

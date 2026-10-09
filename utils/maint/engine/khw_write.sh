@@ -48,9 +48,7 @@ BINARY="$OUT/khw_write"
 cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/khw_write.c" \
     "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/query/answer_read.c" "$PROTOCOL/record_R/record.c" \
     "$PROTOCOL/gate/survivors.c" "$PROTOCOL/order/scheduler.c" \
-    "$INTERFACE/interface.c" \
-    "$INTERFACE/interface_names.c" "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
-    "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" ||
+    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" ||
     { echo "  build failed: khw_write did not compile"; exit 1; }
 
 # the vendor's writer, a program the protocol runs through the interface to name the answers and lay out the .khw

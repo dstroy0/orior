@@ -5,13 +5,14 @@
 //
 //     khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
-// Two modes. In `gate` the file holds the places of the kernel the system accepted, read from the container the
-// layout holds, one form a place, so that the gate reads every question of a round against what the part has already
-// run (cubin_safe.h). In `final` the file holds the forms the part answered for, read from the answers file the
-// protocol wrote, each named from the vendor's table (mnemonic_nvidia.tsv) and laid out as the instruction its runs
-// make; a form the table names none of is no form of the file. The answers file is one form a line: the relation the
-// protocol read, whether it read a word signed and whether it asked, the encoding, how many runs its operands sit in,
-// and each run's first and last bit.
+// Three modes. In `kernel` the container the layout holds is read and the kernel the system accepted is written to
+// `answers` for the protocol: a header of its places and the registers a thread holds, then one line a place with the
+// place's encoding. In `gate` the file holds those same places, one form a place, so that the gate reads every
+// question of a round against what the part has already run (cubin_safe.h). In `final` the file holds the forms the
+// part answered for, read from the answers file the protocol wrote, each named from the vendor's table
+// (mnemonic_nvidia.tsv) and laid out as the instruction its runs make; a form the table names none of is no form of
+// the file. The answers file is one form a line: the relation the protocol read, whether it read a word signed and
+// whether it asked, the encoding, how many runs its operands sit in, and each run's first and last bit.
 #include "cubin_write.h"
 #include "sass_machine.h"
 
@@ -422,6 +423,31 @@ int main(int count, char **word)
     const char *const mnemonics = word[4];
     const char *const answers = word[5];
     const char *const mode = word[6];
+    if (strcmp(mode, "kernel") == 0)
+    {
+        // the kernel read out of the container and written to `answers` for the protocol: its places and the registers
+        // a thread holds, then one line a place with the place's encoding
+        if (!khw_kernel_read(layout))
+        {
+            return 1;
+        }
+        FILE *const out = fopen(answers, "wb");
+        if (out == NULL)
+        {
+            printf("  khw_machine_write: %s could not be written\n", answers);
+            return 1;
+        }
+        fprintf(out, "kernel %u %u\n", s_kernel_places, s_registers);
+        for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
+        {
+            const unsigned long long low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
+            const unsigned long long high = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 8u);
+            fprintf(out, "%016llx %016llx\n", low, high);
+        }
+        fclose(out);
+        printf("  the kernel %s: %u places, %u registers a thread\n", s_kernel, s_kernel_places, s_registers);
+        return 0;
+    }
     if (!khw_pieces_read(mnemonics))
     {
         return 1;
