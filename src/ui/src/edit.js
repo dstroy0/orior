@@ -38,6 +38,7 @@ import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
 import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
 import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
+import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -1802,6 +1803,14 @@ function editorItems() {
     { label: "Find Usages", keys: "Shift+F12", run: findUsages },
     { label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
     { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served, run: quickFix },
+    {
+      label: "Refactor",
+      items: [
+        { label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
+        { label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
+        { label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
+      ],
+    },
     "-",
     { label: "Cut", keys: "Ctrl+X", run: held("cut") },
     { label: "Copy", keys: "Ctrl+C", run: held("copy") },
@@ -1852,6 +1861,9 @@ export function editing() {
     definition: () => state.editor?.s && goToDefinition(state.editor.head()),
     usages: findUsages,
     rename: renameSymbol,
+    extractVariable: () => state.editor?.s && extractVariable(editing().editor ?? state.editor, fileOf(state.active)),
+    extractConstant: () => state.editor?.s && extractConstant(editing().editor ?? state.editor),
+    inlineVariable: () => state.editor?.s && inlineVariable(editing().editor ?? state.editor),
     quickFix,
     parameterInfo: () => parameterInfo(),
     quickDoc,

@@ -60,6 +60,14 @@
         { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true },
         "-",
         { "label": "Rename Symbol…", "command": "rename", "keys": "F2", "also": "Shift+F6", "needs": "editor" },
+        {
+          "label": "Refactor",
+          "items": [
+            { "label": "Extract Variable", "command": "extract-variable", "keys": "Ctrl+Alt+V", "needs": "editor" },
+            { "label": "Extract Constant", "command": "extract-constant", "keys": "Ctrl+Alt+C", "needs": "editor" },
+            { "label": "Inline Variable", "command": "inline-variable", "keys": "Ctrl+Alt+N", "needs": "editor" }
+          ]
+        },
         { "label": "Quick Fix…", "command": "quick-fix", "keys": "Ctrl+.", "also": "Alt+Enter", "needs": "editor" },
         { "label": "Parameter Info", "command": "parameter-info", "keys": "Ctrl+Shift+Space", "needs": "editor" },
         { "label": "Quick Documentation", "command": "quick-doc", "keys": "Ctrl+K Ctrl+I", "also": "Ctrl+Q", "needs": "editor" }

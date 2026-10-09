@@ -3682,9 +3682,11 @@ body[data-view="run"] .statusbar .ed-status {
   outline: 0;
 }
 
-/* A popup menu: a panel lifted over the page, its keys set to the right in the code face. */
+/* A popup menu: a panel lifted over the page, its keys set to the right in the code face. It stands
+   absolute and not fixed: the page never scrolls and the two place it alike, and the web view draws
+   none of the editor's text under a fixed menu that crosses it. */
 .menu {
-  position: fixed;
+  position: absolute;
   z-index: 50;
   min-width: 13rem;
   padding: 0.3rem;
