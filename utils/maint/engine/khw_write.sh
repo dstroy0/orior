@@ -73,11 +73,14 @@ if [ "$MODE" = "enumerate" ]; then
     # the slot's questions emitted off the part for the vendor's disassembler, seeded from the forms a prior run
     # learned where there are any: each known form's fields and register-runs listed, none carried, nothing reached
     rm -f "$WORK/questions.txt" "$WORK"/question*.bin "$WORK"/cases*.txt "$WORK"/answers*.txt
-    FORMS="$WORK/forms.txt"
+    # the split's working set where there is one, else the forms a prior learn run laid out: the working set holds the
+    # forms a discover found with their fields unasked, the ones whose turns a cross reads before a field pass asks them
+    FORMS="$WORK/forms_work.txt"
+    [ -s "$FORMS" ] || FORMS="$WORK/forms.txt"
     FORMS_WORDS=()
     if [ -s "$FORMS" ]; then
         FORMS_WORDS=(--forms "$FORMS")
-        echo "  seeding from the $(grep -c . "$FORMS") forms a prior run learned"
+        echo "  seeding from the $(grep -c . "$FORMS") forms in $(basename "$FORMS")"
     fi
     "$BINARY" sm_86 "$MACHINE" "$LAYOUTS/nvidia/elf64_nvidia.tsv" "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" "$WORK" \
         "$WRITER" --slot "$SLOT" "${FORMS_WORDS[@]}" -- dry || { echo "  the enumerate did not run"; exit 1; }

@@ -746,9 +746,11 @@ static int khw_form_asked(unsigned long long low, unsigned long long high)
 
 // Every form the part answered for widened: each bit outside its runs, its key and the scheduler's word turned, and
 // the turned encoding asked its relation from the top. Every turned encoding's relation waits on no other answer, and
-// they are put SCHEDULER_ROUND_MOST to a round; each that answered one is then asked its fields. The count found this
-// round
-static unsigned int khw_widened(unsigned int from)
+// they are put SCHEDULER_ROUND_MOST to a round. Where `discover` is 0 each that answered a relation is then asked its
+// fields; where it is not 0 it is kept with its fields unasked, for a cross-check to read its turns before a later
+// pass asks them off a part that would hang on an encoding the vendor calls illegal. A form whose fields are not yet
+// found is no source of a widening, since its turns are the very questions not yet read. The count found this round
+static unsigned int khw_widened(unsigned int from, int discover)
 {
     const unsigned int until = s_names;
     unsigned int found = 0u;
@@ -759,6 +761,10 @@ static unsigned int khw_widened(unsigned int from)
     for (unsigned int at = from; at < until; at += 1u)
     {
         const KhwAnswered held = s_named[at];
+        if ((discover != 0) && (held.runs == 0u))
+        {
+            continue;
+        }
         for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (turned < KHW_FORMS); bit += 1u)
         {
             int inside = 0;
@@ -810,12 +816,23 @@ static unsigned int khw_widened(unsigned int from)
         for (unsigned int at = 0u; (at < related) && (s_names < KHW_FORMS); at += 1u)
         {
             KhwAnswered held = s_related[at];
-            khw_fields_asked(&held);
+            if (discover == 0)
+            {
+                khw_fields_asked(&held);
+            }
             s_named[s_names] = held;
             s_names += 1u;
             found += 1u;
-            printf("    ladder.%-8s %016llx %016llx  %u runs, %u surviving\n", s_anchor_text[held.anchor], held.low,
-                   held.high, held.runs, held.survivors);
+            if (discover != 0)
+            {
+                printf("    ladder.%-8s %016llx %016llx  discovered, its turns held for a cross-check\n",
+                       s_anchor_text[held.anchor], held.low, held.high);
+            }
+            else
+            {
+                printf("    ladder.%-8s %016llx %016llx  %u runs, %u surviving\n", s_anchor_text[held.anchor],
+                       held.low, held.high, held.runs, held.survivors);
+            }
         }
     }
     return found;
@@ -823,8 +840,40 @@ static unsigned int khw_widened(unsigned int from)
 
 // the forms the part answered for written to the answers file at `path`, one a line, for the vendor's writer to name
 // and lay out: the relation the gate read, whether the answers read a word signed and whether the part was asked, the
-// encoding, and each run's first and last bit. 1, or 0 with the reason printed
+// encoding, and each run's first and last bit. A form whose fields are not yet found carries no run and names nothing;
+// the vendor lays out none of them. 1, or 0 with the reason printed
 static int khw_answers_written(const char *path)
+{
+    FILE *const file = fopen(path, "wb");
+    if (file == NULL)
+    {
+        printf("  khw_write: %s could not be written\n", path);
+        return 0;
+    }
+    for (unsigned int at = 0u; at < s_names; at += 1u)
+    {
+        const KhwAnswered *const held = &s_named[at];
+        if (held->runs == 0u)
+        {
+            continue;
+        }
+        fprintf(file, "%s%s %d %d %016llx %016llx %u", KHW_READS_LADDER, s_anchor_text[held->anchor],
+                held->signed_read, held->signedness_asked, held->low, held->high, held->runs);
+        for (unsigned int run = 0u; run < held->runs; run += 1u)
+        {
+            fprintf(file, " %u %u", held->first[run], held->last[run]);
+        }
+        fprintf(file, "\n");
+    }
+    fclose(file);
+    return 1;
+}
+
+// The working set written to `path`, every form of it a line in the answers file's own form, the ones the part has
+// answered for and the ones a widening discovered and left for a cross-check alike: a form with no run is one whose
+// fields are not yet found, read back by khw_forms_read the next pass. It is the state the discover pass and the
+// field pass hand each other, kept apart from what the vendor lays out. 1, or 0 with the reason printed
+static int khw_forms_work_written(const char *path)
 {
     FILE *const file = fopen(path, "wb");
     if (file == NULL)
@@ -901,6 +950,18 @@ static unsigned int khw_forms_read(const char *path)
                    &held.high, &held.runs, &at) != 6)
         {
             continue;
+        }
+        // the relation named back to its anchor, for a form read in to write the same relation out
+        held.anchor = (unsigned int)LADDER_ANCHOR_COUNT;
+        const size_t prefix = strlen(KHW_READS_LADDER);
+        const char *const name = (strncmp(relation, KHW_READS_LADDER, prefix) == 0) ? (relation + prefix) : relation;
+        for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
+        {
+            if (strcmp(s_anchor_text[anchor], name) == 0)
+            {
+                held.anchor = anchor;
+                break;
+            }
         }
         if (held.runs > KHW_RUNS)
         {
@@ -998,10 +1059,14 @@ int main(int count, char **word)
     s_machine_writer = word[6];
     // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <path>]: the slot whose questions are
     // emitted for the vendor's disassembler, and the forms a prior run learned to seed them from, in place of the learn
-    // loop (khw_enumerate)
+    // loop (khw_enumerate). [--discover] widens the working set a round and keeps what it finds with its fields unasked;
+    // [--fields] asks the fields of what a discover left; the two hand each other the working set and a cross-check
+    // reads the turns between them, and no form's fields reach the part before the vendor has read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
+    int discover = 0;
+    int fields = 0;
     for (int at = 7; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
@@ -1013,6 +1078,14 @@ int main(int count, char **word)
         {
             forms = word[at + 1];
             at += 1;
+        }
+        else if (strcmp(word[at], "--discover") == 0)
+        {
+            discover = 1;
+        }
+        else if (strcmp(word[at], "--fields") == 0)
+        {
+            fields = 1;
         }
         else
         {
@@ -1075,6 +1148,74 @@ int main(int count, char **word)
                (forms != NULL) ? " from the forms a prior run learned" : "", s_asks);
         return 0;
     }
+    // the split: a discover pass widens the working set a round and keeps what it finds with its fields unasked, a
+    // field pass asks the fields of what a discover left. Between them a cross-check reads the turns the field pass
+    // would ask, and no form's fields reach the part before the vendor has read them. The working set is the folder's
+    // forms_work.txt, which the two passes hand each other; the slot is found afresh each pass, off the kernel's code
+    if ((discover != 0) || (fields != 0))
+    {
+        char work_path[1024];
+        snprintf(work_path, sizeof(work_path), "%s/forms_work.txt", s_folder);
+        KhwAnswered kernel;
+        memset(&kernel, 0, sizeof(kernel));
+        unsigned long long nanoseconds = 0ull;
+        unsigned int slot = 0u;
+        if (!khw_first_round(&kernel, &slot, &nanoseconds) || (slot == s_kernel_places))
+        {
+            printf("  khw_write: no slot was found, and nothing was asked of a form\n");
+            run_channel_close();
+            return 1;
+        }
+        s_slot = slot;
+        s_names = khw_forms_read(work_path);
+        if (discover != 0)
+        {
+            if (s_names == 0u)
+            {
+                // the working set empty: the kernel's own slot form seeded, its relation and fields asked, every turn
+                // of it one the vendor has read every run as the first field-finding round
+                const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
+                const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
+                printf("  the slot: place %u of %u, at 0x%x; the working set seeded from the kernel's form\n", s_slot,
+                       s_kernel_places, s_slot * KHW_INSTRUCTION);
+                khw_form_asked(slot_low, slot_high);
+            }
+            const unsigned int found = khw_widened(0u, 1);
+            run_channel_close();
+            if (!khw_forms_work_written(work_path))
+            {
+                return 1;
+            }
+            printf("  discover: %u form(s) found this round, %u in the working set, %llu asks; their turns await a "
+                   "cross-check\n",
+                   found, s_names, s_asks);
+            return 0;
+        }
+        unsigned int asked = 0u;
+        for (unsigned int at = 0u; at < s_names; at += 1u)
+        {
+            if (s_named[at].runs != 0u)
+            {
+                continue;
+            }
+            KhwAnswered held = s_named[at];
+            if (khw_relation_asked(held.low, held.high, &held))
+            {
+                khw_fields_asked(&held);
+                s_named[at] = held;
+                asked += 1u;
+            }
+        }
+        run_channel_close();
+        if (!khw_forms_work_written(work_path) || !khw_answers_written(forms_path) ||
+            !khw_vendor_run("final", forms_path))
+        {
+            return 1;
+        }
+        printf("  fields: %u form(s) asked their fields, %llu asks; %s names what the part has answered for\n", asked,
+               s_asks, s_path);
+        return 0;
+    }
     KhwAnswered kernel;
     memset(&kernel, 0, sizeof(kernel));
     unsigned long long nanoseconds = 0ull;
@@ -1109,7 +1250,7 @@ int main(int count, char **word)
     for (unsigned int round = 0u; round < rounds; round += 1u)
     {
         const unsigned int until = s_names;
-        const unsigned int found = khw_widened(from);
+        const unsigned int found = khw_widened(from, 0);
         from = until;
         printf("  round %u: %u forms found, %u in all, %llu asks\n", round + 1u, found, s_names, s_asks);
         if (found == 0u)
