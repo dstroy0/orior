@@ -92,7 +92,7 @@ nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -
 if [ -n "${SASS_PATTERN:-}" ]; then
     [ -f "$SASS_PATTERN/form_0.cubin" ] || { echo "  no form_0.cubin in $SASS_PATTERN"; exit 1; }
     FIRST="${ARCHES%% *}"
-    "$BINARY" "$PROBE" "$SASS_PATTERN" loop "$TOP/src/cu/transpiler/lstar/coherence/$FIRST"
+    "$BINARY" "$PROBE" "$SASS_PATTERN" loop "$TOP/src/cu/transpiler/lstar/protocol/table/$FIRST"
     STATUS=$?
     echo "  interface sass loop exit $STATUS"
     exit "$STATUS"
@@ -102,12 +102,12 @@ mkdir -p "$OUT/sass"
 # the asks are put against the machine file the tree holds for the first architecture
 if [ -z "${SASS_LEARN:-}" ]; then
     FIRST="${ARCHES%% *}"
-    "$BINARY" "$PROBE" "$OUT/sass" asks "$TOP/src/cu/transpiler/lstar/coherence/$FIRST"
+    "$BINARY" "$PROBE" "$OUT/sass" asks "$TOP/src/cu/transpiler/lstar/protocol/table/$FIRST"
     STATUS=$?
     echo "  interface sass asks exit $STATUS"
     exit "$STATUS"
 fi
-"$BINARY" "$PROBE" "$OUT/sass" "$TOP/src/cu/transpiler/lstar/coherence"
+"$BINARY" "$PROBE" "$OUT/sass" "$TOP/src/cu/transpiler/lstar/protocol/table"
 STATUS=$?
 echo "  interface sass test exit $STATUS"
 exit "$STATUS"

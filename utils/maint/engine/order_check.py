@@ -346,7 +346,7 @@ def check_transplant(say):
 
 # The matrices live in the document and are read from it. Nothing here can drift from what the
 # document says, because nothing is copied here.
-MATRIX_DOC = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "src", "c", "transpiler", "gnascor.md")
+MATRIX_DOC = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "src", "cu", "transpiler", "gnascor.md")
 MATRIX_HEAD = re.compile(r"^\|\s*past \(N-1\)")
 
 

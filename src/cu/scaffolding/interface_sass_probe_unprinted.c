@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_unprinted.c: bits the disassembler does not print, asked of the part. A question is a few
-// instructions put in place of the frame's IADD3, one of them the instruction whose bits are turned. That instruction
+// instructions put in place of the kernel's IADD3, one of them the instruction whose bits are turned. That instruction
 // is assembled through the machine file, every value of the field is written into its encoding in turn, and each
 // encoding is run on the part over one case. What the part answers for each value is kept, against the answer the
 // printed text says. A value that answers as printed leaves the field without effect on this question; one that
 // answers otherwise, or does not run, is the part reading the field.
 //
-// No disassembler is asked. The pattern cubin, the frame's text and the runner are an earlier run's. The runner
+// No disassembler is asked. The pattern cubin, the kernel's text and the runner are an earlier run's. The runner
 // loads a cubin and runs its kernel over one case of eight words.
 //
-//     interface_sass_probe_unprinted <runner> <pattern cubin> <frame text> <machine file> <folder> <record>
+//     interface_sass_probe_unprinted <runner> <pattern cubin> <kernel text> <machine file> <folder> <record>
 //
-// The frame's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
-// into. The frame loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
+// The kernel's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
+// into. The kernel loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
 #include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
 #include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 #include "../transpiler/lstar/interface/interface.h"
@@ -34,7 +34,7 @@
 // the widest field turned through every value, and the most bits a question holds fixed beside it
 #define UNPRINTED_FIELD_MOST 6u
 #define UNPRINTED_FIXED 2u
-// the words a run answers: the frame stores R7 as the first and zero as the other three, and a question may store
+// the words a run answers: the kernel stores R7 as the first and zero as the other three, and a question may store
 // over those three
 #define UNPRINTED_COPIES 4u
 // the registers a thread of every cubin written declares, the most a cubin declares. A kernel refuses a register
@@ -52,7 +52,7 @@ typedef struct
     unsigned long long value;
 } UnprintedFixed;
 
-// one question: the lines put in place of the frame's IADD3, the one among them whose bits are turned, the field
+// one question: the lines put in place of the kernel's IADD3, the one among them whose bits are turned, the field
 // turned, the bits held beside it, and the word the printed text says the part answers
 typedef struct
 {
@@ -69,7 +69,7 @@ typedef struct
 #define UNPRINTED_PREDICATES "ISETP.NE.U32.AND P1, PT, R0, RZ, PT\nISETP.NE.U32.AND P2, PT, RZ, RZ, PT\n"
 
 // the load of the case's first word and the store of R0 into the answer's third word, each through the descriptor
-// register the frame loaded
+// register the kernel loaded
 #define UNPRINTED_LOAD "LDG.E.CONSTANT R7, term[UR4][R2.64]"
 #define UNPRINTED_STORE "STG.E term[UR4][R4.64+0x8], R0"
 #define UNPRINTED_ATOMIC "ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0"
@@ -87,7 +87,7 @@ typedef struct
     "ISETP.NE.U32.AND P6, PT, R0, RZ, PT\n"
 
 // The questions of the machine file's open item. The case is 0xb and 0x7, and R2 holds the case's address, R4 the
-// answer's, UR4 the memory descriptor the frame loaded from c[0x0][0x118].
+// answer's, UR4 the memory descriptor the kernel loaded from c[0x0][0x118].
 static const UnprintedQuestion s_questions[] = {
     // IMAD's carry-in predicate, which IMAD reads as IMAD.X and prints nowhere else
     {UNPRINTED_PREDICATES "IMAD.IADD R7, R0, 0x1, R7", "IMAD.IADD R7, R0, 0x1, R7", 87u, 4u, {{0u, 0u, 0ull}},
@@ -145,7 +145,7 @@ static unsigned char s_pattern[UNPRINTED_CUBIN_BYTES];
 static unsigned char s_cubin[UNPRINTED_CUBIN_BYTES];
 static unsigned char s_code[UNPRINTED_CODE_BYTES];
 static unsigned char s_turned[UNPRINTED_CODE_BYTES];
-static char s_frame[UNPRINTED_TEXT_BYTES];
+static char s_kernel_text[UNPRINTED_TEXT_BYTES];
 static char s_asking[UNPRINTED_TEXT_BYTES];
 static char s_output[UNPRINTED_OUTPUT_BYTES];
 static unsigned int s_exits[UNPRINTED_EXITS];
@@ -228,29 +228,29 @@ static void unprinted_binary(unsigned long long value, unsigned int bits, char *
     text[bits] = '\0';
 }
 
-// the frame's text with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the frame holds
+// the kernel's text with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel holds
 // no such line or `text` will not hold the whole
-static int unprinted_text(const char *frame, const char *lines, char *text, size_t room)
+static int unprinted_text(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = strstr(frame, "\nIADD3 ");
+    const char *const line = strstr(kernel_text, "\nIADD3 ");
     if (line == NULL)
     {
         return 0;
     }
     const char *const after = strchr(line + 1, '\n');
-    const size_t before = (size_t)(line - frame) + 1u;
-    return snprintf(text, room, "%.*s%s%s", (int)before, frame, lines, (after != NULL) ? after : "") < (int)room;
+    const size_t before = (size_t)(line - kernel_text) + 1u;
+    return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
 }
 
-// the kernel the frame's text opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
-static int unprinted_kernel(const char *frame, char *kernel, size_t room)
+// the kernel the kernel's text opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
+static int unprinted_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (strncmp(frame, ".text.", 6u) != 0)
+    if (strncmp(kernel_text, ".text.", 6u) != 0)
     {
         return 0;
     }
-    const size_t length = strcspn(frame + 6, ":\r\n");
-    return (frame[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, frame + 6) < (int)room);
+    const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
 // every instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s, their numbers in order
@@ -372,7 +372,7 @@ static int unprinted_ask(const UnprintedQuestion *question, unsigned int number,
     }
     unsigned long long low = 0ull;
     unsigned long long high = 0ull;
-    const unsigned int count = unprinted_text(s_frame, question->lines, s_asking, sizeof(s_asking))
+    const unsigned int count = unprinted_text(s_kernel_text, question->lines, s_asking, sizeof(s_asking))
                                    ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code,
                                                          sizeof(s_code))
                                    : 0u;
@@ -510,7 +510,7 @@ static int unprinted_form_text(const SassForm *form, char *text, size_t room, co
 
 // The lines of the forms question: UNPRINTED_COPIES copies of `instruction`, each after P1 and P2 are set again and
 // each moving its result into R8 where the result is a predicate or a uniform register. The first copy's R8 is moved
-// into R7, which the frame stores as the first word, and each copy past it stores its R8 as a word of its own
+// into R7, which the kernel stores as the first word, and each copy past it stores its R8 as a word of its own
 static int unprinted_form_lines(const char *instruction, unsigned int result, char *lines, size_t room)
 {
     size_t at = (size_t)snprintf(lines, room, "IMAD.MOV.U32 R6, RZ, RZ, R7\n");
@@ -583,7 +583,7 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
 }
 
 // The lines of the memory question: `instruction` once, the word it found stored as the answer's second word, and the
-// answer's third word, which the instruction wrote, loaded into R7, which the frame stores as the first
+// answer's third word, which the instruction wrote, loaded into R7, which the kernel stores as the first
 static int unprinted_memory_lines(const char *instruction, char *lines, size_t room)
 {
     return snprintf(lines, room,
@@ -733,7 +733,7 @@ static void unprinted_forms(FILE *record)
         const int lined = written && (memory ? unprinted_memory_lines(instruction, s_lines, sizeof(s_lines))
                                              : unprinted_form_lines(instruction, form->kind[0], s_lines,
                                                                     sizeof(s_lines)));
-        const unsigned int count = (lined && unprinted_text(s_frame, s_lines, s_asking, sizeof(s_asking)))
+        const unsigned int count = (lined && unprinted_text(s_kernel_text, s_lines, s_asking, sizeof(s_asking)))
                                        ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code,
                                                              sizeof(s_code))
                                        : 0u;
@@ -794,19 +794,19 @@ int main(int count, char **words)
     const int forms = (count == 8) && (strcmp(words[7], "forms") == 0);
     if ((count != 7) && !forms)
     {
-        fprintf(stderr, "interface_sass_probe_unprinted <runner> <pattern cubin> <frame text> <machine file> <folder> "
+        fprintf(stderr, "interface_sass_probe_unprinted <runner> <pattern cubin> <kernel text> <machine file> <folder> "
                         "<record> [forms]\n");
         return 2;
     }
     s_runner = words[1];
     s_folder = words[5];
     s_pattern_size = unprinted_file_read(words[2], s_pattern, sizeof(s_pattern));
-    const unsigned long long frame_size =
-        unprinted_file_read(words[3], (unsigned char *)s_frame, sizeof(s_frame) - 1u);
-    s_frame[frame_size] = '\0';
-    if ((s_pattern_size == 0ull) || (frame_size == 0ull) || !unprinted_kernel(s_frame, s_kernel, sizeof(s_kernel)))
+    const unsigned long long kernel_text_size =
+        unprinted_file_read(words[3], (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
+    s_kernel_text[kernel_text_size] = '\0';
+    if ((s_pattern_size == 0ull) || (kernel_text_size == 0ull) || !unprinted_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
     {
-        fprintf(stderr, "the pattern cubin %s or the frame %s did not read\n", words[2], words[3]);
+        fprintf(stderr, "the pattern cubin %s or the kernel %s did not read\n", words[2], words[3]);
         return 2;
     }
     if (!sass_machine_read(&s_machine, words[4]))
@@ -832,7 +832,7 @@ int main(int count, char **words)
                     "Each row is one value of the field written into the question's instruction and run on the part "
                     "over the case 0xb, 0x7. A value that answers as printed leaves the field without effect on that "
                     "question.\n\n"
-                    "Each question's lines, put in place of the frame's `IADD3`:\n\n");
+                    "Each question's lines, put in place of the kernel's `IADD3`:\n\n");
     for (unsigned int number = 0u; number < questions; number += 1u)
     {
         fprintf(record, "%u. `", number + 1u);

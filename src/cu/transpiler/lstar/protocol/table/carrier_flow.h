@@ -13,7 +13,7 @@
 #ifndef CARRIER_FLOW_H
 #define CARRIER_FLOW_H
 
-#include "run_channel.h"
+#include "../teacher/run_channel.h"
 
 #include <algorithm>
 #include <regex>

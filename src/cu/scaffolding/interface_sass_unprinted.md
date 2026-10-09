@@ -2,7 +2,7 @@
 
 Written by `interface_sass_probe_unprinted` (`interface_sass_unprinted.sh`) whole on every run. Each row is one value of the field written into the question's instruction and run on the part over the case 0xb, 0x7. A value that answers as printed leaves the field without effect on that question.
 
-Each question's lines, put in place of the frame's `IADD3`:
+Each question's lines, put in place of the kernel's `IADD3`:
 
 1. `ISETP.NE.U32.AND P1, PT, R0, RZ, PT`; `ISETP.NE.U32.AND P2, PT, RZ, RZ, PT`; `IMAD.IADD R7, R0, 0x1, R7`
 2. `ISETP.NE.U32.AND P1, PT, R0, RZ, PT`; `ISETP.NE.U32.AND P2, PT, RZ, RZ, PT`; `IMAD.IADD R7, R0, 0x1, -R7`

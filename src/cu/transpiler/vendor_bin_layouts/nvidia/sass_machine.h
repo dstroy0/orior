@@ -13,7 +13,8 @@
 // form's fields. Matching an operand to a field by the value the base happens to hold there is not enough, because a
 // field the operation does not use holds 0 and a register or predicate numbered 0 matches it.
 //
-// A part's own file is machines/<part>. Its first line is `forms 1`, then `part <name>`, then a line a form:
+// A part's own file is <part>.khw beside its rulesets (src/cu/types/file_defs/khw). Its first line is `forms 1`, then
+// `part <name>`, then a line a form:
 //
 //     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>;... <the instruction it was seen as>
 //
@@ -193,7 +194,7 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts);
 
 // The machine written to `path`, and read back from it: 1, or 0 with the reason printed. A read takes too what the
-// part answered on the run channel from the .ksc beside it, `path` with .ksc after it: each line
+// part answered on the run channel from the .ksc beside it, `path` with .ksc in place of .khw: each line
 // `run answers <stall> stall <writer> <reader>` is the soonest <reader> reads <writer>'s result, and an operation's
 // soonest read is the largest of its lines. A machine with no .ksc beside it holds none
 int sass_machine_write(const SassMachine *machine, const char *path);

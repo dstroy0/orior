@@ -154,7 +154,7 @@ int main(void)
     {
         return 1;
     }
-    s_machine_read = sass_machine_read(&s_machine, "src/cu/transpiler/lstar/coherence/sm_86");
+    s_machine_read = sass_machine_read(&s_machine, "src/cu/transpiler/lstar/protocol/table/sm_86.khw");
     printf("machine %s: %u forms\n", s_machine.part, s_machine.forms);
     static unsigned int asked[OPCODE_COUNT];
     unsigned int laid = 0u;

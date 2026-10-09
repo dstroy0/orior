@@ -17,7 +17,7 @@ fi
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HERE="$TOP/src/cu/scaffolding"
-RULESETS="$TOP/src/cu/transpiler/lstar/coherence"
+RULESETS="$TOP/src/cu/transpiler/lstar/protocol/table"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
 CODEGEN="$TOP/src/cu/engine/rmc"
@@ -92,5 +92,5 @@ nvcc "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -o "$OUT/monolith_forms.cubin" 
 nvcc "${HOST_FLAGS[@]}" -ptx -arch="$ARCH" -O3 -o "$OUT/monolith_forms.ptx" "$OUT/monolith_forms.cu" || exit 1
 cuobjdump -sass "$OUT/monolith_forms.cubin" > "$OUT/monolith_forms.sass" || exit 1
 "$OUT/monolith_forms" read "$OUT/questions.tsv" "$OUT/monolith_forms.sass" "$OUT/monolith_forms.ptx" \
-    "$RULESETS/sass.krs" "$RULESETS/ptx.krs" "src/cu/transpiler/lstar/coherence/sm_86" "$TOP/src/cu/scaffolding/monolith_forms.md" \
+    "$RULESETS/sass.krs" "$RULESETS/ptx.krs" "src/cu/transpiler/lstar/protocol/table/sm_86.khw" "$TOP/src/cu/scaffolding/monolith_forms.md" \
     $APPLY || exit 1

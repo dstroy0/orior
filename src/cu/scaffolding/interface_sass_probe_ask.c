@@ -174,7 +174,7 @@ static void sass_ask_named(const char *instruction, char *named, size_t room)
 // one tick of the part's clock in nanoseconds, which it named itself: 1770000 kHz (interface_ptx_probe clocks)
 #define SASS_PREFER_TICK (1000.0 / 1770000.0 * 1000.0)
 
-// `coding` wrapped in a loop of SASS_PREFER_TURNS turns, the count in R9, which the frame leaves free. The loop's
+// `coding` wrapped in a loop of SASS_PREFER_TURNS turns, the count in R9, which the kernel leaves free. The loop's
 // own four instructions are under both codings alike and cancel out of the difference
 static int sass_prefer_loop(const char *coding, char *text, size_t room)
 {
@@ -303,7 +303,7 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
 }
 
 // each question of the interface's own written into a cubin of its own, run, and its answer same to what the question
-// says the part should say: how many answered so. form_0's kernel is the frame, which loads the case's first two
+// says the part should say: how many answered so. form_0's kernel is the kernel, which loads the case's first two
 // words into R0 and R7, and stores R7 as the first word of the answer
 unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsigned int *asked)
 {
@@ -367,7 +367,7 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
          "IMAD.MOV.U32 R6, RZ, RZ, 4294967295\nIMAD R8, R2, R3, RZ\nIADD3 R8, P6, R8, R6, RZ\n"
          "IMAD.HI.U32 R9, R2, R3, RZ\nIMAD.X R9, RZ, RZ, R9, P6\nIMAD.MOV.U32 R7, RZ, RZ, R9",
          0xffffffffu},
-        // predicate_bitxor and predicate_bitand as sass.krs writes them, their scratch in R2, R3 and R6, which the frame
+        // predicate_bitxor and predicate_bitand as sass.krs writes them, their scratch in R2, R3 and R6, which the kernel
         // leaves free: R4 and R5 hold the address the answer is stored to and R7 holds the answer. P1 is true, since
         // the case's first word is not zero, and P2 is given the word that makes it true or the zero that does not
         {"ISETP.NE.U32.AND P1, PT, R0, RZ, PT\nISETP.NE.U32.AND P2, PT, RZ, RZ, PT\nSEL R2, RZ, 0x1, P1\n"
@@ -491,7 +491,7 @@ unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsig
 #define SASS_LOOP_LABEL "`(.L_loop0)"
 #define SASS_LOOP_BACK "-0x40"
 
-// where the candidate and the label lie in form_0's section, five lines of the body past the sixteen of the frame
+// where the candidate and the label lie in form_0's section, five lines of the body past the sixteen of the kernel
 // that come before its IADD3. A branch counts from the instruction after it, and only the distance between the two
 // reaches the encoding
 #define SASS_LOOP_AT 0x180ull

@@ -3,7 +3,8 @@
 // many in one, and the line the carrier wrote for each read back as that question's answer
 #include "run_channel.h"
 
-#include "../interface/interface.h"
+#include "../../interface/interface.h"
+#include "../record_R/record.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +24,9 @@ typedef struct
     char folder[RUN_PATH_LONGEST];
     unsigned long long limit_microseconds;
     int open;
+    // 1 where the carrier's only word is `dry`, and the count of questions written so far
+    int dry;
+    unsigned int dry_written;
 } RunChannel;
 
 static RunChannel s_channel;
@@ -46,7 +50,14 @@ int run_channel_open(const char *const *carrier, const char *folder, unsigned lo
     s_channel.words = words;
     snprintf(s_channel.folder, sizeof(s_channel.folder), "%s", folder);
     s_channel.limit_microseconds = limit_microseconds;
+    s_channel.dry = (words == 1u) && (strcmp(s_channel.word[0], "dry") == 0);
     s_channel.open = 1;
+    if (s_channel.dry)
+    {
+        char list_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+        snprintf(list_path, sizeof(list_path), "%s/questions.txt", s_channel.folder);
+        remove(list_path);
+    }
     return 1;
 }
 
@@ -133,9 +144,160 @@ static void run_channel_read(RunQuestion *asked, const char *answers_path)
     asked->outcome = RUN_ANSWERED;
 }
 
+// `asked` written to the folder as the next question of a dry run, its line added to questions.txt, and read as
+// held: nothing carries it and nothing answers it
+static void run_channel_dry_written(RunQuestion *asked)
+{
+    char name[RUN_NAME_LONGEST];
+    char code_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+    char cases_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+    char answers_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+    char list_path[RUN_PATH_LONGEST + RUN_NAME_LONGEST];
+    s_channel.dry_written += 1u;
+    snprintf(name, sizeof(name), "question%u.bin", s_channel.dry_written);
+    run_channel_path(code_path, name);
+    snprintf(name, sizeof(name), "cases%u.txt", s_channel.dry_written);
+    run_channel_path(cases_path, name);
+    snprintf(name, sizeof(name), "answers%u.txt", s_channel.dry_written);
+    run_channel_path(answers_path, name);
+    run_channel_path(list_path, "questions.txt");
+    FILE *const list = fopen(list_path, "ab");
+    const int written = run_channel_write(asked, code_path, cases_path) && (list != NULL) &&
+                        (fprintf(list, "%s %u %s %s %u\n", code_path, asked->registers, cases_path, answers_path,
+                                 asked->launches) > 0);
+    if (list != NULL)
+    {
+        fclose(list);
+    }
+    asked->outcome = written ? (unsigned int)RUN_HELD : (unsigned int)RUN_NO_CHANNEL;
+    snprintf(asked->refused, sizeof(asked->refused), "%s",
+             written ? "dry: written, carried by nothing" : "dry: the question could not be written");
+}
+
+// a question's identity as R keeps it: the hash of its code, its registers, its shape and launches, its count of
+// cases and the hash of its cases, into `identity`, which holds 96
+static void run_channel_identity(const RunQuestion *question, char *identity)
+{
+    unsigned long long code = 0xcbf29ce484222325ull;
+    for (unsigned long long at = 0ull; at < question->code_size; at += 1ull)
+    {
+        code = (code ^ question->code[at]) * 0x100000001b3ull;
+    }
+    unsigned long long cases = 0xcbf29ce484222325ull;
+    const unsigned char *const words = (const unsigned char *)question->word;
+    const size_t bytes = (size_t)question->cases * sizeof(question->word[0]);
+    for (size_t at = 0u; at < bytes; at += 1u)
+    {
+        cases = (cases ^ words[at]) * 0x100000001b3ull;
+    }
+    snprintf(identity, 96u, "%016llx %u %u %u %u %u %016llx", code, question->registers, question->threads,
+             question->blocks, question->launches, question->cases, cases);
+}
+
+// 1 where R holds an answer to the untimed question `asked`, which is then answered from it: answers with the
+// word of every case, and illegal or censored as held off the part, as R keeps them
+static int run_channel_recorded(RunQuestion *asked)
+{
+    static RecordAsk s_held;
+    char identity[96];
+    if ((asked->launches != 0u) || !record_held())
+    {
+        return 0;
+    }
+    run_channel_identity(asked, identity);
+    if (!record_answer(identity, &s_held))
+    {
+        return 0;
+    }
+    const int answers = (strcmp(s_held.answer, "answers") == 0);
+    const int held_off = (strcmp(s_held.answer, "illegal") == 0) || (strcmp(s_held.answer, "censored") == 0);
+    asked->outcome = answers ? (unsigned int)RUN_ANSWERED : held_off ? (unsigned int)RUN_HELD : (unsigned int)RUN_NOTHING;
+    snprintf(asked->refused, sizeof(asked->refused), "%s", s_held.refusal);
+    for (unsigned int place = 0u; answers && (place < asked->cases) && (place < s_held.words); place += 1u)
+    {
+        asked->answered[place] = s_held.word[place];
+    }
+    return 1;
+}
+
+// What came back of the carried question `asked` kept in R: an untimed one as an ask and a timed one as a sample,
+// answers, illegal, nothing, timed_out where its time ran out, or censored where the gate held it. A question nothing
+// carried is kept nowhere
+static void run_channel_kept(const RunQuestion *asked)
+{
+    static RecordAsk s_kept;
+    const char *answer = NULL;
+    switch (asked->outcome)
+    {
+    case RUN_ANSWERED:
+        answer = "answers";
+        break;
+    case RUN_ILLEGAL:
+        answer = "illegal";
+        break;
+    case RUN_HELD:
+        answer = "censored";
+        break;
+    case RUN_NOTHING:
+        answer = (strstr(asked->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? "timed_out"
+                                                                                                       : "nothing";
+        break;
+    default:
+        return;
+    }
+    if (!record_held())
+    {
+        return;
+    }
+    char identity[96];
+    run_channel_identity(asked, identity);
+    if (asked->launches != 0u)
+    {
+        record_sample(identity, answer, asked->nanoseconds, asked->refused);
+        return;
+    }
+    memset(&s_kept, 0, sizeof(s_kept));
+    snprintf(s_kept.answer, sizeof(s_kept.answer), "%s", answer);
+    snprintf(s_kept.refusal, sizeof(s_kept.refusal), "%s", asked->refused);
+    for (unsigned int place = 0u; (asked->outcome == RUN_ANSWERED) && (place < asked->cases) && (place < RECORD_WORDS);
+         place += 1u)
+    {
+        s_kept.word[place] = asked->answered[place];
+        s_kept.words += 1u;
+    }
+    record_keep(identity, &s_kept);
+}
+
+int run_channel_record(const char *path, const char *member, const char *mode)
+{
+    return record_open(path, member, mode);
+}
+
+static int run_channel_carried(RunQuestion *asked);
+
 int run_channel_ask(RunQuestion *asked)
 {
     asked->refused[0] = '\0';
+    if (run_channel_recorded(asked))
+    {
+        return asked->outcome == RUN_ANSWERED;
+    }
+    const int answered = run_channel_carried(asked);
+    if (!s_channel.dry)
+    {
+        run_channel_kept(asked);
+    }
+    return answered;
+}
+
+// `asked` carried as run_channel_ask carries it, R aside
+static int run_channel_carried(RunQuestion *asked)
+{
+    if (s_channel.open && s_channel.dry)
+    {
+        run_channel_dry_written(asked);
+        return 0;
+    }
     if (!s_channel.open)
     {
         asked->outcome = RUN_NO_CHANNEL;
@@ -216,9 +378,51 @@ int run_channel_ask(RunQuestion *asked)
     return asked->outcome == RUN_ANSWERED;
 }
 
+static unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int count);
+
 unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
 {
+    // the questions R answers taken first, and only the rest carried, each kept in R once it comes back
+    RunQuestion **const left = (RunQuestion **)malloc((size_t)(count + 1u) * sizeof(RunQuestion *));
+    if (left == NULL)
+    {
+        return run_channel_carried_many(asked, count);
+    }
+    unsigned int recorded = 0u;
+    unsigned int lefts = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        asked[at]->refused[0] = '\0';
+        if (run_channel_recorded(asked[at]))
+        {
+            recorded += (asked[at]->outcome == RUN_ANSWERED) ? 1u : 0u;
+            continue;
+        }
+        left[lefts] = asked[at];
+        lefts += 1u;
+    }
+    const unsigned int carried = (lefts != 0u) ? run_channel_carried_many(left, lefts) : 0u;
+    for (unsigned int at = 0u; (at < lefts) && !s_channel.dry; at += 1u)
+    {
+        run_channel_kept(left[at]);
+    }
+    free(left);
+    return recorded + carried;
+}
+
+// the questions of `asked` carried as run_channel_ask_many carries them, R aside
+static unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned int count)
+{
     unsigned int answered = 0u;
+    if (s_channel.open && s_channel.dry)
+    {
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            asked[at]->refused[0] = '\0';
+            run_channel_dry_written(asked[at]);
+        }
+        return 0u;
+    }
     if (!s_channel.open)
     {
         for (unsigned int at = 0u; at < count; at += 1u)
@@ -338,6 +542,7 @@ unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count)
 
 void run_channel_close(void)
 {
+    record_close();
     memset(&s_channel, 0, sizeof(s_channel));
 }
 

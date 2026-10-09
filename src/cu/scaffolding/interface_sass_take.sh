@@ -11,7 +11,7 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LISTING="${1:?a listing, as cuobjdump -sass or nvdisasm prints it, or --fields}"
-MACHINE="${2:-$TOP/src/cu/transpiler/lstar/coherence/sm_86}"
+MACHINE="${2:-$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw}"
 ARCH="${3:-SM86}"
 TEST="$TOP/src/cu/scaffolding"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"

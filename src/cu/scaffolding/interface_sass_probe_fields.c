@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_fields.c: a form's fields found by running it on the part, not by reading a disassembler. An
-// instruction is assembled through the machine file, put in place of the frame's IADD3, and run once for its answer;
+// instruction is assembled through the machine file, put in place of the kernel's IADD3, and run once for its answer;
 // then each of its 104 operation bits is turned over one at a time and run again. A turned bit that changes the answer
 // or stops the instruction running is a bit the part reads; one that changes nothing is control or unused.
 //
@@ -13,11 +13,11 @@
 // loads each through the driver and answers over one case; a cubin the part refuses ends that runner, and this restarts
 // it past the refusal.
 //
-//     interface_sass_probe_fields <pattern cubin> <frame text> <machine file> <folder> <instructions>
+//     interface_sass_probe_fields <pattern cubin> <kernel text> <machine file> <folder> <instructions>
 //
 // The instructions file holds one instruction a line, as sass_krs_assemble writes the forms a ruleset uses. The tool
 // writes <folder>/list.txt and the cubins it names; interface_sass_run runs that list and writes the answers, which a
-// later pass reads back against the form's runs. The frame opens with its section's label, loads the case into
+// later pass reads back against the form's runs. The kernel opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
 #include "../transpiler/vendor_bin_layouts/nvidia/cubin_write.h"
 #include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
@@ -44,7 +44,7 @@ static SassMachine s_machine;
 static unsigned char s_pattern[FIELDS_CUBIN_BYTES];
 static unsigned char s_cubin[FIELDS_CUBIN_BYTES];
 static unsigned char s_code[FIELDS_CODE_BYTES];
-static char s_frame[FIELDS_TEXT_BYTES];
+static char s_kernel_text[FIELDS_TEXT_BYTES];
 static char s_asking[FIELDS_TEXT_BYTES];
 static unsigned int s_exits[FIELDS_EXITS];
 static char s_kernel[128];
@@ -94,29 +94,29 @@ static void fields_word_write(unsigned char *bytes, unsigned long long word)
     }
 }
 
-// the kernel the frame opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
-static int fields_kernel(const char *frame, char *kernel, size_t room)
+// the kernel the kernel opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
+static int fields_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (strncmp(frame, ".text.", 6u) != 0)
+    if (strncmp(kernel_text, ".text.", 6u) != 0)
     {
         return 0;
     }
-    const size_t length = strcspn(frame + 6, ":\r\n");
-    return (frame[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, frame + 6) < (int)room);
+    const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
-// the frame with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the frame holds no such
+// the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel holds no such
 // line or `text` will not hold the whole
-static int fields_splice(const char *frame, const char *lines, char *text, size_t room)
+static int fields_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = strstr(frame, "\nIADD3 ");
+    const char *const line = strstr(kernel_text, "\nIADD3 ");
     if (line == NULL)
     {
         return 0;
     }
     const char *const after = strchr(line + 1, '\n');
-    const size_t before = (size_t)(line - frame) + 1u;
-    return snprintf(text, room, "%.*s%s%s", (int)before, frame, lines, (after != NULL) ? after : "") < (int)room;
+    const size_t before = (size_t)(line - kernel_text) + 1u;
+    return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
 }
 
 // the instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s: its number, or `count`
@@ -229,10 +229,10 @@ static int fields_flip_safe(unsigned int place, unsigned int bit, char *name, si
     return (s_key_known[key] != 0u) && (s_key_control[key] == 0u);
 }
 
-// the lines a form is run in: the instruction with its result moved to R8, the register the frame stores as the answer,
+// the lines a form is run in: the instruction with its result moved to R8, the register the kernel stores as the answer,
 // and its source registers moved to R10 up. Each source register is set to a distinct value with a zero beside it:
 // turning a bit of a source's field reaches a register of another value and changes the answer. R6 keeps the case's
-// second word, which the frame leaves in R7. P0 to P6 are each set true or false by whether their number holds an odd
+// second word, which the kernel leaves in R7. P0 to P6 are each set true or false by whether their number holds an odd
 // count of one bits, as PT, P7, does: turning any one bit of a predicate field reaches a predicate of the other value,
 // and a predicate source or a guard changes the answer
 #define FIELDS_LINES_HEAD                                                                                              \
@@ -248,12 +248,12 @@ static int fields_flip_safe(unsigned int place, unsigned int bit, char *name, si
 #define FIELDS_LINES_PREDICATE "\nSEL R8, R12, R10, P0"
 // the registers a form's source operands are moved onto, in order, each set in the head above
 #define FIELDS_SOURCES 6u
-// the register pair a global load's address is moved onto: the frame leaves R2 and R3 holding the address of the
+// the register pair a global load's address is moved onto: the kernel leaves R2 and R3 holding the address of the
 // thread's case, which the head does not touch, and a load from it reads the case's words
 #define FIELDS_LOAD_ADDRESS "R2"
 
 // the first instruction of the file at `path` that is a form to probe, into `instruction`: 1, or 0 where the file
-// holds none. The frame's own IADD3 and blank lines are passed over, as the write pass passes them
+// holds none. The kernel's own IADD3 and blank lines are passed over, as the write pass passes them
 static int fields_first(const char *path, char *instruction, size_t room)
 {
     FILE *const file = fopen(path, "rb");
@@ -470,10 +470,10 @@ static int fields_address_swap(const char *operand, const char *put, char *out, 
     return snprintf(out, room, "%.*s%s", (int)(open + 1 - operand), operand, swapped) < (int)room;
 }
 
-// `instruction` written to `redirected`, rebuilt from its parts, with its first operand moved where the frame reads it
+// `instruction` written to `redirected`, rebuilt from its parts, with its first operand moved where the kernel reads it
 // and each source register operand moved to the next of the head's set registers, where the form's result and its
 // source fields reach the answer. A global load's address is moved onto the case's, where the load reads the case's
-// words and not memory no thread holds. A first operand that is a register moves to R8, the register the frame stores
+// words and not memory no thread holds. A first operand that is a register moves to R8, the register the kernel stores
 // as the answer. A first operand that is a predicate moves to P0, and `observe` takes the line that turns P0 into a
 // value in R8; it is left empty otherwise. A form whose first operand is neither, or is one the operation reads, is
 // copied as it stands, since nothing of it would be observed through R8. 1, or 0 where `redirected` or `observe` will
@@ -542,7 +542,7 @@ static int fields_redirect(const char *instruction, char *redirected, size_t roo
     return at < room;
 }
 
-// the first instruction of `instructions`, moved where the frame reads it and assembled alone, with each operation bit
+// the first instruction of `instructions`, moved where the kernel reads it and assembled alone, with each operation bit
 // turned and read back through the machine file, nothing run. The untouched encoding is printed first, under `base`,
 // with what it reads back as. Each bit is printed with what its turned encoding reads
 // back as: `no form` where no form holds it, `same text` where it reads back as the instruction itself, which no field
@@ -609,18 +609,18 @@ int main(int count, char **words)
     if (count != 6)
     {
         fprintf(stderr,
-                "interface_sass_probe_fields <pattern cubin> <frame text> <machine file> <folder> <instructions>\n"
+                "interface_sass_probe_fields <pattern cubin> <kernel text> <machine file> <folder> <instructions>\n"
                 "interface_sass_probe_fields read <machine file> <instructions> <answers> <record>\n"
                 "interface_sass_probe_fields names <machine file> <instructions>\n");
         return 2;
     }
     const char *const folder = words[4];
     s_pattern_size = fields_file_read(words[1], s_pattern, sizeof(s_pattern));
-    const unsigned long long frame_size = fields_file_read(words[2], (unsigned char *)s_frame, sizeof(s_frame) - 1u);
-    s_frame[frame_size] = '\0';
-    if ((s_pattern_size == 0ull) || (frame_size == 0ull) || !fields_kernel(s_frame, s_kernel, sizeof(s_kernel)))
+    const unsigned long long kernel_text_size = fields_file_read(words[2], (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
+    s_kernel_text[kernel_text_size] = '\0';
+    if ((s_pattern_size == 0ull) || (kernel_text_size == 0ull) || !fields_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
     {
-        fprintf(stderr, "the pattern cubin %s or the frame %s did not read\n", words[1], words[2]);
+        fprintf(stderr, "the pattern cubin %s or the kernel %s did not read\n", words[1], words[2]);
         return 2;
     }
     if (!sass_machine_read(&s_machine, words[3]))
@@ -645,7 +645,7 @@ int main(int count, char **words)
         {
             continue;
         }
-        // the first operand moved to R8, the register the frame stores as the answer, which then holds what the form
+        // the first operand moved to R8, the register the kernel stores as the answer, which then holds what the form
         // writes
         char redirected[512];
         char observe[64];
@@ -658,7 +658,7 @@ int main(int count, char **words)
         snprintf(lines, sizeof(lines), FIELDS_LINES_HEAD "%s%s" FIELDS_LINES_TAIL, redirected, observe);
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
-        const unsigned int assembled = fields_splice(s_frame, lines, s_asking, sizeof(s_asking))
+        const unsigned int assembled = fields_splice(s_kernel_text, lines, s_asking, sizeof(s_asking))
                                            ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code,
                                                                  sizeof(s_code))
                                            : 0u;

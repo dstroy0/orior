@@ -13,8 +13,8 @@
 // them here, with no target involved: a chain that fails a case is wrong everywhere, and there is no reason to ask a
 // target about it. A chain that passes is a candidate the target may or may not be able to write.
 
-#include "../../../engine/rmc/precept_value.h"
-#include "ladder.h"
+#include "../../../../engine/rmc/precept_value.h"
+#include "../counterexample/ladder.h"
 
 // the most nodes a chain holds. One node is the target having the operator outright, two and three are the
 // arrangements worth weighing against one another

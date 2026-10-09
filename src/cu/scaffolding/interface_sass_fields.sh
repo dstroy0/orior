@@ -8,7 +8,7 @@
 #     src/cu/scaffolding/interface_sass_fields.sh [<instructions>] [<earlier run folder>]
 #
 # The instructions default to the forms sass.krs uses, which sass_krs_assemble writes to build/unprinted with a third
-# argument. The earlier run, for its pattern cubin, frame and PTX probe, defaults to the newest under build/.
+# argument. The earlier run, for its pattern cubin, kernel and PTX probe, defaults to the newest under build/.
 #
 # This runs turned-over instructions on the part. A turned bit that made a backward branch would make a loop that
 # never ends and hangs the part, and the display watchdog's reset under the run's load can hold a kernel DPC past its
@@ -52,8 +52,8 @@ cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/int
 
 WIN="$(cygpath -m "$TOP")"
 PATTERN="$(cygpath -m "$RUN")/sass/form_0.cubin"
-FRAME="$(cygpath -m "$RUN")/sass/form_0.text"
-MACHINE="$TOP/src/cu/transpiler/lstar/coherence/sm_86"
+KERNEL_TEXT="$(cygpath -m "$RUN")/sass/form_0.text"
+MACHINE="$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw"
 RECORD="$HERE/interface_sass_fields.md"
 ANSWERS="$OUT/answers.txt"
 ONE="$OUT/one.txt"
@@ -76,7 +76,7 @@ while IFS= read -r line; do
     # the list from the form before is cleared first: a form that does not assemble writes no list and is passed over,
     # never run on the cubins of the one before it
     rm -f "$OUT/list.txt"
-    "$OUT/interface_sass_probe_fields" "$PATTERN" "$FRAME" "$MACHINE" "$(cygpath -m "$OUT")" "$ONE" > /dev/null || continue
+    "$OUT/interface_sass_probe_fields" "$PATTERN" "$KERNEL_TEXT" "$MACHINE" "$(cygpath -m "$OUT")" "$ONE" > /dev/null || continue
     [ -f "$OUT/list.txt" ] || continue
     rm -f "$ANSWERS"
     first=0

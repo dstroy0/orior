@@ -9,7 +9,7 @@
 #
 # Every kernel has the one arity: (const unsigned long long *in, unsigned long long *out, unsigned int count). A thread
 # past count returns; each thread reads its operands as in[4 . thread + k], each turned to its type as a cast does,
-# and writes its result to out[thread], an integer widened and a floating value by its bits. The frame around a
+# and writes its result to out[thread], an integer widened and a floating value by its bits. The kernel around a
 # function is the same text in every kernel of the same types, and what differs between two kernels is the function.
 #
 # Given a bridge, Lstar.klq, it writes in place of the stick every side of every identity between texts the bridge

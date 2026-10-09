@@ -9,7 +9,7 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ARCH="${1:-SM86}"
-MACHINE="$TOP/src/cu/transpiler/lstar/coherence/sm_86"
+MACHINE="$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw"
 OUT="$TOP/build/sass_widen_all"
 mkdir -p "$OUT"
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_writings.c: a writing searched for on the part. Every form of the machine file that writes a register
-// from registers, predicates and numbers alone is put in place of the frame's IADD3 with the case's first two words as
+// from registers, predicates and numbers alone is put in place of the kernel's IADD3 with the case's first two words as
 // its sources, run on the part over every case at once, and read back against what each ladder relation and each
 // precept gives each case. A form that gives every case a relation's word is a writing of that relation in one
 // instruction, found by running it and by nothing else: no name, listing or compiler says which form adds. A number
@@ -10,9 +10,9 @@
 // Nothing is compiled and no disassembler is run. The cubins are written here and run by interface_sass_run, which
 // holds each to cubin_safe, loads it through the driver and runs it over the cases file this writes, a thread a case.
 //
-//     interface_sass_writings <pattern cubin> <frame text> <machine file> <folder>
+//     interface_sass_writings <pattern cubin> <kernel text> <machine file> <folder>
 //     interface_sass_writings read <folder> <record>
-//     interface_sass_writings chains <pattern cubin> <frame text> <machine file> <folder> <kdm>
+//     interface_sass_writings chains <pattern cubin> <kernel text> <machine file> <folder> <kdm>
 //     interface_sass_writings chains-read <folder> <record>
 //
 // The first writes <folder>/list.txt, the cubins it names, <folder>/cases.txt and <folder>/forms.txt, the
@@ -20,7 +20,7 @@
 // every relation and writes the record. The third writes every arrangement of the .kdm node by node, each node the
 // first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
 // the relation each is a row of.
-#include "../transpiler/lstar/protocol/ladder.h"
+#include "../transpiler/lstar/protocol/counterexample/ladder.h"
 #include "../engine/rmc/precept_value.h"
 #include "../engine/rmc/word_web.h"
 #include "../transpiler/vendor_bin_layouts/nvidia/cubin_safe.h"
@@ -40,7 +40,7 @@
 #define WRITINGS_EXITS 256u
 #define WRITINGS_REGISTERS 255u
 // the registers the case's two words are moved onto, each with a zero beside it for a form that reads a pair, and the
-// register the form's result is moved to, which the frame then stores as the answer
+// register the form's result is moved to, which the kernel then stores as the answer
 #define WRITINGS_LEFT "R10"
 #define WRITINGS_RIGHT "R12"
 #define WRITINGS_RESULT "R8"
@@ -50,9 +50,9 @@
 #define WRITINGS_RELATIONS 64u
 #define WRITINGS_LINE 4096u
 
-// the lines a form is run between: the case's words, which the frame leaves in R0 and R7, moved onto the sources, the
+// the lines a form is run between: the case's words, which the kernel leaves in R0 and R7, moved onto the sources, the
 // result's register cleared, and every predicate the form may read set false. After the form its result is moved to
-// R7, which the frame's own store writes as the answer's first word
+// R7, which the kernel's own store writes as the answer's first word
 #define WRITINGS_HEAD                                                                                                  \
     "IMAD.MOV.U32 R10, RZ, RZ, R0\nMOV R11, RZ\nIMAD.MOV.U32 R12, RZ, RZ, R7\nMOV R13, RZ\nMOV R8, RZ\nMOV R9, RZ\n"  \
     "ISETP.NE.AND P0, PT, RZ, RZ, PT\nISETP.NE.AND P1, PT, RZ, RZ, PT\nISETP.NE.AND P2, PT, RZ, RZ, PT\n"              \
@@ -77,7 +77,7 @@ static SassMachine s_machine;
 static unsigned char s_pattern[WRITINGS_CUBIN_BYTES];
 static unsigned char s_cubin[WRITINGS_CUBIN_BYTES];
 static unsigned char s_code[WRITINGS_CODE_BYTES];
-static char s_frame[WRITINGS_TEXT_BYTES];
+static char s_kernel_text[WRITINGS_TEXT_BYTES];
 static char s_asking[WRITINGS_TEXT_BYTES];
 static unsigned int s_exits[WRITINGS_EXITS];
 static char s_kernel[128];
@@ -111,7 +111,7 @@ static unsigned long long writings_file_read(const char *path, unsigned char *by
 }
 
 // 1 where `anchor` is a relation whose answer follows from two words. A measure's answer is the system's and no form
-// gives it; a relation of other than two words does not fit the frame's two sources
+// gives it; a relation of other than two words does not fit the kernel's two sources
 static int writings_anchor_fits(unsigned int anchor)
 {
     return (s_ladder_measured[anchor] == 0) && (s_anchor_words[anchor] == 2u);
@@ -195,29 +195,29 @@ static void writings_cases(void)
     }
 }
 
-// the kernel the frame opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
-static int writings_kernel(const char *frame, char *kernel, size_t room)
+// the kernel the kernel opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
+static int writings_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (strncmp(frame, ".text.", 6u) != 0)
+    if (strncmp(kernel_text, ".text.", 6u) != 0)
     {
         return 0;
     }
-    const size_t length = strcspn(frame + 6, ":\r\n");
-    return (frame[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, frame + 6) < (int)room);
+    const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
-// the frame with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the frame holds no such
+// the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel holds no such
 // line or `text` will not hold the whole
-static int writings_splice(const char *frame, const char *lines, char *text, size_t room)
+static int writings_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = strstr(frame, "\nIADD3 ");
+    const char *const line = strstr(kernel_text, "\nIADD3 ");
     if (line == NULL)
     {
         return 0;
     }
     const char *const after = strchr(line + 1, '\n');
-    const size_t before = (size_t)(line - frame) + 1u;
-    return snprintf(text, room, "%.*s%s%s", (int)before, frame, lines, (after != NULL) ? after : "") < (int)room;
+    const size_t before = (size_t)(line - kernel_text) + 1u;
+    return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
 }
 
 // the sign an operand carries back as its text, since the parts reader cuts it off
@@ -396,15 +396,15 @@ static int writings_cubin(unsigned int count, const char *path)
 
 // every fitting form written into a cubin of its own, with the list, the cases and the forms beside them: 0, or 2
 // where nothing could be read or written
-static int writings_write(const char *pattern, const char *frame, const char *machine, const char *folder)
+static int writings_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder)
 {
     s_pattern_size = writings_file_read(pattern, s_pattern, sizeof(s_pattern));
-    const unsigned long long frame_size = writings_file_read(frame, (unsigned char *)s_frame, sizeof(s_frame) - 1u);
-    s_frame[frame_size] = '\0';
-    if ((s_pattern_size == 0ull) || (frame_size == 0ull) || !writings_kernel(s_frame, s_kernel, sizeof(s_kernel)) ||
+    const unsigned long long kernel_text_size = writings_file_read(kernel_text, (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
+    s_kernel_text[kernel_text_size] = '\0';
+    if ((s_pattern_size == 0ull) || (kernel_text_size == 0ull) || !writings_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)) ||
         !sass_machine_read(&s_machine, machine))
     {
-        fprintf(stderr, "the pattern %s, the frame %s or the machine file %s did not read\n", pattern, frame, machine);
+        fprintf(stderr, "the pattern %s, the kernel %s or the machine file %s did not read\n", pattern, kernel_text, machine);
         return 2;
     }
     writings_cases();
@@ -466,7 +466,7 @@ static int writings_write(const char *pattern, const char *frame, const char *ma
             char lines[2048];
             if (!writings_instruction(form, table, value, assignment, instruction, sizeof(instruction)) ||
                 (snprintf(lines, sizeof(lines), WRITINGS_HEAD "%s" WRITINGS_TAIL, instruction) >= (int)sizeof(lines)) ||
-                !writings_splice(s_frame, lines, s_asking, sizeof(s_asking)))
+                !writings_splice(s_kernel_text, lines, s_asking, sizeof(s_asking)))
             {
                 continue;
             }
@@ -604,7 +604,7 @@ static int writings_read(const char *folder, const char *record)
     const unsigned int refused = s_forms_refused;
     fprintf(out, "# Writings found on the part\n\n");
     fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. Every form of the machine file that writes a "
-                 "register from registers, predicates and numbers alone is run on the part in place of the frame's "
+                 "register from registers, predicates and numbers alone is run on the part in place of the kernel's "
                  "IADD3, its first two register sources given each case's two words and every other register source "
                  "RZ. The cases are the ladder's own two-word cases, the words a width turns on against the counts a "
                  "shift turns on, and drawn words, put at once. A form is listed under a ladder relation or a precept "
@@ -772,16 +772,16 @@ static unsigned int writings_for(unsigned int precept)
 // Every chain of the .kdm at `kdm` written into a cubin of its own in `into`, each node the first writing the search in
 // `folder` found for its precept, with <into>/list.txt and <into>/chains.txt beside them. A row's sixth column, a
 // verdict a descent gave it, is kept in chains.txt. 0, or 2 where nothing could be read or written
-static int writings_chains_write(const char *pattern, const char *frame, const char *machine, const char *folder,
+static int writings_chains_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder,
                                  const char *kdm, const char *into)
 {
     s_pattern_size = writings_file_read(pattern, s_pattern, sizeof(s_pattern));
-    const unsigned long long frame_size = writings_file_read(frame, (unsigned char *)s_frame, sizeof(s_frame) - 1u);
-    s_frame[frame_size] = '\0';
-    if ((s_pattern_size == 0ull) || (frame_size == 0ull) || !writings_kernel(s_frame, s_kernel, sizeof(s_kernel)) ||
+    const unsigned long long kernel_text_size = writings_file_read(kernel_text, (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
+    s_kernel_text[kernel_text_size] = '\0';
+    if ((s_pattern_size == 0ull) || (kernel_text_size == 0ull) || !writings_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)) ||
         !sass_machine_read(&s_machine, machine) || !writings_load(folder))
     {
-        fprintf(stderr, "the pattern, the frame, the machine file or the search in %s did not read\n", folder);
+        fprintf(stderr, "the pattern, the kernel, the machine file or the search in %s did not read\n", folder);
         return 2;
     }
     char path[1024];
@@ -843,7 +843,7 @@ static int writings_chains_write(const char *pattern, const char *frame, const c
                     sizeof(lines));
         }
         fits = fits && (snprintf(&lines[at], sizeof(lines) - at, WRITINGS_TAIL) < (int)(sizeof(lines) - at)) &&
-               writings_splice(s_frame, lines, s_asking, sizeof(s_asking));
+               writings_splice(s_kernel_text, lines, s_asking, sizeof(s_asking));
         const unsigned int instructions =
             fits ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code, sizeof(s_code)) : 0u;
         char cubin[1024];
@@ -1252,9 +1252,9 @@ int main(int count, char **words)
     }
     if (count != 5)
     {
-        fprintf(stderr, "interface_sass_writings <pattern cubin> <frame text> <machine file> <folder>\n"
+        fprintf(stderr, "interface_sass_writings <pattern cubin> <kernel text> <machine file> <folder>\n"
                         "interface_sass_writings read <folder> <record>\n"
-                        "interface_sass_writings chains <pattern cubin> <frame text> <machine file> <folder> <kdm> "
+                        "interface_sass_writings chains <pattern cubin> <kernel text> <machine file> <folder> <kdm> "
                         "[<into>]\n"
                         "interface_sass_writings chains-read <folder> <record>\n"
                         "interface_sass_writings descent-read <record> <into> <cases> [<into> <cases>...]\n");

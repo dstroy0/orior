@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ask_order.c: the known order of asks, its solve, and the read of whether the links contend
 #include "ask_order.h"
-#include "ladder.h"
+#include "../counterexample/ladder.h"
 
-#include "../../../types/integers/exact_integer.h"
+#include "../../../../types/integers/exact_integer.h"
 
 #include <string.h>
 

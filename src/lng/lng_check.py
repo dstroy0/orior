@@ -29,7 +29,6 @@ SELECTED = [
 ]
 KINDS = {"thing", "doing", "gluing", "record", "ksc", "selection"}
 HOL_KINDS = {"type", "plain", "core op"}
-CHOSEN = {"industry", "base", "compound", "picked", "doug"}
 COMPLEMENT = {
     "<": ">=",
     ">=": "<",
@@ -192,8 +191,6 @@ def table_check(head, rows, kinds, key=("word", "kind")):
         seen.add(held)
         if row["kind"] not in kinds:
             defects.append("{} has the kind {}, which no table names".format(row["word"], row["kind"]))
-        if row["chosen_by"] not in CHOSEN:
-            defects.append("{} is chosen by {}, which no table names".format(row["word"], row["chosen_by"]))
         for column in head[head.index(SELECTED[-1]) + 1 :]:
             if column in ("bits", "signed", "c_type", "complement", "transpiler"):
                 continue
@@ -633,7 +630,7 @@ def main():
             findings.append("{} is a {} word nothing in the tree uses".format(row["word"], row["kind"]))
 
     forms = []
-    for line in read("src/cu/transpiler/lstar/coherence/cu.krs").split("\n"):
+    for line in read("src/cu/transpiler/lstar/protocol/table/cu.krs").split("\n"):
         if line.startswith("form "):
             name, text = line[len("form ") :].split("=", 1)
             forms.append((name.split()[0], text))

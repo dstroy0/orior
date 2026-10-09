@@ -34,26 +34,26 @@
 //
 // slice writes <folder>/slices.txt, each slice a line, <folder>/chains.txt, the primitives and the chains, and
 // <folder>/host_questions.cpp, every question whose operands and result are integers that a slice holds, that is a task
-// of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with the frame
+// of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with the arity
 // every kernel shares. The host
 // computes each over every case and writes <folder>/host_answers.txt; read then gives each identity its verdict: the
 // first case the two questions of one of its slices answer apart closes it as two operations, and an identity alike on
 // every case asked stays open with its count of cases. A case the host's C would trap on or leave undefined is asked of
 // nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts write
 // its links, and with the rule a link breaks where asking the part as written would end it
-#include "../interface/interface.h"
+#include "../../interface/interface.h"
 #include "carrier_flow.h"
 #include "code_generator.h"
 #include "concept_product.h"
 #include "precept_value.h"
 #include "query_record.h"
 #include "query_trace.h"
-#include "run_channel.h"
+#include "../teacher/run_channel.h"
 #include "target_internal.h"
 #include "word_web.h"
 extern "C"
 {
-#include "../../vendor_bin_layouts/nvidia/sass_assemble.h"
+#include "../../../vendor_bin_layouts/nvidia/sass_assemble.h"
 }
 
 #include <ctype.h>
@@ -3085,7 +3085,12 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     }
     if (writable)
     {
-        arrangement_probes(engine, host, std::string(machine_path) + ".kdm", sass, &s_machine, stall, longest,
+        const std::string machine_file(machine_path);
+        const size_t typed = machine_file.rfind(".khw");
+        const std::string stem = ((typed != std::string::npos) && (typed + 4u == machine_file.size()))
+                                     ? machine_file.substr(0u, typed)
+                                     : machine_file;
+        arrangement_probes(engine, host, stem + ".kdm", sass, &s_machine, stall, longest,
                            held_pairs, most, &stall_asks, &stall_codes);
     }
     // the one round, and what came back at every stall of each pair

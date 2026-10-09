@@ -45,7 +45,7 @@ CODEGEN="$TOP/src/cu/engine/rmc"
 PARSER="$TOP/src/cu/types/file_defs/readers"
 PROTOCOL="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-COHERENCE="$TOP/src/cu/transpiler/lstar/coherence"
+COHERENCE="$TOP/src/cu/transpiler/lstar/protocol/table"
 LAYOUTS="$TOP/src/cu/transpiler/vendor_bin_layouts"
 STICK="$TOP/build/measuring_stick"
 [ -f "$STICK/measuring_stick_nvcc.sass" ] || { echo "  no stick: run src/cu/scaffolding/measuring_stick.sh"; exit 1; }
@@ -58,9 +58,9 @@ OBJECTS=()
 # one that does not compile is no object
 stale() {
     [ ! -f "$2" ] || [ "$1" -nt "$2" ] ||
-        [ -n "$(find "$CODEGEN" "$PARSER" "$PROTOCOL" "$INTERFACE" "$TOP/src/cu/engine" -name '*.h' -newer "$2" -print -quit)" ]
+        [ -n "$(find "$CODEGEN" "$PARSER" "$PROTOCOL" "$INTERFACE" "$LAYOUTS" "$TOP/src/cu/engine" -name '*.h' -newer "$2" -print -quit)" ]
 }
-for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/klq_identity.cu"; do
+for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;
     esac
@@ -73,7 +73,7 @@ for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/klq_identity.cu"; do
     OBJECTS+=("$object")
 done
 # the run channel and the interface it carries each question through, in C
-for source in "$PROTOCOL/run_channel.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
+for source in "$PROTOCOL/teacher/run_channel.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
     "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c"; do
     object="$OUT/$(basename "$source")_identity.o"
     if stale "$source" "$object"; then
@@ -118,7 +118,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "text_identity" ]; then
         "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" ||
         { echo "  build failed: cubin_run did not compile"; exit 1; }
     exec "$BINARY" text_identity "$SIDES/engine" "$SIDES/host_answers.txt" "$COHERENCE/sm_86.ksc" "$SIDES" \
-        "$COHERENCE/Lstar.klq" "$SIDES/measuring_stick.tsv" -- "$CARRIER" "$COHERENCE/sm_86" "$COHERENCE/sm_86.ksc"
+        "$COHERENCE/Lstar.klq" "$SIDES/measuring_stick.tsv" -- "$CARRIER" "$COHERENCE/sm_86.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
 fi
 
 if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" = "queue" ] || [ "$1" = "pair" ] || [ "$1" = "cost" ]; }; } || { [ "$#" -ge 2 ] && [ "$1" = "curve" ]; }; then
@@ -131,21 +131,21 @@ if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" =
     MODE="$1"
     shift
     [ "$MODE" = "queue" ] && set -- "$STICK/measuring_stick.tsv"
-    [ "$MODE" = "pair" ] && set -- "$COHERENCE/Lstar.klq" "$COHERENCE/sm_86"
-    [ "$MODE" = "stall" ] && set -- "$COHERENCE/sm_86"
-    [ "$MODE" = "cost" ] && set -- "$COHERENCE/sm_86.kdm" "$COHERENCE/sm_86"
+    [ "$MODE" = "pair" ] && set -- "$COHERENCE/Lstar.klq" "$COHERENCE/sm_86.khw"
+    [ "$MODE" = "stall" ] && set -- "$COHERENCE/sm_86.khw"
+    [ "$MODE" = "cost" ] && set -- "$COHERENCE/sm_86.kdm" "$COHERENCE/sm_86.khw"
     mkdir -p "$WORK/$MODE"
     if [ "$MODE" = "pair" ] && [ -n "${KLQ_TRACE:-}" ]; then
         DECODER="$OUT/klq_decoder"
         rm -f "$DECODER"
-        c++ -std=c++17 -O2 -Wall -Wextra -I "$PROTOCOL" -I "$PARSER" -o "$DECODER" -x c++ "$PROTOCOL/klq_decoder.cu" "$PARSER/query_trace.cu" -static ||
+        c++ -std=c++17 -O2 -Wall -Wextra -I "$PROTOCOL/table" -I "$PARSER" -o "$DECODER" -x c++ "$PROTOCOL/table/klq_decoder.cu" "$PARSER/query_trace.cu" -static ||
             { echo "  build failed: klq_decoder did not compile"; exit 1; }
         "$BINARY" "$MODE" "$STICK/engine" "$WORK/host_answers.txt" "$COHERENCE/sm_86.ksc" "$WORK/$MODE" "$@" -- \
-            "$CARRIER" "$COHERENCE/sm_86" "$COHERENCE/sm_86.ksc" || exit 1
+            "$CARRIER" "$COHERENCE/sm_86.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv" || exit 1
         exec "$DECODER" "$KLQ_TRACE.log" "$STICK/engine" "$COHERENCE/Lstar.klq"
     fi
     exec "$BINARY" "$MODE" "$STICK/engine" "$WORK/host_answers.txt" "$COHERENCE/sm_86.ksc" "$WORK/$MODE" "$@" -- \
-        "$CARRIER" "$COHERENCE/sm_86" "$COHERENCE/sm_86.ksc"
+        "$CARRIER" "$COHERENCE/sm_86.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv"
 fi
 
 if [ "$#" -eq 0 ]; then

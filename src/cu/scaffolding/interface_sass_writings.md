@@ -1,6 +1,6 @@
 # Writings found on the part
 
-Written by `interface_sass_writings.sh` whole on every run. Every form of the machine file that writes a register from registers, predicates and numbers alone is run on the part in place of the frame's IADD3, its first two register sources given each case's two words and every other register source RZ. The cases are the ladder's own two-word cases, the words a width turns on against the counts a shift turns on, and drawn words, put at once. A form is listed under a ladder relation or a precept where it gives every case the word that relation or precept gives it. 5394 forms ran over 256 cases and 291 were refused by the part.
+Written by `interface_sass_writings.sh` whole on every run. Every form of the machine file that writes a register from registers, predicates and numbers alone is run on the part in place of the kernel's IADD3, its first two register sources given each case's two words and every other register source RZ. The cases are the ladder's own two-word cases, the words a width turns on against the counts a shift turns on, and drawn words, put at once. A form is listed under a ladder relation or a precept where it gives every case the word that relation or precept gives it. 5394 forms ran over 256 cases and 291 were refused by the part.
 
 ## relation same
 

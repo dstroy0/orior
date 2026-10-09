@@ -13,9 +13,9 @@
 // across passes is the noise floor, read off the answers. ask_links_read says whether the links add or contend. Nothing here holds a floating point value.
 
 #include "ask_order.h"
-#include "query_ask.h"
+#include "../query/query_ask.h"
 
-#include "../../../types/integers/exact_integer.h"
+#include "../../../../types/integers/exact_integer.h"
 
 // A clock is anything that turns over, noisily, now and then: its turns frame a run, and the run is read finely by
 // counting reads of the clock between turns. A run's cost is the exact rational numerator / denominator in the clock

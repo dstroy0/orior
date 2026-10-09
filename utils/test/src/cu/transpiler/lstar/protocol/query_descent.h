@@ -14,7 +14,7 @@
 #ifndef QUERY_DESCENT_H
 #define QUERY_DESCENT_H
 
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/query_order.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/order/query_order.h"
 
 #include <stdio.h>
 

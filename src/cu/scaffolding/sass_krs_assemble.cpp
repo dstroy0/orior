@@ -239,8 +239,8 @@ static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *
 
 int main(int count, char **arguments)
 {
-    const char *const ruleset = (count > 1) ? arguments[1] : "src/cu/transpiler/lstar/coherence/sass.krs";
-    const char *const path = (count > 2) ? arguments[2] : "src/cu/transpiler/lstar/coherence/sm_86";
+    const char *const ruleset = (count > 1) ? arguments[1] : "src/cu/transpiler/lstar/protocol/table/sass.krs";
+    const char *const path = (count > 2) ? arguments[2] : "src/cu/transpiler/lstar/protocol/table/sm_86.khw";
     // the writing of every form that assembled, kept where a third argument names a file for it
     FILE *const kept = (count > 3) ? fopen(arguments[3], "w") : NULL;
     static SassMachine machine;

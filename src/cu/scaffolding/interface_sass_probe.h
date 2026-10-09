@@ -5,8 +5,8 @@
 
 // The SASS probe (engine_table.md item 11(f)(a)): the device's machine code found by asking its disassembler, so that
 // a ruleset of SASS can be written from what the probes saw. interface_ptx_probe assembles each membership question's
-// kernel, the forms of ptx.krs, into a cubin, and the frame with no body into another; nvdisasm lists each, and the
-// operations a question's listing holds past the frame's are its forms' machine code. Then each operation seen, keyed
+// kernel, the forms of ptx.krs, into a cubin, and the kernel with no body into another; nvdisasm lists each, and the
+// operations a question's listing holds past the kernel's are its forms' machine code. Then each operation seen, keyed
 // by the low 12 bits of its encoding, is decoded with each of its 128 bits turned over, one nvdisasm --binary for all
 // 129 encodings: a bit that changes a register operand is that operand's field, one that changes the operation's name
 // is the operation's, one the disassembler refuses is an encoding the part lacks, and one that changes nothing in the

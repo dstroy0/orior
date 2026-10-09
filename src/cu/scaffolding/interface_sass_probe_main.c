@@ -16,7 +16,7 @@
 
 static SassProbe s_sass_probe;
 static SassMachine s_sass_machine;
-static SassListing s_sass_frame;
+static SassListing s_sass_kernel;
 static SassListing s_sass_resident;
 static SassListing s_sass_form;
 static char s_sass_texts[SASS_ENCODINGS][SASS_TEXT];
@@ -88,15 +88,15 @@ static unsigned int sass_operation_count(const SassListing *listing, const char 
     return found;
 }
 
-// the operations the form's listing holds more of than the frame's, each once with how many more, and those it holds
+// the operations the form's listing holds more of than the kernel's, each once with how many more, and those it holds
 // fewer of
-static void sass_form_print(const char *name, const SassListing *form, const SassListing *frame)
+static void sass_form_print(const char *name, const SassListing *form, const SassListing *kernel_listing)
 {
     printf("form %s:", name);
     for (int more = 1; more >= 0; more -= 1)
     {
-        const SassListing *const counted = more ? form : frame;
-        const SassListing *const against = more ? frame : form;
+        const SassListing *const counted = more ? form : kernel_listing;
+        const SassListing *const against = more ? kernel_listing : form;
         printf("%s", more ? "" : " |");
         for (unsigned int number = 0u; number < counted->count; number += 1u)
         {
@@ -272,7 +272,7 @@ static int sass_cubin_same(SassProbe *probe, const SassMachine *machine, const c
 }
 
 // A lane of the interface's own written into the resident's cubin, and the resident checked for having survived it. What
-// goes in is the frame's own text, which assembles and asks nothing of the launch: under test here is the cubin
+// goes in is the kernel's own text, which assembles and asks nothing of the launch: under test here is the cubin
 // writer instead of the lane. 1 where every instruction of the resident is still in the cubin afterwards
 static int sass_lane_written(SassProbe *probe)
 {
@@ -318,7 +318,7 @@ static int sass_lane_written(SassProbe *probe)
 
 // every kernel interface_ptx_probe handed the toolchain's compiler, counted on the compile channel from what it printed:
 // a line "cubin <number> <name>" is a kernel the compiler emitted, and a line "errored: nvJitLink did not assemble" is
-// one it refused. The frame and the resident are compiled before every question and print no line of their own when
+// one it refused. The kernel and the resident are compiled before every question and print no line of their own when
 // they are emitted: both are counted with the first question's line
 static void sass_compiles_count(const char *output)
 {
@@ -418,7 +418,7 @@ static int sass_asks_main(SassProbe *probe, const char *path)
         snprintf(name, sizeof(name), "form_%u", number - 1u);
         if (number == 0u)
         {
-            snprintf(name, sizeof(name), "frame");
+            snprintf(name, sizeof(name), "kernel");
         }
         const unsigned int was_held = held;
         const int same = sass_list(probe, name, &s_sass_form) && sass_cubin_same(probe, &s_sass_machine, name, &held);
@@ -467,12 +467,12 @@ int main(int count, char **arguments)
     {
         return 2;
     }
-    if (!sass_list(probe, "frame", &s_sass_frame))
+    if (!sass_list(probe, "kernel", &s_sass_kernel))
     {
         return 2;
     }
-    sass_operations_take(probe, &s_sass_frame);
-    sass_machine_listing(&s_sass_machine, &s_sass_frame);
+    sass_operations_take(probe, &s_sass_kernel);
+    sass_machine_listing(&s_sass_machine, &s_sass_kernel);
     for (unsigned int number = 0u; number < probe->questions; number += 1u)
     {
         char name[32];
@@ -482,7 +482,7 @@ int main(int count, char **arguments)
             probe->failed += 1u;
             continue;
         }
-        sass_form_print(probe->names[number], &s_sass_form, &s_sass_frame);
+        sass_form_print(probe->names[number], &s_sass_form, &s_sass_kernel);
         sass_operations_take(probe, &s_sass_form);
         sass_machine_listing(&s_sass_machine, &s_sass_form);
     }
@@ -499,7 +499,7 @@ int main(int count, char **arguments)
     // the order keeps it from costing a question that used to pass
     if (sass_list(probe, "resident", &s_sass_resident))
     {
-        sass_form_print("the program resident", &s_sass_resident, &s_sass_frame);
+        sass_form_print("the program resident", &s_sass_resident, &s_sass_kernel);
         sass_operations_take(probe, &s_sass_resident);
         sass_machine_listing(&s_sass_machine, &s_sass_resident);
     }
@@ -528,9 +528,9 @@ int main(int count, char **arguments)
     SassCheck tally;
     memset(&tally, 0, sizeof(tally));
     unsigned int differed = 0u;
-    if (sass_list(probe, "frame", &s_sass_frame))
+    if (sass_list(probe, "kernel", &s_sass_kernel))
     {
-        differed += sass_machine_check(&s_sass_machine, &s_sass_frame, probe->architecture, probe->folder, &tally, 4u);
+        differed += sass_machine_check(&s_sass_machine, &s_sass_kernel, probe->architecture, probe->folder, &tally, 4u);
     }
     for (unsigned int number = 0u; number < probe->questions; number += 1u)
     {
@@ -572,7 +572,7 @@ int main(int count, char **arguments)
     unsigned int cubins = 0u;
     unsigned int same = 0u;
     unsigned int held = 0u;
-    same += sass_cubin_same(probe, &s_sass_machine, "frame", &held) ? 1u : 0u;
+    same += sass_cubin_same(probe, &s_sass_machine, "kernel", &held) ? 1u : 0u;
     cubins += 1u;
     for (unsigned int number = 0u; number < probe->questions; number += 1u)
     {

@@ -10,8 +10,8 @@
 // word alone answer one alike and the other apart. Each operand of the link is followed back through the carrier to
 // the case words it reads (carrier_flow.h). A pair apart where a case word decides it that a flag only the form it
 // stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms name the same operands,
-// apart where a case word the link reads decides it, is a modifier's, and a frame's where it is alike on every case
-// whose values, as the part holds them at the link, every frame reads as themselves. A pair of forms of a flag that name
+// apart where a case word the link reads decides it, is a modifier's, and a statement's where it is alike on every case
+// whose values, as the part holds them at the link, every statement reads as themselves. A pair of forms of a flag that name
 // the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair answered alike
 // at every put is a qualifier's. A pair is written a member of every set a test reads it into, and of every meta, each
 // a light of its own, and a pair the part answered apart in this log that no test reads into a set is written
@@ -75,8 +75,8 @@ static int put_read(const LoggedPut &put)
     return read;
 }
 
-// the values every frame reads as themselves lie below the top of a byte read signed
-static const unsigned long long s_frame_free_below = 0x80ull;
+// the values every statement reads as themselves lie below the top of a byte read signed
+static const unsigned long long s_statement_free_below = 0x80ull;
 
 // the first word of a link's text up to its first `.`, its guard passed over
 static std::string operation_stem(const std::string &text)
@@ -217,15 +217,15 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
     {
         return std::string();
     }
-    // two readings of the same bits under two frames agree wherever every value the form reads fits every frame,
+    // two readings of the same bits under two statements agree wherever every value the form reads fits every statement,
     // below the top of a byte read signed, the narrowest signed width the cases hold: a modifier apart only past that
-    // is the frame's. The values are the form's own, read at the form, and a put the part held no read of is read
+    // is the statement's. The values are the form's own, read at the form, and a put the part held no read of is read
     // into no set
     if (!put_read(put))
     {
         return std::string();
     }
-    int past_every_frame = 1;
+    int past_every_statement = 1;
     for (size_t place = 0u; place < put.came_back.size(); place += 1u)
     {
         if (put.came_back[place] != 'x')
@@ -235,11 +235,11 @@ static std::string put_decoded(const LoggedPut &put, const std::vector<std::vect
         int fits = 1;
         for (const auto &each : put.reads)
         {
-            fits &= (each.second[place] < s_frame_free_below) ? 1 : 0;
+            fits &= (each.second[place] < s_statement_free_below) ? 1 : 0;
         }
-        past_every_frame &= fits ? 0 : 1;
+        past_every_statement &= fits ? 0 : 1;
     }
-    return past_every_frame ? "frame_coherence" : "modifier_coherence";
+    return past_every_statement ? "statement_coherence" : "modifier_coherence";
 }
 
 // the metas, each written above the sets a pair is read into, in this order
@@ -250,7 +250,7 @@ static const char *const s_metas[] = {"structural_coherence", "syntactic_coheren
 // texts read a pair into a category, and only an answer reads it out of `unknown_coherence`
 static const char *const s_sets[] = {
     "comparison_coherence",  "equality_coherence", "order_coherence",   "operation_coherence",
-    "commutative_coherence", "verb_coherence",     "frame_coherence",   "qualifier_coherence",
+    "commutative_coherence", "verb_coherence",     "statement_coherence",   "qualifier_coherence",
     "modifier_coherence",    "negation_coherence", "witness_coherence", "range_coherence",
     "vector_coherence",      "control_coherence",  "switch_coherence",  "unknown_coherence"};
 

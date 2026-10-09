@@ -43,7 +43,7 @@ esac
 
 # the answer key: the tagged monolith built once, and its listing
 nvcc "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -DMONOLITH_TAGGED=1 -o "$OUT/monolith_tagged.cubin" \
-    "$TOP/src/cu/transpiler/lstar/protocol/monolith.cu" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu" || exit 1
 cuobjdump -sass -fun monolith "$OUT/monolith_tagged.cubin" > "$OUT/monolith_tagged.listing" || exit 1
 
 OBJECTS=()

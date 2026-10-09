@@ -16,7 +16,7 @@ and by that the caller tells a refused encoding from a decoded one.
 import struct
 import sys
 
-# the part's NOP, as the cell's probe read it back (src/cu/transpiler/lstar/coherence/sm_86)
+# the part's NOP, as the cell's probe read it back (src/cu/transpiler/lstar/protocol/table/sm_86.khw)
 NOP_LOW = 0x0000000000007918
 NOP_HIGH = 0x000FC00000000000
 

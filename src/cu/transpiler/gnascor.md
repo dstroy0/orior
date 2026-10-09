@@ -19,6 +19,7 @@ The eight k-file types and the two compiler faces. Doug names these; do not add 
 | `.klq` | Kolmogorov language query | the questions put across languages and what came back |
 | `.klm` | Kolmogorov language map | a language's forms keyed to the operations it answered for |
 | `.kqr` | Kolmogorov query record | every ask put to a member and what came back, then the paths read off them |
+| `.khw` | Kolmogorov hardware | the part's instructions as the part answered them: each form, its encoding and its operands' fields |
 
 **Data.**
 

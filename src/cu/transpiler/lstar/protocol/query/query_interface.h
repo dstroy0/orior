@@ -11,7 +11,7 @@
 // about what lies at an address: the address is asked, and it answers, holds, reads as a word, advances or ends the
 // asker.
 
-#include "../interface/interface.h"
+#include "../../interface/interface.h"
 #include "query_ask.h"
 
 // the most addresses one probe is given, which bounds the lines it writes back

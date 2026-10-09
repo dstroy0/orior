@@ -462,14 +462,16 @@ static int sass_kinds_read(SassForm *form, const char *column)
     return 1;
 }
 
-// what the part answered on the run channel, read from the .ksc beside the machine file at `path` into `machine`: the
-// soonest reads, each operation's the largest of its lines, and the last register a question's code can name. A
+// what the part answered on the run channel, read from the .ksc of the machine file's stem at `path` into `machine`:
+// the soonest reads, each operation's the largest of its lines, and the last register a question's code can name. A
 // machine with no .ksc beside it holds no soonest read, and every register
 static void sass_answers_read(SassMachine *machine, const char *path)
 {
     machine->register_last = SASS_MACHINE_UNANSWERED;
     char ksc[1024];
-    snprintf(ksc, sizeof(ksc), "%s.ksc", path);
+    const size_t length = strlen(path);
+    const int typed = (length > 4u) && (strcmp(path + length - 4u, ".khw") == 0);
+    snprintf(ksc, sizeof(ksc), "%.*s.ksc", (int)(typed ? (length - 4u) : length), path);
     FILE *const file = fopen(ksc, "r");
     if (file == NULL)
     {
@@ -482,7 +484,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         char writer[SASS_MACHINE_TOKEN];
         char reader[SASS_MACHINE_TOKEN];
         unsigned int last = 0u;
-        // sscanf counts the number it converted whether or not the words after it match, and %n is set only where
+        // sscanf counts the number it converted even where the words after it do not match, and %n is set only where
         // they all did
         int matched = 0;
         if ((sscanf(line, "run answers %x register last%n", &last, &matched) == 1) && (matched != 0))

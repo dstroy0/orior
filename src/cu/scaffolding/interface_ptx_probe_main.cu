@@ -145,8 +145,8 @@ static int probe_write(const std::string &text, int major, int minor, const std:
     return written && closed;
 }
 
-// the machine code of each membership question for the SASS probe (interface_sass_probe.c): the frame with no body
-// assembled into `folder`/frame.cubin and each question's kernel into `folder`/form_<number>.cubin, a line
+// the machine code of each membership question for the SASS probe (interface_sass_probe.c): the kernel with no body
+// assembled into `folder`/kernel.cubin and each question's kernel into `folder`/form_<number>.cubin, a line
 // "cubin <number> <name>" printed for each. Exit 0 where every cubin was written, 2 where one was not
 // The program resident as its own module: an empty lane for the resident's call to reach, then program_unit with
 // the launch's own layout in its 25 parameters. No question covers this part of a program, and no hand
@@ -171,10 +171,10 @@ static std::string probe_resident(ProbeWriter *writer, const std::string &header
 static int probe_cubins(ProbeWriter *writer, const std::string &header, int major, int minor, const char *folder)
 {
     const std::vector<ProbeQuestion> questions = probe_questions(writer);
-    const std::string frame = probe_kernel(writer, header, std::string());
-    if (writer->broken || !probe_write(frame, major, minor, std::string(folder) + "/frame.cubin"))
+    const std::string kernel_text = probe_kernel(writer, header, std::string());
+    if (writer->broken || !probe_write(kernel_text, major, minor, std::string(folder) + "/kernel.cubin"))
     {
-        printf("frame: not written\n");
+        printf("kernel: not written\n");
         return 2;
     }
     const std::string resident = probe_resident(writer, header);

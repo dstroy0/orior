@@ -33,4 +33,4 @@ else
 fi
 
 "$PYTHON" "$TEST/measuring_stick_read.py" "$WIN_OUT/measuring_stick_nvcc.sass" "$WIN_OUT/measuring_stick.tsv" \
-    "$(cygpath -m "$TOP/src/cu/transpiler/lstar/coherence")/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md"
+    "$(cygpath -m "$TOP/src/cu/transpiler/lstar/protocol/table")/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md"

@@ -130,6 +130,7 @@ Finished work lives in the engine table, `theory/workbooks/engine/engine_table.m
     .klq   Kolmogorov language query
     .klm   Kolmogorov language map
     .kqr   Kolmogorov query record
+    .khw   Kolmogorov hardware
 
 Doug names these. Do not add one.
 
@@ -170,7 +171,7 @@ with no map yet.
 
 **Everything is learned through the query protocol, and through nothing else.** An ask is
 `[ADDRESS] -> (QUALIFIER) -> [COST] -> BIT`, put with `host_put` and read with `host_read`
-(`src/cu/transpiler/lstar/protocol/host_entry.h`), with nothing between them and the part. No outside tool is in the loop: no
+(`src/cu/transpiler/lstar/protocol/query/host_entry.h`), with nothing between them and the part. No outside tool is in the loop: no
 compiler, assembler, disassembler, object reader, vendor runtime or driver library. A word that went through one is
 that tool's answer and not the part's. The SASS probe under `utils/test/src/cu/transpiler/lstar/interface/` and everything it calls
 (`nvcc`, `nvdisasm`, `cuobjdump`, `interface_ptx_probe`, the vendor runtime) is scaffolding. It is an answer key in the
@@ -370,13 +371,13 @@ reads has changed.
    clock already reads a cost in the part's own time, and that reading is what a bound would be set from. That
    clock runs inside the SASS probe, through the toolkit, and is scaffolding (the method, above): the loop's
    clock is read by an ask put through `host_entry.h` like every other answer. That ask is `query_ask`
-   (`src/cu/transpiler/lstar/protocol/query_ask.{h,c}`): an address and a qualifier, held, equal or advancing, returning
+   (`src/cu/transpiler/lstar/protocol/query/query_ask.{h,c}`): an address and a qualifier, held, equal or advancing, returning
    a cost unbound and a bit bound, the cost read off a clock that is itself an address. `query_ask_check.c` holds it
    to memory the test owns and to the host's interrupt time at a fixed address, found advancing by the ask itself.
    That counter steps once a clock interrupt, half a millisecond to a millisecond, and an ask is far shorter: a
    cost read from it is a step or nothing. A bound set from it judges a run of asks and never one. Asks at
    addresses nothing has said are safe go through `query_interface_walk`
-   (`src/cu/transpiler/lstar/protocol/query_interface.{h,c}`): the interface runs `query_walk` in a probe, one address
+   (`src/cu/transpiler/lstar/protocol/query/query_interface.{h,c}`): the interface runs `query_walk` in a probe, one address
    after another, and an address that ends the probe is answered by the ending, the walk going on from the next
    address in a fresh probe. `query_interface_check.c` holds
    it to address 0, which ends the asker on an address fault, and to the page every Windows process shares,
@@ -401,7 +402,7 @@ reads has changed.
    known order, its solve and the descent running over them, and NVRTC, nvJitLink and the CUDA runtime leave
    the loop once a writing is put to a record and its bit read back.
 
-   The monolith (`src/cu/transpiler/lstar/protocol/monolith.cu`) is what our compiler is held against: one program,
+   The monolith (`src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu`) is what our compiler is held against: one program,
    built once by NVIDIA's compiler, holding every base precept between tags, its listing the answer key and its
    costs read on the part by `monolith_run`. `src/cu/scaffolding/monolith_emit.sh` holds
    every block against our reader, our assembler and the word our compiler writes it with, and writes
@@ -450,7 +451,7 @@ reads has changed.
      never a kernel that does not return.
    - Writings searched on the part. `src/cu/scaffolding/interface_sass_writings.sh` puts every
      form of the machine file that writes a register from registers, predicates and numbers alone, 745 of 2928, in
-     place of the frame's IADD3, each through the gate, and runs it on the part over 256 cases at once: the ladder's
+     place of the kernel's IADD3, each through the gate, and runs it on the part over 256 cases at once: the ladder's
      two-word cases, the words a width turns on against the counts a shift turns on, and words drawn as
      `chain_build` draws its sweep. A form is put with every assignment of the two words and RZ to its register
      sources that gives both, and a number whose field is eight bits wide, a truth table, with each of its 256
@@ -496,7 +497,7 @@ reads has changed.
    normal case and not a failure.
 
 5. **The answer keys still hold the weight.** `precepts.h` holds 18 precepts and `word_web.h` 18 words, both typed.
-   `machines/sm_86` is one run's output read back as an input. These are for checking a derivation against. Nothing
+   `sm_86.khw` is one run's output read back as an input. These are for checking a derivation against. Nothing
    that derives may read them.
 
 6. **The relations are not asked for everything.** An atomic add has no relation put for it. `global_add_atomic_word` waits on
@@ -562,7 +563,7 @@ reads has changed.
     and never one bit over a set (Q15).
 
 11. **Stem membership has a written rule and nothing reads it.** Two members sharing a stem is the whole basis
-    of a set, and pairwise agreement inside a floor cannot decide it. `src/cu/transpiler/lstar/protocol/stem_group.{h,c}`
+    of a set, and pairwise agreement inside a floor cannot decide it. `src/cu/transpiler/lstar/protocol/order/stem_group.{h,c}`
     holds an anchored group rule: the members in an order fixed by what they are, the finest floor first, the first
     member with no group anchoring one, and every member with no group that agrees with that anchor joining it.
     Agreement is a conjunction over rows at the coarser floor, and a row one member refused and the other

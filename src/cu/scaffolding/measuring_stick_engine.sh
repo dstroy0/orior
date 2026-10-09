@@ -85,5 +85,5 @@ case "$(uname -s)" in
     *) PYTHON=python3 ;;
 esac
 "$PYTHON" "$TEST/measuring_stick_read.py" "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv" \
-    "$(cygpath -m "$TOP/src/cu/transpiler/lstar/coherence")/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md" \
+    "$(cygpath -m "$TOP/src/cu/transpiler/lstar/protocol/table")/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md" \
     "$(cygpath -m "$OUT")/engine.tsv" "$(cygpath -m "$OUT")"

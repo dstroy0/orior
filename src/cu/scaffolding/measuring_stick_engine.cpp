@@ -12,7 +12,7 @@
 // given, its to a register or, where the text writes a predicate there, a predicate; of those the reading of the fewest
 // forms is taken. An expression read once is held in its register and read again from there.
 //
-// The frame is the stick's one arity: an operand (T)in[i] is the word at in + 8 . i, and out[thread] =
+// The stick has one arity: an operand (T)in[i] is the word at in + 8 . i, and out[thread] =
 // (unsigned long long)r is the wide stored at out + 8 . thread, its conversion written out as C converts a signed word.
 // Each of its forms is gated and ranked as an expression's is. A statement nothing here reads, and a value other than a
 // 32-bit word, are each a question the kernel puts, and its line in <out>/engine.tsv says which.
@@ -66,7 +66,7 @@ extern "C" const char __ehdr_start = 0;
 #define STICK_ROUNDS 4u
 
 // the part the stick is assembled for, and the folder its machine file and its .kdm are in
-#define STICK_MACHINES "src/cu/transpiler/lstar/coherence"
+#define STICK_MACHINES "src/cu/transpiler/lstar/protocol/table"
 #define STICK_PART "sm_86"
 
 // the width a value held in a predicate is given

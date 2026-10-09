@@ -3,7 +3,7 @@
 # Asks the part what the bits the disassembler does not print do (interface_sass_probe_unprinted.c), and writes
 # interface_sass_unprinted.md beside this script whole.
 #
-# The runner, the pattern cubin and the frame's text are an earlier SASS probe run's: the newest folder under build/
+# The runner, the pattern cubin and the kernel's text are an earlier SASS probe run's: the newest folder under build/
 # whose sass/ holds form_0.cubin and form_0.text, and the PTX probe that run built beside it. Nothing is compiled
 # for the device and no disassembler is run.
 #
@@ -50,4 +50,4 @@ cc -o "$OUT/interface_sass_probe_unprinted" "${OBJECTS[@]}" || exit 1
 
 cd "$TOP" || exit 1
 "$OUT/interface_sass_probe_unprinted" "$RUNNER" "$RUN/sass/form_0.cubin" "$RUN/sass/form_0.text" \
-    "$TOP/src/cu/transpiler/lstar/coherence/sm_86" "$OUT" "$RECORD" $FORMS
+    "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw" "$OUT" "$RECORD" $FORMS

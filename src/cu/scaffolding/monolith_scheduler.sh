@@ -20,7 +20,7 @@ if [ -z "$ARCH" ]; then
     CAP="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
     ARCH="sm_${CAP:-86}"
 fi
-MACHINE="$TOP/src/cu/transpiler/lstar/coherence/$ARCH"
+MACHINE="$TOP/src/cu/transpiler/lstar/protocol/table/$ARCH"
 [ -f "$MACHINE" ] || { echo "  no machine file for $ARCH"; exit 1; }
 
 HOST_FLAGS=()

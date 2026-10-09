@@ -80,8 +80,19 @@ typedef struct
 
 // The channel opened on the carrier `carrier`, the words that start it ended by NULL, each question's files kept in
 // `folder`, and each given `limit_microseconds` before its process is ended. 1, or 0 with the reason printed. A
-// channel is opened once and every question after goes through it
+// channel is opened once and every question after goes through it.
+//
+// A carrier whose only word is `dry` is a dry run: nothing carries a question and nothing answers it. Each question is
+// written to the folder as question<n>.bin and cases<n>.txt, and as a line of questions.txt in the form a carrier's
+// list takes, `<code> <registers> <cases> <answers> <launches>`, and it reads RUN_HELD. What the protocol put is
+// then checked by handing that list to a carrier that stops before the part
 int run_channel_open(const char *const *carrier, const char *folder, unsigned long long limit_microseconds);
+
+// R, the part's record at `path` (record.h), opened for the channel: an untimed question R holds an answer to is
+// answered from R and never carried, one it holds timed out is carried again, and what comes back of every question
+// carried is kept in R under a cycle of `mode`. R is written back when the channel is closed. 1, or 0 with the
+// reason printed. A dry run reads R and keeps nothing in it
+int run_channel_record(const char *path, const char *member, const char *mode);
 
 // `asked` put and answered. 1 where the outcome is RUN_ANSWERED, 0 otherwise, with `asked->outcome` saying which
 int run_channel_ask(RunQuestion *asked);
@@ -92,7 +103,7 @@ int run_channel_ask(RunQuestion *asked);
 // costs no other question its answer. The count of those answered, each with its own outcome
 unsigned int run_channel_ask_many(RunQuestion *const *asked, unsigned int count);
 
-// the channel closed, and what it held given back
+// the channel closed, R written back where it was opened, and what it held given back
 void run_channel_close(void);
 
 // what the channel is carried by, for a run to say where its words came from

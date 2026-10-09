@@ -1,0 +1,5 @@
+where	who	kind	form	gloss
+line 1	sass_machine_write	forms	forms 1	the format the lines after it are written in
+line 2	sass_machine_write	part	part <name>	the part these forms are of
+body	sass_machine_write	form	form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>;... <the instruction it was seen as>	an operation with its modifiers and, for each printed operand, what kind of thing it is and the mark it carries; the instruction's two 64-bit words in hex, low first, the encoding the form was first seen with; and the runs of bits that change each operand, by the operand's place in the printed text
+any	-	comment	# <text>	a comment

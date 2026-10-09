@@ -509,11 +509,12 @@ def check_carrier_gain(say, rng, trials):
         say("   %5d    %13s    %11s    %12s    %9s" % (links, figure("4 one at a time squared at %d" % links, one),
                                                   figure("4 known order squared at %d" % links, two),
                                                   figure("4 squared gain at %d" % links, gain),
-                                                  show(Exact(links + 1, 4))))
+                                                  show(Exact((links + 1) * (links + 1), 4 * links))))
     say("")
     say("   The known order carries the cost of several links in every answer, and the orders are")
     say("   chosen to come apart cleanly. One ask therefore informs every link at once, and the")
-    say("   squared gain is (links + 1) over four and it grows with the chain.")
+    say("   squared gain is (links + 1) squared over four times the links, which (links + 1) over four")
+    say("   approaches as the chain grows.")
     say("")
     say("   At %d links the squared gain is %s and at %d links it is %s. A short chain is"
         % (gains[0][0], show(gains[0][1]), gains[-1][0], show(gains[-1][1])))

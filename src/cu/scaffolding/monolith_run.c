@@ -9,7 +9,7 @@
 //
 //     monolith_run <cubin> [runs] [turns] [cost runs]
 #include "../engine/rmc/precept_value.h"
-#include "../transpiler/lstar/protocol/monolith.h"
+#include "../transpiler/vendor_bin_layouts/nvidia/monolith.h"
 
 #include <cuda.h>
 #include <stdio.h>

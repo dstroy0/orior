@@ -8,7 +8,7 @@
 //
 // That gap is the reading this exists for. It is how many answers a target can give before an answer means
 // anything, and a case added to the ladder is worth adding exactly insofar as it closes it.
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/chain_build.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 
 #include <stdio.h>
 #include <string.h>

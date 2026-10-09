@@ -1000,7 +1000,7 @@ int main(int count, char **arguments)
         return 2;
     }
     const int machine_at = all ? 4 : 3;
-    const char *const path = (count > machine_at) ? arguments[machine_at] : "src/cu/transpiler/lstar/coherence/sm_86";
+    const char *const path = (count > machine_at) ? arguments[machine_at] : "src/cu/transpiler/lstar/protocol/table/sm_86.khw";
     static SassMachine machine;
     if (!sass_machine_read(&machine, path))
     {

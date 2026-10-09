@@ -12,7 +12,7 @@
 #
 #     src/cu/scaffolding/interface_sass_writings.sh [<earlier run folder>]
 #
-# The earlier run, for its pattern cubin and frame, defaults to the newest under build/ and the harness's build. With
+# The earlier run, for its pattern cubin and kernel, defaults to the newest under build/ and the harness's build. With
 # WRITINGS_SEARCHED set, the search and the chains already in build/writings are kept and only the descent's cases are
 # put.
 set -u
@@ -49,15 +49,15 @@ cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/int
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 # the descent is orior's own, and orior reads exact integers
 cc -std=c11 -O2 -Wall -I "$SIFT" -I "$EXACT" -o "$OUT/gate_descent" \
-    "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$BOOT/chain_build.c" \
+    "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$BOOT/gate/chain_build.c" \
     "$SIFT/orior_core.c" "$SIFT/orior_field.c" "$SIFT/orior_steer.c" "$SIFT/orior_steer_count.c" \
     "$SIFT/orior_steer_plan.c" "$SIFT/scan.c" "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" \
     "$EXACT/exact_integer_limbs.c" || exit 1
 
-MACHINE="$TOP/src/cu/transpiler/lstar/coherence/sm_86"
+MACHINE="$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw"
 WIN_OUT="$(cygpath -m "$OUT")"
 PATTERN="$(cygpath -m "$RUN")/sass/form_0.cubin"
-FRAME="$(cygpath -m "$RUN")/sass/form_0.text"
+KERNEL_TEXT="$(cygpath -m "$RUN")/sass/form_0.text"
 
 # every cubin of the list in `$1` run over the cases in `$3`, the search's where none is named, its answers into `$2`,
 # the runner started again past each refusal
@@ -81,14 +81,14 @@ run_list() {
 
 if [ -z "${WRITINGS_SEARCHED:-}" ]; then
     rm -f "$OUT"/form_*.cubin "$OUT/answers.txt"
-    "$OUT/interface_sass_writings" "$PATTERN" "$FRAME" "$(cygpath -m "$MACHINE")" "$WIN_OUT" || exit 1
+    "$OUT/interface_sass_writings" "$PATTERN" "$KERNEL_TEXT" "$(cygpath -m "$MACHINE")" "$WIN_OUT" || exit 1
     run_list "$WIN_OUT/list.txt" "$WIN_OUT/answers.txt" || exit 1
     "$OUT/interface_sass_writings" read "$WIN_OUT" "$(cygpath -m "$HERE")/interface_sass_writings.md" || exit 1
 
     # every arrangement of the .kdm written from the writings found, run and read back
     mkdir -p "$OUT/chains"
     rm -f "$OUT"/chains/chain_*.cubin "$OUT/chains/answers.txt"
-    "$OUT/interface_sass_writings" chains "$PATTERN" "$FRAME" "$(cygpath -m "$MACHINE")" "$WIN_OUT" \
+    "$OUT/interface_sass_writings" chains "$PATTERN" "$KERNEL_TEXT" "$(cygpath -m "$MACHINE")" "$WIN_OUT" \
         "$(cygpath -m "$MACHINE").kdm" || exit 1
     run_list "$WIN_OUT/chains/list.txt" "$WIN_OUT/chains/answers.txt" || exit 1
     "$OUT/interface_sass_writings" chains-read "$WIN_OUT" "$(cygpath -m "$HERE")/interface_sass_chains.md" || exit 1
@@ -104,7 +104,7 @@ for rows in "$DESCENT"/*.kdm; do
     name="$(basename "$rows" .kdm)"
     into="$DESCENT/$name"
     mkdir -p "$into"
-    "$OUT/interface_sass_writings" chains "$PATTERN" "$FRAME" "$(cygpath -m "$MACHINE")" "$WIN_OUT" \
+    "$OUT/interface_sass_writings" chains "$PATTERN" "$KERNEL_TEXT" "$(cygpath -m "$MACHINE")" "$WIN_OUT" \
         "$(cygpath -m "$rows")" "$(cygpath -m "$into")" || exit 1
     run_list "$(cygpath -m "$into")/list.txt" "$(cygpath -m "$into")/answers.txt" \
         "$(cygpath -m "$DESCENT")/${name}_cases.txt" || exit 1
@@ -114,6 +114,6 @@ done
 
 # the ruleset's forms for the word web's words held to the writings found; a form that does not hold is reported and
 # ends nothing
-"$OUT/interface_sass_writings" krs-read "$WIN_OUT" "$(cygpath -m "$TOP")/src/cu/transpiler/lstar/coherence/sass.krs" \
+"$OUT/interface_sass_writings" krs-read "$WIN_OUT" "$(cygpath -m "$TOP")/src/cu/transpiler/lstar/protocol/table/sass.krs" \
     "$(cygpath -m "$HERE")/interface_sass_krs.md"
 exit 0

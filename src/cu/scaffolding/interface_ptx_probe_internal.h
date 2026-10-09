@@ -4,7 +4,7 @@
 #define INTERFACE_PTX_PROBE_INTERNAL_H
 
 // A probe for the interface's PTX test (engine_table.md item 11(f) 4): questions asked of the device in the ruleset's own
-// words. Each question's kernel is written from ptx.krs, one form by its name at a time (target.h), around a frame of
+// words. Each question's kernel is written from ptx.krs, one form by its name at a time (target.h), around a kernel of
 // this probe's own that loads a case's eight input words and stores four output words, and nvJitLink assembles it as
 // the engine's PTX path does. The header is asked of NVRTC. One question a process, named by the first word:
 //   membership   every arithmetic, test and conversion form the code generator writes, over 65,536 cases of input
@@ -16,7 +16,7 @@
 //   trap         PTX's trap instruction
 //   lacking      elect.sync, which PTX gives sm_90 and later, in a kernel for this device
 //   alive        one form over one case, to show a fresh process's device answers
-//   cubins <folder>  the membership questions' kernels and the frame alone, assembled and written as cubins for the
+//   cubins <folder>  the membership questions' kernels and the kernel alone, assembled and written as cubins for the
 //                SASS probe (interface_sass_probe.c), nothing run
 // A question the device errors prints "error <code> <name>" for the CUDA error it gave, then the error the next
 // allocation gives, "after <code> <name>", and exits 3. One the toolchain errors prints "errored" and its log, and

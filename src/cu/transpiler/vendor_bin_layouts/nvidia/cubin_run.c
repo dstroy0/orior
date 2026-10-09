@@ -6,14 +6,22 @@
 // once, each answered to its own file as it is carried: a part that refuses one takes the process with it, every
 // answer written before it stands, and the questions after it are left for the channel to carry again.
 //
-//     cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]
-//     cubin_run <machine file> <ksc> --list <list>      a line a question, <code> <registers> <cases> <answers>
+//     cubin_run <machine file> <layout> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]
+//     cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers> <cases> <answers>
 //     [<launches>]
+//     cubin_run --dry <machine file> <layout> ...          either of the above, with the part taken out
 //
-// The code is the question's machine code, sixteen bytes an instruction. The .ksc's container rows hold the container
+// A dry run writes and holds every question as ever and stops before the driver: each question is answered
+// `skipped dry, the part taken out`, and what it would have handed the part is added to dry.txt beside its answers
+// (cubin_run_dry_written). Handed the list a dry run of the protocol writes (run_channel.h), it checks every
+// question the protocol put.
+//
+// The code is the question's machine code, sixteen bytes an instruction. The layout's container rows hold the container
 // (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
-// eight words in hex, the words a line leaves out zero, and the kernel is handed the stick's frame: in, eight words a
-// thread, out, two words a thread, and the count of threads. It is launched in blocks of <threads>, <blocks> of them,
+// eight words in hex, the words a line leaves out zero, and the kernel is handed the stick's arity: in, eight words a
+// thread, out, room for eight words a thread, and the count of threads. The answers are read as the kernel wrote them:
+// how far apart its threads write and how many words each writes are read from where the part wrote, and a case's
+// answer is the first two words its thread wrote (cubin_run_answers_read). It is launched in blocks of <threads>, <blocks> of them,
 // blocks of 256 where the question names no shape, as many as give every case a thread, and every thread is given a
 // case, thread t case t of the cases taken round: the cases are answered by the first threads, and the rest do the
 // same work over again. One line is written to the answers:
@@ -48,10 +56,15 @@
 // the most bytes a container and its code take, and the longest line of the cases
 #define CUBIN_RUN_BYTES 262144u
 #define CUBIN_RUN_LINE 1024u
-// the words of a case and of an answer, the stick's frame, and the threads a block holds where the question names
+// the words of a case and of an answer, the stick's arity, and the threads a block holds where the question names
 // no shape of its own
 #define CUBIN_RUN_IN_WORDS 8u
 #define CUBIN_RUN_OUT_WORDS 2u
+// the room each thread is given to write its answer in, as many words as a case, and the byte that room is filled
+// with before a launch, so that the words the kernel wrote are told from the words it did not
+#define CUBIN_RUN_OUT_ROOM CUBIN_RUN_IN_WORDS
+#define CUBIN_RUN_FILL 0xffu
+#define CUBIN_RUN_FILL_WORD (CUBIN_RUN_FILL * 0x01010101u)
 #define CUBIN_RUN_THREADS 256u
 // the most threads one launch gives a case each, and the most cases a question gives: every case is a thread's
 #define CUBIN_RUN_THREADS_MOST (1u << 20u)
@@ -236,8 +249,33 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
     return status;
 }
 
+// The answers read as the kernel wrote them into `written`, the room of `count` threads filled with
+// CUBIN_RUN_FILL_WORD before the launch. Every thread writes its answer at one stride from the one before it, and the
+// writes reach (count - 1) strides and the words one thread writes: the stride is that reach over the count rounded up,
+// and the words a thread writes are what the last thread's write adds past the strides before it. That holds where
+// the room a thread leaves past what it writes is less than the count of threads, and where the last word the last
+// thread writes differs from the fill. Each case's answer into s_answers, the first two words its thread wrote, a word
+// it did not write read as 0
+static void cubin_run_answers_read(const unsigned int *written, unsigned int count)
+{
+    unsigned long long reach = (unsigned long long)count * CUBIN_RUN_OUT_ROOM;
+    while ((reach > 0ull) && (written[reach - 1ull] == CUBIN_RUN_FILL_WORD))
+    {
+        reach -= 1ull;
+    }
+    const unsigned long long stride = (reach + count - 1ull) / count;
+    const unsigned long long words = (stride != 0ull) ? (reach - ((unsigned long long)(count - 1u) * stride)) : 0ull;
+    for (unsigned int place = 0u; place < s_case_count; place += 1u)
+    {
+        for (unsigned int word = 0u; word < CUBIN_RUN_OUT_WORDS; word += 1u)
+        {
+            s_answers[place][word] = (word < words) ? written[((unsigned long long)place * stride) + word] : 0u;
+        }
+    }
+}
+
 // The container in s_container loaded and its kernel launched as `shape` says, every thread given a case, thread t
-// case t of the cases taken round, and the first threads' two words each into s_answers, one a case; where `launches`
+// case t of the cases taken round, and each case's answer into s_answers as the kernel wrote it; where `launches`
 // is not 0, that many launches after it timed into `nanoseconds`. 0, or the status the driver gave
 static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel, const CubinRunShape *shape,
                                        unsigned int launches, unsigned long long *nanoseconds)
@@ -250,10 +288,13 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
     CubinRunAddress out = 0ull;
     unsigned int count = shape->threads * shape->blocks;
     const size_t in_bytes = (size_t)count * sizeof(s_cases[0]);
-    const size_t out_bytes = (size_t)count * sizeof(s_answers[0]);
+    const size_t out_bytes = (size_t)count * CUBIN_RUN_OUT_ROOM * sizeof(unsigned int);
     unsigned int(*const given)[CUBIN_RUN_IN_WORDS] = malloc(in_bytes);
-    if (given == NULL)
+    unsigned int *const written = malloc(out_bytes);
+    if ((given == NULL) || (written == NULL))
     {
+        free(given);
+        free(written);
         return -1;
     }
     for (unsigned int thread = 0u; thread < count; thread += 1u)
@@ -270,13 +311,18 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
     status = (status == 0) ? driver->allocate(&out, out_bytes) : status;
     status = (status == 0) ? driver->copy_in(in, given, in_bytes) : status;
     free(given);
-    status = (status == 0) ? driver->clear(out, 0u, out_bytes) : status;
+    status = (status == 0) ? driver->clear(out, CUBIN_RUN_FILL, out_bytes) : status;
     void *arguments[] = {&in, &out, &count};
     status = (status == 0) ? driver->launch(function, shape->blocks, 1u, 1u, shape->threads, 1u, 1u, 0u, NULL,
                                             arguments, NULL)
                            : status;
     status = (status == 0) ? driver->synchronize() : status;
-    status = (status == 0) ? driver->copy_out(s_answers, out, (size_t)s_case_count * sizeof(s_answers[0])) : status;
+    status = (status == 0) ? driver->copy_out(written, out, out_bytes) : status;
+    if (status == 0)
+    {
+        cubin_run_answers_read(written, count);
+    }
+    free(written);
     *nanoseconds = 0ull;
     status = ((status == 0) && (launches != 0u))
                  ? cubin_run_timed(driver, function, arguments, shape, launches, nanoseconds)
@@ -300,6 +346,79 @@ static CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char 
 // the driver, opened once a question first passes the gate, and 1 once it is
 static CubinRunDriver s_driver;
 static int s_driver_opened = 0;
+
+// 1 where the run is dry: every question is written and held to the gate as ever, and none reaches the driver
+static int s_dry = 0;
+
+// What a dry run would have handed the part, added to dry.txt in the folder of `answers_path`: the question's
+// shape, the gate's verdict, its cases, and each place of its code that is not as the run's first question holds
+// it, as our reader reads it back. The first question's code is kept beside it as dry_base.bin, and every place
+// of it is written
+static void cubin_run_dry_written(const char *answers_path, unsigned long long code_size, unsigned int registers,
+                                  unsigned int launches, const CubinRunShape *shape, unsigned int verdict,
+                                  unsigned long long at)
+{
+    char path[CUBIN_RUN_LINE];
+    const char *const forward = strrchr(answers_path, '/');
+    const char *const back = strrchr(answers_path, '\\');
+    const char *const slash = (back == NULL) ? forward : ((forward == NULL) || (back > forward)) ? back : forward;
+    const int folder = (slash != NULL) ? (int)(slash - answers_path) : 1;
+    snprintf(path, sizeof(path), "%.*s/dry.txt", folder, (slash != NULL) ? answers_path : ".");
+    FILE *const dry = fopen(path, "ab");
+    if (dry == NULL)
+    {
+        return;
+    }
+    fprintf(dry, "question: %llu bytes of code, %u registers, %u threads in %u blocks, %u launches, %u cases; the "
+                 "gate: %s",
+            code_size, registers, shape->threads, shape->blocks, launches, s_case_count, cubin_safe_name(verdict));
+    if (verdict != CUBIN_SAFE)
+    {
+        fprintf(dry, " at byte %llu", at);
+    }
+    // the first two words of each case, the first 64 cases where a question holds more
+    fprintf(dry, "\n  cases");
+    for (unsigned int place = 0u; (place < s_case_count) && (place < 64u); place += 1u)
+    {
+        fprintf(dry, " %x,%x", s_cases[place][0], s_cases[place][1]);
+    }
+    fprintf(dry, "%s\n", (s_case_count > 64u) ? " ..." : "");
+    static unsigned char s_base[CUBIN_RUN_BYTES];
+    char base_path[CUBIN_RUN_LINE];
+    snprintf(base_path, sizeof(base_path), "%.*s/dry_base.bin", folder, (slash != NULL) ? answers_path : ".");
+    unsigned long long base_size = cubin_run_file(base_path, s_base, sizeof(s_base));
+    if (base_size == 0ull)
+    {
+        FILE *const base = fopen(base_path, "wb");
+        if (base != NULL)
+        {
+            fwrite(s_code, 1u, (size_t)code_size, base);
+            fclose(base);
+        }
+    }
+    for (unsigned long long place = 0ull; (place + 16ull) <= code_size; place += 16ull)
+    {
+        const int base_held = ((place + 16ull) <= base_size) && (memcmp(&s_code[place], &s_base[place], 16u) == 0);
+        if (base_held)
+        {
+            continue;
+        }
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        for (unsigned int byte = 0u; byte < 8u; byte += 1u)
+        {
+            low |= (unsigned long long)s_code[place + byte] << (8u * byte);
+            high |= (unsigned long long)s_code[place + 8u + byte] << (8u * byte);
+        }
+        char text[256];
+        if (!sass_encoding_read(&s_machine, low, high, place, text, sizeof(text)))
+        {
+            snprintf(text, sizeof(text), "no form");
+        }
+        fprintf(dry, "  %04llx  %016llx %016llx  %s\n", place, low, high, text);
+    }
+    fclose(dry);
+}
 
 // One question carried: its code at `code_path` put in the container of `pattern_size` bytes in s_pattern, its kernel
 // `kernel`, declaring `registers`, over the cases at `cases_path`, launched as `shape` says where `shaped`, timed over
@@ -352,9 +471,20 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     // read on the host before the driver sees it: code that breaks a rule of cubin_safe is answered without the part
     unsigned long long at = 0ull;
     const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, &at);
+    if (s_dry)
+    {
+        cubin_run_dry_written(answers_path, code_size, registers, launches, &shape, verdict, at);
+    }
     if (verdict != CUBIN_SAFE)
     {
         fprintf(answers, "skipped %u %s at byte %llu\n", verdict, cubin_safe_name(verdict), at);
+        fclose(answers);
+        return 0;
+    }
+    // a dry run stops here, before the driver: the question is answered as one held off the part
+    if (s_dry)
+    {
+        fprintf(answers, "skipped dry, the part taken out\n");
         fclose(answers);
         return 0;
     }
@@ -395,13 +525,21 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
 
 int main(int count, char **words)
 {
+    // `--dry` before the machine file runs every question as ever up to the driver, and none past it
+    if ((count >= 2) && (strcmp(words[1], "--dry") == 0))
+    {
+        s_dry = 1;
+        words[1] = words[0];
+        words += 1;
+        count -= 1;
+    }
     const int listed = (count == 5) && (strcmp(words[3], "--list") == 0);
     if (!listed && (count != 7) && (count != 8) && (count != 10))
     {
         fprintf(
             stderr,
-            "cubin_run <machine file> <ksc> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]\n"
-            "cubin_run <machine file> <ksc> --list <list>\n");
+            "cubin_run <machine file> <layout> <code> <registers> <cases> <answers> [<launches> [<threads> <blocks>]]\n"
+            "cubin_run <machine file> <layout> --list <list>\n");
         return 2;
     }
     char kernel[256];
