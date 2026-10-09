@@ -48,7 +48,7 @@ INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 COHERENCE="$TOP/src/cu/transpiler/lstar/protocol/table"
 LAYOUTS="$TOP/src/cu/transpiler/vendor_bin_layouts"
 STICK="$TOP/build/measuring_stick"
-[ -f "$STICK/measuring_stick_nvcc.sass" ] || { echo "  no stick: run src/cu/scaffolding/measuring_stick.sh"; exit 1; }
+[ -f "$STICK/measuring_stick_nvcc.sass" ] || { echo "  no stick: run $LAYOUTS/nvidia/measuring_stick.sh"; exit 1; }
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER")
 BINARY="$OUT/klq_identity"
@@ -88,14 +88,14 @@ c++ -o "$BINARY" "${OBJECTS[@]}" -static
 
 if [ "$#" -eq 1 ] && [ "$1" = "text_identity" ]; then
     [ -x "$STICK/engine/measuring_stick_engine" ] || [ -x "$STICK/engine/measuring_stick_engine.exe" ] ||
-        { echo "  no engine: run src/cu/scaffolding/measuring_stick_engine.sh"; exit 1; }
+        { echo "  no engine: run $LAYOUTS/nvidia/measuring_stick_engine.sh"; exit 1; }
     CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
     source "$TOP/utils/maint/engine/build_stamp.sh"
     SIDES="$WORK/text_identity"
     rm -rf "$SIDES"
     mkdir -p "$SIDES/engine"
     WIN_SIDES="$(cygpath -m "$SIDES")"
-    python "$TOP/src/cu/scaffolding/measuring_stick.py" "$WIN_SIDES/measuring_stick.cu" "$WIN_SIDES/measuring_stick.tsv" \
+    python "$LAYOUTS/nvidia/measuring_stick.py" "$WIN_SIDES/measuring_stick.cu" "$WIN_SIDES/measuring_stick.tsv" \
         "$(cygpath -m "$COHERENCE")/Lstar.klq" || exit 1
     "$CUDA/bin/nvcc" ${CYCLE_HOST_CCBIN:+-ccbin "$CYCLE_HOST_CCBIN"} -cubin -arch=sm_86 -O3 -diag-suppress 177 -o "$WIN_SIDES/measuring_stick_nvcc.cubin" \
         "$WIN_SIDES/measuring_stick.cu" || { echo "  nvcc did not compile the sides"; exit 1; }

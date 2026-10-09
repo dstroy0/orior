@@ -6,7 +6,7 @@
 # read: the kernel is the code the container the system accepted already holds, the cases are the ladder's, and the
 # host computes each case beside the part.
 #
-#     utils/maint/engine/khw_write.sh [dry|enumerate <slot>] [<rounds>]
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_write.sh [dry|enumerate <slot>] [<rounds>]
 #
 # With no argument the forms found are widened for one round. The file it writes is the file the gate reads each
 # question against, and a run rewrites it as the part answers.
@@ -14,7 +14,7 @@
 # With `enumerate <slot>` nothing reaches the part either, and no carrier runs: the slot's questions are emitted for
 # the vendor's disassembler to read before a deeper run carries them. Each form a prior run learned (build/engine/khw/
 # forms.txt, where there is one) has its fields turned and its runs set to the two registers, and the kernel's own slot
-# form alone where there is none. questions.txt lists them, for src/cu/scaffolding/measuring_stick_query.sh to hold the
+# form alone where there is none. questions.txt lists them, for measuring_stick_query.sh beside this file to hold the
 # ones the vendor calls illegal before the next run.
 #
 # With `dry` nothing reaches the part, in two steps. The protocol runs on the run channel's dry carrier, which carries
@@ -24,7 +24,7 @@
 # build/engine/khw and not in the tree.
 set -u
 
-TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 OUT="$TOP/build/engine"
 WORK="$OUT/khw"
 mkdir -p "$WORK"
@@ -86,7 +86,7 @@ if [ "$MODE" = "enumerate" ]; then
         "$WRITER" --slot "$SLOT" "${FORMS_WORDS[@]}" -- dry || { echo "  the enumerate did not run"; exit 1; }
     [ -f "$WORK/questions.txt" ] || { echo "  the enumerate put no question"; exit 1; }
     echo "  the slot $SLOT's questions: $WORK/questions.txt, $(wc -l < "$WORK/questions.txt") of them"
-    echo "  cross-check them: src/cu/scaffolding/measuring_stick_query.sh $WORK/questions.txt <base.cu>"
+    echo "  cross-check them: $LAYOUTS/nvidia/measuring_stick_query.sh $WORK/questions.txt <base.cu>"
     exit 0
 fi
 

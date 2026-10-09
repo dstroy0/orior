@@ -3,11 +3,11 @@
 # Builds and runs measuring_stick_engine: each kernel of the measuring stick read form by form through cu.krs and
 # written in sass.krs, held against nvcc's listing on the host. No device.
 #
-#     src/cu/scaffolding/measuring_stick_engine.sh
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_engine.sh
 set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOP="$(cd "$TEST/../../.." && pwd)"
+TOP="$(cd "$TEST/../../../../.." && pwd)"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
 CODEGEN="$TOP/src/cu/engine/rmc"

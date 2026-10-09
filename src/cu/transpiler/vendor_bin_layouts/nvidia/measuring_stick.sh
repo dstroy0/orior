@@ -5,11 +5,11 @@
 # listing is read kernel by kernel, and against sass.krs, into measuring_stick.md (measuring_stick_read.py). nvcc runs
 # only where the stick's text has changed since the cubin beside it was compiled. Nothing goes to a device.
 #
-#     src/cu/scaffolding/measuring_stick.sh
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick.sh
 set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOP="$(cd "$TEST/../../.." && pwd)"
+TOP="$(cd "$TEST/../../../../.." && pwd)"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 OUT="${BUILD_OUT:-$TOP/build/measuring_stick}"

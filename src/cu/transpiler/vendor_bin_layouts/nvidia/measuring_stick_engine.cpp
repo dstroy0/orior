@@ -34,15 +34,15 @@
 // its encodings <out>/NNNN.bin. Nothing goes to a device.
 extern "C"
 {
-#include "../transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
-#include "../transpiler/vendor_bin_layouts/nvidia/sass_machine.h"
+#include "sass_assemble.h"
+#include "sass_machine.h"
 #include "interface_sass_probe.h"
 }
 
 #include "cu_target.h"
 #include "machine_ir_types.h"
-#include "../types/file_defs/readers/ruleset_core_words.h"
-#include "../types/file_defs/readers/ruleset_reader.h"
+#include "../../../types/file_defs/readers/ruleset_core_words.h"
+#include "../../../types/file_defs/readers/ruleset_reader.h"
 #include "sass_target.h"
 #include "target.h"
 

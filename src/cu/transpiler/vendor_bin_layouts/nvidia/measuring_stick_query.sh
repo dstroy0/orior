@@ -8,14 +8,14 @@
 # and cannot know a whole encoding illegal while the operation it probes is still unlearned, so the part is never
 # handed an encoding only the vendor can reject. Nothing here runs on the part.
 #
-#     src/cu/scaffolding/measuring_stick_query.sh <question-list> [<base.cu>]
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.sh <question-list> [<base.cu>]
 #
 # The list comes from a dry run of the protocol (run_channel.h), a line a question,
 # `<code> <registers> <cases> <answers> <slot> [<launches>]`. Exit 0 where the vendor holds none, 1 where it holds
 # one or more, 2 where a tool or a file was not reached.
 set -u
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOP="$(cd "$TEST/../../.." && pwd)"
+TOP="$(cd "$TEST/../../../../.." && pwd)"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 LAYOUTS="$TOP/src/cu/transpiler/vendor_bin_layouts"
 MACHINE="$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw"
