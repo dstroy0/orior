@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# The split learn loop: a form's fields reach the part only after the vendor's disassembler has read the questions the
-# field pass would ask, and a round widens in three steps to keep the part from seeing an encoding the vendor calls
-# illegal.
+# The split learn loop: a form's turns and its register-runs each reach the part only after the vendor's disassembler
+# has read them, and a round widens in five steps to keep the part from seeing an encoding the vendor calls illegal.
 #
-#     utils/maint/engine/khw_learn.sh discover
-#     utils/maint/engine/khw_learn.sh cross <slot> [<base.cu>]
-#     utils/maint/engine/khw_learn.sh fields
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh discover
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh cross <slot> [<base.cu>]
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh turns
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh cross <slot> [<base.cu>]
+#     src/cu/transpiler/vendor_bin_layouts/nvidia/khw_learn.sh registers
 #
-# `discover` reaches the part: it widens the working set (build/engine/khw/forms_work.txt) a round and keeps what it
-# finds with its fields unasked, carrying only the turns of forms the part has already answered for, which the vendor
-# has already read. `cross` reaches nothing: it emits the turns the field pass would ask (khw_write.sh enumerate) and
-# reads each against the vendor's disassembler (measuring_stick_query.sh), writing the illegal ones to the held file.
-# `fields` reaches the part: it asks the fields of what a discover left, the carrier holding the vendor's illegal ones
-# off the part. The working set and the held file carry the loop; a part pass runs only after a cross has read its
-# questions. Run `discover`, then `cross`, then `fields`, round on round until a discover finds nothing.
+# `discover` reaches the part: the first time it seeds the kernel's own form into the working set (build/engine/khw/
+# forms_work.txt), and after that it widens the forms the part has classified a round, keeping what it finds unasked. It
+# carries only relations: the kernel's own form, and the flips of classified forms, whose turns the vendor has already
+# read. `cross` reaches nothing: it emits the questions the next pass would ask (khw_write.sh enumerate) and reads each
+# against the vendor's disassembler (measuring_stick_query.sh), writing the illegal ones to the held file. `turns`
+# reaches the part: it asks the turns of the forms a discover left, the carrier holding the vendor's illegal ones off
+# the part, and finds the runs their operands might sit in. `registers` reaches the part: it sets those runs to the
+# two registers to sort the operands from the modifiers, again behind the held file, and lays out what the part has
+# answered for. A cross runs before each part pass that follows it: run discover, cross, turns, cross, registers,
+# round on round until a discover seeds and widens nothing.
 set -u
 
 STEP="${1:-}"
-TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 OUT="$TOP/build/engine"
 WORK="$OUT/khw"
 LAYOUTS="$TOP/src/cu/transpiler/vendor_bin_layouts"
@@ -71,16 +75,21 @@ case "$STEP" in
         SLOT="${2:-}"
         BASE="${3:-}"
         [ -n "$SLOT" ] || { echo "  cross needs a slot: khw_learn.sh cross <slot> [<base.cu>]"; exit 1; }
-        bash "$TOP/utils/maint/engine/khw_write.sh" enumerate "$SLOT" || exit 1
-        bash "$TOP/src/cu/scaffolding/measuring_stick_query.sh" "$WORK/questions.txt" ${BASE:+"$BASE"}
+        bash "$LAYOUTS/nvidia/khw_write.sh" enumerate "$SLOT" || exit 1
+        bash "$LAYOUTS/nvidia/measuring_stick_query.sh" "$WORK/questions.txt" ${BASE:+"$BASE"}
         ;;
-    fields)
+    turns)
         build_all
         carrier_words
-        "$BINARY" sm_86 "$MACHINE" "$LAYOUT" "$MNEMONICS" "$WORK" "$WRITER" --fields -- "${CARRY[@]}"
+        "$BINARY" sm_86 "$MACHINE" "$LAYOUT" "$MNEMONICS" "$WORK" "$WRITER" --turns -- "${CARRY[@]}"
+        ;;
+    registers)
+        build_all
+        carrier_words
+        "$BINARY" sm_86 "$MACHINE" "$LAYOUT" "$MNEMONICS" "$WORK" "$WRITER" --registers -- "${CARRY[@]}"
         ;;
     *)
-        echo "  khw_learn.sh discover | cross <slot> [<base.cu>] | fields"
+        echo "  khw_learn.sh discover | cross <slot> [<base.cu>] | turns | registers"
         exit 2
         ;;
 esac

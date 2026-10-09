@@ -67,6 +67,14 @@
 #define KHW_RUNS 32u
 #define KHW_FORMS 16384u
 
+// how far a form has been asked, for a pass to ask only what a cross-check has read before it: a discovered form holds
+// only its relation, a turned form the runs its turns found but not which carry a register, a classified form the
+// operand runs its register-runs kept. A widening carries only a classified form, a turns pass only a discovered one,
+// a register pass only a turned one
+#define KHW_PHASE_DISCOVERED 0u
+#define KHW_PHASE_TURNED 1u
+#define KHW_PHASE_CLASSIFIED 2u
+
 // the two registers the kernel leaves a case's words in, found by asking: a run set to one of these numbers reads that
 // register, and the two words differ: an operand field answers two different words, a modifier one
 #define KHW_FIRST_REGISTER 0u
@@ -130,6 +138,8 @@ typedef struct
     unsigned int written;
     // the count of the relation read's candidates that survived the gate, its reading (Q11)
     unsigned int survivors;
+    // how far the form has been asked, one of KHW_PHASE_*
+    unsigned int phase;
 } KhwAnswered;
 
 // one word of an instruction, and one written back
@@ -568,14 +578,12 @@ static void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][
     khw_round_carried();
 }
 
-// The runs of bits the operands of `held` sit in, asked of the part: each bit from 12 to 104 turned one at a time
-// over one case, the adjacent bits whose turning changes the answer gathered into runs, and each run set to the
-// number of each of the two registers the kernel left a case word in. A run that answers two different words there
-// carries a register and is an operand's; a run that answers one is a modifier and is left out. The run whose
-// setting leaves the answer at the register the kernel stores is where the form writes its result. The case is put
-// first alone; every turned bit, which waits on that answer and on no other, is one round; and every run's two
-// registers, which wait on the turned bits' answers, another
-static void khw_fields_asked(KhwAnswered *held)
+// The turns of `held`, the first field-finding pass: each bit from 12 to 104 turned one at a time over one case, the
+// adjacent bits whose turning changes the answer gathered into the runs the operands might sit in, none yet asked
+// whether it carries a register. The case is put first alone, then every turned bit, which waits on that answer and
+// on no other, as one round. 1 where the part answered the case and the turns were asked, the runs then the candidates
+// a register pass reads and the phase turned; 0 where the part did not, the form left where it was
+static int khw_fields_turns(KhwAnswered *held)
 {
     unsigned int word[1][2];
     unsigned int expected = 0u;
@@ -584,12 +592,12 @@ static void khw_fields_asked(KhwAnswered *held)
     held->written = KHW_RUNS;
     if (!khw_turning_case(held->anchor, held->swapped, word[0], &expected))
     {
-        return;
+        return 0;
     }
     khw_code_put(s_code, s_slot, held->low, held->high);
     if (!khw_asked(word, 1u, s_slot, answered) || (answered[0] != (unsigned long long)expected))
     {
-        return;
+        return 0;
     }
     const unsigned long long base = answered[0];
     int turned[KHW_TURN_LAST + 1u];
@@ -599,11 +607,8 @@ static void khw_fields_asked(KhwAnswered *held)
         const RunQuestion *const question = &s_pool[bit - KHW_TURN_FIRST];
         turned[bit] = ((question->outcome == RUN_ANSWERED) && (question->answered[0] != base)) ? 1 : 0;
     }
-    // the adjacent bits that changed the answer, each run then asked whether it carries a register
-    unsigned int first[KHW_RUNS];
-    unsigned int last[KHW_RUNS];
-    unsigned int runs = 0u;
-    for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (runs < KHW_RUNS); bit += 1u)
+    // the adjacent bits that changed the answer, the candidate runs a register pass reads
+    for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (held->runs < KHW_RUNS); bit += 1u)
     {
         if (turned[bit] == 0)
         {
@@ -614,10 +619,35 @@ static void khw_fields_asked(KhwAnswered *held)
         {
             end += 1u;
         }
-        first[runs] = bit;
-        last[runs] = end;
-        runs += 1u;
+        held->first[held->runs] = bit;
+        held->last[held->runs] = end;
+        held->runs += 1u;
         bit = end;
+    }
+    held->phase = KHW_PHASE_TURNED;
+    return 1;
+}
+
+// The register-runs of `held`, the second field-finding pass: each candidate run its turns found set to the number of
+// each of the two registers the kernel left a case word in, over the same case. A run that answers two different words
+// there carries a register and is an operand's, kept; a run that answers one is a modifier, left out. The run whose
+// setting leaves the answer at the register the kernel stores is where the form writes its result. The runs held after
+// are the operands', and the phase is classified. 1 where the case was there to ask over, 0 where it was not
+static int khw_fields_registers(KhwAnswered *held)
+{
+    unsigned int word[1][2];
+    unsigned int expected = 0u;
+    if (!khw_turning_case(held->anchor, held->swapped, word[0], &expected))
+    {
+        return 0;
+    }
+    unsigned int first[KHW_RUNS];
+    unsigned int last[KHW_RUNS];
+    const unsigned int runs = held->runs;
+    for (unsigned int run = 0u; run < runs; run += 1u)
+    {
+        first[run] = held->first[run];
+        last[run] = held->last[run];
     }
     s_pooled = 0u;
     for (unsigned int run = 0u; run < runs; run += 1u)
@@ -635,6 +665,8 @@ static void khw_fields_asked(KhwAnswered *held)
     {
         khw_round_carried();
     }
+    held->runs = 0u;
+    held->written = KHW_RUNS;
     for (unsigned int run = 0u; run < runs; run += 1u)
     {
         const RunQuestion *const first_question = &s_pool[2u * run];
@@ -657,6 +689,18 @@ static void khw_fields_asked(KhwAnswered *held)
         }
     }
     s_pooled = 0u;
+    held->phase = KHW_PHASE_CLASSIFIED;
+    return 1;
+}
+
+// A form's fields asked whole, the turns then the register-runs together, for the learn loop that asks both of a form
+// in one run. The split passes ask them apart, a cross-check reading the register-runs the turns find between
+static void khw_fields_asked(KhwAnswered *held)
+{
+    if (khw_fields_turns(held))
+    {
+        khw_fields_registers(held);
+    }
 }
 
 static int khw_vendor_run(const char *mode, const char *answers);
@@ -748,8 +792,9 @@ static int khw_form_asked(unsigned long long low, unsigned long long high)
 // the turned encoding asked its relation from the top. Every turned encoding's relation waits on no other answer, and
 // they are put SCHEDULER_ROUND_MOST to a round. Where `discover` is 0 each that answered a relation is then asked its
 // fields; where it is not 0 it is kept with its fields unasked, for a cross-check to read its turns before a later
-// pass asks them off a part that would hang on an encoding the vendor calls illegal. A form whose fields are not yet
-// found is no source of a widening, since its turns are the very questions not yet read. The count found this round
+// pass asks them off a part that would hang on an encoding the vendor calls illegal. Only a classified form is a
+// source of a widening: a form still short of its operand runs would widen on bits its register-runs have not yet
+// sorted from the operands. The count found this round
 static unsigned int khw_widened(unsigned int from, int discover)
 {
     const unsigned int until = s_names;
@@ -761,7 +806,7 @@ static unsigned int khw_widened(unsigned int from, int discover)
     for (unsigned int at = from; at < until; at += 1u)
     {
         const KhwAnswered held = s_named[at];
-        if ((discover != 0) && (held.runs == 0u))
+        if ((discover != 0) && (held.phase != KHW_PHASE_CLASSIFIED))
         {
             continue;
         }
@@ -840,7 +885,7 @@ static unsigned int khw_widened(unsigned int from, int discover)
 
 // the forms the part answered for written to the answers file at `path`, one a line, for the vendor's writer to name
 // and lay out: the relation the gate read, whether the answers read a word signed and whether the part was asked, the
-// encoding, and each run's first and last bit. A form whose fields are not yet found carries no run and names nothing;
+// encoding, and each run's first and last bit. A form not yet classified, or one with no operand run, names nothing;
 // the vendor lays out none of them. 1, or 0 with the reason printed
 static int khw_answers_written(const char *path)
 {
@@ -853,7 +898,7 @@ static int khw_answers_written(const char *path)
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         const KhwAnswered *const held = &s_named[at];
-        if (held->runs == 0u)
+        if ((held->phase != KHW_PHASE_CLASSIFIED) || (held->runs == 0u))
         {
             continue;
         }
@@ -869,10 +914,11 @@ static int khw_answers_written(const char *path)
     return 1;
 }
 
-// The working set written to `path`, every form of it a line in the answers file's own form, the ones the part has
-// answered for and the ones a widening discovered and left for a cross-check alike: a form with no run is one whose
-// fields are not yet found, read back by khw_forms_read the next pass. It is the state the discover pass and the
-// field pass hand each other, kept apart from what the vendor lays out. 1, or 0 with the reason printed
+// The working set written to `path`, every form of it a line read back by khw_forms_read the next pass: its phase and
+// the order its words were read, the relation, the signedness, the encoding, and its runs. A discovered form carries
+// no run, a turned form the candidates its register-runs will sort, a classified form the operands kept. It is the
+// state the passes of the split hand each other, kept apart from what the vendor lays out. 1, or 0 with the reason
+// printed
 static int khw_forms_work_written(const char *path)
 {
     FILE *const file = fopen(path, "wb");
@@ -884,8 +930,9 @@ static int khw_forms_work_written(const char *path)
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         const KhwAnswered *const held = &s_named[at];
-        fprintf(file, "%s%s %d %d %016llx %016llx %u", KHW_READS_LADDER, s_anchor_text[held->anchor],
-                held->signed_read, held->signedness_asked, held->low, held->high, held->runs);
+        fprintf(file, "%u %d %s%s %d %d %016llx %016llx %u", held->phase, held->swapped, KHW_READS_LADDER,
+                s_anchor_text[held->anchor], held->signed_read, held->signedness_asked, held->low, held->high,
+                held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {
             fprintf(file, " %u %u", held->first[run], held->last[run]);
@@ -924,9 +971,10 @@ static int khw_vendor_run(const char *mode, const char *answers)
     return 1;
 }
 
-// The forms a prior run learned, read from the answers file at `path` into s_named for the enumeration to seed from:
-// each form's encoding and the runs its operands sit in, the relation and the signedness read past. The count read, 0
-// where the file holds none or is not there
+// The forms read from the file at `path` into s_named: the working set the split passes keep, a line to a form with
+// its phase and the order its words were read ahead of the relation, or a vendor-laid-out answers file, a line without
+// those, every form of it classified and read in order. Each form's encoding and the runs its operands sit in, the
+// relation and the signedness read past. The count read, 0 where the file holds none or is not there
 static unsigned int khw_forms_read(const char *path)
 {
     FILE *const file = fopen(path, "rb");
@@ -946,10 +994,18 @@ static unsigned int khw_forms_read(const char *path)
         memset(&held, 0, sizeof(held));
         char relation[256];
         int at = 0;
-        if (sscanf(line, "%255s %d %d %llx %llx %u %n", relation, &held.signed_read, &held.signedness_asked, &held.low,
-                   &held.high, &held.runs, &at) != 6)
+        // a working-set line leads with the phase and the read order; a vendor answers line leads with the relation,
+        // and every form it holds is classified and read in the order the host put the words
+        if (sscanf(line, "%u %d %255s %d %d %llx %llx %u %n", &held.phase, &held.swapped, relation, &held.signed_read,
+                   &held.signedness_asked, &held.low, &held.high, &held.runs, &at) != 8)
         {
-            continue;
+            held.phase = KHW_PHASE_CLASSIFIED;
+            held.swapped = 0;
+            if (sscanf(line, "%255s %d %d %llx %llx %u %n", relation, &held.signed_read, &held.signedness_asked,
+                       &held.low, &held.high, &held.runs, &at) != 6)
+            {
+                continue;
+            }
         }
         // the relation named back to its anchor, for a form read in to write the same relation out
         held.anchor = (unsigned int)LADDER_ANCHOR_COUNT;
@@ -1059,14 +1115,16 @@ int main(int count, char **word)
     s_machine_writer = word[6];
     // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <path>]: the slot whose questions are
     // emitted for the vendor's disassembler, and the forms a prior run learned to seed them from, in place of the learn
-    // loop (khw_enumerate). [--discover] widens the working set a round and keeps what it finds with its fields unasked;
-    // [--fields] asks the fields of what a discover left; the two hand each other the working set and a cross-check
-    // reads the turns between them, and no form's fields reach the part before the vendor has read them
+    // loop (khw_enumerate). The split's passes over the working set: [--discover] widens it a round and keeps what it
+    // finds with its fields unasked; [--turns] asks the turns of what a discover left; [--registers] asks the register-
+    // runs the turns found. A cross-check reads each pass's questions before it, and no form's turns or register-runs
+    // reach the part before the vendor has read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
     int discover = 0;
-    int fields = 0;
+    int turns = 0;
+    int registers = 0;
     for (int at = 7; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
@@ -1083,9 +1141,13 @@ int main(int count, char **word)
         {
             discover = 1;
         }
-        else if (strcmp(word[at], "--fields") == 0)
+        else if (strcmp(word[at], "--turns") == 0)
         {
-            fields = 1;
+            turns = 1;
+        }
+        else if (strcmp(word[at], "--registers") == 0)
+        {
+            registers = 1;
         }
         else
         {
@@ -1148,11 +1210,12 @@ int main(int count, char **word)
                (forms != NULL) ? " from the forms a prior run learned" : "", s_asks);
         return 0;
     }
-    // the split: a discover pass widens the working set a round and keeps what it finds with its fields unasked, a
-    // field pass asks the fields of what a discover left. Between them a cross-check reads the turns the field pass
-    // would ask, and no form's fields reach the part before the vendor has read them. The working set is the folder's
-    // forms_work.txt, which the two passes hand each other; the slot is found afresh each pass, off the kernel's code
-    if ((discover != 0) || (fields != 0))
+    // the split: a discover pass widens the working set a round and keeps what it finds unasked, a turns pass asks the
+    // turns of what a discover left, a register pass asks the register-runs the turns found. A cross-check reads each
+    // pass's questions before it, and neither a form's turns nor its register-runs reach the part before the vendor has
+    // read them. The working set is the folder's forms_work.txt, which the passes hand each other; the slot is found
+    // afresh each pass, off the kernel's code
+    if ((discover != 0) || (turns != 0) || (registers != 0))
     {
         char work_path[1024];
         snprintf(work_path, sizeof(work_path), "%s/forms_work.txt", s_folder);
@@ -1170,15 +1233,25 @@ int main(int count, char **word)
         s_names = khw_forms_read(work_path);
         if (discover != 0)
         {
+            unsigned int seeded = 0u;
             if (s_names == 0u)
             {
-                // the working set empty: the kernel's own slot form seeded, its relation and fields asked, every turn
-                // of it one the vendor has read every run as the first field-finding round
+                // the working set empty: the kernel's own slot form seeded as a discovered form, its relation asked but
+                // its fields left for the turns and register passes to ask once a cross has read them, as of any form.
+                // The relation is the real instruction the part already ran, safe to ask without a cross
                 const unsigned long long slot_low = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 0u);
                 const unsigned long long slot_high = khw_word_read(&s_kernel_text[s_slot * KHW_INSTRUCTION], 8u);
-                printf("  the slot: place %u of %u, at 0x%x; the working set seeded from the kernel's form\n", s_slot,
-                       s_kernel_places, s_slot * KHW_INSTRUCTION);
-                khw_form_asked(slot_low, slot_high);
+                KhwAnswered held;
+                memset(&held, 0, sizeof(held));
+                if (khw_relation_asked(slot_low, slot_high, &held))
+                {
+                    held.phase = KHW_PHASE_DISCOVERED;
+                    s_named[s_names] = held;
+                    s_names += 1u;
+                    seeded = 1u;
+                }
+                printf("  the slot: place %u of %u, at 0x%x; the kernel's form seeded, its turns await a cross-check\n",
+                       s_slot, s_kernel_places, s_slot * KHW_INSTRUCTION);
             }
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();
@@ -1186,23 +1259,38 @@ int main(int count, char **word)
             {
                 return 1;
             }
-            printf("  discover: %u form(s) found this round, %u in the working set, %llu asks; their turns await a "
+            printf("  discover: %u seeded, %u widened, %u in the working set, %llu asks; their turns await a "
                    "cross-check\n",
-                   found, s_names, s_asks);
+                   seeded, found, s_names, s_asks);
             return 0;
         }
+        if (turns != 0)
+        {
+            // every discovered form turned, its register-runs left for the cross-check after: a discover set its
+            // relation and the order its words read, which the turns need and read back from the working set
+            unsigned int asked = 0u;
+            for (unsigned int at = 0u; at < s_names; at += 1u)
+            {
+                if ((s_named[at].phase == KHW_PHASE_DISCOVERED) && khw_fields_turns(&s_named[at]))
+                {
+                    asked += 1u;
+                }
+            }
+            run_channel_close();
+            if (!khw_forms_work_written(work_path))
+            {
+                return 1;
+            }
+            printf("  turns: %u form(s) turned, %llu asks; their register-runs await a cross-check\n", asked, s_asks);
+            return 0;
+        }
+        // every turned form's register-runs asked, its operand runs kept and its phase classified; what the part has
+        // answered for whole then laid out by the vendor
         unsigned int asked = 0u;
         for (unsigned int at = 0u; at < s_names; at += 1u)
         {
-            if (s_named[at].runs != 0u)
+            if ((s_named[at].phase == KHW_PHASE_TURNED) && khw_fields_registers(&s_named[at]))
             {
-                continue;
-            }
-            KhwAnswered held = s_named[at];
-            if (khw_relation_asked(held.low, held.high, &held))
-            {
-                khw_fields_asked(&held);
-                s_named[at] = held;
                 asked += 1u;
             }
         }
@@ -1212,7 +1300,7 @@ int main(int count, char **word)
         {
             return 1;
         }
-        printf("  fields: %u form(s) asked their fields, %llu asks; %s names what the part has answered for\n", asked,
+        printf("  registers: %u form(s) classified, %llu asks; %s names what the part has answered for\n", asked,
                s_asks, s_path);
         return 0;
     }
