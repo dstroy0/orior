@@ -149,10 +149,11 @@ function drawName(node, box, scale) {
 }
 
 // The name large on an empty view: it stands a moment, then goes to the bar as a genie does. A
-// funnel forms between the name and the point on the view's top edge under the name in the bar,
-// its sides bending sideways from the name's ends to the bar name's as they rise, and the name pours
-// up it a row of pixels at a time, every row level, each as wide as the funnel where it stands and
-// shorter the nearer the tip, until the view's edge takes the last of it. The eye in the bar then
+// funnel forms between the name and the point on the bar's bottom edge under the eye in the bar,
+// its sides bending sideways from the name's ends to the eye's as they rise, and the name pours up
+// it a row of pixels at a time, every row level, each as wide as the funnel where it stands and
+// shorter the nearer the tip, until the bar's edge takes the last of it. The funnel is drawn over
+// the whole window: no pane or strip it crosses cuts it short. The eye in the bar then
 // shows and stays. The name stands and goes once as the app loads; an empty view shown after it has
 // reached the bar holds the lattice alone.
 function fly(node) {
@@ -170,32 +171,35 @@ function fly(node) {
     window.setTimeout(() => {
       const from = node.getBoundingClientRect();
       const to = home.getBoundingClientRect();
-      const holder = node.closest(".empty, .open, .loading");
-      const view = holder?.getBoundingClientRect();
+      const bar = home.closest(".bar")?.getBoundingClientRect();
       const done = () => {
         settle(node);
         node.style.visibility = "hidden";
         home.classList.add("home");
       };
-      if (!from.width || !to.width || !view || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (!from.width || !to.width || !bar || matchMedia("(prefers-reduced-motion: reduce)").matches) {
         done();
         return;
       }
       const scale = window.devicePixelRatio || 1;
       const name = drawName(node, from, scale);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
       const canvas = Object.assign(document.createElement("canvas"), { className: "genie" });
-      canvas.width = Math.round(view.width * scale);
-      canvas.height = Math.round(view.height * scale);
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
       canvas.setAttribute("aria-hidden", "true");
-      holder.append(canvas);
+      document.body.append(canvas);
       const pen = canvas.getContext("2d");
-      pen.setTransform(scale, 0, 0, scale, 0, 0);
-      // Everything below is in the view's own pixels, its top edge at 0, where the funnel's tip is.
-      const left = from.left - view.left;
-      const right = from.right - view.left;
-      const tipLeft = to.left - view.left;
-      const tipRight = to.right - view.left;
-      const foot = from.bottom - view.top;
+      // The window's own pixels, moved down so the funnel's tip, on the bar's bottom edge under the
+      // eye, stands at 0; no row is drawn above it.
+      const tipY = bar.bottom;
+      pen.setTransform(scale, 0, 0, scale, 0, tipY * scale);
+      const left = from.left;
+      const right = from.right;
+      const tipLeft = to.left;
+      const tipRight = to.right;
+      const foot = from.bottom - tipY;
       const high = from.height;
       // How far above the name the funnel narrows, and where rows start to shorten toward the tip.
       const reach = Math.max(1, foot);
@@ -212,7 +216,7 @@ function fly(node) {
         const forming = smooth(part / FORMS);
         const rising = Math.max(0, (part - FORMS * 0.8) / (1 - FORMS * 0.8));
         const lift = rising * rising * (foot + high);
-        pen.clearRect(0, 0, view.width, view.height);
+        pen.clearRect(0, -tipY, width, height);
         const rows = name.height;
         for (let row = 0; row < rows; row += 1) {
           // The row's depth below the tip before rows shorten, and after.
