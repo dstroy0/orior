@@ -398,13 +398,27 @@ function splitEditor(direction) {
   node.setAttribute("aria-label", `${tab.file}, split`);
   desk.append(node);
   desk.dataset.split = direction;
-  const editor = new Editor(host, { ...state.editorHooks, statusHost: element("div"), onChange: (s) => state.editorHooks.onChange(s.of ?? s) });
+  // Its status line stands in the status bar beside the first one's, the one shown being that of the
+  // editor last pressed in.
+  const editor = new Editor(host, { ...state.editorHooks, statusHost: document.getElementById("statusbar"), onChange: (s) => state.editorHooks.onChange(s.of ?? s) });
+  state.editor.status.after(editor.status);
   state.lendTo(editor);
   const session = tab.session.twin();
   state.split = { node, editor, session, focused: true };
-  editor.input.addEventListener("focus", () => state.split && (state.split.focused = true));
+  editor.input.addEventListener("focus", () => splitFocused(true));
   editor.show(session);
   editor.focus();
+  splitFocused(true);
+}
+
+// Marks which editor of a split the menus act on, and shows its status line.
+function splitFocused(focused) {
+  if (!state.split) {
+    return;
+  }
+  state.split.focused = focused;
+  state.split.editor.status.hidden = !focused;
+  state.editor.status.hidden = focused;
 }
 
 function unsplit() {
@@ -416,6 +430,8 @@ function unsplit() {
   editor.show(null);
   session.drop();
   node.remove();
+  editor.status.remove();
+  state.editor.status.hidden = false;
   delete document.querySelector("#mode-edit .desk").dataset.split;
   state.editor.schedule();
   state.editor.focus();
@@ -1460,7 +1476,7 @@ export async function startEdit(defs) {
     },
   };
   state.editor = new Editor(document.getElementById("editor"), { ...state.editorHooks, statusHost: document.getElementById("statusbar") });
-  state.editor.input.addEventListener("focus", () => state.split && (state.split.focused = false));
+  state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
   // The debugger's marks in the gutter, by the file a session shows, a split's the same as the
