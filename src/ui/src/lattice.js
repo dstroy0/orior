@@ -161,11 +161,149 @@ function layOut(canvas) {
   return laid;
 }
 
+// The lattice drawn through WebGL: each point one vertex, its place and its level, a round dot of
+// its level's pen. A pixel's share of a dot is counted at sixteen places across the pixel, and the
+// radius taken at FITS of the pen's, which puts down the ink the page's own canvas puts down for the
+// same dots: a dot under a pixel wide stands as large and as soft as it did there. The points go in
+// level by level, as the canvas laid its levels one over another, and all of them are drawn at once:
+// the page hands the frame on without the thousands of shapes a canvas path would carry.
+const FITS = 0.955;
+const VERTEX = `
+attribute vec3 point;
+uniform vec2 size;
+uniform float scale;
+uniform vec4 pens[${LEVELS}];
+uniform float radii[${LEVELS}];
+varying vec4 color;
+varying vec2 center;
+varying float radius;
+void main() {
+  int level = int(point.z);
+  color = pens[level];
+  radius = radii[level] * scale * ${FITS};
+  center = vec2(point.x, size.y - point.y) * scale;
+  gl_Position = vec4(point.x / size.x * 2.0 - 1.0, 1.0 - point.y / size.y * 2.0, 0.0, 1.0);
+  gl_PointSize = ceil(radius * 2.0) + 2.0;
+}`;
+const FRAGMENT = `
+precision mediump float;
+varying vec4 color;
+varying vec2 center;
+varying float radius;
+void main() {
+  float inside = 0.0;
+  for (int across = 0; across < 4; across++) {
+    for (int down = 0; down < 4; down++) {
+      vec2 at = gl_FragCoord.xy - 0.5 + (vec2(float(across), float(down)) + 0.5) / 4.0;
+      inside += step(length(at - center), radius);
+    }
+  }
+  float alpha = color.a * inside / 16.0;
+  gl_FragColor = vec4(color.rgb * alpha, alpha);
+}`;
+
+const painters = new WeakMap();
+
+// A canvas's WebGL painter, made the first time it is drawn, or null where the page has no WebGL.
+// A canvas that has drawn through WebGL keeps to it, and one that has not keeps to its 2D canvas.
+function painterOf(canvas) {
+  if (painters.has(canvas)) {
+    return painters.get(canvas);
+  }
+  const gl = canvas.getContext("webgl", { antialias: false, alpha: true, premultipliedAlpha: true });
+  let painter = null;
+  if (gl) {
+    const shader = (kind, source) => {
+      const made = gl.createShader(kind);
+      gl.shaderSource(made, source);
+      gl.compileShader(made);
+      return made;
+    };
+    const program = gl.createProgram();
+    gl.attachShader(program, shader(gl.VERTEX_SHADER, VERTEX));
+    gl.attachShader(program, shader(gl.FRAGMENT_SHADER, FRAGMENT));
+    gl.linkProgram(program);
+    if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      painter = {
+        gl,
+        program,
+        buffer: gl.createBuffer(),
+        point: gl.getAttribLocation(program, "point"),
+        size: gl.getUniformLocation(program, "size"),
+        scale: gl.getUniformLocation(program, "scale"),
+        pens: gl.getUniformLocation(program, "pens"),
+        radii: gl.getUniformLocation(program, "radii"),
+        pensFor: null,
+        placed: new Float32Array(0),
+      };
+    }
+  }
+  painters.set(canvas, painter);
+  return painter;
+}
+
+// Every pen as WebGL takes them: the colors, red, green, blue and alpha each from 0 to 1, and the
+// radii.
+let glPens = null;
+onScheme(() => {
+  glPens = null;
+});
+function glPensOf() {
+  glPens ??= (() => {
+    const colors = new Float32Array(LEVELS * 4);
+    const radii = new Float32Array(LEVELS);
+    pensOf().forEach(({ color, size }, level) => {
+      const [red, green, blue, alpha] = color.match(/[\d.]+/g).map(Number);
+      colors.set([red / 255, green / 255, blue / 255, alpha], level * 4);
+      radii[level] = size;
+    });
+    return { colors, radii };
+  })();
+  return glPens;
+}
+
+function paintGl(painter, laid, levels) {
+  const { gl } = painter;
+  const { width, height, scale } = laid;
+  let count = 0;
+  for (const placed of levels) {
+    count += placed.length / 2;
+  }
+  if (painter.placed.length < count * 3) {
+    painter.placed = new Float32Array(count * 3);
+  }
+  let at = 0;
+  levels.forEach((placed, level) => {
+    for (let one = 0; one < placed.length; one += 2) {
+      painter.placed[at] = placed[one];
+      painter.placed[at + 1] = placed[one + 1];
+      painter.placed[at + 2] = level;
+      at += 3;
+    }
+  });
+  gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(painter.program);
+  const pens = glPensOf();
+  if (painter.pensFor !== pens) {
+    gl.uniform4fv(painter.pens, pens.colors);
+    gl.uniform1fv(painter.radii, pens.radii);
+    painter.pensFor = pens;
+  }
+  gl.uniform2f(painter.size, width, height);
+  gl.uniform1f(painter.scale, scale);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.bindBuffer(gl.ARRAY_BUFFER, painter.buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, painter.placed.subarray(0, count * 3), gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(painter.point);
+  gl.vertexAttribPointer(painter.point, 3, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.POINTS, 0, count);
+}
+
 function paint(canvas, laid, seconds) {
   const { width, height, scale, points } = laid;
-  const pen = canvas.getContext("2d");
-  pen.setTransform(scale, 0, 0, scale, 0, 0);
-  pen.clearRect(0, 0, width, height);
   const order = orderAt(seconds);
   const levels = Array.from({ length: LEVELS }, () => []);
   for (let at = 0; at < points.length; at += 4) {
@@ -175,6 +313,14 @@ function paint(canvas, laid, seconds) {
     const shift = loose * loose * REACH;
     levels[Math.round(loose * (LEVELS - 1))].push(x + points[at + 2] * shift, y + points[at + 3] * shift);
   }
+  const painter = painterOf(canvas);
+  if (painter) {
+    paintGl(painter, laid, levels);
+    return;
+  }
+  const pen = canvas.getContext("2d");
+  pen.setTransform(scale, 0, 0, scale, 0, 0);
+  pen.clearRect(0, 0, width, height);
   levels.forEach((placed, level) => {
     if (!placed.length) {
       return;
