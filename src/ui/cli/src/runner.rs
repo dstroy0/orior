@@ -246,6 +246,7 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         Program::Built(name) => (built(root, name)?, args),
         Program::Tool { tool, program } => (crate::executables::program(tool, program)?, args),
         Program::Orior => (std::env::current_exe().map_err(|error| format!("orior itself: {error}"))?, args),
+        Program::Made { .. } => (PathBuf::from("."), args),
     };
     let mut cmd = Command::new(&program);
     if let Program::Python(_) = step.program {
@@ -258,6 +259,8 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         Program::Built(_) => relative(root, &program),
         Program::Tool { program, .. } => program.clone(),
         Program::Orior => "orior".to_string(),
+        Program::Made { system: false } => "<the program the build made>".to_string(),
+        Program::Made { system: true } => "PATH=<the system's PATH> <the program the build made>".to_string(),
     };
     full.insert(0, shown_program);
     // each setting given goes into the step's environment, and the line shown leads with it as a
@@ -282,8 +285,19 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
             set.push(format!("PATH=<PATH without {name}>"));
         }
     }
+    // the tree's own tools come first on the PATH every step runs with, and the line says so
+    let tools: Vec<String> = crate::toolchains::tree_tools().iter().map(|folder| relative(root, folder)).collect();
+    if !tools.is_empty() && !step.args.iter().any(|arg| matches!(arg, Arg::Unpath(_)) || matches!(arg, Arg::Set(key, _) if key == "PATH")) {
+        set.insert(0, format!("PATH={}:$PATH", tools.join(":")));
+    }
     let shown = set.into_iter().chain(full).map(|w| if w.contains(' ') { format!("\"{w}\"") } else { w }).collect::<Vec<_>>();
     Ok((cmd, shown.join(" ")))
+}
+
+/// A step as a run holds it: its command made, or the program the build made, found as it starts.
+enum Ready {
+    Now(Command, String),
+    Made { system: bool },
 }
 
 /// Starts `cmd` with no console window of its own on Windows, and in a process group of its own
@@ -302,7 +316,7 @@ pub fn quiet(cmd: &mut Command) {
     }
 }
 
-fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, from: R, seen: Arc<Mutex<Vec<String>>>, began: Instant) -> thread::JoinHandle<()> {
+fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, from: R, seen: Arc<Mutex<Vec<String>>>, began: Instant, first: Arc<Mutex<Option<f64>>>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut reader = BufReader::new(from);
         let mut bytes = Vec::new();
@@ -315,7 +329,11 @@ fn carry<R: Read + Send + 'static>(sink: Sink, run: u64, stream: &'static str, f
                     if let Ok(mut seen) = seen.lock() {
                         seen.push(text.clone());
                     }
-                    sink(Said::Line(Line { run, stream, text, ms: since(began) }));
+                    let ms = since(began);
+                    if let Ok(mut first) = first.lock() {
+                        first.get_or_insert(ms);
+                    }
+                    sink(Said::Line(Line { run, stream, text, ms }));
                 }
             }
         }
@@ -395,11 +413,20 @@ impl Runs {
     }
 
     /// Starts a job. Its steps run on a thread of their own, which the returned handle waits on.
+    ///
+    /// A step whose program is the program the build made is found as it starts, from the lines the
+    /// steps before it printed; the file is found once, and what it loads is said as it is found.
     pub fn start(&self, sink: Sink, root: PathBuf, job: Job, values: HashMap<String, Vec<String>>) -> Result<(u64, thread::JoinHandle<()>), String> {
         check(&job, &values)?;
         let mut commands = Vec::new();
         for step in job.steps.iter().filter(|step| runs(step, &values)) {
-            commands.push(command(&root, step, &values)?);
+            commands.push(match step.program {
+                Program::Made { system } => Ready::Made { system },
+                _ => {
+                    let (cmd, shown) = command(&root, step, &values)?;
+                    Ready::Now(cmd, shown)
+                }
+            });
         }
         let run = self.next.fetch_add(1, Ordering::SeqCst) + 1;
         // Run numbers start again in each process, and the window and the command line can run at
@@ -415,11 +442,43 @@ impl Runs {
             }
             let seen = Arc::new(Mutex::new(Vec::new()));
             let mut code = Some(0);
+            let mut built = true;
             let run_path = crate::toolchains::run_path();
-            for (mut cmd, shown) in commands {
+            let say = |text: String| sink(Said::Line(Line { run, stream: "stderr", text, ms: since(began) }));
+            let mut made_file: Option<Result<PathBuf, String>> = None;
+            let mut find_made = |lines: &[String]| -> Result<PathBuf, String> {
+                if made_file.is_none() {
+                    let found = crate::executables::made(&root, &job.id, &values, lines);
+                    match &found {
+                        Ok(file) => {
+                            let orior_path: Vec<PathBuf> = std::env::split_paths(&run_path).collect();
+                            crate::binary::read(file, &orior_path).as_ref().map(crate::binary::said).unwrap_or_default().into_iter().for_each(&say);
+                            crate::executables::built_advice(&root, &job.id, lines).into_iter().for_each(&say);
+                        }
+                        Err(error) => say(error.clone()),
+                    }
+                    made_file = Some(found);
+                }
+                made_file.clone().unwrap_or_else(|| Err("no file was made".to_string()))
+            };
+            for ready in commands {
                 if holds(&stopped, run) {
                     break;
                 }
+                let made_step = matches!(ready, Ready::Made { .. });
+                let (mut cmd, shown) = match ready {
+                    Ready::Now(cmd, shown) => (cmd, shown),
+                    Ready::Made { system } => {
+                        let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
+                        match find_made(&lines) {
+                            Ok(file) => crate::executables::run_command(&root, &file, &values, system),
+                            Err(_) => {
+                                code = None;
+                                break;
+                            }
+                        }
+                    }
+                };
                 sink(Said::Line(Line { run, stream: "command", text: shown, ms: since(began) }));
                 if job.opens == "views" {
                     let _ = std::fs::create_dir_all(&view_out);
@@ -433,19 +492,22 @@ impl Runs {
                 if !attached {
                     quiet(&mut cmd);
                 }
+                let step_began = since(began);
                 let mut child: Child = match cmd.spawn() {
                     Ok(child) => child,
                     Err(error) => {
-                        sink(Said::Line(Line { run, stream: "stderr", text: format!("could not start: {error}"), ms: since(began) }));
+                        say(format!("could not start: {error}"));
                         code = None;
+                        built &= made_step;
                         break;
                     }
                 };
                 if let Ok(mut live) = live.lock() {
                     live.insert(run, child.id());
                 }
-                let out = child.stdout.take().map(|s| carry(sink.clone(), run, "stdout", s, seen.clone(), began));
-                let err = child.stderr.take().map(|s| carry(sink.clone(), run, "stderr", s, seen.clone(), began));
+                let first: Arc<Mutex<Option<f64>>> = Arc::default();
+                let out = child.stdout.take().map(|s| carry(sink.clone(), run, "stdout", s, seen.clone(), began, first.clone()));
+                let err = child.stderr.take().map(|s| carry(sink.clone(), run, "stderr", s, seen.clone(), began, first.clone()));
                 let status = child.wait();
                 for reader in [out, err].into_iter().flatten() {
                     let _ = reader.join();
@@ -454,6 +516,15 @@ impl Runs {
                     live.remove(&run);
                 }
                 code = status.ok().and_then(|s| s.code());
+                if made_step {
+                    if let Some(first) = first.lock().ok().and_then(|first| *first) {
+                        say(format!("the program wrote its first line {:.0} ms after it started", first - step_began));
+                    }
+                    let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
+                    crate::executables::ran_advice(&root, &job.id, code, &lines).into_iter().for_each(&say);
+                } else if code != Some(0) {
+                    built = false;
+                }
                 if code != Some(0) {
                     break;
                 }
@@ -461,19 +532,11 @@ impl Runs {
             let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
             let views = if job.opens == "views" { pages(&root, &view_out, &lines) } else { Vec::new() };
             let stopped_now = holds(&stopped, run);
-            if job.opens == "program" && code != Some(0) && !stopped_now {
-                for said in crate::executables::advice(&job.id, &lines) {
-                    sink(Said::Line(Line { run, stream: "stderr", text: said, ms: since(began) }));
-                }
+            if job.opens == "program" && !built && !stopped_now {
+                crate::executables::advice(&job.id, &lines).into_iter().for_each(&say);
             }
-            let made = if job.opens == "program" && code == Some(0) && !stopped_now {
-                match crate::executables::made(&root, &job.id, &values, &lines) {
-                    Ok(file) => Some(if file.starts_with(&root) { relative(&root, &file) } else { file.display().to_string() }),
-                    Err(error) => {
-                        sink(Said::Line(Line { run, stream: "stderr", text: error, ms: since(began) }));
-                        None
-                    }
-                }
+            let made = if job.opens == "program" && built && !stopped_now {
+                find_made(&lines).ok().map(|file| if file.starts_with(&root) { relative(&root, &file) } else { file.display().to_string() })
             } else {
                 None
             };

@@ -131,7 +131,7 @@ pub fn start(root: PathBuf, take: impl Fn(Changed) + Send + 'static) -> Watcher 
     let reader = system::read(&root, &send);
     if reader.is_none() {
         let (root, stop, send) = (root.clone(), stop.clone(), send.clone());
-        std::thread::spawn(move || poll(&root, &stop, &send));
+        std::thread::spawn(move || poll(&root, reading(&root), &stop, &send));
     }
     drop(send);
     let held = stop.clone();
@@ -190,9 +190,9 @@ fn reading(root: &Path) -> Reading {
     read
 }
 
-/// Reads the tree every POLL_EVERY and sends what changed since the last reading, until stopped.
-fn poll(root: &Path, stop: &AtomicBool, send: &Sender<(String, Kind)>) {
-    let mut last = reading(root);
+/// Reads the tree every POLL_EVERY and sends what changed since the last reading, the first
+/// against `last`, until stopped.
+fn poll(root: &Path, mut last: Reading, stop: &AtomicBool, send: &Sender<(String, Kind)>) {
     loop {
         std::thread::sleep(POLL_EVERY);
         if stop.load(Ordering::Relaxed) {
@@ -365,7 +365,7 @@ mod system {
 
 #[cfg(test)]
 mod watching {
-    use super::{Changed, Kind, gather, poll, start};
+    use super::{Changed, Kind, gather, poll, reading, start};
     use std::sync::atomic::AtomicBool;
     use std::sync::mpsc;
     use std::time::Duration;
@@ -429,8 +429,8 @@ mod watching {
         let (send, receive) = mpsc::channel();
         let stop = std::sync::Arc::new(AtomicBool::new(false));
         let (at, held) = (root.clone(), stop.clone());
-        let reader = std::thread::spawn(move || poll(&at, &held, &send));
-        std::thread::sleep(Duration::from_millis(300));
+        let first = reading(&root);
+        let reader = std::thread::spawn(move || poll(&at, first, &held, &send));
         std::fs::write(root.join("src/a.rs"), "a longer text").unwrap();
         std::fs::write(root.join("src/b.rs"), "three").unwrap();
         let mut seen = Vec::new();

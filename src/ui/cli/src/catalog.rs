@@ -67,6 +67,9 @@ pub enum Program {
     Tool { tool: String, program: String },
     /// orior itself, the program running, which takes the command line's words.
     Orior,
+    /// The program the job's build made, found once the steps before it end; run with the PATH a
+    /// program opened on its own gets, where `system`.
+    Made { system: bool },
 }
 
 #[derive(Clone)]

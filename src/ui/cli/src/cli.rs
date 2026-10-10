@@ -542,6 +542,7 @@ pub fn tree(named: Option<&str>) -> Result<PathBuf, String> {
         Some(dir) => root::tree_at(Path::new(dir)),
         None => root::find().ok_or_else(|| "no orior tree here: run from inside one, or name one with --root".to_string()),
     }
+    .inspect(|root| crate::toolchains::set_tree(root))
 }
 
 /// A command the command line runs itself, in the terminal.
@@ -1331,6 +1332,31 @@ pub fn run(given: Vec<String>) -> Outcome {
     // keep-run runs a job the server keeps, a process of its own, as serve.rs says.
     if first == "keep-run" {
         return Outcome::Exit(words.get(1).map_or(WRONG, |base| crate::serve::keep_run(std::path::Path::new(base))));
+    }
+    // libraries says what a program loads and from where, as binary.rs reads it:
+    // `orior libraries <program>`.
+    if first == "libraries" {
+        let Some(program) = words.get(1) else {
+            err("libraries takes the program to read");
+            return Outcome::Exit(WRONG);
+        };
+        let orior_path: Vec<std::path::PathBuf> = std::env::split_paths(&crate::toolchains::run_path()).collect();
+        return Outcome::Exit(match crate::binary::read(Path::new(program), &orior_path) {
+            Ok(report) => {
+                for one in &report.libraries {
+                    let at = one.at.as_ref().map(|at| at.display().to_string()).unwrap_or_default();
+                    out(&format!("{}  {}  {at}", one.name, serde_json::to_value(&one.found).ok().and_then(|found| found.as_str().map(str::to_string)).unwrap_or_default()));
+                }
+                for said in crate::binary::said(&report) {
+                    err(&said);
+                }
+                0
+            }
+            Err(said) => {
+                err(&said);
+                WRONG
+            }
+        });
     }
     // sea builds a script into Node's single executable, a step of a package.json's executable job,
     // as sea.rs says: `orior sea <script> <program> [module]`.

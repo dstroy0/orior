@@ -309,6 +309,9 @@ pub fn keep_run(base: &Path) -> i32 {
 
 impl Server {
     pub fn new(root: Option<PathBuf>) -> Self {
+        if let Some(root) = &root {
+            toolchains::set_tree(root);
+        }
         Server { root: Mutex::new(root), ..Server::default() }
     }
 
@@ -390,6 +393,7 @@ impl Server {
         let mut root = self.root.lock().map_err(|e| e.to_string())?;
         let moved = root.as_ref() != Some(&path);
         *root = Some(path.clone());
+        toolchains::set_tree(&path);
         drop(root);
         // The folders mounted beside one tree are its own; another tree mounts its own. A server
         // answers for the tree it started in; another tree starts its own as its files open.
@@ -644,6 +648,12 @@ impl Server {
                 None => self.job_start(a.get("job")?, a.get::<Option<_>>("values")?.unwrap_or_default()).and_then(give),
             },
             "job_stop" => self.job_stop(a.get("run")?).and_then(give),
+            "made_libraries_copy" => {
+                let given = a.get::<String>("path")?;
+                let file = if Path::new(&given).is_absolute() { PathBuf::from(given) } else { root::full(&self.root()?, &given) };
+                let orior_path: Vec<PathBuf> = std::env::split_paths(&toolchains::run_path()).collect();
+                crate::binary::read(&file, &orior_path).and_then(|report| crate::binary::copy_beside(&file, &report)).and_then(give)
+            }
             "runs_kept" => give(self.kept_runs()),
             "run_follow" => {
                 let keep = self.keeping.as_ref().ok_or("this tree keeps no runs")?;

@@ -13,6 +13,7 @@ import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { copyText, menuOn } from "./menu.js";
 import { coloredHtml } from "./screen.js";
 import { write } from "./status.js";
+import { say } from "./statusbar.js";
 import { runInTerminal } from "./terminal.js";
 import { wordmark } from "./wordmark.js";
 
@@ -308,7 +309,7 @@ function console_(job) {
     head.append(views);
   }
   if (shown?.made) {
-    head.append(madeButtons(shown.made));
+    head.append(madeButtons(job, shown.made));
   }
   const lines = element("pre", { className: "lines", id: "lines" });
   shown?.lines.forEach((line) => lines.append(lineNode(line)));
@@ -362,18 +363,32 @@ function madePath(made) {
   return `${top}/${made}`;
 }
 
-// What a build that made a program offers: the program run in the terminal, at the tree's top
-// folder, and its path copied.
-function madeButtons(made) {
+// What a build that made a program offers: the program run in the terminal at the tree's top folder;
+// built and run again in the job, as orior runs it or as the system runs a program opened on its
+// own; the libraries it loads through a PATH copied beside it; and its path copied.
+function madeButtons(job, made) {
   const buttons = element("div", { className: "views" });
-  const run = element("button", { type: "button", textContent: `Run ${made.split("/").pop()}`, title: made });
-  run.addEventListener("click", () => {
+  const button = (label, act, title = made) => {
+    const one = element("button", { type: "button", textContent: label, title });
+    one.addEventListener("click", act);
+    buttons.append(one);
+  };
+  button(`Run ${made.split("/").pop()}`, () => {
     const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
     runInTerminal(`( cd -- ${quoted(top)} && ${quoted(madePath(made))} )`);
   });
-  const copy = element("button", { type: "button", textContent: "Copy Path", title: madePath(made) });
-  copy.addEventListener("click", () => copyText(madePath(made)));
-  buttons.append(run, copy);
+  const again = (then) => startJob(job.id, { ...valuesFrom(job), then: [then] }).catch((error) => say(String(error), { failed: true }));
+  button("Run in the Job", () => again("run"));
+  button("Run as the System Runs It", () => again("run as the system runs it"));
+  button("Copy Libraries Beside It", async () => {
+    try {
+      const copied = await invoke("made_libraries_copy", { path: made });
+      say(copied.length ? `Copied ${copied.join(", ")} beside ${made.split("/").pop()}` : `${made.split("/").pop()} loads no library through a PATH`);
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+  });
+  button("Copy Path", () => copyText(madePath(made)), madePath(made));
   return buttons;
 }
 

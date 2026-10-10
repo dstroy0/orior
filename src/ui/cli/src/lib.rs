@@ -10,6 +10,7 @@
 //! The commands are one list, commands.json, read by the command line here and by the window for its
 //! menus. A menu's title and one of its commands are the words the command line takes for it.
 
+pub mod binary;
 pub mod bridge;
 pub mod builds;
 pub mod catalog;

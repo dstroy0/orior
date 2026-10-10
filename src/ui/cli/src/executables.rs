@@ -707,6 +707,11 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
         }
         (Kind::Npm, _) => (String::new(), Vec::new(), Vec::new()),
     };
+    let (mut params, mut steps) = (params, steps);
+    params.push(choice("then", &["build", "run", "run as the system runs it"]));
+    params.push(Param { key: "folder".into(), kind: "dir", choices: Vec::new(), default: String::new(), required: false });
+    steps.push(Step { program: Program::Made { system: false }, args: vec![Arg::Only("then".into(), "run".into())] });
+    steps.push(Step { program: Program::Made { system: true }, args: vec![Arg::Only("then".into(), "run as the system runs it".into())] });
     Job { id: format!("executable/{script}:{name}"), group: "executable", title, file: script, about, params, opens: "program", steps }
 }
 
@@ -840,6 +845,243 @@ pub fn advice(id: &str, lines: &[String]) -> Vec<String> {
     if kind == Some(Kind::Pyinstaller) && has("No module named PyInstaller") {
         let python = program("python", "python").map(|path| path.display().to_string()).unwrap_or_else(|_| "python".to_string());
         said.push(format!("PyInstaller is not in the Python that runs it, {python}; `\"{python}\" -m pip install pyinstaller` installs it there"));
+    }
+    said
+}
+
+/// The variables a tree's .env sets, each `NAME=value` line in order: a leading `export` taken off,
+/// a value in quotes taken without them, and comments and blank lines passed over.
+pub fn dot_env(text: &str) -> Vec<(String, String)> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .filter_map(|line| {
+            let line = line.strip_prefix("export ").unwrap_or(line);
+            let (name, value) = line.split_once('=')?;
+            let name = name.trim();
+            let value = value.trim();
+            let value = match value.chars().next() {
+                Some(quote @ ('"' | '\'')) => value[1..].split(quote).next().unwrap_or_default().to_string(),
+                _ => value.split(" #").next().unwrap_or_default().trim().to_string(),
+            };
+            (!name.is_empty() && name.chars().all(|char| char.is_alphanumeric() || char == '_')).then(|| (name.to_string(), value))
+        })
+        .collect()
+}
+
+/// The command that runs the program a build made, and the line shown for it: in the folder the
+/// job's `folder` names, the tree's top folder where it names none, with the variables of the tree's
+/// .env, their values not shown. Where `system`, its PATH is the PATH a program opened on its own
+/// gets; else it is orior's, and a .NET program that needs the .NET runtime is told where the .NET
+/// that built it is.
+pub fn run_command(root: &Path, file: &Path, values: &HashMap<String, Vec<String>>, system: bool) -> (Command, String) {
+    let mut cmd = Command::new(file);
+    let folder = first(values, "folder", "");
+    cmd.current_dir(if folder.is_empty() { root.to_path_buf() } else { crate::root::full(root, folder) });
+    let mut shown: Vec<String> = Vec::new();
+    for (name, value) in dot_env(&fs::read_to_string(root.join(".env")).unwrap_or_default()) {
+        cmd.env(&name, value);
+        shown.push(format!("{name}=…"));
+    }
+    if system {
+        cmd.env("PATH", std::env::join_paths(toolchains::system_path()).unwrap_or_default());
+        shown.push("PATH=<the system's PATH>".to_string());
+    } else if file.with_extension("runtimeconfig.json").is_file() {
+        if let Some(dotnet) = program("dotnet", "dotnet").ok().and_then(|path| path.parent().map(Path::to_path_buf)) {
+            shown.push(format!("DOTNET_ROOT={}", dotnet.display()));
+            cmd.env("DOTNET_ROOT", dotnet);
+        }
+    }
+    if !folder.is_empty() {
+        shown.insert(0, format!("cd {folder} &&"));
+    }
+    let path = if file.starts_with(root) { relative(root, file) } else { file.display().to_string() };
+    shown.push(path);
+    (cmd, shown.join(" "))
+}
+
+/// The folders a program opened on its own looks in for the .NET runtime: DOTNET_ROOT where the
+/// system sets it, then where .NET installs for every user.
+fn dotnet_places() -> Vec<PathBuf> {
+    let mut places: Vec<PathBuf> = std::env::var_os("DOTNET_ROOT").map(PathBuf::from).into_iter().collect();
+    if cfg!(windows) {
+        places.extend(std::env::var_os("ProgramFiles").map(|folder| PathBuf::from(folder).join("dotnet")));
+    } else {
+        places.extend(fs::read_to_string("/etc/dotnet/install_location").ok().map(|text| PathBuf::from(text.trim())));
+        places.extend(["/usr/share/dotnet", "/usr/lib/dotnet", "/usr/local/share/dotnet"].map(PathBuf::from));
+    }
+    places
+}
+
+/// What a .NET program that is no single file needs of the .NET runtime, and where a program opened
+/// on its own finds none: each framework its runtimeconfig.json names, by name and version, that no
+/// place of `dotnet_places` holds a version of with the same first number and at least as new.
+fn dotnet_missing(file: &Path) -> Vec<String> {
+    let Ok(config) = read_json(&file.with_extension("runtimeconfig.json")) else { return Vec::new() };
+    let options = &config["runtimeOptions"];
+    if options.get("includedFrameworks").is_some() {
+        return Vec::new();
+    }
+    let frameworks: Vec<&Value> = options.get("framework").into_iter().chain(options["frameworks"].as_array().into_iter().flatten()).collect();
+    let places = dotnet_places();
+    let numbers = |version: &str| version.split(['.', '-']).filter_map(|part| part.parse::<u32>().ok()).collect::<Vec<_>>();
+    frameworks
+        .into_iter()
+        .filter_map(|framework| {
+            let (name, version) = (framework["name"].as_str()?, framework["version"].as_str()?);
+            let wanted = numbers(version);
+            let held = places.iter().any(|place| {
+                fs::read_dir(place.join("shared").join(name)).into_iter().flatten().flatten().any(|entry| {
+                    let have = numbers(&entry.file_name().to_string_lossy());
+                    have.first() == wanted.first() && have >= wanted
+                })
+            });
+            (!held).then(|| format!("{name} {version}"))
+        })
+        .collect()
+}
+
+/// What a build that made its program can be told of it past what it loads: a .NET program that
+/// needs a .NET runtime a program opened on its own does not find, and the modules a PyInstaller
+/// build warns it did not find that the tree's own code imports, each with the hidden import that
+/// takes it in.
+pub fn built_advice(root: &Path, id: &str, lines: &[String]) -> Vec<String> {
+    let Some((script, _)) = id.strip_prefix("executable/").and_then(|rest| rest.rsplit_once(':')) else { return Vec::new() };
+    let path = root.join(script);
+    let mut said = Vec::new();
+    match kind_of(&path.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default()) {
+        Some(Kind::Dotnet) => {
+            let name = id.rsplit(':').next().unwrap_or_default();
+            if let Ok(file) = dotnet_artifact(name, lines) {
+                for framework in dotnet_missing(&file) {
+                    let places: Vec<String> = dotnet_places().iter().map(|place| place.display().to_string()).collect();
+                    said.push(format!(
+                        "{} needs the .NET runtime {framework}, which a program opened on its own looks for in {} and does not find: Publish as One File, the job's output one file, carries it inside the program",
+                        file.file_name().map(|one| one.to_string_lossy().to_string()).unwrap_or_default(),
+                        places.join(" and ")
+                    ));
+                }
+            }
+        }
+        Some(Kind::Pyinstaller) => {
+            let folder = path.parent().unwrap_or(root);
+            let stem = path.file_stem().map(|stem| stem.to_string_lossy().to_string()).unwrap_or_default();
+            let warn = fs::read_to_string(folder.join("build").join(&stem).join(format!("warn-{stem}.txt"))).unwrap_or_default();
+            let own: HashSet<String> = fs::read_dir(folder)
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter_map(|entry| {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let path = entry.path();
+                    if path.is_dir() && path.join("__init__.py").is_file() {
+                        Some(name)
+                    } else {
+                        name.strip_suffix(".py").map(str::to_string)
+                    }
+                })
+                .chain(std::iter::once("__main__".to_string()))
+                .collect();
+            // An importer is named as a module, or as the path of a script the spec freezes.
+            let is_own = |importer: &str| {
+                let as_path = Path::new(importer);
+                if as_path.extension().is_some_and(|ext| ext == "py") && as_path.is_absolute() {
+                    return as_path.starts_with(folder);
+                }
+                own.contains(importer.split('.').next().unwrap_or_default())
+            };
+            for (module, importers) in pyinstaller_missing(&warn) {
+                let by: Vec<String> = importers
+                    .iter()
+                    .filter(|(importer, kinds)| is_own(importer) && !kinds.contains("optional"))
+                    .map(|(importer, _)| Path::new(importer).file_name().filter(|_| importer.ends_with(".py")).map_or_else(|| importer.clone(), |name| name.to_string_lossy().to_string()))
+                    .collect();
+                if let Some(first) = by.first() {
+                    said.push(format!("{module}, which {first} imports, is not in the frozen program: PyInstaller found it nowhere in the Python that ran it; install it there and build again"));
+                }
+            }
+        }
+        _ => {}
+    }
+    said
+}
+
+/// The modules a PyInstaller warnings file says it did not find, each with the modules that import
+/// it and how, as `missing module named X - imported by A (top-level), B (delayed, conditional)`.
+fn pyinstaller_missing(text: &str) -> Vec<(String, Vec<(String, String)>)> {
+    text.lines()
+        .filter_map(|line| line.strip_prefix("missing module named "))
+        .filter_map(|rest| {
+            let (module, importers) = rest.split_once(" - imported by ")?;
+            let module = module.trim().trim_matches('\'').to_string();
+            let importers = importers
+                .split("), ")
+                .filter_map(|one| {
+                    let (name, kinds) = one.trim_end_matches(')').rsplit_once(" (")?;
+                    Some((name.trim().to_string(), kinds.to_string()))
+                })
+                .collect();
+            Some((module, importers))
+        })
+        .collect()
+}
+
+/// The fullest module name the Python files beside a spec write out in quotes that starts with
+/// `module`, as `importlib.import_module("email.mime.text")` does for `email.mime`.
+fn fullest_name(folder: &Path, module: &str) -> String {
+    let mut best = module.to_string();
+    for entry in fs::read_dir(folder).into_iter().flatten().flatten().filter(|entry| entry.path().extension().is_some_and(|ext| ext == "py")) {
+        let text = fs::read_to_string(entry.path()).unwrap_or_default();
+        for quote in ['"', '\''] {
+            for piece in text.split(quote).skip(1).step_by(2) {
+                let named = piece.chars().all(|char| char.is_alphanumeric() || char == '_' || char == '.');
+                if named && (piece == module || piece.starts_with(&format!("{module}."))) && piece.len() > best.len() {
+                    best = piece.to_string();
+                }
+            }
+        }
+    }
+    best
+}
+
+/// What a run of the program a build made can be told of how it ended: on Windows, the codes the
+/// system ends a program with that cannot load its DLLs; and a frozen Python program's module that
+/// is not in it, as one PyInstaller found nowhere or as one the program imports by its name as it
+/// runs, which PyInstaller cannot see.
+pub fn ran_advice(root: &Path, id: &str, code: Option<i32>, lines: &[String]) -> Vec<String> {
+    let mut said = Vec::new();
+    if cfg!(windows) {
+        let reason = match code.map(|code| code as u32) {
+            Some(0xC000_0135) => Some("a DLL it loads was found nowhere (0xC0000135)"),
+            Some(0xC000_007B) => Some("a DLL it loads is built for another processor, or is damaged (0xC000007B)"),
+            Some(0xC000_0139) => Some("a DLL it loads lacks a function it calls, another version than the one it was built with (0xC0000139)"),
+            _ => None,
+        };
+        if let Some(reason) = reason {
+            said.push(format!("the program did not start: {reason}; the build's end says which DLLs it loads from where"));
+        }
+    }
+    let spec = id.strip_prefix("executable/").and_then(|rest| rest.rsplit_once(':')).map(|(script, _)| script).filter(|script| script.ends_with(".spec"));
+    if let Some(spec) = spec {
+        let path = root.join(spec);
+        let folder = path.parent().unwrap_or(root);
+        let stem = path.file_stem().map(|stem| stem.to_string_lossy().to_string()).unwrap_or_default();
+        let warn = fs::read_to_string(folder.join("build").join(&stem).join(format!("warn-{stem}.txt"))).unwrap_or_default();
+        let unfound: HashSet<String> = pyinstaller_missing(&warn).into_iter().map(|(module, _)| module).collect();
+        for line in lines {
+            let Some(rest) = line.split("No module named ").nth(1) else { continue };
+            let module = rest.trim().trim_matches('\'').trim_matches('"');
+            if module.is_empty() {
+                continue;
+            }
+            let top = module.split('.').next().unwrap_or(module);
+            if unfound.contains(module) || unfound.contains(top) {
+                said.push(format!("{module} is not in the frozen program: PyInstaller found it nowhere in the Python that ran it; install it there and build again"));
+            } else {
+                let name = fullest_name(folder, module);
+                said.push(format!("{name} is a module the frozen program imports by its name as it runs, which PyInstaller cannot see: add '{name}' to hiddenimports in {spec}"));
+            }
+        }
     }
     said
 }
