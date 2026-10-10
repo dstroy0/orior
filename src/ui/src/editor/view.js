@@ -54,6 +54,9 @@ const BRACKETS_READ = 20000;
 const UNBRACKETED = /\bt-(?:comment|string|regexp)/;
 const SHOWN = 10000;
 
+// A line of closing brackets alone, with the commas, semicolons and spaces that may follow them.
+const CLOSER = /^\s*[\])}]+[\])};,\s]*$/;
+
 // What is not drawn: the keys of the settings that mark spaces, tabs and line ends, and that hide
 // comments, and the most lines a text has for its lines of comments alone to go out of sight.
 const MARKS_KEY = "orior.whitespace";
@@ -347,7 +350,7 @@ export class Editor {
     const s = this.s;
     const key = `${s.doc.id}:${s.foldings}:${s.doc.count}:${this.commentsHidden}`;
     if (key !== this.rowsKey) {
-      const folds = s.folded.size ? hiddenSpans(s.folded) : [];
+      const folds = s.folded.size ? this.foldSpans() : [];
       this.rowsCache = new Rows(s.doc.count, this.commentsHidden ? joinSpans(folds, this.commentSpans()) : folds);
       this.rowsKey = key;
     }
@@ -683,7 +686,7 @@ export class Editor {
     if (s.folded.size) {
       let opened = false;
       for (const [start, end] of [...s.folded]) {
-        if (start < head.line && head.line <= end) {
+        if (start < head.line && head.line <= this.closedEnd(start, end)) {
           s.folded.delete(start);
           opened = true;
         }
@@ -1641,11 +1644,27 @@ export class Editor {
     this.folds();
   }
 
+  // The line after a folded region where it holds closing brackets alone, at the depth of the line
+  // that opens the region, which the fold takes in; or the region's own last line.
+  closedEnd(start, end) {
+    const next = end + 1;
+    if (next >= this.doc.count || !CLOSER.test(this.doc.line(next))) {
+      return end;
+    }
+    const size = this.s.indent.size;
+    return indentOf(this.doc.line(next), size) === indentOf(this.doc.line(start), size) ? next : end;
+  }
+
+  // The spans of lines the folds hide, each with its closing line where it takes one in.
+  foldSpans() {
+    return hiddenSpans(new Map([...this.s.folded].map(([start, end]) => [start, this.closedEnd(start, end)])));
+  }
+
   // After folds change: a cursor a fold hides goes to the end of the line that opens the fold.
   folds() {
     const s = this.s;
     s.foldings += 1;
-    const spans = hiddenSpans(s.folded);
+    const spans = this.foldSpans();
     const out = (p) => {
       const span = spans.find(([first, last]) => first <= p.line && p.line <= last);
       return span ? pos(span[0] - 1, this.doc.line(span[0] - 1).length) : p;
@@ -2599,6 +2618,11 @@ export class Editor {
     }
     if (s.folded.has(line) && s.endOf(line) >= 0) {
       html += `<span class="ed-folded" data-fold="${line}">⋯</span>`;
+      const end = s.folded.get(line);
+      const closed = this.closedEnd(line, end);
+      if (closed !== end) {
+        html += escapeHtml(s.doc.line(closed).trim());
+      }
     }
     return html;
   }

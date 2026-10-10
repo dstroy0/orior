@@ -3,7 +3,8 @@
 
 // What folds, read from indentation: a line opens a region when the next line that is not blank is
 // indented deeper, and the region runs to the last line before one indented no deeper than it.
-// A closing brace at the opening line's depth stays outside the region and shows when folded.
+// A closing brace at the opening line's depth stays outside the region; a folded region takes it
+// in where its line holds closing brackets alone, and draws them on the region's first line.
 
 // The width a line's leading white space takes, or -1 for a blank line.
 export function indentOf(text, size) {
