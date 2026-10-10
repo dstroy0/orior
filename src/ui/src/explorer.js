@@ -5,11 +5,13 @@
 // in groups the tool strip's icons choose between, one group shown at a time. Explorer holds Search,
 // which finds text in the tree's files and shows from Find in Files; Usages, which lists where a
 // symbol is used and shows from Find Usages; Open Editors, which lists the tabs; and the tree's own
-// pane of its files. Structure holds the Outline of what the open file declares. Commit holds
-// Changes, the files that differ from the last commit, the Timeline of commits that touched the open
-// file, and its Local History, the file as each save left it. Problems lists the open files' diagnostics, and Git every branch's commits as a graph. The
-// explorer's … menu shows or hides each pane of the group, reads the tree again, and closes every
-// folder. Which group shows, and which panes show and are open, is kept between visits.
+// pane of its files. Structure holds the Outline of what the open file declares and its Undo History.
+// Commit holds Changes, the files that differ from the last commit, the Timeline of commits that
+// touched the open file, its Local History, the file as each save left it, and Review, the review
+// comments left on the tree's changes. Problems lists the open files' diagnostics, and Git every
+// branch's commits as a graph. The explorer's … menu shows or hides each pane of the group, reads the
+// tree again, and closes every folder. Which group shows, and which panes show and are open, is kept
+// between visits.
 //
 // A pane's head is a row of the explorer's list one level above its rows, and the list's keys open
 // and close it as they do a folder.
@@ -17,6 +19,7 @@
 import { invoke } from "./bridge.js";
 import { escapeHtml } from "./editor/view.js";
 import { copyText, menuOn, showMenu } from "./menu.js";
+import { comments, onReview, removeComment, resolveComment } from "./review.js";
 import { symbolsOf } from "./outline.js";
 
 const KEPT = "orior.panes";
@@ -31,6 +34,7 @@ const PANES = [
   ["undo", "Undo History"],
   ["timeline", "Timeline"],
   ["local", "Local History"],
+  ["review", "Review"],
   ["changes", "Changes"],
   ["problems", "Problems"],
   ["git", "Git"],
@@ -40,7 +44,7 @@ const PANES = [
 const GROUPS = {
   explorer: ["search", "usages", "todo", "open", "folder"],
   structure: ["outline", "undo"],
-  commit: ["changes", "timeline", "local"],
+  commit: ["changes", "timeline", "local", "review"],
   problems: ["problems"],
   git: ["git"],
 };
@@ -661,6 +665,53 @@ function gitItems(event) {
   ];
 }
 
+// Review: every review comment of the tree, a row for each file and under it a row a comment, the
+// open ones before the resolved ones. A press opens the file at the comment's line, and a comment's
+// menu shows the file's changes, resolves or opens it again, or deletes it.
+export function drawReview() {
+  const body = document.getElementById("review");
+  if (!paneOpen("review")) {
+    return;
+  }
+  const files = new Map();
+  for (const one of comments().sort((a, b) => Number(a.done) - Number(b.done) || a.line - b.line)) {
+    files.set(one.path, [...(files.get(one.path) ?? []), one]);
+  }
+  const rows = [];
+  for (const [path, items] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
+    const cut = path.lastIndexOf("/");
+    const open = items.filter((one) => !one.done).length;
+    rows.push(element("div", { className: "node problem-file" }, iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(open) })));
+    for (const one of items) {
+      const row = element("button", { className: `problem review-row${one.done ? " done" : ""}`, type: "button", title: `${path}:${one.line + 1}\n${one.body}` });
+      row.dataset.key = `review:${one.id}`;
+      row.dataset.depth = "1";
+      row.dataset.comment = one.id;
+      row.append(element("i", { className: "guide" }), element("span", { className: "review-mark" }), element("span", { className: "name", textContent: one.body.split("\n")[0] }), element("span", { className: "where", textContent: String(one.line + 1) }));
+      row.addEventListener("click", () => state.hooks.openComment(one));
+      rows.push(row);
+    }
+  }
+  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No review comments. A press on a line's number in a file's changes leaves one." })]));
+}
+
+function reviewItems(event) {
+  const id = event.target.closest(".review-row")?.dataset.comment;
+  const one = comments().find((comment) => comment.id === id);
+  if (!one) {
+    return null;
+  }
+  return [
+    { label: "Open", run: () => state.hooks.openComment(one) },
+    { label: "Show Changes", run: () => state.hooks.showChanges(one.path) },
+    "-",
+    { label: one.done ? "Reopen" : "Resolve", run: () => resolveComment(one.id, !one.done) },
+    { label: "Delete", run: () => removeComment(one.id) },
+    "-",
+    { label: "Copy Comment", run: () => copyText(one.body) },
+  ];
+}
+
 // The lines down from each folder above a row to the row, one a level.
 export function guides(depth) {
   return Array.from({ length: depth }, () => element("i", { className: "guide" }));
@@ -694,6 +745,8 @@ export function startExplorer(hooks) {
   menuOn(document.getElementById("open-editors"), (event) => hooks.tabMenu(event.target.closest(".open-row")?.dataset.key));
   menuOn(document.getElementById("timeline"), timelineItems);
   menuOn(document.getElementById("local-history"), localItems);
+  menuOn(document.getElementById("review"), reviewItems);
+  onReview(drawReview);
   const graph = document.getElementById("git-log");
   menuOn(graph, gitItems);
   graph.addEventListener("click", (event) => {

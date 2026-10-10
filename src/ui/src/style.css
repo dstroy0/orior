@@ -1942,6 +1942,97 @@ body[data-view="run"] .statusbar .ed-status {
   background: color-mix(in srgb, var(--t5) 36%, transparent);
 }
 
+/* Review comments: a right line's number takes a press to leave one, and each stands under its line's
+ * row beneath the right side, ruled in signal at its left edge, dimmed once resolved. */
+.diff-num.can-comment {
+  cursor: pointer;
+}
+
+.diff-num.can-comment:hover {
+  background: var(--line);
+  color: var(--signal);
+}
+
+.diff-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.15rem 0.8rem 0.3rem calc(50% + 3.5rem);
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--signal);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: color-mix(in srgb, var(--signal) 8%, var(--surface));
+  font: 12.5px var(--head);
+  color: var(--fg);
+}
+
+.diff-comment.done {
+  border-left-color: var(--fg-3);
+  color: var(--fg-3);
+}
+
+.diff-comment.gone {
+  border-left-style: dashed;
+}
+
+.diff-comment-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+.diff-comment-when {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.diff-comment-act {
+  flex: none;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * 0.6);
+  background: none;
+  color: var(--fg-2);
+  font: 11.5px var(--head);
+  cursor: pointer;
+}
+
+.diff-comment-act:hover {
+  border-color: var(--fg-3);
+  color: var(--fg);
+}
+
+.diff-comment-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  resize: vertical;
+}
+
+.review-mark::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px 2px 2px 0;
+  background: var(--signal);
+}
+
+.review-row.done .review-mark::before {
+  background: var(--fg-3);
+}
+
+.review-row.done .name {
+  color: var(--fg-3);
+  text-decoration: line-through;
+}
+
 .diff-summary {
   margin: 0;
   padding: 0.25rem 0.8rem;

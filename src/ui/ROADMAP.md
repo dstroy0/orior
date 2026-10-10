@@ -35,10 +35,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
 6. **JSON by its schema.** A JSON file checked and completed from the schema it names, a schema's own schema among them.
 7. **Python, fast and whole.** Python's server answers as quickly as any language's, recursive type hints resolve, and a file's imports, its environment and its tests are found with no setup.
 
-## Version control
-
-1. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
-
 ## Testing
 
 1. **A test runner.** The tree's tests in a tree of their own, by file and by test, each marked passed, failed or skipped; a failure opens where it failed; failed tests run again with one press.

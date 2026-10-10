@@ -30,10 +30,11 @@ import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
 import { showMerge } from "./mergeview.js";
+import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
@@ -163,6 +164,7 @@ async function loadChanges() {
   }
   drawCommit(state.changes);
   drawGit(branch);
+  drawReview();
   state.rolled = new Map();
   for (const [path, mark] of state.changes) {
     let at = path.lastIndexOf("/");
@@ -958,12 +960,13 @@ async function openDiff(path, mark) {
   } else if (mark !== "D") {
     now = (await invoke("file_read", { path }).catch(() => null))?.text ?? "";
   }
-  showDiff(document.querySelector("#mode-edit .desk"), path, then, now);
+  showDiff(document.querySelector("#mode-edit .desk"), path, then, now, { review: path });
 }
 
-// Compare: two texts side by side in the changes view, `sides` naming them, the left first.
-function compareTexts(name, then, now, sides) {
-  showDiff(document.querySelector("#mode-edit .desk"), name, then, now, { sides, same: "The two are the same." });
+// Compare: two texts side by side in the changes view, `sides` naming them, the left first, and the
+// review comments of `review`, a file of the tree, under the right side's lines.
+function compareTexts(name, then, now, sides, review = name) {
+  showDiff(document.querySelector("#mode-edit .desk"), name, then, now, { sides, same: "The two are the same.", review });
 }
 
 const shortId = (commit) => commit.id.slice(0, 7);
@@ -987,6 +990,13 @@ async function openTouched(commit, file) {
   compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${shortId(commit)}`);
 }
 
+// A review comment's file, open at the line the comment stands at in its text as it is.
+async function openComment(comment) {
+  await openFile(comment.path);
+  const lines = tabOf(state.active)?.session?.doc.lines ?? [];
+  await openAt(comment.path, anchor(comment, lines).line);
+}
+
 // The file open beside the text on the clipboard.
 async function compareWithClipboard() {
   const tab = tabOf(state.active);
@@ -997,7 +1007,7 @@ async function compareWithClipboard() {
 
 // One file of the tree beside another, the one chosen first on the left.
 async function compareFiles(first, second) {
-  compareTexts(`${first} · ${second}`, await textNow(first), await textNow(second), `${first}, then ${second}`);
+  compareTexts(`${first} · ${second}`, await textNow(first), await textNow(second), `${first}, then ${second}`, second);
 }
 
 // A file a merge left in conflict, in the merge window over the editor: once every conflict is
@@ -2008,6 +2018,8 @@ export async function startEdit(defs) {
     openCommit,
     compareCommit,
     openTouched,
+    openComment,
+    showChanges: (path) => openDiff(path, state.changes.get(path) ?? "M"),
     repo: repoOpen,
     repoName,
     repos: () => state.repos ?? [],
@@ -2033,6 +2045,7 @@ export async function startEdit(defs) {
       drawCommit(state.changes);
       drawProblems(problemFiles());
       drawGit(state.branch);
+      drawReview();
       drawTodo();
     },
     openAt: (path, line, col) => openAt(path, line, col),
