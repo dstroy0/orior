@@ -821,6 +821,22 @@ fn templates_reveal() -> Result<(), String> {
     home::reveal(&folder)
 }
 
+/// Names the checkers to run as files change, by name or id, and checks the files open with them.
+/// Gives the names no checker answers to.
+#[tauri::command(async)]
+fn checkers_set(handle: AppHandle, app: State<App>, names: Vec<String>) -> Vec<String> {
+    match root_of(&app) {
+        Ok(root) => app.servers.set_checkers(&names, Some(&root), &emitter(handle, root.clone())),
+        Err(_) => app.servers.set_checkers(&names, None, &(Arc::new(|_| {}) as servers::Emit)),
+    }
+}
+
+/// Every checker the manifest knows: its id, its name, and the languages it checks.
+#[tauri::command]
+fn checkers_known() -> Vec<(String, String, Vec<String>)> {
+    orior_cli::checkers::known().into_iter().map(|one| (one.id, one.name, one.spec.languages)).collect()
+}
+
 /// The classes a parse names, by their index.
 #[tauri::command]
 fn parse_classes() -> Vec<&'static str> {
@@ -1406,6 +1422,8 @@ fn open(launch: Launch) {
             parse_classes,
             shape_search,
             code_docstring,
+            checkers_set,
+            checkers_known,
             code_sort,
             templates_list,
             project_create,

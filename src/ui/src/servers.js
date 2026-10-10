@@ -119,6 +119,20 @@ export async function spansOf(tab, from, to) {
   return found.map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
 }
 
+// The checkers the reader names, as checkers.rs in the command line's crate runs them, kept by
+// their names, a comma between each.
+const CHECKERS_KEY = "orior.checkers";
+
+export function checkersNamed() {
+  return (localStorage.getItem(CHECKERS_KEY) ?? "").split(",").map((name) => name.trim()).filter(Boolean);
+}
+
+// Names the checkers to run as files change. Gives the names no checker answers to.
+export async function setCheckers(names) {
+  localStorage.setItem(CHECKERS_KEY, names.join(", "));
+  return invoke("checkers_set", { names }).catch(() => []);
+}
+
 // Every file's diagnostics as its server last gave them, open in a tab or not; how far the tree's
 // check has gone; and whether it has started in the tree open.
 const known = new Map();
@@ -132,6 +146,7 @@ let inspected = new Set();
 export function startServers({ tabs, paint }) {
   tabsOf = tabs;
   painted = paint;
+  invoke("checkers_set", { names: checkersNamed() }).catch(() => {});
   invoke("inspect_languages")
     .then((languages) => {
       inspected = new Set(languages);

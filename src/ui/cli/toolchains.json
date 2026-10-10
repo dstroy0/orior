@@ -325,6 +325,72 @@
       "format": {"program": "prettier", "args": ["--stdin-filepath", "{file}"]},
       "install": {"any": "https://prettier.io/docs/install"},
       "places": {"windows": ["%APPDATA%\\npm"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"], "linux": ["/usr/local/bin", "/usr/bin"]}
+    },
+    {
+      "id": "ruff",
+      "name": "Ruff",
+      "group": "Checkers",
+      "for": "checks Python as ruff does, its fixes offered as quick fixes",
+      "programs": ["ruff"],
+      "version": ["--version"],
+      "checker": {"program": "ruff", "languages": ["python"], "args": ["check", "--output-format", "json", "--exit-zero", "--stdin-filename", "{file}", "-"], "stdin": true, "tree": ["check", "--output-format", "json", "--exit-zero", "."], "reads": "ruff"},
+      "install": {"any": "https://docs.astral.sh/ruff/installation/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin"]}
+    },
+    {
+      "id": "flake8",
+      "name": "flake8",
+      "group": "Checkers",
+      "for": "checks Python as flake8 does",
+      "programs": ["flake8"],
+      "version": ["--version"],
+      "checker": {"program": "flake8", "languages": ["python"], "args": ["--format", "%(path)s:%(row)d:%(col)d: %(code)s %(text)s", "--stdin-display-name", "{file}", "-"], "stdin": true, "tree": ["--format", "%(path)s:%(row)d:%(col)d: %(code)s %(text)s", "."], "reads": "lines"},
+      "install": {"any": "https://flake8.pycqa.org/en/latest/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin"]}
+    },
+    {
+      "id": "mypy",
+      "name": "mypy",
+      "group": "Checkers",
+      "for": "checks Python's types as mypy does",
+      "programs": ["mypy"],
+      "version": ["--version"],
+      "checker": {"program": "mypy", "languages": ["python"], "args": ["--show-column-numbers", "--no-error-summary", "--no-color-output", "{file}"], "tree": ["--show-column-numbers", "--no-error-summary", "--no-color-output", "."], "reads": "lines"},
+      "install": {"any": "https://mypy.readthedocs.io/en/stable/getting_started.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin"]}
+    },
+    {
+      "id": "pylint",
+      "name": "Pylint",
+      "group": "Checkers",
+      "for": "checks Python as Pylint does",
+      "programs": ["pylint"],
+      "version": ["--version"],
+      "checker": {"program": "pylint", "languages": ["python"], "args": ["--output-format", "parseable", "--score", "n", "{file}"], "reads": "lines"},
+      "install": {"any": "https://pylint.readthedocs.io/en/stable/user_guide/installation/index.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin"]}
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint",
+      "group": "Checkers",
+      "for": "checks JavaScript as ESLint does; npm installs it",
+      "programs": ["eslint"],
+      "version": ["--version"],
+      "checker": {"program": "eslint", "languages": ["javascript"], "args": ["--format", "json", "--stdin", "--stdin-filename", "{file}"], "stdin": true, "tree": ["--format", "json", "."], "reads": "eslint"},
+      "install": {"any": "https://eslint.org/docs/latest/use/getting-started"},
+      "places": {"windows": ["%APPDATA%\\npm"], "any": ["/opt/homebrew/bin", "/usr/local/bin"]}
+    },
+    {
+      "id": "shellcheck",
+      "name": "ShellCheck",
+      "group": "Checkers",
+      "for": "checks shell scripts as ShellCheck does",
+      "programs": ["shellcheck"],
+      "version": ["--version"],
+      "checker": {"program": "shellcheck", "languages": ["shell"], "args": ["--format", "json1", "-"], "stdin": true, "reads": "shellcheck"},
+      "install": {"any": "https://github.com/koalaman/shellcheck#installing"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links"], "any": ["/opt/homebrew/bin", "/usr/bin"]}
     }
   ]
 }

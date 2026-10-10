@@ -12,6 +12,7 @@
 
 pub mod bridge;
 pub mod catalog;
+pub mod checkers;
 pub mod cli;
 pub mod commands;
 pub mod dap;

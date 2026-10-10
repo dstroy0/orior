@@ -70,6 +70,10 @@ pub struct Tool {
     /// How the tool formats a text of a language `formats` names, where it does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub format: Option<Formatter>,
+    /// How the tool checks a file or a tree as a type checker or a linter, as checkers.rs runs it,
+    /// where it does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checker: Option<crate::checkers::CheckerSpec>,
     /// The one system the tool is for, where it is for one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub only: Option<String>,

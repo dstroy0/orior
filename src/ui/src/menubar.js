@@ -23,6 +23,7 @@
 import { invoke, pick } from "./bridge.js";
 import { showClone } from "./clone.js";
 import { showCreate, showInit, showProject } from "./create.js";
+import { checkersNamed, setCheckers } from "./servers.js";
 import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
@@ -261,6 +262,7 @@ const COMMANDS = {
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
+  checkers: (args) => askCheckers(args.join(" ")),
   "parameter-hints": (args) => editing().setHints("parameter", onOff(args) ?? !editing().hints("parameter")),
   "flick-scroll": (args) => editing().setFlickScroll(onOff(args) ?? !editing().flickScroll()),
   "memory-budget": (args) => askBudget(args[0]),
@@ -612,6 +614,23 @@ async function showBranches() {
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
+}
+
+// View, Checkers: the type checkers and linters to run as files change, by name, as given or asked
+// for among those the manifest knows; a name none answers to is said.
+async function askCheckers(given) {
+  const known = await invoke("checkers_known").catch(() => []);
+  const answer = given || (await askFor(`The checkers to run as files change, a comma between each: ${known.map(([, name]) => name).join(", ")}`, checkersNamed().join(", ")));
+  if (answer === null || answer === undefined) {
+    return;
+  }
+  const names = answer.split(",").map((name) => name.trim()).filter(Boolean);
+  const unknown = await setCheckers(names);
+  if (unknown.length) {
+    say(`No checker is named ${unknown.join(" or ")}.`, { failed: true });
+  } else {
+    say(names.length ? `${names.join(", ")} check files as they change.` : "No checker runs as files change.");
+  }
 }
 
 // View, Memory Budget: the megabytes the app is held to in RAM, as given or asked for.

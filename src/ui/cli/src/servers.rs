@@ -21,6 +21,11 @@
 //! in place of that. A file is checked again when it changes on the disk, with the files whose
 //! includes or imports name it, and when the editor closes it, as the disk holds it.
 //!
+//! The checkers the reader names, as checkers.rs runs them, check a file as it opens; one that reads
+//! a file's text on its input checks it again as the editor changes it, and every one as it changes on
+//! the disk; and, with the tree's check, each that reads a tree whole checks the tree. A file's
+//! diagnostics hold each checker's findings, a checker's fixes offered as quick fixes.
+//!
 //! The inspections of inspect.rs read every Python and JavaScript file of the tree once a file of the
 //! tree is handed over, on a thread of their own, and each file as the editor changes it, as it
 //! changes on the disk, and as the editor closes it. A file's diagnostics go to the editor whole: its
@@ -297,6 +302,8 @@ struct Checks {
     inspected: Published,
     /// What each Python class's family sets, by its file's key and its name.
     supplied: Mutex<HashMap<String, HashMap<String, HashSet<String>>>>,
+    /// Each file's findings from each checker, by the file's key, with its URI.
+    checked: Checked,
     /// The servers, by their process, that refuse to be asked for a file's diagnostics, whose
     /// diagnostics the check waits for them to give.
     refused: Mutex<HashSet<u32>>,
@@ -315,7 +322,12 @@ pub struct Servers {
     told: Mutex<Option<Emit>>,
     /// The text of each file the editor has open, by its key, and each one's parse as last read, by
     /// its key, with what its text hashes to.
-    texts: Mutex<HashMap<String, String>>,
+    texts: Mutex<HashMap<String, (PathBuf, String)>>,
+    /// The checkers the reader named, by their ids; the tree they check; and each file's last run of
+    /// each, by its key and the checker's id, which a later run stands in for.
+    checkers: Mutex<Vec<String>>,
+    checked_root: Mutex<Option<PathBuf>>,
+    runs: Arc<Mutex<HashMap<(String, String), u64>>>,
     parses: Mutex<HashMap<String, (u64, Arc<Parse>)>>,
 }
 
@@ -369,6 +381,9 @@ fn hash_of(text: &str) -> u64 {
     text.hash(&mut hasher);
     hasher.finish()
 }
+
+/// Each file's findings from each checker, by the file's key, with its URI.
+type Checked = Mutex<HashMap<String, (String, HashMap<String, Vec<Value>>)>>;
 
 /// Each file's diagnostics as its server last gave them, which a quick fix is asked about, by the
 /// file's key, each with the URI the server gave it.
@@ -679,8 +694,13 @@ impl Servers {
     pub fn open(&self, root: &Path, path: &Path, language: &str, text: &str, emit: &Emit) -> Result<bool, String> {
         self.inspect(root, path, Some(text), emit);
         if let Ok(mut texts) = self.texts.lock() {
-            texts.insert(lsp::key_of(&lsp::uri_of(path)), text.to_string());
+            texts.insert(lsp::key_of(&lsp::uri_of(path)), (path.to_path_buf(), text.to_string()));
         }
+        if let (Ok(mut told), Ok(mut checked_root)) = (self.told.lock(), self.checked_root.lock()) {
+            *told = Some(emit.clone());
+            *checked_root = Some(root.to_path_buf());
+        }
+        self.run_checkers(root, path, Some(text), true, emit);
         let Some((server, spec)) = self.server(root, language, emit)? else {
             return Ok(false);
         };
@@ -717,7 +737,12 @@ impl Servers {
     pub fn change(&self, path: &Path, text: &str) -> Result<(), String> {
         self.inspect_again(path, Some(text));
         if let Ok(mut texts) = self.texts.lock() {
-            texts.insert(lsp::key_of(&lsp::uri_of(path)), text.to_string());
+            texts.insert(lsp::key_of(&lsp::uri_of(path)), (path.to_path_buf(), text.to_string()));
+        }
+        let checked_root = self.checked_root.lock().ok().and_then(|root| root.clone());
+        let emit = self.told.lock().ok().and_then(|told| told.clone());
+        if let (Some(root), Some(emit)) = (checked_root, emit) {
+            self.run_checkers(&root, path, Some(text), false, &emit);
         }
         let _held = self.checks.held.lock().map_err(|_| "held".to_string())?;
         self.holding(path).map_or(Ok(()), |server| server.change(path, text))
@@ -842,11 +867,14 @@ impl Servers {
     pub fn actions(&self, path: &Path, from: Place, to: Place) -> Result<Vec<Action>, String> {
         let uri = lsp::uri_of(path);
         let mut fixes: Vec<Action> = Vec::new();
-        if let Some((_, all)) = self.checks.inspected.lock().map_err(|_| "held".to_string())?.get(&lsp::key_of(&uri)) {
-            for one in all.iter().filter(|one| overlaps(&from, &to, &one["range"])) {
-                for fix in one["data"]["orior"].as_array().into_iter().flatten() {
-                    fixes.push(Action { title: fix["title"].as_str().unwrap_or_default().to_string(), kind: "quickfix".into(), preferred: true, disabled: None, raw: json!({"orior": fix["edits"]}) });
-                }
+        let key = lsp::key_of(&uri);
+        let mut ours: Vec<Value> = self.checks.inspected.lock().map_err(|_| "held".to_string())?.get(&key).map(|(_, all)| all.clone()).unwrap_or_default();
+        if let Some((_, by_checker)) = self.checks.checked.lock().map_err(|_| "held".to_string())?.get(&key) {
+            ours.extend(by_checker.values().flatten().cloned());
+        }
+        for one in ours.iter().filter(|one| overlaps(&from, &to, &one["range"])) {
+            for fix in one["data"]["orior"].as_array().into_iter().flatten() {
+                fixes.push(Action { title: fix["title"].as_str().unwrap_or_default().to_string(), kind: "quickfix".into(), preferred: true, disabled: None, raw: json!({"orior": fix["edits"]}) });
             }
         }
         let server = match self.asked(path) {
@@ -899,7 +927,7 @@ impl Servers {
     /// None where neither reads it. A parse is kept until the file's text changes.
     pub fn parse(&self, path: &Path) -> Result<Option<Arc<Parse>>, String> {
         let key = lsp::key_of(&lsp::uri_of(path));
-        let Some(text) = self.texts.lock().map_err(|_| "held".to_string())?.get(&key).cloned() else {
+        let Some(text) = self.texts.lock().map_err(|_| "held".to_string())?.get(&key).map(|(_, text)| text.clone()) else {
             return Ok(None);
         };
         let hash = hash_of(&text);
@@ -947,7 +975,7 @@ impl Servers {
 
     /// The text of a file as the editor holds it, where the editor has it open.
     pub fn text_of(&self, path: &Path) -> Option<String> {
-        self.texts.lock().ok()?.get(&lsp::key_of(&lsp::uri_of(path))).cloned()
+        self.texts.lock().ok()?.get(&lsp::key_of(&lsp::uri_of(path))).map(|(_, text)| text.clone())
     }
 
     /// Forgets the parses that came from servers, for each to be asked for again.
@@ -1171,6 +1199,7 @@ impl Servers {
             queue.files = files.clone();
         }
         self.start_checkers();
+        self.check_tree_with_checkers(root, emit);
         self.check_files(root, &files, emit)
     }
 
@@ -1228,6 +1257,9 @@ impl Servers {
             let path = root.join(file);
             let text = std::fs::read_to_string(&path).ok();
             self.inspect(root, &path, text.as_deref(), &emit);
+            if text.is_some() {
+                self.run_checkers(root, &path, None, true, &emit);
+            }
         }
         let tree = self.checks.queue.lock().map(|queue| queue.files.clone()).unwrap_or_default();
         let mut again: Vec<String> = files.iter().filter(|file| root.join(file).is_file()).cloned().collect();
@@ -1329,6 +1361,101 @@ impl Servers {
         let emit = self.told.lock().ok().and_then(|told| told.clone());
         if let (Some(root), Some(emit)) = (root, emit) {
             self.inspect(&root, path, text, &emit);
+        }
+    }
+
+    /// Sets the checkers the reader named, by name or id, and checks with them again each file the
+    /// editor holds, and the tree where its check is on. Gives the names no checker answers to.
+    pub fn set_checkers(&self, names: &[String], root: Option<&Path>, emit: &Emit) -> Vec<String> {
+        let mut ids = Vec::new();
+        let mut unknown = Vec::new();
+        for name in names.iter().filter(|name| !name.trim().is_empty()) {
+            match crate::checkers::named(name) {
+                Some(checker) => ids.push(checker.id),
+                None => unknown.push(name.trim().to_string()),
+            }
+        }
+        if let Ok(mut checkers) = self.checkers.lock() {
+            *checkers = ids.clone();
+        }
+        // A checker no longer named takes its findings with it.
+        let dropped: Vec<(String, String)> = self.checks.checked.lock().map(|mut all| {
+            let mut dropped = Vec::new();
+            for (key, (uri, by_checker)) in all.iter_mut() {
+                let before = by_checker.len();
+                by_checker.retain(|id, _| ids.contains(id));
+                if by_checker.len() != before {
+                    dropped.push((key.clone(), uri.clone()));
+                }
+            }
+            dropped
+        }).unwrap_or_default();
+        for (key, uri) in dropped {
+            emit_whole(&key, &uri, &self.published, &self.checks, emit);
+        }
+        let Some(root) = root else {
+            return unknown;
+        };
+        if let (Ok(mut told), Ok(mut checked_root)) = (self.told.lock(), self.checked_root.lock()) {
+            *told = Some(emit.clone());
+            *checked_root = Some(root.to_path_buf());
+        }
+        let open: Vec<(PathBuf, String)> = self.texts.lock().map(|texts| texts.values().cloned().collect()).unwrap_or_default();
+        for (path, text) in open {
+            self.run_checkers(root, &path, Some(&text), true, emit);
+        }
+        if self.checks.queue.lock().is_ok_and(|queue| queue.on) {
+            self.check_tree_with_checkers(root, emit);
+        }
+        unknown
+    }
+
+    /// Runs each checker named that reads a tree whole over the tree at `root`.
+    fn check_tree_with_checkers(&self, root: &Path, emit: &Emit) {
+        let ids = self.checkers.lock().map(|ids| ids.clone()).unwrap_or_default();
+        for checker in crate::checkers::known().into_iter().filter(|one| ids.contains(&one.id) && one.spec.tree.is_some()) {
+            let (root, emit, published, checks) = (root.to_path_buf(), emit.clone(), self.published.clone(), self.checks.clone());
+            std::thread::spawn(move || {
+                if let Ok(found) = crate::checkers::check_tree(&checker, &root) {
+                    keep_checked(&checker.id, found, &published, &checks, &emit);
+                }
+            });
+        }
+    }
+
+    /// Checks one file with each checker named for its language, on a thread of its own: with `text`
+    /// as the editor holds it where the checker reads its input, and as the disk holds it where
+    /// `disk` says the disk has it. A later run of the same checker over the same file stands in for
+    /// an earlier one still going.
+    fn run_checkers(&self, root: &Path, path: &Path, text: Option<&str>, disk: bool, emit: &Emit) {
+        let ids = self.checkers.lock().map(|ids| ids.clone()).unwrap_or_default();
+        if ids.is_empty() {
+            return;
+        }
+        let file = path.display().to_string();
+        let languages = crate::plugins::languages();
+        let Some(language) = Path::new(&file).extension().and_then(|ext| languages.get(&ext.to_string_lossy().to_lowercase())).cloned() else {
+            return;
+        };
+        let key = lsp::key_of(&lsp::uri_of(path));
+        for checker in crate::checkers::known().into_iter().filter(|one| ids.contains(&one.id) && one.spec.languages.contains(&language)) {
+            if !disk && !checker.spec.stdin {
+                continue;
+            }
+            let run = self.runs.lock().map(|mut runs| {
+                let count = runs.entry((key.clone(), checker.id.clone())).or_insert(0);
+                *count += 1;
+                *count
+            }).unwrap_or(0);
+            let (root, path, text, emit, published, checks, runs, key) = (root.to_path_buf(), path.to_path_buf(), text.map(str::to_string), emit.clone(), self.published.clone(), self.checks.clone(), self.runs.clone(), key.clone());
+            std::thread::spawn(move || {
+                let Ok(found) = crate::checkers::check_file(&checker, &root, &path, text.as_deref()) else {
+                    return;
+                };
+                if runs.lock().is_ok_and(|runs| runs.get(&(key, checker.id.clone())) == Some(&run)) {
+                    keep_checked(&checker.id, found, &published, &checks, &emit);
+                }
+            });
         }
     }
 
@@ -1455,6 +1582,25 @@ fn indexed_call(root: &Path, file: &str, function: &inspect::Function, site: &st
     }
 }
 
+/// Keeps a checker's findings, by file, and passes on each file's diagnostics whole.
+fn keep_checked(id: &str, found: Vec<(PathBuf, Vec<Value>)>, published: &Published, checks: &Checks, emit: &Emit) {
+    let mut changed = Vec::new();
+    if let Ok(mut checked) = checks.checked.lock() {
+        for (path, items) in found {
+            let uri = lsp::uri_of(&path);
+            let key = lsp::key_of(&uri);
+            let entry = checked.entry(key.clone()).or_insert_with(|| (uri.clone(), HashMap::new()));
+            if entry.1.get(id) != Some(&items) {
+                entry.1.insert(id.to_string(), items);
+                changed.push((key, uri));
+            }
+        }
+    }
+    for (key, uri) in changed {
+        emit_whole(&key, &uri, published, checks, emit);
+    }
+}
+
 /// Passes on a file's diagnostics whole: its server's, less its reports of an attribute a class's
 /// family sets, then the inspections'.
 fn emit_whole(key: &str, uri: &str, published: &Published, checks: &Checks, emit: &Emit) {
@@ -1463,6 +1609,13 @@ fn emit_whole(key: &str, uri: &str, published: &Published, checks: &Checks, emit
         items.retain(|item| !attribute_of(item).is_some_and(|(name, class)| classes.get(&class).is_some_and(|names| names.contains(&name))));
     }
     items.extend(checks.inspected.lock().ok().and_then(|all| all.get(key).map(|(_, items)| items.clone())).unwrap_or_default());
+    if let Some((_, by_checker)) = checks.checked.lock().ok().and_then(|all| all.get(key).cloned()) {
+        let mut ids: Vec<&String> = by_checker.keys().collect();
+        ids.sort();
+        for id in ids {
+            items.extend(by_checker[id].iter().cloned());
+        }
+    }
     if let Some(diagnostics) = diagnostics_of(&json!({"uri": uri, "diagnostics": items})) {
         emit(Told::Diagnostics(diagnostics));
     }
