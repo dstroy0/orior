@@ -78,7 +78,7 @@ function pensOf() {
     const loose = level / (LEVELS - 1);
     const kept = 1 - loose;
     const [red, green, blue] = shade(loose);
-    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.36 + 0.16 * kept).toFixed(3)})`, size: 0.52 + 0.16 * kept };
+    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.414 + 0.184 * kept).toFixed(3)})`, size: 0.59 + 0.16 * kept };
   });
   return pens;
 }
