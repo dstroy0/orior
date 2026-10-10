@@ -9,10 +9,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Running and measuring
 
-1. **Runs on another machine.** A tree opened over SSH, or in a container, with the editor, the terminal, the jobs and the debugger working there, a dev container's own description among the ways in, a run's output read again after the connection comes back.
-2. **Containers.** Docker containers and Compose services listed, started and stopped, a command run in one, a program in one debugged, and a Kubernetes cluster's pods and their logs read.
-3. **Executables.** A program built into a file that runs on its own, from the tree's build scripts, with the build's output in a job.
-4. **Deployments.** A build's files sent to the places a tree names, to several at once.
+1. **Containers.** Docker containers and Compose services listed, started and stopped, a command run in one, a program in one debugged, and a Kubernetes cluster's pods and their logs read.
+2. **Executables.** A program built into a file that runs on its own, from the tree's build scripts, with the build's output in a job.
+3. **Deployments.** A build's files sent to the places a tree names, to several at once.
 
 ## Notebooks
 

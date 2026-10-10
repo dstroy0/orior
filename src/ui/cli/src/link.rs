@@ -133,8 +133,9 @@ impl Address {
 
     /// Runs `line` on the machine and gives what it wrote, or what it said where it failed.
     ///
-    /// What it writes is read as it comes, while its input is written: a program that writes before it
-    /// has read all it is given would otherwise wait on a full pipe while its input waits on it.
+    /// Its output and its errors are read as they come, while its input is written: a program that
+    /// writes before it has read all it is given would otherwise wait on a full pipe while its input
+    /// waits on it.
     fn ask(&self, line: &str, input: Option<&[u8]>) -> Result<String, String> {
         let mut command = self.command(line);
         command.stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());

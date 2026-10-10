@@ -24,8 +24,9 @@ use std::process::Command;
 
 use serde_json::Value;
 
-/// How a container is kept running, in place of the image's own command.
-const KEEP_RUNNING: &str = "echo orior's dev container started; trap 'exit 0' TERM; while sleep 1 & wait $!; do :; done";
+/// How a container is kept running, in place of the image's own command: a POSIX shell's line, ended
+/// at once by docker stop.
+const KEEP_RUNNING: &str = "trap 'exit 0' TERM; while sleep 1 & wait $!; do :; done";
 
 /// What a tree's dev container is built from.
 #[derive(Debug, PartialEq)]

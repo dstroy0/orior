@@ -91,7 +91,10 @@ fn term_open(handle: AppHandle, app: State<App>, cols: u16, rows: u16, at: Optio
     if let Some(link) = app.link.get() {
         let folder = at.map(|at| terminal::folder_of(&at).to_string_lossy().replace('\\', "/"));
         let (program, words) = link.address.runs(&link.address.shell_line(folder.as_deref()), true);
-        let mut command = portable_pty::CommandBuilder::new(program);
+        // The program as a file on the PATH: on Windows the pseudo-terminal runs the first file of the
+        // name it finds, and docker's folder holds a script named docker beside docker.exe.
+        let found = orior_cli::toolchains::path_folders().iter().find_map(|dir| orior_cli::toolchains::program_in(dir, std::slice::from_ref(&program)));
+        let mut command = portable_pty::CommandBuilder::new(found.map_or(program, |path| path.display().to_string()));
         command.args(words);
         command.env("TERM", "xterm-256color");
         return app.terms.open(handle, command, cols, rows);
