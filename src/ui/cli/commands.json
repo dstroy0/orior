@@ -166,6 +166,7 @@
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         { "label": "Debug", "command": "debug-view", "keys": "Alt+5" },
         { "label": "Profile", "command": "profile-view" },
+        { "label": "Containers", "command": "containers-view" },
         { "label": "Tool Windows", "items": [{ "fill": "tool-windows" }] },
         { "label": "Open Tool Window in a Window", "command": "float", "args": "[terminal|explorer|jobs]" },
         { "label": "Show Only a Tool Window", "command": "solo", "args": "[terminal|explorer|jobs] [window]" },

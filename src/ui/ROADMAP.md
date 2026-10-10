@@ -9,9 +9,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Running and measuring
 
-1. **Containers.** Docker containers and Compose services listed, started and stopped, a command run in one, a program in one debugged, and a Kubernetes cluster's pods and their logs read.
-2. **Executables.** A program built into a file that runs on its own, from the tree's build scripts, with the build's output in a job.
-3. **Deployments.** A build's files sent to the places a tree names, to several at once.
+1. **Executables.** A program built into a file that runs on its own, from the tree's build scripts, with the build's output in a job.
+2. **Deployments.** A build's files sent to the places a tree names, to several at once.
 
 ## Notebooks
 

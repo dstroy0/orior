@@ -130,6 +130,18 @@ pub fn built(root: &Path, name: &str) -> Result<PathBuf, String> {
         .ok_or_else(|| format!("no {file} under build/, examples/build/ or src/build/: run its build job first"))
 }
 
+/// The program and its words an environment variable names: its text as one word where it is a file,
+/// as a Windows path with its backslashes is, and else its words as a shell splits them. None where it
+/// is not set or names nothing.
+pub fn program_words(variable: &str) -> Option<Vec<String>> {
+    let text = std::env::var(variable).ok()?;
+    let text = text.trim();
+    if Path::new(text).is_file() {
+        return Some(vec![text.to_string()]);
+    }
+    shell_words(text).ok().filter(|words| !words.is_empty())
+}
+
 /// Splits text into words the way a shell does for plain words, single quotes and double quotes.
 pub fn shell_words(text: &str) -> Result<Vec<String>, String> {
     let mut words = Vec::new();

@@ -919,6 +919,12 @@ impl Server {
                 std::fs::read(&file).map(|bytes| base64(&bytes)).map_err(|error| error.to_string()).and_then(give)
             }
             "file_write" => self.file_write(a.get("path")?, a.get("text")?).and_then(give),
+            "containers_list" => give(crate::containers::containers()),
+            "container_act" => crate::containers::act(&a.get::<String>("name")?, &a.get::<String>("act")?).and_then(give),
+            "container_logs" => crate::containers::logs(&a.get::<String>("name")?).and_then(give),
+            "container_run" => crate::containers::run_in(&a.get::<String>("name")?, &a.get::<String>("line")?).and_then(give),
+            "pods_list" => give(crate::containers::pods()),
+            "pod_logs" => crate::containers::pod_logs(&a.get::<String>("namespace")?, &a.get::<String>("name")?, a.get::<Option<String>>("container")?.as_deref()).and_then(give),
             "history_list" => give(history::list(&self.root()?, &path()?)),
             "history_read" => history::read(&self.root()?, &path()?, a.get("at")?).and_then(give),
             other => Err(format!("{other} is not a command of the tree's")),

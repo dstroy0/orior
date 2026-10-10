@@ -18,6 +18,7 @@ import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
 import { startProfile } from "./profile.js";
+import { startContainers } from "./containers.js";
 import { loadRun, readRunsAgain, startRun } from "./run.js";
 import { linkJoined, startRemote } from "./remote.js";
 import { serveAgain } from "./servers.js";
@@ -26,7 +27,7 @@ import { keepScheme } from "./scheme.js";
 import { startSearch } from "./search.js";
 import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
 import { watch } from "./status.js";
-import { focusTerminalView, startTerminal } from "./terminal.js";
+import { focusTerminalView, newTerminal, runInTerminal, startTerminal } from "./terminal.js";
 import { onView, showView, shownView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
@@ -125,6 +126,14 @@ async function start() {
       openAt(path, line, col);
     },
     say: (text) => say(text),
+  });
+  startContainers({
+    ask: async (label, start) => (await import("./menubar.js")).askFor(label, start),
+    terminal: (line) => {
+      newTerminal();
+      runInTerminal(line);
+    },
+    say: (text) => say(text, { failed: true }),
   });
   startFocusFollows({ terminal: focusTerminalView });
   startDocks({

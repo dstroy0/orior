@@ -16,6 +16,7 @@ pub mod catalog;
 pub mod checkers;
 pub mod cli;
 pub mod commands;
+pub mod containers;
 pub mod dap;
 pub mod debug;
 pub mod defs;

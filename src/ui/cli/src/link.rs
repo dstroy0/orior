@@ -100,7 +100,7 @@ impl Address {
     pub fn runs(&self, line: &str, terminal: bool) -> (String, Vec<String>) {
         match &self.way {
             Way::Ssh(host) => {
-                let mut words = std::env::var("ORIOR_SSH").ok().and_then(|text| crate::runner::shell_words(&text).ok()).filter(|words| !words.is_empty()).unwrap_or_else(|| vec!["ssh".into()]);
+                let mut words = crate::runner::program_words("ORIOR_SSH").unwrap_or_else(|| vec!["ssh".into()]);
                 let program = words.remove(0);
                 words.extend(if terminal { vec!["-tt"] } else { vec!["-T", "-o", "BatchMode=yes"] }.into_iter().map(String::from));
                 words.extend(["-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3"].map(String::from));

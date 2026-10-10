@@ -26,6 +26,7 @@ const TOOLS = {
   debug: { node: "debug", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 420, right: 420, bottom: 240 }, label: "Debug", height: "orior.debug.height" },
   terminal: { node: "term", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 480, right: 480, bottom: 256 }, label: "Terminal", height: "orior.terminal.height" },
   profile: { node: "profile", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Profile" },
+  containers: { node: "containers", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Containers" },
 };
 
 const SIDES = ["left", "right", "bottom"];
@@ -42,10 +43,11 @@ const ICONS = {
   debug: "debug",
   terminal: "terminal",
   profile: "profile",
+  containers: "containers",
   definitions: "definitions",
 };
 
-const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", definitions: "Definitions" };
+const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", definitions: "Definitions" };
 
 // The smallest a docked window is made, and the share of its place it can take at most.
 const LEAST = 120;

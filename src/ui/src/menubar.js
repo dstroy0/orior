@@ -53,6 +53,7 @@ import { focusFollows, setFocusFollows } from "./focusfollow.js";
 import { setSystemTitleBar, systemTitleBar } from "./strip.js";
 import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
 import { openRemote } from "./remote.js";
+import { toggleContainers } from "./containers.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -273,6 +274,7 @@ const COMMANDS = {
   },
   "stop-profile": () => stopProfile(),
   "profile-view": () => toggleProfile(),
+  "containers-view": () => toggleContainers(),
   "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "system-title": (args) => setSystemTitleBar(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   toolbar: (args) => setToolbarShown(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
