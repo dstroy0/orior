@@ -8,10 +8,11 @@
 
 mod dragging;
 mod memory;
+mod scrollback;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, defs, files, format, git, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
+use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, plugins, report, root, run_file, runner, servers, toolchains, validate};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -29,7 +30,9 @@ struct App {
     launch: Mutex<Option<Launch>>,
     runs: runner::Runs,
     terms: terminal::Terms,
+    scrollbacks: scrollback::Scrollbacks,
     servers: Arc<servers::Servers>,
+    debugger: Arc<debug::Debugger>,
     windows: AtomicU64,
 }
 
@@ -48,7 +51,14 @@ fn root_set(app: State<App>, path: String) -> Result<String, String> {
     if !root::holds_tree(&path) {
         return Err(format!("{} holds no orior tree", path.display()));
     }
-    *app.root.lock().map_err(|e| e.to_string())? = Some(path.clone());
+    let mut root = app.root.lock().map_err(|e| e.to_string())?;
+    let moved = root.as_ref() != Some(&path);
+    *root = Some(path.clone());
+    drop(root);
+    // A server answers for the tree it started in. Another tree starts its own as its files open.
+    if moved {
+        app.servers.let_go();
+    }
     Ok(path.to_string_lossy().into_owned())
 }
 
@@ -110,6 +120,33 @@ fn term_resize(app: State<App>, id: u64, cols: u16, rows: u16) -> Result<(), Str
 #[tauri::command]
 fn term_close(app: State<App>, id: u64) -> Result<(), String> {
     app.terms.close(id)
+}
+
+/// A scrollback on disk for a terminal screen, and its number.
+#[tauri::command]
+fn scrollback_open(app: State<App>) -> Result<u64, String> {
+    app.scrollbacks.open()
+}
+
+/// Adds the lines that scrolled off a terminal screen to its scrollback, and answers how many it holds.
+#[tauri::command(async)]
+fn scrollback_keep(app: State<App>, id: u64, lines: Vec<String>) -> Result<u64, String> {
+    app.scrollbacks.keep(id, &lines)
+}
+
+#[tauri::command(async)]
+fn scrollback_read(app: State<App>, id: u64, from: u64, count: u64) -> Result<Vec<String>, String> {
+    app.scrollbacks.read(id, from, count)
+}
+
+#[tauri::command]
+fn scrollback_close(app: State<App>, id: u64) {
+    app.scrollbacks.close(id);
+}
+
+#[tauri::command]
+fn scrollback_reset(app: State<App>) {
+    app.scrollbacks.reset();
 }
 
 /// The menus, as the command line reads them.
@@ -250,6 +287,64 @@ fn file_commits(app: State<App>, path: String) -> Result<Vec<git::Commit>, Strin
     git::commits(&root_of(&app)?, &path)
 }
 
+/// The window's own controls, for the frame the page draws in place of the system's: minimize,
+/// maximize, which restores a maximized window, close, and drag, which moves the window with the
+/// pointer from a press on the top bar until it is let go. Says whether the window is maximized after.
+#[tauri::command]
+fn window_act(window: tauri::WebviewWindow, act: String) -> Result<bool, String> {
+    let done = match act.as_str() {
+        "minimize" => window.minimize(),
+        "maximize" => {
+            if window.is_maximized().unwrap_or(false) {
+                window.unmaximize()
+            } else {
+                window.maximize()
+            }
+        }
+        "close" => window.close(),
+        "drag" => return dragging::start_drag(&window).map(|()| window.is_maximized().unwrap_or(false)),
+        "state" => Ok(()),
+        other => return Err(format!("{other} is not something the window does")),
+    };
+    done.map_err(|error| error.to_string())?;
+    Ok(window.is_maximized().unwrap_or(false))
+}
+
+/// Commits the files at `paths`, each under the tree, with `message`, git's hooks and signing as the
+/// tree has them, and gives git's line for the commit.
+#[tauri::command(async)]
+fn git_commit(app: State<App>, message: String, paths: Vec<String>) -> Result<String, String> {
+    git::commit(&root_of(&app)?, &message, &paths)
+}
+
+#[tauri::command(async)]
+fn git_push(app: State<App>) -> Result<String, String> {
+    git::push(&root_of(&app)?)
+}
+
+#[tauri::command(async)]
+fn git_pull(app: State<App>) -> Result<String, String> {
+    git::pull(&root_of(&app)?)
+}
+
+#[tauri::command(async)]
+fn git_rollback(app: State<App>, path: String) -> Result<(), String> {
+    git::rollback(&root_of(&app)?, &path)
+}
+
+/// How many commits the branch has that its remote does not, and the other way, or null where it
+/// follows no remote.
+#[tauri::command(async)]
+fn git_ahead_behind(app: State<App>) -> Result<Option<(u32, u32)>, String> {
+    Ok(git::ahead_behind(&root_of(&app)?))
+}
+
+/// The commits of the branch the tree is on, the newest first.
+#[tauri::command(async)]
+fn tree_commits(app: State<App>) -> Result<Vec<git::Commit>, String> {
+    Ok(git::log(&root_of(&app)?))
+}
+
 #[tauri::command]
 fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> {
     git::text_at(&root_of(&app)?, &path, &id)
@@ -258,6 +353,7 @@ fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> 
 #[derive(serde::Serialize)]
 struct Toolchains {
     tools: Vec<toolchains::Found>,
+    groups: Vec<String>,
     own: Option<toolchains::Own>,
 }
 
@@ -276,17 +372,90 @@ fn tree_path(root: &Path, path: &str) -> String {
     path.strip_prefix(&root).map(|inside| inside.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| path.display().to_string())
 }
 
+/// Each file's edits, each path as `tree_path` gives it.
+fn tree_edits(root: &Path, files: Vec<servers::FileEdit>) -> Vec<servers::FileEdit> {
+    files.into_iter().map(|mut file| {
+        file.path = tree_path(root, &file.path);
+        file
+    }).collect()
+}
+
 /// Hands a file the editor opened to its language's server, starting it where it is not running.
-/// Says whether a server took it; the file's diagnostics come as "lsp-diagnostics".
+/// Says whether a server took it; the file's diagnostics come as "lsp-diagnostics", and an edit the
+/// server asks for as "lsp-edits".
 #[tauri::command(async)]
 fn lsp_open(handle: AppHandle, app: State<App>, path: String, language: String, text: String) -> Result<bool, String> {
     let root = root_of(&app)?;
-    let tree = root.clone();
-    let emit: servers::Emit = Arc::new(move |mut diagnostics: servers::Diagnostics| {
-        diagnostics.path = tree_path(&tree, &diagnostics.path);
-        let _ = handle.emit("lsp-diagnostics", diagnostics);
-    });
-    app.servers.open(&root, &root.join(path), &language, &text, &emit)
+    app.servers.open(&root, &root.join(path), &language, &text, &emitter(handle, root.clone()))
+}
+
+/// What a server tells the page, each path as `tree_path` gives it under `tree`.
+fn emitter(handle: AppHandle, tree: PathBuf) -> servers::Emit {
+    Arc::new(move |told| match told {
+        servers::Told::Diagnostics(mut diagnostics) => {
+            diagnostics.path = tree_path(&tree, &diagnostics.path);
+            let _ = handle.emit("lsp-diagnostics", diagnostics);
+        }
+        servers::Told::Edits(files) => {
+            let _ = handle.emit("lsp-edits", tree_edits(&tree, files));
+        }
+    })
+}
+
+/// Every place the symbol at a place is used, each path as `tree_path` gives it.
+#[tauri::command(async)]
+fn lsp_references(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Usage>, String> {
+    let root = root_of(&app)?;
+    let found = app.servers.references(&root.join(path), line, col)?;
+    Ok(found.into_iter().map(|mut one| {
+        one.path = tree_path(&root, &one.path);
+        one
+    }).collect())
+}
+
+#[tauri::command(async)]
+fn lsp_renamable(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Renamable>, String> {
+    app.servers.renamable(&root_of(&app)?.join(path), line, col)
+}
+
+#[tauri::command(async)]
+fn lsp_rename(app: State<App>, path: String, line: u32, col: u32, name: String) -> Result<Vec<servers::FileEdit>, String> {
+    let root = root_of(&app)?;
+    Ok(tree_edits(&root, app.servers.rename(&root.join(path), line, col, &name)?))
+}
+
+#[tauri::command(async)]
+fn lsp_actions(app: State<App>, path: String, from: servers::Place, to: servers::Place) -> Result<Vec<servers::Action>, String> {
+    app.servers.actions(&root_of(&app)?.join(path), from, to)
+}
+
+#[tauri::command(async)]
+fn lsp_act(app: State<App>, path: String, raw: serde_json::Value) -> Result<Vec<servers::FileEdit>, String> {
+    let root = root_of(&app)?;
+    Ok(tree_edits(&root, app.servers.act(&root.join(path), &raw)?))
+}
+
+#[tauri::command(async)]
+fn lsp_signature(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Signature>, String> {
+    app.servers.signature(&root_of(&app)?.join(path), line, col)
+}
+
+/// Writes edits to files the editor does not have open, each under the tree. Says how many files it
+/// wrote; a file outside the tree is left as it is and named.
+#[tauri::command(async)]
+fn edits_write(app: State<App>, files: Vec<servers::FileEdit>) -> Result<usize, String> {
+    let root = root_of(&app)?;
+    let mut written = 0;
+    for file in files {
+        let path = root.join(&file.path);
+        if Path::new(&file.path).is_absolute() || file.path.split('/').any(|part| part == "..") {
+            return Err(format!("{} is outside the tree and was not changed", file.path));
+        }
+        let text = std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", file.path))?;
+        std::fs::write(&path, servers::apply(&text, &file.edits)).map_err(|error| format!("{}: {error}", file.path))?;
+        written += 1;
+    }
+    Ok(written)
 }
 
 #[tauri::command(async)]
@@ -320,6 +489,67 @@ fn lsp_complete(app: State<App>, path: String, line: u32, col: u32) -> Result<Ve
     app.servers.complete(&root_of(&app)?.join(path), line, col)
 }
 
+/// Builds where it is built, and debugs, the file at `path` in `language`, with `breakpoints`, each
+/// file's lines. The adapter's events come as "debug-event", { event, body }. Says which toolchain
+/// debugs it.
+#[tauri::command(async)]
+fn debug_start(handle: AppHandle, app: State<App>, path: String, language: String, breakpoints: HashMap<String, Vec<u32>>) -> Result<String, String> {
+    let root = root_of(&app)?;
+    let debugger = app.debugger.clone();
+    let emit: debug::Emit = Arc::new(move |event, body| {
+        if event == "terminated" || event == "adapterStopped" {
+            debugger.ended();
+        }
+        let _ = handle.emit("debug-event", serde_json::json!({"event": event, "body": body}));
+    });
+    app.debugger.start(&root, &root.join(path), &language, &breakpoints, emit)
+}
+
+#[tauri::command(async)]
+fn debug_breakpoints(app: State<App>, path: String, lines: Vec<u32>) -> Result<Vec<(u32, bool)>, String> {
+    app.debugger.breakpoints(&root_of(&app)?.join(path), &lines)
+}
+
+#[tauri::command(async)]
+fn debug_threads(app: State<App>) -> Result<Vec<debug::Thread>, String> {
+    app.debugger.threads()
+}
+
+/// The stopped thread's frames, each path as `tree_path` gives it.
+#[tauri::command(async)]
+fn debug_stack(app: State<App>, thread: i64) -> Result<Vec<debug::Frame>, String> {
+    let root = root_of(&app)?;
+    Ok(app.debugger.stack(thread)?.into_iter().map(|mut frame| {
+        frame.path = frame.path.map(|path| tree_path(&root, &path));
+        frame
+    }).collect())
+}
+
+#[tauri::command(async)]
+fn debug_scopes(app: State<App>, frame: i64) -> Result<Vec<debug::Scope>, String> {
+    app.debugger.scopes(frame)
+}
+
+#[tauri::command(async)]
+fn debug_variables(app: State<App>, reference: i64) -> Result<Vec<debug::Variable>, String> {
+    app.debugger.variables(reference)
+}
+
+#[tauri::command(async)]
+fn debug_evaluate(app: State<App>, expression: String, frame: Option<i64>, context: String) -> Result<debug::Variable, String> {
+    app.debugger.evaluate(&expression, frame, &context)
+}
+
+#[tauri::command(async)]
+fn debug_step(app: State<App>, how: String, thread: i64) -> Result<(), String> {
+    app.debugger.step(&how, thread)
+}
+
+#[tauri::command(async)]
+fn debug_stop(app: State<App>) {
+    app.debugger.stop();
+}
+
 /// The file at `path`, under the tree, validated by the tool plugin for `language`.
 #[tauri::command(async)]
 fn validate_file(app: State<App>, path: String, language: String) -> Result<validate::Report, String> {
@@ -343,7 +573,28 @@ fn format_languages() -> Vec<String> {
 /// Every toolchain as toolchains.rs finds it, and whether orior itself is on the PATH.
 #[tauri::command(async)]
 fn toolchains_check() -> Toolchains {
-    Toolchains { tools: toolchains::check(), own: toolchains::own().ok() }
+    Toolchains { tools: toolchains::check(), groups: toolchains::groups(), own: toolchains::own().ok() }
+}
+
+/// Adds a toolchain of the reader's, and gives its id.
+#[tauri::command]
+fn toolchain_add(tool: toolchains::Tool) -> Result<String, String> {
+    toolchains::add(tool)
+}
+
+#[tauri::command]
+fn toolchain_add_group(name: String) -> Result<(), String> {
+    toolchains::add_group(&name)
+}
+
+#[tauri::command]
+fn toolchain_remove(id: String) -> Result<(), String> {
+    toolchains::remove(&id)
+}
+
+#[tauri::command]
+fn toolchain_remove_group(name: String) -> Result<(), String> {
+    toolchains::remove_group(&name)
 }
 
 /// What a toolchain says its version is.
@@ -377,6 +628,51 @@ fn repo_clone(handle: AppHandle, url: String, parent: String) -> Result<String, 
         let _ = handle.emit("clone-progress", line);
     })
     .map(|dir| dir.display().to_string())
+}
+
+/// The folder File, Open, Repository clones into, made where it is not there yet.
+#[tauri::command]
+fn repos_folder() -> Result<String, String> {
+    let folder = git::opened_parent().ok_or("orior has no folder of its own here")?;
+    std::fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    Ok(folder.display().to_string())
+}
+
+/// The folder File, Open, Repository cloned `url` into before, or null where it has not.
+#[tauri::command]
+fn repo_opened(url: String) -> Option<String> {
+    let folder = git::clone_folder(&url, &git::opened_parent()?).ok()?;
+    folder.join(".git").exists().then(|| folder.display().to_string())
+}
+
+/// Makes `folder` a repository, or the open tree where none is given, and answers the folder.
+#[tauri::command(async)]
+fn repo_init(app: State<App>, folder: Option<String>) -> Result<String, String> {
+    let folder = match folder {
+        Some(folder) => PathBuf::from(folder),
+        None => root_of(&app)?,
+    };
+    git::init(&folder)?;
+    Ok(folder.display().to_string())
+}
+
+#[tauri::command]
+fn file_create(app: State<App>, path: String) -> Result<(), String> {
+    files::create_file(&root_of(&app)?, &path)
+}
+
+#[tauri::command]
+fn folder_create(app: State<App>, path: String) -> Result<(), String> {
+    files::create_folder(&root_of(&app)?, &path)
+}
+
+/// A full path as the tree names it, relative and with forward slashes, or null where it is outside
+/// the tree.
+#[tauri::command]
+fn tree_relative(app: State<App>, path: String) -> Option<String> {
+    let root = root_of(&app).ok()?;
+    let full = dunce::canonicalize(&path).ok()?;
+    full.starts_with(&root).then(|| root::relative(&root, &full))
 }
 
 /// The shell line that installs a toolchain, for the terminal to run.
@@ -459,19 +755,44 @@ fn bridge_read(app: State<App>) -> Result<bridge::Bridge, String> {
     Ok(bridge::read(&root_of(&app)?))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn file_window(app: State<App>, path: String, line: u64, half: u64) -> Result<files::Slice, String> {
     files::window(&root_of(&app)?, &path, line, half)
 }
 
-#[tauri::command]
-fn file_slice(app: State<App>, path: String, start: u64, end: u64) -> Result<files::Slice, String> {
-    files::slice(&root_of(&app)?, &path, start, end)
+/// The whole lines from about `start` to about `end`, sent as bytes and not as JSON: the slice's
+/// start, end and the file's size, each 8 bytes little-endian, then the text.
+#[tauri::command(async)]
+fn file_slice(app: State<App>, path: String, start: u64, end: u64) -> Result<tauri::ipc::Response, String> {
+    let slice = files::slice(&root_of(&app)?, &path, start, end)?;
+    let mut sent = Vec::with_capacity(24 + slice.text.len());
+    sent.extend_from_slice(&slice.start.to_le_bytes());
+    sent.extend_from_slice(&slice.end.to_le_bytes());
+    sent.extend_from_slice(&slice.size.to_le_bytes());
+    sent.extend_from_slice(slice.text.as_bytes());
+    Ok(tauri::ipc::Response::new(sent))
 }
 
 #[tauri::command]
 fn file_write(app: State<App>, path: String, text: String) -> Result<(), String> {
-    files::write(&root_of(&app)?, &path, &text)
+    let root = root_of(&app)?;
+    let before = std::fs::read_to_string(root.join(&path)).ok();
+    files::write(&root, &path, &text)?;
+    if let Err(error) = history::keep(&root, &path, before.as_deref(), &text) {
+        eprintln!("orior: local history of {path}: {error}");
+    }
+    Ok(())
+}
+
+/// The Local History of the file at `path`, the newest first.
+#[tauri::command(async)]
+fn history_list(app: State<App>, path: String) -> Result<Vec<history::Snapshot>, String> {
+    Ok(history::list(&root_of(&app)?, &path))
+}
+
+#[tauri::command(async)]
+fn history_read(app: State<App>, path: String, at: u64) -> Result<String, String> {
+    history::read(&root_of(&app)?, &path, at)
 }
 
 /// The system's picker, opened from Rust so the page needs no script of the picker's own. Async,
@@ -622,7 +943,6 @@ fn open(launch: Launch) {
             // A page that never asks for the window still has it shown after SHOW_ANYWAY.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_background_color(Some(tauri::window::Color(0x13, 0x13, 0x31, 0xff)));
-                dragging::watch(app.handle(), &window);
                 std::thread::spawn(move || {
                     std::thread::sleep(SHOW_ANYWAY);
                     let _ = window.show();
@@ -650,7 +970,27 @@ fn open(launch: Launch) {
             lsp_hover,
             lsp_definition,
             lsp_complete,
+            lsp_references,
+            lsp_renamable,
+            lsp_rename,
+            lsp_actions,
+            lsp_act,
+            lsp_signature,
+            edits_write,
+            debug_start,
+            debug_breakpoints,
+            debug_threads,
+            debug_stack,
+            debug_scopes,
+            debug_variables,
+            debug_evaluate,
+            debug_step,
+            debug_stop,
             toolchains_check,
+            toolchain_add,
+            toolchain_add_group,
+            toolchain_remove,
+            toolchain_remove_group,
             toolchain_version,
             toolchain_install,
             toolchain_setup,
@@ -687,6 +1027,26 @@ fn open(launch: Launch) {
             report_asked,
             report_open,
             file_commits,
+            tree_commits,
+            history_list,
+            scrollback_open,
+            scrollback_keep,
+            scrollback_read,
+            scrollback_close,
+            scrollback_reset,
+            history_read,
+            repos_folder,
+            repo_opened,
+            repo_init,
+            file_create,
+            folder_create,
+            tree_relative,
+            git_commit,
+            git_push,
+            git_pull,
+            git_rollback,
+            git_ahead_behind,
+            window_act,
             file_head,
             file_at,
             file_read,
@@ -702,6 +1062,7 @@ fn open(launch: Launch) {
             // A language server orior started ends with it: on Windows a child outlives its parent.
             if let tauri::RunEvent::Exit = event {
                 handle.state::<App>().servers.stop_all();
+                handle.state::<App>().debugger.stop();
             }
         });
 }

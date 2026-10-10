@@ -136,6 +136,10 @@ int run_record_read(const char *path, char state[RUN_STATE_CAPACITY], unsigned l
 
 void run_log(const char *records, const char *entry);
 
+// the whole processors the job was granted, written to $TESSERA_RUN_PROCESSORS for the command and every process it
+// starts to read: the workers a command starts are the processors its job holds
+int run_processors_named(unsigned long long processors);
+
 int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel);
 
 int run_ended(RunChild *child, unsigned long long microseconds);

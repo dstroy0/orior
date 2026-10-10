@@ -3,9 +3,9 @@
 
 //! A client of a language server, such as clangd, over its input and output: each message a
 //! Content-Length header and a JSON body, as the Language Server Protocol frames them. A request waits
-//! for its answer up to a time it is given; a notification from the server, such as the diagnostics
-//! of a file, goes to the function the server was started with. A request from the server is
-//! answered with nothing, which the servers orior starts take as no.
+//! for its answer up to a time it is given. What the server says on its own, a notification such as
+//! the diagnostics of a file or a request such as an edit to apply, goes to the function the server
+//! was started with, and a request is answered with what that function returns.
 //!
 //! The editor counts a line's columns in UTF-16 units, as the protocol does where it is not told
 //! otherwise: positions pass between them as they are. The whole text goes with each change.
@@ -21,8 +21,9 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-/// What the server says on its own: the method and its params.
-pub type Heard = Box<dyn Fn(&str, &Value) + Send + Sync>;
+/// What the server says on its own: the method and its params. What it returns answers a request,
+/// and is not sent for a notification.
+pub type Heard = Box<dyn Fn(&str, &Value) -> Value + Send + Sync>;
 
 type Waiting = Arc<Mutex<HashMap<u64, Sender<Result<Value, String>>>>>;
 
@@ -32,19 +33,24 @@ pub struct Server {
     next: AtomicU64,
     waiting: Waiting,
     versions: Mutex<HashMap<String, i64>>,
+    /// What the server said it can do, as it answered `initialize`.
+    pub capabilities: Value,
 }
 
 /// How long the server has to answer that it started.
 const STARTING: Duration = Duration::from_secs(30);
 
-fn send(input: &Mutex<ChildStdin>, message: &Value) -> Result<(), String> {
+/// How much of what the server writes to its errors is kept, in bytes.
+const COMPLAINT: usize = 4096;
+
+pub(crate) fn send(input: &Mutex<ChildStdin>, message: &Value) -> Result<(), String> {
     let body = message.to_string();
     let mut input = input.lock().map_err(|_| "the server's input is held".to_string())?;
     write!(input, "Content-Length: {}\r\n\r\n{body}", body.len()).and_then(|()| input.flush()).map_err(|error| format!("the server stopped: {error}"))
 }
 
 /// One message from `reader`, or None where the server's output ended.
-fn read_message(reader: &mut impl BufRead) -> Option<Value> {
+pub(crate) fn read_message(reader: &mut impl BufRead) -> Option<Value> {
     let mut length = None;
     loop {
         let mut line = String::new();
@@ -102,15 +108,33 @@ pub fn path_of(uri: &str) -> Option<PathBuf> {
 }
 
 impl Server {
-    /// Starts `program` with `args` at `root`, and has it read the tree there. `heard` takes what the
-    /// server says on its own.
-    pub fn start(program: &Path, args: &[String], root: &Path, path_env: std::ffi::OsString, heard: Heard) -> Result<Server, String> {
+    /// Starts `program` with `args` at `root`, and has it read the tree there with the server's own
+    /// `options`. `heard` takes what the server says on its own.
+    pub fn start(program: &Path, args: &[String], root: &Path, options: Value, path_env: std::ffi::OsString, heard: Heard) -> Result<Server, String> {
         let mut command = Command::new(program);
-        command.args(args).current_dir(root).env("PATH", path_env).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+        command.args(args).current_dir(root).env("PATH", path_env).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         crate::runner::quiet(&mut command);
         let mut child = command.spawn().map_err(|error| format!("{}: {error}", program.display()))?;
         let input = Arc::new(Mutex::new(child.stdin.take().ok_or("the server took no input")?));
         let output = child.stdout.take().ok_or("the server gave no output")?;
+        // The last of what the server writes to its errors, which says why where it stops as it starts.
+        let complaint = Arc::new(Mutex::new(String::new()));
+        if let Some(errors) = child.stderr.take() {
+            let kept = complaint.clone();
+            std::thread::spawn(move || {
+                for line in BufReader::new(errors).lines().map_while(Result::ok) {
+                    if let Ok(mut kept) = kept.lock() {
+                        kept.push_str(line.trim());
+                        kept.push('\n');
+                        if kept.len() > COMPLAINT {
+                            let cut = kept.len() - COMPLAINT;
+                            let cut = (cut..kept.len()).find(|&at| kept.is_char_boundary(at)).unwrap_or(kept.len());
+                            kept.drain(..cut);
+                        }
+                    }
+                }
+            });
+        }
         let waiting: Waiting = Arc::new(Mutex::new(HashMap::new()));
         let (reply_to, answers) = (input.clone(), waiting.clone());
         std::thread::spawn(move || {
@@ -118,10 +142,9 @@ impl Server {
             while let Some(message) = read_message(&mut reader) {
                 let id = message.get("id").cloned();
                 if let Some(method) = message.get("method").and_then(Value::as_str) {
+                    let answer = heard(method, message.get("params").unwrap_or(&Value::Null));
                     if let Some(id) = id {
-                        let _ = send(&reply_to, &json!({"jsonrpc": "2.0", "id": id, "result": null}));
-                    } else {
-                        heard(method, message.get("params").unwrap_or(&Value::Null));
+                        let _ = send(&reply_to, &json!({"jsonrpc": "2.0", "id": id, "result": answer}));
                     }
                     continue;
                 }
@@ -142,9 +165,10 @@ impl Server {
                 }
             }
         });
-        let server = Server { child: Mutex::new(child), input, next: AtomicU64::new(1), waiting, versions: Mutex::new(HashMap::new()) };
+        let mut server = Server { child: Mutex::new(child), input, next: AtomicU64::new(1), waiting, versions: Mutex::new(HashMap::new()), capabilities: Value::Null };
         let root_uri = uri_of(root);
         let name = root.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
+        let kinds = ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports"];
         let capabilities = json!({
             "general": {"positionEncodings": ["utf-16"]},
             "textDocument": {
@@ -152,15 +176,37 @@ impl Server {
                 "hover": {"contentFormat": ["markdown", "plaintext"]},
                 "completion": {"completionItem": {"snippetSupport": false, "documentationFormat": ["plaintext"]}},
                 "definition": {"linkSupport": false},
+                "references": {},
+                "rename": {"prepareSupport": true},
+                "signatureHelp": {"signatureInformation": {"documentationFormat": ["markdown", "plaintext"], "parameterInformation": {"labelOffsetSupport": true}, "activeParameterSupport": true}},
+                "codeAction": {
+                    "codeActionLiteralSupport": {"codeActionKind": {"valueSet": kinds}},
+                    "isPreferredSupport": true,
+                    "disabledSupport": true,
+                    "dataSupport": true,
+                    "resolveSupport": {"properties": ["edit"]}
+                },
                 "publishDiagnostics": {"relatedInformation": false}
+            },
+            "workspace": {
+                "applyEdit": true,
+                "workspaceEdit": {"documentChanges": true},
+                "configuration": true
             },
             "window": {"workDoneProgress": false}
         });
-        server.request(
-            "initialize",
-            json!({"processId": std::process::id(), "rootUri": root_uri, "workspaceFolders": [{"uri": root_uri, "name": name}], "capabilities": capabilities, "clientInfo": {"name": "orior"}}),
-            STARTING,
-        )?;
+        let answer = server
+            .request(
+                "initialize",
+                json!({"processId": std::process::id(), "rootUri": root_uri, "workspaceFolders": [{"uri": root_uri, "name": name}], "capabilities": capabilities, "initializationOptions": options, "clientInfo": {"name": "orior"}}),
+                STARTING,
+            )
+            .map_err(|said| {
+                std::thread::sleep(Duration::from_millis(200));
+                let complaint = complaint.lock().map(|text| text.trim().lines().last().unwrap_or_default().to_string()).unwrap_or_default();
+                if complaint.is_empty() { said } else { format!("{said}: {complaint}") }
+            })?;
+        server.capabilities = answer["capabilities"].clone();
         server.notify("initialized", json!({}))?;
         Ok(server)
     }

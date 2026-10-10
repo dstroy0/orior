@@ -149,6 +149,13 @@ int run_wsl_program(char *mounted, size_t capacity)
     return (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) && run_mounted_path(path, mounted, capacity);
 }
 
+int run_processors_named(unsigned long long processors)
+{
+    char text[24];
+    const int written = snprintf(text, sizeof(text), "%llu", processors);
+    return (written > 0) && (SetEnvironmentVariableA("TESSERA_RUN_PROCESSORS", text) != 0);
+}
+
 int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel)
 {
     char found[ENGINE_PATH_CAPACITY];

@@ -5,7 +5,7 @@
 
 ## What is here
 
-A search kernel in C11, a driver that times it, Python tools that fetch and read published papers, and two ports of one statistic. The new parts are an engine that never leaves exact integers, from the first read to the last bit written. When every step is exact, a chain of steps composes into one program and runs on the device as one. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and keeps the answer. There is no server, no daemon, no network listener and no persistent state. Nothing here runs unattended.
+A search kernel in C11, a driver that times it, Python tools that fetch and read published papers, and two ports of one statistic. The new parts are an engine that never leaves exact integers, from the first read to the last bit written. When every step is exact, a chain of steps composes into one program and runs on the device as one. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and keeps the answer. Nothing here serves, listens on a network, keeps state between runs or runs unattended.
 
 ## The kernel
 

@@ -21,6 +21,10 @@ const ORDER = ["build", "protocol", "ingest", "run", "render", "sim", "view", "p
 // The lines a run keeps. Past this the oldest go. A run that prints without end cannot fill memory.
 const KEPT_LINES = 20000;
 
+// The runs a job keeps, the newest. Past this the oldest that have ended go, lines and all. A job
+// run again and again cannot fill memory either.
+const KEPT_RUNS = 10;
+
 const state = {
   jobs: [],
   chosen: null,
@@ -255,6 +259,10 @@ export async function startJob(id, values) {
   const steps = before.lines.filter((line) => line.stream === "command").map((line) => line.ms);
   const clock = performance.now() - (before.lines[before.lines.length - 1]?.ms ?? 0);
   state.runs.set(run, { run, job: id, lines: before.lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], stopped: false });
+  const kept = runsOf(id);
+  for (const old of kept.filter((one) => one.done).slice(0, Math.max(0, kept.length - KEPT_RUNS))) {
+    state.runs.delete(old.run);
+  }
   write("runs", [run, { job: id }]);
   state.shown.set(id, run);
   if (before.end) {

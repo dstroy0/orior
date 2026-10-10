@@ -51,7 +51,7 @@
 #
 # Prior art and language borrowed, named with respect: the problem statement and its numbered conditions
 # are Charles Fefferman's (Clay Mathematics Institute, read in full); the probes are the ordinary idea of
-# a sensitivity test, not new; the Moore closure and Cantor's diagonal are in proof_set_theory.py with
+# a sensitivity test and are not this work's; the Moore closure and Cantor's diagonal are in proof_set_theory.py with
 # their credits; pi by Machin's formula (1706); the fact that a solution's Taylor coefficients follow
 # from differentiating the equation at t = 0 is the classical power-series method. No bounding: every
 # comparison is an exact equality on integers, on integer pairs, or on sets.
@@ -179,7 +179,7 @@ def report_controls(out):
     blind = boundary_kind(lambda _f, _h: 3**7, 0, 7, 3**12)
     describe(out, "null: the tree count with the horizon probe cut", blind)
     out.write(
-        "    the null shows the limit: measurement means unmoved by OUR probes, nothing more\n\n"
+        "    the null shows the limit: measurement means unmoved by OUR probes, and only that\n\n"
     )
     return (
         ntt[0] == "format"

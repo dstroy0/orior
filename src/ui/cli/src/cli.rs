@@ -663,11 +663,14 @@ fn new_plugin(words: &[String]) -> i32 {
     }
 }
 
-/// `orior file toolchains [install <tool> | add-path <tool|orior> | use <tool> <folder> | forget <tool>]`:
-/// with no words, every toolchain as toolchains.rs finds it, a group at a time, with its version
-/// where it says one, and whether orior itself is on the PATH. `install` opens a tool's install page,
-/// `add-path` puts the folder its program was found in, or orior's own, on the reader's PATH, `use`
-/// has orior run a tool from a folder, and `forget` drops that folder.
+/// `orior file toolchains [install <tool> | add-path <tool|orior> | use <tool> <folder> | forget <tool>
+/// | add <name> --group <group> --program <name,...> [--for <text>] [--id <id>] [--version <word,...>]
+/// [--install <url>] | add-group <group> | remove <tool> | remove-group <group>]`: with no words, every
+/// toolchain as toolchains.rs finds it, a group at a time, with its version where it says one, and
+/// whether orior itself is on the PATH. `install` opens a tool's install page, `add-path` puts the
+/// folder its program was found in, or orior's own, on the reader's PATH, `use` has orior run a tool
+/// from a folder, and `forget` drops that folder. `add` and `add-group` add a toolchain or a group of
+/// the reader's, and `remove` and `remove-group` take one out again.
 fn toolchains_words(words: &[String]) -> i32 {
     let word = |at: usize| words.get(at).map(String::as_str);
     let done = |said: Result<String, String>| match said {
@@ -680,8 +683,14 @@ fn toolchains_words(words: &[String]) -> i32 {
             NO_CODE
         }
     };
+    if word(0) == Some("add") {
+        return done(add_toolchain(&words[1..]).map(|id| format!("added {id}: orior file toolchains lists it")));
+    }
     match (word(0), word(1), word(2)) {
         (None, _, _) | (Some("check"), None, _) => {}
+        (Some("add-group"), Some(name), None) => return done(toolchains::add_group(name).map(|()| format!("added the group {name}"))),
+        (Some("remove"), Some(id), None) => return done(toolchains::remove(id).map(|()| format!("took out {id}"))),
+        (Some("remove-group"), Some(name), None) => return done(toolchains::remove_group(name).map(|()| format!("took out the group {name}"))),
         // A tool its makers give a line to install it by is installed here, in this terminal; any other
         // has its install page opened.
         (Some("install"), Some(id), None) => {
@@ -710,19 +719,61 @@ fn toolchains_words(words: &[String]) -> i32 {
         (Some("use"), Some(id), Some(folder)) if words.len() == 3 => return done(toolchains::choose(id, folder).map(|program| format!("orior runs {program}"))),
         (Some("forget"), Some(id), None) => return done(toolchains::forget(id).map(|()| format!("orior looks for {id} on the PATH again"))),
         _ => {
-            err("toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder> or forget <tool>");
+            err("toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder>, forget <tool>, add <name> --group <group> --program <name,...>, add-group <group>, remove <tool> or remove-group <group>");
             return WRONG;
         }
     }
     let found = toolchains::check();
     let versions = toolchains::versions(&found);
     let wide = found.iter().map(|one| one.id.len()).max().unwrap_or(0);
-    let mut group = "";
-    for one in &found {
-        if one.group != group {
-            group = &one.group;
-            out(&format!("\n{group}"));
+    for group in toolchains::groups() {
+        out(&format!("\n{group}"));
+        let held: Vec<&toolchains::Found> = found.iter().filter(|one| one.group == group).collect();
+        if held.is_empty() {
+            out("  no toolchain yet");
         }
+        for one in held {
+            print_toolchain(one, &versions, wide);
+        }
+    }
+    match toolchains::own() {
+        Ok(own) if own.on_path => out(&format!("\norior is on PATH: {}", own.folder)),
+        Ok(own) => out(&format!("\norior is not on PATH: orior file toolchains add-path orior adds {}", own.folder)),
+        Err(said) => err(&said),
+    }
+    0
+}
+
+/// The toolchain `add` describes: its name, then each flag and its value.
+fn add_toolchain(words: &[String]) -> Result<String, String> {
+    let Some(name) = words.first().filter(|name| !name.starts_with("--")) else {
+        return Err("add takes the toolchain's name first".into());
+    };
+    let list = |value: &str| value.split(',').map(|part| part.trim().to_string()).filter(|part| !part.is_empty()).collect::<Vec<_>>();
+    let mut tool: toolchains::Tool = serde_json::from_value(serde_json::json!({ "id": "", "name": name, "group": "", "for": "", "programs": [] })).map_err(|error| error.to_string())?;
+    let mut at = 1;
+    while at < words.len() {
+        let Some(value) = words.get(at + 1) else {
+            return Err(format!("{} takes a value", words[at]));
+        };
+        match words[at].as_str() {
+            "--group" => tool.group = value.clone(),
+            "--program" => tool.programs = list(value),
+            "--for" => tool.uses = value.clone(),
+            "--id" => tool.id = value.clone(),
+            "--version" => tool.version = Some(list(value)),
+            "--install" => {
+                tool.install.insert("any".into(), value.clone());
+            }
+            other => return Err(format!("add knows no {other}")),
+        }
+        at += 2;
+    }
+    toolchains::add(tool)
+}
+
+fn print_toolchain(one: &toolchains::Found, versions: &std::collections::HashMap<String, String>, wide: usize) {
+    {
         let state = match one.state {
             "env" => "named",
             "chosen" => "chosen",
@@ -737,12 +788,6 @@ fn toolchains_words(words: &[String]) -> i32 {
         };
         out(&format!("  {:wide$}  {state:11}  {detail}", one.id));
     }
-    match toolchains::own() {
-        Ok(own) if own.on_path => out(&format!("\norior is on PATH: {}", own.folder)),
-        Ok(own) => out(&format!("\norior is not on PATH: orior file toolchains add-path orior adds {}", own.folder)),
-        Err(said) => err(&said),
-    }
-    0
 }
 
 /// `orior run run-file <file>`: runs a file with its language's toolchain, as run_file.rs gives the

@@ -57,6 +57,13 @@ static void dicom_extent(EngineArrayExtent *extent)
 
 int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const char *member)
 {
+    // a series the module already holds was gathered and parsed as DICOM whole, and is a member it holds
+    const DicomResident *const resident = &g_dicom_resident;
+    if ((resident->valid != 0) && (path != NULL) && (member != NULL) && (strcmp(resident->path, path) == 0) &&
+        (strcmp(resident->member, member) == 0))
+    {
+        return 1;
+    }
     EngineError probe;
     memset(&probe, 0, sizeof(probe));
     const ZipArchive *const archive = (member != NULL) ? zip_archive_cached(tools, path, &probe) : NULL;
@@ -112,7 +119,28 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
     const unsigned long long field = (slice->bits_stored >= 64u) ? ~0ull : ((1ull << slice->bits_stored) - 1ull);
     const unsigned long long sign = 1ull << (slice->bits_stored - 1u);
     const unsigned long long elements = slice->pixel_bytes / element_bytes;
+    // a stored field the element's whole width wide is its own sign extension: every element is left as it is
+    if ((low == 0u) && (slice->bits_stored == width))
+    {
+        return 0ull;
+    }
     unsigned long long kept = 0ull;
+    if (element_bytes == 2u)
+    {
+        // the same extension on a little-endian 16-bit element, read and written as one word
+        for (unsigned long long element = 0ull; element < elements; element += 1ull)
+        {
+            unsigned char *const at = pixels + (element * 2ull);
+            const unsigned long long word = (unsigned long long)at[0] | ((unsigned long long)at[1] << 8u);
+            const unsigned long long stored = (word >> low) & field;
+            const unsigned long long extended = ((stored & sign) != 0ull) ? ((stored | ~field) & mask) : stored;
+            kept |= (((extended << low) & mask) != word) ? 1ull : 0ull;
+            // the extended element is 16 bits, taken a byte at a time
+            at[0] = (unsigned char)(extended & 0xFFull);
+            at[1] = (unsigned char)((extended >> 8u) & 0xFFull);
+        }
+        return kept;
+    }
     for (unsigned long long element = 0ull; element < elements; element += 1ull)
     {
         unsigned char *const at = pixels + (element * element_bytes);

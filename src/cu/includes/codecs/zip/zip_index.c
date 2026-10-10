@@ -203,6 +203,37 @@ int zip_member_data(const EngineIngestTools *tools, const char *path, const ZipA
     return 1;
 }
 
+// a member's stored bytes into `out`: copied where it is stored, inflated where it is deflated, then held to its CRC
+static int zip_member_unpack(const EngineIngestTools *tools, const unsigned char *packed, const ZipEntry *entry,
+                             unsigned char *out, EngineError *error)
+{
+    if (entry->method == 0ull)
+    {
+        if (!ZIP_CHECK(entry->compressed == entry->uncompressed, entry, error, ENGINE_ERROR_REQUEST))
+        {
+            return 0;
+        }
+        memcpy(out, packed, (size_t)entry->uncompressed);
+    }
+    else
+    {
+        const EngineBytesDecode decode = tools->decode[ENGINE_CODEC_DEFLATE];
+        if (!ZIP_CHECK(decode != NULL, tools, error, ENGINE_ERROR_REQUEST))
+        {
+            return 0;
+        }
+        const EngineBytesRequest request = {packed, entry->compressed, out, entry->uncompressed};
+        const long long made = decode(&request);
+        // a non-negative long long count converts to unsigned long long exactly
+        if (!ZIP_CHECK((made >= 0LL) && ((unsigned long long)made == entry->uncompressed), packed, error,
+                       ENGINE_ERROR_REQUEST))
+        {
+            return 0;
+        }
+    }
+    return ZIP_CHECK(zip_crc32(out, entry->uncompressed) == entry->crc, &entry->crc, error, ENGINE_ERROR_REQUEST);
+}
+
 long long zip_member_read(const EngineIngestTools *tools, const char *path, const ZipArchive *archive,
                           const ZipEntry *entry, unsigned char *out, unsigned long long capacity, EngineError *error)
 {
@@ -219,42 +250,94 @@ long long zip_member_read(const EngineIngestTools *tools, const char *path, cons
     {
         return ZIP_ERROR;
     }
-    if (entry->method == 0ull)
+    unsigned char *const packed = malloc((size_t)entry->compressed + 1u);
+    const int ok = ZIP_CHECK(packed != NULL, entry, error, ENGINE_ERROR_RESOURCE) &&
+                   ZIP_IO(zip_fetch(tools, path, data_start, entry->compressed, packed), packed, error) &&
+                   zip_member_unpack(tools, packed, entry, out, error);
+    free(packed);
+    // the uncompressed size fits memory, and so fits a long long
+    return ok ? (long long)entry->uncompressed : ZIP_ERROR;
+}
+
+int zip_span_read(const EngineIngestTools *tools, const char *path, const ZipArchive *archive,
+                  const ZipEntry *entries, unsigned long long count, ZipSpan *span, EngineError *error)
+{
+    memset(span, 0, sizeof(*span));
+    if (!ZIP_CHECK((tools != NULL) && (path != NULL) && (archive != NULL) && (entries != NULL) && (count != 0ull),
+                   entries, error, ENGINE_ERROR_REQUEST))
     {
-        if (!ZIP_CHECK(entry->compressed == entry->uncompressed, entry, error, ENGINE_ERROR_REQUEST) ||
-            !ZIP_IO(zip_fetch(tools, path, data_start, entry->uncompressed, out), out, error))
-        {
-            return ZIP_ERROR;
-        }
+        return 0;
     }
-    else
+    // the span runs from the first member's local header to the end of the last member's data; the last member's
+    // local header gives where its data starts, since a local header's extra field need not be the directory's
+    unsigned long long first = 0ull;
+    for (unsigned long long at = 1ull; at < count; at += 1ull)
     {
-        const EngineBytesDecode decode = tools->decode[ENGINE_CODEC_DEFLATE];
-        if (!ZIP_CHECK(decode != NULL, tools, error, ENGINE_ERROR_REQUEST))
-        {
-            return ZIP_ERROR;
-        }
-        unsigned char *const packed = malloc((size_t)entry->compressed + 1u);
-        int ok = ZIP_CHECK(packed != NULL, entry, error, ENGINE_ERROR_RESOURCE) &&
-                 ZIP_IO(zip_fetch(tools, path, data_start, entry->compressed, packed), packed, error);
-        if (ok)
-        {
-            const EngineBytesRequest request = {packed, entry->compressed, out, entry->uncompressed};
-            const long long made = decode(&request);
-            // a non-negative long long count converts to unsigned long long exactly
-            ok = ZIP_CHECK((made >= 0LL) && ((unsigned long long)made == entry->uncompressed), packed, error,
-                           ENGINE_ERROR_REQUEST);
-        }
-        free(packed);
-        if (!ok)
-        {
-            return ZIP_ERROR;
-        }
+        first = (entries[at].local_offset < entries[first].local_offset) ? at : first;
     }
-    if (!ZIP_CHECK(zip_crc32(out, entry->uncompressed) == entry->crc, &entry->crc, error, ENGINE_ERROR_REQUEST))
+    unsigned long long last = 0ull;
+    for (unsigned long long at = 1ull; at < count; at += 1ull)
+    {
+        last = (entries[at].local_offset > entries[last].local_offset) ? at : last;
+    }
+    unsigned long long data_start = 0ull;
+    if (!zip_member_data(tools, path, archive, &entries[last], &data_start, error))
+    {
+        return 0;
+    }
+    const unsigned long long begin = entries[first].local_offset;
+    const unsigned long long end = data_start + entries[last].compressed;
+    if (!ZIP_CHECK((end > begin) && zip_fits_memory(end - begin), &entries[last], error, ENGINE_ERROR_REQUEST))
+    {
+        return 0;
+    }
+    span->bytes = (unsigned char *)malloc((size_t)(end - begin) + 1u);
+    if (!ZIP_CHECK(span->bytes != NULL, span, error, ENGINE_ERROR_RESOURCE) ||
+        !ZIP_IO(zip_fetch(tools, path, begin, end - begin, span->bytes), span->bytes, error))
+    {
+        zip_span_release(span);
+        return 0;
+    }
+    span->first = begin;
+    span->length = end - begin;
+    return 1;
+}
+
+long long zip_span_member(const EngineIngestTools *tools, const ZipSpan *span, const ZipEntry *entry,
+                          unsigned char *out, unsigned long long capacity, EngineError *error)
+{
+    if (error == NULL)
+    {
+        return ZIP_ERROR;
+    }
+    if (!ZIP_CHECK((tools != NULL) && (span != NULL) && (span->bytes != NULL) && (entry != NULL) && (out != NULL) &&
+                       (entry->uncompressed <= capacity) && ((entry->flags & 0x41ull) == 0ull) &&
+                       ((entry->method == 0ull) || (entry->method == 8ull)) && (entry->local_offset >= span->first) &&
+                       ((entry->local_offset - span->first) <= span->length) &&
+                       ((span->length - (entry->local_offset - span->first)) >= 30ull),
+                   entry, error, ENGINE_ERROR_REQUEST))
+    {
+        return ZIP_ERROR;
+    }
+    const unsigned char *const local = span->bytes + (entry->local_offset - span->first);
+    if (!ZIP_CHECK(memcmp(local, zip_local, sizeof zip_local) == 0, local, error, ENGINE_ERROR_REQUEST))
+    {
+        return ZIP_ERROR;
+    }
+    const unsigned long long data_at =
+        (entry->local_offset - span->first) + 30ull + zip_load(local + 26u, 2u) + zip_load(local + 28u, 2u);
+    if (!ZIP_CHECK((data_at <= span->length) && (entry->compressed <= (span->length - data_at)), local, error,
+                   ENGINE_ERROR_REQUEST) ||
+        !zip_member_unpack(tools, span->bytes + data_at, entry, out, error))
     {
         return ZIP_ERROR;
     }
     // the uncompressed size fits memory, and so fits a long long
     return (long long)entry->uncompressed;
+}
+
+void zip_span_release(ZipSpan *span)
+{
+    free(span->bytes);
+    memset(span, 0, sizeof(*span));
 }

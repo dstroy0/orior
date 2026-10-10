@@ -4,7 +4,9 @@
 // The kept scheme, the colors of the theme chosen for each scheme and the reader's fonts, set before
 // the page draws anything, so that its first frame is already in them. themes.js and fonts.js keep
 // them under the same keys, and fonts.js writes the same rule.
-document.documentElement.dataset.scheme = localStorage.getItem("orior.scheme") === "light" ? "light" : "dark";
+const kept = localStorage.getItem("orior.scheme");
+const followed = kept === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : kept;
+document.documentElement.dataset.scheme = followed === "light" ? "light" : "dark";
 try {
   const list = JSON.parse(localStorage.getItem("orior.themes") ?? "[]");
   let text = "";

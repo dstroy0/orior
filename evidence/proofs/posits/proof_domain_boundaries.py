@@ -77,7 +77,7 @@ def report_format(out):
 
 
 def report_measurement(out):
-    """The measurement boundary: an identity on a value known to F places lands near F, not at full scale."""
+    """The measurement boundary: an identity on a value known to F places lands near F places, below full scale."""
     out.write("  MEASUREMENT boundary: an identity does not lower a deposit's floor\n")
     report_places = 120
     floor_places = 30
