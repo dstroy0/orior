@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank.cu: casmi_driver --rank. Each query molecule's train structures, ranked by their reference spectra against the
-// molecule's own, read from a set the ingest sealed. Every value is an exact integer on the record machine and every
-// verdict a sign the device returned; the host moves record numbers by those signs and does nothing else to a value.
+// molecule's own, read from the parquet files themselves. Every double is its 64 stored bits, m 2^(E - 1075) exactly:
+// m its mantissa and E its exponent. Every value is an exact integer on the record machine and every verdict a sign
+// the device returned; the host moves record numbers by those signs and does nothing else to a value.
 //
 //   ion:     I = 10 x sum (molecules x f_k + a_k) x M_k - charge x e, every candidate formula with every query adduct,
 //            in 10^-16 Da, the CODATA 2022 electron
-//   window:  the query's precursor x = n / d, d a power of ten or of two: D = n |z| 10^16 - I d and N = I d; the
-//            formula is inside where D / N is inside the envelope of the query's mode, by two COMPARE signs
+//   window:  the query's precursor x = n / d, n its mantissa and d = 2^(1075 - E): D = n |z| 10^16 - I d and N = I d;
+//            the formula is inside where D / N is inside the envelope of the query's mode, by two COMPARE signs
 //   match:   every query peak q against every peak r of every reference spectrum the window names, each m/z n / d:
 //            e = n_q d_r - n_r d_q against n_r d_q by the same two signs, and w = (1 - c_high)(1 + c_low) I_q I_r, each
-//            intensity on its row's one scale
+//            intensity m 2^s on its row's least power of two, s its exponent above the row's least
 //   peak:    each query peak's heaviest w by a COMPARE tournament
 //   sum:     M = the sum of a pair's kept w; Q and R = the sums of I^2 over each spectrum's peaks
-//   score:   (M^2, Q R), put in order by COMPARE(M_a^2 Q_b R_b, M_b^2 Q_a R_a)
+//   score:   (M^2, Q R), put in order by COMPARE(M_a^2 Q_b R_b, M_b^2 Q_a R_a); a row's power of two cancels in it
 //   list:    a molecule's structures, the scored by repeated tournaments heaviest first, then the unscored in
 //            structure order, the first 25 written
 //
-// validate holds out the cfg's query library and places each molecule's answer in its list; test reads a test set
-// after the set, ranks its molecules against every spectrum of the set and writes their lists' SMILES
+// validate holds out the cfg's query library and places each molecule's answer in its list; test reads the test file
+// after the train file, ranks its molecules against every spectrum of the train file and writes their lists' SMILES
+
 #include "rank.h"
 #include "rank_internal.h"
 
@@ -50,29 +52,19 @@
 // the device bytes the job declares: the widest sweep's records, members and index
 #define RANK_DECLARED (2ull << 30u)
 
-// lanes a sweep runs at once, the most a chunk of match lanes holds
-#define RANK_CHUNK_LANES (1ull << 22u)
+// lanes a sweep runs at once, the most a chunk of match lanes holds: on the device its index, records and order, 52
+// bytes a lane at the match's record of 8 limbs
+#define RANK_CHUNK_LANES (1ull << 24u)
 
-// a double's fields as IEEE 754 binary64 lays them, and the exponent its integer mantissa stands at: x = M 2^(E - 1075)
+// a double's fields as IEEE 754 binary64 lays them, and the exponent its integer mantissa stands at: x = m 2^(E - 1075),
+// E the stored exponent, 1 for a subnormal, and m its fraction with the leading 1 where E is stored above 0. A record
+// holds E in RANK_EXPONENT_BITS bits
 #define RANK_MANTISSA_BITS 52u
 #define RANK_EXPONENT_MASK 0x7FFull
 #define RANK_UNIT_EXPONENT 1075u
+#define RANK_EXPONENT_BITS 12u
+#define RANK_SIGN_BIT 63u
 
-// A rational's code beside its numerator: the decimal places of a power-of-ten denominator, or past
-// RANK_CODE_KEPT the stored exponent E of a power-of-two one, 2^(1075 - E)
-#define RANK_CODE_KEPT 2048u
-#define RANK_CODE_BITS 12u
-
-// an m/z's denominator: a kept one's 2^(1075 - E) with E at least 1023, the m/z at least 1, below 2^6; a decimal's
-// 10^places with places at most 12, below 2^4
-#define RANK_TWO_EXPONENT_BITS 6u
-#define RANK_TEN_EXPONENT_BITS 4u
-
-// the precursor's and the peaks' unit places where a row's values take each their own form
-#define RANK_UNIT_PLACES_MZ 4u
-#define RANK_UNIT_PLACES_INTENSITY 6u
-
-static const unsigned long long RANK_DIVISOR[RANK_DIVISORS] = {100ull, 999ull};
 
 typedef struct
 {
@@ -193,113 +185,15 @@ static void rank_exact_signed(long long value, AnchorExactInteger *out)
     out->sign = (value < 0ll) ? -out->sign : out->sign;
 }
 
-// ---- a value as a rational n / d ----
+// ---- a stored double ----
 
-// A column's value read as its numerator and its code: the integer on its row's unit and the row's places where the
-// row holds one form, the column's unit places where it does not, and a kept value's mantissa and exponent
-static void rank_rational(const RankColumn *column, unsigned long long row, unsigned long long value,
-                          unsigned int unit_places, unsigned long long *numerator, unsigned int *code)
+// A double's 64 stored bits as its mantissa m and exponent E, x = m 2^(E - 1075); a zero is m = 0 at E = 1075, over 1
+static void rank_double(unsigned long long stored, unsigned long long *mantissa, unsigned int *exponent)
 {
-    const unsigned int term = column->term[row];
-    if (column->form[value] == RANK_FORM_KEPT)
-    {
-        const unsigned long long stored = column->unit[value];
-        const unsigned long long biased = (stored >> RANK_MANTISSA_BITS) & RANK_EXPONENT_MASK;
-        const unsigned long long fraction = stored & ((1ull << RANK_MANTISSA_BITS) - 1ull);
-        *numerator = fraction | ((biased != 0ull) ? (1ull << RANK_MANTISSA_BITS) : 0ull);
-        *code = RANK_CODE_KEPT + (unsigned int)((biased != 0ull) ? biased : 1ull);
-        return;
-    }
-    *numerator = column->unit[value];
-    *code = ((term % RANK_TERM_FORMS) == RANK_ROW_EACH) ? unit_places : (term / RANK_TERM_FORMS);
-}
-
-// a code's denominator: 10^places, or 2^(1075 - E) for a kept value
-static void rank_denominator(unsigned int code, AnchorExactInteger *out)
-{
-    rank_exact_of(1ull, out);
-    AnchorExactInteger factor;
-    const int kept = code >= RANK_CODE_KEPT;
-    const unsigned int times = kept ? (RANK_UNIT_EXPONENT - (code - RANK_CODE_KEPT)) : code;
-    rank_exact_of(kept ? 2ull : 10ull, &factor);
-    for (unsigned int each = 0u; each < times; each += 1u)
-    {
-        (void)anchor_exact_multiply(out, &factor, out);
-    }
-}
-
-// An intensity row on one scale: each value's integer n, n / L its value, L the least common multiple of the row's
-// denominators. A row of one form takes its integers as they are, the row's one denominator canceling in every score;
-// a row of no one form has each value's denominator, B a count's, 10^6 a decimal's, the divisor times 10^6 a divided
-// decimal's and 2^(1075 - E) a kept value's, and its integer times L over it
-static int rank_intensity_row(const RankSet *set, unsigned long long row, std::vector<AnchorExactInteger> *out)
-{
-    const RankColumn *const column = &set->intensity;
-    const unsigned long long first = column->row_start[row];
-    const unsigned long long past = column->row_start[row + 1ull];
-    out->assign((size_t)(past - first), AnchorExactInteger());
-    const int each = (column->term[row] % RANK_TERM_FORMS) == RANK_ROW_EACH;
-    if (!each)
-    {
-        for (unsigned long long value = first; value < past; value += 1ull)
-        {
-            rank_exact_of(column->unit[value], &(*out)[value - first]);
-        }
-        return 1;
-    }
-    std::vector<AnchorExactInteger> numerator((size_t)(past - first));
-    std::vector<AnchorExactInteger> denominator((size_t)(past - first));
-    AnchorExactInteger common;
-    rank_exact_of(1ull, &common);
-    int ok = 1;
-    for (unsigned long long value = first; ok && (value < past); value += 1ull)
-    {
-        AnchorExactInteger *const n = &numerator[value - first];
-        AnchorExactInteger *const d = &denominator[value - first];
-        const unsigned int form = column->form[value];
-        if (form == RANK_FORM_COUNT)
-        {
-            // the count's base, a whole number the ingest held it as
-            double base = 0.0;
-            memcpy(&base, &set->base[row], 8u);
-            ok = set->base_held[row] && (base >= 1.0) && (base < 9007199254740992.0);
-            rank_exact_of(column->unit[value], n);
-            rank_exact_of(ok ? (unsigned long long)base : 1ull, d);
-        }
-        else if (form == RANK_FORM_KEPT)
-        {
-            unsigned long long mantissa = 0ull;
-            unsigned int code = 0u;
-            rank_rational(column, row, value, RANK_UNIT_PLACES_INTENSITY, &mantissa, &code);
-            ok = (code - RANK_CODE_KEPT) <= RANK_UNIT_EXPONENT;
-            rank_exact_of(mantissa, n);
-            rank_denominator(ok ? code : 0u, d);
-        }
-        else
-        {
-            rank_exact_of(column->unit[value], n);
-            rank_denominator(RANK_UNIT_PLACES_INTENSITY, d);
-            if (form != RANK_FORM_DECIMAL)
-            {
-                AnchorExactInteger divisor;
-                rank_exact_of(RANK_DIVISOR[form - RANK_FORM_DIVIDED], &divisor);
-                (void)anchor_exact_multiply(d, &divisor, d);
-            }
-        }
-        // the least common multiple: common d / gcd(common, d)
-        AnchorExactInteger divides;
-        AnchorExactInteger part;
-        ok = ok && (anchor_exact_gcd(&common, d, &divides) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_divide_exact(d, &divides, &part) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&common, &part, &common) == ANCHOR_EXACT_OK);
-    }
-    for (unsigned long long value = first; ok && (value < past); value += 1ull)
-    {
-        AnchorExactInteger lift;
-        ok = (anchor_exact_divide_exact(&common, &denominator[value - first], &lift) == ANCHOR_EXACT_OK) &&
-             (anchor_exact_multiply(&numerator[value - first], &lift, &(*out)[value - first]) == ANCHOR_EXACT_OK);
-    }
-    return ok;
+    const unsigned long long biased = (stored >> RANK_MANTISSA_BITS) & RANK_EXPONENT_MASK;
+    const unsigned long long fraction = stored & ((1ull << RANK_MANTISSA_BITS) - 1ull);
+    *mantissa = fraction | ((biased != 0ull) ? (1ull << RANK_MANTISSA_BITS) : 0ull);
+    *exponent = (*mantissa == 0ull) ? RANK_UNIT_EXPONENT : (unsigned int)((biased != 0ull) ? biased : 1ull);
 }
 
 // ---- programs ----
@@ -310,20 +204,14 @@ static unsigned int rank_compare(ExactRecordProgram *program, unsigned int a, un
     return exact_record_difference(program, exact_record_above(program, a, b), exact_record_above(program, b, a));
 }
 
-// a rational's denominator from its code: 10^places, or 2^(1075 - E) past RANK_CODE_KEPT
-static unsigned int rank_denominator_steps(ExactRecordProgram *program, unsigned int code)
+// a double's denominator 2^(1075 - E), 1075 - E known below 2^two_bits
+static unsigned int rank_denominator_steps(ExactRecordProgram *program, unsigned int exponent, unsigned int two_bits)
 {
-    const unsigned int kept_at = exact_record_constant(program, RANK_CODE_KEPT);
-    const unsigned int kept = exact_record_quotient(program, code, kept_at);
-    const unsigned int low = exact_record_remainder(program, code, kept_at);
-    const unsigned int zero = exact_record_constant(program, 0ull);
-    const unsigned int two_exponent =
-        exact_record_select(program, kept, exact_record_difference(program, exact_record_constant(program, RANK_UNIT_EXPONENT), low),
-                            zero);
-    const unsigned int ten_exponent = exact_record_select(program, kept, zero, low);
-    return exact_record_product(program, exact_record_two_to(program, two_exponent, RANK_TWO_EXPONENT_BITS),
-                                exact_record_power_of(program, 10ull, ten_exponent, RANK_TEN_EXPONENT_BITS));
+    return exact_record_two_to(
+        program, exact_record_difference(program, exact_record_constant(program, RANK_UNIT_EXPONENT), exponent),
+        two_bits);
 }
+
 
 // The envelope's two signs for the ratio e / n, n > 0, the envelope's fields read from member `member`:
 // c_high = COMPARE(2 e N_high, 2 D_high n + 1) and c_low = COMPARE(2 e N_low, 2 D_low n - 1). Neither side of either is
@@ -366,15 +254,20 @@ static void rank_envelope_fields(ExactRecordProgram *program, const RankEnvelope
     }
 }
 
-// where a value record holds a rational: its numerator and its code
+// A peak's record: its m/z's mantissa at bit 0 and exponent at exponent_offset, and its intensity's mantissa at
+// intensity_offset and shift at shift_offset, the intensity's exponent less its row's least: each row's intensities
+// on the row's least power of two, a scale every score cancels
 typedef struct
 {
-    unsigned int numerator_bits;
-    unsigned int code_offset;
+    unsigned int exponent_offset;
     unsigned int intensity_offset;
-    unsigned int intensity_bits;
+    unsigned int shift_offset;
+    unsigned int shift_bits;
     unsigned int limbs;
 } RankPeakLayout;
+
+// a mantissa's bits, the leading 1 above the 52 stored
+#define RANK_MANTISSA_FIELD_BITS 53u
 
 // ---- groups on the device ----
 
@@ -597,25 +490,30 @@ typedef struct
     unsigned long long microseconds;
 } RankTally;
 
+// the clock as the run starts, each stage's line reading its end against it
+static unsigned long long s_rank_started;
+
 static void rank_tally_line(SimResults *results, const char *name, const RankTally *tally)
 {
     scriptura_text(&results->line, "  ");
     scriptura_text(&results->line, name);
     rank_line_decimal(results, ": ", tally->lanes);
     rank_line_decimal(results, " lanes, device ", tally->microseconds);
-    scriptura_text(&results->line, " us");
+    rank_line_decimal(results, " us, ended at ", engine_clock_microseconds() - s_rank_started);
+    scriptura_text(&results->line, " us of the run");
     rank_line_end(results);
 }
 
 int rank_run(SimResults *results, int count, char **arguments)
 {
-    const char *const set_path = arguments[2];
+    s_rank_started = engine_clock_microseconds();
+    const char *const train_path = arguments[2];
     const char *const cfg_path = arguments[3];
     const int validate = (count == 5) && (strcmp(arguments[4], "validate") == 0);
     const int test = (count == 6) && (strcmp(arguments[4], "test") == 0);
     if (!validate && !test)
     {
-        scriptura_text(&results->line, "  --rank SET CFG validate, or --rank SET CFG test TEST_SET");
+        scriptura_text(&results->line, "  --rank TRAIN.parquet CFG validate, or --rank TRAIN.parquet CFG test TEST.parquet");
         rank_line_end(results);
         return 0;
     }
@@ -685,30 +583,77 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
     }
 
-    // the set, and in test the test set read after it, whose spectra are the queries
+    // the train file, and in test the test file read after it, whose spectra are the queries
     static RankSet set;
-    const int set_read = rank_set_load(results, set_path, &set);
+    const int train_read = rank_file_load(results, train_path, &set);
     const unsigned long long set_spectra = set.spectra;
-    if (!set_read || (test && !rank_set_load(results, arguments[5], &set)))
+    if (!train_read || (test && !rank_file_load(results, arguments[5], &set)))
     {
-        scriptura_text(&results->line, "  the set did not read: ");
-        scriptura_text(&results->line, set_read ? arguments[5] : set_path);
-        rank_line_end(results);
         return 0;
     }
     const unsigned long long spectra = set.spectra;
     if (test)
     {
-        rank_line_decimal(results, "  test set: ", spectra - set_spectra);
+        rank_line_decimal(results, "  test file: ", spectra - set_spectra);
         scriptura_text(&results->line, " spectra");
         rank_line_end(results);
     }
-    rank_line_decimal(results, "  set: ", spectra);
+    rank_line_decimal(results, "  read: ", spectra);
     rank_line_decimal(results, " spectra in ", (unsigned long long)set.row_groups);
-    rank_line_decimal(results, " row groups, ", set.mz.unit.size());
+    rank_line_decimal(results, " row groups, ", set.mz.bits.size());
     rank_line_decimal(results, " peaks, ", (unsigned long long)set.strings[RANK_KEY].size());
-    scriptura_text(&results->line, " structures");
+    rank_line_decimal(results, " structures, by ", engine_clock_microseconds() - s_rank_started);
+    scriptura_text(&results->line, " us of the run");
     rank_line_end(results);
+
+    // The bounds the programs are laid out by, from the stored bits: the most 1075 - E a precursor or an m/z takes, and
+    // each row's least intensity exponent and the most any intensity stands above its row's. Every value is above 0 or
+    // 0, and below 2^53
+    unsigned int two_most = 0u;
+    int signs_held = 1;
+    for (int column = 0; column < 2; column += 1)
+    {
+        const std::vector<unsigned long long> &bits = (column == 0) ? set.precursor.bits : set.mz.bits;
+        for (size_t value = 0u; value < bits.size(); value += 1u)
+        {
+            unsigned long long mantissa = 0ull;
+            unsigned int exponent = 0u;
+            rank_double(bits[value], &mantissa, &exponent);
+            signs_held = signs_held && ((bits[value] >> RANK_SIGN_BIT) == 0ull) && (exponent <= RANK_UNIT_EXPONENT);
+            two_most = std::max(two_most, RANK_UNIT_EXPONENT - std::min(exponent, RANK_UNIT_EXPONENT));
+        }
+    }
+    std::vector<unsigned int> intensity_floor((size_t)spectra + 1u, RANK_UNIT_EXPONENT);
+    unsigned int shift_most = 0u;
+    for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
+    {
+        unsigned int highest = 0u;
+        for (unsigned long long value = set.intensity.row_start[spectrum];
+             value < set.intensity.row_start[spectrum + 1ull]; value += 1ull)
+        {
+            unsigned long long mantissa = 0ull;
+            unsigned int exponent = 0u;
+            rank_double(set.intensity.bits[value], &mantissa, &exponent);
+            signs_held = signs_held && ((set.intensity.bits[value] >> RANK_SIGN_BIT) == 0ull);
+            if (mantissa != 0ull)
+            {
+                intensity_floor[spectrum] = std::min(intensity_floor[spectrum], exponent);
+                highest = std::max(highest, exponent);
+            }
+        }
+        shift_most = std::max(shift_most, (highest > intensity_floor[spectrum]) ? (highest - intensity_floor[spectrum]) : 0u);
+    }
+    const unsigned int two_bits = std::max(1u, exact_record_bits_of(two_most));
+    const unsigned int shift_bits = std::max(1u, exact_record_bits_of(shift_most));
+    rank_line_decimal(results, "  bounds: 1075 - E at most ", two_most);
+    rank_line_decimal(results, ", an intensity's exponent above its row's least at most ", shift_most);
+    rank_line_end(results);
+    if (!signs_held)
+    {
+        scriptura_text(&results->line, "  a value is below 0, or a precursor or an m/z is 2^53 or more");
+        rank_line_end(results);
+        return 0;
+    }
     if (sim_job_submit(results, "casmi_driver", count, arguments, RANK_DECLARED) == 0)
     {
         return 0;
@@ -935,6 +880,8 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, "  candidate structures: ", candidate_structures);
     rank_line_decimal(results, "; formulas read ", formula_count);
     rank_line_decimal(results, ", refused ", refused_formula);
+    rank_line_decimal(results, "; read by ", engine_clock_microseconds() - s_rank_started);
+    scriptura_text(&results->line, " us of the run");
     rank_line_end(results);
 
     // ---- ion ----
@@ -1017,22 +964,21 @@ int rank_run(SimResults *results, int count, char **arguments)
     const RankField ion_sum = rank_output(&ion, 2u);
 
     // ---- window ----
-    // the precursor record: its numerator and its code
+    // the precursor record: its mantissa at bit 0 and its exponent at 64, the precursor m 2^(E - 1075)
     const unsigned int precursor_limbs = 3u;
-    const unsigned int precursor_numerator_bits = 62u;
     RankMachine window;
     {
         ExactRecordProgram program;
         exact_record_open(&program);
-        const unsigned int numerator_field = exact_record_member_field(&program, precursor_numerator_bits, 0u);
-        const unsigned int code_field = exact_record_member_field(&program, RANK_CODE_BITS, 64u);
+        const unsigned int numerator_field = exact_record_member_field(&program, RANK_MANTISSA_FIELD_BITS, 0u);
+        const unsigned int exponent_field = exact_record_member_field(&program, RANK_EXPONENT_BITS, 64u);
         const unsigned int mass_field = exact_record_member_field(&program, ion_mass.bits, ion_mass.offset);
         const unsigned int charge_field = exact_record_member_field(&program, ion_charge.bits, ion_charge.offset);
         unsigned int fields[RANK_ENVELOPE_FIELDS];
         rank_envelope_fields(&program, &envelope_layout, fields);
         const unsigned int numerator = exact_record_read_unsigned(&program, numerator_field, 0u);
         const unsigned int denominator =
-            rank_denominator_steps(&program, exact_record_read_unsigned(&program, code_field, 0u));
+            rank_denominator_steps(&program, exact_record_read_unsigned(&program, exponent_field, 0u), two_bits);
         const unsigned int mass = exact_record_read(&program, mass_field, 1u);
         const unsigned int charge = exact_record_read(&program, charge_field, 1u);
         // D = n |z| 10^16 - I d, N = I d
@@ -1127,14 +1073,13 @@ int rank_run(SimResults *results, int count, char **arguments)
                 if (query_adduct[each] == slot)
                 {
                     const unsigned long long spectrum = query[each];
-                    unsigned long long numerator = 0ull;
-                    unsigned int code = 0u;
-                    rank_rational(&set.precursor, spectrum, set.precursor.row_start[spectrum], RANK_UNIT_PLACES_MZ,
-                                  &numerator, &code);
+                    unsigned long long mantissa = 0ull;
+                    unsigned int exponent = 0u;
+                    rank_double(set.precursor.bits[set.precursor.row_start[spectrum]], &mantissa, &exponent);
                     const size_t base_at = query_atoms.size();
                     query_atoms.resize(base_at + precursor_limbs, 0u);
-                    rank_put_unsigned(&query_atoms[base_at], 0u, precursor_numerator_bits, numerator);
-                    rank_put_unsigned(&query_atoms[base_at], 64u, RANK_CODE_BITS, code);
+                    rank_put_unsigned(&query_atoms[base_at], 0u, RANK_MANTISSA_FIELD_BITS, mantissa);
+                    rank_put_unsigned(&query_atoms[base_at], 64u, RANK_EXPONENT_BITS, exponent);
                     window_query.push_back((unsigned int)each);
                 }
                 each += 1ull;
@@ -1206,99 +1151,54 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_end(results);
 
     // ---- peaks ----
-    std::vector<unsigned int> intensity_flat;
-    unsigned int intensity_limbs = 1u;
-    // Each spectrum's intensities on its row's one scale. A row of one form takes its integers as they are, each below
-    // 2^60; a row of no one form has its integers on the row's least common denominator, written into a side array at
-    // the widest of them, its rows read once for the width and once to write them
-    unsigned int intensity_bits = 61u;
-    std::vector<unsigned long long> side_first((size_t)spectra + 1u, ~0ull);
-    unsigned long long side_values = 0ull;
-    for (unsigned int pass = 0u; ok && (pass < 2u); pass += 1u)
-    {
-        if (pass == 1u)
-        {
-            intensity_limbs = (intensity_bits + 31u) / 32u;
-            intensity_flat.assign((size_t)(side_values * intensity_limbs), 0u);
-            side_values = 0ull;
-        }
-        for (unsigned long long spectrum = 0ull; ok && (spectrum < spectra); spectrum += 1ull)
-        {
-            const int each_form = (set.intensity.term[spectrum] % RANK_TERM_FORMS) == RANK_ROW_EACH;
-            if ((!reference[spectrum] && !is_query[spectrum]) || !each_form)
-            {
-                continue;
-            }
-            std::vector<AnchorExactInteger> row;
-            ok = rank_intensity_row(&set, spectrum, &row);
-            side_first[spectrum] = side_values;
-            for (size_t peak = 0u; ok && (peak < row.size()); peak += 1u)
-            {
-                intensity_bits = (pass == 0u) ? std::max(intensity_bits, rank_bits(&row[peak]) + 1u) : intensity_bits;
-                if (pass == 1u)
-                {
-                    memcpy(&intensity_flat[(side_values + peak) * intensity_limbs], row[peak].limb,
-                           intensity_limbs * sizeof(unsigned int));
-                }
-            }
-            side_values += row.size();
-        }
-    }
-    if (!ok)
-    {
-        scriptura_text(&results->line, "  an intensity row did not come to one scale");
-        rank_line_end(results);
-        return 0;
-    }
     RankPeakLayout peak_layout;
-    peak_layout.numerator_bits = 62u;
-    peak_layout.code_offset = 64u;
+    peak_layout.exponent_offset = 64u;
     peak_layout.intensity_offset = 96u;
-    peak_layout.intensity_bits = intensity_bits;
-    peak_layout.limbs = (peak_layout.intensity_offset + intensity_bits + 31u) / 32u;
-    rank_line_decimal(results, "  peaks: intensity field ", intensity_bits);
-    rank_line_decimal(results, " bits, record ", peak_layout.limbs);
+    peak_layout.shift_offset = peak_layout.intensity_offset + RANK_MANTISSA_FIELD_BITS;
+    peak_layout.shift_bits = shift_bits;
+    peak_layout.limbs = (peak_layout.shift_offset + shift_bits + 31u) / 32u;
+    rank_line_decimal(results, "  peaks: record ", peak_layout.limbs);
     scriptura_text(&results->line, " limbs");
     rank_line_end(results);
-    // a spectrum's peaks as records: each m/z's rational and its intensity
+    // a spectrum's peaks as records: each m/z's mantissa and exponent, and each intensity's mantissa and its exponent
+    // above its row's least, 0 for an intensity of 0
     auto peak_put = [&](unsigned long long spectrum, unsigned int *atoms) {
         const unsigned long long first = set.mz.row_start[spectrum];
         const unsigned long long past = set.mz.row_start[spectrum + 1ull];
+        const unsigned long long intensity_first = set.intensity.row_start[spectrum];
         for (unsigned long long value = first; value < past; value += 1ull)
         {
             unsigned int *const atom = &atoms[(value - first) * peak_layout.limbs];
-            unsigned long long numerator = 0ull;
-            unsigned int code = 0u;
-            rank_rational(&set.mz, spectrum, value, RANK_UNIT_PLACES_MZ, &numerator, &code);
-            rank_put_unsigned(atom, 0u, peak_layout.numerator_bits, numerator);
-            rank_put_unsigned(atom, peak_layout.code_offset, RANK_CODE_BITS, code);
-            if (side_first[spectrum] != ~0ull)
-            {
-                rank_bits_copy(atom, peak_layout.intensity_offset,
-                               &intensity_flat[(side_first[spectrum] + (value - first)) * intensity_limbs],
-                               std::min(peak_layout.intensity_bits, 32u * intensity_limbs));
-            }
-            else
-            {
-                rank_put_unsigned(atom, peak_layout.intensity_offset, peak_layout.intensity_bits, set.intensity.unit[value]);
-            }
+            unsigned long long mantissa = 0ull;
+            unsigned int exponent = 0u;
+            rank_double(set.mz.bits[value], &mantissa, &exponent);
+            rank_put_unsigned(atom, 0u, RANK_MANTISSA_FIELD_BITS, mantissa);
+            rank_put_unsigned(atom, peak_layout.exponent_offset, RANK_EXPONENT_BITS, exponent);
+            rank_double(set.intensity.bits[intensity_first + (value - first)], &mantissa, &exponent);
+            rank_put_unsigned(atom, peak_layout.intensity_offset, RANK_MANTISSA_FIELD_BITS, mantissa);
+            rank_put_unsigned(atom, peak_layout.shift_offset, peak_layout.shift_bits,
+                              (mantissa != 0ull) ? (exponent - intensity_floor[spectrum]) : 0u);
         }
     };
+
     RankMachine match;
     {
         ExactRecordProgram program;
         exact_record_open(&program);
-        const unsigned int numerator_field = exact_record_member_field(&program, peak_layout.numerator_bits, 0u);
-        const unsigned int code_field = exact_record_member_field(&program, RANK_CODE_BITS, peak_layout.code_offset);
+        const unsigned int numerator_field = exact_record_member_field(&program, RANK_MANTISSA_FIELD_BITS, 0u);
+        const unsigned int exponent_field =
+            exact_record_member_field(&program, RANK_EXPONENT_BITS, peak_layout.exponent_offset);
         const unsigned int intensity_field =
-            exact_record_member_field(&program, peak_layout.intensity_bits, peak_layout.intensity_offset);
+            exact_record_member_field(&program, RANK_MANTISSA_FIELD_BITS, peak_layout.intensity_offset);
+        const unsigned int shift_field = exact_record_member_field(&program, peak_layout.shift_bits, peak_layout.shift_offset);
         unsigned int fields[RANK_ENVELOPE_FIELDS];
         rank_envelope_fields(&program, &envelope_layout, fields);
         const unsigned int query_n = exact_record_read_unsigned(&program, numerator_field, 0u);
         const unsigned int reference_n = exact_record_read_unsigned(&program, numerator_field, 1u);
-        const unsigned int query_d = rank_denominator_steps(&program, exact_record_read_unsigned(&program, code_field, 0u));
+        const unsigned int query_d =
+            rank_denominator_steps(&program, exact_record_read_unsigned(&program, exponent_field, 0u), two_bits);
         const unsigned int reference_d =
-            rank_denominator_steps(&program, exact_record_read_unsigned(&program, code_field, 1u));
+            rank_denominator_steps(&program, exact_record_read_unsigned(&program, exponent_field, 1u), two_bits);
         // e = n_q d_r - n_r d_q against n_r d_q
         const unsigned int referenced = exact_record_product(&program, reference_n, query_d);
         const unsigned int error =
@@ -1309,13 +1209,21 @@ int rank_run(SimResults *results, int count, char **arguments)
         const unsigned int one = exact_record_constant(&program, 1ull);
         const unsigned int inside = exact_record_product(&program, exact_record_difference(&program, one, high),
                                                          exact_record_sum(&program, one, low));
-        unsigned int weight = exact_record_product(
+        // the weight, I_q I_r = m_q m_r 2^(s_q + s_r) on the two rows' least powers of two, and 1 where it is above
+        // zero: the lanes kept
+        const unsigned int shifts = exact_record_sum(&program, exact_record_read_unsigned(&program, shift_field, 0u),
+                                                     exact_record_read_unsigned(&program, shift_field, 1u));
+        unsigned int outputs[2];
+        outputs[0] = exact_record_product(
             &program, inside,
-            exact_record_product(&program, exact_record_read(&program, intensity_field, 0u),
-                                 exact_record_read(&program, intensity_field, 1u)));
+            exact_record_product(&program,
+                                 exact_record_product(&program, exact_record_read_unsigned(&program, intensity_field, 0u),
+                                                      exact_record_read_unsigned(&program, intensity_field, 1u)),
+                                 exact_record_two_to(&program, shifts, peak_layout.shift_bits + 1u)));
+        outputs[1] = exact_record_above(&program, outputs[0], exact_record_constant(&program, 0ull));
         const unsigned int limbs[ENGINE_RECORD_MEMBERS_MAX] = {peak_layout.limbs, peak_layout.limbs,
                                                                envelope_layout.limbs};
-        ok = rank_machine_load(results, "match", &program, &weight, 1u, 3u, limbs, &match);
+        ok = rank_machine_load(results, "match", &program, outputs, 2u, 3u, limbs, &match);
         exact_record_close(&program);
         if (!ok)
         {
@@ -1323,7 +1231,11 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
     }
     const RankField weight_field = rank_output(&match, 0u);
+    const RankField kept_field = rank_output(&match, 1u);
     const unsigned int match_limbs = match.layout.out_limbs;
+    rank_line_decimal(results, "  match: program loaded by ", engine_clock_microseconds() - s_rank_started);
+    scriptura_text(&results->line, " us of the run");
+    rank_line_end(results);
 
     // match: each query's peaks against every peak of every reference spectrum its window names, same mode
     std::vector<unsigned int> matched;
@@ -1334,6 +1246,10 @@ int rank_run(SimResults *results, int count, char **arguments)
     std::vector<unsigned long long> query_pair_first((size_t)query_count + 1u, 0ull);
     std::vector<unsigned long long> query_pair_count((size_t)query_count + 1u, 0ull);
     RankTally match_tally = {0ull, 0ull};
+    RankMatchDevice match_device;
+    ok = rank_match_open(&match_device, envelope_records.data(), envelope_records.size());
+    std::vector<unsigned int> kept_lanes;
+    std::vector<unsigned int> kept_records;
     for (unsigned long long each = 0ull; ok && (each < query_count); each += 1ull)
     {
         const unsigned int spectrum_q = query[each];
@@ -1346,6 +1262,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
         std::vector<unsigned int> query_atoms((size_t)(query_peaks * peak_layout.limbs), 0u);
         peak_put(spectrum_q, query_atoms.data());
+        ok = rank_match_query(&match_device, query_atoms.data(), query_atoms.size());
         std::vector<unsigned int> query_reference;
         for (unsigned long long slot = 0ull; slot < inside_count[each]; slot += 1ull)
         {
@@ -1386,70 +1303,64 @@ int rank_run(SimResults *results, int count, char **arguments)
                 reference_peaks += peaks;
                 start += 1u;
             }
-            std::vector<unsigned int> reference_atoms((size_t)(reference_peaks * peak_layout.limbs), 0u);
-            std::vector<unsigned int> index;
-            index.reserve((size_t)(3ull * lanes));
+            // the chunk's peaks, and each spectrum's first lane, first peak and peak count
+            std::vector<unsigned int> reference_atoms((size_t)(reference_peaks * peak_layout.limbs) + 1u, 0u);
+            std::vector<unsigned long long> lane_first(chunk.size() + 1u);
+            std::vector<unsigned int> atom_first(chunk.size());
+            std::vector<unsigned int> chunk_peaks(chunk.size());
             unsigned long long atom = 0ull;
+            unsigned long long lane_at = 0ull;
             for (size_t local = 0u; local < chunk.size(); local += 1u)
             {
                 const unsigned int spectrum = chunk[local];
                 const unsigned long long peaks = set.mz.row_start[spectrum + 1ull] - set.mz.row_start[spectrum];
                 peak_put(spectrum, &reference_atoms[atom * peak_layout.limbs]);
-                for (unsigned long long query_peak = 0ull; query_peak < query_peaks; query_peak += 1ull)
-                {
-                    for (unsigned long long peak = 0ull; peak < peaks; peak += 1ull)
-                    {
-                        index.push_back((unsigned int)query_peak);
-                        index.push_back((unsigned int)(atom + peak));
-                        index.push_back(held_mode);
-                    }
-                }
+                lane_first[local] = lane_at;
+                atom_first[local] = (unsigned int)atom;
+                chunk_peaks[local] = (unsigned int)peaks;
+                lane_at += query_peaks * peaks;
                 atom += peaks;
             }
-            std::vector<unsigned int> out((size_t)((lanes + 1ull) * match_limbs), 0u);
-            const unsigned int *const match_in[ENGINE_RECORD_MEMBERS_MAX] = {query_atoms.data(), reference_atoms.data(),
-                                                                            envelope_records.data()};
-            const unsigned long long match_bodies[ENGINE_RECORD_MEMBERS_MAX] = {query_peaks, reference_peaks, RANK_MODES};
-            ok = rank_sweep(results, "match", &match, match_in, match_bodies, index.data(), lanes, out.data(),
-                            &match_tally.microseconds);
+            lane_first[chunk.size()] = lane_at;
+            const RankMatchChunk run = {&match,           kept_field,         reference_atoms.data(),
+                                        reference_peaks,  lane_first.data(),  atom_first.data(),
+                                        chunk_peaks.data(), chunk.size(),     query_peaks,
+                                        RANK_MODES,       held_mode,          lanes};
+            ok = rank_match_chunk(results, &match_device, &run, &kept_lanes, &kept_records, &match_tally.microseconds);
             match_tally.lanes += lanes;
-            // every lane whose weight is above zero is kept; a run of one (reference, query peak) is one group
-            unsigned long long lane = 0ull;
-            for (size_t local = 0u; ok && (local < chunk.size()); local += 1u)
+            // each kept lane, least first: its spectrum and query peak from the chunk's first lanes; a spectrum's kept
+            // lanes are one pair, and a run of one (spectrum, query peak) is one group
+            size_t local = 0u;
+            size_t open_spectrum = chunk.size();
+            unsigned long long open_peak = ~0ull;
+            for (size_t kept = 0u; ok && (kept < kept_lanes.size()); kept += 1u)
             {
-                const unsigned int spectrum = chunk[local];
-                const unsigned long long peaks = set.mz.row_start[spectrum + 1ull] - set.mz.row_start[spectrum];
-                int pair_open = 0;
-                for (unsigned long long query_peak = 0ull; query_peak < query_peaks; query_peak += 1ull)
+                const unsigned long long lane = kept_lanes[kept];
+                while (lane >= lane_first[local + 1u])
                 {
-                    int group_open = 0;
-                    for (unsigned long long peak = 0ull; peak < peaks; peak += 1ull)
-                    {
-                        const unsigned int *const record = &out[lane * match_limbs];
-                        lane += 1ull;
-                        if (rank_field_sign(record, weight_field) <= 0)
-                        {
-                            continue;
-                        }
-                        if (!pair_open)
-                        {
-                            pair_query.push_back((unsigned int)each);
-                            pair_spectrum.push_back(spectrum);
-                            pair_group_first.push_back((unsigned int)matched_group_first.size());
-                            query_pair_count[each] += 1ull;
-                            pair_open = 1;
-                        }
-                        if (!group_open)
-                        {
-                            matched_group_first.push_back((unsigned int)(matched.size() / match_limbs));
-                            group_open = 1;
-                        }
-                        matched.insert(matched.end(), record, record + match_limbs);
-                    }
+                    local += 1u;
                 }
+                const unsigned long long query_peak = (lane - lane_first[local]) / chunk_peaks[local];
+                if (local != open_spectrum)
+                {
+                    pair_query.push_back((unsigned int)each);
+                    pair_spectrum.push_back(chunk[local]);
+                    pair_group_first.push_back((unsigned int)matched_group_first.size());
+                    query_pair_count[each] += 1ull;
+                    open_spectrum = local;
+                    open_peak = ~0ull;
+                }
+                if (query_peak != open_peak)
+                {
+                    matched_group_first.push_back((unsigned int)(matched.size() / match_limbs));
+                    open_peak = query_peak;
+                }
+                const unsigned int *const record = &kept_records[kept * match_limbs];
+                matched.insert(matched.end(), record, record + match_limbs);
             }
         }
     }
+    rank_match_close(&match_device);
     rank_machine_release(&match);
     if (!ok)
     {
@@ -1534,9 +1445,14 @@ int rank_run(SimResults *results, int count, char **arguments)
     {
         ExactRecordProgram program;
         exact_record_open(&program);
+        // I = m 2^s on the row's least power of two, as the match reads it
         const unsigned int intensity_field =
-            exact_record_member_field(&program, peak_layout.intensity_bits, peak_layout.intensity_offset);
-        const unsigned int intensity = exact_record_read(&program, intensity_field, 0u);
+            exact_record_member_field(&program, RANK_MANTISSA_FIELD_BITS, peak_layout.intensity_offset);
+        const unsigned int shift_field = exact_record_member_field(&program, peak_layout.shift_bits, peak_layout.shift_offset);
+        const unsigned int intensity =
+            exact_record_product(&program, exact_record_read_unsigned(&program, intensity_field, 0u),
+                                 exact_record_two_to(&program, exact_record_read_unsigned(&program, shift_field, 0u),
+                                                     peak_layout.shift_bits));
         unsigned int square = exact_record_product(&program, intensity, intensity);
         const unsigned int limbs[ENGINE_RECORD_MEMBERS_MAX] = {peak_layout.limbs, 0u, 0u};
         ok = ok && rank_machine_load(results, "norm", &program, &square, 1u, 1u, limbs, &norm);

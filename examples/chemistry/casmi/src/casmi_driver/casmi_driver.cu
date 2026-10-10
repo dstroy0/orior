@@ -19,13 +19,13 @@ int main(int count, char **arguments)
     if (!ingest && !rank)
     {
         scriptura_text(&results.line, "usage: casmi_driver --ingest FILE.parquet SET\n"
-                                      "       casmi_driver --rank SET CFG validate\n"
-                                      "       casmi_driver --rank SET CFG test TEST_SET\n"
+                                      "       casmi_driver --rank TRAIN.parquet CFG validate\n"
+                                      "       casmi_driver --rank TRAIN.parquet CFG test TEST.parquet\n"
                                       "  --ingest: read the file's columns into their forms on the device and seal"
                                       " them as crystals of the set SET\n"
-                                      "  --rank: rank each query molecule's structures from the set, CFG's envelope"
-                                      " and query library; test ranks TEST_SET's molecules against every spectrum of"
-                                      " the set and writes CFG's output.submission\n");
+                                      "  --rank: rank each query molecule's structures from the train file, CFG's"
+                                      " envelope and query library; test ranks TEST.parquet's molecules against every"
+                                      " spectrum of the train file and writes CFG's output.submission\n");
         sim_flush(&results);
         return 2;
     }
