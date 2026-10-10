@@ -422,6 +422,41 @@ The ruleset L* of one known language is finite: the language holds finitely many
 
 C* is our coherence. It is made of the categories we understand, each a pool of questions split from the others by what its questions ask. Our coherence has limits, and C* runs past them toward the edge of human coherence. Where we have no category, the system answers for itself.
 
+| set | category | meta |
+|---|---|---|
+| N_Lγ | negation | core logical & semantic operations |
+| O_Lγ | operation | core logical & semantic operations |
+| C_Lγ | comparison | core logical & semantic operations |
+| L_Lγ | qualifier | core logical & semantic operations |
+| Y_Lγ | causality | core logical & semantic operations |
+| CO_Lγ | concession | core logical & semantic operations |
+| J_Lγ | control | execution & state control |
+| W_Lγ | switch | execution & state control |
+| S_Lγ | statement | execution & state control |
+| U_Lγ | unknown | execution & state control |
+| X_Lγ | exception | execution & state control |
+| D_Lγ | descriptor | attributive & data elements |
+| M_Lγ | modifier | attributive & data elements |
+| R_Lγ | range | attributive & data elements |
+| V_Lγ | vector | attributive & data elements |
+| K_Lγ | quantity | attributive & data elements |
+| G_Lγ | timing | temporal & scheduling actions |
+| H_Lγ | schedule | temporal & scheduling actions |
+| Z_Lγ | sequence | temporal & scheduling actions |
+| B_Lγ | verb | metadiscourse & linguistic scaffolding |
+| ME_Lγ | meta | metadiscourse & linguistic scaffolding |
+| P_Lγ | punctuation | metadiscourse & linguistic scaffolding |
+| A_Lγ | anaphora | metadiscourse & linguistic scaffolding |
+| DE_Lγ | deictic | metadiscourse & linguistic scaffolding |
+| EG_Lγ | exemplification | metadiscourse & linguistic scaffolding |
+| CL_Lγ | clarification | metadiscourse & linguistic scaffolding |
+| T_Lγ | transition | interaction & context management |
+| I_Lγ | input | interaction & context management |
+| Q_Lγ | query | interaction & context management |
+| F_Lγ | feedback | interaction & context management |
+| E_Lγ | evaluation | interaction & context management |
+| EM_Lγ | emphasis | interaction & context management |
+
 **A category.** A category c is a pool of questions Q_c with its own cases K_c, its own answerer h_c, and its own bounds. h_c is the host where the host computes c, and nothing where it does not. The pools split the questions, each question in one pool:
 
   Q = ⋃_c Q_c,  Q_c ∩ Q_d = ∅ for c ≠ d
