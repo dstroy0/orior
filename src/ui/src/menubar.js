@@ -239,6 +239,8 @@ const COMMANDS = {
   "format-on-save": (args) => setSaving("format", onOff(args)),
   breadcrumbs: (args) => setCrumbs(onOff(args)),
   "bracket-pairs": (args) => editing().setBrackets(onOff(args) ?? !editing().brackets()),
+  whitespace: (args) => editing().setMarks(onOff(args) ?? !editing().marks()),
+  "hide-comments": (args) => editing().setCommentsHidden(onOff(args) ?? !editing().commentsHidden()),
   "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
   preferences: () =>
     showPreferences(sheet, {
@@ -338,6 +340,8 @@ const CHECKS = {
   "format-on-save": () => saving("format"),
   breadcrumbs: crumbsShown,
   "bracket-pairs": () => editing().brackets(),
+  whitespace: () => editing().marks(),
+  "hide-comments": () => editing().commentsHidden(),
   "auto-report": () => state.autoReport,
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),

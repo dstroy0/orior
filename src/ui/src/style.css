@@ -2495,6 +2495,37 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 /* Tokens. Every class a grammar gives is t-<kind>, and t-<kind>-<part> beneath it. */
+/* What is not drawn, drawn where the reader asks: a dot over each space, an arrow over each tab, a
+ * mark after each line's end; and comments hidden, their text not drawn. */
+.ed-sp,
+.ed-tab {
+  position: relative;
+}
+
+.ed-sp::before,
+.ed-tab::before {
+  position: absolute;
+  left: 0;
+  color: var(--ed-guide);
+  pointer-events: none;
+}
+
+.ed-sp::before {
+  content: "·";
+}
+
+.ed-tab::before {
+  content: "→";
+}
+
+.ed-eol {
+  color: var(--ed-guide);
+}
+
+.ed[data-comments="hidden"] .t-comment {
+  visibility: hidden;
+}
+
 .t-comment {
   color: var(--t-comment);
   font-style: italic;

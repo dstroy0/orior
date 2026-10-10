@@ -87,7 +87,8 @@ export function regions(doc, size) {
 }
 
 // The rows a text shows once some regions are folded: which line each row shows, and which row
-// shows each line. A line inside a folded region has the row of the line that opens it.
+// shows each line. A line inside a folded region has the row of the line that opens it, and a line
+// hidden before every line shown has the first row.
 export class Rows {
   constructor(count, hidden) {
     this.count = count;
@@ -106,7 +107,7 @@ export class Rows {
       }
       const inside = at < hidden.length && hidden[at][0] <= line && line <= hidden[at][1];
       if (inside) {
-        rows[line] = size - 1;
+        rows[line] = Math.max(0, size - 1);
       } else {
         lines[size] = line;
         rows[line] = size;
@@ -132,10 +133,15 @@ export class Rows {
 // The spans of lines the folded regions hide, merged and in order, from a map of each folded
 // region's first line to its last.
 export function hiddenSpans(folded) {
-  const spans = [...folded]
-    .map(([start, end]) => [start + 1, end])
-    .filter(([first, last]) => last >= first)
-    .sort((a, b) => a[0] - b[0]);
+  return joinSpans(
+    [...folded].map(([start, end]) => [start + 1, end]),
+    [],
+  );
+}
+
+// Two lists of spans of hidden lines as one, merged and in order, each span its first and last line.
+export function joinSpans(first, second) {
+  const spans = [...first, ...second].filter(([start, last]) => last >= start).sort((a, b) => a[0] - b[0]);
   const merged = [];
   for (const span of spans) {
     if (merged.length && span[0] <= merged.at(-1)[1] + 1) {

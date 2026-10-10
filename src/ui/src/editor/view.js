@@ -10,7 +10,7 @@
 // input method opens its window.
 
 import { cmp, endOf, isWordChar, least, mapThrough, most, pos, same, wordAt, wordBefore } from "./document.js";
-import { hiddenSpans, indentOf, Rows } from "./folding.js";
+import { hiddenSpans, indentOf, joinSpans, Rows } from "./folding.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
@@ -53,6 +53,15 @@ const BRACKETS_LINES = 200000;
 const BRACKETS_READ = 20000;
 const UNBRACKETED = /\bt-(?:comment|string|regexp)/;
 const SHOWN = 10000;
+
+// What is not drawn: the keys of the settings that mark spaces, tabs and line ends, and that hide
+// comments, and the most lines a text has for its lines of comments alone to go out of sight.
+const MARKS_KEY = "orior.whitespace";
+const COMMENTS_KEY = "orior.comments-hidden";
+const COMMENT_LINES = 200000;
+
+// A row's text, escaped, with a mark laid over each space and each tab, neither moving a letter.
+const marked = (html) => html.replace(/ /g, '<span class="ed-sp"> </span>').replace(/\t/g, '<span class="ed-tab">\t</span>');
 const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 // The scroll speeds, in pixels a millisecond, past which a frame drops more of its work, how long
 // a scroll rests before it counts as stopped, and how many screens ahead the idle coloring reaches.
@@ -199,6 +208,11 @@ export class Editor {
     this.sticky.hidden = true;
     this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
     this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
+    this.marksOn = localStorage.getItem(MARKS_KEY) === "true";
+    this.commentsHidden = localStorage.getItem(COMMENTS_KEY) === "true";
+    if (this.commentsHidden) {
+      host.dataset.comments = "hidden";
+    }
     this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
     this.stickyList = [];
     this.stickyFor = null;
@@ -331,12 +345,65 @@ export class Editor {
 
   rows() {
     const s = this.s;
-    const key = `${s.doc.id}:${s.foldings}:${s.doc.count}`;
+    const key = `${s.doc.id}:${s.foldings}:${s.doc.count}:${this.commentsHidden}`;
     if (key !== this.rowsKey) {
-      this.rowsCache = new Rows(s.doc.count, s.folded.size ? hiddenSpans(s.folded) : []);
+      const folds = s.folded.size ? hiddenSpans(s.folded) : [];
+      this.rowsCache = new Rows(s.doc.count, this.commentsHidden ? joinSpans(folds, this.commentSpans()) : folds);
       this.rowsKey = key;
     }
     return this.rowsCache;
+  }
+
+  // The runs of lines that hold a comment alone, by the language's own marks: a line that
+  // starts with its line comment's mark, and every line of a block comment that opens a line and
+  // closes at the end of one.
+  commentSpans() {
+    const s = this.s;
+    const comments = s.language?.comments ?? {};
+    if (s.doc.count > COMMENT_LINES || (!comments.line && !comments.block)) {
+      return [];
+    }
+    const [open, close] = comments.block ?? [null, null];
+    const spans = [];
+    let block = null;
+    for (let line = 0; line < s.doc.count; line += 1) {
+      const text = s.doc.line(line).trim();
+      let alone = false;
+      if (block !== null) {
+        if (text.includes(close)) {
+          alone = text.endsWith(close);
+          if (alone) {
+            spans.push([block, line]);
+          }
+          block = null;
+        }
+        continue;
+      }
+      if (comments.line && text.startsWith(comments.line)) {
+        alone = true;
+      } else if (open && text.startsWith(open)) {
+        const rest = text.slice(open.length);
+        if (!rest.includes(close)) {
+          block = line;
+          continue;
+        }
+        alone = rest.endsWith(close);
+      }
+      if (alone) {
+        const last = spans.at(-1);
+        if (last && last[1] === line - 1) {
+          last[1] = line;
+        } else {
+          spans.push([line, line]);
+        }
+      }
+    }
+    // A text of comments alone keeps its last line in sight.
+    const last = spans.at(-1);
+    if (last && spans[0][0] === 0 && spans.length === 1 && last[1] === s.doc.count - 1) {
+      last[1] -= 1;
+    }
+    return spans;
   }
 
   widthOf(lines) {
@@ -2417,6 +2484,30 @@ export class Editor {
 
   // Bracket pairs: each bracket outside a comment or a string colored by how deep it stands, the
   // depth at the start of each line kept on the session until an edit reaches it.
+  // Marks for spaces, tabs and line ends, on or off.
+  setMarks(on) {
+    this.marksOn = on;
+    localStorage.setItem(MARKS_KEY, String(on));
+    this.textLayer.clear();
+    this.schedule();
+  }
+
+  // Comments hidden or shown again: their text not drawn, and the lines that hold a comment alone
+  // out of sight, as a fold takes its lines.
+  setCommentsHidden(on) {
+    this.commentsHidden = on;
+    localStorage.setItem(COMMENTS_KEY, String(on));
+    if (on) {
+      this.host.dataset.comments = "hidden";
+    } else {
+      delete this.host.dataset.comments;
+    }
+    this.textLayer.clear();
+    this.size();
+    this.reveal();
+    this.schedule();
+  }
+
   setBrackets(on) {
     this.bracketsOn = on;
     localStorage.setItem(BRACKETS_KEY, String(on));
@@ -2469,6 +2560,7 @@ export class Editor {
     const runs = level >= 3 ? [[0, ""]] : level === 2 ? s.highlight.cached(line) ?? [[0, ""]] : s.highlight.runsOf(line);
     const shown = Math.min(text.length, SHOWN);
     let depth = this.bracketsOn && level < 2 && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
+    const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
     let html = "";
     for (let index = 0; index < runs.length; index += 1) {
       const [start, name] = runs[index];
@@ -2478,7 +2570,7 @@ export class Editor {
       }
       let part;
       if (depth === null || UNBRACKETED.test(name)) {
-        part = escapeHtml(text.slice(start, end));
+        part = escaped(text.slice(start, end));
       } else {
         part = "";
         let from = start;
@@ -2492,15 +2584,18 @@ export class Editor {
           if (closes && depth > 0) {
             depth -= 1;
           }
-          part += `${escapeHtml(text.slice(from, at))}<span class="ed-br-${depth % 3}">${char}</span>`;
+          part += `${escaped(text.slice(from, at))}<span class="ed-br-${depth % 3}">${char}</span>`;
           if (opens) {
             depth += 1;
           }
           from = at + 1;
         }
-        part += escapeHtml(text.slice(from, end));
+        part += escaped(text.slice(from, end));
       }
       html += name ? `<span class="${name}">${part}</span>` : part;
+    }
+    if (this.marksOn && line + 1 < s.doc.count) {
+      html += '<span class="ed-eol">¬</span>';
     }
     if (s.folded.has(line) && s.endOf(line) >= 0) {
       html += `<span class="ed-folded" data-fold="${line}">⋯</span>`;
