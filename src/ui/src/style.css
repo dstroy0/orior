@@ -194,7 +194,6 @@ body {
 body {
   display: flex;
   flex-direction: column;
-  background: var(--bg);
   color: var(--fg);
   font: 15px/1.5 var(--head);
   overflow: hidden;
@@ -221,7 +220,6 @@ select {
   height: 2.9rem;
   padding: 0 0.8rem 0 1rem;
   position: relative;
-  background-color: var(--ink);
   color: var(--bar-fg);
   border-bottom: 2px solid transparent;
   flex: none;
@@ -294,7 +292,6 @@ select {
   position: relative;
   flex: 1;
   padding-right: 7px;
-  background-color: var(--ink);
   min-height: 0;
   display: flex;
 }
@@ -428,28 +425,41 @@ select {
   mask-composite: subtract;
 }
 
-/* The frame round the work, the bar, the strip and the status bar, is one pane of glass: a fine grain,
-   a sheen along its top and its foot, two streaks of light across it, and the signal's glow pooled in
-   its corners. Each part lays the same layers against the window and not against itself: the light
-   runs on unbroken from one part into the next. */
+/* The window's lattice runs on under the frame round the work, the bar, the strip and the status
+   bar, and the frame is a pane of glass over it: a thin tint of the ink and a fine grain. Where the
+   frame shows beside the work, in its margin at the right and outside the curves of its corners,
+   the frame lays the tint there alone, and the work, where it is empty, shows the lattice clear. */
 :root {
+  --glass-tint: color-mix(in srgb, var(--ink) 30%, transparent);
   --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-  --glass:
-    var(--glass-grain),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 1.2rem, transparent 2.9rem),
-    linear-gradient(0deg, rgba(255, 255, 255, 0.045), transparent 22px),
-    linear-gradient(104deg, transparent 14%, rgba(255, 255, 255, 0.05) 21%, transparent 27%, transparent 61%, rgba(255, 255, 255, 0.035) 68%, transparent 73%),
-    radial-gradient(55vw 34vh at 0 0, color-mix(in srgb, var(--bar-signal) 16%, transparent), transparent 72%),
-    radial-gradient(45vw 30vh at 100% 100%, color-mix(in srgb, var(--bar-signal) 11%, transparent), transparent 72%),
-    radial-gradient(30vw 70vh at 0 100%, rgba(150, 125, 255, 0.12), transparent 70%);
 }
 
 .bar,
-.frame,
 .strip,
 .statusbar {
-  background-image: var(--glass);
+  background-color: var(--glass-tint);
+  background-image: var(--glass-grain);
   background-attachment: fixed;
+}
+
+.frame {
+  background:
+    linear-gradient(var(--glass-tint), var(--glass-tint)) right top / 7px 100% no-repeat,
+    radial-gradient(8px 7px at 100% 100%, transparent 97%, var(--glass-tint) 100%) left 40px top 0 / 8px 7px no-repeat,
+    radial-gradient(8px 9px at 100% 0, transparent 97%, var(--glass-tint) 100%) left 40px bottom 0 / 8px 9px no-repeat,
+    radial-gradient(9px 7px at 0 100%, transparent 97%, var(--glass-tint) 100%) right 7px top 0 / 9px 7px no-repeat,
+    radial-gradient(9px 9px at 0 0, transparent 97%, var(--glass-tint) 100%) right 7px bottom 0 / 9px 9px no-repeat;
+}
+
+/* The window's lattice, behind the whole page, on the deep of the lattices in the views, and the
+   body clear over it. The lattice of an empty view is the window's, seen through it. */
+.lattice-window {
+  z-index: -1;
+  background: var(--deep);
+}
+
+.empty > .lattice {
+  display: none;
 }
 
 /* The glass's top edge catches the light. */
@@ -477,7 +487,6 @@ select {
   flex-direction: column;
   position: relative;
   padding: 6px 0;
-  background-color: var(--ink);
 }
 
 .strip-group {
@@ -756,7 +765,6 @@ select {
   gap: 1.1rem;
   height: 22px;
   padding: 0 0.8rem;
-  background-color: var(--ink);
   color: var(--status-fg);
   font: 12px var(--head);
   white-space: nowrap;
@@ -1355,7 +1363,6 @@ body[data-view="run"] .statusbar .ed-status {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: var(--deep);
 }
 
 .lattice {
