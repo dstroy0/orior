@@ -271,12 +271,32 @@ system's at every order, exactly. At Y = 1, each part's share of the principal a
 | pressure | -0.0004 | -0.005 | -0.027 |
 | the parts together, less their sum | -0.24 | -0.09 | -0.02 |
 
-The plain terms fall as mu^(-1) or faster, and the pressure stays a few in a hundred. The slope does not fall: it is a
-share of order 1 that grows along Y, -0.15 at Y = 1/4 and -0.46 at Y = 1 for mu = 64, and at mu = 64 it is most of
-the rest, of the axial field and of the swirl. The phase varies along eta with s(Y, eta), and d/deta of
-e^(mu eta + sqrt(mu) Phi) brings mu + sqrt(mu) Phi_eta: a share of mu^(-1/2) at each order, over orders near
-sqrt(mu) in number, makes a factor of order 1. The principal system at one point holds Phi as if it did not vary
-along eta, and the growth's amplitude reads that variation.
+The plain terms fall as mu^(-1) or faster, and the pressure stays a few in a hundred. The slope falls slowest: it
+grows along Y, -0.15 at Y = 1/4 and -0.46 at Y = 1 for mu = 64, and at mu = 64 it is most of the rest, of the axial
+field and of the swirl. The phase varies along eta with s(Y, eta), and d/deta of e^(mu eta + sqrt(mu) Phi) brings
+mu + sqrt(mu) Phi_eta.
+
+The slope at larger mu (`core_tangent` with `slope`): the principal part and the slope switched on alone, at the same
+vertex to order 44, for mu = 128, 256 and 512 on Y = 1/8, 1/4 and 1/2, with the last order's term against the sum
+written for each, at most 10^-26 of it. The slope's share of the principal is
+
+| Y | axial, mu = 128 | mu = 256 | mu = 512 | swirl, mu = 128 | mu = 256 | mu = 512 |
+|---|---|---|---|---|---|---|
+| 1/8 | -0.073 | -0.067 | -0.058 | -0.152 | -0.110 | -0.085 |
+| 1/4 | -0.134 | -0.116 | -0.096 | -0.216 | -0.167 | -0.133 |
+| 1/2 | -0.232 | -0.192 | -0.154 | -0.323 | -0.257 | -0.204 |
+
+and at one Y it falls by a tenth to a quarter as mu doubles. The principal part is near a function of mu Y alone, the
+axial field to within 1 in 200 and the swirl to within 4 in 100, as e^(sqrt(mu) Phi(Y)) with Phi near sqrt(2 s_0 Y)
+is. The slope's share is near h(mu Y) / mu: mu times the axial share is
+
+| mu Y | 16 | 32 | 64 | 128 | 256 |
+|---|---|---|---|---|---|
+| mu times the axial share | -9.4 | -17.2 | -29.8 | -49.2 | -79.0 |
+
+the same to within 2 in 100 for every mu from 16 to 512 that reaches it, and mu times the swirl share nears its own h
+as mu grows, its step at mu Y = 64 near half as large at each doubling of mu. h grows more slowly than mu Y, and at
+one Y the slope's share falls as mu grows.
 
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
 bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
