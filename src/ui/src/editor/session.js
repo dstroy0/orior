@@ -48,6 +48,48 @@ function detectIndent(doc) {
   return { tabs: tabs > spaces, size: tabs > spaces ? 4 : size };
 }
 
+// How many lines at each end of a file a mode line is looked for in, as Vim looks.
+const MODE_LINES = 5;
+
+// The indentation a line of the file sets for it, as Vim and Emacs read one among its first and last
+// lines: `vim: set ts=4 sw=4 et:`, sw or ts the width and et or noet spaces or tabs, and
+// `-*- indent-tabs-mode: nil; tab-width: 4 -*-`. Holds only what the line sets.
+export function modeIndent(doc) {
+  const set = {};
+  const lines = new Set();
+  for (let at = 0; at < Math.min(MODE_LINES, doc.count); at += 1) {
+    lines.add(at);
+    lines.add(doc.count - 1 - at);
+  }
+  for (const line of lines) {
+    const text = doc.line(line);
+    const vim = text.match(/(?:^|\s)(?:vi|vim|ex):\s*(?:set?\s+)?(.*)/);
+    for (const option of vim ? vim[1].split(/[\s:]+/) : []) {
+      const [name, value] = option.split("=");
+      const width = Number(value);
+      if (name === "et" || name === "expandtab") {
+        set.tabs = false;
+      } else if (name === "noet" || name === "noexpandtab") {
+        set.tabs = true;
+      } else if ((name === "sw" || name === "shiftwidth") && width > 0) {
+        set.size = width;
+      } else if ((name === "ts" || name === "tabstop") && width > 0) {
+        set.size ??= width;
+      }
+    }
+    const emacs = text.match(/-\*-(.*)-\*-/);
+    for (const part of emacs ? emacs[1].split(";") : []) {
+      const [name, value] = part.split(":").map((one) => one?.trim());
+      if (name === "indent-tabs-mode") {
+        set.tabs = value !== "nil";
+      } else if (name === "tab-width" && Number(value) > 0) {
+        set.size = Number(value);
+      }
+    }
+  }
+  return set;
+}
+
 const FAR = Number.MAX_SAFE_INTEGER;
 
 export class Session {
@@ -70,7 +112,10 @@ export class Session {
     this.foldings = 0;
     this.found = new Map();
     this.foundAt = -1;
-    this.indent = detectIndent(this.doc);
+    // The indentation read from the lines, under any a mode line of the file sets, which is kept
+    // apart for what an .editorconfig sets not to go over it.
+    this.indentSet = modeIndent(this.doc);
+    this.indent = { ...detectIndent(this.doc), ...this.indentSet };
     this.snippet = null;
     this.view = null;
     this.unwatch = this.doc.watch(({ edits, first }) => {

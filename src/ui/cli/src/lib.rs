@@ -17,6 +17,7 @@ pub mod commands;
 pub mod dap;
 pub mod debug;
 pub mod defs;
+pub mod editorconfig;
 pub mod files;
 pub mod format;
 pub mod git;

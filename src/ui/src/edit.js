@@ -471,6 +471,24 @@ async function load(path) {
           state.editor?.schedule();
         })
         .catch(() => {});
+      // The indentation the .editorconfig files over the file set, over what its lines say and
+      // under what a mode line of its own sets.
+      invoke("indent_for", { path: tab.path })
+        .then((set) => {
+          const s = tab.session;
+          for (const key of ["tabs", "size"]) {
+            if (set[key] !== null && s.indentSet[key] === undefined) {
+              s.indent[key] = set[key];
+            }
+          }
+          s.foldings += 1;
+          if (state.editor?.s === s) {
+            state.editor.statusSaid = null;
+            state.editor.size();
+            state.editor.schedule();
+          }
+        })
+        .catch(() => {});
     }
   }
 }

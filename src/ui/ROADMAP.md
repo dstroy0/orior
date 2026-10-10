@@ -12,10 +12,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
 6. **Smooth and gliding scrolls.** A wheel's step or a key's page scrolls in a short glide and not a jump, a touchpad's flick runs on and slows on every system, each set on or off.
 7. **A restart that loses nothing.** orior closed or stopped and started again opens with every tab, every change not yet saved, every split and every terminal's place where it stood.
 
-## Editing
-
-1. **Indentation by file.** Each file's tab size and whether it indents with tabs or spaces, as an `.editorconfig` or a line in the file sets it, over the tree's own.
-
 ## Code intelligence
 
 1. **More refactorings of orior's own.** Change a function's parameters across every call; move a declaration to another file. Each is one step that undo takes back, and each works where the language server offers none.

@@ -235,6 +235,12 @@ fn files_find(app: State<App>, query: String, recent: Vec<String>, most: usize) 
     Ok(files::ranked(&root_of(&app)?, &query, &recent, most))
 }
 
+/// The indentation the `.editorconfig` files over a file of the tree set for it.
+#[tauri::command]
+fn indent_for(app: State<App>, path: String) -> Result<orior_cli::editorconfig::Indent, String> {
+    Ok(orior_cli::editorconfig::indent(&root::inside(&root_of(&app)?, &path)?))
+}
+
 /// Keeps the page's changed entries in orior's own folder, each key starting `orior.` with its new
 /// text, or null where it is gone.
 #[tauri::command(async)]
@@ -1135,6 +1141,7 @@ fn open(launch: Launch) {
             files_find,
             patterns_set,
             kept_write,
+            indent_for,
             files_copy,
             clip_files,
             files_paste,
