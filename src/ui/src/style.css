@@ -230,8 +230,8 @@ select {
 .bar::before {
   content: "";
   position: absolute;
-  left: 48px;
-  right: 16px;
+  left: 47px;
+  right: 14px;
   bottom: -2px;
   height: 2px;
   background: var(--bar-signal);
@@ -378,51 +378,77 @@ select {
   background-position: left top, left bottom;
 }
 
-/* The work's four corners are curves. The strip's line bends round each on the left: at the top into
-   the bar's signal line, its color passing into the signal's along the curve, and at the foot onto
-   the status bar, fading as it turns. At the top right the signal line bends down the right edge
-   of the work and fades. Each curve is a band, as wide as the lines it joins at either end, cut from a sweep of
-   their colors. */
+/* The work stands in four lines: the bar's signal line along its top, the strip's line down its
+   left, a line in the signal's opposite color, as thick as the signal line, down its right, and one
+   in the same color, as thin as the strip's line, along its foot. Its four corners are curves of
+   one radius, and the lines bend round each from one into the next, the color passing from the
+   one line's into the other's along the curve. Each curve is a band, as wide as the lines it joins
+   at either end, cut from a sweep of their colors. */
 .frame::before,
-.frame::after {
+.frame::after,
+.bar::after,
+.statusbar::after {
   content: "";
   position: absolute;
-  left: 39px;
   z-index: 40;
-  width: 9px;
-  height: 9px;
   pointer-events: none;
   mask-composite: subtract;
 }
 
 .frame::before {
+  left: 39px;
   top: -2px;
+  width: 8px;
+  height: 9px;
   background: conic-gradient(from 270deg at 100% 100%, var(--status-line), var(--bar-signal) 90deg);
-  mask-image: radial-gradient(circle 9px at 100% 100%, #000 8.6px, transparent 9px), radial-gradient(8px 7px at 100% 100%, #000 95%, transparent 100%);
+  mask-image: radial-gradient(8px 9px at 100% 100%, #000 95%, transparent 100%), radial-gradient(circle 7px at 100% 100%, #000 6.6px, transparent 7px);
 }
 
 .frame::after {
-  bottom: 0;
-  background: conic-gradient(from 180deg at 100% 0, transparent, var(--status-line) 90deg);
-  mask-image: radial-gradient(circle 9px at 100% 0, #000 8.6px, transparent 9px), radial-gradient(circle 8px at 100% 0, #000 7.6px, transparent 8px);
-}
-
-.work {
-  clip-path: inset(0 round 8px 9px 9px 8px / 7px 7px 9px 9px);
+  left: 39px;
+  bottom: -1px;
+  width: 8px;
+  height: 8px;
+  background: conic-gradient(from 180deg at 100% 0, hsl(from var(--bar-signal) calc(h + 180) s l), var(--status-line) 90deg);
+  mask-image: radial-gradient(circle 8px at 100% 0, #000 7.6px, transparent 8px), radial-gradient(circle 7px at 100% 0, #000 6.6px, transparent 7px);
 }
 
 .bar::after {
-  content: "";
-  position: absolute;
-  right: 7px;
+  right: 5px;
   bottom: -9px;
-  z-index: 40;
   width: 9px;
   height: 9px;
+  background: conic-gradient(from 0deg at 0 100%, var(--bar-signal), hsl(from var(--bar-signal) calc(h + 180) s l) 90deg);
+  mask-image: radial-gradient(circle 9px at 0 100%, #000 8.6px, transparent 9px), radial-gradient(circle 7px at 0 100%, #000 6.6px, transparent 7px);
+}
+
+.statusbar {
+  position: relative;
+}
+
+.statusbar::after {
+  right: 5px;
+  top: -7px;
+  width: 9px;
+  height: 8px;
+  background: hsl(from var(--bar-signal) calc(h + 180) s l);
+  mask-image: radial-gradient(9px 8px at 0 0, #000 95%, transparent 100%), radial-gradient(circle 7px at 0 0, #000 6.6px, transparent 7px);
+}
+
+/* The line along the work's foot, on the status bar's top edge. */
+.statusbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 47px;
+  right: 14px;
+  height: 1px;
+  background: hsl(from var(--bar-signal) calc(h + 180) s l);
   pointer-events: none;
-  background: conic-gradient(from 0deg at 0 100%, var(--bar-signal), transparent 90deg);
-  mask-image: radial-gradient(circle 9px at 0 100%, #000 8.6px, transparent 9px), radial-gradient(9px 7px at 0 100%, #000 95%, transparent 100%);
-  mask-composite: subtract;
+}
+
+.work {
+  clip-path: inset(0 round 7px);
 }
 
 /* The window's lattice runs on under the frame round the work, the bar, the strip and the status
@@ -444,11 +470,12 @@ select {
 
 .frame {
   background:
+    linear-gradient(hsl(from var(--bar-signal) calc(h + 180) s l), hsl(from var(--bar-signal) calc(h + 180) s l)) right 5px top 7px / 2px calc(100% - 14px) no-repeat,
     linear-gradient(var(--glass-tint), var(--glass-tint)) right top / 7px 100% no-repeat,
-    radial-gradient(8px 7px at 100% 100%, transparent 97%, var(--glass-tint) 100%) left 40px top 0 / 8px 7px no-repeat,
-    radial-gradient(8px 9px at 100% 0, transparent 97%, var(--glass-tint) 100%) left 40px bottom 0 / 8px 9px no-repeat,
-    radial-gradient(9px 7px at 0 100%, transparent 97%, var(--glass-tint) 100%) right 7px top 0 / 9px 7px no-repeat,
-    radial-gradient(9px 9px at 0 0, transparent 97%, var(--glass-tint) 100%) right 7px bottom 0 / 9px 9px no-repeat;
+    radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left 40px top 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left 40px bottom 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right 7px top 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right 7px bottom 0 / 7px 7px no-repeat;
 }
 
 /* The window's lattice, behind the whole page, on the deep of the lattices in the views, and the
@@ -473,7 +500,7 @@ select {
   position: absolute;
   top: 7px;
   right: 0;
-  bottom: 9px;
+  bottom: 7px;
   width: 1px;
   background: var(--status-line);
   pointer-events: none;
