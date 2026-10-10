@@ -561,6 +561,105 @@ fn build_folder(root: &Path, script: &Path, tool: &str) -> String {
     }
 }
 
+/// The target choice that builds for the machine the build runs on.
+const THIS_MACHINE: &str = "this machine";
+
+/// The cgo choice that leaves it to Go, which turns cgo on where it finds a C compiler.
+const AS_GO_CHOOSES: &str = "as Go chooses";
+
+/// The targets a Rust binary can be built for, by Rust's own names: the musl ones link as a whole
+/// file that asks for no glibc.
+const RUST_TARGETS: [&str; 8] = [
+    THIS_MACHINE,
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+];
+
+/// This machine's system and processor, by Go's names.
+fn go_host() -> (&'static str, &'static str) {
+    let system = match std::env::consts::OS {
+        "macos" => "darwin",
+        other => other,
+    };
+    let processor = match std::env::consts::ARCH {
+        "x86_64" => "amd64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    (system, processor)
+}
+
+/// `choices` with `first` first: the default a choice takes is its first.
+fn first_of(first: &'static str, choices: &[&'static str]) -> Vec<&'static str> {
+    std::iter::once(first).chain(choices.iter().copied().filter(|one| *one != first)).collect()
+}
+
+/// Zig's name for a system and processor, as `zig cc -target` takes it, from Go's names or Rust's
+/// target: Linux's musl, which links whole, Windows' GNU and macOS.
+fn zig_target(system: &str, processor: &str) -> Option<String> {
+    let processor = match processor {
+        "amd64" | "x86_64" => "x86_64",
+        "arm64" | "aarch64" => "aarch64",
+        _ => return None,
+    };
+    let system = match system {
+        "linux" => "linux-musl",
+        "windows" => "windows-gnu",
+        "darwin" | "macos" => "macos",
+        _ => return None,
+    };
+    Some(format!("{processor}-{system}"))
+}
+
+/// The C compiler and linker a build for another machine needs, as the job's params choose it: for
+/// Go with cgo on, `zig cc` for the system and processor chosen; for Rust, rust-lld to link a musl
+/// target, where the environment names no linker of its own, and `zig cc` for the C a crate builds.
+/// Nothing where the target is this machine's, or Zig is not found for the C.
+pub fn cross_env(kind: &str, values: &HashMap<String, Vec<String>>) -> Vec<(String, String)> {
+    let zig = program("zig", "zig").ok().map(|path| {
+        let text = path.display().to_string();
+        if text.contains(' ') { format!("\"{text}\"") } else { text }
+    });
+    let mut set = Vec::new();
+    match kind {
+        "go" => {
+            let (host_system, host_processor) = go_host();
+            let system = first(values, "GOOS", host_system);
+            let processor = first(values, "GOARCH", host_processor);
+            if first(values, "CGO_ENABLED", AS_GO_CHOOSES) == "1" && (system, processor) != (host_system, host_processor) {
+                if let (Some(zig), Some(target)) = (&zig, zig_target(system, processor)) {
+                    set.push(("CC".to_string(), format!("{zig} cc -target {target}")));
+                    set.push(("CXX".to_string(), format!("{zig} c++ -target {target}")));
+                }
+            }
+        }
+        "rust" => {
+            let target = first(values, "target", THIS_MACHINE);
+            if target == THIS_MACHINE {
+                return set;
+            }
+            let upper = target.to_uppercase().replace('-', "_");
+            let linker = format!("CARGO_TARGET_{upper}_LINKER");
+            if target.ends_with("-linux-musl") && std::env::consts::OS != "linux" && std::env::var_os(&linker).is_none() {
+                set.push((linker, "rust-lld".to_string()));
+            }
+            let mut parts = target.split('-');
+            let processor = parts.next().unwrap_or_default();
+            let system = if target.contains("linux") { "linux" } else if target.contains("windows-gnu") { "windows" } else if target.contains("apple") { "darwin" } else { "" };
+            if let (Some(zig), Some(zig_triple)) = (&zig, zig_target(system, processor)) {
+                set.push((format!("CC_{}", target.replace('-', "_")), format!("{zig} cc -target {zig_triple}")));
+            }
+        }
+        _ => {}
+    }
+    set
+}
+
 /// Whether Meson is to set up Visual Studio's environment itself: on Windows, where MSVC's cl is on
 /// the PATH and the environment it compiles in is not set, Meson takes cl and it cannot compile.
 /// Meson sets the environment up only where no cl is on the PATH, and its setup and compile run
@@ -591,9 +690,22 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
     let name = exe.name.as_str();
     let (about, params, steps) = match (&exe.kind, &exe.detail) {
         (Kind::Cargo, _) => (
-            format!("cargo builds the {name} binary of {script}, by the profile chosen."),
-            vec![choice("profile", &["dev", "release"])],
-            vec![tool("rust", "cargo", vec![lit("build"), lit("--manifest-path"), lit(script.clone()), lit("--bin"), lit(name), Arg::Flag("--profile", "profile".into())])],
+            format!("cargo builds the {name} binary of {script}, by the profile chosen, for this machine or for the target chosen."),
+            vec![choice("profile", &["dev", "release"]), choice("target", &RUST_TARGETS)],
+            vec![tool(
+                "rust",
+                "cargo",
+                vec![
+                    lit("build"),
+                    lit("--manifest-path"),
+                    lit(script.clone()),
+                    lit("--bin"),
+                    lit(name),
+                    Arg::Flag("--profile", "profile".into()),
+                    Arg::FlagBut("--target", "target".into(), THIS_MACHINE.into()),
+                    Arg::Cross("rust"),
+                ],
+            )],
         ),
         (Kind::Cmake, _) => {
             let build = build_folder(root, &exe.script, "cmake");
@@ -632,16 +744,23 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                 Detail::Package(package) => package.clone(),
                 _ => ".".to_string(),
             };
-            let out = format!("build/exe/{}", program_file(name));
-            let mut args = vec![lit("build")];
+            let out = "build/exe/{GOOS}-{GOARCH}/".to_string();
+            let mut args = vec![Arg::Env("GOOS".into()), Arg::Env("GOARCH".into()), Arg::EnvBut("CGO_ENABLED".into(), AS_GO_CHOOSES.into()), Arg::Cross("go"), lit("build")];
             let out = if folder == "." {
                 out
             } else {
                 args.extend([lit("-C"), lit(folder)]);
-                root.join(&out).display().to_string().replace('\\', "/")
+                format!("{}/{out}", root.display().to_string().replace('\\', "/"))
             };
-            args.extend([lit("-o"), lit(out), lit(package.clone())]);
-            (format!("go builds the {package} package of {script} into build/exe/."), Vec::new(), vec![tool("go", "go", args)])
+            args.extend([lit("-o"), Arg::Format(out), lit(package.clone())]);
+            let (system, processor) = go_host();
+            let systems = first_of(system, &["windows", "linux", "darwin"]);
+            let processors = first_of(processor, &["amd64", "arm64"]);
+            (
+                format!("go builds the {package} package of {script} into build/exe/<GOOS>-<GOARCH>/, for the system and processor chosen, with cgo as Go chooses or as chosen."),
+                vec![choice("GOOS", &systems), choice("GOARCH", &processors), choice("CGO_ENABLED", &[AS_GO_CHOOSES, "0", "1"])],
+                vec![tool("go", "go", args)],
+            )
         }
         (Kind::Dotnet, _) => (
             format!("dotnet builds {script} by the configuration chosen, as its files or published as one file with its native libraries inside it."),
@@ -840,6 +959,14 @@ pub fn advice(id: &str, lines: &[String]) -> Vec<String> {
         let sources = output_of("dotnet", "dotnet", &["nuget", "list", "source", "--format", "short"]).map(|out| String::from_utf8_lossy(&out).to_string());
         if sources.is_ok_and(|text| text.trim().is_empty() || text.contains("No sources found")) {
             said.push("NuGet has no package source to fetch the build's packages from; `dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org` adds nuget.org".to_string());
+        }
+    }
+    if kind == Some(Kind::Cargo) {
+        let named = lines.iter().find_map(|line| line.split("the `").nth(1).and_then(|rest| rest.split('`').next()).filter(|_| line.contains("target may not be installed")));
+        if let Some(target) = named {
+            said.push(format!("Rust's standard library for {target} is not installed: `rustup target add {target}` installs it"));
+        } else if has("linker `") && (has("not found") || has("failed")) || has("linking with `") {
+            said.push("linking for the target chosen needs that system's linker: the musl targets link here with rust-lld, and a Linux GNU or macOS target links with cargo-zigbuild where it is installed".to_string());
         }
     }
     if kind == Some(Kind::Pyinstaller) && has("No module named PyInstaller") {
@@ -1096,14 +1223,26 @@ pub fn made(root: &Path, id: &str, values: &HashMap<String, Vec<String>>, lines:
         Kind::Cargo => {
             let profile = first(values, "profile", "dev");
             let profile_folder = if profile == "dev" { "debug" } else { profile };
-            cargo_target(&path)?.join(profile_folder).join(program_file(name))
+            match first(values, "target", THIS_MACHINE) {
+                THIS_MACHINE => cargo_target(&path)?.join(profile_folder).join(program_file(name)),
+                target => {
+                    let file = if target.contains("windows") { format!("{name}.exe") } else { name.to_string() };
+                    cargo_target(&path)?.join(target).join(profile_folder).join(file)
+                }
+            }
         }
         Kind::Cmake => {
             let config = first(values, "config", "Debug");
             cmake_artifact(&root.join(format!("{}{config}", build_folder(root, &path, "cmake"))), name, config)?
         }
         Kind::Meson => meson_artifact(&root.join(format!("{}{}", build_folder(root, &path, "meson"), first(values, "buildtype", "debug"))), name)?,
-        Kind::Go | Kind::Npm => root.join("build").join("exe").join(program_file(name)),
+        Kind::Go => {
+            let (host_system, host_processor) = go_host();
+            let system = first(values, "GOOS", host_system);
+            let file = if system == "windows" { format!("{name}.exe") } else { name.to_string() };
+            root.join("build").join("exe").join(format!("{system}-{}", first(values, "GOARCH", host_processor))).join(file)
+        }
+        Kind::Npm => root.join("build").join("exe").join(program_file(name)),
         Kind::Dotnet => dotnet_artifact(name, lines)?,
         Kind::Zig => folder.join("zig-out").join("bin").join(program_file(name)),
         Kind::Pyinstaller => {

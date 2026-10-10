@@ -53,6 +53,17 @@ pub enum Arg {
     Unpath(String),
     /// No argument: the step runs only where the param's value is the value named.
     Only(String, String),
+    /// The text with each {key} in it filled with that param's value, as one word.
+    Format(String),
+    /// A flag and then the value of a param, where one is given other than the value named.
+    FlagBut(&'static str, String, String),
+    /// No argument: the value of a param, where one is given other than the value named, set in the
+    /// step's environment under the param's key.
+    EnvBut(String, String),
+    /// No argument: the C compiler and linker for the system and processor the job's params choose,
+    /// set in the step's environment where they are another machine's, for a build of the kind
+    /// named, "go" or "rust", as executables.rs gives them.
+    Cross(&'static str),
 }
 
 #[derive(Clone)]

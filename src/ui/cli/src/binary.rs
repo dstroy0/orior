@@ -354,7 +354,10 @@ pub fn said(report: &Report) -> Vec<String> {
         lines.push(format!("the program looks for its libraries in {path}, a folder of the machine that built it; a run path from $ORIGIN finds them beside the program on any machine"));
     }
     if let Some(glibc) = &report.glibc {
-        lines.push(format!("the program asks for glibc {} or newer, and does not start on a system with an older one", glibc.trim_start_matches("GLIBC_")));
+        lines.push(format!(
+            "the program asks for glibc {} or newer, and does not start on a system with an older one; a Rust musl target, or Go with CGO_ENABLED 0, builds a program that asks for none",
+            glibc.trim_start_matches("GLIBC_")
+        ));
     }
     lines
 }

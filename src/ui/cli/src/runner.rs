@@ -228,7 +228,20 @@ fn arguments(step: &Step, values: &HashMap<String, Vec<String>>) -> Result<Vec<S
                     out.extend(words.iter().cloned());
                 }
             }
-            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) => {}
+            Arg::Format(text) => {
+                let mut filled = text.clone();
+                for (key, given) in values {
+                    filled = filled.replace(&format!("{{{key}}}"), given.first().map(String::as_str).unwrap_or_default());
+                }
+                out.push(filled);
+            }
+            Arg::FlagBut(flag, key, but) => {
+                if let Some(value) = first(key).filter(|value| value != but) {
+                    out.push(flag.to_string());
+                    out.push(value);
+                }
+            }
+            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) | Arg::EnvBut(..) | Arg::Cross(_) => {}
         }
     }
     Ok(out)
@@ -277,6 +290,18 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         if let Arg::Set(key, value) = arg {
             cmd.env(key, value);
             set.push(format!("{key}={value}"));
+        }
+        if let Arg::EnvBut(key, but) = arg {
+            if let Some(value) = values.get(key).and_then(|v| v.first()).filter(|v| !v.is_empty() && *v != but) {
+                cmd.env(key, value);
+                set.push(format!("{key}={value}"));
+            }
+        }
+        if let Arg::Cross(kind) = arg {
+            for (key, value) in crate::executables::cross_env(kind, values) {
+                set.push(format!("{key}={value}"));
+                cmd.env(key, value);
+            }
         }
         if let Arg::Unpath(name) = arg {
             let path = crate::toolchains::run_path();
