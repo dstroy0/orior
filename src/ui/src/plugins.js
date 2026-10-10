@@ -25,7 +25,7 @@ const OFF = "orior.plugins.off";
 
 const PLAIN = Object.freeze({ id: "plaintext", name: "Plain Text", grammar: null, comments: {}, pairs: [], quotes: [], indentAfter: /$^/ });
 
-const state = { found: [], readings: [], byExtension: new Map(), byId: new Map(), listeners: [] };
+const state = { found: [], readings: [], byExtension: new Map(), byName: new Map(), byId: new Map(), listeners: [] };
 
 // Calls `listener` each time the plugins are read or one is turned on or off, until what this answers
 // is called.
@@ -109,13 +109,13 @@ function languageOf(plugin) {
 function build() {
   const off = pluginsOff();
   const readings = state.found.map(({ id, source, folder, text }) => {
-    const reading = { id, source, folder, name: id, version: "", extensions: [], error: null, replaced: false, language: null };
+    const reading = { id, source, folder, name: id, version: "", extensions: [], names: [], error: null, replaced: false, language: null };
     try {
       const plugin = JSON.parse(text);
       if (plugin.id !== id) {
         throw new Error(`its id is ${JSON.stringify(plugin.id)}, and its folder is ${id}`);
       }
-      Object.assign(reading, { name: plugin.name ?? id, version: plugin.version ?? "", extensions: Array.isArray(plugin.extensions) ? plugin.extensions.map(String) : [] });
+      Object.assign(reading, { name: plugin.name ?? id, version: plugin.version ?? "", extensions: Array.isArray(plugin.extensions) ? plugin.extensions.map(String) : [], names: Array.isArray(plugin.names) ? plugin.names.map(String) : [] });
       // A tool plugin opens no files: it checks those of the languages it names.
       if (plugin.kind === "tool") {
         Object.assign(reading, { kind: "tool", checks: Array.isArray(plugin.languages) ? plugin.languages.map(String) : [], about: String(plugin.about ?? "") });
@@ -135,6 +135,7 @@ function build() {
   state.readings = readings;
   state.byId = new Map();
   state.byExtension = new Map();
+  state.byName = new Map();
   for (const reading of last.values()) {
     if (!reading.language || !reading.on) {
       continue;
@@ -143,6 +144,11 @@ function build() {
     for (const ext of reading.extensions.map((one) => one.toLowerCase())) {
       if (reading.source === "user" || !state.byExtension.has(ext)) {
         state.byExtension.set(ext, reading.language);
+      }
+    }
+    for (const name of reading.names.map((one) => one.toLowerCase())) {
+      if (reading.source === "user" || !state.byName.has(name)) {
+        state.byName.set(name, reading.language);
       }
     }
   }
@@ -168,6 +174,11 @@ export function pluginReadings() {
 // The id of the plugin a file of extension `ext` opens in, or null where none names it.
 export function openerOf(ext) {
   return state.byExtension.get(ext.toLowerCase())?.id ?? null;
+}
+
+// The language a file named `name` opens in, where a plugin names the file whole, or null.
+export function languageForName(name) {
+  return state.byName.get(name.toLowerCase()) ?? null;
 }
 
 // The language a file of extension `ext` opens in.

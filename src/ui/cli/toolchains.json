@@ -411,6 +411,46 @@
       "version": ["--version"],
       "install": {"any": "https://nixos.org/download/"},
       "places": {"any": ["/nix/var/nix/profiles/default/bin", "~/.nix-profile/bin"]}
+    },
+    {
+      "id": "jdk",
+      "name": "Java",
+      "group": "Java and its builds",
+      "for": "Java's compiler and runtime, which Maven and Gradle build with",
+      "programs": ["javac", "java"],
+      "version": ["-version"],
+      "install": {"any": "https://adoptium.net/temurin/releases/"},
+      "places": {"windows": ["%ProgramFiles%\\Eclipse Adoptium\\jdk-*\\bin", "%ProgramFiles%\\Java\\jdk-*\\bin", "%ProgramFiles%\\Microsoft\\jdk-*\\bin"], "macos": ["/Library/Java/JavaVirtualMachines/*/Contents/Home/bin", "/opt/homebrew/opt/openjdk/bin"], "linux": ["/usr/lib/jvm/*/bin", "/usr/bin"]}
+    },
+    {
+      "id": "maven",
+      "name": "Maven",
+      "group": "Java and its builds",
+      "for": "the builds a pom.xml gives, their snapshots updated and their settings read",
+      "programs": ["mvn"],
+      "version": ["--version"],
+      "install": {"any": "https://maven.apache.org/download.cgi"},
+      "places": {"windows": ["%ProgramFiles%\\Apache\\maven*\\bin", "%USERPROFILE%\\scoop\\shims"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin", "/opt/maven/bin"]}
+    },
+    {
+      "id": "gradle",
+      "name": "Gradle",
+      "group": "Java and its builds",
+      "for": "the builds a build.gradle or a build.gradle.kts gives where the tree holds no gradlew",
+      "programs": ["gradle"],
+      "version": ["--version"],
+      "install": {"any": "https://gradle.org/install/"},
+      "places": {"windows": ["C:\\Gradle\\gradle-*\\bin", "%USERPROFILE%\\scoop\\shims"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin", "/opt/gradle/gradle-*/bin"]}
+    },
+    {
+      "id": "scons",
+      "name": "SCons",
+      "group": "C, C++ and CUDA",
+      "for": "the builds an SConstruct gives",
+      "programs": ["scons"],
+      "version": ["--version"],
+      "install": {"any": "https://scons.org/pages/download.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
     }
   ]
 }

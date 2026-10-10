@@ -2690,6 +2690,9 @@ export function editing() {
     repoName,
     repos: () => state.repos ?? [],
     languageOf: (path) => state.known?.languageOf(path) ?? null,
+    // The file of the tab open, and its text as the tab holds it, or null where none is open.
+    fileHere: () => (state.active ? tabOf(state.active)?.file ?? null : null),
+    textHere: () => (state.active ? tabOf(state.active)?.session?.doc.text() ?? null : null),
     holdMemory,
     changeSignature: changeSignatureHere,
     moveDeclaration: moveHere,

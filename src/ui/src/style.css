@@ -4352,6 +4352,26 @@ body[data-view="run"] .statusbar .ed-status {
   color: var(--fg-2);
 }
 
+/* Maven's settings: the POM's compiler's and Maven's own, each under its heading; one that is not set
+   here stands as text. */
+.sheet-maven {
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.sheet-maven h3 {
+  margin: 0.4rem 0 0;
+  font: 600 0.9rem var(--head);
+  color: var(--fg);
+}
+
+.sheet-maven .report-field[readonly] {
+  padding-left: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--fg-2);
+}
+
 /* The form for a bug report: a label over each field, the fields as wide as the sheet. */
 .sheet-report {
   display: grid;

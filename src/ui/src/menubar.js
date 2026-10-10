@@ -43,7 +43,8 @@ import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
-import { clearTerminal, killTerminal, newTerminal, toggleTerminal } from "./terminal.js";
+import { clearTerminal, killTerminal, newTerminal, runInTerminal, terminalAt, toggleTerminal } from "./terminal.js";
+import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
 import { askReports, reportForm } from "./reports.js";
 import { wordmark } from "./wordmark.js";
@@ -264,6 +265,8 @@ const COMMANDS = {
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
   checkers: (args) => askCheckers(args.join(" ")),
   environment: (args) => chooseEnvironment(args[0]),
+  "maven-settings": () => askMavenSettings(),
+  "update-snapshots": () => updateSnapshots(),
   "parameter-hints": (args) => editing().setHints("parameter", onOff(args) ?? !editing().hints("parameter")),
   "flick-scroll": (args) => editing().setFlickScroll(onOff(args) ?? !editing().flickScroll()),
   "memory-budget": (args) => askBudget(args[0]),
@@ -663,6 +666,75 @@ function askContinuation(given) {
     dialog.close();
   });
   fields[0][1].focus();
+}
+
+// File, Maven Settings: the compiler's settings the POM open gives, the tree's top POM where none is
+// open, and Maven's own, from settings.xml, each a field; Set writes those changed, the POM's into it
+// as edits and Maven's own into the user's settings.xml.
+async function askMavenSettings() {
+  const ed = editing();
+  const file = ed.fileHere();
+  const pom = file && /(^|\/)pom\.xml$/i.test(file) ? file : null;
+  let rows;
+  try {
+    rows = await invoke("maven_settings", { path: pom, text: pom ? ed.textHere() : null });
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  const form = document.createElement("form");
+  form.className = "sheet-report sheet-maven";
+  const fields = [];
+  const parts = [Object.assign(document.createElement("h2"), { textContent: "Maven Settings" })];
+  for (const [group, title] of [["pom", `The compiler, as ${pom ?? "pom.xml"} sets it`], ["settings", "Maven's own"]]) {
+    const shown = rows.filter((row) => row.group === group);
+    if (shown.length) {
+      parts.push(Object.assign(document.createElement("h3"), { textContent: title }));
+    }
+    for (const row of shown) {
+      const field = Object.assign(document.createElement("input"), { className: "report-field", value: row.value, readOnly: !row.settable, placeholder: row.settable ? "Not set" : "None", title: row.file });
+      field.setAttribute("aria-label", row.label);
+      const line = Object.assign(document.createElement("label"), { className: "report-row" });
+      line.append(Object.assign(document.createElement("span"), { textContent: row.label }), field);
+      parts.push(line);
+      if (row.settable) {
+        fields.push([row, field]);
+      }
+    }
+  }
+  const go = Object.assign(document.createElement("button"), { className: "primary", type: "submit", textContent: "Set" });
+  const foot = Object.assign(document.createElement("div"), { className: "report-foot" });
+  foot.append(go);
+  form.append(...parts, foot);
+  const dialog = sheet(form);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const changed = fields.filter(([row, field]) => field.value.trim() !== row.value);
+    for (const [row, field] of changed) {
+      try {
+        const now = pom && editing().fileHere() === pom ? editing().textHere() : null;
+        await applyEdits(await invoke("maven_set", { path: pom, text: now, key: row.key, value: field.value }));
+      } catch (error) {
+        say(String(error), { failed: true });
+        return;
+      }
+    }
+    say(changed.length ? `${changed.map(([row]) => row.label).join(", ")} set.` : "No setting was changed.");
+    dialog.close();
+  });
+  fields[0]?.[1].focus();
+}
+
+// Run, Update Snapshots: fetches the newest build of each snapshot dependency of the build the file
+// open belongs to, or of the tree's top build, in the terminal.
+async function updateSnapshots() {
+  try {
+    const [folder, line] = await invoke("snapshots_line", { path: editing().fileHere() });
+    terminalAt(folder);
+    runInTerminal(line);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
 }
 
 // Edit, Formatting, Documentation Margin: the column documentation is filled to, as given or asked

@@ -7,6 +7,7 @@
 //!   id, name, version       the plugin's own name for itself, the name it shows, and its version
 //!   kind                    "language", or "tool" for a tool plugin, which validate.rs reads
 //!   extensions              the file extensions it opens, without the dot
+//!   names                   the whole names of the files it opens beside them, where it has any
 //!   comments                { line, block: [open, close] }, either left out where it has none
 //!   pairs, quotes           the brackets it closes and the quotes it pairs
 //!   indentAfter             a pattern a line ends with to indent the next deeper
@@ -67,8 +68,18 @@ pub fn languages() -> std::collections::HashMap<String, String> {
         for ext in value["extensions"].as_array().into_iter().flatten().filter_map(Value::as_str) {
             found.insert(ext.to_ascii_lowercase(), id.clone());
         }
+        for name in value["names"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            found.insert(format!("/{}", name.to_lowercase()), id.clone());
+        }
     }
     found
+}
+
+/// The language the file at `path` opens as, of those `languages` gives: by its whole name where a
+/// plugin names it, and by its extension where not.
+pub fn language_for(languages: &std::collections::HashMap<String, String>, path: &Path) -> Option<String> {
+    let name = path.file_name()?.to_string_lossy().to_lowercase();
+    languages.get(&format!("/{name}")).or_else(|| languages.get(&path.extension()?.to_string_lossy().to_lowercase())).cloned()
 }
 
 fn user_in(dir: &Path) -> Vec<Plugin> {

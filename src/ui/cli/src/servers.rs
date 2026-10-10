@@ -134,6 +134,9 @@ pub struct Item {
     pub kind: &'static str,
     pub detail: String,
     pub insert: String,
+    /// Whether `insert` is a snippet, its stops written `$1` and `${1:name}`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub snippet: bool,
 }
 
 /// A place a symbol is used: its span, and the text of its line.
@@ -263,6 +266,9 @@ const INSPECT_MOST: u64 = 2 << 20;
 /// The most text a file the tree's check hands to a server may hold.
 const CHECK_MOST: u64 = 2 << 20;
 
+/// The name the build files' findings are kept by, beside the checkers'.
+const BUILDS: &str = "builds";
+
 /// A file waiting for the tree's check, the server it goes to and the protocol's name for its language.
 struct Waiting {
     path: PathBuf,
@@ -311,6 +317,9 @@ struct Checks {
     /// The servers, by their process, that refuse to be asked for a file's diagnostics, whose
     /// diagnostics the check waits for them to give.
     refused: Mutex<HashSet<u32>>,
+    /// The names a build tool gives each of its files without the file's declaring them, by the
+    /// file's key, whose reports as undefined a server's diagnostics pass over.
+    given: Mutex<HashMap<String, HashSet<String>>>,
 }
 
 #[derive(Default)]
@@ -591,7 +600,7 @@ fn item_of(one: &Value) -> Item {
     let name = one["filterText"].as_str().map(str::to_string).unwrap_or_else(|| label.split(['(', ' ']).next().unwrap_or_default().to_string());
     let insert = one["textEdit"]["newText"].as_str().or_else(|| one["insertText"].as_str()).map(str::to_string).unwrap_or_else(|| name.clone());
     let detail = one["detail"].as_str().map(|detail| format!("{detail} {label}")).unwrap_or(label);
-    Item { label: name, kind: kind_of(one["kind"].as_u64().unwrap_or(1)), detail: detail.trim().to_string(), insert }
+    Item { label: name, kind: kind_of(one["kind"].as_u64().unwrap_or(1)), detail: detail.trim().to_string(), insert, snippet: false }
 }
 
 /// What a server says on its own, and the answer where it asks: its diagnostics kept and passed
@@ -714,6 +723,7 @@ impl Servers {
             *checked_root = Some(root.to_path_buf());
         }
         self.run_checkers(root, path, Some(text), true, emit);
+        self.check_build(root, path, text, emit);
         let Some((server, spec)) = self.server(root, language, emit)? else {
             return Ok(false);
         };
@@ -756,6 +766,7 @@ impl Servers {
         let emit = self.told.lock().ok().and_then(|told| told.clone());
         if let (Some(root), Some(emit)) = (checked_root, emit) {
             self.run_checkers(&root, path, Some(text), false, &emit);
+            self.check_build(&root, path, text, &emit);
         }
         let _held = self.checks.held.lock().map_err(|_| "held".to_string())?;
         self.holding(path).map_or(Ok(()), |server| server.change(path, text))
@@ -772,6 +783,11 @@ impl Servers {
         }
         let text = std::fs::read_to_string(path).ok();
         self.inspect_again(path, text.as_deref());
+        let checked_root = self.checked_root.lock().ok().and_then(|root| root.clone());
+        let emit = self.told.lock().ok().and_then(|told| told.clone());
+        if let (Some(root), Some(emit), Some(text)) = (checked_root, emit, text.as_deref()) {
+            self.check_build(&root, path, text, &emit);
+        }
         let Some(server) = self.holding(path) else {
             return Ok(());
         };
@@ -807,15 +823,29 @@ impl Servers {
         })
     }
 
+    /// What completes the word before `line`, `col` of `path`: what a build file's reading offers,
+    /// then its server's answer.
     pub fn complete(&self, path: &Path, line: u32, col: u32) -> Result<Vec<Item>, String> {
+        let mut found = Vec::new();
+        if crate::builds::kind_of(path).is_some() {
+            let root = self.checked_root.lock().ok().and_then(|root| root.clone());
+            if let (Some(root), Some(text)) = (root, self.text_of(path)) {
+                found = crate::builds::complete(&root, path, &text, line, col);
+            }
+        }
         let Some(server) = self.holding(path) else {
-            return Ok(Vec::new());
+            return Ok(found);
         };
         let mut params = Server::at(path, line, col);
         params["context"] = json!({"triggerKind": 1});
-        let said = server.request("textDocument/completion", params, ASKING)?;
+        let said = match server.request("textDocument/completion", params, ASKING) {
+            Ok(said) => said,
+            Err(_) if !found.is_empty() => return Ok(found),
+            Err(said) => return Err(said),
+        };
         let items = if said.is_array() { said } else { said["items"].clone() };
-        Ok(items.as_array().map(|all| all.iter().map(item_of).collect()).unwrap_or_default())
+        found.extend(items.as_array().map(|all| all.iter().map(item_of).collect::<Vec<_>>()).unwrap_or_default());
+        Ok(found)
     }
 
     /// The server that has `path` open, or the reason there is none to ask.
@@ -887,7 +917,9 @@ impl Servers {
         }
         for one in ours.iter().filter(|one| overlaps(&from, &to, &one["range"])) {
             for fix in one["data"]["orior"].as_array().into_iter().flatten() {
-                fixes.push(Action { title: fix["title"].as_str().unwrap_or_default().to_string(), kind: "quickfix".into(), preferred: true, disabled: None, raw: json!({"orior": fix["edits"]}) });
+                // A fix that runs a line in the terminal is the page's to run.
+                let raw = if fix["run"].is_object() { json!({"orior_run": fix["run"]}) } else { json!({"orior": fix["edits"]}) };
+                fixes.push(Action { title: fix["title"].as_str().unwrap_or_default().to_string(), kind: "quickfix".into(), preferred: true, disabled: None, raw });
             }
         }
         let server = match self.asked(path) {
@@ -915,6 +947,9 @@ impl Servers {
     /// them out, are returned to be written, and its command is run, whose edits the server asks
     /// for on its own.
     pub fn act(&self, path: &Path, raw: &Value) -> Result<Vec<FileEdit>, String> {
+        if raw.get("orior_run").is_some() {
+            return Ok(Vec::new());
+        }
         if let Some(edits) = raw.get("orior") {
             let edits: Vec<TextEdit> = serde_json::from_value(edits.clone()).map_err(|error| error.to_string())?;
             return Ok(vec![FileEdit { path: path.display().to_string(), edits }]);
@@ -1214,6 +1249,7 @@ impl Servers {
         }
         self.start_checkers();
         self.check_tree_with_checkers(root, emit);
+        self.check_tree_builds(root, &files, emit);
         self.check_files(root, &files, emit)
     }
 
@@ -1411,7 +1447,7 @@ impl Servers {
             let mut dropped = Vec::new();
             for (key, (uri, by_checker)) in all.iter_mut() {
                 let before = by_checker.len();
-                by_checker.retain(|id, _| ids.contains(id));
+                by_checker.retain(|id, _| ids.contains(id) || id == BUILDS);
                 if by_checker.len() != before {
                     dropped.push((key.clone(), uri.clone()));
                 }
@@ -1460,9 +1496,8 @@ impl Servers {
         if ids.is_empty() {
             return;
         }
-        let file = path.display().to_string();
         let languages = crate::plugins::languages();
-        let Some(language) = Path::new(&file).extension().and_then(|ext| languages.get(&ext.to_string_lossy().to_lowercase())).cloned() else {
+        let Some(language) = crate::plugins::language_for(&languages, path) else {
             return;
         };
         let key = lsp::key_of(&lsp::uri_of(path));
@@ -1485,6 +1520,53 @@ impl Servers {
                 }
             });
         }
+    }
+
+    /// Checks a build file as its text stands, on a thread of its own; a later check of the same file
+    /// stands in for an earlier one still going. The names its build tool gives it are kept, for its
+    /// server's reports of them as undefined to be passed over.
+    fn check_build(&self, root: &Path, path: &Path, text: &str, emit: &Emit) {
+        if crate::builds::kind_of(path).is_none() {
+            return;
+        }
+        let key = lsp::key_of(&lsp::uri_of(path));
+        if let Ok(mut given) = self.checks.given.lock() {
+            given.insert(key.clone(), crate::builds::given_names(path, text));
+        }
+        let run = self.runs.lock().map(|mut runs| {
+            let count = runs.entry((key.clone(), BUILDS.to_string())).or_insert(0);
+            *count += 1;
+            *count
+        }).unwrap_or(0);
+        let (root, path, text, emit, published, checks, runs) = (root.to_path_buf(), path.to_path_buf(), text.to_string(), emit.clone(), self.published.clone(), self.checks.clone(), self.runs.clone());
+        // The file hears its findings, changed or the same, as a file the editor opens does.
+        std::thread::spawn(move || {
+            let found = crate::builds::check(&root, &path, &text);
+            if !runs.lock().is_ok_and(|runs| runs.get(&(key.clone(), BUILDS.to_string())) == Some(&run)) {
+                return;
+            }
+            let uri = lsp::uri_of(&path);
+            if let Ok(mut checked) = checks.checked.lock() {
+                checked.entry(key.clone()).or_insert_with(|| (uri.clone(), HashMap::new())).1.insert(BUILDS.to_string(), found);
+            }
+            emit_whole(&key, &uri, &published, &checks, &emit);
+        });
+    }
+
+    /// Checks each build file of the tree, as the disk holds it, on a thread of its own.
+    fn check_tree_builds(&self, root: &Path, files: &[String], emit: &Emit) {
+        let builds: Vec<PathBuf> = files.iter().filter(|file| crate::builds::kind_of(Path::new(file)).is_some()).map(|file| root.join(file)).collect();
+        if builds.is_empty() {
+            return;
+        }
+        let (root, emit, published, checks) = (root.to_path_buf(), emit.clone(), self.published.clone(), self.checks.clone());
+        std::thread::spawn(move || {
+            let found: Vec<(PathBuf, Vec<Value>)> = builds.into_iter().filter_map(|path| {
+                let text = std::fs::read_to_string(&path).ok()?;
+                Some((path.clone(), crate::builds::check(&root, &path, &text)))
+            }).collect();
+            keep_checked(BUILDS, found, &published, &checks, &emit);
+        });
     }
 
     /// Tells each server its settings changed, for it to ask for them again, as the tree's environment
@@ -1645,6 +1727,9 @@ fn emit_whole(key: &str, uri: &str, published: &Published, checks: &Checks, emit
     if let Some(classes) = checks.supplied.lock().ok().and_then(|all| all.get(key).cloned()) {
         items.retain(|item| !attribute_of(item).is_some_and(|(name, class)| classes.get(&class).is_some_and(|names| names.contains(&name))));
     }
+    if let Some(names) = given_names(key, uri, checks) {
+        items.retain(|item| !undefined_of(item).is_some_and(|name| names.contains(&name)));
+    }
     items.extend(checks.inspected.lock().ok().and_then(|all| all.get(key).map(|(_, items)| items.clone())).unwrap_or_default());
     if let Some((_, by_checker)) = checks.checked.lock().ok().and_then(|all| all.get(key).cloned()) {
         let mut ids: Vec<&String> = by_checker.keys().collect();
@@ -1656,6 +1741,31 @@ fn emit_whole(key: &str, uri: &str, published: &Published, checks: &Checks, emit
     if let Some(diagnostics) = diagnostics_of(&json!({"uri": uri, "diagnostics": items})) {
         emit(Told::Diagnostics(diagnostics));
     }
+}
+
+/// The names a build tool gives the file of `key` and `uri`, kept as its text was checked or read from
+/// the disk for a file the editor does not hold; none for a file of no build tool that gives names.
+fn given_names(key: &str, uri: &str, checks: &Checks) -> Option<HashSet<String>> {
+    let lower = uri.to_lowercase();
+    if !(lower.ends_with("/sconstruct") || lower.ends_with("/sconscript")) {
+        return None;
+    }
+    let mut all = checks.given.lock().ok()?;
+    if !all.contains_key(key) {
+        let path = lsp::path_of(uri)?;
+        let text = std::fs::read_to_string(&path).ok()?;
+        all.insert(key.to_string(), crate::builds::given_names(&path, &text));
+    }
+    all.get(key).cloned()
+}
+
+/// The name a server's report that a name is undefined names, as pyright writes it: `"name" is not
+/// defined`.
+fn undefined_of(item: &Value) -> Option<String> {
+    let message = item["message"].as_str().or_else(|| item["message"]["value"].as_str())?;
+    let rest = message.strip_prefix('"')?;
+    let name = rest.strip_suffix("\" is not defined")?;
+    Some(name.to_string())
 }
 
 /// The attribute and the class a server's report that a class has no such attribute names, as
@@ -1789,10 +1899,9 @@ fn wait_for(woken: &mpsc::Receiver<()>) {
     }
 }
 
-/// The language a file of the tree opens as, by its extension.
+/// The language a file of the tree opens as, by its name or its extension.
 fn language_of(languages: &HashMap<String, String>, file: &str) -> Option<String> {
-    let ext = Path::new(file).extension()?.to_string_lossy().to_lowercase();
-    languages.get(&ext).cloned()
+    crate::plugins::language_for(languages, Path::new(file))
 }
 
 /// Whether a line of the file at `path` that includes, imports or uses another names one of `stems`

@@ -231,9 +231,16 @@ export async function serve(tab) {
   if (!language) {
     return;
   }
-  // The diagnostics a server already holds for the file can come before it answers.
+  // The diagnostics a server already holds for the file can come before it answers. A build file
+  // orior reads is completed from the start, as its server starts or where none serves it.
   tab.serving = true;
-  const took = await invoke("lsp_open", { path: tab.file, language, text: s.doc.text() }).catch(() => false);
+  tab.building = await invoke("build_file", { path: tab.file }).catch(() => false);
+  if (tab.building) {
+    s.diagnostics ??= [];
+    wrap(tab);
+  }
+  const sent = s.doc.text();
+  const took = await invoke("lsp_open", { path: tab.file, language, text: sent }).catch(() => false);
   tab.serving = false;
   if (took && tabsOf().includes(tab)) {
     tab.served = true;
@@ -244,17 +251,22 @@ export async function serve(tab) {
     invoke("lsp_hover", { path: tab.file, line: 0, col: 0 }).catch(() => {});
   } else if (took) {
     invoke("lsp_close", { path: tab.file }).catch(() => {});
-  } else if (inspected.has(language) && tabsOf().includes(tab)) {
+  } else if ((inspected.has(language) || tab.building) && tabsOf().includes(tab)) {
     tab.inspected = true;
     s.diagnostics ??= [];
   }
+  // What was typed while the server started is told it now.
+  if ((tab.served || tab.inspected) && s.doc.text() !== sent) {
+    changed(tab);
+  }
 }
 
-// Gives a served tab's language the server's hover and completion, over the language's own. A
-// language set again, as a plugin read again sets it, is given them again.
+// Gives a served tab's language the server's hover and completion, over the language's own, and a
+// build file's tab the completions orior gives it. A language set again, as a plugin read again
+// sets it, is given them again.
 export function wrap(tab) {
   const s = tab.session;
-  if (!tab.served || !s?.language || s.language.served) {
+  if (!(tab.served || tab.building) || !s?.language || s.language.served) {
     return;
   }
   const own = s.language;

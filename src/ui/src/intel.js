@@ -24,6 +24,7 @@ import { focusSearch } from "./search.js";
 import { flush } from "./servers.js";
 import { togglePane } from "./sides.js";
 import { say } from "./statusbar.js";
+import { runInTerminal, terminalAt } from "./terminal.js";
 
 // How long the cursor rests before the signature it is in is asked for again, in milliseconds.
 const SIGNATURE_REST = 120;
@@ -319,6 +320,12 @@ export async function quickFix() {
       label: action.title,
       disabled: Boolean(action.disabled),
       run: async () => {
+        // A fix that updates a snapshot runs its line in the terminal, in its build's folder.
+        if (action.raw?.orior_run) {
+          terminalAt(action.raw.orior_run.folder);
+          runInTerminal(action.raw.orior_run.line);
+          return;
+        }
         try {
           const files = await invoke("lsp_act", { path: tab.file, raw: action.raw });
           await applyEdits(files);

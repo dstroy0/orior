@@ -11,6 +11,7 @@
 //! menus. A menu's title and one of its commands are the words the command line takes for it.
 
 pub mod bridge;
+pub mod builds;
 pub mod catalog;
 pub mod checkers;
 pub mod cli;

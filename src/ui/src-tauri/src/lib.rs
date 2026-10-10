@@ -795,6 +795,48 @@ fn fill_paragraph(text: String, line: u32, width: usize) -> Result<servers::Text
     orior_cli::fill::fill(&text, line, width.max(20))
 }
 
+/// Whether the file at `path` of the tree is a build file orior reads: a Gradle script or catalog, a
+/// POM, an SConstruct or an SConscript.
+#[tauri::command]
+fn build_file(path: String) -> bool {
+    orior_cli::builds::kind_of(std::path::Path::new(&path)).is_some()
+}
+
+/// The POM at `path` of the tree, `pom.xml` at its top where none is given, and its text, `text` where
+/// the editor holds it.
+fn pom_of(app: &State<App>, path: Option<String>, text: Option<String>) -> Result<(PathBuf, PathBuf, String), String> {
+    let root = root_of(app)?;
+    let pom = path.filter(|path| orior_cli::builds::kind_of(std::path::Path::new(path)) == Some(orior_cli::builds::Kind::Maven)).map(|path| root.join(path)).unwrap_or_else(|| root.join("pom.xml"));
+    let text = match text {
+        Some(text) => text,
+        None => std::fs::read_to_string(&pom).unwrap_or_default(),
+    };
+    Ok((root, pom, text))
+}
+
+/// The compiler's settings the POM gives, and Maven's own.
+#[tauri::command]
+fn maven_settings(app: State<App>, path: Option<String>, text: Option<String>) -> Result<Vec<orior_cli::builds::maven::Setting>, String> {
+    let (root, pom, text) = pom_of(&app, path, text)?;
+    Ok(orior_cli::builds::maven::settings(&root, &pom, &text))
+}
+
+/// Sets one of the settings `maven_settings` gives: the POM's by the edits returned, each path as
+/// `tree_path` gives it, and Maven's own in the user's `settings.xml`.
+#[tauri::command]
+fn maven_set(app: State<App>, path: Option<String>, text: Option<String>, key: String, value: String) -> Result<Vec<servers::FileEdit>, String> {
+    let (root, pom, text) = pom_of(&app, path, text)?;
+    Ok(tree_edits(&root, orior_cli::builds::maven::set(&pom, &text, &key, &value)?))
+}
+
+/// The folder, in the tree, and the line that update every snapshot dependency of the build the
+/// file at `path` belongs to, or of the tree's top build where none is given.
+#[tauri::command]
+fn snapshots_line(app: State<App>, path: Option<String>) -> Result<(String, String), String> {
+    let root = root_of(&app)?;
+    orior_cli::builds::snapshots_line(&root, path.map(|path| root.join(path)).as_deref())
+}
+
 /// The edit that sorts the methods of the class at or around `line` of a text in `language` by name.
 #[tauri::command]
 fn code_sort(language: String, text: String, line: u32) -> Result<servers::TextEdit, String> {
@@ -1468,6 +1510,10 @@ fn open(launch: Launch) {
             checkers_known,
             code_sort,
             fill_paragraph,
+            build_file,
+            maven_settings,
+            maven_set,
+            snapshots_line,
             templates_list,
             project_create,
             template_keep,

@@ -41,6 +41,7 @@
         { "label": "Reload Plugins", "command": "reload-plugins" },
         "-",
         { "label": "Tree Environment…", "command": "environment", "args": "[place|none]" },
+        { "label": "Maven Settings…", "command": "maven-settings" },
         { "label": "Toolchains…", "command": "toolchains", "args": "[check|install <tool>|add-path <tool|orior>|use <tool> <folder>|forget <tool>|add <name> --group <group> --program <name,...> [--for <text>] [--id <id>] [--version <word,...>] [--install <url>]|add-group <group>|remove <tool>|remove-group <group>]", "console": true },
         "-",
         { "label": "Exit", "command": "exit" }
@@ -214,6 +215,7 @@
         { "label": "Stop", "command": "stop", "keys": "Shift+F5", "needs": "live" },
         { "label": "Run File", "command": "run-file", "keys": "Ctrl+F5", "args": "<file>", "needs": "tab", "console": true },
         { "label": "Validate", "command": "validate", "keys": "Ctrl+Alt+F5", "args": "[--json] <file>...", "needs": "tab", "console": true },
+        { "label": "Update Snapshots", "command": "update-snapshots" },
         "-",
         { "label": "Debug File", "command": "debug", "keys": "Shift+F9", "needs": "tab" },
         { "label": "Restart Debugging", "command": "restart-debug", "keys": "Ctrl+Shift+F5", "needs": "debugged" },
