@@ -168,6 +168,30 @@ static void release_overlap(OverlapResident *resident)
     memset(resident, 0, sizeof(*resident));
 }
 
+extern "C" void body_overlap_release(void)
+{
+    release_overlap(&s_overlap_resident);
+}
+
+static unsigned long long overlap_paged(unsigned long long bytes, unsigned long long page)
+{
+    return ((bytes + page) - 1ull) / page * page;
+}
+
+extern "C" unsigned long long body_overlap_bytes(unsigned long long voxels, unsigned long long runs,
+                                                 unsigned long long page)
+{
+    const unsigned long long words = (voxels + 63ull) / 64ull;
+    const unsigned long long chunks = (voxels + BODY_OVERLAP_CHUNK - 1ull) / BODY_OVERLAP_CHUNK;
+    // the runs' room as reserve_overlap grows it: half again over what is asked
+    const unsigned long long capacity = (runs + 1ull) + ((runs + 1ull) / 2ull);
+    return (2ull * overlap_paged(words * sizeof(unsigned long long), page)) +
+           (2ull * overlap_paged(voxels * sizeof(unsigned int), page)) +
+           (2ull * overlap_paged(chunks * sizeof(unsigned int), page)) +
+           overlap_paged(capacity * sizeof(unsigned long long), page) +
+           overlap_paged(capacity * sizeof(unsigned int), page);
+}
+
 static int reserve_overlap(size_t voxels, unsigned int chunks, int uploads, size_t runs)
 {
     OverlapResident *const resident = &s_overlap_resident;
@@ -303,6 +327,10 @@ static long overlap_results(const BodyOverlapRequest *args, OverlapView view, co
         const unsigned int count = offsets[chunk];
         offsets[chunk] = (unsigned int)total;
         total += (size_t)count;
+    }
+    if (args->runs != NULL)
+    {
+        *args->runs = (unsigned long long)total;
     }
     ok = ok && reserve_overlap(0u, chunks, resident->uploads, total);
     ok = ok && (cudaMemcpy(resident->offsets, offsets, (size_t)chunks * sizeof(unsigned int), cudaMemcpyHostToDevice) ==

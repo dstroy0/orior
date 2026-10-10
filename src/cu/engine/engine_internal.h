@@ -93,7 +93,9 @@ struct EngineResidualResident
     unsigned short *volume;
     unsigned int *residual;
     unsigned int *check;
-    size_t voxels;
+    size_t volume_voxels;
+    size_t residual_words;
+    size_t check_words;
 };
 
 struct EngineResidualPlanesResident

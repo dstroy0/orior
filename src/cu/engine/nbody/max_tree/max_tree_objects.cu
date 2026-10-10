@@ -76,7 +76,7 @@ __global__ void max_tree_peak_kernel(const unsigned int *code, const unsigned ch
     }
 }
 
-__global__ void max_tree_mark_kernel(const unsigned int *residual, const unsigned int *code,
+__global__ void max_tree_mark_kernel(const unsigned int *residual, unsigned int held, const unsigned int *code,
                                      const unsigned char *ranges, const unsigned int *label,
                                      const unsigned long long *best, unsigned int voxels, unsigned int writing,
                                      unsigned int *at_chunk, unsigned int *slot_at, EngineBody *bodies)
@@ -102,9 +102,10 @@ __global__ void max_tree_mark_kernel(const unsigned int *residual, const unsigne
             body->parent = 0xFFFFFFFFu;
             body->forward = -1;
             body->backward = -1;
+            // a level held in fewer limbs is above zero, and its limbs past `held` are zeros
             for (unsigned int limb = 0u; limb < ENGINE_RESIDUAL_LIMBS; limb += 1u)
             {
-                body->level[limb] = residual[((size_t)voxel * ENGINE_RESIDUAL_LIMBS) + limb];
+                body->level[limb] = (limb < held) ? residual[((size_t)voxel * held) + limb] : 0u;
             }
             slot_at[voxel] = slot;
         }
@@ -158,8 +159,8 @@ __global__ void max_tree_object_census_kernel(const unsigned char *ranges, const
     }
 }
 
-__global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int voxels, unsigned int words,
-                                     unsigned long long *packed)
+__global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int held, unsigned int voxels,
+                                     unsigned int words, unsigned long long *packed)
 {
     const unsigned int word = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (word >= words)
@@ -171,7 +172,7 @@ __global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int 
     unsigned long long bits = 0ull;
     for (unsigned int voxel = first; voxel < end; voxel += 1u)
     {
-        bits |= (unsigned long long)max_tree_selected(residual, voxel) << (voxel - first);
+        bits |= (unsigned long long)max_tree_selected(residual, voxel, held) << (voxel - first);
     }
     packed[word] = bits;
 }
@@ -329,6 +330,53 @@ int max_tree_reserve(size_t voxels, EngineError *error)
     }
     resident->voxels = voxels;
     return 1;
+}
+
+extern "C" void max_tree_resident_release(void)
+{
+    max_tree_release_resident(&g_max_tree_resident);
+}
+
+// an allocation's device bytes: the driver maps it in whole pages
+static unsigned long long max_tree_paged(unsigned long long bytes)
+{
+    return (bytes + (DEVICE_POOL_PAGE_BYTES - 1ull)) & ~(DEVICE_POOL_PAGE_BYTES - 1ull);
+}
+
+extern "C" unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodies)
+{
+    const size_t chunks = (voxels + MAX_TREE_CHUNK - 1u) / MAX_TREE_CHUNK;
+    const size_t words = (voxels + 63u) / 64u;
+    const int items = (int)voxels;
+    size_t sort_bytes = 0u;
+    size_t scan_bytes = 0u;
+    size_t max_bytes = 0u;
+    cub::DoubleBuffer<unsigned int> no_keys(NULL, NULL);
+    cub::DoubleBuffer<unsigned int> no_values(NULL, NULL);
+    const int sized =
+        (cub::DeviceRadixSort::SortPairs(NULL, sort_bytes, no_keys, no_values, items) == cudaSuccess) &&
+        (cub::DeviceScan::InclusiveSum(NULL, scan_bytes, (const unsigned int *)NULL, (unsigned int *)NULL, items) ==
+         cudaSuccess) &&
+        (cub::DeviceReduce::Max(NULL, max_bytes, (const int *)NULL, (int *)NULL, items) == cudaSuccess);
+    if ((sized == 0) || (voxels == 0u))
+    {
+        return 0ull;
+    }
+    size_t scratch = (sort_bytes > scan_bytes) ? sort_bytes : scan_bytes;
+    scratch = (max_bytes > scratch) ? max_bytes : scratch;
+    const unsigned long long lanes = (unsigned long long)voxels;
+    const unsigned long long words4 = lanes * sizeof(unsigned int);
+    // max_tree_reserve's buffers in its order, then the bodies max_tree_grow_bodies holds for `bodies`
+    unsigned long long bytes = max_tree_paged(words4) + (4ull * max_tree_paged(words4)) + max_tree_paged(scratch) +
+                               max_tree_paged(lanes) + max_tree_paged(words4) +
+                               max_tree_paged(lanes * sizeof(unsigned long long)) + max_tree_paged(words4) +
+                               max_tree_paged(lanes * 3ull) + max_tree_paged(lanes) + max_tree_paged(words4) +
+                               (2ull * max_tree_paged((lanes + 2ull) * sizeof(int))) + (4ull * DEVICE_POOL_PAGE_BYTES) +
+                               max_tree_paged((unsigned long long)chunks * sizeof(unsigned int)) +
+                               max_tree_paged((unsigned long long)words * sizeof(unsigned long long));
+    const unsigned long long capacity = ((unsigned long long)bodies + 1ull) + (((unsigned long long)bodies + 1ull) / 2ull);
+    bytes += max_tree_paged(capacity * sizeof(EngineBody));
+    return bytes;
 }
 
 int max_tree_grow_bodies(size_t bodies, EngineError *error)

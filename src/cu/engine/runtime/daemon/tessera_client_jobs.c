@@ -105,12 +105,15 @@ static void tessera_client_end(TesseraClient *client)
     free(client);
 }
 
-static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, EngineError *error)
+// the daemon's answer, waited for until `deadline` where it is not 0
+static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsigned long long deadline,
+                            EngineError *error)
 {
     for (;;)
     {
         TesseraFrame frame;
-        if (!TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE))
+        if (!TESSERA_CHECK((tessera_readable(client, deadline) == 1) && tessera_receive(client, &frame), client, error,
+                           ENGINE_ERROR_RESOURCE))
         {
             return TESSERA_ERROR;
         }
@@ -206,8 +209,13 @@ long tessera_job_submit(const TesseraJobAsk *ask, TesseraClient **client, Tesser
     {
         frame.measured = standing;
     }
-    if (!TESSERA_CHECK(tessera_send(made, &frame), made, ask->error, ENGINE_ERROR_RESOURCE) ||
-        (tessera_decided(made, ticket, ask->error) == TESSERA_ERROR))
+    const unsigned long long asked_at = tessera_client_now();
+    const unsigned long long deadline =
+        (ask->waiting_microseconds != 0ull) ? (asked_at + ask->waiting_microseconds) : 0ull;
+    const int sent = TESSERA_CHECK(tessera_send(made, &frame), made, ask->error, ENGINE_ERROR_RESOURCE);
+    const long decided = sent ? tessera_decided(made, ticket, deadline, ask->error) : TESSERA_ERROR;
+    ticket->waited = tessera_client_now() - asked_at;
+    if (decided == TESSERA_ERROR)
     {
         tessera_client_end(made);
         return TESSERA_ERROR;
@@ -230,7 +238,7 @@ long tessera_job_override(TesseraClient *client, TesseraTicket *ticket, EngineEr
     {
         return TESSERA_ERROR;
     }
-    const long decided = tessera_decided(client, ticket, error);
+    const long decided = tessera_decided(client, ticket, 0ull, error);
     if (decided == 0L)
     {
         tessera_self_begin(client, ticket);
@@ -244,7 +252,7 @@ long tessera_job_wait(TesseraClient *client, TesseraTicket *ticket, EngineError 
     {
         return TESSERA_ERROR;
     }
-    const long decided = tessera_decided(client, ticket, error);
+    const long decided = tessera_decided(client, ticket, 0ull, error);
     if (decided == 0L)
     {
         tessera_self_begin(client, ticket);
