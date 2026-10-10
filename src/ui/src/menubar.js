@@ -27,7 +27,7 @@ import { checkersNamed, setCheckers } from "./servers.js";
 import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
-import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setVimKeys, vimKeys } from "./edit.js";
+import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setVimKeys, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
@@ -168,13 +168,49 @@ async function openAnyFile(given) {
   if (typeof chosen !== "string") {
     return;
   }
-  const path = (await invoke("tree_relative", { path: chosen }).catch(() => null)) ?? (/^[a-zA-Z]:|^\//.test(chosen) ? null : chosen);
+  let path = (await invoke("tree_relative", { path: chosen }).catch(() => null)) ?? (/^[a-zA-Z]:|^\//.test(chosen) ? null : chosen);
+  // A file from outside the tree opens beside it, mounted on its own.
   if (!path) {
-    say(`${chosen} is outside the open tree.`, { failed: true });
-    return;
+    try {
+      path = `@${await addToWindow(chosen)}`;
+    } catch (error) {
+      say(String(error), { failed: true });
+      return;
+    }
   }
   showView("edit");
   await openFile(path);
+}
+
+// File, Open, Workspace: a .code-workspace file opened as a window that holds its folders, the first
+// of them that is an orior tree as the tree and the rest mounted beside it.
+async function openWorkspace(given) {
+  const chosen = given ?? (await pick("file"));
+  if (typeof chosen !== "string") {
+    return;
+  }
+  let folders;
+  try {
+    folders = await invoke("workspace_read", { path: chosen });
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  let tree = null;
+  for (const folder of folders) {
+    if (await invoke("tree_holds", { path: folder })) {
+      tree = folder;
+      break;
+    }
+  }
+  if (!tree) {
+    say(`${chosen} names no orior tree among its folders.`, { failed: true });
+    return;
+  }
+  await state.openFolder(tree);
+  for (const folder of folders.filter((one) => one !== tree)) {
+    await addToWindow(folder).catch((error) => say(String(error), { failed: true }));
+  }
 }
 
 // What each command does in the window, given the words the command line passed it, if any.
@@ -193,6 +229,25 @@ const COMMANDS = {
   },
   "open-file": (args) => openAnyFile(args[0]),
   "open-folder": (args) => state.openFolder(args[0]),
+  "add-folder": async (args) => {
+    const chosen = args[0] ?? (await pick("dir"));
+    if (typeof chosen === "string") {
+      await addToWindow(chosen).catch((error) => say(String(error), { failed: true }));
+    }
+  },
+  "add-file": async (args) => {
+    const chosen = args[0] ?? (await pick("file"));
+    if (typeof chosen === "string") {
+      try {
+        const name = await addToWindow(chosen);
+        showView("edit");
+        await openFile(`@${name}`);
+      } catch (error) {
+        say(String(error), { failed: true });
+      }
+    }
+  },
+  "open-workspace": (args) => openWorkspace(args[0]),
   "new-window": (args) => openWindow([], args[0] ?? null).catch((error) => say(String(error), { failed: true })),
   "open-folder-window": async (args) => {
     const chosen = args[0] ?? (await pick("dir"));

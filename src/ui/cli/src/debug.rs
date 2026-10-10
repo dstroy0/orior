@@ -555,7 +555,7 @@ impl Debugger {
         };
         let (request, mut arguments, name, parent) = match start {
             Start::File { path, .. } => {
-                let file = root.join(path);
+                let file = crate::root::full(root, path);
                 let program = build(root, &file, &language, &tool_id)?;
                 let names = [
                     ("program", program.as_ref().map_or_else(|| file.display().to_string(), |out| out.display().to_string())),
@@ -596,7 +596,7 @@ impl Debugger {
             }
             Start::Record { path } => {
                 let python = crate::test_runs::python().map(|python| python.display().to_string()).unwrap_or_default();
-                ("launch", json!({"program": root.join(path).display().to_string(), "python": python}), path.clone(), None)
+                ("launch", json!({"program": crate::root::full(root, path).display().to_string(), "python": python}), path.clone(), None)
             }
         };
         if request == "launch" && language == "python" && !recording {
@@ -712,7 +712,7 @@ impl Debugger {
         }
         for (file, breakpoints) in &options.breakpoints {
             if takes(&language, file) {
-                let _ = Self::set(&adapter, &marks, &root.join(file), breakpoints);
+                let _ = Self::set(&adapter, &marks, &crate::root::full(root, file), breakpoints);
             }
         }
         let on: Vec<&str> = filters.iter().filter(|one| one.on).map(|one| one.filter.as_str()).collect();
@@ -748,7 +748,7 @@ impl Debugger {
         for session in sessions {
             let language = session.info.lock().ok()?.language.clone();
             if takes(&language, path) {
-                if let Ok(lines) = Self::set(&session.adapter, &session.marks, &root.join(path), breakpoints) {
+                if let Ok(lines) = Self::set(&session.adapter, &session.marks, &crate::root::full(root, path), breakpoints) {
                     placed.get_or_insert(lines);
                 }
             }

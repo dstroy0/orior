@@ -17,9 +17,12 @@
           "items": [
             { "label": "File…", "command": "open-file", "keys": "Ctrl+O", "args": "[file]" },
             { "label": "Folder…", "command": "open-folder", "args": "[folder]" },
-            { "label": "Repository…", "command": "open-repository", "args": "[url]" }
+            { "label": "Repository…", "command": "open-repository", "args": "[url]" },
+            { "label": "Workspace…", "command": "open-workspace", "args": "[file]" }
           ]
         },
+        { "label": "Add Folder to Window…", "command": "add-folder", "args": "[folder]" },
+        { "label": "Add File to Window…", "command": "add-file", "args": "[file]" },
         { "label": "New Window", "command": "new-window", "keys": "Ctrl+Shift+N", "args": "[folder]" },
         { "label": "Open Folder in New Window…", "command": "open-folder-window", "args": "[folder]" },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },

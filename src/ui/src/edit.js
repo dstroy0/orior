@@ -103,6 +103,9 @@ const state = {
   // The named groups of the first side's tabs, each its name, its tabs' paths and whether it is
   // folded.
   groups: [],
+  // The folders and files from other places mounted beside the tree, each its name, its path on the
+  // disk and whether it is a folder.
+  mounts: [],
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
@@ -232,7 +235,61 @@ async function drawTreeOnce(drawing) {
     }
   };
   await walk("", 0);
+  // Each folder or file from another place stands after the tree's own, under its own name.
+  for (const [at, mounted] of state.mounts.entries()) {
+    const path = `@${mounted.name}`;
+    const row = node({ name: mounted.name, path, dir: mounted.dir, ignored: false }, 0);
+    row.classList.add("mount");
+    row.classList.toggle("mount-first", at === 0);
+    row.title = mounted.path;
+    nodes.push(row);
+    if (mounted.dir && state.expanded.has(path)) {
+      await walk(path, 1);
+    }
+  }
   await put(nodes);
+}
+
+// More than one tree in a window: folders from other places, and single files from them, mounted
+// beside the tree, each with its own place in the explorer and kept with the tree.
+
+const mountsKey = () => `orior.mounts.${treeKey()}`;
+
+async function readMounts() {
+  state.mounts = await invoke("tree_mounts").catch(() => []);
+  localStorage.setItem(mountsKey(), JSON.stringify(state.mounts.map((mounted) => mounted.path)));
+}
+
+// Mounts again the folders and files kept with the tree, as it opens.
+export async function loadMounts() {
+  const kept = readKept(mountsKey(), []);
+  for (const path of Array.isArray(kept) ? kept : []) {
+    await invoke("tree_mount", { path }).catch(() => {});
+  }
+  state.mounts = await invoke("tree_mounts").catch(() => []);
+}
+
+// File, Add Folder to Window and Add File to Window: the folder or file at `path` mounted beside the
+// tree, and its name given.
+export async function addToWindow(path) {
+  const name = await invoke("tree_mount", { path });
+  await readMounts();
+  state.expanded.add(`@${name}`);
+  await drawTree();
+  return name;
+}
+
+// Takes a mount out of the window, closing its files' tabs.
+async function removeFromWindow(name) {
+  const prefix = `@${name}`;
+  for (const tab of state.tabs.filter((one) => one.path === prefix || one.path.startsWith(`${prefix}/`))) {
+    tab.closing = true;
+    closeTab(tab);
+  }
+  await invoke("tree_unmount", { name });
+  await readMounts();
+  state.children.clear();
+  await drawTree();
 }
 
 // A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
@@ -2868,8 +2925,10 @@ function fileItems(event) {
   const open = folder
     ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
     : { label: "Open", run: () => openFile(path) };
+  const mounted = row.classList.contains("mount") ? path.slice(1) : null;
   return [
     open,
+    ...(mounted ? [{ label: "Remove from Window", run: () => removeFromWindow(mounted) }] : []),
     ...(folder ? [] : [{ label: "Open in Next Split", run: () => openInSplit(path) }]),
     ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
     "-",
@@ -3240,6 +3299,7 @@ export function forgetTree() {
   state.restored = false;
   state.heads.clear();
   state.repos = null;
+  state.mounts = [];
   forgetGraph();
   state.tabs = [];
   state.used = [];

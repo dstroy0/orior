@@ -86,6 +86,10 @@ fn root_set(handle: AppHandle, app: State<App>, path: String) -> Result<String, 
     let moved = root.as_ref() != Some(&path);
     *root = Some(path.clone());
     drop(root);
+    // The folders mounted beside one tree are its own; another tree mounts its own.
+    if moved {
+        root::unmount_all();
+    }
     // A server answers for the tree it started in. Another tree starts its own as its files open.
     if moved {
         app.servers.let_go();
@@ -667,14 +671,14 @@ struct Toolchains {
 /// `text`, the file at `path` as the editor holds it, formatted by its language's formatter.
 #[tauri::command(async)]
 fn format_text(app: State<App>, path: String, language: String, text: String) -> Result<String, String> {
-    format::format(&root_of(&app)?.join(path), &language, &text)
+    format::format(&root::full(&root_of(&app)?, &path), &language, &text)
 }
 
 /// The width the formatter of `language` keeps the lines of the file at `path` to, as the project's
 /// own settings for the formatter set it, or None where no formatter formats the language.
 #[tauri::command(async)]
 fn format_width(app: State<App>, path: String, language: String) -> Result<Option<u32>, String> {
-    Ok(format::width(&root_of(&app)?.join(path), &language))
+    Ok(format::width(&root::full(&root_of(&app)?, &path), &language))
 }
 
 /// A path a server named, as the page names files: under the tree, from its top folder, and
@@ -683,7 +687,112 @@ fn tree_path(root: &Path, path: &str) -> String {
     let path = PathBuf::from(path);
     let path = dunce::canonicalize(&path).unwrap_or(path);
     let root = dunce::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    // A file of a folder mounted beside the tree goes by its mount's name.
+    if !path.starts_with(&root) && root::mounts().iter().any(|(_, base)| path.starts_with(base)) {
+        return root::relative(&root, &path);
+    }
     path.strip_prefix(&root).map(|inside| inside.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| path.display().to_string())
+}
+
+/// A folder mounted beside the tree: its name, its path on the disk, and whether it is a folder, a
+/// single file being mounted alone.
+#[derive(serde::Serialize)]
+struct Mounted {
+    name: String,
+    path: String,
+    dir: bool,
+}
+
+/// Whether the folder at `path` holds an orior tree.
+#[tauri::command]
+fn tree_holds(path: String) -> bool {
+    root::holds_tree(Path::new(&path))
+}
+
+/// Mounts the folder or file at `path` beside the tree, and gives its name.
+#[tauri::command]
+fn tree_mount(path: String) -> Result<String, String> {
+    root::mount(Path::new(&path))
+}
+
+#[tauri::command]
+fn tree_unmount(name: String) {
+    root::unmount(&name);
+}
+
+/// The folders and files mounted beside the tree, in the order they were mounted.
+#[tauri::command]
+fn tree_mounts() -> Vec<Mounted> {
+    root::mounts().into_iter().map(|(name, path)| Mounted { name, dir: path.is_dir(), path: path.display().to_string() }).collect()
+}
+
+/// The folders a .code-workspace file names, each made whole against the file's own folder, as JSON
+/// with comments and trailing commas reads them.
+#[tauri::command]
+fn workspace_read(path: String) -> Result<Vec<String>, String> {
+    let file = PathBuf::from(&path);
+    let text = std::fs::read_to_string(&file).map_err(|error| format!("{path}: {error}"))?;
+    let value: serde_json::Value = serde_json::from_str(&plain_json(&text)).map_err(|error| format!("{path}: {error}"))?;
+    let base = file.parent().map(Path::to_path_buf).unwrap_or_default();
+    Ok(value["folders"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|folder| folder["path"].as_str())
+        .map(|folder| {
+            let named = PathBuf::from(folder);
+            let whole = if named.is_absolute() { named } else { base.join(named) };
+            dunce::canonicalize(&whole).unwrap_or(whole).display().to_string()
+        })
+        .collect())
+}
+
+/// JSON with comments and trailing commas, as VS Code's files hold it, made plain JSON: each comment
+/// outside a string taken out, and each comma before a closing bracket.
+fn plain_json(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut at = 0;
+    let mut in_string = false;
+    while at < chars.len() {
+        let c = chars[at];
+        if in_string {
+            out.push(c);
+            if c == '\\' && at + 1 < chars.len() {
+                out.push(chars[at + 1]);
+                at += 2;
+                continue;
+            }
+            if c == '"' {
+                in_string = false;
+            }
+            at += 1;
+        } else if c == '"' {
+            in_string = true;
+            out.push(c);
+            at += 1;
+        } else if c == '/' && chars.get(at + 1) == Some(&'/') {
+            while at < chars.len() && chars[at] != '\n' {
+                at += 1;
+            }
+        } else if c == '/' && chars.get(at + 1) == Some(&'*') {
+            at += 2;
+            while at + 1 < chars.len() && !(chars[at] == '*' && chars[at + 1] == '/') {
+                at += 1;
+            }
+            at += 2;
+        } else if c == ',' {
+            let next = chars[at + 1..].iter().find(|one| !one.is_whitespace());
+            if !matches!(next, Some(']') | Some('}')) {
+                out.push(c);
+            }
+            at += 1;
+        } else {
+            out.push(c);
+            at += 1;
+        }
+    }
+    out
 }
 
 /// Each file's edits, each path as `tree_path` gives it.
@@ -700,7 +809,7 @@ fn tree_edits(root: &Path, files: Vec<servers::FileEdit>) -> Vec<servers::FileEd
 #[tauri::command(async)]
 fn lsp_open(handle: AppHandle, app: State<App>, path: String, language: String, text: String) -> Result<bool, String> {
     let root = root_of(&app)?;
-    app.servers.open(&root, &root.join(path), &language, &text, &emitter(handle, root.clone()))
+    app.servers.open(&root, &root::full(&root, &path), &language, &text, &emitter(handle, root.clone()))
 }
 
 /// What a server tells the page, each path as `tree_path` gives it under `tree`.
@@ -745,7 +854,7 @@ fn problems_check(handle: AppHandle, app: State<App>) -> Result<usize, String> {
 #[tauri::command(async)]
 fn lsp_references(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Usage>, String> {
     let root = root_of(&app)?;
-    let found = app.servers.references(&root.join(path), line, col)?;
+    let found = app.servers.references(&root::full(&root, &path), line, col)?;
     Ok(found.into_iter().map(|mut one| {
         one.path = tree_path(&root, &one.path);
         one
@@ -754,37 +863,37 @@ fn lsp_references(app: State<App>, path: String, line: u32, col: u32) -> Result<
 
 #[tauri::command(async)]
 fn lsp_renamable(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Renamable>, String> {
-    app.servers.renamable(&root_of(&app)?.join(path), line, col)
+    app.servers.renamable(&root::full(&root_of(&app)?, &path), line, col)
 }
 
 #[tauri::command(async)]
 fn lsp_rename(app: State<App>, path: String, line: u32, col: u32, name: String) -> Result<Vec<servers::FileEdit>, String> {
     let root = root_of(&app)?;
-    Ok(tree_edits(&root, app.servers.rename(&root.join(path), line, col, &name)?))
+    Ok(tree_edits(&root, app.servers.rename(&root::full(&root, &path), line, col, &name)?))
 }
 
 #[tauri::command(async)]
 fn lsp_actions(app: State<App>, path: String, from: servers::Place, to: servers::Place) -> Result<Vec<servers::Action>, String> {
-    app.servers.actions(&root_of(&app)?.join(path), from, to)
+    app.servers.actions(&root::full(&root_of(&app)?, &path), from, to)
 }
 
 #[tauri::command(async)]
 fn lsp_act(app: State<App>, path: String, raw: serde_json::Value) -> Result<Vec<servers::FileEdit>, String> {
     let root = root_of(&app)?;
-    Ok(tree_edits(&root, app.servers.act(&root.join(path), &raw)?))
+    Ok(tree_edits(&root, app.servers.act(&root::full(&root, &path), &raw)?))
 }
 
 /// The lines `from` to `to` of the parse of a file the editor has open, and its folds.
 #[tauri::command(async)]
 fn parse_colors(app: State<App>, path: String, from: u32, to: u32) -> Result<Option<servers::Colors>, String> {
-    app.servers.colors(&root_of(&app)?.join(path), from, to)
+    app.servers.colors(&root::full(&root_of(&app)?, &path), from, to)
 }
 
 /// The spans of a file the editor has open that hold `from` to `to` and are more than it, the least
 /// first.
 #[tauri::command(async)]
 fn parse_spans(app: State<App>, path: String, from: servers::Place, to: servers::Place) -> Result<Vec<(servers::Place, servers::Place)>, String> {
-    app.servers.spans(&root_of(&app)?.join(path), from, to)
+    app.servers.spans(&root::full(&root_of(&app)?, &path), from, to)
 }
 
 /// What Search Structurally found: each match, and each file's edits where a template was given.
@@ -847,7 +956,7 @@ fn reads_file(path: String) -> bool {
 /// the editor holds it.
 fn pom_of(app: &State<App>, path: Option<String>, text: Option<String>) -> Result<(PathBuf, PathBuf, String), String> {
     let root = root_of(app)?;
-    let pom = path.filter(|path| orior_cli::builds::kind_of(std::path::Path::new(path)) == Some(orior_cli::builds::Kind::Maven)).map(|path| root.join(path)).unwrap_or_else(|| root.join("pom.xml"));
+    let pom = path.filter(|path| orior_cli::builds::kind_of(std::path::Path::new(path)) == Some(orior_cli::builds::Kind::Maven)).map(|path| root::full(&root, &path)).unwrap_or_else(|| root.join("pom.xml"));
     let text = match text {
         Some(text) => text,
         None => std::fs::read_to_string(&pom).unwrap_or_default(),
@@ -875,7 +984,7 @@ fn maven_set(app: State<App>, path: Option<String>, text: Option<String>, key: S
 #[tauri::command]
 fn snapshots_line(app: State<App>, path: Option<String>) -> Result<(String, String), String> {
     let root = root_of(&app)?;
-    orior_cli::builds::snapshots_line(&root, path.map(|path| root.join(path)).as_deref())
+    orior_cli::builds::snapshots_line(&root, path.map(|path| root::full(&root, &path)).as_deref())
 }
 
 /// The tree's Python tests, found as pytest and unittest find them.
@@ -993,21 +1102,21 @@ fn parse_classes() -> Vec<&'static str> {
 /// The hints the server of a file writes on its lines `from` to `to`.
 #[tauri::command(async)]
 fn lsp_hints(app: State<App>, path: String, from: u32, to: u32) -> Result<Vec<servers::Hint>, String> {
-    app.servers.hints(&root_of(&app)?.join(path), from, to)
+    app.servers.hints(&root::full(&root_of(&app)?, &path), from, to)
 }
 
 /// The function at a place, as the top of its call hierarchy, its paths as `tree_path` gives them.
 #[tauri::command(async)]
 fn calls_root(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Call>, String> {
     let root = root_of(&app)?;
-    Ok(app.servers.call_root(&root.join(path), line, col)?.map(|call| tree_call(&root, call)))
+    Ok(app.servers.call_root(&root::full(&root, &path), line, col)?.map(|call| tree_call(&root, call)))
 }
 
 /// The functions that call the function `item` names, or that it calls, as `incoming` says.
 #[tauri::command(async)]
 fn calls_of(app: State<App>, path: String, item: serde_json::Value, incoming: bool) -> Result<Vec<servers::Call>, String> {
     let root = root_of(&app)?;
-    Ok(app.servers.calls(&root.join(path), &item, incoming)?.into_iter().map(|call| tree_call(&root, call)).collect())
+    Ok(app.servers.calls(&root::full(&root, &path), &item, incoming)?.into_iter().map(|call| tree_call(&root, call)).collect())
 }
 
 /// A function of the call hierarchy, its paths as `tree_path` gives them.
@@ -1019,7 +1128,7 @@ fn tree_call(root: &Path, mut call: servers::Call) -> servers::Call {
 
 #[tauri::command(async)]
 fn lsp_signature(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Signature>, String> {
-    app.servers.signature(&root_of(&app)?.join(path), line, col)
+    app.servers.signature(&root::full(&root_of(&app)?, &path), line, col)
 }
 
 /// Writes edits to files the editor does not have open, each under the tree. Says how many files it
@@ -1042,24 +1151,24 @@ fn edits_write(app: State<App>, files: Vec<servers::FileEdit>) -> Result<usize, 
 
 #[tauri::command(async)]
 fn lsp_change(app: State<App>, path: String, text: String) -> Result<(), String> {
-    app.servers.change(&root_of(&app)?.join(path), &text)
+    app.servers.change(&root::full(&root_of(&app)?, &path), &text)
 }
 
 #[tauri::command(async)]
 fn lsp_close(app: State<App>, path: String) -> Result<(), String> {
-    app.servers.close(&root_of(&app)?.join(path))
+    app.servers.close(&root::full(&root_of(&app)?, &path))
 }
 
 #[tauri::command(async)]
 fn lsp_hover(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<String>, String> {
-    app.servers.hover(&root_of(&app)?.join(path), line, col)
+    app.servers.hover(&root::full(&root_of(&app)?, &path), line, col)
 }
 
 /// Where the symbol at a place is defined, each path as `tree_path` gives it.
 #[tauri::command(async)]
 fn lsp_definition(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Found>, String> {
     let root = root_of(&app)?;
-    let found = app.servers.definition(&root.join(path), line, col)?;
+    let found = app.servers.definition(&root::full(&root, &path), line, col)?;
     Ok(found.into_iter().map(|mut one| {
         one.path = tree_path(&root, &one.path);
         one
@@ -1068,7 +1177,7 @@ fn lsp_definition(app: State<App>, path: String, line: u32, col: u32) -> Result<
 
 #[tauri::command(async)]
 fn lsp_complete(app: State<App>, path: String, line: u32, col: u32) -> Result<Vec<servers::Item>, String> {
-    app.servers.complete(&root_of(&app)?.join(path), line, col)
+    app.servers.complete(&root::full(&root_of(&app)?, &path), line, col)
 }
 
 /// Starts a debug session as `start` says, with `options`: its breakpoints, the exceptions it stops on
@@ -1165,7 +1274,7 @@ fn debug_instructions(app: State<App>, session: u64, reference: String, offset: 
 #[tauri::command(async)]
 fn debug_bytecode(app: State<App>, path: String, line: u32) -> Result<(String, Vec<debug::Instruction>), String> {
     let root = root_of(&app)?;
-    debug::bytecode(&root, &root.join(path), line)
+    debug::bytecode(&root, &root::full(&root, &path), line)
 }
 
 #[tauri::command(async)]
@@ -1225,14 +1334,14 @@ fn debug_stop(app: State<App>, session: Option<u64>) {
 #[tauri::command(async)]
 fn validate_file(app: State<App>, path: String, language: String) -> Result<validate::Report, String> {
     let tool = validate::tool_for(&language).ok_or_else(|| format!("no tool plugin validates {language}"))?;
-    validate::validate(&tool, &root_of(&app)?.join(path))
+    validate::validate(&tool, &root::full(&root_of(&app)?, &path))
 }
 
 /// The shell line that runs the file at `path`, under the tree, with its language's toolchain.
 #[tauri::command(async)]
 fn run_file_line(app: State<App>, path: String, language: String) -> Result<run_file::RunLine, String> {
     let root = root_of(&app)?;
-    run_file::line_for(&root, &root.join(path), &language)
+    run_file::line_for(&root, &root::full(&root, &path), &language)
 }
 
 /// Every language a formatter formats.
@@ -1352,7 +1461,9 @@ fn folder_create(app: State<App>, path: String) -> Result<(), String> {
 fn tree_relative(app: State<App>, path: String) -> Option<String> {
     let root = root_of(&app).ok()?;
     let full = dunce::canonicalize(&path).ok()?;
-    full.starts_with(&root).then(|| root::relative(&root, &full))
+    // A file under a folder mounted beside the tree goes by its mount's name as well.
+    let mounted = root::mounts().iter().any(|(_, base)| full.starts_with(base));
+    (full.starts_with(&root) || mounted).then(|| root::relative(&root, &full))
 }
 
 /// The shell line that installs a toolchain, for the terminal to run.
@@ -1463,7 +1574,7 @@ fn file_slice(app: State<App>, path: String, start: u64, end: u64) -> Result<tau
 #[tauri::command]
 fn file_write(app: State<App>, path: String, text: String) -> Result<(), String> {
     let root = root_of(&app)?;
-    let before = std::fs::read_to_string(root.join(&path)).ok();
+    let before = std::fs::read_to_string(root::full(&root, &path)).ok();
     files::write(&root, &path, &text)?;
     if let Err(error) = history::keep(&root, &path, before.as_deref(), &text) {
         eprintln!("orior: local history of {path}: {error}");
@@ -1649,6 +1760,11 @@ fn open(launch: Launch) {
             plugin_create,
             user_css_read,
             reader_menus_read,
+            tree_mount,
+            tree_unmount,
+            tree_mounts,
+            tree_holds,
+            workspace_read,
             home_reveal,
             format_text,
             format_width,
@@ -1822,6 +1938,17 @@ fn open(launch: Launch) {
                 handle.state::<App>().debugger.stop_all();
             }
         });
+}
+
+#[cfg(test)]
+mod workspaces {
+    #[test]
+    fn a_workspace_with_comments_and_trailing_commas_reads_as_json() {
+        let text = "{\n  // the folders\n  \"folders\": [\n    { \"path\": \"a // not a comment\" }, /* one more */\n    { \"path\": \"../b\", },\n  ],\n}\n";
+        let value: serde_json::Value = serde_json::from_str(&super::plain_json(text)).unwrap();
+        assert_eq!(value["folders"][0]["path"], "a // not a comment");
+        assert_eq!(value["folders"][1]["path"], "../b");
+    }
 }
 
 #[cfg(test)]

@@ -2465,6 +2465,17 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   min-height: 0;
 }
 
+/* A folder or file from another place, mounted beside the tree: its row bold, the first a line
+   apart from the tree's own. */
+.node.mount {
+  font-weight: 600;
+}
+
+.node.mount-first {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
 /* Tabs down the side: the first side's tabs in a column beside its editor, the marked files first
    with their keys, each group under a header that folds it, and its tabs set in under it. */
 .desk[data-tabs="side"] {

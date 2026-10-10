@@ -4,7 +4,7 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
+import { forgetTree, loadMounts, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
@@ -195,6 +195,8 @@ async function begin(root) {
     await loadRun();
     drawMenubar();
     await restoreEnvironment();
+    // The folders and files mounted beside the tree come back before the tabs that show them.
+    await loadMounts();
     await restoreSession();
     // The tests of the tree open before are forgotten, and this tree's read where their window shows.
     forgetTests();
