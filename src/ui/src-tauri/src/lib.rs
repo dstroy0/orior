@@ -538,6 +538,12 @@ fn git_cherry_pick(app: State<App>, id: String, repo: Option<String>) -> Result<
     git::cherry_pick(&repo_of(&app, repo.as_deref())?, &id)
 }
 
+/// Two texts compared by structure, the older first, or null where they are too far apart.
+#[tauri::command(async)]
+fn structure_compare(then: Option<String>, now: String) -> Option<orior_cli::structure::Compared> {
+    orior_cli::structure::compare(then.as_deref().unwrap_or(""), &now)
+}
+
 /// The commit that last changed each line of a file as the editor holds its text.
 #[tauri::command(async)]
 fn git_line_history(app: State<App>, path: String, text: String) -> Result<git::LineHistory, String> {
@@ -1253,6 +1259,7 @@ fn open(launch: Launch) {
             git_touched,
             git_line_history,
             git_repositories,
+            structure_compare,
             git_stashes,
             git_stash,
             git_elsewhere,

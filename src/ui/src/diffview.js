@@ -8,14 +8,71 @@
 // next change and the one before (F7 and Shift+F7), and closes it, as Escape does. Its box sets
 // changes to white space aside, lines that differ only in it standing level as the same, and the
 // choice is kept under orior.diff-space.
+//
+// Its second box compares by structure, in the app's Rust side, and the choice is kept under
+// orior.diff-structure. Lines then stand level by the tokens they hold, a line moved is marked as
+// moved on both sides, a name changed to one other name everywhere as renamed, and a line whose
+// tokens are the same and only its layout changed as reshaped; within a line, each token taken out or
+// put in is marked, and the bar's second line says what was renamed, moved and reshaped.
 
+import { invoke } from "./bridge.js";
 import { escapeHtml } from "./editor/view.js";
 import { lineChanges } from "./editor/diff.js";
 import { icon } from "./icons.js";
 
-const state = { node: null, hunks: [], at: -1, rows: null };
+const state = { node: null, hunks: [], at: -1, rows: null, ticket: 0 };
 
 const SPACE_KEY = "orior.diff-space";
+const STRUCTURE_KEY = "orior.diff-structure";
+
+// What a line of a structural comparison is, by the number the Rust side gives it.
+const KINDS = ["same", "changed", "moved", "reshaped", "renamed"];
+
+// A line's text with each of its marked tokens, `[from, to, kind]`, in a span of its kind.
+function markedText(text, marks = []) {
+  let html = "";
+  let at = 0;
+  for (const [from, to, kind] of marks) {
+    html += `${escapeHtml(text.slice(at, from))}<span class="diff-token ${KINDS[kind]}">${escapeHtml(text.slice(from, to))}</span>`;
+    at = to;
+  }
+  return html + escapeHtml(text.slice(at));
+}
+
+// The marks of a side by line.
+function marksByLine(marks) {
+  const lines = new Map();
+  for (const [line, from, to, kind] of marks) {
+    lines.set(line, [...(lines.get(line) ?? []), [from, to, kind]]);
+  }
+  return lines;
+}
+
+// What a structural comparison found, in words: each name renamed, and how many lines moved and
+// reshaped.
+function summaryOf(found) {
+  const parts = found.renames.map(([from, to, count]) => `${from} renamed ${to}${count > 1 ? ` in ${count} places` : ""}`);
+  if (found.moved) {
+    parts.push(`${found.moved} line${found.moved === 1 ? "" : "s"} moved`);
+  }
+  if (found.reshaped) {
+    parts.push(`${found.reshaped} line${found.reshaped === 1 ? "" : "s"} reshaped`);
+  }
+  return parts.join("; ");
+}
+
+// The rows of a structural comparison: each side's cell tinted by what its line is, its tokens marked.
+function structureHtml(found, old, fresh) {
+  const left = marksByLine(found.left_marks);
+  const right = marksByLine(found.right_marks);
+  let html = "";
+  found.rows.forEach(([from, to], at) => {
+    const side = (lines, line, kinds, marks, which) =>
+      line === null ? `<span class="diff-num"></span><span class="diff-text diff-gap ${which}"></span>` : `<span class="diff-num">${line + 1}</span><span class="diff-text ${which} line-${KINDS[kinds[line]]}">${markedText(lines[line], marks.get(line)) || " "}</span>`;
+    html += `<div class="diff-row by-structure" data-row="${at}">${side(old, from, found.left, left, "left")}${side(fresh, to, found.right, right, "right")}</div>`;
+  });
+  return html;
+}
 
 // A line as it is compared where white space is set aside: each run of it one space, none at the ends.
 const loose = (line) => line.replace(/\s+/g, " ").trim();
@@ -67,6 +124,7 @@ function rowsOf(then, now) {
 }
 
 export function closeDiff() {
+  state.ticket += 1;
   state.node?.remove();
   state.node = null;
 }
@@ -84,11 +142,18 @@ function step(direction) {
 // Shows `path`'s changes from `then`, the last commit's text or null where it holds none, to `now`,
 // over `host`. `sides` names the two texts where the left one is not the last commit, and `same` says
 // they do not differ.
-export function showDiff(host, path, then, now, { sides = null, same = "No change from the last commit." } = {}) {
-  closeDiff();
+export async function showDiff(host, path, then, now, { sides = null, same = "No change from the last commit." } = {}) {
+  state.ticket += 1;
+  const ticket = state.ticket;
+  const structured = localStorage.getItem(STRUCTURE_KEY) === "on";
   const old = (then ?? "").split(/\r?\n/);
   const fresh = now.split(/\r?\n/);
-  const found = rowsOf(then === null ? [] : old, fresh);
+  const found = structured ? await invoke("structure_compare", { then, now }).catch(() => null) : rowsOf(then === null ? [] : old, fresh);
+  // A comparison overtaken by another, or by the view closing, shows nothing.
+  if (ticket !== state.ticket) {
+    return;
+  }
+  closeDiff();
   const button = (glyph, label, run) => {
     const made = element("button", { className: "diff-button", type: "button", title: label }, icon(glyph));
     made.setAttribute("aria-label", label);
@@ -106,17 +171,25 @@ export function showDiff(host, path, then, now, { sides = null, same = "No chang
     button("close", "Close (Escape)", closeDiff),
   );
   bar.children[4].classList.add("diff-up");
-  const space = element("input", { type: "checkbox", checked: localStorage.getItem(SPACE_KEY) === "aside" });
+  // Structure sets white space aside on its own, and its box stands unused while structure is chosen.
+  const space = element("input", { type: "checkbox", checked: localStorage.getItem(SPACE_KEY) === "aside", disabled: structured });
   space.addEventListener("change", () => {
     localStorage.setItem(SPACE_KEY, space.checked ? "aside" : "shown");
     showDiff(host, path, then, now, { sides, same });
   });
-  bar.children[2].after(element("label", { className: "diff-space" }, space, element("span", { textContent: "Set white space aside" })));
+  const structure = element("input", { type: "checkbox", checked: structured });
+  structure.addEventListener("change", () => {
+    localStorage.setItem(STRUCTURE_KEY, structure.checked ? "on" : "off");
+    showDiff(host, path, then, now, { sides, same });
+  });
+  bar.children[2].after(element("label", { className: "diff-space" }, space, element("span", { textContent: "Set white space aside" })), element("label", { className: "diff-space diff-structure" }, structure, element("span", { textContent: "Compare by structure" })));
   const body = element("div", { className: "diff-body" });
   if (!found) {
     body.append(element("p", { className: "diff-empty", textContent: "The two texts are too far apart to set side by side." }));
   } else if (!found.starts.length) {
     body.append(element("p", { className: "diff-empty", textContent: same }));
+  } else if (structured) {
+    body.innerHTML = structureHtml(found, old, fresh);
   } else {
     let html = "";
     found.rows.forEach(([left, right, kind], at) => {
@@ -126,7 +199,8 @@ export function showDiff(host, path, then, now, { sides = null, same = "No chang
     });
     body.innerHTML = html;
   }
-  const node = element("section", { className: "diff-view" }, bar, body);
+  const said = structured && found ? summaryOf(found) : "";
+  const node = element("section", { className: "diff-view" }, bar, said ? element("p", { className: "diff-summary", textContent: said }) : null, body);
   node.setAttribute("aria-label", `Changes to ${path}`);
   node.tabIndex = -1;
   node.addEventListener("keydown", (event) => {

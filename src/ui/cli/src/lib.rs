@@ -32,6 +32,7 @@ pub mod root;
 pub mod run_file;
 pub mod runner;
 pub mod servers;
+pub mod structure;
 pub mod symbols;
 pub mod toolchains;
 pub mod validate;

@@ -37,8 +37,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Version control
 
-1. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
-2. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
+1. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
 
 ## Testing
 

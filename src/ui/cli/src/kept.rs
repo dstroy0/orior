@@ -24,7 +24,7 @@ use serde_json::{Map, Value};
 
 /// The settings among the window's entries: a key named here, or one starting with a name here that
 /// ends in `.`.
-const SETTINGS: [&str; 23] = [
+const SETTINGS: [&str; 24] = [
     "scheme",
     "zoom",
     "opacity.",
@@ -48,6 +48,7 @@ const SETTINGS: [&str; 23] = [
     "comments-hidden",
     "past-ends",
     "diff-space",
+    "diff-structure",
 ];
 
 /// The entry that holds every theme of the reader's, and the start of each change not saved.

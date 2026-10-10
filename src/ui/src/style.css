@@ -1902,6 +1902,54 @@ body[data-view="run"] .statusbar .ed-status {
   background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
 }
 
+/* Compare by structure: a line tinted by what it is, a line taken out or changed in the removed
+ * color on the left and the added color on the right, a line moved and a line renamed each in a tint
+ * of its own, a line reshaped only ruled at its edge; and each token taken out, put in, moved or
+ * renamed in a stronger tint of its line's. */
+.diff-row.by-structure .left.line-changed {
+  background: color-mix(in srgb, var(--ed-removed) 12%, transparent);
+}
+
+.diff-row.by-structure .right.line-changed {
+  background: color-mix(in srgb, var(--ed-added) 12%, transparent);
+}
+
+.diff-row.by-structure .line-moved {
+  background: color-mix(in srgb, var(--t4) 12%, transparent);
+}
+
+.diff-row.by-structure .line-renamed {
+  background: color-mix(in srgb, var(--t5) 12%, transparent);
+}
+
+.diff-row.by-structure .line-reshaped {
+  box-shadow: inset 2px 0 var(--fg-3);
+}
+
+.diff-token {
+  border-radius: 2px;
+}
+
+.left .diff-token.changed {
+  background: color-mix(in srgb, var(--ed-removed) 38%, transparent);
+}
+
+.right .diff-token.changed {
+  background: color-mix(in srgb, var(--ed-added) 38%, transparent);
+}
+
+.diff-token.renamed {
+  background: color-mix(in srgb, var(--t5) 36%, transparent);
+}
+
+.diff-summary {
+  margin: 0;
+  padding: 0.25rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  font: 12px var(--head);
+  color: var(--fg-2);
+}
+
 /* Conflicts: three columns, yours, the result and theirs, each conflict under a row of the ways to
  * settle it, its sides tinted as the gutter tints a change and its open result striped. */
 .merge-row {
