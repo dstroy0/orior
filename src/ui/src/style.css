@@ -529,6 +529,11 @@ select {
   padding: 6px 0;
 }
 
+/* Under the system's own title bar, the bar's own controls of the window stand down. */
+body[data-system-title] .window-controls {
+  display: none;
+}
+
 /* The reader's toolbar under the menus, in the glass of the bar over it: a button for each command,
    and a short line between groups of them. */
 .toolbar {

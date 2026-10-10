@@ -517,6 +517,8 @@ fn window_act(window: tauri::WebviewWindow, act: String) -> Result<bool, String>
         }
         "close" => window.close(),
         "next-display" => to_next_display(&window),
+        "system-title" => window.set_decorations(true),
+        "own-title" => window.set_decorations(false),
         "focus" => window.unminimize().and_then(|()| window.set_focus()),
         "drag" => return dragging::start_drag(&window).map(|()| window.is_maximized().unwrap_or(false)),
         "state" => Ok(()),
@@ -524,6 +526,11 @@ fn window_act(window: tauri::WebviewWindow, act: String) -> Result<bool, String>
     };
     done.map_err(|error| error.to_string())?;
     Ok(window.is_maximized().unwrap_or(false))
+}
+
+/// Whether the reader asked for the system's own title bar, as settings.json keeps it.
+fn system_title_bar() -> bool {
+    home::folder().and_then(|folder| kept::read(&folder)).and_then(|entries| entries.get("titlebar").cloned()).as_deref() == Some("system")
 }
 
 /// Moves the window to the display after the one it stands on, maximized there where it was here.
@@ -1742,6 +1749,10 @@ fn open(launch: Launch) {
             // A page that never asks for the window still has it shown after SHOW_ANYWAY.
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_background_color(Some(tauri::window::Color(0x13, 0x13, 0x31, 0xff)));
+                // The system's own title bar where the reader asked for it, set before the window shows.
+                if system_title_bar() {
+                    let _ = window.set_decorations(true);
+                }
                 std::thread::spawn(move || {
                     std::thread::sleep(SHOW_ANYWAY);
                     let _ = window.show();

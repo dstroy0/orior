@@ -306,6 +306,18 @@ function drawJobs() {
   );
 }
 
+// View, System Title Bar: the window drawn with the system's own title bar and its controls, in place
+// of the bar's, kept, and read by the window as it opens.
+const TITLE_BAR = "orior.titlebar";
+
+export const systemTitleBar = () => localStorage.getItem(TITLE_BAR) === "system";
+
+export function setSystemTitleBar(on = !systemTitleBar()) {
+  localStorage.setItem(TITLE_BAR, on ? "system" : "own");
+  document.body.toggleAttribute("data-system-title", on);
+  return invoke("window_act", { act: on ? "system-title" : "own-title" }).catch(() => false);
+}
+
 // The window's controls, and the top bar as the handle the window moves by.
 function startWindow() {
   const act = (what) => invoke("window_act", { act: what }).catch(() => false);
@@ -322,13 +334,14 @@ function startWindow() {
     return button;
   };
   maximize.addEventListener("click", () => act("maximize").then(drawMaximized));
+  document.body.toggleAttribute("data-system-title", systemTitleBar());
   document.getElementById("window-controls").replaceChildren(control("minimize", "Minimize", "minimize"), maximize, control("close", "Close", "close", "window-close"));
   act("state").then(drawMaximized);
   window.addEventListener("resize", () => act("state").then(drawMaximized));
   // A press on the bar itself, its tree name or its empty middle moves the window; a press on a menu,
-  // a tool or a control does what it does.
+  // a tool or a control does what it does. Under the system's own title bar, that bar moves it.
   document.querySelector("header.bar").addEventListener("mousedown", (event) => {
-    if (event.button !== 0 || event.target.closest("button, nav, .bar-tools, .window-controls, input")) {
+    if (event.button !== 0 || systemTitleBar() || event.target.closest("button, nav, .bar-tools, .window-controls, input")) {
       return;
     }
     event.preventDefault();
