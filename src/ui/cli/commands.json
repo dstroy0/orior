@@ -169,6 +169,7 @@
         { "label": "Move Window to Next Display", "command": "next-display" },
         { "label": "Status Bar", "items": [{ "fill": "status-items" }] },
         { "label": "Toolbar", "command": "toolbar", "args": "[on|off]", "checks": "toolbar" },
+        { "label": "Focus Follows the Pointer", "command": "focus-follows", "args": "[on|off]", "checks": "focus-follows" },
         { "label": "Hide Tool Strip Until Its Edge", "command": "strip-edge", "args": "[on|off]", "checks": "strip-edge" },
         "-",
         { "label": "Tabs Down the Side", "command": "side-tabs", "args": "[on|off]", "checks": "side-tabs" },

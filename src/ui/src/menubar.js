@@ -49,6 +49,7 @@ import { float, floatItems, solo, toolWindowsItems } from "./docks.js";
 import { openWindow } from "./windows.js";
 import { setStripEdge, statusItems, stripEdge } from "./statusitems.js";
 import { icon } from "./icons.js";
+import { focusFollows, setFocusFollows } from "./focusfollow.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -257,6 +258,7 @@ const COMMANDS = {
   },
   "next-display": () => invoke("window_act", { act: "next-display" }),
   "reader-menus": () => openReaderMenus(),
+  "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   toolbar: (args) => setToolbarShown(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "strip-edge": (args) => setStripEdge(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   float: (args) => (args[0] ? float(args[0]) : showMenu(window.innerWidth / 3, 60, floatItems(float))),
@@ -513,6 +515,7 @@ const CHECKS = {
   "side-tabs": () => editing().sideTabs(),
   "strip-edge": stripEdge,
   toolbar: () => toolbarShown(),
+  "focus-follows": () => focusFollows(),
   "macro-recording": recording,
 };
 

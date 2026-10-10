@@ -16,13 +16,14 @@ import { paneOpen } from "./explorer.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
 import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
+import { startFocusFollows } from "./focusfollow.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
 import { startSearch } from "./search.js";
 import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
 import { watch } from "./status.js";
-import { startTerminal } from "./terminal.js";
+import { focusTerminalView, startTerminal } from "./terminal.js";
 import { onView, showView, shownView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
@@ -113,6 +114,7 @@ async function start() {
   keepPane(document.getElementById("explorer"), "left", { own: true });
   keepPane(document.getElementById("defs-side"), "right");
   startStatusItems();
+  startFocusFollows({ terminal: focusTerminalView });
   startDocks({
     close: closeIcon,
     changed: refreshStrip,

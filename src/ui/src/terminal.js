@@ -463,6 +463,14 @@ export function splitTerminal() {
 
 export const terminalSplit = () => state.beside !== null;
 
+// Gives the keys to the shell whose view is `view`, as a press in it does.
+export function focusTerminalView(view) {
+  const term = state.terms.find((one) => one.view === view);
+  if (term && !parts.panel.hidden) {
+    focusTerm(term);
+  }
+}
+
 // Terminal, Kill Terminal: ends the shell the keys go to and closes its tab.
 export function killTerminal() {
   const term = focusedTerm();
