@@ -59,6 +59,7 @@ import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
 import { togglePane } from "./sides.js";
 import { drawBranch, onOverBudget, say } from "./statusbar.js";
+import { openWindow } from "./windows.js";
 
 const state = {
   editor: null,
@@ -96,6 +97,9 @@ const state = {
   editorKeys: [],
   // The keys the reader bound, over the editor's own.
   boundKeys: [],
+  // Where a file opened goes instead of this window's editor, as from a window that shows a tool
+  // window alone, or null.
+  elsewhere: null,
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
@@ -371,9 +375,58 @@ function drawTabs() {
         }
       });
       button.addEventListener("auxclick", (event) => event.button === 1 && closeTab(tab));
+      dragOut(button, tab);
       return button;
     })
   );
+}
+
+// A tab dragged and let go outside the window opens its file in a new window, and leaves this one.
+function dragOut(button, tab) {
+  button.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || tab.commit) {
+      return;
+    }
+    const from = { x: event.clientX, y: event.clientY };
+    let dragging = false;
+    const move = (moved) => {
+      if (!dragging && Math.hypot(moved.clientX - from.x, moved.clientY - from.y) > 8) {
+        dragging = true;
+        // The pointer let go outside the window is heard where the tab holds it.
+        try {
+          button.setPointerCapture(event.pointerId);
+        } catch {
+          // A pointer that is no longer down has nothing to hold.
+        }
+        button.classList.add("dragged");
+      }
+    };
+    const up = (released) => {
+      button.removeEventListener("pointermove", move);
+      button.classList.remove("dragged");
+      const outside = released.clientX < 0 || released.clientY < 0 || released.clientX > window.innerWidth || released.clientY > window.innerHeight;
+      if (dragging && outside) {
+        tabToNewWindow(tab);
+      }
+    };
+    button.addEventListener("pointermove", move);
+    button.addEventListener("pointerup", up, { once: true });
+  });
+}
+
+// Opens a tab's file in a new window, with its changes not saved, and takes the tab out of this one.
+async function tabToNewWindow(tab) {
+  keepBackups();
+  try {
+    await openWindow(["file", "open-file", tab.file]);
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  // The text kept for its changes stays for the new window to read.
+  tab.leaving = true;
+  tab.closing = true;
+  closeTab(tab);
 }
 
 // A tab with changes not yet saved asks for a second click before it closes. A file the split also
@@ -397,7 +450,9 @@ function closeTab(tab) {
   state.used = state.used.filter((path) => path !== tab.path);
   leaveSplit(tab.path);
   stopServing(tab);
-  forgetBackup(tab.path);
+  if (!tab.leaving) {
+    forgetBackup(tab.path);
+  }
   if (state.active === tab.path) {
     state.active = state.used.find((path) => tabOf(path)?.inMain !== false) ?? mainTabs().at(-1)?.path ?? null;
     show(state.active);
@@ -488,6 +543,10 @@ async function readOutward(tab) {
 
 // Opens a file on the side last pressed in.
 export async function openFile(path) {
+  if (state.elsewhere) {
+    state.elsewhere(path, null, 0);
+    return;
+  }
   const fresh = !tabOf(path);
   await load(path);
   if (state.split?.focused && splittable(tabOf(path))) {
@@ -893,6 +952,10 @@ async function saveActive(tab = tabOf(actingPath())) {
 // line a file still being read has not reached yet is waited for; a file not open yet opens around
 // the line.
 export async function openAt(path, line, col = 0) {
+  if (state.elsewhere) {
+    state.elsewhere(path, line, col);
+    return;
+  }
   if (!tabOf(path)) {
     localStorage.setItem(placeKey(path), JSON.stringify({ line, col }));
   }
@@ -2752,6 +2815,7 @@ function tabMenu(tab) {
     { label: "Split Right", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("right")) },
     { label: "Split Down", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("down")) },
     { label: "Open in Next Split", disabled: !splittable(tab), run: () => openInSplit(tab.path) },
+    { label: "Open in New Window", disabled: Boolean(tab.commit), run: () => tabToNewWindow(tab) },
     "-",
     { label: "Copy path", run: () => copyText(tab.file) },
   ];
@@ -2976,6 +3040,12 @@ export function editing() {
 
 // Forgets the folders read so far and the tabs, for a tree opened in place of this one. What the tabs
 // held stays kept with the tree they were open in.
+// Sends each file opened in this window to `elsewhere`, a function of its path, line and column, or
+// with null keeps them here.
+export function openElsewhere(elsewhere) {
+  state.elsewhere = elsewhere;
+}
+
 export function forgetTree() {
   stopDebug();
   keepBackups();

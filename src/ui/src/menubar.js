@@ -45,7 +45,8 @@ import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
-import { toolWindowsItems } from "./docks.js";
+import { float, floatItems, solo, toolWindowsItems } from "./docks.js";
+import { openWindow } from "./windows.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, terminalAt, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -190,6 +191,16 @@ const COMMANDS = {
   },
   "open-file": (args) => openAnyFile(args[0]),
   "open-folder": (args) => state.openFolder(args[0]),
+  "new-window": (args) => openWindow([], args[0] ?? null).catch((error) => say(String(error), { failed: true })),
+  "open-folder-window": async (args) => {
+    const chosen = args[0] ?? (await pick("dir"));
+    if (typeof chosen === "string") {
+      await openWindow([], chosen).catch((error) => say(String(error), { failed: true }));
+    }
+  },
+  "next-display": () => invoke("window_act", { act: "next-display" }),
+  float: (args) => (args[0] ? float(args[0]) : showMenu(window.innerWidth / 3, 60, floatItems(float))),
+  solo: (args) => (args.length || document.body.dataset.solo ? solo(args[0] ?? document.body.dataset.solo, args[1] ?? null) : showMenu(window.innerWidth / 3, 60, floatItems(solo))),
   "open-repository": (args) => showClone(sheet, state.openFolder, args, { open: true }),
   save: () => editing().save(),
   "save-all": () => editing().saveAll(),

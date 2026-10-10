@@ -20,6 +20,8 @@
             { "label": "Repository…", "command": "open-repository", "args": "[url]" }
           ]
         },
+        { "label": "New Window", "command": "new-window", "keys": "Ctrl+Shift+N", "args": "[folder]" },
+        { "label": "Open Folder in New Window…", "command": "open-folder-window", "args": "[folder]" },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
         { "label": "Keep Tree as Template…", "command": "keep-template", "args": "[name]" },
         "-",
@@ -158,6 +160,9 @@
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         { "label": "Debug", "command": "debug-view", "keys": "Alt+5" },
         { "label": "Tool Windows", "items": [{ "fill": "tool-windows" }] },
+        { "label": "Open Tool Window in a Window", "command": "float", "args": "[terminal|explorer|jobs]" },
+        { "label": "Show Only a Tool Window", "command": "solo", "args": "[terminal|explorer|jobs] [window]" },
+        { "label": "Move Window to Next Display", "command": "next-display" },
         "-",
         { "label": "Split Right", "command": "split-right", "keys": "Ctrl+\\", "needs": "editor" },
         { "label": "Split Down", "command": "split-down", "needs": "editor" },

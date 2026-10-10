@@ -491,7 +491,7 @@ pub fn subject(job: &Job) -> String {
 }
 
 /// The tree a command works on: the folder `--root` names, else the one `root::find` finds.
-fn tree(named: Option<&str>) -> Result<PathBuf, String> {
+pub fn tree(named: Option<&str>) -> Result<PathBuf, String> {
     match named {
         Some(dir) => {
             let path = dunce::canonicalize(dir).map_err(|e| format!("{dir}: {e}"))?;

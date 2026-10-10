@@ -11,7 +11,8 @@
 // has no use for is taken off the strip, and its window closed, until Tool Windows brings it back.
 
 import { showMenu } from "./menu.js";
-import { movePane } from "./sides.js";
+import { holdPane, movePane } from "./sides.js";
+import { openWindow, tell, windowId } from "./windows.js";
 
 const KEY = "orior.docks";
 
@@ -329,11 +330,60 @@ export function toolWindowsItems() {
   ];
 }
 
+// A tool window in a window of its own: the terminal, the explorer or the jobs, each a new window
+// that shows it alone.
+
+const FLOATING = { terminal: "Terminal", explorer: "Explorer", jobs: "Jobs" };
+
+// View, Open Tool Window in a Window: the tool window opened alone in a new window, and closed here.
+export async function float(name) {
+  if (!FLOATING[name]) {
+    return false;
+  }
+  await openWindow(["view", "solo", name, windowId]);
+  state.hooks.closeTool(name);
+  return true;
+}
+
+// The tool windows that open alone in a window, each with what a press on it does.
+export const floatItems = (run) => Object.entries(FLOATING).map(([name, label]) => ({ label, checked: run === solo ? document.body.dataset.solo === name : undefined, run: () => run(name) }));
+
+// View, Show Only a Tool Window: this window shows the tool window alone, filling it, and a file
+// opened from it opens in the window `from` names, where one is named. With none named, or the one
+// shown alone named again, the window shows everything again.
+export function solo(name, from = null) {
+  const was = document.body.dataset.solo;
+  if (was) {
+    const node = document.getElementById(TOOLS[was].node);
+    delete node.dataset.soloTool;
+    if (node.classList.contains("collapsible")) {
+      holdPane(node, false);
+    }
+    delete document.body.dataset.solo;
+    state.hooks.openElsewhere(null);
+  }
+  if (!FLOATING[name] || was === name) {
+    places().forEach(layout);
+    return;
+  }
+  const node = document.getElementById(TOOLS[name].node);
+  document.body.dataset.solo = name;
+  node.dataset.soloTool = "true";
+  state.hooks.showTool(name);
+  if (node.classList.contains("collapsible")) {
+    holdPane(node, true);
+  }
+  if (from) {
+    state.hooks.openElsewhere((path, line, col) => tell(from, "open", { path, line, col }));
+  }
+}
+
 export const toolNames = () => Object.keys(TOOLS);
 export const iconNames = () => Object.keys(ICONS);
 
-// `hooks` closes the window of an icon taken off the strip, and draws the strip again as the docks
-// change.
+// `hooks` closes the window of an icon taken off the strip, draws the strip again as the docks
+// change, shows and closes a tool window, and sends the files opened in this window to another, or
+// with null keeps them here.
 export function startDocks(hooks) {
   state.hooks = hooks;
   load();

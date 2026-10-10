@@ -64,6 +64,9 @@ function tryCollapse(pane) {
     return;
   }
   const typing = pane.keyed && node.contains(document.activeElement);
+  if (pane.held) {
+    return;
+  }
   // The tool strip beside a left pane is a part of it: the pointer on the strip keeps it.
   const onStrip = node.classList.contains("toward-left") && holdsPointer(document.getElementById("strip"));
   if (holdsPointer(node) || onStrip || typing || pane.pinned || menuOpen() || still()) {
@@ -119,6 +122,20 @@ window.addEventListener(
   },
   true,
 );
+
+// Holds the pane at `node` shown, as a window that shows it alone does, or lets it go again.
+export function holdPane(node, held) {
+  const pane = panes.find((one) => one.node === node);
+  if (!pane) {
+    return;
+  }
+  pane.held = held;
+  if (held) {
+    setShown(pane, true);
+  } else {
+    collapseLater(pane);
+  }
+}
 
 // Moves the pane at `node` to collapse toward `side`, its edge with it.
 export function movePane(node, side) {

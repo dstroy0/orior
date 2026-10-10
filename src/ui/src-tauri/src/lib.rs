@@ -512,12 +512,50 @@ fn window_act(window: tauri::WebviewWindow, act: String) -> Result<bool, String>
             }
         }
         "close" => window.close(),
+        "next-display" => to_next_display(&window),
+        "focus" => window.unminimize().and_then(|()| window.set_focus()),
         "drag" => return dragging::start_drag(&window).map(|()| window.is_maximized().unwrap_or(false)),
         "state" => Ok(()),
         other => return Err(format!("{other} is not something the window does")),
     };
     done.map_err(|error| error.to_string())?;
     Ok(window.is_maximized().unwrap_or(false))
+}
+
+/// Moves the window to the display after the one it stands on, maximized there where it was here.
+fn to_next_display(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    let displays = window.available_monitors()?;
+    if displays.len() < 2 {
+        return Ok(());
+    }
+    let here = window.current_monitor()?;
+    let at = here.and_then(|here| displays.iter().position(|one| one.position() == here.position())).unwrap_or(0);
+    let next = &displays[(at + 1) % displays.len()];
+    let maximized = window.is_maximized().unwrap_or(false);
+    if maximized {
+        window.unmaximize()?;
+    }
+    window.set_position(tauri::PhysicalPosition::new(next.position().x + 40, next.position().y + 40))?;
+    if maximized {
+        window.maximize()?;
+    }
+    Ok(())
+}
+
+/// Opens another window, a program of its own with its own tabs, terminals and servers, on the tree
+/// at `root`, or on this window's tree where none is named, to run the menus' command `words` names
+/// once its page is up.
+#[tauri::command]
+fn window_open(app: State<App>, root: Option<String>, words: Vec<String>) -> Result<(), String> {
+    let root = match root {
+        Some(root) => orior_cli::cli::tree(Some(&root))?,
+        None => root_of(&app)?,
+    };
+    let program = std::env::current_exe().map_err(|error| error.to_string())?;
+    let mut command = std::process::Command::new(program);
+    command.arg("--root").arg(&root).args(&words).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    orior_cli::runner::quiet(&mut command);
+    command.spawn().map(|_| ()).map_err(|error| error.to_string())
 }
 
 /// Commits the files at `paths`, each under the tree, with `message`, git's hooks and signing as the
@@ -1696,6 +1734,7 @@ fn open(launch: Launch) {
             clip_write,
             commands_read,
             launch_take,
+            window_open,
             app_version,
             app_exit,
             window_show,

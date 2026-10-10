@@ -4,7 +4,7 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
+import { forgetTree, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
@@ -19,10 +19,11 @@ import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
 import { startSearch } from "./search.js";
-import { keepPane, settlePanes } from "./sides.js";
+import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
 import { watch } from "./status.js";
 import { startTerminal } from "./terminal.js";
-import { onView, showView } from "./views.js";
+import { onView, showView, shownView } from "./views.js";
+import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
 import { keepMemory, say } from "./statusbar.js";
@@ -110,7 +111,34 @@ async function start() {
   keepPane(document.getElementById("job-side"), "left", { own: true });
   keepPane(document.getElementById("explorer"), "left", { own: true });
   keepPane(document.getElementById("defs-side"), "right");
-  startDocks({ close: closeIcon, changed: refreshStrip });
+  startDocks({
+    close: closeIcon,
+    changed: refreshStrip,
+    openElsewhere,
+    showTool: (name) => {
+      if (name === "terminal" && document.getElementById("term").hidden) {
+        runCommand("terminal-view");
+      } else if (name === "explorer") {
+        showView("edit");
+      } else if (name === "jobs") {
+        showView("run");
+      }
+    },
+    closeTool: (name) => {
+      if (name === "terminal" && !document.getElementById("term").hidden) {
+        runCommand("terminal-view");
+      } else if (name === "explorer") {
+        togglePaneNode(document.getElementById("explorer"), false);
+      } else if (name === "jobs" && shownView() === "run") {
+        showView("edit");
+      }
+    },
+  });
+  // A window that shows a tool window alone sends the files opened from it here.
+  onTold("open", ({ path, line, col }) => {
+    showView("edit");
+    (line === null || line === undefined ? openFile(path) : openAt(path, line, col ?? 0)).then(showWindow);
+  });
   startStrip({ run: runCommand, jobMenus: stripMenus });
   await begin(await invoke("root_get"));
   settlePanes();

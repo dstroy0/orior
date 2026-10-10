@@ -1097,6 +1097,42 @@ body[data-view="run"] .statusbar .ed-status {
   width: auto;
 }
 
+/* A window that shows one tool window alone: the bar over it, and the tool window filling the rest. */
+body[data-solo] .strip,
+body[data-solo] .statusbar {
+  display: none;
+}
+
+body[data-solo="terminal"] .work > :not(#term),
+body[data-solo="explorer"] .work > :not(.shell),
+body[data-solo="jobs"] .work > :not(.shell),
+body[data-solo="explorer"] #mode-edit > :not(#explorer) {
+  display: none;
+}
+
+body[data-solo] [data-solo-tool] {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  width: auto;
+  height: auto;
+  max-height: none;
+  border: 0;
+}
+
+body[data-solo] [data-solo-tool] > .side-inner {
+  width: auto;
+}
+
+body[data-solo] [data-solo-tool] > .dock-sash {
+  display: none;
+}
+
+/* A tab being dragged, which let go outside the window opens its file in a new one. */
+.tab.dragged {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
 /* The places an icon dragged over its window's place can dock it: the left, the right, the foot. */
 .dock-drop {
   position: fixed;

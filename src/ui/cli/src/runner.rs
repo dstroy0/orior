@@ -250,7 +250,9 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
     Ok((cmd, shown.join(" ")))
 }
 
-pub(crate) fn quiet(cmd: &mut Command) {
+/// Starts `cmd` with no console window of its own on Windows, and in a process group of its own
+/// elsewhere, where a signal to the window's group does not reach it.
+pub fn quiet(cmd: &mut Command) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
