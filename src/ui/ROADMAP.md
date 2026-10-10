@@ -37,13 +37,12 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Version control
 
-1. **Compare.** Two revisions of a file side by side, or a file beside another, or beside the clipboard, with changes to white space shown or set aside.
-2. **The commit graph.** Every branch's commits drawn as a graph, each with its message, its author and its date, a press opening its changes and a search over them.
-3. **Line history.** Beside each line, the commit that last changed it, a press opening that commit's changes.
-4. **Stash and cherry-pick.** Changes put aside and brought back, and a commit of another branch applied to the one open.
-5. **More than one repository in a tree.** A tree holding several repositories shows each one's changes, branch and commits apart.
-6. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
-7. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
+1. **The commit graph.** Every branch's commits drawn as a graph, each with its message, its author and its date, a press opening its changes and a search over them.
+2. **Line history.** Beside each line, the commit that last changed it, a press opening that commit's changes.
+3. **Stash and cherry-pick.** Changes put aside and brought back, and a commit of another branch applied to the one open.
+4. **More than one repository in a tree.** A tree holding several repositories shows each one's changes, branch and commits apart.
+5. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
+6. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
 
 ## Testing
 

@@ -916,6 +916,36 @@ async function openDiff(path, mark) {
   showDiff(document.querySelector("#mode-edit .desk"), path, then, now);
 }
 
+// Compare: two texts side by side in the changes view, `sides` naming them, the left first.
+function compareTexts(name, then, now, sides) {
+  showDiff(document.querySelector("#mode-edit .desk"), name, then, now, { sides, same: "The two are the same." });
+}
+
+const shortId = (commit) => commit.id.slice(0, 7);
+
+// A revision of a file beside the file as it stands, or beside another revision, the older left.
+async function compareCommit(path, commit, other = null) {
+  if (!other) {
+    compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${shortId(commit)}, then as it stands`);
+    return;
+  }
+  const [older, newer] = commit.when <= other.when ? [commit, other] : [other, commit];
+  compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${shortId(older)}, then ${shortId(newer)}`);
+}
+
+// The file open beside the text on the clipboard.
+async function compareWithClipboard() {
+  const tab = tabOf(state.active);
+  if (tab?.session) {
+    compareTexts(tab.file, await clipText(), tab.session.doc.text(), "the clipboard, then the file");
+  }
+}
+
+// One file of the tree beside another, the one chosen first on the left.
+async function compareFiles(first, second) {
+  compareTexts(`${first} · ${second}`, await textNow(first), await textNow(second), `${first}, then ${second}`);
+}
+
 // A file a merge left in conflict, in the merge window over the editor: once every conflict is
 // settled, the result is written to the file, the file staged as resolved, and an open tab of it
 // takes the result.
@@ -1876,6 +1906,7 @@ export async function startEdit(defs) {
     goToState: (id) => (state.split?.focused ? state.split.editor : state.editor)?.goToState(id),
     cursorLine,
     openCommit,
+    compareCommit,
     showSnapshot,
     revertSnapshot,
     refresh: async () => {
@@ -1987,6 +2018,13 @@ function fileItems(event) {
     "-",
     { label: "Copy path", run: () => copyText(path) },
     { label: "Open in terminal", run: () => terminalAt(folderOfRow(row)) },
+    ...(folder
+      ? []
+      : [
+          "-",
+          { label: "Select for Compare", run: () => (state.compareFrom = path) },
+          { label: state.compareFrom ? `Compare with ${state.compareFrom.split("/").pop()}` : "Compare with Selected", disabled: !state.compareFrom || state.compareFrom === path, run: () => compareFiles(state.compareFrom, path) },
+        ]),
   ];
 }
 
@@ -2237,6 +2275,7 @@ export function editing() {
     marks: () => Boolean(state.editor?.marksOn),
     pastEnds: () => Boolean(state.editor?.pastEnds),
     setPastEnds: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setPastEnds(on)),
+    compareWithClipboard,
     conflicted,
     openMerge,
     setMarks: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setMarks(on)),

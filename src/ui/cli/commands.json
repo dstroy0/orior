@@ -53,6 +53,7 @@
         { "label": "Cut", "command": "cut", "keys": "Ctrl+X", "needs": "editor" },
         { "label": "Copy", "command": "copy", "keys": "Ctrl+C", "needs": "editor" },
         { "label": "Paste", "command": "paste", "keys": "Ctrl+V", "needs": "editor" },
+        { "label": "Compare with Clipboard", "command": "compare-clipboard", "needs": "editor" },
         "-",
         {
           "label": "Macros",

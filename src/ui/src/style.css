@@ -1801,6 +1801,19 @@ body[data-view="run"] .statusbar .ed-status {
   font-family: var(--code);
 }
 
+.diff-space {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.diff-space input {
+  margin: 0;
+  accent-color: var(--signal);
+}
+
 .diff-sides,
 .diff-where {
   color: var(--fg-3);

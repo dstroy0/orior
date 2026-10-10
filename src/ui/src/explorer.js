@@ -247,7 +247,8 @@ export function lightOutline(line) {
   state.outline.rows[lit]?.scrollIntoView({ block: "nearest" });
 }
 
-// Timeline: the commits that touched the open file, the newest first, each with its date.
+// Timeline: the commits that touched the open file, the newest first, each with its date. A commit's
+// menu opens the file as it left it, or sets it beside the file as it stands or another commit's.
 
 const day = (when) => {
   const date = new Date(when * 1000);
@@ -295,8 +296,13 @@ function timelineItems(event) {
   if (!commit) {
     return null;
   }
+  const path = state.timeline.path;
+  const others = state.timeline.commits.filter((one) => one !== commit).slice(0, 40);
   return [
-    { label: "Open", run: () => state.hooks.openCommit(state.timeline.path, commit) },
+    { label: "Open", run: () => state.hooks.openCommit(path, commit) },
+    "-",
+    { label: "Compare with Current", run: () => state.hooks.compareCommit(path, commit) },
+    { label: "Compare with Revision", disabled: !others.length, items: others.map((one) => ({ label: `${one.id.slice(0, 7)}  ${one.subject}`, run: () => state.hooks.compareCommit(path, commit, one) })) },
     "-",
     { label: "Copy Commit ID", run: () => copyText(commit.id) },
     { label: "Copy Commit Message", run: () => copyText(commit.subject) },

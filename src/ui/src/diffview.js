@@ -5,13 +5,20 @@
 // it stands on the right, each with its line numbers, lines the two share level with each other.
 // A line changed is marked on both sides, a line added on the right with an empty row across from it
 // on the left, and a line taken out the other way. The bar over it names the file, steps to the
-// next change and the one before (F7 and Shift+F7), and closes it, as Escape does.
+// next change and the one before (F7 and Shift+F7), and closes it, as Escape does. Its box sets
+// changes to white space aside, lines that differ only in it standing level as the same, and the
+// choice is kept under orior.diff-space.
 
 import { escapeHtml } from "./editor/view.js";
 import { lineChanges } from "./editor/diff.js";
 import { icon } from "./icons.js";
 
 const state = { node: null, hunks: [], at: -1, rows: null };
+
+const SPACE_KEY = "orior.diff-space";
+
+// A line as it is compared where white space is set aside: each run of it one space, none at the ends.
+const loose = (line) => line.replace(/\s+/g, " ").trim();
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -22,7 +29,8 @@ function element(tag, props = {}, ...children) {
 // The rows of the two texts side by side: each [left line or null, right line or null, kind], kind
 // "same", "changed", "added" or "removed", and where each change starts.
 function rowsOf(then, now) {
-  const marks = lineChanges(then, now);
+  const aside = localStorage.getItem(SPACE_KEY) === "aside";
+  const marks = aside ? lineChanges(then.map(loose), now.map(loose)) : lineChanges(then, now);
   if (!marks) {
     return null;
   }
@@ -98,6 +106,12 @@ export function showDiff(host, path, then, now, { sides = "last commit, then as 
     button("close", "Close (Escape)", closeDiff),
   );
   bar.children[4].classList.add("diff-up");
+  const space = element("input", { type: "checkbox", checked: localStorage.getItem(SPACE_KEY) === "aside" });
+  space.addEventListener("change", () => {
+    localStorage.setItem(SPACE_KEY, space.checked ? "aside" : "shown");
+    showDiff(host, path, then, now, { sides, same });
+  });
+  bar.children[2].after(element("label", { className: "diff-space" }, space, element("span", { textContent: "Set white space aside" })));
   const body = element("div", { className: "diff-body" });
   if (!found) {
     body.append(element("p", { className: "diff-empty", textContent: "The two texts are too far apart to set side by side." }));

@@ -212,6 +212,13 @@ fn clip_read() -> String {
     arboard::Clipboard::new().and_then(|mut clip| clip.get_text()).unwrap_or_default()
 }
 
+/// Puts text on the system clipboard, written here so the page never asks the reader for leave to
+/// write it.
+#[tauri::command]
+fn clip_write(text: String) -> Result<(), String> {
+    arboard::Clipboard::new().and_then(|mut clip| clip.set_text(text)).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn tree_list(app: State<App>, dir: String) -> Result<Vec<files::Entry>, String> {
     files::list(&root_of(&app)?, &dir)
@@ -1153,6 +1160,7 @@ fn open(launch: Launch) {
             term_resize,
             term_close,
             clip_read,
+            clip_write,
             commands_read,
             launch_take,
             app_version,

@@ -254,7 +254,7 @@ export function clipText() {
 }
 
 export function copyText(text) {
-  return navigator.clipboard.writeText(text).catch(() => {});
+  return invoke("clip_write", { text }).catch(() => {});
 }
 
 const inMenus = (target) => state.stack.some((menu) => menu.contains(target));

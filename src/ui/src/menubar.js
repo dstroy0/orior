@@ -272,6 +272,7 @@ const COMMANDS = {
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
   "scheme-system": (args) => setFollowSystem(onOff(args) ?? !followsSystem()),
   "undo-history": () => showPane("undo"),
+  "compare-clipboard": () => editing().compareWithClipboard(),
   "commit-view": () => showPane("changes"),
   push: () => gitSays("Pushing", () => invoke("git_push")),
   pull: () => gitSays("Pulling", () => invoke("git_pull")),
