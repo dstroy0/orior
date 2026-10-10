@@ -1935,6 +1935,13 @@ mod tests {
     }
 
     #[test]
+    fn zig_mojo_and_ansible_are_served_where_their_servers_are_found() {
+        for (language, program) in [("zig", "zls"), ("mojo", "mojo-lsp-server"), ("ansible", "ansible-language-server")] {
+            assert_eq!(Servers::spec_for(language).map(|(_, spec)| spec.program).as_deref(), Some(program), "{language}");
+        }
+    }
+
+    #[test]
     fn a_hover_reads_as_markdown_in_each_shape() {
         assert_eq!(markdown_of(&json!({"kind": "markdown", "value": "**x**"})), "**x**");
         assert_eq!(markdown_of(&json!([{"language": "cpp", "value": "int x"}, "a note"])), "```cpp\nint x\n```\n\na note");

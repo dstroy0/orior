@@ -221,30 +221,73 @@ export class Session {
     this.highlight = new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule());
   }
 
-  // Every region that folds: the parse's where the file has one, and otherwise read from the whole
-  // text, which only folding everything asks for.
+  // Every region that folds: the parse's where the file has one, the headings' and blocks' the
+  // language marks, and those read from the indentation of the lines the others leave, which only
+  // folding everything asks for.
   regions() {
-    const folds = this.highlight.parse?.folds;
-    return folds ? new Map(folds) : regions(this.doc, this.indent.size);
+    const found = regions(this.doc, this.indent.size);
+    for (const [line, end] of this.sectionFolds() ?? []) {
+      found.set(line, end);
+    }
+    for (const line of this.highlight.parse?.folds?.keys() ?? []) {
+      const end = this.parseEnd(line);
+      if (end > line) {
+        found.set(line, end);
+      }
+    }
+    return found;
   }
 
-  // Whether a line opens a region: by the parse where the file has one, and otherwise read from the
-  // lines just after it.
+  // The last line of the region the parse gives a line, or -1 where it gives none. A parse's region
+  // runs to the line of its closing bracket; where that line starts with the bracket at the first
+  // line's indent, the region ends on the line before it, which the fold takes in where it holds
+  // closing brackets alone, as it takes in the one after a region read from the indentation.
+  parseEnd(line) {
+    const end = this.highlight.parse?.folds?.get(line);
+    if (end === undefined) {
+      return -1;
+    }
+    const text = this.doc.line(end);
+    const size = this.indent.size;
+    const own = /^\s*[\])}]/.test(text) && indentOf(text, size) === indentOf(this.doc.line(line), size) ? end - 1 : end;
+    return own > line ? own : -1;
+  }
+
+  // The folds of the headings and blocks the language marks, where it marks any, kept until the text
+  // changes.
+  sectionFolds() {
+    if (!this.language?.folds) {
+      return null;
+    }
+    if (this.sectionsAt !== this.doc.id || this.sectionsOf !== this.language) {
+      this.sections = this.language.folds(this.doc);
+      this.sectionsAt = this.doc.id;
+      this.sectionsOf = this.language;
+    }
+    return this.sections;
+  }
+
+  // Whether a line opens a region: by the parse where it gives the line one, by the language's
+  // headings and blocks, and otherwise read from the lines just after it.
   opens(line) {
-    const folds = this.highlight.parse?.folds;
-    return folds ? folds.has(line) : opens(this.doc, line, this.indent.size);
+    return this.parseEnd(line) > line || Boolean(this.sectionFolds()?.has(line)) || opens(this.doc, line, this.indent.size);
   }
 
-  // The last line of the region a line opens, or -1: the kept end where the region is folded, and
-  // otherwise read from the lines after it and kept until the text changes.
+  // The last line of the region a line opens, or -1: the kept end where the region is folded, the
+  // parse's or the language's where they give one, and otherwise read from the lines after it and
+  // kept until the text changes.
   endOf(line) {
     const folded = this.folded.get(line);
     if (folded !== undefined) {
       return folded;
     }
-    const folds = this.highlight.parse?.folds;
-    if (folds) {
-      return folds.get(line) ?? -1;
+    const parsed = this.parseEnd(line);
+    if (parsed > line) {
+      return parsed;
+    }
+    const section = this.sectionFolds()?.get(line);
+    if (section !== undefined) {
+      return section;
     }
     if (this.foundAt !== this.doc.id) {
       this.found = new Map();

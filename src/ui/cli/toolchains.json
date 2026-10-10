@@ -239,6 +239,56 @@
       "places": {"windows": ["%USERPROFILE%\\.elan\\bin"], "any": ["~/.elan/bin"]}
     },
     {
+      "id": "zig",
+      "name": "Zig",
+      "group": "Languages",
+      "for": "builds and runs Zig",
+      "programs": ["zig"],
+      "version": ["version"],
+      "install": {"any": "https://ziglang.org/download/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
+    },
+    {
+      "id": "zls",
+      "name": "ZLS",
+      "group": "Languages",
+      "for": "reads Zig for an editor",
+      "programs": ["zls"],
+      "server": {"program": "zls", "args": [], "languages": ["zig"]},
+      "install": {"any": "https://github.com/zigtools/zls/releases"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
+    },
+    {
+      "id": "mojo",
+      "name": "Mojo",
+      "group": "Languages",
+      "for": "builds and runs Mojo, and reads it for an editor",
+      "programs": ["mojo", "mojo-lsp-server"],
+      "server": {"program": "mojo-lsp-server", "args": [], "languages": ["mojo"]},
+      "install": {"any": "https://docs.modular.com/mojo/manual/get-started"},
+      "places": {"any": ["~/.modular/bin", "~/.pixi/bin", "~/.local/bin"]}
+    },
+    {
+      "id": "quarto",
+      "name": "Quarto",
+      "group": "Languages",
+      "for": "renders a .qmd to a document",
+      "programs": ["quarto"],
+      "version": ["--version"],
+      "install": {"any": "https://quarto.org/docs/get-started/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Quarto\\bin", "%ProgramFiles%\\Quarto\\bin"], "any": ["/usr/local/bin", "/opt/quarto/bin"]}
+    },
+    {
+      "id": "ansible-language-server",
+      "name": "Ansible Language Server",
+      "group": "Languages",
+      "for": "reads Ansible's playbooks and roles for an editor",
+      "programs": ["ansible-language-server"],
+      "server": {"program": "ansible-language-server", "args": ["--stdio"], "languages": ["ansible"]},
+      "install": {"any": "https://github.com/ansible/vscode-ansible"},
+      "places": {"windows": ["%APPDATA%\\npm"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin"]}
+    },
+    {
       "id": "tex",
       "name": "TeX: MiKTeX or TeX Live",
       "group": "Languages",

@@ -6,6 +6,9 @@
 // on counted from the document's first, and how deep it sits, by its indent or its heading's level.
 // A language with no rules here has no symbols, and a document longer than LIMIT is not read.
 
+import { headingsOf } from "./editor/sections.js";
+import { languageById } from "./plugins.js";
+
 const LIMIT = 50000;
 
 // The deepest a symbol is drawn.
@@ -177,5 +180,23 @@ export function symbolsOf(language, doc) {
   if (language === "tex") {
     return tex(doc);
   }
-  return RULES[language] ? byRules(doc, RULES[language]) : [];
+  if (RULES[language]) {
+    return byRules(doc, RULES[language]);
+  }
+  const own = languageById(language);
+  return own ? byPlugin(doc, own) : [];
+}
+
+// The symbols of a language a plugin gives: its headings, each as deep as its level, and what its
+// rules find, each a step deeper than the heading it stands under and as deep again as its indent.
+function byPlugin(doc, own) {
+  const headings = own.sections?.headings ? headingsOf(doc, own.sections) : [];
+  const top = Math.min(...headings.map((one) => one.level));
+  const marked = headings.map((one) => ({ name: one.name, kind: "heading", line: one.line, depth: Math.min(DEEPEST, one.level - top) }));
+  const ruled = own.outline?.length ? byRules(doc, own.outline) : [];
+  for (const symbol of ruled) {
+    const under = [...marked].reverse().find((one) => one.line < symbol.line);
+    symbol.depth = Math.min(DEEPEST, symbol.depth + (under ? under.depth + 1 : 0));
+  }
+  return [...marked, ...ruled].sort((a, b) => a.line - b.line);
 }
