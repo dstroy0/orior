@@ -3102,7 +3102,8 @@ body[data-view="run"] .statusbar .ed-status {
 
 .node[aria-current="true"],
 .open-row[aria-current="true"],
-.sym[aria-current="true"] {
+.sym[aria-current="true"],
+.commit[aria-current="true"] {
   background: var(--ed-sel-idle);
   color: var(--fg);
 }
@@ -3269,6 +3270,12 @@ body[data-view="run"] .statusbar .ed-status {
   height: 7px;
   border: 1.5px solid var(--fg-3);
   border-radius: 50%;
+}
+
+/* The state the text is in, in Undo History. */
+.commit[aria-current="true"] .commit-dot::before {
+  border-color: var(--signal);
+  background: var(--signal);
 }
 
 /* The definitions beside the editor: the open file type's oracle table, row by row. */

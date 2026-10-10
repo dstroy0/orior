@@ -46,6 +46,7 @@
       "items": [
         { "label": "Undo", "command": "undo", "keys": "Ctrl+Z", "needs": "editor" },
         { "label": "Redo", "command": "redo", "keys": "Ctrl+Y", "needs": "editor" },
+        { "label": "Undo History", "command": "undo-history" },
         "-",
         { "label": "Cut", "command": "cut", "keys": "Ctrl+X", "needs": "editor" },
         { "label": "Copy", "command": "copy", "keys": "Ctrl+C", "needs": "editor" },

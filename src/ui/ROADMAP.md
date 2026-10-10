@@ -14,15 +14,14 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Editing
 
-1. **A history of undo that branches.** Changes undone and then typed over stay in the history as a branch of it, and a view of the history steps to any of them.
-2. **Jump to any place on the screen.** A key marks every place in sight that matches a letter or two, and the mark's letter puts the cursor there.
-3. **Vim's keys.** The editor's keys as Vim has them, its modes, motions, operators, registers and the `.` that repeats, set on or off in Preferences.
-4. **What is not drawn.** Line ends, tabs and spaces shown as marks where the reader asks, and comments hidden and shown again with one key.
-5. **Folds that keep the close.** A folded block shows its closing bracket on the line it starts on.
-6. **Print.** The file open, or the part selected, printed in its colors with its line numbers.
-7. **Colors from the text.** A log or an output file with ANSI color codes in it shows in those colors, the codes hidden.
-8. **Columns past the end of a line.** The cursor goes past the end of a short line into the space beyond it, and a column selection made by dragging with Alt held takes the same columns of every line, short lines among them.
-9. **Indentation by file.** Each file's tab size and whether it indents with tabs or spaces, as an `.editorconfig` or a line in the file sets it, over the tree's own.
+1. **Jump to any place on the screen.** A key marks every place in sight that matches a letter or two, and the mark's letter puts the cursor there.
+2. **Vim's keys.** The editor's keys as Vim has them, its modes, motions, operators, registers and the `.` that repeats, set on or off in Preferences.
+3. **What is not drawn.** Line ends, tabs and spaces shown as marks where the reader asks, and comments hidden and shown again with one key.
+4. **Folds that keep the close.** A folded block shows its closing bracket on the line it starts on.
+5. **Print.** The file open, or the part selected, printed in its colors with its line numbers.
+6. **Colors from the text.** A log or an output file with ANSI color codes in it shows in those colors, the codes hidden.
+7. **Columns past the end of a line.** The cursor goes past the end of a short line into the space beyond it, and a column selection made by dragging with Alt held takes the same columns of every line, short lines among them.
+8. **Indentation by file.** Each file's tab size and whether it indents with tabs or spaces, as an `.editorconfig` or a line in the file sets it, over the tree's own.
 
 ## Code intelligence
 

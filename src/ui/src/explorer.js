@@ -27,6 +27,7 @@ const PANES = [
   ["open", "Open Editors"],
   ["folder", null],
   ["outline", "Outline"],
+  ["undo", "Undo History"],
   ["timeline", "Timeline"],
   ["local", "Local History"],
   ["changes", "Changes"],
@@ -37,7 +38,7 @@ const PANES = [
 // The panes each icon of the tool strip shows, one group at a time.
 const GROUPS = {
   explorer: ["search", "usages", "todo", "open", "folder"],
-  structure: ["outline"],
+  structure: ["outline", "undo"],
   commit: ["changes", "timeline", "local"],
   problems: ["problems"],
   git: ["git"],
@@ -53,6 +54,7 @@ const state = {
   outline: { session: null, symbols: [], rows: [] },
   timeline: { path: null, commits: [] },
   local: { path: null, snapshots: [] },
+  undo: { session: null, wait: 0 },
 };
 
 function element(tag, props = {}, ...children) {
@@ -338,6 +340,47 @@ export async function drawLocalHistory(path, again = false) {
       return row;
     })
   );
+}
+
+// Undo History: every state the open file's text has been in since it opened, the first at the top,
+// each by when it was made and the line its step changed. A branch an edit after an undo left stands
+// a level in, under the state it was made from. The state the text is in is marked, and a press on a
+// row takes the text to its state. Drawn at most once a frame.
+export function drawUndo(session) {
+  state.undo.session = session;
+  if (state.undo.wait || !paneOpen("undo")) {
+    return;
+  }
+  state.undo.wait = window.requestAnimationFrame(() => {
+    state.undo.wait = 0;
+    const shown = state.undo.session;
+    const rows = shown ? shown.doc.states() : [];
+    const body = document.getElementById("undo-history");
+    const focused = body.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+    body.replaceChildren(
+      ...rows.map(({ id, depth, step, here }) => {
+        const line = step?.edits[0]?.[0]?.from.line;
+        const row = element("button", { className: "commit", type: "button", title: step ? `${clock(step.made)}${step.kind ? `, ${step.kind}` : ""}` : "" });
+        row.dataset.key = String(id);
+        row.dataset.depth = String(depth);
+        if (here) {
+          row.setAttribute("aria-current", "true");
+        }
+        const dot = element("span", { className: "icon commit-dot" });
+        dot.setAttribute("aria-hidden", "true");
+        row.append(...guides(depth), dot, element("span", { className: "name", textContent: step ? clock(step.made) : "As opened" }));
+        if (line !== undefined) {
+          row.append(element("span", { className: "where", textContent: `line ${shown.base + line + 1}` }));
+        }
+        row.addEventListener("click", () => state.hooks.goToState(id));
+        return row;
+      })
+    );
+    if (focused !== null) {
+      [...body.children].find((row) => row.dataset.key === focused)?.focus();
+    }
+    body.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+  });
 }
 
 function localItems(event) {

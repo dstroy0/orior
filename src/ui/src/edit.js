@@ -30,7 +30,7 @@ import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
 import { symbolsOf } from "./outline.js";
@@ -586,6 +586,7 @@ function show(path) {
   drawCrumbs();
   reveal(path);
   drawOutline(tab?.session ?? null);
+  drawUndo(tab?.session ?? null);
   drawTimeline(tab ? tab.file : null);
   drawLocalHistory(tab?.commit ? null : (tab?.file ?? null));
 }
@@ -1669,6 +1670,7 @@ export async function startEdit(defs) {
       drawTabs();
       window.clearTimeout(outlining);
       outlining = window.setTimeout(() => drawOutline(tabOf(state.active)?.session ?? null), 300);
+      drawUndo(tabOf(state.active)?.session ?? null);
     },
   };
   state.editor = new Editor(document.getElementById("editor"), { ...state.editorHooks, statusHost: document.getElementById("statusbar") });
@@ -1801,6 +1803,7 @@ export async function startEdit(defs) {
     close: (path) => tabOf(path) && closeTab(tabOf(path)),
     tabMenu: (path) => tabMenu(tabOf(path)),
     goTo: (line) => jumpTo(line),
+    goToState: (id) => (state.split?.focused ? state.split.editor : state.editor)?.goToState(id),
     cursorLine,
     openCommit,
     showSnapshot,
@@ -1819,6 +1822,7 @@ export async function startEdit(defs) {
     },
     panesChanged: () => {
       drawOutline(tabOf(state.active)?.session ?? null);
+      drawUndo(tabOf(state.active)?.session ?? null);
       drawTimeline(state.active ? fileOf(state.active) : null);
       drawLocalHistory(state.active ? fileOf(state.active) : null);
       drawCommit(state.changes);

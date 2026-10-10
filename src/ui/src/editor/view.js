@@ -1045,11 +1045,20 @@ export class Editor {
   }
 
   undo(back = true) {
+    this.travel(() => (back ? this.doc.undo() : this.doc.redo()));
+  }
+
+  // Goes to any state of the text's history, as Undo History lists them.
+  goToState(id) {
+    this.travel(() => this.doc.goTo(id));
+  }
+
+  travel(step) {
     if (this.s.readOnly) {
       return;
     }
     this.doc.writer = this.s;
-    const found = back ? this.doc.undo() : this.doc.redo();
+    const found = step();
     this.doc.writer = null;
     if (!found) {
       return;

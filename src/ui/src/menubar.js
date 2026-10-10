@@ -260,6 +260,7 @@ const COMMANDS = {
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
   "scheme-system": (args) => setFollowSystem(onOff(args) ?? !followsSystem()),
+  "undo-history": () => showPane("undo"),
   "macro-record": () => recordMacro(),
   "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
   "macro-keep": (args) => keepLast(args.join(" ")),

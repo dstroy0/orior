@@ -3,6 +3,12 @@
 
 // A text as the editor holds it: its lines, the edits written to it, and the steps that undo them.
 //
+// The steps are a tree of the states the text has been in. Each state but the first is reached by
+// one step from the state it came from, which holds the edits that undo it while the text is in it
+// or past it, and the edits that redo it once it is undone. Undo goes to the state before; redo goes
+// to the state undo last left, or the newest made from this one. An edit made after an undo starts a
+// branch, and the states undone stay in the tree beside it, each reached again by going to it.
+//
 // A place in the text is { line, col }, both from 0, col counted in UTF-16 units as a JS string
 // counts them. An edit is { from, to, text }: the span it removes and what it writes there. The
 // edits of one change never overlap and each is placed against the text as it stood before any.
@@ -99,8 +105,11 @@ export class Doc {
     // dirty while the id differs from the one it was saved at.
     this.id = 0;
     this.ids = 0;
-    this.done = [];
-    this.undone = [];
+    // The step into each state, by the state's id; the state redo goes to from each; and the
+    // states that have a step out of them.
+    this.steps = new Map();
+    this.next = new Map();
+    this.forks = new Set();
     this.watchers = new Set();
   }
 
@@ -229,31 +238,36 @@ export class Doc {
   }
 
   // Writes a change the undo history keeps. `before` is what the caller restores on undo, its
-  // selections, and `kind` joins this change to the last one where both are typing of one kind.
+  // selections, and `kind` joins this change to the last one where both are typing of one kind and
+  // no state has been made from the last one's.
   change(edits, kind, before) {
     const { edits: written, undo } = this.write(edits);
     if (!written.length) {
       return { edits: written, undo };
     }
-    this.undone = [];
     const from = this.id;
     this.ids += 1;
     this.id = this.ids;
-    const last = this.done.at(-1);
+    const last = this.steps.get(from);
     const now = performance.now();
-    if (kind && last && !last.sealed && last.kind === kind && now - last.at < JOINED) {
-      last.steps.push(undo);
+    if (kind && last?.done && !last.sealed && last.kind === kind && now - last.at < JOINED && !this.forks.has(from)) {
+      last.edits.push(undo);
+      this.steps.delete(from);
       last.to = this.id;
       last.at = now;
+      this.steps.set(this.id, last);
+      this.next.set(last.from, this.id);
     } else {
-      this.done.push({ kind, steps: [undo], before, after: before, from, to: this.id, at: now, sealed: false });
+      this.steps.set(this.id, { kind, edits: [undo], done: true, before, after: before, from, to: this.id, at: now, made: Date.now(), sealed: false });
+      this.next.set(from, this.id);
+      this.forks.add(from);
     }
     return { edits: written, undo };
   }
 
   // Records the selections a change left, for redo to restore.
   settle(after) {
-    const last = this.done.at(-1);
+    const last = this.steps.get(this.id);
     if (last) {
       last.after = after;
     }
@@ -261,7 +275,7 @@ export class Doc {
 
   // Ends the step being typed. The next edit starts a step of its own.
   seal() {
-    const last = this.done.at(-1);
+    const last = this.steps.get(this.id);
     if (last) {
       last.sealed = true;
     }
@@ -271,35 +285,107 @@ export class Doc {
   shift(lines) {
     const down = (p) => ({ line: p.line + lines, col: p.col });
     const sel = (one) => ({ anchor: down(one.anchor), head: down(one.head), goal: one.goal });
-    for (const entry of [...this.done, ...this.undone]) {
-      entry.steps = entry.steps.map((step) => step.map((edit) => ({ from: down(edit.from), to: down(edit.to), text: edit.text })));
-      entry.before = entry.before?.map(sel);
-      entry.after = entry.after?.map(sel);
+    for (const step of this.steps.values()) {
+      step.edits = step.edits.map((group) => group.map((edit) => ({ from: down(edit.from), to: down(edit.to), text: edit.text })));
+      step.before = step.before?.map(sel);
+      step.after = step.after?.map(sel);
     }
   }
 
   undo() {
-    return this.travel(this.done, this.undone, "before", "from");
+    const step = this.steps.get(this.id);
+    if (!step) {
+      return null;
+    }
+    const edits = this.travel(step);
+    this.next.set(step.from, step.to);
+    this.id = step.from;
+    return { selections: step.before, edits };
   }
 
   redo() {
-    return this.travel(this.undone, this.done, "after", "to");
-  }
-
-  travel(source, target, restore, id) {
-    const entry = source.pop();
-    if (!entry) {
+    const step = this.steps.get(this.next.get(this.id));
+    if (!step || step.done) {
       return null;
     }
+    const edits = this.travel(step);
+    this.id = step.to;
+    return { selections: step.after, edits };
+  }
+
+  // Writes a step's edits, undoing it where it is done and redoing it where it is undone, and keeps
+  // the edits that go back the other way. Answers the first edits written.
+  travel(step) {
     const back = [];
     let changed = null;
-    for (const step of [...entry.steps].reverse()) {
-      const { edits, undo } = this.write(step);
+    for (const group of [...step.edits].reverse()) {
+      const { edits, undo } = this.write(group);
       back.push(undo);
       changed = changed ?? edits;
     }
-    target.push({ ...entry, steps: back, sealed: true });
-    this.id = entry[id];
-    return { selections: entry[restore], edits: changed ?? [] };
+    step.edits = back;
+    step.done = !step.done;
+    step.sealed = true;
+    return changed ?? [];
+  }
+
+  // The states from `id` back to the first, `id` first.
+  chain(id) {
+    const ids = [id];
+    for (let step = this.steps.get(id); step; step = this.steps.get(step.from)) {
+      ids.push(step.from);
+    }
+    return ids;
+  }
+
+  // Goes to any state of the tree: undoing back to the state it shares with the one it is in, then
+  // redoing on to it. Answers the selections the last step restores, or null where it is there
+  // already or there is no such state.
+  goTo(id) {
+    if (id === this.id || (id !== 0 && !this.steps.has(id))) {
+      return null;
+    }
+    const path = this.chain(id);
+    const shared = new Set(path);
+    let found = null;
+    while (!shared.has(this.id)) {
+      const back = this.undo();
+      if (!back) {
+        return found;
+      }
+      found = back;
+    }
+    for (const at of path.slice(0, path.indexOf(this.id)).reverse()) {
+      this.next.set(this.steps.get(at).from, at);
+      found = this.redo() ?? found;
+    }
+    return found;
+  }
+
+  // The states of the tree as a view lists them, the first first: after each state, the branches
+  // made from it before its newest, each a level deeper, then the newest at its own level. Each is
+  // its id, its level, the step into it, and whether the text is in it.
+  states() {
+    const made = new Map();
+    for (const step of this.steps.values()) {
+      if (!made.has(step.from)) {
+        made.set(step.from, []);
+      }
+      made.get(step.from).push(step.to);
+    }
+    const rows = [];
+    const waiting = [[0, 0]];
+    while (waiting.length) {
+      const [id, depth] = waiting.pop();
+      rows.push({ id, depth, step: this.steps.get(id) ?? null, here: id === this.id });
+      const children = (made.get(id) ?? []).sort((a, b) => a - b);
+      if (children.length) {
+        waiting.push([children.at(-1), depth]);
+        for (const child of children.slice(0, -1).reverse()) {
+          waiting.push([child, depth + 1]);
+        }
+      }
+    }
+    return rows;
   }
 }
