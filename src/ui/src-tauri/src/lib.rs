@@ -35,6 +35,8 @@ struct App {
     servers: Arc<servers::Servers>,
     symbols: symbols::Index,
     debugger: Arc<debug::Debugger>,
+    /// The tree's runs of its tests, the one going and the number of the last.
+    tests: orior_cli::test_runs::Runs,
     windows: AtomicU64,
     /// The watch over the tree open, which tells the page of changes made outside the window.
     watcher: Mutex<Option<watch::Watcher>>,
@@ -844,6 +846,39 @@ fn tests_found(app: State<App>) -> Result<Vec<orior_cli::testing::Test>, String>
     Ok(orior_cli::testing::found(&root_of(&app)?))
 }
 
+/// Runs `given`, the tree's tests by their names or its files of tests by their paths: spread over the
+/// machine's cores where `parallel`, recording which lines run where `cover`. What the run finds comes
+/// as "tests-run". Says the run's number.
+#[tauri::command(async)]
+fn tests_run(handle: AppHandle, app: State<App>, given: Vec<String>, parallel: bool, cover: bool) -> Result<u64, String> {
+    let root = root_of(&app)?;
+    let tell: orior_cli::test_runs::Tell = Arc::new(move |heard| {
+        let _ = handle.emit("tests-run", heard);
+    });
+    app.tests.start(&root, given, parallel, cover, tell)
+}
+
+/// Stops the run of tests going, where one is.
+#[tauri::command]
+fn tests_stop(app: State<App>) {
+    app.tests.stop();
+}
+
+/// Debugs the test `id`, named as pytest names it, with `breakpoints`, each file's lines. The adapter's
+/// events come as "debug-event". Says which toolchain debugs it.
+#[tauri::command(async)]
+fn debug_test(handle: AppHandle, app: State<App>, id: String, breakpoints: HashMap<String, Vec<u32>>) -> Result<String, String> {
+    let root = root_of(&app)?;
+    let debugger = app.debugger.clone();
+    let emit: debug::Emit = Arc::new(move |event, body| {
+        if event == "terminated" || event == "adapterStopped" {
+            debugger.ended();
+        }
+        let _ = handle.emit("debug-event", serde_json::json!({"event": event, "body": body}));
+    });
+    app.debugger.start_test(&root, &id, &breakpoints, emit)
+}
+
 /// The edit that sorts the methods of the class at or around `line` of a text in `language` by name.
 #[tauri::command]
 fn code_sort(language: String, text: String, line: u32) -> Result<servers::TextEdit, String> {
@@ -1519,6 +1554,9 @@ fn open(launch: Launch) {
             fill_paragraph,
             reads_file,
             tests_found,
+            tests_run,
+            tests_stop,
+            debug_test,
             maven_settings,
             maven_set,
             snapshots_line,

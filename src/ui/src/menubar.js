@@ -32,6 +32,7 @@ import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, rec
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
 import { fuzzy } from "./fuzzy.js";
+import { runAllTests, runFailedTests, setTestsParallel, stopTests, testsParallel } from "./tests.js";
 import { showPreferences } from "./preferences.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
@@ -269,6 +270,11 @@ const COMMANDS = {
   "maven-settings": () => askMavenSettings(),
   "update-snapshots": () => updateSnapshots(),
   tests: () => showTests(),
+  "run-tests": () => runAllTests(),
+  "run-failed-tests": () => runFailedTests(),
+  "cover-tests": () => runAllTests({ cover: true }),
+  "stop-tests": () => stopTests(),
+  "parallel-tests": (args) => setTestsParallel(args[0] ? args[0] === "on" : !testsParallel()),
   "parameter-hints": (args) => editing().setHints("parameter", onOff(args) ?? !editing().hints("parameter")),
   "flick-scroll": (args) => editing().setFlickScroll(onOff(args) ?? !editing().flickScroll()),
   "memory-budget": (args) => askBudget(args[0]),
@@ -397,6 +403,7 @@ const CHECKS = {
   "column-mode": () => editing().columnMode(),
   "auto-save": () => saving("auto-save"),
   "format-on-save": () => saving("format"),
+  "parallel-tests": testsParallel,
   breadcrumbs: crumbsShown,
   "bracket-pairs": () => editing().brackets(),
   whitespace: () => editing().marks(),

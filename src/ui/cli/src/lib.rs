@@ -45,6 +45,7 @@ pub mod shape;
 pub mod structure;
 pub mod symbols;
 pub mod templates;
+pub mod test_runs;
 pub mod testing;
 pub mod toolchains;
 pub mod validate;

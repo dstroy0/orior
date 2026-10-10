@@ -62,6 +62,7 @@ const STRIP = {
     ["debug", "debug", "Debug", "Alt+5", () => state.hooks.run("debug-view"), () => !document.getElementById("debug").hidden],
     ["terminal", "terminal", "Terminal", "Ctrl+`", () => state.hooks.run("terminal-view"), () => !document.getElementById("term").hidden],
     ["problems", "problems", "Problems", "", () => openGroup("problems"), () => explorerShown("problems")],
+    ["tests", "tests", "Tests", "", () => openGroup("tests"), () => explorerShown("tests")],
     ["git", "git", "Git", "", () => openGroup("git"), () => explorerShown("git")],
   ],
 };
@@ -156,7 +157,7 @@ const showGroupPane = (group) => {
   togglePane(true, { take: false, pin: false });
 };
 const HOVERED = new Map([
-  ...["explorer", "structure", "commit", "problems", "git"].map((group) => [group, () => showGroupPane(group)]),
+  ...["explorer", "structure", "commit", "problems", "tests", "git"].map((group) => [group, () => showGroupPane(group)]),
   [
     "run",
     () => {

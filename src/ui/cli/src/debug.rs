@@ -220,9 +220,20 @@ impl Debugger {
     /// Builds the file at `path` where it is built, starts its language's adapter, sets
     /// `breakpoints`, each file's lines, and runs it. Says which toolchain debugs it.
     pub fn start(&self, root: &Path, path: &Path, language: &str, breakpoints: &HashMap<String, Vec<u32>>, emit: Emit) -> Result<String, String> {
+        self.begin(root, path, language, breakpoints, emit, None)
+    }
+
+    /// Debugs the Python test uid=197609(Douglas) gid=197609 groups=197609, named as pytest names it, run by pytest with the tree's Python,
+    /// with `breakpoints`, each file's lines. Says which toolchain debugs it.
+    pub fn start_test(&self, root: &Path, id: &str, breakpoints: &HashMap<String, Vec<u32>>, emit: Emit) -> Result<String, String> {
+        let file = id.split("::").next().unwrap_or(id);
+        self.begin(root, &root.join(file), "python", breakpoints, emit, Some(id))
+    }
+
+    fn begin(&self, root: &Path, path: &Path, language: &str, breakpoints: &HashMap<String, Vec<u32>>, emit: Emit, test: Option<&str>) -> Result<String, String> {
         self.stop();
         let (spec, tool, tool_id, adapter_program) = adapter_for(language)?;
-        let program = build(root, path, language, &tool_id)?;
+        let program = if test.is_some() { None } else { build(root, path, language, &tool_id)? };
         let names = [
             ("program", program.as_ref().map_or_else(|| path.display().to_string(), |out| out.display().to_string())),
             ("path", path.display().to_string()),
@@ -260,7 +271,17 @@ impl Debugger {
             "supportsVariableType": true, "supportsRunInTerminalRequest": false
         });
         adapter.request("initialize", initialize, STARTING).map_err(&failed)?;
-        let launched = adapter.send("launch", filled(&spec.launch, &names)).map_err(&failed)?;
+        let mut launch = filled(&spec.launch, &names);
+        // A test is launched as pytest running it, in place of a program.
+        if let (Some(id), Some(map)) = (test, launch.as_object_mut()) {
+            map.remove("program");
+            map.insert("module".into(), json!("pytest"));
+            map.insert("args".into(), json!([id, "-p", "no:cacheprovider", "-q"]));
+            if let Some(python) = crate::test_runs::python() {
+                map.insert("python".into(), json!(python.display().to_string()));
+            }
+        }
+        let launched = adapter.send("launch", launch).map_err(&failed)?;
         if readied.recv_timeout(STARTING).is_err() {
             if let Ok(Err(said)) = launched.try_recv() {
                 return Err(failed(said));

@@ -48,6 +48,7 @@ import { moveDeclaration } from "./move.js";
 import { shapeSearch } from "./shapes.js";
 import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
+import { coverageOf, startTests, testMenu, testsOf } from "./tests.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
@@ -2155,6 +2156,27 @@ export async function startEdit(defs) {
     const file = fileOfSession(s);
     return file ? bookmarksOf(file) : null;
   };
+  // Each test's mark in the gutter, and the lines the last run with coverage ran, by the file a
+  // session shows; a press on a mark opens the test's menu.
+  state.editor.testsOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? testsOf(file) : null;
+  };
+  state.editor.coverageOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? coverageOf(file) : null;
+  };
+  state.editor.onTestMark = (line, event) => {
+    const file = fileOfSession(state.editor.s);
+    if (file) {
+      testMenu(file, line, event.clientX, event.clientY);
+    }
+  };
+  startTests({
+    openAt: (path, line, col) => openAt(path, line, col),
+    saveAll: () => editing().saveAll({ auto: true }),
+    repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+  });
   startBookmarks({
     here: () => {
       const tab = tabOf(state.active);
@@ -2208,7 +2230,7 @@ export async function startEdit(defs) {
     editor.addKeys(state.editorKeys);
     editor.bindKeys(state.boundKeys);
     editor.setVim(vimKeys());
-    for (const name of ["breakpointsOf", "bookmarksOf", "pausedOf", "onLock"]) {
+    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock"]) {
       editor[name] = state.editor[name];
     }
     editor.onBreakpoint = (line) => {

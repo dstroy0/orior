@@ -4134,6 +4134,54 @@ body[data-view="run"] .statusbar .ed-status {
   box-shadow: inset 0 0 0 1.5px var(--ed-error);
 }
 
+/* A test's mark beside the breakpoints' strip, colored by its last result; a press opens its menu.
+   Beside the change marks, a line the last run with coverage ran, or could run and did not. */
+.ed-test {
+  position: absolute;
+  left: 15px;
+  top: 0;
+  z-index: 1;
+  width: 12px;
+  color: var(--fg-3);
+  font-size: 9px;
+  line-height: var(--code-line);
+  text-align: center;
+  cursor: pointer;
+}
+
+.ed-test.passed {
+  color: var(--ed-added);
+}
+
+.ed-test.failed {
+  color: var(--ed-error);
+}
+
+.ed-test.running {
+  color: var(--signal);
+}
+
+.ed-test:hover {
+  color: var(--hover);
+}
+
+.ed-cover {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+}
+
+.ed-cover.ran {
+  background: var(--ed-added);
+}
+
+.ed-cover.missed {
+  background: var(--ed-error);
+  opacity: 0.75;
+}
+
 /* A bookmark: a ribbon in signal at the gutter's edge, beside where a breakpoint is drawn. */
 .ed-bookmark {
   position: absolute;
@@ -4972,6 +5020,147 @@ textarea.report-field {
   vertical-align: baseline;
   white-space: pre;
   pointer-events: none;
+}
+
+/* Tests: the window's buttons, then each file's row and its tests, each marked by its last result, a
+   failure's message under it, then each file's coverage as a bar. */
+.tests-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.tests-button {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.tests-button:hover:not(:disabled) {
+  border-color: var(--hover);
+  color: var(--fg);
+}
+
+.tests-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tests-parallel {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  color: var(--fg-3);
+  font: 12px var(--head);
+}
+
+.tests-said.failed {
+  color: var(--ed-error);
+}
+
+.test-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--fg-3);
+}
+
+.test-mark.passed {
+  background: var(--ed-added);
+  box-shadow: none;
+}
+
+.test-mark.failed {
+  background: var(--ed-error);
+  box-shadow: none;
+}
+
+.test-mark.skipped {
+  background: var(--fg-3);
+  box-shadow: none;
+}
+
+.test-mark.running {
+  box-shadow: inset 0 0 0 1.5px var(--signal);
+  animation: test-running 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes test-running {
+  to {
+    background: var(--signal);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .test-mark.running {
+    animation: none;
+    background: var(--signal);
+  }
+}
+
+.tests-count {
+  margin-left: 0.35rem;
+  font: 11px var(--code);
+}
+
+.tests-count.passed {
+  color: var(--ed-added);
+}
+
+.tests-count.failed {
+  color: var(--ed-error);
+}
+
+.tests-count.skipped {
+  color: var(--fg-3);
+}
+
+.test-said {
+  padding: 0 0.6rem 0.2rem 2.6rem;
+  overflow: hidden;
+  color: var(--ed-error);
+  font: 11.5px var(--code);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tests-cover-head {
+  margin: 0.6rem 0.6rem 0.2rem;
+  color: var(--fg-2);
+  font: 600 12px var(--head);
+}
+
+.tests-cover-bar {
+  flex: none;
+  width: 56px;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ed-error) 55%, transparent);
+  overflow: hidden;
+}
+
+.tests-cover-ran {
+  display: block;
+  height: 100%;
+  background: var(--ed-added);
+}
+
+.tests-cover .name {
+  flex: 1;
+}
+
+.tests-cover .where {
+  margin-left: 0.4rem;
+  width: 3em;
+  text-align: right;
 }
 
 /* Problems: a file's row, then its diagnostics, each marked in its severity's color. */

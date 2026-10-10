@@ -39,6 +39,7 @@ const PANES = [
   ["review", "Review"],
   ["changes", "Changes"],
   ["problems", "Problems"],
+  ["tests", "Tests"],
   ["git", "Git"],
 ];
 
@@ -48,6 +49,7 @@ const GROUPS = {
   structure: ["outline", "undo"],
   commit: ["changes", "timeline", "local", "review"],
   problems: ["problems"],
+  tests: ["tests"],
   git: ["git"],
 };
 
@@ -131,7 +133,7 @@ export function shownGroup() {
   return state.group;
 }
 
-const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", git: "Git" };
+const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git" };
 
 // The explorer's title, and its group on it, which shows the tree's filter only with the files.
 function drawGroupTitle() {

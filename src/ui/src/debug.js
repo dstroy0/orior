@@ -211,8 +211,51 @@ export async function restartDebug() {
   if (!state.last) {
     return;
   }
+  if (state.last.test) {
+    debugTest(state.last.test);
+    return;
+  }
   await state.hooks.open(state.last.path);
   debugFile();
+}
+
+// Debugs the Python test `id`, named as pytest names it, run by pytest under the debugger with the
+// breakpoints set.
+export async function debugTest(id) {
+  if (state.starting) {
+    return;
+  }
+  if (state.session) {
+    await stopDebug();
+  }
+  const path = id.split("::")[0];
+  state.last = { path, language: "python", test: id };
+  toggleDebugPanel(true);
+  parts.out.replaceChildren();
+  state.paused = null;
+  state.starting = true;
+  sayState(`Starting ${id}…`);
+  const breakpoints = {};
+  for (const [file, lines] of state.breaks) {
+    if (lines.size) {
+      breakpoints[file] = [...lines.keys()];
+    }
+  }
+  try {
+    const tool = await invoke("debug_test", { id, breakpoints });
+    state.session = { path, language: "python", tool };
+    if (!state.paused) {
+      sayState(`Running ${id} under ${tool}`);
+    }
+  } catch (error) {
+    sayState("Did not start", true);
+    write(`${String(error)}\n`, "stderr");
+  } finally {
+    state.starting = false;
+  }
+  for (const file of state.breaks.keys()) {
+    tellBreaks(file);
+  }
 }
 
 export async function stopDebug() {

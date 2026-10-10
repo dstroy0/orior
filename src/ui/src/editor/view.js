@@ -2303,6 +2303,12 @@ export class Editor {
     if (!fromGutter && (event.clientX - box.left >= this.scroller.clientWidth || event.clientY - box.top >= this.scroller.clientHeight)) {
       return;
     }
+    // A press on a test's mark opens its menu.
+    if (fromGutter && event.target.dataset?.test !== undefined && this.onTestMark) {
+      event.preventDefault();
+      this.onTestMark(Number(event.target.dataset.test), event);
+      return;
+    }
     // A press in the gutter's strip by its left edge sets or clears a breakpoint on the line.
     if (fromGutter && this.onBreakpoint && event.clientX - this.gutter.getBoundingClientRect().left < BREAK_STRIP) {
       event.preventDefault();
@@ -3179,6 +3185,9 @@ export class Editor {
     // line a debugged program is stopped on, as the editor's owner gives them.
     const breaks = this.breakpointsOf?.(s) ?? null;
     const marked = this.bookmarksOf?.(s) ?? null;
+    // Each test's last result by its line, and the lines the last run with coverage ran and missed.
+    const tests = this.testsOf?.(s) ?? null;
+    const covered = this.coverageOf?.(s) ?? null;
     const paused = this.pausedOf?.(s) ?? null;
 
     const text = new Map();
@@ -3236,7 +3245,10 @@ export class Editor {
       const here = paused === base + line ? '<span class="ed-pc"></span>' : "";
       const ribbon = marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
       const history = s.history ? this.historyMark(line) : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + number + mark + this.changeMark(line)]);
+      const test = tests?.get(base + line);
+      const testMark = test === undefined ? "" : `<span class="ed-test ${test}" data-test="${base + line}" title="Run or debug the test">▶</span>`;
+      const cover = covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + number + mark + cover + this.changeMark(line)]);
     }
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {
