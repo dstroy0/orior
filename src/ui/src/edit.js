@@ -1678,6 +1678,7 @@ export async function startEdit(defs) {
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
   state.editor.bindKeys(state.boundKeys);
+  state.editor.setVim(vimKeys());
   // The debugger's marks in the gutter, by the file a session shows, a split's the same as the
   // session it was made from. A file as a commit left it has none.
   const fileOfSession = (s) => state.tabs.find((tab) => tab.session === (s?.of ?? s) && !tab.commit)?.file ?? null;
@@ -1731,6 +1732,7 @@ export async function startEdit(defs) {
     editor.onDefinition = state.editor.onDefinition;
     editor.addKeys(state.editorKeys);
     editor.bindKeys(state.boundKeys);
+    editor.setVim(vimKeys());
     for (const name of ["breakpointsOf", "bookmarksOf", "pausedOf", "onLock"]) {
       editor[name] = state.editor[name];
     }
@@ -2071,6 +2073,19 @@ function editorItems() {
 export function bindEditorKeys(list) {
   state.editorKeys = list;
   state.editor?.addKeys(list);
+}
+
+// Vim's keys in the editor and its split, set on or off in Preferences and kept under orior.vim.
+const VIM_KEY = "orior.vim";
+
+export function vimKeys() {
+  return localStorage.getItem(VIM_KEY) === "true";
+}
+
+export function setVimKeys(on) {
+  localStorage.setItem(VIM_KEY, String(on));
+  state.editor?.setVim(on);
+  state.split?.editor.setVim(on);
 }
 
 // Binds the reader's keys in the editor and its split, in place of those bound before, each `run`

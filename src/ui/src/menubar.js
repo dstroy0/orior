@@ -26,7 +26,7 @@ import { showCreate, showInit } from "./create.js";
 import { say } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
-import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
+import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setVimKeys, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
@@ -248,6 +248,7 @@ const COMMANDS = {
       more: [
         { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },
         { label: "Insert Final Newline", on: () => saving("final-newline"), set: (on) => setSaving("final-newline", on) },
+        { label: "Vim's Keys", on: vimKeys, set: setVimKeys },
       ],
     }),
   "user-css": () => openUserCss(),

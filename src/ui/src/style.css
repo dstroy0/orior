@@ -2378,6 +2378,32 @@ body[data-view="run"] .statusbar .ed-status {
   animation: none;
 }
 
+/* Vim's keys: outside insert mode the caret is a block over its letter, the letter seen through it,
+ * and / or ? asks what to look for along the editor's foot. */
+.ed[data-vim]:not([data-vim="insert"]) .ed-caret {
+  opacity: 0.55;
+}
+
+.ed-vim-prompt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 0.2rem 0.6rem;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: var(--ed-bg);
+  color: var(--fg);
+  font: 13px var(--code);
+  outline: none;
+}
+
+.statusbar .status-vim {
+  color: var(--signal);
+  font-weight: 600;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ed-caret {
     animation: none;

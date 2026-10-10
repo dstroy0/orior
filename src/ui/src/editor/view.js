@@ -15,6 +15,7 @@ import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
 import { selectionPath } from "./shape.js";
+import { Vim } from "./vim.js";
 import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
 import { icon } from "../icons.js";
@@ -1650,7 +1651,7 @@ export class Editor {
     event.preventDefault();
     const text = this.takeOut(cut);
     event.clipboardData.setData("text/plain", text.replace(/\n/g, this.doc.eol));
-    this.recording?.push({ cut });
+    this.note({ cut });
   }
 
   // What a copy takes, the selections' text or for none the whole lines the cursors are on, kept for
@@ -1681,7 +1682,7 @@ export class Editor {
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
     if (text) {
-      this.recording?.push({ paste: text });
+      this.note({ paste: text });
       this.pasteText(text);
     }
   }
@@ -1833,6 +1834,10 @@ export class Editor {
       this.jumpKey(event);
       return;
     }
+    if (this.vim?.key(event)) {
+      this.hover.hide();
+      return;
+    }
     this.hover.hide();
     const name = keyName(event);
     if (this.suggest.open && this.suggest.key(name)) {
@@ -1853,7 +1858,7 @@ export class Editor {
     }
     if (found) {
       event.preventDefault();
-      this.recording?.push({ key: full });
+      this.note({ key: full });
       found();
     }
   }
@@ -1946,6 +1951,21 @@ export class Editor {
     if (!found.length) {
       this.endJump();
     }
+  }
+
+  // Each key the editor acts on, each text typed, and each cut, copy and paste, told to a recording
+  // and to whatever watches the steps, as Vim's `.` does while it takes the text typed after a change.
+  note(step) {
+    this.recording?.push(step);
+    this.stepWatch?.(step);
+  }
+
+  // Vim's keys, on or off.
+  setVim(on) {
+    this.vim?.end();
+    this.vim = on ? new Vim(this) : null;
+    this.statusSaid = null;
+    this.schedule();
   }
 
   // Recording: each key the editor acts on, each text typed, each cut, copy and paste, until it stops
@@ -2196,6 +2216,7 @@ export class Editor {
   bind() {
     this.keys = this.keyMap();
     this.bound = {};
+    this.vim = null;
     this.recording = null;
     const input = this.input;
     // A key draws what it changed in its own event, and never waits on the frame after.
@@ -2215,7 +2236,7 @@ export class Editor {
       const text = event.data || input.value;
       input.value = "";
       if (text && this.s) {
-        this.recording?.push({ text });
+        this.note({ text });
         this.type(text);
       }
     });
@@ -2227,7 +2248,7 @@ export class Editor {
       const text = input.value.replace(/\r\n?/g, "\n");
       input.value = "";
       if (text && this.s) {
-        this.recording?.push({ text });
+        this.note({ text });
         this.type(text);
       }
       drawn();
@@ -2751,7 +2772,8 @@ export class Editor {
     for (const sel of sels) {
       const row = visible(sel.head.line);
       if (row >= 0) {
-        over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) - 1, this.yOf(row), 2));
+        const block = this.vim?.block();
+        over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) - (block ? 0 : 1), this.yOf(row), block ? this.cw : 2));
       }
     }
     const pair = level === 0 ? this.bracketPair() : null;
@@ -2824,7 +2846,8 @@ export class Editor {
     const read = s.window ? `${Math.floor((100 * (s.window.end - s.window.start)) / Math.max(1, s.window.size))}% read` : "";
     const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
     const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
-    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings, s.readOnly].join("|");
+    const mode = this.vim?.label() ?? "";
+    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings, s.readOnly, mode].join("|");
     if (said === this.statusSaid) {
       return;
     }
@@ -2835,6 +2858,9 @@ export class Editor {
     where.textContent = `${s.base + head.line + 1}:${this.vcol(head) + 1}`;
     where.title = `Line ${s.base + head.line + 1}, column ${this.vcol(head) + 1}: Go to Line (Ctrl+G)`;
     where.addEventListener("click", () => this.goto.open());
+    if (mode) {
+      parts.push(Object.assign(document.createElement("span"), { className: "status-vim", textContent: mode }));
+    }
     parts.push(where);
     if (picked) {
       parts.push(Object.assign(document.createElement("span"), { textContent: picked }));
