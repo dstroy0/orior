@@ -9,10 +9,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Layout
 
-1. **Menus and a toolbar of the reader's.** The menus and a toolbar under them laid out by the reader in their own JSON, each item a command.
-2. **More than one tree in a window.** Folders from different places, or single files from them, open together in one window, each with its own place in the explorer, and a `.code-workspace` file opened as such a window.
-3. **Focus that follows the pointer.** A pane, a list or the editor takes the keys when the pointer goes over it, set on or off.
-4. **The system's title bar.** The window drawn with the system's own title bar where the reader asks for it.
+1. **More than one tree in a window.** Folders from different places, or single files from them, open together in one window, each with its own place in the explorer, and a `.code-workspace` file opened as such a window.
+2. **Focus that follows the pointer.** A pane, a list or the editor takes the keys when the pointer goes over it, set on or off.
+3. **The system's title bar.** The window drawn with the system's own title bar where the reader asks for it.
 
 ## Running and measuring
 

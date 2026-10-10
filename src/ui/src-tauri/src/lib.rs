@@ -1402,14 +1402,21 @@ fn user_css_read() -> String {
     home::user_css().and_then(|path| std::fs::read_to_string(path).ok()).unwrap_or_default()
 }
 
+/// The reader's menus and toolbar, as menus.json holds them, or nothing where there is none.
+#[tauri::command]
+fn reader_menus_read() -> String {
+    home::menus().and_then(|path| std::fs::read_to_string(path).ok()).unwrap_or_default()
+}
+
 /// Opens one of orior's own places as the system opens it: "user-css", made first where it is not
-/// there, "plugins", the reader's plugins folder, made first likewise, or the folder of one of the
-/// reader's plugins.
+/// there, "menus", the reader's menus and toolbar, made first likewise, "plugins", the reader's
+/// plugins folder, made first likewise, or the folder of one of the reader's plugins.
 #[tauri::command]
 fn home_reveal(what: String) -> Result<(), String> {
     let plugins_dir = home::plugins().ok_or("orior has no folder of its own")?;
     let path = match what.as_str() {
         "user-css" => home::ensure_user_css()?,
+        "menus" => home::ensure_menus()?,
         "plugins" => {
             std::fs::create_dir_all(&plugins_dir).map_err(|error| format!("{}: {error}", plugins_dir.display()))?;
             plugins_dir
@@ -1641,6 +1648,7 @@ fn open(launch: Launch) {
             plugin_draft,
             plugin_create,
             user_css_read,
+            reader_menus_read,
             home_reveal,
             format_text,
             format_width,

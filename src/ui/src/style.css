@@ -529,6 +529,59 @@ select {
   padding: 6px 0;
 }
 
+/* The reader's toolbar under the menus, in the glass of the bar over it: a button for each command,
+   and a short line between groups of them. */
+.toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 8px 0 46px;
+  background-color: var(--glass-tint);
+  background-image: var(--glass-grain);
+  background-attachment: fixed;
+}
+
+.toolbar[hidden] {
+  display: none;
+}
+
+.toolbar-button {
+  width: 26px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.toolbar-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbar-line {
+  width: 1px;
+  height: 16px;
+  margin: 0 5px;
+  background: var(--line);
+}
+
 /* The strip hidden until its edge: the work takes the strip's room, and the strip slides out over it
    while the pointer is at the window's left edge or on the strip. */
 body[data-strip-edge] {
