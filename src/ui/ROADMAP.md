@@ -9,16 +9,15 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Layout
 
-1. **Groups of tabs.** Each side of a split holds tabs of its own, any file in either, a file moved to the next split with one key and the next file opened there.
-2. **Tool windows anywhere.** A tool window dragged to any side of the window, or out into a window of its own, the terminal among them, each side's width kept for each tool window, and a panel the reader has no use for taken out entirely.
-3. **More than one window.** A window for each tree open at once, each with its own tabs and terminals, a window for each display, and a tab dragged out of the window opening in a new one.
-4. **Terminals side by side.** More than one shell open at a time, each in a tab of the terminal panel, or two side by side.
-5. **Tabs down the side.** The tabs in a column beside the editor in place of a row above it, tabs gathered in named groups that fold, and a short list of files marked for a key each.
-6. **A status bar of the reader's.** Each item of the status bar moved, hidden or shown, and the side bar hidden until the pointer reaches the window's edge.
-7. **Menus and a toolbar of the reader's.** The menus and a toolbar under them laid out by the reader in their own JSON, each item a command.
-8. **More than one tree in a window.** Folders from different places, or single files from them, open together in one window, each with its own place in the explorer, and a `.code-workspace` file opened as such a window.
-9. **Focus that follows the pointer.** A pane, a list or the editor takes the keys when the pointer goes over it, set on or off.
-10. **The system's title bar.** The window drawn with the system's own title bar where the reader asks for it.
+1. **Tool windows anywhere.** A tool window dragged to any side of the window, or out into a window of its own, the terminal among them, each side's width kept for each tool window, and a panel the reader has no use for taken out entirely.
+2. **More than one window.** A window for each tree open at once, each with its own tabs and terminals, a window for each display, and a tab dragged out of the window opening in a new one.
+3. **Terminals side by side.** More than one shell open at a time, each in a tab of the terminal panel, or two side by side.
+4. **Tabs down the side.** The tabs in a column beside the editor in place of a row above it, tabs gathered in named groups that fold, and a short list of files marked for a key each.
+5. **A status bar of the reader's.** Each item of the status bar moved, hidden or shown, and the side bar hidden until the pointer reaches the window's edge.
+6. **Menus and a toolbar of the reader's.** The menus and a toolbar under them laid out by the reader in their own JSON, each item a command.
+7. **More than one tree in a window.** Folders from different places, or single files from them, open together in one window, each with its own place in the explorer, and a `.code-workspace` file opened as such a window.
+8. **Focus that follows the pointer.** A pane, a list or the editor takes the keys when the pointer goes over it, set on or off.
+9. **The system's title bar.** The window drawn with the system's own title bar where the reader asks for it.
 
 ## Running and measuring
 

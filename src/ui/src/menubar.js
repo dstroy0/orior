@@ -325,6 +325,8 @@ const COMMANDS = {
   "split-right": () => (showView("edit"), editing().split("right")),
   "split-down": () => (showView("edit"), editing().split("down")),
   unsplit: () => editing().unsplit(),
+  "move-to-split": () => (showView("edit"), editing().moveToNextSplit()),
+  "open-in-split": (args) => (showView("edit"), args.length ? editing().openInSplit(args.join(" ")) : editing().active && editing().openInSplit(editing().active)),
   "fold-all": inEditor((e) => e.foldAll(true)),
   "unfold-all": inEditor((e) => e.foldAll(false)),
   file: goToFile,

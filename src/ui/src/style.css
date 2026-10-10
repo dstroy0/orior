@@ -2197,8 +2197,8 @@ body[data-view="run"] .statusbar .ed-status {
   min-height: 0;
 }
 
-/* A split: the second editor to the right of the first or under it, the tabs across both, a line
-   between them, and over the second the file it shows and its close button. */
+/* A split: the second side to the right of the first or under it, a line between them, each side
+   with its tabs over it, and beside the second side's tabs its close button. */
 .desk[data-split] {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2211,16 +2211,19 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .desk[data-split] > .tabs {
-  grid-column: 1 / -1;
+  grid-row: 1;
+  grid-column: 1;
 }
 
-.desk[data-split] > .editor {
+.desk[data-split] > .editor,
+.desk[data-split] > .binary,
+.desk[data-split] > .empty {
   grid-row: 2;
   grid-column: 1;
 }
 
 .desk[data-split="right"] > .split {
-  grid-row: 2;
+  grid-row: 1 / -1;
   grid-column: 2;
   border-left: 1px solid var(--line);
 }
@@ -2239,23 +2242,18 @@ body[data-view="run"] .statusbar .ed-status {
 
 .split-head {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.2rem 0.4rem 0.2rem 0.85rem;
+  align-items: stretch;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
-  font: 12px var(--code);
-  color: var(--fg-2);
 }
 
-.split-name {
+.split-head > .tabs {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-bottom: 0;
 }
 
 .split-close {
+  padding: 0 0.55rem;
   border: 0;
   border-radius: 4px;
   background: none;

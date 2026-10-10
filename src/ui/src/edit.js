@@ -62,7 +62,9 @@ import { drawBranch, onOverBudget, say } from "./statusbar.js";
 
 const state = {
   editor: null,
-  // The split editor beside the first, { node, editor, session, focused }, or null.
+  // The split beside the first side or under it, or null: its editor, its tab strip, its tabs'
+  // paths and the one it shows, each file's own session over the file's text, and whether its
+  // editor was pressed in last.
   split: null,
   known: null,
   head: null,
@@ -332,8 +334,16 @@ function tabName(tab) {
   return tab.commit ? `${name} @ ${tab.commit.slice(0, 7)}` : name;
 }
 
+// The tabs of the first side: those not moved to the split alone.
+const mainTabs = () => state.tabs.filter((tab) => tab.inMain !== false);
+
+// The file the reader acts on: the split's where its editor was pressed in last, else the first
+// side's.
+const actingPath = () => (state.split?.focused ? state.split.active : state.active);
+
 function drawTabs() {
   keepSession();
+  drawSplitTabs();
   const bar = document.getElementById("tabs");
   drawOpenEditors(
     state.tabs.map((tab) => ({
@@ -347,7 +357,7 @@ function drawTabs() {
     }))
   );
   bar.replaceChildren(
-    ...state.tabs.map((tab) => {
+    ...mainTabs().map((tab) => {
       const name = tabName(tab);
       const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
       const button = element("button", { className: "tab", type: "button", title: tab.path, role: "tab" });
@@ -366,8 +376,18 @@ function drawTabs() {
   );
 }
 
-// A tab with changes not yet saved asks for a second click before it closes.
+// A tab with changes not yet saved asks for a second click before it closes. A file the split also
+// shows leaves the first side and stays open there.
 function closeTab(tab) {
+  if (state.split?.paths.includes(tab.path) && tab.inMain !== false) {
+    tab.inMain = false;
+    if (state.active === tab.path) {
+      show(state.used.find((path) => path !== tab.path && tabOf(path)?.inMain !== false) ?? mainTabs().at(-1)?.path ?? null);
+    } else {
+      drawTabs();
+    }
+    return;
+  }
   if (dirty(tab) && !tab.closing) {
     tab.closing = true;
     drawTabs();
@@ -375,13 +395,11 @@ function closeTab(tab) {
   }
   state.tabs = state.tabs.filter((one) => one !== tab);
   state.used = state.used.filter((path) => path !== tab.path);
-  if (state.split && state.split.session.of === tab.session) {
-    unsplit();
-  }
+  leaveSplit(tab.path);
   stopServing(tab);
   forgetBackup(tab.path);
   if (state.active === tab.path) {
-    state.active = state.used.find(tabOf) ?? state.tabs.at(-1)?.path ?? null;
+    state.active = state.used.find((path) => tabOf(path)?.inMain !== false) ?? mainTabs().at(-1)?.path ?? null;
     show(state.active);
   } else {
     drawTabs();
@@ -468,9 +486,37 @@ async function readOutward(tab) {
   state.editor.schedule();
 }
 
+// Opens a file on the side last pressed in.
 export async function openFile(path) {
+  const fresh = !tabOf(path);
   await load(path);
-  show(path);
+  if (state.split?.focused && splittable(tabOf(path))) {
+    // A file opened in the split alone is not one of the first side's tabs.
+    if (fresh) {
+      tabOf(path).inMain = false;
+    }
+    showInSplit(path);
+  } else {
+    show(path);
+  }
+}
+
+// Open in Next Split: a file opened on the side not last pressed in, a split to the right made
+// where there is none.
+async function openInSplit(path) {
+  const fresh = !tabOf(path);
+  await load(path);
+  if (state.split?.focused || !splittable(tabOf(path))) {
+    show(path);
+    return;
+  }
+  if (!state.split) {
+    makeSplit("right");
+  }
+  if (fresh) {
+    tabOf(path).inMain = false;
+  }
+  showInSplit(path);
 }
 
 // Opens a file's tab without showing it, with the text kept for it where it had changes not saved.
@@ -554,23 +600,25 @@ async function openCommit(path, commit) {
   show(key);
 }
 
-// Split: a second editor beside the first or under it, on the file the first one shows, the text
-// the same in both and the selections, folds and place each its own. The menus act on the one last
-// pressed in. It closes with Unsplit, its own close button, or the file's tab.
-function splitEditor(direction) {
-  const tab = tabOf(state.active);
-  if (!tab?.session || tab.session.window || tab.commit) {
-    say("Split shows a file of the tree that is open and read whole.");
-    return;
-  }
-  unsplit();
+// Split: a second side beside the first or under it, with tabs of its own. Any file can be in
+// either side or both, a file in both showing the same text with the selections, folds and place
+// each its own. The menus act on the side last pressed in, and a file opened opens there. The split
+// closes with Unsplit or its own close button, its files going back to the first side, or as its
+// last tab closes.
+
+// A file of the tree, open and read whole, can be shown in the split.
+const splittable = (tab) => Boolean(tab?.session && !tab.session.window && !tab.commit);
+
+function makeSplit(direction) {
   const desk = document.querySelector("#mode-edit .desk");
   const host = element("div", { className: "editor split-editor" });
   const close = element("button", { className: "split-close", type: "button", title: "Unsplit" }, "×");
   close.setAttribute("aria-label", "Unsplit");
   close.addEventListener("click", unsplit);
-  const node = element("section", { className: "split" }, element("div", { className: "split-head" }, element("span", { className: "split-name", textContent: tab.file }), close), host);
-  node.setAttribute("aria-label", `${tab.file}, split`);
+  const strip = element("div", { className: "tabs split-tabs", role: "tablist" });
+  strip.setAttribute("aria-label", "The split's tabs");
+  const node = element("section", { className: "split" }, element("div", { className: "split-head" }, strip, close), host);
+  node.setAttribute("aria-label", "Split");
   desk.append(node);
   desk.dataset.split = direction;
   // Its status line stands in the status bar beside the first one's, the one shown being that of the
@@ -578,13 +626,123 @@ function splitEditor(direction) {
   const editor = new Editor(host, { ...state.editorHooks, statusHost: document.getElementById("statusbar"), onChange: (s) => state.editorHooks.onChange(s.of ?? s) });
   state.editor.status.after(editor.status);
   state.lendTo(editor);
-  const session = tab.session.twin();
-  state.split = { node, editor, session, focused: true, path: tab.path };
+  state.split = { node, editor, strip, direction, paths: [], active: null, twins: new Map(), focused: true };
   editor.input.addEventListener("focus", () => splitFocused(true));
-  editor.show(session);
-  editor.focus();
   splitFocused(true);
-  keepSession();
+}
+
+// Split Right and Split Down: the file shown on the first side shown in a split beside it or under
+// it as well.
+function splitEditor(direction) {
+  const tab = tabOf(state.active);
+  if (!splittable(tab)) {
+    say("Split shows a file of the tree that is open and read whole.");
+    return;
+  }
+  unsplit();
+  makeSplit(direction);
+  showInSplit(tab.path);
+}
+
+// Shows the file at `path`, open already, in the split, in a tab of the split's own.
+function showInSplit(path) {
+  const split = state.split;
+  const tab = tabOf(path);
+  if (!split || !splittable(tab)) {
+    return;
+  }
+  if (!split.paths.includes(path)) {
+    split.paths.push(path);
+  }
+  if (!split.twins.has(path)) {
+    split.twins.set(path, tab.session.twin());
+  }
+  split.active = path;
+  split.editor.show(split.twins.get(path));
+  split.editor.focus();
+  splitFocused(true);
+  keepRecent(tab.file);
+  drawTabs();
+}
+
+function drawSplitTabs() {
+  const split = state.split;
+  if (!split) {
+    return;
+  }
+  split.strip.replaceChildren(
+    ...split.paths.map((path) => {
+      const tab = tabOf(path);
+      const close = element("span", { className: "close", textContent: tab?.closing && tab.inMain === false ? "×?" : "×", title: path });
+      const button = element("button", { className: "tab", type: "button", title: path, role: "tab" });
+      button.setAttribute("aria-selected", String(path === split.active));
+      button.append(tab && dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", tab ? tabName(tab) : path, close);
+      button.addEventListener("click", (event) => (event.target === close ? closeSplitTab(path) : showInSplit(path)));
+      button.addEventListener("auxclick", (event) => event.button === 1 && closeSplitTab(path));
+      return button;
+    })
+  );
+}
+
+// Takes the file at `path` out of the split, which shows its file used last or, with none left,
+// closes.
+function leaveSplit(path) {
+  const split = state.split;
+  if (!split?.paths.includes(path)) {
+    return;
+  }
+  split.paths = split.paths.filter((one) => one !== path);
+  split.twins.get(path)?.drop();
+  split.twins.delete(path);
+  if (!split.paths.length) {
+    unsplit();
+  } else if (split.active === path) {
+    showInSplit(split.used?.find((one) => split.paths.includes(one)) ?? split.paths.at(-1));
+  } else {
+    drawSplitTabs();
+  }
+}
+
+// Closes a tab of the split. A file open on neither side after it closes, as its tab on the first
+// side would, asking first where it has changes not saved.
+function closeSplitTab(path) {
+  const tab = tabOf(path);
+  if (tab?.inMain === false) {
+    if (dirty(tab) && !tab.closing) {
+      tab.closing = true;
+      drawSplitTabs();
+      return;
+    }
+    leaveSplit(path);
+    tab.inMain = true;
+    closeTab(tab);
+    return;
+  }
+  leaveSplit(path);
+}
+
+// View, Move to Next Split: the file shown on the side last pressed in moves to the other side, a
+// split to the right made where there is none, and the side it left shows its file used last.
+function moveToNextSplit() {
+  const path = actingPath();
+  const tab = tabOf(path);
+  if (!splittable(tab)) {
+    say("A file of the tree, open and read whole, moves to the next split.");
+    return;
+  }
+  if (state.split?.focused) {
+    leaveSplit(path);
+    show(path);
+    return;
+  }
+  if (!state.split) {
+    makeSplit("right");
+  }
+  tab.inMain = false;
+  state.moving = true;
+  show(state.used.find((one) => one !== path && tabOf(one)?.inMain !== false) ?? mainTabs().at(-1)?.path ?? null);
+  state.moving = false;
+  showInSplit(path);
 }
 
 // Marks which editor of a split the menus act on, and shows its status line.
@@ -595,23 +753,36 @@ function splitFocused(focused) {
   state.split.focused = focused;
   state.split.editor.status.hidden = !focused;
   state.editor.status.hidden = focused;
+  if (focused && state.split.active) {
+    state.split.used = [state.split.active, ...(state.split.used ?? []).filter((one) => one !== state.split.active)];
+  }
 }
 
+// Closes the split, its files going back to the first side.
 function unsplit() {
   if (!state.split) {
     return;
   }
-  const { node, editor, session } = state.split;
+  const { node, editor, twins, paths, active } = state.split;
   state.split = null;
   editor.show(null);
-  session.drop();
+  twins.forEach((session) => session.drop());
+  for (const path of paths) {
+    const tab = tabOf(path);
+    if (tab) {
+      tab.inMain = true;
+    }
+  }
   node.remove();
   editor.status.remove();
   state.editor.status.hidden = false;
   delete document.querySelector("#mode-edit .desk").dataset.split;
+  if (!state.active && active && tabOf(active)) {
+    show(active);
+  }
   state.editor.schedule();
   state.editor.focus();
-  keepSession();
+  drawTabs();
 }
 
 // Opens every folder above a file in the tree and brings its row into sight.
@@ -636,6 +807,9 @@ function show(path) {
   }
   state.active = path;
   const tab = tabOf(path);
+  if (tab) {
+    tab.inMain = true;
+  }
   if (tab && !state.cycle) {
     state.used = [path, ...state.used.filter((one) => one !== path)];
   }
@@ -685,8 +859,7 @@ function drawEmpty(shown) {
   document.getElementById("edit-empty").hidden = !shown;
 }
 
-async function saveActive() {
-  const tab = tabOf(state.active);
+async function saveActive(tab = tabOf(actingPath())) {
   if (!tab?.session || tab.readOnly) {
     return;
   }
@@ -738,7 +911,9 @@ export async function openAt(path, line, col = 0) {
   if ((line < s.base || line >= s.base + s.doc.count) && tab.reading) {
     await tab.reading;
   }
-  if (state.active === path) {
+  if (state.split?.focused && state.split.active === path) {
+    state.split.editor.goTo(line - s.base, col);
+  } else if (state.active === path) {
     state.editor.goTo(line - s.base, col);
   }
 }
@@ -1821,8 +1996,9 @@ function keepSession() {
     return;
   }
   const tabs = state.tabs.filter((tab) => !tab.commit).map((tab) => tab.path);
-  const split = state.split ? { path: state.split.path, direction: document.querySelector("#mode-edit .desk").dataset.split } : null;
-  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, active: tabOf(state.active)?.commit ? null : state.active, split }));
+  const main = mainTabs().filter((tab) => !tab.commit).map((tab) => tab.path);
+  const split = state.split ? { paths: state.split.paths, active: state.split.active, direction: state.split.direction } : null;
+  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, main, active: tabOf(state.active)?.commit ? null : state.active, split }));
 }
 
 function keepRecent(path) {
@@ -1868,14 +2044,21 @@ export async function restoreSession() {
     await load(path).catch(() => {});
   }
   state.restored = true;
-  const shown = tabOf(kept.active) ? kept.active : state.tabs.at(-1)?.path;
-  // The split as it was: its file shown, split, and the file that was shown shown again beside it.
-  if (kept.split && tabOf(kept.split.path) && ["right", "down"].includes(kept.split.direction)) {
-    state.moving = true;
-    show(kept.split.path);
-    splitEditor(kept.split.direction);
-    state.moving = false;
+  // The split as it was, with its tabs, and the tabs of the first side.
+  const split = (kept.split?.paths ?? (kept.split?.path ? [kept.split.path] : [])).filter((path) => splittable(tabOf(path)));
+  if (split.length && ["right", "down"].includes(kept.split.direction)) {
+    makeSplit(kept.split.direction);
+    for (const path of split) {
+      showInSplit(path);
+    }
+    showInSplit(split.includes(kept.split.active) ? kept.split.active : split.at(-1));
+    for (const tab of state.tabs) {
+      if (kept.main && !kept.main.includes(tab.path) && split.includes(tab.path)) {
+        tab.inMain = false;
+      }
+    }
   }
+  const shown = tabOf(kept.active)?.inMain !== false && tabOf(kept.active) ? kept.active : mainTabs().at(-1)?.path;
   if (shown) {
     state.moving = true;
     show(shown);
@@ -2276,11 +2459,10 @@ export async function startEdit(defs) {
   });
   startDebug({
     editor: () => state.editor,
-    tab: () => tabOf(state.active),
+    tab: () => tabOf(actingPath()),
     save: async (tab) => {
       if (dirty(tab) && !tab.readOnly) {
-        state.active = tab.path;
-        await saveActive();
+        await saveActive(tab);
       }
     },
     open: (path) => openFile(path),
@@ -2455,6 +2637,7 @@ function fileItems(event) {
     : { label: "Open", run: () => openFile(path) };
   return [
     open,
+    ...(folder ? [] : [{ label: "Open in Next Split", run: () => openInSplit(path) }]),
     ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
     "-",
     { label: "Cut", keys: "Ctrl+X", run: () => copyFiles(path, true) },
@@ -2568,6 +2751,7 @@ function tabMenu(tab) {
     "-",
     { label: "Split Right", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("right")) },
     { label: "Split Down", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("down")) },
+    { label: "Open in Next Split", disabled: !splittable(tab), run: () => openInSplit(tab.path) },
     "-",
     { label: "Copy path", run: () => copyText(tab.file) },
   ];
@@ -2652,9 +2836,11 @@ export function bindReaderKeys(list) {
 export function editing() {
   return {
     editor: state.split?.focused ? state.split.editor : state.editor?.s ? state.editor : null,
-    active: state.active,
+    active: actingPath(),
     split: splitEditor,
     unsplit,
+    moveToNextSplit,
+    openInSplit,
     // The tree read again after a file, a folder or a repository was made in it.
     treeChanged: async () => {
       state.children.clear();
@@ -2663,28 +2849,28 @@ export function editing() {
     },
     // The folder of the file open, as the start of a path for a file or folder to make.
     folderHere: () => {
-      const file = fileOf(state.active);
+      const file = fileOf(actingPath());
       return file?.includes("/") ? file.slice(0, file.lastIndexOf("/") + 1) : "";
     },
     splitShown: () => Boolean(state.split),
     changed: state.tabs.some(dirty),
-    activeChanged: Boolean(tabOf(state.active) && dirty(tabOf(state.active))),
+    activeChanged: Boolean(tabOf(actingPath()) && dirty(tabOf(actingPath()))),
     open: state.tabs.length > 0,
-    save: saveActive,
-    format: () => formatTab(tabOf(state.active)),
-    runFile: () => runTab(tabOf(state.active)),
+    save: () => saveActive(),
+    format: () => formatTab(tabOf(actingPath())),
+    runFile: () => runTab(tabOf(actingPath())),
     definition: () => state.editor?.s && goToDefinition(state.editor.head()),
     usages: findUsages,
     calls: callHierarchy,
     rename: renameSymbol,
-    extractVariable: () => state.editor?.s && extractVariable(editing().editor ?? state.editor, fileOf(state.active)),
+    extractVariable: () => state.editor?.s && extractVariable(editing().editor ?? state.editor, fileOf(actingPath())),
     extractConstant: () => state.editor?.s && extractConstant(editing().editor ?? state.editor),
     extractFunction: () => state.editor?.s && extractFunction(editing().editor ?? state.editor, tabOfSession((editing().editor ?? state.editor).s)),
     inlineVariable: () => state.editor?.s && inlineVariable(editing().editor ?? state.editor),
     quickFix,
     parameterInfo: () => parameterInfo(),
     quickDoc,
-    validate: () => validateTab(tabOf(state.active)),
+    validate: () => validateTab(tabOf(actingPath())),
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {
@@ -2714,7 +2900,7 @@ export function editing() {
       await loadChanges();
       drawTree();
     },
-    close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
+    close: () => (state.split?.focused ? closeSplitTab(state.split.active) : tabOf(state.active) && closeTab(tabOf(state.active))),
     closeAll: () => [...state.tabs].forEach(closeTab),
     brackets: () => Boolean(state.editor?.bracketsOn),
     setBrackets: (on) => state.editor?.setBrackets(on),
@@ -2731,8 +2917,8 @@ export function editing() {
     repos: () => state.repos ?? [],
     languageOf: (path) => state.known?.languageOf(path) ?? null,
     // The file of the tab open, and its text as the tab holds it, or null where none is open.
-    fileHere: () => (state.active ? tabOf(state.active)?.file ?? null : null),
-    textHere: () => (state.active ? tabOf(state.active)?.session?.doc.text() ?? null : null),
+    fileHere: () => (actingPath() ? tabOf(actingPath())?.file ?? null : null),
+    textHere: () => (actingPath() ? tabOf(actingPath())?.session?.doc.text() ?? null : null),
     holdMemory,
     changeSignature: changeSignatureHere,
     moveDeclaration: moveHere,

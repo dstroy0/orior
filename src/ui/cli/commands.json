@@ -160,6 +160,8 @@
         "-",
         { "label": "Split Right", "command": "split-right", "keys": "Ctrl+\\", "needs": "editor" },
         { "label": "Split Down", "command": "split-down", "needs": "editor" },
+        { "label": "Move to Next Split", "command": "move-to-split", "keys": "Ctrl+Alt+Right", "needs": "editor" },
+        { "label": "Open in Next Split", "command": "open-in-split", "args": "[file]", "needs": "tabs" },
         { "label": "Unsplit", "command": "unsplit", "checks": "split" },
         "-",
         { "label": "Light", "command": "scheme", "args": "[light|dark]", "labels": { "dark": "Light", "light": "Dark" } },
