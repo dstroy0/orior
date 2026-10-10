@@ -16,7 +16,7 @@
 
 use std::collections::HashSet;
 
-use super::{Facts, Finding, Fix, Import, Scan, Severity};
+use super::{Facts, Finding, Fix, Import, Paint, Parsed, Scan, Severity, COMMENT, DELIMITER, FUNCTION, KEYWORD, NUMBER, OPERATOR, PARAMETER, PREDEFINED, PROPERTY, STRING, TYPE};
 use crate::servers::{Place, TextEdit};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -71,12 +71,12 @@ fn is_name(c: char) -> bool {
     c == '_' || c == '$' || c.is_alphanumeric()
 }
 
-/// The tokens of `src`.
-fn tokens(src: &str) -> Vec<Tok> {
+/// The tokens of `src`, and the spans of its comments.
+fn tokens(src: &str) -> (Vec<Tok>, Vec<(Place, Place)>) {
     let mut s = Scan::new(src);
     let mut toks = Vec::new();
     lex(&mut s, &mut toks, false);
-    toks
+    (toks, s.comments)
 }
 
 /// Reads tokens into `toks` until the text ends or, `inside` a template's `${`, until its `}`.
@@ -105,6 +105,7 @@ fn lex(s: &mut Scan, toks: &mut Vec<Tok>, inside: bool) {
                     }
                     s.bump();
                 }
+                s.comments.push((from, s.place()));
                 continue;
             }
             '\'' | '"' => {
@@ -224,11 +225,12 @@ struct Read<'a> {
     braces: Vec<Option<Brace>>,
     /// The brace each token stands directly inside, where one does.
     within: Vec<Option<usize>>,
+    comments: Vec<(Place, Place)>,
 }
 
 impl<'a> Read<'a> {
     fn new(src: &'a str) -> Read<'a> {
-        let toks = tokens(src);
+        let (toks, comments) = tokens(src);
         let words: Vec<&str> = toks.iter().map(|tok| &src[tok.start..tok.end]).collect();
         let mut pair = vec![None; toks.len()];
         let mut stack: Vec<usize> = Vec::new();
@@ -249,7 +251,7 @@ impl<'a> Read<'a> {
                 _ => {}
             }
         }
-        let mut read = Read { src, toks, words, pair, braces: Vec::new(), within };
+        let mut read = Read { src, toks, words, pair, braces: Vec::new(), within, comments };
         read.braces = (0..read.toks.len()).map(|at| (read.words[at] == "{" && read.toks[at].kind == Kind::Punct).then(|| read.brace(at))).collect();
         read
     }
@@ -525,6 +527,125 @@ fn functions(read: &Read) -> Vec<super::Function> {
         out.push(super::Function { name: read.words[name_at].to_string(), from: name.from.clone(), to: name.to.clone(), first, last: read.toks[close].to.line, calls });
     }
     out
+}
+
+/// The names a function whose body opens at `open` takes as its parameters, plainly or with a
+/// default or a rest, and the first token of its parameters.
+fn parameters<'a>(read: &Read<'a>, open: usize) -> (HashSet<&'a str>, usize) {
+    let mut names = HashSet::new();
+    let Some(before) = open.checked_sub(1) else {
+        return (names, open);
+    };
+    let (first, last) = match read.words[before] {
+        ")" => (read.pair[before].unwrap_or(before), before),
+        "=>" => match before.checked_sub(1) {
+            Some(at) if read.words[at] == ")" => (read.pair[at].unwrap_or(at), at),
+            Some(at) => (at, at + 1),
+            None => (before, before),
+        },
+        _ => return (names, open),
+    };
+    if read.words[before] == "=>" && last == first + 1 && read.toks[first].kind == Kind::Name {
+        names.insert(read.words[first]);
+        return (names, first);
+    }
+    for at in first + 1..last {
+        if read.toks[at].kind == Kind::Name && read.pair_depth(first + 1, at) == 0 && matches!(read.words[at - 1], "(" | "," | "...") && matches!(read.words.get(at + 1).copied(), Some("," | ")" | "=")) {
+            names.insert(read.words[at]);
+        }
+    }
+    (names, first)
+}
+
+/// The parse of a JavaScript file: each column's class, the regions that fold, and the spans Expand
+/// Selection steps through.
+pub(super) fn parse(src: &str) -> Parsed {
+    let read = Read::new(src);
+    let mut paint = Paint::new(src);
+    let mut folds = Vec::new();
+    let mut ranges = Vec::new();
+    for (from, to) in &read.comments {
+        paint.span(from, to, COMMENT);
+        folds.push((from.line, to.line));
+        ranges.push((from.clone(), to.clone()));
+    }
+    // Strings first, as a template's own code is read inside it and drawn over it.
+    for tok in read.toks.iter().filter(|tok| matches!(tok.kind, Kind::Str | Kind::Regex)) {
+        paint.span(&tok.from, &tok.to, STRING);
+        folds.push((tok.from.line, tok.to.line));
+        ranges.push((tok.from.clone(), tok.to.clone()));
+        if tok.end - tok.start >= 2 && tok.kind == Kind::Str {
+            ranges.push((Place { line: tok.from.line, col: tok.from.col + 1 }, Place { line: tok.to.line, col: tok.to.col - 1 }));
+        }
+    }
+    let classes: HashSet<&str> = (1..read.toks.len()).filter(|at| read.words[at - 1] == "class" && read.toks[*at].kind == Kind::Name).map(|at| read.words[at]).collect();
+    let scopes: Vec<(usize, usize, HashSet<&str>)> = (0..read.toks.len())
+        .filter(|at| read.braces[*at] == Some(Brace::Function))
+        .map(|open| {
+            let (names, first) = parameters(&read, open);
+            (first, read.pair[open].unwrap_or(open), names)
+        })
+        .collect();
+    for (at, tok) in read.toks.iter().enumerate() {
+        let word = read.words[at];
+        let before = at.checked_sub(1).map(|one| read.words[one]);
+        let after = read.words.get(at + 1).copied();
+        let class = match tok.kind {
+            Kind::Str | Kind::Regex => continue,
+            Kind::Number => NUMBER,
+            Kind::Punct => {
+                if let (Some(close), "(" | "[" | "{") = (read.pair[at], word) {
+                    if close > at {
+                        let closed = &read.toks[close];
+                        ranges.push((tok.to.clone(), closed.from.clone()));
+                        ranges.push((tok.from.clone(), closed.to.clone()));
+                        folds.push((tok.from.line, closed.to.line));
+                    }
+                }
+                if matches!(word, "(" | ")" | "[" | "]" | "{" | "}" | "," | ";" | "." | "?.") { DELIMITER } else { OPERATOR }
+            }
+            Kind::Name => {
+                let holder = read.within[at].and_then(|open| read.braces[open]);
+                if matches!(word, "true" | "false" | "null" | "undefined" | "this" | "super") {
+                    PREDEFINED
+                } else if KEYWORDS.contains(&word) || matches!(word, "async" | "of" | "static" | "get" | "set") && after.is_some_and(|next| !matches!(next, "(" | "=" | "." | "," | ")" | ";" | ":")) {
+                    KEYWORD
+                } else if before == Some("function") {
+                    FUNCTION
+                } else if matches!(before, Some("class" | "new" | "extends")) {
+                    TYPE
+                } else if matches!(before, Some("." | "?.")) {
+                    if after == Some("(") { FUNCTION } else { PROPERTY }
+                } else if holder == Some(Brace::Object) && matches!(before, Some("{" | ",")) && after == Some(":") {
+                    PROPERTY
+                } else if after == Some("(") {
+                    if classes.contains(word) { TYPE } else { FUNCTION }
+                } else if scopes.iter().any(|(first, close, names)| *first <= at && at <= *close && names.contains(word)) {
+                    PARAMETER
+                } else if classes.contains(word) {
+                    TYPE
+                } else {
+                    0
+                }
+            }
+        };
+        paint.span(&tok.from, &tok.to, class);
+    }
+    // A function declared, or a class, from its first word to its closing brace.
+    for open in 0..read.toks.len() {
+        if !matches!(read.braces[open], Some(Brace::Function | Brace::Class)) {
+            continue;
+        }
+        let Some(close) = read.pair[open] else {
+            continue;
+        };
+        let mut first = open;
+        while first > 0 && !matches!(read.words[first - 1], ";" | "{" | "}" | "," | "(" | "=") && read.within[first - 1] == read.within[open] {
+            first -= 1;
+        }
+        ranges.push((read.toks[first].from.clone(), read.toks[close].to.clone()));
+    }
+    Parsed { lines: paint.runs(), folds: super::folds_of(folds), ranges }
 }
 
 /// The files the file imports by a relative path, at its top level: `import … from`, a bare

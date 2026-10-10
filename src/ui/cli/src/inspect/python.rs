@@ -11,7 +11,7 @@
 
 use std::collections::HashSet;
 
-use super::{Class, Finding, Fix, Import, Scan, Severity};
+use super::{Class, Finding, Fix, Import, Paint, Parsed, Scan, Severity, ATTRIBUTE, COMMENT, DELIMITER, FUNCTION, KEYWORD, MODULE, NUMBER, OPERATOR, PARAMETER, PREDEFINED, PROPERTY, STRING, TYPE};
 use crate::servers::{Place, TextEdit};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -64,6 +64,11 @@ fn is_name(c: char) -> bool {
 
 /// The logical lines of `src`.
 pub(super) fn lines(src: &str) -> Vec<Line> {
+    scan(src).0
+}
+
+/// The logical lines of `src`, and the spans of its comments.
+fn scan(src: &str) -> (Vec<Line>, Vec<(Place, Place)>) {
     let mut s = Scan::new(src);
     let mut lines = Vec::new();
     let mut toks: Vec<Tok> = Vec::new();
@@ -181,7 +186,7 @@ pub(super) fn lines(src: &str) -> Vec<Line> {
     if !toks.is_empty() {
         lines.push(Line { indent, toks });
     }
-    lines
+    (lines, s.comments)
 }
 
 /// A string from its prefix at `start` to its closing quote, and the names its fields read where it
@@ -649,6 +654,152 @@ fn functions(src: &str, lines: &[Line]) -> Vec<super::Function> {
         out.push(super::Function { name: text(src, name).to_string(), from: name.from.clone(), to: name.to.clone(), first: line.toks[0].from.line, last, calls });
     }
     out
+}
+
+/// The brackets that close their delimiters, the stops and the separators, which a parse colors as
+/// delimiters, every other operator as an operator.
+const DELIMITERS: [&str; 9] = ["(", ")", "[", "]", "{", "}", ",", ";", "."];
+
+/// The names a function's header declares as its parameters, and the line past its block.
+fn parameters<'a>(src: &'a str, lines: &[Line], at: usize) -> (HashSet<&'a str>, usize) {
+    let line = &lines[at];
+    let mut names = HashSet::new();
+    let mut depth = 0;
+    for (offset, tok) in line.toks.iter().enumerate() {
+        let word = text(src, tok);
+        match word {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth -= 1,
+            _ => {}
+        }
+        let before = offset.checked_sub(1).map(|one| text(src, &line.toks[one]));
+        let after = line.toks.get(offset + 1).map(|one| text(src, one));
+        if tok.kind == Kind::Name && depth == 1 && matches!(before, Some("(" | "," | "*" | "**")) && matches!(after, Some(":" | "=" | "," | ")")) {
+            names.insert(word);
+        }
+    }
+    (names, block_end(lines, at))
+}
+
+/// The parse of a Python file: each column's class, the regions that fold, and the spans Expand
+/// Selection steps through.
+pub(super) fn parse(src: &str) -> Parsed {
+    let (lines, comments) = scan(src);
+    let mut paint = Paint::new(src);
+    for (from, to) in &comments {
+        paint.span(from, to, COMMENT);
+    }
+    let classes: HashSet<&str> = lines.iter().filter(|line| head(src, line) == "class").filter_map(|line| line.toks.iter().position(|tok| text(src, tok) == "class").and_then(|at| line.toks.get(at + 1)).map(|tok| text(src, tok))).collect();
+    let scopes: Vec<(usize, HashSet<&str>, usize)> = (0..lines.len()).filter(|at| head(src, &lines[*at]) == "def").map(|at| {
+        let (names, end) = parameters(src, &lines, at);
+        (at, names, end)
+    }).collect();
+    let mut folds = Vec::new();
+    let mut ranges = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        let params: HashSet<&str> = scopes.iter().filter(|(at, _, end)| *at <= index && index < *end).flat_map(|(_, names, _)| names.iter().copied()).collect();
+        let words: Vec<&str> = line.toks.iter().map(|tok| text(src, tok)).collect();
+        let importing = words[0] == "import" || words[0] == "from";
+        let imported_at = words.iter().position(|word| *word == "import").unwrap_or(words.len());
+        let decorated = words[0] == "@";
+        let mut depth = 0;
+        let mut stack: Vec<usize> = Vec::new();
+        for (offset, tok) in line.toks.iter().enumerate() {
+            let word = words[offset];
+            let before = offset.checked_sub(1).map(|one| words[one]);
+            let after = words.get(offset + 1).copied();
+            let class = match tok.kind {
+                Kind::Str => STRING,
+                Kind::Number => NUMBER,
+                Kind::Name if tok.field => continue,
+                Kind::Op => {
+                    match word {
+                        "(" | "[" | "{" => {
+                            depth += 1;
+                            stack.push(offset);
+                        }
+                        ")" | "]" | "}" => {
+                            depth -= 1;
+                            if let Some(open) = stack.pop() {
+                                let opened = &line.toks[open];
+                                ranges.push((opened.to.clone(), tok.from.clone()));
+                                ranges.push((opened.from.clone(), tok.to.clone()));
+                                folds.push((opened.from.line, tok.to.line));
+                            }
+                        }
+                        _ => {}
+                    }
+                    if decorated && depth == 0 && (offset == 0 || word == ".") {
+                        ATTRIBUTE
+                    } else if DELIMITERS.contains(&word) {
+                        DELIMITER
+                    } else {
+                        OPERATOR
+                    }
+                }
+                Kind::Name => {
+                    if matches!(word, "True" | "False" | "None" | "self" | "cls") {
+                        PREDEFINED
+                    } else if KEYWORDS.contains(&word) {
+                        KEYWORD
+                    } else if decorated && depth == 0 {
+                        ATTRIBUTE
+                    } else if importing && (words[0] == "import" || offset < imported_at) {
+                        MODULE
+                    } else if before == Some("def") {
+                        FUNCTION
+                    } else if before == Some("class") {
+                        TYPE
+                    } else if before == Some(".") {
+                        if after == Some("(") { FUNCTION } else { PROPERTY }
+                    } else if after == Some("(") {
+                        if classes.contains(word) { TYPE } else { FUNCTION }
+                    } else if (after == Some("=") && depth > 0 && matches!(before, Some("(" | ","))) || params.contains(word) {
+                        PARAMETER
+                    } else if classes.contains(word) {
+                        TYPE
+                    } else {
+                        0
+                    }
+                }
+            };
+            paint.span(&tok.from, &tok.to, class);
+            if tok.kind == Kind::Str {
+                let whole = text(src, tok);
+                let open = whole.find(['"', '\'']).unwrap_or(0);
+                let quotes = if whole[open..].starts_with("\"\"\"") || whole[open..].starts_with("'''") { 3 } else { 1 };
+                ranges.push((tok.from.clone(), tok.to.clone()));
+                if whole.len() >= open + quotes * 2 {
+                    ranges.push((Place { line: tok.from.line, col: tok.from.col + (open + quotes) as u32 }, Place { line: tok.to.line, col: tok.to.col.saturating_sub(quotes as u32) }));
+                }
+                folds.push((tok.from.line, tok.to.line));
+            }
+        }
+        let last = line.toks.last().map_or(line.toks[0].to.clone(), |tok| tok.to.clone());
+        ranges.push((line.toks[0].from.clone(), last.clone()));
+        folds.push((line.toks[0].from.line, last.line));
+        if opens(src, line) {
+            let end = block_end(&lines, index);
+            if end > index + 1 {
+                let close = lines[end - 1].toks.last().map_or(last.clone(), |tok| tok.to.clone());
+                ranges.push((line.toks[0].from.clone(), close.clone()));
+                ranges.push((lines[index + 1].toks[0].from.clone(), close.clone()));
+                folds.push((line.toks[0].from.line, close.line));
+                // A decorated function or class, with its decorators.
+                let mut first = index;
+                while first > 0 && lines[first - 1].indent == line.indent && text(src, &lines[first - 1].toks[0]) == "@" {
+                    first -= 1;
+                }
+                if first < index {
+                    ranges.push((lines[first].toks[0].from.clone(), close));
+                }
+            }
+        }
+    }
+    for (from, to) in &comments {
+        ranges.push((from.clone(), to.clone()));
+    }
+    Parsed { lines: paint.runs(), folds: super::folds_of(folds), ranges }
 }
 
 /// The imports a file makes as it runs: those outside every function and class, and outside a block

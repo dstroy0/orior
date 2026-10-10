@@ -189,6 +189,16 @@ impl Server {
                 "rename": {"prepareSupport": true},
                 "callHierarchy": {},
                 "inlayHint": {},
+                "foldingRange": {"lineFoldingOnly": true},
+                "selectionRange": {},
+                "semanticTokens": {
+                    "requests": {"full": true, "range": false},
+                    "tokenTypes": ["namespace", "type", "class", "enum", "interface", "struct", "typeParameter", "parameter", "variable", "property", "enumMember", "event", "function", "method", "macro", "keyword", "modifier", "comment", "string", "number", "regexp", "operator", "decorator"],
+                    "tokenModifiers": [],
+                    "formats": ["relative"],
+                    "overlappingTokenSupport": false,
+                    "multilineTokenSupport": false
+                },
                 "signatureHelp": {"signatureInformation": {"documentationFormat": ["markdown", "plaintext"], "parameterInformation": {"labelOffsetSupport": true}, "activeParameterSupport": true}},
                 "codeAction": {
                     "codeActionLiteralSupport": {"codeActionKind": {"valueSet": kinds}},
@@ -203,7 +213,8 @@ impl Server {
                 "applyEdit": true,
                 "workspaceEdit": {"documentChanges": true},
                 "configuration": true,
-                "inlayHint": {"refreshSupport": true}
+                "inlayHint": {"refreshSupport": true},
+                "semanticTokens": {"refreshSupport": true}
             },
             "window": {"workDoneProgress": false}
         });

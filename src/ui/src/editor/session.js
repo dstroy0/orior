@@ -148,6 +148,28 @@ export class Session {
         this.folded = carried;
         this.foldings += 1;
       }
+      // A parse's spans and folds stay with their lines where no edit reached them, and wait to be
+      // asked for again.
+      const parse = this.highlight.parse;
+      if (parse) {
+        const reached = (line) => edits.some((edit) => edit.from.line <= line && line <= edit.to.line);
+        const moved = (line) => mapThrough(pos(line, 0), edits, true).line;
+        const byLine = new Map();
+        for (const [line, spans] of parse.byLine) {
+          if (!reached(line)) {
+            byLine.set(moved(line), spans);
+          }
+        }
+        const folds = new Map();
+        for (const [start, end] of parse.folds) {
+          const from = moved(start);
+          const to = mapThrough(pos(end, FAR), edits, true).line;
+          if (to > from) {
+            folds.set(from, to);
+          }
+        }
+        this.highlight.parse = { ...parse, byLine, folds, stale: true };
+      }
       // A hint stays with its line where no edit reached the line, and waits to be asked for again.
       if (this.hints) {
         const carried = new Map();
@@ -199,14 +221,18 @@ export class Session {
     this.highlight = new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule());
   }
 
-  // Every region that folds. It reads the whole text, and only folding everything asks for it.
+  // Every region that folds: the parse's where the file has one, and otherwise read from the whole
+  // text, which only folding everything asks for.
   regions() {
-    return regions(this.doc, this.indent.size);
+    const folds = this.highlight.parse?.folds;
+    return folds ? new Map(folds) : regions(this.doc, this.indent.size);
   }
 
-  // Whether a line opens a region, read from the lines just after it.
+  // Whether a line opens a region: by the parse where the file has one, and otherwise read from the
+  // lines just after it.
   opens(line) {
-    return opens(this.doc, line, this.indent.size);
+    const folds = this.highlight.parse?.folds;
+    return folds ? folds.has(line) : opens(this.doc, line, this.indent.size);
   }
 
   // The last line of the region a line opens, or -1: the kept end where the region is folded, and
@@ -215,6 +241,10 @@ export class Session {
     const folded = this.folded.get(line);
     if (folded !== undefined) {
       return folded;
+    }
+    const folds = this.highlight.parse?.folds;
+    if (folds) {
+      return folds.get(line) ?? -1;
     }
     if (this.foundAt !== this.doc.id) {
       this.found = new Map();

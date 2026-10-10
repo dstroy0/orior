@@ -61,6 +61,64 @@ export function hintsShown(tab, from, to) {
   }, HINTS_REST);
 }
 
+// The parse of a served or an inspected tab, orior's own or its server's, asked for the lines shown
+// and PARSE_AROUND on each side once typing and scrolling rest, its spans laid over the colors the
+// language's patterns give and its folds standing in for those the indentation gives.
+const PARSE_AROUND = 120;
+const PARSE_REST = 150;
+const PARSE_AGAIN = 2000;
+let classNames = null;
+
+export function parseShown(tab, from, to) {
+  const s = tab?.session;
+  if (!(tab.served || tab.inspected) || !s || s.window || tab.unparsed === s.doc.id || (tab.parseAgain ?? 0) > Date.now()) {
+    return;
+  }
+  const have = s.highlight.parse;
+  if (have && !have.stale && have.from <= from && have.to >= Math.min(to, s.doc.count - 1)) {
+    return;
+  }
+  window.clearTimeout(tab.parsing);
+  tab.parsing = window.setTimeout(async () => {
+    await flush(tab);
+    classNames ??= await invoke("parse_classes").catch(() => null);
+    const version = s.doc.id;
+    const low = Math.max(0, from - PARSE_AROUND);
+    const high = Math.min(s.doc.count - 1, to + PARSE_AROUND);
+    // A parse that fails, as a server still reading the tree's fails, is asked for again after a moment.
+    const found = await invoke("parse_colors", { path: tab.file, from: low, to: high }).catch(() => undefined);
+    if (found === undefined) {
+      tab.parseAgain = Date.now() + PARSE_AGAIN;
+      return;
+    }
+    if (s.doc.id !== version || !classNames) {
+      return;
+    }
+    if (!found) {
+      tab.unparsed = version;
+      return;
+    }
+    const kept = s.highlight.parse;
+    const byLine = kept && !kept.stale ? kept.byLine : new Map();
+    found.lines.forEach((spans, index) => byLine.set(found.from + index, spans));
+    const span = kept && !kept.stale ? [Math.min(kept.from, found.from), Math.max(kept.to, found.from + found.lines.length - 1)] : [found.from, found.from + found.lines.length - 1];
+    s.highlight.parse = { byLine, names: classNames, whole: found.whole, from: span[0], to: span[1], folds: new Map(found.folds), stale: false };
+    s.view?.schedule();
+  }, PARSE_REST);
+}
+
+// The spans of a served or an inspected tab that hold `from` to `to` and are more than it, the least
+// first, for Expand Selection.
+export async function spansOf(tab, from, to) {
+  const s = tab?.session;
+  if (!(tab?.served || tab?.inspected) || !s || s.window) {
+    return [];
+  }
+  await flush(tab);
+  const found = await invoke("parse_spans", { path: tab.file, from: { line: s.base + from.line, col: from.col }, to: { line: s.base + to.line, col: to.col } }).catch(() => []);
+  return found.map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
+}
+
 // Every file's diagnostics as its server last gave them, open in a tab or not; how far the tree's
 // check has gone; and whether it has started in the tree open.
 const known = new Map();
@@ -89,6 +147,16 @@ export function startServers({ tabs, paint }) {
     for (const tab of tabsOf()) {
       if ((tab.served || tab.serving || tab.inspected) && tab.file === path) {
         tab.session.diagnostics = items;
+      }
+    }
+    painted();
+  });
+  // A server that colors its files again has every tab's parse asked for again.
+  listen("lsp-parse", () => {
+    for (const tab of tabsOf()) {
+      tab.unparsed = null;
+      if (tab.session?.highlight.parse) {
+        tab.session.highlight.parse.stale = true;
       }
     }
     painted();

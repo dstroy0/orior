@@ -223,10 +223,55 @@ function keyOf(grammar) {
 // called once they come. Where it does not, the page works them out as they are asked for. A
 // line's tokens wanted at once, as bracket pairs and printing want them, are worked out in the
 // page for a line not yet answered.
+// A line's runs with a parse's spans laid over them, each span's class from its first col to its
+// last. A parse that colors every col stands in for the runs whole.
+function overlay(runs, spans, names, whole) {
+  if (whole) {
+    return spans.length ? spans.map(([from, , cls]) => [from, names[cls] ?? ""]) : [[0, ""]];
+  }
+  if (!spans.length) {
+    return runs;
+  }
+  const classAt = (col) => {
+    let name = "";
+    for (const [start, cls] of runs) {
+      if (start > col) {
+        break;
+      }
+      name = cls;
+    }
+    return name;
+  };
+  const out = [];
+  let col = 0;
+  for (const [from, to, cls] of spans) {
+    if (from > col) {
+      out.push([col, classAt(col)]);
+      for (const [start, name] of runs) {
+        if (start > col && start < from) {
+          out.push([start, name]);
+        }
+      }
+    }
+    out.push([from, names[cls] ?? ""]);
+    col = to;
+  }
+  out.push([col, classAt(col)]);
+  for (const [start, name] of runs) {
+    if (start > col) {
+      out.push([start, name]);
+    }
+  }
+  return out;
+}
+
 export class Highlight {
   constructor(doc, grammar, colored = null) {
     this.doc = doc;
     this.grammar = grammar;
+    // The file's parse, where one reads it: each line's spans by the line, the names of its classes,
+    // whether it colors every col, the lines asked for, its folds, and whether the text changed since.
+    this.parse = null;
     this.starts = ["root"];
     this.runs = [];
     this.stale = [];
@@ -330,12 +375,25 @@ export class Highlight {
     return this.starts[line];
   }
 
+  // A line's runs with its parse laid over them, where the parse holds the line.
+  laid(line, runs) {
+    const spans = this.parse?.byLine.get(line);
+    return spans ? overlay(runs ?? PLAIN, spans, this.parse.names, this.parse.whole) : runs;
+  }
+
   // A line's tokens where they are already worked out, or null.
   cached(line) {
-    return this.grammar ? this.runs[line] ?? null : PLAIN;
+    if (this.parse?.whole && this.parse.byLine.has(line)) {
+      return this.laid(line, PLAIN);
+    }
+    return this.grammar ? this.laid(line, this.runs[line]) ?? null : this.laid(line, PLAIN);
   }
 
   runsOf(line) {
+    return this.laid(line, this.ownRunsOf(line));
+  }
+
+  ownRunsOf(line) {
     if (!this.grammar) {
       return PLAIN;
     }
@@ -352,6 +410,10 @@ export class Highlight {
 
   // A line's tokens now: kept, or worked out in the page where they are not.
   runsNow(line) {
+    return this.laid(line, this.ownRunsNow(line));
+  }
+
+  ownRunsNow(line) {
     if (!this.grammar) {
       return PLAIN;
     }

@@ -9,10 +9,9 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Code intelligence
 
-1. **Highlighting from a parse.** Each file highlighted from the tree of its code, parsed as it changes, and not from patterns over a line at a time: every name colored by what it is, and folds and Expand Selection taken from the same tree.
-2. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
-3. **Code written for the reader.** A docstring drawn up from a function's parameters, its returns and what it raises, in a form of the reader's; a class's methods sorted by name; and a project begun from a template of the reader's.
-4. **Regions in Structure.** The regions a file's comments mark show in Structure as nodes that hold what stands in them, and a file can be pinned there while another is open.
+1. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
+2. **Code written for the reader.** A docstring drawn up from a function's parameters, its returns and what it raises, in a form of the reader's; a class's methods sorted by name; and a project begun from a template of the reader's.
+3. **Regions in Structure.** The regions a file's comments mark show in Structure as nodes that hold what stands in them, and a file can be pinned there while another is open.
 
 ## Languages and formatting
 

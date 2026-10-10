@@ -115,6 +115,10 @@
   --t-delimiter: #9e9bc4;
   --t-strong: #e4e3f5;
   --t-emphasis: #c9b8ff;
+  --t-function: #7fd8e8;
+  --t-parameter: #f2d48a;
+  --t-property: #c9b8ff;
+  --t-module: #a8c8ff;
   color-scheme: dark;
 }
 
@@ -173,6 +177,10 @@
   --t-delimiter: #6b6990;
   --t-strong: #17163a;
   --t-emphasis: #6a4fc9;
+  --t-function: #0f6f80;
+  --t-parameter: #8a6100;
+  --t-property: #6a4fc9;
+  --t-module: #2c3fb8;
   color-scheme: light;
 }
 
@@ -2896,6 +2904,23 @@ body[data-view="run"] .statusbar .ed-status {
 
 .t-delimiter {
   color: var(--t-delimiter);
+}
+
+/* The names a parse tells apart: a function's, a parameter's, an attribute's and a module's. */
+.t-function {
+  color: var(--t-function);
+}
+
+.t-parameter {
+  color: var(--t-parameter);
+}
+
+.t-property {
+  color: var(--t-property);
+}
+
+.t-module {
+  color: var(--t-module);
 }
 
 .t-strong {

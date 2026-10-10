@@ -222,6 +222,8 @@ pub enum Told {
     Checking { done: usize, total: usize },
     /// The server's hints are to be asked for again, as it has read more of the tree.
     Hints,
+    /// The server's semantic tokens are to be asked for again, as it has read more of the tree.
+    Tokens,
 }
 
 /// Where what the servers say on their own goes.
@@ -311,6 +313,61 @@ pub struct Servers {
     index: Arc<Mutex<inspect::Tree>>,
     indexed: Arc<Mutex<Option<PathBuf>>>,
     told: Mutex<Option<Emit>>,
+    /// The text of each file the editor has open, by its key, and each one's parse as last read, by
+    /// its key, with what its text hashes to.
+    texts: Mutex<HashMap<String, String>>,
+    parses: Mutex<HashMap<String, (u64, Arc<Parse>)>>,
+}
+
+/// A file's parse as the editor takes it: each line's runs of one class, as (from, to, class), every
+/// column in one where `whole` says so and otherwise those the parse names, the class an index into
+/// inspect::CLASSES; the regions that fold; and the spans Expand Selection steps through, where the
+/// parse is orior's own.
+#[derive(Serialize, Clone, Debug, Default)]
+pub struct Parse {
+    pub whole: bool,
+    pub lines: Vec<Vec<(u32, u32, u8)>>,
+    pub folds: Vec<(u32, u32)>,
+    #[serde(skip)]
+    pub ranges: Vec<(Place, Place)>,
+}
+
+/// The lines `from` to `to` of a file's parse, and its folds.
+#[derive(Serialize, Clone, Debug)]
+pub struct Colors {
+    pub whole: bool,
+    pub from: u32,
+    pub lines: Vec<Vec<(u32, u32, u8)>>,
+    pub folds: Vec<(u32, u32)>,
+}
+
+/// The class a server's semantic token of a type takes, by the type's name, where it takes one.
+fn class_of_token(name: &str) -> Option<u8> {
+    Some(match name {
+        "namespace" | "toolModule" | "crateRoot" => inspect::MODULE,
+        "type" | "class" | "enum" | "interface" | "struct" | "typeParameter" | "builtinType" | "typeAlias" | "union" | "trait" | "concept" => inspect::TYPE,
+        "parameter" | "constParameter" => inspect::PARAMETER,
+        "property" | "enumMember" | "event" | "field" => inspect::PROPERTY,
+        "function" | "method" => inspect::FUNCTION,
+        "macro" | "procMacro" | "lifetime" | "selfKeyword" | "selfTypeKeyword" | "boolean" => inspect::PREDEFINED,
+        "keyword" | "modifier" => inspect::KEYWORD,
+        "comment" => inspect::COMMENT,
+        "string" | "regexp" | "character" | "escapeSequence" | "formatSpecifier" => inspect::STRING,
+        "number" => inspect::NUMBER,
+        "operator" | "arithmetic" | "logical" | "bitwise" | "comparison" => inspect::OPERATOR,
+        "decorator" | "attribute" | "builtinAttribute" | "derive" | "deriveHelper" => inspect::ATTRIBUTE,
+        "punctuation" | "brace" | "bracket" | "parenthesis" | "comma" | "colon" | "semicolon" | "dot" | "angle" => inspect::DELIMITER,
+        "variable" | "label" => 0,
+        _ => return None,
+    })
+}
+
+/// What a text hashes to, to tell whether a parse of it is still the parse of it.
+fn hash_of(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// Each file's diagnostics as its server last gave them, which a quick fix is asked about, by the
@@ -548,6 +605,10 @@ fn heard(method: &str, params: &Value, emit: &Emit, published: &Published, check
             emit(Told::Hints);
             Value::Null
         }
+        "workspace/semanticTokens/refresh" => {
+            emit(Told::Tokens);
+            Value::Null
+        }
         _ => Value::Null,
     }
 }
@@ -617,6 +678,9 @@ impl Servers {
     /// whether a server took it.
     pub fn open(&self, root: &Path, path: &Path, language: &str, text: &str, emit: &Emit) -> Result<bool, String> {
         self.inspect(root, path, Some(text), emit);
+        if let Ok(mut texts) = self.texts.lock() {
+            texts.insert(lsp::key_of(&lsp::uri_of(path)), text.to_string());
+        }
         let Some((server, spec)) = self.server(root, language, emit)? else {
             return Ok(false);
         };
@@ -652,6 +716,9 @@ impl Servers {
 
     pub fn change(&self, path: &Path, text: &str) -> Result<(), String> {
         self.inspect_again(path, Some(text));
+        if let Ok(mut texts) = self.texts.lock() {
+            texts.insert(lsp::key_of(&lsp::uri_of(path)), text.to_string());
+        }
         let _held = self.checks.held.lock().map_err(|_| "held".to_string())?;
         self.holding(path).map_or(Ok(()), |server| server.change(path, text))
     }
@@ -660,6 +727,11 @@ impl Servers {
     /// it. Where the tree's check is on, the file is checked as the disk holds it before its server
     /// lets it go.
     pub fn close(&self, path: &Path) -> Result<(), String> {
+        if let (Ok(mut texts), Ok(mut parses)) = (self.texts.lock(), self.parses.lock()) {
+            let key = lsp::key_of(&lsp::uri_of(path));
+            texts.remove(&key);
+            parses.remove(&key);
+        }
         let text = std::fs::read_to_string(path).ok();
         self.inspect_again(path, text.as_deref());
         let Some(server) = self.holding(path) else {
@@ -822,6 +894,92 @@ impl Servers {
         Ok(edits)
     }
 
+    /// The parse of the file the editor has open at `path`: orior's own where the file is Python or
+    /// JavaScript, and its server's semantic tokens and folding ranges where its server gives them.
+    /// None where neither reads it. A parse is kept until the file's text changes.
+    pub fn parse(&self, path: &Path) -> Result<Option<Arc<Parse>>, String> {
+        let key = lsp::key_of(&lsp::uri_of(path));
+        let Some(text) = self.texts.lock().map_err(|_| "held".to_string())?.get(&key).cloned() else {
+            return Ok(None);
+        };
+        let hash = hash_of(&text);
+        if let Some((kept, parse)) = self.parses.lock().map_err(|_| "held".to_string())?.get(&key) {
+            if *kept == hash {
+                return Ok(Some(parse.clone()));
+            }
+        }
+        let file = path.display().to_string();
+        let parse = match inspect::language_of(&file).and_then(|language| inspect::parse(language, &text)) {
+            Some(parsed) => Parse { whole: true, lines: parsed.lines, folds: parsed.folds, ranges: parsed.ranges },
+            None => {
+                let Some(server) = self.holding(path).filter(|server| server.capabilities["semanticTokensProvider"].is_object()) else {
+                    return Ok(None);
+                };
+                let legend: Vec<Option<u8>> = server.capabilities["semanticTokensProvider"]["legend"]["tokenTypes"].as_array().into_iter().flatten().map(|name| name.as_str().and_then(class_of_token)).collect();
+                let uri = lsp::uri_of(path);
+                let said = server.request("textDocument/semanticTokens/full", json!({"textDocument": {"uri": uri}}), SEARCHING)?;
+                let mut lines: Vec<Vec<(u32, u32, u8)>> = vec![Vec::new(); text.split('\n').count()];
+                let data: Vec<u32> = said["data"].as_array().into_iter().flatten().filter_map(|one| one.as_u64()).map(|one| one as u32).collect();
+                let (mut line, mut col) = (0u32, 0u32);
+                for token in data.chunks_exact(5) {
+                    if token[0] > 0 {
+                        line += token[0];
+                        col = 0;
+                    }
+                    col += token[1];
+                    if let (Some(Some(class)), Some(runs)) = (legend.get(token[3] as usize), lines.get_mut(line as usize)) {
+                        runs.push((col, col + token[2], *class));
+                    }
+                }
+                let folds = if server.capabilities["foldingRangeProvider"].is_null() || server.capabilities["foldingRangeProvider"] == false {
+                    Vec::new()
+                } else {
+                    let found = server.request("textDocument/foldingRange", json!({"textDocument": {"uri": uri}}), ASKING).unwrap_or(Value::Null);
+                    inspect::folds_of(found.as_array().into_iter().flatten().filter_map(|one| Some((one["startLine"].as_u64()? as u32, one["endLine"].as_u64()? as u32))).collect())
+                };
+                Parse { whole: false, lines, folds, ranges: Vec::new() }
+            }
+        };
+        let parse = Arc::new(parse);
+        self.parses.lock().map_err(|_| "held".to_string())?.insert(key, (hash, parse.clone()));
+        Ok(Some(parse))
+    }
+
+    /// Forgets the parses that came from servers, for each to be asked for again.
+    pub fn forget_tokens(&self) {
+        if let Ok(mut parses) = self.parses.lock() {
+            parses.retain(|_, (_, parse)| parse.whole);
+        }
+    }
+
+    /// The lines `from` to `to` of the parse of the file at `path`, and its folds.
+    pub fn colors(&self, path: &Path, from: u32, to: u32) -> Result<Option<Colors>, String> {
+        Ok(self.parse(path)?.map(|parse| {
+            let end = (to as usize + 1).min(parse.lines.len());
+            let start = (from as usize).min(end);
+            Colors { whole: parse.whole, from: start as u32, lines: parse.lines[start..end].to_vec(), folds: parse.folds.clone() }
+        }))
+    }
+
+    /// The spans of the file at `path` that hold `from` to `to` and are more than it, the least first:
+    /// from orior's parse, or from its server's selection ranges.
+    pub fn spans(&self, path: &Path, from: Place, to: Place) -> Result<Vec<(Place, Place)>, String> {
+        if let Some(parse) = self.parse(path)?.filter(|parse| parse.whole) {
+            return Ok(inspect::ranges_at(&inspect::Parsed { ranges: parse.ranges.clone(), ..Default::default() }, &from, &to));
+        }
+        let Some(server) = self.holding(path).filter(|server| !server.capabilities["selectionRangeProvider"].is_null() && server.capabilities["selectionRangeProvider"] != false) else {
+            return Ok(Vec::new());
+        };
+        let said = server.request("textDocument/selectionRange", json!({"textDocument": {"uri": lsp::uri_of(path)}, "positions": [{"line": from.line, "character": from.col}]}), ASKING)?;
+        let mut chain = Vec::new();
+        let mut at = &said[0];
+        while at.is_object() {
+            chain.push((place(&at["range"]["start"]), place(&at["range"]["end"])));
+            at = &at["parent"];
+        }
+        Ok(inspect::ranges_at(&inspect::Parsed { ranges: chain, ..Default::default() }, &from, &to))
+    }
+
     /// The hints the server of `path` writes on its lines `from` to `to`, where it writes any.
     pub fn hints(&self, path: &Path, from: u32, to: u32) -> Result<Vec<Hint>, String> {
         let Some(server) = self.holding(path).filter(|server| !server.capabilities["inlayHintProvider"].is_null() && server.capabilities["inlayHintProvider"] != false) else {
@@ -977,6 +1135,10 @@ impl Servers {
         }
         if let Ok(mut published) = self.published.lock() {
             published.clear();
+        }
+        if let (Ok(mut texts), Ok(mut parses)) = (self.texts.lock(), self.parses.lock()) {
+            texts.clear();
+            parses.clear();
         }
         if let Ok(mut inspected) = self.checks.inspected.lock() {
             inspected.clear();
@@ -1614,7 +1776,7 @@ mod tests {
                 kept.lock().unwrap().insert(name, diagnostics.items.iter().filter(|one| one.severity == 1).count());
             }
             Told::Checking { done, total } => *far.lock().unwrap() = (done, total),
-            Told::Edits(_) | Told::Hints => {}
+            Told::Edits(_) | Told::Hints | Told::Tokens => {}
         });
         (emit, found, gone)
     }

@@ -22,6 +22,10 @@
 //! reads where no language server answers: a call of a name reaches the functions of that name in the
 //! caller's file, or, where its file declares none, those of the tree in its language.
 //!
+//! The same reading parses a file whole for the editor: each column's class, a name's by what it is,
+//! a function's, a class's, a parameter's, an attribute's or a module's; the regions that fold; and
+//! the spans Expand Selection steps through, its strings, its brackets, its statements and its blocks.
+//!
 //! A Python import is found from the importing file's folder, from the folder above its outermost
 //! package, and from the tree's top folder, in that order; a relative one from its package. A
 //! JavaScript import is a relative path, with `.js`, `.mjs` or `/index.js` after it where the path
@@ -154,11 +158,13 @@ pub(crate) struct Scan<'a> {
     pub pos: usize,
     line: u32,
     col: u32,
+    /// The spans of the comments read so far.
+    pub comments: Vec<(Place, Place)>,
 }
 
 impl<'a> Scan<'a> {
     pub fn new(src: &'a str) -> Scan<'a> {
-        Scan { src, pos: 0, line: 0, col: 0 }
+        Scan { src, pos: 0, line: 0, col: 0, comments: Vec::new() }
     }
 
     pub fn peek(&self) -> Option<char> {
@@ -185,12 +191,109 @@ impl<'a> Scan<'a> {
         Place { line: self.line, col: self.col }
     }
 
-    /// Moves to the end of the line, before its line end.
+    /// Moves past a comment to the end of its line, before its line end, and keeps its span.
     pub fn skip_line(&mut self) {
-        while self.peek().is_some_and(|c| c != '\n') {
+        let from = self.place();
+        while self.peek().is_some_and(|c| c != '\n' && c != '\r') {
             self.bump();
         }
+        self.comments.push((from, self.place()));
     }
+}
+
+/// The classes a parse gives a column, by their index: none, then each the page's own, as its colors
+/// name them.
+pub const CLASSES: [&str; 14] = ["", "t-keyword", "t-string", "t-number", "t-comment", "t-operator", "t-delimiter", "t-function", "t-type", "t-parameter", "t-property", "t-module", "t-predefined", "t-attribute"];
+pub(crate) const KEYWORD: u8 = 1;
+pub(crate) const STRING: u8 = 2;
+pub(crate) const NUMBER: u8 = 3;
+pub(crate) const COMMENT: u8 = 4;
+pub(crate) const OPERATOR: u8 = 5;
+pub(crate) const DELIMITER: u8 = 6;
+pub(crate) const FUNCTION: u8 = 7;
+pub(crate) const TYPE: u8 = 8;
+pub(crate) const PARAMETER: u8 = 9;
+pub(crate) const PROPERTY: u8 = 10;
+pub(crate) const MODULE: u8 = 11;
+pub(crate) const PREDEFINED: u8 = 12;
+pub(crate) const ATTRIBUTE: u8 = 13;
+
+/// A file as its parse reads it: each line's runs of one class, every column of the line in one, as
+/// (from, to, class); the regions that fold, by their first and last lines; and the spans Expand
+/// Selection steps through.
+#[derive(Clone, Debug, Default)]
+pub struct Parsed {
+    pub lines: Vec<Vec<(u32, u32, u8)>>,
+    pub folds: Vec<(u32, u32)>,
+    pub ranges: Vec<(Place, Place)>,
+}
+
+/// The parse of a file's text in `language`, where it is one the inspections read.
+pub fn parse(language: &str, text: &str) -> Option<Parsed> {
+    match language {
+        "python" => Some(python::parse(text)),
+        "javascript" => Some(javascript::parse(text)),
+        _ => None,
+    }
+}
+
+/// The spans of a parse that hold `from` to `to` and are more than it, the least first.
+pub fn ranges_at(parsed: &Parsed, from: &Place, to: &Place) -> Vec<(Place, Place)> {
+    let before = |a: &Place, b: &Place| (a.line, a.col) <= (b.line, b.col);
+    let mut out: Vec<(Place, Place)> = parsed.ranges.iter().filter(|(start, end)| before(start, from) && before(to, end) && (start != from || end != to)).cloned().collect();
+    out.sort_by_key(|(start, end)| (std::cmp::Reverse((start.line, start.col)), (end.line, end.col)));
+    out.dedup();
+    out
+}
+
+/// Each line's class at each column, painted span by span, a later span over an earlier.
+pub(crate) struct Paint {
+    lines: Vec<Vec<u8>>,
+}
+
+impl Paint {
+    pub fn new(src: &str) -> Paint {
+        Paint { lines: src.split('\n').map(|line| vec![0u8; line.encode_utf16().count()]).collect() }
+    }
+
+    pub fn span(&mut self, from: &Place, to: &Place, class: u8) {
+        for line in from.line..=to.line.min(self.lines.len().saturating_sub(1) as u32) {
+            let cols = &mut self.lines[line as usize];
+            let start = if line == from.line { from.col as usize } else { 0 };
+            let end = if line == to.line { (to.col as usize).min(cols.len()) } else { cols.len() };
+            cols[start.min(end)..end].fill(class);
+        }
+    }
+
+    pub fn runs(self) -> Vec<Vec<(u32, u32, u8)>> {
+        self.lines
+            .into_iter()
+            .map(|cols| {
+                let mut runs: Vec<(u32, u32, u8)> = Vec::new();
+                for (col, class) in cols.into_iter().enumerate() {
+                    match runs.last_mut() {
+                        Some(last) if last.2 == class => last.1 = col as u32 + 1,
+                        _ => runs.push((col as u32, col as u32 + 1, class)),
+                    }
+                }
+                runs
+            })
+            .collect()
+    }
+}
+
+/// Folds by their first line, each the widest that starts there, one line or more below it.
+pub(crate) fn folds_of(found: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
+    let mut widest: HashMap<u32, u32> = HashMap::new();
+    for (first, last) in found {
+        if last > first {
+            let end = widest.entry(first).or_insert(last);
+            *end = (*end).max(last);
+        }
+    }
+    let mut out: Vec<(u32, u32)> = widest.into_iter().collect();
+    out.sort();
+    out
 }
 
 /// A file of the tree's index: its language and its facts.
@@ -727,6 +830,19 @@ mod tests {
             }
         }
         println!("{} files read in {read:?}, found in {all:?}: {by_code:?}", tree.files.len());
+        let mut slowest = (std::time::Duration::ZERO, String::new(), 0usize);
+        let started = std::time::Instant::now();
+        for file in &files {
+            if let (Some(language), Ok(text)) = (language_of(file), std::fs::read_to_string(root.join(file))) {
+                let one = std::time::Instant::now();
+                let parsed = parse(language, &text).unwrap();
+                let took = one.elapsed();
+                if took > slowest.0 {
+                    slowest = (took, file.clone(), parsed.lines.len());
+                }
+            }
+        }
+        println!("every file parsed in {:?}, the slowest {} of {} lines in {:?}", started.elapsed(), slowest.1, slowest.2, slowest.0);
     }
 
     fn tree(files: &[(&str, &str)]) -> Tree {
@@ -735,6 +851,48 @@ mod tests {
             tree.set(path, language_of(path).unwrap(), text);
         }
         tree
+    }
+
+    /// The class a parse gives each word of a line, as (word, class).
+    fn classes_of(parsed: &Parsed, text: &str, line: usize) -> Vec<(String, &'static str)> {
+        let words: Vec<u16> = text.split('\n').nth(line).unwrap().encode_utf16().collect();
+        parsed.lines[line].iter().filter(|(from, to, _)| words[*from as usize..*to as usize].iter().any(|unit| !char::from_u32(*unit as u32).is_some_and(char::is_whitespace))).map(|(from, to, class)| (String::from_utf16_lossy(&words[*from as usize..*to as usize]).trim().to_string(), CLASSES[*class as usize])).collect()
+    }
+
+    #[test]
+    fn a_python_file_is_colored_folded_and_spanned_from_its_parse() {
+        let text = "import os.path as p\n\n\n@cache\ndef area(width, height=2):\n    \"\"\"Area.\"\"\"  # the area\n    return Shape(width).scale(height, by=p.sep) + self.size\n\n\nclass Shape:\n    pass\n";
+        let parsed = parse("python", text).unwrap();
+        assert_eq!(classes_of(&parsed, text, 0), vec![("import".into(), "t-keyword"), ("os".into(), "t-module"), (".".into(), "t-delimiter"), ("path".into(), "t-module"), ("as".into(), "t-keyword"), ("p".into(), "t-module")]);
+        assert_eq!(classes_of(&parsed, text, 3), vec![("@cache".into(), "t-attribute")]);
+        let header = classes_of(&parsed, text, 4);
+        assert_eq!(header[1], ("area".into(), "t-function"));
+        assert_eq!(header[3], ("width".into(), "t-parameter"));
+        assert_eq!(classes_of(&parsed, text, 5), vec![("\"\"\"Area.\"\"\"".into(), "t-string"), ("# the area".into(), "t-comment")]);
+        let body: Vec<(String, &str)> = classes_of(&parsed, text, 6).into_iter().filter(|(_, class)| !matches!(*class, "t-delimiter" | "t-operator")).collect();
+        assert_eq!(body, vec![("return".into(), "t-keyword"), ("Shape".into(), "t-type"), ("width".into(), "t-parameter"), ("scale".into(), "t-function"), ("height".into(), "t-parameter"), ("by".into(), "t-parameter"), ("p".into(), ""), ("sep".into(), "t-property"), ("self".into(), "t-predefined"), ("size".into(), "t-property")]);
+        assert_eq!(parsed.folds, vec![(4, 6), (9, 10)]);
+        let spans = ranges_at(&parsed, &Place { line: 6, col: 19 }, &Place { line: 6, col: 19 });
+        let shown: Vec<String> = spans.iter().take(4).map(|(from, to)| format!("{}:{}-{}:{}", from.line, from.col, to.line, to.col)).collect();
+        assert_eq!(shown, vec!["6:17-6:22", "6:16-6:23", "6:4-6:59", "5:4-6:59"], "the inside of the brackets, the brackets, the statement, the block's body");
+    }
+
+    #[test]
+    fn a_javascript_file_is_colored_folded_and_spanned_from_its_parse() {
+        let text = "// the area\nexport function area(width, height = 2) {\n  const shape = new Shape(width);\n  return shape.scale(height) + `${width}px` + /a\\/b/.source;\n}\n\nclass Shape {\n  scale(by) {\n    return { by, size: 1 };\n  }\n}\n";
+        let parsed = parse("javascript", text).unwrap();
+        assert_eq!(classes_of(&parsed, text, 0), vec![("// the area".into(), "t-comment")]);
+        let header = classes_of(&parsed, text, 1);
+        assert_eq!(header[2], ("area".into(), "t-function"));
+        assert_eq!(header[4], ("width".into(), "t-parameter"));
+        let line: Vec<(String, &str)> = classes_of(&parsed, text, 3).into_iter().filter(|(_, class)| !matches!(*class, "t-delimiter" | "t-operator")).collect();
+        assert_eq!(line, vec![("return".into(), "t-keyword"), ("shape".into(), ""), ("scale".into(), "t-function"), ("height".into(), "t-parameter"), ("`${".into(), "t-string"), ("width".into(), "t-parameter"), ("}px`".into(), "t-string"), ("/a\\/b/".into(), "t-string"), ("source".into(), "t-property")]);
+        assert!(classes_of(&parsed, text, 2).contains(&("Shape".into(), "t-type")));
+        assert!(classes_of(&parsed, text, 7).contains(&("scale".into(), "t-function")) && classes_of(&parsed, text, 7).contains(&("by".into(), "t-parameter")));
+        assert!(classes_of(&parsed, text, 8).contains(&("size".into(), "t-property")));
+        assert_eq!(parsed.folds, vec![(1, 4), (6, 10), (7, 9)]);
+        let spans = ranges_at(&parsed, &Place { line: 3, col: 21 }, &Place { line: 3, col: 21 });
+        assert_eq!((spans[0].0.col, spans[0].1.col, spans[1].0.col, spans[1].1.col), (21, 27, 20, 28), "inside the call's brackets, then with them");
     }
 
     #[test]

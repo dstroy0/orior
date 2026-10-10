@@ -179,7 +179,7 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onChangeMark, onHistory, onGroup, onShown, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
     this.host = host;
     this.onGroup = onGroup ?? (() => {});
     this.onChangeMark = onChangeMark ?? (() => {});
@@ -187,6 +187,7 @@ export class Editor {
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
     this.onShown = onShown ?? (() => {});
+    this.spansOf = spansOf ?? (async () => []);
     host.classList.add("ed");
     this.gutter = div("ed-gutter");
     this.gutterRows = div("ed-gutter-rows");
@@ -1591,10 +1592,16 @@ export class Editor {
 
   // Extend Selection: the primary selection grows to the next span that holds it, the word, the inside
   // of the string it is in, the string, the inside of the brackets around it, the brackets, its whole
-  // lines, then the whole text. Shrink Selection takes each step back.
-  expandSelection() {
+  // lines, then the whole text; and, where the file has a parse, each span of the parse between them,
+  // its statements and its blocks among them. Shrink Selection takes each step back.
+  async expandSelection() {
     const s = this.s;
     const sel = this.primary();
+    const asked = [cmp(sel.anchor, sel.head) <= 0 ? sel.anchor : sel.head, cmp(sel.anchor, sel.head) <= 0 ? sel.head : sel.anchor];
+    const parsed = await this.spansOf(s, asked[0], asked[1]);
+    if (this.s !== s || this.primary() !== sel) {
+      return;
+    }
     const [from, to] = cmp(sel.anchor, sel.head) <= 0 ? [sel.anchor, sel.head] : [sel.head, sel.anchor];
     const holds = (span) => cmp(span[0], from) <= 0 && cmp(to, span[1]) <= 0 && (cmp(span[0], from) < 0 || cmp(to, span[1]) < 0);
     const spans = [];
@@ -1666,6 +1673,7 @@ export class Editor {
     }
     const lastLine = to.col === 0 && to.line > from.line ? to.line - 1 : to.line;
     spans.push([pos(from.line, 0), pos(lastLine, s.doc.line(lastLine).length)], [pos(0, 0), s.doc.end()]);
+    spans.push(...parsed.map(([start, end]) => [pos(start.line, start.col), pos(end.line, end.col)]));
     const next = spans.filter(holds).sort((a, b) => cmp(b[0], a[0]) || cmp(a[1], b[1]))[0];
     if (!next) {
       return;

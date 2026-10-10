@@ -39,7 +39,7 @@ import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
-import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, serve, startServers, stopServing, treeChecking, wrap } from "./servers.js";
+import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, treeChecking, wrap } from "./servers.js";
 import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { extractFunction } from "./extract.js";
@@ -2001,7 +2001,12 @@ export async function startEdit(defs) {
       const tab = tabOfSession(s.of ?? s);
       if (tab) {
         hintsShown(tab, from, to);
+        parseShown(tab, from, to);
       }
+    },
+    spansOf: (s, from, to) => {
+      const tab = tabOfSession(s.of ?? s);
+      return tab ? spansOf(tab, from, to) : Promise.resolve([]);
     },
     onCursor: () => {
       moved();

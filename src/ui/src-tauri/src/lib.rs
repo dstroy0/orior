@@ -676,6 +676,10 @@ fn emitter(handle: AppHandle, tree: PathBuf) -> servers::Emit {
         servers::Told::Hints => {
             let _ = handle.emit("lsp-hints", ());
         }
+        servers::Told::Tokens => {
+            handle.state::<App>().servers.forget_tokens();
+            let _ = handle.emit("lsp-parse", ());
+        }
         servers::Told::Checking { done, total } => {
             let _ = handle.emit("tree-check", serde_json::json!({"done": done, "total": total}));
         }
@@ -728,6 +732,25 @@ fn lsp_actions(app: State<App>, path: String, from: servers::Place, to: servers:
 fn lsp_act(app: State<App>, path: String, raw: serde_json::Value) -> Result<Vec<servers::FileEdit>, String> {
     let root = root_of(&app)?;
     Ok(tree_edits(&root, app.servers.act(&root.join(path), &raw)?))
+}
+
+/// The lines `from` to `to` of the parse of a file the editor has open, and its folds.
+#[tauri::command(async)]
+fn parse_colors(app: State<App>, path: String, from: u32, to: u32) -> Result<Option<servers::Colors>, String> {
+    app.servers.colors(&root_of(&app)?.join(path), from, to)
+}
+
+/// The spans of a file the editor has open that hold `from` to `to` and are more than it, the least
+/// first.
+#[tauri::command(async)]
+fn parse_spans(app: State<App>, path: String, from: servers::Place, to: servers::Place) -> Result<Vec<(servers::Place, servers::Place)>, String> {
+    app.servers.spans(&root_of(&app)?.join(path), from, to)
+}
+
+/// The classes a parse names, by their index.
+#[tauri::command]
+fn parse_classes() -> Vec<&'static str> {
+    orior_cli::inspect::CLASSES.to_vec()
 }
 
 /// The hints the server of a file writes on its lines `from` to `to`.
@@ -1304,6 +1327,9 @@ fn open(launch: Launch) {
             problems_check,
             calls_root,
             lsp_hints,
+            parse_colors,
+            parse_spans,
+            parse_classes,
             calls_of,
             inspect_languages,
             lsp_hover,
