@@ -34,6 +34,7 @@ pub mod lsp;
 pub mod patterns;
 pub mod regexp;
 pub mod plugins;
+pub mod profile;
 pub mod python_paths;
 pub mod recording;
 pub mod report;

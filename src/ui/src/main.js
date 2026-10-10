@@ -4,7 +4,7 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, loadMounts, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
+import { editing, forgetTree, loadMounts, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
@@ -17,6 +17,7 @@ import { closeIcon, refreshStrip, startStrip } from "./strip.js";
 import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
+import { startProfile } from "./profile.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
@@ -114,6 +115,15 @@ async function start() {
   keepPane(document.getElementById("explorer"), "left", { own: true });
   keepPane(document.getElementById("defs-side"), "right");
   startStatusItems();
+  await startProfile({
+    file: () => editing().fileHere(),
+    save: () => (editing().activeChanged ? editing().save() : null),
+    openAt: (path, line, col) => {
+      showView("edit");
+      openAt(path, line, col);
+    },
+    say: (text) => say(text),
+  });
   startFocusFollows({ terminal: focusTerminalView });
   startDocks({
     close: closeIcon,

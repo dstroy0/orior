@@ -37,6 +37,8 @@ struct App {
     debugger: Arc<debug::Debugger>,
     /// The tree's runs of its tests, the one going and the number of the last.
     tests: orior_cli::test_runs::Runs,
+    /// The profile running, where one is.
+    profiles: orior_cli::profile::Profiles,
     windows: AtomicU64,
     /// The watch over the tree open, which tells the page of changes made outside the window.
     watcher: Mutex<Option<watch::Watcher>>,
@@ -1012,6 +1014,22 @@ fn tests_run(handle: AppHandle, app: State<App>, given: Vec<String>, parallel: b
     app.tests.start(&root, given, parallel, cover, tell)
 }
 
+/// Profiles the Python file at `path` of the tree, here, or on the machine `remote` names as
+/// user@host:folder, in that folder by the same path. What the profile finds comes as "profile".
+#[tauri::command(async)]
+fn profile_start(handle: AppHandle, app: State<App>, path: String, remote: Option<String>) -> Result<(), String> {
+    let root = root_of(&app)?;
+    let tell: orior_cli::profile::Tell = Arc::new(move |heard| {
+        let _ = handle.emit("profile", heard);
+    });
+    app.profiles.start(&root, &path, remote.as_deref(), tell)
+}
+
+#[tauri::command]
+fn profile_stop(app: State<App>) {
+    app.profiles.stop();
+}
+
 /// Stops the run of tests going, where one is.
 #[tauri::command]
 fn tests_stop(app: State<App>) {
@@ -1803,6 +1821,8 @@ fn open(launch: Launch) {
             tests_found,
             tests_run,
             tests_stop,
+            profile_start,
+            profile_stop,
             maven_settings,
             maven_set,
             snapshots_line,

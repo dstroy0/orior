@@ -25,6 +25,7 @@ const TOOLS = {
   jobs: { node: "job-side", place: "mode-run", middle: "#job-stage", side: "left", width: "--side", sizes: { left: 304, right: 304, bottom: 240 }, label: "Jobs" },
   debug: { node: "debug", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 420, right: 420, bottom: 240 }, label: "Debug", height: "orior.debug.height" },
   terminal: { node: "term", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 480, right: 480, bottom: 256 }, label: "Terminal", height: "orior.terminal.height" },
+  profile: { node: "profile", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Profile" },
 };
 
 const SIDES = ["left", "right", "bottom"];
@@ -40,10 +41,11 @@ const ICONS = {
   run: "jobs",
   debug: "debug",
   terminal: "terminal",
+  profile: "profile",
   definitions: "definitions",
 };
 
-const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", definitions: "Definitions" };
+const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", definitions: "Definitions" };
 
 // The smallest a docked window is made, and the share of its place it can take at most.
 const LEAST = 120;

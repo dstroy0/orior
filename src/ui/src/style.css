@@ -4272,6 +4272,120 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   border-top: 1px solid var(--line);
 }
 
+/* The Profile panel: its bar of views and actions and what the run is doing, then the flame graph,
+   or the run's output in its place, with the bar the pointer is on said beside it. */
+.profile {
+  flex: none;
+  height: 300px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--well);
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.profile-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-tab,
+.profile-action {
+  padding: 0.12rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.profile-tab[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.profile-action {
+  border-color: var(--line);
+}
+
+.profile-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.profile-said {
+  flex: 1;
+  min-width: 0;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.profile-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.profile-graph {
+  display: block;
+  cursor: pointer;
+}
+
+.profile-graph[hidden] {
+  display: none;
+}
+
+.profile-out {
+  padding: 0.3rem 0.7rem;
+  font: 12.5px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+.profile-line.failed {
+  color: var(--ed-error, var(--hover));
+}
+
+.profile-tip {
+  position: absolute;
+  z-index: 3;
+  max-width: 34rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--ed-widget-line, var(--line));
+  border-radius: var(--radius);
+  background: var(--ed-widget, var(--surface));
+  color: var(--fg);
+  font: 12px var(--code);
+  pointer-events: none;
+}
+
+.profile-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--fg-3);
+  font: 12.5px var(--head);
+  pointer-events: none;
+}
+
+.profile-empty[hidden] {
+  display: none;
+}
+
 /* The Debug window: a bar of steps and what the program is doing, then Frames, Variables with the
  * watches over them, and Console, side by side. */
 .debug {

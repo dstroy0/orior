@@ -62,6 +62,7 @@ const STRIP = {
     ["run", "run", "Run", "Ctrl+Shift+D", () => (shownView() === "run" ? togglePane() : showView("run")), () => shownView() === "run"],
     ["debug", "debug", "Debug", "Alt+5", () => state.hooks.run("debug-view"), () => !document.getElementById("debug").hidden],
     ["terminal", "terminal", "Terminal", "Ctrl+`", () => state.hooks.run("terminal-view"), () => !document.getElementById("term").hidden],
+    ["profile", "profile", "Profile", "", () => state.hooks.run("profile-view"), () => !document.getElementById("profile").hidden],
     ["problems", "problems", "Problems", "", () => openGroup("problems"), () => explorerShown("problems")],
     ["tests", "tests", "Tests", "", () => openGroup("tests"), () => explorerShown("tests")],
     ["git", "git", "Git", "", () => openGroup("git"), () => explorerShown("git")],
@@ -383,7 +384,7 @@ export function startStrip(hooks) {
   });
   // The panes and panels show and collapse from many places; the strip follows what they do.
   const watched = new MutationObserver(() => refreshStrip());
-  for (const id of ["explorer", "job-side", "debug", "term", "defs-side"]) {
+  for (const id of ["explorer", "job-side", "debug", "term", "defs-side", "profile"]) {
     watched.observe(document.getElementById(id), { attributes: true, attributeFilter: ["hidden", "class"] });
   }
   refreshStrip();
