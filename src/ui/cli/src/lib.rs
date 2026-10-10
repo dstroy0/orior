@@ -21,6 +21,7 @@ pub mod defs;
 pub mod editorconfig;
 pub mod envs;
 pub mod files;
+pub mod fill;
 pub mod format;
 pub mod git;
 pub mod highlight;

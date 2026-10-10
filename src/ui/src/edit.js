@@ -1125,6 +1125,24 @@ async function writeDocstring() {
   }
 }
 
+// Fill Paragraph: the paragraph of documentation the cursor is in filled to the documentation's
+// margin, or the code's where none is set apart, as fill.rs in the command line's crate fills it.
+async function fillParagraph() {
+  const found = codeHere();
+  if (!found) {
+    return;
+  }
+  const { editor, s, line } = found;
+  const width = editor.docMargin ?? s.margin ?? 79;
+  try {
+    const edit = await invoke("fill_paragraph", { text: s.doc.text(), line, width });
+    editor.change([edit], "fill");
+    s.doc.seal();
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
 async function sortMethods() {
   const found = codeHere();
   if (!found) {
@@ -2682,6 +2700,13 @@ export function editing() {
     setDocstringForm,
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
+    continuation: () => state.editor?.continuation ?? {},
+    setContinuation: (continuation) => [state.editor, state.split?.editor].forEach((one) => one?.setContinuation(continuation)),
+    operatorNext: () => Boolean(state.editor?.operatorNext),
+    setOperatorNext: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setOperatorNext(on)),
+    docMargin: () => state.editor?.docMargin ?? null,
+    setDocMargin: (columns) => [state.editor, state.split?.editor].forEach((one) => one?.setDocMargin(columns)),
+    fillParagraph,
     hints: (kind) => Boolean(state.editor?.hintKinds[kind]),
     setHints: (kind, on) => [state.editor, state.split?.editor].forEach((one) => one?.setHints(kind, on)),
     smoothScroll: () => Boolean(state.editor?.smoothOn),

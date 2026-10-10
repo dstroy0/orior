@@ -2616,6 +2616,12 @@ body[data-view="run"] .statusbar .ed-status {
   pointer-events: none;
 }
 
+/* The documentation's margin, where the reader sets one apart from the code's. */
+.ed-margin.doc {
+  background: none;
+  border-left: 1px dashed var(--ed-guide);
+}
+
 .ed-margin[hidden] {
   display: none;
 }

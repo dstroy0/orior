@@ -331,6 +331,10 @@ const COMMANDS = {
   "move-declaration": inEditor(() => editing().moveDeclaration(askFor)),
   "shape-search": inEditor(() => editing().shapeSearch(sheet)),
   docstring: inEditor(() => editing().writeDocstring()),
+  "fill-paragraph": inEditor(() => editing().fillParagraph()),
+  continuation: (args) => askContinuation(args),
+  "operator-next-line": (args) => editing().setOperatorNext(onOff(args) ?? !editing().operatorNext()),
+  "doc-margin": (args) => askDocMargin(args[0]),
   "sort-methods": inEditor(() => editing().sortMethods()),
   "docstring-form": (args) => {
     if (args[0]) {
@@ -395,6 +399,7 @@ const CHECKS = {
   "hide-comments": () => editing().commentsHidden(),
   "line-history": () => editing().lineHistory(),
   "smooth-scroll": () => editing().smoothScroll(),
+  "operator-next-line": () => editing().operatorNext(),
   "type-hints": () => editing().hints("type"),
   "parameter-hints": () => editing().hints("parameter"),
   "flick-scroll": () => editing().flickScroll(),
@@ -615,6 +620,68 @@ async function showBranches() {
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
+}
+
+// Edit, Formatting, Continuation Indent: the columns a new line inside a bracket is indented by, for
+// a call's arguments, a declaration's parameters and any other bracket, each as given or asked for;
+// one left empty is one step of the indent.
+function askContinuation(given) {
+  const now = editing().continuation();
+  const places = [["call", "Calls' arguments"], ["declaration", "Declarations' parameters"], ["expression", "Any other bracket"]];
+  const apply = (values) => {
+    const set = {};
+    places.forEach(([place], index) => {
+      const columns = Number(values[index]);
+      if (Number.isFinite(columns) && columns > 0) {
+        set[place] = Math.round(columns);
+      }
+    });
+    editing().setContinuation(set);
+    say(`A new line inside a bracket is indented by ${places.map(([place, label]) => `${set[place] ?? "one step"} for ${label.toLowerCase()}`).join(", ")}.`);
+  };
+  if (given.length) {
+    apply(given);
+    return;
+  }
+  const form = document.createElement("form");
+  form.className = "sheet-report sheet-create";
+  const fields = places.map(([place, label]) => {
+    const field = Object.assign(document.createElement("input"), { className: "report-field", type: "number", min: 1, max: 16, value: now[place] ?? "", placeholder: "One step of the indent" });
+    field.setAttribute("aria-label", label);
+    const row = Object.assign(document.createElement("label"), { className: "report-row" });
+    row.append(Object.assign(document.createElement("span"), { textContent: label }), field);
+    return [row, field];
+  });
+  const go = Object.assign(document.createElement("button"), { className: "primary", type: "submit", textContent: "Set" });
+  const foot = Object.assign(document.createElement("div"), { className: "report-foot" });
+  foot.append(go);
+  form.append(Object.assign(document.createElement("h2"), { textContent: "Continuation Indent" }), ...fields.map(([row]) => row), foot);
+  const dialog = sheet(form);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    apply(fields.map(([, field]) => field.value));
+    dialog.close();
+  });
+  fields[0][1].focus();
+}
+
+// Edit, Formatting, Documentation Margin: the column documentation is filled to, as given or asked
+// for; none has documentation filled to the code's margin.
+async function askDocMargin(given) {
+  const answer = given ?? (await askFor("The column documentation is filled to, or none for the code's", String(editing().docMargin() ?? "")));
+  if (answer === null || answer === undefined) {
+    return;
+  }
+  const columns = Number(answer);
+  if (answer.trim() === "" || answer.trim() === "none") {
+    editing().setDocMargin(null);
+    say("Documentation is filled to the code's margin.");
+  } else if (Number.isFinite(columns) && columns >= 20) {
+    editing().setDocMargin(Math.round(columns));
+    say(`Documentation is filled to column ${Math.round(columns)}.`);
+  } else {
+    say(`${answer} is no margin: a column of 20 or more, or none.`, { failed: true });
+  }
 }
 
 // File, Tree Environment: the environments the tree holds, each by its folder in the tree and its

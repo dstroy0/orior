@@ -9,11 +9,10 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Languages and formatting
 
-1. **Formatting of the reader's.** The continuation indent set apart for each place it falls, an operator's sign moved to the next line where a line breaks, documentation held to a margin of its own, and Javadoc's tags lined up.
-2. **Build files read.** Gradle with its version catalogs, Maven's `pom.xml` with its compiler and global settings shown as settings, and SCons, each completed and checked as it is written, a snapshot dependency updated with one press.
-3. **More languages.** Zig, Mojo, Quarto's `.qmd`, Org, Jenkins pipelines, Ansible, API Blueprint, RAML and StringTemplate, each highlighted, folded and outlined, and served where a server for it is found.
-4. **JSON by its schema.** A JSON file checked and completed from the schema it names, a schema's own schema among them.
-5. **Python, fast and whole.** Python's server answers as quickly as any language's, recursive type hints resolve, and a file's imports, its environment and its tests are found with no setup.
+1. **Build files read.** Gradle with its version catalogs, Maven's `pom.xml` with its compiler and global settings shown as settings, and SCons, each completed and checked as it is written, a snapshot dependency updated with one press.
+2. **More languages.** Zig, Mojo, Quarto's `.qmd`, Org, Jenkins pipelines, Ansible, API Blueprint, RAML and StringTemplate, each highlighted, folded and outlined, and served where a server for it is found.
+3. **JSON by its schema.** A JSON file checked and completed from the schema it names, a schema's own schema among them.
+4. **Python, fast and whole.** Python's server answers as quickly as any language's, recursive type hints resolve, and a file's imports, its environment and its tests are found with no setup.
 
 ## Testing
 

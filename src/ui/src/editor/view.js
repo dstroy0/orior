@@ -55,6 +55,21 @@ const FLICK_SLOWS = 325;
 const FLICK_STOP = 0.02;
 const SMOOTH_KEY = "orior.smooth-scroll";
 
+// The kept settings of the reader's formatting: the continuation indent of each place a bracket
+// stands, in columns; whether an operator's sign goes to the next line where a line breaks after it
+// inside brackets; and the margin documentation is filled to.
+const CONTINUATION_KEY = "orior.continuation";
+const OPERATOR_KEY = "orior.operator-next-line";
+const DOC_MARGIN_KEY = "orior.doc-margin";
+
+// What stands before a bracket that opens a declaration's parameters: `def name`, `function name`,
+// `fn name`, or a C declaration's type and name.
+const DECLARES = /(?:\bdef\s+[\w$]+|\bfunction\b\s*\*?\s*[\w$]*|\bfn\s+[\w$]+(?:<[^>]*>)?|^\s*(?!(?:return|else|new|delete|throw|case|await|yield)\b)(?:(?:static|inline|extern|const|unsigned|signed|long|short|struct|enum|virtual)\s+)*[\w:<>]+[\s*&]+[\w$:~]+)$/;
+
+// A line that ends in a binary operator after a value: what stands before the operator, and the
+// operator.
+const OPERATOR_END = /^(.*?[\w$)\]}"'`])\s*(\*\*|\/\/|==|!=|<=|>=|&&|\|\||\?\?|\band|\bor|[-+*\/%<>|&^])\s*$/;
+
 // The kept settings of the hints a server writes in the text: inferred types, and parameters' names.
 const HINT_KEYS = { type: "orior.type-hints", parameter: "orior.parameter-hints" };
 const FLICK_KEY = "orior.flick-scroll";
@@ -217,7 +232,11 @@ export class Editor {
     this.margin = div("ed-margin");
     this.margin.hidden = true;
     this.marginAt = null;
-    this.sheet.append(this.margin, this.layers);
+    // The documentation's margin, where the reader sets one apart from the code's.
+    this.docLine = div("ed-margin doc");
+    this.docLine.hidden = true;
+    this.docLineAt = null;
+    this.sheet.append(this.margin, this.docLine, this.layers);
     this.originRow = 0;
     this.pad = 0;
     this.below = 0;
@@ -242,6 +261,13 @@ export class Editor {
     this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
     this.smoothOn = localStorage.getItem(SMOOTH_KEY) !== "false";
     this.hintKinds = { type: localStorage.getItem(HINT_KEYS.type) !== "false", parameter: localStorage.getItem(HINT_KEYS.parameter) !== "false" };
+    try {
+      this.continuation = JSON.parse(localStorage.getItem(CONTINUATION_KEY) ?? "{}") ?? {};
+    } catch {
+      this.continuation = {};
+    }
+    this.operatorNext = localStorage.getItem(OPERATOR_KEY) === "true";
+    this.docMargin = Number(localStorage.getItem(DOC_MARGIN_KEY)) || null;
     this.flickOn = localStorage.getItem(FLICK_KEY) !== "false";
     // The glide under way, { from, to, at }, in the scrolling space's own units, and the run-on.
     this.glide = null;
@@ -598,6 +624,48 @@ export class Editor {
         this.margin.style.transform = `translateX(${at}px)`;
       }
     }
+    const doc = this.docMargin && this.docMargin !== width ? PAD + this.docMargin * this.cw - left : null;
+    if (doc !== this.docLineAt) {
+      this.docLineAt = doc;
+      this.docLine.hidden = doc === null;
+      if (doc !== null) {
+        this.docLine.style.transform = `translateX(${doc}px)`;
+      }
+    }
+  }
+
+  setContinuation(continuation) {
+    this.continuation = continuation;
+    localStorage.setItem(CONTINUATION_KEY, JSON.stringify(continuation));
+  }
+
+  setOperatorNext(on) {
+    this.operatorNext = on;
+    localStorage.setItem(OPERATOR_KEY, String(on));
+  }
+
+  setDocMargin(columns) {
+    this.docMargin = columns || null;
+    if (columns) {
+      localStorage.setItem(DOC_MARGIN_KEY, String(columns));
+    } else {
+      localStorage.removeItem(DOC_MARGIN_KEY);
+    }
+    this.docLineAt = undefined;
+    this.follow();
+  }
+
+  // The continuation indent of a new line inside the bracket at `at` of `line`: as the reader set it
+  // for the place the bracket stands, a declaration's parameters, a call's arguments or any other
+  // bracket, and one step of the indent where none is set.
+  continuationAt(line, at) {
+    const before = this.doc.line(line).slice(0, at).trimEnd();
+    const place = DECLARES.test(before) ? "declaration" : /[\w$)\]]$/.test(before) ? "call" : "expression";
+    const columns = Number(this.continuation?.[place]);
+    if (!Number.isFinite(columns) || columns <= 0) {
+      return this.unit();
+    }
+    return this.s.indent.tabs ? "\t".repeat(Math.max(1, Math.round(columns / this.s.indent.size))) : " ".repeat(columns);
   }
 
   xOf(p) {
@@ -927,6 +995,12 @@ export class Editor {
   // The closing bracket of the innermost bracket that line `line` opens before `col` and leaves open
   // there, outside its strings and comments, or null where it leaves none open.
   openBefore(line, col, lang) {
+    return this.openAt(line, col, lang)?.close ?? null;
+  }
+
+  // The innermost bracket line `line` opens before `col` and leaves open there: its closing bracket,
+  // and where it stands.
+  openAt(line, col, lang) {
     const closing = new Map((lang.pairs ?? []).filter((pair) => pair[0] !== pair[1]).map((pair) => [pair[0], pair[1]]));
     const closers = new Set(closing.values());
     const text = this.doc.line(line);
@@ -940,8 +1014,8 @@ export class Editor {
         continue;
       }
       if (closing.has(char)) {
-        open.push(closing.get(char));
-      } else if (open.at(-1) === char) {
+        open.push({ close: closing.get(char), at });
+      } else if (open.at(-1)?.close === char) {
         open.pop();
       }
     }
@@ -949,10 +1023,12 @@ export class Editor {
   }
 
   // A new line at each selection, as deep as the line it leaves, and a step deeper after what the
-  // language opens a block with. A bracket the line leaves open before the cursor puts the new line a
-  // step deeper too, as Black, rustfmt and Prettier lay out a call that runs past one line, and where
-  // what follows the cursor closes that bracket, the close goes down to a line of its own at the
-  // first line's depth.
+  // language opens a block with. A bracket the line leaves open before the cursor puts the new line
+  // deeper too, by the continuation indent of the place the bracket stands, one step where none is
+  // set, as Black, rustfmt and Prettier lay out a call that runs past one line; and where what
+  // follows the cursor closes that bracket, the close goes down to a line of its own at the first
+  // line's depth. Inside a bracket, where the reader has an operator's sign go to the next line, a
+  // line that ends in a binary operator takes it to the head of the new line.
   newline() {
     const lang = this.s.language ?? {};
     const doc = this.doc;
@@ -963,8 +1039,9 @@ export class Editor {
       const before = line.slice(0, from.col);
       const rest = doc.line(to.line).slice(to.col);
       const lead = (line.match(/^[ \t]*/)[0]).slice(0, from.col);
-      const open = this.openBefore(from.line, from.col, lang);
-      const deeper = lang.indentAfter?.test(before) || open ? this.unit() : "";
+      const opened = this.openAt(from.line, from.col, lang);
+      const open = opened?.close ?? null;
+      const deeper = open ? this.continuationAt(from.line, opened.at) : lang.indentAfter?.test(before) ? this.unit() : "";
       const prev = before.trimEnd().at(-1);
       const next = rest.trimStart()[0];
       const paired = (lang.pairs ?? []).some((pair) => pair[0] !== pair[1] && pair[0] === prev && pair[1] === next) || (open !== null && next === open);
@@ -973,6 +1050,10 @@ export class Editor {
         const text = `\n${lead}${deeper}\n${lead}`;
         const at = 1 + lead.length + deeper.length;
         return { from, to: pos(to.line, to.col + gap), text, select: [at, at] };
+      }
+      const operator = this.operatorNext && open && empty(sel) ? before.match(OPERATOR_END) : null;
+      if (operator) {
+        return { from: pos(from.line, operator[1].length), to, text: `\n${lead}${deeper}${operator[2]} ` };
       }
       return { from, to, text: `\n${lead}${deeper}` };
     }, null);

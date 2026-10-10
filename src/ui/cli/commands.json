@@ -79,6 +79,15 @@
         { "label": "Write Docstring", "command": "docstring", "needs": "editor" },
         { "label": "Docstring Form…", "command": "docstring-form", "args": "[google|numpy|rest|plain]" },
         { "label": "Sort Methods by Name", "command": "sort-methods", "needs": "editor" },
+        { "label": "Fill Paragraph", "command": "fill-paragraph", "needs": "editor" },
+        {
+          "label": "Formatting",
+          "items": [
+            { "label": "Continuation Indent…", "command": "continuation", "args": "[calls] [declarations] [others]" },
+            { "label": "Operator Sign on the Next Line", "command": "operator-next-line", "args": "[on|off]", "checks": "operator-next-line" },
+            { "label": "Documentation Margin…", "command": "doc-margin", "args": "[columns|none]" }
+          ]
+        },
         "-",
         { "label": "Rename Symbol…", "command": "rename", "keys": "F2", "also": "Shift+F6", "needs": "editor" },
         {

@@ -789,6 +789,12 @@ fn code_docstring(language: String, text: String, line: u32, form: String) -> Re
     orior_cli::inspect::docstring(&language, &text, line, &form)
 }
 
+/// The edit that fills the paragraph of documentation at `line` of a text to `width` columns.
+#[tauri::command]
+fn fill_paragraph(text: String, line: u32, width: usize) -> Result<servers::TextEdit, String> {
+    orior_cli::fill::fill(&text, line, width.max(20))
+}
+
 /// The edit that sorts the methods of the class at or around `line` of a text in `language` by name.
 #[tauri::command]
 fn code_sort(language: String, text: String, line: u32) -> Result<servers::TextEdit, String> {
@@ -1461,6 +1467,7 @@ fn open(launch: Launch) {
             env_use,
             checkers_known,
             code_sort,
+            fill_paragraph,
             templates_list,
             project_create,
             template_keep,
