@@ -11,17 +11,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Typing that lags while a language server, a linter or a plugin works: the letter is drawn before any of them is told of it.
    - Lag that grows with the file's length or a line's: the key's cost is measured in the longest file and on the longest line the tests hold.
 
-## Running and measuring
-
-1. **Deployments.** A build's files sent to the places a tree names, to several at once.
-   - An upload over a newer file on the server that loses the changes made there: before a file goes, its copy there is compared with the copy last sent, and one changed since is shown as a difference to keep or to replace.
-   - Files renamed or deleted in the tree that stay on the server: the deployment lists the files there that the tree no longer holds, each to delete or to keep.
-   - Rules for which files go, and where, that are hard to see: before anything is sent, the deployment lists every file it sends, where each goes, and each file it leaves out with the rule that leaves it out.
-   - Several servers at once where one fails, leaving them on two versions: each server's files go to a new folder, and every server switches to it only once all of them hold it; a failure leaves each on the version it had.
-   - A deployment that cannot be undone: each server keeps its last deployments, and Roll Back switches every server to the one before.
-   - Line ends and file modes changed in the sending: each file arrives with the line ends and the mode the tree gives it.
-   - Passwords kept in an editor's settings: keys come from the system's ssh agent and passwords from its keychain, and orior's files hold neither.
-
 ## Notebooks
 
 1. **Notebooks.** A notebook opened as cells, each run on its own and its output shown under it, with a minimap, forms in a cell's code drawn as fields, a cell debugged, and kernels in any language the machine has.

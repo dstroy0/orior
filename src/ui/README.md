@@ -83,10 +83,25 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | the text of each tab with changes not saved | `backups/`, a file each |
 | each file's Local History | `history/` |
 | the repositories File, Open, Repository clones | `repositories/` |
+| the hashes of the files each deployment last sent to each place | `deployed/`, a file each |
 
 `settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
 default.
+
+A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
+the folder whose files go, the patterns of the files that stay, the places, and how many releases
+each place keeps.
+
+```json
+{"deployments": [{"name": "site", "from": "dist", "exclude": ["*.map", "drafts/"], "to": ["me@web1:/srv/site", "docker:web:/srv/site"], "keep": 5}]}
+```
+
+A place is an address as File, Open, Folder on Another Machine… takes one, or a folder on this
+machine. A machine takes each deployment as a new release under `releases/`, and `current` is
+turned to it once every place holds it; `"inPlace": true` sends the files into the folder itself, as
+a folder on this machine always takes them. The hashes of the files last sent to each place are
+kept in `deployed/` in orior's own folder, to tell a file changed at a place since.
 
 The programs a tree's builds make are signed where `settings.json` names how: `signing.windows`, a
 certificate's thumbprint in the reader's store or the path of a `.pfx` file, its password taken from

@@ -1333,6 +1333,30 @@ pub fn run(given: Vec<String>) -> Outcome {
     if first == "keep-run" {
         return Outcome::Exit(words.get(1).map_or(WRONG, |base| crate::serve::keep_run(std::path::Path::new(base))));
     }
+    // deploy previews, sends or rolls back a deployment the tree names, as deploy.rs says, the tree
+    // the one --root names or the folder it runs in: `orior deploy <name> <do> <changed> <gone>`.
+    if first == "deploy" {
+        let (Some(name), Some(act)) = (words.get(1), words.get(2).and_then(|word| crate::deploy::act_of(word))) else {
+            err("deploy takes a deployment's name and what to do, preview, send or roll back, and then what to do of files changed there and of files gone from the tree");
+            return Outcome::Exit(WRONG);
+        };
+        let root = match named.map(|dir| tree(Some(dir))).unwrap_or_else(|| std::env::current_dir().map_err(|error| error.to_string())) {
+            Ok(root) => root,
+            Err(said) => {
+                err(&said);
+                return Outcome::Exit(NO_CODE);
+            }
+        };
+        let replace = words.get(3).is_some_and(|word| word == "replace them");
+        let delete = words.get(4).is_some_and(|word| word == "delete them");
+        return Outcome::Exit(match crate::deploy::run(&root, name, act, replace, delete, &|line| out(&line)) {
+            Ok(()) => 0,
+            Err(said) => {
+                err(&said);
+                WRONG
+            }
+        });
+    }
     // libraries says what a program loads and from where, as binary.rs reads it:
     // `orior libraries <program>`.
     if first == "libraries" {

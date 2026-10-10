@@ -18,7 +18,7 @@ import { runInTerminal } from "./terminal.js";
 import { wordmark } from "./wordmark.js";
 
 // The groups in the order the engine's own steps run, and then what reads its results.
-const ORDER = ["build", "executable", "protocol", "ingest", "run", "render", "sim", "view", "pipeline", "stage", "test"];
+const ORDER = ["build", "executable", "deploy", "protocol", "ingest", "run", "render", "sim", "view", "pipeline", "stage", "test"];
 
 // The lines a run keeps. Past this the oldest go. A run that prints without end cannot fill memory.
 const KEPT_LINES = 20000;

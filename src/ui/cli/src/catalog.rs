@@ -615,6 +615,7 @@ pub fn read(root: &Path) -> Vec<Job> {
     let mut jobs = Vec::new();
     builds(root, &mut jobs);
     crate::executables::jobs(root, &mut jobs);
+    crate::deploy::jobs(root, &mut jobs);
     protocol(root, &mut jobs);
     driver(root, &mut jobs);
     runners(root, &mut jobs);
