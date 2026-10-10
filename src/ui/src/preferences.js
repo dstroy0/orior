@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
-// bar's and the menus' opacity, each item of the menus that is set on or off, and the settings no
-// menu lists. A color changed in the scheme's own theme starts a theme of the reader's from it, and
+// bar's and the menus' opacity, each item of the menus that is set on or off, the settings no menu
+// lists, and the patterns that keep the explorer and the search from files. A color changed in the scheme's own theme starts a theme of the reader's from it, and
 // every change shows at once. A theme copies out as text and reads back in from the clipboard.
 
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
 import { clipText, copyText } from "./menu.js";
 import { OPACITY_SETTINGS, opacity, setOpacity, STEPS as OPACITY_STEPS } from "./opacity.js";
+import { PATTERN_PARTS, patternsOf, setPatterns } from "./patterns.js";
 import { scheme, setScheme } from "./scheme.js";
 import { BASES, builtIn, choose, chosen, deleteTheme, freeName, readTheme, saveTheme, themeNamed, themes, themeText } from "./themes.js";
 import { setZoom, STEPS, zoom } from "./zoom.js";
@@ -292,11 +293,22 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
     return element("section", { className: "prefs-fonts" }, element("h3", { textContent: "Fonts" }), ...rows);
   }
 
+  // The patterns that keep the explorer and the search from files, one to a line, each list taken
+  // when its field is left.
+  function patternsSection() {
+    const rows = PATTERN_PARTS.map(({ part, label }) => {
+      const field = element("textarea", { className: "report-field", rows: 4, value: patternsOf(part), spellcheck: false, ariaLabel: label });
+      field.addEventListener("change", () => setPatterns(part, field.value));
+      return element("label", { className: "report-row" }, element("span", { textContent: label }), field);
+    });
+    return element("section", { className: "prefs-patterns" }, element("h3", { textContent: "Files" }), ...rows);
+  }
+
   function draw() {
     const focused = document.activeElement;
     const focusName = body.contains(focused) ? focused.closest(".prefs-color")?.dataset.name : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
-    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), fontsSection(), themeRow(), colorsSection());
+    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
     const grid = body.querySelector(".prefs-colors");
     grid.scrollTop = scroll;
     if (focusName) {

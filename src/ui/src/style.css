@@ -4864,6 +4864,18 @@ textarea.report-field {
   max-width: 6rem;
 }
 
+/* The patterns that keep the explorer and the search from files: a list for each, side by side under
+ * the heading where the sheet is wide enough. */
+.prefs-patterns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.6rem 1.2rem;
+}
+
+.prefs-patterns h3 {
+  grid-column: 1 / -1;
+}
+
 /* Plugins: the actions, then every plugin a row, its box, its name, the extensions it opens, where it
  * comes from and its folder where it is the reader's. One that is off is dimmed, and what was wrong
  * with one that does not read runs under it in the failure color. The list scrolls and the rest stays. */

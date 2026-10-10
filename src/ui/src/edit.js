@@ -45,6 +45,7 @@ import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
+import { onPatterns, tellPatterns } from "./patterns.js";
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
@@ -1757,6 +1758,14 @@ export async function startEdit(defs) {
   drawEmpty(true);
   loadBridge();
   keepBridge(() => inBridge(state.active) && drawDefs());
+  // The explorer drawn again as its patterns change.
+  onPatterns((part) => {
+    if (part === "explorer") {
+      state.children.clear();
+      drawTree();
+    }
+  });
+  await tellPatterns();
   await loadChanges();
   await drawTree();
 }

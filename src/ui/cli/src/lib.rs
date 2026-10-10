@@ -23,6 +23,7 @@ pub mod git;
 pub mod history;
 pub mod home;
 pub mod lsp;
+pub mod patterns;
 pub mod plugins;
 pub mod report;
 pub mod root;

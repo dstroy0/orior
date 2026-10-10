@@ -18,6 +18,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
+use crate::patterns::{self, Part, Patterns};
 use crate::root::{inside, relative};
 
 /// The folders the list leaves out where git cannot say: version control's own, and the one cargo
@@ -108,9 +109,13 @@ fn seen(root: &Path) -> Option<Arc<Seen>> {
     Some(view)
 }
 
+/// A folder's entries, less what the explorer's patterns hide. Where a pattern keeps only what it
+/// names, a folder shows while it holds a file kept or a pattern keeps it.
 pub fn list(root: &Path, dir: &str) -> Result<Vec<Entry>, String> {
     let path = inside(root, dir)?;
     let view = seen(root);
+    let patterns = patterns::of(Part::Explorer);
+    let holding = patterns.keeps_only().then(|| holding(root, &patterns));
     let mut entries: Vec<Entry> = fs::read_dir(&path)
         .map_err(|e| format!("{dir}: {e}"))?
         .flatten()
@@ -119,6 +124,16 @@ pub fn list(root: &Path, dir: &str) -> Result<Vec<Entry>, String> {
             let is_dir = entry.file_type().ok()?.is_dir();
             let path = relative(root, &entry.path());
             if is_dir && name == ".git" {
+                return None;
+            }
+            if patterns.hides(&path, is_dir) {
+                return None;
+            }
+            if let Some(holding) = &holding
+                && is_dir
+                && !holding.contains(&path)
+                && !patterns.keeps_folder(&path)
+            {
                 return None;
             }
             let ignored = match &view {
@@ -132,6 +147,25 @@ pub fn list(root: &Path, dir: &str) -> Result<Vec<Entry>, String> {
         .collect();
     entries.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
     Ok(entries)
+}
+
+/// Every folder that holds a file the patterns leave.
+fn holding(root: &Path, patterns: &Patterns) -> BTreeSet<String> {
+    let mut folders = BTreeSet::new();
+    for file in all(root).iter().filter(|file| !patterns.hides(file, false)) {
+        let mut at = 0;
+        while let Some(slash) = file[at..].find('/') {
+            at += slash;
+            folders.insert(file[..at].to_string());
+            at += 1;
+        }
+    }
+    folders
+}
+
+/// The tree's files less what the patterns hide.
+fn left(files: impl Iterator<Item = String>, patterns: &Patterns) -> Vec<String> {
+    files.filter(|file| !patterns.hides(file, false)).collect()
 }
 
 /// The most paths the whole list holds, for a tree git cannot read.
@@ -312,11 +346,18 @@ static HELD: Mutex<Option<Held>> = Mutex::new(None);
 
 /// The tree's files, read as `all` reads them.
 fn listed(root: &Path) -> Arc<Vec<Listed>> {
+    let patterns = patterns::of(Part::Search);
     let files: Vec<Listed> = match seen(root) {
-        Some(view) => view.files.iter().map(|path| Listed::of(path)).collect(),
-        None => all(root).iter().map(|path| Listed::of(path)).collect(),
+        Some(view) => view.files.iter().filter(|path| !patterns.hides(path, false)).map(|path| Listed::of(path)).collect(),
+        None => left(all(root).into_iter(), &patterns).iter().map(|path| Listed::of(path)).collect(),
     };
     Arc::new(files)
+}
+
+/// Lets go of the files the quick open holds, to be read again by the next search, as after the
+/// search's patterns change.
+pub fn forget_held() {
+    *HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
 }
 
 /// The tree's files for a quick open: read now the first time, and after that the files last read,
@@ -419,13 +460,14 @@ fn hit(path: String, line: u64, col: u64, text: &str) -> Hit {
     Hit { path, line, col, text: text.trim_end().chars().take(HIT_TEXT).collect() }
 }
 
-/// Every line in the tree's files that holds the query, at most HITS_LIMIT of them. Git searches what
-/// it tracks or would track; a tree git cannot read is searched a file at a time, the query read as
-/// the text itself.
+/// Every line in the tree's files that holds the query, at most HITS_LIMIT of them, less the files
+/// the search's patterns hide. Git searches what it tracks or would track; a tree git cannot read is
+/// searched a file at a time, the query read as the text itself.
 pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, String> {
     if query.is_empty() {
         return Ok(Vec::new());
     }
+    let patterns = patterns::of(Part::Search);
     let mut git = Command::new("git");
     git.args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
     if !how.case {
@@ -435,7 +477,7 @@ pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, Stri
         git.arg("-w");
     }
     git.arg(if how.regex { "-E" } else { "-F" });
-    git.args(["-e", query, "--", "."]);
+    git.args(["-e", query, "--"]).args(patterns.pathspecs());
     git.stdin(Stdio::null()).stderr(Stdio::piped());
     crate::runner::quiet(&mut git);
     if let Ok(out) = git.output() {
@@ -471,7 +513,7 @@ pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, Stri
         !wordy(before) && !wordy(after)
     };
     let mut found = Vec::new();
-    for path in all(root) {
+    for path in left(all(root).into_iter(), &patterns) {
         let full = root.join(&path);
         if full.metadata().map_or(true, |meta| meta.len() > SEARCHED_BYTES) {
             continue;
@@ -505,12 +547,13 @@ pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, Stri
 const FOUND_LIMIT: usize = 500;
 
 /// Every listed file whose path holds each word of the query, case aside, at most FOUND_LIMIT of
-/// them.
+/// them, less the files the explorer's patterns hide.
 pub fn find(root: &Path, query: &str) -> Vec<String> {
     let words: Vec<String> = query.to_lowercase().split_whitespace().map(str::to_string).collect();
+    let patterns = patterns::of(Part::Explorer);
     let holds = |path: &str| {
         let lower = path.to_lowercase();
-        words.iter().all(|word| lower.contains(word))
+        words.iter().all(|word| lower.contains(word)) && !patterns.hides(path, false)
     };
     if let Some(view) = seen(root) {
         return view.files.iter().filter(|p| holds(p)).take(FOUND_LIMIT).cloned().collect();

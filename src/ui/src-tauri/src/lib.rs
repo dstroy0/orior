@@ -13,7 +13,7 @@ mod scrollback;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, plugins, report, root, run_file, runner, servers, symbols, toolchains, validate};
+use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, patterns, plugins, report, root, run_file, runner, servers, symbols, toolchains, validate};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -217,6 +217,16 @@ fn tree_files(app: State<App>) -> Result<Vec<String>, String> {
 #[tauri::command(async)]
 fn files_find(app: State<App>, query: String, recent: Vec<String>, most: usize) -> Result<Vec<files::Found>, String> {
     Ok(files::ranked(&root_of(&app)?, &query, &recent, most))
+}
+
+/// Sets the patterns that keep a part of the window from files, and says whether they changed.
+#[tauri::command]
+fn patterns_set(part: patterns::Part, lines: Vec<String>) -> bool {
+    let changed = patterns::set(part, &lines);
+    if changed && matches!(part, patterns::Part::Search) {
+        files::forget_held();
+    }
+    changed
 }
 
 /// Puts files and folders of the tree on the system clipboard, cut or copied, for another window of
@@ -1078,6 +1088,7 @@ fn open(launch: Launch) {
             tree_find,
             tree_files,
             files_find,
+            patterns_set,
             files_copy,
             clip_files,
             files_paste,
