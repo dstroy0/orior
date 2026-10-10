@@ -764,6 +764,35 @@ export class Editor {
     }
   }
 
+  // The closing bracket of the innermost bracket that line `line` opens before `col` and leaves open
+  // there, outside its strings and comments, or null where it leaves none open.
+  openBefore(line, col, lang) {
+    const closing = new Map((lang.pairs ?? []).filter((pair) => pair[0] !== pair[1]).map((pair) => [pair[0], pair[1]]));
+    const closers = new Set(closing.values());
+    const text = this.doc.line(line);
+    const open = [];
+    for (let at = 0; at < col; at += 1) {
+      const char = text[at];
+      if (!closing.has(char) && !closers.has(char)) {
+        continue;
+      }
+      if (/t-string|t-comment/.test(this.s.highlight.classAt(line, at))) {
+        continue;
+      }
+      if (closing.has(char)) {
+        open.push(closing.get(char));
+      } else if (open.at(-1) === char) {
+        open.pop();
+      }
+    }
+    return open.at(-1) ?? null;
+  }
+
+  // A new line at each selection, as deep as the line it leaves, and a step deeper after what the
+  // language opens a block with. A bracket the line leaves open before the cursor puts the new line a
+  // step deeper too, as Black, rustfmt and Prettier lay out a call that runs past one line, and where
+  // what follows the cursor closes that bracket, the close goes down to a line of its own at the
+  // first line's depth.
   newline() {
     const lang = this.s.language ?? {};
     const doc = this.doc;
@@ -774,10 +803,11 @@ export class Editor {
       const before = line.slice(0, from.col);
       const rest = doc.line(to.line).slice(to.col);
       const lead = (line.match(/^[ \t]*/)[0]).slice(0, from.col);
-      const deeper = lang.indentAfter?.test(before) ? this.unit() : "";
+      const open = this.openBefore(from.line, from.col, lang);
+      const deeper = lang.indentAfter?.test(before) || open ? this.unit() : "";
       const prev = before.trimEnd().at(-1);
       const next = rest.trimStart()[0];
-      const paired = (lang.pairs ?? []).some((pair) => pair[0] !== pair[1] && pair[0] === prev && pair[1] === next);
+      const paired = (lang.pairs ?? []).some((pair) => pair[0] !== pair[1] && pair[0] === prev && pair[1] === next) || (open !== null && next === open);
       if (paired && deeper) {
         const gap = rest.length - rest.trimStart().length;
         const text = `\n${lead}${deeper}\n${lead}`;
