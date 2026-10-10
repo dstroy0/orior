@@ -10,7 +10,7 @@
 // input method opens its window.
 
 import { cmp, endOf, isWordChar, least, mapThrough, most, pos, same, wordAt, wordBefore } from "./document.js";
-import { hiddenSpans, indentOf, joinSpans, Rows } from "./folding.js";
+import { hiddenSpans, indentOf, joinSpans, openersOf, Rows } from "./folding.js";
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
@@ -40,11 +40,8 @@ const ORIGIN_ROWS = 512;
 // Column Selection Mode's key: while it is on, a drag chooses a column, as Shift and Alt do.
 const COLUMN_KEY = "orior.column";
 
-// Sticky scroll: the most lines it holds along the top, the longest text it reads the regions of,
-// and how long an edit rests before the regions are read again, in milliseconds.
+// Sticky scroll: the most lines it holds along the top.
 const STICKY_MOST = 5;
-const STICKY_LINES = 300000;
-const STICKY_REST = 250;
 const STICKY_KEY = "orior.sticky";
 
 // Bracket pairs colored by depth: the setting's key, the most lines a text has for its brackets to be
@@ -224,11 +221,10 @@ export class Editor {
       host.dataset.comments = "hidden";
     }
     this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
-    this.stickyList = [];
-    this.stickyFor = null;
-    this.stickyDoc = -1;
-    this.stickyWait = 0;
     this.stickyKey = "";
+    // The lines held along the top, and the top row and text they were read for.
+    this.stickyHeld = [];
+    this.stickyHeldFor = "";
     host.append(this.gutter, this.scroller, this.sheet, canvas, this.sticky);
     (statusHost ?? host).append(this.status);
     this.minimap = new Minimap(this, canvas);
@@ -3136,34 +3132,8 @@ export class Editor {
     this.schedule();
   }
 
-  // The regions of the text, each [first line, last line] in order of the first, read again a moment
-  // after an edit; until then the ones before it.
-  stickyRegions() {
-    const s = this.s;
-    if (this.stickyFor !== s || this.stickyDoc !== s.doc.id) {
-      if (!this.stickyWait) {
-        this.stickyWait = window.setTimeout(
-          () => {
-            this.stickyWait = 0;
-            const now = this.s;
-            if (!now) {
-              return;
-            }
-            this.stickyList = now.doc.count > STICKY_LINES ? [] : [...now.regions()].sort((a, b) => a[0] - b[0]);
-            this.stickyFor = now;
-            this.stickyDoc = now.doc.id;
-            this.schedule();
-          },
-          this.stickyFor === s ? STICKY_REST : 0
-        );
-      }
-      if (this.stickyFor !== s) {
-        return [];
-      }
-    }
-    return this.stickyList.filter(([start]) => start < s.doc.count);
-  }
-
+  // The regions the top row stands inside are read from the lines above it each time the top row or
+  // the text changes, and never from the whole text, which a file of any size keeps cheap.
   drawSticky(rows, top, left = this.scroller.scrollLeft) {
     const s = this.s;
     if (!this.stickyOn || status.scroll.level >= 2) {
@@ -3171,18 +3141,20 @@ export class Editor {
       this.stickyKey = "";
       return;
     }
-    const list = this.stickyRegions();
     const firstRow = Math.floor(top / LINE);
-    let held = [];
+    const heldFor = `${s.doc.id}|${firstRow}|${rows.size}|${s.indent.size}`;
+    let held = this.stickyHeldFor === heldFor ? this.stickyHeld : [];
     // The held lines cover rows of their own, and they hold the regions of the row under them.
-    for (let pass = 0; pass < 3; pass += 1) {
+    for (let pass = 0; pass < 3 && this.stickyHeldFor !== heldFor; pass += 1) {
       const line = rows.lineOf(Math.min(rows.size - 1, firstRow + held.length));
-      const next = list.filter(([start, end]) => start < line && end >= line).map(([start]) => start).slice(-STICKY_MOST);
+      const next = openersOf(s.doc, line, s.indent.size, STICKY_MOST);
       if (next.join() === held.join()) {
         break;
       }
       held = next;
     }
+    this.stickyHeldFor = heldFor;
+    this.stickyHeld = held;
     if (top <= 0) {
       held = [];
     }

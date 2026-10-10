@@ -59,6 +59,29 @@ export function regionEnd(doc, line, size) {
   return last;
 }
 
+// How far up from a line the lines that open the regions around it are looked for.
+const REACH = 20000;
+
+// The first lines of the regions a line stands inside, the outermost first and the `most` innermost
+// at most, read from the lines above it alone: walking up, each line indented less than every line
+// after it down to the line opens one. A blank line stands inside what the next line that is not
+// blank stands inside.
+export function openersOf(doc, line, size, most) {
+  let depth = -1;
+  for (let at = line; at < Math.min(doc.count, line + AHEAD) && depth < 0; at += 1) {
+    depth = indentOf(doc.line(at), size);
+  }
+  const found = [];
+  for (let at = line - 1; at >= Math.max(0, line - REACH) && depth > 0 && found.length < most; at -= 1) {
+    const own = indentOf(doc.line(at), size);
+    if (own >= 0 && own < depth) {
+      found.push(at);
+      depth = own;
+    }
+  }
+  return found.reverse();
+}
+
 // Every region as a map from its first line to its last.
 export function regions(doc, size) {
   const found = new Map();
