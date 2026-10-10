@@ -37,7 +37,9 @@ pub struct Commit {
 
 fn git(root: &Path, args: &[&str]) -> Option<Vec<u8>> {
     let mut command = Command::new("git");
-    command.args(args).current_dir(root);
+    // A question takes no lock it can do without: a status asked while the window watches the tree,
+    // or stopped as the window closes, leaves the index's lock to no one.
+    command.args(args).current_dir(root).env("GIT_OPTIONAL_LOCKS", "0");
     command.stdin(Stdio::null()).stderr(Stdio::null());
     crate::runner::quiet(&mut command);
     command.output().ok().filter(|out| out.status.success()).map(|out| out.stdout)
