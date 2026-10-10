@@ -237,6 +237,73 @@ pub fn parse(language: &str, text: &str) -> Option<Parsed> {
     }
 }
 
+/// The forms a docstring is drawn up in: Google's, NumPy's, reStructuredText's fields, and a summary
+/// line alone.
+pub const DOCSTRING_FORMS: [&str; 4] = ["google", "numpy", "rest", "plain"];
+
+/// What a function says of itself for its docstring: its parameters, each with its annotation, what
+/// it gives back and whether it gives anything, whether it yields, and what it raises.
+#[derive(Debug, Default)]
+pub(crate) struct Signature {
+    pub params: Vec<(String, Option<String>)>,
+    pub returns: Option<String>,
+    pub gives: bool,
+    pub yields: bool,
+    pub raises: Vec<String>,
+}
+
+/// A docstring drawn up for the function at or around `line` of a file in `language`, in `form`: its
+/// edit, and the place to write its summary.
+pub fn docstring(language: &str, text: &str, line: u32, form: &str) -> Result<(TextEdit, Place), String> {
+    match language {
+        "python" => python::write_docstring(text, line, form),
+        "javascript" => javascript::jsdoc(text, line),
+        _ => Err("Write Docstring reads Python and JavaScript.".to_string()),
+    }
+}
+
+/// The methods of the class at or around `line` of a file in `language` sorted by name, each method
+/// with the comments and decorators over it, the class's other members and its blank lines staying
+/// where they stand: the edit that writes the class's body again.
+pub fn sort_methods(language: &str, text: &str, line: u32) -> Result<TextEdit, String> {
+    match language {
+        "python" => python::sort_methods(text, line),
+        "javascript" => javascript::sort_methods(text, line),
+        _ => Err("Sort Methods by Name reads Python and JavaScript.".to_string()),
+    }
+}
+
+/// The body written again from its members' lines with the methods among them sorted by name: each
+/// member a run of lines and, where it is a method, its name; the lines between members stay as they
+/// were, and a method's slot takes the next method in the order of their names.
+pub(crate) fn sorted_body(lines: &[&str], members: &[(usize, usize, Option<String>)]) -> Option<String> {
+    let mut methods: Vec<(&String, usize)> = members.iter().enumerate().filter_map(|(at, (_, _, name))| name.as_ref().map(|name| (name, at))).collect();
+    if methods.len() < 2 {
+        return None;
+    }
+    let before: Vec<usize> = methods.iter().map(|(_, at)| *at).collect();
+    methods.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()).then(a.0.cmp(b.0)));
+    if methods.iter().map(|(_, at)| *at).eq(before.iter().copied()) {
+        return None;
+    }
+    let mut next = methods.iter().map(|(_, at)| *at);
+    let mut out: Vec<&str> = Vec::new();
+    let first = members[0].0;
+    let mut at_line = first;
+    for (first, last, name) in members {
+        out.extend(&lines[at_line..*first]);
+        let (from, to) = if name.is_some() {
+            let chosen = next.next()?;
+            (members[chosen].0, members[chosen].1)
+        } else {
+            (*first, *last)
+        };
+        out.extend(&lines[from..=to]);
+        at_line = last + 1;
+    }
+    Some(out.join("\n"))
+}
+
 /// The spans of a parse that hold `from` to `to` and are more than it, the least first.
 pub fn ranges_at(parsed: &Parsed, from: &Place, to: &Place) -> Vec<(Place, Place)> {
     let before = |a: &Place, b: &Place| (a.line, a.col) <= (b.line, b.col);
@@ -893,6 +960,46 @@ mod tests {
         assert_eq!(parsed.folds, vec![(1, 4), (6, 10), (7, 9)]);
         let spans = ranges_at(&parsed, &Place { line: 3, col: 21 }, &Place { line: 3, col: 21 });
         assert_eq!((spans[0].0.col, spans[0].1.col, spans[1].0.col, spans[1].1.col), (21, 27, 20, 28), "inside the call's brackets, then with them");
+    }
+
+    #[test]
+    fn a_python_docstring_is_drawn_up_in_each_form() {
+        let text = "class Shape:\n    def area(self, width: int, height=2, *rest) -> float:\n        if width < 0:\n            raise ValueError(\"width\")\n        return width * height\n";
+        let written = |form: &str| {
+            let (edit, summary) = docstring("python", text, 3, form).unwrap();
+            (crate::servers::apply(text, &[edit]), (summary.line, summary.col))
+        };
+        let (google, summary) = written("google");
+        assert_eq!(summary, (2, 11));
+        assert!(google.contains("        \"\"\"\n\n        Args:\n            width (int):\n            height:\n            *rest:\n\n        Returns:\n            float:\n\n        Raises:\n            ValueError:\n        \"\"\"\n        if width"), "{google}");
+        let (numpy, _) = written("numpy");
+        assert!(numpy.contains("        Parameters\n        ----------\n        width : int\n        height\n        *rest\n\n        Returns\n        -------\n        float\n\n        Raises\n        ------\n        ValueError\n        \"\"\""), "{numpy}");
+        let (rest, _) = written("rest");
+        assert!(rest.contains("        \"\"\"\n\n        :param width:\n        :type width: int\n        :param height:\n        :param *rest:\n        :return:\n        :rtype: float\n        :raises ValueError:\n        \"\"\""), "{rest}");
+        let (plain, _) = written("plain");
+        assert!(plain.contains("-> float:\n        \"\"\"\"\"\"\n        if width"), "{plain}");
+        let documented = crate::servers::apply(text, &[docstring("python", text, 3, "plain").unwrap().0]);
+        assert!(docstring("python", &documented, 3, "google").is_err(), "a function with a docstring is left as it is");
+    }
+
+    #[test]
+    fn a_jsdoc_comment_is_drawn_up_for_a_javascript_function() {
+        let text = "export function area(width, height = 2) {\n  if (width < 0) {\n    throw new RangeError(\"width\");\n  }\n  return width * height;\n}\n";
+        let (edit, summary) = docstring("javascript", text, 1, "google").unwrap();
+        assert_eq!(crate::servers::apply(text, &[edit]), format!("/**\n * \n *\n * @param width\n * @param height\n * @returns\n * @throws {{RangeError}}\n */\n{text}"));
+        assert_eq!((summary.line, summary.col), (1, 3));
+    }
+
+    #[test]
+    fn a_class_s_methods_are_sorted_by_name_its_other_members_staying_in_place() {
+        let text = "class Shape:\n    \"\"\"A shape.\"\"\"\n\n    sides = 0\n\n    # the area\n    @property\n    def area(self):\n        return 1\n\n    def ___init__(self):\n        pass\n\n    def draw(self):\n        return self.area\n";
+        let edit = sort_methods("python", text, 3).unwrap();
+        assert_eq!(crate::servers::apply(text, &[edit]), "class Shape:\n    \"\"\"A shape.\"\"\"\n\n    sides = 0\n\n    def ___init__(self):\n        pass\n\n    # the area\n    @property\n    def area(self):\n        return 1\n\n    def draw(self):\n        return self.area\n");
+        let js = "class Shape {\n  sides = 0;\n\n  // draws it\n  draw() {\n    return 1;\n  }\n\n  area() {\n    return 2;\n  }\n}\n";
+        let edit = sort_methods("javascript", js, 4).unwrap();
+        assert_eq!(crate::servers::apply(js, &[edit]), "class Shape {\n  sides = 0;\n\n  area() {\n    return 2;\n  }\n\n  // draws it\n  draw() {\n    return 1;\n  }\n}\n");
+        let sorted = "class A:\n    def a(self):\n        pass\n\n    def b(self):\n        pass\n";
+        assert!(sort_methods("python", sorted, 1).is_err(), "methods in order are left as they are");
     }
 
     #[test]

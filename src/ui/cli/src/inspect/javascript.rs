@@ -648,6 +648,125 @@ pub(super) fn parse(src: &str) -> Parsed {
     Parsed { lines: paint.runs(), folds: super::folds_of(folds), ranges }
 }
 
+/// A JSDoc comment drawn up for the function at or around `line`: its parameters, what it returns
+/// where it returns a value, and what it throws: the edit that writes it over the function, and the
+/// place to write its summary.
+pub(super) fn jsdoc(src: &str, line: u32) -> Result<(TextEdit, Place), String> {
+    let read = Read::new(src);
+    let open = (0..read.toks.len())
+        .filter(|at| read.braces[*at] == Some(Brace::Function) && function_name(&read, *at).is_some())
+        .rfind(|at| read.toks[*at].from.line <= line && read.pair[*at].is_some_and(|close| read.toks[close].to.line >= line) || function_name(&read, *at).is_some_and(|name| read.toks[name].from.line == line))
+        .ok_or("Write Docstring writes one for the function the cursor is in.")?;
+    let close = read.pair[open].unwrap_or(open);
+    let (names, first) = parameters(&read, open);
+    let name_at = function_name(&read, open).unwrap_or(first);
+    let start = name_at.min(first);
+    let mut lead = start;
+    while lead > 0 && !matches!(read.words[lead - 1], ";" | "{" | "}") && read.toks[lead - 1].from.line == read.toks[start].from.line {
+        lead -= 1;
+    }
+    let first_line = read.toks[lead].from.line;
+    if read.comments.iter().any(|(_, to)| to.line + 1 == first_line && read.src.split('\n').nth(to.line as usize).is_some_and(|text| text.trim_end().ends_with("*/"))) {
+        return Err("The function has a comment over it.".into());
+    }
+    let mut params: Vec<&str> = Vec::new();
+    for at in first..open {
+        if names.contains(read.words[at]) && !params.contains(&read.words[at]) && read.toks[at].kind == Kind::Name {
+            params.push(read.words[at]);
+        }
+    }
+    let mut gives = false;
+    let mut throws: Vec<String> = Vec::new();
+    let mut at = open + 1;
+    while at < close {
+        if read.braces[at] == Some(Brace::Function) {
+            at = read.pair[at].map_or(at + 1, |end| end + 1);
+            continue;
+        }
+        if read.words[at] == "return" && !matches!(read.words.get(at + 1).copied(), Some(";" | "}")) {
+            gives = true;
+        }
+        if read.words[at] == "throw" {
+            let name = if read.words.get(at + 1) == Some(&"new") { read.words.get(at + 2) } else { None };
+            let name = name.copied().unwrap_or("Error").to_string();
+            if !throws.contains(&name) {
+                throws.push(name);
+            }
+        }
+        at += 1;
+    }
+    let line_text = read.src.split('\n').nth(first_line as usize).unwrap_or_default();
+    let indent: String = line_text.chars().take_while(|c| c.is_whitespace()).collect();
+    let mut written = format!("{indent}/**\n{indent} * \n");
+    if !params.is_empty() || gives || !throws.is_empty() {
+        written.push_str(&format!("{indent} *\n"));
+    }
+    for param in &params {
+        written.push_str(&format!("{indent} * @param {param}\n"));
+    }
+    if gives {
+        written.push_str(&format!("{indent} * @returns\n"));
+    }
+    for thrown in &throws {
+        written.push_str(&format!("{indent} * @throws {{{thrown}}}\n"));
+    }
+    written.push_str(&format!("{indent} */\n"));
+    let place = Place { line: first_line, col: 0 };
+    let summary = Place { line: first_line + 1, col: indent.encode_utf16().count() as u32 + 3 };
+    Ok((TextEdit { from: place.clone(), to: place, text: written }, summary))
+}
+
+/// The class around `line` with its methods sorted by name: the edit that writes its body again.
+pub(super) fn sort_methods(src: &str, line: u32) -> Result<TextEdit, String> {
+    let read = Read::new(src);
+    let open = (0..read.toks.len())
+        .rfind(|at| read.braces[*at] == Some(Brace::Class) && read.toks[*at].from.line <= line && read.pair[*at].is_some_and(|close| read.toks[close].to.line >= line))
+        .ok_or("Sort Methods by Name sorts the class the cursor is in.")?;
+    let close = read.pair[open].ok_or("The class does not close.")?;
+    let physical: Vec<&str> = src.split('\n').collect();
+    let mut members: Vec<(usize, usize, Option<String>)> = Vec::new();
+    let mut at = open + 1;
+    let mut floor = read.toks[open].to.line as usize + 1;
+    while at < close {
+        if read.words[at] == ";" {
+            at += 1;
+            continue;
+        }
+        let start = at;
+        let mut name = None;
+        let mut end = at;
+        while end < close {
+            if read.braces[end] == Some(Brace::Function) {
+                name = function_name(&read, end).map(|one| read.words[one].to_string());
+                end = read.pair[end].unwrap_or(end);
+                break;
+            }
+            if read.words[end] == ";" {
+                break;
+            }
+            end = read.pair[end].filter(|pair| *pair > end && matches!(read.words[end], "(" | "[")).map_or(end + 1, |pair| pair + 1).min(close);
+            if end < close && read.toks[end].from.line > read.toks[end - 1].to.line && read.words[end - 1] != "," && !matches!(read.words[end], "(" | "{" | "=" | ".") && read.braces[end] != Some(Brace::Function) {
+                end -= 1;
+                break;
+            }
+        }
+        let end = end.min(close - 1);
+        let mut first = read.toks[start].from.line as usize;
+        while first > floor && read.comments.iter().any(|(from, to)| to.line as usize == first - 1 && from.line as usize >= floor) {
+            first = read.comments.iter().filter(|(_, to)| to.line as usize == first - 1).map(|(from, _)| from.line as usize).min().unwrap_or(first - 1);
+        }
+        let last = read.toks[end].to.line as usize;
+        members.push((first, last, name));
+        floor = last + 1;
+        at = end + 1;
+    }
+    let first = members.first().map(|member| member.0).ok_or("The class has no members.")?;
+    let last = members.last().map_or(first, |member| member.1);
+    let body = super::sorted_body(&physical, &members).ok_or("The class's methods stand in the order of their names.")?;
+    let end_col = physical[last].encode_utf16().count() as u32;
+    Ok(TextEdit { from: Place { line: first as u32, col: 0 }, to: Place { line: last as u32, col: end_col }, text: body })
+}
+
 /// The files the file imports by a relative path, at its top level: `import … from`, a bare
 /// `import` and `export … from`.
 fn imports(read: &Read) -> Vec<Import> {

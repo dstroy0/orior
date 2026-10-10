@@ -8,7 +8,8 @@
           "items": [
             { "label": "File…", "command": "create-file", "keys": "Ctrl+N", "args": "[path]" },
             { "label": "Folder…", "command": "create-folder", "args": "[path]" },
-            { "label": "Repository…", "command": "create-repository", "args": "[folder]" }
+            { "label": "Repository…", "command": "create-repository", "args": "[folder]" },
+            { "label": "Project from Template…", "command": "create-project", "args": "[template]" }
           ]
         },
         {
@@ -20,6 +21,7 @@
           ]
         },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
+        { "label": "Keep Tree as Template…", "command": "keep-template", "args": "[name]" },
         "-",
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
         { "label": "Save All", "command": "save-all", "needs": "changed" },
@@ -73,6 +75,9 @@
         "-",
         { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" },
         { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true },
+        { "label": "Write Docstring", "command": "docstring", "needs": "editor" },
+        { "label": "Docstring Form…", "command": "docstring-form", "args": "[google|numpy|rest|plain]" },
+        { "label": "Sort Methods by Name", "command": "sort-methods", "needs": "editor" },
         "-",
         { "label": "Rename Symbol…", "command": "rename", "keys": "F2", "also": "Shift+F6", "needs": "editor" },
         {

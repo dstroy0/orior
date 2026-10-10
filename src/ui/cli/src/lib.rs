@@ -38,6 +38,7 @@ pub mod servers;
 pub mod shape;
 pub mod structure;
 pub mod symbols;
+pub mod templates;
 pub mod toolchains;
 pub mod validate;
 pub mod watch;

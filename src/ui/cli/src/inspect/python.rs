@@ -802,6 +802,266 @@ pub(super) fn parse(src: &str) -> Parsed {
     Parsed { lines: paint.runs(), folds: super::folds_of(folds), ranges }
 }
 
+/// The function whose header or block holds `line`, the innermost: its line's index.
+fn function_around(src: &str, lines: &[Line], line: u32) -> Option<usize> {
+    let mut found = None;
+    for (at, one) in lines.iter().enumerate() {
+        if head(src, one) != "def" || !opens(src, one) || one.toks[0].from.line > line {
+            continue;
+        }
+        let end = block_end(lines, at);
+        let last = lines[end - 1].toks.last().map_or(one.toks[0].to.line, |tok| tok.to.line);
+        if line <= last {
+            found = Some(at);
+        }
+    }
+    found
+}
+
+/// What the function whose header is the line at `at` says of itself.
+fn signature_of(src: &str, lines: &[Line], at: usize) -> super::Signature {
+    let header = &lines[at];
+    let words: Vec<&str> = header.toks.iter().map(|tok| text(src, tok)).collect();
+    let mut sign = super::Signature::default();
+    let open = words.iter().position(|word| *word == "(").unwrap_or(0);
+    let mut depth = 0;
+    let mut part: Vec<usize> = Vec::new();
+    let mut close = open;
+    let mut parts: Vec<Vec<usize>> = Vec::new();
+    for (offset, word) in words.iter().enumerate().skip(open) {
+        match *word {
+            "(" | "[" | "{" => {
+                depth += 1;
+                if depth == 1 {
+                    continue;
+                }
+            }
+            ")" | "]" | "}" => {
+                depth -= 1;
+                if depth == 0 {
+                    close = offset;
+                    parts.push(std::mem::take(&mut part));
+                    break;
+                }
+            }
+            "," if depth == 1 => {
+                parts.push(std::mem::take(&mut part));
+                continue;
+            }
+            _ => {}
+        }
+        part.push(offset);
+    }
+    for (index, part) in parts.iter().filter(|part| !part.is_empty()).enumerate() {
+        let stars: String = part.iter().take_while(|at| matches!(words[**at], "*" | "**")).map(|at| words[*at]).collect();
+        let Some(&name_at) = part.iter().find(|at| header.toks[**at].kind == Kind::Name) else {
+            continue;
+        };
+        let name = words[name_at];
+        if index == 0 && stars.is_empty() && matches!(name, "self" | "cls") {
+            continue;
+        }
+        let colon = part.iter().position(|at| words[*at] == ":");
+        let equal = part.iter().position(|at| words[*at] == "=");
+        let annotation = colon.map(|colon| {
+            let end = equal.unwrap_or(part.len());
+            src[header.toks[part[colon + 1]].start..header.toks[part[end - 1]].end].to_string()
+        });
+        sign.params.push((format!("{stars}{name}"), annotation));
+    }
+    if let Some(arrow) = words.iter().skip(close).position(|word| *word == "->").map(|at| at + close) {
+        let end = words.len() - 1;
+        if arrow + 1 < end {
+            sign.returns = Some(src[header.toks[arrow + 1].start..header.toks[end - 1].end].to_string());
+        }
+    }
+    let end = block_end(lines, at);
+    let mut nested_end = 0;
+    for index in at + 1..end {
+        let line = &lines[index];
+        if index < nested_end {
+            continue;
+        }
+        if matches!(head(src, line), "def" | "class") && opens(src, line) {
+            nested_end = block_end(lines, index);
+            continue;
+        }
+        let words: Vec<&str> = line.toks.iter().map(|tok| text(src, tok)).collect();
+        if words[0] == "return" && words.len() > 1 && words[1] != "None" {
+            sign.gives = true;
+        }
+        sign.yields |= words.contains(&"yield");
+        if words[0] == "raise" && words.len() > 1 {
+            let name: String = words[1..].iter().take_while(|word| **word != "(" && **word != "from").copied().collect();
+            if !name.is_empty() && !sign.raises.contains(&name) {
+                sign.raises.push(name);
+            }
+        }
+    }
+    sign.gives |= sign.returns.as_deref().is_some_and(|returns| returns != "None");
+    sign
+}
+
+/// A docstring drawn up for the function at or around `line`, in `form`: the edit that writes it
+/// under the function's header, and the place to write its summary.
+pub(super) fn write_docstring(src: &str, line: u32, form: &str) -> Result<(TextEdit, Place), String> {
+    let lines = lines(src);
+    let at = function_around(src, &lines, line).ok_or("Write Docstring writes one for the function the cursor is in.")?;
+    let end = block_end(&lines, at);
+    if end <= at + 1 {
+        return Err("The function's body stands on its header's line.".into());
+    }
+    let first = &lines[at + 1];
+    if first.toks[0].kind == Kind::Str && first.toks[1..].iter().all(|tok| tok.field) {
+        return Err("The function has a docstring.".into());
+    }
+    let sign = signature_of(src, &lines, at);
+    let header_end = lines[at].toks.last().map_or(0, |tok| tok.to.line);
+    let body_line = src.split('\n').nth(first.toks[0].from.line as usize).unwrap_or_default();
+    let indent: String = body_line.chars().take_while(|c| c.is_whitespace()).collect();
+    let mut out: Vec<String> = Vec::new();
+    let section = |out: &mut Vec<String>, title: &str| {
+        out.push(String::new());
+        match form {
+            "numpy" => {
+                out.push(title.to_string());
+                out.push("-".repeat(title.len()));
+            }
+            _ => out.push(format!("{title}:")),
+        }
+    };
+    let returned = if sign.yields { "Yields" } else { "Returns" };
+    match form {
+        "rest" => {
+            if !sign.params.is_empty() || sign.gives || sign.yields || !sign.raises.is_empty() {
+                out.push(String::new());
+            }
+            for (name, annotation) in &sign.params {
+                out.push(format!(":param {name}:"));
+                if let Some(annotation) = annotation {
+                    out.push(format!(":type {name}: {annotation}"));
+                }
+            }
+            if sign.gives || sign.yields {
+                out.push(if sign.yields { ":yield:".into() } else { ":return:".into() });
+                if let Some(returns) = &sign.returns {
+                    out.push(format!(":rtype: {returns}"));
+                }
+            }
+            for raised in &sign.raises {
+                out.push(format!(":raises {raised}:"));
+            }
+        }
+        "plain" => {}
+        _ => {
+            if !sign.params.is_empty() {
+                section(&mut out, if form == "numpy" { "Parameters" } else { "Args" });
+                for (name, annotation) in &sign.params {
+                    out.push(match (form, annotation) {
+                        ("numpy", Some(annotation)) => format!("{name} : {annotation}"),
+                        ("numpy", None) => name.clone(),
+                        (_, Some(annotation)) => format!("    {name} ({annotation}):"),
+                        (_, None) => format!("    {name}:"),
+                    });
+                }
+            }
+            if sign.gives || sign.yields {
+                section(&mut out, returned);
+                let returns = sign.returns.clone().unwrap_or_default();
+                out.push(match form {
+                    "numpy" => returns,
+                    _ if returns.is_empty() => String::new(),
+                    _ => format!("    {returns}:"),
+                });
+                if out.last().is_some_and(String::is_empty) {
+                    out.pop();
+                }
+            }
+            if !sign.raises.is_empty() {
+                section(&mut out, "Raises");
+                for raised in &sign.raises {
+                    out.push(if form == "numpy" { raised.clone() } else { format!("    {raised}:") });
+                }
+            }
+        }
+    }
+    let mut written = format!("{indent}\"\"\"");
+    if out.is_empty() {
+        written.push_str("\"\"\"\n");
+    } else {
+        written.push('\n');
+        for one in &out {
+            if one.is_empty() {
+                written.push('\n');
+            } else {
+                written.push_str(&format!("{indent}{one}\n"));
+            }
+        }
+        written.push_str(&format!("{indent}\"\"\"\n"));
+    }
+    let place = Place { line: header_end + 1, col: 0 };
+    let summary = Place { line: header_end + 1, col: indent.encode_utf16().count() as u32 + 3 };
+    Ok((TextEdit { from: place.clone(), to: place, text: written }, summary))
+}
+
+/// The class whose header or block holds `line`, the innermost: its line's index.
+fn class_around(src: &str, lines: &[Line], line: u32) -> Option<usize> {
+    let mut found = None;
+    for (at, one) in lines.iter().enumerate() {
+        if head(src, one) != "class" || !opens(src, one) || one.toks[0].from.line > line {
+            continue;
+        }
+        let end = block_end(lines, at);
+        if line <= lines[end - 1].toks.last().map_or(one.toks[0].to.line, |tok| tok.to.line) {
+            found = Some(at);
+        }
+    }
+    found
+}
+
+/// The class around `line` with its methods sorted by name: the edit that writes its body again.
+pub(super) fn sort_methods(src: &str, line: u32) -> Result<TextEdit, String> {
+    let lines = lines(src);
+    let at = class_around(src, &lines, line).ok_or("Sort Methods by Name sorts the class the cursor is in.")?;
+    let end = block_end(&lines, at);
+    let indent = lines.get(at + 1).filter(|_| end > at + 1).map(|one| one.indent).ok_or("The class's body stands on its header's line.")?;
+    let physical: Vec<&str> = src.split('\n').collect();
+    let comment = |index: usize| physical[index].trim_start().starts_with('#');
+    // Each member: its first and last physical lines, and its name where it is a method.
+    let mut members: Vec<(usize, usize, Option<String>)> = Vec::new();
+    let mut index = at + 1;
+    let mut floor = lines[at].toks.last().map_or(0, |tok| tok.to.line as usize) + 1;
+    while index < end {
+        let one = &lines[index];
+        if one.indent != indent {
+            index += 1;
+            continue;
+        }
+        let mut first = one.toks[0].from.line as usize;
+        // Decorators and the comments over a member go with it.
+        let mut def_at = index;
+        while def_at < end && lines[def_at].indent == indent && text(src, &lines[def_at].toks[0]) == "@" {
+            def_at += 1;
+        }
+        let def_at = def_at.min(end - 1);
+        while first > floor && comment(first - 1) {
+            first -= 1;
+        }
+        let member_end = block_end(&lines, def_at);
+        let last = lines[member_end - 1].toks.last().map_or(first as u32, |tok| tok.to.line) as usize;
+        let defined = &lines[def_at];
+        let name = (head(src, defined) == "def").then(|| defined.toks.iter().position(|tok| text(src, tok) == "def").and_then(|at| defined.toks.get(at + 1)).map(|tok| text(src, tok).to_string())).flatten();
+        members.push((first, last, name));
+        floor = last + 1;
+        index = member_end;
+    }
+    let first = members.first().map(|member| member.0).ok_or("The class has no members.")?;
+    let last = members.last().map_or(first, |member| member.1);
+    let body = super::sorted_body(&physical, &members).ok_or("The class's methods stand in the order of their names.")?;
+    let end_col = physical[last].encode_utf16().count() as u32;
+    Ok(TextEdit { from: Place { line: first as u32, col: 0 }, to: Place { line: last as u32, col: end_col }, text: body })
+}
+
 /// The imports a file makes as it runs: those outside every function and class, and outside a block
 /// that runs only for a type checker.
 fn imports(src: &str, lines: &[Line]) -> Vec<Import> {

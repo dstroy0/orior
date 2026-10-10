@@ -1079,6 +1079,68 @@ function changeSignatureHere(sheet) {
   });
 }
 
+// Write Docstring: a docstring drawn up for the function the cursor is in, from its parameters, what
+// it returns and what it raises, in the form chosen for Python and as JSDoc for JavaScript, the cursor
+// left on its summary line; and Sort Methods by Name, the methods of the class the cursor is in sorted
+// by name. Each is one change undo takes back.
+const DOCSTRING_FORM = "orior.docstring-form";
+
+function docstringForm() {
+  return localStorage.getItem(DOCSTRING_FORM) ?? "google";
+}
+
+function setDocstringForm(form) {
+  if (!["google", "numpy", "rest", "plain"].includes(form)) {
+    say(`${form} is no docstring form: google, numpy, rest or plain.`, { failed: true });
+    return;
+  }
+  localStorage.setItem(DOCSTRING_FORM, form);
+  say(`Docstrings are drawn up in the ${form} form.`);
+}
+
+function codeHere() {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const s = editor?.s;
+  if (!s || s.window || s.readOnly || !s.language) {
+    say("This reads the code of a file open whole in a language.");
+    return null;
+  }
+  return { editor, s, line: editor.primary().head.line };
+}
+
+async function writeDocstring() {
+  const found = codeHere();
+  if (!found) {
+    return;
+  }
+  const { editor, s, line } = found;
+  try {
+    const [edit, summary] = await invoke("code_docstring", { language: s.language.id, text: s.doc.text(), line, form: docstringForm() });
+    editor.change([edit], "docstring");
+    s.doc.seal();
+    editor.select([{ anchor: summary, head: summary, goal: null }]);
+    editor.focus();
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+async function sortMethods() {
+  const found = codeHere();
+  if (!found) {
+    return;
+  }
+  const { editor, s, line } = found;
+  try {
+    const edit = await invoke("code_sort", { language: s.language.id, text: s.doc.text(), line });
+    editor.change([edit], "sort");
+    s.doc.seal();
+    say("The class's methods are sorted by name.");
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
 // Search Structurally on the file in the editor last pressed in, and the tree's files in its language.
 function shapeSearchHere(sheet) {
   const editor = state.split?.focused ? state.split.editor : state.editor;
@@ -2612,6 +2674,10 @@ export function editing() {
     changeSignature: changeSignatureHere,
     moveDeclaration: moveHere,
     shapeSearch: shapeSearchHere,
+    writeDocstring,
+    sortMethods,
+    docstringForm,
+    setDocstringForm,
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
     hints: (kind) => Boolean(state.editor?.hintKinds[kind]),

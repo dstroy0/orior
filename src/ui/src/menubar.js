@@ -22,7 +22,7 @@
 
 import { invoke, pick } from "./bridge.js";
 import { showClone } from "./clone.js";
-import { showCreate, showInit } from "./create.js";
+import { showCreate, showInit, showProject } from "./create.js";
 import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
@@ -174,6 +174,15 @@ const COMMANDS = {
   "create-file": (args) => create(false, args[0]),
   "create-folder": (args) => create(true, args[0]),
   "create-repository": (args) => createRepository(args[0] ?? null),
+  "create-project": (args) => showProject(sheet, { given: args[0] ?? null, made: (folder) => state.openFolder(folder) }),
+  "keep-template": async (args) => {
+    const name = args[0] || (await askFor("A name for the template the tree is kept as", ""));
+    if (name) {
+      invoke("template_keep", { name })
+        .then((folder) => say(`The tree is kept as the template ${name}, in ${folder}.`))
+        .catch((error) => say(String(error), { failed: true }));
+    }
+  },
   "open-file": (args) => openAnyFile(args[0]),
   "open-folder": (args) => state.openFolder(args[0]),
   "open-repository": (args) => showClone(sheet, state.openFolder, args, { open: true }),
@@ -318,6 +327,16 @@ const COMMANDS = {
   "change-signature": inEditor(() => editing().changeSignature(sheet)),
   "move-declaration": inEditor(() => editing().moveDeclaration(askFor)),
   "shape-search": inEditor(() => editing().shapeSearch(sheet)),
+  docstring: inEditor(() => editing().writeDocstring()),
+  "sort-methods": inEditor(() => editing().sortMethods()),
+  "docstring-form": (args) => {
+    if (args[0]) {
+      editing().setDocstringForm(args[0]);
+      return;
+    }
+    const forms = { google: "Google", numpy: "NumPy", rest: "reStructuredText", plain: "Summary Line Alone" };
+    showMenu(window.innerWidth / 3, window.innerHeight / 4, Object.entries(forms).map(([form, label]) => ({ label, checked: editing().docstringForm() === form, run: () => editing().setDocstringForm(form) })));
+  },
   "quick-fix": inEditor(() => editing().quickFix()),
   "parameter-info": inEditor(() => editing().parameterInfo()),
   "quick-doc": inEditor(() => editing().quickDoc()),

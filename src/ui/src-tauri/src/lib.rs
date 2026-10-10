@@ -782,6 +782,45 @@ fn shape_search(app: State<App>, language: String, pattern: String, template: Op
     Ok(shapes)
 }
 
+/// A docstring drawn up for the function at or around `line` of a text in `language`, in `form`:
+/// its edit, and the place to write its summary.
+#[tauri::command]
+fn code_docstring(language: String, text: String, line: u32, form: String) -> Result<(servers::TextEdit, servers::Place), String> {
+    orior_cli::inspect::docstring(&language, &text, line, &form)
+}
+
+/// The edit that sorts the methods of the class at or around `line` of a text in `language` by name.
+#[tauri::command]
+fn code_sort(language: String, text: String, line: u32) -> Result<servers::TextEdit, String> {
+    orior_cli::inspect::sort_methods(&language, &text, line)
+}
+
+/// The reader's templates, and the folder that holds them.
+#[tauri::command]
+fn templates_list() -> (Vec<String>, String) {
+    (orior_cli::templates::list(), orior_cli::templates::folder().map(|folder| folder.display().to_string()).unwrap_or_default())
+}
+
+/// Begins a project named `name` in `parent` from the template `template`. Gives its folder.
+#[tauri::command(async)]
+fn project_create(template: String, parent: String, name: String) -> Result<String, String> {
+    orior_cli::templates::create(&template, Path::new(&parent), &name).map(|made| made.display().to_string())
+}
+
+/// Keeps the tree open as the template `name`. Gives the template's folder.
+#[tauri::command(async)]
+fn template_keep(app: State<App>, name: String) -> Result<String, String> {
+    orior_cli::templates::keep(&root_of(&app)?, &name).map(|made| made.display().to_string())
+}
+
+/// Opens the folder that holds the reader's templates, made where it is not there yet.
+#[tauri::command]
+fn templates_reveal() -> Result<(), String> {
+    let folder = orior_cli::templates::folder().ok_or("orior has no folder of its own to keep templates in")?;
+    std::fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    home::reveal(&folder)
+}
+
 /// The classes a parse names, by their index.
 #[tauri::command]
 fn parse_classes() -> Vec<&'static str> {
@@ -1366,6 +1405,12 @@ fn open(launch: Launch) {
             parse_spans,
             parse_classes,
             shape_search,
+            code_docstring,
+            code_sort,
+            templates_list,
+            project_create,
+            template_keep,
+            templates_reveal,
             calls_of,
             inspect_languages,
             lsp_hover,
