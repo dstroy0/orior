@@ -5,7 +5,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 ## Responsiveness
 
 1. **Start under a second.** The window shows with its page drawn and takes keys within a second of the launch.
-2. **Scrolling at the display's rate.** A fast scroll holds every frame a display of 120 a second draws, and not only every other one.
+2. **Scrolling at the display's rate.** A fast scroll holds every frame a display of 120 a second draws, and not only every other one. The frame's handover to the compositor, `Commit` and `LayerTreeHost::DoUpdateLayers` in a trace, takes about 10 ms of the 8.3 a frame has. Two measurements say what is in it: a trace of the scroll with the compositor's own categories (`cc`, `viz`, `gpu`, `disabled-by-default-cc.debug`), which splits it into the canvas flush, the layers' update, tiles and uploads; and the same scroll with the minimap not drawing, which says whether the map's canvas is the cost.
 
 ## Code intelligence
 
