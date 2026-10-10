@@ -2437,7 +2437,7 @@ function editorItems() {
     { label: "Go to Definition", keys: "F12", disabled: !served, run: () => goToDefinition(editor.head()) },
     { label: "Find Usages", keys: "Shift+F12", run: findUsages },
     { label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
-    { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served, run: quickFix },
+    { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served && !tabOf(state.active)?.inspected, run: quickFix },
     {
       label: "Refactor",
       items: [

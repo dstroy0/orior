@@ -20,6 +20,11 @@
 //! checks its projects as a whole, as rust-analyzer does with cargo check, is told to check them all
 //! in place of that. A file is checked again when it changes on the disk, with the files whose
 //! includes or imports name it, and when the editor closes it, as the disk holds it.
+//!
+//! The inspections of inspect.rs read every Python and JavaScript file of the tree once a file of the
+//! tree is handed over, on a thread of their own, and each file as the editor changes it, as it
+//! changes on the disk, and as the editor closes it. A file's diagnostics go to the editor whole: its
+//! server's, then the inspections'. A finding's fix is offered with the server's quick fixes.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -29,6 +34,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::inspect;
 use crate::lsp::{self, Server};
 use crate::toolchains;
 
@@ -249,6 +255,11 @@ struct Checks {
     /// a file only with this held, by the check or by the editor.
     held: Mutex<HashSet<String>>,
     heard: Mutex<Heard>,
+    /// Each file's findings as diagnostics, by its key, with its URI, which go to the editor after
+    /// its server's.
+    inspected: Published,
+    /// What each Python class's family sets, by its file's key and its name.
+    supplied: Mutex<HashMap<String, HashMap<String, HashSet<String>>>>,
     /// The servers, by their process, that refuse to be asked for a file's diagnostics, whose
     /// diagnostics the check waits for them to give.
     refused: Mutex<HashSet<u32>>,
@@ -261,6 +272,10 @@ pub struct Servers {
     failed: Mutex<HashMap<String, String>>,
     published: Arc<Published>,
     checks: Arc<Checks>,
+    /// The inspections' index of the tree, the tree it was read from, and where their findings go.
+    index: Arc<Mutex<inspect::Tree>>,
+    indexed: Arc<Mutex<Option<PathBuf>>>,
+    told: Mutex<Option<Emit>>,
 }
 
 /// Each file's diagnostics as its server last gave them, which a quick fix is asked about, by the
@@ -476,11 +491,9 @@ fn heard(method: &str, params: &Value, emit: &Emit, published: &Published, check
                     }
                 }
                 if let Ok(mut kept) = published.lock() {
-                    kept.insert(key, (uri.to_string(), all.clone()));
+                    kept.insert(key.clone(), (uri.to_string(), all.clone()));
                 }
-            }
-            if let Some(diagnostics) = diagnostics_of(params) {
-                emit(Told::Diagnostics(diagnostics));
+                emit_whole(&key, uri, published, checks, emit);
             }
             Value::Null
         }
@@ -554,8 +567,10 @@ impl Servers {
         }
     }
 
-    /// Hands the file at `path` to its language's server. Says whether one took it.
+    /// Hands the file at `path` to its language's server, and its text to the inspections. Says
+    /// whether a server took it.
     pub fn open(&self, root: &Path, path: &Path, language: &str, text: &str, emit: &Emit) -> Result<bool, String> {
+        self.inspect(root, path, Some(text), emit);
         let Some((server, spec)) = self.server(root, language, emit)? else {
             return Ok(false);
         };
@@ -570,10 +585,7 @@ impl Servers {
         if server.has(path) {
             server.change(path, text)?;
             // A tab opened again on a file the server holds hears the diagnostics it last gave.
-            let kept = self.published.lock().ok().and_then(|all| all.get(&lsp::key_of(&uri)).map(|(_, all)| all.clone()));
-            if let Some(diagnostics) = kept.and_then(|all| diagnostics_of(&json!({"uri": uri, "diagnostics": all}))) {
-                emit(Told::Diagnostics(diagnostics));
-            }
+            emit_whole(&lsp::key_of(&uri), &uri, &self.published, &self.checks, emit);
         } else {
             server.open(path, &id, text)?;
         }
@@ -593,13 +605,17 @@ impl Servers {
     }
 
     pub fn change(&self, path: &Path, text: &str) -> Result<(), String> {
+        self.inspect_again(path, Some(text));
         let _held = self.checks.held.lock().map_err(|_| "held".to_string())?;
         self.holding(path).map_or(Ok(()), |server| server.change(path, text))
     }
 
-    /// Lets go of a file the editor closed. Where the tree's check is on, the file is checked as the
-    /// disk holds it before its server lets it go.
+    /// Lets go of a file the editor closed, whose text the inspections read again as the disk holds
+    /// it. Where the tree's check is on, the file is checked as the disk holds it before its server
+    /// lets it go.
     pub fn close(&self, path: &Path) -> Result<(), String> {
+        let text = std::fs::read_to_string(path).ok();
+        self.inspect_again(path, text.as_deref());
         let Some(server) = self.holding(path) else {
             return Ok(());
         };
@@ -706,8 +722,20 @@ impl Servers {
     /// The quick fixes and refactorings the server offers for the span `from`, `to` of `path`, given
     /// the diagnostics it gave that touch it.
     pub fn actions(&self, path: &Path, from: Place, to: Place) -> Result<Vec<Action>, String> {
-        let server = self.asked(path)?;
         let uri = lsp::uri_of(path);
+        let mut fixes: Vec<Action> = Vec::new();
+        if let Some((_, all)) = self.checks.inspected.lock().map_err(|_| "held".to_string())?.get(&lsp::key_of(&uri)) {
+            for one in all.iter().filter(|one| overlaps(&from, &to, &one["range"])) {
+                for fix in one["data"]["orior"].as_array().into_iter().flatten() {
+                    fixes.push(Action { title: fix["title"].as_str().unwrap_or_default().to_string(), kind: "quickfix".into(), preferred: true, disabled: None, raw: json!({"orior": fix["edits"]}) });
+                }
+            }
+        }
+        let server = match self.asked(path) {
+            Ok(server) => server,
+            Err(_) if !fixes.is_empty() => return Ok(fixes),
+            Err(said) => return Err(said),
+        };
         let diagnostics: Vec<Value> = self.published.lock().map_err(|_| "held".to_string())?.get(&lsp::key_of(&uri)).map(|(_, all)| all.iter().filter(|one| overlaps(&from, &to, &one["range"])).cloned().collect()).unwrap_or_default();
         let params = json!({
             "textDocument": {"uri": uri},
@@ -720,13 +748,18 @@ impl Servers {
         let mut seen = std::collections::HashSet::new();
         actions.retain(|action| seen.insert((action.title.clone(), action.raw["edit"].to_string())));
         actions.sort_by_key(|action| (action.disabled.is_some(), !action.preferred, !action.kind.starts_with("quickfix")));
-        Ok(actions)
+        fixes.extend(actions);
+        Ok(fixes)
     }
 
     /// Carries out an action `actions` gave: its edits, filled in by the server first where it left
     /// them out, are returned to be written, and its command is run, whose edits the server asks
     /// for on its own.
     pub fn act(&self, path: &Path, raw: &Value) -> Result<Vec<FileEdit>, String> {
+        if let Some(edits) = raw.get("orior") {
+            let edits: Vec<TextEdit> = serde_json::from_value(edits.clone()).map_err(|error| error.to_string())?;
+            return Ok(vec![FileEdit { path: path.display().to_string(), edits }]);
+        }
         let server = self.asked(path)?;
         let mut action = raw.clone();
         if action["command"].is_string() {
@@ -815,6 +848,13 @@ impl Servers {
         if let Ok(mut published) = self.published.lock() {
             published.clear();
         }
+        if let Ok(mut inspected) = self.checks.inspected.lock() {
+            inspected.clear();
+        }
+        if let (Ok(mut index), Ok(mut indexed)) = (self.index.lock(), self.indexed.lock()) {
+            *index = inspect::Tree::default();
+            *indexed = None;
+        }
         for server in self.take_all() {
             std::thread::spawn(move || server.stop());
         }
@@ -887,6 +927,11 @@ impl Servers {
                 emit(Told::Diagnostics(diagnostics));
             }
         }
+        for file in files {
+            let path = root.join(file);
+            let text = std::fs::read_to_string(&path).ok();
+            self.inspect(root, &path, text.as_deref(), &emit);
+        }
         let tree = self.checks.queue.lock().map(|queue| queue.files.clone()).unwrap_or_default();
         let mut again: Vec<String> = files.iter().filter(|file| root.join(file).is_file()).cloned().collect();
         let languages = crate::plugins::languages();
@@ -911,6 +956,83 @@ impl Servers {
             }
         }
         self.check_files(root, &again, &emit);
+    }
+
+    /// Reads a file's text into the inspections' index, or takes the file out of it where `text` is
+    /// none, and passes on each file's findings that changed. The tree's Python and JavaScript are
+    /// read first, on a thread of their own, where the index holds another tree or none.
+    fn inspect(&self, root: &Path, path: &Path, text: Option<&str>, emit: &Emit) {
+        let Some(file) = path.strip_prefix(root).ok().map(|inside| inside.to_string_lossy().replace('\\', "/")) else {
+            return;
+        };
+        let Some(language) = inspect::language_of(&file) else {
+            return;
+        };
+        if let Ok(mut told) = self.told.lock() {
+            *told = Some(emit.clone());
+        }
+        let ready = self.indexed.lock().is_ok_and(|read| read.as_deref() == Some(root));
+        let text = text.map(str::to_string);
+        let (index, indexed, published, checks, emit, root) = (self.index.clone(), self.indexed.clone(), self.published.clone(), self.checks.clone(), emit.clone(), root.to_path_buf());
+        let work = move || {
+            let Ok(mut tree) = index.lock() else {
+                return;
+            };
+            let Ok(mut read) = indexed.lock() else {
+                return;
+            };
+            if read.as_deref() != Some(root.as_path()) {
+                *tree = inspect::Tree::default();
+                for one in crate::files::all(&root) {
+                    if let (Some(language), Ok(text)) = (inspect::language_of(&one), std::fs::read_to_string(root.join(&one))) {
+                        tree.set(&one, language, &text);
+                    }
+                }
+                *read = Some(root.clone());
+            }
+            drop(read);
+            match &text {
+                Some(text) => tree.set(&file, language, text),
+                None => tree.remove(&file),
+            }
+            let found = tree.findings();
+            let supplied = tree.supplied();
+            drop(tree);
+            let supplied: HashMap<String, HashMap<String, HashSet<String>>> = supplied.into_iter().map(|(file, classes)| (lsp::key_of(&lsp::uri_of(&root.join(file))), classes)).collect();
+            let moved = checks.supplied.lock().map(|mut kept| {
+                let moved = *kept != supplied;
+                *kept = supplied;
+                moved
+            });
+            pass_on(&root, found, &published, &checks, &emit);
+            // What a family sets decides which of a server's reports of an attribute pass on.
+            if moved.unwrap_or(false) {
+                let reporting: Vec<(String, String)> = published.lock().map(|all| all.iter().filter(|(_, (_, items))| items.iter().any(|item| attribute_of(item).is_some())).map(|(key, (uri, _))| (key.clone(), uri.clone())).collect()).unwrap_or_default();
+                for (key, uri) in reporting {
+                    emit_whole(&key, &uri, &published, &checks, &emit);
+                }
+            }
+            // A file the editor opens hears its diagnostics, changed or the same.
+            if text.is_some() {
+                let uri = lsp::uri_of(&root.join(&file));
+                emit_whole(&lsp::key_of(&uri), &uri, &published, &checks, &emit);
+            }
+        };
+        if ready {
+            work();
+        } else {
+            std::thread::spawn(work);
+        }
+    }
+
+    /// Reads a file's text into the inspections' index as the editor changes or closes it, in the tree
+    /// the index holds.
+    fn inspect_again(&self, path: &Path, text: Option<&str>) {
+        let root = self.indexed.lock().ok().and_then(|read| read.clone());
+        let emit = self.told.lock().ok().and_then(|told| told.clone());
+        if let (Some(root), Some(emit)) = (root, emit) {
+            self.inspect(&root, path, text, &emit);
+        }
     }
 
     /// Whether the tree's check has files waiting or being checked.
@@ -1004,6 +1126,61 @@ impl Servers {
     }
 }
 
+/// Passes on a file's diagnostics whole: its server's, less its reports of an attribute a class's
+/// family sets, then the inspections'.
+fn emit_whole(key: &str, uri: &str, published: &Published, checks: &Checks, emit: &Emit) {
+    let mut items = published.lock().ok().and_then(|all| all.get(key).map(|(_, items)| items.clone())).unwrap_or_default();
+    if let Some(classes) = checks.supplied.lock().ok().and_then(|all| all.get(key).cloned()) {
+        items.retain(|item| !attribute_of(item).is_some_and(|(name, class)| classes.get(&class).is_some_and(|names| names.contains(&name))));
+    }
+    items.extend(checks.inspected.lock().ok().and_then(|all| all.get(key).map(|(_, items)| items.clone())).unwrap_or_default());
+    if let Some(diagnostics) = diagnostics_of(&json!({"uri": uri, "diagnostics": items})) {
+        emit(Told::Diagnostics(diagnostics));
+    }
+}
+
+/// The attribute and the class a server's report that a class has no such attribute names, as
+/// pyright writes it: `Cannot access attribute "name" for class "Class*"`.
+fn attribute_of(item: &Value) -> Option<(String, String)> {
+    let message = item["message"].as_str()?;
+    let rest = message.strip_prefix("Cannot access attribute \"")?;
+    let (name, rest) = rest.split_once('"')?;
+    let rest = rest.strip_prefix(" for class \"")?;
+    let (class, _) = rest.split_once('"')?;
+    Some((name.to_string(), class.trim_end_matches('*').to_string()))
+}
+
+/// Keeps every file's findings, by its path in the tree at `root`, and passes on the diagnostics of
+/// each file whose findings changed.
+fn pass_on(root: &Path, found: HashMap<String, Vec<inspect::Finding>>, published: &Published, checks: &Checks, emit: &Emit) {
+    let mut changed = Vec::new();
+    {
+        let Ok(mut inspected) = checks.inspected.lock() else {
+            return;
+        };
+        let mut seen = HashSet::new();
+        for (file, findings) in found {
+            let uri = lsp::uri_of(&root.join(&file));
+            let key = lsp::key_of(&uri);
+            let values: Vec<Value> = findings.iter().map(inspect::value_of).collect();
+            seen.insert(key.clone());
+            if (inspected.contains_key(&key) || !values.is_empty()) && inspected.get(&key).map(|(_, kept)| kept) != Some(&values) {
+                inspected.insert(key.clone(), (uri.clone(), values));
+                changed.push((key, uri));
+            }
+        }
+        let gone: Vec<String> = inspected.keys().filter(|key| !seen.contains(*key)).cloned().collect();
+        for key in gone {
+            if let Some((uri, _)) = inspected.remove(&key) {
+                changed.push((key, uri));
+            }
+        }
+    }
+    for (key, uri) in changed {
+        emit_whole(&key, &uri, published, checks, emit);
+    }
+}
+
 /// The next file waiting for the tree's check, once one waits, and where what is said of it goes;
 /// none after a moment with none, for the checker to see whether the checks are still kept.
 fn next_waiting(checks: &Checks) -> Option<(Waiting, Emit)> {
@@ -1057,11 +1234,9 @@ fn check_one(checks: &Checks, published: &Published, one: &Waiting, emit: &Emit)
         Some(Ok(answer)) if answer["kind"] == "full" => {
             let items = answer["items"].as_array().cloned().unwrap_or_default();
             if let Ok(mut kept) = published.lock() {
-                kept.insert(key.clone(), (uri.clone(), items.clone()));
+                kept.insert(key.clone(), (uri.clone(), items));
             }
-            if let Some(diagnostics) = diagnostics_of(&json!({"uri": uri, "diagnostics": items})) {
-                emit(Told::Diagnostics(diagnostics));
-            }
+            emit_whole(&key, &uri, published, checks, emit);
         }
         Some(Ok(_)) => {}
         Some(Err(said)) if !said.contains("had no answer") => {
@@ -1368,6 +1543,45 @@ mod tests {
         assert!(checked, "{:?}", found.lock().unwrap());
         servers.stop_all();
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_file_with_no_server_hears_its_findings_and_their_fixes_and_so_does_the_tree() {
+        let dir = std::env::temp_dir().join(format!("orior-inspect-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let text = "export function f() {\n  const unused = 1;\n  return 2;\n}\n";
+        std::fs::write(dir.join("a.js"), text).unwrap();
+        std::fs::write(dir.join("b.py"), "def g():\n    '''Return two.'''\n    return 2\n").unwrap();
+        let told = Arc::new(Mutex::new(HashMap::new()));
+        let kept = told.clone();
+        let emit: Emit = Arc::new(move |one| {
+            if let Told::Diagnostics(diagnostics) = one {
+                let name = Path::new(&diagnostics.path).file_name().unwrap().to_string_lossy().to_string();
+                kept.lock().unwrap().insert(name, diagnostics.items.iter().map(|item| item.message.clone()).collect::<Vec<_>>());
+            }
+        });
+        let servers = Servers::default();
+        let file = dir.join("a.js");
+        assert!(!servers.open(&dir, &file, "javascript", text, &emit).unwrap());
+        assert!(until(10, || told.lock().unwrap().contains_key("a.js") && told.lock().unwrap().contains_key("b.py")), "{:?}", told.lock().unwrap());
+        assert_eq!(told.lock().unwrap()["a.js"], vec!["unused is declared and never read."]);
+        assert_eq!(told.lock().unwrap()["b.py"].len(), 1, "a file of the tree no tab holds is inspected too");
+        let actions = servers.actions(&file, Place { line: 1, col: 9 }, Place { line: 1, col: 9 }).unwrap();
+        assert_eq!(actions[0].title, "Take out the declaration of unused");
+        let edits = servers.act(&file, &actions[0].raw).unwrap();
+        let fixed = apply(text, &edits[0].edits);
+        assert_eq!(fixed, "export function f() {\n  return 2;\n}\n");
+        servers.change(&file, &fixed).unwrap();
+        assert!(until(10, || told.lock().unwrap()["a.js"].is_empty()), "{:?}", told.lock().unwrap());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_report_of_an_attribute_names_it_and_its_class() {
+        let item = json!({"message": "Cannot access attribute \"render\" for class \"Saving*\"
+  Attribute \"render\" is unknown"});
+        assert_eq!(attribute_of(&item), Some(("render".to_string(), "Saving".to_string())));
+        assert_eq!(attribute_of(&json!({"message": "Import \"x\" could not be resolved"})), None);
     }
 
     #[test]

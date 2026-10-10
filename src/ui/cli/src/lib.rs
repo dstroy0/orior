@@ -24,6 +24,7 @@ pub mod git;
 pub mod highlight;
 pub mod history;
 pub mod home;
+pub mod inspect;
 pub mod kept;
 pub mod lsp;
 pub mod patterns;

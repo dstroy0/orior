@@ -4,7 +4,9 @@
 // Language servers, as servers.rs in the command line's crate runs them: a tab whose language has
 // one in the toolchain manifest is handed to it when it opens, told of each change a moment after
 // typing rests, and let go when it closes. Its hovers, completions and definitions come from the
-// server, and the server's diagnostics are drawn under the text they are about.
+// server, and the server's diagnostics are drawn under the text they are about. A tab of a language
+// orior's own inspections read is handed over, told of its changes and let go the same way where no
+// server serves it, and hears the inspections' findings.
 
 import { invoke, listen } from "./bridge.js";
 
@@ -19,10 +21,18 @@ const known = new Map();
 let checking = null;
 let checked = false;
 
+// The languages orior's own inspections read.
+let inspected = new Set();
+
 // `tabs` gives the open tabs, and `paint` draws the editor again after diagnostics arrive.
 export function startServers({ tabs, paint }) {
   tabsOf = tabs;
   painted = paint;
+  invoke("inspect_languages")
+    .then((languages) => {
+      inspected = new Set(languages);
+    })
+    .catch(() => {});
   listen("lsp-diagnostics", (event) => {
     const { path, items } = event.payload;
     if (items.length) {
@@ -31,7 +41,7 @@ export function startServers({ tabs, paint }) {
       known.delete(path);
     }
     for (const tab of tabsOf()) {
-      if ((tab.served || tab.serving) && tab.file === path) {
+      if ((tab.served || tab.serving || tab.inspected) && tab.file === path) {
         tab.session.diagnostics = items;
       }
     }
@@ -96,6 +106,9 @@ export async function serve(tab) {
     invoke("lsp_hover", { path: tab.file, line: 0, col: 0 }).catch(() => {});
   } else if (took) {
     invoke("lsp_close", { path: tab.file }).catch(() => {});
+  } else if (inspected.has(language) && tabsOf().includes(tab)) {
+    tab.inspected = true;
+    s.diagnostics ??= [];
   }
 }
 
@@ -142,9 +155,10 @@ export function wrap(tab) {
   });
 }
 
-// Tells the server of a change to a served tab, once typing has rested.
+// Tells the server of a change to a served tab, or the inspections of one to an inspected tab, once
+// typing has rested.
 export function changed(tab) {
-  if (!tab?.served) {
+  if (!tab?.served && !tab?.inspected) {
     return;
   }
   window.clearTimeout(tab.telling);
@@ -156,15 +170,16 @@ export function changed(tab) {
 // that what is asked next is asked of the text as it stands.
 export async function flush(tab) {
   window.clearTimeout(tab?.telling);
-  if (tab?.served && tab.untold) {
+  if ((tab?.served || tab?.inspected) && tab.untold) {
     tab.untold = false;
     await invoke("lsp_change", { path: tab.file, text: tab.session.doc.text() }).catch(() => {});
   }
 }
 
 export function stopServing(tab) {
-  if (tab?.served) {
+  if (tab?.served || tab?.inspected) {
     tab.served = false;
+    tab.inspected = false;
     tab.untold = false;
     window.clearTimeout(tab.telling);
     invoke("lsp_close", { path: tab.file }).catch(() => {});

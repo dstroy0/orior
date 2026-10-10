@@ -679,6 +679,12 @@ fn emitter(handle: AppHandle, tree: PathBuf) -> servers::Emit {
     })
 }
 
+/// The languages orior's own inspections read, by the editor's names for them.
+#[tauri::command]
+fn inspect_languages() -> Vec<&'static str> {
+    orior_cli::inspect::LANGUAGES.to_vec()
+}
+
 /// Starts the tree's check: every file of the tree the editor does not have open handed to its
 /// language's server, its diagnostics coming as "lsp-diagnostics" and how far the check has gone as
 /// "tree-check". Gives how many files wait.
@@ -1257,6 +1263,7 @@ fn open(launch: Launch) {
             lsp_change,
             lsp_close,
             problems_check,
+            inspect_languages,
             lsp_hover,
             lsp_definition,
             lsp_complete,

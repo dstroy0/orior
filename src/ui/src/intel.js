@@ -288,10 +288,11 @@ export async function renameSymbol() {
   field.select();
 }
 
-// Quick Fix.
+// Quick Fix: the server's quick fixes and refactorings, after the fixes of orior's own inspections,
+// which an inspected tab with no server offers alone.
 
 export async function quickFix() {
-  const found = served();
+  const found = here()?.tab.inspected && !here().tab.served ? here() : served();
   if (!found) {
     return;
   }
@@ -424,7 +425,7 @@ function placeFix() {
     return;
   }
   const line = found?.head.line;
-  const worst = found?.tab.served ? Math.min(...(found.s.diagnostics ?? []).filter((one) => one.from.line - found.s.base <= line && one.to.line - found.s.base >= line).map((one) => one.severity)) : Infinity;
+  const worst = found?.tab.served || found?.tab.inspected ? Math.min(...(found.s.diagnostics ?? []).filter((one) => one.from.line - found.s.base <= line && one.to.line - found.s.base >= line).map((one) => one.severity)) : Infinity;
   if (!Number.isFinite(worst)) {
     state.fix.hidden = true;
     return;
