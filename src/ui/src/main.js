@@ -12,7 +12,6 @@ import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
 import { drawMenubar, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
 import { startStrip } from "./strip.js";
-import { forgetFiles } from "./palette.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
@@ -124,7 +123,6 @@ async function openFolder(folder) {
   try {
     const root = await invoke("root_set", { path: chosen });
     forgetTree();
-    forgetFiles();
     await begin(root);
   } catch (error) {
     document.getElementById("open-said").textContent = String(error);

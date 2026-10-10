@@ -162,6 +162,228 @@ pub fn all(root: &Path) -> Vec<String> {
     found
 }
 
+/// A letter of a path as the matcher reads it: a byte of a path that is all ASCII, or a character of
+/// one that is not.
+trait Letter: Copy + PartialEq {
+    fn upper(self) -> bool;
+    fn lower(self) -> Self;
+    fn splits(self) -> bool;
+}
+
+impl Letter for u8 {
+    fn upper(self) -> bool {
+        self.is_ascii_uppercase()
+    }
+    fn lower(self) -> Self {
+        self.to_ascii_lowercase()
+    }
+    fn splits(self) -> bool {
+        matches!(self, b' ' | b'\t' | b'/' | b'\\' | b'_' | b'-' | b'.' | b':' | b'@')
+    }
+}
+
+impl Letter for char {
+    fn upper(self) -> bool {
+        self.is_uppercase()
+    }
+    fn lower(self) -> Self {
+        self.to_lowercase().next().unwrap_or(self)
+    }
+    fn splits(self) -> bool {
+        self.is_whitespace() || matches!(self, '/' | '\\' | '_' | '-' | '.' | ':' | '@')
+    }
+}
+
+/// Whether a word starts at `at`: the text's start, after a space, a slash, a separator in a name, a
+/// dot, a colon or an at, or an upper case letter after one that is not.
+fn starts_word<T: Letter>(text: &[T], at: usize) -> bool {
+    at == 0 || text[at - 1].splits() || (!text[at - 1].upper() && text[at].upper())
+}
+
+/// The match of `wanted`, lower case, in `shown` and its lower case `lower`, letter for letter; see
+/// `fuzzy`.
+fn fuzzy_in<T: Letter>(wanted: &[T], shown: &[T], lower: &[T], from: usize) -> Option<(f64, Vec<usize>)> {
+    if wanted.is_empty() {
+        return Some((0.0, Vec::new()));
+    }
+    // The latest place each letter can stand with the letters after it still fitting.
+    let mut latest = vec![0usize; wanted.len()];
+    let mut at = lower.len();
+    for index in (0..wanted.len()).rev() {
+        at = lower[..at].iter().rposition(|letter| *letter == wanted[index])?;
+        latest[index] = at;
+    }
+    let mut hits = Vec::with_capacity(wanted.len());
+    let mut score = 0.0;
+    let mut last: Option<usize> = None;
+    for (index, letter) in wanted.iter().enumerate() {
+        let after = last.map_or(0, |last| last + 1);
+        // The letter right after the one before it, else the first that starts a word, else the first.
+        let mut found = last.filter(|_| lower.get(after) == Some(letter)).map(|_| after);
+        let mut first = None;
+        let mut place = after;
+        while found.is_none() && place <= latest[index] {
+            if lower[place] == *letter {
+                first = first.or(Some(place));
+                if starts_word(shown, place) {
+                    found = Some(place);
+                }
+            }
+            place += 1;
+        }
+        let found = found.or(first)?;
+        score += 1.0;
+        if Some(found) == last.map(|last| last + 1) {
+            score += 5.0;
+        }
+        if starts_word(shown, found) {
+            score += 8.0;
+        }
+        if found >= from {
+            score += 3.0;
+        }
+        if shown[found] == *letter {
+            score += 1.0;
+        }
+        hits.push(found);
+        last = Some(found);
+    }
+    // A query torn into more pieces than half its letters reads as no match.
+    let runs = hits.iter().enumerate().filter(|(index, at)| *index == 0 || **at != hits[index - 1] + 1).count();
+    if runs > 3.max(wanted.len().div_ceil(2)) {
+        return None;
+    }
+    score -= (hits[hits.len() - 1] - hits[0]) as f64 * 0.1 + shown.len() as f64 * 0.02;
+    Some((score, hits))
+}
+
+/// The places in `text` that match `query`, counted in characters, and the match's score, or None
+/// where it does not match: the query's letters in order anywhere in the text, case aside, in no more
+/// pieces than half its letters or three. A letter scores more at the start of a word or past `from`,
+/// where the text's name starts, and right after the letter before it. The palette's own matcher,
+/// fuzzy.js, scores the same.
+pub fn fuzzy(query: &str, text: &str, from: usize) -> Option<(f64, Vec<usize>)> {
+    let wanted: Vec<char> = query.chars().filter(|letter| !letter.is_whitespace()).map(Letter::lower).collect();
+    let shown: Vec<char> = text.chars().collect();
+    let lower: Vec<char> = shown.iter().map(|letter| letter.lower()).collect();
+    fuzzy_in(&wanted, &shown, &lower, from)
+}
+
+/// What a file named exactly as typed scores over the match itself, and one whose name starts with
+/// it half that.
+const EXACT: f64 = 40.0;
+
+/// What a file opened lately scores over the match itself.
+const LATELY: f64 = 6.0;
+
+/// A file that answers a quick open: its path, its score and the characters of the path that
+/// matched.
+#[derive(Serialize)]
+pub struct Found {
+    pub path: String,
+    pub score: f64,
+    pub hits: Vec<usize>,
+}
+
+/// A file of the tree as a quick open reads it: its path, the path in lower case, and where its
+/// name starts, in characters.
+struct Listed {
+    path: String,
+    lower: String,
+    from: usize,
+}
+
+impl Listed {
+    fn of(path: &str) -> Listed {
+        let from = path.rfind('/').map_or(0, |at| path[..=at].chars().count());
+        Listed { path: path.to_string(), lower: path.chars().map(Letter::lower).collect(), from }
+    }
+}
+
+/// The tree's files as the last quick open read them, when, and whether they are being read again.
+struct Held {
+    root: PathBuf,
+    at: Instant,
+    files: Arc<Vec<Listed>>,
+    reading: bool,
+}
+
+static HELD: Mutex<Option<Held>> = Mutex::new(None);
+
+/// The tree's files, read as `all` reads them.
+fn listed(root: &Path) -> Arc<Vec<Listed>> {
+    let files: Vec<Listed> = match seen(root) {
+        Some(view) => view.files.iter().map(|path| Listed::of(path)).collect(),
+        None => all(root).iter().map(|path| Listed::of(path)).collect(),
+    };
+    Arc::new(files)
+}
+
+/// The tree's files for a quick open: read now the first time, and after that the files last read,
+/// read again behind the search once they are older than SEEN_FOR.
+fn held(root: &Path) -> Arc<Vec<Listed>> {
+    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    match held.as_mut() {
+        Some(kept) if kept.root == root => {
+            if kept.at.elapsed() >= SEEN_FOR && !kept.reading {
+                kept.reading = true;
+                let root = root.to_path_buf();
+                std::thread::spawn(move || {
+                    let files = listed(&root);
+                    let mut held = HELD.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                    if let Some(kept) = held.as_mut().filter(|kept| kept.root == root) {
+                        kept.files = files;
+                        kept.at = Instant::now();
+                        kept.reading = false;
+                    }
+                });
+            }
+            kept.files.clone()
+        }
+        _ => {
+            let files = listed(root);
+            *held = Some(Held { root: root.to_path_buf(), at: Instant::now(), files: files.clone(), reading: false });
+            files
+        }
+    }
+}
+
+/// The tree's files that answer `query`, at most `most` of them, the best first. A file in `recent`
+/// scores LATELY more, and one named as typed, with or without its extension, EXACT more, as one
+/// whose name starts with what was typed scores half of EXACT more.
+pub fn ranked(root: &Path, query: &str, recent: &[String], most: usize) -> Vec<Found> {
+    let lowered: String = query.chars().map(Letter::lower).collect();
+    let asked = lowered.rsplit('/').next().unwrap_or_default();
+    let wanted_bytes: Vec<u8> = lowered.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
+    let wanted_chars: Vec<char> = lowered.chars().filter(|letter| !letter.is_whitespace()).collect();
+    let files = held(root);
+    let mut found: Vec<Found> = Vec::new();
+    for file in files.iter() {
+        let matched = if file.path.is_ascii() && lowered.is_ascii() {
+            fuzzy_in(&wanted_bytes, file.path.as_bytes(), file.lower.as_bytes(), file.from)
+        } else {
+            let shown: Vec<char> = file.path.chars().collect();
+            let lower: Vec<char> = file.lower.chars().collect();
+            fuzzy_in(&wanted_chars, &shown, &lower, file.from)
+        };
+        let Some((score, hits)) = matched else { continue };
+        let name = file.lower.rsplit('/').next().unwrap_or_default();
+        let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+        let named = if name == asked || stem == asked {
+            EXACT
+        } else if name.starts_with(asked) {
+            EXACT / 2.0
+        } else {
+            0.0
+        };
+        let lately = if recent.contains(&file.path) { LATELY } else { 0.0 };
+        found.push(Found { path: file.path.clone(), score: score + lately + named, hits });
+    }
+    found.sort_by(|a, b| b.score.total_cmp(&a.score));
+    found.truncate(most);
+    found
+}
+
 /// One line a search found: the file, the line and the column counted from 1, and the line's text,
 /// cut to HIT_TEXT characters.
 #[derive(Serialize)]
@@ -500,5 +722,31 @@ mod windows {
         let past = window(&root, "lines.txt", 99999, 100).unwrap();
         assert_eq!(past.end, past.size);
         let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod matching {
+    use super::fuzzy;
+
+    #[test]
+    fn a_name_typed_matches_its_letters_in_the_name() {
+        let (_, hits) = fuzzy("edit", "src/ui/src/edit.js", 11).unwrap();
+        assert_eq!(hits, vec![11, 12, 13, 14]);
+        assert!(fuzzy("xyz", "src/ui/src/edit.js", 11).is_none());
+        assert_eq!(fuzzy("", "a.rs", 0).unwrap().1, Vec::<usize>::new());
+    }
+
+    #[test]
+    fn each_score_is_the_palette_s_own() {
+        let close = |found: Option<(f64, Vec<usize>)>, score: f64| (found.unwrap().0 - score).abs() < 1e-9;
+        assert!(close(fuzzy("view", "src/ui/src/editor/view.js", 18), 42.2));
+        assert!(close(fuzzy("edit", "src/ui/src/edit.js", 11), 42.34));
+        assert!(fuzzy("view", "src/vendor/item/eventwatch.js", 21).is_none());
+    }
+
+    #[test]
+    fn a_query_torn_into_too_many_pieces_does_not_match() {
+        assert!(fuzzy("abcd", "a/x/b/x/c/x/d", 12).is_none());
     }
 }

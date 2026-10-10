@@ -205,10 +205,17 @@ fn tree_find(app: State<App>, query: String) -> Result<Vec<String>, String> {
     Ok(files::find(&root_of(&app)?, &query))
 }
 
-/// Every file of the tree, for the quick open.
-#[tauri::command]
+/// Every file of the tree.
+#[tauri::command(async)]
 fn tree_files(app: State<App>) -> Result<Vec<String>, String> {
     Ok(files::all(&root_of(&app)?))
+}
+
+/// The tree's files that answer what Go to File was given, at most `most`, the best first, those
+/// in `recent` scored higher.
+#[tauri::command(async)]
+fn files_find(app: State<App>, query: String, recent: Vec<String>, most: usize) -> Result<Vec<files::Found>, String> {
+    Ok(files::ranked(&root_of(&app)?, &query, &recent, most))
 }
 
 /// The most declarations one search of the tree's symbols gives.
@@ -1039,6 +1046,7 @@ fn open(launch: Launch) {
             tree_list,
             tree_find,
             tree_files,
+            files_find,
             symbols_find,
             tree_search,
             zoom_set,

@@ -661,7 +661,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   );
   startPalette({
     commands: paletteCommands,
-    files: () => invoke("tree_files"),
+    findFiles: (query, recent, most) => invoke("files_find", { query, recent, most }),
     recent: recentFiles,
     symbols: () => editing().symbols(),
     treeSymbols: (query) => invoke("symbols_find", { query }),

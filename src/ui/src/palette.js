@@ -15,15 +15,9 @@ import { fuzzy, marked } from "./fuzzy.js";
 
 const MOST = 200;
 
-// What a file named exactly as typed scores over the match itself, and one whose name starts with
-// it half that.
-const EXACT = 40;
 const RECENT_COMMANDS = "orior.palette.recent";
 
-// How long the tree's list of files is held before it is read again, in milliseconds.
-const FILES_HELD = 20000;
-
-const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, files: null, read: 0, drawing: 0, everywhere: false, custom: null };
+const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, drawing: 0, everywhere: false, custom: null };
 
 // How many of each kind Search Everywhere shows, and how close two presses of Shift come to open it,
 // in milliseconds.
@@ -46,19 +40,6 @@ function recentCommands() {
 
 function ranCommand(key) {
   localStorage.setItem(RECENT_COMMANDS, JSON.stringify([key, ...recentCommands().filter((one) => one !== key)].slice(0, 20)));
-}
-
-async function treeFiles() {
-  if (!state.files || performance.now() - state.read > FILES_HELD) {
-    state.files = await state.hooks.files().catch(() => []);
-    state.read = performance.now();
-  }
-  return state.files;
-}
-
-// Forgets the tree's files, for a tree opened in place of this one.
-export function forgetFiles() {
-  state.files = null;
 }
 
 // The rows for what is typed, each { label, hits, detail, keys, run }.
@@ -143,7 +124,6 @@ async function treeSymbolRows(query) {
 
 async function fileRows(query) {
   const { path, line, col } = placeOf(query.trim());
-  const files = await treeFiles();
   const recent = state.hooks.recent();
   const go = (file) => () => state.hooks.openFile(file, line ? line - 1 : null, col ? col - 1 : 0);
   const rowOf = (file, hits, score, detail = "") => {
@@ -160,27 +140,10 @@ async function fileRows(query) {
   if (!path) {
     return recent.map((file, at) => rowOf(file, [], -at, "recently opened"));
   }
-  const rows = [];
-  const kept = new Set(recent);
-  // A name the same as what was typed comes first, then one that starts with it, ahead of a longer
-  // name that only holds it.
-  const asked = path.toLowerCase().split("/").pop();
-  const named = (file) => {
-    const name = file.slice(file.lastIndexOf("/") + 1).toLowerCase();
-    const stem = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
-    if (name === asked || stem === asked) {
-      return EXACT;
-    }
-    return name.startsWith(asked) ? EXACT / 2 : 0;
-  };
-  for (const file of files) {
-    const found = fuzzy(path, file, file.lastIndexOf("/") + 1);
-    if (found) {
-      rows.push(rowOf(file, found.hits, found.score + (kept.has(file) ? 6 : 0) + named(file)));
-    }
-  }
-  rows.sort((a, b) => b.score - a.score);
-  return rows.slice(0, MOST);
+  // The tree's files are matched in files.rs, where the list of them is held: a name the same as
+  // what was typed first, then one that starts with it, ahead of a longer name that only holds it.
+  const found = await state.hooks.findFiles(path, recent, MOST).catch(() => []);
+  return found.map((one) => rowOf(one.path, one.hits, one.score));
 }
 
 // A heading over the rows of one kind, which the keys step past.
