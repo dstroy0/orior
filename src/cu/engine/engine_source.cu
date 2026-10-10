@@ -105,6 +105,10 @@ static EntrySourceKind entry_source_kind(const char *path, const char *member)
     {
         return ENTRY_SOURCE_HDF5;
     }
+    if (memcmp(head, "PAR1", 4u) == 0)
+    {
+        return ENTRY_SOURCE_PARQUET;
+    }
     if ((memcmp(head, "PK\x03\x04", 4u) == 0) && dicom_zip_has_member(entry_ingest_tools(), path, member))
     {
         return ENTRY_SOURCE_DICOM;
@@ -161,6 +165,8 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
         return nrrd_describe(&describe) == 0L;
     case ENTRY_SOURCE_NIFTI:
         return nifti_describe(&describe) == 0L;
+    case ENTRY_SOURCE_PARQUET:
+        return parquet_describe(&describe) == 0L;
     case ENTRY_SOURCE_STACK: {
         unsigned int header[4] = {0u, 0u, 0u, 0u};
         FILE *const stack = stack_open(path, header);
@@ -228,6 +234,8 @@ static long long entry_source_bytes(const EntrySource *source, unsigned char *ou
         return nrrd_read(&read);
     case ENTRY_SOURCE_NIFTI:
         return nifti_read(&read);
+    case ENTRY_SOURCE_PARQUET:
+        return parquet_read(&read);
     case ENTRY_SOURCE_STACK:
         return stack_read_uncached(source->path, capacity / 2ull, (unsigned short *)out) ? (long long)capacity : -1ll;
     default:
