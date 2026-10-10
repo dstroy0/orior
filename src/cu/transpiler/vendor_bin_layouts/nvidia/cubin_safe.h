@@ -24,7 +24,9 @@
 //      allotted, and the part faults on it, an out-of-range register warp exception its whole machine over. Where no
 //      count is read here the part's own ceiling bounds it, the last register it answers a code may name (register_last,
 //      the .ksc beside the machine file). Which bits of an instruction name a register is the form's, found by the
-//      probe, and the whole fixed eight-bit field each register sits in is read, never a partial run of it.
+//      probe, and the whole fixed eight-bit field each register sits in is read, never a partial run of it. A form
+//      whose fields are not yet asked names no register here: the cross holds that code off the part instead, on the
+//      vendor's own reading of every register it names (measuring_stick_query.py), and the verdict reaches this gate.
 //
 // The code is read from its first instruction to its first EXIT with no guard, and nothing past it is read, since
 // nothing reaches it: the self branch and the padding after a kernel's last exit are never run. Nothing here changes

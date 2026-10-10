@@ -4,9 +4,11 @@
 # against the vendor's own disassembler, and where a base source is given, the identical C is compiled through the
 # vendor's compiler and both outputs examined. The carrier pops each question's container out under
 # --diff-output-against-vendor (cubin_run.c); nvdisasm reads the slot instruction of each, all of them in one raw run;
-# measuring_stick_query.py holds any the vendor calls illegal, or reads as a control transfer our gate's operation key
-# could not. Our gate judges by operation key
-# and cannot know a whole encoding illegal while the operation it probes is still unlearned, so the part is never
+# measuring_stick_query.py holds any the vendor calls illegal, reads as a control transfer our gate's operation key
+# could not, reads as naming a register at or past the count the question's kernel allots, or reads as writing a
+# register the code after the slot addresses memory through, or as a memory access of its own. Our gate judges by
+# operation key and by the fields a form has learned, and cannot know a whole encoding illegal while the operation it
+# probes is still unlearned, nor where a register sits in a form whose fields are not yet asked: the part is never
 # handed an encoding only the vendor can reject. Nothing here runs on the part.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.sh <question-list> [<base.cu>]
