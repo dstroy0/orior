@@ -19,7 +19,7 @@ KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/src/cu/types/integers"
 SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
-CUBIN="$TOP/src/cu/scaffolding"
+CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 OUT="${BUILD_OUT:-$TOP/build/measuring_stick}/engine"
 mkdir -p "$OUT/objects"
@@ -44,7 +44,7 @@ build_object()
     OBJECTS+=("$object")
 }
 for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$SCRIPTURA"/*.c \
-    "$TOP/src/cu/scaffolding/interface_sass_probe_class.c" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
     build_object c "$(basename "$source")" "$source"
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, which

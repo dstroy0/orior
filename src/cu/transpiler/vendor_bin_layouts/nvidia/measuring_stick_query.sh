@@ -3,8 +3,9 @@
 # The measuring stick over the query's own questions: before a series of questions reaches the part, each is read
 # against the vendor's own disassembler, and where a base source is given, the identical C is compiled through the
 # vendor's compiler and both outputs examined. The carrier pops each question's container out under
-# --diff-output-against-vendor (cubin_run.c); nvdisasm reads each; measuring_stick_query.py holds any the vendor
-# calls illegal, or reads as a control transfer our gate's operation key could not. Our gate judges by operation key
+# --diff-output-against-vendor (cubin_run.c); nvdisasm reads the slot instruction of each, all of them in one raw run;
+# measuring_stick_query.py holds any the vendor calls illegal, or reads as a control transfer our gate's operation key
+# could not. Our gate judges by operation key
 # and cannot know a whole encoding illegal while the operation it probes is still unlearned, so the part is never
 # handed an encoding only the vendor can reject. Nothing here runs on the part.
 #
@@ -51,18 +52,12 @@ if [ -n "$BASE" ] && [ -f "$BASE" ]; then
         echo "  the vendor's compiler did not read $(basename "$BASE")"
 fi
 
-# each popped container read by the vendor's disassembler, the answers path of each list line giving the stem
-rm -f "$SASS"/*.sass
-while read -r code registers cases answers slot launches; do
-    [ -n "${answers:-}" ] || continue
-    cubin="${answers%.*}.cubin"
-    [ -f "$cubin" ] || continue
-    name="$(basename "${answers%.*}")"
-    # the popped container is a cubin the vendor reads as its own ELF; --binary, for raw instruction bytes, is not used
-    "$CUDA/bin/nvdisasm" "$cubin" > "$SASS/$name.sass" 2>&1
-done < "$LIST"
-
-"$PYTHON" "$TEST/measuring_stick_query.py" "$LIST" "$SASS" "$OUT/measuring_stick_query.md" "$OUT/held.txt"
+# the slot instruction of every popped container, as the part would be handed it, read by the vendor's disassembler
+# together as one raw run, split only where the vendor stops at an instruction it calls illegal
+# (measuring_stick_query.py); each reading's listing is kept in $SASS
+rm -f "$SASS"/run*.bin "$SASS"/run*.txt "$SASS"/*.sass
+"$PYTHON" "$TEST/measuring_stick_query.py" "$LIST" "$CUDA/bin/nvdisasm" SM86 "$SASS" "$OUT/measuring_stick_query.md" \
+    "$OUT/held.txt"
 held=$?
 echo "  the report is $OUT/measuring_stick_query.md; the vendor's feedback is $OUT/held.txt"
 echo "  a live run holds those encodings with: cubin_run --held $OUT/held.txt ..."

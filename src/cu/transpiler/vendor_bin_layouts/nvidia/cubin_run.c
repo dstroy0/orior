@@ -38,6 +38,8 @@
 //
 //     answered <answer>...      each case's two words as one value in hex, in the order of the cases
 //     skipped <verdict> <name>  cubin_safe held it off the part, and the driver never saw it
+//     skipped no vendor verdict a live run was given no --held file: the vendor's reader never read this code for a
+//                               fault. It is held off the part, the cross must read it first (the safety airlock)
 //     skipped <reason>          the container could not be written, or its launch gives the cases no thread each
 //                               or more threads than a launch holds, and the driver never saw it
 //     refused <error>           the driver or the part would not take it
@@ -48,10 +50,17 @@
 // block latency. A launch the driver times out, or one past the bound with its stop event unreached, is answered
 // `refused CUDA_ERROR_LAUNCH_TIMEOUT`, and nothing is launched after it in the process.
 //
-// Given a count of launches, a question that answered is launched that many times more, one at a time, and a second
-// line gives the block latencies of those launches summed (cubin_run_timed):
+// After each launch the part's own fault telemetry is read, the Xid critical errors the driver's management layer
+// stamps (cubin_run_telemetry_open, cubin_run_telemetry_faulted), under cubin_safe's rule 7. A launch that makes the
+// part stamp one, or one the driver names a context-corrupting fault itself, has faulted the part: it is answered
+// `refused`, and nothing is launched after it in the process. This catches an out-of-range register, which faults in
+// microseconds and so never trips rule 6's bound, before its fault storm reaches the system's watchdog.
 //
-//     timed <launches> <nanoseconds>
+// Given a count of launches, a question that answered is launched that many times more, one at a time, and a second
+// line gives the block latencies of those launches summed, then the least and the most of them, the runs P6 reads
+// (cubin_run_timed):
+//
+//     timed <launches> <nanoseconds> <least> <most>
 //
 // The driver is reached by name and by its own entry points, and nothing of its vendor's toolchain is compiled
 // against. Exit 0 where a line was written, 2 where the files, the machine or the driver were not reached.
@@ -237,6 +246,107 @@ static int cubin_run_driver(CubinRunDriver *driver)
            (driver->event_query != NULL) && (driver->event_elapsed != NULL) && (driver->event_destroy != NULL);
 }
 
+// The part's fault telemetry, the driver's management layer (NVML), reached by name and by its own entry points as the
+// driver is, and nothing of its vendor's toolchain compiled against. What cubin_safe's rule 7 reads after each launch:
+// the Xid critical errors the part stamps against the device
+typedef struct
+{
+    int (*init)(void);
+    int (*shutdown)(void);
+    int (*device_get)(unsigned int, void **);
+    int (*set_create)(void **);
+    int (*register_events)(void *, unsigned long long, void *);
+    int (*set_wait)(void *, void *, unsigned int);
+    int (*set_free)(void *);
+} CubinRunTelemetry;
+
+// the event type the Xid critical errors are registered and read under, and the event a wait fills: the part's handle,
+// the type stamped and its datum, with room past them for the fields a newer management layer adds; an older one's
+// shorter event is read into that same space
+#define CUBIN_RUN_XID 0x0000000000000008ull
+typedef struct
+{
+    void *device;
+    unsigned long long event_type;
+    unsigned long long event_data;
+    unsigned int gpu_instance;
+    unsigned int compute_instance;
+    unsigned char room[32];
+} CubinRunXidEvent;
+
+static CubinRunTelemetry s_telemetry;
+static void *s_telemetry_device = NULL;
+static void *s_telemetry_set = NULL;
+static int s_telemetry_ready = 0;
+
+// The part's fault telemetry opened and its Xid critical errors registered on device 0, the device the carrier runs:
+// 1 where it is ready to read, 0 with a warning where its library, an entry point, or the registration is not there.
+// A part that reports no such error still opens, and the wait then only ever comes back empty
+static int cubin_run_telemetry_open(void)
+{
+#if defined(_WIN32)
+    void *const library = (void *)LoadLibraryA("nvml.dll");
+#else
+    void *const library = dlopen("libnvidia-ml.so.1", RTLD_NOW);
+#endif
+    if (library == NULL)
+    {
+        fprintf(stderr, "the part's fault telemetry was not reached: rule 7 does not guard this run\n");
+        return 0;
+    }
+    *(void **)&s_telemetry.init = cubin_run_entry(library, "nvmlInit_v2");
+    *(void **)&s_telemetry.shutdown = cubin_run_entry(library, "nvmlShutdown");
+    *(void **)&s_telemetry.device_get = cubin_run_entry(library, "nvmlDeviceGetHandleByIndex_v2");
+    *(void **)&s_telemetry.set_create = cubin_run_entry(library, "nvmlEventSetCreate");
+    *(void **)&s_telemetry.register_events = cubin_run_entry(library, "nvmlDeviceRegisterEvents");
+    *(void **)&s_telemetry.set_wait = cubin_run_entry(library, "nvmlEventSetWait_v2");
+    *(void **)&s_telemetry.set_free = cubin_run_entry(library, "nvmlEventSetFree");
+    if ((s_telemetry.init == NULL) || (s_telemetry.device_get == NULL) || (s_telemetry.set_create == NULL) ||
+        (s_telemetry.register_events == NULL) || (s_telemetry.set_wait == NULL))
+    {
+        fprintf(stderr, "the part's fault telemetry has no entry point: rule 7 does not guard this run\n");
+        return 0;
+    }
+    if ((s_telemetry.init() != 0) || (s_telemetry.device_get(0u, &s_telemetry_device) != 0) ||
+        (s_telemetry.set_create(&s_telemetry_set) != 0) ||
+        (s_telemetry.register_events(s_telemetry_device, CUBIN_RUN_XID, s_telemetry_set) != 0))
+    {
+        fprintf(stderr, "the part's fault telemetry did not register its critical errors: rule 7 does not guard this "
+                        "run\n");
+        return 0;
+    }
+    s_telemetry_ready = 1;
+    return 1;
+}
+
+// Every Xid critical error already stamped read off and thrown away: only one stamped after this counts against the
+// launch to come. Nothing where the telemetry is not ready
+static void cubin_run_telemetry_drain(void)
+{
+    CubinRunXidEvent event;
+    while (s_telemetry_ready)
+    {
+        memset(&event, 0, sizeof(event));
+        if (s_telemetry.set_wait(s_telemetry_set, &event, 0u) != 0)
+        {
+            break;
+        }
+    }
+}
+
+// 1 where the part stamped an Xid critical error, read without waiting: the launch just carried faulted the part. 0
+// where none is stamped or the telemetry is not ready
+static int cubin_run_telemetry_faulted(void)
+{
+    if (!s_telemetry_ready)
+    {
+        return 0;
+    }
+    CubinRunXidEvent event;
+    memset(&event, 0, sizeof(event));
+    return (s_telemetry.set_wait(s_telemetry_set, &event, 0u) == 0) && ((event.event_type & CUBIN_RUN_XID) != 0ull);
+}
+
 // the host's clock in nanoseconds, from a start of its own and only ever read against itself
 static unsigned long long cubin_run_host_now(void)
 {
@@ -267,6 +377,10 @@ static void cubin_run_host_yield(void)
 // holds where it is, since a launch the part has not given back may still hold it
 static int s_launch_timed_out = 0;
 
+// 1 where the last launch broke cubin_safe's rule 7, read from the part's fault telemetry or the driver's own word on
+// the stop event: the part faulted, its context corrupt, and the launch is answered as refused
+static int s_launch_faulted = 0;
+
 // One launch of `function` over `arguments` carried under cubin_safe's rule 6: alone between two events the part stamps
 // from its own timer, its stop event read without waiting on it until the part reaches it, the driver gives an error,
 // or CUBIN_SAFE_LAUNCH_BOUND passes on the host's clock. Its block latency in nanoseconds into `nanoseconds`. 0, the
@@ -282,6 +396,8 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
     {
         return CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT;
     }
+    // every fault already stamped thrown away first; only one the launch to come stamps then counts against it (rule 7)
+    cubin_run_telemetry_drain();
     CubinRunStatus status = driver->event_create(&start, 0u);
     status = (status == 0) ? driver->event_create(&stop, 0u) : status;
     status = (status == 0) ? driver->event_record(start, NULL) : status;
@@ -306,6 +422,15 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
         }
         cubin_run_host_yield();
     }
+    // rule 7: the part's fault telemetry read, and the driver's own word on the stop event with it. A launch that
+    // faulted the part halts the process and is answered as refused, named by the driver's error or, where only the
+    // stamp caught it, as a failed launch
+    if (cubin_safe_fault(cubin_run_telemetry_faulted(), status) == CUBIN_SAFE_LAUNCH_FAULT)
+    {
+        s_launch_timed_out = 1;
+        s_launch_faulted = 1;
+        return (status != 0) ? status : CUBIN_SAFE_STATUS_LAUNCH_FAILED;
+    }
     if (cubin_safe_launch(status, waited) != CUBIN_SAFE)
     {
         s_launch_timed_out = 1;
@@ -325,21 +450,32 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
     return status;
 }
 
+// The least and the most block latency of the last timed question, the runs P6 reads (cubin_run_timed)
+static unsigned long long s_timed_least;
+static unsigned long long s_timed_most;
+
 // `launches` launches of `function` over `arguments`, one at a time, each under cubin_safe's rule 6, their block
-// latencies summed into `nanoseconds`: 0, or the status the driver gave the first launch that did not return clean,
-// none launched after it. The timer is the part's and not the host's, and counts the same whatever clock the part's
-// multiprocessors run at
+// latencies summed into `nanoseconds` and the least and the most of them into s_timed_least and s_timed_most: 0, or the
+// status the driver gave the first launch that did not return clean, none launched after it. The timer is the part's
+// and not the host's, and counts the same whatever clock the part's multiprocessors run at
 static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *function, void **arguments,
                                       const CubinRunShape *shape, unsigned int launches,
                                       unsigned long long *nanoseconds)
 {
     CubinRunStatus status = 0;
     *nanoseconds = 0ull;
+    s_timed_least = 0ull;
+    s_timed_most = 0ull;
     for (unsigned int launch = 0u; (status == 0) && (launch < launches); launch += 1u)
     {
         unsigned long long latency = 0ull;
         status = cubin_run_bounded(driver, function, arguments, shape, &latency);
-        *nanoseconds += latency;
+        if (status == 0)
+        {
+            *nanoseconds += latency;
+            s_timed_least = ((launch == 0u) || (latency < s_timed_least)) ? latency : s_timed_least;
+            s_timed_most = (latency > s_timed_most) ? latency : s_timed_most;
+        }
     }
     return status;
 }
@@ -461,57 +597,9 @@ static int s_dry = 0;
                                  // against the vendor's own disassembler, which scaffolding compiles the same C through
 static unsigned int s_facets = 0u;
 
-// the encodings the vendor's disassembler held off the part, read from the --held file the scaffolding cross-check
-// writes (measuring_stick_query): a slot instruction matching one is held here before the driver sees it, however our
-// own gate read it. The file names no operation and carries no knowledge of the vendor's: it holds the exact words
-// not to ask; a question the vendor called illegal never reaches the part, and nothing the vendor said enters a form.
-// The scheduler's bits are left out of the match, since the carrier sets them with the safety word
-#define CUBIN_RUN_HELD_MOST 4096u
-#define CUBIN_RUN_SCHED_KEPT_HIGH 0x000001ffffffffffull
-static unsigned long long s_held_low[CUBIN_RUN_HELD_MOST];
-static unsigned long long s_held_high[CUBIN_RUN_HELD_MOST];
-static unsigned int s_held_count = 0u;
-
-// the --held file read into s_held, a line `<low> <high>` in hex, the scheduler's bits masked off each. 1, or 0 with
-// the reason printed
-static int cubin_run_held_read(const char *path)
-{
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
-    {
-        fprintf(stderr, "the held list %s did not read\n", path);
-        return 0;
-    }
-    s_held_count = 0u;
-    char line[CUBIN_RUN_LINE];
-    while ((s_held_count < CUBIN_RUN_HELD_MOST) && (fgets(line, sizeof(line), file) != NULL))
-    {
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
-        if (sscanf(line, "%llx %llx", &low, &high) == 2)
-        {
-            s_held_low[s_held_count] = low;
-            s_held_high[s_held_count] = high & CUBIN_RUN_SCHED_KEPT_HIGH;
-            s_held_count += 1u;
-        }
-    }
-    fclose(file);
-    return 1;
-}
-
-// 1 where the instruction `low` and `high`, its scheduler's bits masked off, is one the vendor held
-static int cubin_run_held(unsigned long long low, unsigned long long high)
-{
-    const unsigned long long kept = high & CUBIN_RUN_SCHED_KEPT_HIGH;
-    for (unsigned int at = 0u; at < s_held_count; at += 1u)
-    {
-        if ((s_held_low[at] == low) && (s_held_high[at] == kept))
-        {
-            return 1;
-        }
-    }
-    return 0;
-}
+// The vendor's held list and the airlock it gives are the gate's, shared by every path that reaches the part
+// (cubin_safe_verdict_load, cubin_safe_verdict_ready, cubin_safe_verdict_holds): the carrier reads the --held file into
+// the gate and asks the gate before the driver, a slot instruction the verdict holds never reaching the part.
 
 // The container as it would reach the part, `size` bytes of it, written beside `answers_path` with .cubin for its
 // extension: the --diff-output-against-vendor facet's object, for scaffolding to read against the vendor's own
@@ -706,9 +794,10 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
         fclose(answers);
         return 0;
     }
-    // read on the host before the driver sees it: code that breaks a rule of cubin_safe is answered without the part
+    // read on the host before the driver sees it: code that breaks a rule of cubin_safe is answered without the part,
+    // its register fields bound by the count this question's kernel allots (rule 6)
     unsigned long long at = 0ull;
-    const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, &at);
+    const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, registers, &at);
     if (s_dry)
     {
         if (s_facets & CUBIN_FACET_VENDOR)
@@ -730,15 +819,17 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
         fclose(answers);
         return 0;
     }
-    // the vendor's feedback, where a --held list was given: a slot instruction the vendor's disassembler held off the
-    // part is held here before the driver, however our own gate read it (cubin_run_held_read)
-    if ((s_held_count > 0u) && (slot < (unsigned int)(code_size / 16ull)) &&
-        cubin_run_held(cubin_run_word(s_code, slot * 16u), cubin_run_word(s_code, (slot * 16u) + 8u)))
+    // the safety airlock: a live run reaches the part only with the vendor's verdict in hand (--held). Without it this
+    // code was never read for a fault, and an unread encoding can fault the part and crash the machine: it is held off
+    // the part here, the cross must read it first
+    if (!cubin_safe_verdict_ready())
     {
-        fprintf(answers, "skipped held, the vendor held the slot off the part\n");
+        fprintf(answers, "skipped no vendor verdict, the cross must read this code before the part\n");
         fclose(answers);
         return 0;
     }
+    // a slot instruction the vendor's reader held off the part was already caught by cubin_safe_image above, where the
+    // verdict is loaded (cubin_safe_verdict_holds): the gate holds the whole code, not the slot alone
     if (!s_driver_opened)
     {
         memset(&s_driver, 0, sizeof(s_driver));
@@ -748,6 +839,9 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
             fclose(answers);
             return 2;
         }
+        // the part's fault telemetry opened beside the driver, for rule 7 to read after each launch; a run goes on
+        // under rule 6 alone where it is not there, the warning printed
+        cubin_run_telemetry_open();
         s_driver_opened = 1;
     }
     unsigned long long nanoseconds = 0ull;
@@ -756,7 +850,8 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     {
         const char *name = NULL;
         s_driver.error_name(status, &name);
-        fprintf(answers, "refused %s\n", (name != NULL) ? name : "unnamed");
+        fprintf(answers, "refused %s%s\n", (name != NULL) ? name : "CUDA_ERROR_LAUNCH_FAILED",
+                s_launch_faulted ? " the part faulted" : "");
         fclose(answers);
         return 1;
     }
@@ -768,7 +863,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     fprintf(answers, "\n");
     if (launches != 0u)
     {
-        fprintf(answers, "timed %u %llu\n", launches, nanoseconds);
+        fprintf(answers, "timed %u %llu %llu %llu\n", launches, nanoseconds, s_timed_least, s_timed_most);
     }
     fclose(answers);
     return 0;
@@ -791,8 +886,9 @@ int main(int count, char **words)
     {
         if (strcmp(words[1], "--held") == 0)
         {
-            if ((count < 3) || !cubin_run_held_read(words[2]))
+            if ((count < 3) || !cubin_safe_verdict_load(words[2]))
             {
+                fprintf(stderr, "the held list %s did not read\n", (count < 3) ? "(none)" : words[2]);
                 return 2;
             }
             words[2] = words[0];
