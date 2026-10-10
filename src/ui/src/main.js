@@ -79,7 +79,8 @@ function drawPulse(held) {
 
 // The window and the keys come first: the window is asked for, and the commands the keys run read,
 // before anything else, and the reader's stylesheet is read beside the menu bar's start and not
-// ahead of it.
+// ahead of it. The lattices start once the keys are bound: their first drawing sets up WebGL, and the
+// commands' answer would wait behind it.
 async function start() {
   invoke("window_show").catch(() => {});
   const commands = invoke("commands_read");
@@ -91,11 +92,11 @@ async function start() {
   keepZoom();
   keepMemory();
   startMenus();
-  keepLattices();
   watch(drawPulse);
   document.getElementById("open-button").addEventListener("click", () => openFolder());
   document.getElementById("clone-button").addEventListener("click", () => runCommand("clone"));
   await startMenubar({ openFolder, commands });
+  keepLattices();
   await styled;
   startSearch((path, line, col) => {
     showView("edit");
