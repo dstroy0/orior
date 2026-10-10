@@ -22,7 +22,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 1. **Databases.** Connect to a database, browse its tables, run a query from the editor and read the rows it gives.
 2. **Requests.** A file of HTTP requests, each sent with a press and its answer shown beside it.
 3. **A Markdown preview.** A Markdown file shown as it reads beside its text, scrolled with it, or open as the preview alone, as the reader chooses for every Markdown file.
-4. **A live preview pane.** A pane beside the editor that renders the Markdown being typed as it is typed, each key drawn in it as the text changes, the place the cursor stands in the text shown in the pane.
+4. **A live preview pane.** A pane beside the editor that renders the file being typed as it is typed, for every language that sets how something looks and runs nothing: Markdown, HTML and the CSS it takes, a CSS file over a page of its own, Mermaid's diagrams, LaTeX, SVG and the like. Each key is drawn in it as the text changes, and the place the cursor stands in the text is shown in the pane.
 5. **Files in an archive.** A zip archive opened in the explorer as a folder, its files read without unpacking it.
 
 ## Plugins
