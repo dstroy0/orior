@@ -8,7 +8,7 @@
 // pane of its files. Structure holds the Outline of what the open file declares and its Undo History.
 // Commit holds Changes, the files that differ from the last commit, the Timeline of commits that
 // touched the open file, its Local History, the file as each save left it, and Review, the review
-// comments left on the tree's changes. Problems lists the open files' diagnostics, and Git every
+// comments left on the tree's changes. Problems lists every file's diagnostics, and Git every
 // branch's commits as a graph. The explorer's … menu shows or hides each pane of the group, reads the
 // tree again, and closes every folder. Which group shows, and which panes show and are open, is kept
 // between visits.
@@ -63,6 +63,8 @@ const state = {
   // The graph: what the field searches for, the commits shown, the ones whose files are open, the
   // files of each commit read so far, and what the graph was last drawn from.
   git: { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", branch: null, chosen: null },
+  // The files whose rows in Problems were opened or closed by a press.
+  problems: { opened: new Set(), closed: new Set() },
 };
 
 function element(tag, props = {}, ...children) {
@@ -462,31 +464,66 @@ export async function drawTodo() {
   body.replaceChildren(...rows);
 }
 
-// Problems: each open file's diagnostics, a row a file and under it a row a diagnostic, the worst first.
+// Problems: each file's diagnostics, a row a file and under it a row a diagnostic, the worst first,
+// the open files first; and, while the tree's check goes on, how far it has gone. A file's row opens
+// and closes its diagnostics, which show for a file open in the editor until its row closes them.
 
-export function drawProblems(files) {
+export function drawProblems(files, checking) {
   const body = document.getElementById("problems");
   if (!paneOpen("problems") || state.group !== "problems") {
     return;
   }
   const rows = [];
-  for (const { path, items } of files) {
-    if (!items.length) {
+  if (checking && checking.done < checking.total) {
+    rows.push(element("p", { className: "pane-empty problems-checking", textContent: `Checking the tree: ${checking.done} of ${checking.total} files.` }));
+  }
+  for (const file of files) {
+    if (!file.items.length) {
       continue;
     }
-    const cut = path.lastIndexOf("/");
-    const head = element("div", { className: "node problem-file" }, iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(items.length) }));
-    rows.push(head);
-    for (const item of [...items].sort((a, b) => a.severity - b.severity || a.from.line - b.from.line)) {
+    const open = state.problems.opened.has(file.path) || (file.open && !state.problems.closed.has(file.path));
+    rows.push(problemFileRow(file, open));
+    if (open) {
+      rows.push(...problemRows(file));
+    }
+  }
+  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No problems in the tree. A language server or Run, Validate finds them." })]));
+}
+
+function problemFileRow(file, open) {
+  const { path, items } = file;
+  const cut = path.lastIndexOf("/");
+  const row = element("button", { className: "node dir problem-file", type: "button" }, element("span", { className: "twisty" }), iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(items.length) }));
+  row.dataset.key = `problem-file:${path}`;
+  row.dataset.depth = "0";
+  row.setAttribute("aria-expanded", String(open));
+  row.addEventListener("click", () => {
+    const opening = row.getAttribute("aria-expanded") !== "true";
+    state.problems.opened[opening ? "add" : "delete"](path);
+    state.problems.closed[opening ? "delete" : "add"](path);
+    row.setAttribute("aria-expanded", String(opening));
+    if (opening) {
+      row.after(...problemRows(file));
+    } else {
+      while (row.nextElementSibling?.classList.contains("problem")) {
+        row.nextElementSibling.remove();
+      }
+    }
+  });
+  return row;
+}
+
+function problemRows({ path, items }) {
+  return [...items]
+    .sort((a, b) => a.severity - b.severity || a.from.line - b.from.line)
+    .map((item) => {
       const row = element("button", { className: `problem s${item.severity}`, type: "button", title: `${path}:${item.from.line + 1}:${item.from.col + 1}\n${item.message}` });
       row.dataset.key = `problem:${path}:${item.from.line}:${item.from.col}`;
       row.dataset.depth = "1";
       row.append(element("i", { className: "guide" }), element("span", { className: "problem-mark" }), element("span", { className: "name", textContent: item.message.split("\n")[0] }), element("span", { className: "where", textContent: `${item.from.line + 1}:${item.from.col + 1}` }));
       row.addEventListener("click", () => state.hooks.openAt(path, item.from.line, item.from.col));
-      rows.push(row);
-    }
-  }
-  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No problems in the open files. A language server or Run, Validate finds them." })]));
+      return row;
+    });
 }
 
 // Git: the branch the tree is on, and every branch's commits as a graph, the newest first, each with

@@ -52,6 +52,25 @@ pub fn all() -> Vec<Plugin> {
     found
 }
 
+/// The language each extension opens as, by the language plugins, a reader's plugin standing in for
+/// one that comes with orior.
+pub fn languages() -> std::collections::HashMap<String, String> {
+    let mut found = std::collections::HashMap::new();
+    for plugin in all() {
+        let Ok(value) = serde_json::from_str::<Value>(&plugin.text) else {
+            continue;
+        };
+        if value["kind"].as_str().unwrap_or("language") != "language" {
+            continue;
+        }
+        let id = value["id"].as_str().unwrap_or(&plugin.id).to_string();
+        for ext in value["extensions"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            found.insert(ext.to_ascii_lowercase(), id.clone());
+        }
+    }
+    found
+}
+
 fn user_in(dir: &Path) -> Vec<Plugin> {
     let mut found = Vec::new();
     if let Ok(entries) = std::fs::read_dir(dir) {

@@ -64,7 +64,9 @@ fn root_get(app: State<App>) -> Option<String> {
 fn watch_tree(handle: &AppHandle, app: &App) {
     let Ok(root) = root_of(app) else { return };
     let handle = handle.clone();
+    let tree = root.clone();
     let watcher = watch::start(root, move |changed| {
+        handle.state::<App>().servers.changed(&tree, &changed.files);
         let _ = handle.emit("tree-changed", changed);
     });
     if let Ok(mut held) = app.watcher.lock() {
@@ -230,9 +232,12 @@ struct Held {
 /// Holds the app's memory to `budget` bytes: stops the language servers no language in `open`, the
 /// languages of the open tabs, needs; and where the app still holds more than the budget, the server
 /// that holds the most and does not serve `shown`, the language of the tab shown. Gives what it
-/// stopped.
+/// stopped. While the tree's check goes on, it needs every server, and none is stopped.
 #[tauri::command(async)]
 fn memory_hold(app: State<App>, open: Vec<String>, shown: Option<String>, budget: u64) -> Held {
+    if app.servers.checking() {
+        return Held { stopped: Vec::new(), files: Vec::new() };
+    }
     let running = app.servers.running();
     let needed = servers::Servers::tools_for(&open);
     let mut stopped: Vec<String> = running.iter().filter(|one| !needed.contains(&one.tool)).map(|one| one.tool.clone()).collect();
@@ -668,7 +673,19 @@ fn emitter(handle: AppHandle, tree: PathBuf) -> servers::Emit {
         servers::Told::Edits(files) => {
             let _ = handle.emit("lsp-edits", tree_edits(&tree, files));
         }
+        servers::Told::Checking { done, total } => {
+            let _ = handle.emit("tree-check", serde_json::json!({"done": done, "total": total}));
+        }
     })
+}
+
+/// Starts the tree's check: every file of the tree the editor does not have open handed to its
+/// language's server, its diagnostics coming as "lsp-diagnostics" and how far the check has gone as
+/// "tree-check". Gives how many files wait.
+#[tauri::command(async)]
+fn problems_check(handle: AppHandle, app: State<App>) -> Result<usize, String> {
+    let root = root_of(&app)?;
+    Ok(app.servers.check_tree(&root, files::all(&root), &emitter(handle, root.clone())))
 }
 
 /// Every place the symbol at a place is used, each path as `tree_path` gives it.
@@ -1239,6 +1256,7 @@ fn open(launch: Launch) {
             lsp_open,
             lsp_change,
             lsp_close,
+            problems_check,
             lsp_hover,
             lsp_definition,
             lsp_complete,

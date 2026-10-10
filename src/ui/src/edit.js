@@ -39,7 +39,7 @@ import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
-import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
+import { changed, checkTree, definition, forgetProblems, knownProblems, serve, startServers, stopServing, treeChecking, wrap } from "./servers.js";
 import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { extractFunction } from "./extract.js";
@@ -1231,15 +1231,39 @@ async function revertSnapshot(path, at) {
   }
 }
 
-// The open files' diagnostics, a file at a time, for the Problems pane.
+// Every file's diagnostics, a file at a time, for the Problems pane: the open files' first, as the
+// tabs stand, then the rest of the tree's by path.
 function problemFiles() {
-  return state.tabs.filter((tab) => !tab.commit && tab.session?.diagnostics?.length).map((tab) => ({ path: tab.file, items: tab.session.diagnostics }));
+  const open = state.tabs.filter((tab) => !tab.commit && tab.session);
+  const shown = new Set(open.map((tab) => tab.file));
+  const rest = [...knownProblems()].filter(([path]) => !shown.has(path)).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return open.filter((tab) => tab.session.diagnostics?.length).map((tab) => ({ path: tab.file, items: tab.session.diagnostics, open: true })).concat(rest.map(([path, items]) => ({ path, items, open: false })));
 }
 
-// Draws the Problems pane again, and tells the tool strip how many errors and warnings there are.
+// Draws the Problems pane again, and tells the tool strip how many errors and warnings there are; at
+// most once each PROBLEMS_REST, or each CHECKING_REST while the tree's check brings a file's
+// diagnostics at a time.
+const PROBLEMS_REST = 120;
+const CHECKING_REST = 400;
+let problemsWaiting = 0;
 function problemsChanged() {
+  if (!problemsWaiting) {
+    const checking = treeChecking();
+    problemsWaiting = window.setTimeout(drawAllProblems, checking && checking.done < checking.total ? CHECKING_REST : PROBLEMS_REST);
+  }
+}
+
+// Starts the tree's check where Problems shows.
+function checkShown() {
+  if (paneOpen("problems") && shownGroup() === "problems") {
+    checkTree();
+  }
+}
+
+function drawAllProblems() {
+  problemsWaiting = 0;
   const files = problemFiles();
-  drawProblems(files);
+  drawProblems(files, treeChecking());
   const all = files.flatMap((file) => file.items);
   window.dispatchEvent(new CustomEvent("problems-changed", { detail: { errors: all.filter((one) => one.severity === 1).length, warnings: all.filter((one) => one.severity === 2).length } }));
 }
@@ -2187,7 +2211,8 @@ export async function startEdit(defs) {
       drawTimeline(state.active ? fileOf(state.active) : null);
       drawLocalHistory(state.active ? fileOf(state.active) : null);
       drawCommit(state.changes);
-      drawProblems(problemFiles());
+      checkShown();
+      drawProblems(problemFiles(), treeChecking());
       drawGit(state.branch);
       drawReview();
       drawTodo();
@@ -2593,6 +2618,8 @@ export function forgetTree() {
   stopDebug();
   keepBackups();
   state.tabs.forEach(stopServing);
+  forgetProblems();
+  checkShown();
   state.restored = false;
   state.heads.clear();
   state.repos = null;

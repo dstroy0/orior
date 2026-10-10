@@ -148,7 +148,7 @@
       "programs": ["cargo", "rustc", "rustfmt"],
       "runs": {"rust": "{rustc} {file} -o {out} && {out}"},
       "builds": {"rust": ["{rustc}", "-g", "-C", "opt-level=0", "{path}", "-o", "{out}"]},
-      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml"},
+      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck"},
       "version": ["--version"],
       "formats": ["rust"],
       "format": {"program": "rustfmt", "args": ["--edition", "{edition}"]},

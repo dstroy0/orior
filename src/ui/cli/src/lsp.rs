@@ -32,7 +32,8 @@ pub struct Server {
     input: Arc<Mutex<ChildStdin>>,
     next: AtomicU64,
     waiting: Waiting,
-    versions: Mutex<HashMap<String, i64>>,
+    /// Each file open in the server, by its uri: its version and the text it was last given.
+    versions: Mutex<HashMap<String, (i64, String)>>,
     /// What the server said it can do, as it answered `initialize`.
     pub capabilities: Value,
 }
@@ -105,6 +106,14 @@ pub fn path_of(uri: &str) -> Option<PathBuf> {
     // file:///D:/x names D:/x, and file:///x names /x.
     let text = if text.len() > 2 && text.as_bytes()[0] == b'/' && text.as_bytes()[2] == b':' { text[1..].to_string() } else { text };
     Some(PathBuf::from(text))
+}
+
+/// The one name a file goes by however a server writes its URI, as pyright writes file:///d%3A/x
+/// for file:///D:/x: its path with forward slashes, in lower case on Windows, whose paths do not
+/// tell files apart by case.
+pub fn key_of(uri: &str) -> String {
+    let path = path_of(uri).map_or_else(|| uri.to_string(), |path| path.display().to_string().replace('\\', "/"));
+    if cfg!(windows) { path.to_lowercase() } else { path }
 }
 
 impl Server {
@@ -234,7 +243,7 @@ impl Server {
 
     pub fn open(&self, path: &Path, language_id: &str, text: &str) -> Result<(), String> {
         let uri = uri_of(path);
-        self.versions.lock().map_err(|_| "held".to_string())?.insert(uri.clone(), 1);
+        self.versions.lock().map_err(|_| "held".to_string())?.insert(uri.clone(), (1, text.to_string()));
         self.notify("textDocument/didOpen", json!({"textDocument": {"uri": uri, "languageId": language_id, "version": 1, "text": text}}))
     }
 
@@ -242,11 +251,21 @@ impl Server {
         let uri = uri_of(path);
         let version = {
             let mut versions = self.versions.lock().map_err(|_| "held".to_string())?;
-            let version = versions.entry(uri.clone()).or_insert(1);
-            *version += 1;
-            *version
+            let kept = versions.entry(uri.clone()).or_insert((1, String::new()));
+            kept.0 += 1;
+            if kept.1 != text {
+                kept.1 = text.to_string();
+            }
+            kept.0
         };
         self.notify("textDocument/didChange", json!({"textDocument": {"uri": uri, "version": version}, "contentChanges": [{"text": text}]}))
+    }
+
+    /// Gives the server the text of a file it has open again, as a new version: the server then reads
+    /// again what the file includes or imports.
+    pub fn read_again(&self, path: &Path) -> Result<(), String> {
+        let text = self.versions.lock().map_err(|_| "held".to_string())?.get(&uri_of(path)).map(|(_, text)| text.clone());
+        text.map_or(Ok(()), |text| self.change(path, &text))
     }
 
     pub fn close(&self, path: &Path) -> Result<(), String> {

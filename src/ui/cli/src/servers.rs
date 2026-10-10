@@ -13,10 +13,17 @@
 //! an edit, from a rename, a quick fix or the server's own asking, as each file's spans and their
 //! new text. A quick fix goes to the editor whole, as the server gave it, and comes back to be
 //! carried out.
+//!
+//! The tree's check hands every file of the tree the editor does not have open to its language's
+//! server, CHECKERS at a time, as the editor would open it, and lets it go once the server has said
+//! what is wrong in it, the server's clearing of a file it lets go not passed on. A server that
+//! checks its projects as a whole, as rust-analyzer does with cargo check, is told to check them all
+//! in place of that. A file is checked again when it changes on the disk, with the files whose
+//! includes or imports name it, and when the editor closes it, as the disk holds it.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -29,7 +36,8 @@ use crate::toolchains;
 /// starts with, the languages it serves, the protocol's name for each extension's language, the
 /// line that installs it where the toolchain can be present without it, and the name of the file
 /// that marks a project, each of which in the tree the server is given as one of its linked
-/// projects where it does not look below the top folder for them itself.
+/// projects where it does not look below the top folder for them itself; and, for a server that
+/// checks its projects as a whole and not a file at a time, the notification that has it check them.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ServerSpec {
     pub program: String,
@@ -41,6 +49,8 @@ pub struct ServerSpec {
     pub setup: Option<String>,
     #[serde(default)]
     pub projects: Option<String>,
+    #[serde(default)]
+    pub checks: Option<String>,
 }
 
 /// Folders a search for projects does not go into: what a build writes, and what git keeps.
@@ -165,10 +175,12 @@ pub struct Signature {
     pub count: usize,
 }
 
-/// What a server says on its own that the editor is to hear.
+/// What a server says on its own that the editor is to hear, and how far the tree's check has gone:
+/// the files it has checked, of those it was given.
 pub enum Told {
     Diagnostics(Diagnostics),
     Edits(Vec<FileEdit>),
+    Checking { done: usize, total: usize },
 }
 
 /// Where what the servers say on their own goes.
@@ -188,14 +200,72 @@ const ASKING: Duration = Duration::from_secs(5);
 /// How long a search of the whole tree, for usages or a rename, may take.
 const SEARCHING: Duration = Duration::from_secs(60);
 
+/// How many files the tree's check has its servers hold at once.
+const CHECKERS: usize = 6;
+
+/// How long the tree's check waits for a file's diagnostics, and, once they come, for any the server
+/// gives after them.
+const CHECK_PATIENCE: Duration = Duration::from_secs(30);
+const CHECK_QUIET: Duration = Duration::from_millis(250);
+
+/// The most text a file the tree's check hands to a server may hold.
+const CHECK_MOST: u64 = 2 << 20;
+
+/// A file waiting for the tree's check, the server it goes to and the protocol's name for its language.
+struct Waiting {
+    path: PathBuf,
+    server: Arc<Server>,
+    id: String,
+}
+
+/// The tree's check: whether it is on, the tree's files, the files waiting, and how many of the files
+/// it was given are done.
+#[derive(Default)]
+struct Queue {
+    on: bool,
+    root: Option<PathBuf>,
+    files: Vec<String>,
+    waiting: VecDeque<Waiting>,
+    total: usize,
+    done: usize,
+    emit: Option<Emit>,
+    started: bool,
+}
+
+/// What the tree's check hears, each file by its key: the file whose first diagnostics wake its
+/// checker, and the files it let go, whose clearing as each closes is not passed on. Its lock is never
+/// held while a server is written to, as the thread that reads a server takes it.
+#[derive(Default)]
+struct Heard {
+    woken: HashMap<String, mpsc::Sender<()>>,
+    letting_go: HashSet<String>,
+}
+
+#[derive(Default)]
+struct Checks {
+    queue: Mutex<Queue>,
+    ready: Condvar,
+    /// The files a server holds for the check and not for the editor. A server is written to about
+    /// a file only with this held, by the check or by the editor.
+    held: Mutex<HashSet<String>>,
+    heard: Mutex<Heard>,
+    /// The servers, by their process, that refuse to be asked for a file's diagnostics, whose
+    /// diagnostics the check waits for them to give.
+    refused: Mutex<HashSet<u32>>,
+}
+
 #[derive(Default)]
 pub struct Servers {
     root: Mutex<Option<PathBuf>>,
     running: Mutex<HashMap<String, Arc<Server>>>,
     failed: Mutex<HashMap<String, String>>,
-    /// Each file's diagnostics as its server last gave them, which a quick fix is asked about.
-    published: Arc<Mutex<HashMap<String, Vec<Value>>>>,
+    published: Arc<Published>,
+    checks: Arc<Checks>,
 }
+
+/// Each file's diagnostics as its server last gave them, which a quick fix is asked about, by the
+/// file's key, each with the URI the server gave it.
+type Published = Mutex<HashMap<String, (String, Vec<Value>)>>;
 
 fn place(value: &Value) -> Place {
     Place { line: value["line"].as_u64().unwrap_or(0) as u32, col: value["character"].as_u64().unwrap_or(0) as u32 }
@@ -392,12 +462,21 @@ fn item_of(one: &Value) -> Item {
 /// What a server says on its own, and the answer where it asks: its diagnostics kept and passed
 /// on, an edit it asks for passed on and said to be made, and each setting it asks for left to its
 /// own default.
-fn heard(method: &str, params: &Value, emit: &Emit, published: &Mutex<HashMap<String, Vec<Value>>>) -> Value {
+fn heard(method: &str, params: &Value, emit: &Emit, published: &Published, checks: &Checks) -> Value {
     match method {
         "textDocument/publishDiagnostics" => {
             if let (Some(uri), Some(all)) = (params["uri"].as_str(), params["diagnostics"].as_array()) {
+                let key = lsp::key_of(uri);
+                if let Ok(mut heard) = checks.heard.lock() {
+                    if all.is_empty() && heard.letting_go.remove(&key) {
+                        return Value::Null;
+                    }
+                    if let Some(woken) = heard.woken.get(&key) {
+                        let _ = woken.send(());
+                    }
+                }
                 if let Ok(mut kept) = published.lock() {
-                    kept.insert(uri.to_string(), all.clone());
+                    kept.insert(key, (uri.to_string(), all.clone()));
                 }
             }
             if let Some(diagnostics) = diagnostics_of(params) {
@@ -453,8 +532,9 @@ impl Servers {
             Some(program) => {
                 let emit = emit.clone();
                 let published = self.published.clone();
+                let checks = self.checks.clone();
                 let options = spec.projects.as_deref().map_or(Value::Null, |name| json!({"linkedProjects": projects_in(root, name)}));
-                Server::start(&program, &spec.args, root, options, toolchains::run_path(), Box::new(move |method, params| heard(method, params, &emit, &published))).map_err(|said| match &spec.setup {
+                Server::start(&program, &spec.args, root, options, toolchains::run_path(), Box::new(move |method, params| heard(method, params, &emit, &published, &checks))).map_err(|said| match &spec.setup {
                     Some(setup) => format!("{} did not start ({said}): {setup} installs it", spec.program),
                     None => format!("{} did not start: {said}", spec.program),
                 })
@@ -479,20 +559,32 @@ impl Servers {
         let Some((server, spec)) = self.server(root, language, emit)? else {
             return Ok(false);
         };
-        let ext = path.extension().map(|ext| ext.to_string_lossy().to_lowercase()).unwrap_or_default();
-        let id = spec.ids.get(&ext).cloned().unwrap_or_else(|| language.to_string());
+        let id = Self::id_of(&spec, path, language);
+        // A file the check holds is the editor's from here, and its clearing as it closes is heard.
+        let uri = lsp::uri_of(path);
+        let mut held = self.checks.held.lock().map_err(|_| "held".to_string())?;
+        held.remove(&uri);
+        if let Ok(mut heard) = self.checks.heard.lock() {
+            heard.letting_go.remove(&lsp::key_of(&uri));
+        }
         if server.has(path) {
             server.change(path, text)?;
             // A tab opened again on a file the server holds hears the diagnostics it last gave.
-            let uri = lsp::uri_of(path);
-            let kept = self.published.lock().ok().and_then(|all| all.get(&uri).cloned());
+            let kept = self.published.lock().ok().and_then(|all| all.get(&lsp::key_of(&uri)).map(|(_, all)| all.clone()));
             if let Some(diagnostics) = kept.and_then(|all| diagnostics_of(&json!({"uri": uri, "diagnostics": all}))) {
                 emit(Told::Diagnostics(diagnostics));
             }
         } else {
             server.open(path, &id, text)?;
         }
+        drop(held);
         Ok(true)
+    }
+
+    /// The protocol's name for the language of `path`, by its extension.
+    fn id_of(spec: &ServerSpec, path: &Path, language: &str) -> String {
+        let ext = path.extension().map(|ext| ext.to_string_lossy().to_lowercase()).unwrap_or_default();
+        spec.ids.get(&ext).cloned().unwrap_or_else(|| language.to_string())
     }
 
     /// The server that has `path` open, where one does.
@@ -501,11 +593,26 @@ impl Servers {
     }
 
     pub fn change(&self, path: &Path, text: &str) -> Result<(), String> {
+        let _held = self.checks.held.lock().map_err(|_| "held".to_string())?;
         self.holding(path).map_or(Ok(()), |server| server.change(path, text))
     }
 
+    /// Lets go of a file the editor closed. Where the tree's check is on, the file is checked as the
+    /// disk holds it before its server lets it go.
     pub fn close(&self, path: &Path) -> Result<(), String> {
-        self.holding(path).map_or(Ok(()), |server| server.close(path))
+        let Some(server) = self.holding(path) else {
+            return Ok(());
+        };
+        let mut held = self.checks.held.lock().map_err(|_| "held".to_string())?;
+        let mut queue = self.checks.queue.lock().map_err(|_| "held".to_string())?;
+        if !queue.on {
+            return server.close(path);
+        }
+        held.insert(lsp::uri_of(path));
+        queue.total += 1;
+        queue.waiting.push_front(Waiting { path: path.to_path_buf(), server, id: String::new() });
+        self.checks.ready.notify_one();
+        Ok(())
     }
 
     pub fn hover(&self, path: &Path, line: u32, col: u32) -> Result<Option<String>, String> {
@@ -601,7 +708,7 @@ impl Servers {
     pub fn actions(&self, path: &Path, from: Place, to: Place) -> Result<Vec<Action>, String> {
         let server = self.asked(path)?;
         let uri = lsp::uri_of(path);
-        let diagnostics: Vec<Value> = self.published.lock().map_err(|_| "held".to_string())?.get(&uri).map(|all| all.iter().filter(|one| overlaps(&from, &to, &one["range"])).cloned().collect()).unwrap_or_default();
+        let diagnostics: Vec<Value> = self.published.lock().map_err(|_| "held".to_string())?.get(&lsp::key_of(&uri)).map(|(_, all)| all.iter().filter(|one| overlaps(&from, &to, &one["range"])).cloned().collect()).unwrap_or_default();
         let params = json!({
             "textDocument": {"uri": uri},
             "range": {"start": {"line": from.line, "character": from.col}, "end": {"line": to.line, "character": to.col}},
@@ -698,10 +805,317 @@ impl Servers {
     /// Stops every server without waiting, as another tree opens: the servers are let go at once,
     /// and each is told to end on a thread of its own.
     pub fn let_go(&self) {
+        if let Ok(mut queue) = self.checks.queue.lock() {
+            let started = queue.started;
+            *queue = Queue { started, ..Queue::default() };
+        }
+        if let Ok(mut held) = self.checks.held.lock() {
+            held.clear();
+        }
+        if let Ok(mut published) = self.published.lock() {
+            published.clear();
+        }
         for server in self.take_all() {
             std::thread::spawn(move || server.stop());
         }
     }
+
+    /// Starts the tree's check over `files`, each relative to `root`: every file of a language with a
+    /// server is handed to it, or its projects checked as a whole where it checks them so. Gives how
+    /// many files wait.
+    pub fn check_tree(&self, root: &Path, files: Vec<String>, emit: &Emit) -> usize {
+        {
+            let Ok(mut queue) = self.checks.queue.lock() else {
+                return 0;
+            };
+            queue.on = true;
+            queue.root = Some(root.to_path_buf());
+            queue.emit = Some(emit.clone());
+            queue.files = files.clone();
+        }
+        self.start_checkers();
+        self.check_files(root, &files, emit)
+    }
+
+    /// Checks again the files of a batch of changes made on the disk, and the files whose includes or
+    /// imports name one of them, where the tree's check is on; a file gone loses its diagnostics.
+    pub fn changed(&self, root: &Path, files: &[String]) {
+        let emit = {
+            let Ok(mut queue) = self.checks.queue.lock() else {
+                return;
+            };
+            if !queue.on || queue.root.as_deref() != Some(root) {
+                return;
+            }
+            for file in files {
+                if !queue.files.contains(file) {
+                    queue.files.push(file.clone());
+                }
+            }
+            queue.files.retain(|file| root.join(file).is_file());
+            queue.emit.clone()
+        };
+        let Some(emit) = emit else {
+            return;
+        };
+        let gone: Vec<String> = self.published.lock().map(|mut all| {
+            let gone: Vec<String> = all.keys().filter(|key| !Path::new(key).exists()).cloned().collect();
+            gone.iter().filter_map(|key| all.remove(key)).map(|(uri, _)| uri).collect()
+        }).unwrap_or_default();
+        // Each server hears of the changes, and a server that checks a file at a time is given each
+        // file the editor holds again, which it then reads against a header or a module that changed
+        // under it.
+        let events: Vec<Value> = files.iter().map(|file| json!({"uri": lsp::uri_of(&root.join(file)), "type": 2})).chain(gone.iter().map(|uri| json!({"uri": uri, "type": 3}))).collect();
+        if !events.is_empty() {
+            let manifest = toolchains::manifest();
+            let running: Vec<(String, Arc<Server>)> = self.running.lock().map(|all| all.iter().map(|(tool, server)| (tool.clone(), server.clone())).collect()).unwrap_or_default();
+            let held = self.checks.held.lock();
+            for (tool, server) in running {
+                let _ = server.notify("workspace/didChangeWatchedFiles", json!({"changes": events}));
+                let whole = manifest.iter().find(|one| one.id == tool).and_then(|one| one.server.as_ref()).is_some_and(|spec| spec.checks.is_some());
+                if let (false, Ok(held)) = (whole, held.as_ref()) {
+                    for path in server.files() {
+                        if !held.contains(&lsp::uri_of(&path)) {
+                            let _ = server.read_again(&path);
+                        }
+                    }
+                }
+            }
+        }
+        for uri in gone {
+            if let Some(diagnostics) = diagnostics_of(&json!({"uri": uri, "diagnostics": []})) {
+                emit(Told::Diagnostics(diagnostics));
+            }
+        }
+        let tree = self.checks.queue.lock().map(|queue| queue.files.clone()).unwrap_or_default();
+        let mut again: Vec<String> = files.iter().filter(|file| root.join(file).is_file()).cloned().collect();
+        let languages = crate::plugins::languages();
+        let mut tools: HashMap<String, Option<String>> = HashMap::new();
+        let mut tool_of = |file: &str| language_of(&languages, file).and_then(|language| tools.entry(language.clone()).or_insert_with(|| Self::spec_for(&language).map(|(tool, _)| tool.id)).clone());
+        let mut stems: HashMap<String, Vec<String>> = HashMap::new();
+        for file in files {
+            if let (Some(tool), Some(stem)) = (tool_of(file), Path::new(file).file_stem()) {
+                stems.entry(tool).or_default().push(stem.to_string_lossy().to_string());
+            }
+        }
+        if !stems.is_empty() {
+            for other in &tree {
+                if again.contains(other) {
+                    continue;
+                }
+                if let Some(wanted) = tool_of(other).and_then(|tool| stems.get(&tool)) {
+                    if names(&root.join(other), wanted) {
+                        again.push(other.clone());
+                    }
+                }
+            }
+        }
+        self.check_files(root, &again, &emit);
+    }
+
+    /// Whether the tree's check has files waiting or being checked.
+    pub fn checking(&self) -> bool {
+        self.checks.queue.lock().is_ok_and(|queue| queue.on && queue.done < queue.total)
+    }
+
+    /// Queues `files` for the tree's check, or has their servers check their projects as a whole,
+    /// each server started where it is not running.
+    fn check_files(&self, root: &Path, files: &[String], emit: &Emit) -> usize {
+        let languages = crate::plugins::languages();
+        let mut by_language: HashMap<String, Option<(String, Arc<Server>, ServerSpec)>> = HashMap::new();
+        let mut waiting = Vec::new();
+        let mut whole = HashSet::new();
+        for file in files {
+            let Some(language) = language_of(&languages, file) else {
+                continue;
+            };
+            let found = by_language.entry(language.clone()).or_insert_with(|| {
+                let (tool, spec) = Self::spec_for(&language)?;
+                self.server(root, &language, emit).ok().flatten().map(|(server, _)| (tool.id, server, spec))
+            });
+            let Some((tool, server, spec)) = found.clone() else {
+                continue;
+            };
+            let path = root.join(file);
+            match &spec.checks {
+                Some(method) => {
+                    if whole.insert(tool) {
+                        let _ = server.notify(method, json!({"textDocument": null}));
+                    }
+                }
+                None => {
+                    if std::fs::metadata(&path).is_ok_and(|meta| meta.len() <= CHECK_MOST) {
+                        let id = Self::id_of(&spec, &path, &language);
+                        waiting.push(Waiting { path, server, id });
+                    }
+                }
+            }
+        }
+        let Ok(mut queue) = self.checks.queue.lock() else {
+            return 0;
+        };
+        let count = waiting.len();
+        for one in waiting {
+            if !queue.waiting.iter().any(|queued| queued.path == one.path) {
+                queue.total += 1;
+                queue.waiting.push_back(one);
+            }
+        }
+        if queue.waiting.is_empty() && queue.done >= queue.total {
+            let (done, total) = (queue.done, queue.total);
+            drop(queue);
+            emit(Told::Checking { done, total });
+        } else {
+            self.checks.ready.notify_all();
+        }
+        count
+    }
+
+    /// Starts the threads that check the tree's files, once.
+    fn start_checkers(&self) {
+        let Ok(mut queue) = self.checks.queue.lock() else {
+            return;
+        };
+        if queue.started {
+            return;
+        }
+        queue.started = true;
+        for _ in 0..CHECKERS {
+            let checks = Arc::downgrade(&self.checks);
+            let published = Arc::downgrade(&self.published);
+            std::thread::spawn(move || {
+                while let (Some(checks), Some(published)) = (checks.upgrade(), published.upgrade()) {
+                    let Some((one, emit)) = next_waiting(&checks) else {
+                        continue;
+                    };
+                    check_one(&checks, &published, &one, &emit);
+                    let Ok(mut queue) = checks.queue.lock() else {
+                        return;
+                    };
+                    queue.done += 1;
+                    let told = (queue.done, queue.total, queue.emit.clone());
+                    drop(queue);
+                    if let (done, total, Some(emit)) = told {
+                        emit(Told::Checking { done, total });
+                    }
+                }
+            });
+        }
+    }
+}
+
+/// The next file waiting for the tree's check, once one waits, and where what is said of it goes;
+/// none after a moment with none, for the checker to see whether the checks are still kept.
+fn next_waiting(checks: &Checks) -> Option<(Waiting, Emit)> {
+    let queue = checks.queue.lock().ok()?;
+    let (mut queue, _) = checks.ready.wait_timeout_while(queue, Duration::from_secs(5), |queue| queue.waiting.is_empty() || queue.emit.is_none()).ok()?;
+    let emit = queue.emit.clone()?;
+    queue.waiting.pop_front().map(|one| (one, emit))
+}
+
+/// Hands one file to its server as the disk holds it, asks the server for its diagnostics or, where
+/// the server refuses to be asked, waits for the server to give them, and lets it go where the check
+/// still holds it. A file the editor holds is left to the editor.
+fn check_one(checks: &Checks, published: &Published, one: &Waiting, emit: &Emit) {
+    let uri = lsp::uri_of(&one.path);
+    let key = lsp::key_of(&uri);
+    let Ok(text) = std::fs::read_to_string(&one.path) else {
+        if let Ok(mut held) = checks.held.lock() {
+            if held.remove(&uri) {
+                let _ = one.server.close(&one.path);
+            }
+        }
+        return;
+    };
+    let (send, woken) = mpsc::channel();
+    {
+        let Ok(mut held) = checks.held.lock() else {
+            return;
+        };
+        let open = one.server.has(&one.path);
+        if open && !held.contains(&uri) {
+            return;
+        }
+        if let Ok(mut heard) = checks.heard.lock() {
+            heard.woken.insert(key.clone(), send);
+            heard.letting_go.remove(&key);
+        }
+        held.insert(uri.clone());
+        let sent = if open { one.server.change(&one.path, &text) } else { one.server.open(&one.path, &one.id, &text) };
+        if sent.is_err() {
+            held.remove(&uri);
+            if let Ok(mut heard) = checks.heard.lock() {
+                heard.woken.remove(&key);
+            }
+            return;
+        }
+    }
+    let pid = one.server.pid();
+    let asked = !checks.refused.lock().is_ok_and(|refused| refused.contains(&pid));
+    let answer = if asked { Some(one.server.request("textDocument/diagnostic", json!({"textDocument": {"uri": uri}}), CHECK_PATIENCE)) } else { None };
+    match answer {
+        Some(Ok(answer)) if answer["kind"] == "full" => {
+            let items = answer["items"].as_array().cloned().unwrap_or_default();
+            if let Ok(mut kept) = published.lock() {
+                kept.insert(key.clone(), (uri.clone(), items.clone()));
+            }
+            if let Some(diagnostics) = diagnostics_of(&json!({"uri": uri, "diagnostics": items})) {
+                emit(Told::Diagnostics(diagnostics));
+            }
+        }
+        Some(Ok(_)) => {}
+        Some(Err(said)) if !said.contains("had no answer") => {
+            if let Ok(mut refused) = checks.refused.lock() {
+                refused.insert(pid);
+            }
+            wait_for(&woken);
+        }
+        Some(Err(_)) => {}
+        None => wait_for(&woken),
+    }
+    let Ok(mut held) = checks.held.lock() else {
+        return;
+    };
+    let ours = held.remove(&uri);
+    if let Ok(mut heard) = checks.heard.lock() {
+        heard.woken.remove(&key);
+        if ours {
+            heard.letting_go.insert(key.clone());
+        }
+    }
+    if ours {
+        let _ = one.server.close(&one.path);
+    }
+}
+
+/// Waits for a server to give a file's diagnostics, and for any it gives after them.
+fn wait_for(woken: &mpsc::Receiver<()>) {
+    if woken.recv_timeout(CHECK_PATIENCE).is_ok() {
+        while woken.recv_timeout(CHECK_QUIET).is_ok() {}
+    }
+}
+
+/// The language a file of the tree opens as, by its extension.
+fn language_of(languages: &HashMap<String, String>, file: &str) -> Option<String> {
+    let ext = Path::new(file).extension()?.to_string_lossy().to_lowercase();
+    languages.get(&ext).cloned()
+}
+
+/// Whether a line of the file at `path` that includes, imports or uses another names one of `stems`
+/// as a word.
+fn names(path: &Path, stems: &[String]) -> bool {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return false;
+    };
+    let word = |line: &str, stem: &str| {
+        !stem.is_empty()
+            && line.match_indices(stem).any(|(at, _)| {
+                let before = line[..at].chars().next_back();
+                let after = line[at + stem.len()..].chars().next();
+                !before.is_some_and(|one| one.is_alphanumeric() || one == '_') && !after.is_some_and(|one| one.is_alphanumeric() || one == '_')
+            })
+    };
+    text.lines().map(str::trim_start).any(|line| ["#include", "import ", "from ", "use ", "mod "].iter().any(|start| line.starts_with(start)) && stems.iter().any(|stem| word(line, stem)))
 }
 
 #[cfg(test)]
@@ -799,9 +1213,161 @@ mod tests {
             }
         });
         let published = Mutex::new(HashMap::new());
-        assert_eq!(heard("workspace/configuration", &json!({"items": [{}, {}]}), &emit, &published), json!([null, null]));
-        assert_eq!(heard("workspace/applyEdit", &json!({"edit": {"changes": {"file:///t/a.c": []}}}), &emit, &published), json!({"applied": true}));
+        let checks = Checks::default();
+        assert_eq!(heard("workspace/configuration", &json!({"items": [{}, {}]}), &emit, &published, &checks), json!([null, null]));
+        assert_eq!(heard("workspace/applyEdit", &json!({"edit": {"changes": {"file:///t/a.c": []}}}), &emit, &published, &checks), json!({"applied": true}));
         assert_eq!(*told.lock().unwrap(), vec![1]);
+    }
+
+    #[test]
+    fn a_file_the_check_lets_go_keeps_its_diagnostics_and_wakes_its_checker() {
+        let told = Arc::new(Mutex::new(Vec::new()));
+        let kept = told.clone();
+        let emit: Emit = Arc::new(move |one| {
+            if let Told::Diagnostics(diagnostics) = one {
+                kept.lock().unwrap().push(diagnostics.items.len());
+            }
+        });
+        let published = Mutex::new(HashMap::new());
+        let checks = Checks::default();
+        let uri = if cfg!(windows) { "file:///C:/t/a.c" } else { "file:///t/a.c" };
+        let key = lsp::key_of(uri);
+        let (send, woken) = mpsc::channel();
+        checks.heard.lock().unwrap().woken.insert(key.clone(), send);
+        let one = json!({"range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 1}}, "severity": 1, "message": "no"});
+        heard("textDocument/publishDiagnostics", &json!({"uri": uri, "diagnostics": [one]}), &emit, &published, &checks);
+        assert!(woken.try_recv().is_ok());
+        checks.heard.lock().unwrap().letting_go.insert(key.clone());
+        heard("textDocument/publishDiagnostics", &json!({"uri": uri, "diagnostics": [one]}), &emit, &published, &checks);
+        let written = if cfg!(windows) { "file:///c%3A/t/a.c" } else { "file:///t/a.c" };
+        heard("textDocument/publishDiagnostics", &json!({"uri": written, "diagnostics": []}), &emit, &published, &checks);
+        assert_eq!(*told.lock().unwrap(), vec![1, 1], "a file's diagnostics given after it is let go pass on, and its clearing, however its URI is written, does not");
+        assert_eq!(published.lock().unwrap()[&key].1.len(), 1);
+        heard("textDocument/publishDiagnostics", &json!({"uri": uri, "diagnostics": []}), &emit, &published, &checks);
+        assert_eq!(*told.lock().unwrap(), vec![1, 1, 0]);
+    }
+
+    #[test]
+    fn a_file_names_another_in_its_includes_and_imports_only() {
+        let dir = std::env::temp_dir().join(format!("orior-names-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let write = |name: &str, text: &str| {
+            std::fs::write(dir.join(name), text).unwrap();
+            dir.join(name)
+        };
+        assert!(names(&write("a.c", "#include \"shape.h\"\nint x;\n"), &["shape".into()]));
+        assert!(!names(&write("b.c", "#include \"shapes.h\"\n/* shape */\n"), &["shape".into()]));
+        assert!(names(&write("c.py", "import os\nfrom geometry.shape import area\n"), &["shape".into()]));
+        assert!(!names(&write("d.py", "shape = 1\n"), &["shape".into()]));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The errors in each file, by its name, and how far a check has gone.
+    type ByName = Arc<Mutex<HashMap<String, usize>>>;
+    type Far = Arc<Mutex<(usize, usize)>>;
+
+    /// The errors a tree's check passes on, by file name, and how far it has gone.
+    fn heard_by_name() -> (Emit, ByName, Far) {
+        let found = Arc::new(Mutex::new(HashMap::new()));
+        let gone = Arc::new(Mutex::new((0, 0)));
+        let (kept, far) = (found.clone(), gone.clone());
+        let emit: Emit = Arc::new(move |told| match told {
+            Told::Diagnostics(diagnostics) => {
+                let name = Path::new(&diagnostics.path).file_name().unwrap().to_string_lossy().to_string();
+                kept.lock().unwrap().insert(name, diagnostics.items.iter().filter(|one| one.severity == 1).count());
+            }
+            Told::Checking { done, total } => *far.lock().unwrap() = (done, total),
+            Told::Edits(_) => {}
+        });
+        (emit, found, gone)
+    }
+
+    /// Waits until `ready` holds, for at most `seconds`.
+    fn until(seconds: u64, ready: impl Fn() -> bool) -> bool {
+        for _ in 0..seconds * 10 {
+            if ready() {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        ready()
+    }
+
+    #[test]
+    #[ignore = "starts clangd where it is installed"]
+    fn the_tree_check_hands_each_c_file_to_clangd_and_checks_again_what_includes_a_change() {
+        let dir = std::env::temp_dir().join(format!("orior-check-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("shape.h"), "static int area(int side) { return side * side; }\n").unwrap();
+        std::fs::write(dir.join("use.c"), "#include \"shape.h\"\nint main(void) { return area(2); }\n").unwrap();
+        std::fs::write(dir.join("bad.c"), "int main(void) { return missing; }\n").unwrap();
+        let (emit, found, gone) = heard_by_name();
+        let servers = Servers::default();
+        let files: Vec<String> = ["bad.c", "shape.h", "use.c"].iter().map(|one| one.to_string()).collect();
+        assert_eq!(servers.check_tree(&dir, files, &emit), 3);
+        assert!(until(60, || *gone.lock().unwrap() == (3, 3)), "{:?}", gone.lock().unwrap());
+        assert_eq!(found.lock().unwrap().get("bad.c"), Some(&1), "{:?}", found.lock().unwrap());
+        assert_eq!(found.lock().unwrap().get("use.c").copied().unwrap_or(0), 0);
+        assert!(servers.running().iter().all(|one| one.files.is_empty()), "the check lets every file go");
+        std::thread::sleep(Duration::from_secs(1));
+        assert_eq!(found.lock().unwrap().get("bad.c"), Some(&1), "a file let go keeps its diagnostics");
+        std::fs::write(dir.join("shape.h"), "static int perimeter(int side) { return 4 * side; }\n").unwrap();
+        servers.changed(&dir, &["shape.h".to_string()]);
+        assert!(until(60, || found.lock().unwrap().get("use.c").copied().unwrap_or(0) > 0), "use.c is checked again: {:?}", found.lock().unwrap());
+        std::fs::remove_file(dir.join("bad.c")).unwrap();
+        servers.changed(&dir, &[]);
+        assert_eq!(found.lock().unwrap().get("bad.c"), Some(&0), "a file gone loses its diagnostics");
+        servers.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "starts pyright-langserver where it is on the PATH"]
+    fn the_tree_check_asks_pyright_for_each_file() {
+        let dir = std::env::temp_dir().join(format!("orior-check-py-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("shape.py"), "def area(side: int) -> int:\n    return side * side\n").unwrap();
+        std::fs::write(dir.join("use.py"), "from shape import area\n\nprint(area(\"two\"))\n").unwrap();
+        std::fs::write(dir.join("fine.py"), "print(1)\n").unwrap();
+        let (emit, found, gone) = heard_by_name();
+        let servers = Servers::default();
+        let files: Vec<String> = ["fine.py", "shape.py", "use.py"].iter().map(|one| one.to_string()).collect();
+        assert_eq!(servers.check_tree(&dir, files, &emit), 3);
+        assert!(until(60, || *gone.lock().unwrap() == (3, 3)), "{:?}", gone.lock().unwrap());
+        std::thread::sleep(Duration::from_secs(2));
+        assert_eq!(found.lock().unwrap().get("use.py"), Some(&1), "{:?}", found.lock().unwrap());
+        assert_eq!(found.lock().unwrap().get("fine.py").copied().unwrap_or(0), 0);
+        assert!(servers.running().iter().all(|one| one.files.is_empty()), "the check lets every file go");
+        servers.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "starts rust-analyzer where it is installed"]
+    fn the_tree_check_has_rust_analyzer_check_a_crate_whole() {
+        let dir = std::env::temp_dir().join(format!("orior-check-crate-{}", std::process::id()));
+        let krate = dir.join("tool");
+        std::fs::create_dir_all(krate.join("src")).unwrap();
+        std::fs::write(krate.join("Cargo.toml"), "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2021\"\n").unwrap();
+        std::fs::write(krate.join("src").join("main.rs"), "mod part;\n\nfn main() {\n    part::run();\n}\n").unwrap();
+        std::fs::write(krate.join("src").join("part.rs"), "pub fn run() {\n    let x: u32 = \"text\";\n    println!(\"{x}\");\n}\n").unwrap();
+        let (emit, found, _) = heard_by_name();
+        let servers = Servers::default();
+        servers.check_tree(&dir, vec!["tool/src/main.rs".into(), "tool/src/part.rs".into()], &emit);
+        let checked = until(240, || {
+            if found.lock().unwrap().get("part.rs").copied().unwrap_or(0) > 0 {
+                return true;
+            }
+            // A server still reading its projects passes over a check asked for; it is asked again.
+            if let Some(server) = servers.running.lock().unwrap().get("rust") {
+                let _ = server.notify("rust-analyzer/runFlycheck", json!({"textDocument": null}));
+            }
+            std::thread::sleep(Duration::from_secs(2));
+            false
+        });
+        assert!(checked, "{:?}", found.lock().unwrap());
+        servers.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

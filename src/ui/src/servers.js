@@ -13,12 +13,23 @@ const CHANGE_REST = 300;
 let tabsOf = () => [];
 let painted = () => {};
 
+// Every file's diagnostics as its server last gave them, open in a tab or not; how far the tree's
+// check has gone; and whether it has started in the tree open.
+const known = new Map();
+let checking = null;
+let checked = false;
+
 // `tabs` gives the open tabs, and `paint` draws the editor again after diagnostics arrive.
 export function startServers({ tabs, paint }) {
   tabsOf = tabs;
   painted = paint;
   listen("lsp-diagnostics", (event) => {
     const { path, items } = event.payload;
+    if (items.length) {
+      known.set(path, items);
+    } else {
+      known.delete(path);
+    }
     for (const tab of tabsOf()) {
       if ((tab.served || tab.serving) && tab.file === path) {
         tab.session.diagnostics = items;
@@ -26,6 +37,38 @@ export function startServers({ tabs, paint }) {
     }
     painted();
   });
+  listen("tree-check", (event) => {
+    checking = event.payload;
+    painted();
+  });
+}
+
+// The tree's check, started once in the tree open: every file of the tree no tab holds is handed to
+// its language's server, as servers.rs checks the tree, and is checked again as it changes.
+export function checkTree() {
+  if (!checked) {
+    checked = true;
+    invoke("problems_check").catch(() => {
+      checked = false;
+    });
+  }
+}
+
+// Every file's diagnostics the servers have given, by its path.
+export function knownProblems() {
+  return known;
+}
+
+// How far the tree's check has gone, `{ done, total }`, or null before it starts.
+export function treeChecking() {
+  return checking;
+}
+
+// Forgets the diagnostics and the check of the tree open, for another tree opened in its place.
+export function forgetProblems() {
+  known.clear();
+  checking = null;
+  checked = false;
 }
 
 // Hands a tab to its language's server where there is one. A file read a window at a time, or
