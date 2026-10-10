@@ -37,6 +37,7 @@ import { runToolchains } from "./toolchains.js";
 import { openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
+import { printText } from "./print.js";
 import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
@@ -178,6 +179,12 @@ const COMMANDS = {
   "open-repository": (args) => showClone(sheet, state.openFolder, args, { open: true }),
   save: () => editing().save(),
   "save-all": () => editing().saveAll(),
+  print: () => {
+    const { editor, active } = editing();
+    if (editor?.s) {
+      printText(editor.s, active ?? "");
+    }
+  },
   "close-editor": () => editing().close(),
   "close-all": () => editing().closeAll(),
   exit: () => invoke("app_exit"),

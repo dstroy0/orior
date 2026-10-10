@@ -26,6 +26,8 @@
         { "label": "Auto Save", "command": "auto-save", "args": "[on|off]", "checks": "auto-save" },
         { "label": "Format on Save", "command": "format-on-save", "args": "[on|off]", "checks": "format-on-save" },
         "-",
+        { "label": "Print…", "command": "print", "needs": "editor" },
+        "-",
         { "label": "Close Editor", "command": "close-editor", "keys": "Ctrl+W", "needs": "tab" },
         { "label": "Close All Editors", "command": "close-all", "needs": "tabs" },
         "-",
