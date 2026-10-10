@@ -7,11 +7,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
 1. **Scrolling at the display's rate.** A fast scroll holds every frame a display of 120 a second draws, and not only every other one. The frame's handover to the compositor, `Commit` and `LayerTreeHost::DoUpdateLayers` in a trace, takes about 10 ms of the 8.3 a frame has. Two measurements say what is in it: a trace of the scroll with the compositor's own categories (`cc`, `viz`, `gpu`, `disabled-by-default-cc.debug`), which splits it into the canvas flush, the layers' update, tiles and uploads; and the same scroll with the minimap not drawing, which says whether the map's canvas is the cost.
 2. **A key on the screen in the next frame.** A letter typed shows in the frame after the key, measured from the key's event to the frame that draws it, in a file of any size. The page's own work for a key is 2 to 5 ms in files of 40 to 250,000 lines; what keeps the letter from the next frame at 120 a second is the frame's commit, 11 to 14 ms with the window's three layers the size of the window, which the trace of the scroll before this item reads.
 
-## Debugging
-
-1. **Across languages.** A Python program and the C it calls debugged together, Cython among them, a step going from the one into the other.
-2. **Back in time.** A run recorded as it goes, and the debugger stepping backward through it as well as forward, to the line and the values where a value went wrong.
-
 ## Layout
 
 1. **Groups of tabs.** Each side of a split holds tabs of its own, any file in either, a file moved to the next split with one key and the next file opened there.

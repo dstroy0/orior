@@ -4246,6 +4246,21 @@ body[data-view="run"] .statusbar .ed-status {
   overflow-wrap: anywhere;
 }
 
+/* A value a name takes at or after the step stood at, in a recorded run's history, is dimmed; a row is
+   pressed to go to it. */
+.debug-history tbody tr {
+  cursor: pointer;
+}
+
+.debug-history tbody tr:hover td,
+.debug-history tbody tr:focus-visible td {
+  background: var(--line);
+}
+
+.debug-history tr.later td {
+  color: var(--fg-2);
+}
+
 .debug-compare tr.differs td {
   color: var(--ed-warning);
 }

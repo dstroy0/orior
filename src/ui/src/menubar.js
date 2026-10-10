@@ -26,7 +26,7 @@ import { showCreate, showInit, showProject } from "./create.js";
 import { checkersNamed, setCheckers } from "./servers.js";
 import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
-import { askStepping, attachAddress, attachProcess, debugFile, debugging, exportBreakpoints, importBreakpoints, isPaused, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
+import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
 import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setVimKeys, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
@@ -373,6 +373,10 @@ const COMMANDS = {
   "restart-debug": () => restartDebug(),
   continue: () => step("continue"),
   "step-over": () => step("next"),
+  "step-back": () => step("stepBack"),
+  "reverse-continue": () => step("reverseContinue"),
+  record: () => recordFile(),
+  "debug-mixed": () => debugMixed(),
   "step-into": () => step("stepIn"),
   "step-out": () => step("stepOut"),
   pause: () => step("pause"),
@@ -443,6 +447,7 @@ const NEEDS = {
   debugging: () => debugging(),
   debugged: () => debugging() || Boolean(editing().active),
   paused: () => isPaused(),
+  back: () => canStepBack(),
   running: () => debugging() && !isPaused(),
   macro: () => Boolean(lastMacro() && editing().editor),
 };

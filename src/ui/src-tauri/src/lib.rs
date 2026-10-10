@@ -1147,6 +1147,27 @@ fn file_write_any(path: String, text: String) -> Result<(), String> {
     std::fs::write(&path, text).map_err(|error| format!("{path}: {error}"))
 }
 
+/// The values `name` of frame `frame` took through a recorded run, each with the line that gave it,
+/// its path as `tree_path` gives it.
+#[tauri::command(async)]
+fn debug_history(app: State<App>, session: u64, frame: i64, name: String) -> Result<Vec<debug::Change>, String> {
+    let root = root_of(&app)?;
+    Ok(app.debugger.history(session, frame, &name)?.into_iter().map(|mut change| {
+        change.path = tree_path(&root, &change.path);
+        change
+    }).collect())
+}
+
+#[tauri::command(async)]
+fn debug_step_across(app: State<App>, session: u64, thread: i64) -> Result<(), String> {
+    app.debugger.step_across(&root_of(&app)?, session, thread)
+}
+
+#[tauri::command(async)]
+fn debug_goto(app: State<App>, session: u64, step: u64) -> Result<(), String> {
+    app.debugger.goto(session, step)
+}
+
 /// The processes of the machine, for a session to attach to.
 #[tauri::command(async)]
 fn debug_processes() -> Vec<debug::Process> {
@@ -1637,6 +1658,9 @@ fn open(launch: Launch) {
             debug_bytecode,
             debug_watch_data,
             debug_processes,
+            debug_history,
+            debug_goto,
+            debug_step_across,
             file_read_any,
             file_write_any,
             debug_breakpoints,

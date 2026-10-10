@@ -35,6 +35,7 @@ pub mod patterns;
 pub mod regexp;
 pub mod plugins;
 pub mod python_paths;
+pub mod recording;
 pub mod report;
 pub mod root;
 pub mod schema;

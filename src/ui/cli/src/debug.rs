@@ -88,8 +88,14 @@ pub enum Start {
     File { path: String, language: String },
     /// One Python test, named as pytest names it, run by pytest.
     Test { id: String },
-    /// The process numbered `pid`, its program in `language`.
-    Process { pid: u32, language: String },
+    /// The process numbered `pid`, its program in `language`; `parent` is the session that started
+    /// it, where this one debugs the same process's native code.
+    Process {
+        pid: u32,
+        language: String,
+        #[serde(default)]
+        parent: Option<u64>,
+    },
     /// A Python program whose debugpy listens at `host` and `port`, as a container's does.
     /// `remote` is the folder the tree's files are at where the program runs, where that is not the
     /// tree itself, as in a container.
@@ -101,6 +107,9 @@ pub enum Start {
     },
     /// The child a session's program started, as debugpy's `debugpyAttach` event gives it.
     Child { parent: u64, config: Value },
+    /// The Python file at `path` of the tree, its run recorded and stepped through backward as well
+    /// as forward.
+    Record { path: String },
 }
 
 /// What the tree asks of stepping: whether a step keeps to the tree's own code, and the patterns
@@ -128,6 +137,9 @@ pub struct Options {
     pub breakpoints: Breakpoints,
     pub exceptions: Vec<String>,
     pub stepping: Stepping,
+    /// Whether a program launched stops before its first line, for a native session to attach to
+    /// it first.
+    pub entry: bool,
 }
 
 /// An exception the adapter can stop on: its name to the adapter, its label, and whether it is on.
@@ -157,6 +169,22 @@ pub struct SessionInfo {
     pub data: bool,
     pub exception_info: bool,
     pub process: Option<u32>,
+    /// Whether the session steps backward, and whether it is a recorded run, whose names' values
+    /// can be read through the run.
+    pub step_back: bool,
+    pub recorded: bool,
+}
+
+/// A value a name took in a recorded run: the step of the line that gave it, that line, counted
+/// from 0, its file, the value, none where the name went away, and whether the step comes before
+/// the one stood at.
+#[derive(Serialize, Clone, Debug)]
+pub struct Change {
+    pub step: u64,
+    pub line: u32,
+    pub path: String,
+    pub value: Option<String>,
+    pub before: bool,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -245,6 +273,38 @@ struct Marks {
     placed: Mutex<std::collections::HashSet<i64>>,
     watching: AtomicBool,
     scripted: AtomicBool,
+    /// The native session whose breakpoints of a step across are taken away at the next stop.
+    across: Mutex<Option<std::sync::Weak<Adapter>>>,
+    /// The number of the process the adapter says it debugs, where it says so before the session
+    /// starts.
+    pid: AtomicU64,
+}
+
+/// The name of the breakpoints a step from Python into C sets on the tree's native code.
+const ACROSS: &str = "orior_across";
+
+/// Runs `text` as a command of lldb's own in lldb session `session`, and gives what it says; lldb
+/// says a command failed in the answer's text.
+fn lldb_command(session: &Session, text: &str) -> Result<String, String> {
+    let said = session.adapter.request("evaluate", json!({"expression": format!("`{text}"), "context": "repl"}), ASKING)?;
+    let said = said["result"].as_str().unwrap_or_default().to_string();
+    if said.trim_start().starts_with("error:") {
+        return Err(said.trim().to_string());
+    }
+    Ok(said)
+}
+
+/// Loads orior's script into lldb session `session`, once.
+fn lldb_script(session: &Session) -> Result<(), String> {
+    if session.marks.scripted.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+    let script = std::env::temp_dir().join("orior-lldb").join("orior_lldb.py");
+    std::fs::create_dir_all(script.parent().unwrap_or(Path::new("."))).map_err(|error| error.to_string())?;
+    std::fs::write(&script, LLDB_SCRIPT).map_err(|error| error.to_string())?;
+    lldb_command(session, &format!("command script import \"{}\"", script.display().to_string().replace('\\', "/")))?;
+    session.marks.scripted.store(true, Ordering::SeqCst);
+    Ok(())
 }
 
 #[derive(Default)]
@@ -483,10 +543,16 @@ impl Debugger {
         };
         let language = match start {
             Start::File { language, .. } | Start::Process { language, .. } => language.clone(),
-            Start::Test { .. } | Start::Address { .. } => "python".to_string(),
+            Start::Test { .. } | Start::Address { .. } | Start::Record { .. } => "python".to_string(),
             Start::Child { .. } => parent_language.clone().unwrap_or_else(|| "python".to_string()),
         };
-        let (spec, tool, tool_id, adapter_program) = adapter_for(&language)?;
+        let recording = matches!(start, Start::Record { .. });
+        let (spec, tool, tool_id, adapter_program) = if recording {
+            let spec = DebuggerSpec { program: "orior".into(), args: Vec::new(), languages: vec![language.clone()], launch: json!({}), attach: None, path: HashMap::new(), systems: Vec::new(), setup: None };
+            (spec, "orior's recorder".to_string(), String::new(), PathBuf::new())
+        } else {
+            adapter_for(&language)?
+        };
         let (request, mut arguments, name, parent) = match start {
             Start::File { path, .. } => {
                 let file = root.join(path);
@@ -512,9 +578,10 @@ impl Debugger {
                 }
                 ("launch", launch, id.clone(), None)
             }
-            Start::Process { pid, .. } => {
+            Start::Process { pid, parent, .. } => {
                 let template = spec.attach.clone().unwrap_or_else(|| json!({"pid": "{pid}"}));
-                ("attach", numbers(filled(&template, &[("pid", pid.to_string()), ("root", root.display().to_string())])), format!("process {pid}"), None)
+                let named = if parent.is_some() { format!("the native code of process {pid}") } else { format!("process {pid}") };
+                ("attach", numbers(filled(&template, &[("pid", pid.to_string()), ("root", root.display().to_string())])), named, *parent)
             }
             Start::Address { host, port, remote } => {
                 let mut asked = json!({"connect": {"host": host, "port": port}});
@@ -527,8 +594,12 @@ impl Debugger {
                 let named = config["name"].as_str().map(str::to_string).or_else(|| config["subProcessId"].as_u64().map(|pid| format!("process {pid}"))).unwrap_or_else(|| "child".to_string());
                 ("attach", config.clone(), named, Some(*parent))
             }
+            Start::Record { path } => {
+                let python = crate::test_runs::python().map(|python| python.display().to_string()).unwrap_or_default();
+                ("launch", json!({"program": root.join(path).display().to_string(), "python": python}), path.clone(), None)
+            }
         };
-        if request == "launch" && language == "python" {
+        if request == "launch" && language == "python" && !recording {
             if let Some(map) = arguments.as_object_mut() {
                 // The processes a Python program starts are debugged with it.
                 map.insert("subProcess".into(), json!(true));
@@ -536,6 +607,9 @@ impl Debugger {
         }
         if !matches!(start, Start::Child { .. }) {
             step_arguments(&language, &options.stepping, &mut arguments);
+        }
+        if options.entry && request == "launch" {
+            arguments["stopOnEntry"] = json!(true);
         }
         let id = self.next.fetch_add(1, Ordering::SeqCst) + 1;
         let (ready, readied) = mpsc::channel();
@@ -549,6 +623,19 @@ impl Debugger {
                     let _ = ready.send(());
                 }
             }
+            if event == "process" {
+                if let Some(pid) = body["systemProcessId"].as_u64() {
+                    marked.pid.store(pid, Ordering::SeqCst);
+                }
+            }
+            if event == "stopped" {
+                // A stop ends a step across, and its breakpoints go.
+                if let Some(native) = marked.across.lock().ok().and_then(|mut across| across.take()).and_then(|weak| weak.upgrade()) {
+                    std::thread::spawn(move || {
+                        let _ = native.request("evaluate", json!({"expression": format!("`breakpoint delete --force {ACROSS}"), "context": "repl"}), ASKING);
+                    });
+                }
+            }
             told(id, event, data_stop(&marked, event, body));
         });
         // A program listening at an address, and a process a debugged program started, are reached
@@ -560,6 +647,7 @@ impl Debugger {
         };
         let reached = listening.is_some();
         let adapter = Arc::new(match listening {
+            _ if recording => Adapter::within(crate::recording::serve(root.to_path_buf()), heard),
             Some((host, port, ends_program)) => Adapter::connect(&host, port, ends_program, heard)?,
             None => Adapter::start(&adapter_program, &spec.args, root, toolchains::run_path_with(&toolchains::folders_for(&spec.path)), request == "launch", heard)?,
         });
@@ -612,6 +700,8 @@ impl Debugger {
                 Start::Process { pid, .. } => Some(*pid),
                 _ => None,
             },
+            step_back: can("supportsStepBack"),
+            recorded: recording,
         };
         let requested = adapter.send(request, arguments).map_err(&failed)?;
         if readied.recv_timeout(STARTING).is_err() {
@@ -629,6 +719,10 @@ impl Debugger {
         let _ = adapter.request("setExceptionBreakpoints", json!({"filters": on}), ASKING);
         adapter.request("configurationDone", Value::Null, ASKING).map_err(&failed)?;
         Adapter::wait(request, &requested, STARTING).map_err(&failed)?;
+        let mut info = info;
+        if info.process.is_none() {
+            info.process = Some(marks.pid.load(Ordering::SeqCst) as u32).filter(|&pid| pid != 0);
+        }
         let session = Arc::new(Session { info: Mutex::new(info.clone()), adapter, program: spec.program.clone(), data: Mutex::new(Vec::new()), marks });
         self.sessions.lock().map_err(|_| "held".to_string())?.push(session);
         Ok(info)
@@ -736,10 +830,82 @@ impl Debugger {
 
     /// Continue, next, stepIn, stepOut or pause, for `thread` of session `id`.
     pub fn step(&self, id: u64, how: &str, thread: i64) -> Result<(), String> {
-        if !["continue", "next", "stepIn", "stepOut", "pause"].contains(&how) {
+        if !["continue", "next", "stepIn", "stepOut", "pause", "stepBack", "reverseContinue"].contains(&how) {
             return Err(format!("{how} is not a step"));
         }
+        // A step out of the tree's C into the Python that called it lets the native code run on and
+        // stops the Python at the next line it runs.
+        if how == "stepOut" {
+            let parent = self.session(id)?.info.lock().map_err(|_| "held".to_string())?.parent;
+            if let Some(python) = parent.filter(|&parent| self.native_of(parent).is_some_and(|native| native.info.lock().is_ok_and(|info| info.id == id))) {
+                let frames = self.stack(id, thread)?;
+                // lldb names a frame with no source by its module and symbol, which is no file.
+                if frames.get(1).is_none_or(|caller| caller.path.as_deref().is_none_or(|path| !Path::new(path).is_file())) {
+                    self.adapter(id)?.request("continue", json!({"threadId": thread}), ASKING)?;
+                    // debugpy pauses every thread, whichever is named.
+                    return self.session(python)?.adapter.send("pause", json!({"threadId": thread})).map(|_| ());
+                }
+            }
+        }
+        // The C a Python step runs can stop the whole process at a native breakpoint before the
+        // Python's debugger, which answers from inside the process, says the step began; in a
+        // session whose process a native session also debugs, the step is sent and not waited on.
+        if how != "pause" && self.native_of(id).is_some() {
+            return self.adapter(id)?.send(how, json!({"threadId": thread})).map(|_| ());
+        }
         self.adapter(id)?.request(how, json!({"threadId": thread}), ASKING).map(|_| ())
+    }
+
+    /// The native session debugging the same process as Python session `id`, where there is one.
+    fn native_of(&self, id: u64) -> Option<Arc<Session>> {
+        let all = self.sessions.lock().ok()?;
+        all.iter().find(|one| one.info.lock().is_ok_and(|info| info.parent == Some(id) && info.language != "python" && info.process.is_some())).cloned()
+    }
+
+    /// Steps Python session `id`'s thread `thread` into the next line it runs, or into the tree's own
+    /// C where the line calls it: every line of the tree's own files in the native modules of the
+    /// tree at `root` the process loaded gets a breakpoint of one stop, and the first stop, in either
+    /// session, takes them away.
+    pub fn step_across(&self, root: &Path, id: u64, thread: i64) -> Result<(), String> {
+        let python = self.session(id)?;
+        let Some(native) = self.native_of(id) else {
+            return self.step(id, "stepIn", thread);
+        };
+        lldb_script(&native)?;
+        let root = root.display().to_string().replace('\\', "/");
+        let said = lldb_command(&native, &format!("script print(orior_lldb.across(lldb.debugger.GetSelectedTarget(), {root:?}, {ACROSS:?}))"))?;
+        if said.trim().parse::<u64>().unwrap_or(0) > 0 {
+            let weak = Arc::downgrade(&native.adapter);
+            for marks in [&python.marks, &native.marks] {
+                if let Ok(mut across) = marks.across.lock() {
+                    *across = Some(weak.clone());
+                }
+            }
+        }
+        self.step(id, "stepIn", thread)
+    }
+
+    /// The values `name` of frame `frame` took through recorded session `id`'s run, each where the
+    /// line that gave it ran.
+    pub fn history(&self, id: u64, frame: i64, name: &str) -> Result<Vec<Change>, String> {
+        let said = self.adapter(id)?.request("orior/history", json!({"frameId": frame, "name": name}), ASKING)?;
+        Ok(said["changes"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|one| Change {
+                step: one["step"].as_u64().unwrap_or(0),
+                line: one["line"].as_u64().unwrap_or(1).saturating_sub(1) as u32,
+                path: one["path"].as_str().unwrap_or_default().to_string(),
+                value: one["value"].as_str().map(str::to_string),
+                before: one["before"].as_bool().unwrap_or(false),
+            })
+            .collect())
+    }
+
+    /// Goes to step `step` of recorded session `id`'s run.
+    pub fn goto(&self, id: u64, step: u64) -> Result<(), String> {
+        self.adapter(id)?.request("orior/goto", json!({"step": step}), ASKING).map(|_| ())
     }
 
     /// `count` bytes from `offset` past the address `reference` names, in session `id`.
@@ -792,18 +958,11 @@ impl Debugger {
         if cfg!(windows) && session.program == "lldb-dap" {
             let (address, size) = data.split_once('/').ok_or_else(|| format!("lldb named the bytes {data}"))?;
             let address = address.trim_start_matches("0x").trim_start_matches("0X");
-            let command = |text: String| session.adapter.request("evaluate", json!({"expression": format!("`{text}"), "context": "repl"}), ASKING).map(|said| said["result"].as_str().unwrap_or_default().to_string());
-            if !session.marks.scripted.load(Ordering::SeqCst) {
-                let script = std::env::temp_dir().join("orior-lldb").join("orior_watch.py");
-                std::fs::create_dir_all(script.parent().unwrap_or(Path::new("."))).map_err(|error| error.to_string())?;
-                std::fs::write(&script, WATCH_SCRIPT).map_err(|error| error.to_string())?;
-                command(format!("command script import \"{}\"", script.display().to_string().replace('\\', "/")))?;
-                session.marks.scripted.store(true, Ordering::SeqCst);
-            }
-            let said = command(format!("watchpoint set expression -w write -s {size} -- 0x{address}"))?;
+            lldb_script(&session)?;
+            let said = lldb_command(&session, &format!("watchpoint set expression -w write -s {size} -- 0x{address}"))?;
             // lldb answers "Watchpoint created: Watchpoint 1: addr = ...".
             let number = said.split("Watchpoint ").find_map(|rest| rest.split(':').next()?.trim().parse::<u32>().ok()).ok_or_else(|| said.trim().to_string())?;
-            command(format!("watchpoint command add -F orior_watch.changed {number}"))?;
+            lldb_command(&session, &format!("watchpoint command add -F orior_lldb.changed {number}"))?;
             session.marks.watching.store(true, Ordering::SeqCst);
             return Ok(info["description"].as_str().unwrap_or(name).to_string());
         }
@@ -853,15 +1012,18 @@ impl Debugger {
     }
 }
 
-/// What lldb runs where a watchpoint of orior's sees its bytes change: the program carries on, with a
-/// breakpoint of one stop at each place the instruction it stands at can go next, and the first
-/// reached stops it and takes the others away.
-const WATCH_SCRIPT: &str = r#"
+/// orior's script in lldb. Where a watchpoint of orior's sees its bytes change, the program carries
+/// on, with a breakpoint of one stop at each place the instruction it stands at can go next, and the
+/// first reached stops it and takes the others away. A step from Python into C sets a breakpoint of
+/// one stop on every line of the tree's own files, and of the files they name by `#line`, as
+/// Cython's do, in the native modules of the tree the process loaded.
+const LLDB_SCRIPT: &str = r#"
+import os
 import re
 
 import lldb
 
-NAME = "orior.watch"
+NAME = "orior_watch"
 BRANCHES = ("b", "bl", "br", "blr", "cbz", "cbnz", "tbz", "tbnz")
 
 
@@ -897,7 +1059,7 @@ def changed(frame, watchpoint, internal_dict):
         breakpoint = target.BreakpointCreateByAddress(at)
         breakpoint.SetOneShot(True)
         breakpoint.AddName(NAME)
-        breakpoint.SetScriptCallbackFunction("orior_watch.reached")
+        breakpoint.SetScriptCallbackFunction("orior_lldb.reached")
     return False
 
 
@@ -909,6 +1071,32 @@ def reached(frame, location, internal_dict):
         if one.MatchesName(NAME) and one.GetID() != here:
             target.BreakpointDelete(one.GetID())
     return True
+
+
+def across(target, root, name):
+    root = os.path.normcase(os.path.abspath(root))
+    inside = lambda path: bool(path) and os.path.normcase(os.path.abspath(path)).startswith(root + os.sep)
+    modules = lldb.SBFileSpecList()
+    files = lldb.SBFileSpecList()
+    seen = set()
+    for module in target.module_iter():
+        if not inside(module.GetFileSpec().fullpath):
+            continue
+        modules.Append(module.GetFileSpec())
+        for at in range(module.GetNumCompileUnits()):
+            unit = module.GetCompileUnitAtIndex(at)
+            specs = [unit.GetFileSpec()] + [unit.GetSupportFileAtIndex(one) for one in range(unit.GetNumSupportFiles())]
+            for spec in specs:
+                path = spec.fullpath
+                if inside(path) and os.path.isfile(path) and os.path.normcase(path) not in seen:
+                    seen.add(os.path.normcase(path))
+                    files.Append(spec)
+    if not files.GetSize():
+        return 0
+    breakpoint = target.BreakpointCreateBySourceRegex(".", modules, files)
+    breakpoint.SetOneShot(True)
+    breakpoint.AddName(name)
+    return breakpoint.GetNumLocations()
 "#;
 
 /// A stop at a breakpoint the reader did not place, in a session whose data breakpoints are
@@ -1304,6 +1492,162 @@ mod tests {
         }
         assert_eq!(lines, vec![4, 4]);
         debugger.stop(id);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Records a Python run, stops at a breakpoint in it, steps backward and forward, reads a name's
+    /// values through the run and goes to the line that gave one.
+    #[test]
+    #[ignore = "runs Python where it is installed"]
+    fn a_recorded_run_steps_backward_and_reads_a_name_s_history() {
+        let dir = std::env::temp_dir().join(format!("orior-debug-record-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("r.py"), "def grow(n):\n    n += 1\n    return n\n\n\ntotal = 0\nfor x in range(3):\n    total = grow(total)\nprint(\"total\", total)\n").unwrap();
+        let (sender, heard) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let emit: Emit = Arc::new(move |id, event, body| {
+            let _ = sender.lock().unwrap().send((id, event.to_string(), body));
+        });
+        let debugger = Debugger::default();
+        let options = Options { breakpoints: HashMap::from([("r.py".to_string(), vec![Breakpoint { line: 8, ..Breakpoint::default() }])]), ..Options::default() };
+        let info = debugger.start(&dir, &Start::Record { path: "r.py".into() }, &options, emit).unwrap_or_else(|said| panic!("{said}"));
+        assert!(info.step_back && info.recorded, "{info:?}");
+        let id = info.id;
+        let (_, stopped) = wait_for(&heard, id, &["stopped"]);
+        let thread = stopped["threadId"].as_i64().unwrap();
+        let line = |debugger: &Debugger| debugger.stack(id, thread).unwrap()[0].line;
+        assert_eq!(line(&debugger), 8);
+        let frames = debugger.stack(id, thread).unwrap();
+        let scopes = debugger.scopes(id, frames[0].id).unwrap();
+        let values = debugger.variables(id, scopes[0].reference).unwrap();
+        assert!(values.iter().any(|one| one.name == "total" && one.value == "3"), "{values:?}");
+        debugger.step(id, "stepBack", thread).unwrap();
+        wait_for(&heard, id, &["stopped"]);
+        assert_eq!(line(&debugger), 6);
+        debugger.step(id, "stepBack", thread).unwrap();
+        wait_for(&heard, id, &["stopped"]);
+        assert_eq!(line(&debugger), 7);
+        debugger.step(id, "stepIn", thread).unwrap();
+        wait_for(&heard, id, &["stopped"]);
+        debugger.step(id, "stepIn", thread).unwrap();
+        wait_for(&heard, id, &["stopped"]);
+        assert_eq!(debugger.stack(id, thread).unwrap().len(), 2);
+        let module = debugger.stack(id, thread).unwrap()[1].id;
+        let history = debugger.history(id, module, "total").unwrap();
+        assert_eq!(history.iter().map(|one| (one.line, one.value.clone().unwrap_or_default())).collect::<Vec<_>>(), vec![(5, "0".into()), (7, "1".into()), (7, "2".into()), (7, "3".into())]);
+        debugger.goto(id, history[2].step).unwrap();
+        wait_for(&heard, id, &["stopped"]);
+        assert_eq!(line(&debugger), 7);
+        debugger.step(id, "reverseContinue", thread).unwrap();
+        wait_for(&heard, id, &["stopped"]);
+        assert_eq!(line(&debugger), 0, "back to the start, with no breakpoint before");
+        debugger.stop(id);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Builds a C module for the machine's Python, debugs a program that calls it with debugpy and
+    /// lldb-dap together, steps from a Python line into the C, stops at a breakpoint in the C, and
+    /// steps out of the C back to the Python.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "builds a Python module with clang and starts debugpy and lldb-dap where they are installed"]
+    fn python_and_the_c_it_calls_are_debugged_together() {
+        let dir = std::env::temp_dir().join(format!("orior-debug-mixed-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let module = "#define PY_SSIZE_T_CLEAN\n#include <Python.h>\n\nstatic long twice(long value)\n{\n    long doubled = value * 2;\n    return doubled;\n}\n\nstatic PyObject *add(PyObject *self, PyObject *args)\n{\n    long a, b;\n    if (!PyArg_ParseTuple(args, \"ll\", &a, &b)) {\n        return NULL;\n    }\n    long sum = a + b;\n    return PyLong_FromLong(twice(sum));\n}\n\nstatic PyMethodDef methods[] = {\n    {\"add\", add, METH_VARARGS, \"Adds two numbers and doubles the sum.\"},\n    {NULL, NULL, 0, NULL},\n};\n\nstatic struct PyModuleDef module = {PyModuleDef_HEAD_INIT, \"fast\", NULL, -1, methods};\n\nPyMODINIT_FUNC PyInit_fast(void)\n{\n    return PyModule_Create(&module);\n}\n";
+        std::fs::write(dir.join("fast.c"), module).unwrap();
+        std::fs::write(dir.join("main.py"), "import fast\n\ntotal = fast.add(2, 3)\nprint(\"total\", total)\n").unwrap();
+        let python = crate::test_runs::python().expect("a Python");
+        let said = Command::new(&python).args(["-c", "import sys, sysconfig; print(sysconfig.get_paths()['include']); print(sys.base_prefix); print(f'python{sys.version_info[0]}{sys.version_info[1]}')"]).output().unwrap();
+        let said = String::from_utf8_lossy(&said.stdout).into_owned();
+        let found: Vec<&str> = said.lines().map(str::trim).collect();
+        let built = Command::new("clang").args(["-shared", "-g", "-O0", &format!("-I{}", found[0]), "fast.c", &format!("-L{}\\libs", found[1]), &format!("-l{}", found[2]), "-o", "fast.pyd"]).current_dir(&dir).status().unwrap();
+        assert!(built.success());
+        let (sender, heard) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let emit: Emit = Arc::new(move |id, event, body| {
+let _ = sender.lock().unwrap().send((id, event.to_string(), body));
+        });
+        let debugger = Debugger::default();
+        let breakpoints = HashMap::from([("main.py".to_string(), vec![Breakpoint { line: 2, ..Breakpoint::default() }]), ("fast.c".to_string(), vec![Breakpoint { line: 5, ..Breakpoint::default() }])]);
+        let options = Options { breakpoints, entry: true, ..Options::default() };
+        let py = debugger.start(&dir, &Start::File { path: "main.py".into(), language: "python".into() }, &options, emit.clone()).unwrap_or_else(|said| panic!("{said}")).id;
+        let (_, process) = wait_for(&heard, py, &["process"]);
+        let (_, entry) = wait_for(&heard, py, &["stopped"]);
+        let pid = process["systemProcessId"].as_u64().unwrap() as u32;
+        debugger.process(py, pid);
+        let native = debugger.start(&dir, &Start::Process { pid, language: "c".into(), parent: Some(py) }, &options, emit).unwrap_or_else(|said| panic!("{said}")).id;
+        let thread = entry["threadId"].as_i64().unwrap();
+        debugger.step(py, "continue", thread).unwrap();
+        let (_, stopped) = wait_for(&heard, py, &["stopped"]);
+        assert_eq!(debugger.stack(py, thread).unwrap()[0].line, 2, "{stopped}");
+        debugger.step_across(&dir, py, thread).unwrap();
+        let (_, inside) = wait_for(&heard, native, &["stopped"]);
+        let native_thread = inside["threadId"].as_i64().unwrap();
+        let frames = debugger.stack(native, native_thread).unwrap();
+        assert!(frames[0].name.contains("add") && frames[0].path.as_deref().is_some_and(|path| path.ends_with("fast.c")), "{frames:?}");
+        debugger.step(native, "continue", native_thread).unwrap();
+        wait_for(&heard, native, &["stopped"]);
+        let frames = debugger.stack(native, native_thread).unwrap();
+        assert!(frames[0].name.contains("twice") && frames[0].line == 5, "{frames:?}");
+debugger.step(native, "stepOut", native_thread).unwrap();
+        wait_for(&heard, native, &["stopped"]);
+        assert!(debugger.stack(native, native_thread).unwrap()[0].name.contains("add"));
+        debugger.step(native, "stepOut", native_thread).unwrap();
+        let (_, back) = wait_for(&heard, py, &["stopped"]);
+        let frames = debugger.stack(py, back["threadId"].as_i64().unwrap_or(thread)).unwrap();
+        assert!(frames[0].path.as_deref().is_some_and(|path| path.ends_with("main.py")) && frames[0].line >= 2, "{frames:?}");
+        debugger.stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Builds a module whose C names the lines of a `.pyx` file by `#line`, as Cython writes it with
+    /// its line directives, and stops at a breakpoint in the `.pyx` file and steps into it from Python.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "builds a Python module with clang and starts debugpy and lldb-dap where they are installed"]
+    fn a_cython_file_s_lines_are_stopped_at_and_stepped_into() {
+        let dir = std::env::temp_dir().join(format!("orior-debug-cython-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("cy.pyx"), "def square(long n):\n    cdef long result = n * n\n    return result\n").unwrap();
+        std::fs::write(dir.join("cy.c"), "#define PY_SSIZE_T_CLEAN\n#include <Python.h>\n\nstatic PyObject *square(PyObject *self, PyObject *arg);\n\nstatic PyMethodDef methods[] = {\n    {\"square\", square, METH_O, \"Squares a number.\"},\n    {NULL, NULL, 0, NULL},\n};\n\nstatic struct PyModuleDef module = {PyModuleDef_HEAD_INIT, \"cy\", NULL, -1, methods};\n\nPyMODINIT_FUNC PyInit_cy(void)\n{\n    return PyModule_Create(&module);\n}\n\nstatic PyObject *square(PyObject *self, PyObject *arg)\n{\n#line 1 \"cy.pyx\"\n    long n = PyLong_AsLong(arg);\n#line 2 \"cy.pyx\"\n    long result = n * n;\n#line 3 \"cy.pyx\"\n    return PyLong_FromLong(result);\n}\n").unwrap();
+        std::fs::write(dir.join("main.py"), "import cy\n\nvalue = cy.square(7)\nvalue = cy.square(value)\nprint(value)\n").unwrap();
+        let python = crate::test_runs::python().expect("a Python");
+        let said = Command::new(&python).args(["-c", "import sys, sysconfig; print(sysconfig.get_paths()['include']); print(sys.base_prefix); print(f'python{sys.version_info[0]}{sys.version_info[1]}')"]).output().unwrap();
+        let said = String::from_utf8_lossy(&said.stdout).into_owned();
+        let found: Vec<&str> = said.lines().map(str::trim).collect();
+        let built = Command::new("clang").args(["-shared", "-g", "-O0", &format!("-I{}", found[0]), "cy.c", &format!("-L{}\\libs", found[1]), &format!("-l{}", found[2]), "-o", "cy.pyd"]).current_dir(&dir).status().unwrap();
+        assert!(built.success());
+        let (sender, heard) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let emit: Emit = Arc::new(move |id, event, body| {
+            let _ = sender.lock().unwrap().send((id, event.to_string(), body));
+        });
+        let debugger = Debugger::default();
+        let breakpoints = HashMap::from([("main.py".to_string(), vec![Breakpoint { line: 3, ..Breakpoint::default() }]), ("cy.pyx".to_string(), vec![Breakpoint { line: 1, ..Breakpoint::default() }])]);
+        let options = Options { breakpoints, entry: true, ..Options::default() };
+        let py = debugger.start(&dir, &Start::File { path: "main.py".into(), language: "python".into() }, &options, emit.clone()).unwrap_or_else(|said| panic!("{said}")).id;
+        let (_, process) = wait_for(&heard, py, &["process"]);
+        let (_, entry) = wait_for(&heard, py, &["stopped"]);
+        let pid = process["systemProcessId"].as_u64().unwrap() as u32;
+        debugger.process(py, pid);
+        let native = debugger.start(&dir, &Start::Process { pid, language: "c".into(), parent: Some(py) }, &options, emit).unwrap_or_else(|said| panic!("{said}")).id;
+        let thread = entry["threadId"].as_i64().unwrap();
+        debugger.step(py, "continue", thread).unwrap();
+        let (_, inside) = wait_for(&heard, native, &["stopped"]);
+        let native_thread = inside["threadId"].as_i64().unwrap();
+        let frames = debugger.stack(native, native_thread).unwrap();
+        assert!(frames[0].path.as_deref().is_some_and(|path| path.ends_with("cy.pyx")) && frames[0].line == 1, "{frames:?}");
+        debugger.step(native, "continue", native_thread).unwrap();
+        let (_, stopped) = wait_for(&heard, py, &["stopped"]);
+        assert_eq!(debugger.stack(py, stopped["threadId"].as_i64().unwrap_or(thread)).unwrap()[0].line, 3);
+        // The breakpoint in the .pyx file goes, and a step from the Python line lands on its first.
+        debugger.breakpoints(&dir, "cy.pyx", &[]);
+        debugger.step_across(&dir, py, thread).unwrap();
+        let (_, inside) = wait_for(&heard, native, &["stopped"]);
+        let frames = debugger.stack(native, inside["threadId"].as_i64().unwrap()).unwrap();
+        assert!(frames[0].path.as_deref().is_some_and(|path| path.ends_with("cy.pyx")) && frames[0].line == 0, "{frames:?}");
+        debugger.stop_all();
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -62,6 +62,10 @@ const state = {
   // number of the last session known.
   early: new Map(),
   newest: 0,
+  // The Python sessions that stop before their first line for the native debugger to attach to
+  // their process, and whether the session starting is one.
+  mixing: new Set(),
+  mixNext: false,
 };
 const parts = {};
 
@@ -341,6 +345,7 @@ function exceptionsMenu(button) {
 
 export const debugging = () => state.sessions.size > 0;
 export const isPaused = () => Boolean(pausedOf());
+export const canStepBack = () => Boolean(pausedOf() && chosen()?.info.step_back);
 
 function sayState(text, failed = false) {
   parts.said.textContent = text;
@@ -348,7 +353,9 @@ function sayState(text, failed = false) {
   const session = chosen();
   for (const button of parts.bar.querySelectorAll("button[data-needs]")) {
     const need = button.dataset.needs;
-    button.disabled = need === "paused" ? !session?.paused : need === "running" ? !session || Boolean(session.paused) : need === "session" ? !session : !session && !state.last;
+    button.disabled = need === "paused" ? !session?.paused : need === "back" ? !(session?.paused && session.info.step_back) : need === "running" ? !session || Boolean(session.paused) : need === "session" ? !session : !session && !state.last;
+    // The steps backward are shown only for a session that takes them.
+    button.hidden = need === "back" && !session?.info.step_back;
   }
   drawSessions();
 }
@@ -374,7 +381,7 @@ function write(text, kind = "stdout") {
 }
 
 // Starts a session as `start` says, `name` saying what runs.
-async function begin(start, name, { fresh = true } = {}) {
+async function begin(start, name, { fresh = true, entry = false } = {}) {
   if (state.starting) {
     return null;
   }
@@ -386,7 +393,7 @@ async function begin(start, name, { fresh = true } = {}) {
   sayState(`Starting ${name}…`);
   const stepping = steppingOf();
   const language = start.language ?? "python";
-  const options = { breakpoints: allBreakpoints(), exceptions: exceptionsOf(language) ?? defaultExceptions(language), stepping: { mine_only: stepping.mine_only, skip: stepping.skip } };
+  const options = { breakpoints: allBreakpoints(), exceptions: exceptionsOf(language) ?? defaultExceptions(language), stepping: { mine_only: stepping.mine_only, skip: stepping.skip }, entry };
   try {
     const info = await invoke("debug_start", { start, options });
     known(info);
@@ -423,6 +430,108 @@ export async function debugFile() {
   await begin(state.last.start, tab.file);
 }
 
+// Run, Record and Debug File: the Python file in the editor run under orior's recorder, every line
+// of the tree's own code it runs kept with its values, and stepped through backward as well as
+// forward once the run ends.
+export async function recordFile() {
+  const tab = state.hooks.tab();
+  const s = tab?.session;
+  if (!s || tab.commit) {
+    say("Open a Python file to record its run.");
+    return;
+  }
+  if (s.language?.id !== "python") {
+    say("A run is recorded for Python files.", { failed: true });
+    return;
+  }
+  await state.hooks.save(tab);
+  state.last = { start: { kind: "record", path: tab.file, language: "python" }, name: tab.file };
+  await begin(state.last.start, tab.file);
+}
+
+// The values a name took through a recorded run, each with the line that gave it; a press on one
+// goes to that line as it ran.
+async function showHistory(variable) {
+  const session = chosen();
+  const paused = pausedOf();
+  const frame = paused?.frames[paused.at];
+  if (!session || !frame) {
+    return;
+  }
+  let changes;
+  try {
+    changes = await invoke("debug_history", { session: session.info.id, frame: frame.id, name: variable.name });
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  const body = element("tbody");
+  const form = element("div", { className: "sheet-report sheet-wide" });
+  let dialog = null;
+  for (const change of changes) {
+    const row = element("tr", { className: change.before ? "" : "later", tabIndex: 0 }, element("td", { textContent: `${change.path.split("/").pop()}:${change.line + 1}` }), element("td", { textContent: change.value ?? "gone" }));
+    const go = () => {
+      invoke("debug_goto", { session: session.info.id, step: change.step }).catch((error) => say(String(error), { failed: true }));
+      dialog?.close();
+    };
+    row.addEventListener("click", go);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        go();
+      }
+    });
+    body.append(row);
+  }
+  const table = element("table", { className: "debug-compare debug-history" }, element("thead", {}, element("tr", {}, element("th", { textContent: "Given at" }), element("th", { textContent: "Value" }))), body);
+  form.append(element("h2", { textContent: `${variable.name}: ${changes.length} value${changes.length === 1 ? "" : "s"} through the run` }), changes.length ? table : element("p", { className: "debug-empty", textContent: "The run gave it no value in this frame." }));
+  dialog = sheet(form);
+}
+
+// Run, Debug File with Its C: the Python file in the editor debugged with the native code of its
+// process, the tree's C, C++ and Cython, by a session of its own attached to the same process; a step
+// into a call of that code from Python goes into it, and a step out of it comes back to the Python.
+export async function debugMixed() {
+  const tab = state.hooks.tab();
+  const s = tab?.session;
+  if (!s || tab.commit || s.language?.id !== "python") {
+    say("Open the Python file that calls the C to debug them together.");
+    return;
+  }
+  await state.hooks.save(tab);
+  state.last = { start: { kind: "file", path: tab.file, language: "python" }, name: tab.file, mixed: true };
+  await beginMixed();
+}
+
+async function beginMixed() {
+  state.mixNext = true;
+  await begin(state.last.start, state.last.name, { entry: true });
+  state.mixNext = false;
+}
+
+// Attaches the native debugger to the process of Python session `session`, as its child, and lets
+// the Python run from where it stopped before its first line.
+async function attachNative(session, thread) {
+  const id = session.info.id;
+  const listed = await invoke("debug_sessions").catch(() => []);
+  const pid = listed.find((one) => one.id === id)?.process ?? session.info.process;
+  if (pid) {
+    sayState(`Attaching to the native code of ${session.info.name}…`);
+    try {
+      const native = await invoke("debug_start", { start: { kind: "process", pid, language: "c", parent: id }, options: { breakpoints: allBreakpoints(), exceptions: [], stepping: { mine_only: true, skip: [] }, entry: false } });
+      known(native);
+      drawSessions();
+      write(`${native.name} is debugged with ${session.info.name}.\n`, "console");
+    } catch (error) {
+      write(`${String(error)}\n`, "stderr");
+    }
+  } else {
+    write(`${session.info.name} named no process for the native debugger to attach to.\n`, "stderr");
+  }
+  session.paused = null;
+  sayState(`Running ${session.info.name} under ${session.info.tool}`);
+  await invoke("debug_step", { session: id, how: "continue", thread }).catch((error) => write(`${String(error)}\n`, "stderr"));
+}
+
 export async function restartDebug() {
   if (!state.last) {
     return;
@@ -432,8 +541,12 @@ export async function restartDebug() {
     await invoke("debug_stop", { session: session.info.id }).catch(() => {});
     ended(session.info.id, "Stopped");
   }
-  if (state.last.start.kind === "file") {
+  if (state.last.start.kind === "file" || state.last.start.kind === "record") {
     await state.hooks.open(state.last.start.path);
+  }
+  if (state.last.mixed) {
+    await beginMixed();
+    return;
   }
   await begin(state.last.start, state.last.name);
 }
@@ -534,7 +647,13 @@ export async function step(how) {
     return;
   }
   try {
-    await invoke("debug_step", { session: session.info.id, how, thread });
+    // A step into from Python goes on into the tree's C where a native session debugs the same
+    // process.
+    if (how === "stepIn" && session.info.language === "python") {
+      await invoke("debug_step_across", { session: session.info.id, thread });
+    } else {
+      await invoke("debug_step", { session: session.info.id, how, thread });
+    }
   } catch (error) {
     write(`${String(error)}\n`, "stderr");
   }
@@ -579,6 +698,11 @@ async function stopped(id, body) {
   if (!session) {
     return;
   }
+  if (body.reason === "entry" && state.mixing.has(id)) {
+    state.mixing.delete(id);
+    await attachNative(session, body.threadId);
+    return;
+  }
   const asked = ++state.asked;
   let thread = body.threadId;
   if (thread === undefined) {
@@ -595,7 +719,8 @@ async function stopped(id, body) {
   state.chosen = id;
   const top = frames[0];
   const where = top ? `${top.path ? `${top.path.split(/[\\/]/).pop()}:${top.line + 1}` : top.name}` : "";
-  const why = { breakpoint: "at a breakpoint", step: "after a step", pause: "paused", exception: "on an exception", entry: "at the start", "data breakpoint": "where its data changed" }[session.paused.reason] ?? session.paused.reason;
+  // A recorded run says which of its steps it stands at.
+  const why = session.info.recorded && body.description ? `at ${body.description}` : { breakpoint: "at a breakpoint", step: "after a step", pause: "paused", exception: "on an exception", entry: "at the start", "data breakpoint": "where its data changed" }[session.paused.reason] ?? session.paused.reason;
   session.said = `Stopped ${why}${where ? `, ${where}` : ""}`;
   sayState(session.said);
   if (body.reason === "exception") {
@@ -733,6 +858,7 @@ function variableMenu(variable, container, x, y) {
     "-",
     { label: "Stop When It Changes", disabled: !session?.info.data, run: () => watchData(variable.name, container) },
     { label: "Show Memory", disabled: !(session?.info.memory && variable.memory), run: () => showMemory(variable.memory, variable.name) },
+    ...(session?.info.recorded ? ["-", { label: "Values Through the Run", run: () => showHistory(variable) }] : []),
   ]);
 }
 
@@ -1120,6 +1246,8 @@ const STEPS = [
   ["step-over", "Step Over", "F10", "paused", "M3 9a5 5 0 0 1 9.4-2.4M12.8 3.6v3.2H9.6M8 12.5h.01"],
   ["step-into", "Step Into", "F11, F7", "paused", "M8 2.5v7M5 6.8 8 9.8l3-3M8 13h.01"],
   ["step-out", "Step Out", "Shift+F11", "paused", "M8 10.5v-7M5 6.2 8 3.2l3 3M8 13h.01"],
+  ["step-back", "Step Back", "", "back", "M13 9a5 5 0 0 0-9.4-2.4M3.2 3.6v3.2h3.2M8 12.5h.01"],
+  ["reverse-continue", "Run Backward", "", "back", "M11 3.5v9L3.5 8z"],
   ["restart-debug", "Restart", "Ctrl+Shift+F5", "last", "M12.5 8A4.5 4.5 0 1 1 11 4.6M11.5 2.2v2.9H8.6"],
   ["stop-debug", "Stop", "Shift+F5, Ctrl+F2", "session", "M4.5 4.5h7v7h-7z"],
 ];
@@ -1127,6 +1255,10 @@ const STEPS = [
 // Takes a session the app started as running, and hears what it told while it started.
 function known(info) {
   state.sessions.set(info.id, { info, paused: null, thread: undefined });
+  if (state.mixNext && info.parent === null) {
+    state.mixNext = false;
+    state.mixing.add(info.id);
+  }
   state.newest = Math.max(state.newest, info.id);
   const told = state.early.get(info.id) ?? [];
   state.early.delete(info.id);
@@ -1212,7 +1344,7 @@ export async function startDebug(hooks) {
     parts.panel.style.height = height;
   }
   for (const [command, label, keys, needs, path] of STEPS) {
-    const button = element("button", { className: `debug-step ${command}`, type: "button", title: `${label} (${keys})` });
+    const button = element("button", { className: `debug-step ${command}`, type: "button", title: keys ? `${label} (${keys})` : label });
     button.dataset.needs = needs;
     button.setAttribute("aria-label", label);
     button.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${path}"/></svg>`;

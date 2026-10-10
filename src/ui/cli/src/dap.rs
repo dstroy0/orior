@@ -5,9 +5,9 @@
 //! each message a Content-Length header and a JSON body, as the Debug Adapter Protocol frames them,
 //! the same framing a language server uses. A request is answered by a response that names its
 //! sequence number; an event goes to the function the adapter was started with. The adapter is a
-//! program started for the session, or one listening at an address that the client connects to. A
-//! request from the adapter, such as one to run the program in a terminal, is refused, and the
-//! adapter then runs it itself.
+//! program started for the session, one listening at an address that the client connects to, or one
+//! that runs in orior itself, framed the same way. A request from the adapter, such as one to run the
+//! program in a terminal, is refused, and the adapter then runs it itself.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -86,6 +86,24 @@ impl Adapter {
         let input = socket.try_clone().map_err(|error| error.to_string())?;
         let output = socket.try_clone().map_err(|error| error.to_string())?;
         Ok(Self::over(Box::new(input), output, None, Some(socket), Arc::new(Mutex::new(String::new())), ends_program, heard))
+    }
+
+    /// Starts an adapter that runs in orior itself, on a thread of its own: `serve` is handed each
+    /// request, what sends the client a message, and what hands the adapter a message of its own,
+    /// and says whether the adapter goes on.
+    pub fn within(serve: Serve, heard: Heard) -> Adapter {
+        let (asking, asked) = mpsc::channel::<Value>();
+        let (telling, told) = mpsc::channel::<Value>();
+        let itself = asking.clone();
+        std::thread::spawn(move || {
+            let mut serve = serve;
+            for request in asked {
+                if !serve(request, &telling, &itself) {
+                    break;
+                }
+            }
+        });
+        Self::over(Box::new(ToServer { sender: asking, buffer: Vec::new() }), FromServer { receiver: told, pending: Vec::new(), at: 0 }, None, None, Arc::new(Mutex::new(String::new())), true, heard)
     }
 
     fn over(input: Box<dyn Write + Send>, output: impl Read + Send + 'static, child: Option<Child>, socket: Option<TcpStream>, complaint: Arc<Mutex<String>>, ends_program: bool, heard: Heard) -> Adapter {
@@ -173,6 +191,64 @@ impl Adapter {
                 let _ = child.wait();
             }
         }
+    }
+}
+
+/// An adapter that runs in orior: it takes a request, what sends the client a message, and what
+/// hands the adapter a message of its own, and says whether it goes on.
+pub type Serve = Box<dyn FnMut(Value, &Sender<Value>, &Sender<Value>) -> bool + Send>;
+
+/// The client's side of an adapter in orior: each whole message written goes to the adapter.
+struct ToServer {
+    sender: Sender<Value>,
+    buffer: Vec<u8>,
+}
+
+impl Write for ToServer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.buffer.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        while let Some(head) = self.buffer.windows(4).position(|four| four == b"\r\n\r\n") {
+            let length = String::from_utf8_lossy(&self.buffer[..head])
+                .lines()
+                .find_map(|line| line.strip_prefix("Content-Length:").and_then(|value| value.trim().parse::<usize>().ok()))
+                .ok_or_else(|| std::io::Error::other("a message with no length"))?;
+            let end = head + 4 + length;
+            if self.buffer.len() < end {
+                break;
+            }
+            let message = serde_json::from_slice(&self.buffer[head + 4..end]).map_err(std::io::Error::other)?;
+            self.buffer.drain(..end);
+            self.sender.send(message).map_err(|_| std::io::Error::other("the adapter stopped"))?;
+        }
+        Ok(())
+    }
+}
+
+/// The client's side of what an adapter in orior says: each message framed as one from a program.
+struct FromServer {
+    receiver: Receiver<Value>,
+    pending: Vec<u8>,
+    at: usize,
+}
+
+impl Read for FromServer {
+    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+        if self.at >= self.pending.len() {
+            let Ok(message) = self.receiver.recv() else {
+                return Ok(0);
+            };
+            let body = message.to_string();
+            self.pending = format!("Content-Length: {}\r\n\r\n{body}", body.len()).into_bytes();
+            self.at = 0;
+        }
+        let count = out.len().min(self.pending.len() - self.at);
+        out[..count].copy_from_slice(&self.pending[self.at..self.at + count]);
+        self.at += count;
+        Ok(count)
     }
 }
 
