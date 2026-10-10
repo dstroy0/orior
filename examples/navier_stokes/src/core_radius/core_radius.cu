@@ -1182,7 +1182,7 @@ int main(int count, char **arguments)
     }
     lean += "end CoreRadius\n";
     sim_check(&results, core_radius_lean_write(arguments[1], &cfg, "report.lean", lean), "Lean witness written");
-    const int held = !run_cfg_short() && !record_short() && (s_sim_rational_wide == 0);
+    const int held = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
     scriptura_text(&results.line, held ? "  every bound is exact and held in the build's width\n" : "  a bound outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
     sim_check(&results, held, "every bound held");
     const int recorded = (record != NULL) && record_close(record);

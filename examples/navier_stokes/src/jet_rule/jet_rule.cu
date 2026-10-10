@@ -565,5 +565,5 @@ size_t jet_rule_terms(const JetRule &rule)
 
 int jet_rule_short(void)
 {
-    return (s_sim_rational_wide != 0) || (s_jet_rule_wide != 0);
+    return (g_sim_rational_wide != 0) || (s_jet_rule_wide != 0);
 }

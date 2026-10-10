@@ -653,7 +653,72 @@ int main(int count, char **arguments)
         }
         sim_check(&results, principal_same, "with every part off the tangent's weights read at the vertex are the principal system's, order by order");
     }
-    const int held = !run_cfg_short() && !record_short() && (s_sim_rational_wide == 0);
+    // the slope's share at larger mu, where the cfg holds it: the principal system at the point and the tangent with the
+    // slope alone, each with the size of its last order's term over its sum, which says how far the order resolves it
+    SimRational slope_rho;
+    unsigned long long slope_order = 0ull;
+    std::vector<SimRational> slope_mu;
+    std::vector<SimRational> slope_y;
+    const int slope_share = run_cfg_rational(&cfg, "slope.rho", &slope_rho) && (sim_rational_sign(sim_rational_difference(slope_rho, one)) > 0) &&
+                            run_cfg_count(&cfg, "slope.order", &slope_order) && (slope_order >= 2ull) && run_cfg_rationals(&cfg, "slope.mu", &slope_mu) &&
+                            run_cfg_rationals(&cfg, "slope.y", &slope_y);
+    if (slope_share)
+    {
+        const unsigned int reach = (unsigned int)slope_order;
+        CoreRadiusOrders base;
+        core_radius_weights(&scale, angular, axial, pressure, reach, minus, &base);
+        const SimRational xi_v = core_radius_over(core_radius_plus(slope_rho, sim_rational_reciprocal(slope_rho)), two);
+        const SimRational eta_v = core_radius_times(cut, xi_v);
+        const SimRational eta_v_square = core_radius_times(eta_v, eta_v);
+        const SimRational l_v = sim_rational_difference(one, core_radius_times(core_radius_times(two, h), eta_v_square));
+        const SimRational d_v = sim_rational_difference(one, eta_v_square);
+        CoreRadiusSequence u_v;
+        CoreRadiusSequence f_v;
+        for (unsigned int k = 0u; k <= reach; k += 1u)
+        {
+            u_v.push_back(core_radius_value(base.g[k], xi_v));
+            f_v.push_back(core_radius_value(base.f[k], xi_v));
+        }
+        if (record != NULL)
+        {
+            record_text(record, ("slope's share at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(slope_rho) + ", to order " +
+                                 std::to_string(reach) +
+                                 ": for each mu, Y, then axial and swirl each as principal, slope alone, and the last order's term over the sum for each")
+                                    .c_str());
+        }
+        const CoreTangentParts slope_alone = {1, 0, 0};
+        for (const SimRational &mu : slope_mu)
+        {
+            CoreRadiusSequence axial_slope;
+            CoreRadiusSequence swirl_slope;
+            core_tangent_full_at(&base, reach, mu, &scale, xi_v, &slope_alone, &axial_slope, &swirl_slope);
+            CoreRadiusSequence axial_principal;
+            CoreRadiusSequence swirl_principal;
+            core_tangent_principal_at(u_v, f_v, l_v, d_v, eta_v, scale.d, reach, mu, &axial_principal, &swirl_principal);
+            if (record != NULL)
+            {
+                record_text(record, ("mu " + term_book_rational(mu)).c_str());
+                for (const SimRational &y_point : slope_y)
+                {
+                    SimRational last_power = one;
+                    for (unsigned int k = 0u; k < reach; k += 1u)
+                    {
+                        last_power = core_radius_times(last_power, y_point);
+                    }
+                    std::string row = "  " + term_book_rational(y_point);
+                    const CoreRadiusSequence *const series[4] = {&axial_principal, &axial_slope, &swirl_principal, &swirl_slope};
+                    for (unsigned int which = 0u; which < 4u; which += 1u)
+                    {
+                        const SimRational sum = core_tangent_sum_at(*series[which], y_point);
+                        const SimRational last_term = core_radius_times((*series[which])[reach], last_power);
+                        row += " " + term_book_rational(sum) + " " + term_book_rational(core_radius_over(last_term, sum));
+                    }
+                    record_text(record, row.c_str());
+                }
+            }
+        }
+    }
+    const int held = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
     scriptura_text(&results.line, held ? "  every value is exact and held in the build's width\n" : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
     sim_check(&results, held, "every value held");
     const int recorded = (record != NULL) && record_close(record);

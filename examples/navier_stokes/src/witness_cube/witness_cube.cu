@@ -153,5 +153,5 @@ void witness_cube_record(FILE *file, const char *name, const WitnessCube *cube, 
 
 int witness_cube_short(void)
 {
-    return s_sim_rational_wide != 0;
+    return g_sim_rational_wide != 0;
 }

@@ -84,7 +84,7 @@ void psi_value_add_term(PsiValue *value, SimRational coefficient, unsigned long 
     }
     if (value->count == PSI_TERMS)
     {
-        s_sim_rational_wide = 1;
+        g_sim_rational_wide = 1;
         return;
     }
     for (unsigned int move = value->count; move > at; move -= 1u)
@@ -177,7 +177,7 @@ int psi_value_sign(const PsiValue *value, unsigned long long base)
             }
             if ((decided == 0) || (gap > PSI_EXPAND_MAX))
             {
-                s_sim_rational_wide = 1;
+                g_sim_rational_wide = 1;
                 return sim_rational_sign(head);
             }
             AnchorExactInteger power;
