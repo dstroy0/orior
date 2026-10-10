@@ -79,6 +79,24 @@ RankField rank_output(const RankMachine *machine, unsigned int output)
     return field;
 }
 
+int rank_device_room(void **buffer, size_t *room, size_t bytes)
+{
+    if (bytes <= *room)
+    {
+        return 1;
+    }
+    cudaFree(*buffer);
+    *buffer = NULL;
+    *room = 0u;
+    if (cudaMalloc(buffer, bytes) != cudaSuccess)
+    {
+        *buffer = NULL;
+        return 0;
+    }
+    *room = bytes;
+    return 1;
+}
+
 int rank_sweep(SimResults *results, const char *name, const RankMachine *machine, const unsigned int *const *members,
                const unsigned long long *bodies, const unsigned int *index, unsigned long long lanes, unsigned int *out,
                unsigned long long *microseconds)
@@ -87,45 +105,152 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
     {
         return 1;
     }
+    // a piece of lanes at a time, as many as hold RANK_SWEEP_BYTES on the device and at least one. Of each member, the
+    // records from the least a piece's lanes read to the most go to the device, once for every member that names the
+    // same records, and the piece's index counts from that least. With no index lane i reads record i: a piece is
+    // the lanes one lane's bytes fill; through an index every record goes at once where every lane fits beside them,
+    // and otherwise each lane's records are read to find where a piece ends
+    const unsigned int count = machine->members;
+    const unsigned int out_limbs = machine->layout.out_limbs;
+    unsigned int same[ENGINE_RECORD_MEMBERS_MAX] = {0u, 1u, 2u};
+    for (unsigned int member = 0u; member < count; member += 1u)
+    {
+        for (unsigned int earlier = 0u; (same[member] == member) && (earlier < member); earlier += 1u)
+        {
+            same[member] = ((members[earlier] == members[member]) && (bodies[earlier] == bodies[member]) &&
+                            (machine->limbs[earlier] == machine->limbs[member]))
+                               ? same[earlier]
+                               : member;
+        }
+    }
+    const unsigned long long lane_bytes =
+        (unsigned long long)(((index != NULL) ? count : 0u) + out_limbs) * sizeof(unsigned int);
+    unsigned long long whole_bytes = lanes * lane_bytes;
+    unsigned long long one_bytes = 0ull;
+    unsigned long long own_bytes = lane_bytes;
+    for (unsigned int member = 0u; member < count; member += 1u)
+    {
+        const unsigned long long record_bytes =
+            (same[member] == member) ? (machine->limbs[member] * sizeof(unsigned int)) : 0ull;
+        whole_bytes += bodies[member] * record_bytes;
+        one_bytes += (bodies[member] == 1ull) ? record_bytes : 0ull;
+        own_bytes += (bodies[member] == 1ull) ? 0ull : record_bytes;
+    }
+    const int whole = (index != NULL) && (whole_bytes <= RANK_SWEEP_BYTES);
+    const unsigned long long own_lanes =
+        (one_bytes < RANK_SWEEP_BYTES) ? ((RANK_SWEEP_BYTES - one_bytes) / own_bytes) : 0ull;
     unsigned int *device_in[ENGINE_RECORD_MEMBERS_MAX] = {NULL, NULL, NULL};
+    size_t in_room[ENGINE_RECORD_MEMBERS_MAX] = {0u, 0u, 0u};
     unsigned int *device_index = NULL;
+    size_t index_room = 0u;
     unsigned int *device_out = NULL;
-    const size_t out_bytes = (size_t)lanes * machine->layout.out_limbs * sizeof(unsigned int);
-    int ok = cudaMalloc((void **)&device_out, out_bytes) == cudaSuccess;
-    for (unsigned int member = 0u; ok && (member < machine->members); member += 1u)
-    {
-        const size_t bytes = (size_t)bodies[member] * machine->limbs[member] * sizeof(unsigned int);
-        ok = (cudaMalloc((void **)&device_in[member], bytes + 4u) == cudaSuccess) &&
-             (cudaMemcpy(device_in[member], members[member], bytes, cudaMemcpyHostToDevice) == cudaSuccess);
-    }
-    if (ok && (index != NULL))
-    {
-        const size_t bytes = (size_t)(lanes * machine->members) * sizeof(unsigned int);
-        ok = (cudaMalloc((void **)&device_index, bytes) == cudaSuccess) &&
-             (cudaMemcpy(device_index, index, bytes, cudaMemcpyHostToDevice) == cudaSuccess);
-    }
+    size_t out_room = 0u;
+    std::vector<unsigned int> piece_index;
     EngineError error;
     memset(&error, 0, sizeof(error));
     const unsigned long long started = engine_clock_microseconds();
-    if (ok)
+    int ok = 1;
+    unsigned long long start = 0ull;
+    while (ok && (start < lanes))
     {
-        const CycleRecordRunRequest run = {machine->record,
-                                           {device_in[0], device_in[1], device_in[2]},
-                                           {bodies[0], (machine->members > 1u) ? bodies[1] : 0ull,
-                                            (machine->members > 2u) ? bodies[2] : 0ull},
-                                           device_index,
-                                           lanes,
-                                           device_out,
-                                           &error};
-        ok = cycle_record_run(&run) != CYCLE_ERROR;
-        if (!ok)
+        unsigned long long least[ENGINE_RECORD_MEMBERS_MAX] = {~0ull, ~0ull, ~0ull};
+        unsigned long long most[ENGINE_RECORD_MEMBERS_MAX] = {0ull, 0ull, 0ull};
+        unsigned long long piece = 0ull;
+        if ((index == NULL) || whole)
         {
-            scriptura_text(&results->line, "  sweep ");
-            scriptura_text(&results->line, name);
-            rank_error_line(results, "errored", &error);
+            piece = (index == NULL) ? (lanes - start) : lanes;
+            piece = ((index == NULL) && (own_lanes < piece)) ? ((own_lanes == 0ull) ? 1ull : own_lanes) : piece;
+            for (unsigned int member = 0u; member < count; member += 1u)
+            {
+                const int own = (index == NULL) && (bodies[member] != 1ull);
+                least[member] = own ? start : 0ull;
+                most[member] = own ? (start + piece - 1ull) : (bodies[member] - 1ull);
+            }
         }
+        while ((index != NULL) && !whole && ((start + piece) < lanes))
+        {
+            unsigned long long low[ENGINE_RECORD_MEMBERS_MAX] = {least[0], least[1], least[2]};
+            unsigned long long high[ENGINE_RECORD_MEMBERS_MAX] = {most[0], most[1], most[2]};
+            for (unsigned int member = 0u; member < count; member += 1u)
+            {
+                const unsigned long long record = index[((start + piece) * count) + member];
+                const unsigned int held = same[member];
+                low[held] = (record < low[held]) ? record : low[held];
+                high[held] = (record > high[held]) ? record : high[held];
+            }
+            unsigned long long bytes = (piece + 1ull) * lane_bytes;
+            for (unsigned int member = 0u; member < count; member += 1u)
+            {
+                bytes += (same[member] == member)
+                             ? ((high[member] - low[member] + 1ull) * machine->limbs[member] * sizeof(unsigned int))
+                             : 0ull;
+            }
+            if ((piece != 0ull) && (bytes > RANK_SWEEP_BYTES))
+            {
+                break;
+            }
+            memcpy(least, low, sizeof(least));
+            memcpy(most, high, sizeof(most));
+            piece += 1ull;
+        }
+        const unsigned int *run_in[ENGINE_RECORD_MEMBERS_MAX] = {NULL, NULL, NULL};
+        unsigned long long piece_bodies[ENGINE_RECORD_MEMBERS_MAX] = {0ull, 0ull, 0ull};
+        for (unsigned int member = 0u; ok && (member < count); member += 1u)
+        {
+            const unsigned int held = same[member];
+            piece_bodies[member] = most[held] - least[held] + 1ull;
+            if (held == member)
+            {
+                const size_t bytes = (size_t)(piece_bodies[member] * machine->limbs[member]) * sizeof(unsigned int);
+                ok = rank_device_room((void **)&device_in[member], &in_room[member], bytes + 4u) &&
+                     (cudaMemcpy(device_in[member], members[member] + (least[member] * machine->limbs[member]), bytes,
+                                 cudaMemcpyHostToDevice) == cudaSuccess);
+            }
+            run_in[member] = device_in[held];
+        }
+        if (ok && whole)
+        {
+            const size_t bytes = (size_t)(lanes * count) * sizeof(unsigned int);
+            ok = rank_device_room((void **)&device_index, &index_room, bytes) &&
+                 (cudaMemcpy(device_index, index, bytes, cudaMemcpyHostToDevice) == cudaSuccess);
+        }
+        if (ok && (index != NULL) && !whole)
+        {
+            piece_index.resize((size_t)(piece * count));
+            for (unsigned long long lane = 0ull; lane < piece; lane += 1ull)
+            {
+                for (unsigned int member = 0u; member < count; member += 1u)
+                {
+                    piece_index[(lane * count) + member] =
+                        (unsigned int)(index[((start + lane) * count) + member] - least[same[member]]);
+                }
+            }
+            const size_t bytes = piece_index.size() * sizeof(unsigned int);
+            ok = rank_device_room((void **)&device_index, &index_room, bytes) &&
+                 (cudaMemcpy(device_index, piece_index.data(), bytes, cudaMemcpyHostToDevice) == cudaSuccess);
+        }
+        const size_t out_bytes = (size_t)(piece * out_limbs) * sizeof(unsigned int);
+        ok = ok && rank_device_room((void **)&device_out, &out_room, out_bytes);
+        if (ok)
+        {
+            const CycleRecordRunRequest run = {machine->record,
+                                               {run_in[0], run_in[1], run_in[2]},
+                                               {piece_bodies[0], piece_bodies[1], piece_bodies[2]},
+                                               device_index,
+                                               piece,
+                                               device_out,
+                                               &error};
+            ok = cycle_record_run(&run) != CYCLE_ERROR;
+            if (!ok)
+            {
+                scriptura_text(&results->line, "  sweep ");
+                scriptura_text(&results->line, name);
+                rank_error_line(results, "errored", &error);
+            }
+        }
+        ok = ok && (cudaMemcpy(out + (start * out_limbs), device_out, out_bytes, cudaMemcpyDeviceToHost) == cudaSuccess);
+        start += piece;
     }
-    ok = ok && (cudaMemcpy(out, device_out, out_bytes, cudaMemcpyDeviceToHost) == cudaSuccess);
     *microseconds += engine_clock_microseconds() - started;
     for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
     {

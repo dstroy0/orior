@@ -60,30 +60,11 @@ static unsigned int rank_match_blocks(unsigned long long threads)
     return (unsigned int)((threads + RANK_MATCH_THREADS - 1ull) / RANK_MATCH_THREADS);
 }
 
-// a device buffer of at least `bytes`, grown where it holds fewer
-static int rank_match_room(void **buffer, size_t *room, size_t bytes)
-{
-    if (bytes <= *room)
-    {
-        return 1;
-    }
-    cudaFree(*buffer);
-    *buffer = NULL;
-    *room = 0u;
-    if (cudaMalloc(buffer, bytes) != cudaSuccess)
-    {
-        *buffer = NULL;
-        return 0;
-    }
-    *room = bytes;
-    return 1;
-}
-
 int rank_match_open(RankMatchDevice *device, const unsigned int *envelope, size_t envelope_limbs)
 {
     memset(device, 0, sizeof(*device));
     const size_t bytes = envelope_limbs * sizeof(unsigned int);
-    return rank_match_room((void **)&device->envelope, &device->envelope_room, bytes) &&
+    return rank_device_room((void **)&device->envelope, &device->envelope_room, bytes) &&
            (cudaMemcpy(device->envelope, envelope, bytes, cudaMemcpyHostToDevice) == cudaSuccess);
 }
 
@@ -105,7 +86,7 @@ void rank_match_close(RankMatchDevice *device)
 int rank_match_query(RankMatchDevice *device, const unsigned int *atoms, size_t limbs)
 {
     const size_t bytes = limbs * sizeof(unsigned int);
-    return rank_match_room((void **)&device->query, &device->query_room, bytes + 4u) &&
+    return rank_device_room((void **)&device->query, &device->query_room, bytes + 4u) &&
            (cudaMemcpy(device->query, atoms, bytes, cudaMemcpyHostToDevice) == cudaSuccess);
 }
 
@@ -118,14 +99,14 @@ int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMat
     const unsigned long long lanes = chunk->lanes;
     const size_t reference_bytes = (size_t)(chunk->reference_peaks * machine->limbs[1]) * sizeof(unsigned int);
     const size_t spectra = chunk->spectra;
-    int ok = rank_match_room((void **)&device->reference, &device->reference_room, reference_bytes + 4u) &&
-             rank_match_room((void **)&device->lane_first, &device->lane_first_room,
+    int ok = rank_device_room((void **)&device->reference, &device->reference_room, reference_bytes + 4u) &&
+             rank_device_room((void **)&device->lane_first, &device->lane_first_room,
                              (spectra + 1u) * sizeof(unsigned long long)) &&
-             rank_match_room((void **)&device->atom_first, &device->atom_first_room, spectra * sizeof(unsigned int)) &&
-             rank_match_room((void **)&device->peaks, &device->peaks_room, spectra * sizeof(unsigned int)) &&
-             rank_match_room((void **)&device->index, &device->index_room, (size_t)(3ull * lanes) * sizeof(unsigned int)) &&
-             rank_match_room((void **)&device->out, &device->out_room, (size_t)(lanes * out_limbs) * sizeof(unsigned int)) &&
-             rank_match_room((void **)&device->order, &device->order_room, (size_t)lanes * sizeof(unsigned int)) &&
+             rank_device_room((void **)&device->atom_first, &device->atom_first_room, spectra * sizeof(unsigned int)) &&
+             rank_device_room((void **)&device->peaks, &device->peaks_room, spectra * sizeof(unsigned int)) &&
+             rank_device_room((void **)&device->index, &device->index_room, (size_t)(3ull * lanes) * sizeof(unsigned int)) &&
+             rank_device_room((void **)&device->out, &device->out_room, (size_t)(lanes * out_limbs) * sizeof(unsigned int)) &&
+             rank_device_room((void **)&device->order, &device->order_room, (size_t)lanes * sizeof(unsigned int)) &&
              (cudaMemcpy(device->reference, chunk->reference_atoms, reference_bytes, cudaMemcpyHostToDevice) ==
               cudaSuccess) &&
              (cudaMemcpy(device->lane_first, chunk->lane_first, (spectra + 1u) * sizeof(unsigned long long),
@@ -172,7 +153,7 @@ int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMat
         const CycleRecordSortRequest sort = {device->out, lanes, lanes, out_limbs, chunk->kept.offset, chunk->kept.bits,
                                              device->order, &error};
         ok = (cycle_record_sort(&sort) != CYCLE_ERROR) &&
-             rank_match_room((void **)&device->kept, &device->kept_room, (size_t)(kept * out_limbs) * sizeof(unsigned int));
+             rank_device_room((void **)&device->kept, &device->kept_room, (size_t)(kept * out_limbs) * sizeof(unsigned int));
         const unsigned int *const tail = device->order + (lanes - kept);
         if (ok)
         {

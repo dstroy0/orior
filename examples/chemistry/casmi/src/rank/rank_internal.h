@@ -29,6 +29,9 @@
 // an absent entry of a list of record numbers
 #define RANK_ABSENT 0xFFFFFFFFu
 
+// the most device bytes a piece of a sweep holds: the records its lanes read, its index and the records it writes
+#define RANK_SWEEP_BYTES (1ull << 30u)
+
 // one double column as the file stores it: each value's 64 bits, and row r's values from row_start[r] up to
 // row_start[r + 1]
 typedef struct
@@ -89,8 +92,11 @@ void rank_machine_release(RankMachine *machine);
 
 RankField rank_output(const RankMachine *machine, unsigned int output);
 
+// a device buffer of at least `bytes`, grown where it holds fewer; 0 where it did not allocate
+int rank_device_room(void **buffer, size_t *room, size_t bytes);
+
 // The program run on the device over `lanes` lanes: each member's `bodies` records copied from host memory, the index
-// where it is set, and the records written back to `out`; 0 where a copy or the run errored
+// where it is set, and the records written back to `out`, a piece of lanes at a time; 0 where a copy or the run errored
 int rank_sweep(SimResults *results, const char *name, const RankMachine *machine, const unsigned int *const *members,
                const unsigned long long *bodies, const unsigned int *index, unsigned long long lanes, unsigned int *out,
                unsigned long long *microseconds);

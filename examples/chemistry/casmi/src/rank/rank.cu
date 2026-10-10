@@ -52,8 +52,8 @@
 // the device bytes the job declares: the widest sweep's records, members and index
 #define RANK_DECLARED (2ull << 30u)
 
-// lanes a sweep runs at once, the most a chunk of match lanes holds: on the device its index, records and order, 52
-// bytes a lane at the match's record of 8 limbs
+// the most a chunk of match lanes holds: on the device its index, records and order, 52 bytes a lane at the match's
+// record of 8 limbs
 #define RANK_CHUNK_LANES (1ull << 24u)
 
 // a double's fields as IEEE 754 binary64 lays them, and the exponent its integer mantissa stands at: x = m 2^(E - 1075),
@@ -287,21 +287,22 @@ static int rank_sum_lay(SimResults *results, RankField value, unsigned int limbs
 }
 
 // Sums each group's records on the device, three to a lane, pass after pass, until each group is one record; every
-// group takes every pass, a zero pad filling a short lane; every sum ends in one layout. *summed holds group g's
-// sum at g, then the pad
+// group takes every pass, zero records filling a short lane; every sum ends in one layout. A pass lays its lanes'
+// records as three planes, lane l's three records record l of each: the sweep reads them with no index. *summed
+// holds group g's sum at g, then a zero record
 static int rank_group_sum(SimResults *results, const char *name, RankField value, unsigned int value_limbs,
                           const unsigned int *records, unsigned long long record_count, const RankGroups *groups,
                           std::vector<unsigned int> *summed, RankField *summed_field, unsigned int *summed_limbs,
                           unsigned long long *microseconds)
 {
+    (void)record_count;
     unsigned long long entry_total = 0ull;
     for (unsigned long long group = 0ull; group < groups->group_count; group += 1ull)
     {
         entry_total += groups->count[group];
     }
-    unsigned long long bodies = record_count + 1ull;
-    std::vector<unsigned int> current((size_t)(bodies * value_limbs), 0u);
-    memcpy(current.data(), records, (size_t)(record_count * value_limbs * sizeof(unsigned int)));
+    std::vector<unsigned int> current;
+    const unsigned int *source = records;
     std::vector<unsigned int> entry((size_t)entry_total + 1u);
     std::vector<unsigned long long> first((size_t)groups->group_count + 1u);
     std::vector<unsigned long long> count((size_t)groups->group_count + 1u);
@@ -331,21 +332,21 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
         {
             return 0;
         }
-        std::vector<unsigned int> index((size_t)(3ull * lanes) + 1u);
-        const unsigned int pad = (unsigned int)(bodies - 1ull);
+        std::vector<unsigned int> plane[3];
+        for (unsigned int member = 0u; member < 3u; member += 1u)
+        {
+            plane[member].assign((size_t)(lanes * limbs), 0u);
+        }
         unsigned long long lane = 0ull;
         widest = 0ull;
         for (unsigned long long group = 0ull; group < groups->group_count; group += 1ull)
         {
             const unsigned long long counted = (count[group] + 2ull) / 3ull;
             const unsigned long long group_lanes = (counted == 0ull) ? 1ull : counted;
-            for (unsigned long long each = 0ull; each < group_lanes; each += 1ull)
+            for (unsigned long long at = 0ull; at < count[group]; at += 1ull)
             {
-                for (unsigned int member = 0u; member < 3u; member += 1u)
-                {
-                    const unsigned long long at = (3ull * each) + member;
-                    index[(3ull * (lane + each)) + member] = (at < count[group]) ? entry[first[group] + at] : pad;
-                }
+                memcpy(&plane[at % 3ull][(lane + (at / 3ull)) * limbs],
+                       &source[(unsigned long long)entry[first[group] + at] * limbs], limbs * sizeof(unsigned int));
             }
             for (unsigned long long each = 0ull; (each < group_lanes) && (each < count[group]); each += 1ull)
             {
@@ -357,9 +358,10 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
         }
         const unsigned int out_limbs = sum.layout.out_limbs;
         std::vector<unsigned int> next((size_t)((lanes + 1ull) * out_limbs), 0u);
-        const unsigned int *const members[ENGINE_RECORD_MEMBERS_MAX] = {current.data(), current.data(), current.data()};
-        const unsigned long long member_bodies[ENGINE_RECORD_MEMBERS_MAX] = {bodies, bodies, bodies};
-        if (!rank_sweep(results, name, &sum, members, member_bodies, index.data(), lanes, next.data(), microseconds))
+        const unsigned int *const members[ENGINE_RECORD_MEMBERS_MAX] = {plane[0].data(), plane[1].data(),
+                                                                        plane[2].data()};
+        const unsigned long long member_bodies[ENGINE_RECORD_MEMBERS_MAX] = {lanes, lanes, lanes};
+        if (!rank_sweep(results, name, &sum, members, member_bodies, NULL, lanes, next.data(), microseconds))
         {
             rank_machine_release(&sum);
             return 0;
@@ -368,7 +370,7 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
         limbs = out_limbs;
         rank_machine_release(&sum);
         current.swap(next);
-        bodies = lanes + 1ull;
+        source = current.data();
         passes += 1u;
     }
     summed->swap(current);
