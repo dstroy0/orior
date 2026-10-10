@@ -200,6 +200,11 @@ function tabOf(path) {
   return state.tabs.find((tab) => tab.path === path);
 }
 
+// The tab whose file a session shows, a split's session among them, and not a commit's.
+function tabOfSession(s) {
+  return state.tabs.find((tab) => tab.session === (s?.of ?? s) && !tab.commit) ?? null;
+}
+
 // The lines a tab's file holds as saved: the document's own where its text is the file's, each
 // costing a reference and not a copy, or `text` split as the document splits it.
 function keepSaved(tab, text) {
@@ -1809,7 +1814,7 @@ function editorItems() {
       items: [
         { label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
         { label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
-        { label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor) },
+        { label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor, tabOfSession(editor.s)) },
         { label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
       ],
     },
@@ -1865,7 +1870,7 @@ export function editing() {
     rename: renameSymbol,
     extractVariable: () => state.editor?.s && extractVariable(editing().editor ?? state.editor, fileOf(state.active)),
     extractConstant: () => state.editor?.s && extractConstant(editing().editor ?? state.editor),
-    extractFunction: () => state.editor?.s && extractFunction(editing().editor ?? state.editor),
+    extractFunction: () => state.editor?.s && extractFunction(editing().editor ?? state.editor, tabOfSession((editing().editor ?? state.editor).s)),
     inlineVariable: () => state.editor?.s && inlineVariable(editing().editor ?? state.editor),
     quickFix,
     parameterInfo: () => parameterInfo(),

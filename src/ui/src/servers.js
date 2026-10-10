@@ -128,6 +128,47 @@ export function stopServing(tab) {
   }
 }
 
+// The server's hover at a place in a served tab, as Markdown, or null. Given `text`, the server is
+// asked of that text in place of the tab's, and told the tab's own again after. A server still
+// reading a change, which answers that the content was modified or answers nothing, is asked again a
+// moment later, up to ASKS times for the one and a few for the other.
+const ASKS = 20;
+export async function hoverAt(tab, p, text = null) {
+  if (!tab?.served) {
+    return null;
+  }
+  await flush(tab);
+  if (text !== null) {
+    await invoke("lsp_change", { path: tab.file, text }).catch(() => {});
+  }
+  try {
+    let empty = 0;
+    for (let asked = 0; asked < ASKS; asked += 1) {
+      try {
+        const said = await invoke("lsp_hover", { path: tab.file, line: tab.session.base + p.line, col: p.col });
+        if (said) {
+          return said;
+        }
+        empty += 1;
+        if (empty > 3) {
+          return null;
+        }
+      } catch (error) {
+        if (!/modified/i.test(String(error))) {
+          return null;
+        }
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
+    return null;
+  } finally {
+    if (text !== null) {
+      tab.untold = true;
+      await flush(tab);
+    }
+  }
+}
+
 // Where the symbol at a place in a served tab is defined, each { path, line, col } counted from
 // the file's first: a path under the tree from its top folder, and any other whole.
 export async function definition(tab, p) {

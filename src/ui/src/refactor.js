@@ -18,7 +18,7 @@ import { say } from "./statusbar.js";
 
 // The C family's type that stands for whatever the value is: C++ and CUDA infer it with auto, and C
 // with GNU C's __auto_type.
-const inferred = (path) => (/\.[ch]$/i.test(path ?? "") ? "__auto_type" : "auto");
+export const inferred = (path) => (/\.[ch]$/i.test(path ?? "") ? "__auto_type" : "auto");
 
 // Each language's forms: how a variable and a constant are declared, how a name is written where
 // it is used, the case its names take, and how a line that declares `name` reads.
@@ -130,7 +130,7 @@ function nameFor(value, forms, text, upper) {
 // The line a statement holding line `line` starts on: up past each line that runs on to the next,
 // ending in an operator, a comma, an open parenthesis or square bracket, or a backslash. A brace or a
 // colon that ends a line opens a block, and the statement starts below it.
-function statementStart(doc, line) {
+export function statementStart(doc, line) {
   let top = line;
   while (top > 0) {
     const before = doc.line(top - 1).trimEnd();

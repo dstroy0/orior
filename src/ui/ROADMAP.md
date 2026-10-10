@@ -27,7 +27,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Code intelligence
 
-1. **More refactorings of orior's own.** Extract Function in Rust and the C family, its parameters typed from the language server; change a function's parameters across every call; move a declaration to another file. Each is one step that undo takes back, and each works where the language server offers none.
+1. **More refactorings of orior's own.** Change a function's parameters across every call; move a declaration to another file. Each is one step that undo takes back, and each works where the language server offers none.
 2. **Problems of the whole tree.** Problems lists what is wrong in every file of the tree, and not only in the files open, each kept up to date as files change on the disk or in the editor.
 3. **Inspections.** Checks of orior's own over the tree's languages, run as files change, each listed in Problems beside the servers' diagnostics with a quick fix where one applies: an import that leads back round to the file that makes it, a name set and never read, code no path reaches, a docstring out of PEP 257's form, and a method a mixin class supplies taken as found.
 4. **Call hierarchy.** The functions that call the one at the cursor, and those it calls, each a tree that opens a level at a time, a press going to the call.
