@@ -338,6 +338,10 @@ const COMMANDS = {
   "split-down": () => (showView("edit"), editing().split("down")),
   unsplit: () => editing().unsplit(),
   "move-to-split": () => (showView("edit"), editing().moveToNextSplit()),
+  "side-tabs": (args) => editing().setSideTabs(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
+  "mark-file": () => editing().toggleMark(),
+  "marked-files": () => showMenu(window.innerWidth / 3, window.innerHeight / 4, editing().markItems()),
+  ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [`mark-${n}`, () => (showView("edit"), editing().goMark(n))])),
   "open-in-split": (args) => (showView("edit"), args.length ? editing().openInSplit(args.join(" ")) : editing().active && editing().openInSplit(editing().active)),
   "fold-all": inEditor((e) => e.foldAll(true)),
   "unfold-all": inEditor((e) => e.foldAll(false)),
@@ -446,6 +450,7 @@ const CHECKS = {
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),
   "terminal-split": terminalSplit,
+  "side-tabs": () => editing().sideTabs(),
   "macro-recording": recording,
 };
 

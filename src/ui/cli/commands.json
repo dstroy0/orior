@@ -164,6 +164,7 @@
         { "label": "Show Only a Tool Window", "command": "solo", "args": "[terminal|explorer|jobs] [window]" },
         { "label": "Move Window to Next Display", "command": "next-display" },
         "-",
+        { "label": "Tabs Down the Side", "command": "side-tabs", "args": "[on|off]", "checks": "side-tabs" },
         { "label": "Split Right", "command": "split-right", "keys": "Ctrl+\\", "needs": "editor" },
         { "label": "Split Down", "command": "split-down", "needs": "editor" },
         { "label": "Move to Next Split", "command": "move-to-split", "keys": "Ctrl+Alt+Right", "needs": "editor" },
@@ -196,6 +197,23 @@
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
         { "label": "Jump to a Place", "command": "jump", "keys": "Ctrl+;", "needs": "editor" },
+        {
+          "label": "Marked Files",
+          "items": [
+            { "label": "Mark File", "command": "mark-file", "keys": "Ctrl+Shift+0", "needs": "tab" },
+            { "label": "Marked Files…", "command": "marked-files" },
+            "-",
+            { "label": "Marked File 1", "command": "mark-1", "keys": "Ctrl+1" },
+            { "label": "Marked File 2", "command": "mark-2", "keys": "Ctrl+2" },
+            { "label": "Marked File 3", "command": "mark-3", "keys": "Ctrl+3" },
+            { "label": "Marked File 4", "command": "mark-4", "keys": "Ctrl+4" },
+            { "label": "Marked File 5", "command": "mark-5", "keys": "Ctrl+5" },
+            { "label": "Marked File 6", "command": "mark-6", "keys": "Ctrl+6" },
+            { "label": "Marked File 7", "command": "mark-7", "keys": "Ctrl+7" },
+            { "label": "Marked File 8", "command": "mark-8", "keys": "Ctrl+8" },
+            { "label": "Marked File 9", "command": "mark-9", "keys": "Ctrl+9" }
+          ]
+        },
         { "label": "Toggle Bookmark", "command": "bookmark", "keys": "Ctrl+F11", "needs": "editor" },
         { "label": "Bookmarks…", "command": "bookmarks", "keys": "Ctrl+Shift+F11" },
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },

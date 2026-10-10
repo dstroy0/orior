@@ -100,6 +100,9 @@ const state = {
   // Where a file opened goes instead of this window's editor, as from a window that shows a tool
   // window alone, or null.
   elsewhere: null,
+  // The named groups of the first side's tabs, each its name, its tabs' paths and whether it is
+  // folded.
+  groups: [],
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
@@ -360,25 +363,184 @@ function drawTabs() {
       known: Boolean(state.known?.typeOf(tab.file)),
     }))
   );
-  bar.replaceChildren(
-    ...mainTabs().map((tab) => {
-      const name = tabName(tab);
-      const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
-      const button = element("button", { className: "tab", type: "button", title: tab.path, role: "tab" });
-      button.setAttribute("aria-selected", String(tab.path === state.active));
-      button.append(dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, close);
-      button.addEventListener("click", (event) => {
-        if (event.target === close) {
-          closeTab(tab);
-        } else {
-          show(tab.path);
+  const marks = markedFiles();
+  const tabButton = (tab) => {
+    const name = tabName(tab);
+    const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
+    const button = element("button", { className: `tab${groupOf(tab.path) ? " grouped" : ""}`, type: "button", title: tab.path, role: "tab" });
+    button.setAttribute("aria-selected", String(tab.path === state.active));
+    const mark = tab.commit ? -1 : marks.indexOf(tab.file);
+    button.append(mark >= 0 ? element("span", { className: "tab-mark", textContent: String(mark + 1), title: `Ctrl+${mark + 1}` }) : "", dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, close);
+    button.addEventListener("click", (event) => {
+      if (event.target === close) {
+        closeTab(tab);
+      } else {
+        show(tab.path);
+      }
+    });
+    button.addEventListener("auxclick", (event) => event.button === 1 && closeTab(tab));
+    dragOut(button, tab);
+    return button;
+  };
+  const drawn = [];
+  // Down the side, the marked files stand first, each by its key.
+  if (sideTabs() && marks.length) {
+    drawn.push(element("div", { className: "tab-section", textContent: "Marked" }));
+    marks.forEach((path, at) => {
+      const row = element("button", { className: "tab tab-marked", type: "button", title: `${path} (Ctrl+${at + 1})` }, element("span", { className: "tab-mark", textContent: String(at + 1) }), path.split("/").pop());
+      row.setAttribute("aria-selected", String(fileOf(state.active) === path));
+      row.addEventListener("click", () => goMark(at + 1));
+      drawn.push(row);
+    });
+    drawn.push(element("div", { className: "tab-section", textContent: "Open" }));
+  }
+  // Each group under its header, which folds it; a folded group still shows its tab that is shown.
+  for (const group of state.groups) {
+    const members = group.paths.map(tabOf).filter((tab) => tab && tab.inMain !== false);
+    if (!members.length) {
+      continue;
+    }
+    const header = element(
+      "button",
+      { className: `tab-group${group.folded ? " folded" : ""}`, type: "button", title: group.folded ? `Unfold ${group.name}` : `Fold ${group.name}` },
+      element("span", { className: "tab-group-fold", textContent: group.folded ? "▸" : "▾" }),
+      element("span", { className: "tab-group-name", textContent: group.name }),
+      element("span", { className: "tab-group-count", textContent: String(members.length) }),
+    );
+    header.setAttribute("aria-expanded", String(!group.folded));
+    header.addEventListener("click", () => {
+      group.folded = !group.folded;
+      drawTabs();
+    });
+    header.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showMenu(event.clientX, event.clientY, groupMenu(group));
+    });
+    drawn.push(header, ...members.filter((tab) => !group.folded || tab.path === state.active).map(tabButton));
+  }
+  drawn.push(...mainTabs().filter((tab) => !groupOf(tab.path)).map(tabButton));
+  bar.replaceChildren(...drawn);
+}
+
+// Tabs down the side: the first side's tabs in a column beside its editor in place of a row above
+// it, set in View and kept.
+const SIDE_TABS = "orior.tabs.side";
+
+export const sideTabs = () => localStorage.getItem(SIDE_TABS) === "true";
+
+export function setSideTabs(on = !sideTabs()) {
+  localStorage.setItem(SIDE_TABS, String(on));
+  document.querySelector("#mode-edit .desk").dataset.tabs = on ? "side" : "row";
+  drawTabs();
+}
+
+// Groups of tabs: a tab's menu puts it in a group named by the reader, and the group's header folds
+// it, renames it, lets its tabs go or closes them.
+
+const groupOf = (path) => state.groups.find((group) => group.paths.includes(path)) ?? null;
+
+async function addToGroup(tab) {
+  const { askFor } = await import("./menubar.js");
+  const name = (await askFor("The group's name", groupOf(tab.path)?.name ?? state.groups.at(-1)?.name ?? ""))?.trim();
+  if (!name) {
+    return;
+  }
+  leaveGroup(tab.path);
+  const group = state.groups.find((one) => one.name === name);
+  if (group) {
+    group.paths.push(tab.path);
+  } else {
+    state.groups.push({ name, paths: [tab.path], folded: false });
+  }
+  drawTabs();
+}
+
+function leaveGroup(path) {
+  for (const group of state.groups) {
+    group.paths = group.paths.filter((one) => one !== path);
+  }
+  state.groups = state.groups.filter((group) => group.paths.length);
+}
+
+function groupMenu(group) {
+  return [
+    { label: group.folded ? "Unfold" : "Fold", run: () => ((group.folded = !group.folded), drawTabs()) },
+    {
+      label: "Rename Group…",
+      run: async () => {
+        const { askFor } = await import("./menubar.js");
+        const name = (await askFor("The group's name", group.name))?.trim();
+        if (name) {
+          group.name = name;
+          drawTabs();
         }
-      });
-      button.addEventListener("auxclick", (event) => event.button === 1 && closeTab(tab));
-      dragOut(button, tab);
-      return button;
-    })
-  );
+      },
+    },
+    { label: "Ungroup", run: () => ((state.groups = state.groups.filter((one) => one !== group)), drawTabs()) },
+    "-",
+    { label: "Close the Group's Tabs", run: () => group.paths.map(tabOf).filter(Boolean).forEach(closeTab) },
+  ];
+}
+
+// Marked files: a short list of the tree's files, nine at most, each opened by Ctrl and its number,
+// kept for the tree.
+
+const marksKey = () => `orior.marks.${treeKey()}`;
+
+export function markedFiles() {
+  const kept = readKept(marksKey(), []);
+  return Array.isArray(kept) ? kept.filter((path) => typeof path === "string").slice(0, 9) : [];
+}
+
+function keepMarks(list) {
+  localStorage.setItem(marksKey(), JSON.stringify(list.slice(0, 9)));
+  drawTabs();
+}
+
+// Go, Marked Files, Mark File: the file shown marked for the next key free, or unmarked where it was.
+export function toggleMark(path = actingPath() ? fileOf(actingPath()) : null) {
+  if (!path || tabOf(path)?.commit) {
+    return;
+  }
+  const list = markedFiles();
+  if (list.includes(path)) {
+    keepMarks(list.filter((one) => one !== path));
+    say(`${path} is no longer marked.`);
+    return;
+  }
+  if (list.length >= 9) {
+    say("Nine files are marked: Marked Files lets one go first.", { failed: true });
+    return;
+  }
+  keepMarks([...list, path]);
+  say(`${path} is marked: Ctrl+${list.length + 1} opens it.`);
+}
+
+// Ctrl and a number: the file marked for it, opened.
+export async function goMark(n) {
+  const path = markedFiles()[n - 1];
+  if (!path) {
+    say(`No file is marked for Ctrl+${n}.`);
+    return;
+  }
+  await openFile(path);
+}
+
+// Go, Marked Files: each marked file, opened by a press, and its menu to let it go or move it.
+function markItems() {
+  const list = markedFiles();
+  if (!list.length) {
+    return [{ label: "No file is marked: Mark File marks the one shown", disabled: true }];
+  }
+  return list.map((path, at) => ({
+    label: `${at + 1}  ${path}`,
+    items: [
+      { label: "Open", run: () => goMark(at + 1) },
+      { label: "Move Up", disabled: at === 0, run: () => keepMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one))) },
+      { label: "Let Go", run: () => keepMarks(list.filter((one) => one !== path)) },
+    ],
+  }));
 }
 
 // A tab dragged and let go outside the window opens its file in a new window, and leaves this one.
@@ -448,6 +610,7 @@ function closeTab(tab) {
   }
   state.tabs = state.tabs.filter((one) => one !== tab);
   state.used = state.used.filter((path) => path !== tab.path);
+  leaveGroup(tab.path);
   leaveSplit(tab.path);
   stopServing(tab);
   if (!tab.leaving) {
@@ -2061,7 +2224,8 @@ function keepSession() {
   const tabs = state.tabs.filter((tab) => !tab.commit).map((tab) => tab.path);
   const main = mainTabs().filter((tab) => !tab.commit).map((tab) => tab.path);
   const split = state.split ? { paths: state.split.paths, active: state.split.active, direction: state.split.direction } : null;
-  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, main, active: tabOf(state.active)?.commit ? null : state.active, split }));
+  const groups = state.groups.map(({ name, paths, folded }) => ({ name, paths, folded }));
+  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, main, active: tabOf(state.active)?.commit ? null : state.active, split, groups }));
 }
 
 function keepRecent(path) {
@@ -2106,6 +2270,11 @@ export async function restoreSession() {
   for (const path of kept.tabs ?? []) {
     await load(path).catch(() => {});
   }
+  // The groups of tabs as they were.
+  state.groups = (Array.isArray(kept.groups) ? kept.groups : [])
+    .filter((group) => typeof group?.name === "string" && Array.isArray(group.paths))
+    .map((group) => ({ name: group.name, paths: group.paths.filter((path) => tabOf(path)), folded: Boolean(group.folded) }))
+    .filter((group) => group.paths.length);
   state.restored = true;
   // The split as it was, with its tabs, and the tabs of the first side.
   const split = (kept.split?.paths ?? (kept.split?.path ? [kept.split.path] : [])).filter((path) => splittable(tabOf(path)));
@@ -2301,6 +2470,7 @@ function light() {
 }
 
 export async function startEdit(defs) {
+  document.querySelector("#mode-edit .desk").dataset.tabs = sideTabs() ? "side" : "row";
   // The editor's colors are worked out on the app's Rust side, each grammar kept there under a key.
   let grammars = 0;
   colorWith({
@@ -2785,6 +2955,12 @@ function moveTabs(from, to) {
     tab.path = now;
     tab.file = now;
     state.used = state.used.map((path) => (path === was ? now : path));
+    for (const group of state.groups) {
+      group.paths = group.paths.map((path) => (path === was ? now : path));
+    }
+    if (markedFiles().includes(was)) {
+      keepMarks(markedFiles().map((path) => (path === was ? now : path)));
+    }
     if (state.active === was) {
       state.active = now;
     }
@@ -2816,6 +2992,10 @@ function tabMenu(tab) {
     { label: "Split Down", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("down")) },
     { label: "Open in Next Split", disabled: !splittable(tab), run: () => openInSplit(tab.path) },
     { label: "Open in New Window", disabled: Boolean(tab.commit), run: () => tabToNewWindow(tab) },
+    "-",
+    { label: "Add to Group…", run: () => addToGroup(tab) },
+    { label: "Remove from Group", disabled: !groupOf(tab.path), run: () => (leaveGroup(tab.path), drawTabs()) },
+    { label: markedFiles().includes(tab.file) ? "Unmark File" : "Mark File", disabled: Boolean(tab.commit), run: () => toggleMark(tab.file) },
     "-",
     { label: "Copy path", run: () => copyText(tab.file) },
   ];
@@ -2905,6 +3085,11 @@ export function editing() {
     unsplit,
     moveToNextSplit,
     openInSplit,
+    sideTabs,
+    setSideTabs,
+    toggleMark,
+    goMark,
+    markItems,
     // The tree read again after a file, a folder or a repository was made in it.
     treeChanged: async () => {
       state.children.clear();

@@ -2365,6 +2365,126 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   min-height: 0;
 }
 
+/* Tabs down the side: the first side's tabs in a column beside its editor, the marked files first
+   with their keys, each group under a header that folds it, and its tabs set in under it. */
+.desk[data-tabs="side"] {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.desk[data-tabs="side"][data-split="right"] {
+  grid-template-columns: 13rem minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.desk[data-tabs="side"][data-split="down"] {
+  grid-template-columns: 13rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.desk[data-tabs="side"] > .tabs,
+.desk[data-tabs="side"][data-split] > .tabs {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-bottom: 0;
+  border-right: 1px solid var(--line);
+}
+
+.desk[data-tabs="side"] > .editor,
+.desk[data-tabs="side"] > .binary,
+.desk[data-tabs="side"] > .empty,
+.desk[data-tabs="side"][data-split] > .editor,
+.desk[data-tabs="side"][data-split] > .binary,
+.desk[data-tabs="side"][data-split] > .empty {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.desk[data-tabs="side"][data-split="right"] > .split {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.desk[data-tabs="side"][data-split="down"] > .split {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab {
+  flex: none;
+  justify-content: flex-start;
+  padding: 0.32rem 0.4rem 0.32rem 0.85rem;
+  border-right: 0;
+  border-radius: 0;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab .close {
+  margin-left: auto;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab[aria-selected="true"] {
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.desk[data-tabs="side"] > .tabs > .tab.grouped {
+  padding-left: 1.7rem;
+}
+
+.tab-group {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: none;
+  color: var(--fg-2);
+  font: 600 12px var(--head);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab-group {
+  padding: 0.5rem 0.7rem 0.25rem;
+  border-right: 0;
+}
+
+.tab-group:hover {
+  color: var(--fg);
+}
+
+.tab-group-fold {
+  width: 0.7rem;
+  color: var(--fg-3);
+}
+
+.tab-group-count {
+  color: var(--fg-3);
+  font-weight: 400;
+}
+
+.tab-mark {
+  min-width: 1.2em;
+  padding: 0 0.25em;
+  border-radius: 3px;
+  background: var(--line);
+  color: var(--fg);
+  font: 600 10.5px var(--code);
+  text-align: center;
+}
+
+.tab-section {
+  flex: none;
+  padding: 0.55rem 0.7rem 0.2rem;
+  color: var(--fg-3);
+  font: 600 11px var(--head);
+}
+
 /* A split: the second side to the right of the first or under it, a line between them, each side
    with its tabs over it, and beside the second side's tabs its close button. */
 .desk[data-split] {
