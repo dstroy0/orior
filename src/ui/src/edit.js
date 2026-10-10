@@ -1819,6 +1819,7 @@ export async function startEdit(defs) {
       await drawTree();
     },
     diff: (path, mark) => (mark === "C" ? openMerge(path) : openDiff(path, mark)),
+    texts: async (path, mark) => ({ then: mark === "U" || mark === "A" ? "" : ((await invoke("file_head", { path }).catch(() => null)) ?? ""), now: await textNow(path) }),
     open: (path) => openFile(path),
   });
   startDebug({

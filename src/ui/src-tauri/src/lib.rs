@@ -247,6 +247,12 @@ fn git_branch(app: State<App>, act: String, name: String, to: Option<String>) ->
     git::branch_act(&root_of(&app)?, &act, &name, to.as_deref().unwrap_or(""))
 }
 
+/// Commits whole files and files taken in part, each with the text the commit gives it.
+#[tauri::command(async)]
+fn git_commit_parts(app: State<App>, message: String, whole: Vec<String>, parts: Vec<git::Part>) -> Result<String, String> {
+    git::commit_parts(&root_of(&app)?, &message, &whole, &parts)
+}
+
 /// Marks a file a merge left in conflict resolved.
 #[tauri::command]
 fn git_resolve(app: State<App>, path: String) -> Result<(), String> {
@@ -1163,6 +1169,7 @@ fn open(launch: Launch) {
             git_branches,
             git_branch,
             git_resolve,
+            git_commit_parts,
             files_copy,
             clip_files,
             files_paste,

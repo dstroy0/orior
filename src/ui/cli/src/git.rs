@@ -199,6 +199,73 @@ pub fn branch_act(root: &Path, act: &str, name: &str, to: &str) -> Result<String
     }
 }
 
+/// A file the next commit takes in part: its path and the text the commit gives it.
+#[derive(serde::Deserialize)]
+pub struct Part {
+    pub path: String,
+    pub text: String,
+}
+
+/// Runs git at `root` with an index of its own, `index`, and `input` on its standard input, giving what
+/// it wrote or what it said went wrong.
+fn run_on(root: &Path, index: &Path, args: &[&str], input: Option<&str>) -> Result<String, String> {
+    use std::io::Write;
+    let mut command = Command::new("git");
+    command.args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").env("GIT_INDEX_FILE", index);
+    command.stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());
+    crate::runner::quiet(&mut command);
+    let mut child = command.spawn().map_err(|error| format!("git: {error}"))?;
+    if let (Some(input), Some(mut stdin)) = (input, child.stdin.take()) {
+        stdin.write_all(input.as_bytes()).map_err(|error| format!("git: {error}"))?;
+    }
+    let out = child.wait_with_output().map_err(|error| format!("git: {error}"))?;
+    let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    if out.status.success() { Ok(said.trim().to_string()) } else { Err(said.trim().to_string()) }
+}
+
+/// Commits the files of `whole` as each stands and the files of `parts` with the text each is given,
+/// leaving everything else as the last commit had it, in what is staged as well. The commit is made
+/// from an index of its own, read from the last commit; after it, the tree's index takes the commit's
+/// text for each file committed, and a file committed in part keeps the rest of its changes unstaged.
+pub fn commit_parts(root: &Path, message: &str, whole: &[String], parts: &[Part]) -> Result<String, String> {
+    if message.trim().is_empty() {
+        return Err("a commit needs a message".into());
+    }
+    if whole.is_empty() && parts.is_empty() {
+        return Err("no file is chosen to commit".into());
+    }
+    for path in whole.iter().chain(parts.iter().map(|part| &part.path)) {
+        inside(root, path)?;
+    }
+    let index = PathBuf::from(run(root, &["rev-parse", "--git-path", "orior-commit-index"])?);
+    let index = if index.is_absolute() { index } else { root.join(index) };
+    let made = (|| {
+        if run_on(root, &index, &["read-tree", "HEAD"], None).is_err() {
+            run_on(root, &index, &["read-tree", "--empty"], None)?;
+        }
+        if !whole.is_empty() {
+            let mut add = vec!["add", "-A", "--"];
+            let shown: Vec<String> = whole.iter().map(|path| format!("./{path}")).collect();
+            add.extend(shown.iter().map(String::as_str));
+            run_on(root, &index, &add, None)?;
+        }
+        for part in parts {
+            let blob = run_on(root, &index, &["hash-object", "-w", "--stdin"], Some(&part.text))?;
+            let listed = run_on(root, &index, &["ls-files", "-s", "--", &part.path], None)?;
+            let mode = listed.split_whitespace().next().filter(|mode| !mode.is_empty()).unwrap_or("100644").to_string();
+            run_on(root, &index, &["update-index", "--add", "--cacheinfo", &format!("{mode},{blob},{}", part.path)], None)?;
+        }
+        run_on(root, &index, &["commit", "-m", message.trim()], None)
+    })();
+    let _ = std::fs::remove_file(&index);
+    let said = made?;
+    let mut reset = vec!["reset", "-q", "--"];
+    let shown: Vec<String> = whole.iter().chain(parts.iter().map(|part| &part.path)).map(|path| format!("./{path}")).collect();
+    reset.extend(shown.iter().map(String::as_str));
+    run(root, &reset)?;
+    Ok(said.lines().find(|line| line.starts_with('[')).unwrap_or(said.lines().next().unwrap_or_default()).to_string())
+}
+
 /// Marks a file a merge left in conflict resolved, as it now stands, by staging it.
 pub fn resolve(root: &Path, path: &str) -> Result<(), String> {
     inside(root, path)?;
@@ -390,6 +457,42 @@ mod clones {
         assert_eq!(clone_folder(r"D:\repos\orior.git", parent).unwrap(), parent.join("orior"));
         assert!(clone_folder("https://", parent).is_err());
         assert!(clone_folder("  ", parent).is_err());
+    }
+}
+
+#[cfg(test)]
+mod parting {
+    use super::{Part, commit_parts};
+    use std::process::Command;
+
+    #[test]
+    fn a_file_taken_in_part_commits_that_part_alone() {
+        let root = std::env::temp_dir().join(format!("orior_ui_parts_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| {
+            let out = Command::new("git").args(args).current_dir(&root).output().unwrap();
+            assert!(out.status.success(), "{args:?}");
+            String::from_utf8_lossy(&out.stdout).into_owned()
+        };
+        git(&["init", "-q", "-b", "main"]);
+        git(&["config", "user.name", "t"]);
+        git(&["config", "user.email", "t@t"]);
+        std::fs::write(root.join("a.txt"), "one\ntwo\nthree\nfour\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "first"]);
+        std::fs::write(root.join("a.txt"), "one\nTWO\nthree\nFOUR\n").unwrap();
+        std::fs::write(root.join("other.txt"), "staged apart\n").unwrap();
+        git(&["add", "other.txt"]);
+        let part = Part { path: "a.txt".into(), text: "one\nTWO\nthree\nfour\n".into() };
+        commit_parts(&root, "part of a", &[], &[part]).unwrap();
+        assert_eq!(git(&["show", "HEAD:a.txt"]), "one\nTWO\nthree\nfour\n");
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).unwrap(), "one\nTWO\nthree\nFOUR\n");
+        assert_eq!(git(&["show", "--name-only", "--format=", "HEAD"]).trim(), "a.txt");
+        let mut status: Vec<String> = git(&["status", "--porcelain"]).lines().map(str::to_string).collect();
+        status.sort();
+        assert_eq!(status, [" M a.txt", "A  other.txt"]);
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }
 

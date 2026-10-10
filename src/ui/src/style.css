@@ -1616,6 +1616,68 @@ body[data-view="run"] .statusbar .ed-status {
   cursor: pointer;
 }
 
+/* A file's changes opened under it in the Commit window: its arrow, each change's row, and each line
+ * with its box, a line taken out tinted as the gutter marks one and a line added as it marks one. */
+.commit-twisty {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.commit-twisty::before {
+  content: "▸";
+}
+
+.commit-twisty[aria-expanded="true"]::before {
+  content: "▾";
+}
+
+.commit-twisty:disabled {
+  visibility: hidden;
+}
+
+.commit-hunk,
+.commit-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.05rem 0.6rem 0.05rem 2.2rem;
+  font: 12px var(--head);
+  color: var(--fg-3);
+}
+
+.commit-line {
+  padding-left: 3.2rem;
+  font: 11.5px/1.45 var(--code);
+  color: var(--ed-fg);
+}
+
+.commit-line.gone {
+  background: color-mix(in srgb, var(--ed-removed) 14%, transparent);
+}
+
+.commit-line.come {
+  background: color-mix(in srgb, var(--ed-added) 14%, transparent);
+}
+
+.commit-sign {
+  flex: none;
+  width: 1ch;
+  color: var(--fg-3);
+}
+
+.commit-text {
+  min-width: 0;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .commit-list {
   max-height: 45vh;
   overflow: auto;
