@@ -9,6 +9,11 @@
 // interrupts where none is; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Every other key the panel
 // takes stays out of the rest of the app while the panel holds the keys. The panel's top edge drags
 // to make it taller or shorter, and its height is kept between visits.
+//
+// Its place is kept as well: whether the panel is open, the folder its shell stands in, which a shell
+// says as OSC 7 and Git's bash is set to say before each prompt, and its last PLACE_LINES lines, kept a
+// moment after the shell writes and as the window closes. The window started again shows those lines
+// and opens the panel as it was, its shell in that folder.
 
 import { invoke, listen } from "./bridge.js";
 import { clipText, copyText, menuOn } from "./menu.js";
@@ -16,6 +21,9 @@ import { Screen } from "./screen.js";
 
 // How tall the panel may be dragged is the stylesheet's to say, in its min-height and max-height.
 const HEIGHT = "orior.terminal.height";
+const PLACE = "orior.terminal.place";
+const PLACE_LINES = 300;
+const PLACE_REST = 800;
 
 const SPECIAL = {
   Enter: "\r",
@@ -42,7 +50,9 @@ const SPECIAL = {
 
 const CURSOR_KEYS = { ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: "D", Home: "H", End: "F" };
 
-const state = { id: null, opening: null, screen: null, waiting: "", before: null };
+// `at` is the folder the shell last said it stands in, and `restore` the lines kept from before the
+// window started, shown once the screen is made.
+const state = { id: null, opening: null, screen: null, waiting: "", before: null, at: null, restore: null, keeping: 0 };
 const parts = {};
 
 // What a key sends the shell, or null for a key the terminal leaves alone.
@@ -110,6 +120,14 @@ function fit() {
   const { cols, rows } = measure();
   if (!state.screen) {
     state.screen = new Screen(parts.view, cols, rows, send, scrollback());
+    state.screen.onPlace = (url) => {
+      state.at = url;
+      keepSoon();
+    };
+    if (state.restore?.length) {
+      state.screen.write(`${state.restore.join("\r\n")}\r\n`);
+    }
+    state.restore = null;
     return;
   }
   if (cols === state.screen.cols && rows === state.screen.rowCount) {
@@ -139,7 +157,7 @@ function openShell() {
     return;
   }
   const { cols, rowCount: rows } = state.screen;
-  state.opening = invoke("term_open", { cols, rows })
+  state.opening = invoke("term_open", { cols, rows, at: state.at })
     .then((id) => {
       state.id = id;
       const waiting = state.waiting;
@@ -152,16 +170,32 @@ function openShell() {
     .finally(() => (state.opening = null));
 }
 
-// Opens the panel or closes it. An open panel takes the keys, and closing it hands them back to
-// whatever held them before it opened.
-function toggle(open = parts.panel.hidden) {
+// Keeps the terminal's place now: whether the panel is open, the folder the shell stands in, and its
+// last lines.
+function keepPlace() {
+  window.clearTimeout(state.keeping);
+  const lines = state.screen ? parts.view.innerText.replace(/\s+$/, "").split("\n").slice(-PLACE_LINES) : (state.restore ?? []);
+  localStorage.setItem(PLACE, JSON.stringify({ open: !parts.panel.hidden, at: state.at, lines }));
+}
+
+function keepSoon() {
+  window.clearTimeout(state.keeping);
+  state.keeping = window.setTimeout(keepPlace, PLACE_REST);
+}
+
+// Opens the panel or closes it. An open panel takes the keys where `focus` is set, and closing it
+// hands them back to whatever held them before it opened.
+function toggle(open = parts.panel.hidden, focus = true) {
   parts.panel.hidden = !open;
+  keepSoon();
   if (open) {
     const holder = document.activeElement;
     state.before = holder && holder !== document.body && holder !== parts.keys ? holder : null;
     fit();
     openShell();
-    parts.keys.focus();
+    if (focus) {
+      parts.keys.focus();
+    }
   } else if (state.before?.isConnected) {
     state.before.focus();
   } else {
@@ -294,7 +328,12 @@ export async function startTerminal() {
   if (height) {
     parts.panel.style.height = height;
   }
-  await listen("term-out", ({ payload }) => payload.id === state.id && state.screen?.write(payload.text));
+  await listen("term-out", ({ payload }) => {
+    if (payload.id === state.id && state.screen) {
+      state.screen.write(payload.text);
+      keepSoon();
+    }
+  });
   await listen("term-exit", ({ payload }) => {
     if (payload.id !== state.id) {
       return;
@@ -328,4 +367,17 @@ export async function startTerminal() {
   menuOn(parts.panel, terminalItems);
   parts.grip.addEventListener("pointerdown", grip);
   new ResizeObserver(() => requestAnimationFrame(fit)).observe(parts.view);
+  window.addEventListener("beforeunload", keepPlace);
+  // The place kept from before the window started: its lines, its folder, and the panel open as it was.
+  let kept = null;
+  try {
+    kept = JSON.parse(localStorage.getItem(PLACE) ?? "null");
+  } catch {
+    kept = null;
+  }
+  state.at = typeof kept?.at === "string" ? kept.at : null;
+  state.restore = Array.isArray(kept?.lines) ? kept.lines.map(String) : null;
+  if (kept?.open) {
+    toggle(true, false);
+  }
 }

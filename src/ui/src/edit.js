@@ -575,11 +575,12 @@ function splitEditor(direction) {
   state.editor.status.after(editor.status);
   state.lendTo(editor);
   const session = tab.session.twin();
-  state.split = { node, editor, session, focused: true };
+  state.split = { node, editor, session, focused: true, path: tab.path };
   editor.input.addEventListener("focus", () => splitFocused(true));
   editor.show(session);
   editor.focus();
   splitFocused(true);
+  keepSession();
 }
 
 // Marks which editor of a split the menus act on, and shows its status line.
@@ -606,6 +607,7 @@ function unsplit() {
   delete document.querySelector("#mode-edit .desk").dataset.split;
   state.editor.schedule();
   state.editor.focus();
+  keepSession();
 }
 
 // Opens every folder above a file in the tree and brings its row into sight.
@@ -1611,7 +1613,8 @@ function keepSession() {
     return;
   }
   const tabs = state.tabs.filter((tab) => !tab.commit).map((tab) => tab.path);
-  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, active: tabOf(state.active)?.commit ? null : state.active }));
+  const split = state.split ? { path: state.split.path, direction: document.querySelector("#mode-edit .desk").dataset.split } : null;
+  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, active: tabOf(state.active)?.commit ? null : state.active, split }));
 }
 
 function keepRecent(path) {
@@ -1658,6 +1661,13 @@ export async function restoreSession() {
   }
   state.restored = true;
   const shown = tabOf(kept.active) ? kept.active : state.tabs.at(-1)?.path;
+  // The split as it was: its file shown, split, and the file that was shown shown again beside it.
+  if (kept.split && tabOf(kept.split.path) && ["right", "down"].includes(kept.split.direction)) {
+    state.moving = true;
+    show(kept.split.path);
+    splitEditor(kept.split.direction);
+    state.moving = false;
+  }
   if (shown) {
     state.moving = true;
     show(shown);

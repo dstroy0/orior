@@ -130,9 +130,10 @@ fn job_stop(app: State<App>, run: u64) -> Result<(), String> {
 
 /// Opens a terminal at the tree's top folder, or at the home folder where no tree is open.
 #[tauri::command]
-fn term_open(handle: AppHandle, app: State<App>, cols: u16, rows: u16) -> Result<u64, String> {
+fn term_open(handle: AppHandle, app: State<App>, cols: u16, rows: u16, at: Option<String>) -> Result<u64, String> {
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
-    let at = root_of(&app).ok().or(home).or_else(|| std::env::current_dir().ok()).ok_or("no folder to open a terminal in")?;
+    let kept = at.map(|at| terminal::folder_of(&at)).filter(|folder| folder.is_dir());
+    let at = kept.or_else(|| root_of(&app).ok()).or(home).or_else(|| std::env::current_dir().ok()).ok_or("no folder to open a terminal in")?;
     app.terms.open(handle, &at, cols, rows)
 }
 
