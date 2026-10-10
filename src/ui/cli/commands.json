@@ -209,7 +209,9 @@
         { "label": "Pull", "command": "pull" },
         "-",
         { "label": "Branches…", "command": "branches" },
-        { "label": "New Branch…", "command": "new-branch", "args": "[name]" }
+        { "label": "New Branch…", "command": "new-branch", "args": "[name]" },
+        "-",
+        { "label": "Resolve Conflicts…", "command": "conflicts", "args": "[file]" }
       ]
     },
     { "title": "Build", "groups": ["build"] },

@@ -247,6 +247,12 @@ fn git_branch(app: State<App>, act: String, name: String, to: Option<String>) ->
     git::branch_act(&root_of(&app)?, &act, &name, to.as_deref().unwrap_or(""))
 }
 
+/// Marks a file a merge left in conflict resolved.
+#[tauri::command]
+fn git_resolve(app: State<App>, path: String) -> Result<(), String> {
+    git::resolve(&root_of(&app)?, &path)
+}
+
 /// The indentation the `.editorconfig` files over a file of the tree set for it.
 #[tauri::command]
 fn indent_for(app: State<App>, path: String) -> Result<orior_cli::editorconfig::Indent, String> {
@@ -1156,6 +1162,7 @@ fn open(launch: Launch) {
             indent_for,
             git_branches,
             git_branch,
+            git_resolve,
             files_copy,
             clip_files,
             files_paste,

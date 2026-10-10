@@ -276,6 +276,7 @@ const COMMANDS = {
   push: () => gitSays("Pushing", () => invoke("git_push")),
   pull: () => gitSays("Pulling", () => invoke("git_pull")),
   branches: () => showBranches(),
+  conflicts: (args) => resolveConflicts(args[0]),
   "new-branch": (args) => newBranch(args.join(" ")),
   "macro-record": () => recordMacro(),
   "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
@@ -573,6 +574,20 @@ async function showBranches() {
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
+}
+
+// Git, Resolve Conflicts: the file named, or a file a merge left in conflict where it is alone in
+// that, in the merge window, or a list of them to choose from where there are more.
+function resolveConflicts(given) {
+  const files = editing().conflicted();
+  if (given || files.length === 1) {
+    showView("edit");
+    editing().openMerge(given || files[0]);
+  } else if (!files.length) {
+    say("No file is in conflict.");
+  } else {
+    showMenu(window.innerWidth / 3, window.innerHeight / 4, files.map((path) => ({ label: path, run: () => (showView("edit"), editing().openMerge(path)) })));
+  }
 }
 
 // A sheet that asks a question with a yes of its own, answering whether that was given.

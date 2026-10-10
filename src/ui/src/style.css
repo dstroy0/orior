@@ -1827,6 +1827,78 @@ body[data-view="run"] .statusbar .ed-status {
   background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
 }
 
+/* Conflicts: three columns, yours, the result and theirs, each conflict under a row of the ways to
+ * settle it, its sides tinted as the gutter tints a change and its open result striped. */
+.merge-row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr);
+}
+
+.merge-row .diff-text.middle {
+  border-right: 1px solid var(--line);
+}
+
+.merge-row .diff-text.ours {
+  background: color-mix(in srgb, var(--ed-added) 14%, transparent);
+}
+
+.merge-row .diff-text.theirs {
+  background: color-mix(in srgb, var(--ed-changed) 16%, transparent);
+}
+
+.merge-row .diff-text.taken {
+  background: color-mix(in srgb, var(--signal) 10%, transparent);
+}
+
+.merge-row .merge-open {
+  background: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--ed-removed) 35%, transparent) 5px 6px);
+}
+
+.merge-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.2rem 0.8rem;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
+  font: 12px var(--head);
+  color: var(--fg-3);
+}
+
+.merge-head .merge-name:last-child {
+  text-align: right;
+}
+
+.merge-acts {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.merge-acts button {
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.merge-acts button:hover,
+.merge-acts button[aria-pressed="true"] {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.merge-write {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+}
+
 .diff-empty {
   margin: 1.2rem;
   color: var(--fg-3);

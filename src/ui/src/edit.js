@@ -33,6 +33,7 @@ import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_pa
 import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
+import { showMerge } from "./mergeview.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
@@ -915,6 +916,34 @@ async function openDiff(path, mark) {
   showDiff(document.querySelector("#mode-edit .desk"), path, then, now);
 }
 
+// A file a merge left in conflict, in the merge window over the editor: once every conflict is
+// settled, the result is written to the file, the file staged as resolved, and an open tab of it
+// takes the result.
+async function openMerge(path) {
+  const text = await textNow(path);
+  showMerge(document.querySelector("#mode-edit .desk"), path, text, {
+    resolved: async (result) => {
+      try {
+        await invoke("file_write", { path, text: result });
+        await invoke("git_resolve", { path });
+        say(`${path} is resolved.`);
+      } catch (error) {
+        say(String(error), { failed: true });
+      }
+      const tab = tabOf(path);
+      if (tab) {
+        await reloadTab(tab);
+      }
+      await loadChanges();
+    },
+  });
+}
+
+// The files a merge left in conflict.
+function conflicted() {
+  return [...state.changes].filter(([, mark]) => mark === "C").map(([path]) => path);
+}
+
 // Gives each open tab of `paths` its file's text as the tree holds it now, as one step undo takes
 // back, after the Commit window rolled the files back.
 async function reloadFromDisk(paths) {
@@ -1789,7 +1818,7 @@ export async function startEdit(defs) {
       await loadChanges();
       await drawTree();
     },
-    diff: (path, mark) => openDiff(path, mark),
+    diff: (path, mark) => (mark === "C" ? openMerge(path) : openDiff(path, mark)),
     open: (path) => openFile(path),
   });
   startDebug({
@@ -2207,6 +2236,8 @@ export function editing() {
     marks: () => Boolean(state.editor?.marksOn),
     pastEnds: () => Boolean(state.editor?.pastEnds),
     setPastEnds: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setPastEnds(on)),
+    conflicted,
+    openMerge,
     setMarks: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setMarks(on)),
     commentsHidden: () => Boolean(state.editor?.commentsHidden),
     setCommentsHidden: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setCommentsHidden(on)),

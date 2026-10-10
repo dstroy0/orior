@@ -199,6 +199,12 @@ pub fn branch_act(root: &Path, act: &str, name: &str, to: &str) -> Result<String
     }
 }
 
+/// Marks a file a merge left in conflict resolved, as it now stands, by staging it.
+pub fn resolve(root: &Path, path: &str) -> Result<(), String> {
+    inside(root, path)?;
+    run(root, &["add", "--", &format!("./{path}")]).map(drop)
+}
+
 /// Pushes the branch to the remote it follows, or to origin under its own name where it follows none.
 pub fn push(root: &Path) -> Result<String, String> {
     if run(root, &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]).is_ok() {
