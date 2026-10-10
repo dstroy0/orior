@@ -404,7 +404,7 @@ select {
 }
 
 .frame::before {
-  left: 39px;
+  left: calc(var(--strip-width) - 1px);
   top: -2px;
   width: 8px;
   height: 9px;
@@ -413,7 +413,7 @@ select {
 }
 
 .frame::after {
-  left: 39px;
+  left: calc(var(--strip-width) - 1px);
   bottom: -1px;
   width: 8px;
   height: 8px;
@@ -467,6 +467,7 @@ select {
    of its own color every menu lays over what stands under it. */
 :root {
   --bar-opacity: 30%;
+  --strip-width: 40px;
   --menu-opacity: 100%;
   --glass-tint: color-mix(in srgb, var(--ink) var(--bar-opacity), transparent);
   --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
@@ -484,8 +485,8 @@ select {
   background:
     linear-gradient(color-mix(in srgb, var(--link), black 35%), color-mix(in srgb, var(--link), black 35%)) right 8px top 7px / 2px calc(100% - 14px) no-repeat,
     linear-gradient(var(--glass-tint), var(--glass-tint)) right top / 10px 100% no-repeat,
-    radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left 40px top 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left 40px bottom 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) top 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) bottom 0 / 7px 7px no-repeat,
     radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right 10px top 0 / 7px 7px no-repeat,
     radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right 10px bottom 0 / 7px 7px no-repeat;
 }
@@ -526,6 +527,52 @@ select {
   flex-direction: column;
   position: relative;
   padding: 6px 0;
+}
+
+/* The strip hidden until its edge: the work takes the strip's room, and the strip slides out over it
+   while the pointer is at the window's left edge or on the strip. */
+body[data-strip-edge] {
+  --strip-width: 0px;
+}
+
+body[data-strip-edge] .strip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 45;
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
+}
+
+body[data-strip-edge] .strip.shown {
+  transform: none;
+}
+
+.strip-edge {
+  display: none;
+}
+
+body[data-strip-edge] .strip-edge {
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  z-index: 44;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-strip-edge] .strip {
+    transition: none;
+  }
+}
+
+/* An item of the status bar being dragged to a new place along its line. */
+[data-item].dragged {
+  opacity: 0.5;
+  cursor: grabbing;
 }
 
 .strip-group {

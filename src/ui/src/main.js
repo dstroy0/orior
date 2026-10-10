@@ -15,6 +15,7 @@ import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
 import { startDocks } from "./docks.js";
+import { startStatusItems } from "./statusitems.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
@@ -111,6 +112,7 @@ async function start() {
   keepPane(document.getElementById("job-side"), "left", { own: true });
   keepPane(document.getElementById("explorer"), "left", { own: true });
   keepPane(document.getElementById("defs-side"), "right");
+  startStatusItems();
   startDocks({
     close: closeIcon,
     changed: refreshStrip,

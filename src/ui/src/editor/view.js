@@ -248,6 +248,7 @@ export class Editor {
     const canvas = document.createElement("canvas");
     canvas.className = "ed-mini";
     this.status = div("ed-status");
+    this.status.dataset.item = "editor";
     this.sticky = div("ed-sticky");
     this.sticky.hidden = true;
     this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
@@ -3411,25 +3412,33 @@ export class Editor {
     where.textContent = `${s.base + head.line + 1}:${this.vcol(head) + this.pastEnd(primary) + 1}`;
     where.title = `Line ${s.base + head.line + 1}, column ${this.vcol(head) + 1}: Go to Line (Ctrl+G)`;
     where.addEventListener("click", () => this.goto.open());
+    where.dataset.item = "cursor";
+    // Each part names itself, for the reader to move it or hide it.
+    const named = (item, props) => {
+      const made = Object.assign(document.createElement("span"), props);
+      made.dataset.item = item;
+      return made;
+    };
     if (mode) {
-      parts.push(Object.assign(document.createElement("span"), { className: "status-vim", textContent: mode }));
+      parts.push(named("vim", { className: "status-vim", textContent: mode }));
     }
     parts.push(where);
     if (picked) {
-      parts.push(Object.assign(document.createElement("span"), { textContent: picked }));
+      parts.push(named("selection", { textContent: picked }));
     }
     if (read) {
-      parts.push(Object.assign(document.createElement("span"), { className: "reading", textContent: read }));
+      parts.push(named("reading", { className: "reading", textContent: read }));
     }
     if (s.selections.length > 1) {
-      parts.push(Object.assign(document.createElement("span"), { textContent: `${s.selections.length} cursors` }));
+      parts.push(named("cursors", { textContent: `${s.selections.length} cursors` }));
     }
     // Then the line ends, the encoding every file is read and written in, the indent, which a press
     // turns between tabs and spaces, and the lock, which a press turns where the editor's owner says
     // the text can be written.
-    const eol = Object.assign(document.createElement("span"), { textContent: s.doc.eol === "\r\n" ? "CRLF" : "LF", title: "Line ends" });
-    const encoding = Object.assign(document.createElement("span"), { textContent: "UTF-8", title: "Encoding" });
+    const eol = named("eol", { textContent: s.doc.eol === "\r\n" ? "CRLF" : "LF", title: "Line ends" });
+    const encoding = named("encoding", { textContent: "UTF-8", title: "Encoding" });
     const indent = document.createElement("button");
+    indent.dataset.item = "indent";
     indent.type = "button";
     indent.textContent = s.indent.tabs ? `Tab ${s.indent.size}` : `${s.indent.size} spaces`;
     indent.title = s.indent.tabs ? "Indent with tabs: a press indents with spaces" : "Indent with spaces: a press indents with tabs";
@@ -3440,6 +3449,7 @@ export class Editor {
     const lock = document.createElement("button");
     lock.type = "button";
     lock.className = "status-lock";
+    lock.dataset.item = "lock";
     lock.title = s.readOnly ? "Read-only: a press makes it writable" : "Writable: a press makes it read-only";
     lock.setAttribute("aria-label", s.readOnly ? "Read-only" : "Writable");
     lock.append(icon(s.readOnly ? "lock" : "unlock"));

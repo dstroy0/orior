@@ -47,6 +47,7 @@ import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from 
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { float, floatItems, solo, toolWindowsItems } from "./docks.js";
 import { openWindow } from "./windows.js";
+import { setStripEdge, statusItems, stripEdge } from "./statusitems.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -199,6 +200,7 @@ const COMMANDS = {
     }
   },
   "next-display": () => invoke("window_act", { act: "next-display" }),
+  "strip-edge": (args) => setStripEdge(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   float: (args) => (args[0] ? float(args[0]) : showMenu(window.innerWidth / 3, 60, floatItems(float))),
   solo: (args) => (args.length || document.body.dataset.solo ? solo(args[0] ?? document.body.dataset.solo, args[1] ?? null) : showMenu(window.innerWidth / 3, 60, floatItems(solo))),
   "open-repository": (args) => showClone(sheet, state.openFolder, args, { open: true }),
@@ -451,6 +453,7 @@ const CHECKS = {
   split: () => editing().splitShown(),
   "terminal-split": terminalSplit,
   "side-tabs": () => editing().sideTabs(),
+  "strip-edge": stripEdge,
   "macro-recording": recording,
 };
 
@@ -540,7 +543,7 @@ function bindMacros() {
 }
 
 // The items commands.json names to be filled in as their menu opens.
-const FILLS = { macros: macroItems, "tool-windows": toolWindowsItems };
+const FILLS = { macros: macroItems, "tool-windows": toolWindowsItems, "status-items": statusItems };
 
 // A sheet that asks for a line of text, with `start` in it. Answers the text, or null where it was
 // closed with nothing taken.

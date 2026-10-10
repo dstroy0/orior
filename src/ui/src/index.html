@@ -205,12 +205,12 @@
     </div>
 
     <footer class="statusbar" id="statusbar">
-      <nav class="crumbs" id="crumbs" aria-label="Breadcrumbs" hidden></nav>
-      <span class="pulse" id="pulse"></span>
-      <button class="status-said" id="status-said" type="button" hidden></button>
-      <button class="status-report" id="status-report" type="button" hidden></button>
-      <button class="status-zoom" id="status-zoom" type="button" hidden></button>
-      <span class="status-memory" id="status-memory" hidden></span>
+      <nav class="crumbs" id="crumbs" aria-label="Breadcrumbs" data-item="crumbs" hidden></nav>
+      <span class="pulse" id="pulse" data-item="runs"></span>
+      <button class="status-said" id="status-said" type="button" data-item="said" hidden></button>
+      <button class="status-report" id="status-report" type="button" data-item="report" hidden></button>
+      <button class="status-zoom" id="status-zoom" type="button" data-item="zoom" hidden></button>
+      <span class="status-memory" id="status-memory" data-item="memory" hidden></span>
     </footer>
 
     <script type="module" src="main.js"></script>
