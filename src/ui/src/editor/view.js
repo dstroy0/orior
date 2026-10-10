@@ -2574,6 +2574,10 @@ export class Editor {
 
   rowHtml(line) {
     const s = this.s;
+    // A text shown in the colors its codes set draws each line as they made it.
+    if (s.colored) {
+      return (s.colored[line] ?? "") + (s.folded.has(line) && s.endOf(line) >= 0 ? `<span class="ed-folded" data-fold="${line}">⋯</span>` : "");
+    }
     const text = s.doc.line(line);
     const level = status.scroll.level;
     const runs = level >= 3 ? [[0, ""]] : level === 2 ? s.highlight.cached(line) ?? [[0, ""]] : s.highlight.runsOf(line);

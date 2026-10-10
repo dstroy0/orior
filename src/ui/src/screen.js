@@ -173,6 +173,34 @@ export function coloredHtml(text) {
   return html + (text.slice(from) ? runHtml(text.slice(from), style, false) : "");
 }
 
+// The lines of a text with color codes in it, each as its text with every escape sequence taken
+// out and as the page draws it, in the colors and weight its sequences set, a style carried on from
+// one line to the next.
+export function coloredLines(lines) {
+  const sequence = /\x1b(?:\[([\d;:]*)[ -/]*([@-~])|\][^\x07\x1b]*(?:\x07|\x1b\\)|[ -/]*[0-~])/g;
+  let style = PLAIN;
+  return lines.map((text) => {
+    let plain = "";
+    let html = "";
+    let from = 0;
+    const take = (part) => {
+      if (part) {
+        plain += part;
+        html += runHtml(part, style, false);
+      }
+    };
+    for (const found of text.matchAll(sequence)) {
+      take(text.slice(from, found.index));
+      if (found[2] === "m") {
+        style = restyled(style, found[1] ? found[1].split(/[;:]/).map((part) => (part === "" ? null : Number(part))) : [0]);
+      }
+      from = found.index + found[0].length;
+    }
+    take(text.slice(from));
+    return { text: plain, html };
+  });
+}
+
 function lineHtml(line, cursorAt) {
   let html = "";
   let start = 0;

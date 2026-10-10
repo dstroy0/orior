@@ -46,6 +46,7 @@ import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
 import { onPatterns, tellPatterns } from "./patterns.js";
+import { coloredLines } from "./screen.js";
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
@@ -438,7 +439,16 @@ async function load(path) {
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
       const kept = localStorage.getItem(backupKey(path));
-      tab.session = new Session(kept ?? opened.text, state.known.languageOf(path));
+      // A text with color codes in it, as a log or a run's output keeps, shows in its colors with the
+      // codes taken out, read-only, until its lock is pressed.
+      const colored = kept === null && opened.text.includes("\x1b[") ? coloredLines(opened.text.split(/\r?\n/)) : null;
+      tab.session = new Session(colored ? colored.map((one) => one.text).join("\n") : (kept ?? opened.text), state.known.languageOf(path));
+      if (colored) {
+        tab.session.colored = colored.map((one) => one.html);
+        tab.session.readOnly = true;
+        tab.readOnly = true;
+        tab.colored = opened.text;
+      }
       // Kept text that differs from the file's is a change not saved, and the tab says so.
       markSaved(tab, opened.text);
       if (kept !== null && kept !== opened.text) {
@@ -1713,6 +1723,16 @@ export async function startEdit(defs) {
     const tab = state.tabs.find((one) => one.session === s);
     if (!tab || tab.commit) {
       say("A file as a commit left it is read-only.");
+      return;
+    }
+    // A text shown in its colors goes back to its codes as written, to be edited.
+    if (tab.colored !== undefined) {
+      const raw = tab.colored;
+      delete tab.colored;
+      tab.readOnly = false;
+      tab.session = new Session(raw, state.known.languageOf(tab.path));
+      markSaved(tab, raw);
+      show(tab.path);
       return;
     }
     s.readOnly = !s.readOnly;
