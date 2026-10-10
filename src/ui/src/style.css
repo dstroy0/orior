@@ -233,7 +233,7 @@ select {
   content: "";
   position: absolute;
   left: 48px;
-  right: 9px;
+  right: 16px;
   bottom: -2px;
   height: 2px;
   background: var(--bar-signal);
@@ -288,10 +288,12 @@ select {
 }
 
 /* The frame: the top bar, the tool strip down the left and the status bar along the foot, one ink
-   around the work, and the work beside the strip: the views over the Debug and Terminal panels. */
+   around the work, and the work beside the strip: the views over the Debug and Terminal panels. A
+   margin of the frame stands between the work and the window's right edge. */
 .frame {
   position: relative;
   flex: 1;
+  padding-right: 7px;
   background-color: var(--ink);
   min-height: 0;
   display: flex;
@@ -381,8 +383,8 @@ select {
 
 /* The work's four corners are curves. The strip's line bends round each on the left: at the top into
    the bar's signal line, its color passing into the signal's along the curve, and at the foot onto
-   the status bar, fading as it turns. At the top right the signal line bends down the window's edge
-   and fades. Each curve is a band, as wide as the lines it joins at either end, cut from a sweep of
+   the status bar, fading as it turns. At the top right the signal line bends down the right edge
+   of the work and fades. Each curve is a band, as wide as the lines it joins at either end, cut from a sweep of
    their colors. */
 .frame::before,
 .frame::after {
@@ -415,7 +417,7 @@ select {
 .bar::after {
   content: "";
   position: absolute;
-  right: 0;
+  right: 7px;
   bottom: -9px;
   z-index: 40;
   width: 9px;
