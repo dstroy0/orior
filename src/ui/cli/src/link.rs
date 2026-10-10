@@ -132,19 +132,36 @@ impl Address {
     }
 
     /// Runs `line` on the machine and gives what it wrote, or what it said where it failed.
+    ///
+    /// What it writes is read as it comes, while its input is written: a program that writes before it
+    /// has read all it is given would otherwise wait on a full pipe while its input waits on it.
     fn ask(&self, line: &str, input: Option<&[u8]>) -> Result<String, String> {
         let mut command = self.command(line);
         command.stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = command.spawn().map_err(|error| format!("{}: {error}", self.runs(line, false).0))?;
-        if let (Some(bytes), Some(mut stdin)) = (input, child.stdin.take()) {
-            stdin.write_all(bytes).map_err(|error| error.to_string())?;
+        let drain = |stream: Option<Box<dyn Read + Send>>| {
+            std::thread::spawn(move || {
+                let mut bytes = Vec::new();
+                if let Some(mut stream) = stream {
+                    let _ = stream.read_to_end(&mut bytes);
+                }
+                bytes
+            })
+        };
+        let output = drain(child.stdout.take().map(|one| Box::new(one) as Box<dyn Read + Send>));
+        let errors = drain(child.stderr.take().map(|one| Box::new(one) as Box<dyn Read + Send>));
+        let written = match (input, child.stdin.take()) {
+            (Some(bytes), Some(mut stdin)) => stdin.write_all(bytes).map_err(|error| error.to_string()),
+            _ => Ok(()),
+        };
+        let status = child.wait().map_err(|error| error.to_string())?;
+        let output = output.join().unwrap_or_default();
+        let errors = errors.join().unwrap_or_default();
+        if !status.success() || written.is_err() {
+            let said = String::from_utf8_lossy(&errors).trim().to_string();
+            return Err(if !said.is_empty() { said } else { written.err().unwrap_or_else(|| format!("{} could not be reached", self.machine())) });
         }
-        let done = child.wait_with_output().map_err(|error| error.to_string())?;
-        if !done.status.success() {
-            let said = String::from_utf8_lossy(&done.stderr).trim().to_string();
-            return Err(if said.is_empty() { format!("{} could not be reached", self.machine()) } else { said });
-        }
-        Ok(String::from_utf8_lossy(&done.stdout).into_owned())
+        Ok(String::from_utf8_lossy(&output).into_owned())
     }
 
     /// Puts orior's server on the machine where it is not there, and gives the shell line that starts

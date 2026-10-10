@@ -19,7 +19,7 @@ import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
 import { startProfile } from "./profile.js";
 import { loadRun, readRunsAgain, startRun } from "./run.js";
-import { startRemote } from "./remote.js";
+import { linkJoined, startRemote } from "./remote.js";
 import { serveAgain } from "./servers.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
@@ -167,6 +167,9 @@ async function start() {
       }
     },
   });
+  // A tree on another machine is read once the link to it is joined, its server built and sent
+  // there first where it has to be.
+  await linkJoined();
   await begin(await invoke("root_get"));
   settlePanes();
   onView(settlePanes);

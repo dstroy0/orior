@@ -23,6 +23,24 @@ export function remoteTree() {
   return state.remote;
 }
 
+// What waits for the link to be joined.
+const waiting = [];
+
+// Answers once the link to the tree's machine is joined, at once for a tree on this machine.
+export function linkJoined() {
+  if (!state.remote || state.link === "joined") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => waiting.push(resolve));
+}
+
+// Whether an error is the link's own: the machine not reached, or the link dropped while a call
+// waited on it. The status bar says the link's state; such an error is no fault to report.
+export function linkError(message) {
+  const machine = state.remote?.machine;
+  return Boolean(machine) && (message.includes(`${machine} is not reached`) || message.includes(`the link to ${machine} dropped`));
+}
+
 function recent() {
   try {
     const read = JSON.parse(localStorage.getItem(RECENT) ?? "[]");
@@ -81,6 +99,7 @@ function onLink({ payload }) {
     state.hooks.say?.(payload.said ? `${state.remote?.machine}: ${payload.said}` : `The link to ${state.remote?.machine} dropped`);
   }
   if (payload.state === "joined") {
+    waiting.splice(0).forEach((resolve) => resolve());
     const again = state.dropped;
     state.dropped = false;
     state.hooks.joined?.(again);

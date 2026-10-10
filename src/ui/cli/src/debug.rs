@@ -253,6 +253,8 @@ pub struct Instruction {
 const STARTING: Duration = Duration::from_secs(30);
 /// How long a request about the stopped program may take.
 const ASKING: Duration = Duration::from_secs(10);
+/// How long after it is initialized an adapter has to say it is ready before the launch, as gdb does.
+const EARLY: Duration = Duration::from_millis(150);
 /// How long a build for debugging may take.
 const BUILDING: Duration = Duration::from_secs(300);
 
@@ -703,20 +705,32 @@ impl Debugger {
             step_back: can("supportsStepBack"),
             recorded: recording,
         };
+        let configure = || {
+            for (file, breakpoints) in &options.breakpoints {
+                if takes(&language, file) {
+                    let _ = Self::set(&adapter, &marks, &crate::root::full(root, file), breakpoints);
+                }
+            }
+            let on: Vec<&str> = filters.iter().filter(|one| one.on).map(|one| one.filter.as_str()).collect();
+            let _ = adapter.request("setExceptionBreakpoints", json!({"filters": on}), ASKING);
+        };
+        // An adapter that says it is ready before the launch, as gdb does, runs the program as the
+        // launch comes: its breakpoints are set first, each bound as the program loads. The others
+        // say it once the launch is under way, and are set then.
+        let early = readied.recv_timeout(EARLY).is_ok();
+        if early {
+            configure();
+        }
         let requested = adapter.send(request, arguments).map_err(&failed)?;
-        if readied.recv_timeout(STARTING).is_err() {
-            if let Ok(Err(said)) = requested.try_recv() {
-                return Err(failed(said));
+        if !early {
+            if readied.recv_timeout(STARTING).is_err() {
+                if let Ok(Err(said)) = requested.try_recv() {
+                    return Err(failed(said));
+                }
+                return Err(failed(format!("{} did not say it was ready", spec.program)));
             }
-            return Err(failed(format!("{} did not say it was ready", spec.program)));
+            configure();
         }
-        for (file, breakpoints) in &options.breakpoints {
-            if takes(&language, file) {
-                let _ = Self::set(&adapter, &marks, &crate::root::full(root, file), breakpoints);
-            }
-        }
-        let on: Vec<&str> = filters.iter().filter(|one| one.on).map(|one| one.filter.as_str()).collect();
-        let _ = adapter.request("setExceptionBreakpoints", json!({"filters": on}), ASKING);
         adapter.request("configurationDone", Value::Null, ASKING).map_err(&failed)?;
         Adapter::wait(request, &requested, STARTING).map_err(&failed)?;
         let mut info = info;
