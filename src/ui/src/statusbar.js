@@ -1,41 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The bar along the bottom of the window. On its left the branch the tree is on, with a star where a
-// file differs from the last commit, then the runs going and the files still being read, then a word
-// for a moment from what was last done, such as what a formatter said. On its right
-// the editor's own line: where the cursor is, what is chosen, the indent, the line ends and the
-// language, shown in the edit view only. Past the runs, what the app holds in memory: its own
-// process and every process it started, the web view's among them, read again every MEMORY_EVERY
-// while the window shows.
+// The bar along the bottom of the window. On its left the breadcrumbs of the open file, then the runs
+// going and the files still being read, then a word for a moment from what was last done, such as
+// what a formatter said, which the top bar's bell keeps. On its right what the app holds in memory:
+// its own process and every process it started, the web view's among them, read again every
+// MEMORY_EVERY while the window shows; then the editor's own line, shown in the edit view only:
+// where the cursor is as line:column, what is chosen, the line ends, the encoding, the indent, and
+// the lock. The branch the tree is on, with a star where a file differs from the last commit, is on
+// the top bar beside the tree's name.
 
 import { invoke } from "./bridge.js";
+import { icon } from "./icons.js";
 import { still } from "./motion.js";
-
-const SVG = "http://www.w3.org/2000/svg";
-
-// A branch mark: two commits on one line and a third off it, joined.
-function branchMark() {
-  const svg = document.createElementNS(SVG, "svg");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("class", "branch-mark");
-  const path = document.createElementNS(SVG, "path");
-  path.setAttribute("d", "M5 3.5v9M5 10.5c0-3 6-2.5 6-5.5");
-  svg.append(path);
-  for (const [cx, cy] of [
-    [5, 3],
-    [5, 13],
-    [11, 4.5],
-  ]) {
-    const circle = document.createElementNS(SVG, "circle");
-    circle.setAttribute("cx", String(cx));
-    circle.setAttribute("cy", String(cy));
-    circle.setAttribute("r", "1.7");
-    svg.append(circle);
-  }
-  return svg;
-}
 
 const MEMORY_EVERY = 2000;
 
@@ -71,7 +48,7 @@ export function drawBranch(branch, changed) {
   const node = document.getElementById("status-branch");
   node.hidden = !branch;
   if (branch) {
-    node.replaceChildren(branchMark(), `${branch}${changed ? "*" : ""}`);
+    node.replaceChildren(icon("git"), `${branch}${changed ? "*" : ""}`);
     node.title = branch;
   }
 }
@@ -81,9 +58,44 @@ const SAID_FOR = 5000;
 const FAILED_FOR = 15000;
 let saidTimer = 0;
 
+// What the bar has said, the newest last, which the top bar's bell lists, and how many of them came
+// since it was last opened.
+const NOTICES_KEPT = 200;
+const notices = [];
+let unseen = 0;
+const noticeListeners = [];
+
+export function noticesSaid() {
+  return notices;
+}
+
+export function noticesUnseen() {
+  return unseen;
+}
+
+export function noticesSeen() {
+  unseen = 0;
+  noticeListeners.forEach((listener) => listener());
+}
+
+export function clearNotices() {
+  notices.length = 0;
+  noticesSeen();
+}
+
+export function onNotice(listener) {
+  noticeListeners.push(listener);
+}
+
 // Puts a word on the bar for a moment: its first line, and all of it over it. A press takes it away,
-// and does `act` first where there is one.
+// and does `act` first where there is one. The bell keeps it.
 export function say(text, { failed = false, act = null } = {}) {
+  notices.push({ text: String(text), failed, at: Date.now() });
+  if (notices.length > NOTICES_KEPT) {
+    notices.shift();
+  }
+  unseen += 1;
+  noticeListeners.forEach((listener) => listener());
   const node = document.getElementById("status-said");
   window.clearTimeout(saidTimer);
   node.textContent = String(text).split("\n")[0];

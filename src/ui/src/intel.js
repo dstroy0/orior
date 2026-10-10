@@ -185,7 +185,7 @@ export async function findUsages() {
   }
   const asked = ++state.asked;
   state.name = word?.text ?? "the symbol";
-  togglePane(true);
+  togglePane(true, { take: false });
   showPane("usages");
   document.getElementById("usages-said").textContent = `Finding usages of ${state.name}…`;
   document.getElementById("usages-hits").replaceChildren();

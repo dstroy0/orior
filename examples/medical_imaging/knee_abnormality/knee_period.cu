@@ -541,9 +541,9 @@ typedef struct
 
 // the ingest: every series named in the list, one a line, read from the source and sealed into the set as a crystal,
 // one job each. A series whose crystal's head already reads is kept as it is, and a stopped ingest resumes from the
-// set. A series that does not ingest is reported and the next one runs; the exit is 1 where any did not. While one
-// series is sealed the next one's span of the source is read (engine_source_prefetch), and a list in the order the
-// series lie in the source reads it start to end
+// set. A series that does not ingest is reported and the next one runs, but where the device's daemon takes no job the
+// ingest stops at that series; the exit is 1 where any did not. While one series is sealed the next one's span of the
+// source is read (engine_source_prefetch), and a list in the order the series lie in the source reads it start to end
 //
 //   knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>
 static int knee_ingest(int argc, char **argv)
@@ -646,10 +646,20 @@ static int knee_ingest(int argc, char **argv)
         const unsigned long long shape[KNEE_RANK] = {lanes, 0ull, 0ull};
         KneeJob job;
         const unsigned long long asking = knee_now_microseconds();
+        const int read = good;
         good = good && knee_job_submit("knee ingest", shape,
                                        knee_allocation_bytes(lanes * sizeof(unsigned short)) +
                                            tower_reserve_bytes(lanes) + compression_reserve_bytes(lanes),
                                        &job);
+        // a job the device's daemon does not take is taken by no later series either: the ingest stops, and a rerun
+        // resumes from the set
+        if (read && !good)
+        {
+            failed += 1ull;
+            printf("  ingest %llu  %s  did not ingest: the device's daemon took no job, and the ingest stops here\n",
+                   count, sample);
+            break;
+        }
         const unsigned long long started = knee_now_microseconds();
         if (good)
         {

@@ -3,8 +3,8 @@
 
 // The name: "or", the eye in place of the i, "or". The eye is line art in the text's color and
 // follows the scheme, and the name still reads as orior to a screen reader. The bar along the top
-// holds it small, and an empty view holds it large until it goes there. Either opens orior's
-// repository.
+// holds the eye alone, and an empty view holds the whole name large until it goes there. Either
+// opens orior's repository.
 
 import { invoke } from "./bridge.js";
 
@@ -71,50 +71,173 @@ function eye() {
   return svg;
 }
 
-// Sets the name in `node`: or, the eye, or.
-export function setWordmark(node) {
+// Sets the name in `node`: or, the eye, or; or, with `eyeOnly`, the eye alone, as the bar holds it.
+export function setWordmark(node, { eyeOnly = false } = {}) {
   node.setAttribute("aria-label", "orior");
   node.classList.add("wordmark");
-  node.replaceChildren("or", eye(), "or");
+  node.replaceChildren(...(eyeOnly ? [eye()] : ["or", eye(), "or"]));
   return node;
 }
 
 // How long the name stands on an empty view before it goes to the bar, and how long it takes, in
 // milliseconds.
 const STANDS = 1400;
-const FLIES = 700;
+const FLIES = 900;
+
+// The share of the flight over which the funnel forms, before the name starts up it, and the height
+// a row keeps at the funnel's tip.
+const FORMS = 0.35;
+const TIP_ROW = 0.25;
 
 const flights = new Map();
+const genies = new Map();
 
-// The name large on an empty view: it stands a moment, then slides left and up into its place in the
-// bar along the top, where it stays. Each time the view shows again it stands and goes again.
+// Takes away a genie's canvas.
+function settle(node) {
+  const genie = genies.get(node);
+  if (genie) {
+    cancelAnimationFrame(genie.frame);
+    genie.canvas.remove();
+  }
+  genies.delete(node);
+}
+
+const smooth = (part) => {
+  const clamped = Math.min(1, Math.max(0, part));
+  return clamped * clamped * (3 - 2 * clamped);
+};
+
+// The name drawn as it stands, onto a canvas `scale` times its size: each "or" in its own font and
+// color, and the eye's strokes and iris where the eye stands.
+function drawName(node, box, scale) {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(box.width * scale);
+  canvas.height = Math.ceil(box.height * scale);
+  const pen = canvas.getContext("2d");
+  pen.scale(scale, scale);
+  const style = getComputedStyle(node);
+  pen.fillStyle = style.color;
+  pen.strokeStyle = style.color;
+  pen.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  pen.letterSpacing = style.letterSpacing;
+  pen.textBaseline = "alphabetic";
+  for (const part of node.childNodes) {
+    if (part.nodeType === Node.TEXT_NODE) {
+      const range = document.createRange();
+      range.selectNodeContents(part);
+      const at = range.getBoundingClientRect();
+      const ascent = pen.measureText(part.textContent).fontBoundingBoxAscent;
+      pen.fillText(part.textContent, at.left - box.left, at.top - box.top + ascent);
+    } else if (part.nodeName === "svg") {
+      const at = part.getBoundingClientRect();
+      const [left, top, wide, high] = part.getAttribute("viewBox").split(" ").map(Number);
+      const fit = Math.min(at.width / wide, at.height / high);
+      pen.save();
+      pen.translate(at.left - box.left + (at.width - wide * fit) / 2, at.top - box.top + (at.height - high * fit) / 2);
+      pen.scale(fit, fit);
+      pen.translate(-left, -top);
+      const lines = part.querySelector("path:not(.iris)");
+      pen.lineWidth = Number.parseFloat(getComputedStyle(lines).strokeWidth) || 2.2;
+      pen.lineCap = "round";
+      pen.lineJoin = "round";
+      pen.stroke(new Path2D(lines.getAttribute("d")));
+      pen.fill(new Path2D(part.querySelector(".iris").getAttribute("d")));
+      pen.restore();
+    }
+  }
+  return canvas;
+}
+
+// The name large on an empty view: it stands a moment, then goes to the bar as a genie does. A
+// funnel forms between the name and the point on the bar's bottom edge under the eye in the bar,
+// its sides bending sideways from the name's ends to the eye's as they rise, and the name pours up
+// it a row of pixels at a time, every row level, each as wide as the funnel where it stands and
+// shorter the nearer the tip, until the bar's edge takes the last of it. The funnel is drawn over
+// the whole window: no pane or strip it crosses cuts it short. The eye in the bar then
+// shows and stays. The name stands and goes once as the app loads; an empty view shown after it has
+// reached the bar holds the lattice alone.
 function fly(node) {
   const home = document.getElementById("bar-mark");
   window.clearTimeout(flights.get(node));
+  settle(node);
   node.getAnimations().forEach((one) => one.cancel());
+  if (home.classList.contains("home")) {
+    node.style.visibility = "hidden";
+    return;
+  }
   node.style.visibility = "";
   flights.set(
     node,
     window.setTimeout(() => {
       const from = node.getBoundingClientRect();
       const to = home.getBoundingClientRect();
+      const bar = home.closest(".bar")?.getBoundingClientRect();
       const done = () => {
+        settle(node);
         node.style.visibility = "hidden";
         home.classList.add("home");
       };
-      if (!from.width || !to.width || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (!from.width || !to.width || !bar || matchMedia("(prefers-reduced-motion: reduce)").matches) {
         done();
         return;
       }
-      const scale = to.width / from.width;
-      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
-      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
-      const flight = node.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px) scale(${scale})` }], {
-        duration: FLIES,
-        easing: "cubic-bezier(0.5, 0, 0.25, 1)",
-        fill: "forwards",
-      });
-      flight.onfinish = done;
+      const scale = window.devicePixelRatio || 1;
+      const name = drawName(node, from, scale);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const canvas = Object.assign(document.createElement("canvas"), { className: "genie" });
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      canvas.setAttribute("aria-hidden", "true");
+      document.body.append(canvas);
+      const pen = canvas.getContext("2d");
+      // The window's own pixels, moved down so the funnel's tip, on the bar's bottom edge under the
+      // eye, stands at 0; no row is drawn above it.
+      const tipY = bar.bottom;
+      pen.setTransform(scale, 0, 0, scale, 0, tipY * scale);
+      const left = from.left;
+      const right = from.right;
+      const tipLeft = to.left;
+      const tipRight = to.right;
+      const foot = from.bottom - tipY;
+      const high = from.height;
+      // How far above the name the funnel narrows, and where rows start to shorten toward the tip.
+      const reach = Math.max(1, foot);
+      const shortens = Math.max(1, foot - high);
+      // Where a row that would stand `depth` below the tip stands once rows shorten near the tip.
+      const placed = (depth) => (depth >= shortens ? depth - shortens * (1 - TIP_ROW) / 2 : depth * (TIP_ROW + ((1 - TIP_ROW) * depth) / (2 * shortens)));
+      const offset = shortens * (1 - TIP_ROW) / 2;
+      const began = performance.now();
+      const genie = { canvas, frame: 0 };
+      genies.set(node, genie);
+      node.style.visibility = "hidden";
+      const draw = (now) => {
+        const part = Math.min(1, (now - began) / FLIES);
+        const forming = smooth(part / FORMS);
+        const rising = Math.max(0, (part - FORMS * 0.8) / (1 - FORMS * 0.8));
+        const lift = rising * rising * (foot + high);
+        pen.clearRect(0, -tipY, width, height);
+        const rows = name.height;
+        for (let row = 0; row < rows; row += 1) {
+          // The row's depth below the tip before rows shorten, and after.
+          const depth = foot - high + (row / scale) - lift + offset;
+          if (depth < 0) {
+            continue;
+          }
+          const y = placed(depth);
+          const tall = (placed(depth + 1 / scale) - y) || 1 / scale;
+          const bend = forming * (1 - smooth(y / reach));
+          const start = left + (tipLeft - left) * bend;
+          const end = right + (tipRight - right) * bend;
+          pen.drawImage(name, 0, row, name.width, 1, start, y, end - start, tall + 0.35 / scale);
+        }
+        if (part < 1) {
+          genie.frame = requestAnimationFrame(draw);
+        } else {
+          done();
+        }
+      };
+      genie.frame = requestAnimationFrame(draw);
     }, STANDS)
   );
 }
@@ -131,6 +254,7 @@ const seen = new IntersectionObserver((entries) => {
       fly(node);
     } else {
       window.clearTimeout(flights.get(node));
+      settle(node);
     }
   }
 });
@@ -169,7 +293,7 @@ function linkHome(node) {
 // Sets the name in the bar and in every heading the page marks for it, each of those set to go to
 // the bar once it shows.
 export function startWordmark() {
-  linkHome(setWordmark(document.getElementById("bar-mark")));
+  linkHome(setWordmark(document.getElementById("bar-mark"), { eyeOnly: true }));
   document.querySelectorAll("[data-wordmark]").forEach((node) => {
     linkHome(setWordmark(node));
     watch(node);

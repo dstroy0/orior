@@ -636,14 +636,27 @@ impl Servers {
         Ok(signature_of(&said))
     }
 
-    /// Stops every server, and forgets those that failed, as another tree opens.
-    pub fn stop_all(&self) {
-        let running: Vec<Arc<Server>> = self.running.lock().map(|mut all| all.drain().map(|(_, server)| server).collect()).unwrap_or_default();
-        for server in running {
-            server.stop();
-        }
+    /// Takes every server out of the running ones, and forgets those that failed: a server asked for
+    /// after this starts afresh.
+    fn take_all(&self) -> Vec<Arc<Server>> {
         if let Ok(mut failed) = self.failed.lock() {
             failed.clear();
+        }
+        self.running.lock().map(|mut all| all.drain().map(|(_, server)| server).collect()).unwrap_or_default()
+    }
+
+    /// Stops every server and waits for each to end, as the app closes.
+    pub fn stop_all(&self) {
+        for server in self.take_all() {
+            server.stop();
+        }
+    }
+
+    /// Stops every server without waiting, as another tree opens: the servers are let go at once,
+    /// and each is told to end on a thread of its own.
+    pub fn let_go(&self) {
+        for server in self.take_all() {
+            std::thread::spawn(move || server.stop());
         }
     }
 }

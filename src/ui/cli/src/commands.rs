@@ -30,12 +30,20 @@ pub struct Menu {
     pub split: Option<String>,
 }
 
-/// An item of a menu, or "-", the line between items.
+/// An item of a menu, "-", the line between items, or a label over items of its own, which the window
+/// opens beside it and the command line lists with the rest of the menu.
 #[derive(Deserialize)]
 #[serde(untagged)]
 pub enum Entry {
     Line(String),
     Item(Item),
+    Group(Group),
+}
+
+#[derive(Deserialize)]
+pub struct Group {
+    pub label: String,
+    pub items: Vec<Entry>,
 }
 
 #[derive(Deserialize)]
@@ -56,16 +64,25 @@ impl Menu {
         self.title.to_lowercase()
     }
 
+    /// Every item of the menu, those of its groups among them, in order.
     pub fn commands(&self) -> impl Iterator<Item = &Item> {
-        self.items.iter().filter_map(|entry| match entry {
-            Entry::Item(item) => Some(item),
-            Entry::Line(_) => None,
-        })
+        flat(&self.items).into_iter()
     }
 
     pub fn command(&self, word: &str) -> Option<&Item> {
         self.commands().find(|item| item.command == word)
     }
+}
+
+fn flat(entries: &[Entry]) -> Vec<&Item> {
+    entries
+        .iter()
+        .flat_map(|entry| match entry {
+            Entry::Item(item) => vec![item],
+            Entry::Group(group) => flat(&group.items),
+            Entry::Line(_) => Vec::new(),
+        })
+        .collect()
 }
 
 pub fn read() -> Commands {

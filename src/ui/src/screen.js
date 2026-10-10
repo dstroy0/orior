@@ -10,11 +10,24 @@
 // green and blue, switch to the second screen full-screen programs draw on, and ask the terminal
 // where its cursor is and what it is. What the screen cannot do it reads past.
 //
-// The main screen keeps what scrolls off its top, as many as KEPT lines, and the second screen keeps
-// nothing. A line is one row of the page, drawn again only when something in it has changed, and a
-// line that scrolls off the top of the main screen takes its row with it into what is kept.
+// The main screen keeps what scrolls off its top, and the second screen keeps nothing. A line is one
+// row of the page, drawn again only when something in it has changed, and a line that scrolls off
+// the top of the main screen takes its row with it into what is kept.
+//
+// The lines kept are held as a large file is. Each line that scrolls off goes to a store on disk, and
+// the page holds two runs of them: the tail, the two screens of lines just above the screen, which
+// grows at the speed of the output and lets its oldest go; and the head, the lines in sight and a
+// screen either side where the reader has scrolled back past the tail, read from the store as they
+// come into sight. Every line held in neither stands as its height in a gap, above the head or
+// between the head and the tail. A reader sitting still keeps their place while the output runs
+// on below, and the screen always sits under the last line kept however fast the view is scrolled.
+// With no store, the page holds the last KEPT in the tail itself.
 
 const KEPT = 5000;
+// The most screens of lines the head holds.
+const HEAD_SCREENS = 4;
+// How long the view rests, in milliseconds, before the lines come into sight are read.
+const SETTLES = 50;
 const TAB = 8;
 
 // A style is shared by every cell drawn in it and never changed; a new one is made for each change.
@@ -187,22 +200,43 @@ function bufferOf(cols, rows, host) {
 }
 
 export class Screen {
-  // `view` is the scrolling element the screen is drawn in, and `answer` what the screen says back
-  // to the shell, as when it is asked where its cursor is.
-  constructor(view, cols, rows, answer) {
+  // `view` is the scrolling element the screen is drawn in, `answer` what the screen says back to
+  // the shell, as when it is asked where its cursor is, and `store` where the lines that scroll off
+  // go: { keep(lines), read(from, count) }, each answering with a promise.
+  constructor(view, cols, rows, answer, store = null) {
     this.view = view;
     this.answer = answer;
+    this.store = store;
+    // The lines sent to the store; the lines of it the head holds, from its first to the one after
+    // its last; the first line the tail holds, which runs on to the last sent; the first line still
+    // to be read back after an erase; and the lines on their way.
+    this.written = 0;
+    this.headFrom = 0;
+    this.headTo = 0;
+    this.tailFrom = 0;
+    this.floor = 0;
+    this.outgoing = [];
+    this.flushing = null;
+    this.loading = false;
     this.atFoot = true;
-    // Where the screen last scrolled the view to itself, which says nothing of where the reader is.
-    this.placed = 0;
+    // Where the screen last scrolled the view to itself, until the scroll it made is seen, which says
+    // nothing of where the reader is; -1 where no scroll of its own is on its way.
+    this.placed = -1;
     view.addEventListener("scroll", () => {
-      if (view.scrollTop !== this.placed) {
-        this.atFoot = view.scrollHeight - view.scrollTop - view.clientHeight < 4;
+      if (view.scrollTop === this.placed) {
+        this.placed = -1;
+        return;
       }
+      this.placed = -1;
+      this.atFoot = view.scrollHeight - view.scrollTop - view.clientHeight < 4;
+      this.follow();
     });
     this.cols = cols;
     this.rowCount = rows;
-    this.kept = view.appendChild(Object.assign(document.createElement("div"), { className: "term-kept" }));
+    this.above = view.appendChild(Object.assign(document.createElement("div"), { className: "term-gap" }));
+    this.head = view.appendChild(Object.assign(document.createElement("div"), { className: "term-kept" }));
+    this.between = view.appendChild(Object.assign(document.createElement("div"), { className: "term-gap" }));
+    this.tail = view.appendChild(Object.assign(document.createElement("div"), { className: "term-kept" }));
     this.mainHost = view.appendChild(Object.assign(document.createElement("div"), { className: "term-rows" }));
     this.altHost = view.appendChild(Object.assign(document.createElement("div"), { className: "term-rows", hidden: true }));
     this.main = bufferOf(cols, rows, this.mainHost);
@@ -413,10 +447,7 @@ export class Screen {
         if (gone.dirty || gone === this.cursorDrawn) {
           row.innerHTML = lineHtml(gone, -1);
         }
-        this.kept.appendChild(row);
-        if (this.kept.childElementCount > KEPT) {
-          this.kept.firstElementChild.remove();
-        }
+        this.keepRow(row);
         lines.splice(this.bottom, 0, lineOf(this.cols, this.style));
         const fresh = document.createElement("div");
         rows.splice(this.bottom, 0, fresh);
@@ -480,7 +511,9 @@ export class Screen {
     this.altHost.replaceChildren();
     this.alt = bufferOf(this.cols, this.rowCount, this.altHost);
     this.buffer = this.alt;
-    this.kept.hidden = true;
+    for (const part of [this.above, this.head, this.between, this.tail]) {
+      part.hidden = true;
+    }
     this.mainHost.hidden = true;
     this.altHost.hidden = false;
     this.top = 0;
@@ -495,7 +528,9 @@ export class Screen {
     this.alt = null;
     this.altHost.hidden = true;
     this.altHost.replaceChildren();
-    this.kept.hidden = false;
+    for (const part of [this.above, this.head, this.between, this.tail]) {
+      part.hidden = false;
+    }
     this.mainHost.hidden = false;
     this.top = 0;
     this.bottom = this.rowCount - 1;
@@ -659,7 +694,13 @@ export class Screen {
     } else if (how === 2) {
       this.eraseLines(0, this.rowCount);
     } else if (how === 3) {
-      this.kept.replaceChildren();
+      this.head.replaceChildren();
+      this.tail.replaceChildren();
+      this.headFrom = this.written;
+      this.headTo = this.written;
+      this.tailFrom = this.written;
+      this.floor = this.written;
+      this.sizeGaps();
     }
   }
 
@@ -721,7 +762,7 @@ export class Screen {
           const row = buffer.rows.shift();
           row.innerHTML = lineHtml(gone, -1);
           if (buffer === this.main) {
-            this.kept.appendChild(row);
+            this.keepRow(row);
           } else {
             row.remove();
           }
@@ -738,6 +779,8 @@ export class Screen {
     }
     this.cols = cols;
     this.rowCount = rows;
+    this.rowTall = 0;
+    this.trimTail();
     this.top = 0;
     this.bottom = rows - 1;
     this.x = Math.min(this.x, cols - 1);
@@ -783,8 +826,195 @@ export class Screen {
     });
     this.cursorDrawn = cursorLine;
     if (this.atFoot) {
-      view.scrollTop = view.scrollHeight;
-      this.placed = view.scrollTop;
+      this.fill();
+      this.place(view.scrollHeight);
     }
+  }
+
+  // Scrolls the view itself, marking the scroll as its own where the view moves.
+  place(top) {
+    const before = this.view.scrollTop;
+    this.view.scrollTop = top;
+    if (this.view.scrollTop !== before) {
+      this.placed = this.view.scrollTop;
+    }
+  }
+
+  // Keeps a row that scrolled off the top of the main screen. With a store its line goes there and
+  // its row to the tail, whose first row goes on into the head where the head runs on to the tail and
+  // the reader is not being read for, and otherwise out of the page, its height into the gap.
+  keepRow(row) {
+    if (!this.store) {
+      this.tail.appendChild(row);
+      if (this.tail.childElementCount > KEPT) {
+        this.tail.firstElementChild.remove();
+      }
+      return;
+    }
+    this.outgoing.push(row.innerHTML);
+    this.written += 1;
+    this.tail.appendChild(row);
+    this.trimTail();
+    this.flushSoon();
+  }
+
+  // Lets the tail's first rows go past the tail's size, into the head or out of the page.
+  trimTail() {
+    const size = this.store ? 2 * this.inView() : KEPT;
+    while (this.tail.childElementCount > size) {
+      const first = this.tail.firstElementChild;
+      const headEmpty = this.headFrom === this.headTo;
+      if (!headEmpty && this.headTo === this.tailFrom && this.head.childElementCount < HEAD_SCREENS * this.inView() && !this.loading) {
+        this.head.appendChild(first);
+        this.headTo += 1;
+      } else {
+        first.remove();
+        if (headEmpty && this.headTo === this.tailFrom) {
+          this.headFrom += 1;
+          this.headTo += 1;
+        }
+      }
+      this.tailFrom += 1;
+    }
+    this.sizeGaps();
+  }
+
+  // Sends the lines on their way to the store, in order. A store that fails is let go, and from
+  // then on the page holds the last KEPT itself.
+  flushSoon() {
+    this.flushing ??= Promise.resolve().then(async () => {
+      try {
+        while (this.outgoing.length && this.store) {
+          await this.store.keep(this.outgoing.splice(0));
+        }
+      } catch {
+        this.store = null;
+        this.sizeGaps();
+      }
+      this.flushing = null;
+    });
+  }
+
+  async readBack(from, count) {
+    await this.flushing;
+    return this.store && count > 0 ? this.store.read(from, count) : [];
+  }
+
+  // Reads what comes into sight once the view stops moving for SETTLES milliseconds. A fast scroll
+  // reads only where it stops and not every place it passes.
+  follow() {
+    window.clearTimeout(this.settling);
+    this.settling = window.setTimeout(() => this.fill(), SETTLES);
+  }
+
+  rowsOf(lines) {
+    return lines.map((html) => Object.assign(document.createElement("div"), { innerHTML: html }));
+  }
+
+  // The height of one row, read from the screen's own rows.
+  rowHeight() {
+    this.rowTall ||= this.mainHost.firstElementChild?.getBoundingClientRect().height || 0;
+    return this.rowTall;
+  }
+
+  // How many rows the view shows at once, and the screen's own rows at the least.
+  inView() {
+    const tall = this.rowHeight();
+    return Math.max(this.rowCount, tall ? Math.ceil(this.view.clientHeight / tall) : 0);
+  }
+
+  // Gives each line of the store not held its row's height, above the head and between the head
+  // and the tail. The view then scrolls over every line kept, and the screen stays under the last
+  // of it.
+  sizeGaps() {
+    const tall = this.store ? this.rowHeight() : 0;
+    this.above.style.height = `${(this.headFrom - this.floor) * tall}px`;
+    this.between.style.height = `${(this.tailFrom - this.headTo) * tall}px`;
+  }
+
+  // Holds the lines in sight in the head, and a screen of them either side, read from the store,
+  // where they are not in the tail. Where what is wanted meets the head, the head reaches on to it
+  // within HEAD_SCREENS screens around those in sight; where it does not, it is read whole in its
+  // place. At the foot, or with every line in sight in the tail, the head holds nothing.
+  async fill() {
+    if (!this.store || this.loading || this.head.hidden) {
+      return;
+    }
+    const tall = this.rowHeight();
+    if (!tall) {
+      return;
+    }
+    const view = this.view;
+    const screenful = this.inView();
+    const clamp = (line) => Math.max(this.floor, Math.min(this.tailFrom, line));
+    const top = this.above.offsetTop;
+    const first = this.floor + Math.floor((view.scrollTop - top) / tall);
+    const last = this.floor + Math.ceil((view.scrollTop + view.clientHeight - top) / tall);
+    if (this.atFoot || first >= this.tailFrom) {
+      if (this.headFrom !== this.headTo || this.headFrom !== this.tailFrom) {
+        this.head.replaceChildren();
+        this.headFrom = this.tailFrom;
+        this.headTo = this.tailFrom;
+        this.sizeGaps();
+        if (this.atFoot) {
+          this.place(view.scrollHeight);
+        }
+      }
+      return;
+    }
+    const margin = Math.floor(screenful / 2);
+    const held = this.headFrom <= Math.max(this.floor, first - margin) && this.headTo >= Math.min(this.tailFrom, last + margin);
+    if (held && this.head.childElementCount <= HEAD_SCREENS * screenful) {
+      return;
+    }
+    let from = clamp(first - screenful);
+    let to = clamp(last + screenful);
+    if (from <= this.headTo && to >= this.headFrom && this.headFrom !== this.headTo) {
+      from = Math.min(from, this.headFrom);
+      to = Math.max(to, this.headTo);
+      const most = HEAD_SCREENS * screenful;
+      if (to - from > most) {
+        from = clamp(Math.round((first + last) / 2) - Math.floor(most / 2));
+        to = clamp(from + most);
+        from = clamp(to - most);
+      }
+    }
+    if (from === this.headFrom && to === this.headTo) {
+      return;
+    }
+    this.loading = true;
+    try {
+      await this.hold(from, to);
+    } finally {
+      this.loading = false;
+    }
+    // The view may have moved on while the lines were read.
+    requestAnimationFrame(() => this.fill());
+  }
+
+  // Makes the head the lines of the store from `from` up to `to`, reading only those not held.
+  async hold(from, to) {
+    if (from >= this.headTo || to <= this.headFrom) {
+      const lines = await this.readBack(from, to - from);
+      this.head.replaceChildren(...this.rowsOf(lines));
+      this.headFrom = from;
+      this.headTo = from + lines.length;
+    } else {
+      const above = await this.readBack(from, this.headFrom - from);
+      const below = await this.readBack(this.headTo, to - this.headTo);
+      while (this.headFrom < from && this.head.firstElementChild) {
+        this.head.firstElementChild.remove();
+        this.headFrom += 1;
+      }
+      while (this.headTo > to && this.head.lastElementChild) {
+        this.head.lastElementChild.remove();
+        this.headTo -= 1;
+      }
+      this.head.prepend(...this.rowsOf(above));
+      this.headFrom -= above.length;
+      this.head.append(...this.rowsOf(below));
+      this.headTo += below.length;
+    }
+    this.sizeGaps();
   }
 }

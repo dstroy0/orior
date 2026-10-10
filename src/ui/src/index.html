@@ -13,20 +13,23 @@
     <script src="early.js"></script>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body data-view="run">
+  <body data-view="edit">
     <header class="bar">
       <span class="bar-mark" id="bar-mark"></span>
       <nav class="menubar" id="menubar" role="menubar" aria-label="orior"></nav>
-      <span class="tree" id="tree-path"></span>
-      <button class="scheme" id="scheme" type="button" aria-label="Light"></button>
+      <span class="tree" id="tree-path" hidden></span>
+      <span class="bar-project" id="bar-project"></span>
+      <span class="status-branch" id="status-branch" hidden></span>
+      <span class="bar-gap"></span>
+      <div class="bar-tools" id="bar-tools" role="toolbar" aria-label="Settings and panels"></div>
+      <div class="window-controls" id="window-controls" role="group" aria-label="Window"></div>
     </header>
-    <nav class="modes" role="tablist" aria-label="View">
-      <button class="mode-tab" type="button" role="tab" id="tab-run" data-view="run" aria-controls="mode-run" aria-selected="true">Run</button>
-      <button class="mode-tab" type="button" role="tab" id="tab-edit" data-view="edit" aria-controls="mode-edit" aria-selected="false" tabindex="-1">Edit</button>
-    </nav>
 
+    <div class="frame">
+    <nav class="strip" id="strip" aria-label="Tool windows"></nav>
+    <div class="work">
     <main class="shell">
-      <section class="mode" id="mode-run" data-active="true">
+      <section class="mode" id="mode-run" data-active="false">
         <aside class="side" id="job-side">
           <div class="side-inner">
             <input class="filter" id="job-filter" type="search" placeholder="Search" spellcheck="false" />
@@ -36,7 +39,7 @@
         <div class="stage" id="job-stage"></div>
       </section>
 
-      <section class="mode" id="mode-edit" data-active="false">
+      <section class="mode" id="mode-edit" data-active="true">
         <aside class="side explorer" id="explorer">
           <div class="side-inner">
             <div class="explorer-head">
@@ -67,6 +70,13 @@
                   <div class="search-hits" id="usages-hits"></div>
                 </div>
               </section>
+              <section class="pane" data-pane="todo">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:todo" aria-expanded="true">TODO</button>
+                <div class="pane-body search-body">
+                  <p class="search-said" id="todo-said" aria-live="polite"></p>
+                  <div class="search-hits" id="todo-hits"></div>
+                </div>
+              </section>
               <section class="pane" data-pane="open">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:open" aria-expanded="true">Open Editors</button>
                 <div class="pane-body" id="open-editors"></div>
@@ -79,16 +89,31 @@
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:outline" aria-expanded="false">Outline</button>
                 <div class="pane-body" id="outline"></div>
               </section>
+              <section class="pane" data-pane="changes">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:changes" aria-expanded="true">Changes</button>
+                <div class="pane-body" id="changes"></div>
+              </section>
               <section class="pane" data-pane="timeline">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:timeline" aria-expanded="false">Timeline</button>
                 <div class="pane-body" id="timeline"></div>
+              </section>
+              <section class="pane" data-pane="local">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:local" aria-expanded="true">Local History</button>
+                <div class="pane-body" id="local-history"></div>
+              </section>
+              <section class="pane" data-pane="problems">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:problems" aria-expanded="true">Problems</button>
+                <div class="pane-body" id="problems"></div>
+              </section>
+              <section class="pane" data-pane="git">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:git" aria-expanded="true">Git</button>
+                <div class="pane-body" id="git-log"></div>
               </section>
             </div>
           </div>
         </aside>
         <div class="desk">
           <div class="tabs" id="tabs" role="tablist"></div>
-          <nav class="crumbs" id="crumbs" aria-label="Breadcrumbs" hidden></nav>
           <div class="editor" id="editor"></div>
           <div class="binary" id="binary" hidden></div>
           <div class="empty" id="edit-empty" hidden>
@@ -122,14 +147,37 @@
       </section>
     </main>
 
+    <section class="debug" id="debug" hidden aria-label="Debug">
+      <div class="term-grip" id="debug-grip" aria-hidden="true"></div>
+      <div class="debug-bar" id="debug-bar"><span class="debug-said" id="debug-said" aria-live="polite"></span></div>
+      <div class="debug-body">
+        <section class="debug-col debug-frames-col" aria-label="Frames">
+          <h3>Frames</h3>
+          <div class="debug-list" id="debug-frames"></div>
+        </section>
+        <section class="debug-col" aria-label="Variables">
+          <h3>Variables</h3>
+          <input class="debug-field" id="debug-watch" type="text" placeholder="Add a watch: an expression, then Enter" spellcheck="false" />
+          <div class="debug-list" id="debug-vars"></div>
+        </section>
+        <section class="debug-col debug-console" aria-label="Console">
+          <h3>Console</h3>
+          <div class="debug-out" id="debug-out"></div>
+          <input class="debug-field" id="debug-repl" type="text" placeholder="Evaluate in the chosen frame, then Enter" spellcheck="false" />
+        </section>
+      </div>
+    </section>
+
     <section class="term" id="term" hidden>
       <div class="term-grip" id="term-grip" aria-hidden="true"></div>
       <div class="term-view" id="term-view"></div>
       <textarea class="term-keys" id="term-keys" aria-label="Terminal" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
     </section>
+    </div>
+    </div>
 
     <footer class="statusbar" id="statusbar">
-      <span class="status-branch" id="status-branch" hidden></span>
+      <nav class="crumbs" id="crumbs" aria-label="Breadcrumbs" hidden></nav>
       <span class="pulse" id="pulse"></span>
       <button class="status-said" id="status-said" type="button" hidden></button>
       <button class="status-report" id="status-report" type="button" hidden></button>

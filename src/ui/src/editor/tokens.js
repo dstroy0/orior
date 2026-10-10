@@ -209,6 +209,27 @@ export class Highlight {
     }
   }
 
+  // Lines put in above the first: what was worked out moves down with its lines, and the new first
+  // line starts at root. The lines below keep the state they were guessed to start in until the
+  // lines above reach them and say otherwise.
+  shift(added) {
+    if (!added) {
+      return;
+    }
+    this.starts = new Array(added).concat(this.starts);
+    this.starts[0] = "root";
+    this.runs = new Array(added).concat(this.runs);
+  }
+
+  // Writes the state a line starts in. Where it differs from the one kept, everything worked out
+  // from that line on was worked out from a wrong state, and is forgotten.
+  startAt(line, state) {
+    if (this.starts[line] !== undefined && this.starts[line] !== state) {
+      this.forget(line);
+    }
+    this.starts[line] = state;
+  }
+
   stateAt(line) {
     if (!this.grammar || this.grammar.perLine) {
       return "root";
@@ -228,7 +249,7 @@ export class Highlight {
     for (let at = from; at < line; at += 1) {
       const { runs, state } = tokenize(this.grammar, this.doc.line(at), this.starts[at]);
       this.runs[at] = runs;
-      this.starts[at + 1] = state;
+      this.startAt(at + 1, state);
     }
     return this.starts[line];
   }
@@ -247,7 +268,7 @@ export class Highlight {
       const { runs, state } = tokenize(this.grammar, this.doc.line(line), this.stateAt(line));
       this.runs[line] = runs;
       if (!this.grammar.perLine) {
-        this.starts[line + 1] = state;
+        this.startAt(line + 1, state);
       }
       found = runs;
     }
