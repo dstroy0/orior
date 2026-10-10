@@ -55,6 +55,9 @@ pub struct End {
     pub code: Option<i32>,
     pub stopped: bool,
     pub views: Vec<String>,
+    /// The program a job whose `opens` is "program" built, by its path in the tree where it is in
+    /// the tree, where the build made it.
+    pub made: Option<String>,
     pub ms: f64,
 }
 
@@ -219,6 +222,13 @@ fn arguments(step: &Step, values: &HashMap<String, Vec<String>>) -> Result<Vec<S
                 out.extend(said);
             }
             Arg::Env(_) => {}
+            Arg::Around(before, key, after) => out.extend(first(key).map(|value| format!("{before}{value}{after}"))),
+            Arg::When(key, value, words) => {
+                if first(key).as_deref() == Some(value.as_str()) {
+                    out.extend(words.iter().cloned());
+                }
+            }
+            Arg::Set(..) | Arg::Unpath(_) => {}
         }
     }
     Ok(out)
@@ -234,6 +244,7 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         }
         Program::Python(script) => (python(), std::iter::once(script.clone()).chain(args).collect()),
         Program::Built(name) => (built(root, name)?, args),
+        Program::Tool { tool, program } => (crate::executables::program(tool, program)?, args),
     };
     let mut cmd = Command::new(&program);
     if let Program::Python(_) = step.program {
@@ -244,6 +255,7 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         Program::Bash(_) => "bash".to_string(),
         Program::Python(_) => "python".to_string(),
         Program::Built(_) => relative(root, &program),
+        Program::Tool { program, .. } => program.clone(),
     };
     full.insert(0, shown_program);
     // each setting given goes into the step's environment, and the line shown leads with it as a
@@ -256,6 +268,16 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
                 cmd.env(key, &value);
                 set.push(format!("{key}={value}"));
             }
+        }
+        if let Arg::Set(key, value) = arg {
+            cmd.env(key, value);
+            set.push(format!("{key}={value}"));
+        }
+        if let Arg::Unpath(name) = arg {
+            let path = crate::toolchains::run_path();
+            let kept: Vec<PathBuf> = std::env::split_paths(&path).filter(|dir| crate::toolchains::program_in(dir, std::slice::from_ref(name)).is_none()).collect();
+            cmd.env("PATH", std::env::join_paths(kept).unwrap_or(path));
+            set.push(format!("PATH=<PATH without {name}>"));
         }
     }
     let shown = set.into_iter().chain(full).map(|w| if w.contains(' ') { format!("\"{w}\"") } else { w }).collect::<Vec<_>>();
@@ -393,7 +415,10 @@ impl Runs {
                     let _ = std::fs::create_dir_all(&view_out);
                     cmd.env("VIEW_OUT", &view_out);
                 }
-                cmd.env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8").env("PATH", &run_path);
+                cmd.env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8");
+                if !cmd.get_envs().any(|(key, _)| key == "PATH") {
+                    cmd.env("PATH", &run_path);
+                }
                 cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
                 if !attached {
                     quiet(&mut cmd);
@@ -425,7 +450,24 @@ impl Runs {
             }
             let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
             let views = if job.opens == "views" { pages(&root, &view_out, &lines) } else { Vec::new() };
-            sink(Said::End(End { run, code, stopped: holds(&stopped, run), views, ms: since(began) }));
+            let stopped_now = holds(&stopped, run);
+            if job.opens == "program" && code != Some(0) && !stopped_now {
+                for said in crate::executables::advice(&job.id, &lines) {
+                    sink(Said::Line(Line { run, stream: "stderr", text: said, ms: since(began) }));
+                }
+            }
+            let made = if job.opens == "program" && code == Some(0) && !stopped_now {
+                match crate::executables::made(&root, &job.id, &values, &lines) {
+                    Ok(file) => Some(if file.starts_with(&root) { relative(&root, &file) } else { file.display().to_string() }),
+                    Err(error) => {
+                        sink(Said::Line(Line { run, stream: "stderr", text: error, ms: since(began) }));
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            sink(Said::End(End { run, code, stopped: stopped_now, views, made, ms: since(began) }));
         });
         Ok((run, waits))
     }

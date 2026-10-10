@@ -84,6 +84,11 @@ pub struct Tool {
     pub setup: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub places: HashMap<String, Vec<String>>,
+    /// A folder the program's own folder holds where the program is the tool, as a dotnet that
+    /// builds has its sdk beside it and one that only runs programs has none. A program found
+    /// without it is passed over, on the PATH and in `places` alike.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub holds: Option<String>,
     /// Whether the tree's jobs cannot run without it, which the window checks for as a tree opens.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub needed: bool,
@@ -565,14 +570,15 @@ pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> F
         set("chosen", program);
         return found;
     }
+    let holds = |dir: &Path| tool.holds.as_ref().is_none_or(|inner| std::fs::read_dir(dir.join(inner)).is_ok_and(|mut entries| entries.next().is_some()));
     for name in &tool.programs {
-        if let Some(program) = path.iter().filter(|dir| !passed_over(dir, &tool.not_in)).find_map(|dir| program_in(dir, std::slice::from_ref(name))) {
+        if let Some(program) = path.iter().filter(|dir| !passed_over(dir, &tool.not_in) && holds(dir)).find_map(|dir| program_in(dir, std::slice::from_ref(name))) {
             set("path", program);
             return found;
         }
     }
     let places = for_system(&tool.places).cloned().unwrap_or_default();
-    if let Some(program) = places.iter().flat_map(|pattern| folders_of(pattern)).filter(|dir| !passed_over(dir, &tool.not_in)).find_map(|dir| program_in(&dir, &tool.programs)) {
+    if let Some(program) = places.iter().flat_map(|pattern| folders_of(pattern)).filter(|dir| !passed_over(dir, &tool.not_in) && holds(dir)).find_map(|dir| program_in(&dir, &tool.programs)) {
         set("found", program);
     }
     found

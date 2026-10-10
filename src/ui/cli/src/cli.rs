@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use crate::bridge::{self, Bridge};
@@ -241,6 +241,9 @@ fn run_job(root: PathBuf, job: Job, words: &[String]) -> i32 {
         Said::End(end) => {
             for page in &end.views {
                 err(&format!("page {page}"));
+            }
+            if let Some(made) = &end.made {
+                err(&format!("made {made}"));
             }
             if let Ok(mut kept) = keep.lock() {
                 *kept = Some(end);
@@ -536,14 +539,7 @@ pub fn subject(job: &Job) -> String {
 /// The tree a command works on: the folder `--root` names, else the one `root::find` finds.
 pub fn tree(named: Option<&str>) -> Result<PathBuf, String> {
     match named {
-        Some(dir) => {
-            let path = dunce::canonicalize(dir).map_err(|e| format!("{dir}: {e}"))?;
-            if root::holds_tree(&path) {
-                Ok(path)
-            } else {
-                Err(format!("{} holds no orior tree", path.display()))
-            }
-        }
+        Some(dir) => root::tree_at(Path::new(dir)),
         None => root::find().ok_or_else(|| "no orior tree here: run from inside one, or name one with --root".to_string()),
     }
 }

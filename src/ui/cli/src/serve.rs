@@ -276,7 +276,7 @@ pub fn keep_run(base: &Path) -> i32 {
     });
     let failed = |said: String| {
         sink(runner::Said::Line(runner::Line { run, stream: "stderr", text: said, ms: 0.0 }));
-        sink(runner::Said::End(runner::End { run, code: None, stopped: false, views: Vec::new(), ms: 0.0 }));
+        sink(runner::Said::End(runner::End { run, code: None, stopped: false, views: Vec::new(), made: None, ms: 0.0 }));
         1
     };
     let spec: Value = match std::fs::read_to_string(kept_file(base, "job")).map_err(|error| error.to_string()).and_then(|text| serde_json::from_str(&text).map_err(|error| error.to_string())) {
@@ -386,10 +386,7 @@ impl Server {
     }
 
     fn root_set(&self, path: String) -> Result<String, String> {
-        let path = dunce::canonicalize(&path).map_err(|e| format!("{path}: {e}"))?;
-        if !root::holds_tree(&path) {
-            return Err(format!("{} holds no orior tree", path.display()));
-        }
+        let path = root::tree_at(Path::new(&path))?;
         let mut root = self.root.lock().map_err(|e| e.to_string())?;
         let moved = root.as_ref() != Some(&path);
         *root = Some(path.clone());
@@ -711,7 +708,6 @@ impl Server {
             "format_text" => format::format(&at(&path()?)?, &a.get::<String>("language")?, &a.get::<String>("text")?).and_then(give),
             "format_width" => give(format::width(&at(&path()?)?, &a.get::<String>("language")?)),
             "format_margin" => give(format::margin(&at(&path()?)?, &a.get::<String>("language")?).map(|(width, by)| json!({"width": width, "by": by}))),
-            "tree_holds" => give(root::holds_tree(Path::new(&path()?))),
             "tree_mount" => root::mount(Path::new(&path()?)).and_then(give),
             "tree_unmount" => {
                 root::unmount(&a.get::<String>("name")?);

@@ -22,6 +22,7 @@ pub mod debug;
 pub mod defs;
 pub mod devcontainer;
 pub mod editorconfig;
+pub mod executables;
 pub mod envs;
 pub mod files;
 pub mod fill;

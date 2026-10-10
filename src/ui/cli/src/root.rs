@@ -10,7 +10,8 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 
-/// The file whose presence marks the top of an orior tree.
+/// The file whose presence marks the top of the engine's tree, which the command line finds by
+/// walking up where no tree is named.
 const MARKER: &str = "src/cu/engine/engine_config.h";
 
 /// The folders and files mounted beside the tree, each under its name.
@@ -20,13 +21,18 @@ pub fn holds_tree(dir: &Path) -> bool {
     dir.join(MARKER).is_file()
 }
 
-/// The tree ORIOR_ROOT names, else the first one found walking up from the working directory, else
-/// the first one found walking up from the program itself.
+/// The folder at `path` as a tree: any folder is one, by its full path.
+pub fn tree_at(path: &Path) -> Result<PathBuf, String> {
+    let full = dunce::canonicalize(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    if full.is_dir() { Ok(full) } else { Err(format!("{} is no folder", full.display())) }
+}
+
+/// The tree ORIOR_ROOT names, else the engine's tree found walking up from the working directory,
+/// else the one found walking up from the program itself.
 pub fn find() -> Option<PathBuf> {
     if let Ok(named) = std::env::var("ORIOR_ROOT") {
-        let named = PathBuf::from(named);
-        if holds_tree(&named) {
-            return dunce::canonicalize(named).ok();
+        if let Ok(tree) = tree_at(Path::new(&named)) {
+            return Some(tree);
         }
     }
     let starts = [

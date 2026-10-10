@@ -43,6 +43,14 @@ pub enum Arg {
     /// No argument: the value of a param, where one is given, set in the step's environment under the
     /// param's key as the variable's name.
     Env(String),
+    /// The value of a param, where one is given, between the two texts, as one word.
+    Around(String, String, String),
+    /// The words, where the param's value is the value named.
+    When(String, String, Vec<String>),
+    /// No argument: the variable set to the value in the step's environment.
+    Set(String, String),
+    /// No argument: the step's PATH without the folders that hold the program named.
+    Unpath(String),
 }
 
 #[derive(Clone)]
@@ -53,6 +61,8 @@ pub enum Program {
     Python(String),
     /// A program a build job writes under one of the build folders, by its name.
     Built(&'static str),
+    /// The program `program` of the toolchain `tool`, found where the toolchains window finds it.
+    Tool { tool: String, program: String },
 }
 
 #[derive(Clone)]
@@ -581,6 +591,7 @@ fn protocol(root: &Path, jobs: &mut Vec<Job>) {
 pub fn read(root: &Path) -> Vec<Job> {
     let mut jobs = Vec::new();
     builds(root, &mut jobs);
+    crate::executables::jobs(root, &mut jobs);
     protocol(root, &mut jobs);
     driver(root, &mut jobs);
     runners(root, &mut jobs);

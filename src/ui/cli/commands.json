@@ -309,7 +309,7 @@
         { "label": "Resolve Conflicts…", "command": "conflicts", "args": "[file]" }
       ]
     },
-    { "title": "Build", "groups": ["build"] },
+    { "title": "Build", "groups": ["build", "executable"] },
     { "title": "Protocol", "strip": "protocol", "groups": ["protocol"] },
     { "title": "Ingest", "strip": "ingest", "groups": ["ingest"] },
     { "title": "Render", "strip": "render", "groups": ["render", "view"] },

@@ -246,7 +246,7 @@
       "programs": ["zig"],
       "version": ["version"],
       "install": {"any": "https://ziglang.org/download/"},
-      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims", "%LOCALAPPDATA%\\Programs\\zig-*"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
     },
     {
       "id": "zls",
@@ -501,6 +501,67 @@
       "version": ["--version"],
       "install": {"any": "https://scons.org/pages/download.html"},
       "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "meson",
+      "name": "Meson",
+      "group": "C, C++ and CUDA",
+      "for": "the builds a meson.build gives",
+      "programs": ["meson"],
+      "version": ["--version"],
+      "install": {"any": "https://mesonbuild.com/Getting-meson.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts", "%ProgramFiles%\\Meson"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "go",
+      "name": "Go",
+      "group": "Languages",
+      "for": "builds the programs of a go.mod's main packages",
+      "programs": ["go"],
+      "version": ["version"],
+      "install": {"any": "https://go.dev/dl/"},
+      "places": {"windows": ["%ProgramFiles%\\Go\\bin", "%USERPROFILE%\\go\\bin"], "macos": ["/usr/local/go/bin", "/opt/homebrew/bin"], "linux": ["/usr/local/go/bin", "/usr/bin"]}
+    },
+    {
+      "id": "dotnet",
+      "name": ".NET SDK",
+      "group": "Languages",
+      "for": "builds the programs of .NET projects",
+      "programs": ["dotnet"],
+      "version": ["--version"],
+      "holds": "sdk",
+      "install": {"any": "https://dotnet.microsoft.com/download"},
+      "places": {"windows": ["%ProgramFiles%\\dotnet", "%LOCALAPPDATA%\\Microsoft\\dotnet"], "macos": ["/usr/local/share/dotnet", "~/.dotnet"], "linux": ["/usr/share/dotnet", "/usr/lib/dotnet", "~/.dotnet"]}
+    },
+    {
+      "id": "pyinstaller",
+      "name": "PyInstaller",
+      "group": "Languages",
+      "for": "builds a Python program into one file or one folder from its spec, run by the tree's Python",
+      "programs": ["pyinstaller"],
+      "version": ["--version"],
+      "install": {"any": "https://pyinstaller.org/en/stable/installation.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "bun",
+      "name": "Bun",
+      "group": "Languages",
+      "for": "builds a package.json's bin into one file",
+      "programs": ["bun"],
+      "version": ["--version"],
+      "install": {"any": "https://bun.sh/docs/installation"},
+      "places": {"windows": ["%USERPROFILE%\\.bun\\bin"], "any": ["~/.bun/bin"]}
+    },
+    {
+      "id": "deno",
+      "name": "Deno",
+      "group": "Languages",
+      "for": "builds a package.json's bin into one file where the tree uses Deno",
+      "programs": ["deno"],
+      "version": ["--version"],
+      "install": {"any": "https://docs.deno.com/runtime/getting_started/installation/"},
+      "places": {"windows": ["%USERPROFILE%\\.deno\\bin"], "any": ["~/.deno/bin"]}
     }
   ]
 }
