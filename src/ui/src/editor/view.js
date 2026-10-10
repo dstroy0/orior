@@ -69,6 +69,9 @@ export const endOfSel = (sel) => most(sel.anchor, sel.head);
 export const empty = (sel) => same(sel.anchor, sel.head);
 const caret = (p, goal = null) => ({ anchor: p, head: p, goal });
 
+// The letters a jump marks places with, those under the fingers at rest first.
+const JUMP_LABELS = "asdfjklghqweruiopzxcvbnmty";
+
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
 export const escapeHtml = (text) => text.replace(/[&<>"]/g, (char) => ESCAPES[char]);
 
@@ -1826,6 +1829,10 @@ export class Editor {
     if (!this.s || this.composing || event.isComposing) {
       return;
     }
+    if (this.jump) {
+      this.jumpKey(event);
+      return;
+    }
     this.hover.hide();
     const name = keyName(event);
     if (this.suggest.open && this.suggest.key(name)) {
@@ -1848,6 +1855,96 @@ export class Editor {
       event.preventDefault();
       this.recording?.push({ key: full });
       found();
+    }
+  }
+
+  // Jump: the letter or two typed after it are looked for in the lines in sight, case aside, and each
+  // place they stand gets a mark of a letter of its own, the nearest the cursor first; typing a mark's
+  // letter puts the cursor there. After one letter typed, a mark's letter is never one that follows a
+  // place found, which leaves that letter free to look for two. Escape, a press, a scroll, or any key
+  // that is none of these ends it.
+  startJump() {
+    this.endJump();
+    this.jump = { query: "", marks: [], layer: div("ed-jump") };
+    document.body.append(this.jump.layer);
+    this.host.dataset.jump = "true";
+    const end = () => this.endJump();
+    this.jump.unbind = [
+      ["scroll", this.scroller],
+      ["mousedown", document],
+      ["blur", this.input],
+    ].map(([name, target]) => (target.addEventListener(name, end, { once: true }), () => target.removeEventListener(name, end)));
+  }
+
+  endJump() {
+    if (!this.jump) {
+      return;
+    }
+    this.jump.layer.remove();
+    this.jump.unbind.forEach((unbind) => unbind());
+    this.jump = null;
+    delete this.host.dataset.jump;
+  }
+
+  jumpKey(event) {
+    const jump = this.jump;
+    const letter = event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey ? event.key : null;
+    if (["Shift", "Control", "Alt", "Meta"].includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    const mark = letter && jump.marks.find((one) => one.label === letter.toLowerCase());
+    if (mark) {
+      this.endJump();
+      this.setSelections([caret(mark.at)], caret(mark.at));
+      this.moved();
+      this.reveal();
+      return;
+    }
+    if (!letter || jump.query.length >= 2) {
+      this.endJump();
+      return;
+    }
+    jump.query += letter;
+    this.markJumps();
+  }
+
+  // Marks every place in sight the query stands, the nearest the cursor first, while labels last.
+  markJumps() {
+    const jump = this.jump;
+    const wanted = jump.query.toLowerCase();
+    const rows = this.rows();
+    const box = this.scroller.getBoundingClientRect();
+    const first = Math.max(0, Math.floor((this.scroller.scrollTop - this.pad) / LINE));
+    const last = Math.min(rows.size - 1, Math.ceil((this.scroller.scrollTop + this.scroller.clientHeight - this.pad) / LINE));
+    const head = this.primary().head;
+    const found = [];
+    for (let row = first; row <= last; row += 1) {
+      const line = rows.lineOf(row);
+      const text = this.doc.line(line).toLowerCase();
+      for (let col = text.indexOf(wanted); col >= 0; col = text.indexOf(wanted, col + 1)) {
+        const at = pos(line, col);
+        const rect = this.rectOf(at);
+        if (rect.left >= box.left && rect.left < box.right) {
+          found.push({ at, rect, after: text[col + wanted.length] ?? "", far: Math.abs(line - head.line) * 1000 + Math.abs(col - head.col) });
+        }
+      }
+    }
+    found.sort((a, b) => a.far - b.far);
+    const taken = jump.query.length === 1 ? new Set(found.map((one) => one.after)) : new Set();
+    const labels = [...JUMP_LABELS].filter((label) => !taken.has(label));
+    jump.marks = found.slice(0, labels.length).map((one, index) => ({ ...one, label: labels[index] }));
+    jump.layer.replaceChildren(
+      ...jump.marks.map(({ rect, label }) => {
+        const node = div("ed-jump-mark");
+        node.textContent = label;
+        node.style.left = `${rect.left}px`;
+        node.style.top = `${rect.top}px`;
+        return node;
+      })
+    );
+    if (!found.length) {
+      this.endJump();
     }
   }
 

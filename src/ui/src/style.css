@@ -2262,6 +2262,18 @@ body[data-view="run"] .statusbar .ed-status {
   background: var(--ed-guide);
 }
 
+/* Jump: over each place in sight that what was typed stands, the letter that puts the cursor there. */
+.ed-jump-mark {
+  position: fixed;
+  z-index: 40;
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--signal);
+  color: var(--bg);
+  font: 600 12px/18px var(--code);
+  pointer-events: none;
+}
+
 /* The formatter's width: a line down the editor after the last column its lines keep to. */
 .ed-margin {
   position: absolute;

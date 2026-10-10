@@ -278,6 +278,7 @@ const COMMANDS = {
   "recent-files": () => openPalette(""),
   line: (args) => inEditor((e) => (args[0] ? e.goTo(Math.max(0, Number(args[0]) - 1)) : e.goto.open()))(),
   bracket: inEditor((e) => e.jumpBracket()),
+  jump: inEditor((e) => (e.startJump(), say("Jump: type the letter or two where the cursor is to go, then the mark there."))),
   bridge: goToBridge,
   definition: inEditor(() => editing().definition()),
   usages: inEditor(() => editing().usages()),

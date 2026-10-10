@@ -156,6 +156,7 @@
         { "label": "Go to Symbol in Tree…", "command": "symbol-tree", "keys": "Ctrl+T", "args": "[name]" },
         { "label": "Go to Line…", "command": "line", "keys": "Ctrl+G", "args": "[line]", "needs": "editor" },
         { "label": "Go to Bracket", "command": "bracket", "keys": "Ctrl+Shift+\\", "needs": "editor" },
+        { "label": "Jump to a Place", "command": "jump", "keys": "Ctrl+;", "needs": "editor" },
         { "label": "Toggle Bookmark", "command": "bookmark", "keys": "Ctrl+F11", "needs": "editor" },
         { "label": "Bookmarks…", "command": "bookmarks", "keys": "Ctrl+Shift+F11" },
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },
