@@ -73,6 +73,8 @@ const state = {
   cycle: null,
   // Each file's text as the last commit left it, as it is being read or once it is: null for none.
   heads: new Map(),
+  // How many files the system clipboard holds, for the tree's Paste.
+  clipFiles: 0,
   // The keys of the menus' commands for the editor.
   editorKeys: [],
 };
@@ -1727,10 +1729,24 @@ export async function startEdit(defs) {
   );
   document.addEventListener("mousedown", (event) => state.peek && !state.peek.contains(event.target) && !event.target.closest?.(".ed-change") && closePeek());
   state.editor.scroller.addEventListener("scroll", () => state.peek && performance.now() - state.peekAt > PEEK_SETTLES && closePeek());
-  menuOn(document.getElementById("files"), fileItems);
+  const files = document.getElementById("files");
+  menuOn(files, fileItems);
   menuOn(document.getElementById("tabs"), tabItems);
   menuOn(document.getElementById("editor"), editorItems);
+  // Cut, copy and paste of files by their keys while a row of the tree holds them.
+  files.addEventListener("keydown", (event) => {
+    const row = event.target.closest(".node");
+    const act = { x: () => copyFiles(row.dataset.key, true), c: () => copyFiles(row.dataset.key, false), v: () => pasteFiles(folderOfRow(row)) }[event.key.toLowerCase()];
+    if (row && act && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      act();
+    }
+  });
+  files.addEventListener("pointerdown", readClipFiles);
+  files.addEventListener("focusin", readClipFiles);
   window.addEventListener("focus", async () => {
+    readClipFiles();
     state.heads.clear();
     markChanges(tabOf(state.active));
     await loadChanges();
@@ -1751,15 +1767,15 @@ export async function startEdit(defs) {
 const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
 
 // A row of the tree's menu: open or close a folder, open a file in the editor or a page in a window
-// of its own, copy where it is, or open the terminal in its folder.
+// of its own, cut or copy it, paste files into its folder, copy where it is, or open the terminal in
+// its folder. Off the rows, files paste into the tree's top.
 function fileItems(event) {
   const row = event.target.closest(".node");
   if (!row) {
-    return null;
+    return event.target.closest("#files") ? [{ label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles("") }] : null;
   }
   const path = row.dataset.key;
   const folder = row.classList.contains("dir");
-  const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   const open = folder
     ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
     : { label: "Open", run: () => openFile(path) };
@@ -1767,9 +1783,90 @@ function fileItems(event) {
     open,
     ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
     "-",
+    { label: "Cut", keys: "Ctrl+X", run: () => copyFiles(path, true) },
+    { label: "Copy", keys: "Ctrl+C", run: () => copyFiles(path, false) },
+    { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles(folderOfRow(row)) },
+    "-",
     { label: "Copy path", run: () => copyText(path) },
-    { label: "Open in terminal", run: () => terminalAt(folder ? path : parent) },
+    { label: "Open in terminal", run: () => terminalAt(folderOfRow(row)) },
   ];
+}
+
+// The folder a row of the tree stands for, or the one its file is in.
+function folderOfRow(row) {
+  const path = row.dataset.key;
+  return row.classList.contains("dir") ? path : path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+}
+
+// Files on the system clipboard, cut or copied in the tree here or in another window of orior, or in
+// the system's file manager: how many there are, read again as the window or the tree takes the
+// focus, Paste being open while there are any.
+async function readClipFiles() {
+  state.clipFiles = await invoke("clip_files").catch(() => 0);
+}
+
+async function copyFiles(path, cut) {
+  try {
+    await invoke("files_copy", { paths: [path], cut });
+  } catch (error) {
+    say(String(error));
+  }
+  await readClipFiles();
+}
+
+// Pastes the files on the clipboard into a folder of the tree, moving those that were cut, and shows
+// the last of them in the tree.
+async function pasteFiles(into) {
+  let pasted = [];
+  try {
+    pasted = await invoke("files_paste", { into });
+  } catch (error) {
+    say(String(error));
+  }
+  for (const { from, to } of pasted) {
+    if (from !== null && from !== to) {
+      moveTabs(from, to);
+    }
+  }
+  await readClipFiles();
+  state.expanded.add(into);
+  state.children.clear();
+  await loadChanges();
+  await drawTree();
+  const last = pasted.at(-1)?.to;
+  if (last !== undefined) {
+    const row = [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === last);
+    row?.focus();
+    row?.scrollIntoView({ block: "nearest" });
+  }
+}
+
+// The tabs of a file moved, or of the files in a folder moved, show each file where it went: the
+// server is told the file closed where it was and opened where it is, and the text, the place and
+// any changes not saved go with it.
+function moveTabs(from, to) {
+  const moved = state.tabs.filter((tab) => !tab.commit && (tab.path === from || tab.path.startsWith(`${from}/`)));
+  for (const tab of moved) {
+    const was = tab.path;
+    const now = to + was.slice(from.length);
+    stopServing(tab);
+    const kept = localStorage.getItem(backupKey(was));
+    forgetBackup(was);
+    if (kept !== null) {
+      localStorage.setItem(backupKey(now), kept);
+    }
+    tab.path = now;
+    tab.file = now;
+    state.used = state.used.map((path) => (path === was ? now : path));
+    if (state.active === was) {
+      state.active = now;
+    }
+    serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
+  }
+  if (moved.length) {
+    drawTabs();
+    drawCrumbs();
+  }
 }
 
 // A tab's menu, from the tab bar or from Open Editors: close it, the others or all of them, a tab with changes asking first as its ×

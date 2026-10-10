@@ -6,6 +6,7 @@
 //! calls, the `view` scheme its page windows load from, the terminal's pseudo-terminals and the
 //! clipboard. The same program is the command line, handing it any words it is started with.
 
+mod clip;
 mod dragging;
 mod memory;
 mod scrollback;
@@ -216,6 +217,36 @@ fn tree_files(app: State<App>) -> Result<Vec<String>, String> {
 #[tauri::command(async)]
 fn files_find(app: State<App>, query: String, recent: Vec<String>, most: usize) -> Result<Vec<files::Found>, String> {
     Ok(files::ranked(&root_of(&app)?, &query, &recent, most))
+}
+
+/// Puts files and folders of the tree on the system clipboard, cut or copied, for another window of
+/// orior or the system's file manager to paste.
+#[tauri::command]
+fn files_copy(app: State<App>, paths: Vec<String>, cut: bool) -> Result<(), String> {
+    let root = root_of(&app)?;
+    let full = paths.iter().map(|path| root::inside(&root, path)).collect::<Result<Vec<_>, _>>()?;
+    clip::put(&full, cut)
+}
+
+/// How many files and folders the system clipboard holds.
+#[tauri::command]
+fn clip_files() -> usize {
+    clip::held().map_or(0, |(paths, _)| paths.len())
+}
+
+/// Pastes the files and folders on the system clipboard into a folder of the tree, moving those that
+/// were cut, and says where each went.
+#[tauri::command(async)]
+fn files_paste(app: State<App>, into: String) -> Result<Vec<files::Pasted>, String> {
+    let root = root_of(&app)?;
+    let Some((paths, cut)) = clip::held() else {
+        return Ok(Vec::new());
+    };
+    let pasted = files::paste(&root, &into, &paths, cut)?;
+    if cut {
+        clip::let_go();
+    }
+    Ok(pasted)
 }
 
 /// The most declarations one search of the tree's symbols gives.
@@ -1047,6 +1078,9 @@ fn open(launch: Launch) {
             tree_find,
             tree_files,
             files_find,
+            files_copy,
+            clip_files,
+            files_paste,
             symbols_find,
             tree_search,
             zoom_set,

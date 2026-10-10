@@ -697,6 +697,114 @@ pub fn write(root: &Path, file: &str, text: &str) -> Result<(), String> {
     })
 }
 
+/// A file or folder pasted: where it was, relative to the tree where it was in it, and where it is.
+#[derive(Serialize, Debug, PartialEq)]
+pub struct Pasted {
+    pub from: Option<String>,
+    pub to: String,
+}
+
+/// Copies or moves each of `from`, a file or a folder and all it holds, into the folder `into` of the
+/// tree. A name the folder holds already is numbered, `notes (2).txt` and on, and nothing there is
+/// written over. A file moved into the folder it is in stays where it is. A folder is not pasted
+/// into itself. A move between drives is a copy and then a removal.
+pub fn paste(root: &Path, into: &str, from: &[PathBuf], moving: bool) -> Result<Vec<Pasted>, String> {
+    let folder = inside(root, into)?;
+    if !folder.is_dir() {
+        return Err(format!("{into} is no folder"));
+    }
+    let mut pasted = Vec::new();
+    for source in from {
+        let name = source.file_name().ok_or_else(|| format!("{} has no name", source.display()))?;
+        let was = source.starts_with(root).then(|| relative(root, source));
+        if moving && source.parent() == Some(folder.as_path()) {
+            pasted.push(Pasted { from: was.clone(), to: relative(root, source) });
+            continue;
+        }
+        if source.is_dir() && folder.starts_with(source) {
+            return Err(format!("{} is not pasted into itself", source.display()));
+        }
+        let target = free_name(&folder, Path::new(name));
+        let said = |e: std::io::Error| format!("{}: {e}", source.display());
+        if moving {
+            match fs::rename(source, &target) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::CrossesDevices => {
+                    copy_all(source, &target).map_err(said)?;
+                    if source.is_dir() { fs::remove_dir_all(source) } else { fs::remove_file(source) }.map_err(said)?;
+                }
+                Err(e) => return Err(said(e)),
+            }
+        } else {
+            copy_all(source, &target).map_err(said)?;
+        }
+        pasted.push(Pasted { from: was, to: relative(root, &target) });
+    }
+    if let Ok(mut kept) = KEPT.lock() {
+        *kept = None;
+    }
+    Ok(pasted)
+}
+
+/// `name` in `folder`, numbered where the folder holds that name already: `notes.txt`, then
+/// `notes (2).txt`, `notes (3).txt` and on.
+fn free_name(folder: &Path, name: &Path) -> PathBuf {
+    let first = folder.join(name);
+    if !first.exists() {
+        return first;
+    }
+    let stem = name.file_stem().unwrap_or(name.as_os_str()).to_string_lossy();
+    let end = name.extension().map(|end| format!(".{}", end.to_string_lossy())).unwrap_or_default();
+    (2..).map(|n| folder.join(format!("{stem} ({n}){end}"))).find(|one| !one.exists()).unwrap_or(first)
+}
+
+/// Copies a file, or a folder and everything in it.
+fn copy_all(source: &Path, target: &Path) -> std::io::Result<()> {
+    if !source.is_dir() {
+        return fs::copy(source, target).map(drop);
+    }
+    fs::create_dir(target)?;
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        copy_all(&entry.path(), &target.join(entry.file_name()))?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod pasting {
+    use super::{Pasted, paste};
+    use std::fs;
+
+    #[test]
+    fn a_paste_copies_or_moves_and_writes_over_nothing() {
+        let root = std::env::temp_dir().join(format!("orior_ui_paste_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("a/inner")).unwrap();
+        fs::create_dir_all(root.join("b")).unwrap();
+        fs::write(root.join("a/notes.txt"), "one").unwrap();
+        fs::write(root.join("a/inner/deep.rs"), "two").unwrap();
+        let root = dunce::canonicalize(&root).unwrap();
+        let copied = paste(&root, "a", &[root.join("a/notes.txt")], false).unwrap();
+        assert_eq!(copied, [Pasted { from: Some("a/notes.txt".into()), to: "a/notes (2).txt".into() }]);
+        assert_eq!(fs::read_to_string(root.join("a/notes (2).txt")).unwrap(), "one");
+        paste(&root, "b", &[root.join("a")], false).unwrap();
+        assert_eq!(fs::read_to_string(root.join("b/a/inner/deep.rs")).unwrap(), "two");
+        assert!(paste(&root, "a/inner", &[root.join("a")], false).is_err());
+        let moved = paste(&root, "b", &[root.join("a/notes.txt")], true).unwrap();
+        assert_eq!(moved[0].to, "b/notes.txt");
+        assert!(!root.join("a/notes.txt").exists());
+        let stayed = paste(&root, "b", &[root.join("b/notes.txt")], true).unwrap();
+        assert_eq!(stayed[0].to, "b/notes.txt");
+        let outside = std::env::temp_dir().join(format!("orior_ui_paste_out_{}.txt", std::process::id()));
+        fs::write(&outside, "three").unwrap();
+        let brought = paste(&root, "", std::slice::from_ref(&outside), true).unwrap();
+        assert_eq!(brought[0].from, None);
+        assert!(!outside.exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+}
+
 #[cfg(test)]
 mod windows {
     use super::{slice, window};
