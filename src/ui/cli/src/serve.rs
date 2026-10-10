@@ -945,11 +945,13 @@ pub fn serve(root: Option<PathBuf>, input: impl BufRead, output: impl Write + Se
     server.tell_to(Arc::new(move |event, body| telling(json!({"event": event, "body": body}))));
     server.watch();
     send(json!({"event": "serving", "body": {"version": env!("CARGO_PKG_VERSION"), "root": server.root_now().map(|root| root.display().to_string())}}));
+    let mut going: Vec<std::thread::JoinHandle<()>> = Vec::new();
     for line in input.lines().map_while(Result::ok) {
         let Ok(call) = serde_json::from_str::<Value>(&line) else { continue };
         let server = server.clone();
         let send = send.clone();
-        std::thread::spawn(move || {
+        going.retain(|one| !one.is_finished());
+        going.push(std::thread::spawn(move || {
             let id = call["id"].clone();
             let name = call["name"].as_str().unwrap_or("");
             let answer = match server.call(name, call["args"].clone()) {
@@ -957,7 +959,11 @@ pub fn serve(root: Option<PathBuf>, input: impl BufRead, output: impl Write + Se
                 Err(error) => json!({"id": id, "error": error}),
             };
             send(answer);
-        });
+        }));
+    }
+    // The calls made before the input ended are answered before the server ends.
+    for one in going {
+        let _ = one.join();
     }
     server.stop_all();
 }

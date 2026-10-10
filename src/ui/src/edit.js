@@ -168,14 +168,16 @@ function drawRepoBranch() {
 
 // Reads what git says of the tree again: each changed file's state, and each folder's from the files
 // under it.
+// Another tree opened while the changes are read lets go of the repositories; the changes read are
+// those of the tree the read began in, and the repositories are read again on the next.
 async function loadChanges() {
   if (!state.repos) {
     state.repos = await invoke("git_repositories").catch(() => []);
   }
   const [changed, branch] = await Promise.all([invoke("tree_changed", { repos: repoPaths() }).catch(() => []), invoke("tree_branch", { repo: repoOpen() }).catch(() => null)]);
-  state.changes = new Map(changed.map(({ path, state: mark }) => [path, mark]));
+  state.changes = new Map((changed ?? []).map(({ path, state: mark }) => [path, mark]));
   state.branch = branch;
-  const open = state.repos.find((one) => one.path === repoOpen());
+  const open = state.repos?.find((one) => one.path === repoOpen());
   if (open) {
     open.branch = branch;
   }
@@ -762,13 +764,26 @@ async function readOutward(tab) {
 }
 
 // Opens a file on the side last pressed in.
+// Loads a file's tab, or says on the status bar why its file could not be read, as for a file gone
+// from the disk since its tab was kept. Answers whether the tab is there.
+async function loaded(path) {
+  try {
+    await load(path);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+  return Boolean(tabOf(path));
+}
+
 export async function openFile(path) {
   if (state.elsewhere) {
     state.elsewhere(path, null, 0);
     return;
   }
   const fresh = !tabOf(path);
-  await load(path);
+  if (!(await loaded(path))) {
+    return;
+  }
   if (state.split?.focused && splittable(tabOf(path))) {
     // A file opened in the split alone is not one of the first side's tabs.
     if (fresh) {
@@ -784,7 +799,9 @@ export async function openFile(path) {
 // where there is none.
 async function openInSplit(path) {
   const fresh = !tabOf(path);
-  await load(path);
+  if (!(await loaded(path))) {
+    return;
+  }
   if (state.split?.focused || !splittable(tabOf(path))) {
     show(path);
     return;
@@ -871,7 +888,13 @@ async function load(path) {
 async function openCommit(path, commit) {
   const key = `${path}@${commit.id}`;
   if (!tabOf(key)) {
-    const text = await invoke("file_at", { path, id: commit.id });
+    const text = await invoke("file_at", { path, id: commit.id }).catch((error) => {
+      say(String(error), { failed: true });
+      return null;
+    });
+    if (text === null) {
+      return;
+    }
     const tab = { path: key, file: path, commit: commit.id, readOnly: true, size: text.length, closing: false };
     tab.session = new Session(text, state.known.languageOf(path), { readOnly: true });
     tab.saved = tab.session.doc.id;
@@ -1444,12 +1467,16 @@ const shortId = (commit) => commit.id.slice(0, 7);
 
 // A revision of a file beside the file as it stands, or beside another revision, the older left.
 async function compareCommit(path, commit, other = null) {
-  if (!other) {
-    compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${shortId(commit)}, then as it stands`);
-    return;
+  try {
+    if (!other) {
+      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${shortId(commit)}, then as it stands`);
+      return;
+    }
+    const [older, newer] = commit.when <= other.when ? [commit, other] : [other, commit];
+    compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${shortId(older)}, then ${shortId(newer)}`);
+  } catch (error) {
+    say(String(error), { failed: true });
   }
-  const [older, newer] = commit.when <= other.when ? [commit, other] : [other, commit];
-  compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${shortId(older)}, then ${shortId(newer)}`);
 }
 
 // A file as a commit left it beside the file as the commit's first parent left it, the parent left.

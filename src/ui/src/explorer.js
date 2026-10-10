@@ -113,6 +113,9 @@ function paneOf(name) {
 
 function drawPane(name) {
   const pane = paneOf(name);
+  if (!pane) {
+    return;
+  }
   const { shown, open } = state.panes[name];
   pane.hidden = !shown || groupOf(name) !== state.group;
   pane.classList.toggle("expanded", open);

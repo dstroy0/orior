@@ -92,6 +92,15 @@ const TIP_ROW = 0.25;
 const flights = new Map();
 const genies = new Map();
 
+// The names standing or flying to the bar. Where none is, the eye in the bar shows: a name that never
+// stood, as where the tabs the window kept come back over the empty view, and a name taken out of
+// sight before it reached the bar, as a load cut short leaves it, each leave the eye to show at once.
+const going = new Set();
+
+function landed() {
+  document.getElementById("bar-mark")?.classList.add("home");
+}
+
 // Takes away a genie's canvas.
 function settle(node) {
   const genie = genies.get(node);
@@ -166,6 +175,7 @@ function fly(node) {
     return;
   }
   node.style.visibility = "";
+  going.add(node);
   flights.set(
     node,
     window.setTimeout(() => {
@@ -175,6 +185,7 @@ function fly(node) {
       const done = () => {
         settle(node);
         node.style.visibility = "hidden";
+        going.delete(node);
         home.classList.add("home");
       };
       if (!from.width || !to.width || !bar || matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -255,6 +266,9 @@ const seen = new IntersectionObserver((entries) => {
     } else {
       window.clearTimeout(flights.get(node));
       settle(node);
+      if (going.delete(node) && !going.size) {
+        landed();
+      }
     }
   }
 });
@@ -294,6 +308,7 @@ function linkHome(node) {
 // the bar once it shows.
 export function startWordmark() {
   linkHome(setWordmark(document.getElementById("bar-mark"), { eyeOnly: true }));
+  window.setTimeout(() => going.size || landed(), STANDS);
   document.querySelectorAll("[data-wordmark]").forEach((node) => {
     linkHome(setWordmark(node));
     watch(node);

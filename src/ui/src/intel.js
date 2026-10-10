@@ -44,6 +44,10 @@ function element(tag, props = {}, ...children) {
 
 // The tab the editor shows, and the place of its cursor counted from the file's first line.
 function here() {
+  // An editor can move its cursor before the hooks are given, as it does once as it is made.
+  if (!state.hooks) {
+    return null;
+  }
   const editor = state.hooks.editor();
   const tab = state.hooks.tab();
   const s = editor?.s;

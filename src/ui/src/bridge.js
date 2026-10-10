@@ -13,11 +13,11 @@ const bridge = () => window.__TAURI_INTERNALS__;
 
 const WINDOW = new Set([
   "app_exit", "app_version", "call", "checkers_known", "clip_files", "clip_read", "clip_write", "clone_start",
-  "code_docstring", "code_sort", "commands_read", "file_read_any", "file_slice", "file_write_any", "files_copy",
-  "files_paste", "fill_paragraph", "format_languages", "highlight_grammar", "highlight_lines", "home_reveal",
-  "inspect_languages", "kept_write", "launch_take", "link_open", "memory_hold", "memory_use", "parse_classes", "pick",
-  "plugin_create", "plugin_draft", "plugins_read", "project_create", "reader_menus_read", "reads_file", "repo_clone",
-  "repo_opened", "report_asked", "report_auto", "report_auto_set", "report_bug", "report_error", "report_open",
+  "code_docstring", "code_sort", "commands_read", "devcontainer_line", "file_read_any", "file_slice", "file_write_any",
+  "files_copy", "files_paste", "fill_paragraph", "format_languages", "highlight_grammar", "highlight_lines",
+  "home_reveal", "inspect_languages", "kept_write", "launch_take", "link_open", "memory_hold", "memory_use",
+  "parse_classes", "pick", "plugin_create", "plugin_draft", "plugins_read", "project_create", "reader_menus_read",
+  "reads_file", "remote_get", "remote_rejoin", "repo_clone", "repo_opened", "report_asked", "report_auto", "report_auto_set", "report_bug", "report_error", "report_open",
   "repos_folder", "scrollback_close", "scrollback_keep", "scrollback_open", "scrollback_read", "scrollback_reset",
   "structure_compare", "templates_list", "templates_reveal", "term_close", "term_open", "term_resize", "term_write",
   "toolchain_install", "user_css_read", "view_open", "window_act", "window_open", "window_show", "workspace_read",

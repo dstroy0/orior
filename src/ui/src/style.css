@@ -221,11 +221,16 @@ select {
 }
 
 /* The bar is the ink of the site's header, underlined in signal the way the site's is. */
+:root {
+  --bar-height: calc(2.9rem - 5px);
+  --frame-right: 13px;
+}
+
 .bar {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  height: 2.9rem;
+  height: var(--bar-height);
   padding: 0 0.8rem 0 1rem;
   position: relative;
   color: var(--bar-fg);
@@ -239,7 +244,7 @@ select {
   content: "";
   position: absolute;
   left: 47px;
-  right: 17px;
+  right: calc(var(--frame-right) + 7px);
   bottom: -2px;
   height: 2px;
   background: var(--bar-signal);
@@ -299,7 +304,7 @@ select {
 .frame {
   position: relative;
   flex: 1;
-  padding-right: 10px;
+  padding-right: var(--frame-right);
   min-height: 0;
   display: flex;
 }
@@ -422,7 +427,7 @@ select {
 }
 
 .bar::after {
-  right: 8px;
+  right: calc(var(--frame-right) - 2px);
   bottom: -9px;
   width: 9px;
   height: 9px;
@@ -435,7 +440,7 @@ select {
 }
 
 .statusbar::after {
-  right: 8px;
+  right: calc(var(--frame-right) - 2px);
   top: -7px;
   width: 9px;
   height: 8px;
@@ -449,7 +454,7 @@ select {
   position: absolute;
   top: 0;
   left: 47px;
-  right: 17px;
+  right: calc(var(--frame-right) + 7px);
   height: 1px;
   background: color-mix(in srgb, var(--link), black 35%);
   pointer-events: none;
@@ -483,12 +488,12 @@ select {
 
 .frame {
   background:
-    linear-gradient(color-mix(in srgb, var(--link), black 35%), color-mix(in srgb, var(--link), black 35%)) right 8px top 7px / 2px calc(100% - 14px) no-repeat,
-    linear-gradient(var(--glass-tint), var(--glass-tint)) right top / 10px 100% no-repeat,
+    linear-gradient(color-mix(in srgb, var(--link), black 35%), color-mix(in srgb, var(--link), black 35%)) right calc(var(--frame-right) - 2px) top 7px / 2px calc(100% - 14px) no-repeat,
+    linear-gradient(var(--glass-tint), var(--glass-tint)) right top / var(--frame-right) 100% no-repeat,
     radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) top 0 / 7px 7px no-repeat,
     radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) bottom 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right 10px top 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right 10px bottom 0 / 7px 7px no-repeat;
+    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) top 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) bottom 0 / 7px 7px no-repeat;
 }
 
 /* The window's lattice, behind the whole page, on the deep of the lattices in the views, and the
@@ -901,14 +906,15 @@ body[data-strip-edge] .strip-edge {
   white-space: nowrap;
 }
 
-/* The bar along the bottom of the window, in the ink of the bar along its top. */
+/* The bar along the bottom of the window, in the ink of the bar along its top: its line of text 22px
+   tall at its foot, under the work from the work's left curve, and the room above it. */
 .statusbar {
   flex: none;
   display: flex;
   align-items: center;
   gap: 1.1rem;
-  height: 22px;
-  padding: 0 0.8rem;
+  height: 25px;
+  padding: 3px 0.8rem 0 calc(var(--strip-width) + 7px);
   color: var(--status-fg);
   font: 12px var(--head);
   white-space: nowrap;
@@ -5560,7 +5566,7 @@ textarea.report-field {
 .quick {
   position: fixed;
   z-index: 60;
-  top: 46px;
+  top: var(--bar-height);
   left: 50%;
   width: min(40rem, 86vw);
   transform: translateX(-50%);

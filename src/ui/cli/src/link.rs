@@ -307,7 +307,8 @@ impl Link {
     /// Starts the server on the machine and waits for it to say it serves. Gives its output, and what
     /// the transport says on its error stream as it goes.
     fn join(&self) -> Result<(BufReader<std::process::ChildStdout>, Arc<Mutex<String>>), String> {
-        let start = match self.start.lock().map_err(|e| e.to_string())?.clone() {
+        let known = self.start.lock().map_err(|e| e.to_string())?.clone();
+        let start = match known {
             Some(line) => line,
             None => {
                 let line = self.address.prepare(&|said| self.tell("preparing", said))?;
@@ -426,11 +427,13 @@ impl Link {
     }
 
     /// Ends the server on the machine, as a dropped connection would, for the link to make again.
+    /// Its input is closed as well as its process ended: where the transport is a shell that started
+    /// the server, ending the shell leaves the server, which ends with its input.
     pub fn drop_now(&self) {
-        if let Ok(mut joined) = self.joined.lock() {
-            if let Some(joined) = joined.as_mut() {
-                let _ = joined.child.kill();
-            }
+        if let Some(mut joined) = self.joined.lock().ok().and_then(|mut joined| joined.take()) {
+            drop(joined.input);
+            let _ = joined.child.kill();
+            let _ = joined.child.wait();
         }
     }
 }
@@ -459,6 +462,123 @@ mod tests {
     #[test]
     fn a_word_with_a_quote_in_it_stays_one_word() {
         assert_eq!(quote("it's"), r"'it'\''s'");
+    }
+
+    /// Waits up to `seconds` for an event `want` answers true for, keeping each event seen.
+    fn wait_for(heard: &std::sync::mpsc::Receiver<(String, Value)>, seen: &mut Vec<(String, Value)>, seconds: u64, want: impl Fn(&str, &Value) -> bool) -> bool {
+        let deadline = Instant::now() + Duration::from_secs(seconds);
+        while Instant::now() < deadline {
+            if let Ok((event, body)) = heard.recv_timeout(Duration::from_millis(100)) {
+                let found = want(&event, &body);
+                seen.push((event, body));
+                if found {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    #[test]
+    #[ignore = "runs orior-cli serve, built with cargo build --release --bin orior-cli, through a stand-in for ssh in bash"]
+    fn a_link_answers_drops_joins_again_and_reads_a_kept_run_from_its_first_line() {
+        let bash = crate::runner::bash().unwrap();
+        let server = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("release").join(if cfg!(windows) { "orior-cli.exe" } else { "orior-cli" });
+        assert!(server.is_file(), "{} is not built", server.display());
+        let dir = dunce::canonicalize(std::env::temp_dir()).unwrap().join(format!("orior-link-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let tree = dir.join("tree");
+        for (name, text) in [
+            ("src/cu/engine/engine_config.h", "// marks the tree\n"),
+            ("a.txt", "one\n"),
+            ("examples/demo/1_slow/slow.py", "import sys, time\nfor n in range(8):\n    print('line', n, flush=True)\n    time.sleep(0.4)\n"),
+        ] {
+            std::fs::create_dir_all(tree.join(name).parent().unwrap()).unwrap();
+            std::fs::write(tree.join(name), text).unwrap();
+        }
+        let slash = |path: &std::path::Path| path.display().to_string().replace('\\', "/");
+        let standin = dir.join("ssh.sh");
+        std::fs::write(&standin, format!("while [ $# -gt 1 ]; do case \"$1\" in -o) shift 2 ;; -*) shift ;; *) shift; break ;; esac; done\nexport ORIOR_SERVER_HOME='{}' ORIOR_HOME='{}'\nexec bash -c \"$1\"\n", slash(&dir.join("server")), slash(&dir.join("home")))).unwrap();
+        // SAFETY: the test sets these before the link starts any thread that reads them.
+        unsafe {
+            std::env::set_var("ORIOR_SSH", format!("{} {}", quote(&slash(&bash)), quote(&slash(&standin))));
+            std::env::set_var("ORIOR_SERVER", &server);
+        }
+        let (sender, heard) = std::sync::mpsc::channel();
+        let sender = Mutex::new(sender);
+        let events: Emit = Arc::new(move |event, body| {
+            let _ = sender.lock().unwrap().send((event.to_string(), body));
+        });
+        let link = Link::open(Address::parse(&format!("box:{}", slash(&tree))).unwrap(), events);
+        let mut seen = Vec::new();
+        assert!(wait_for(&heard, &mut seen, 60, |event, body| event == "link" && body["state"] == "joined"), "{seen:?}");
+        assert_eq!(link.call("file_read", json!({"path": "a.txt"})).unwrap()["text"], "one\n");
+        let jobs = link.call("catalog_read", json!({})).unwrap();
+        let job = jobs.as_array().unwrap().iter().find(|job| job["file"].as_str().is_some_and(|file| file.ends_with("slow.py"))).unwrap()["id"].as_str().unwrap().to_string();
+        let run = link.call("job_start", json!({"job": job, "values": {}})).unwrap().as_u64().unwrap();
+        assert!(wait_for(&heard, &mut seen, 30, |event, body| event == "run-line" && body["run"] == run && body["text"].as_str().is_some_and(|text| text.contains("line 1"))), "{seen:?}");
+        link.drop_now();
+        assert!(wait_for(&heard, &mut seen, 30, |event, body| event == "link" && body["state"] == "dropped"), "{seen:?}");
+        assert!(wait_for(&heard, &mut seen, 60, |event, body| event == "link" && body["state"] == "joined"), "{seen:?}");
+        let kept = link.call("runs_kept", json!({})).unwrap();
+        assert!(kept.as_array().unwrap().iter().any(|one| one["run"] == run), "{kept}");
+        let mark = seen.len();
+        link.call("run_follow", json!({"run": run})).unwrap();
+        assert!(wait_for(&heard, &mut seen, 30, |event, body| event == "run-end" && body["run"] == run), "{seen:?}");
+        let again: Vec<String> = seen[mark..].iter().filter(|(event, body)| event == "run-line" && body["run"] == run && body["stream"] == "stdout").filter_map(|(_, body)| body["text"].as_str().map(String::from)).collect();
+        assert_eq!(again, (0..8).map(|n| format!("line {n}")).collect::<Vec<_>>());
+        assert_eq!(seen.last().unwrap().1["code"], 0);
+        link.end();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[ignore = "builds orior's server for Linux and runs it in WSL's Ubuntu, with Python 3 there"]
+    fn a_link_into_wsl_serves_a_tree_there_and_keeps_its_run_across_a_drop() {
+        let wsl = |line: &str| Command::new("wsl").args(["-d", "Ubuntu", "--", "sh", "-c", line]).output().unwrap();
+        let tree = format!("/var/tmp/orior-wsl-{}", std::process::id());
+        let made = wsl(&format!(
+            "mkdir -p {tree}/src/cu/engine {tree}/examples/demo/1_slow && echo '// marks the tree' > {tree}/src/cu/engine/engine_config.h && printf 'one\\n' > {tree}/a.txt && printf 'import time, platform\\nprint(platform.system(), flush=True)\\nfor n in range(6):\\n    print(\"line\", n, flush=True)\\n    time.sleep(0.4)\\n' > {tree}/examples/demo/1_slow/slow.py"
+        ));
+        assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+        let dir = dunce::canonicalize(std::env::temp_dir()).unwrap().join(format!("orior-wsl-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // SAFETY: the test sets these before the link starts any thread that reads them.
+        unsafe {
+            std::env::remove_var("ORIOR_SERVER");
+            std::env::set_var("ORIOR_SERVER_HOME", dir.join("server"));
+            std::env::set_var("ORIOR_HOME", dir.join("home"));
+            std::env::set_var("WSLENV", "ORIOR_SERVER_HOME/p:ORIOR_HOME/p");
+        }
+        let (sender, heard) = std::sync::mpsc::channel();
+        let sender = Mutex::new(sender);
+        let events: Emit = Arc::new(move |event, body| {
+            let _ = sender.lock().unwrap().send((event.to_string(), body));
+        });
+        let link = Link::open(Address::parse(&format!("wsl:Ubuntu:{tree}")).unwrap(), events);
+        let mut seen = Vec::new();
+        assert!(wait_for(&heard, &mut seen, 600, |event, body| event == "link" && (body["state"] == "joined" || body["state"] == "failed")), "{seen:?}");
+        assert_eq!(seen.last().unwrap().1["state"], "joined", "{seen:?}");
+        assert_eq!(link.call("root_get", json!({})).unwrap(), tree.as_str());
+        link.call("file_write", json!({"path": "b.txt", "text": "written there\n"})).unwrap();
+        assert_eq!(String::from_utf8_lossy(&wsl(&format!("cat {tree}/b.txt")).stdout), "written there\n");
+        let listed = link.call("tree_list", json!({"dir": ""})).unwrap();
+        assert!(listed.as_array().unwrap().iter().any(|one| one["name"] == "b.txt"), "{listed}");
+        let jobs = link.call("catalog_read", json!({})).unwrap();
+        let job = jobs.as_array().unwrap().iter().find(|job| job["file"].as_str().is_some_and(|file| file.ends_with("slow.py"))).unwrap()["id"].as_str().unwrap().to_string();
+        let run = link.call("job_start", json!({"job": job, "values": {}})).unwrap().as_u64().unwrap();
+        assert!(wait_for(&heard, &mut seen, 30, |event, body| event == "run-line" && body["run"] == run && body["text"].as_str().is_some_and(|text| text.contains("line 1"))), "{seen:?}");
+        link.drop_now();
+        assert!(wait_for(&heard, &mut seen, 60, |event, body| event == "link" && body["state"] == "joined"), "{seen:?}");
+        let mark = seen.len();
+        link.call("run_follow", json!({"run": run})).unwrap();
+        assert!(wait_for(&heard, &mut seen, 30, |event, body| event == "run-end" && body["run"] == run), "{seen:?}");
+        let again: Vec<String> = seen[mark..].iter().filter(|(event, body)| event == "run-line" && body["run"] == run && body["stream"] == "stdout").filter_map(|(_, body)| body["text"].as_str().map(String::from)).collect();
+        assert_eq!(again[0], "Linux");
+        assert_eq!(again[1..], (0..6).map(|n| format!("line {n}")).collect::<Vec<_>>());
+        link.end();
+        let _ = wsl(&format!("rm -rf {tree}"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
