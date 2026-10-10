@@ -40,6 +40,8 @@ pub struct Server {
     /// The folder the runs are kept in, where the server answers a window over a link: each run a
     /// process of its own, whose lines a window that joins again reads.
     keeping: Option<PathBuf>,
+    /// The kernels notebooks run on, each by the key the page starts it under, a notebook's path.
+    kernels: Mutex<HashMap<String, Arc<crate::jupyter::Kernel>>>,
 }
 
 /// A call's arguments, each found by its own name or by the page's, as the page writes names of more
@@ -341,6 +343,37 @@ impl Server {
     pub fn stop_all(&self) {
         self.servers.stop_all();
         self.debugger.stop_all();
+        self.stop_kernels();
+    }
+
+    /// Ends every kernel the notebooks ran on: as the program ends, as another tree opens, and as a
+    /// page starts with no notebook open.
+    fn stop_kernels(&self) {
+        let kernels: Vec<Arc<crate::jupyter::Kernel>> = self.kernels.lock().map(|mut kernels| kernels.drain().map(|(_, kernel)| kernel).collect()).unwrap_or_default();
+        for kernel in kernels {
+            kernel.stop(std::time::Duration::from_secs(2));
+        }
+    }
+
+    /// Starts the kernel named `name` for the notebook `key`, in the notebook's folder, ending the
+    /// one it ran on before; what the kernel says goes to the page as kernel-message, under the key.
+    fn kernel_start(&self, key: String, name: String) -> Result<String, String> {
+        let root = self.root()?;
+        let spec = crate::jupyter::specs().into_iter().find(|spec| spec.name == name).ok_or_else(|| format!("the machine has no kernel {name}"))?;
+        let notebook = root::full(&root, key.trim_start_matches("check:"));
+        let folder = notebook.parent().map(Path::to_path_buf).unwrap_or(root);
+        if let Some(old) = self.kernels.lock().map_err(|e| e.to_string())?.remove(&key) {
+            old.stop(std::time::Duration::from_secs(2));
+        }
+        let emit = self.emitting();
+        let said = key.clone();
+        let kernel = crate::jupyter::Kernel::start(&spec, &folder, Arc::new(move |message| emit("kernel-message", json!({"key": said, "message": message}))))?;
+        self.kernels.lock().map_err(|e| e.to_string())?.insert(key, kernel);
+        Ok(spec.display_name)
+    }
+
+    fn kernel(&self, key: &str) -> Result<Arc<crate::jupyter::Kernel>, String> {
+        self.kernels.lock().map_err(|e| e.to_string())?.get(key).cloned().ok_or_else(|| "no kernel runs for this notebook: pick one to start it".to_string())
     }
 
     /// The folder of a repository of the tree, by its path in the tree, or the tree's own folder where
@@ -398,6 +431,7 @@ impl Server {
         // The folders mounted beside one tree are its own; another tree mounts its own. A server
         // answers for the tree it started in; another tree starts its own as its files open.
         if moved {
+            self.stop_kernels();
             root::unmount_all();
             self.servers.let_go();
             self.symbols.forget();
@@ -925,6 +959,38 @@ impl Server {
                 std::fs::read(&file).map(|bytes| base64(&bytes)).map_err(|error| error.to_string()).and_then(give)
             }
             "file_write" => self.file_write(a.get("path")?, a.get("text")?).and_then(give),
+            "notebook_read" => {
+                let full = at(&path()?)?;
+                let text = std::fs::read_to_string(&full).map_err(|error| format!("{}: {error}", full.display()))?;
+                crate::notebook::read(&full, &text).and_then(give)
+            }
+            "notebook_write" => {
+                let given = path()?;
+                let text = crate::notebook::write(&at(&given)?, &a.get::<Value>("book")?)?;
+                self.file_write(given, text).and_then(give)
+            }
+            "notebook_diff_text" => crate::notebook::for_diff(&a.get::<String>("text")?).and_then(give),
+            "kernel_specs" => give(crate::jupyter::specs()),
+            "kernels_stop_all" => {
+                self.stop_kernels();
+                give(())
+            }
+            "kernel_start" => self.kernel_start(a.get("key")?, a.get("name")?).and_then(give),
+            "kernel_execute" => self.kernel(&a.get::<String>("key")?)?.execute(&a.get::<String>("code")?).and_then(give),
+            "kernel_interrupt" => self.kernel(&a.get::<String>("key")?)?.interrupt().and_then(give),
+            "kernel_stop" => {
+                let key = a.get::<String>("key")?;
+                let kernel = self.kernels.lock().map_err(|e| e.to_string())?.remove(&key).ok_or("no kernel runs for this notebook")?;
+                give(kernel.stop(std::time::Duration::from_secs(5)))
+            }
+            "kernel_complete" => {
+                let reply = self.kernel(&a.get::<String>("key")?)?.request("shell", "complete_request", json!({"code": a.get::<String>("code")?, "cursor_pos": a.get::<u64>("cursor")?}), std::time::Duration::from_secs(3))?;
+                give(reply.content)
+            }
+            "kernel_inspect" => {
+                let reply = self.kernel(&a.get::<String>("key")?)?.request("shell", "inspect_request", json!({"code": a.get::<String>("code")?, "cursor_pos": a.get::<u64>("cursor")?, "detail_level": 0}), std::time::Duration::from_secs(3))?;
+                give(reply.content)
+            }
             "containers_list" => give(crate::containers::containers()),
             "container_act" => crate::containers::act(&a.get::<String>("name")?, &a.get::<String>("act")?).and_then(give),
             "container_logs" => crate::containers::logs(&a.get::<String>("name")?).and_then(give),

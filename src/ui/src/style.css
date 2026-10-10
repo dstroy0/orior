@@ -3723,6 +3723,316 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font: 12.5px/1.55 var(--code);
 }
 
+/* A notebook: the bar of its kernel and runs, its cells, and the map of them at the right. */
+.notebook {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--ed-bg);
+}
+
+.notebook[hidden] {
+  display: none;
+}
+
+.nb-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+
+.nb-bar button,
+.nb-add button {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-2);
+  padding: 0.15rem 0.55rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nb-bar button:hover,
+.nb-add button:hover {
+  color: var(--fg);
+  background: var(--hover);
+}
+
+.nb-pick {
+  max-width: 16rem;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.nb-state {
+  margin-left: auto;
+  color: var(--fg-3);
+}
+
+.nb-state.busy {
+  color: var(--signal);
+}
+
+.nb-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.nb-cells {
+  flex: 1;
+  overflow: auto;
+  padding: 0.8rem 1rem 3rem 0.4rem;
+  position: relative;
+}
+
+.nb-map {
+  flex: none;
+  width: 14px;
+  position: relative;
+  border-left: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.nb-map-cell {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  background: var(--fg-3);
+  border-radius: 1px;
+  opacity: 0.55;
+}
+
+.nb-map-cell.markdown {
+  background: var(--link);
+}
+
+.nb-map-cell.stale {
+  background: var(--ed-warning);
+  opacity: 0.9;
+}
+
+.nb-map-cell.failed {
+  background: var(--fail);
+  opacity: 0.9;
+}
+
+.nb-map-cell.running {
+  background: var(--signal);
+  opacity: 1;
+}
+
+.nb-map-seen {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border: 1px solid var(--fg-3);
+  pointer-events: none;
+}
+
+.nb-cell {
+  display: flex;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0.25rem 0.3rem;
+  position: relative;
+}
+
+.nb-cell:hover {
+  border-color: var(--line);
+}
+
+.nb-cell.focused {
+  border-color: var(--signal);
+}
+
+.nb-cell.stale .nb-count {
+  color: var(--ed-warning);
+}
+
+.nb-gutter {
+  flex: none;
+  width: 3.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  padding-top: 0.2rem;
+  font: 11.5px var(--code);
+  color: var(--fg-3);
+}
+
+.nb-run {
+  border: none;
+  background: transparent;
+  color: var(--fg-3);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0 0.2rem;
+}
+
+.nb-cell:hover .nb-run,
+.nb-cell.focused .nb-run {
+  color: var(--signal);
+}
+
+.nb-cell.markdown .nb-run {
+  visibility: hidden;
+}
+
+.nb-stale {
+  color: var(--ed-warning);
+  font-weight: 700;
+  cursor: help;
+}
+
+.nb-cell.running .nb-count {
+  color: var(--signal);
+}
+
+.nb-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.nb-cell-menu {
+  flex: none;
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: var(--fg-3);
+  cursor: pointer;
+  visibility: hidden;
+}
+
+.nb-cell:hover .nb-cell-menu {
+  visibility: visible;
+}
+
+.nb-source.nb-code pre {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  background: var(--well);
+  border-radius: 4px;
+  font: 13px/1.5 var(--code);
+  color: var(--ed-fg);
+  white-space: pre;
+  overflow-x: auto;
+  cursor: text;
+}
+
+.nb-source.nb-markdown {
+  padding: 0.1rem 0.6rem;
+  cursor: text;
+}
+
+.nb-source.nb-editing {
+  background: var(--well);
+  border-radius: 4px;
+}
+
+.nb-editor {
+  position: relative;
+  width: 100%;
+}
+
+.nb-empty {
+  color: var(--fg-3);
+}
+
+.nb-forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.nb-forms:empty {
+  display: none;
+}
+
+.nb-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--fg-2);
+}
+
+.nb-field input,
+.nb-field select {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font: inherit;
+}
+
+.nb-outputs {
+  padding: 0.3rem 0.6rem 0.1rem;
+}
+
+.nb-outputs pre {
+  margin: 0 0 0.25rem;
+  font: 12.5px/1.45 var(--code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nb-stream.stderr,
+.nb-error {
+  color: var(--fail);
+}
+
+.nb-cut {
+  color: var(--fg-3);
+}
+
+.nb-more {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--link);
+  font: 0.78rem var(--head);
+  cursor: pointer;
+}
+
+.nb-image {
+  max-width: 100%;
+  background: #fff;
+}
+
+.nb-html {
+  width: 100%;
+  height: 40px;
+  border: none;
+  background: transparent;
+}
+
+.nb-add {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 0.6rem;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.12s, height 0.12s;
+}
+
+.nb-add:hover,
+.nb-add:last-child {
+  height: 1.6rem;
+  opacity: 1;
+}
+
 .binary h3 {
   margin: 0 0 0.6rem;
   font: 700 0.95rem var(--head);

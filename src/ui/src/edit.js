@@ -54,6 +54,7 @@ import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
 import { onPatterns, tellPatterns } from "./patterns.js";
 import { coloredLines } from "./screen.js";
+import { closeNotebook, drawNotebook, hideNotebook, isNotebook, markNotebookSaved, notebookDirty, notebookEditor, notebookFile, openNotebook, startNotebooks } from "./notebook.js";
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
@@ -373,6 +374,9 @@ function markSaved(tab, text) {
 // since the save matching on its reference alone. A file still being read has no saved lines, and
 // any edit to it is a change.
 function dirty(tab) {
+  if (tab.notebook) {
+    return notebookDirty(tab.notebook);
+  }
   if (!tab.session || tab.readOnly) {
     return false;
   }
@@ -672,6 +676,9 @@ function closeTab(tab) {
   leaveGroup(tab.path);
   leaveSplit(tab.path);
   stopServing(tab);
+  if (tab.notebook) {
+    closeNotebook(tab.notebook);
+  }
   if (!tab.leaving) {
     forgetBackup(tab.path);
   }
@@ -816,7 +823,13 @@ async function openInSplit(path) {
 }
 
 // Opens a file's tab without showing it, with the text kept for it where it had changes not saved.
-async function load(path) {
+async function load(path, asNotebook = false) {
+  if (!tabOf(path) && (asNotebook || isNotebook(path))) {
+    const tab = { path, file: path, size: 0, closing: false };
+    tab.notebook = await openNotebook(path);
+    state.tabs.push(tab);
+    return tab;
+  }
   if (!tabOf(path)) {
     const opened = await invoke("file_read", { path });
     const tab = { path, file: path, size: opened.size, closing: false };
@@ -1130,8 +1143,18 @@ function show(path) {
   }
   const editorNode = document.getElementById("editor");
   const binaryNode = document.getElementById("binary");
+  const notebookNode = document.getElementById("notebook");
   drawEmpty(!tab);
-  if (tab?.session) {
+  notebookNode.hidden = !tab?.notebook;
+  if (!tab?.notebook) {
+    hideNotebook();
+  }
+  if (tab?.notebook) {
+    state.editor.show(null);
+    editorNode.hidden = true;
+    binaryNode.hidden = true;
+    drawNotebook(tab.notebook);
+  } else if (tab?.session) {
     editorNode.hidden = false;
     binaryNode.hidden = true;
     state.editor.show(tab.session);
@@ -1163,6 +1186,15 @@ function drawEmpty(shown) {
 }
 
 async function saveActive(tab = tabOf(actingPath())) {
+  if (tab?.notebook) {
+    await invoke("notebook_write", { path: tab.path, book: notebookFile(tab.notebook) });
+    markNotebookSaved(tab.notebook);
+    tab.closing = false;
+    drawTabs();
+    await loadChanges();
+    drawTree();
+    return;
+  }
   if (!tab?.session || tab.readOnly) {
     return;
   }
@@ -2641,6 +2673,12 @@ export async function startEdit(defs) {
     },
   };
   state.editor = new Editor(document.getElementById("editor"), { ...state.editorHooks, statusHost: document.getElementById("statusbar") });
+  startNotebooks({
+    languageOf: (path) => state.known.languageOf(path),
+    changed: () => drawTabs(),
+    menu: (items, event) => showMenu(event.clientX, event.clientY, items),
+  });
+  notebookEditor().bindKeys(state.boundKeys ?? []);
   state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
@@ -3177,6 +3215,7 @@ export function bindReaderKeys(list) {
   state.boundKeys = list;
   state.editor?.bindKeys(list);
   state.split?.editor.bindKeys(list);
+  notebookEditor()?.bindKeys(list);
 }
 
 // What the menu bar does to the editor: the editor where a file of text is open in it, saving one

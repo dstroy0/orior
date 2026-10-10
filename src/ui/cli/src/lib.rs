@@ -39,6 +39,7 @@ pub mod jupyter;
 pub mod kept;
 pub mod link;
 pub mod lsp;
+pub mod notebook;
 pub mod patterns;
 pub mod regexp;
 pub mod plugins;
