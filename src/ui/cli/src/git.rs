@@ -3,7 +3,8 @@
 
 //! What git says of the tree: the branch it is on, the files that differ from the last commit and
 //! how, the commits that touched a file, every branch's commits laid out as a graph and the files each
-//! changed, and a file's text as one of those commits left it or as the last did. In a tree git cannot read, each of these comes back empty. What git is asked to do, for
+//! changed, the commit that last changed each line of a file, and a file's text as one of those
+//! commits left it or as the last did. In a tree git cannot read, each of these comes back empty. What git is asked to do, for
 //! the Commit window: commit chosen files, push, pull where nothing would merge, and put a file back
 //! as the last commit left it, each giving git's own words where it refuses. Here too is the clone of
 //! a repository into a folder of its own, for File, Clone Repository and `orior file clone`.
@@ -502,6 +503,94 @@ pub fn touched(root: &Path, id: &str) -> Result<Vec<Touched>, String> {
     Ok(found)
 }
 
+/// A commit that last changed some line of a file: its id, author, when its author made it in seconds
+/// since 1970, and subject; the file's path under the tree as the commit left it, and the commit
+/// before it with the path the file had there, where there is one.
+#[derive(Serialize, Default, Clone)]
+pub struct LineCommit {
+    pub id: String,
+    pub author: String,
+    pub when: i64,
+    pub subject: String,
+    pub path: Option<String>,
+    pub parent: Option<String>,
+    pub was: Option<String>,
+}
+
+/// The commit that last changed each line of a file: `lines` holds, for each line, its commit's
+/// place in `commits`, or -1 for a line no commit holds yet.
+#[derive(Serialize, Default)]
+pub struct LineHistory {
+    pub commits: Vec<LineCommit>,
+    pub lines: Vec<i64>,
+}
+
+/// Runs git at `root` with `input` on its standard input, written as git reads it, and gives what it
+/// wrote where it succeeds.
+fn git_fed(root: &Path, args: &[&str], input: String) -> Option<Vec<u8>> {
+    use std::io::Write;
+    let mut command = Command::new("git");
+    command.args(args).current_dir(root).env("GIT_OPTIONAL_LOCKS", "0");
+    command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+    crate::runner::quiet(&mut command);
+    let mut child = command.spawn().ok()?;
+    let mut stdin = child.stdin.take()?;
+    let writer = std::thread::spawn(move || stdin.write_all(input.as_bytes()));
+    let out = child.wait_with_output().ok()?;
+    writer.join().ok()?.ok()?;
+    out.status.success().then_some(out.stdout)
+}
+
+/// The commit that last changed each line of `file` as `text` holds it, the file as the editor has it,
+/// edits and all, a line the last commit does not hold being no commit's.
+pub fn line_history(root: &Path, file: &str, text: String) -> Result<LineHistory, String> {
+    inside(root, file)?;
+    let prefix = git(root, &["rev-parse", "--show-prefix"]).map(|out| String::from_utf8_lossy(&out).trim().to_string()).unwrap_or_default();
+    let shown = format!("./{file}");
+    let out = git_fed(root, &["blame", "--porcelain", "--contents", "-", "--", &shown], text).ok_or_else(|| format!("git has no history of {file}"))?;
+    Ok(history_of(&String::from_utf8_lossy(&out), &prefix))
+}
+
+/// Reads `git blame --porcelain`: a line of a commit's id and the line's numbers before each line of
+/// the file, the commit's own lines the first time it comes, and the line itself after a tab.
+fn history_of(out: &str, prefix: &str) -> LineHistory {
+    let mut history = LineHistory::default();
+    let mut places: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut at = 0;
+    let under = |path: &str| path.strip_prefix(prefix).map(str::to_string);
+    for line in out.lines() {
+        if line.starts_with('\t') {
+            let held = history.commits.get(at).is_some_and(|commit| !commit.id.bytes().all(|b| b == b'0'));
+            history.lines.push(if held { at as i64 } else { -1 });
+            continue;
+        }
+        let (key, value) = line.split_once(' ').unwrap_or((line, ""));
+        if key.len() == 40 && key.bytes().all(|b| b.is_ascii_hexdigit()) {
+            at = *places.entry(key.to_string()).or_insert_with(|| {
+                history.commits.push(LineCommit { id: key.to_string(), ..LineCommit::default() });
+                history.commits.len() - 1
+            });
+            continue;
+        }
+        let Some(commit) = history.commits.get_mut(at) else {
+            continue;
+        };
+        match key {
+            "author" => commit.author = value.to_string(),
+            "author-time" => commit.when = value.parse().unwrap_or(0),
+            "summary" => commit.subject = value.to_string(),
+            "filename" => commit.path = under(value),
+            "previous" => {
+                let (parent, path) = value.split_once(' ').unwrap_or((value, ""));
+                commit.parent = Some(parent.to_string());
+                commit.was = under(path);
+            }
+            _ => {}
+        }
+    }
+    history
+}
+
 /// The text of `file` as commit `id` left it.
 pub fn text_at(root: &Path, file: &str, id: &str) -> Result<String, String> {
     inside(root, file)?;
@@ -701,7 +790,7 @@ mod branching {
 
 #[cfg(test)]
 mod graphing {
-    use super::{Drawn, graph, lay_out, touched};
+    use super::{Drawn, graph, lay_out, line_history, touched};
     use std::process::Command;
 
     fn commit(id: &str, parents: &[&str]) -> Drawn {
@@ -758,6 +847,35 @@ mod graphing {
         assert_eq!(graph(&root, "RENAMED ada").iter().map(|one| one.id.as_str()).collect::<Vec<_>>(), [second.as_str()]);
         assert!(graph(&root, "nowhere").is_empty());
         std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn each_line_has_the_commit_that_last_changed_it() {
+        let base = std::env::temp_dir().join(format!("orior_ui_lines_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let root = base.join("sub");
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| {
+            let out = Command::new("git").args(args).current_dir(&base).output().unwrap();
+            assert!(out.status.success(), "{args:?}");
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+        git(&["init", "-q", "-b", "main"]);
+        git(&["config", "user.name", "Ada"]);
+        git(&["config", "user.email", "t@t"]);
+        std::fs::write(root.join("a.txt"), "one\ntwo\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "first"]);
+        std::fs::write(root.join("a.txt"), "one\nsecond\n").unwrap();
+        git(&["commit", "-q", "-am", "second"]);
+        let first = git(&["rev-parse", "HEAD~1"]);
+        let history = line_history(&root, "a.txt", "one\nsecond\nnew\n".into()).unwrap();
+        let ids: Vec<Option<&str>> = history.lines.iter().map(|&at| usize::try_from(at).ok().map(|at| history.commits[at].subject.as_str())).collect();
+        assert_eq!(ids, [Some("first"), Some("second"), None]);
+        let second = &history.commits[usize::try_from(history.lines[1]).unwrap()];
+        assert_eq!((second.author.as_str(), second.path.as_deref(), second.parent.as_deref(), second.was.as_deref()), ("Ada", Some("a.txt"), Some(first.as_str()), Some("a.txt")));
+        assert!(line_history(&root, "missing.txt", String::new()).is_err());
+        std::fs::remove_dir_all(&base).unwrap();
     }
 }
 

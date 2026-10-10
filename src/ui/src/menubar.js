@@ -249,6 +249,7 @@ const COMMANDS = {
   whitespace: (args) => editing().setMarks(onOff(args) ?? !editing().marks()),
   "past-ends": (args) => editing().setPastEnds(onOff(args) ?? !editing().pastEnds()),
   "hide-comments": (args) => editing().setCommentsHidden(onOff(args) ?? !editing().commentsHidden()),
+  "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
   "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
   preferences: () =>
     showPreferences(sheet, {
@@ -358,6 +359,7 @@ const CHECKS = {
   whitespace: () => editing().marks(),
   "past-ends": () => editing().pastEnds(),
   "hide-comments": () => editing().commentsHidden(),
+  "line-history": () => editing().lineHistory(),
   "auto-report": () => state.autoReport,
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),

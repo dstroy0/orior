@@ -494,6 +494,12 @@ fn git_touched(app: State<App>, id: String) -> Result<Vec<git::Touched>, String>
     git::touched(&root_of(&app)?, &id)
 }
 
+/// The commit that last changed each line of a file as the editor holds its text.
+#[tauri::command(async)]
+fn git_line_history(app: State<App>, path: String, text: String) -> Result<git::LineHistory, String> {
+    git::line_history(&root_of(&app)?, &path, text)
+}
+
 #[tauri::command]
 fn file_at(app: State<App>, path: String, id: String) -> Result<String, String> {
     git::text_at(&root_of(&app)?, &path, &id)
@@ -1201,6 +1207,7 @@ fn open(launch: Launch) {
             file_commits,
             git_graph,
             git_touched,
+            git_line_history,
             history_list,
             scrollback_open,
             scrollback_keep,

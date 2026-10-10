@@ -23,6 +23,8 @@ import { icon } from "../icons.js";
 const PAD = 10;
 // How wide the gutter's strip for breakpoints is, in pixels.
 const BREAK_STRIP = 16;
+// How wide Line History's column is, in characters.
+const HISTORY_CHARS = 22;
 // The height of a row, read from the code's line height each time the editor measures.
 let LINE = 20;
 
@@ -164,9 +166,10 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onChangeMark, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onChangeMark, onHistory, statusHost = null } = {}) {
     this.host = host;
     this.onChangeMark = onChangeMark ?? (() => {});
+    this.onHistory = onHistory ?? (() => {});
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
     host.classList.add("ed");
@@ -2150,6 +2153,11 @@ export class Editor {
       this.onChangeMark(Number(target.dataset.change));
       return;
     }
+    if (target.dataset?.history !== undefined) {
+      event.preventDefault();
+      this.onHistory(this.s, Number(target.dataset.history));
+      return;
+    }
     event.preventDefault();
     this.focus();
     this.hover.hide();
@@ -2735,6 +2743,32 @@ export class Editor {
     }
   }
 
+  // Line History's mark for a line: the date and author of the commit that last changed it, on the
+  // first line of each run of lines that commit left, and the commit's id and subject under the
+  // pointer. A line no commit holds has none.
+  historyMark(line) {
+    const history = this.s.history;
+    const at = history.lines[line] ?? -1;
+    const commit = history.commits[at];
+    if (!commit) {
+      return "";
+    }
+    const first = line === 0 || history.lines[line - 1] !== at;
+    const date = new Date(commit.when * 1000);
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const title = escapeHtml(`${commit.id.slice(0, 8)}  ${commit.author}  ${day}\n${commit.subject}`);
+    const width = Math.round(HISTORY_CHARS * this.cw);
+    return `<span class="ed-history${first ? " first" : ""}" data-history="${line}" style="left:${BREAK_STRIP}px;width:${width}px" title="${title}">${first ? `${day} ${escapeHtml(commit.author)}` : ""}</span>`;
+  }
+
+  // Sets the commit that last changed each of a session's lines, or takes them away.
+  setLineHistory(session, history) {
+    session.history = history;
+    if (session === this.s) {
+      this.schedule();
+    }
+  }
+
   // How many lines the session's file holds: every one once it is read whole, and while it is read
   // a window at a time, as many as were counted as it opened.
   linesInFile() {
@@ -2808,12 +2842,13 @@ export class Editor {
     const level = status.scroll.level;
     const base = s.base;
     const total = this.linesInFile();
-    // The gutter holds, left to right, the strip a breakpoint is set in, the line numbers, and the
-    // fold arrows and change marks.
+    // The gutter holds, left to right, the strip a breakpoint is set in, Line History's column where
+    // it shows, the line numbers, and the fold arrows and change marks.
     // Where the view stands, read before this frame changes the page.
     const scrolledTop = this.scroller.scrollTop;
     const scrolledLeft = this.scroller.scrollLeft;
-    const gutterWidth = Math.round(String(total).length * cw + 36 + BREAK_STRIP);
+    const historyWidth = s.history ? Math.round(HISTORY_CHARS * cw) + 8 : 0;
+    const gutterWidth = Math.round(String(total).length * cw + 36 + BREAK_STRIP) + historyWidth;
     if (gutterWidth !== this.gutterWidth) {
       this.gutterWidth = gutterWidth;
       this.gutter.style.width = `${gutterWidth}px`;
@@ -2899,7 +2934,8 @@ export class Editor {
       const dot = stop === undefined ? "" : `<span class="ed-break${stop ? "" : " unbound"}"></span>`;
       const here = paused === base + line ? '<span class="ed-pc"></span>' : "";
       const ribbon = marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + number + mark + this.changeMark(line)]);
+      const history = s.history ? this.historyMark(line) : "";
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + number + mark + this.changeMark(line)]);
     }
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {

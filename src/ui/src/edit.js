@@ -1239,6 +1239,7 @@ async function markChanges(tab) {
   }
   if (tab.commit || s.window || s.base) {
     state.editor.setChanges(s, null);
+    markHistory(tab, null);
     return;
   }
   if (!state.heads.has(tab.file)) {
@@ -1247,8 +1248,10 @@ async function markChanges(tab) {
   const head = await state.heads.get(tab.file);
   if (typeof head !== "string") {
     state.editor.setChanges(s, null);
+    markHistory(tab, null);
     return;
   }
+  markHistory(tab, head);
   if (s.changesFor === s.doc.id && s.changesHead === head) {
     return;
   }
@@ -1256,6 +1259,44 @@ async function markChanges(tab) {
   s.changesHead = head;
   s.changesThen = head.split(/\r?\n/);
   state.editor.setChanges(s, lineChanges(s.changesThen, s.doc.lines));
+}
+
+// Line History: beside each line of a tab's text, the commit that last changed it, while Git, Line
+// History is on, read again as the text or the file's last commit changes. `head` is the file as
+// the last commit left it, or null where the last commit does not hold it.
+function markHistory(tab, head) {
+  const s = tab.session;
+  if (!state.lineHistory || head === null) {
+    s.historyFor = null;
+    if (s.history) {
+      state.editor.setLineHistory(s, null);
+    }
+    return;
+  }
+  if (s.historyFor === s.doc.id && s.historyHead === head) {
+    return;
+  }
+  const id = s.doc.id;
+  s.historyFor = id;
+  s.historyHead = head;
+  invoke("git_line_history", { path: tab.file, text: s.doc.text() })
+    .then((history) => s.historyFor === id && s.historyHead === head && state.editor.setLineHistory(s, history))
+    .catch(() => state.editor.setLineHistory(s, null));
+}
+
+function setLineHistory(on) {
+  state.lineHistory = on;
+  markChanges(tabOf(state.active));
+}
+
+// A press on Line History's mark: the file's change in the commit that last changed the line.
+function openLineCommit(s, line) {
+  const tab = tabOfSession(s);
+  const commit = s.history?.commits[s.history.lines[line]];
+  if (!tab || !commit) {
+    return;
+  }
+  openTouched({ id: commit.id, parents: commit.parent ? [commit.parent] : [] }, { path: commit.path ?? tab.file, was: commit.was, state: commit.parent ? "M" : "A" });
 }
 
 // The change peek. A scroll in the first PEEK_SETTLES milliseconds after it shows brought its change
@@ -1732,6 +1773,7 @@ export async function startEdit(defs) {
   onFonts(() => state.editor?.restyle());
   state.editorHooks = {
     onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),
+    onHistory: openLineCommit,
     onCursor: () => {
       moved();
       cancelAnimationFrame(lighting);
@@ -2289,6 +2331,8 @@ export function editing() {
     conflicted,
     openMerge,
     setMarks: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setMarks(on)),
+    lineHistory: () => Boolean(state.lineHistory),
+    setLineHistory,
     commentsHidden: () => Boolean(state.editor?.commentsHidden),
     setCommentsHidden: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setCommentsHidden(on)),
     sticky: () => Boolean(state.editor?.stickyOn),

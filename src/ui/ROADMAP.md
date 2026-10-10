@@ -37,11 +37,10 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Version control
 
-1. **Line history.** Beside each line, the commit that last changed it, a press opening that commit's changes.
-2. **Stash and cherry-pick.** Changes put aside and brought back, and a commit of another branch applied to the one open.
-3. **More than one repository in a tree.** A tree holding several repositories shows each one's changes, branch and commits apart.
-4. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
-5. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
+1. **Stash and cherry-pick.** Changes put aside and brought back, and a commit of another branch applied to the one open.
+2. **More than one repository in a tree.** A tree holding several repositories shows each one's changes, branch and commits apart.
+3. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
+4. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
 
 ## Testing
 
