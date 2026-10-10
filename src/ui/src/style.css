@@ -379,7 +379,7 @@ select {
 }
 
 /* The work stands in four lines: the bar's signal line along its top, the strip's line down its
-   left, a line in the signal's opposite color, as thick as the signal line, down its right, and one
+   left, a line in the link color, as thick as the signal line, down its right, and one
    in the same color, as thin as the strip's line, along its foot. Its four corners are curves of
    one radius, and the lines bend round each from one into the next, the color passing from the
    one line's into the other's along the curve. Each curve is a band, as wide as the lines it joins
@@ -409,7 +409,7 @@ select {
   bottom: -1px;
   width: 8px;
   height: 8px;
-  background: conic-gradient(from 180deg at 100% 0, hsl(from var(--bar-signal) calc(h + 180) s l), var(--status-line) 90deg);
+  background: conic-gradient(from 180deg at 100% 0, var(--link), var(--status-line) 90deg);
   mask-image: radial-gradient(circle 8px at 100% 0, #000 7.6px, transparent 8px), radial-gradient(circle 7px at 100% 0, #000 6.6px, transparent 7px);
 }
 
@@ -418,7 +418,7 @@ select {
   bottom: -9px;
   width: 9px;
   height: 9px;
-  background: conic-gradient(from 0deg at 0 100%, var(--bar-signal), hsl(from var(--bar-signal) calc(h + 180) s l) 90deg);
+  background: conic-gradient(from 0deg at 0 100%, var(--bar-signal), var(--link) 90deg);
   mask-image: radial-gradient(circle 9px at 0 100%, #000 8.6px, transparent 9px), radial-gradient(circle 7px at 0 100%, #000 6.6px, transparent 7px);
 }
 
@@ -431,7 +431,7 @@ select {
   top: -7px;
   width: 9px;
   height: 8px;
-  background: hsl(from var(--bar-signal) calc(h + 180) s l);
+  background: var(--link);
   mask-image: radial-gradient(9px 8px at 0 0, #000 95%, transparent 100%), radial-gradient(circle 7px at 0 0, #000 6.6px, transparent 7px);
 }
 
@@ -443,7 +443,7 @@ select {
   left: 47px;
   right: 14px;
   height: 1px;
-  background: hsl(from var(--bar-signal) calc(h + 180) s l);
+  background: var(--link);
   pointer-events: none;
 }
 
@@ -470,7 +470,7 @@ select {
 
 .frame {
   background:
-    linear-gradient(hsl(from var(--bar-signal) calc(h + 180) s l), hsl(from var(--bar-signal) calc(h + 180) s l)) right 5px top 7px / 2px calc(100% - 14px) no-repeat,
+    linear-gradient(var(--link), var(--link)) right 5px top 7px / 2px calc(100% - 14px) no-repeat,
     linear-gradient(var(--glass-tint), var(--glass-tint)) right top / 7px 100% no-repeat,
     radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left 40px top 0 / 7px 7px no-repeat,
     radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left 40px bottom 0 / 7px 7px no-repeat,
