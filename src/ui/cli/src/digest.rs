@@ -15,6 +15,29 @@ const START: [u32; 8] = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e5
 
 /// The SHA-256 of `bytes`, as the 64 lowercase hex digits `sha256sum` writes.
 pub fn sha256(bytes: &[u8]) -> String {
+    hex(&sha256_bytes(bytes))
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// The HMAC of `message` with `key`, by SHA-256, as RFC 2104 sets it out, in lowercase hex: the
+/// signature Jupyter's messages carry.
+pub fn hmac_sha256(key: &[u8], message: &[u8]) -> String {
+    let mut block = [0u8; 64];
+    if key.len() > 64 {
+        block[..32].copy_from_slice(&sha256_bytes(key));
+    } else {
+        block[..key.len()].copy_from_slice(key);
+    }
+    let inner: Vec<u8> = block.iter().map(|byte| byte ^ 0x36).chain(message.iter().copied()).collect();
+    let outer: Vec<u8> = block.iter().map(|byte| byte ^ 0x5c).chain(sha256_bytes(&inner)).collect();
+    hex(&sha256_bytes(&outer))
+}
+
+/// The SHA-256 of `bytes`, as its 32 bytes.
+pub fn sha256_bytes(bytes: &[u8]) -> [u8; 32] {
     let mut state = START;
     let mut padded = bytes.to_vec();
     padded.push(0x80);
@@ -53,12 +76,23 @@ pub fn sha256(bytes: &[u8]) -> String {
             *held = held.wrapping_add(now);
         }
     }
-    state.iter().map(|word| format!("{word:08x}")).collect()
+    let mut digest = [0u8; 32];
+    for (index, word) in state.iter().enumerate() {
+        digest[index * 4..index * 4 + 4].copy_from_slice(&word.to_be_bytes());
+    }
+    digest
 }
 
 #[cfg(test)]
 mod hashing {
-    use super::sha256;
+    use super::{hmac_sha256, sha256};
+
+    #[test]
+    fn rfc_4231_s_examples_give_their_signatures() {
+        assert_eq!(hmac_sha256(&[0x0b; 20], b"Hi There"), "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7");
+        assert_eq!(hmac_sha256(b"Jefe", b"what do ya want for nothing?"), "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
+        assert_eq!(hmac_sha256(&[0xaa; 131], b"Test Using Larger Than Block-Size Key - Hash Key First"), "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54");
+    }
 
     #[test]
     fn the_standard_s_examples_give_their_digests() {
