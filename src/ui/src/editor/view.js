@@ -189,6 +189,16 @@ export class Editor {
     host.append(this.gutter, this.scroller, this.sheet, canvas, this.sticky);
     (statusHost ?? host).append(this.status);
     this.minimap = new Minimap(this, canvas);
+    // The scroller's inner size and the map's, kept as the page lays them out, read without
+    // asking the page to lay itself out again.
+    new ResizeObserver(([entry]) => {
+      this.viewKept = { width: Math.round(entry.contentRect.width), height: Math.round(entry.contentRect.height) };
+      this.schedule();
+    }).observe(this.scroller);
+    new ResizeObserver(([entry]) => {
+      this.minimap.kept = { width: entry.contentRect.width, height: entry.contentRect.height };
+      this.schedule();
+    }).observe(canvas);
     this.sticky.addEventListener("mousedown", (event) => {
       const row = event.target.closest(".ed-sticky-row");
       if (!row || !this.s) {
@@ -382,10 +392,21 @@ export class Editor {
       this.pad = 0;
       this.below = 0;
     }
-    this.space.style.height = `${this.pad + rows.size * LINE + LINE + this.below}px`;
-    this.space.style.width = `${Math.max(this.scroller.clientWidth, PAD + (this.widest() + 4) * this.cw)}px`;
-    this.sheet.style.width = `${this.scroller.clientWidth}px`;
-    this.sheet.style.height = `${this.scroller.clientHeight}px`;
+    const view = this.viewSize();
+    this.spaceHeight = this.pad + rows.size * LINE + LINE + this.below;
+    this.spaceWidth = Math.max(view.width, PAD + (this.widest() + 4) * this.cw);
+    this.space.style.height = `${this.spaceHeight}px`;
+    this.space.style.width = `${this.spaceWidth}px`;
+    this.sheet.style.width = `${view.width}px`;
+    this.sheet.style.height = `${view.height}px`;
+  }
+
+  // The scroller's inner size, as the resize observer last gave it. A size read from the page
+  // after a change to it lays the whole page out first, and a frame that reads one after each
+  // change it makes lays it out again and again.
+  viewSize() {
+    this.viewKept ??= { width: this.scroller.clientWidth, height: this.scroller.clientHeight };
+    return this.viewKept;
   }
 
   // How far the view is scrolled from the first row read, in pixels.
@@ -399,10 +420,11 @@ export class Editor {
     return (this.pad + this.below) / LINE + this.rows().size;
   }
 
-  // Moves the sheet and the gutter's numbers to where the view is scrolled, from the origin.
-  follow() {
-    const down = this.originRow * LINE - this.scrollY();
-    this.layers.style.transform = `translate(${-this.scroller.scrollLeft}px, ${down}px)`;
+  // Moves the sheet and the gutter's numbers to where the view is scrolled, from the origin: to
+  // `top` and `left`, the scroller's own, where they were read before the page was changed.
+  follow(top = this.scroller.scrollTop, left = this.scroller.scrollLeft) {
+    const down = this.originRow * LINE - (top - this.pad);
+    this.layers.style.transform = `translate(${-left}px, ${down}px)`;
     this.gutterRows.style.transform = `translateY(${down}px)`;
   }
 
@@ -2052,15 +2074,17 @@ export class Editor {
   }
 
   onScroll() {
+    // Where the view stands, read before anything changes the page.
+    const top = this.scroller.scrollTop;
+    const left = this.scroller.scrollLeft;
     this.hover.hide();
     const now = performance.now();
-    const top = this.scroller.scrollTop;
     if (top === this.placedTop) {
       // The view's own jump: however far it went, nothing moved fast, and the level stands.
       this.placedTop = null;
       this.lastTop = top;
       this.lastScroll = now;
-      this.follow();
+      this.follow(top, left);
       this.rest();
       this.schedule();
       return;
@@ -2075,7 +2099,7 @@ export class Editor {
     const level = Math.max(status.frame.strain, DROPS.filter((drop) => speed > drop).length);
     write("scroll", { speed, level, heading: moved ? Math.sign(moved) : status.scroll.heading });
     // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late.
-    this.follow();
+    this.follow(top, left);
     this.rest();
     this.schedule();
   }
@@ -2359,10 +2383,17 @@ export class Editor {
     const total = this.linesInFile();
     // The gutter holds, left to right, the strip a breakpoint is set in, the line numbers, and the
     // fold arrows and change marks.
-    this.gutter.style.width = `${Math.round(String(total).length * cw + 36 + BREAK_STRIP)}px`;
+    // Where the view stands, read before this frame changes the page.
+    const scrolledTop = this.scroller.scrollTop;
+    const scrolledLeft = this.scroller.scrollLeft;
+    const gutterWidth = Math.round(String(total).length * cw + 36 + BREAK_STRIP);
+    if (gutterWidth !== this.gutterWidth) {
+      this.gutterWidth = gutterWidth;
+      this.gutter.style.width = `${gutterWidth}px`;
+    }
     this.size();
-    const top = this.scrollY();
-    const height = this.scroller.clientHeight;
+    const top = scrolledTop - this.pad;
+    const height = this.viewSize().height;
     // The rows past each edge of the screen, more of them the way the view heads the faster it
     // goes. The page's own scroll never shows a row before a frame draws it.
     const lead = 2 + Math.min(80, Math.ceil((status.scroll.speed * 48) / LINE));
@@ -2375,7 +2406,7 @@ export class Editor {
       this.textLayer.clear();
       this.gutterLayer.clear();
     }
-    const spaceWidth = this.space.offsetWidth;
+    const spaceWidth = this.spaceWidth;
     const focused = this.hasFocus();
     const sels = s.selections;
     const primary = this.primary();
@@ -2532,7 +2563,7 @@ export class Editor {
       this.over.innerHTML = marks;
       this.overHtml = marks;
     }
-    this.follow();
+    this.follow(scrolledTop, scrolledLeft);
     const headRow = rows.rowOf(primary.head.line);
     this.input.style.left = `${this.xOf(primary.head)}px`;
     this.input.style.top = `${this.yOf(headRow)}px`;
@@ -2540,13 +2571,13 @@ export class Editor {
     // map whose text has scrolled draws in the same frame as the text, its slider never behind it.
     const scrolled = this.mapTop !== this.scroller.scrollTop;
     if (!status.input.active || scrolled) {
-      this.minimap.paint(level);
+      this.minimap.paint(level, scrolledTop);
       this.mapTop = this.scroller.scrollTop;
     }
     if (!status.input.active) {
       this.drawStatus();
     }
-    this.drawSticky(rows, top);
+    this.drawSticky(rows, top, scrolledLeft);
     this.suggest.place();
     this.strained(performance.now() - began);
   }
@@ -2665,7 +2696,7 @@ export class Editor {
     return this.stickyList.filter(([start]) => start < s.doc.count);
   }
 
-  drawSticky(rows, top) {
+  drawSticky(rows, top, left = this.scroller.scrollLeft) {
     const s = this.s;
     if (!this.stickyOn || status.scroll.level >= 2) {
       this.sticky.hidden = true;
@@ -2687,9 +2718,8 @@ export class Editor {
     if (top <= 0) {
       held = [];
     }
-    const left = this.scroller.scrollLeft;
-    const gutter = this.gutter.offsetWidth;
-    const key = `${held.join()}|${s.doc.id}|${left}|${gutter}|${this.scroller.clientWidth}|${s.base}`;
+    const gutter = this.gutterWidth ?? this.gutter.offsetWidth;
+    const key = `${held.join()}|${s.doc.id}|${left}|${gutter}|${this.viewSize().width}|${s.base}`;
     if (key === this.stickyKey) {
       return;
     }
@@ -2698,7 +2728,7 @@ export class Editor {
     if (!held.length) {
       return;
     }
-    this.sticky.style.width = `${gutter + this.scroller.clientWidth}px`;
+    this.sticky.style.width = `${gutter + this.viewSize().width}px`;
     this.sticky.innerHTML = held
       .map(
         (line) =>
