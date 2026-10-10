@@ -8,7 +8,7 @@
 
 A trace holds one line a cycle: the kind and cost of the left side's ask, the kind and cost of the
 right side's, and the bound both were put under, the kinds as QueryKind in
-src/cu/transpiler/lstar/protocol/query_ask.h names them.
+src/cu/transpiler/lstar/protocol/query/query_ask.h names them.
 
     HELD 412 NOT_HELD 380 900
 

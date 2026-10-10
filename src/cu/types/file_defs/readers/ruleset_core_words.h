@@ -154,6 +154,18 @@ struct RulesetCoreRead
 // the parameter a bank's written form takes, the register's number
 #define RULESET_CORE_BANK_PARAMETER "n"
 
+// a slot past this names fixed register `slot - RULESET_CORE_FIXED_PLACE` of the schema, until the read folds it into
+// the register's text (ruleset_core_fixed_folded)
+#define RULESET_CORE_FIXED_PLACE 0x40000000u
+
+// a slot from this to RULESET_CORE_FIXED_PLACE names scratch register `number` of bank `bank`, taken by the writing:
+// the bank in the bits from 16 and the number in the 16 below
+#define RULESET_CORE_SCRATCH_PLACE 0x20000000u
+#define RULESET_CORE_SCRATCH_SLOT(bank_, number_) (RULESET_CORE_SCRATCH_PLACE + ((bank_) << 16u) + (number_))
+#define RULESET_CORE_SCRATCH_BANK(slot_) (((slot_) - RULESET_CORE_SCRATCH_PLACE) >> 16u)
+#define RULESET_CORE_SCRATCH_NUMBER(slot_) (((slot_) - RULESET_CORE_SCRATCH_PLACE) & 0xffffu)
+#define RULESET_CORE_IS_SCRATCH(slot_) (((slot_) >= RULESET_CORE_SCRATCH_PLACE) && ((slot_) < RULESET_CORE_FIXED_PLACE))
+
 // 1 where the `length` letters at `left` are the `other` letters at `right`, as std::string's == gives it
 CODEGEN_CORE int ruleset_core_equal(const unsigned char *left, unsigned int length, const unsigned char *right,
                                     unsigned int other)
@@ -248,11 +260,50 @@ CODEGEN_CORE void ruleset_core_letter(RulesetCoreRead *read, unsigned char lette
     read->pieces[read->piece_count - 1u].length += 1u;
 }
 
+// the span `inner` of the file read as a scratch register, `bank:digits`: the bank one of the schema's, by its place,
+// into `bank`, and the number, five digits at most and below 65536, into `number`. 1 where it is one, else 0
+CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetCoreSpan inner, unsigned int *bank,
+                                           unsigned int *number)
+{
+    unsigned int colon = inner.length;
+    for (unsigned int at = 0u; (colon == inner.length) && (at < inner.length); at += 1u)
+    {
+        colon = (read->text[inner.first + at] == ':') ? at : colon;
+    }
+    if ((colon == 0u) || (colon == inner.length) || ((inner.length - colon - 1u) == 0u) ||
+        ((inner.length - colon - 1u) > 5u))
+    {
+        return 0;
+    }
+    *bank = read->schema.bank_count;
+    for (unsigned int named = 0u; named < read->schema.bank_count; named += 1u)
+    {
+        *bank =
+            ruleset_core_equal(&read->text[inner.first], colon, &read->schema.letters[read->schema.banks[named].first],
+                               read->schema.banks[named].length)
+                ? named
+                : *bank;
+    }
+    unsigned int value = 0u;
+    int counted = (*bank != read->schema.bank_count);
+    for (unsigned int at = colon + 1u; at < inner.length; at += 1u)
+    {
+        const unsigned char letter = read->text[inner.first + at];
+        counted = counted && (letter >= '0') && (letter <= '9');
+        value = (value * 10u) + (unsigned int)(letter - '0');
+    }
+    *number = value;
+    return counted && (value < 0x10000u);
+}
+
 // the file's span `text` cut at its parameters into `form`: \t, \n and \\ are a tab, a line's end and a backslash,
-// and {p} is parameter p's argument where p is one of the `count` `parameters`, each a span of `parameter_letters`. 0
-// where a backslash begins no escape the format knows
+// and {p} is parameter p's argument where p is one of the `count` `parameters`, each a span of `parameter_letters`.
+// With `fixed_places`, {r} where r names a fixed register of the schema is that register, its slot marked past
+// RULESET_CORE_FIXED_PLACE, and {b:n} where b is a bank of the schema is scratch register n of it, taken by the
+// writing (RULESET_CORE_SCRATCH_SLOT). 0 where a backslash begins no escape the format knows
 CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text, const unsigned char *parameter_letters,
-                                    const RulesetCoreSpan *parameters, unsigned int count, RulesetCoreTemplate *form)
+                                    const RulesetCoreSpan *parameters, unsigned int count, int fixed_places,
+                                    RulesetCoreTemplate *form)
 {
     form->piece_first = read->piece_count;
     form->slot_first = read->slot_count;
@@ -272,6 +323,24 @@ CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text,
                        ? parameter
                        : slot;
         }
+        for (unsigned int fixed = 0u;
+             fixed_places && (close != text.length) && (slot == count) && (fixed < read->schema.fixed_count);
+             fixed += 1u)
+        {
+            slot = ruleset_core_equal(&read->text[text.first + at + 1u], close - (at + 1u),
+                                      &read->schema.letters[read->schema.fixed[fixed].first],
+                                      read->schema.fixed[fixed].length)
+                       ? (RULESET_CORE_FIXED_PLACE + fixed)
+                       : slot;
+        }
+        unsigned int scratch_bank = 0u;
+        unsigned int scratch_number = 0u;
+        const RulesetCoreSpan inner = {text.first + at + 1u, close - (at + 1u)};
+        if (fixed_places && (close != text.length) && (slot == count) &&
+            ruleset_core_scratch_word(read, inner, &scratch_bank, &scratch_number))
+        {
+            slot = RULESET_CORE_SCRATCH_SLOT(scratch_bank, scratch_number);
+        }
         if ((character == '\\') && (next != 't') && (next != 'n') && (next != '\\'))
         {
             form->piece_count = read->piece_count - form->piece_first;
@@ -283,7 +352,7 @@ CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text,
                                                     : ((next == 'n') ? (unsigned char)'\n' : (unsigned char)'\\'));
             at += 2u;
         }
-        else if (slot < count)
+        else if (slot != count)
         {
             read->slots[read->slot_count] = slot;
             read->slot_count += 1u;

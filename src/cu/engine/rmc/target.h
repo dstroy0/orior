@@ -3,7 +3,7 @@
 #define TARGET_H
 
 // The code generator: a record program's lane written as text for its target, in that target's ruleset
-// (lstar/coherence). It decides what each step does and the ruleset writes it. It reads no device and loads no
+// (lstar/protocol/table). It decides what each step does and the ruleset writes it. It reads no device and loads no
 // library: the record machine (cycle/cycle_{sweep,launch}.cu) picks the language, and compiles, links, caches and
 // launches what the code generator writes. This header is the base every language inherits; each language is its
 // ruleset's file (code_generator.h)

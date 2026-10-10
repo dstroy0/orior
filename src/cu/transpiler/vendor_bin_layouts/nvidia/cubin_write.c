@@ -107,6 +107,13 @@ unsigned int cubin_exits_find(const unsigned char *code, unsigned long long code
     return (layout != NULL) ? container_endings_find(layout, code, code_size, exit_low, exits, room) : 0u;
 }
 
+unsigned int cubin_exits_read(const unsigned char *pattern, unsigned long long pattern_size, const char *kernel,
+                              unsigned int *exits, unsigned int room)
+{
+    const ContainerLayout *const layout = cubin_layout();
+    return (layout != NULL) ? container_exits_read(layout, pattern, pattern_size, kernel, exits, room) : 0u;
+}
+
 unsigned int cubin_registers_read(const unsigned char *pattern, unsigned long long pattern_size, const char *kernel)
 {
     const ContainerLayout *const layout = cubin_layout();

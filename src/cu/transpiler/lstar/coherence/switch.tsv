@@ -1,0 +1,10 @@
+open	structure
+body	structure
+close	structure
+declare	declaration
+note	note
+shl
+shr
+rol
+ror
+dispatch

@@ -3,7 +3,7 @@
 // The record machine's lane as C source checked against the host oracle word for word, off the device (engine_table.md
 // item 11(f), C a language of the register lane). record_test's programs, drawn from the same stream in the same
 // order (record_image.h), are encoded, laid out and run by cycle_record_run_host; each is written as C by
-// code_generator("c.krs") (lstar/coherence/c.krs) into one translation unit with a host shim ahead of it, which writes
+// code_generator("c.krs") (lstar/protocol/table/c.krs) into one translation unit with a host shim ahead of it, which writes
 // what NVRTC gives a device's C (__device__, __shared__, threadIdx, blockDim, atomicAdd) for one thread, and a bench
 // after it, which reads the memory image, turns its byte offsets into the host's addresses, runs every lane and writes the errors and
 // the records. The host's C++ compiler builds it and it runs in a work folder, and its records are compared with the

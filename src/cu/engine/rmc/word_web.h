@@ -38,7 +38,7 @@ typedef struct
 // Not here, and not an omission:
 //
 //  - The declarations and the notes (declare_file, program_note, step_note, the lane's opening and close). These
-//    name no operation and have no tree; they are the frame a lane is written into.
+//    name no operation and have no tree; they are the kernel a lane is written into.
 //  - The words over memory and over the launch (global_load_constant_word, record_store_word, launch_load_wide,
 //  global_add_atomic_word). A load is not a
 //    gate and reduces to nothing in the alphabet: a target either reaches memory or does not.

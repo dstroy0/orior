@@ -14,6 +14,7 @@
 // the two lay out them from one source
 
 #include "codegen_core.h"
+#include "ruleset_core_words.h"
 #include "target.h"
 
 #include <string>
@@ -226,8 +227,43 @@ CODEGEN_CORE void asm_printer_records(const AsmPrinterLists *forms, const Machin
         const unsigned int taken = (left < ASM_PRINTER_SLOTS) ? left : ASM_PRINTER_SLOTS;
         for (unsigned int slot = 0u; slot < taken; slot += 1u)
         {
-            const unsigned int parameter = forms->slot_parameters[slot_first + (ASM_PRINTER_SLOTS * chunk) + slot];
-            const AsmPrinterArgument argument = asm_printer_argument(forms, item, parameter);
+            const unsigned int place = (ASM_PRINTER_SLOTS * chunk) + slot;
+            const unsigned int parameter = forms->slot_parameters[slot_first + place];
+            AsmPrinterArgument argument = asm_printer_argument(forms, item, parameter);
+            if (RULESET_CORE_IS_SCRATCH(parameter))
+            {
+                // a scratch register, as the host's writer takes it (ruleset_opcode_text): the item's own from where
+                // the core left its bank, the k-th distinct one of the bank the form's text names
+                const unsigned int bank = RULESET_CORE_SCRATCH_BANK(parameter);
+                const unsigned int bank_index =
+                    (bank == REGCLASS_TEMPORARY)
+                        ? 0u
+                        : ((bank == REGCLASS_WIDE) ? 1u : ((bank == REGCLASS_PREDICATE) ? 2u : 3u));
+                unsigned int first = place;
+                for (unsigned int before = 0u; before < place; before += 1u)
+                {
+                    first = ((first == place) && (forms->slot_parameters[slot_first + before] == parameter)) ? before
+                                                                                                             : first;
+                }
+                unsigned int k = 0u;
+                for (unsigned int before = 0u; before < first; before += 1u)
+                {
+                    const unsigned int earlier = forms->slot_parameters[slot_first + before];
+                    int seen = 0;
+                    for (unsigned int again = 0u; again < before; again += 1u)
+                    {
+                        seen = seen || (forms->slot_parameters[slot_first + again] == earlier);
+                    }
+                    k += (RULESET_CORE_IS_SCRATCH(earlier) && (RULESET_CORE_SCRATCH_BANK(earlier) == bank) &&
+                          (seen == 0))
+                             ? 1u
+                             : 0u;
+                }
+                argument.before = forms->bank_before[bank];
+                argument.after = forms->bank_after[bank];
+                argument.number = (bank_index < 3u) ? (item->scratch[bank_index] + k) : 0u;
+                argument.numbered = 1u;
+            }
             const unsigned int base = ASM_PRINTER_SLOT_AT + (slot * ASM_PRINTER_SLOT_BITS);
             asm_printer_bits(chunk_record, base, ASM_PRINTER_WORD_BITS, argument.before);
             asm_printer_bits(chunk_record, base + ASM_PRINTER_WORD_BITS, ASM_PRINTER_WORD_BITS, argument.after);

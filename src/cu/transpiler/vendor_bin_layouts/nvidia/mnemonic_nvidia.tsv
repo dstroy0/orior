@@ -1,0 +1,76 @@
+# The pieces NVIDIA's names for SASS are made of, read by whatever names a form of the part's .khw. Nothing here is
+# compiled in. Every piece is spelled as NVIDIA's compiler spells it, so that what we write is held against what it
+# writes word for word.
+#
+# A form is named by what the part answered of it, never by a listing: the kind of value its cases hold, the relation
+# it answers, how many sources its fields hold, then each qualifier the part's answers read it into, each after a
+# dot, in the order the rows of each kind stand below. IADD3 is an integer add of three sources; IADD3.X takes the
+# carry an earlier one left; ISETP.GE.U32.AND compares as unsigned words and joins its flag to another.
+#
+# kind	<piece>	<reads>	<gloss>           the kind of value the form's cases hold
+# operation	<piece>	<reads>	<gloss>      the relation it answers, a ladder relation or a word of the high order language
+# count	<piece>	<reads>	<gloss>          how many sources its fields hold, where NVIDIA writes the count
+# qualifier	<piece>	<reads>	<gloss>      what its answers read it into, a coherence category or a word of the high order language
+#
+# <reads> names what puts the piece in the name: ladder.<relation> (ladder.h), hol.<word> (gnascor_hol_lng.tsv), or
+# <set> (the coherence sets of the query protocol table, P13)
+
+# the kind of value
+kind	I	hol.i<n>_t hol.u<n>_t	an integer
+kind	F	hol.efloat<n>	a float of 32 bits
+kind	D	hol.edouble<n>	a float of 64 bits
+kind	H	hol.efloat<n>	a float of 16 bits
+kind	U	vector_coherence	a value every thread of a warp holds alike, the uniform registers
+kind	P	hol.==0	a predicate
+
+# the relation answered
+operation	ADD	ladder.add hol.add	a sum
+operation	MUL	ladder.product hol.mul	a product
+operation	MAD	ladder.product ladder.add hol.mul hol.add	a product with a sum added to it
+operation	MNMX	hol.lt hol.gt	the least or the most of two
+operation	ABS	hol.neg	a value's magnitude
+operation	SETP	comparison_coherence	a comparison, its answer a predicate
+operation	LOP	hol.bitand hol.bitor hol.bitxor hol.not	a table over bits
+operation	SHF	ladder.up ladder.down hol.shl hol.shr	a shift of the pair (high, low)
+operation	SEL	comparison_coherence	one of two values, chosen by a predicate
+operation	MOV	verb_coherence	a copy
+operation	PRMT	range_coherence	bytes of two words put in a new order
+operation	LD	verb_coherence	a load
+operation	ST	verb_coherence	a store
+operation	S2R	verb_coherence	a special register read into a register
+operation	EXIT	control_coherence	the thread's end
+operation	BRA	control_coherence	a branch
+
+# the count of sources
+count	3	ladder.add hol.bitand	three sources, the third added or tabled in
+
+# the qualifiers
+qualifier	X	range_coherence	takes the carry an earlier one of the chain left, a later limb
+qualifier	HI	range_coherence	the high word of the result
+qualifier	EX	range_coherence	the high word compared, the low word's predicate taken in
+qualifier	WIDE	unknown_coherence	a result of two words
+qualifier	U32	qualifier_coherence	read as an unsigned word
+qualifier	S32	qualifier_coherence	read as a signed word
+qualifier	U8	qualifier_coherence	read as an unsigned byte
+qualifier	S8	qualifier_coherence	read as a signed byte
+qualifier	U16	qualifier_coherence	read as an unsigned halfword
+qualifier	S16	qualifier_coherence	read as a signed halfword
+qualifier	64	unknown_coherence	two words at once
+qualifier	EQ	comparison_coherence	equal
+qualifier	NE	comparison_coherence	not equal
+qualifier	LT	comparison_coherence	less
+qualifier	LE	comparison_coherence	less or equal
+qualifier	GT	comparison_coherence	greater
+qualifier	GE	comparison_coherence	greater or equal
+qualifier	AND	qualifier_coherence	the flag joined to another by and
+qualifier	OR	qualifier_coherence	the flag joined to another by or
+qualifier	XOR	qualifier_coherence	the flag joined to another by exclusive or
+qualifier	L	hol.shl	toward the high end
+qualifier	R	hol.shr	toward the low end
+qualifier	W	hol.shl hol.shr	the count wrapped at the width
+qualifier	LUT	hol.bitand hol.bitor hol.bitxor hol.not	the table given as a number
+qualifier	MOV	structural_coherence	a multiply-add whose multiplier is 0: a copy
+qualifier	IADD	structural_coherence	a multiply-add whose multiplier is 1: a sum
+qualifier	SHL	structural_coherence	a multiply-add whose multiplier is a power of two: a shift
+qualifier	E	qualifier_coherence	an address of two words
+qualifier	CONSTANT	qualifier_coherence	memory nothing writes while the kernel runs

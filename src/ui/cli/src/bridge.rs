@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 //! The bridge between languages as the editor reads it: Lstar.klq, each language's .klm, and every
-//! ruleset, all in src/cu/transpiler/lstar/coherence.
+//! ruleset, all in src/cu/transpiler/lstar/protocol/table.
 //!
 //! A language's name goes through its .klm to a key of the bridge, the key's pairs and their
 //! verdicts are in Lstar.klq, and each ruleset's entry of the key's name is the form it writes.
@@ -21,7 +21,7 @@ use serde::Serialize;
 
 use crate::root::relative;
 
-pub const DIR: &str = "src/cu/transpiler/lstar/coherence";
+pub const DIR: &str = "src/cu/transpiler/lstar/protocol/table";
 
 #[derive(Serialize)]
 pub struct Note {

@@ -87,7 +87,8 @@ MODULES=(engine/formats/stack cu/includes/formats/stack cu/engine/parser
 INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate
         cu/includes/codecs/deflate cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc
         cu/includes/formats/tiff cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom
-        cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti)
+        cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti
+        cu/includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
 MODULE_INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc")
 MODULE_SOURCES=("$TOP/src/cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)

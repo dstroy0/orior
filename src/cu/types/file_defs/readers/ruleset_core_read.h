@@ -61,7 +61,7 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind,
         const RulesetCoreSpan bank_parameter = {0u, 1u};
         if ((has_equals == 0) || (bank == schema->bank_count) || (parameter_count != 0u) ||
             (read->bank_given[bank] != 0u) ||
-            !ruleset_core_split(read, text, (const unsigned char *)RULESET_CORE_BANK_PARAMETER, &bank_parameter, 1u,
+            !ruleset_core_split(read, text, (const unsigned char *)RULESET_CORE_BANK_PARAMETER, &bank_parameter, 1u, 0,
                                 &form))
         {
             return ruleset_core_ended(read, RULESET_CORE_BANK_WRONG, 0u, name);
@@ -74,7 +74,7 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind,
     {
         const unsigned int fixed = ruleset_core_find(read, schema->fixed, schema->fixed_count, name);
         if ((has_equals == 0) || (fixed == schema->fixed_count) || (parameter_count != 0u) ||
-            (read->fixed_given[fixed] != 0u) || !ruleset_core_split(read, text, read->text, parameters, 0u, &form))
+            (read->fixed_given[fixed] != 0u) || !ruleset_core_split(read, text, read->text, parameters, 0u, 0, &form))
         {
             return ruleset_core_ended(read, RULESET_CORE_REGISTER_WRONG, 0u, name);
         }
@@ -88,7 +88,7 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind,
         // a form with nothing after its equals has not said whether it is a nop or an error, and is neither
         if ((has_equals == 0) || (text.length == 0u) || (named == schema->form_count) ||
             (parameter_count != schema->form_parameters[named]) || (read->form_given[named] != 0u) ||
-            !ruleset_core_split(read, text, read->text, parameters, parameter_count, &form))
+            !ruleset_core_split(read, text, read->text, parameters, parameter_count, 1, &form))
         {
             return ruleset_core_ended(read, RULESET_CORE_FORM_WRONG, 0u, name);
         }
@@ -102,7 +102,7 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind,
     {
         const unsigned int named = ruleset_core_find(read, schema->forms, schema->form_count, name);
         if ((has_equals != 0) || (named == schema->form_count) || (parameter_count != schema->form_parameters[named]) ||
-            (read->form_given[named] != 0u) || !ruleset_core_split(read, text, read->text, parameters, 0u, &form))
+            (read->form_given[named] != 0u) || !ruleset_core_split(read, text, read->text, parameters, 0u, 0, &form))
         {
             return ruleset_core_ended(read, RULESET_CORE_FORM_WRONG, 0u, name);
         }
@@ -182,24 +182,14 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
                            (read->text[word.first + word.length - 1u] == '}') && (colon != word.length);
         if (braced)
         {
-            const unsigned int bank =
-                ruleset_core_find(read, schema->banks, schema->bank_count, ruleset_core_part(word, 1u, colon - 1u));
-            const RulesetCoreSpan digits = ruleset_core_part(word, colon + 1u, word.length - colon - 2u);
-            int counted = (digits.length != 0u) && (digits.length < 6u);
+            unsigned int bank = 0u;
             unsigned int number = 0u;
-            for (unsigned int digit = 0u; digit < digits.length; digit += 1u)
-            {
-                const unsigned char letter = read->text[digits.first + digit];
-                counted = counted && (letter >= '0') && (letter <= '9');
-                number = (number * 10u) + (unsigned int)(letter - '0');
-            }
-            if ((bank == schema->bank_count) || !counted)
+            if (!ruleset_core_scratch_word(read, ruleset_core_part(word, 1u, word.length - 2u), &bank, &number))
             {
                 return ruleset_core_ended(read, RULESET_CORE_SCRATCH_WORD, read->building, word);
             }
             argument.kind = RULESET_CORE_SCRATCH;
             argument.slot = bank;
-            // five digits at most, which fits in 32 bits
             argument.number = number;
         }
         read->arguments[read->argument_count] = argument;
@@ -209,6 +199,68 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
     read->lines[read->line_count] = written;
     read->line_count += 1u;
     construct->line_count += 1u;
+    return 1;
+}
+
+// Each place of a given form that names a fixed register written as the register's text, once every fixed register is
+// given: the piece before the place, the register and the piece after it one piece, written past the letters read.
+// The pieces of one form are folded into the piece being written while it ends the letters, and copied only where it
+// does not. 0 where the letters the read was given cannot hold them
+CODEGEN_CORE int ruleset_core_fixed_folded(RulesetCoreRead *read)
+{
+    for (unsigned int named = 0u; named < read->schema.form_count; named += 1u)
+    {
+        RulesetCoreTemplate *const form = &read->forms[named];
+        if (read->form_given[named] != (unsigned char)RULESET_CORE_GIVEN)
+        {
+            continue;
+        }
+        unsigned int written = 0u;
+        unsigned int slots = 0u;
+        for (unsigned int slot = 0u; (slot + 1u) < form->piece_count; slot += 1u)
+        {
+            const unsigned int value = read->slots[form->slot_first + slot];
+            const RulesetCoreSpan after = read->pieces[form->piece_first + slot + 1u];
+            if (value < RULESET_CORE_FIXED_PLACE)
+            {
+                read->slots[form->slot_first + slots] = value;
+                slots += 1u;
+                written += 1u;
+                read->pieces[form->piece_first + written] = after;
+                continue;
+            }
+            RulesetCoreSpan *const piece = &read->pieces[form->piece_first + written];
+            const RulesetCoreSpan fixed = read->fixed[value - RULESET_CORE_FIXED_PLACE];
+            const int ends = (piece->first + piece->length) == read->letter_count;
+            const unsigned int needed = (ends ? 0u : piece->length) + fixed.length + after.length;
+            if ((read->letter_capacity - read->letter_count) < needed)
+            {
+                return 0;
+            }
+            if (!ends)
+            {
+                const unsigned int first = read->letter_count;
+                for (unsigned int letter = 0u; letter < piece->length; letter += 1u)
+                {
+                    read->letters[read->letter_count] = read->letters[piece->first + letter];
+                    read->letter_count += 1u;
+                }
+                piece->first = first;
+            }
+            for (unsigned int letter = 0u; letter < fixed.length; letter += 1u)
+            {
+                read->letters[read->letter_count] = read->letters[fixed.first + letter];
+                read->letter_count += 1u;
+            }
+            for (unsigned int letter = 0u; letter < after.length; letter += 1u)
+            {
+                read->letters[read->letter_count] = read->letters[after.first + letter];
+                read->letter_count += 1u;
+            }
+            piece->length += fixed.length + after.length;
+        }
+        form->piece_count = written + 1u;
+    }
     return 1;
 }
 
@@ -322,6 +374,11 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
             ruleset_core_ended(read, RULESET_CORE_FORM_MISSING, named, none);
             return;
         }
+    }
+    if (!ruleset_core_fixed_folded(read))
+    {
+        ruleset_core_ended(read, RULESET_CORE_FORM_WRONG, 0u, none);
+        return;
     }
     if ((read->name.length == 0u) || (read->toolchain.length == 0u) || (read->header.length == 0u))
     {

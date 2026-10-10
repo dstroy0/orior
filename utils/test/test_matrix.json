@@ -13,9 +13,9 @@
     },
     "interface_ptx": {
       "desc": "The interface's probe runner as PTX.",
-      "script": "src/cu/scaffolding/interface_ptx_test.sh",
+      "script": "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.sh",
       "src": [
-        "+<cu/scaffolding/*>",
+        "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
         "+<cu/transpiler/lstar/interface/*>",
         "+<cu/transpiler/codegen/*>",
         "+<cu/transpiler/lstar/parser/*>"
@@ -26,9 +26,9 @@
     },
     "interface_sass": {
       "desc": "The device's machine code probed and written back: each ptx.krs form's SASS operations, each operation's bit fields, the shapes and their fields as a machine file, every instruction assembled from its text alone, each kernel written again into a cubin of its own and run, and questions asked in code no toolchain wrote.",
-      "script": "src/cu/scaffolding/interface_sass_test.sh",
+      "script": "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_test.sh",
       "src": [
-        "+<cu/scaffolding/*>",
+        "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
         "+<cu/transpiler/lstar/interface/*>",
         "+<cu/transpiler/codegen/*>",
         "+<cu/transpiler/lstar/parser/*>"
@@ -39,9 +39,9 @@
     },
     "cubin_safe": {
       "desc": "The gate every cubin our assembler wrote passes before the part runs it, held to one case a rule against the machine file, on the host.",
-      "script": "src/cu/scaffolding/cubin_safe_check.sh",
+      "script": "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cubin_safe_check.sh",
       "src": [
-        "+<cu/scaffolding/*>",
+        "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
         "+<cu/transpiler/lstar/parser/*>"
       ],
       "tests": [

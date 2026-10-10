@@ -218,6 +218,53 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
     return found;
 }
 
+unsigned int container_exits_read(const ContainerLayout *layout, const unsigned char *pattern,
+                                   unsigned long long pattern_size, const char *part, unsigned int *exits,
+                                   unsigned int room)
+{
+    Places places;
+    char named[256];
+    if (!container_places_read(layout, &places) || !container_pattern_holds(&places, pattern, pattern_size) ||
+        !layout_text(layout, "section.part_info", part, named, sizeof(named)))
+    {
+        return 0u;
+    }
+    unsigned int count = 0u;
+    unsigned long long strings = 0ull;
+    unsigned long long entry = 0ull;
+    const unsigned long long table = container_sections_of(&places, pattern, &count, &strings, &entry);
+    unsigned int found = 0u;
+    for (unsigned int index = 0u; index < count; index += 1u)
+    {
+        const unsigned long long at = table + ((unsigned long long)index * entry);
+        const unsigned long long name =
+            strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
+        if (strcmp((const char *)&pattern[name], named) != 0)
+        {
+            continue;
+        }
+        const unsigned long long offset =
+            container_value_read(&pattern[at + places.section_offset], places.section_offset_width);
+        const unsigned long long size =
+            container_value_read(&pattern[at + places.section_size], places.section_size_width);
+        unsigned long long value_size = 0ull;
+        const unsigned char *const attribute =
+            container_attribute_of(&places, &pattern[offset], size, places.attribute_exits, &value_size);
+        for (unsigned long long number = 0ull; (attribute != NULL) && (((number + 1ull) * 4ull) <= value_size);
+             number += 1ull)
+        {
+            if (found == room)
+            {
+                return found;
+            }
+            exits[found] =
+                (unsigned int)container_value_read(&attribute[places.attribute_header + (4ull * number)], 4u);
+            found += 1u;
+        }
+    }
+    return found;
+}
+
 unsigned int container_code_sections(const ContainerLayout *layout, const unsigned char *container,
                                      unsigned long long size, unsigned long long *offsets, unsigned long long *sizes,
                                      unsigned int room)

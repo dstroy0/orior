@@ -18,8 +18,8 @@
 // The planning reads every case against every survivor at each level. That is the price of choosing well, and it is
 // paid on this host against arithmetic every system that computes agrees about. A target is asked only the cases
 // the descent placed.
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/chain_build.h"
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/run_channel.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
 
 #include <stdio.h>

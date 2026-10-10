@@ -21,13 +21,17 @@ struct QueryRecordAsk
 };
 
 // one timed ask, a sample of its own: its identity as an ask's, what came back, and the nanoseconds its launches took
-// together where it answered, or the refusal where it did not
+// together where it answered, or the refusal where it did not; and where the sample gives them, the least and the most
+// one launch took, its block latency (P6), `launched` 1
 struct QueryRecordSample
 {
     std::string identity;
     std::string answer;
     unsigned long long nanoseconds;
     std::string refusal;
+    int launched;
+    unsigned long long least;
+    unsigned long long most;
 };
 
 // a path read off the asks: a pair of the bridge, the hash of what its put reads, and its verdict as the bridge writes
