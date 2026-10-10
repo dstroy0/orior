@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// File, Preferences: the color theme of each scheme and every color of its palette, the zoom, each
-// item of the menus that is set on or off, and the settings no menu lists. A color changed in the
-// scheme's own theme starts a theme of the reader's from it, and every change shows at once. A
-// theme copies out as text and reads back in from the clipboard.
+// File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
+// bar's and the menus' opacity, each item of the menus that is set on or off, and the settings no
+// menu lists. A color changed in the scheme's own theme starts a theme of the reader's from it, and
+// every change shows at once. A theme copies out as text and reads back in from the clipboard.
 
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
 import { clipText, copyText } from "./menu.js";
+import { OPACITY_SETTINGS, opacity, setOpacity, STEPS as OPACITY_STEPS } from "./opacity.js";
 import { scheme, setScheme } from "./scheme.js";
 import { BASES, builtIn, choose, chosen, deleteTheme, freeName, readTheme, saveTheme, themeNamed, themes, themeText } from "./themes.js";
 import { setZoom, STEPS, zoom } from "./zoom.js";
@@ -241,6 +242,11 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
     const zoomSelect = element("select", { className: "report-field", ariaLabel: "Zoom" }, ...STEPS.map((step) => element("option", { value: String(step), textContent: `${Math.round(step * 100)}%`, selected: step === zoom() })));
     zoomSelect.addEventListener("change", () => setZoom(Number(zoomSelect.value)));
     rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Zoom" }), zoomSelect));
+    for (const setting of OPACITY_SETTINGS) {
+      const select = element("select", { className: "report-field", ariaLabel: setting.label }, ...OPACITY_STEPS.map((step) => element("option", { value: String(step), textContent: `${step}%`, selected: step === opacity(setting) })));
+      select.addEventListener("change", () => setOpacity(setting, Number(select.value)));
+      rows.push(element("label", { className: "report-row" }, element("span", { textContent: setting.label }), select));
+    }
     for (const menu of menus) {
       for (const item of menu.all ?? []) {
         if (!item.checks || item.args !== "[on|off]") {
