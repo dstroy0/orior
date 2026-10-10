@@ -31,6 +31,7 @@ import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFil
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
+import { fuzzy } from "./fuzzy.js";
 import { showPreferences } from "./preferences.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
@@ -267,6 +268,7 @@ const COMMANDS = {
   environment: (args) => chooseEnvironment(args[0]),
   "maven-settings": () => askMavenSettings(),
   "update-snapshots": () => updateSnapshots(),
+  tests: () => showTests(),
   "parameter-hints": (args) => editing().setHints("parameter", onOff(args) ?? !editing().hints("parameter")),
   "flick-scroll": (args) => editing().setFlickScroll(onOff(args) ?? !editing().flickScroll()),
   "memory-budget": (args) => askBudget(args[0]),
@@ -725,6 +727,35 @@ async function askMavenSettings() {
   fields[0]?.[1].focus();
 }
 
+// Run, Find Tests: the tree's Python tests, found as pytest and unittest find them with no setup, in
+// the quick open, each by its class and its name, then its file and line; Enter opens it.
+async function showTests() {
+  let found;
+  try {
+    found = await invoke("tests_found");
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  openPalette("", {
+    custom: {
+      placeholder: `${found.length} test${found.length === 1 ? "" : "s"}: type to filter, Enter to open one`,
+      empty: "No test is found: pytest and unittest take files named test_*.py, *_test.py and test*.py, and in them the functions and methods whose names start with test.",
+      rows: (query) => {
+        const rows = [];
+        for (const test of found) {
+          const label = test.class ? `${test.class}.${test.name}` : test.name;
+          const hit = fuzzy(query, `${label} ${test.file}`);
+          if (hit) {
+            rows.push({ label, hits: hit.hits.filter((at) => at < label.length), detail: `${test.file}:${test.line + 1}`, score: query ? hit.score : 0, run: () => openFileAt(test.file, test.line, 0) });
+          }
+        }
+        return query ? rows.sort((a, b) => b.score - a.score) : rows;
+      },
+    },
+  });
+}
+
 // Run, Update Snapshots: fetches the newest build of each snapshot dependency of the build the file
 // open belongs to, or of the tree's top build, in the terminal.
 async function updateSnapshots() {
@@ -758,21 +789,26 @@ async function askDocMargin(given) {
 
 // File, Tree Environment: the environments the tree holds, each by its folder in the tree and its
 // kind, the one in use checked, and the toolchains' own Python; the one chosen kept for the tree by
-// its folder in it, which moves with the tree, and taken up again as the tree opens. An environment
+// its folder in it, which moves with the tree, and taken up again as the tree opens. A tree with none
+// chosen takes its own virtual environment, the one nearest its top, with no setup. An environment
 // chosen says which packages the files beside it require that it has not installed.
 const ENV_KINDS = { venv: "virtual environment", pipenv: "Pipenv", nix: "Nix" };
+
+// The environment the tree open uses, or null for the toolchains' own Python.
+let environmentInUse = null;
 
 function environmentKey() {
   return `orior.environment.${document.getElementById("tree-path").textContent}`;
 }
 
-async function useEnvironment(env, { quiet = false } = {}) {
+// Uses `env` for the tree, or the toolchains' own Python for null, kept as the reader's choice where
+// `kept`.
+async function useEnvironment(env, { quiet = false, kept = true } = {}) {
   try {
     const used = await invoke("env_use", { kind: env?.kind ?? null, place: env?.place ?? "", requires: env?.requires ?? [] });
-    if (env) {
-      localStorage.setItem(environmentKey(), JSON.stringify({ kind: env.kind, place: env.place }));
-    } else {
-      localStorage.removeItem(environmentKey());
+    environmentInUse = env ?? null;
+    if (kept) {
+      localStorage.setItem(environmentKey(), JSON.stringify({ kind: env?.kind ?? null, place: env?.place ?? "" }));
     }
     if (!quiet) {
       const where = env ? `${env.place || "the tree's top folder"}, a ${ENV_KINDS[env.kind]}` : "the toolchains' own";
@@ -786,7 +822,6 @@ async function useEnvironment(env, { quiet = false } = {}) {
 
 async function chooseEnvironment(given) {
   const found = await invoke("envs_found").catch(() => []);
-  const kept = JSON.parse(localStorage.getItem(environmentKey()) ?? "null");
   if (given) {
     const env = given === "none" ? null : found.find((one) => one.place === given || `${one.kind}:${one.place}` === given);
     if (env === undefined) {
@@ -797,23 +832,29 @@ async function chooseEnvironment(given) {
     return;
   }
   const items = [
-    { label: "The Toolchains' Own Python", checked: !kept, run: () => useEnvironment(null) },
+    { label: "The Toolchains' Own Python", checked: !environmentInUse, run: () => useEnvironment(null) },
     ...(found.length ? ["-"] : []),
-    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: kept?.kind === env.kind && kept?.place === env.place, run: () => useEnvironment(env) })),
+    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: environmentInUse?.kind === env.kind && environmentInUse?.place === env.place, run: () => useEnvironment(env) })),
   ];
   showMenu(window.innerWidth / 3, window.innerHeight / 4, items);
 }
 
-// Takes up again the environment kept for the tree open, where one is kept and the tree still holds it.
+// Takes up again the environment kept for the tree open, where one is kept and the tree still holds
+// it; where none is kept, the tree's own virtual environment nearest its top, not kept, for one the
+// tree comes to hold later to be taken in its place.
 export async function restoreEnvironment() {
   const kept = JSON.parse(localStorage.getItem(environmentKey()) ?? "null");
-  if (!kept) {
-    await invoke("env_use", { kind: null, place: "", requires: [] }).catch(() => {});
+  if (kept && kept.kind === null) {
+    await useEnvironment(null, { quiet: true, kept: false });
     return;
   }
   const found = await invoke("envs_found").catch(() => []);
+  if (!kept) {
+    await useEnvironment(found.find((one) => one.kind === "venv") ?? null, { quiet: true, kept: false });
+    return;
+  }
   const env = found.find((one) => one.kind === kept.kind && one.place === kept.place);
-  await useEnvironment(env ?? null, { quiet: true });
+  await useEnvironment(env ?? null, { quiet: true, kept: false });
 }
 
 // View, Checkers: the type checkers and linters to run as files change, by name, as given or asked

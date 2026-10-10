@@ -838,6 +838,12 @@ fn snapshots_line(app: State<App>, path: Option<String>) -> Result<(String, Stri
     orior_cli::builds::snapshots_line(&root, path.map(|path| root.join(path)).as_deref())
 }
 
+/// The tree's Python tests, found as pytest and unittest find them.
+#[tauri::command(async)]
+fn tests_found(app: State<App>) -> Result<Vec<orior_cli::testing::Test>, String> {
+    Ok(orior_cli::testing::found(&root_of(&app)?))
+}
+
 /// The edit that sorts the methods of the class at or around `line` of a text in `language` by name.
 #[tauri::command]
 fn code_sort(language: String, text: String, line: u32) -> Result<servers::TextEdit, String> {
@@ -1512,6 +1518,7 @@ fn open(launch: Launch) {
             code_sort,
             fill_paragraph,
             reads_file,
+            tests_found,
             maven_settings,
             maven_set,
             snapshots_line,

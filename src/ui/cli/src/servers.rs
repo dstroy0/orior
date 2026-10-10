@@ -646,10 +646,27 @@ fn heard(method: &str, params: &Value, emit: &Emit, published: &Published, check
             json!({"applied": true})
         }
         "workspace/configuration" => {
-            // Python's settings name the tree's environment's Python, where the tree has one.
+            // Python's settings name the tree's environment's Python, where the tree has one, and, as
+            // its analysis, the folders the tree's scripts put on `sys.path` as they run, for their
+            // imports to be found. Pyright asks for the analysis within `python`, and other servers
+            // for `python.analysis` alone. A setting the analysis leaves out is taken as off: the ones
+            // on by default are given.
             let python = crate::toolchains::environment().and_then(|env| env.python);
-            Value::Array(params["items"].as_array().into_iter().flatten().map(|item| match (item["section"].as_str(), &python) {
-                (Some("python"), Some(python)) => json!({"pythonPath": python.display().to_string(), "defaultInterpreterPath": python.display().to_string()}),
+            let analysis = |item: &Value| {
+                let root = item["scopeUri"].as_str().and_then(lsp::path_of);
+                let paths: Vec<String> = root.map(|root| crate::python_paths::search_paths(&root).iter().map(|path| path.display().to_string()).collect()).unwrap_or_default();
+                json!({"extraPaths": paths, "autoSearchPaths": true, "useLibraryCodeForTypes": true, "autoImportCompletions": true})
+            };
+            Value::Array(params["items"].as_array().into_iter().flatten().map(|item| match item["section"].as_str() {
+                Some("python") => {
+                    let mut section = json!({"analysis": analysis(item)});
+                    if let Some(python) = &python {
+                        section["pythonPath"] = json!(python.display().to_string());
+                        section["defaultInterpreterPath"] = json!(python.display().to_string());
+                    }
+                    section
+                }
+                Some("python.analysis") => analysis(item),
                 _ => Value::Null,
             }).collect())
         }
@@ -2043,6 +2060,9 @@ mod tests {
         let published = Mutex::new(HashMap::new());
         let checks = Checks::default();
         assert_eq!(heard("workspace/configuration", &json!({"items": [{}, {}]}), &emit, &published, &checks), json!([null, null]));
+        let python = heard("workspace/configuration", &json!({"items": [{"section": "python"}, {"section": "python.analysis"}]}), &emit, &published, &checks);
+        assert_eq!(python[0]["analysis"]["useLibraryCodeForTypes"], true, "the settings on by default stay on");
+        assert_eq!(python[0]["analysis"], python[1]);
         assert_eq!(heard("workspace/applyEdit", &json!({"edit": {"changes": {"file:///t/a.c": []}}}), &emit, &published, &checks), json!({"applied": true}));
         assert_eq!(*told.lock().unwrap(), vec![1]);
     }

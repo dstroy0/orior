@@ -216,6 +216,7 @@
         { "label": "Run File", "command": "run-file", "keys": "Ctrl+F5", "args": "<file>", "needs": "tab", "console": true },
         { "label": "Validate", "command": "validate", "keys": "Ctrl+Alt+F5", "args": "[--json] <file>...", "needs": "tab", "console": true },
         { "label": "Update Snapshots", "command": "update-snapshots" },
+        { "label": "Find Tests…", "command": "tests", "args": "[--json]", "console": true },
         "-",
         { "label": "Debug File", "command": "debug", "keys": "Shift+F9", "needs": "tab" },
         { "label": "Restart Debugging", "command": "restart-debug", "keys": "Ctrl+Shift+F5", "needs": "debugged" },

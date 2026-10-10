@@ -135,6 +135,23 @@ fn values_of(job: &Job, words: &[String]) -> Result<HashMap<String, Vec<String>>
     Ok(values)
 }
 
+/// Lists the tree's Python tests as pytest names them, each with its line, or as JSON with `--json`.
+fn tests_list(root: &std::path::Path, words: &[String]) -> i32 {
+    let found = crate::testing::found(root);
+    if words.iter().any(|word| word == "--json") {
+        out(&serde_json::to_string_pretty(&found).unwrap_or_default());
+        return 0;
+    }
+    if found.is_empty() {
+        err("the tree holds no test that pytest or unittest finds");
+        return NO_CODE;
+    }
+    for test in &found {
+        out(&format!("{}  line {}", test.id, test.line + 1));
+    }
+    0
+}
+
 fn list(root: &std::path::Path, word: Option<&str>) -> i32 {
     let word = word.map(str::to_lowercase);
     let jobs: Vec<Job> = catalog::read(root)
@@ -525,6 +542,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
     let first = words.first().map(String::as_str);
     match command {
         "list" => list(&root, first),
+        "tests" => tests_list(&root, words),
         "bridge" => bridge(&root, first),
         _ => {
             let Some(name) = first else {
