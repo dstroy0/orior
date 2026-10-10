@@ -2264,6 +2264,8 @@ export async function startEdit(defs) {
   });
   startExplorer({
     show,
+    sessionOf: (path) => (path ? tabOf(path)?.session ?? null : null),
+    activePath: () => (state.active ? tabOf(state.active)?.file ?? null : null),
     close: (path) => tabOf(path) && closeTab(tabOf(path)),
     tabMenu: (path) => tabMenu(tabOf(path)),
     goTo: (line) => jumpTo(line),

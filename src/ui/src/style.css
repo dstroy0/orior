@@ -3456,7 +3456,8 @@ body[data-view="run"] .statusbar .ed-status {
 
 /* An arrow drawn in two borders: right where closed, down where open. */
 .pane-head::before,
-.node.dir .twisty::before {
+.node.dir .twisty::before,
+.sym-region .twisty::before {
   content: "";
   width: 5px;
   height: 5px;
@@ -3472,7 +3473,8 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .pane-head[aria-expanded="true"]::before,
-.node.dir[aria-expanded="true"] .twisty::before {
+.node.dir[aria-expanded="true"] .twisty::before,
+.sym-region[aria-expanded="true"] .twisty::before {
   transform: rotate(45deg) translate(-1px, -1px);
 }
 

@@ -21,7 +21,7 @@ import { invoke } from "./bridge.js";
 import { escapeHtml } from "./editor/view.js";
 import { copyText, menuOn, showMenu } from "./menu.js";
 import { comments, onReview, removeComment, resolveComment } from "./review.js";
-import { symbolsOf } from "./outline.js";
+import { structureOf } from "./outline.js";
 
 const KEPT = "orior.panes";
 
@@ -58,7 +58,7 @@ const groupOf = (name) => Object.keys(GROUPS).find((group) => GROUPS[group].incl
 const state = {
   panes: {},
   hooks: null,
-  outline: { session: null, symbols: [], rows: [] },
+  outline: { session: null, symbols: [], rows: [], closed: new Set(), pinned: null },
   timeline: { path: null, commits: [] },
   local: { path: null, snapshots: [] },
   undo: { session: null, wait: 0 },
@@ -219,36 +219,96 @@ export function drawOpenEditors(tabs) {
   }
 }
 
-// Outline: what the open file declares, a row a symbol, the one the cursor is in marked.
+// Outline: what the open file declares, a row a symbol, the one the cursor is in marked; and the
+// regions its comments mark, each a row that holds the symbols inside it, opened and closed by its
+// arrow. Pinned, the pane shows the structure of the file pinned while another is open, a press on a
+// symbol going to that file, until it is unpinned or the file closes.
 
-const KIND_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6] };
+const KIND_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6], region: ["▤", 2] };
 
 export function drawOutline(session) {
   const body = document.getElementById("outline");
-  state.outline.session = session;
+  const pinned = state.outline.pinned;
+  if (pinned && !state.hooks?.sessionOf?.(pinned.path)) {
+    state.outline.pinned = null;
+  }
+  const shown = state.outline.pinned ? state.hooks.sessionOf(state.outline.pinned.path) : session;
+  state.outline.session = shown;
+  const head = document.querySelector('[data-pane="outline"] .pane-head');
+  if (head) {
+    head.textContent = state.outline.pinned ? `Outline of ${state.outline.pinned.path.split("/").pop()}` : "Outline";
+  }
   if (!paneOpen("outline")) {
     return;
   }
-  const symbols = session ? symbolsOf(session.language?.id, session.doc) : [];
-  state.outline.symbols = symbols;
-  state.outline.rows = symbols.map((symbol) => {
+  const symbols = shown ? structureOf(shown.language?.id, shown.doc) : [];
+  const closed = state.outline.closed;
+  const hidden = (symbol) => symbols.some((region) => region.kind === "region" && closed.has(`${region.line}:${region.name}`) && region.line < symbol.line && symbol.line <= region.end);
+  state.outline.symbols = symbols.filter((symbol) => !hidden(symbol));
+  state.outline.rows = state.outline.symbols.map((symbol) => {
     const [mark, color] = KIND_MARKS[symbol.kind] ?? ["▪", 7];
-    const row = element("button", { className: "sym", type: "button", title: `${symbol.name}, line ${session.base + symbol.line + 1}` });
-    row.dataset.key = `${symbol.line}:${symbol.name}`;
+    const key = `${symbol.line}:${symbol.name}`;
+    const region = symbol.kind === "region";
+    const row = element("button", { className: region ? "sym dir sym-region" : "sym", type: "button", title: `${symbol.name}, line ${shown.base + symbol.line + 1}` });
+    row.dataset.key = key;
     row.dataset.depth = String(symbol.depth);
     row.append(...guides(symbol.depth));
+    if (region) {
+      row.setAttribute("aria-expanded", String(!closed.has(key)));
+      row.append(element("span", { className: "twisty" }));
+    }
     const icon = element("span", { className: "icon", textContent: mark });
     icon.style.color = `var(--t${color})`;
     row.append(icon, element("span", { className: "name", textContent: symbol.name }));
-    row.addEventListener("click", () => state.hooks.goTo(symbol.line));
+    row.addEventListener("click", (event) => {
+      if (region && (!event.isTrusted || event.target.closest(".twisty"))) {
+        if (closed.has(key)) {
+          closed.delete(key);
+        } else {
+          closed.add(key);
+        }
+        drawOutline(state.outline.session);
+        document.querySelector(`#outline [data-key="${CSS.escape(key)}"]`)?.focus();
+        return;
+      }
+      if (state.outline.pinned) {
+        state.hooks.openAt(state.outline.pinned.path, shown.base + symbol.line, 0);
+      } else {
+        state.hooks.goTo(symbol.line);
+      }
+    });
     return row;
   });
   body.replaceChildren(...state.outline.rows);
   lightOutline(state.hooks.cursorLine?.() ?? 0);
 }
 
-// Marks the symbol the cursor's line falls in: the last one that starts at or above it.
+// Pins the Outline to the file `path` shows, or, given none, unpins it to follow the file shown.
+export function pinOutline(path) {
+  state.outline.pinned = path ? { path } : null;
+  drawOutline(state.hooks.sessionOf?.(state.hooks.activePath?.()) ?? null);
+}
+
+export function outlinePinned() {
+  return state.outline.pinned?.path ?? null;
+}
+
+// The Outline's menu: pinning it to the file shown, or unpinning it.
+function outlineItems() {
+  const active = state.hooks.activePath?.();
+  const pinned = state.outline.pinned;
+  return [
+    pinned ? { label: `Unpin ${pinned.path.split("/").pop()}`, run: () => pinOutline(null) } : { label: active ? `Pin ${active.split("/").pop()}` : "Pin the File Shown", disabled: !active, run: () => pinOutline(active) },
+  ];
+}
+
+// Marks the symbol the cursor's line falls in: the last one that starts at or above it, where the
+// Outline shows the file the cursor is in.
 export function lightOutline(line) {
+  if (state.outline.pinned && state.outline.pinned.path !== state.hooks.activePath?.()) {
+    state.outline.rows.forEach((row) => row.removeAttribute("aria-current"));
+    return;
+  }
   let lit = -1;
   state.outline.symbols.forEach((symbol, index) => {
     if (symbol.line <= line) {
@@ -793,6 +853,7 @@ export function startExplorer(hooks) {
   }
   menuOn(document.getElementById("open-editors"), (event) => hooks.tabMenu(event.target.closest(".open-row")?.dataset.key));
   menuOn(document.getElementById("timeline"), timelineItems);
+  menuOn(document.getElementById("outline"), outlineItems);
   menuOn(document.getElementById("local-history"), localItems);
   menuOn(document.getElementById("review"), reviewItems);
   onReview(drawReview);

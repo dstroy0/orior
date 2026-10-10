@@ -7,10 +7,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
 1. **Scrolling at the display's rate.** A fast scroll holds every frame a display of 120 a second draws, and not only every other one. The frame's handover to the compositor, `Commit` and `LayerTreeHost::DoUpdateLayers` in a trace, takes about 10 ms of the 8.3 a frame has. Two measurements say what is in it: a trace of the scroll with the compositor's own categories (`cc`, `viz`, `gpu`, `disabled-by-default-cc.debug`), which splits it into the canvas flush, the layers' update, tiles and uploads; and the same scroll with the minimap not drawing, which says whether the map's canvas is the cost.
 2. **A key on the screen in the next frame.** A letter typed shows in the frame after the key, measured from the key's event to the frame that draws it, in a file of any size. The page's own work for a key is 2 to 5 ms in files of 40 to 250,000 lines; what keeps the letter from the next frame at 120 a second is the frame's commit, 11 to 14 ms with the window's three layers the size of the window, which the trace of the scroll before this item reads.
 
-## Code intelligence
-
-1. **Regions in Structure.** The regions a file's comments mark show in Structure as nodes that hold what stands in them, and a file can be pinned there while another is open.
-
 ## Languages and formatting
 
 1. **Type checkers and linters in the editor.** Mypy, flake8 and the tree's other checkers run as files change, each one's findings in Problems beside the language server's, with no setup past naming the checker.

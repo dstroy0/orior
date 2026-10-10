@@ -106,6 +106,67 @@ function byRules(doc, rules) {
   return found.map(({ indent, ...symbol }) => ({ ...symbol, depth: Number.isFinite(step) ? Math.min(DEEPEST, Math.round(indent / step)) : 0 }));
 }
 
+// A line that opens a region, and one that closes it: a comment, `#region` or `#pragma region`
+// that starts with the word, as Python's `# region Name`, JavaScript's `//#region Name`, C's
+// `#pragma region Name` and HTML's `<!-- #region Name -->` write them.
+const REGION_OPENS = /^\s*(?:#|\/\/|--|%|;|<!--)?\s*#?\s*(?:pragma\s+)?region\b[\s:]*(.*?)\s*(?:-->)?\s*$/i;
+const REGION_CLOSES = /^\s*(?:#|\/\/|--|%|;|<!--)?\s*#?\s*(?:pragma\s+)?end\s*region\b/i;
+// What stands before the word on such a line, spaces taken out: a comment's mark, `#` or `#pragma`.
+const REGION_MARKS = /^(?:#|\/\/#?|--|%|;|<!--#?|#pragma)$/i;
+
+// The regions a file's comments mark: each its name, its first line, its last, and how deep its
+// first line is indented. One not closed reaches the end of the file.
+export function regionsOf(doc) {
+  if (!doc || doc.count > LIMIT) {
+    return [];
+  }
+  const found = [];
+  const open = [];
+  for (let line = 0; line < doc.count; line += 1) {
+    const text = doc.line(line);
+    const at = text.search(/(?:end\s*)?region/i);
+    if (at < 0 || !REGION_MARKS.test(text.slice(0, at).replace(/\s+/g, ""))) {
+      continue;
+    }
+    if (REGION_CLOSES.test(text)) {
+      const region = open.pop();
+      if (region) {
+        region.end = line;
+      }
+      continue;
+    }
+    const opens = text.match(REGION_OPENS);
+    if (opens) {
+      const region = { name: opens[1] || text.trim(), line, end: doc.count - 1, indent: text.match(/^\s*/)[0].length };
+      found.push(region);
+      open.push(region);
+    }
+  }
+  return found;
+}
+
+// A file's symbols with the regions its comments mark among them, each region a symbol of kind
+// "region" with the line it ends on, and every symbol inside a region a level deeper for each region
+// that holds it at its depth or above it.
+export function structureOf(language, doc) {
+  const symbols = symbolsOf(language, doc);
+  const regions = regionsOf(doc);
+  if (!regions.length) {
+    return symbols;
+  }
+  const indentOf = (line) => doc.line(line).match(/^\s*/)[0].length;
+  const placed = regions.map((region) => {
+    const holder = [...symbols].reverse().find((symbol) => symbol.line < region.line && indentOf(symbol.line) < region.indent);
+    return { ...region, base: holder ? holder.depth + 1 : 0 };
+  });
+  const holding = (line, depth) => placed.filter((region) => region.line < line && line <= region.end && region.base <= depth).length;
+  const out = symbols.map((symbol) => ({ ...symbol, depth: symbol.depth + holding(symbol.line, symbol.depth) }));
+  for (const region of placed) {
+    out.push({ name: region.name, kind: "region", line: region.line, end: region.end, depth: region.base + holding(region.line, region.base) });
+  }
+  return out.sort((a, b) => a.line - b.line || (a.kind === "region" ? -1 : 1));
+}
+
 export function symbolsOf(language, doc) {
   if (!doc || doc.count > LIMIT) {
     return [];
