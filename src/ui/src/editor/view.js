@@ -42,6 +42,19 @@ const COLUMN_KEY = "orior.column";
 
 // Sticky scroll: the most lines it holds along the top.
 const STICKY_MOST = 5;
+
+// Smooth scrolling: a wheel's step and a page key glide over GLIDE milliseconds, easing out. Flick
+// scrolling: a touchpad's movement runs on once the fingers lift, where no event has come for
+// FLICK_REST and the system gives no run of its own, from no slower than FLICK_LEAST pixels a
+// millisecond, slowing by a factor of e every FLICK_SLOWS until under FLICK_STOP. Each is a setting,
+// on where none is kept.
+const GLIDE = 130;
+const FLICK_REST = 50;
+const FLICK_LEAST = 0.3;
+const FLICK_SLOWS = 325;
+const FLICK_STOP = 0.02;
+const SMOOTH_KEY = "orior.smooth-scroll";
+const FLICK_KEY = "orior.flick-scroll";
 const STICKY_KEY = "orior.sticky";
 
 // Bracket pairs colored by depth: the setting's key, the most lines a text has for its brackets to be
@@ -221,6 +234,11 @@ export class Editor {
       host.dataset.comments = "hidden";
     }
     this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
+    this.smoothOn = localStorage.getItem(SMOOTH_KEY) !== "false";
+    this.flickOn = localStorage.getItem(FLICK_KEY) !== "false";
+    // The glide under way, { from, to, at }, in the scrolling space's own units, and the run-on.
+    this.glide = null;
+    this.flick = null;
     this.stickyKey = "";
     // The lines held along the top, and the top row and text they were read for.
     this.stickyHeld = [];
@@ -700,14 +718,14 @@ export class Editor {
     }
     this.size();
     const y = this.rows().rowOf(head.line) * LINE;
-    const top = this.scrollY();
+    const top = this.headingY();
     const height = this.scroller.clientHeight;
     if (center && (y < top || y + LINE > top + height)) {
-      this.place(y - height / 2);
+      this.scrollToY(y - height / 2);
     } else if (y < top) {
-      this.place(y);
+      this.scrollToY(y);
     } else if (y + LINE > top + height) {
-      this.place(y + LINE - height);
+      this.scrollToY(y + LINE - height);
     }
     const x = this.xOf(head);
     const left = this.scroller.scrollLeft;
@@ -1241,7 +1259,12 @@ export class Editor {
 
   page(direction, extend) {
     const by = Math.max(1, Math.floor(this.scroller.clientHeight / LINE) - 1);
-    this.place(this.scrollY() + direction * by * LINE);
+    const top = this.headingY() + direction * by * LINE;
+    if (this.smoothOn) {
+      this.glideTo(top + this.pad);
+    } else {
+      this.place(top);
+    }
     this.moveBy((sel) => this.vertical(sel, direction * by), extend);
   }
 
@@ -2402,10 +2425,8 @@ export class Editor {
     });
     this.scroller.addEventListener("scroll", () => this.onScroll());
     this.scroller.addEventListener("contextmenu", (event) => event.preventDefault());
-    this.gutter.addEventListener("wheel", (event) => {
-      this.scroller.scrollTop += event.deltaY;
-      event.preventDefault();
-    }, { passive: false });
+    this.scroller.addEventListener("wheel", (event) => this.onWheel(event), { passive: false });
+    this.gutter.addEventListener("wheel", (event) => this.onWheel(event), { passive: false });
   }
 
   // Drawing.
@@ -2422,9 +2443,117 @@ export class Editor {
   // a throttle: a frame that runs past BUDGET raises `strain`, and the level is whichever of the two
   // is higher. A slow frame costs detail and never smoothness.
 
+  // A wheel over the text or the gutter. A wheel's step glides where smooth scrolling is on; a
+  // touchpad's movement, in pixels and not in steps, follows the fingers and is tracked for the
+  // run-on. A wheel across, and one with Ctrl, which zooms, are left to the page.
+  onWheel(event) {
+    if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      return;
+    }
+    event.preventDefault();
+    const unit = event.deltaMode === 1 ? LINE : event.deltaMode === 2 ? this.scroller.clientHeight : 1;
+    const by = event.deltaY * unit;
+    const stepped = event.deltaMode !== 0 || (event.wheelDeltaY !== 0 && event.wheelDeltaY % 120 === 0);
+    this.flick = null;
+    if (stepped && this.smoothOn) {
+      this.glideTo((this.glide?.to ?? this.scroller.scrollTop) + by);
+      return;
+    }
+    this.glide = null;
+    this.scroller.scrollTop += by;
+    if (!stepped && this.flickOn) {
+      this.track(by);
+    }
+  }
+
+  // Glides the scrolling space to `to`, from where it stands, a later glide taking up from there.
+  glideTo(to) {
+    const most = this.scroller.scrollHeight - this.scroller.clientHeight;
+    const first = !this.glide;
+    this.glide = { from: this.scroller.scrollTop, to: Math.max(0, Math.min(most, to)), at: performance.now() };
+    if (first) {
+      const step = (now) => {
+        const glide = this.glide;
+        if (!glide) {
+          return;
+        }
+        const part = Math.max(0, Math.min(1, (now - glide.at) / GLIDE));
+        this.scroller.scrollTop = glide.from + (glide.to - glide.from) * (1 - (1 - part) ** 3);
+        if (part < 1) {
+          requestAnimationFrame(step);
+        } else {
+          this.glide = null;
+        }
+      };
+      requestAnimationFrame(step);
+    }
+  }
+
+  // The touchpad's speed, the latest movement weighed most, and the run-on once it rests.
+  track(by) {
+    const now = performance.now();
+    const spent = Math.max(1, now - (this.flickAt ?? now - 16));
+    this.flickSpeed = spent > 100 ? by / spent : 0.8 * (by / spent) + 0.2 * (this.flickSpeed ?? 0);
+    this.flickAt = now;
+    window.clearTimeout(this.flickWait);
+    this.flickWait = window.setTimeout(() => this.runOn(), FLICK_REST);
+  }
+
+  runOn() {
+    let speed = this.flickSpeed ?? 0;
+    if (Math.abs(speed) < FLICK_LEAST) {
+      return;
+    }
+    let last = performance.now();
+    const step = (now) => {
+      if (this.flick !== step) {
+        return;
+      }
+      const spent = Math.max(0, now - last);
+      last = now;
+      const was = this.scroller.scrollTop;
+      this.scroller.scrollTop += speed * spent;
+      speed *= Math.exp(-spent / FLICK_SLOWS);
+      if (Math.abs(speed) < FLICK_STOP || (spent > 0 && this.scroller.scrollTop === was)) {
+        this.flick = null;
+        return;
+      }
+      requestAnimationFrame(step);
+    };
+    this.flick = step;
+    requestAnimationFrame(step);
+  }
+
+  setSmooth(on) {
+    this.smoothOn = on;
+    localStorage.setItem(SMOOTH_KEY, String(on));
+  }
+
+  setFlick(on) {
+    this.flickOn = on;
+    localStorage.setItem(FLICK_KEY, String(on));
+  }
+
+  // Where the view is heading: the end of the glide under way, or where it stands.
+  headingY() {
+    return this.glide ? this.glide.to - this.pad : this.scrollY();
+  }
+
+  // Scrolls the view to `top`, the end of a glide under way where one is, and at once where not.
+  scrollToY(top) {
+    if (this.glide) {
+      this.glideTo(top + this.pad);
+    } else {
+      this.place(top);
+    }
+  }
+
   // Scrolls the view to `top` itself, for a jump to a line or a page, or to hold the text in place
-  // as lines are read in above it. The scroll that follows is not counted as speed.
+  // as lines are read in above it. The scroll that follows is not counted as speed, and a glide or a
+  // run-on under way ends.
   place(top) {
+    this.glide = null;
+    this.flick = null;
     const was = this.scroller.scrollTop;
     this.scroller.scrollTop = top + this.pad;
     this.placedTop = this.scroller.scrollTop === was ? null : this.scroller.scrollTop;

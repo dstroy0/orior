@@ -250,6 +250,8 @@ const COMMANDS = {
   "past-ends": (args) => editing().setPastEnds(onOff(args) ?? !editing().pastEnds()),
   "hide-comments": (args) => editing().setCommentsHidden(onOff(args) ?? !editing().commentsHidden()),
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
+  "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
+  "flick-scroll": (args) => editing().setFlickScroll(onOff(args) ?? !editing().flickScroll()),
   "memory-budget": (args) => askBudget(args[0]),
   "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
   preferences: () =>
@@ -364,6 +366,8 @@ const CHECKS = {
   "past-ends": () => editing().pastEnds(),
   "hide-comments": () => editing().commentsHidden(),
   "line-history": () => editing().lineHistory(),
+  "smooth-scroll": () => editing().smoothScroll(),
+  "flick-scroll": () => editing().flickScroll(),
   "auto-report": () => state.autoReport,
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),

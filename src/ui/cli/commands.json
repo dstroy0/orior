@@ -126,6 +126,8 @@
         { "label": "Primary Side Bar", "command": "side-bar", "keys": "Ctrl+B", "args": "[show|hide]", "checks": "side-bar" },
         { "label": "Auto Collapse Panes", "command": "auto-collapse", "args": "[on|off]", "checks": "auto-collapse" },
         { "label": "Sticky Scroll", "command": "sticky-scroll", "args": "[on|off]", "checks": "sticky-scroll" },
+        { "label": "Smooth Scrolling", "command": "smooth-scroll", "args": "[on|off]", "checks": "smooth-scroll" },
+        { "label": "Flick Scrolling", "command": "flick-scroll", "args": "[on|off]", "checks": "flick-scroll" },
         { "label": "Breadcrumbs", "command": "breadcrumbs", "args": "[on|off]", "checks": "breadcrumbs" },
         { "label": "Bracket Pair Colorization", "command": "bracket-pairs", "args": "[on|off]", "checks": "bracket-pairs" },
         { "label": "Show Whitespace", "command": "whitespace", "args": "[on|off]", "checks": "whitespace" },
