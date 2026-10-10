@@ -79,6 +79,16 @@
 #define RULESET_CORE_RELATION_OPEN(kind_)                                                                              \
     (((kind_) == RULESET_CORE_RELATION_LINE_NOT_GIVEN) || ((kind_) == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN))
 
+// A relation between two forms' writings holds of writings that are right as well as of wrong ones: a form's text
+// another's, a construct writing another form under its own parameters, two names a word and their modifiers apart,
+// and a form opening another's literal operands. A target writes two operations one modifier apart, and a language
+// writes one text for two names. Such a relation is kept and written, the bridge's pairs are read from it
+// (klq_write.cu), and it is no verdict; every other relation that is not open is one
+#define RULESET_CORE_RELATION_VERDICT(kind_)                                                                           \
+    (!RULESET_CORE_RELATION_OPEN(kind_) && ((kind_) != RULESET_CORE_RELATION_SAME_TEXT) &&                             \
+     ((kind_) != RULESET_CORE_RELATION_RENAMED) && ((kind_) != RULESET_CORE_RELATION_MODIFIERS) &&                     \
+     ((kind_) != RULESET_CORE_RELATION_OPENED))
+
 // one line of one file: its kind, the file and the line it is, the construct a construct's line stands in, whether
 // the line has an equals, its name, the words after the name up to the equals, and the text after it
 struct RulesetCoreEntry
@@ -589,7 +599,16 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
         const RulesetCoreSpan named = (text[entry->text.first + letter] == '{')
                                           ? ruleset_core_relation_braced(relations, entry, letter)
                                           : ruleset_core_relation_after(entry->text, entry->text.length);
-        if ((named.length != 0u) && (ruleset_core_relation_place(relations, entry, named) == count))
+        // a place naming a fixed register of the set is that register, and a place the head need not take
+        int fixed_named = 0;
+        for (unsigned int fixed = 0u; (named.length != 0u) && (fixed_named == 0) && (fixed < relations->entry_count);
+             fixed += 1u)
+        {
+            fixed_named = (relations->entries[fixed].kind == RULESET_CORE_ENTRY_FIXED) &&
+                          ruleset_core_relation_same(text, named, relations->entries[fixed].name);
+        }
+        if ((named.length != 0u) && (fixed_named == 0) &&
+            (ruleset_core_relation_place(relations, entry, named) == count))
         {
             ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_PLACE_UNKNOWN, at, letter);
             break;
@@ -877,6 +896,9 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
 //     KIND       a name `from` gives as one kind and `to` as another, of form, nop, err and construct, `other` the
 //                entry of `to`
 //     ABSENT     a name `from` gives and no entry of `to` does, which a file of `to` added undoes: open
+//
+// Each of the others is a line a lane cannot be read through as it stands (P8): it holds between two languages that
+// each write their own names rightly, and is no verdict on either set
 #define RULESET_CORE_MAP_BREAKS 0u
 #define RULESET_CORE_MAP_COLLAPSES 1u
 #define RULESET_CORE_MAP_KIND 2u

@@ -109,7 +109,7 @@ function fit() {
   }
   const { cols, rows } = measure();
   if (!state.screen) {
-    state.screen = new Screen(parts.view, cols, rows, send);
+    state.screen = new Screen(parts.view, cols, rows, send, scrollback());
     return;
   }
   if (cols === state.screen.cols && rows === state.screen.rowCount) {
@@ -119,6 +119,19 @@ function fit() {
   if (state.id !== null) {
     invoke("term_resize", { id: state.id, cols, rows }).catch(() => {});
   }
+}
+
+// The scrollbacks a page loaded before this one left, let go before this page makes any.
+const fresh = invoke("scrollback_reset").catch(() => {});
+
+// Where the lines that scroll off a screen go: a file the app holds for that screen, which the
+// screen reads back from as the reader scrolls up.
+function scrollback() {
+  const opened = fresh.then(() => invoke("scrollback_open"));
+  return {
+    keep: async (lines) => invoke("scrollback_keep", { id: await opened, lines }),
+    read: async (from, count) => invoke("scrollback_read", { id: await opened, from, count }),
+  };
 }
 
 function openShell() {

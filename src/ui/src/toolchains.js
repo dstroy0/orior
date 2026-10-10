@@ -7,6 +7,11 @@
 // folder the reader picks. One installed and not on the PATH goes on it, or orior runs it from
 // there. Above them, whether orior itself is on the PATH, which `orior` needs to work in any terminal.
 //
+// Add Toolchain adds one of the reader's own to a group, a new one or one there already, by its name,
+// what it is for, the programs that name it, the words that make it say its version and its install
+// page; Add Group adds a group that stands empty until a toolchain goes in it. What the reader added
+// is taken out from its row, and an empty group from its heading.
+//
 // orior's own runs and terminals read the PATH anew, and a change here reaches them at once; a
 // terminal opened outside orior before the change does not have it.
 
@@ -78,6 +83,9 @@ export async function showToolchains(sheet) {
     if (tool.install) {
       made.push(button("Install Page", () => act(() => invoke("toolchain_install", { id: tool.id }), (url) => `Opened ${url}.`), { title: tool.install, className: `prefs-button${tool.state === "missing" && !tool.setup ? " tools-go" : ""}` }));
     }
+    if (tool.added) {
+      made.push(button("Remove", () => act(() => invoke("toolchain_remove", { id: tool.id }), () => `Took out ${tool.name}.`)));
+    }
     return element("span", { className: "tools-actions" }, ...made);
   }
 
@@ -103,16 +111,23 @@ export async function showToolchains(sheet) {
     const word = filter.value.trim().toLowerCase();
     const shown = read.tools.filter((tool) => !word || [tool.id, tool.name, tool.for, tool.group, ...tool.programs].some((text) => text.toLowerCase().includes(word)));
     const rows = [];
-    let group = null;
-    for (const tool of shown) {
-      if (tool.group !== group) {
-        group = tool.group;
-        rows.push(element("h3", { textContent: group }));
+    for (const group of read.groups ?? []) {
+      const held = shown.filter((tool) => tool.group === group);
+      const empty = !read.tools.some((tool) => tool.group === group);
+      if (!held.length && !(empty && (!word || group.toLowerCase().includes(word)))) {
+        continue;
       }
-      rows.push(row(tool));
+      const heading = element("h3", { textContent: group });
+      if (empty) {
+        heading.append(button("Remove Group", () => act(() => invoke("toolchain_remove_group", { name: group }), () => `Took out ${group}.`), { className: "prefs-button tools-group-remove" }));
+      }
+      rows.push(heading, ...held.map(row));
+      if (empty) {
+        rows.push(element("p", { className: "prefs-said", textContent: "No toolchain in it yet." }));
+      }
     }
     list.replaceChildren(...rows);
-    if (!shown.length) {
+    if (!rows.length) {
       list.append(element("p", { className: "prefs-said", textContent: "No toolchain matches." }));
     }
     const mine = read.own;
@@ -153,8 +168,65 @@ export async function showToolchains(sheet) {
     askVersions();
   }
 
+  // The form that adds a toolchain or a group, shown in place of nothing under the sheet's buttons.
+  const adding = element("form", { className: "tools-add", hidden: true });
+  const field = (label, input) => element("label", { className: "report-row" }, element("span", { textContent: label }), input);
+  const input = (props) => element("input", { className: "report-field", type: "text", spellcheck: false, ...props });
+  function addForm(kind) {
+    const groups = element("datalist", { id: "tools-groups" }, ...(read.groups ?? []).map((group) => element("option", { value: group })));
+    const name = input({ ariaLabel: "Name", required: true });
+    const parts = kind === "group" ? [field("Group", name)] : [];
+    const group = input({ ariaLabel: "Group", value: read.groups?.at(-1) ?? "", required: true });
+    group.setAttribute("list", "tools-groups");
+    const uses = input({ ariaLabel: "For" });
+    const programs = input({ ariaLabel: "Programs", placeholder: "zig, zig.exe", required: true });
+    const version = input({ ariaLabel: "Version", value: "--version" });
+    const page = input({ ariaLabel: "Install Page", type: "url", placeholder: "https://" });
+    if (kind === "tool") {
+      parts.push(field("Name", name), field("Group, one here or a new one", group), field("For", uses), field("Programs, by the names it runs as", programs), field("Says its version when given", version), field("Install Page", page));
+    }
+    const cancel = button("Cancel", () => (adding.hidden = true));
+    adding.replaceChildren(element("h3", { textContent: kind === "group" ? "Add Group" : "Add Toolchain" }), groups, ...parts, element("div", { className: "prefs-actions" }, element("button", { type: "submit", className: "primary", textContent: "Add" }), cancel));
+    adding.onsubmit = (event) => {
+      event.preventDefault();
+      const words = (text) => text.split(/[,\s]+/).map((one) => one.trim()).filter(Boolean);
+      const tool = {
+        id: "",
+        name: name.value,
+        group: group.value,
+        for: uses.value,
+        programs: words(programs.value),
+        version: words(version.value).length ? words(version.value) : null,
+        install: page.value.trim() ? { any: page.value.trim() } : {},
+      };
+      const work = kind === "group" ? () => invoke("toolchain_add_group", { name: name.value }) : () => invoke("toolchain_add", { tool });
+      act(work, (id) => (kind === "group" ? `Added the group ${name.value.trim()}.` : `Added ${id}.`)).then(() => {
+        if (!said.textContent.startsWith("Added")) {
+          return;
+        }
+        adding.hidden = true;
+      });
+    };
+    adding.hidden = false;
+    name.focus();
+  }
+
   filter.addEventListener("input", draw);
-  body.append(element("h2", { textContent: "Toolchains" }), own, element("div", { className: "prefs-actions" }, button("Check Again", () => check().then(() => (said.textContent = "Checked every toolchain again.")))), said, filter, list);
+  body.append(
+    element("h2", { textContent: "Toolchains" }),
+    own,
+    element(
+      "div",
+      { className: "prefs-actions" },
+      button("Check Again", () => check().then(() => (said.textContent = "Checked every toolchain again."))),
+      button("Add Toolchain…", () => addForm("tool")),
+      button("Add Group…", () => addForm("group")),
+    ),
+    adding,
+    said,
+    filter,
+    list,
+  );
   sheet(body);
   filter.focus();
   await check();

@@ -1,6 +1,6 @@
 # Where to start reading
 
-The research is written up as twenty research papers in [`theory/`](https://github.com/dstroy0/orior/tree/main/theory). They are typeset with XeLaTeX, and one command builds all of them:
+The research is written up as twenty-four research papers in [`theory/`](https://github.com/dstroy0/orior/tree/main/theory). They are typeset with XeLaTeX, and one command builds all of them:
 
 ```sh
 sh utils/maint/texbuild/build_theory.sh
@@ -24,6 +24,10 @@ _Every claim, what killed it, and what still stands._ This is my workbook for bu
 ### [Engine](https://github.com/dstroy0/orior/tree/main/theory/workbooks/engine)
 
 _The engine in math and in the machine._ Every claim, what supports it, and what it still needs.
+
+### [Lstar Protocol](https://github.com/dstroy0/orior/tree/main/theory/workbooks/Lstar_protocol)
+
+_The query protocol step by step._ Every claim, what supports it, and what it still needs.
 
 ### [Compression](https://github.com/dstroy0/orior/tree/main/theory/workbooks/compression)
 

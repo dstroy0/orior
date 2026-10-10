@@ -81,6 +81,9 @@ extern "C"
         EngineError *error;
         // the comb, as EngineResidualRequest's
         unsigned int comb[ENGINE_AXES];
+        // the spaced pairs, as EngineResidualRequest's
+        unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
+        unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
     } EngineResidualPlanesRequest;
 
     long engine_residual_planes(const EngineResidualPlanesRequest *request, const unsigned int **device_residual,
@@ -190,6 +193,11 @@ extern "C"
 
     long engine_source_lanes(const char *source, const char *sample, unsigned long long *lanes, EngineError *error);
 
+    // starts reading the sample's span of an archive source on a thread of its own, the span the next read of that
+    // sample asks for. One span is held at a time, and asking for another lets the last one go. A source that is not
+    // an archive, or a sample it does not hold, is an error and holds nothing
+    long engine_source_prefetch(const char *source, const char *sample, EngineError *error);
+
     unsigned int engine_source_samples(const char *source, char ***names);
 
     unsigned int engine_set_samples(const char *set, char ***names);
@@ -207,26 +215,6 @@ extern "C"
     } EngineIngestRequest;
 
     long engine_ingest_set(const EngineIngestRequest *request);
-
-    // One sample's lanes, already on the device, as a sealed crystal at the set's path for the sample, whatever file
-    // they were read from: lifted and coded, sealed, written, read back and rebuilt lane for lane against the lanes it
-    // was given, as engine_ingest_set does for each sample it reads. `extent` is t, z, y and x. `section` is the
-    // sample's side bytes, packed, NULL for none. `rebuilt` takes the lanes rebuilt from the file where it is set, and
-    // `record` the crystal's reading where it is set. A crystal that does not seal is removed and errors.
-    typedef struct
-    {
-        const char *set;
-        const char *sample;
-        const unsigned short *device_lanes;
-        unsigned long long extent[4];
-        EngineSideSection *section;
-        unsigned long long lane_offset;
-        unsigned short *rebuilt;
-        EngineSampleRecord *record;
-        EngineError *error;
-    } EngineCrystalRequest;
-
-    long engine_crystal_write(const EngineCrystalRequest *request);
 
     int engine_ingest_print(const EngineIngestRequest *request, FILE *file);
 

@@ -95,9 +95,16 @@ class CodeGenerator : public Target
     // same
     int program_schedule_costs(ScheduleCosts *costs) const;
 
+    // each register the lane last written holds, one a line: the register as the ruleset writes it, what holds it, its
+    // bank, its fixed register's name, or the form whose scratch it is, and the items that claim and release it, by
+    // their place in the lane from 1 and their form (codegen_held)
+    const std::string &held(void) const;
+
   private:
     int decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
                unsigned int *places, unsigned int *live, std::vector<MachineInstr> *items);
+
+    std::string held_lines;
 
     std::string lane(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
                      unsigned int *places, unsigned int *live, const ScheduleModel *model, ScheduleReport *report);

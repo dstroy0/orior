@@ -21,7 +21,7 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$PARSER")
 BINARY="$OUT/klq_write"
 rm -f "$BINARY"
 OBJECTS=()
-for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/klq_write.cu"; do
+for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_write.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu|codegen*.cu) continue ;;
     esac
@@ -37,4 +37,4 @@ c++ -o "$BINARY" "${OBJECTS[@]}" -static
 if [ "$#" -eq 0 ]; then
     set -- cu.krs sass.krs openqasm2_0.krs
 fi
-"$BINARY" "$TOP/src/cu/transpiler/lstar/coherence" "$@"
+"$BINARY" "$TOP/src/cu/transpiler/lstar/protocol/table" "$@"

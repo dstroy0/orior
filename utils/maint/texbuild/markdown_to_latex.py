@@ -262,24 +262,14 @@ def convert(source, title):
 
 
 def main():
-    # The research paper building half of this file is gone, and removing it was the point.
-    #
-    # It converted docs/research markdown into theory chapters. That direction is dead: theory/ is
-    # the source, the chapters are edited by hand, and docs/research is one pointer page. Every
-    # source path the manifest below names was deleted when the research moved.
-    #
-    # The builder skipped a missing source and carried on, but it rewrote main.tex every time from
-    # whatever it had found. With every source gone it would have written four research papers with
-    # empty include lists, and the chapters would still be sitting there unread. A guard asking for
-    # --overwrite-chapters was the earlier answer and it only made the loaded gun harder to fire.
-    #
-    # convert() stays and is imported by corpus_derivation.py and pure_corpus_index.py, which build
-    # their chapters from markdown they generate in memory. Nothing writes a chapter from a file.
+    # convert() is imported by corpus_derivation.py and pure_corpus_index.py, which build their
+    # chapters from markdown they generate in memory. A research paper's chapters are written from
+    # the markdown beside them by theory_tex.py, which build_theory.sh runs before it sets a paper.
     print(
         "  This module is imported for convert(), which turns markdown into a TeX chapter."
     )
     print(
-        "  It no longer builds research papers. theory/ is the source and its chapters are edited by hand."
+        "  A research paper's chapters are written from its markdown by utils/maint/texbuild/theory_tex.py."
     )
     print("  Build the PDFs with: sh utils/maint/texbuild/build_theory.sh")
     return 1

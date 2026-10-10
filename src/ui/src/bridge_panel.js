@@ -56,7 +56,7 @@ export function keepBridge(onRead) {
 
 // Whether a file belongs to the bridge and its panel shows.
 export function inBridge(path) {
-  return Boolean(path) && (path.startsWith(`${state.index?.dir ?? "src/cu/transpiler/lstar/coherence"}/`) || ["klq", "klm"].includes(extOf(path)));
+  return Boolean(path) && (path.startsWith(`${state.index?.dir ?? "src/cu/transpiler/lstar/protocol/table"}/`) || ["klq", "klm"].includes(extOf(path)));
 }
 
 // The key a line of a bridge file names, or of any file the word under the cursor where it is a key.

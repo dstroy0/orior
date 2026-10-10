@@ -9,7 +9,7 @@ This is a research body with code attached. Three kinds of change are useful:
 
 **A measurement.** A number with its conditions attached: what corpus, what length, what it was measured against, and what the floor was. A ratio with no denominator is not a result. Every figure in `theory/workbooks/orior` names the tool that produced it, and a new one does the same.
 
-**A correction.** The ledger keeps its own corrections and it is the most valuable thing in the repository. A claim that turns out to be wrong stays on the page beside the measurement that killed it. If you find a figure that does not reproduce, the contribution is the demonstration, not a quiet edit.
+**A correction.** The ledger keeps its own corrections and it is the most valuable thing in the repository. A claim that turns out to be wrong stays on the page beside the measurement that killed it. If you find a figure that does not reproduce, the contribution is the run that shows it, added beside the figure instead of an edit that removes it.
 
 **A precedent.** Several results here are rediscoveries of published work. This repository has been wrong about priority before, at Montemurro and Zanette, and the entry says so. If you know the prior art for something claimed here, that is worth more than a patch.
 
@@ -52,7 +52,7 @@ Read the word count before the ratio. The denominator is the prose left after co
 
 It reports and it does not decide. Nothing in it prints a verdict. A low number is not evidence of anything either: the rates are a floor, and anyone who knows the list can write around it.
 
-**The kernel.** C11 and nothing else. No Python, no device toolchain:
+**The kernel.** C11 alone, with no Python and no device toolchain:
 
 ```sh
 utils/maint/engine/build_engine.sh

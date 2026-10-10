@@ -119,12 +119,18 @@ carried order bounds the exact one where its weight sits, with no shape assumed,
 of 2^-bits. Carried from N = 24 to 36 it proves X < 1.18 on E_(1.1), X < 1.24 on E_(5/4) and
 X < 1.14 on E_(3/2).
 
-The wall: the first carried order gives up every cancellation of its step at once, about ten times the exact one, and
-past it the carried weights shrink by about 2.3 an order on E_(1.1), where X = 2 asks 2.09. With the split at 12 the
-parts that read the bound vanish, and the parts linear in the order ask a carry near 100: hours on the host, at a cost
-that grows as the fourth power of the carry. The questions it leaves:
+The first carried order gives up every cancellation of its step at once, about ten times the exact one, and past it
+the carried weights shrink by about 2.3 an order on E_(1.1), where X = 2 asks 2.09. The proof's parts that read the
+bound, B_w / 4 and B_u beta / 4, do not fall with N, and B_u is set by the orders just past the split: a split near
+N / 2 takes them out of it. The parts linear in the order fall as 1 / N.
 
-- The carry on the device, every order rounded up the same way.
+The carry on the device: past the exact orders every weight the carry reads is a multiple of 2^-bits, the exact
+orders' magnitudes rounded up as they enter, and an order's Cauchy sums are integer sums. The device takes them
+modulo primes below 2^31, the host reads them back whole by the Chinese remainder theorem, and the rest of each order
+stays on the host. To the host's carry it is the same to the last bit. Carried to N = 100 and split at 50, the proof
+gives X < 2.08 on E_(1.1), X < 2.04 on E_(5/4) and X < 1.82 on E_(3/2): the radius X_b near 2 the lemma reads, with
+each witness in `lean/CoreRadius/Record.lean`. The questions left:
+
 - The loss in eta comes from U d F_eta, a transport in eta. Along the flow of that transport no derivative is lost.
 - The series continued from a point X_0 inside the radius: whether the scale of ellipses starts again there, or
   whether each center loses Delta again.
@@ -162,7 +168,7 @@ left falls to its relaxation time, where it answers as an elastic solid.
 Check (`core_radius`): on [-1, 1], F at X is at least the data's c_0 - sum |c_m| less the sum of n_k (l^2 X)^k to the
 order the norms reach and B_f (l^2 X / r)^k past it, every term from the proof on one ellipse, the bound rounded down
 to a multiple of 2^-bits. With tau <= 1, v^2 >= 2 nu X F_low^2 / tau, and each wall is an exact time left the core
-passes it by. The X of a proved radius where X F_low^2 is largest is 9/8 on E_(1.1), with F_low near 0.81.
+passes it by. The X of a proved radius where X F_low^2 is largest is 43/32 on E_(1.1), with F_low near 0.75.
 
 | medium | first wall | its time left | speed of light | radius at the spacing |
 |---|---|---|---|---|

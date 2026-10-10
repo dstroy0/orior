@@ -58,14 +58,35 @@ static EntrySourceKind entry_source_kind(const char *path, const char *member)
     {
         return ENTRY_SOURCE_STACK;
     }
+    // a file's first bytes are read once and kept with its path: a run that describes many samples of one archive
+    // reads its head once
+    static char held_path[ENTRY_PATH_CAPACITY];
+    static unsigned char held_head[352];
+    static long long held_read = -1ll;
     unsigned char head[352];
     memset(head, 0, sizeof(head));
-    EngineFileRange range;
-    range.path = path;
-    range.offset = 0ull;
-    range.bytes = sizeof(head);
-    range.out = head;
-    const long long bytes_read = stack_file_read(&range);
+    long long bytes_read = -1ll;
+    if ((held_read >= 0ll) && (strcmp(held_path, path) == 0))
+    {
+        memcpy(head, held_head, sizeof(head));
+        bytes_read = held_read;
+    }
+    else
+    {
+        EngineFileRange range;
+        range.path = path;
+        range.offset = 0ull;
+        range.bytes = sizeof(head);
+        range.out = head;
+        bytes_read = stack_file_read(&range);
+        const int keep = (bytes_read >= 0ll) && (strlen(path) < sizeof(held_path));
+        held_read = keep ? bytes_read : -1ll;
+        if (keep)
+        {
+            memcpy(held_path, path, strlen(path) + 1u);
+            memcpy(held_head, head, sizeof(head));
+        }
+    }
     if (bytes_read < 8ll)
     {
         return ENTRY_SOURCE_NONE;
@@ -83,6 +104,10 @@ static EntrySourceKind entry_source_kind(const char *path, const char *member)
         entry_ends(path, ".ims"))
     {
         return ENTRY_SOURCE_HDF5;
+    }
+    if (memcmp(head, "PAR1", 4u) == 0)
+    {
+        return ENTRY_SOURCE_PARQUET;
     }
     if ((memcmp(head, "PK\x03\x04", 4u) == 0) && dicom_zip_has_member(entry_ingest_tools(), path, member))
     {
@@ -140,6 +165,8 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
         return nrrd_describe(&describe) == 0L;
     case ENTRY_SOURCE_NIFTI:
         return nifti_describe(&describe) == 0L;
+    case ENTRY_SOURCE_PARQUET:
+        return parquet_describe(&describe) == 0L;
     case ENTRY_SOURCE_STACK: {
         unsigned int header[4] = {0u, 0u, 0u, 0u};
         FILE *const stack = stack_open(path, header);
@@ -207,6 +234,8 @@ static long long entry_source_bytes(const EntrySource *source, unsigned char *ou
         return nrrd_read(&read);
     case ENTRY_SOURCE_NIFTI:
         return nifti_read(&read);
+    case ENTRY_SOURCE_PARQUET:
+        return parquet_read(&read);
     case ENTRY_SOURCE_STACK:
         return stack_read_uncached(source->path, capacity / 2ull, (unsigned short *)out) ? (long long)capacity : -1ll;
     default:

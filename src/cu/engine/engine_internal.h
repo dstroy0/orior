@@ -25,6 +25,7 @@
 #include "../includes/formats/nifti/nifti.h"
 #include "../includes/formats/npy/npy.h"
 #include "../includes/formats/nrrd/nrrd.h"
+#include "../includes/formats/parquet/parquet.h"
 #include "runtime/obsignatio/obsignatio.h"
 #include "analysis/residual/residual.h"
 #include "runtime/scriptura/scriptura.h"
@@ -87,6 +88,8 @@ struct EngineResidualResident
     unsigned int smooth_orders[ENGINE_AXES];
     unsigned int background_orders[ENGINE_AXES];
     unsigned int comb[ENGINE_AXES];
+    unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
+    unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
     unsigned short *volume;
     unsigned int *residual;
     unsigned int *check;
@@ -166,7 +169,8 @@ enum EntrySourceKind
     ENTRY_SOURCE_NIFTI = 6,
     ENTRY_SOURCE_STACK = 7,
     ENTRY_SOURCE_DICOM = 8,
-    ENTRY_SOURCE_NO_MEMBER = 9
+    ENTRY_SOURCE_NO_MEMBER = 9,
+    ENTRY_SOURCE_PARQUET = 10
 };
 
 struct EntrySource

@@ -350,6 +350,34 @@ impl Launch {
     }
 }
 
+/// The widest a usage in the help's left column is; a wider one stands on lines of its own, its
+/// label under it in the column.
+const HELP_COLUMN: usize = 44;
+
+/// The width the help's lines are wrapped to.
+const HELP_WIDTH: usize = 100;
+
+/// `text` broken at spaces into lines of at most `width` characters, each after the first indented
+/// `indent` more. A word wider than the width stands alone on its line.
+fn wrapped(text: &str, width: usize, indent: usize) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    let mut line = String::new();
+    for word in text.split(' ') {
+        let lead = if lines.is_empty() { 0 } else { indent };
+        if !line.is_empty() && lead + line.chars().count() + 1 + word.chars().count() > width {
+            lines.push(format!("{:lead$}{line}", ""));
+            line.clear();
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    let lead = if lines.is_empty() { 0 } else { indent };
+    lines.push(format!("{:lead$}{line}", ""));
+    lines
+}
+
 /// The help, made from the menus: a line for each command, the ones that act in the window marked.
 fn help(menus: &Commands) -> String {
     let mut rows: Vec<(String, String)> = vec![("orior".into(), "open the window".into())];
@@ -373,13 +401,22 @@ fn help(menus: &Commands) -> String {
     rows.push(("orior <file>[:line[:column]]".into(), "* open a file of the tree in the window, at a line and column".into()));
     rows.push(("orior --completions <shell>".into(), "the completions for bash, zsh, fish or powershell".into()));
     rows.push(("orior help".into(), "this".into()));
-    let pad = rows.iter().map(|(usage, _)| usage.chars().count()).max().unwrap_or(0);
+    let pad = rows.iter().map(|(usage, _)| usage.chars().count()).filter(|&wide| wide <= HELP_COLUMN).max().unwrap_or(HELP_COLUMN);
     let mut text = String::from(
         "orior: the window, and every job it runs, from one program. A menu's title and one of its\n\
          commands are the words for it here. A command marked * acts in the window, which it opens.\n\n",
     );
     for (usage, said) in rows {
-        text.push_str(&format!("  {usage:pad$}  {said}\n"));
+        let alone = usage.chars().count() > pad;
+        if alone {
+            for line in wrapped(&usage, HELP_WIDTH - 2, 2) {
+                text.push_str(&format!("  {line}\n"));
+            }
+        }
+        for (at, line) in wrapped(&said, HELP_WIDTH - pad - 4, 0).iter().enumerate() {
+            let left = if at == 0 && !alone { usage.as_str() } else { "" };
+            text.push_str(&format!("  {left:pad$}  {line}\n"));
+        }
     }
     text.push_str(
         "\n  --root <folder>  the orior tree to work on; else ORIOR_ROOT, else the tree the working\n\
@@ -626,11 +663,14 @@ fn new_plugin(words: &[String]) -> i32 {
     }
 }
 
-/// `orior file toolchains [install <tool> | add-path <tool|orior> | use <tool> <folder> | forget <tool>]`:
-/// with no words, every toolchain as toolchains.rs finds it, a group at a time, with its version
-/// where it says one, and whether orior itself is on the PATH. `install` opens a tool's install page,
-/// `add-path` puts the folder its program was found in, or orior's own, on the reader's PATH, `use`
-/// has orior run a tool from a folder, and `forget` drops that folder.
+/// `orior file toolchains [install <tool> | add-path <tool|orior> | use <tool> <folder> | forget <tool>
+/// | add <name> --group <group> --program <name,...> [--for <text>] [--id <id>] [--version <word,...>]
+/// [--install <url>] | add-group <group> | remove <tool> | remove-group <group>]`: with no words, every
+/// toolchain as toolchains.rs finds it, a group at a time, with its version where it says one, and
+/// whether orior itself is on the PATH. `install` opens a tool's install page, `add-path` puts the
+/// folder its program was found in, or orior's own, on the reader's PATH, `use` has orior run a tool
+/// from a folder, and `forget` drops that folder. `add` and `add-group` add a toolchain or a group of
+/// the reader's, and `remove` and `remove-group` take one out again.
 fn toolchains_words(words: &[String]) -> i32 {
     let word = |at: usize| words.get(at).map(String::as_str);
     let done = |said: Result<String, String>| match said {
@@ -643,8 +683,14 @@ fn toolchains_words(words: &[String]) -> i32 {
             NO_CODE
         }
     };
+    if word(0) == Some("add") {
+        return done(add_toolchain(&words[1..]).map(|id| format!("added {id}: orior file toolchains lists it")));
+    }
     match (word(0), word(1), word(2)) {
         (None, _, _) | (Some("check"), None, _) => {}
+        (Some("add-group"), Some(name), None) => return done(toolchains::add_group(name).map(|()| format!("added the group {name}"))),
+        (Some("remove"), Some(id), None) => return done(toolchains::remove(id).map(|()| format!("took out {id}"))),
+        (Some("remove-group"), Some(name), None) => return done(toolchains::remove_group(name).map(|()| format!("took out the group {name}"))),
         // A tool its makers give a line to install it by is installed here, in this terminal; any other
         // has its install page opened.
         (Some("install"), Some(id), None) => {
@@ -673,19 +719,61 @@ fn toolchains_words(words: &[String]) -> i32 {
         (Some("use"), Some(id), Some(folder)) if words.len() == 3 => return done(toolchains::choose(id, folder).map(|program| format!("orior runs {program}"))),
         (Some("forget"), Some(id), None) => return done(toolchains::forget(id).map(|()| format!("orior looks for {id} on the PATH again"))),
         _ => {
-            err("toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder> or forget <tool>");
+            err("toolchains takes check, install <tool>, add-path <tool|orior>, use <tool> <folder>, forget <tool>, add <name> --group <group> --program <name,...>, add-group <group>, remove <tool> or remove-group <group>");
             return WRONG;
         }
     }
     let found = toolchains::check();
     let versions = toolchains::versions(&found);
     let wide = found.iter().map(|one| one.id.len()).max().unwrap_or(0);
-    let mut group = "";
-    for one in &found {
-        if one.group != group {
-            group = &one.group;
-            out(&format!("\n{group}"));
+    for group in toolchains::groups() {
+        out(&format!("\n{group}"));
+        let held: Vec<&toolchains::Found> = found.iter().filter(|one| one.group == group).collect();
+        if held.is_empty() {
+            out("  no toolchain yet");
         }
+        for one in held {
+            print_toolchain(one, &versions, wide);
+        }
+    }
+    match toolchains::own() {
+        Ok(own) if own.on_path => out(&format!("\norior is on PATH: {}", own.folder)),
+        Ok(own) => out(&format!("\norior is not on PATH: orior file toolchains add-path orior adds {}", own.folder)),
+        Err(said) => err(&said),
+    }
+    0
+}
+
+/// The toolchain `add` describes: its name, then each flag and its value.
+fn add_toolchain(words: &[String]) -> Result<String, String> {
+    let Some(name) = words.first().filter(|name| !name.starts_with("--")) else {
+        return Err("add takes the toolchain's name first".into());
+    };
+    let list = |value: &str| value.split(',').map(|part| part.trim().to_string()).filter(|part| !part.is_empty()).collect::<Vec<_>>();
+    let mut tool: toolchains::Tool = serde_json::from_value(serde_json::json!({ "id": "", "name": name, "group": "", "for": "", "programs": [] })).map_err(|error| error.to_string())?;
+    let mut at = 1;
+    while at < words.len() {
+        let Some(value) = words.get(at + 1) else {
+            return Err(format!("{} takes a value", words[at]));
+        };
+        match words[at].as_str() {
+            "--group" => tool.group = value.clone(),
+            "--program" => tool.programs = list(value),
+            "--for" => tool.uses = value.clone(),
+            "--id" => tool.id = value.clone(),
+            "--version" => tool.version = Some(list(value)),
+            "--install" => {
+                tool.install.insert("any".into(), value.clone());
+            }
+            other => return Err(format!("add knows no {other}")),
+        }
+        at += 2;
+    }
+    toolchains::add(tool)
+}
+
+fn print_toolchain(one: &toolchains::Found, versions: &std::collections::HashMap<String, String>, wide: usize) {
+    {
         let state = match one.state {
             "env" => "named",
             "chosen" => "chosen",
@@ -700,12 +788,6 @@ fn toolchains_words(words: &[String]) -> i32 {
         };
         out(&format!("  {:wide$}  {state:11}  {detail}", one.id));
     }
-    match toolchains::own() {
-        Ok(own) if own.on_path => out(&format!("\norior is on PATH: {}", own.folder)),
-        Ok(own) => out(&format!("\norior is not on PATH: orior file toolchains add-path orior adds {}", own.folder)),
-        Err(said) => err(&said),
-    }
-    0
 }
 
 /// `orior run run-file <file>`: runs a file with its language's toolchain, as run_file.rs gives the
@@ -1223,6 +1305,36 @@ pub fn console_let_go() {
 
 #[cfg(not(windows))]
 pub fn console_let_go() {}
+
+#[cfg(test)]
+mod help_text {
+    use super::*;
+
+    #[test]
+    fn wrapping_keeps_every_word_and_the_width() {
+        let text = "orior file new-plugin <name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] [--keywords <a,b>]";
+        let lines = wrapped(text, 40, 2);
+        assert!(lines.len() > 1);
+        assert!(lines.iter().all(|line| line.chars().count() <= 40));
+        assert!(lines[1..].iter().all(|line| line.starts_with("  ") && !line.starts_with("   ")));
+        assert_eq!(lines.iter().map(|line| line.trim()).collect::<Vec<_>>().join(" "), text);
+        assert_eq!(wrapped("short", 40, 2), vec!["short"]);
+    }
+
+    #[test]
+    fn the_help_keeps_to_its_width_and_names_every_command() {
+        let menus = commands::read();
+        let text = help(&menus);
+        for line in text.lines() {
+            assert!(line.chars().count() <= HELP_WIDTH, "too wide: {line}");
+        }
+        for menu in &menus.menus {
+            for item in menu.commands() {
+                assert!(text.contains(&format!("orior {} {}", menu.word(), item.command)), "{} is missing", item.command);
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod words {

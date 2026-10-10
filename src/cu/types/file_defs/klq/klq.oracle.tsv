@@ -22,7 +22,7 @@ body	klq_identity	closed	closed [<address>] <case>	two operations, and the case 
 body	klq_write klq_identity	open	open <count>	alike on every case asked, and its count of cases alike
 pair	klq_decoder	qualifier_coherence	qualifier_coherence	the two forms one text but for a qualifier: open on every carrier, or apart only where a case word that an operand of one form alone reads decides it
 pair	klq_decoder	modifier_coherence	modifier_coherence	the two forms one text but for a modifier: apart where a case word that the link reads decides it, both results standing
-pair	klq_decoder	frame_coherence	frame_coherence	the two forms one text but for a sign or a width: alike on every case whose operands every frame reads as themselves, apart only past them
+pair	klq_decoder	statement_coherence	statement_coherence	the two forms one text but for a sign or a width: alike on every case whose operands every statement reads as themselves, apart only past them
 pair	klq_decoder	negation_coherence	negation_coherence	the two forms of a flag one text but for a modifier, apart whatever the link reads: each the other's negation, the two members of one node
 pair	klq_decoder	witness_coherence	witness_coherence	a pair no put of its own answered, known at a third form's link: the lower witness put both forms there, and the part answered them alike or apart, each held against the other
 pair	klq_decoder	concept_coherence	concept_coherence <hash>	the pair's concept, its product whole: whether its two forms write one value or two at each combination of the values the form reads, each as the part holds it at the form, over every put answered and hashed, whatever names the pair and whatever links stand before or after it
@@ -33,8 +33,8 @@ pair	klq_decoder	data_quality_coherence	data_quality_coherence	a meta, above the
 pair	klq_decoder	noise_coherence	noise_coherence	a meta, above the pair's set: a row of the product came back both alike and apart, decided by something outside the values the form reads
 pair	klq_decoder	folding_coherence	folding_coherence	a meta, above the pair's set: another pair is the same concept, and one ask answers both
 pair	klq_decoder	comparison_coherence	comparison_coherence	a category the texts read the pair into: both forms are comparisons, each setting a flag by a test of its operands
-pair	klq_decoder	equality_coherence	equality_coherence	a part of comparison_coherence, beneath it: every condition the two forms test is eq or ne, and needs no frame
-pair	klq_decoder	order_coherence	order_coherence	a part of comparison_coherence, beneath it: a condition the forms test is lt, le, gt or ge, and needs a frame
+pair	klq_decoder	equality_coherence	equality_coherence	a part of comparison_coherence, beneath it: every condition the two forms test is eq or ne, and needs no statement
+pair	klq_decoder	order_coherence	order_coherence	a part of comparison_coherence, beneath it: a condition the forms test is lt, le, gt or ge, and needs a statement
 pair	klq_decoder	operation_coherence	operation_coherence	a category the texts read the pair into: a form computes a value from its operands, a shift, an add, a multiply, a bitwise or a floating operation, at any width, a bit, a word or many words
 pair	klq_decoder	commutative_coherence	commutative_coherence	a category the texts read the pair into: every instruction of a form gives one value with its first two sources taken either way round, its commutation
 pair	klq_decoder	verb_coherence	verb_coherence	a category the texts read the pair into: a form does a thing that computes no value, tests nothing and sends control nowhere, a load, a store, a move, a copy or a read of a special register

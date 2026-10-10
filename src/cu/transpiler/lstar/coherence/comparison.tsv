@@ -1,0 +1,10 @@
+eq	equality
+ne	equality
+zero	equality
+nonzero	equality
+lt	order
+le	order
+gt	order
+ge	order
+negative	order
+test

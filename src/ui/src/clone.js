@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Clone Repository: a repository's address, orior's own to start with, and the folder its
-// clone is made in, the reader's home to start with. Clone runs git as git.rs in the command line's
+// clone is made in, beside the open tree or somewhere else, the reader's home to start with where no
+// tree is open. Clone runs git as git.rs in the command line's
 // crate runs it, and a fuse across the sheet burns as git's progress comes, flaring at each line.
 // A clone made flashes and opens as the tree; one that fails sputters out and says why. A clone goes
 // on when the sheet is closed, and opens all the same.
@@ -18,6 +19,9 @@ function element(tag, props = {}, ...children) {
 
 // How long a clone made flashes before the sheet closes, in milliseconds.
 const FLASHED = 900;
+
+// Where the folder the last clone was made in is kept, which the next clone starts from.
+const PARENT = "orior.clone.parent";
 
 // Each stage git writes its progress for, and the stretch of the fuse it burns: the server counting
 // and packing, the objects coming, the changes worked out between them, and the files written out.
@@ -50,7 +54,9 @@ function nameOf(url) {
   return (address.endsWith(".git") ? address.slice(0, -4) : address).split(/[\\/:]/).pop();
 }
 
-export async function showClone(sheet, openFolder, given = []) {
+// With `open`, it is File, Open, Repository: the clone goes in a folder of orior's own, and a
+// repository cloned there before opens as it is.
+export async function showClone(sheet, openFolder, given = [], { open = false } = {}) {
   if (!listening) {
     listening = true;
     await listen("clone-progress", (event) => {
@@ -66,43 +72,72 @@ export async function showClone(sheet, openFolder, given = []) {
     });
   }
   const start = await invoke("clone_start").catch(() => ({ url: "", parent: "" }));
-  const url = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[0] ?? start.url, ariaLabel: "Repository" });
-  const parent = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[1] ?? start.parent, ariaLabel: "Folder" });
+  // The folder that holds the open tree, which a clone beside it goes in.
+  const root = open ? null : await invoke("root_get").catch(() => null);
+  const beside = root ? root.replace(/[\\/][^\\/]*[\\/]?$/, "") : null;
+  const kept = open ? await invoke("repos_folder").catch(() => "") : "";
+  const url = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[0] ?? (open ? "" : start.url), ariaLabel: "Repository" });
+  const parent = element("input", { className: "report-field", type: "text", spellcheck: false, value: given[1] ?? localStorage.getItem(PARENT) ?? start.parent, ariaLabel: "Folder" });
   const choose = element("button", { className: "prefs-button", type: "button", textContent: "Choose Folder…" });
+  const nextTo = element("input", { type: "radio", name: "clone-where", checked: Boolean(beside) && !given[1], disabled: !beside });
+  const elsewhere = element("input", { type: "radio", name: "clone-where", checked: !beside || Boolean(given[1]) });
   const said = element("p", { className: "report-said", ariaLive: "polite" });
-  const go = element("button", { className: "primary", type: "submit", textContent: "Clone" });
+  const go = element("button", { className: "primary", type: "submit", textContent: open ? "Open" : "Clone" });
   let run = null;
   const fuse = makeFuse(() => run?.part ?? 0);
   const label = (text, ...fields) => element("label", { className: "report-row" }, element("span", { textContent: text }), ...fields);
+  const chosen = () => (open ? kept : nextTo.checked ? beside : parent.value.trim());
   const where = () => {
     const name = nameOf(url.value);
-    const base = parent.value.trim().replace(/[\\/]+$/, "");
-    said.textContent = name && base ? `Makes ${base}${base.includes("\\") ? "\\" : "/"}${name}` : "";
+    const base = (chosen() ?? "").replace(/[\\/]+$/, "");
+    said.textContent = name && base ? `${open ? "Opens" : "Makes"} ${base}${base.includes("\\") ? "\\" : "/"}${name}` : "";
   };
+  const folders = open
+    ? null
+    : element(
+        "fieldset",
+        { className: "clone-where" },
+        element("legend", { textContent: "In Folder" }),
+        element("label", { className: "clone-choice" }, nextTo, element("span", { textContent: beside ? `Beside the open tree, in ${beside}` : "Beside the open tree" })),
+        element("label", { className: "clone-choice" }, elsewhere, element("span", { textContent: "Somewhere else" }), element("span", { className: "clone-folder" }, parent, choose)),
+      );
   const form = element(
     "form",
     { className: "sheet-report sheet-clone" },
-    element("h2", { textContent: "Clone Repository" }),
+    element("h2", { textContent: open ? "Open Repository" : "Clone Repository" }),
     label("Repository", url),
-    label("In Folder", element("span", { className: "clone-folder" }, parent, choose)),
+    folders,
     fuse.canvas,
     element("div", { className: "report-foot" }, said, go),
   );
-  const parts = [url, parent, choose, go];
+  const parts = [url, parent, choose, nextTo, elsewhere, go];
+  const takeElsewhere = () => {
+    elsewhere.checked = true;
+    where();
+  };
   url.addEventListener("input", where);
-  parent.addEventListener("input", where);
+  parent.addEventListener("input", takeElsewhere);
+  nextTo.addEventListener("change", where);
+  elsewhere.addEventListener("change", where);
   choose.addEventListener("click", async () => {
     const folder = await pick("dir");
     if (typeof folder === "string") {
       parent.value = folder;
-      where();
+      takeElsewhere();
     }
   });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!url.value.trim() || !parent.value.trim()) {
+    if (!url.value.trim() || !chosen()) {
       said.textContent = !url.value.trim() ? "Repository is required." : "In Folder is required.";
       (url.value.trim() ? parent : url).focus();
+      return;
+    }
+    // A repository Open has cloned before opens as it is.
+    const before = open ? await invoke("repo_opened", { url: url.value.trim() }).catch(() => null) : null;
+    if (before) {
+      dialog.close();
+      await openFolder(before);
       return;
     }
     parts.forEach((part) => (part.disabled = true));
@@ -112,9 +147,12 @@ export async function showClone(sheet, openFolder, given = []) {
     said.textContent = "Cloning…";
     going = { run, said, fuse };
     try {
-      const made = await invoke("repo_clone", { url: url.value.trim(), parent: parent.value.trim() });
+      const made = await invoke("repo_clone", { url: url.value.trim(), parent: chosen() });
       Object.assign(run, { part: 1, done: true, code: 0 });
       fuse.follow(run);
+      if (!open && elsewhere.checked) {
+        localStorage.setItem(PARENT, parent.value.trim());
+      }
       said.textContent = `Cloned into ${made}.`;
       await new Promise((resolve) => window.setTimeout(resolve, FLASHED));
       dialog.close();

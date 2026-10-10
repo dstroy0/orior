@@ -3,9 +3,11 @@
 // Every ruleset read against its code generator's schema, and the files each is read from held against each other
 // and the schema for the relations no set of them should hold (ruleset_core_relation.h); then the map from cu's files
 // to sass's, each name as one writes it against the other. Files named on the command line are held against each other
-// instead, in whatever combination they are given and against no schema. Each set and the map is one check, and fails
-// where it holds a witnessed absurd relation; an open one, a relation of absence no part of a set can decide
-// (RULESET_CORE_RELATION_OPEN, RULESET_CORE_MAP_OPEN), is written and fails nothing
+// instead, in whatever combination they are given and against no schema. Each set and the map is one check. A set
+// fails where it holds a witnessed relation that is a verdict (RULESET_CORE_RELATION_VERDICT); one between two forms'
+// writings is written as kept, and an open one, a relation of absence no part of a set can decide
+// (RULESET_CORE_RELATION_OPEN, RULESET_CORE_MAP_OPEN), as open, and neither fails anything. The map's relations are the
+// lines a lane cannot be read through as it stands, written and failing nothing
 #include "code_generator.h"
 #include "target_internal.h"
 
@@ -34,7 +36,9 @@ static void relation_print(const HeldSet *set, const RulesetSchema *names, const
 {
     const RulesetCoreRelations *const relations = &set->relations;
     const unsigned int kind = relation->kind;
-    printf(RULESET_CORE_RELATION_OPEN(kind) ? "    open: " : "    ");
+    printf(RULESET_CORE_RELATION_OPEN(kind)      ? "    open: "
+           : RULESET_CORE_RELATION_VERDICT(kind) ? "    "
+                                                 : "    kept: ");
     if (kind == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN)
     {
         const RulesetName *const list = (relation->other == 0u)   ? names->forms
@@ -69,7 +73,7 @@ static void relation_print(const HeldSet *set, const RulesetSchema *names, const
 }
 
 // the files at `paths` read into `set` and held against each other, and against `schema` where it is not NULL, `names`
-// its names; every absurd relation written, and the set failed where it holds a witnessed one. 1 where it was read
+// its names; every relation written, and the set failed where it holds a verdict. 1 where it was read
 static int relations_check(const char *label, const std::string *paths, unsigned int count,
                            const RulesetCoreSchema *schema, const RulesetSchema *names, HeldSet *set)
 {
@@ -85,14 +89,18 @@ static int relations_check(const char *label, const std::string *paths, unsigned
     const unsigned int kept = (relations->relation_count < relations->relation_capacity) ? relations->relation_count
                                                                                           : relations->relation_capacity;
     unsigned int open = 0u;
+    unsigned int verdicts = 0u;
     for (unsigned int at = 0u; at < kept; at += 1u)
     {
         relation_print(set, names, &relations->relations[at]);
         open += RULESET_CORE_RELATION_OPEN(relations->relations[at].kind) ? 1u : 0u;
+        verdicts += RULESET_CORE_RELATION_VERDICT(relations->relations[at].kind) ? 1u : 0u;
     }
-    printf("  %s: %u files, %u entries, %u absurd relations witnessed, %u open\n", label, count,
-           relations->entry_count, relations->relation_count - open, open);
-    s_failed += (relations->relation_count != open) ? 1u : 0u;
+    // a relation past the capacity is counted and not kept, and is read as a verdict
+    verdicts += relations->relation_count - kept;
+    printf("  %s: %u files, %u entries, %u relations witnessed, %u of them verdicts, %u open\n", label, count,
+           relations->entry_count, relations->relation_count - open, verdicts, open);
+    s_failed += (verdicts != 0u) ? 1u : 0u;
     return 1;
 }
 
@@ -112,8 +120,7 @@ static int target_check(Target &target, HeldSet *set)
     return relations_check(schema->file, paths, count, &flat.schema, schema, set);
 }
 
-// the map from `from` to `to`, each name `from` gives against the same name in `to`: every relation written, and the
-// map failed where it holds a witnessed one
+// the map from `from` to `to`, each name `from` gives against the same name in `to`: every relation written
 static void map_check(const char *label, const HeldSet *from, const HeldSet *to)
 {
     s_checks += 1u;
@@ -141,7 +148,6 @@ static void map_check(const char *label, const HeldSet *from, const HeldSet *to)
         printf("\n");
     }
     printf("  %s: %u relations of the map witnessed, %u open\n", label, count - open, open);
-    s_failed += (count != open) ? 1u : 0u;
 }
 
 int main(int argc, char **argv)

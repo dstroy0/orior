@@ -6,7 +6,7 @@
 //
 // The region finder is put runs of kinds a walk would have read. Given the classify_walk program the walk runs too,
 // over low addresses nothing maps, where every address ends its probe and the region is none.
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/bus_enum_walk.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/query/bus_enum_walk.h"
 
 #include <stdio.h>
 

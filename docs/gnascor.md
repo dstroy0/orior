@@ -24,7 +24,7 @@ Every question the engine asks takes the same form, and working out a language i
 - **The qualifier** is a yes or no question asked at that address. It always asks the target to confirm a state and never asks it for data.
 - **The cost bound** is the most the target may spend to answer. Nobody writes this field by hand. A question asked with no bound gets back the cost instead of a bit. The spread of those costs becomes the baseline, and every later bound is set against it.
 
-**Gate first, then rank. Never one combined score.** A relation either holds or it doesn't, and that answer has no noise in it. A cost is measured, and every measured cost has noise. The gate decides which candidates are allowed, and the rank puts the survivors in order. The two are never added together. [query_protocol_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/query_protocol_table.md) walks through the protocol step by step.
+**Gate first, then rank. Never one combined score.** A relation either holds or it doesn't, and that answer has no noise in it. A cost is measured, and every measured cost has noise. The gate decides which candidates are allowed, and the rank puts the survivors in order. The two are never added together. [query_protocol_table.md](https://github.com/dstroy0/orior/blob/main/theory/workbooks/Lstar_protocol/query_protocol_table.md) walks through the protocol step by step.
 
 Two branches combine into a pair, and each pair has a four-letter name:
 
@@ -50,7 +50,7 @@ The code generator writes each program's lane from a ruleset, with one `.krs` fi
 | [`src/cu/transpiler/lstar/protocol/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/lstar/protocol)     | the query protocol on the host: one ask (`query_ask`), every arrangement of primitives that produces a relation (`chain_build`), and the order of asks (`ask_order`) |
 | [`src/cu/engine/rmc/`](https://github.com/dstroy0/orior/tree/main/src/cu/engine/rmc) | the code generator the record machine writes a program's lane with, from the rulesets |
 | [`src/cu/types/file_defs/readers/`](https://github.com/dstroy0/orior/tree/main/src/cu/types/file_defs/readers) | the rulesets' reader, host and device |
-| [`src/cu/transpiler/lstar/coherence/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/lstar/coherence) | the rulesets, one `.krs` file per language, each language's `.klm`, the bridge `Lstar.klq`, and each part's `.kdm` and `.ksc` |
+| [`src/cu/transpiler/lstar/protocol/table/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/lstar/protocol/table) | the rulesets, one `.krs` file per language, each language's `.klm`, the bridge `Lstar.klq`, and each part's `.kdm` and `.ksc` |
 | [`src/cu/transpiler/vendor_bin_layouts/nvidia/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/vendor_bin_layouts/nvidia) | one line of SASS turned into the sixteen bytes the part runs, and a cubin written from a kernel's machine code |
 | [`src/cu/transpiler/vendor_bin_layouts/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/vendor_bin_layouts) | one emitter, every container: it reads a layout file and writes what that layout describes |
 | [`src/cu/transpiler/lstar/interface/`](https://github.com/dstroy0/orior/tree/main/src/cu/transpiler/lstar/interface)     | the cell, a probe runner: a probe asks the target one question in a child process the cell can lose                                                                 |

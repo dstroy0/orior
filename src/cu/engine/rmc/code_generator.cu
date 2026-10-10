@@ -516,6 +516,34 @@ std::string CodeGenerator::lane(const EngineRecordLayout *layout, const TargetIn
     {
         return std::string();
     }
+    // every register the lane holds, claimed and released by its items; a lane naming another item's scratch is
+    // written by nobody
+    std::vector<unsigned int> scratch;
+    const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
+    ruleset_scratch(rules, scratch_banks, &scratch);
+    std::vector<CodegenHeld> held(16u * items.size() + 16u);
+    unsigned long long collided = CODEGEN_HELD_LANE;
+    const unsigned int held_count = codegen_held(items.data(), (unsigned long long)items.size(), scratch.data(),
+                                                 scratch_banks, held.data(), (unsigned int)held.size(), &collided);
+    if (collided != CODEGEN_HELD_LANE)
+    {
+        return std::string();
+    }
+    held_lines.clear();
+    for (unsigned int at = 0u; at < held_count; at += 1u)
+    {
+        const CodegenHeld &one = held[at];
+        const int fixed = one.bank >= REGCLASS_COUNT;
+        const std::string written = fixed ? rules->fixed[one.bank - REGCLASS_COUNT]
+                                          : code_generator_register(rules, &file, one.bank, one.number);
+        const std::string holder = fixed ? std::string(s_physreg_names[one.bank - REGCLASS_COUNT].text)
+                                   : (one.scratch_of != CODEGEN_HELD_LANE)
+                                       ? ("scratch of " + std::string(s_opcode_names[items[one.scratch_of].form].text))
+                                       : std::string(s_regclass_names[one.bank].text);
+        held_lines += written + " " + holder + " claimed " + std::to_string(one.claimed + 1ull) + " " +
+                      s_opcode_names[items[one.claimed].form].text + " released " +
+                      std::to_string(one.released + 1ull) + " " + s_opcode_names[items[one.released].form].text + "\n";
+    }
     int broken = 0;
     std::string text;
     for (const MachineInstr &item : items)
@@ -534,6 +562,11 @@ std::string CodeGenerator::lane(const EngineRecordLayout *layout, const TargetIn
         }
     }
     return (broken != 0) ? std::string() : text;
+}
+
+const std::string &CodeGenerator::held(void) const
+{
+    return held_lines;
 }
 
 // each form's cost by its name in the model, and the model's cost for a form it does not name

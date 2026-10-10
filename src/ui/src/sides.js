@@ -5,12 +5,18 @@
 // after the app loads, after its view shows, or after the pointer leaves one, it collapses, giving
 // its width back and sliding up and toward the edge it stands at, and the pointer reaching that edge
 // of the window brings it back; one brought back that the pointer never comes onto goes again a
-// moment later. A pane that holds the pointer or the keys, or that a menu is open over, stays until
-// all have left it, and is looked at again every REST while it stays: a row redrawn under the keys
-// takes them from the pane with no event to say so. Whether panes collapse on their own is the
-// reader's to set, and kept; Ctrl+B shows or collapses the view's own pane either way.
+// moment later. A pane that holds the pointer, that is being typed in, or that a menu is open over,
+// or a left pane with the pointer on the tool strip beside it,
+// stays until all have left it, as every pane does while the window's frame is held, and is looked
+// at again every REST while it stays. A pane is being typed in from a key pressed in it until the
+// next press of the pointer anywhere: what a click leaves the keys on does not keep it. A pane that
+// collapses holding the keys hands them to the editor beside it. A pane shown for the reader to look
+// at, as Find Usages shows the explorer, stays until the pointer has come onto it and left. Whether
+// panes collapse on their own is the reader's to set, and kept; Ctrl+B shows or collapses the view's
+// own pane either way.
 
 import { menuOpen } from "./menu.js";
+import { still } from "./motion.js";
 
 const AUTO = "orior.panes.auto";
 
@@ -18,6 +24,24 @@ const AUTO = "orior.panes.auto";
 const REST = 700;
 
 const panes = [];
+
+// What the pointer is over, or null once it has left the window: the window's own record of where
+// the pointer is, which a pointer gone out of the window over a pane does not leave standing.
+let pointerAt = null;
+document.addEventListener("pointerover", (event) => (pointerAt = event.target), true);
+document.addEventListener("pointermove", (event) => (pointerAt = event.target), true);
+document.addEventListener(
+  "pointerout",
+  (event) => {
+    if (!event.relatedTarget) {
+      pointerAt = null;
+    }
+  },
+  true,
+);
+window.addEventListener("blur", () => (pointerAt = null));
+
+const holdsPointer = (node) => Boolean(node && pointerAt && node.contains(pointerAt));
 
 export function autoCollapse() {
   return localStorage.getItem(AUTO) !== "false";
@@ -39,11 +63,18 @@ function tryCollapse(pane) {
   if (!autoCollapse() || node.hidden || node.classList.contains("collapsed") || node.offsetParent === null) {
     return;
   }
-  if (node.matches(":hover") || node.contains(document.activeElement) || menuOpen()) {
+  const typing = pane.keyed && node.contains(document.activeElement);
+  // The tool strip beside a left pane is a part of it: the pointer on the strip keeps it.
+  const onStrip = node.classList.contains("toward-left") && holdsPointer(document.getElementById("strip"));
+  if (holdsPointer(node) || onStrip || typing || pane.pinned || menuOpen() || still()) {
     collapseLater(pane);
     return;
   }
+  const held = node.contains(document.activeElement);
   setShown(pane, false);
+  if (held) {
+    node.closest(".mode")?.querySelector(".ed-input")?.focus();
+  }
 }
 
 // Makes `node` a pane that collapses toward `side`, left or right, with its edge in the view.
@@ -52,9 +83,13 @@ export function keepPane(node, side) {
   edge.setAttribute("aria-hidden", "true");
   node.closest(".mode").append(edge);
   node.classList.add("collapsible", `toward-${side}`);
-  const pane = { node, edge, timer: 0 };
+  const pane = { node, edge, timer: 0, keyed: false, pinned: false };
   node.addEventListener("pointerenter", () => window.clearTimeout(pane.timer));
-  node.addEventListener("pointerleave", () => collapseLater(pane));
+  node.addEventListener("pointerleave", () => {
+    pane.pinned = false;
+    collapseLater(pane);
+  });
+  node.addEventListener("keydown", () => (pane.keyed = true), true);
   node.addEventListener("focusout", () => collapseLater(pane));
   edge.addEventListener("pointerenter", () => {
     if (!node.hidden) {
@@ -73,6 +108,17 @@ export function settlePanes() {
   panes.forEach(collapseLater);
 }
 
+// A press of the pointer anywhere ends the typing that keeps a pane.
+window.addEventListener(
+  "pointerdown",
+  () => {
+    for (const pane of panes) {
+      pane.keyed = false;
+    }
+  },
+  true,
+);
+
 // The view's own pane, the one at its left.
 function leftPane() {
   return panes.find((pane) => pane.node.classList.contains("toward-left") && pane.node.offsetParent !== null);
@@ -84,15 +130,41 @@ export function paneShown() {
 }
 
 // Shows the view's own pane or collapses it. A pane shown from the keys takes them, and stays while
-// it holds them.
-export function togglePane(shown = !paneShown()) {
+// it holds them; one shown with `take` off leaves the keys where they are and stays until the pointer
+// has been on it, or, with `pin` off as well, as the strip shows it, only while the pointer is on
+// the pane or on the strip.
+export function togglePane(shown = !paneShown(), { take = true, pin = true } = {}) {
   const pane = leftPane();
   if (!pane) {
     return;
   }
   setShown(pane, shown);
-  if (shown) {
+  if (shown && take) {
+    pane.keyed = true;
     pane.node.querySelector("input, button")?.focus();
+  } else if (shown) {
+    pane.pinned = pin;
+  }
+  if (shown) {
+    collapseLater(pane);
+  }
+}
+
+// Whether the pane at `node` shows.
+export function paneNodeShown(node) {
+  return !node.hidden && !node.classList.contains("collapsed");
+}
+
+// Shows the pane at `node` or collapses it, a pane shown this way staying until the pointer has been
+// on it, or with `pin` off only while the pointer is on it or on the strip.
+export function togglePaneNode(node, shown = !paneNodeShown(node), { pin = true } = {}) {
+  const pane = panes.find((one) => one.node === node);
+  if (!pane) {
+    return;
+  }
+  setShown(pane, shown);
+  if (shown) {
+    pane.pinned = pin;
     collapseLater(pane);
   }
 }

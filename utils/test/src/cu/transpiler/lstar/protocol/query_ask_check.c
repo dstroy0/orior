@@ -15,7 +15,7 @@
 // interrupt time the kernel keeps at 0x7FFE0008 with a plain load and no call: the test forms its question there,
 // and the protocol's answer is checked against the fact that the word counts. A platform that names no such address
 // to the test skips the clock checks and says so.
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/query_ask.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/query/query_ask.h"
 
 #include <stdio.h>
 

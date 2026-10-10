@@ -5,9 +5,17 @@
 
 [Setup](docs/setup.md) · [The app](#the-app) · [Using it](docs/usage.md) · [The algorithm](docs/method.md) · [The engine](docs/engine.md) · [Areas of research](docs/research.md) · [Licensing](docs/licensing.md)
 
-Orior finds the pattern in anything, from a crystal to a language to a file. It compares the thing with a shuffled copy of itself, and the pattern is what the copy lost. Every number is exact, with nothing rounded, guessed or trained.
+**Orior is a unified computational foundation: one engine and one transpiler, both in exact integers.**
 
-Some of what follows will read as too much, and a reader who has met claims like these before has every reason to doubt them. Nothing here asks to be believed. Every result names the file that holds it and the run that checks it, every one was measured against a null that could have said no, and every claim the work took back is kept beside the measurement that took it back.
+The engine measures the structure in any object against a permutation null: it keeps the object's counts, shuffles their arrangement, and measures what the shuffle destroyed, with nothing rounded, guessed or trained. The transpiler compiles a program written in [gnascor](docs/gnascor.md) into each target language, and L\* works out the definitions of a target nobody has described.
+
+Check it in one command: the engine is asked for the cell edge of every right angled crystal the [Crystallography Open Database](https://www.crystallography.net/cod/) will give it, a number someone else measured before this engine existed, and the answer is compared by equality. A near miss counts as a miss.
+
+```sh
+python examples/crystallography/6_oracle/proof_positive_control.py
+```
+
+Every result below names the file that holds it and the run that checks it, every one was measured against a null that could have said no, and every claim the work took back is kept beside the measurement that took it back. A few words are borrowed from physics as names for parts of the engine; [Words used here](#words-used-here) says what each means.
 
 Most of the parts are old, and they are named as old. The shuffle is a permutation null. Exact integers of any width are what every big number library holds. The new parts are an engine that never leaves exact integers, from the first read to the last bit written, and what came back when it was pointed at a crystal, a language, a digest and a camera.
 
@@ -25,7 +33,7 @@ Most of the parts are old, and they are named as old. The shuffle is a permutati
 
 6. **One program at every width.** Sums, differences, products, exclusive or and AND read only the lowest bits of what they are given, and a program of them gives the same answer at every width. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and keeps the answer. On the device, the part that writes the text writes its own text byte for byte. For the lambda calculus written in bits, two exact bounds put Chaitin's Omega below one eighth, and its first two bits are proved. [Two crystals](theory/workbooks/engine/two_crystals.md) · [The engine, part by part](theory/workbooks/engine/engine_table.md)
 
-7. **Laplace's demon, and its bill.** The demon knows a boundary and computes what is inside. Measured, a boundary can refuse and cannot predict: a point it has excluded is excluded for good and for free, and no proper part of a pattern determines the rest. Reading finer detail off a boundary needs precision that grows exponentially as the detail gets finer. There is no wall of principle in the way, only that bill. The resemblance to physics is an analogy, and nothing here tests it. [Thought experiments](theory/thought_experiments/orior)
+7. **A boundary can refuse and cannot predict.** A point a boundary has excluded is excluded for good and for free, and no proper part of a pattern determines the rest. Reading finer detail off a boundary needs precision that grows exponentially as the detail gets finer. There is no wall of principle in the way, only that cost. The thought experiments put this as Laplace's demon reading a boundary; the resemblance to physics is an analogy, and nothing here tests it. [Thought experiments](theory/thought_experiments/orior)
 
 8. **What an input stops reaching is a clock.** A value that stops depending on an input is a hard fact the machine gets for free. In SHA-256, no input reaches 214 of 256 positions at round seven, the support grows by about nine a round, and it closes near round 30 of 64. Nothing here claims a weakness in SHA-256. [Instruments](theory/theory/instruments) · [Cryptography](theory/theory/cryptography)
 
@@ -40,6 +48,16 @@ Most of the parts are old, and they are named as old. The shuffle is a permutati
 - Several results were found first by others, and where that is known the published work is named.
 - [Thought experiments](theory/thought_experiments) holds the ideas whose experiment cannot be built as written. They are kept apart from the results, and none of them is one.
 
+## Words used here
+
+Some names here come from physics and mathematics. Each is the name of a part of the engine, and means this:
+
+| word | means here |
+| --- | --- |
+| the null, the shuffle | the object with its counts kept and its arrangement shuffled: the background a pattern is measured against |
+| the demon | the null space of a reading, worked out before any object is read: every change to an object that the reading cannot see, known up front from rank and nullity instead of found by experiment. [null_first.py](examples/00_blob_viz_tools/null_first.py) builds it. Laplace's name is borrowed for that position only. |
+| the boundary, holographic | the contents of a volume read from how they are arranged on its two dimensional boundary. The holographic principle in physics is an analogy for it, and nothing here tests that principle. |
+
 ## Quick start
 
 The easiest way in is [the app](#the-app): one window that lists every job the tree holds, sets its values and runs it, and edits every file of the tree beside it.
@@ -51,10 +69,12 @@ The easiest way in is [the app](#the-app): one window that lists every job the t
    ```
 
    The installers carry no certificate's signature. Windows warns before the first run, where More info, Run anyway starts it; on macOS, a right click on the app and Open starts it the first time.
-2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
-3. **Run a job.** The Run tab lists every job. Choose one, set its values and press F5.
+2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository holds orior's own address already: choose the folder the clone goes in and press Clone. A fuse burns across the sheet as git brings the repository, and the window opens on it when it is done. The next clone starts in the same folder. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
 
-File, Clone Repository does the same at any time, and `orior file clone` does it from a terminal.
+   ![Clone Repository with orior's address, the folder to clone into, beside the open tree or somewhere else, and the fuse burnt part way while git receives the objects](src/ui/docs/img/clone.png)
+3. **Run a job.** The Run view, from the chart icon at the foot of the tool strip, lists every job. Choose one, set its values and press F5.
+
+File, Clone Repository does the same at any time, and asks whether the clone goes beside the open tree or in another folder. `orior file clone` does it from a terminal.
 
 To work from a terminal instead, clone the repository and run these at its root:
 
@@ -82,7 +102,13 @@ cargo run                       # build it and open the window
 cargo run -- run list           # the same program given words
 ```
 
-The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it offers Open and Clone Repository, and File, Open Folder and File, Clone Repository move it to another tree at any time. Each tree keeps its own open tabs. [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
+The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it offers Open and Clone Repository, and File, Open, Folder and File, Clone Repository move it to another tree at any time. Each tree keeps its own open tabs.
+
+| File | holds |
+| --- | --- |
+| Create | File (Ctrl+N) and Folder, each named by its path from the tree's top, the open file's folder to start with; and Repository, which asks whether git makes it here in the open tree or in a folder chosen |
+| Open | File (Ctrl+O), a file of the tree from the system's picker; Folder, another tree; and Repository, an address that is cloned into orior's own folder and opened, or opened as it is where it was cloned before |
+| Clone Repository | an address and the folder its clone goes in: beside the open tree, or somewhere else | [The app's own page](src/ui/README.md) covers the installers, what each platform needs, and where the window reads each job from.
 
 ### The window
 
@@ -90,29 +116,29 @@ The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Starte
 
 | | part | what it holds |
 | --- | --- | --- |
-| 1 | Menu bar | File, Edit, Selection, View, Go and Run, a menu for each kind of job, Terminal and Help. A key shown beside a command runs it from anywhere in the window. |
-| 2 | Run and Edit | the two views, a tab each on the line under the menus. Run holds every job the tree holds, the values each takes and each run's output; Edit holds the parts below. Ctrl+Shift+D shows Run and Ctrl+Shift+E shows Edit, and with a tab holding the keys, Left and Right switch. |
-| 3 | Explorer | the panes Search, Open Editors, the tree's files, Outline and Timeline. Its … menu shows or hides each pane. |
-| 4 | Editor | a tab for each file, the breadcrumbs over it, and the minimap down its right edge |
+| 1 | Top bar | File, Edit, Selection, View, Go and Run, the Build and Test jobs, Terminal and Help, then the tree's name and its branch, with a star where a file differs from the last commit. At its right end Preferences, Notifications, which keeps what the status bar has said, Toolchains, and m, which shows or hides the definitions, then the window's own minimize, maximize and close. The bar is what the window moves by: a press on its empty middle drags it, and a double press maximizes or restores it. A key shown beside a command runs it from anywhere in the window. |
+| 2 | Tool strip | an icon for each tool window down the left edge, the one open marked in signal; a press on it again closes it. The pointer resting on Explorer, Structure, Commit, Run, Problems or Git shows its pane from either view, a pointer only passing over the strip changing nothing. A press on the icon or in the pane keeps it; leaving the strip and the pane without one brings back the pane chosen before. At the top Explorer (the Edit view and its files, Ctrl+Shift+E), Structure (the open file's outline), Commit (the files that differ from the last commit, the Timeline and Local History), and more panes; under them, a line apart, the jobs of Protocol, Ingest, Render, Sim, Pipeline and Stage, each a menu beside its icon. At the foot Run (the Run view and its jobs, Ctrl+Shift+D), Debug, Terminal, Problems (the open files' diagnostics, marked while there are errors) and Git (the branch's commits). |
+| 3 | Explorer | the panes of the icon chosen. For Explorer: Search, Usages, TODO, Open Editors and the tree's files. Its … menu shows or hides each pane. |
+| 4 | Editor | a tab for each file, and the minimap down its right edge |
 | 5 | Definitions | the definition of the open file's type, and in a coherence file, the bridge |
-| 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views |
-| 7 | Status bar | the branch, with a star where a file differs from the last commit; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line and column, the selection, the indent, the line ends and the language. |
+| 6 | Terminal (Ctrl+`) | a shell in the tree's top folder, under both views. What scrolls off its top goes to a file the system deletes when the app closes, and the window holds only the lines in sight and those just above the prompt, reading the rest back as it is scrolled to. |
+| 7 | Status bar | the open file's breadcrumbs, its folders, it and the symbols the cursor is in; the runs going; the memory the app and every process it started hold, each part shown on hover. In the Edit view, the cursor's line:column, the selection, the line ends, the encoding, the indent, and a lock that makes the file read-only for as long as its tab is open. |
 
-The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open. While the window's frame is dragged or its edges pulled, every animation stops and each moving picture holds as a still one, and they take up where they stopped when the drag ends.
+The panes at the sides collapse toward their edge a moment after the pointer leaves them, and the pointer at that edge brings them back. Ctrl+B shows or collapses the view's own pane, and View, Auto Collapse Panes keeps them open.
 
 ### Run a job
 
-1. Choose the Run tab (Ctrl+Shift+D), or open the menu for the kind of job: Build, Protocol, Ingest, Render, Sim, Pipeline, Stage or Test.
+1. Choose Run at the foot of the tool strip (Ctrl+Shift+D), or open the menu for the kind of job: Build or Test on the top bar, or Protocol, Ingest, Render, Sim, Pipeline or Stage on the tool strip.
 2. Choose the job. The arrow keys move through the list, and a job's description is the opening comment of its own file.
 3. Set its values and press F5 to start it. Shift+F5 stops it.
 
-![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.60 s off the ruler](src/ui/docs/img/run.png)
+![A test job a minute and more into its run, its output above the fuse and the time ruler, the pointer reading 34.09 s off the ruler](src/ui/docs/img/run.png)
 
 The output streams as it comes. The fuse along its foot burns on the time ruler under it, its head at the run's latest moment, and it flashes when the run ends well and sputters dark when it fails or is stopped. The ruler marks where each step started and where the output came, red where it went to stderr. The wheel over either one, or + and - with the ruler holding the keys, zooms the time down to a few milliseconds across; a drag or Left and Right moves it, and 0 or a double click fits the whole run again. A page a viewer writes opens in a window of its own.
 
 ### Edit a file
 
-Open a file from the tree, from Go to File (Ctrl+P), or from the command line with `orior <file>:<line>:<column>`. The editor colors `.g`, `.gsm`, the k-files and every language under `src/lng/`, and shows the type's definition beside the file. In a file of `src/cu/transpiler/lstar/coherence/`, the bridge shows beside it: for the key under the cursor, its pairs and their verdicts, its name in each language and each ruleset's entry, every line a click from its file. A file that is not text opens as its bytes, and a file too large to read whole opens at the line it was left at and reads outward from there.
+Open a file from the tree, from Go to File (Ctrl+P), or from the command line with `orior <file>:<line>:<column>`. The editor colors `.g`, `.gsm`, the k-files and every language under `src/lng/`, and shows the type's definition beside the file. In a file of `src/cu/transpiler/lstar/protocol/table/`, the bridge shows beside it: for the key under the cursor, its pairs and their verdicts, its name in each language and each ruleset's entry, every line a click from its file. A file that is not text opens as its bytes, and a file too large to read whole opens at the line it was left at and reads outward from there.
 
 | to | do this |
 | --- | --- |
@@ -125,8 +151,35 @@ Open a file from the tree, from Go to File (Ctrl+P), or from the command line wi
 | format the file | Shift+Alt+F, or Edit, Format Document: Black for Python, clang-format for C, C++ and CUDA, rustfmt for Rust, Prettier for JavaScript, CSS, HTML, JSON, Markdown and YAML. Each keeps to the project's own pyproject.toml, .clang-format, rustfmt.toml or .prettierrc, and one undo takes it back. |
 | run the file | Ctrl+F5, or Run, Run File: it is saved, then runs in the terminal with its language's toolchain. Python, R, Ruby, JavaScript, the shells and PowerShell run as scripts; MATLAB runs with -batch, or in Octave where MATLAB is not installed; Lean with lean --run, TeX with latexmk, netlists with ngspice or LTspice, VHDL with GHDL; C, C++, CUDA and Rust are compiled to build/run/ and run. |
 | fold | the arrow in the gutter; Ctrl+K Ctrl+0 folds everything and Ctrl+K Ctrl+J unfolds it |
+| grow the selection | Shift+Alt+Right takes in the word, then the string or brackets around it, the line and each block out from there; Shift+Alt+Left gives each step back |
+| see a file twice | View, Split Right (Ctrl+\) or Split Down, or a tab's menu: a second editor on the file beside the first or under it, the text the same in both and the cursor and place each its own. The menus act on the one last pressed in. View, Unsplit, the × over it, or closing the file's tab closes it. |
 
-In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the status bar counts them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition.
+In C, C++ and CUDA the editor asks clangd, from File, Toolchains, what the code means; in Rust it asks rust-analyzer, and in Python Pyright. A wavy line marks each error in red and each warning in yellow, and a hover over it says what is wrong; the tool strip's Problems lists them, and F8 and Shift+F8 step to the next and the previous. A hover over a name shows its type and its declaration, Ctrl+Space completes from what the code declares, and F12 or a click with Ctrl held goes to a definition.
+
+| to | press |
+| --- | --- |
+| list every place a name is used | Shift+F12 or Alt+F7, Go, Find Usages: the explorer's Usages pane lists them by file. A language with no server is searched for the name as a whole word. |
+| rename it everywhere | F2 or Shift+F6, Edit, Rename Symbol: type the new name over the old and press Enter. Open tabs change where undo takes it back, and files no tab holds are written. |
+| fix what is marked | Ctrl+. or Alt+Enter, Edit, Quick Fix, or the bulb beside a marked line: the fixes and refactorings the server offers there. |
+| see a call's parameters | Ctrl+Shift+Space, Edit, Parameter Info. It opens on its own as ( or , is typed in a call, the parameter the cursor is at in bold. |
+| read a name's documentation | Ctrl+K Ctrl+I or Ctrl+Q, Edit, Quick Documentation |
+
+### Commit, push and pull
+
+Commit on the tool strip lists every file that differs from the last commit, each with a box that says whether the next commit takes it, and every box ticked until one is cleared. A press on a file shows its changes side by side over the editor, the last commit on the left; F7 and Shift+F7 step through them and Escape closes them. Under the files, the message, then Commit, or Commit and Push, which save the open files first and run the tree's own hooks and signing. Where git refuses, what it said shows under the buttons. The window's bar reads the tree again, rolls the files taken back to the last commit after a second press, pulls only where nothing would merge, and pushes, beside how many commits the branch is behind and ahead of its remote. Git on the strip lists the branch's commits.
+
+### Debug a file
+
+Run, Debug File (Shift+F9) runs the file in the editor under its language's debugger: lldb-dap for C, C++ and Rust, built first with clang or rustc into build/debug/, gdb on Linux and macOS, and debugpy for Python. A press in the gutter's strip left of a line's number, or F9, sets a breakpoint there, and the dot is hollow where the debugger could not bind it to code. Where the program stops, its file opens at the line, marked until it runs on, and the Debug window under the editor (View, Debug, Alt+5) shows the calls in Frames, the chosen frame's variables and the watches in Variables, and the program's output in Console, whose field evaluates in that frame.
+
+| to | press |
+| --- | --- |
+| continue | F5 |
+| step over, into, out | F10; F11 or F7; Shift+F11 |
+| pause | F6 |
+| stop, or start again | Shift+F5 or Ctrl+F2; Ctrl+Shift+F5 |
+
+lldb-dap from the LLVM release loads Python 3.11's library, and orior gives it the folder Python 3.11 installs to; File, Toolchains says what is missing where it does not start. debugpy goes into the Python orior uses with `python -m pip install debugpy`.
 
 ![A C file with factor not declared: a red wave under it, and the hover saying what clangd found](src/ui/docs/img/clangd.png)
 
@@ -155,7 +208,10 @@ Ctrl+S saves the file shown and File, Save All saves every one. File, Auto Save 
 
 | to go to | press |
 | --- | --- |
+| anything | Shift twice, Go, Search Everywhere: files, the open file's symbols and commands, each under its heading |
 | a file | Ctrl+P, then part of its name. `path:line:column` goes to a place in it, and the files opened last come first. |
+| a file opened lately | Ctrl+E, Go, Recent Files |
+| a line marked | Ctrl+F11, Go, Toggle Bookmark, marks the cursor's line with a ribbon in the gutter; Ctrl+Shift+F11, Go, Bookmarks, lists every line marked in the tree, each a press from its place |
 | a command | Ctrl+Shift+P, or `>` in Go to File |
 | a symbol in the file | Ctrl+Shift+O, or `@` in Go to File. The Outline pane lists them all. |
 | a line | Ctrl+G, or `:` in Go to File |
@@ -181,9 +237,13 @@ In the editor, the gutter marks each line added or changed since the last commit
 
 The Timeline pane lists the commits that touched the open file. Open shows the file as a commit left it, read only, in a tab of its own.
 
+Local History, under Commit on the tool strip, lists the open file as each save left it, newest first, with the text it held before the first of them. orior keeps these in its own folder, apart from git, the newest hundred of each file. A press on one shows it beside the file as it stands, and Revert to This in its menu puts it back as one edit, which Ctrl+Z takes back.
+
+TODO, in the Explorer's … menu, lists every TODO, FIXME, XXX and HACK in the tree as a whole word, by file, each line a press from its place.
+
 ### Settings and themes
 
-File, Preferences (Ctrl+,) holds the zoom, every setting the menus turn on and off, Trim Trailing Whitespace and Insert Final Newline on save, the fonts and the colors. Ctrl+=, Ctrl+- and Ctrl+0 zoom in, out and back, and View switches between light and dark.
+File, Preferences (Ctrl+,) holds the zoom, every setting the menus turn on and off, Trim Trailing Whitespace and Insert Final Newline on save, the fonts and the colors. Ctrl+=, Ctrl+- and Ctrl+0 zoom in, out and back. View switches between light and dark, and View, Follow System Theme takes the scheme from the system, changing as it does.
 
 To make a theme of your own, choose Light or Dark under Color Theme and press New. Each color of the palette is then yours to change, from the editor's and the menu bar's to the eye's, the fuse's and the lattice's; Search narrows the list, and ↺ puts one color back. Export copies the theme to the clipboard, and Import reads one from it. Themes are kept between runs and the one chosen shows from the first frame.
 
@@ -215,6 +275,10 @@ orior installs no compiler or language of its own. File, Toolchains lists each o
 | installed, not on PATH | found where it usually installs | Add to PATH, or Use This Folder |
 | not found | not on your PATH or in its usual folders | Install Page opens its makers' download page; Choose Folder takes its `bin` folder. For Lean, Install runs elan's installer in the terminal. |
 | from your folder | orior runs it from the folder you gave | Forget Folder |
+
+Every job needs Git, Bash and Python. As a tree opens, the status bar names any of them orior cannot find, and a press on it opens File, Toolchains.
+
+The list takes toolchains and groups of your own. Add Toolchain asks for its name, its group, one there already or a new one, what it is for, the programs it runs as, the words that make it say its version, and its install page; orior then finds it and offers it as it does its own. Add Group adds a group that stands empty until a toolchain goes in it. Remove on a toolchain you added, and Remove Group on an empty group, take them out again; orior's own stay. They are kept in `user_toolchains.json` in orior's own folder, each written as orior's own `toolchains.json` writes one. A field the sheet does not ask for, such as how a file runs or the language server it starts, can be added there by hand. `orior file toolchains add <name> --group <group> --program <name,...>`, `add-group`, `remove` and `remove-group` do the same from a terminal.
 
 Above the list, Add orior to PATH puts orior's own folder on your PATH, and `orior` then works in any terminal. On Windows a folder goes on your own Path in the registry, and its `%VARIABLES%` stay as written; elsewhere it is a line at the end of `~/.profile`. orior's runs and its terminal read the PATH anew each time and put the folders you gave first: a change shows there at once; a terminal opened before it does not have it. The folders you gave are kept in `toolchains.json` in orior's own folder.
 

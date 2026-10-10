@@ -1,89 +1,33 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-//! Tells the page when the window's frame is being dragged or its edges pulled: `window-drag`, true
-//! as it starts and false as it ends, which the page stops its animation for.
+//! Moves the window with the pointer from a press on the page's own top bar until it is let go.
 //!
-//! On Windows the frame's own messages say so: WM_ENTERSIZEMOVE as the press on the title bar or an
-//! edge begins the move, before the window has gone anywhere, and WM_EXITSIZEMOVE as the press ends.
-//! Elsewhere the first move or resize starts it, and a rest of REST with neither ends it.
+//! On Windows the window is told to start moving with the mouse, as its system menu's Move does,
+//! the move measured from where the pointer is: the move starts at once, with no wait to tell a
+//! click from a drag, and the window keeps its place under the pointer. Snapping to the screen's
+//! edges works as it does for any title bar. Elsewhere the window manager's own move starts it.
 
-use tauri::{AppHandle, WebviewWindow};
+use tauri::WebviewWindow;
 
 #[cfg(windows)]
-mod frame {
-    use std::sync::OnceLock;
-
-    use tauri::{AppHandle, Emitter, WebviewWindow};
-    use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
-    use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
-    use windows_sys::Win32::UI::WindowsAndMessaging::{WM_ENTERSIZEMOVE, WM_EXITSIZEMOVE};
-
-    static HANDLE: OnceLock<AppHandle> = OnceLock::new();
-
-    // The number the subclass is known by on the window.
-    const ID: usize = 0x6f72;
-
-    unsafe extern "system" fn watch(hwnd: HWND, message: u32, wparam: WPARAM, lparam: LPARAM, _id: usize, _data: usize) -> LRESULT {
-        let moving = match message {
-            WM_ENTERSIZEMOVE => Some(true),
-            WM_EXITSIZEMOVE => Some(false),
-            _ => None,
-        };
-        if let (Some(moving), Some(handle)) = (moving, HANDLE.get()) {
-            let _ = handle.emit("window-drag", moving);
-        }
-        unsafe { DefSubclassProc(hwnd, message, wparam, lparam) }
-    }
-
-    pub fn watch_frame(handle: &AppHandle, window: &WebviewWindow) {
-        let _ = HANDLE.set(handle.clone());
-        if let Ok(hwnd) = window.hwnd() {
-            unsafe {
-                SetWindowSubclass(hwnd.0 as HWND, Some(watch), ID, 0);
-            }
+pub fn start_drag(window: &WebviewWindow) -> Result<(), String> {
+    use windows_sys::Win32::Foundation::HWND;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{PostMessageW, HTCAPTION, SC_MOVE, WM_SYSCOMMAND};
+    let hwnd = window.hwnd().map_err(|error| error.to_string())?.0 as HWND;
+    // SAFETY: the window is this app's own, and the call takes no pointer.
+    unsafe {
+        ReleaseCapture();
+        // SC_MOVE with HTCAPTION in its low bits is a move by the mouse.
+        if PostMessageW(hwnd, WM_SYSCOMMAND, (SC_MOVE | HTCAPTION) as usize, 0) == 0 {
+            return Err("the window could not be moved".into());
         }
     }
+    Ok(())
 }
 
 #[cfg(not(windows))]
-mod frame {
-    use std::sync::{Arc, Mutex};
-    use std::time::{Duration, Instant};
-
-    use tauri::{AppHandle, Emitter, WebviewWindow, WindowEvent};
-
-    // How long the frame rests before a drag counts as over.
-    const REST: Duration = Duration::from_millis(180);
-
-    pub fn watch_frame(handle: &AppHandle, window: &WebviewWindow) {
-        let last: Arc<Mutex<Option<Instant>>> = Arc::new(Mutex::new(None));
-        let moved = last.clone();
-        let emitter = handle.clone();
-        window.on_window_event(move |event| {
-            if matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_)) {
-                if let Ok(mut at) = moved.lock() {
-                    if at.is_none() {
-                        let _ = emitter.emit("window-drag", true);
-                    }
-                    *at = Some(Instant::now());
-                }
-            }
-        });
-        let ender = handle.clone();
-        std::thread::spawn(move || loop {
-            std::thread::sleep(REST / 3);
-            if let Ok(mut at) = last.lock() {
-                if at.is_some_and(|when| when.elapsed() >= REST) {
-                    *at = None;
-                    let _ = ender.emit("window-drag", false);
-                }
-            }
-        });
-    }
-}
-
-/// Starts telling the page about drags of `window`'s frame.
-pub fn watch(handle: &AppHandle, window: &WebviewWindow) {
-    frame::watch_frame(handle, window);
+pub fn start_drag(window: &WebviewWindow) -> Result<(), String> {
+    window.start_dragging().map_err(|error| error.to_string())
 }
