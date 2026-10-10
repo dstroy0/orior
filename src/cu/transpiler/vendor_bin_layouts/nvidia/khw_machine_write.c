@@ -6,9 +6,9 @@
 //     khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
 // Four modes. In `krs` the file at `path.khw` is read and each form that answered a relation is written to `answers`
-// for the protocol, one a line: the relation, 1 where the answers read a word signed and 0 where not, and the form's
-// text with each operand that stands in the relation's tuple written as its place, {<place>}, for the protocol to
-// name; nothing else is read. In `kernel` the container the layout holds is read and the kernel the system accepted is written to
+// for the protocol, one a line: the relation, 1 where the answers read a word signed and 0 where not, the encoding the
+// form was first seen with, low word first, and the form's text with each operand that stands in the relation's tuple
+// written as its place, {<place>}, for the protocol to name; nothing else is read. In `kernel` the container the layout holds is read and the kernel the system accepted is written to
 // `answers` for the protocol: a header of its places and the registers a thread holds, then one line a place with the
 // place's encoding. In `gate` the file holds those same places, one form a place, so that the gate reads every
 // question of a round against what the part has already run (cubin_safe.h). In `final` the file holds the forms the
@@ -511,7 +511,8 @@ int main(int count, char **word)
             {
                 continue;
             }
-            fprintf(out, "%s %d %s\n", form->relation, (form->signed_read != 0) ? 1 : 0, placed);
+            fprintf(out, "%s %d %016llx %016llx %s\n", form->relation, (form->signed_read != 0) ? 1 : 0, form->low,
+                    form->high, placed);
             written += 1u;
         }
         fclose(out);

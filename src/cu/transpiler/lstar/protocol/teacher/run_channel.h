@@ -79,6 +79,9 @@ typedef struct
     unsigned long long answered[RUN_CASES_MOST];
     // the time the launches took together, in nanoseconds as the part's timer counts them; 0 where it is untimed
     unsigned long long nanoseconds;
+    // the least and the most one launch of them took, its block latency, the runs P6 reads; 0 where it is untimed
+    unsigned long long least;
+    unsigned long long most;
     unsigned int outcome;
     // what the carrier said where the outcome is not RUN_ANSWERED
     char refused[128];

@@ -14,8 +14,10 @@
 //
 // The parameters are named as the ruleset at `named ruleset` names the same form; a word that ruleset names no form
 // of, or names with another count of parameters, is written by none here. A word one form writes is written with that
-// form. A word more than one form writes is written by none: which of them is the word's is the cost's to say (P6), and
-// no cost is read here.
+// form. A word more than one form writes is ranked by P6 off each form's cost, its least launch m and its spread s as
+// the part's .ksc beside the machine file keeps them (`run answers <m> cost <low> <high> <s>`): the least form is the
+// word's where the next least is past it by more than the greatest spread, and otherwise the part's ruleset keeps the
+// form it gave the word before this run (Step 11), as it does where a form writing it has no cost read yet.
 //
 // Two files are written beside the machine file: <language>.krs, which opens a ruleset of the language and names the
 // part, and <part>.krs, which the reader reads after it (ruleset_flat.cu) and which holds the forms. A bank, a fixed
@@ -47,16 +49,36 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 #undef LADDER_TEXT
 
 // one form the part answered for, as the vendor's writer hands it back: the relation's anchor, whether the answers
-// read a word signed, and its text with each operand of the relation's tuple written as {<place>}
+// read a word signed, the encoding it was first seen with, and its text with each operand of the relation's tuple
+// written as {<place>}
 typedef struct
 {
     unsigned int anchor;
     int signed_read;
+    unsigned long long low;
+    unsigned long long high;
     char text[KRS_LINE];
 } KrsForm;
 
 static KrsForm s_form[KRS_FORMS];
 static unsigned int s_forms;
+
+// each form's cost as the part's .ksc keeps it: its encoding, its least launch m and its spread s
+typedef struct
+{
+    unsigned long long low;
+    unsigned long long high;
+    unsigned long long least;
+    unsigned long long spread;
+} KrsCost;
+
+static KrsCost s_cost[KRS_FORMS];
+static unsigned int s_costs;
+
+// the lines the part's ruleset gave before this run, a word's line by its name, to keep where P6 does not separate
+static char s_given[KRS_FORMS][KRS_LINE * 2u];
+static char s_given_name[KRS_FORMS][KRS_NAME];
+static unsigned int s_givens;
 
 // The vendor's writer run through the interface in its krs mode, handed the part, the machine file, the container
 // layout, the vendor's table and the file to write. Its output is read and printed. 1 where it ended clean
@@ -102,8 +124,10 @@ static unsigned int krs_forms_read(const char *path)
         line[strcspn(line, "\r\n")] = '\0';
         char relation[256];
         int signed_read = 0;
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
         int at = 0;
-        if (sscanf(line, "%255s %d %n", relation, &signed_read, &at) != 2)
+        if (sscanf(line, "%255s %d %llx %llx %n", relation, &signed_read, &low, &high, &at) != 4)
         {
             continue;
         }
@@ -120,11 +144,120 @@ static unsigned int krs_forms_read(const char *path)
         }
         s_form[s_forms].anchor = anchor;
         s_form[s_forms].signed_read = signed_read;
+        s_form[s_forms].low = low;
+        s_form[s_forms].high = high;
         snprintf(s_form[s_forms].text, sizeof(s_form[s_forms].text), "%s", line + at);
         s_forms += 1u;
     }
     fclose(file);
     return s_forms;
+}
+
+// every form's cost the part's .ksc at `path` keeps, `run answers <least> cost <low> <high> <spread>`, into s_cost. The
+// count read, 0 where the file is not there
+static unsigned int krs_costs_read(const char *path)
+{
+    s_costs = 0u;
+    FILE *const file = fopen(path, "rb");
+    if (file == NULL)
+    {
+        return 0u;
+    }
+    char line[512];
+    while ((fgets(line, (int)sizeof(line), file) != NULL) && (s_costs < KRS_FORMS))
+    {
+        KrsCost held;
+        if (sscanf(line, "run answers %llx cost %llx %llx %llx", &held.least, &held.low, &held.high, &held.spread) == 4)
+        {
+            s_cost[s_costs] = held;
+            s_costs += 1u;
+        }
+    }
+    fclose(file);
+    return s_costs;
+}
+
+// the cost kept for the form first seen as `low` and `high`, or NULL where none is kept
+static const KrsCost *krs_cost_of(unsigned long long low, unsigned long long high)
+{
+    for (unsigned int at = 0u; at < s_costs; at += 1u)
+    {
+        if ((s_cost[at].low == low) && (s_cost[at].high == high))
+        {
+            return &s_cost[at];
+        }
+    }
+    return NULL;
+}
+
+// every form line the part's ruleset at `path` gave before this run, by the name it gives, into s_given. The count
+static unsigned int krs_given_read(const char *path)
+{
+    s_givens = 0u;
+    FILE *const file = fopen(path, "rb");
+    if (file == NULL)
+    {
+        return 0u;
+    }
+    char line[KRS_LINE * 2u];
+    while ((fgets(line, (int)sizeof(line), file) != NULL) && (s_givens < KRS_FORMS))
+    {
+        char kind[KRS_NAME];
+        char name[KRS_NAME];
+        if ((sscanf(line, "%63s %63s", kind, name) == 2) && (strcmp(kind, "form") == 0))
+        {
+            line[strcspn(line, "\r\n")] = '\0';
+            snprintf(s_given[s_givens], sizeof(s_given[s_givens]), "%s", line);
+            snprintf(s_given_name[s_givens], sizeof(s_given_name[s_givens]), "%s", name);
+            s_givens += 1u;
+        }
+    }
+    fclose(file);
+    return s_givens;
+}
+
+// the line the part's ruleset gave `name` before this run, or NULL where it gave none
+static const char *krs_given_of(const char *name)
+{
+    for (unsigned int at = 0u; at < s_givens; at += 1u)
+    {
+        if (strcmp(s_given_name[at], name) == 0)
+        {
+            return s_given[at];
+        }
+    }
+    return NULL;
+}
+
+// The form P6 gives a word, of the `writers` forms in `writer`: c_1, the form of least m, where the next least m is
+// past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost kept
+// or the least do not separate, the survivors then one cost
+static unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
+{
+    unsigned int first = writers;
+    unsigned long long least = 0ull;
+    unsigned long long next = 0ull;
+    unsigned long long spread = 0ull;
+    for (unsigned int at = 0u; at < writers; at += 1u)
+    {
+        const KrsCost *const cost = krs_cost_of(s_form[writer[at]].low, s_form[writer[at]].high);
+        if (cost == NULL)
+        {
+            return writers;
+        }
+        spread = (cost->spread > spread) ? cost->spread : spread;
+        if ((first == writers) || (cost->least < least))
+        {
+            next = (first == writers) ? cost->least : least;
+            least = cost->least;
+            first = at;
+        }
+        else if ((at == 1u) || (cost->least < next))
+        {
+            next = cost->least;
+        }
+    }
+    return ((writers > 1u) && ((next - least) > spread)) ? first : writers;
 }
 
 // the parameters the ruleset at `path` names `name` with on its line `form`, `construct`, `nop` or `err`, into
@@ -316,7 +449,12 @@ int main(int count, char **word)
     char rulesets[1024];
     krs_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];
+    // the costs the part's .ksc keeps, and the lines its ruleset gave before this run, read before the ruleset is
+    // written again
+    snprintf(path, sizeof(path), "%s/%s.ksc", rulesets, part);
+    krs_costs_read(path);
     snprintf(path, sizeof(path), "%s/%s.krs", rulesets, part);
+    krs_given_read(path);
     FILE *const forms = fopen(path, "wb");
     if (forms == NULL)
     {
@@ -328,19 +466,14 @@ int main(int count, char **word)
     for (unsigned int at = 0u; at < KRS_WORDS; at += 1u)
     {
         const Word *const each = &s_word_web[at];
+        static unsigned int s_writer[KRS_FORMS];
+        static unsigned int s_order[KRS_FORMS][LADDER_WORDS];
         unsigned int writers = 0u;
-        unsigned int first = 0u;
-        unsigned int order[LADDER_WORDS];
-        unsigned int first_order[LADDER_WORDS] = {0u};
         for (unsigned int form = 0u; form < s_forms; form += 1u)
         {
-            if (krs_word_written(each, &s_form[form], order))
+            if (krs_word_written(each, &s_form[form], s_order[writers]))
             {
-                first = (writers == 0u) ? form : first;
-                if (writers == 0u)
-                {
-                    memcpy(first_order, order, sizeof(first_order));
-                }
+                s_writer[writers] = form;
                 writers += 1u;
             }
         }
@@ -348,12 +481,23 @@ int main(int count, char **word)
         {
             continue;
         }
-        if (writers > 1u)
+        // one form writes the word, or P6 separates the least of several; otherwise the survivors are one cost and the
+        // ruleset keeps the form it gave the word (Step 11)
+        const unsigned int ranked = (writers == 1u) ? 0u : krs_ranked(s_writer, writers);
+        if (ranked == writers)
         {
-            printf("  krs_write: %u forms write %s, which the cost decides (P6), and none is written\n", writers,
-                   each->name);
+            const char *const kept = krs_given_of(each->name);
+            if (kept != NULL)
+            {
+                fprintf(forms, "%s\n", kept);
+                given += 1u;
+            }
+            printf("  krs_write: %u forms write %s, one cost or a cost not read (P6); %s\n", writers, each->name,
+                   (kept != NULL) ? "the ruleset keeps its form" : "the ruleset gave it none, and none is written");
             continue;
         }
+        const unsigned int first = s_writer[ranked];
+        const unsigned int *const first_order = s_order[ranked];
         char parameter[KRS_PARAMETERS][KRS_NAME];
         const unsigned int parameters = krs_parameters_named(named_ruleset, each->name, parameter);
         if (parameters != ((unsigned int)each->reads + 1u))

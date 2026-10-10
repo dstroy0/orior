@@ -94,12 +94,14 @@ static int run_channel_write(const RunQuestion *asked, const char *code_path, co
 }
 
 // the lines the carrier wrote, read into `asked`: the outcome the first names, each case's answer where it answered,
-// and where the question is timed, the time the second gives. A timed question the carrier gives no time for answered
-// nothing worth reading
+// and where the question is timed, the time the second gives, its launches together and the least and the most one
+// took. A timed question the carrier gives no time for answered nothing worth reading
 static void run_channel_read(RunQuestion *asked, const char *answers_path)
 {
     asked->outcome = RUN_NOTHING;
     asked->nanoseconds = 0ull;
+    asked->least = 0ull;
+    asked->most = 0ull;
     FILE *const answers = fopen(answers_path, "rb");
     if ((answers == NULL) || (fgets(s_answer_line, sizeof(s_answer_line), answers) == NULL))
     {
@@ -113,7 +115,8 @@ static void run_channel_read(RunQuestion *asked, const char *answers_path)
     char timed_line[64];
     unsigned int launches = 0u;
     const int timed = (fgets(timed_line, sizeof(timed_line), answers) != NULL) &&
-                      (sscanf(timed_line, "timed %u %llu", &launches, &asked->nanoseconds) == 2) &&
+                      (sscanf(timed_line, "timed %u %llu %llu %llu", &launches, &asked->nanoseconds, &asked->least,
+                              &asked->most) >= 2) &&
                       (launches == asked->launches);
     fclose(answers);
     s_answer_line[strcspn(s_answer_line, "\r\n")] = '\0';
@@ -253,7 +256,7 @@ static void run_channel_kept(const RunQuestion *asked)
     run_channel_identity(asked, identity);
     if (asked->launches != 0u)
     {
-        record_sample(identity, answer, asked->nanoseconds, asked->refused);
+        record_sample(identity, answer, asked->nanoseconds, asked->least, asked->most, asked->refused);
         return;
     }
     memset(&s_kept, 0, sizeof(s_kept));

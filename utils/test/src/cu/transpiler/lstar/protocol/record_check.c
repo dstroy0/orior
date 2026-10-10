@@ -97,7 +97,8 @@ int main(int count, char **words)
     record_keep("00000000000000ad 12 0 0 0 2 00000000000000bb", &resolved);
     record_keep("00000000000000aa 12 0 0 0 3 00000000000000bb", &resolved);
     record_keep("00000000000000f0 12 0 0 0 2 00000000000000bb", &resolved);
-    record_sample("00000000000000f1 12 256 4096 100 648 00000000000000bb", "answers", 42ull, "");
+    record_sample("00000000000000f1 12 256 4096 100 648 00000000000000bb", "answers", 42ull, 0ull, 0ull, "");
+    record_sample("00000000000000f2 12 256 4096 100 648 00000000000000bb", "answers", 300ull, 2ull, 5ull, "");
     check_that(record_answer("00000000000000ad 12 0 0 0 2 00000000000000bb", &s_held) == 1,
                "the answer that resolves a timed out ask takes its place");
     check_that(record_answer("00000000000000aa 12 0 0 0 3 00000000000000bb", &s_held) && (s_held.words == 3u),
@@ -111,6 +112,8 @@ int main(int count, char **words)
     check_that(strstr(s_text, "cycle 3 check\nask 00000000000000f0 12 0 0 0 2 00000000000000bb answers 7 9\n"
                               "sample 00000000000000f1 12 256 4096 100 648 00000000000000bb answers 42\n") != NULL,
                "what this run put comes after one cycle numbered after the record's own");
+    check_that(strstr(s_text, "sample 00000000000000f2 12 256 4096 100 648 00000000000000bb answers 300 2 5\n") != NULL,
+               "a sample with its launches' least and most keeps both after the time they took together");
     check_that(strstr(s_text, "seed 1\nround 1\n") != NULL, "every other line is kept as it was");
     check_that(strstr(s_text, "pair word_add word_sub 0123456789abcdef closed 1006:0040 1,1,0->2\n") != NULL,
                "and a pair's path with it");

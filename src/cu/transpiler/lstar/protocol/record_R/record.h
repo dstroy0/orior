@@ -43,9 +43,10 @@ int record_answer(const char *identity, RecordAsk *held);
 // the untimed ask of `identity` kept, where R holds none of it or holds it timed out
 void record_keep(const char *identity, const RecordAsk *ask);
 
-// the timed ask of `identity` kept as a sample of its own: `answer`, and the nanoseconds where it answered or the
-// refusal where it did not
-void record_sample(const char *identity, const char *answer, unsigned long long nanoseconds, const char *refusal);
+// the timed ask of `identity` kept as a sample of its own: `answer`, and the nanoseconds where it answered, with the
+// least and the most one launch took where `most` is not 0, or the refusal where it did not
+void record_sample(const char *identity, const char *answer, unsigned long long nanoseconds, unsigned long long least,
+                   unsigned long long most, const char *refusal);
 
 // R written back to the path it was read from and closed. 1, or 0 with the reason printed
 int record_close(void);

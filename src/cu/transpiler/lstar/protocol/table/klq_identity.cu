@@ -2445,7 +2445,8 @@ static void asks_answered(const std::vector<CarriedAsk> &carried)
             marks_written();
             query_record_sample(&s_query_record,
                                 QueryRecordSample{question_identity(question), answer, question->nanoseconds,
-                                                  (answer == "answers") ? std::string() : question->refused});
+                                                  (answer == "answers") ? std::string() : question->refused,
+                                                  (question->most != 0ull) ? 1 : 0, question->least, question->most});
         }
     }
     for (const std::string &identity : firsts)

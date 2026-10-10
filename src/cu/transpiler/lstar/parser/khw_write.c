@@ -797,8 +797,10 @@ static int khw_form_asked(unsigned long long low, unsigned long long high)
     return 1;
 }
 
-// Every form the part answered for widened: each bit outside its runs, its key and the scheduler's word turned, and
-// the turned encoding asked its relation from the top. Every turned encoding's relation waits on no other answer, and
+// Every form the part answered for widened: each bit outside its operands' runs, its key and the scheduler's word
+// turned, and the turned encoding asked its relation from the top. An operand's run is one with a place in the
+// relation's tuple; a run that carries no word of the tuple is no operand of the relation, and its bits are turned as
+// any other's. Every turned encoding's relation waits on no other answer, and
 // they are put SCHEDULER_ROUND_MOST to a round. Where `discover` is 0 each that answered a relation is then asked its
 // fields; where it is not 0 it is kept with its fields unasked, for a cross-check to read its turns before a later
 // pass asks them off a part that would hang on an encoding the vendor calls illegal. Only a classified form is a
@@ -824,7 +826,8 @@ static unsigned int khw_widened(unsigned int from, int discover)
             int inside = 0;
             for (unsigned int run = 0u; run < held.runs; run += 1u)
             {
-                inside = inside || ((bit >= held.first[run]) && (bit <= held.last[run]));
+                inside = inside || ((held.place[run] != KHW_PLACE_NONE) && (bit >= held.first[run]) &&
+                                    (bit <= held.last[run]));
             }
             unsigned long long low = held.low;
             unsigned long long high = held.high;
@@ -1009,6 +1012,93 @@ static int khw_forms_work_written(const char *path)
     return 1;
 }
 
+// the row a form's cost is kept under in the part's .ksc, its word the least launch and its question the form and the
+// spread: `run answers <least> cost <low> <high> <spread>`, the numbers in hex as every run row writes them
+#define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx\n"
+#define KHW_COST_READ "run answers %llx cost %llx %llx %llx"
+
+// The cost of every classified form, asked (P6): each put at the slot over its relation's cases, timed over
+// KHW_LAUNCHES launches, each launch alone, and its runs read as the least one took and the spread past it, m_c and
+// s_c. Each is written to the part's .ksc at `path`, the .ksc's every other line kept as it was and the row of a form
+// timed again put in place of the one before. The count timed
+static unsigned int khw_costs_asked(const char *path)
+{
+    static unsigned long long s_low[KHW_FORMS];
+    static unsigned long long s_high[KHW_FORMS];
+    static unsigned long long s_least[KHW_FORMS];
+    static unsigned long long s_spread[KHW_FORMS];
+    static unsigned int s_word[RUN_CASES_MOST][2];
+    static unsigned int s_plain[RUN_CASES_MOST];
+    static unsigned int s_signed[RUN_CASES_MOST];
+    static unsigned long long s_answered[RUN_CASES_MOST];
+    unsigned int timed = 0u;
+    for (unsigned int at = 0u; at < s_names; at += 1u)
+    {
+        const KhwAnswered *const held = &s_named[at];
+        if (held->phase != KHW_PHASE_CLASSIFIED)
+        {
+            continue;
+        }
+        khw_code_put(s_code, s_slot, held->low, held->high);
+        const unsigned int count = khw_anchor_cases(held->anchor, held->swapped, s_word, s_plain, s_signed);
+        s_launches = KHW_LAUNCHES;
+        const int answered = khw_asked(s_word, count, s_slot, s_answered);
+        s_launches = 0u;
+        if (!answered || (s_question.most == 0ull))
+        {
+            continue;
+        }
+        s_low[timed] = held->low;
+        s_high[timed] = held->high;
+        s_least[timed] = s_question.least;
+        s_spread[timed] = s_question.most - s_question.least;
+        timed += 1u;
+    }
+    // the .ksc's lines as they were, the cost row of a form timed now left out
+    static char s_kept[1u << 20u];
+    size_t kept = 0u;
+    FILE *const was = fopen(path, "rb");
+    if (was != NULL)
+    {
+        char line[512];
+        while (fgets(line, (int)sizeof(line), was) != NULL)
+        {
+            unsigned long long least = 0ull;
+            unsigned long long low = 0ull;
+            unsigned long long high = 0ull;
+            unsigned long long spread = 0ull;
+            int again = 0;
+            if (sscanf(line, KHW_COST_READ, &least, &low, &high, &spread) == 4)
+            {
+                for (unsigned int at = 0u; at < timed; at += 1u)
+                {
+                    again = again || ((s_low[at] == low) && (s_high[at] == high));
+                }
+            }
+            const size_t length = strlen(line);
+            if (!again && ((kept + length) < sizeof(s_kept)))
+            {
+                memcpy(&s_kept[kept], line, length);
+                kept += length;
+            }
+        }
+        fclose(was);
+    }
+    FILE *const file = fopen(path, "wb");
+    if (file == NULL)
+    {
+        printf("  khw_write: %s could not be written\n", path);
+        return timed;
+    }
+    fwrite(s_kept, 1u, kept, file);
+    for (unsigned int at = 0u; at < timed; at += 1u)
+    {
+        fprintf(file, KHW_COST_ROW, s_least[at], s_low[at], s_high[at], s_spread[at]);
+    }
+    fclose(file);
+    return timed;
+}
+
 // The vendor's writer run through the interface in `mode`, handed the part, the file to write, the container layout,
 // the vendor's table and the answers file. Its output is read and printed. 1 where it ended clean
 static int khw_vendor_run(const char *mode, const char *answers)
@@ -1171,14 +1261,16 @@ int main(int count, char **word)
     // emitted for the vendor's disassembler, and the forms a prior run learned to seed them from, in place of the learn
     // loop (khw_enumerate). The split's passes over the working set: [--discover] widens it a round and keeps what it
     // finds with its fields unasked; [--turns] asks the turns of what a discover left; [--registers] asks the register-
-    // runs the turns found. A cross-check reads each pass's questions before it, and no form's turns or register-runs
-    // reach the part before the vendor has read them
+    // runs the turns found; [--costs] times every classified form (P6) and keeps its least and spread in the part's
+    // .ksc. A cross-check reads each pass's questions before it, and no form's turns or register-runs reach the part
+    // before the vendor has read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
     int discover = 0;
     int turns = 0;
     int registers = 0;
+    int costs = 0;
     for (int at = 7; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
@@ -1202,6 +1294,10 @@ int main(int count, char **word)
         else if (strcmp(word[at], "--registers") == 0)
         {
             registers = 1;
+        }
+        else if (strcmp(word[at], "--costs") == 0)
+        {
+            costs = 1;
         }
         else
         {
@@ -1269,7 +1365,7 @@ int main(int count, char **word)
     // pass's questions before it, and neither a form's turns nor its register-runs reach the part before the vendor has
     // read them. The working set is the folder's forms_work.txt, which the passes hand each other; the slot is found
     // afresh each pass, off the kernel's code
-    if ((discover != 0) || (turns != 0) || (registers != 0))
+    if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         char work_path[1024];
         snprintf(work_path, sizeof(work_path), "%s/forms_work.txt", s_folder);
@@ -1336,6 +1432,18 @@ int main(int count, char **word)
                 return 1;
             }
             printf("  turns: %u form(s) turned, %llu asks; their register-runs await a cross-check\n", asked, s_asks);
+            return 0;
+        }
+        if (costs != 0)
+        {
+            // every classified form timed at the slot, its least and spread kept in the part's .ksc beside the machine
+            // file, where the stall and the last register are kept
+            char ksc_path[1024];
+            snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
+            const unsigned int timed = khw_costs_asked(ksc_path);
+            run_channel_close();
+            printf("  costs: %u form(s) timed over %u launches each, %llu asks; kept in %s\n", timed, KHW_LAUNCHES,
+                   s_asks, ksc_path);
             return 0;
         }
         // every turned form's register-runs asked, its operand runs kept and its phase classified; what the part has

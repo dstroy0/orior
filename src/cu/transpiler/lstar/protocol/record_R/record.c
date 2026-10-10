@@ -300,14 +300,19 @@ void record_keep(const char *identity, const RecordAsk *ask)
     }
 }
 
-void record_sample(const char *identity, const char *answer, unsigned long long nanoseconds, const char *refusal)
+void record_sample(const char *identity, const char *answer, unsigned long long nanoseconds, unsigned long long least,
+                   unsigned long long most, const char *refusal)
 {
     if (!s_record.open)
     {
         return;
     }
-    char rest[RECORD_REFUSAL + 32u];
-    if (strcmp(answer, "answers") == 0)
+    char rest[RECORD_REFUSAL + 64u];
+    if ((strcmp(answer, "answers") == 0) && (most != 0ull))
+    {
+        snprintf(rest, sizeof(rest), "%llu %llu %llu", nanoseconds, least, most);
+    }
+    else if (strcmp(answer, "answers") == 0)
     {
         snprintf(rest, sizeof(rest), "%llu", nanoseconds);
     }

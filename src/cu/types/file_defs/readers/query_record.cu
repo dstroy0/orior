@@ -83,7 +83,7 @@ int query_record_read(const std::string &path, const std::string &member, QueryR
         }
         if (kind == "sample")
         {
-            QueryRecordSample held{std::string(), std::string(), 0ull, std::string()};
+            QueryRecordSample held{std::string(), std::string(), 0ull, std::string(), 0, 0ull, 0ull};
             if (!query_record_answer_read(words, &held.identity, &held.answer))
             {
                 *error = path + ":" + std::to_string(number) + ": a sample with no identity or no answer";
@@ -92,6 +92,7 @@ int query_record_read(const std::string &path, const std::string &member, QueryR
             if (held.answer == "answers")
             {
                 words >> held.nanoseconds;
+                held.launched = (words >> held.least >> held.most) ? 1 : 0;
             }
             else
             {
@@ -159,6 +160,10 @@ int query_record_write(const std::string &path, const QueryRecord &record, std::
             if (held.answer == "answers")
             {
                 fprintf(file, " %llu", held.nanoseconds);
+                if (held.launched != 0)
+                {
+                    fprintf(file, " %llu %llu", held.least, held.most);
+                }
             }
             else if (!held.refusal.empty())
             {
