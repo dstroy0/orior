@@ -4,9 +4,9 @@
 [package]
 name = "orior-cli"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
-rust-version = "1.77"
+rust-version = "1.85"
 
 [lib]
 name = "orior_cli"

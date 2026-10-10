@@ -1290,7 +1290,7 @@ pub fn run(given: Vec<String>) -> Outcome {
 #[cfg(windows)]
 pub fn console_let_go() {
     #[link(name = "kernel32")]
-    extern "system" {
+    unsafe extern "system" {
         fn GetConsoleProcessList(list: *mut u32, count: u32) -> u32;
         fn FreeConsole() -> i32;
     }
