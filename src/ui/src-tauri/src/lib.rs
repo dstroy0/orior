@@ -494,6 +494,27 @@ fn git_touched(app: State<App>, id: String) -> Result<Vec<git::Touched>, String>
     git::touched(&root_of(&app)?, &id)
 }
 
+#[tauri::command(async)]
+fn git_stashes(app: State<App>) -> Result<Vec<git::Stash>, String> {
+    Ok(git::stashes(&root_of(&app)?))
+}
+
+#[tauri::command(async)]
+fn git_stash(app: State<App>, act: String, name: Option<String>, message: Option<String>) -> Result<String, String> {
+    git::stash_act(&root_of(&app)?, &act, name.as_deref().unwrap_or(""), message.as_deref().unwrap_or(""))
+}
+
+/// The commits of other branches the branch open does not hold, to cherry-pick from.
+#[tauri::command(async)]
+fn git_elsewhere(app: State<App>) -> Result<Vec<git::Commit>, String> {
+    Ok(git::elsewhere(&root_of(&app)?))
+}
+
+#[tauri::command(async)]
+fn git_cherry_pick(app: State<App>, id: String) -> Result<String, String> {
+    git::cherry_pick(&root_of(&app)?, &id)
+}
+
 /// The commit that last changed each line of a file as the editor holds its text.
 #[tauri::command(async)]
 fn git_line_history(app: State<App>, path: String, text: String) -> Result<git::LineHistory, String> {
@@ -1208,6 +1229,10 @@ fn open(launch: Launch) {
             git_graph,
             git_touched,
             git_line_history,
+            git_stashes,
+            git_stash,
+            git_elsewhere,
+            git_cherry_pick,
             history_list,
             scrollback_open,
             scrollback_keep,

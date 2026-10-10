@@ -4,10 +4,12 @@
 //! What git says of the tree: the branch it is on, the files that differ from the last commit and
 //! how, the commits that touched a file, every branch's commits laid out as a graph and the files each
 //! changed, the commit that last changed each line of a file, and a file's text as one of those
-//! commits left it or as the last did. In a tree git cannot read, each of these comes back empty. What git is asked to do, for
-//! the Commit window: commit chosen files, push, pull where nothing would merge, and put a file back
-//! as the last commit left it, each giving git's own words where it refuses. Here too is the clone of
-//! a repository into a folder of its own, for File, Clone Repository and `orior file clone`.
+//! commits left it or as the last did. In a tree git cannot read, each of these comes back empty.
+//! What git is asked to do, for the Commit window and the Git menu: commit chosen files, push, pull
+//! where nothing would merge, put a file back as the last commit left it, act on branches, put changes
+//! aside in a stash and bring them back, and apply a commit of another branch, each giving git's own
+//! words where it refuses. Here too is the clone of a repository into a folder of its own, for File,
+//! Clone Repository and `orior file clone`.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -198,6 +200,87 @@ pub fn branch_act(root: &Path, act: &str, name: &str, to: &str) -> Result<String
         "rebase" => run(root, &["rebase", name]),
         _ => Err(format!("{act} is nothing a branch is asked to do")),
     }
+}
+
+/// A stash, changes put aside: its name, `stash@{0}` the newest, when it was made in seconds since
+/// 1970, and git's line for it, the branch it was made on and its message.
+#[derive(Serialize)]
+pub struct Stash {
+    pub name: String,
+    pub when: i64,
+    pub subject: String,
+}
+
+/// Every stash, the newest first.
+pub fn stashes(root: &Path) -> Vec<Stash> {
+    let Some(out) = git(root, &["stash", "list", "--format=%gd%x1f%ct%x1f%gs"]) else {
+        return Vec::new();
+    };
+    String::from_utf8_lossy(&out)
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(3, '\u{1f}');
+            Some(Stash { name: parts.next()?.to_string(), when: parts.next()?.parse().unwrap_or(0), subject: parts.next().unwrap_or_default().to_string() })
+        })
+        .collect()
+}
+
+/// Does to the stashes what is asked: `push` puts every change aside, new files with them, under
+/// `message` where one is given; `apply` brings stash `name` back and keeps it; `pop` brings it back
+/// and drops it where it comes back whole; `drop` throws it away. Gives git's own words.
+pub fn stash_act(root: &Path, act: &str, name: &str, message: &str) -> Result<String, String> {
+    let named = name.strip_prefix("stash@{").and_then(|rest| rest.strip_suffix('}')).is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+    if act != "push" && !named {
+        return Err(format!("{name} is no stash's name"));
+    }
+    match act {
+        "push" if message.trim().is_empty() => run(root, &["stash", "push", "--include-untracked"]),
+        "push" => run(root, &["stash", "push", "--include-untracked", "-m", message.trim()]),
+        "apply" | "pop" | "drop" => run(root, &["stash", act, name]),
+        _ => Err(format!("{act} is nothing a stash is asked to do")),
+    }
+}
+
+/// The commits of other branches, local and remote, that the branch the tree is on does not hold, merges
+/// aside, the newest first. A commit already applied to it under another id is not one: a cherry-pick
+/// keeps the author, the time the author made it and the message, and a commit of the branch open
+/// made since the oldest of them with all three the same is taken for it, which reads no changes.
+pub fn elsewhere(root: &Path) -> Vec<Commit> {
+    let limit = format!("-n{COMMITS_LIMIT}");
+    let format = "--format=%H%x1f%ct%x1f%ae%x1f%at%x1f%B%x1e";
+    let Some(out) = git(root, &["log", "--branches", "--remotes", "--not", "HEAD", "--no-merges", &limit, format]) else {
+        return Vec::new();
+    };
+    let read = |out: &[u8]| -> Vec<(Commit, String)> {
+        String::from_utf8_lossy(out)
+            .split('\u{1e}')
+            .filter_map(|record| {
+                let mut parts = record.trim_start_matches('\n').splitn(5, '\u{1f}');
+                let id = parts.next()?.to_string();
+                let when = parts.next()?.parse().ok()?;
+                let made = format!("{}\u{1f}{}\u{1f}{}", parts.next()?, parts.next()?, parts.next()?.trim_end());
+                let subject = made.rsplit('\u{1f}').next().unwrap_or_default().lines().next().unwrap_or_default().to_string();
+                Some((Commit { id, when, subject }, made))
+            })
+            .collect()
+    };
+    let found = read(&out);
+    let Some(oldest) = found.iter().map(|(commit, _)| commit.when).min() else {
+        return Vec::new();
+    };
+    let since = format!("--since=@{oldest}");
+    let ours: std::collections::HashSet<String> = git(root, &["log", "HEAD", "--no-merges", &since, format]).map(|out| read(&out).into_iter().map(|(_, made)| made).collect()).unwrap_or_default();
+    found.into_iter().filter(|(_, made)| !ours.contains(made)).map(|(commit, _)| commit).collect()
+}
+
+/// Applies commit `id` to the branch the tree is on as a commit of its own. Gives git's own words, and
+/// where the change does not fit, leaves the files in conflict for the merge window, and a commit
+/// after they are resolved finishes it.
+pub fn cherry_pick(root: &Path, id: &str) -> Result<String, String> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(format!("{id} is not a commit"));
+    }
+    run(root, &["cherry-pick", id])
 }
 
 /// A file the next commit takes in part: its path and the text the commit gives it.
@@ -876,6 +959,65 @@ mod graphing {
         assert_eq!((second.author.as_str(), second.path.as_deref(), second.parent.as_deref(), second.was.as_deref()), ("Ada", Some("a.txt"), Some(first.as_str()), Some("a.txt")));
         assert!(line_history(&root, "missing.txt", String::new()).is_err());
         std::fs::remove_dir_all(&base).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod stashing {
+    use super::{cherry_pick, elsewhere, stash_act, stashes};
+    use std::process::Command;
+
+    #[test]
+    fn changes_are_put_aside_and_brought_back_and_a_commit_is_picked_from_another_branch() {
+        let root = std::env::temp_dir().join(format!("orior_ui_stash_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| {
+            let out = Command::new("git").args(args).current_dir(&root).output().unwrap();
+            assert!(out.status.success(), "{args:?}");
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+        git(&["init", "-q", "-b", "main"]);
+        git(&["config", "user.name", "t"]);
+        git(&["config", "user.email", "t@t"]);
+        std::fs::write(root.join("a.txt"), "one\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "first"]);
+        std::fs::write(root.join("a.txt"), "changed\n").unwrap();
+        std::fs::write(root.join("b.txt"), "new\n").unwrap();
+        stash_act(&root, "push", "", "half done").unwrap();
+        assert_eq!(git(&["status", "--porcelain"]), "");
+        let listed = stashes(&root);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].name, "stash@{0}");
+        assert!(listed[0].subject.ends_with("half done"), "{}", listed[0].subject);
+        stash_act(&root, "apply", "stash@{0}", "").unwrap();
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).unwrap(), "changed\n");
+        assert!(root.join("b.txt").exists());
+        assert_eq!(stashes(&root).len(), 1);
+        git(&["checkout", "--", "a.txt"]);
+        std::fs::remove_file(root.join("b.txt")).unwrap();
+        stash_act(&root, "pop", "stash@{0}", "").unwrap();
+        assert!(stashes(&root).is_empty());
+        stash_act(&root, "push", "", "").unwrap();
+        stash_act(&root, "drop", "stash@{0}", "").unwrap();
+        assert!(stashes(&root).is_empty());
+        assert!(stash_act(&root, "apply", "HEAD", "").is_err());
+        assert!(stash_act(&root, "clear", "stash@{0}", "").is_err());
+
+        git(&["switch", "-q", "-c", "topic"]);
+        std::fs::write(root.join("c.txt"), "picked\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "on topic"]);
+        let picked = git(&["rev-parse", "HEAD"]);
+        git(&["switch", "-q", "main"]);
+        assert_eq!(elsewhere(&root).iter().map(|one| one.id.as_str()).collect::<Vec<_>>(), [picked.as_str()]);
+        cherry_pick(&root, &picked).unwrap();
+        assert_eq!(std::fs::read_to_string(root.join("c.txt")).unwrap(), "picked\n");
+        assert_eq!(git(&["log", "-1", "--format=%s"]), "on topic");
+        assert!(elsewhere(&root).is_empty());
+        assert!(cherry_pick(&root, "--abort").is_err());
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }
 

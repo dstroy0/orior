@@ -622,6 +622,8 @@ function gitItems(event) {
   return [
     { label: state.git.open.has(commit.id) ? "Close Files" : "Open Files", run: () => toggleCommit(row) },
     "-",
+    { label: "Cherry-Pick", run: () => import("./menubar.js").then((menus) => menus.runCommand("cherry-pick", [commit.id])) },
+    "-",
     { label: "Copy Commit ID", run: () => copyText(commit.id) },
     { label: "Copy Commit Message", run: () => copyText(commit.subject) },
   ];

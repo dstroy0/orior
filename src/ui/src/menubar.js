@@ -280,6 +280,9 @@ const COMMANDS = {
   branches: () => showBranches(),
   conflicts: (args) => resolveConflicts(args[0]),
   "new-branch": (args) => newBranch(args.join(" ")),
+  stash: (args) => stashChanges(args.join(" ")),
+  stashes: () => showStashes(),
+  "cherry-pick": (args) => cherryPick(args[0]),
   "macro-record": () => recordMacro(),
   "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
   "macro-keep": (args) => keepLast(args.join(" ")),
@@ -577,6 +580,51 @@ async function showBranches() {
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
+}
+
+// Git, Stash Changes: every change put aside, new files with them, under the message given or asked
+// for.
+async function stashChanges(given) {
+  const message = given || (await askFor("A message for the changes put aside", ""));
+  if (message) {
+    gitSays("Stashing", () => invoke("git_stash", { act: "push", message }));
+  }
+}
+
+// Git, Stashes: each stash, the newest first, to bring back and keep, bring back and drop, or throw
+// away.
+async function showStashes() {
+  const list = await invoke("git_stashes").catch(() => []);
+  if (!list.length) {
+    say("No changes are put aside.");
+    return;
+  }
+  const act = (act, stash) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${stash.name}`, () => invoke("git_stash", { act, name: stash.name }));
+  const items = list.map((stash) => ({
+    label: `${stash.name}  ${stash.subject}`,
+    items: [
+      { label: "Apply", run: () => act("apply", stash) },
+      { label: "Pop", run: () => act("pop", stash) },
+      { label: "Drop", run: async () => (await askYes(`Throw away ${stash.name}, ${stash.subject}?`, "Drop")) && act("drop", stash) },
+    ],
+  }));
+  showMenu(window.innerWidth / 3, window.innerHeight / 4, [{ label: "Stash Changes…", run: () => stashChanges("") }, "-", ...items]);
+}
+
+// Git, Cherry-Pick: the commit named, or one chosen from the commits of other branches the branch open
+// does not hold, applied to the branch open as a commit of its own.
+async function cherryPick(given) {
+  const pick = (id, subject) => gitSays(`Cherry-picking ${subject ?? id.slice(0, 7)}`, () => invoke("git_cherry_pick", { id }));
+  if (given) {
+    pick(given);
+    return;
+  }
+  const list = await invoke("git_elsewhere").catch(() => []);
+  if (!list.length) {
+    say("The branch open holds every commit of the other branches.");
+    return;
+  }
+  showMenu(window.innerWidth / 3, window.innerHeight / 4, list.map((commit) => ({ label: `${commit.id.slice(0, 7)}  ${commit.subject}`, run: () => pick(commit.id, commit.subject) })));
 }
 
 // Git, Resolve Conflicts: the file named, or a file a merge left in conflict where it is alone in
