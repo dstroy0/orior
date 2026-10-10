@@ -54,6 +54,9 @@ const FLICK_LEAST = 0.3;
 const FLICK_SLOWS = 325;
 const FLICK_STOP = 0.02;
 const SMOOTH_KEY = "orior.smooth-scroll";
+
+// The kept settings of the hints a server writes in the text: inferred types, and parameters' names.
+const HINT_KEYS = { type: "orior.type-hints", parameter: "orior.parameter-hints" };
 const FLICK_KEY = "orior.flick-scroll";
 const STICKY_KEY = "orior.sticky";
 
@@ -176,13 +179,14 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onChangeMark, onHistory, onGroup, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onChangeMark, onHistory, onGroup, onShown, statusHost = null } = {}) {
     this.host = host;
     this.onGroup = onGroup ?? (() => {});
     this.onChangeMark = onChangeMark ?? (() => {});
     this.onHistory = onHistory ?? (() => {});
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
+    this.onShown = onShown ?? (() => {});
     host.classList.add("ed");
     this.gutter = div("ed-gutter");
     this.gutterRows = div("ed-gutter-rows");
@@ -236,6 +240,7 @@ export class Editor {
     }
     this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
     this.smoothOn = localStorage.getItem(SMOOTH_KEY) !== "false";
+    this.hintKinds = { type: localStorage.getItem(HINT_KEYS.type) !== "false", parameter: localStorage.getItem(HINT_KEYS.parameter) !== "false" };
     this.flickOn = localStorage.getItem(FLICK_KEY) !== "false";
     // The glide under way, { from, to, at }, in the scrolling space's own units, and the run-on.
     this.glide = null;
@@ -341,24 +346,70 @@ export class Editor {
     return this.s.indent.tabs ? "\t" : " ".repeat(this.s.indent.size);
   }
 
-  vcolOf(text, col) {
+  // The visual column of a col of a line's text: its tabs reaching each stop, and, given the line,
+  // the hints drawn before it.
+  vcolOf(text, col, line = -1) {
     const size = this.s.indent.size;
     let v = 0;
     for (let index = 0; index < col && index < text.length; index += 1) {
       v += text[index] === "\t" ? size - (v % size) : 1;
     }
-    return v;
+    return line < 0 ? v : v + this.hintShift(line, col);
+  }
+
+  // The hints a line's server gives that the kinds on show, in the order of their cols.
+  hintsOn(line) {
+    const all = this.s?.hints?.byLine.get(line);
+    if (!all) {
+      return null;
+    }
+    const shown = all.filter((hint) => (hint.kind === 2 ? this.hintKinds.parameter : this.hintKinds.type));
+    return shown.length ? shown : null;
+  }
+
+  // How many columns the hints before a col of a line take. A hint at the col itself stands before
+  // it where it belongs to the text after it, as a parameter's name does, and after the text before
+  // it, as a type does.
+  hintShift(line, col) {
+    const hints = this.hintsOn(line);
+    let width = 0;
+    for (const hint of hints ?? []) {
+      if (hint.col < col || (hint.col === col && hint.kind === 2)) {
+        width += hint.width;
+      }
+    }
+    return width;
+  }
+
+  setHints(kind, on) {
+    this.hintKinds[kind] = on;
+    localStorage.setItem(HINT_KEYS[kind], String(on));
+    this.schedule();
+  }
+
+  hintHtml(hint) {
+    return `<span class="ed-hint${hint.kind === 2 ? " parameter" : ""}" style="width:${hint.width * this.cw}px">${escapeHtml(hint.label)}</span>`;
   }
 
   vcol(p) {
     return this.vcolOf(this.doc.line(p.line), p.col);
   }
 
-  // The col whose left edge is nearest a visual column, or with `round` off the col it falls in.
-  colAtV(text, v, round = true) {
+  // The col whose left edge is nearest a visual column, or with `round` off the col it falls in;
+  // given the line, a column a hint covers falls to the col the hint stands at.
+  colAtV(text, v, round = true, line = -1) {
     const size = this.s.indent.size;
+    const hints = line < 0 ? null : this.hintsOn(line);
+    let next = 0;
     let x = 0;
     for (let index = 0; index < text.length; index += 1) {
+      while (hints && next < hints.length && hints[next].col <= index) {
+        if (v < x + hints[next].width) {
+          return index;
+        }
+        x += hints[next].width;
+        next += 1;
+      }
       const width = text[index] === "\t" ? size - (x % size) : 1;
       if (round ? x + width / 2 > v : x + width > v) {
         return index;
@@ -549,7 +600,7 @@ export class Editor {
   }
 
   xOf(p) {
-    return PAD + this.vcol(p) * this.cw;
+    return PAD + this.vcolOf(this.doc.line(p.line), p.col, p.line) * this.cw;
   }
 
   // The place under a pointer.
@@ -565,7 +616,7 @@ export class Editor {
       return pos(last, this.doc.line(last).length);
     }
     const line = rows.lineOf(row);
-    return pos(line, this.colAtV(this.doc.line(line), (event.clientX - rect.left - PAD) / this.cw));
+    return pos(line, this.colAtV(this.doc.line(line), (event.clientX - rect.left - PAD) / this.cw, true, line));
   }
 
   // Showing a session.
@@ -2225,7 +2276,7 @@ export class Editor {
         [anchorFrom, anchorTo] = this.unitRange(unit, p);
         // A press past a line's end puts the cursor there where cursors may go past line ends.
         const v = Math.round((event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw);
-        const past = this.pastEnds && unit === "char" && p.col === this.doc.line(p.line).length && v > this.vcol(p);
+        const past = this.pastEnds && unit === "char" && p.col === this.doc.line(p.line).length && v > this.vcolOf(this.doc.line(p.line), p.col, p.line);
         this.setSelections([{ anchor: anchorFrom, head: anchorTo, goal: past ? v : null }]);
       }
       index = this.s.primary;
@@ -2331,7 +2382,7 @@ export class Editor {
     const rect = this.space.getBoundingClientRect();
     const x = clientX - rect.left;
     const text = this.doc.line(p.line);
-    if (x > PAD + this.vcolOf(text, text.length) * this.cw + this.cw || x < PAD) {
+    if (x > PAD + this.vcolOf(text, text.length, p.line) * this.cw + this.cw || x < PAD) {
       this.hover.hide();
       return;
     }
@@ -2798,13 +2849,32 @@ export class Editor {
     const shown = Math.min(text.length, SHOWN);
     let depth = this.bracketsOn && level < 2 && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
     const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
-    let html = "";
+    // The hints drawn before each col, each before the text from its col on.
+    const hints = this.hintsOn(line);
+    let hinted = 0;
+    const hintsTo = (col) => {
+      let out = "";
+      while (hints && hinted < hints.length && hints[hinted].col <= col) {
+        out += this.hintHtml(hints[hinted]);
+        hinted += 1;
+      }
+      return out;
+    };
+    const pieces = [];
     for (let index = 0; index < runs.length; index += 1) {
       const [start, name] = runs[index];
       const end = Math.min(runs[index + 1]?.[0] ?? shown, shown);
-      if (end <= start) {
-        continue;
+      let from = start;
+      while (from < end) {
+        const before = hintsTo(from);
+        const cut = hints && hinted < hints.length && hints[hinted].col < end ? hints[hinted].col : end;
+        pieces.push([from, cut, name, before]);
+        from = cut;
       }
+    }
+    let html = "";
+    for (const [start, end, name, before] of pieces) {
+      html += before;
       let part;
       if (depth === null || UNBRACKETED.test(name)) {
         part = escaped(text.slice(start, end));
@@ -2831,6 +2901,7 @@ export class Editor {
       }
       html += name ? `<span class="${name}">${part}</span>` : part;
     }
+    html += hintsTo(Infinity);
     if (this.marksOn && line + 1 < s.doc.count) {
       html += '<span class="ed-eol">¬</span>';
     }
@@ -2927,8 +2998,8 @@ export class Editor {
   // The marks behind the text on one row for a span of a line, from col to col.
   span(name, line, row, from, to, past = false) {
     const text = this.doc.line(line);
-    const x = PAD + this.vcolOf(text, from) * this.cw;
-    const width = (this.vcolOf(text, to) - this.vcolOf(text, from)) * this.cw + (past ? this.cw * 0.6 : 0);
+    const x = PAD + this.vcolOf(text, from, line) * this.cw;
+    const width = (this.vcolOf(text, to, line) - this.vcolOf(text, from, line)) * this.cw + (past ? this.cw * 0.6 : 0);
     return this.box(name, x, this.yOf(row), width);
   }
 
@@ -2994,6 +3065,9 @@ export class Editor {
     const lead = 2 + Math.min(80, Math.ceil((status.scroll.speed * 48) / LINE));
     const first = Math.max(0, Math.floor(top / LINE) - (status.scroll.heading < 0 ? lead : 2));
     const last = Math.min(rows.size - 1, Math.ceil((top + height) / LINE) + (status.scroll.heading > 0 ? lead : 2));
+    if (rows.size) {
+      this.onShown(s, rows.lineOf(first), rows.lineOf(last));
+    }
     // The origin moves only once the rows drawn have left the two spans of ORIGIN_ROWS below it. A
     // new origin moves every row, and the layers that place a row once as they make it start over.
     if (first < this.originRow || first >= this.originRow + 2 * ORIGIN_ROWS) {
@@ -3125,7 +3199,7 @@ export class Editor {
         const from = line === start.line ? start.col : 0;
         const ends = line < end.line;
         const to = line === end.line ? end.col : text.length;
-        spans.push([row - this.originRow, PAD + this.vcolOf(text, from) * cw, PAD + this.vcolOf(text, to) * cw + (ends ? cw : 0)]);
+        spans.push([row - this.originRow, PAD + this.vcolOf(text, from, line) * cw, PAD + this.vcolOf(text, to, line) * cw + (ends ? cw : 0)]);
       }
       shapes.push(selectionPath(spans, LINE, SELECTION_ROUND));
     }

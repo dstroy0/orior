@@ -188,6 +188,7 @@ impl Server {
                 "references": {},
                 "rename": {"prepareSupport": true},
                 "callHierarchy": {},
+                "inlayHint": {},
                 "signatureHelp": {"signatureInformation": {"documentationFormat": ["markdown", "plaintext"], "parameterInformation": {"labelOffsetSupport": true}, "activeParameterSupport": true}},
                 "codeAction": {
                     "codeActionLiteralSupport": {"codeActionKind": {"valueSet": kinds}},
@@ -201,7 +202,8 @@ impl Server {
             "workspace": {
                 "applyEdit": true,
                 "workspaceEdit": {"documentChanges": true},
-                "configuration": true
+                "configuration": true,
+                "inlayHint": {"refreshSupport": true}
             },
             "window": {"workDoneProgress": false}
         });
@@ -260,6 +262,11 @@ impl Server {
             kept.0
         };
         self.notify("textDocument/didChange", json!({"textDocument": {"uri": uri, "version": version}, "contentChanges": [{"text": text}]}))
+    }
+
+    /// The text the server was last given of a file it has open.
+    pub fn text(&self, path: &Path) -> Option<String> {
+        self.versions.lock().ok()?.get(&uri_of(path)).map(|(_, text)| text.clone())
     }
 
     /// Gives the server the text of a file it has open again, as a new version: the server then reads

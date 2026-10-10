@@ -4829,6 +4829,26 @@ textarea.report-field {
   overflow: auto;
 }
 
+/* A hint a language server writes in the text and not into it: a type after a name, or a
+ * parameter's name before an argument, in a smaller face on a faint ground, as wide as the
+ * columns the text after it moves over by. */
+.ed-hint {
+  display: inline-block;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--fg-3) 14%, transparent);
+  color: var(--fg-3);
+  font-size: 0.86em;
+  line-height: 1.5;
+  text-align: center;
+  text-overflow: ellipsis;
+  vertical-align: baseline;
+  white-space: pre;
+  pointer-events: none;
+}
+
 /* Problems: a file's row, then its diagnostics, each marked in its severity's color. */
 .problem-file,
 .git-branch {

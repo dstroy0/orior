@@ -185,6 +185,18 @@ pub struct Call {
     pub item: Value,
 }
 
+/// A hint a server writes in the text and not into it: its place, its text, its kind, 1 a type, 2 a
+/// parameter's name and 0 any other, and whether a space stands before it and after it.
+#[derive(Serialize, Clone, Debug)]
+pub struct Hint {
+    pub line: u32,
+    pub col: u32,
+    pub label: String,
+    pub kind: u8,
+    pub left: bool,
+    pub right: bool,
+}
+
 /// A call's signature: its text, each parameter's span in it in UTF-16 units, the parameter the
 /// cursor is in, and what the server says of it.
 #[derive(Serialize, Clone, Debug)]
@@ -197,11 +209,14 @@ pub struct Signature {
 }
 
 /// What a server says on its own that the editor is to hear, and how far the tree's check has gone:
-/// the files it has checked, of those it was given.
+/// the files it has checked, of those it was given; and that a server's hints are to be asked for
+/// again.
 pub enum Told {
     Diagnostics(Diagnostics),
     Edits(Vec<FileEdit>),
     Checking { done: usize, total: usize },
+    /// The server's hints are to be asked for again, as it has read more of the tree.
+    Hints,
 }
 
 /// Where what the servers say on their own goes.
@@ -517,6 +532,10 @@ fn heard(method: &str, params: &Value, emit: &Emit, published: &Published, check
             json!({"applied": true})
         }
         "workspace/configuration" => Value::Array(vec![Value::Null; params["items"].as_array().map_or(0, Vec::len)]),
+        "workspace/inlayHint/refresh" => {
+            emit(Told::Hints);
+            Value::Null
+        }
         _ => Value::Null,
     }
 }
@@ -789,6 +808,34 @@ impl Servers {
             server.request("workspace/executeCommand", json!({"command": command.get("command"), "arguments": command.get("arguments")}), SEARCHING)?;
         }
         Ok(edits)
+    }
+
+    /// The hints the server of `path` writes on its lines `from` to `to`, where it writes any.
+    pub fn hints(&self, path: &Path, from: u32, to: u32) -> Result<Vec<Hint>, String> {
+        let Some(server) = self.holding(path).filter(|server| !server.capabilities["inlayHintProvider"].is_null() && server.capabilities["inlayHintProvider"] != false) else {
+            return Ok(Vec::new());
+        };
+        // The range ends at the start of the line after `to`, or at the end of the text where `to` is
+        // its last line.
+        let lines: Vec<u32> = server.text(path).unwrap_or_default().split('\n').map(|line| line.encode_utf16().count() as u32).collect();
+        let end = if (to as usize) + 1 < lines.len() { json!({"line": to + 1, "character": 0}) } else { json!({"line": lines.len().saturating_sub(1), "character": lines.last().copied().unwrap_or(0)}) };
+        let range = json!({"start": {"line": from, "character": 0}, "end": end});
+        let said = server.request("textDocument/inlayHint", json!({"textDocument": {"uri": lsp::uri_of(path)}, "range": range}), ASKING)?;
+        Ok(said
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|one| {
+                let at = place(&one["position"]);
+                let label = match &one["label"] {
+                    Value::String(text) => text.clone(),
+                    Value::Array(parts) => parts.iter().filter_map(|part| part["value"].as_str()).collect(),
+                    _ => String::new(),
+                };
+                Hint { line: at.line, col: at.col, label: label.trim().to_string(), kind: one["kind"].as_u64().unwrap_or(0) as u8, left: one["paddingLeft"].as_bool().unwrap_or(false), right: one["paddingRight"].as_bool().unwrap_or(false) }
+            })
+            .filter(|hint| !hint.label.is_empty())
+            .collect())
     }
 
     /// The function at `line`, `col` of `path`, as the top of its call hierarchy: as its server finds
@@ -1555,7 +1602,7 @@ mod tests {
                 kept.lock().unwrap().insert(name, diagnostics.items.iter().filter(|one| one.severity == 1).count());
             }
             Told::Checking { done, total } => *far.lock().unwrap() = (done, total),
-            Told::Edits(_) => {}
+            Told::Edits(_) | Told::Hints => {}
         });
         (emit, found, gone)
     }

@@ -15,6 +15,52 @@ const CHANGE_REST = 300;
 let tabsOf = () => [];
 let painted = () => {};
 
+// Inlay hints: the types and the parameter names a server writes in a served tab's text, asked for
+// the lines shown and HINTS_AROUND on each side, once typing and scrolling rest, and again after the
+// text changes or the view moves past them.
+const HINTS_AROUND = 60;
+const HINTS_REST = 250;
+
+export function hintsShown(tab, from, to) {
+  const s = tab?.session;
+  if (!tab.served || !s || s.window) {
+    return;
+  }
+  const have = s.hints;
+  if (have && !have.stale && have.from <= from && have.to >= Math.min(to, s.doc.count - 1)) {
+    return;
+  }
+  window.clearTimeout(tab.hinting);
+  tab.hinting = window.setTimeout(async () => {
+    await flush(tab);
+    const low = Math.max(0, from - HINTS_AROUND);
+    const high = Math.min(s.doc.count - 1, to + HINTS_AROUND);
+    const asked = (tab.hintsAsked = (tab.hintsAsked ?? 0) + 1);
+    const version = s.doc.id;
+    const found = await invoke("lsp_hints", { path: tab.file, from: s.base + low, to: s.base + high }).catch(() => null);
+    if (!found || asked !== tab.hintsAsked || s.doc.id !== version) {
+      return;
+    }
+    const byLine = new Map();
+    for (const hint of found) {
+      const line = hint.line - s.base;
+      if (line < 0 || line >= s.doc.count) {
+        continue;
+      }
+      const width = [...hint.label].length + (hint.left ? 1 : 0) + (hint.right ? 1 : 0);
+      if (!byLine.has(line)) {
+        byLine.set(line, []);
+      }
+      byLine.get(line).push({ col: hint.col, label: hint.label, kind: hint.kind, left: hint.left, right: hint.right, width });
+    }
+    for (const hints of byLine.values()) {
+      hints.sort((a, b) => a.col - b.col || (a.kind === 2) - (b.kind === 2));
+    }
+    s.hints = { byLine, from: low, to: high, stale: false };
+    s.view?.schedule();
+  }, HINTS_REST);
+}
+
 // Every file's diagnostics as its server last gave them, open in a tab or not; how far the tree's
 // check has gone; and whether it has started in the tree open.
 const known = new Map();
@@ -43,6 +89,15 @@ export function startServers({ tabs, paint }) {
     for (const tab of tabsOf()) {
       if ((tab.served || tab.serving || tab.inspected) && tab.file === path) {
         tab.session.diagnostics = items;
+      }
+    }
+    painted();
+  });
+  // A server that has read more of the tree has every tab's hints asked for again.
+  listen("lsp-hints", () => {
+    for (const tab of tabsOf()) {
+      if (tab.session?.hints) {
+        tab.session.hints.stale = true;
       }
     }
     painted();

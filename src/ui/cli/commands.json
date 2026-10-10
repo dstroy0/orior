@@ -132,6 +132,8 @@
         { "label": "Flick Scrolling", "command": "flick-scroll", "args": "[on|off]", "checks": "flick-scroll" },
         { "label": "Breadcrumbs", "command": "breadcrumbs", "args": "[on|off]", "checks": "breadcrumbs" },
         { "label": "Bracket Pair Colorization", "command": "bracket-pairs", "args": "[on|off]", "checks": "bracket-pairs" },
+        { "label": "Inferred Types", "command": "type-hints", "args": "[on|off]", "checks": "type-hints" },
+        { "label": "Parameter Names", "command": "parameter-hints", "args": "[on|off]", "checks": "parameter-hints" },
         { "label": "Show Whitespace", "command": "whitespace", "args": "[on|off]", "checks": "whitespace" },
         { "label": "Cursor Past Line Ends", "command": "past-ends", "args": "[on|off]", "checks": "past-ends" },
         { "label": "Hide Comments", "command": "hide-comments", "keys": "Ctrl+Alt+/", "args": "[on|off]", "checks": "hide-comments" },

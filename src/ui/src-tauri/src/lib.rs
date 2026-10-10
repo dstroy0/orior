@@ -673,6 +673,9 @@ fn emitter(handle: AppHandle, tree: PathBuf) -> servers::Emit {
         servers::Told::Edits(files) => {
             let _ = handle.emit("lsp-edits", tree_edits(&tree, files));
         }
+        servers::Told::Hints => {
+            let _ = handle.emit("lsp-hints", ());
+        }
         servers::Told::Checking { done, total } => {
             let _ = handle.emit("tree-check", serde_json::json!({"done": done, "total": total}));
         }
@@ -725,6 +728,12 @@ fn lsp_actions(app: State<App>, path: String, from: servers::Place, to: servers:
 fn lsp_act(app: State<App>, path: String, raw: serde_json::Value) -> Result<Vec<servers::FileEdit>, String> {
     let root = root_of(&app)?;
     Ok(tree_edits(&root, app.servers.act(&root.join(path), &raw)?))
+}
+
+/// The hints the server of a file writes on its lines `from` to `to`.
+#[tauri::command(async)]
+fn lsp_hints(app: State<App>, path: String, from: u32, to: u32) -> Result<Vec<servers::Hint>, String> {
+    app.servers.hints(&root_of(&app)?.join(path), from, to)
 }
 
 /// The function at a place, as the top of its call hierarchy, its paths as `tree_path` gives them.
@@ -1285,6 +1294,7 @@ fn open(launch: Launch) {
             lsp_close,
             problems_check,
             calls_root,
+            lsp_hints,
             calls_of,
             inspect_languages,
             lsp_hover,

@@ -39,7 +39,7 @@ import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
-import { changed, checkTree, definition, forgetProblems, knownProblems, serve, startServers, stopServing, treeChecking, wrap } from "./servers.js";
+import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, serve, startServers, stopServing, treeChecking, wrap } from "./servers.js";
 import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { extractFunction } from "./extract.js";
@@ -1997,6 +1997,12 @@ export async function startEdit(defs) {
     onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),
     onHistory: openLineCommit,
     onGroup: undoGroup,
+    onShown: (s, from, to) => {
+      const tab = tabOfSession(s.of ?? s);
+      if (tab) {
+        hintsShown(tab, from, to);
+      }
+    },
     onCursor: () => {
       moved();
       cancelAnimationFrame(lighting);
@@ -2577,6 +2583,8 @@ export function editing() {
     moveDeclaration: moveHere,
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
+    hints: (kind) => Boolean(state.editor?.hintKinds[kind]),
+    setHints: (kind, on) => [state.editor, state.split?.editor].forEach((one) => one?.setHints(kind, on)),
     smoothScroll: () => Boolean(state.editor?.smoothOn),
     setSmoothScroll: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setSmooth(on)),
     flickScroll: () => Boolean(state.editor?.flickOn),

@@ -148,6 +148,16 @@ export class Session {
         this.folded = carried;
         this.foldings += 1;
       }
+      // A hint stays with its line where no edit reached the line, and waits to be asked for again.
+      if (this.hints) {
+        const carried = new Map();
+        for (const [line, hints] of this.hints.byLine) {
+          if (!edits.some((edit) => edit.from.line <= line && line <= edit.to.line)) {
+            carried.set(mapThrough(pos(line, 0), edits, true).line, hints);
+          }
+        }
+        this.hints = { ...this.hints, byLine: carried, stale: true };
+      }
       if (this.snippet) {
         for (const stop of this.snippet.stops) {
           stop.from = mapThrough(stop.from, edits, false);
