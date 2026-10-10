@@ -52,7 +52,79 @@ fn formatter_of(language: &str) -> Result<(toolchains::Tool, toolchains::Formatt
         })
 }
 
-/// `text`, the text of the file at `path` in `language`, formatted.
+/// The first of the files `names` in the folder of `path` or the nearest folder above it that holds
+/// one, read whole.
+fn nearest(path: &Path, names: &[&str]) -> Option<String> {
+    for dir in path.parent()?.ancestors() {
+        for name in names {
+            if let Ok(text) = std::fs::read_to_string(dir.join(name)) {
+                return Some(text);
+            }
+        }
+    }
+    None
+}
+
+/// The whole number set for `key` in a line or a part of a line, `key = 88`, `key: 88` or
+/// `"key": 88`.
+fn number_after(part: &str, key: &str) -> Option<u32> {
+    let rest = part.trim().trim_start_matches(['"', '\'']).strip_prefix(key)?;
+    let rest = rest.trim_start_matches(['"', '\'']).trim_start();
+    let rest = rest.strip_prefix('=').or_else(|| rest.strip_prefix(':'))?;
+    let digits: String = rest.trim().chars().take_while(char::is_ascii_digit).collect();
+    digits.parse().ok()
+}
+
+/// The whole number set for `key` in a settings file, TOML, YAML or JSON: within the TOML table
+/// `table` where one is named, and before any table where none is.
+fn number_in(text: &str, table: Option<&str>, key: &str) -> Option<u32> {
+    let mut inside = table.is_none();
+    for line in text.lines() {
+        let line = line.split('#').next().unwrap_or_default().trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            inside = table.is_some_and(|table| line.trim_matches(['[', ']']).trim() == table);
+            continue;
+        }
+        if inside {
+            if let Some(found) = line.split([',', '{', '}']).find_map(|part| number_after(part, key)) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
+/// The width the formatter of `language` keeps lines of the file at `path` to: the project's own
+/// setting for it, Black's `line-length` in a pyproject.toml, rustfmt's `max_width`, clang-format's
+/// `ColumnLimit` and Prettier's `printWidth`, or the formatter's own where the project sets none.
+/// None for a language no formatter formats, and for a limit of 0, which clang-format reads as none.
+pub fn width(path: &Path, language: &str) -> Option<u32> {
+    let (_, format) = formatter_of(language).ok()?;
+    let (names, table, key, own): (&[&str], Option<&str>, &str, u32) = match format.program.as_str() {
+        "black" => (&["pyproject.toml"], Some("tool.black"), "line-length", 88),
+        "rustfmt" => (&["rustfmt.toml", ".rustfmt.toml"], None, "max_width", 100),
+        "clang-format" => (&[".clang-format", "_clang-format"], None, "ColumnLimit", 80),
+        "prettier" => (&[".prettierrc", ".prettierrc.json", ".prettierrc.yaml", ".prettierrc.yml"], None, "printWidth", 80),
+        _ => return None,
+    };
+    Some(nearest(path, names).and_then(|text| number_in(&text, table, key)).unwrap_or(own)).filter(|width| *width > 0)
+}
+
+/// The Rust edition of the crate that holds the file at `path`, as its Cargo.toml names it, or 2021
+/// where the crate names none of its own.
+fn edition_of(path: &Path) -> String {
+    nearest(path, &["Cargo.toml"])
+        .and_then(|text| {
+            text.lines().find_map(|line| {
+                let rest = line.trim().strip_prefix("edition")?.trim_start().strip_prefix('=')?;
+                Some(rest.trim().trim_matches('"').to_string())
+            })
+        })
+        .unwrap_or_else(|| "2021".to_string())
+}
+
+/// `text`, the text of the file at `path` in `language`, formatted. `{file}` in a formatter's word is
+/// the file's path, and `{edition}` the Rust edition of the crate that holds it.
 pub fn format(path: &Path, language: &str, text: &str) -> Result<String, String> {
     let (tool, format) = formatter_of(language)?;
     let found = toolchains::find(&tool, &toolchains::path_folders(), &toolchains::chosen());
@@ -62,7 +134,8 @@ pub fn format(path: &Path, language: &str, text: &str) -> Result<String, String>
         .and_then(|folder| toolchains::program_in(Path::new(folder), std::slice::from_ref(&format.program)))
         .ok_or_else(|| format!("{} is not found: File, Toolchains opens its install page or takes its folder", tool.name))?;
     let file = path.display().to_string();
-    let args: Vec<String> = format.args.iter().map(|word| word.replace("{file}", &file)).collect();
+    let edition = if format.args.iter().any(|word| word.contains("{edition}")) { edition_of(path) } else { String::new() };
+    let args: Vec<String> = format.args.iter().map(|word| word.replace("{file}", &file).replace("{edition}", &edition)).collect();
     let mut command = Command::new(&program);
     command.args(&args).env("PATH", toolchains::run_path()).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
     if let Some(dir) = path.parent().filter(|dir| dir.is_dir()) {
@@ -121,6 +194,23 @@ mod tests {
         assert_eq!(formatter_of("python").unwrap().1.program, "black");
         assert_eq!(formatter_of("c").unwrap().1.program, "clang-format");
         assert!(formatter_of("tex").is_err());
+    }
+
+    #[test]
+    fn a_width_is_read_from_each_formatter_s_own_settings() {
+        assert_eq!(number_in("[project]\nname = \"x\"\n[tool.black]\nline-length = 120 # wide\n", Some("tool.black"), "line-length"), Some(120));
+        assert_eq!(number_in("[tool.ruff]\nline-length = 99\n", Some("tool.black"), "line-length"), None);
+        assert_eq!(number_in("max_width = 110\n[other]\nmax_width = 3\n", None, "max_width"), Some(110));
+        assert_eq!(number_in("BasedOnStyle: LLVM\nColumnLimit: 140\n", None, "ColumnLimit"), Some(140));
+        assert_eq!(number_in("{ \"semi\": false, \"printWidth\": 100 }", None, "printWidth"), Some(100));
+        let dir = std::env::temp_dir().join(format!("orior-width-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("pkg")).unwrap();
+        std::fs::write(dir.join("pyproject.toml"), "[tool.black]\nline-length = 100\n").unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\nedition = \"2024\"\n").unwrap();
+        assert_eq!(width(&dir.join("pkg").join("a.py"), "python"), Some(100));
+        assert_eq!(edition_of(&dir.join("pkg").join("a.rs")), "2024");
+        assert_eq!(width(&dir.join("pkg").join("a.tex"), "tex"), None);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

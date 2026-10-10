@@ -151,7 +151,7 @@
       "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml"},
       "version": ["--version"],
       "formats": ["rust"],
-      "format": {"program": "rustfmt", "args": ["--edition", "2021"]},
+      "format": {"program": "rustfmt", "args": ["--edition", "{edition}"]},
       "install": {"any": "https://rustup.rs/"},
       "places": {"windows": ["%USERPROFILE%\\.cargo\\bin"], "any": ["~/.cargo/bin"]}
     },

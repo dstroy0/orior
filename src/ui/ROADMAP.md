@@ -40,7 +40,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Languages and formatting
 
-1. **Black as Black formats.** Format Document gives in Python what Black gives, line for line, and orior's own formatting of a line as it is typed keeps to the same rules.
+1. **Typing as Black writes.** Enter inside brackets in Python puts what follows one step in and the closing bracket back on a line of its own, as Black lays a long call out.
 2. **Type checkers and linters in the editor.** Mypy, flake8 and the tree's other checkers run as files change, each one's findings in Problems beside the language server's, with no setup past naming the checker.
 3. **The tree's environments.** A virtual environment's path kept relative to the tree, a Pipfile or a `setup.cfg` read wherever it stands, and Nix and Pipenv each found and used as the tree's own environment.
 4. **Formatting of the reader's.** The continuation indent set apart for each place it falls, an operator's sign moved to the next line where a line breaks, documentation held to a margin of its own, and Javadoc's tags lined up.

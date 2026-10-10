@@ -428,6 +428,15 @@ async function load(path) {
       tab.reading = readOutward(tab);
     }
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
+    // The width the file's formatter keeps its lines to, drawn as a line down the editor.
+    if (tab.session) {
+      invoke("format_width", { path: tab.path, language: tab.session.language?.id ?? "" })
+        .then((width) => {
+          tab.session.margin = width;
+          state.editor?.schedule();
+        })
+        .catch(() => {});
+    }
   }
 }
 

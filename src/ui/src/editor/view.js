@@ -164,7 +164,11 @@ export class Editor {
     this.sheet = div("ed-sheet");
     this.layers = div("ed-layers");
     this.layers.append(this.under, this.picked, this.text, this.over, this.input);
-    this.sheet.append(this.layers);
+    // The formatter's width, a line down the sheet after its last column.
+    this.margin = div("ed-margin");
+    this.margin.hidden = true;
+    this.marginAt = null;
+    this.sheet.append(this.margin, this.layers);
     this.originRow = 0;
     this.pad = 0;
     this.below = 0;
@@ -426,6 +430,15 @@ export class Editor {
     const down = this.originRow * LINE - (top - this.pad);
     this.layers.style.transform = `translate(${-left}px, ${down}px)`;
     this.gutterRows.style.transform = `translateY(${down}px)`;
+    const width = this.s?.margin ?? null;
+    const at = width ? PAD + width * this.cw - left : null;
+    if (at !== this.marginAt) {
+      this.marginAt = at;
+      this.margin.hidden = at === null;
+      if (at !== null) {
+        this.margin.style.transform = `translateX(${at}px)`;
+      }
+    }
   }
 
   xOf(p) {

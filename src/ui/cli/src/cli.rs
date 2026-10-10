@@ -314,7 +314,7 @@ fn bridge(root: &std::path::Path, word: Option<&str>) -> i32 {
         return 0;
     }
     let word = word.map(str::to_lowercase);
-    let names: Vec<&String> = klq.keys.keys().filter(|name| word.as_ref().map_or(true, |w| name.to_lowercase().contains(w.as_str()))).collect();
+    let names: Vec<&String> = klq.keys.keys().filter(|name| word.as_ref().is_none_or(|w| name.to_lowercase().contains(w.as_str()))).collect();
     if names.is_empty() {
         err("no key holds that word");
         return NO_CODE;

@@ -146,7 +146,7 @@ fn bundled() -> Vec<Tool> {
 
 /// orior's own toolchains, then the reader's, those for another system left out.
 pub fn manifest() -> Vec<Tool> {
-    bundled().into_iter().chain(added().tools).filter(|tool| tool.only.as_deref().map_or(true, |only| only == system())).collect()
+    bundled().into_iter().chain(added().tools).filter(|tool| tool.only.as_deref().is_none_or(|only| only == system())).collect()
 }
 
 fn added_file() -> Option<PathBuf> {

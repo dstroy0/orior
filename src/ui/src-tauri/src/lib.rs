@@ -378,6 +378,13 @@ fn format_text(app: State<App>, path: String, language: String, text: String) ->
     format::format(&root_of(&app)?.join(path), &language, &text)
 }
 
+/// The width the formatter of `language` keeps the lines of the file at `path` to, as the project's
+/// own settings for the formatter set it, or None where no formatter formats the language.
+#[tauri::command(async)]
+fn format_width(app: State<App>, path: String, language: String) -> Result<Option<u32>, String> {
+    Ok(format::width(&root_of(&app)?.join(path), &language))
+}
+
 /// A path a server named, as the page names files: under the tree, from its top folder, and
 /// elsewhere whole.
 fn tree_path(root: &Path, path: &str) -> String {
@@ -976,6 +983,7 @@ fn open(launch: Launch) {
             user_css_read,
             home_reveal,
             format_text,
+            format_width,
             format_languages,
             run_file_line,
             validate_file,

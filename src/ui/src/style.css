@@ -2262,6 +2262,21 @@ body[data-view="run"] .statusbar .ed-status {
   background: var(--ed-guide);
 }
 
+/* The formatter's width: a line down the editor after the last column its lines keep to. */
+.ed-margin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--ed-guide);
+  pointer-events: none;
+}
+
+.ed-margin[hidden] {
+  display: none;
+}
+
 .ed-same {
   background: var(--ed-same);
   border-radius: 2px;
