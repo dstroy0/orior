@@ -82,9 +82,9 @@ function step(direction) {
 }
 
 // Shows `path`'s changes from `then`, the last commit's text or null where it holds none, to `now`,
-// over `host`. `sides` names the two texts, and `same` says they do not differ, where the left one
-// is not the last commit.
-export function showDiff(host, path, then, now, { sides = "last commit, then as it stands", same = "No change from the last commit." } = {}) {
+// over `host`. `sides` names the two texts where the left one is not the last commit, and `same` says
+// they do not differ.
+export function showDiff(host, path, then, now, { sides = null, same = "No change from the last commit." } = {}) {
   closeDiff();
   const old = (then ?? "").split(/\r?\n/);
   const fresh = now.split(/\r?\n/);
@@ -99,7 +99,7 @@ export function showDiff(host, path, then, now, { sides = "last commit, then as 
     "div",
     { className: "diff-bar" },
     element("span", { className: "diff-name", textContent: path }),
-    element("span", { className: "diff-sides", textContent: then === null ? "not in the last commit" : sides }),
+    element("span", { className: "diff-sides", textContent: sides ?? (then === null ? "not in the last commit" : "last commit, then as it stands") }),
     element("span", { className: "diff-where" }),
     button("chevron", "Next Change (F7)", () => step(1)),
     button("chevron", "Previous Change (Shift+F7)", () => step(-1)),

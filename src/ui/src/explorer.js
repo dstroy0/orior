@@ -7,7 +7,7 @@
 // symbol is used and shows from Find Usages; Open Editors, which lists the tabs; and the tree's own
 // pane of its files. Structure holds the Outline of what the open file declares. Commit holds
 // Changes, the files that differ from the last commit, the Timeline of commits that touched the open
-// file, and its Local History, the file as each save left it. Problems lists the open files' diagnostics, and Git the commits of the branch. The
+// file, and its Local History, the file as each save left it. Problems lists the open files' diagnostics, and Git every branch's commits as a graph. The
 // explorer's … menu shows or hides each pane of the group, reads the tree again, and closes every
 // folder. Which group shows, and which panes show and are open, is kept between visits.
 //
@@ -15,6 +15,7 @@
 // and close it as they do a folder.
 
 import { invoke } from "./bridge.js";
+import { escapeHtml } from "./editor/view.js";
 import { copyText, menuOn, showMenu } from "./menu.js";
 import { symbolsOf } from "./outline.js";
 
@@ -55,6 +56,9 @@ const state = {
   timeline: { path: null, commits: [] },
   local: { path: null, snapshots: [] },
   undo: { session: null, wait: 0 },
+  // The graph: what the field searches for, the commits shown, the ones whose files are open, the
+  // files of each commit read so far, and what the graph was last drawn from.
+  git: { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", branch: null },
 };
 
 function element(tag, props = {}, ...children) {
@@ -481,28 +485,146 @@ export function drawProblems(files) {
   body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No problems in the open files. A language server or Run, Validate finds them." })]));
 }
 
-// Git: the branch the tree is on, and its commits, the newest first.
+// Git: the branch the tree is on, and every branch's commits as a graph, the newest first, each with
+// the branches and tags at it, its subject, its author and its date. A press on a commit opens the
+// files it changed under it, and a press on one of those sets the file as the commit left it beside
+// the file as the commit before it did. The field over the graph searches the whole history, by
+// subject, author, id or branch, and shows what it finds without the graph.
+
+// A column of the graph is this wide, and its row this high.
+const LANE = 12;
+const ROW = 22;
+
+const laneX = (lane) => LANE / 2 + lane * LANE;
+
+const tone = (line) => `var(--t${[4, 2, 5, 3, 6, 1][line % 6]})`;
+
+// A row's strokes and its commit's dot, as an SVG the width of the columns it crosses.
+function lanesOf(commit) {
+  const across = Math.max(commit.lane, ...commit.lines.flatMap(([from, to]) => [from, to])) + 1;
+  const mid = ROW / 2;
+  let paths = "";
+  for (const [from, to, half, line] of commit.lines) {
+    const [top, bottom] = half ? [mid, ROW] : [0, mid];
+    const [x1, x2] = [laneX(from), laneX(to)];
+    const bend = (bottom - top) / 2;
+    const d = x1 === x2 ? `M${x1} ${top}V${bottom}` : `M${x1} ${top}C${x1} ${top + bend} ${x2} ${bottom - bend} ${x2} ${bottom}`;
+    paths += `<path d="${d}" style="stroke:${tone(line)}"/>`;
+  }
+  const merge = commit.parents.length > 1;
+  const dot = `<circle cx="${laneX(commit.lane)}" cy="${mid}" r="${merge ? 3 : 3.5}" style="${merge ? `fill:var(--surface);stroke:${tone(commit.color)}` : `fill:${tone(commit.color)};stroke:none`}"/>`;
+  return `<svg class="git-lanes" width="${across * LANE}" height="${ROW}" aria-hidden="true">${paths}${dot}</svg>`;
+}
+
+function commitRow(commit) {
+  const open = state.git.open.has(commit.id);
+  const refs = commit.refs
+    .map((ref) => {
+      const head = ref.startsWith("HEAD -> ");
+      const name = head ? ref.slice(8) : ref;
+      return `<span class="git-ref${head || ref === "HEAD" ? " git-head" : ""}${name.startsWith("tag: ") ? " git-tag" : ""}">${escapeHtml(name.replace(/^tag: /, ""))}</span>`;
+    })
+    .join("");
+  const title = `${commit.id.slice(0, 8)}  ${commit.author}  ${day(commit.when)} ${time(commit.when)}${commit.refs.length ? `\n${commit.refs.join(", ")}` : ""}\n${commit.subject}`;
+  return `<button class="commit git-commit" type="button" data-key="${commit.id}" data-depth="0" aria-expanded="${open}" title="${escapeHtml(title)}">${lanesOf(commit)}${refs}<span class="name">${escapeHtml(commit.subject)}</span><span class="git-author">${escapeHtml(commit.author)}</span><span class="where">${day(commit.when)}</span></button>`;
+}
+
+// The rows of the files a commit changed, under its row.
+function touchedRows(commit) {
+  const files = state.git.files.get(commit.id) ?? [];
+  if (!files.length) {
+    return [element("p", { className: "pane-empty git-none", textContent: "No file under the tree changed." })];
+  }
+  return files.map((file) => {
+    const cut = file.path.lastIndexOf("/");
+    const name = file.path.slice(cut + 1);
+    const row = element("button", { className: "node git-file", type: "button", title: file.was ? `${file.was} → ${file.path}` : file.path });
+    row.dataset.key = `${commit.id}:${file.path}`;
+    row.dataset.depth = "1";
+    row.dataset.change = file.state;
+    row.append(...guides(1), iconOf(name), element("span", { className: "name", textContent: name }), element("span", { className: "where", textContent: file.path.slice(0, Math.max(0, cut)) }), element("span", { className: "change", textContent: file.state }));
+    row.addEventListener("click", () => state.hooks.openTouched(commit, file));
+    return row;
+  });
+}
+
+async function toggleCommit(row) {
+  const commit = state.git.commits.find((one) => one.id === row.dataset.key);
+  if (!commit) {
+    return;
+  }
+  if (state.git.open.has(commit.id)) {
+    state.git.open.delete(commit.id);
+    row.setAttribute("aria-expanded", "false");
+    while (row.nextElementSibling && !row.nextElementSibling.classList.contains("git-commit")) {
+      row.nextElementSibling.remove();
+    }
+    return;
+  }
+  state.git.open.add(commit.id);
+  row.setAttribute("aria-expanded", "true");
+  if (!state.git.files.has(commit.id)) {
+    state.git.files.set(commit.id, await invoke("git_touched", { id: commit.id }).catch(() => []));
+  }
+  if (state.git.open.has(commit.id) && row.isConnected) {
+    row.after(...touchedRows(commit));
+  }
+}
 
 export async function drawGit(branch) {
   const body = document.getElementById("git-log");
+  state.git.branch = branch;
   if (!paneOpen("git") || state.group !== "git") {
     return;
   }
-  const commits = await invoke("tree_commits").catch(() => []);
-  const head = element("div", { className: "node git-branch" }, element("span", { className: "name", textContent: branch ?? "no branch" }), element("span", { className: "where", textContent: `${commits.length} commit${commits.length === 1 ? "" : "s"} shown` }));
-  body.replaceChildren(
-    head,
-    ...commits.map((commit) => {
-      const row = element("button", { className: "commit", type: "button", title: `${commit.id.slice(0, 8)}  ${day(commit.when)} ${time(commit.when)}\n${commit.subject}` });
-      row.dataset.key = commit.id;
-      row.dataset.depth = "0";
-      const dot = element("span", { className: "icon commit-dot" });
-      dot.setAttribute("aria-hidden", "true");
-      row.append(dot, element("span", { className: "name", textContent: commit.subject }), element("span", { className: "where", textContent: day(commit.when) }));
-      row.addEventListener("click", () => copyText(commit.id));
-      return row;
-    }),
-  );
+  const query = state.git.query;
+  const commits = await invoke("git_graph", { query: query || null }).catch(() => []);
+  if (query !== state.git.query) {
+    return;
+  }
+  // A graph that is drawn as it stands is left as it is, the focus and the scroll with it.
+  const drawn = `${branch}\n${query}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
+  if (drawn === state.git.drawn && body.childElementCount) {
+    return;
+  }
+  state.git.drawn = drawn;
+  state.git.commits = commits;
+  const count = `${commits.length} commit${commits.length === 1 ? "" : "s"} ${query ? "found" : "shown"}`;
+  const focused = body.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+  body.innerHTML = `<div class="node git-branch"><span class="name">${escapeHtml(branch ?? "no branch")}</span><span class="where">${count}</span></div>${commits.map(commitRow).join("")}`;
+  for (const id of state.git.open) {
+    const row = body.querySelector(`.git-commit[data-key="${id}"]`);
+    const commit = commits.find((one) => one.id === id);
+    if (row && state.git.files.has(id)) {
+      row.after(...touchedRows(commit));
+    }
+  }
+  if (focused) {
+    body.querySelector(`[data-key="${CSS.escape(focused)}"]`)?.focus();
+  }
+}
+
+function gitItems(event) {
+  const row = event.target.closest(".git-commit, .git-file");
+  const commit = state.git.commits.find((one) => one.id === (row?.closest(".git-commit") ? row.dataset.key : row?.dataset.key.split(":")[0]));
+  if (!commit) {
+    return null;
+  }
+  if (row.classList.contains("git-file")) {
+    const file = state.git.files.get(commit.id)?.find((one) => `${commit.id}:${one.path}` === row.dataset.key);
+    return [
+      { label: "Show Changes", run: () => state.hooks.openTouched(commit, file) },
+      { label: "Open as It Was", disabled: file?.state === "D", run: () => state.hooks.openCommit(file.path, commit) },
+      "-",
+      { label: "Copy Path", run: () => copyText(file.path) },
+    ];
+  }
+  return [
+    { label: state.git.open.has(commit.id) ? "Close Files" : "Open Files", run: () => toggleCommit(row) },
+    "-",
+    { label: "Copy Commit ID", run: () => copyText(commit.id) },
+    { label: "Copy Commit Message", run: () => copyText(commit.subject) },
+  ];
 }
 
 // The lines down from each folder above a row to the row, one a level.
@@ -538,4 +660,27 @@ export function startExplorer(hooks) {
   menuOn(document.getElementById("open-editors"), (event) => hooks.tabMenu(event.target.closest(".open-row")?.dataset.key));
   menuOn(document.getElementById("timeline"), timelineItems);
   menuOn(document.getElementById("local-history"), localItems);
+  const graph = document.getElementById("git-log");
+  menuOn(graph, gitItems);
+  graph.addEventListener("click", (event) => {
+    const row = event.target.closest(".git-commit");
+    if (row) {
+      toggleCommit(row);
+    }
+  });
+  const query = document.getElementById("git-query");
+  let wait = 0;
+  query.addEventListener("input", () => {
+    window.clearTimeout(wait);
+    wait = window.setTimeout(() => {
+      state.git.query = query.value.trim();
+      drawGit(state.git.branch);
+    }, 250);
+  });
+  query.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      graph.querySelector("button")?.focus();
+    }
+  });
 }

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 //! What git says of the tree: the branch it is on, the files that differ from the last commit and
-//! how, the commits that touched a file, and a file's text as one of those commits left it or as the
-//! last did. In a tree git cannot read, each of these comes back empty. What git is asked to do, for
+//! how, the commits that touched a file, every branch's commits laid out as a graph and the files each
+//! changed, and a file's text as one of those commits left it or as the last did. In a tree git cannot read, each of these comes back empty. What git is asked to do, for
 //! the Commit window: commit chosen files, push, pull where nothing would merge, and put a file back
 //! as the last commit left it, each giving git's own words where it refuses. Here too is the clone of
 //! a repository into a folder of its own, for File, Clone Repository and `orior file clone`.
@@ -316,12 +316,6 @@ pub fn commits(root: &Path, file: &str) -> Result<Vec<Commit>, String> {
     Ok(git(root, &["log", "--follow", &limit, "--format=%H%x1f%ct%x1f%s", "--", &shown]).map(|out| commits_of(&out)).unwrap_or_default())
 }
 
-/// The commits of the branch the tree is on, the newest first.
-pub fn log(root: &Path) -> Vec<Commit> {
-    let limit = format!("-n{COMMITS_LIMIT}");
-    git(root, &["log", &limit, "--format=%H%x1f%ct%x1f%s"]).map(|out| commits_of(&out)).unwrap_or_default()
-}
-
 fn commits_of(out: &[u8]) -> Vec<Commit> {
     String::from_utf8_lossy(out)
         .lines()
@@ -333,6 +327,179 @@ fn commits_of(out: &[u8]) -> Vec<Commit> {
             Some(Commit { id, when, subject })
         })
         .collect()
+}
+
+/// The most commits the graph draws, and the most a search over them finds.
+const GRAPH_LIMIT: usize = 2000;
+
+/// One commit of the graph: its id, its parents, its author, when its author made it in seconds
+/// since 1970, the branches and tags that stand at it, and its subject. `lane` is the column its dot
+/// stands in and `color` the number of the line it is on. `lines` are the strokes of its row, each
+/// `[from, to, half, color]`: from column `from` at the row's top to column `to` at its middle where
+/// `half` is 0, from `from` at the middle to `to` at the bottom where it is 1.
+#[derive(Serialize, Debug)]
+pub struct Drawn {
+    pub id: String,
+    pub parents: Vec<String>,
+    pub author: String,
+    pub when: i64,
+    pub refs: Vec<String>,
+    pub subject: String,
+    pub lane: usize,
+    pub color: usize,
+    pub lines: Vec<[usize; 4]>,
+}
+
+/// The commits of every branch, the newest first and none before its children, laid out as a graph.
+/// With a `query`, the commits whose subject, author, id or branches hold each of its words, in any
+/// case, from the whole history, each on a line of its own.
+pub fn graph(root: &Path, query: &str) -> Vec<Drawn> {
+    let limit = format!("-n{GRAPH_LIMIT}");
+    let mut args = vec!["log", "--all", "--date-order", "--format=%H%x1f%P%x1f%an%x1f%at%x1f%D%x1f%s"];
+    let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
+    if words.is_empty() {
+        args.insert(1, &limit);
+    }
+    let Some(out) = git(root, &args) else {
+        return Vec::new();
+    };
+    let mut drawn = drawn_of(&out);
+    if words.is_empty() {
+        lay_out(&mut drawn);
+        return drawn;
+    }
+    drawn.retain(|commit| {
+        let held = format!("{} {} {} {}", commit.subject, commit.author, commit.id, commit.refs.join(" ")).to_lowercase();
+        words.iter().all(|word| held.contains(word.as_str()))
+    });
+    drawn.truncate(GRAPH_LIMIT);
+    drawn
+}
+
+fn drawn_of(out: &[u8]) -> Vec<Drawn> {
+    String::from_utf8_lossy(out)
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(6, '\u{1f}');
+            let id = parts.next()?.to_string();
+            let parents = parts.next()?.split_whitespace().map(str::to_string).collect();
+            let author = parts.next()?.to_string();
+            let when = parts.next()?.parse().ok()?;
+            let refs = parts.next()?.split(", ").filter(|one| !one.is_empty()).map(str::to_string).collect();
+            let subject = parts.next().unwrap_or_default().to_string();
+            Some(Drawn { id, parents, author, when, refs, subject, lane: 0, color: 0, lines: Vec::new() })
+        })
+        .collect()
+}
+
+/// Gives each commit its column and the strokes of its row. Each column holds the commit it waits
+/// for, the next on its line, and the line's color. A commit takes the first column waiting for it,
+/// or the first free one where none waits, a branch's newest commit; every other column waiting for
+/// it ends at it. Its first parent goes on in its column, or, where another column already waits for
+/// that parent, joins that column; each further parent, a merge's, joins the column that waits for it
+/// or opens one of its own.
+fn lay_out(drawn: &mut [Drawn]) {
+    let mut lanes: Vec<Option<(String, usize)>> = Vec::new();
+    let mut colors = 0;
+    let fresh = |colors: &mut usize| {
+        *colors += 1;
+        *colors - 1
+    };
+    let free = |lanes: &mut Vec<Option<(String, usize)>>| {
+        lanes.iter().position(Option::is_none).unwrap_or_else(|| {
+            lanes.push(None);
+            lanes.len() - 1
+        })
+    };
+    for commit in drawn.iter_mut() {
+        let waiting: Vec<usize> = lanes.iter().enumerate().filter(|(_, lane)| lane.as_ref().is_some_and(|(id, _)| *id == commit.id)).map(|(at, _)| at).collect();
+        let (lane, color) = match waiting.first() {
+            Some(&at) => (at, lanes[at].as_ref().map_or(0, |(_, color)| *color)),
+            None => (free(&mut lanes), fresh(&mut colors)),
+        };
+        for (at, held) in lanes.iter().enumerate() {
+            if let Some((id, line)) = held {
+                commit.lines.push([at, if *id == commit.id { lane } else { at }, 0, *line]);
+            }
+        }
+        for &at in &waiting {
+            lanes[at] = None;
+        }
+        let mut opened = Vec::new();
+        for (nth, parent) in commit.parents.iter().enumerate() {
+            let joins = lanes.iter().position(|held| held.as_ref().is_some_and(|(id, _)| id == parent));
+            match (nth, joins) {
+                (_, Some(at)) => commit.lines.push([lane, at, 1, lanes[at].as_ref().map_or(0, |(_, line)| *line)]),
+                (0, None) => {
+                    lanes[lane] = Some((parent.clone(), color));
+                    opened.push(lane);
+                    commit.lines.push([lane, lane, 1, color]);
+                }
+                (_, None) => {
+                    let at = free(&mut lanes);
+                    let line = fresh(&mut colors);
+                    lanes[at] = Some((parent.clone(), line));
+                    opened.push(at);
+                    commit.lines.push([lane, at, 1, line]);
+                }
+            }
+        }
+        for (at, held) in lanes.iter().enumerate() {
+            if let Some((_, line)) = held.as_ref().filter(|_| !opened.contains(&at)) {
+                commit.lines.push([at, at, 1, *line]);
+            }
+        }
+        while lanes.last().is_some_and(Option::is_none) {
+            lanes.pop();
+        }
+        commit.lane = lane;
+        commit.color = color;
+    }
+}
+
+/// A file a commit changed from its first parent, or from nothing where it has none: its path under
+/// the tree, its state letter (M changed, A added, D gone, R renamed), and the path it had before
+/// where it was renamed.
+#[derive(Serialize)]
+pub struct Touched {
+    pub path: String,
+    pub state: char,
+    pub was: Option<String>,
+}
+
+/// The files under the tree that commit `id` changed.
+pub fn touched(root: &Path, id: &str) -> Result<Vec<Touched>, String> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(format!("{id} is not a commit"));
+    }
+    let parent = format!("{id}^1");
+    let from = git(root, &["rev-parse", "-q", "--verify", &parent]).is_some();
+    let mut args = vec!["diff-tree", "-r", "-M", "--name-status", "-z", "--relative", "--no-commit-id"];
+    if from {
+        args.push(&parent);
+    } else {
+        args.push("--root");
+    }
+    args.push(id);
+    let out = git(root, &args).ok_or_else(|| format!("{id} is not a commit"))?;
+    let text = String::from_utf8_lossy(&out);
+    let mut fields = text.split('\0').filter(|field| !field.is_empty());
+    let mut found = Vec::new();
+    while let Some(status) = fields.next() {
+        let state = status.chars().next().unwrap_or('M');
+        let Some(first) = fields.next() else {
+            break;
+        };
+        if state == 'R' || state == 'C' {
+            let Some(path) = fields.next() else {
+                break;
+            };
+            found.push(Touched { path: path.to_string(), state: if state == 'R' { 'R' } else { 'A' }, was: Some(first.to_string()).filter(|_| state == 'R') });
+        } else {
+            found.push(Touched { path: first.to_string(), state: if matches!(state, 'A' | 'D') { state } else { 'M' }, was: None });
+        }
+    }
+    Ok(found)
 }
 
 /// The text of `file` as commit `id` left it.
@@ -528,6 +695,68 @@ mod branching {
         assert_eq!(branches(&root).iter().map(|branch| branch.name.as_str()).collect::<Vec<_>>(), ["main"]);
         assert!(branch_act(&root, "create", "-x", "").is_err());
         assert!(branch_act(&root, "create", "bad..name", "").is_err());
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod graphing {
+    use super::{Drawn, graph, lay_out, touched};
+    use std::process::Command;
+
+    fn commit(id: &str, parents: &[&str]) -> Drawn {
+        let parents = parents.iter().map(|one| one.to_string()).collect();
+        Drawn { id: id.into(), parents, author: String::new(), when: 0, refs: Vec::new(), subject: String::new(), lane: 0, color: 0, lines: Vec::new() }
+    }
+
+    #[test]
+    fn a_merged_branch_takes_a_column_of_its_own_and_joins_where_it_began() {
+        let mut drawn = vec![commit("m", &["a3", "b2"]), commit("a3", &["a2"]), commit("b2", &["b1"]), commit("b1", &["a2"]), commit("a2", &["a1"]), commit("a1", &[])];
+        lay_out(&mut drawn);
+        assert_eq!(drawn.iter().map(|one| one.lane).collect::<Vec<_>>(), [0, 0, 1, 1, 0, 0]);
+        assert_eq!(drawn[0].lines, [[0, 0, 1, 0], [0, 1, 1, 1]]);
+        assert_eq!(drawn[1].lines, [[0, 0, 0, 0], [1, 1, 0, 1], [0, 0, 1, 0], [1, 1, 1, 1]]);
+        assert!(drawn[3].lines.contains(&[1, 0, 1, 0]));
+        assert_eq!(drawn[4].lines, [[0, 0, 0, 0], [0, 0, 1, 0]]);
+        assert_eq!(drawn[5].lines, [[0, 0, 0, 0]]);
+        assert_eq!(drawn[2].color, 1);
+    }
+
+    #[test]
+    fn a_commit_lists_the_files_it_changed_and_a_search_finds_it() {
+        let root = std::env::temp_dir().join(format!("orior_ui_graph_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| {
+            let out = Command::new("git").args(args).current_dir(&root).output().unwrap();
+            assert!(out.status.success(), "{args:?}");
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+        git(&["init", "-q", "-b", "main"]);
+        git(&["config", "user.name", "Ada"]);
+        git(&["config", "user.email", "t@t"]);
+        std::fs::write(root.join("a.txt"), "one\ntwo\nthree\nfour\n").unwrap();
+        std::fs::write(root.join("b.txt"), "b\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "first"]);
+        std::fs::rename(root.join("a.txt"), root.join("c.txt")).unwrap();
+        std::fs::remove_file(root.join("b.txt")).unwrap();
+        std::fs::write(root.join("d.txt"), "d\n").unwrap();
+        git(&["add", "-A"]);
+        git(&["commit", "-q", "-m", "Second, renamed"]);
+        let first = git(&["rev-parse", "HEAD~1"]);
+        let second = git(&["rev-parse", "HEAD"]);
+        let mut seen: Vec<(String, char, Option<String>)> = touched(&root, &second).unwrap().into_iter().map(|one| (one.path, one.state, one.was)).collect();
+        seen.sort();
+        assert_eq!(seen, [("b.txt".into(), 'D', None), ("c.txt".into(), 'R', Some("a.txt".into())), ("d.txt".into(), 'A', None)]);
+        assert_eq!(touched(&root, &first).unwrap().len(), 2);
+        assert!(touched(&root, "not-hex").is_err());
+        let all = graph(&root, "");
+        assert_eq!(all.iter().map(|one| one.subject.as_str()).collect::<Vec<_>>(), ["Second, renamed", "first"]);
+        assert!(all[0].refs.iter().any(|one| one.contains("main")));
+        assert_eq!(all[0].author, "Ada");
+        assert_eq!(graph(&root, "RENAMED ada").iter().map(|one| one.id.as_str()).collect::<Vec<_>>(), [second.as_str()]);
+        assert!(graph(&root, "nowhere").is_empty());
         std::fs::remove_dir_all(&root).unwrap();
     }
 }

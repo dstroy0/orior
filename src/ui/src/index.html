@@ -113,7 +113,12 @@
               </section>
               <section class="pane" data-pane="git">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:git" aria-expanded="true">Git</button>
-                <div class="pane-body" id="git-log"></div>
+                <div class="pane-body search-body">
+                  <div class="search-box git-box">
+                    <input class="filter" id="git-query" type="search" placeholder="Search commits" spellcheck="false" aria-label="Search commits" />
+                  </div>
+                  <div class="search-hits" id="git-log"></div>
+                </div>
               </section>
             </div>
           </div>

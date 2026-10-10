@@ -933,6 +933,15 @@ async function compareCommit(path, commit, other = null) {
   compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${shortId(older)}, then ${shortId(newer)}`);
 }
 
+// A file as a commit left it beside the file as the commit's first parent left it, the parent left.
+// A file the commit added has nothing on the left, and one it deleted nothing on the right.
+async function openTouched(commit, file) {
+  const parent = commit.parents[0];
+  const then = file.state === "A" || !parent ? null : await invoke("file_at", { path: file.was ?? file.path, id: parent }).catch(() => null);
+  const now = file.state === "D" ? "" : await invoke("file_at", { path: file.path, id: commit.id }).catch(() => "");
+  compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${shortId(commit)}`);
+}
+
 // The file open beside the text on the clipboard.
 async function compareWithClipboard() {
   const tab = tabOf(state.active);
@@ -1907,6 +1916,7 @@ export async function startEdit(defs) {
     cursorLine,
     openCommit,
     compareCommit,
+    openTouched,
     showSnapshot,
     revertSnapshot,
     refresh: async () => {

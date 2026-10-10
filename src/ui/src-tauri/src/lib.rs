@@ -482,10 +482,16 @@ fn git_ahead_behind(app: State<App>) -> Result<Option<(u32, u32)>, String> {
     Ok(git::ahead_behind(&root_of(&app)?))
 }
 
-/// The commits of the branch the tree is on, the newest first.
+/// Every branch's commits laid out as a graph, or the commits a search finds.
 #[tauri::command(async)]
-fn tree_commits(app: State<App>) -> Result<Vec<git::Commit>, String> {
-    Ok(git::log(&root_of(&app)?))
+fn git_graph(app: State<App>, query: Option<String>) -> Result<Vec<git::Drawn>, String> {
+    Ok(git::graph(&root_of(&app)?, query.as_deref().unwrap_or("")))
+}
+
+/// The files a commit changed.
+#[tauri::command(async)]
+fn git_touched(app: State<App>, id: String) -> Result<Vec<git::Touched>, String> {
+    git::touched(&root_of(&app)?, &id)
 }
 
 #[tauri::command]
@@ -1193,7 +1199,8 @@ fn open(launch: Launch) {
             report_asked,
             report_open,
             file_commits,
-            tree_commits,
+            git_graph,
+            git_touched,
             history_list,
             scrollback_open,
             scrollback_keep,

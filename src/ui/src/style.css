@@ -4633,6 +4633,71 @@ textarea.report-field {
   font-weight: 600;
 }
 
+/* The graph: a row a commit, its columns' strokes and its dot, the branches and tags at it, its
+ * subject, its author and its date. */
+.explorer .git-box .filter {
+  padding-right: 0.65rem;
+}
+
+.git-commit {
+  gap: 0.3rem;
+  padding-left: 0.3rem;
+}
+
+.git-lanes {
+  flex: none;
+  overflow: visible;
+}
+
+.git-lanes path {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.git-lanes circle {
+  stroke-width: 1.5;
+}
+
+.git-ref {
+  flex: 0 0.2 auto;
+  min-width: 3rem;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * 0.6);
+  font: 11px/16px var(--code);
+  color: var(--fg-2);
+}
+
+.git-ref.git-head {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.git-ref.git-tag {
+  color: var(--t3);
+}
+
+.git-author {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-2);
+}
+
+.git-commit .where {
+  margin-left: 0;
+}
+
+.git-none {
+  padding-left: 2rem;
+}
+
 .problem {
   display: flex;
   align-items: center;
