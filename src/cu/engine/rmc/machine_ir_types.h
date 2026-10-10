@@ -76,6 +76,9 @@
     form_(WORD_MUL, "word_mul", 3u)                       \
     form_(WORD_MUL_ADD, "word_mul_add", 4u)               \
     form_(WORD_DIV, "word_div", 3u)                           \
+    form_(WORD_REM, "word_rem", 3u)                           \
+    form_(SIGNED_WORD_DIV, "signed_word_div", 3u)             \
+    form_(SIGNED_WORD_REM, "signed_word_rem", 3u)             \
     form_(WORD_SELECT, "word_select", 4u)                           \
     form_(WORD_MUL_LOW, "word_mul_low", 4u)               \
     form_(WORD_MUL_HIGH, "word_mul_high", 3u)             \
@@ -194,7 +197,8 @@
 #define PHYSREGS(fixed_)                                                                                               \
     fixed_(ZERO, "zero") fixed_(LANE_NUMBER, "lane_number") fixed_(RECORD, "record") fixed_(INDEX, "index")            \
         fixed_(BODY, "body") fixed_(BODIES, "bodies") fixed_(TABLES, "tables") fixed_(THREADS, "threads")              \
-            fixed_(SIGN_BASE, "sign_base") fixed_(INDEXED, "indexed") fixed_(ONE, "one") fixed_(OK, "ok")
+            fixed_(SIGN_BASE, "sign_base") fixed_(INDEXED, "indexed") fixed_(ONE, "one") fixed_(OK, "ok")              \
+                fixed_(LAUNCH, "launch") fixed_(CARRY, "carry")
 
 #define OPCODE_NAMED(name_, text_, parameters_) OPCODE_##name_,
 #define REGCLASS_NAMED(name_, text_) REGCLASS_##name_,

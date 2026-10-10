@@ -10,7 +10,7 @@
 // Where the path already holds a .kdm, its costs come forward onto the arrangements found this time, matched by the
 // arrangement and never by where it sat in the file. A cost is therefore kept across a rewrite, and a rewrite that
 // finds an arrangement nobody has timed leaves it untimed.
-#include "../protocol/chain_build.h"
+#include "../protocol/gate/chain_build.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -2,7 +2,7 @@
 // host_entry_check.c: the kind an address shows and the width a sizing register names, read from the two words put
 // and the word given back, with no bus. The reads and writes themselves are held elsewhere (query_interface_check.c);
 // here the decision over the read-back words and the width over a sizing register's mask are put their own values
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/host_entry.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/query/host_entry.h"
 
 #include <stdio.h>
 

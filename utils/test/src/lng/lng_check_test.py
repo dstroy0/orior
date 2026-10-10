@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "..", "src", "lng"))
 import lng_check
 
 HEAD = (
-    ["word", "kind", "names", "chosen_by"]
+    ["word", "kind", "names"]
     + lng_check.SELECTED
     + ["bits", "signed", "c_type", "complement", "<", ">=", "+", "&", "&&", "-"]
 )
@@ -37,7 +37,6 @@ def table(*rows):
 def blank(
     word,
     kind,
-    chosen_by="base",
     bits="",
     signed="",
     c_type="",
@@ -48,7 +47,6 @@ def blank(
         word,
         kind,
         "",
-        chosen_by,
         "",
         "",
         "",
@@ -70,7 +68,7 @@ CLEAN = table(
     blank("geq", "doing", complement="below", operators=[">="]),
     blank("add", "doing", operators=["+"]),
     blank("and", "doing", operators=["&"]),
-    blank("word", "thing", "industry", "32", "0", "unsigned int"),
+    blank("word", "thing", bits="32", signed="0", c_type="unsigned int"),
 )
 head, rows, defects = lng_check.table_read(CLEAN)
 expect("a clean table reads whole", (len(rows), defects), (5, []))
@@ -82,14 +80,14 @@ expect(
 expect("a clean table holds no finding", lng_check.table_findings(head, rows), [])
 
 head, rows, defects = lng_check.table_read(CLEAN + "short\tthing\n")
-expect("a short row is a defect", defects, ["line 7 holds 2 cells where the head holds 18"])
+expect("a short row is a defect", defects, ["line 7 holds 2 cells where the head holds 17"])
 
 BROKEN = table(
     blank("below", "doing", complement="geq", operators=["<"]),
     blank("geq", "doing", complement="add", operators=[">="]),
     blank("add", "doing", operators=["+"]),
     blank("add", "doing", operators=["+"]),
-    blank("word", "noun", "guessed"),
+    blank("word", "noun"),
 )
 head, rows, _ = lng_check.table_read(BROKEN)
 expect(
@@ -98,7 +96,6 @@ expect(
     [
         "add doing is held twice",
         "word has the kind noun, which no table names",
-        "word is chosen by guessed, which no table names",
         "below complements geq, which does not complement it back",
         "geq complements add, which does not complement it back",
     ],
@@ -168,7 +165,7 @@ expect(
     ],
 )
 
-HOL_HEAD = ["word", "kind", "names", "chosen_by"] + lng_check.SELECTED + ["bits", "signed", "transpiler", "<", "+"]
+HOL_HEAD = ["word", "kind", "names"] + lng_check.SELECTED + ["bits", "signed", "transpiler", "<", "+"]
 
 
 def hol_table(*rows):
@@ -176,21 +173,21 @@ def hol_table(*rows):
 
 
 TRANSPILER = table(
-    blank("word", "thing", "industry", "32", "0", "unsigned int"),
+    blank("word", "thing", bits="32", signed="0", c_type="unsigned int"),
     blank("add", "doing", operators=["+"]),
 )
 head, rows, _ = lng_check.table_read(TRANSPILER)
 hol_head, hol_rows, _ = lng_check.table_read(
     hol_table(
-        ["u32_t", "type", "", "doug", "", "", "", "", "32", "0", "word", "", ""],
-        ["plus", "plain", "", "doug", "", "", "", "", "", "", "add", "", "1"],
+        ["u32_t", "type", "", "", "", "", "", "32", "0", "word", "", ""],
+        ["plus", "plain", "", "", "", "", "", "", "", "add", "", "1"],
     )
 )
 expect("a cross that agrees", lng_check.hol_check(rows, hol_head, hol_rows, head), ([], []))
 hol_head, hol_rows, _ = lng_check.table_read(
     hol_table(
-        ["i32_t", "type", "", "doug", "", "", "", "", "32", "1", "word", "", ""],
-        ["u16_t", "type", "", "doug", "", "", "", "", "16", "0", "halfword", "", ""],
+        ["i32_t", "type", "", "", "", "", "", "32", "1", "word", "", ""],
+        ["u16_t", "type", "", "", "", "", "", "16", "0", "halfword", "", ""],
     )
 )
 expect(
@@ -210,14 +207,14 @@ expect(
 
 hol_head, hol_rows, _ = lng_check.table_read(
     hol_table(
-        ["add", "core op", "", "industry", "", "", "", "", "", "", "", "", "1"],
-        ["lt", "core op", "", "industry", "", "", "", "", "", "", "", "1", ""],
-        ["u32_t", "type", "", "doug", "", "", "", "", "32", "0", "word", "", ""],
+        ["add", "core op", "", "", "", "", "", "", "", "", "", "1"],
+        ["lt", "core op", "", "", "", "", "", "", "", "", "1", ""],
+        ["u32_t", "type", "", "", "", "", "", "32", "0", "word", "", ""],
     )
 )
 head, rows, _ = lng_check.table_read(
     table(
-        blank("word", "thing", "industry", "32", "0", "unsigned int"),
+        blank("word", "thing", bits="32", signed="0", c_type="unsigned int"),
         blank("add", "doing", operators=["+"]),
         blank("below", "doing", operators=["<"]),
     )

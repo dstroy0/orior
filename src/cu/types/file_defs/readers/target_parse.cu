@@ -3,14 +3,14 @@
 #include "../../../engine/rmc/target_internal.h"
 
 // The rulesets a lane is written in, one a language, each read once a process from its .krs file in
-// src/cu/transpiler/lstar/coherence, or in the folder $CYCLE_RULESETS names. The format is the comment the rulesets'
+// src/cu/transpiler/lstar/protocol/table, or in the folder $CYCLE_RULESETS names. The format is the comment the rulesets'
 // files open with. Each language's code generator names every bank of registers it takes from, every register it
 // passes to a form by name, and every form it writes with the parameters each takes, in the schema its class gives the base; a
 // ruleset that lacks one of them, holds one they do not name, or gives a form other parameters errors on whole, and
 // the record machine sends its programs on to another language or the interpreter. A form is kept cut at its
 // parameters: writing one appends its pieces with each argument between them
 
-// the folder rulesets are read from: $CYCLE_RULESETS, else ../../../transpiler/lstar/coherence from this file's folder
+// the folder rulesets are read from: $CYCLE_RULESETS, else ../../../transpiler/lstar/protocol/table from this file's folder
 // in the tree it was built from
 std::string ruleset_folder(void)
 {
@@ -21,8 +21,8 @@ std::string ruleset_folder(void)
     }
     const std::string file = __FILE__;
     const size_t slash = file.find_last_of("/\\");
-    return (slash == std::string::npos) ? std::string("../../../transpiler/lstar/coherence")
-                                        : (file.substr(0u, slash + 1u) + "../../../transpiler/lstar/coherence");
+    return (slash == std::string::npos) ? std::string("../../../transpiler/lstar/protocol/table")
+                                        : (file.substr(0u, slash + 1u) + "../../../transpiler/lstar/protocol/table");
 }
 
 // the place of `word` among `count` names, or `count` where it is none of them

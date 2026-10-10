@@ -52,6 +52,13 @@ unsigned int container_endings_find(const ContainerLayout *layout, const unsigne
 unsigned int container_registers_read(const ContainerLayout *layout, const unsigned char *pattern,
                                       unsigned long long pattern_size, const char *part);
 
+// where every ending of `part` lies in its code, in bytes, as the container itself records them in the part's own
+// attributes: into `exits`, which holds `room` of them, and the count found. 0 where the pattern holds no such part
+// or its attributes carry no ending. The container's own record is read, and no instruction is named to find one
+unsigned int container_exits_read(const ContainerLayout *layout, const unsigned char *pattern,
+                                  unsigned long long pattern_size, const char *part, unsigned int *exits,
+                                  unsigned int room);
+
 // every code section of `container`, which is `size` bytes, each a section whose name is the layout's code name for
 // some part: the offset of each through `offsets` and its length through `sizes`, which hold `room`. The count found,
 // or 0 where there is none or a header, a name or a section lies past the container's end, or there are more than

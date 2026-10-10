@@ -3,7 +3,7 @@
 One window for the engine. **Run** starts every build, ingest, run, render, sim, viewer, stage pipeline
 and test suite in the tree, shows their output as it arrives, and opens each page a viewer writes in a
 window of its own. **Edit** is the editor for `.g`, `.gsm` and the k-files, with each file type's
-definition beside the file. In a file of `src/cu/transpiler/lstar/coherence/` the bridge shows
+definition beside the file. In a file of `src/cu/transpiler/lstar/protocol/table/` the bridge shows
 beside it as well: for the key under the cursor, its pairs and their verdicts in `Lstar.klq`, its
 name in each `.klm`, and each ruleset's entry of that name.
 

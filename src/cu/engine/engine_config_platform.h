@@ -184,7 +184,8 @@ extern "C"
         ENGINE_MODULE_QASM = 20,
         ENGINE_MODULE_NOISE_DETECTOR = 21,
         ENGINE_MODULE_DEVICE_POOL = 22,
-        ENGINE_MODULE_INTERFACE = 23
+        ENGINE_MODULE_INTERFACE = 23,
+        ENGINE_MODULE_PARQUET = 24
     } EngineModule;
 
 #if defined(_MSC_VER)

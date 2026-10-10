@@ -1,0 +1,16 @@
+if	guard
+unless	guard
+and	flag join
+or	flag join
+constant	memory promise
+atomic	exclusion
+global	scope
+shared	scope
+parameter	scope
+launch	scope
+record	scope
+signed	sign
+sign	sign
+signs	sign
+negative	sign
+fixed

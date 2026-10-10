@@ -1,45 +1,45 @@
-word	kind	names	chosen_by	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	transpiler	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
-i<n>_t	type	a signed exact integer of n bits, n a power of two	doug					n	1																																																				
-u<n>_t	type	an unsigned exact integer of n bits, n a power of two	doug					n	0																																																				
-efloat<n>	type	an exact float of n bits, its sign, exponent and mantissa held as integers	doug					n																																																					
-edouble<n>	type	an exact double of n bits, its sign, exponent and mantissa held as integers	doug					n																																																					
-i8_t	type	i<n>_t at n = 8	doug					8	1	signed_byte																																																			
-u8_t	type	u<n>_t at n = 8	doug					8	0	byte																																																			
-i16_t	type	i<n>_t at n = 16	doug					16	1	signed_halfword																																																			
-u16_t	type	u<n>_t at n = 16	doug					16	0	halfword																																																			
-i32_t	type	i<n>_t at n = 32	doug					32	1	signed_word																																																			
-u32_t	type	u<n>_t at n = 32	doug					32	0	word																																																			
-i64_t	type	i<n>_t at n = 64	doug					64	1	signed_wide																																																			
-u64_t	type	u<n>_t at n = 64	doug					64	0	wide																																																			
-equals	plain	a name given a value	doug																																	1																									
-evaluate	plain	the true or false answer of what follows	doug																																																										
-is identical to	plain	two values the same	doug							eq															1																																				
-add	core op		industry								1																																																		
-sub	core op		industry									1																																																	
-mul	core op		industry										1																																																
-div	core op		industry											1																																															
-rem	core op		industry												1																																														
-neg	core op		industry																													1																													
-not	core op		industry																														1	1																											
-bitand	core op		industry													1																																													
-bitor	core op		industry														1																																												
-bitxor	core op		industry															1																																											
-shl	core op		industry																1																																										
-shr	core op		industry																	1																																									
-add_assign	core op		industry																																																	1									
-sub_assign	core op		industry																																																		1								
-mul_assign	core op		industry																																																			1							
-div_assign	core op		industry																																																				1						
-rem_assign	core op		industry																																																					1					
-bitand_assign	core op		industry																																																						1				
-bitor_assign	core op		industry																																																							1			
-bitxor_assign	core op		industry																																																								1		
-shl_assign	core op		industry																																																									1	
-shr_assign	core op		industry																																																										1
-eq	core op		industry																						1																																				
-ne	core op		industry																							1																																			
-lt	core op		industry																		1																																								
-le	core op		industry																			1																																							
-gt	core op		industry																				1																																						
-ge	core op		industry																					1																																					
-use	plain	brings a .gsm file into .g, wrapped as __gsm__(file)	doug																																																										
+word	kind	names	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	transpiler	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
+i<n>_t	type	a signed exact integer of n bits, n a power of two					n	1																																																				
+u<n>_t	type	an unsigned exact integer of n bits, n a power of two					n	0																																																				
+efloat<n>	type	an exact float of n bits, its sign, exponent and mantissa held as integers					n																																																					
+edouble<n>	type	an exact double of n bits, its sign, exponent and mantissa held as integers					n																																																					
+i8_t	type	i<n>_t at n = 8					8	1	signed_byte																																																			
+u8_t	type	u<n>_t at n = 8					8	0	byte																																																			
+i16_t	type	i<n>_t at n = 16					16	1	signed_halfword																																																			
+u16_t	type	u<n>_t at n = 16					16	0	halfword																																																			
+i32_t	type	i<n>_t at n = 32					32	1	signed_word																																																			
+u32_t	type	u<n>_t at n = 32					32	0	word																																																			
+i64_t	type	i<n>_t at n = 64					64	1	signed_wide																																																			
+u64_t	type	u<n>_t at n = 64					64	0	wide																																																			
+equals	plain	a name given a value																																	1																									
+evaluate	plain	the true or false answer of what follows																																																										
+is identical to	plain	two values the same							eq															1																																				
+add	core op									1																																																		
+sub	core op										1																																																	
+mul	core op											1																																																
+div	core op												1																																															
+rem	core op													1																																														
+neg	core op																														1																													
+not	core op																															1	1																											
+bitand	core op														1																																													
+bitor	core op															1																																												
+bitxor	core op																1																																											
+shl	core op																	1																																										
+shr	core op																		1																																									
+add_assign	core op																																																		1									
+sub_assign	core op																																																			1								
+mul_assign	core op																																																				1							
+div_assign	core op																																																					1						
+rem_assign	core op																																																						1					
+bitand_assign	core op																																																							1				
+bitor_assign	core op																																																								1			
+bitxor_assign	core op																																																									1		
+shl_assign	core op																																																										1	
+shr_assign	core op																																																											1
+eq	core op																							1																																				
+ne	core op																								1																																			
+lt	core op																			1																																								
+le	core op																				1																																							
+gt	core op																					1																																						
+ge	core op																						1																																					
+use	plain	brings a .gsm file into .g, wrapped as __gsm__(file)																																																										

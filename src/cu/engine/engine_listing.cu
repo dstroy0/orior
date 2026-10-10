@@ -89,7 +89,9 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
 
 extern "C" unsigned int engine_source_samples(const char *source, char ***names)
 {
-    return entry_listing(source, names, 0);
+    // a parquet file's samples are its members, named and ordered as parquet_members gives them
+    const unsigned int members = entry_is_file(source) ? parquet_members(entry_ingest_tools(), source, names) : 0u;
+    return (members != 0u) ? members : entry_listing(source, names, 0);
 }
 
 extern "C" unsigned int engine_set_samples(const char *set, char ***names)

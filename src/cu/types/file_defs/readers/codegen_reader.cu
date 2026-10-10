@@ -191,6 +191,9 @@ int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, std:
     laid_out.constructs = codegen_device_copy(&scratch_arena, flat.constructs.data(), flat.constructs.size());
     laid_out.lines = codegen_device_copy(&scratch_arena, flat.lines.data(), flat.lines.size());
     laid_out.arguments = codegen_device_copy(&scratch_arena, flat.arguments.data(), flat.arguments.size());
+    laid_out.form_slot_first =
+        codegen_device_copy(&scratch_arena, flat.form_slot_first.data(), flat.form_slot_first.size());
+    laid_out.form_slots = codegen_device_copy(&scratch_arena, flat.form_slots.data(), flat.form_slots.size());
     laid_out.form_count = forms;
     laid_out.banks[0] = banks[0];
     laid_out.banks[1] = banks[1];

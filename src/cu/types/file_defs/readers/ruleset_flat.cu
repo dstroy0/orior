@@ -5,14 +5,14 @@
 #include <stdio.h>
 #include <string.h>
 
-// the folder a part's files are read from: src/cu/transpiler/lstar/coherence in the tree this file was built from, where
+// the folder a part's files are read from: src/cu/transpiler/lstar/protocol/table in the tree this file was built from, where
 // the part's machine file, its .kdm and its .ksc are
 static std::string ruleset_part_folder(void)
 {
     const std::string file = __FILE__;
     const size_t slash = file.find_last_of("/\\");
     const std::string here = (slash == std::string::npos) ? std::string() : file.substr(0u, slash + 1u);
-    return here + "../../../transpiler/lstar/coherence";
+    return here + "../../../transpiler/lstar/protocol/table";
 }
 
 // the file at `path` read whole onto the end of `text`: 1, or 0 where it could not be opened. Reading stops once the
@@ -282,7 +282,8 @@ void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read)
     // every letter written is one of the file's or stands for an escape of two; every piece begins a text or follows a
     // slot, each at least three letters of the file, and every text is at least a line's; every word is at least a
     // letter and a space, and a head's parameters are its words
-    read->letter_capacity = text_length + 1u;
+    // a form's fixed registers are folded into its text past the letters read, at most once each
+    read->letter_capacity = (2u * text_length) + 2u;
     read->piece_capacity = (2u * text_length) + 2u;
     read->word_capacity = text_length + 2u;
 }
@@ -467,8 +468,16 @@ void ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat)
             }
         }
     }
+    // each form's slots end to end, the scratch its text names among them
+    for (const InstrTemplate &form : rules->forms)
+    {
+        flat->form_slot_first.push_back((unsigned int)flat->form_slots.size());
+        flat->form_slots.insert(flat->form_slots.end(), form.slots.begin(), form.slots.end());
+    }
+    flat->form_slot_first.push_back((unsigned int)flat->form_slots.size());
     // a vector's data is NULL where it is empty
     flat->constructs.push_back(RulesetCoreConstruct{0u, 0u});
     flat->lines.push_back(RulesetCoreLine{0u, 0u, 0u});
     flat->arguments.push_back(RulesetCoreArgument{0u, 0u, 0u, RulesetCoreSpan{0u, 0u}});
+    flat->form_slots.push_back(0u);
 }

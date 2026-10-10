@@ -16,14 +16,17 @@ struct RulesetCoreFrame
     unsigned int taken_first;
 };
 
-// the scratch of every form of a read ruleset: the constructs, lines and arguments read, the banks at places 0, 1 and
-// 2, and the memory the caller gives: the scratch itself, four words a form, which forms are counted, a frame a form,
-// and the registers taken, as many as there are arguments
+// the scratch of every form of a read ruleset: the constructs, lines and arguments read, each form's slots from
+// form_slot_first[form] to form_slot_first[form + 1] of form_slots, the banks at places 0, 1 and 2, and the memory the
+// caller gives: the scratch itself, four words a form, which forms are counted, a frame a form, and the registers
+// taken, as many as there are arguments
 struct RulesetCoreScratch
 {
     const RulesetCoreConstruct *constructs;
     const RulesetCoreLine *lines;
     const RulesetCoreArgument *arguments;
+    const unsigned int *form_slot_first;
+    const unsigned int *form_slots;
     unsigned int form_count;
     unsigned int banks[3];
     unsigned int *scratch;
@@ -119,6 +122,35 @@ CODEGEN_CORE void ruleset_core_scratch(RulesetCoreScratch *scratch)
     for (unsigned int name = 0u; name < scratch->form_count; name += 1u)
     {
         scratch->counted[name] = 0u;
+    }
+    // a form given as text takes each scratch register its text names, once, before any construct that writes it is
+    // laid out; a bank past the three breaks the lane, as a construct's does
+    for (unsigned int name = 0u; name < scratch->form_count; name += 1u)
+    {
+        if (scratch->constructs[name].line_count != 0u)
+        {
+            continue;
+        }
+        unsigned int *const own = &scratch->scratch[4u * name];
+        for (unsigned int at = scratch->form_slot_first[name]; at < scratch->form_slot_first[name + 1u]; at += 1u)
+        {
+            const unsigned int slot = scratch->form_slots[at];
+            int seen = 0;
+            for (unsigned int before = scratch->form_slot_first[name]; before < at; before += 1u)
+            {
+                seen = seen || (scratch->form_slots[before] == slot);
+            }
+            if (!RULESET_CORE_IS_SCRATCH(slot) || (seen != 0))
+            {
+                continue;
+            }
+            const unsigned int bank = RULESET_CORE_SCRATCH_BANK(slot);
+            const unsigned int bank_index =
+                (bank == scratch->banks[0])
+                    ? 0u
+                    : ((bank == scratch->banks[1]) ? 1u : ((bank == scratch->banks[2]) ? 2u : 3u));
+            own[bank_index] = (bank_index == 3u) ? 1u : (own[bank_index] + 1u);
+        }
     }
     for (unsigned int name = 0u; name < scratch->form_count; name += 1u)
     {

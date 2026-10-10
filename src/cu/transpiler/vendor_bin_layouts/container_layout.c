@@ -79,6 +79,11 @@ int container_layout_read(ContainerLayout *layout, const char *path)
             row->kind = LAYOUT_NAME;
             snprintf(row->text, sizeof(row->text), "%s", value);
         }
+        else if (strcmp(kind, "container") == 0)
+        {
+            // the container the system accepted, which the pattern's reader takes (cubin_pattern_read)
+            continue;
+        }
         else
         {
             refused += 1u;

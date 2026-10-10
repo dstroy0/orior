@@ -1,0 +1,9 @@
+not	bitwise
+nand	bitwise
+nor	bitwise
+neg	arithmetic
+unless	predicate
+ne
+zero
+nonzero
+error
