@@ -231,11 +231,12 @@ export async function serve(tab) {
   if (!language) {
     return;
   }
-  // The diagnostics a server already holds for the file can come before it answers. A build file
-  // orior reads is completed from the start, as its server starts or where none serves it.
+  // The diagnostics a server already holds for the file can come before it answers. A file orior
+  // reads itself, a build file or JSON, is completed from the start, as its server starts or where
+  // none serves it.
   tab.serving = true;
-  tab.building = await invoke("build_file", { path: tab.file }).catch(() => false);
-  if (tab.building) {
+  tab.readHere = await invoke("reads_file", { path: tab.file }).catch(() => false);
+  if (tab.readHere) {
     s.diagnostics ??= [];
     wrap(tab);
   }
@@ -251,7 +252,7 @@ export async function serve(tab) {
     invoke("lsp_hover", { path: tab.file, line: 0, col: 0 }).catch(() => {});
   } else if (took) {
     invoke("lsp_close", { path: tab.file }).catch(() => {});
-  } else if ((inspected.has(language) || tab.building) && tabsOf().includes(tab)) {
+  } else if ((inspected.has(language) || tab.readHere) && tabsOf().includes(tab)) {
     tab.inspected = true;
     s.diagnostics ??= [];
   }
@@ -261,12 +262,12 @@ export async function serve(tab) {
   }
 }
 
-// Gives a served tab's language the server's hover and completion, over the language's own, and a
-// build file's tab the completions orior gives it. A language set again, as a plugin read again
-// sets it, is given them again.
+// Gives a served tab's language the server's hover and completion, over the language's own, and the
+// tab of a file orior reads itself, a build file or JSON, the completions orior gives it. A language
+// set again, as a plugin read again sets it, is given them again.
 export function wrap(tab) {
   const s = tab.session;
-  if (!(tab.served || tab.building) || !s?.language || s.language.served) {
+  if (!(tab.served || tab.readHere) || !s?.language || s.language.served) {
     return;
   }
   const own = s.language;

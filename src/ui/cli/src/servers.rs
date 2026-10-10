@@ -266,8 +266,23 @@ const INSPECT_MOST: u64 = 2 << 20;
 /// The most text a file the tree's check hands to a server may hold.
 const CHECK_MOST: u64 = 2 << 20;
 
-/// The name the build files' findings are kept by, beside the checkers'.
-const BUILDS: &str = "builds";
+/// The name the findings of the files orior reads itself are kept by, beside the checkers': build
+/// files, and JSON by its schema.
+const OWN: &str = "orior";
+
+/// Whether orior reads the file at `path` itself, as a build file or as JSON by its schema.
+fn own_reads(path: &Path) -> bool {
+    crate::builds::kind_of(path).is_some() || crate::schema::reads(path)
+}
+
+/// The diagnostics orior's own reading of the file at `path` finds.
+fn own_check(root: &Path, path: &Path, text: &str) -> Vec<Value> {
+    if crate::builds::kind_of(path).is_some() {
+        crate::builds::check(root, path, text)
+    } else {
+        crate::schema::check(root, path, text)
+    }
+}
 
 /// A file waiting for the tree's check, the server it goes to and the protocol's name for its language.
 struct Waiting {
@@ -723,7 +738,7 @@ impl Servers {
             *checked_root = Some(root.to_path_buf());
         }
         self.run_checkers(root, path, Some(text), true, emit);
-        self.check_build(root, path, text, emit);
+        self.check_own(root, path, text, emit);
         let Some((server, spec)) = self.server(root, language, emit)? else {
             return Ok(false);
         };
@@ -766,7 +781,7 @@ impl Servers {
         let emit = self.told.lock().ok().and_then(|told| told.clone());
         if let (Some(root), Some(emit)) = (checked_root, emit) {
             self.run_checkers(&root, path, Some(text), false, &emit);
-            self.check_build(&root, path, text, &emit);
+            self.check_own(&root, path, text, &emit);
         }
         let _held = self.checks.held.lock().map_err(|_| "held".to_string())?;
         self.holding(path).map_or(Ok(()), |server| server.change(path, text))
@@ -786,7 +801,7 @@ impl Servers {
         let checked_root = self.checked_root.lock().ok().and_then(|root| root.clone());
         let emit = self.told.lock().ok().and_then(|told| told.clone());
         if let (Some(root), Some(emit), Some(text)) = (checked_root, emit, text.as_deref()) {
-            self.check_build(&root, path, text, &emit);
+            self.check_own(&root, path, text, &emit);
         }
         let Some(server) = self.holding(path) else {
             return Ok(());
@@ -823,14 +838,14 @@ impl Servers {
         })
     }
 
-    /// What completes the word before `line`, `col` of `path`: what a build file's reading offers,
-    /// then its server's answer.
+    /// What completes the word before `line`, `col` of `path`: what orior's own reading of a build
+    /// file or of JSON offers, then its server's answer.
     pub fn complete(&self, path: &Path, line: u32, col: u32) -> Result<Vec<Item>, String> {
         let mut found = Vec::new();
-        if crate::builds::kind_of(path).is_some() {
+        if own_reads(path) {
             let root = self.checked_root.lock().ok().and_then(|root| root.clone());
             if let (Some(root), Some(text)) = (root, self.text_of(path)) {
-                found = crate::builds::complete(&root, path, &text, line, col);
+                found = if crate::builds::kind_of(path).is_some() { crate::builds::complete(&root, path, &text, line, col) } else { crate::schema::complete(path, &text, line, col) };
             }
         }
         let Some(server) = self.holding(path) else {
@@ -1249,7 +1264,7 @@ impl Servers {
         }
         self.start_checkers();
         self.check_tree_with_checkers(root, emit);
-        self.check_tree_builds(root, &files, emit);
+        self.check_tree_own(root, &files, emit);
         self.check_files(root, &files, emit)
     }
 
@@ -1447,7 +1462,7 @@ impl Servers {
             let mut dropped = Vec::new();
             for (key, (uri, by_checker)) in all.iter_mut() {
                 let before = by_checker.len();
-                by_checker.retain(|id, _| ids.contains(id) || id == BUILDS);
+                by_checker.retain(|id, _| ids.contains(id) || id == OWN);
                 if by_checker.len() != before {
                     dropped.push((key.clone(), uri.clone()));
                 }
@@ -1522,11 +1537,11 @@ impl Servers {
         }
     }
 
-    /// Checks a build file as its text stands, on a thread of its own; a later check of the same file
-    /// stands in for an earlier one still going. The names its build tool gives it are kept, for its
-    /// server's reports of them as undefined to be passed over.
-    fn check_build(&self, root: &Path, path: &Path, text: &str, emit: &Emit) {
-        if crate::builds::kind_of(path).is_none() {
+    /// Checks a file orior reads itself as its text stands, on a thread of its own; a later check of
+    /// the same file stands in for an earlier one still going. The names a build tool gives its file
+    /// are kept, for its server's reports of them as undefined to be passed over.
+    fn check_own(&self, root: &Path, path: &Path, text: &str, emit: &Emit) {
+        if !own_reads(path) {
             return;
         }
         let key = lsp::key_of(&lsp::uri_of(path));
@@ -1534,38 +1549,41 @@ impl Servers {
             given.insert(key.clone(), crate::builds::given_names(path, text));
         }
         let run = self.runs.lock().map(|mut runs| {
-            let count = runs.entry((key.clone(), BUILDS.to_string())).or_insert(0);
+            let count = runs.entry((key.clone(), OWN.to_string())).or_insert(0);
             *count += 1;
             *count
         }).unwrap_or(0);
         let (root, path, text, emit, published, checks, runs) = (root.to_path_buf(), path.to_path_buf(), text.to_string(), emit.clone(), self.published.clone(), self.checks.clone(), self.runs.clone());
         // The file hears its findings, changed or the same, as a file the editor opens does.
         std::thread::spawn(move || {
-            let found = crate::builds::check(&root, &path, &text);
-            if !runs.lock().is_ok_and(|runs| runs.get(&(key.clone(), BUILDS.to_string())) == Some(&run)) {
+            let found = own_check(&root, &path, &text);
+            if !runs.lock().is_ok_and(|runs| runs.get(&(key.clone(), OWN.to_string())) == Some(&run)) {
                 return;
             }
             let uri = lsp::uri_of(&path);
             if let Ok(mut checked) = checks.checked.lock() {
-                checked.entry(key.clone()).or_insert_with(|| (uri.clone(), HashMap::new())).1.insert(BUILDS.to_string(), found);
+                checked.entry(key.clone()).or_insert_with(|| (uri.clone(), HashMap::new())).1.insert(OWN.to_string(), found);
             }
             emit_whole(&key, &uri, &published, &checks, &emit);
         });
     }
 
-    /// Checks each build file of the tree, as the disk holds it, on a thread of its own.
-    fn check_tree_builds(&self, root: &Path, files: &[String], emit: &Emit) {
-        let builds: Vec<PathBuf> = files.iter().filter(|file| crate::builds::kind_of(Path::new(file)).is_some()).map(|file| root.join(file)).collect();
-        if builds.is_empty() {
+    /// Checks each file of the tree orior reads itself, as the disk holds it, on a thread of its own.
+    /// A file with no findings is passed on only where it had some before, for those to clear.
+    fn check_tree_own(&self, root: &Path, files: &[String], emit: &Emit) {
+        let own: Vec<PathBuf> = files.iter().filter(|file| own_reads(Path::new(file))).map(|file| root.join(file)).collect();
+        if own.is_empty() {
             return;
         }
         let (root, emit, published, checks) = (root.to_path_buf(), emit.clone(), self.published.clone(), self.checks.clone());
         std::thread::spawn(move || {
-            let found: Vec<(PathBuf, Vec<Value>)> = builds.into_iter().filter_map(|path| {
+            let mut found: Vec<(PathBuf, Vec<Value>)> = own.into_iter().filter_map(|path| {
                 let text = std::fs::read_to_string(&path).ok()?;
-                Some((path.clone(), crate::builds::check(&root, &path, &text)))
+                Some((path.clone(), own_check(&root, &path, &text)))
             }).collect();
-            keep_checked(BUILDS, found, &published, &checks, &emit);
+            let had: HashSet<String> = checks.checked.lock().map(|all| all.iter().filter(|(_, (_, by))| by.get(OWN).is_some_and(|items| !items.is_empty())).map(|(key, _)| key.clone()).collect()).unwrap_or_default();
+            found.retain(|(path, items)| !items.is_empty() || had.contains(&lsp::key_of(&lsp::uri_of(path))));
+            keep_checked(OWN, found, &published, &checks, &emit);
         });
     }
 

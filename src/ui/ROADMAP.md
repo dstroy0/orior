@@ -9,8 +9,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Languages and formatting
 
-1. **JSON by its schema.** A JSON file checked and completed from the schema it names, a schema's own schema among them.
-2. **Python, fast and whole.** Python's server answers as quickly as any language's, recursive type hints resolve, and a file's imports, its environment and its tests are found with no setup.
+1. **Python, fast and whole.** Python's server answers as quickly as any language's, recursive type hints resolve, and a file's imports, its environment and its tests are found with no setup.
 
 ## Testing
 

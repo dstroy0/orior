@@ -136,7 +136,7 @@ impl Finding {
         Finding { from: lines.place(from), to: lines.place(to), severity, code, message, fixes: Vec::new() }
     }
 
-    fn value(&self) -> Value {
+    pub(crate) fn value(&self) -> Value {
         let place = |place: &Place| json!({"line": place.line, "character": place.col});
         json!({
             "range": {"start": place(&self.from), "end": place(&self.to)},

@@ -36,6 +36,7 @@ pub mod regexp;
 pub mod plugins;
 pub mod report;
 pub mod root;
+pub mod schema;
 pub mod run_file;
 pub mod runner;
 pub mod servers;

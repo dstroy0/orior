@@ -795,11 +795,12 @@ fn fill_paragraph(text: String, line: u32, width: usize) -> Result<servers::Text
     orior_cli::fill::fill(&text, line, width.max(20))
 }
 
-/// Whether the file at `path` of the tree is a build file orior reads: a Gradle script or catalog, a
-/// POM, an SConstruct or an SConscript.
+/// Whether orior reads the file at `path` of the tree itself: a build file, a Gradle script or
+/// catalog, a POM, an SConstruct or an SConscript, or JSON, read by its schema.
 #[tauri::command]
-fn build_file(path: String) -> bool {
-    orior_cli::builds::kind_of(std::path::Path::new(&path)).is_some()
+fn reads_file(path: String) -> bool {
+    let path = std::path::Path::new(&path);
+    orior_cli::builds::kind_of(path).is_some() || orior_cli::schema::reads(path)
 }
 
 /// The POM at `path` of the tree, `pom.xml` at its top where none is given, and its text, `text` where
@@ -1510,7 +1511,7 @@ fn open(launch: Launch) {
             checkers_known,
             code_sort,
             fill_paragraph,
-            build_file,
+            reads_file,
             maven_settings,
             maven_set,
             snapshots_line,
