@@ -45,6 +45,7 @@ import { clipText, closeMenu, menuOpen, showMenu } from "./menu.js";
 import { chosenJob, chosenLive, listedJobs, showJob, startChosen, stopChosen, subject } from "./run.js";
 import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from "./scheme.js";
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
+import { toolWindowsItems } from "./docks.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, terminalAt, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -521,7 +522,7 @@ function bindMacros() {
 }
 
 // The items commands.json names to be filled in as their menu opens.
-const FILLS = { macros: macroItems };
+const FILLS = { macros: macroItems, "tool-windows": toolWindowsItems };
 
 // A sheet that asks for a line of text, with `start` in it. Answers the text, or null where it was
 // closed with nothing taken.

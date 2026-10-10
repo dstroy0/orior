@@ -21,6 +21,7 @@
 // or restores it.
 
 import { invoke } from "./bridge.js";
+import { dockIcon, iconRemoved } from "./docks.js";
 import { showGroup, shownGroup, morePanes, showPane } from "./explorer.js";
 import { icon } from "./icons.js";
 import { showMenu } from "./menu.js";
@@ -84,9 +85,10 @@ function moreMenu(button) {
   );
 }
 
-// Marks the icon of each window that shows.
+// Marks the icon of each window that shows, and hides each the reader took off the strip.
 export function refreshStrip() {
   for (const [name, { button, shown }] of state.buttons) {
+    button.hidden = iconRemoved(name);
     const on = shown();
     button.classList.toggle("on", on);
     button.setAttribute("aria-pressed", String(on));
@@ -94,6 +96,10 @@ export function refreshStrip() {
       button.classList.toggle("marked", state.errors > 0);
       button.title = state.errors ? `Problems: ${state.errors} error${state.errors === 1 ? "" : "s"}` : "Problems";
     }
+  }
+  const definitions = document.getElementById("tool-definitions");
+  if (definitions) {
+    definitions.hidden = iconRemoved("definitions");
   }
   const bell = document.getElementById("tool-notifications");
   bell?.classList.toggle("marked", noticesUnseen() > 0 && noticesSaid().some((notice) => notice.failed));
@@ -173,6 +179,10 @@ function stripButton(name, glyph, label, keys, run, shown) {
   const button = element("button", { className: `strip-button strip-${name}`, type: "button", title: keys ? `${label} (${keys})` : label }, icon(glyph));
   button.setAttribute("aria-label", label);
   button.addEventListener("click", () => {
+    // The press that ends a drag of the icon to dock its window is no press on it.
+    if (button.dataset.dragged) {
+      return;
+    }
     // A press on the icon whose pane the preview shows keeps it, where a press would otherwise
     // close it.
     if (preview.kept && preview.showing === name) {
@@ -199,8 +209,24 @@ function stripButton(name, glyph, label, keys, run, shown) {
     });
     button.addEventListener("pointerleave", () => window.clearTimeout(resting));
   }
+  if (name !== "more") {
+    dockIcon(name, button);
+  }
   state.buttons.set(name, { button, shown });
   return button;
+}
+
+// Closes the window of an icon taken off the strip.
+export function closeIcon(name) {
+  const shown = state.buttons.get(name)?.shown;
+  if (name === "definitions") {
+    const side = document.getElementById("defs-side");
+    if (paneNodeShown(side)) {
+      togglePaneNode(side, false);
+    }
+  } else if (shown?.()) {
+    state.buttons.get(name).button.click();
+  }
 }
 
 // Notifications: what the status bar has said, the newest first, in a panel under the bell.
@@ -332,6 +358,7 @@ export function startStrip(hooks) {
       toolButton("tool-toolchains", "database", "Toolchains", () => hooks.run("toolchains")),
       toolButton("tool-definitions", "m", "Definitions", () => toggleDefinitions()),
     );
+  dockIcon("definitions", document.getElementById("tool-definitions"));
   document.addEventListener("mousedown", (event) => state.popover && !state.popover.contains(event.target) && !event.target.closest?.("#tool-notifications") && closeNotices());
   window.addEventListener("keydown", (event) => event.key === "Escape" && state.popover && closeNotices());
   onNotice(refreshStrip);

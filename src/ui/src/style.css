@@ -1000,6 +1000,14 @@ body[data-view="run"] .statusbar .ed-status {
   position: relative;
 }
 
+/* The work and each view are grids that the tool windows dock in: the docks lay out their columns
+   and rows, the content in the middle and each docked window at its side. */
+.work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .mode {
   position: absolute;
   inset: 0;
@@ -1007,7 +1015,131 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .mode[data-active="true"] {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* A tool window docked at a side, with the sash on its inner edge that drags its width, or at the
+   foot its height. A panel of the work docked beside the views stands as tall as they do. */
+[data-dock] {
+  position: relative;
+}
+
+.dock-sash {
+  position: absolute;
+  z-index: 6;
+}
+
+[data-dock="left"] > .dock-sash {
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+[data-dock="right"] > .dock-sash {
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+[data-dock="bottom"] > .dock-sash {
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.work > [data-dock] > .term-grip {
+  display: none;
+}
+
+.work > [data-dock="left"],
+.work > [data-dock="right"] {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  min-width: 160px;
+  border-top: 0;
+}
+
+.work > [data-dock="left"] {
+  border-right: 1px solid var(--line);
+}
+
+.work > [data-dock="right"] {
+  border-left: 1px solid var(--line);
+}
+
+.work > [data-dock="bottom"] {
+  max-height: none;
+}
+
+.mode > [data-dock="right"] {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.mode > [data-dock="bottom"] {
+  width: auto;
+  height: var(--dock-size);
+  border-right: 0;
+  border-top: 1px solid var(--line);
+}
+
+.mode > [data-dock="bottom"] > .side-inner,
+.mode > [data-dock="bottom"] .defs {
+  width: auto;
+}
+
+/* The places an icon dragged over its window's place can dock it: the left, the right, the foot. */
+.dock-drop {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.dock-zone {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.dock-zone.lit {
+  border: 1px solid var(--signal);
+  background: color-mix(in srgb, var(--signal) 18%, transparent);
+  color: var(--fg);
+}
+
+.dock-zone-left {
+  left: 8px;
+  top: 8px;
+  bottom: 30%;
+  width: 22%;
+}
+
+.dock-zone-right {
+  right: 8px;
+  top: 8px;
+  bottom: 30%;
+  width: 22%;
+}
+
+.dock-zone-bottom {
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  height: calc(30% - 16px);
 }
 
 .side {
@@ -3302,6 +3434,7 @@ body[data-view="run"] .statusbar .ed-status {
   overflow: hidden;
   transition:
     width 0.22s ease,
+    height 0.22s ease,
     border-color 0.22s ease;
 }
 
@@ -3334,6 +3467,15 @@ body[data-view="run"] .statusbar .ed-status {
   opacity: 0;
 }
 
+.collapsible.toward-bottom.collapsed {
+  height: 0;
+}
+
+.collapsible.toward-bottom.collapsed > .side-inner {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
 .pane-edge {
   position: absolute;
   top: 0;
@@ -3352,6 +3494,14 @@ body[data-view="run"] .statusbar .ed-status {
 
 .pane-edge-right {
   right: 0;
+}
+
+.pane-edge-bottom {
+  top: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

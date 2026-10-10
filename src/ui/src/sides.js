@@ -77,13 +77,14 @@ function tryCollapse(pane) {
   }
 }
 
-// Makes `node` a pane that collapses toward `side`, left or right, with its edge in the view.
-export function keepPane(node, side) {
+// Makes `node` a pane that collapses toward `side`, left, right or bottom, with its edge in the
+// view; `own` marks the view's own pane, the one Ctrl+B shows and collapses.
+export function keepPane(node, side, { own = false } = {}) {
   const edge = Object.assign(document.createElement("div"), { className: `pane-edge pane-edge-${side}`, hidden: true });
   edge.setAttribute("aria-hidden", "true");
   node.closest(".mode").append(edge);
   node.classList.add("collapsible", `toward-${side}`);
-  const pane = { node, edge, timer: 0, keyed: false, pinned: false };
+  const pane = { node, edge, timer: 0, keyed: false, pinned: false, own };
   node.addEventListener("pointerenter", () => window.clearTimeout(pane.timer));
   node.addEventListener("pointerleave", () => {
     pane.pinned = false;
@@ -119,9 +120,20 @@ window.addEventListener(
   true,
 );
 
-// The view's own pane, the one at its left.
+// Moves the pane at `node` to collapse toward `side`, its edge with it.
+export function movePane(node, side) {
+  const pane = panes.find((one) => one.node === node);
+  if (!pane) {
+    return;
+  }
+  node.classList.remove("toward-left", "toward-right", "toward-bottom");
+  node.classList.add(`toward-${side}`);
+  pane.edge.className = `pane-edge pane-edge-${side}`;
+}
+
+// The view's own pane, wherever it stands.
 function leftPane() {
-  return panes.find((pane) => pane.node.classList.contains("toward-left") && pane.node.offsetParent !== null);
+  return panes.find((pane) => pane.own && pane.node.offsetParent !== null);
 }
 
 export function paneShown() {

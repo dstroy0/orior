@@ -157,6 +157,7 @@
         { "label": "Hide Comments", "command": "hide-comments", "keys": "Ctrl+Alt+/", "args": "[on|off]", "checks": "hide-comments" },
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         { "label": "Debug", "command": "debug-view", "keys": "Alt+5" },
+        { "label": "Tool Windows", "items": [{ "fill": "tool-windows" }] },
         "-",
         { "label": "Split Right", "command": "split-right", "keys": "Ctrl+\\", "needs": "editor" },
         { "label": "Split Down", "command": "split-down", "needs": "editor" },
