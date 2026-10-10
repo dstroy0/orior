@@ -4864,8 +4864,8 @@ textarea.report-field {
   max-width: 6rem;
 }
 
-/* The patterns that keep the explorer and the search from files: a list for each, side by side under
- * the heading where the sheet is wide enough. */
+/* The patterns that keep the explorer, the search and the watching of files from files: a list for
+ * each, side by side under the heading where the sheet is wide enough. */
 .prefs-patterns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));

@@ -77,7 +77,9 @@ struct Seen {
     dirs: BTreeSet<String>,
 }
 
-type Kept = Option<(PathBuf, Instant, Arc<Seen>)>;
+/// The tree git's view was last read for, when, and the view, None where git could not read the
+/// tree.
+type Kept = Option<(PathBuf, Instant, Option<Arc<Seen>>)>;
 
 static KEPT: Mutex<Kept> = Mutex::new(None);
 
@@ -85,14 +87,17 @@ fn seen(root: &Path) -> Option<Arc<Seen>> {
     let mut kept = KEPT.lock().ok()?;
     if let Some((at, when, view)) = kept.as_ref() {
         if at == root && when.elapsed() < SEEN_FOR {
-            return Some(view.clone());
+            return view.clone();
         }
     }
     let mut git = Command::new("git");
     git.args(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]).current_dir(root);
     git.stdin(Stdio::null()).stderr(Stdio::null());
     crate::runner::quiet(&mut git);
-    let out = git.output().ok().filter(|out| out.status.success())?;
+    let Some(out) = git.output().ok().filter(|out| out.status.success()) else {
+        *kept = Some((root.to_path_buf(), Instant::now(), None));
+        return None;
+    };
     let mut files = BTreeSet::new();
     let mut dirs = BTreeSet::new();
     for path in String::from_utf8_lossy(&out.stdout).split('\0').filter(|p| !p.is_empty()) {
@@ -105,8 +110,24 @@ fn seen(root: &Path) -> Option<Arc<Seen>> {
         files.insert(path.to_string());
     }
     let view = Arc::new(Seen { files, dirs });
-    *kept = Some((root.to_path_buf(), Instant::now(), view.clone()));
+    *kept = Some((root.to_path_buf(), Instant::now(), Some(view.clone())));
     Some(view)
+}
+
+/// Lets go of git's view of the tree, to be read again by the next list or search, as after files
+/// are made, moved or taken out.
+pub fn forget_seen() {
+    if let Ok(mut kept) = KEPT.lock() {
+        *kept = None;
+    }
+}
+
+/// Whether git tracks the path or would: a file it lists, or a file in a folder holding one it lists
+/// or at the tree's top. Every path is, in a tree git cannot read.
+pub fn tracked(root: &Path, path: &str) -> bool {
+    let Some(view) = seen(root) else { return true };
+    let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
+    view.files.contains(path) || folder.is_empty() || view.dirs.contains(folder)
 }
 
 /// A folder's entries, less what the explorer's patterns hide. Where a pattern keeps only what it
@@ -783,9 +804,7 @@ pub fn paste(root: &Path, into: &str, from: &[PathBuf], moving: bool) -> Result<
         }
         pasted.push(Pasted { from: was, to: relative(root, &target) });
     }
-    if let Ok(mut kept) = KEPT.lock() {
-        *kept = None;
-    }
+    forget_seen();
     Ok(pasted)
 }
 

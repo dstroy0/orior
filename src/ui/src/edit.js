@@ -24,7 +24,7 @@
 // Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
 // when each was last shown, while Ctrl is held.
 
-import { invoke } from "./bridge.js";
+import { invoke, listen } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
 import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
@@ -76,6 +76,11 @@ const state = {
   heads: new Map(),
   // How many files the system clipboard holds, for the tree's Paste.
   clipFiles: 0,
+  // The batches of changes on the disk being taken, one after another.
+  watched: Promise.resolve(),
+  // How many times the tree was drawn, which tells a draw a later one overtook it, and the latest.
+  drawing: 0,
+  drawn: null,
   // The keys of the menus' commands for the editor.
   editorKeys: [],
 };
@@ -129,16 +134,32 @@ async function loadChanges() {
   drawBranch(branch, state.changes.size > 0);
 }
 
-async function drawTree() {
+// Draws the tree from the folders read, and ends once the latest draw has put its rows in. A draw that
+// a later one overtakes while it reads puts nothing in, and the row that holds the keys as the rows
+// are put in keeps them.
+function drawTree() {
+  state.drawn = drawTreeOnce(state.drawing + 1);
+  return state.drawn;
+}
+
+async function drawTreeOnce(drawing) {
   const list = document.getElementById("files");
-  const focused = focusedKey(list);
+  state.drawing = drawing;
+  const put = (rows) => {
+    if (drawing !== state.drawing) {
+      return state.drawn;
+    }
+    const focused = focusedKey(list);
+    list.replaceChildren(...rows);
+    refocus(list, focused);
+    return null;
+  };
   const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
   document.querySelector('.pane[data-pane="folder"] .pane-head').textContent = top.split("/").filter(Boolean).pop() ?? "";
   const query = document.getElementById("file-filter").value.trim();
   if (query) {
     const found = await invoke("tree_find", { query });
-    list.replaceChildren(...found.map((path) => node({ name: path, path, dir: false, ignored: false }, 0)));
-    refocus(list, focused);
+    await put(found.map((path) => node({ name: path, path, dir: false, ignored: false }, 0)));
     return;
   }
   const nodes = [];
@@ -151,8 +172,7 @@ async function drawTree() {
     }
   };
   await walk("", 0);
-  list.replaceChildren(...nodes);
-  refocus(list, focused);
+  await put(nodes);
 }
 
 // A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
@@ -710,18 +730,84 @@ async function formatTab(tab, { saving: onSave = false } = {}) {
     }
     return;
   }
+  const places = replaceLines(s, lines, "format");
+  if (!onSave) {
+    say(`Formatted ${places} ${places === 1 ? "place" : "places"}.`);
+  }
+}
+
+// Puts `lines` in place of a session's own as one change of `kind`, which undo takes back, only the
+// lines that differ replaced. Says in how many places the text changed.
+function replaceLines(s, lines, kind) {
+  const doc = s.doc;
   const changes = lineChanges(doc.lines, lines);
   const edits = changes ? changes.hunks.map((hunk) => linesEdit(doc, hunk.then[0], hunk.then[1], lines.slice(hunk.now[0], hunk.now[1]))) : [{ from: { line: 0, col: 0 }, to: doc.end(), text: lines.join("\n") }];
   if (state.editor?.s === s) {
-    state.editor.change(edits, "format");
+    state.editor.change(edits, kind);
   } else {
-    doc.change(edits, "format", s.selections);
+    doc.change(edits, kind, s.selections);
     s.selections = s.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
     doc.settle(s.selections);
   }
-  if (!onSave) {
-    say(`Formatted ${changes ? changes.hunks.length : 1} ${changes?.hunks.length === 1 ? "place" : "places"}.`);
+  return changes ? changes.hunks.length : 1;
+}
+
+// Changes made on the disk outside the window, as the watcher tells of them a batch at a time: each
+// folder whose entries changed is read again, a tab with no changes of its own takes its file's new
+// text, and git's view of the tree is read again where it may have changed. Batches are taken one
+// after another.
+function treeChanged({ payload: changed }) {
+  state.watched = state.watched.then(async () => {
+    if (changed.lost) {
+      state.children.clear();
+    }
+    // Only a folder the tree has read is shown, and only one shown draws the tree again.
+    const shown = changed.folders.filter((folder) => state.children.delete(folder));
+    const files = changed.lost ? state.tabs.map((tab) => tab.path) : changed.files;
+    for (const tab of files.map(tabOf).filter((tab) => tab && !tab.commit)) {
+      await reloadTab(tab);
+    }
+    if (changed.git) {
+      state.heads.clear();
+      markChanges(tabOf(state.active));
+      await loadChanges();
+    }
+    if (shown.length || changed.git || changed.lost) {
+      await drawTree();
+    }
+  });
+}
+
+// A tab's file as the disk holds it now, taken in where the tab has no changes of its own: the lines
+// that differ replaced as one change, which undo takes back, and the tab marked saved at it. A tab
+// with changes of its own keeps them, and the status bar says the file changed; a file read as a
+// window, or not read as text, is left as it is.
+async function reloadTab(tab) {
+  const s = tab.session;
+  if (!s || s.window || tab.readOnly) {
+    return;
   }
+  let opened;
+  try {
+    opened = await invoke("file_read", { path: tab.path });
+  } catch {
+    return;
+  }
+  if (typeof opened.text !== "string") {
+    return;
+  }
+  const lines = opened.text.split(/\r?\n/);
+  if (lines.length === s.doc.lines.length && lines.every((line, at) => line === s.doc.lines[at])) {
+    return;
+  }
+  if (dirty(tab)) {
+    say(`${tab.file} changed on the disk, and its tab keeps the changes made here.`);
+    return;
+  }
+  replaceLines(s, lines, "reload");
+  markSaved(tab, opened.text);
+  changed(tab);
+  drawTabs();
 }
 
 // Run, Run File: the tab's file saved where it has changes, then run in the terminal with the
@@ -1758,6 +1844,7 @@ export async function startEdit(defs) {
   drawEmpty(true);
   loadBridge();
   keepBridge(() => inBridge(state.active) && drawDefs());
+  listen("tree-changed", treeChanged);
   // The explorer drawn again as its patterns change.
   onPatterns((part) => {
     if (part === "explorer") {

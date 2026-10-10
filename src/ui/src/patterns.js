@@ -1,16 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The patterns that keep the explorer and the search each from files of the tree, one to a line, set
-// in Preferences. Each list is kept for the reader and handed to orior's Rust, which reads a pattern
-// as a .gitignore line: `*` any letters of a name, `**` any folders, a trailing `/` folders only, and
-// a pattern starting with `!` keeping only what it names.
+// The patterns that keep the explorer, the search and the watching of files each from files of the
+// tree, one to a line, set in Preferences. Each list is kept for the reader and handed to orior's
+// Rust, which reads a pattern as a .gitignore line: `*` any letters of a name, `**` any folders, a
+// trailing `/` folders only, and a pattern starting with `!` keeping only what it names.
 
 import { invoke } from "./bridge.js";
 
 export const PATTERN_PARTS = [
   { part: "explorer", label: "Hidden from the explorer" },
   { part: "search", label: "Hidden from the search" },
+  { part: "watching", label: "Not watched" },
 ];
 
 const keyOf = (part) => `orior.patterns.${part}`;

@@ -33,3 +33,4 @@ pub mod servers;
 pub mod symbols;
 pub mod toolchains;
 pub mod validate;
+pub mod watch;

@@ -13,7 +13,7 @@ mod scrollback;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, patterns, plugins, report, root, run_file, runner, servers, symbols, toolchains, validate};
+use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, patterns, plugins, report, root, run_file, runner, servers, symbols, toolchains, validate, watch};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -36,6 +36,8 @@ struct App {
     symbols: symbols::Index,
     debugger: Arc<debug::Debugger>,
     windows: AtomicU64,
+    /// The watch over the tree open, which tells the page of changes made outside the window.
+    watcher: Mutex<Option<watch::Watcher>>,
 }
 
 fn root_of(app: &App) -> Result<PathBuf, String> {
@@ -47,8 +49,21 @@ fn root_get(app: State<App>) -> Option<String> {
     app.root.lock().ok()?.as_ref().map(|p| p.to_string_lossy().into_owned())
 }
 
+/// Watches the tree open for changes made outside the window, each batch sent to the page as
+/// tree-changed, in place of the watch over the tree open before.
+fn watch_tree(handle: &AppHandle, app: &App) {
+    let Ok(root) = root_of(app) else { return };
+    let handle = handle.clone();
+    let watcher = watch::start(root, move |changed| {
+        let _ = handle.emit("tree-changed", changed);
+    });
+    if let Ok(mut held) = app.watcher.lock() {
+        *held = Some(watcher);
+    }
+}
+
 #[tauri::command]
-fn root_set(app: State<App>, path: String) -> Result<String, String> {
+fn root_set(handle: AppHandle, app: State<App>, path: String) -> Result<String, String> {
     let path = dunce::canonicalize(&path).map_err(|e| format!("{path}: {e}"))?;
     if !root::holds_tree(&path) {
         return Err(format!("{} holds no orior tree", path.display()));
@@ -61,6 +76,7 @@ fn root_set(app: State<App>, path: String) -> Result<String, String> {
     if moved {
         app.servers.let_go();
         app.symbols.forget();
+        watch_tree(&handle, &app);
     }
     Ok(path.to_string_lossy().into_owned())
 }
@@ -1018,6 +1034,7 @@ fn open(launch: Launch) {
                     let _ = window.show();
                 });
             }
+            watch_tree(app.handle(), &app.state::<App>());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -3,8 +3,9 @@
 
 // File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
 // bar's and the menus' opacity, each item of the menus that is set on or off, the settings no menu
-// lists, and the patterns that keep the explorer and the search from files. A color changed in the scheme's own theme starts a theme of the reader's from it, and
-// every change shows at once. A theme copies out as text and reads back in from the clipboard.
+// lists, and the patterns that keep the explorer, the search and the watching of files from files.
+// A color changed in the scheme's own theme starts a theme of the reader's from it, and every change
+// shows at once. A theme copies out as text and reads back in from the clipboard.
 
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
 import { clipText, copyText } from "./menu.js";
@@ -293,8 +294,8 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
     return element("section", { className: "prefs-fonts" }, element("h3", { textContent: "Fonts" }), ...rows);
   }
 
-  // The patterns that keep the explorer and the search from files, one to a line, each list taken
-  // when its field is left.
+  // The patterns that keep the explorer, the search and the watching of files from files, one to a
+  // line, each list taken when its field is left.
   function patternsSection() {
     const rows = PATTERN_PARTS.map(({ part, label }) => {
       const field = element("textarea", { className: "report-field", rows: 4, value: patternsOf(part), spellcheck: false, ariaLabel: label });
