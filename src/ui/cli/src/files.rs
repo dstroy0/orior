@@ -482,13 +482,23 @@ fn hit(path: String, line: u64, col: u64, text: &str) -> Hit {
 }
 
 /// Every line in the tree's files that holds the query, at most HITS_LIMIT of them, less the files
-/// the search's patterns hide. Git searches what it tracks or would track; a tree git cannot read is
-/// searched a file at a time, the query read as the text itself.
-pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, String> {
+/// the search's patterns hide, and only in the files `set` names where it names any. Git searches
+/// what it tracks or would track; a tree git cannot read is searched a file at a time, the query
+/// read as the text itself.
+pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Result<Vec<Hit>, String> {
     if query.is_empty() {
         return Ok(Vec::new());
     }
     let patterns = patterns::of(Part::Search);
+    let searched = |path: &str| !patterns.hides(path, false) && !set.hides(path, false);
+    let mut specs = set.kept_specs();
+    if specs.is_empty() {
+        specs = patterns.kept_specs();
+    }
+    if specs.is_empty() {
+        specs.push(".".into());
+    }
+    specs.extend(patterns.hidden_specs().into_iter().chain(set.hidden_specs()));
     let mut git = Command::new("git");
     git.args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
     if !how.case {
@@ -498,7 +508,7 @@ pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, Stri
         git.arg("-w");
     }
     git.arg(if how.regex { "-E" } else { "-F" });
-    git.args(["-e", query, "--"]).args(patterns.pathspecs());
+    git.args(["-e", query, "--"]).args(specs);
     git.stdin(Stdio::null()).stderr(Stdio::piped());
     crate::runner::quiet(&mut git);
     if let Ok(out) = git.output() {
@@ -514,7 +524,7 @@ pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, Stri
                         let number = parts.next()?.parse().ok()?;
                         let col = parts.next()?.parse().ok()?;
                         let path = path.strip_prefix(prefix.as_str()).unwrap_or(path).to_string();
-                        Some(hit(path, number, col, parts.next().unwrap_or_default()))
+                        searched(&path).then(|| hit(path, number, col, parts.next().unwrap_or_default()))
                     })
                     .take(HITS_LIMIT)
                     .collect());
@@ -534,7 +544,7 @@ pub fn search(root: &Path, query: &str, how: Searching) -> Result<Vec<Hit>, Stri
         !wordy(before) && !wordy(after)
     };
     let mut found = Vec::new();
-    for path in left(all(root).into_iter(), &patterns) {
+    for path in all(root).into_iter().filter(|path| searched(path)) {
         let full = root.join(&path);
         if full.metadata().map_or(true, |meta| meta.len() > SEARCHED_BYTES) {
             continue;

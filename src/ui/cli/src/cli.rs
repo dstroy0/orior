@@ -1016,7 +1016,7 @@ fn search(named: Option<&str>, words: &[String]) -> i32 {
             return NO_CODE;
         }
     };
-    match files::search(&root, &query, how) {
+    match files::search(&root, &query, how, &Default::default()) {
         Ok(hits) if hits.is_empty() => 1,
         Ok(hits) => {
             for hit in hits {

@@ -40,3 +40,30 @@ export async function setPatterns(part, text) {
 export function onPatterns(listener) {
   listeners.push(listener);
 }
+
+// The sets of files Find in Files searches in, set in Preferences: a name ending in `:` on a line of
+// its own, and under it the patterns that name the set's files, one starting with `!` taking files
+// out. Listeners hear "sets" when they change.
+const SETS_KEY = "orior.search.sets";
+
+export function setsText() {
+  return localStorage.getItem(SETS_KEY) ?? "";
+}
+
+export function setSets(text) {
+  localStorage.setItem(SETS_KEY, text);
+  listeners.forEach((listener) => listener("sets"));
+}
+
+// Each set by its name, with its patterns.
+export function searchSets() {
+  const sets = [];
+  for (const line of setsText().split("\n").map((one) => one.trim())) {
+    if (line.endsWith(":") && line.length > 1) {
+      sets.push({ name: line.slice(0, -1).trim(), lines: [] });
+    } else if (line && sets.length) {
+      sets.at(-1).lines.push(line);
+    }
+  }
+  return sets;
+}

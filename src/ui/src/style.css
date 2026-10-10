@@ -4332,6 +4332,17 @@ textarea.report-field {
   outline: 1px solid var(--signal);
 }
 
+/* The set of files searched in, under the field, there while Preferences names a set. */
+.search-set {
+  margin: 0.1rem 0.75rem 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
 .search-said {
   margin: 0.15rem 0.85rem 0.3rem;
   min-height: 1em;

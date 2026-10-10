@@ -288,11 +288,13 @@ fn symbols_find(app: State<App>, query: String) -> Result<symbols::Found, String
     Ok(app.symbols.find(&query, SYMBOLS_MOST))
 }
 
-/// Every line in the tree's files that holds the query, for Find in Files.
+/// Every line in the tree's files that holds the query, for Find in Files, in the set of files whose
+/// patterns `set` gives where it gives any.
 #[tauri::command]
-async fn tree_search(app: State<'_, App>, query: String, how: files::Searching) -> Result<Vec<files::Hit>, String> {
+async fn tree_search(app: State<'_, App>, query: String, how: files::Searching, set: Option<Vec<String>>) -> Result<Vec<files::Hit>, String> {
     let root = root_of(&app)?;
-    tauri::async_runtime::spawn_blocking(move || files::search(&root, &query, how)).await.map_err(|e| e.to_string())?
+    let set = patterns::Patterns::read_set(&set.unwrap_or_default());
+    tauri::async_runtime::spawn_blocking(move || files::search(&root, &query, how, &set)).await.map_err(|e| e.to_string())?
 }
 
 /// Sets the window's zoom, 1 being none.

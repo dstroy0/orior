@@ -120,15 +120,37 @@ impl Patterns {
         self.keep.iter().any(|pattern| pattern.hits(path, true))
     }
 
+    /// The patterns of a set of files, one to a line: each names files in the set, and one starting
+    /// with `!` takes the files it names out.
+    pub fn read_set(lines: &[String]) -> Patterns {
+        let flipped: Vec<String> = lines
+            .iter()
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+            .map(|line| line.strip_prefix('!').map_or_else(|| format!("!{line}"), str::to_string))
+            .collect();
+        Patterns::read(&flipped)
+    }
+
     /// The patterns as git's pathspecs: what the patterns that keep name, or the whole tree where none
     /// do, less what the others name.
     pub fn pathspecs(&self) -> Vec<String> {
-        let mut specs: Vec<String> = self.keep.iter().flat_map(|pattern| pattern.pathspecs("")).collect();
+        let mut specs = self.kept_specs();
         if specs.is_empty() {
             specs.push(".".into());
         }
-        specs.extend(self.hide.iter().flat_map(|pattern| pattern.pathspecs("exclude,")));
+        specs.extend(self.hidden_specs());
         specs
+    }
+
+    /// What the patterns that keep name, as git's pathspecs.
+    pub fn kept_specs(&self) -> Vec<String> {
+        self.keep.iter().flat_map(|pattern| pattern.pathspecs("")).collect()
+    }
+
+    /// What the patterns that hide name, as git's pathspecs that leave it out.
+    pub fn hidden_specs(&self) -> Vec<String> {
+        self.hide.iter().flat_map(|pattern| pattern.pathspecs("exclude,")).collect()
     }
 }
 
@@ -198,6 +220,15 @@ mod matching {
         assert!(patterns.keeps_folder("src/ui"));
         assert!(!patterns.keeps_folder("docs"));
         assert!(!read(&["!src"]).hides("src/a.rs", false));
+    }
+
+    #[test]
+    fn a_set_names_its_files_and_takes_some_out() {
+        let set = Patterns::read_set(&["src/**".into(), "!src/gen/**".into(), "".into(), "# a note".into()]);
+        assert!(!set.hides("src/a.rs", false));
+        assert!(set.hides("src/gen/b.rs", false));
+        assert!(set.hides("docs/x.md", false));
+        assert!(Patterns::read_set(&[]).is_empty());
     }
 
     #[test]
