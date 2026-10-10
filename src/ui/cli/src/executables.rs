@@ -70,9 +70,10 @@ enum Detail {
     Optimize(bool),
     /// The file a spec freezes, by its path under the spec's folder.
     Frozen(String),
-    /// A bin's script, by its path in the tree; the program that builds it; and whether the script is
-    /// CommonJS, which Deno has to be told.
-    Bin { entry: String, with: &'static str, commonjs: bool },
+    /// A bin's script, by its path in the tree; the programs that can build it, the one taken unless
+    /// told otherwise first; and whether the script is CommonJS, which Deno has to be told and Node
+    /// takes unless told it is a module.
+    Bin { entry: String, with: Vec<&'static str>, commonjs: bool },
 }
 
 /// One program a build script makes.
@@ -431,16 +432,24 @@ fn npm_bins(text: &str) -> Vec<(String, String)> {
     }
 }
 
-/// The program that builds a package's bins: Bun where the package holds Bun's lock, Deno where it
-/// holds Deno's settings, and else the first of the two the machine has.
-fn npm_builder(folder: &Path) -> &'static str {
+/// The programs that can build a bin, the one a job takes unless told otherwise first: Bun where the
+/// package holds Bun's lock and Deno where it holds Deno's settings; else Node itself where the
+/// script asks for no module outside Node, which a single executable of Node's cannot hold, and
+/// else the bundlers, those the machine has before those it lacks.
+fn npm_builders(folder: &Path, script: &str) -> Vec<&'static str> {
     if ["bun.lock", "bun.lockb"].iter().any(|file| folder.join(file).is_file()) {
-        "bun"
-    } else if ["deno.json", "deno.jsonc"].iter().any(|file| folder.join(file).is_file()) || program("bun", "bun").is_err() && program("deno", "deno").is_ok() {
-        "deno"
-    } else {
-        "bun"
+        return vec!["bun", "deno", "node"];
     }
+    if ["deno.json", "deno.jsonc"].iter().any(|file| folder.join(file).is_file()) {
+        return vec!["deno", "bun", "node"];
+    }
+    if crate::sea::outside(script).is_empty() {
+        return vec!["node", "bun", "deno"];
+    }
+    let mut bundlers = vec!["bun", "deno"];
+    bundlers.sort_by_key(|tool| program(tool, tool).is_err());
+    bundlers.push("node");
+    bundlers
 }
 
 /// The scripts of `found` named `file` that call project() with none above them in the tree, each
@@ -501,12 +510,12 @@ fn read(root: &Path) -> Vec<Executable> {
                 if bins.is_empty() {
                     continue;
                 }
-                let with = npm_builder(folder);
                 let module = serde_json::from_str::<Value>(&text).ok().is_some_and(|package| package["type"] == "module");
                 for (name, entry) in bins {
                     let commonjs = entry.ends_with(".cjs") || entry.ends_with(".js") && !module;
-                    let entry = relative(root, &folder.join(entry.trim_start_matches("./")));
-                    all.push(one(kind, script, name, Detail::Bin { entry, with, commonjs }));
+                    let path = folder.join(entry.trim_start_matches("./"));
+                    let with = npm_builders(folder, &fs::read_to_string(&path).unwrap_or_default());
+                    all.push(one(kind, script, name, Detail::Bin { entry: relative(root, &path), with, commonjs }));
                 }
             }
             Kind::Cmake | Kind::Meson => {}
@@ -676,18 +685,25 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
         }
         (Kind::Npm, Detail::Bin { entry, with, commonjs }) => {
             let out = format!("build/exe/{name}");
-            let step = if *with == "deno" {
-                let mut args = vec![lit("compile"), lit("-A")];
-                if *commonjs {
-                    args.push(lit("--unstable-detect-cjs"));
-                }
-                args.extend([lit("--output"), lit(out.clone()), lit(entry.clone())]);
-                tool("deno", "deno", args)
-            } else {
-                tool("bun", "bun", vec![lit("build"), lit("--compile"), lit(entry.clone()), lit("--outfile"), lit(out.clone())])
-            };
-            let how = if *with == "deno" { "deno compile, with every permission a Node program has," } else { "bun build --compile" };
-            (format!("{how} builds the {name} bin of {script} into {out}."), Vec::new(), vec![step])
+            let only = |tool: &str| Arg::Only("with".into(), tool.to_string());
+            let mut deno = vec![only("deno"), lit("compile"), lit("-A")];
+            if *commonjs {
+                deno.push(lit("--unstable-detect-cjs"));
+            }
+            deno.extend([lit("--output"), lit(out.clone()), lit(entry.clone())]);
+            let mut node = vec![only("node"), lit("sea"), lit(entry.clone()), lit(out.clone())];
+            if !*commonjs {
+                node.push(lit("module"));
+            }
+            (
+                format!("builds the {name} bin of {script} into {out}: with Node's own single executable, which holds Node's modules alone, with bun build --compile, or with deno compile, given every permission a Node program has."),
+                vec![choice("with", with)],
+                vec![
+                    Step { program: Program::Orior, args: node },
+                    tool("bun", "bun", vec![only("bun"), lit("build"), lit("--compile"), lit(entry.clone()), lit("--outfile"), lit(out.clone())]),
+                    tool("deno", "deno", deno),
+                ],
+            )
         }
         (Kind::Npm, _) => (String::new(), Vec::new(), Vec::new()),
     };

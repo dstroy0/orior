@@ -228,7 +228,7 @@ fn arguments(step: &Step, values: &HashMap<String, Vec<String>>) -> Result<Vec<S
                     out.extend(words.iter().cloned());
                 }
             }
-            Arg::Set(..) | Arg::Unpath(_) => {}
+            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) => {}
         }
     }
     Ok(out)
@@ -245,6 +245,7 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         Program::Python(script) => (python(), std::iter::once(script.clone()).chain(args).collect()),
         Program::Built(name) => (built(root, name)?, args),
         Program::Tool { tool, program } => (crate::executables::program(tool, program)?, args),
+        Program::Orior => (std::env::current_exe().map_err(|error| format!("orior itself: {error}"))?, args),
     };
     let mut cmd = Command::new(&program);
     if let Program::Python(_) = step.program {
@@ -256,6 +257,7 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
         Program::Python(_) => "python".to_string(),
         Program::Built(_) => relative(root, &program),
         Program::Tool { program, .. } => program.clone(),
+        Program::Orior => "orior".to_string(),
     };
     full.insert(0, shown_program);
     // each setting given goes into the step's environment, and the line shown leads with it as a
@@ -375,7 +377,15 @@ pub fn check(job: &Job, values: &HashMap<String, Vec<String>>) -> Result<(), Str
 
 /// The commands a job's steps run with these values, each as the line a run shows for it.
 pub fn shown(root: &Path, job: &Job, values: &HashMap<String, Vec<String>>) -> Result<Vec<String>, String> {
-    job.steps.iter().map(|step| command(root, step, values).map(|(_, shown)| shown)).collect()
+    job.steps.iter().filter(|step| runs(step, values)).map(|step| command(root, step, values).map(|(_, shown)| shown)).collect()
+}
+
+/// Whether a step runs with these values: every param an Only names holds the value it names.
+fn runs(step: &Step, values: &HashMap<String, Vec<String>>) -> bool {
+    step.args.iter().all(|arg| match arg {
+        Arg::Only(key, value) => values.get(key).and_then(|given| given.first()) == Some(value),
+        _ => true,
+    })
 }
 
 impl Runs {
@@ -388,7 +398,7 @@ impl Runs {
     pub fn start(&self, sink: Sink, root: PathBuf, job: Job, values: HashMap<String, Vec<String>>) -> Result<(u64, thread::JoinHandle<()>), String> {
         check(&job, &values)?;
         let mut commands = Vec::new();
-        for step in &job.steps {
+        for step in job.steps.iter().filter(|step| runs(step, &values)) {
             commands.push(command(&root, step, &values)?);
         }
         let run = self.next.fetch_add(1, Ordering::SeqCst) + 1;

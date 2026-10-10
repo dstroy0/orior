@@ -44,6 +44,7 @@ pub mod recording;
 pub mod report;
 pub mod root;
 pub mod schema;
+pub mod sea;
 pub mod serve;
 pub mod run_file;
 pub mod runner;

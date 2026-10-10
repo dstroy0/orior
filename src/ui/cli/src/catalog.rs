@@ -51,6 +51,8 @@ pub enum Arg {
     Set(String, String),
     /// No argument: the step's PATH without the folders that hold the program named.
     Unpath(String),
+    /// No argument: the step runs only where the param's value is the value named.
+    Only(String, String),
 }
 
 #[derive(Clone)]
@@ -63,6 +65,8 @@ pub enum Program {
     Built(&'static str),
     /// The program `program` of the toolchain `tool`, found where the toolchains window finds it.
     Tool { tool: String, program: String },
+    /// orior itself, the program running, which takes the command line's words.
+    Orior,
 }
 
 #[derive(Clone)]

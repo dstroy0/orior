@@ -1332,6 +1332,26 @@ pub fn run(given: Vec<String>) -> Outcome {
     if first == "keep-run" {
         return Outcome::Exit(words.get(1).map_or(WRONG, |base| crate::serve::keep_run(std::path::Path::new(base))));
     }
+    // sea builds a script into Node's single executable, a step of a package.json's executable job,
+    // as sea.rs says: `orior sea <script> <program> [module]`.
+    if first == "sea" {
+        let (Some(main), Some(output)) = (words.get(1), words.get(2)) else {
+            err("sea takes the script and the program to make of it, and module after them for an ES module");
+            return Outcome::Exit(WRONG);
+        };
+        let module = words.get(3).is_some_and(|word| word == "module");
+        let built = crate::executables::program("node", "node").and_then(|node| crate::sea::build(&node, Path::new(main), Path::new(output), module, &|line| out(line)));
+        return Outcome::Exit(match built {
+            Ok(program) => {
+                out(&format!("made {}", program.display()));
+                0
+            }
+            Err(said) => {
+                err(&said);
+                WRONG
+            }
+        });
+    }
     // The first run at a terminal asks whether errors file on their own, where the installer did not,
     // and a run that answers it itself asks nothing.
     if words.get(1).map(String::as_str) != Some("auto-report") {
