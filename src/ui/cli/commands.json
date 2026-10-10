@@ -287,6 +287,7 @@
       "items": [
         { "label": "New Terminal", "command": "new", "keys": "Ctrl+Shift+`" },
         { "label": "Toggle Terminal", "command": "toggle", "keys": "Ctrl+`" },
+        { "label": "Split Terminal", "command": "split", "keys": "Ctrl+Shift+5", "checks": "terminal-split" },
         "-",
         { "label": "Clear", "command": "clear" },
         { "label": "Kill Terminal", "command": "kill" }

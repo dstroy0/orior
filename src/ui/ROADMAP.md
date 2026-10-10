@@ -9,13 +9,12 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Layout
 
-1. **Terminals side by side.** More than one shell open at a time, each in a tab of the terminal panel, or two side by side.
-2. **Tabs down the side.** The tabs in a column beside the editor in place of a row above it, tabs gathered in named groups that fold, and a short list of files marked for a key each.
-3. **A status bar of the reader's.** Each item of the status bar moved, hidden or shown, and the side bar hidden until the pointer reaches the window's edge.
-4. **Menus and a toolbar of the reader's.** The menus and a toolbar under them laid out by the reader in their own JSON, each item a command.
-5. **More than one tree in a window.** Folders from different places, or single files from them, open together in one window, each with its own place in the explorer, and a `.code-workspace` file opened as such a window.
-6. **Focus that follows the pointer.** A pane, a list or the editor takes the keys when the pointer goes over it, set on or off.
-7. **The system's title bar.** The window drawn with the system's own title bar where the reader asks for it.
+1. **Tabs down the side.** The tabs in a column beside the editor in place of a row above it, tabs gathered in named groups that fold, and a short list of files marked for a key each.
+2. **A status bar of the reader's.** Each item of the status bar moved, hidden or shown, and the side bar hidden until the pointer reaches the window's edge.
+3. **Menus and a toolbar of the reader's.** The menus and a toolbar under them laid out by the reader in their own JSON, each item a command.
+4. **More than one tree in a window.** Folders from different places, or single files from them, open together in one window, each with its own place in the explorer, and a `.code-workspace` file opened as such a window.
+5. **Focus that follows the pointer.** A pane, a list or the editor takes the keys when the pointer goes over it, set on or off.
+6. **The system's title bar.** The window drawn with the system's own title bar where the reader asks for it.
 
 ## Running and measuring
 

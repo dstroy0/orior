@@ -1,19 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The terminal: a panel under both views with a shell in it, opened and closed from the Terminal menu
-// or by Ctrl+`. The shell starts the first time the panel opens, in the tree's top folder, and closing
-// the panel leaves it running. A shell that ends says so, and the next key starts another.
+// The terminal: a panel under both views with shells in it, opened and closed from the Terminal menu
+// or by Ctrl+`. Each shell is a tab of the panel's strip, named by the folder it stands in; New
+// Terminal opens another beside the rest, and Split shows two side by side. A shell starts the first
+// time its tab shows, in the tree's top folder, and closing the panel leaves every shell running. A
+// shell that ends says so, and the next key starts another in its tab; a tab's × ends its shell and
+// closes it.
 //
-// Keys go to the shell as an xterm sends them. Ctrl+C copies where text is chosen in the panel and
-// interrupts where none is; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Every other key the panel
-// takes stays out of the rest of the app while the panel holds the keys. The panel's top edge drags
-// to make it taller or shorter, and its height is kept between visits.
+// Keys go to the shell last pressed in, as an xterm sends them. Ctrl+C copies where text is chosen
+// in the panel and interrupts where none is; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Every
+// other key the panel takes stays out of the rest of the app while the panel holds the keys. The
+// panel's edge drags to make it taller or shorter, and its size is kept between visits.
 //
-// Its place is kept as well: whether the panel is open, the folder its shell stands in, which a shell
-// says as OSC 7 and Git's bash is set to say before each prompt, and its last PLACE_LINES lines, kept a
-// moment after the shell writes and as the window closes. The window started again shows those lines
-// and opens the panel as it was, its shell in that folder.
+// Its place is kept as well: whether the panel is open, each shell's folder, which a shell says as
+// OSC 7 and Git's bash is set to say before each prompt, and its last PLACE_LINES lines, the tab shown
+// and the one beside it, kept a moment after a shell writes and as the window closes. The window
+// started again shows those lines and opens the panel as it was, each shell in its folder.
 
 import { invoke, listen } from "./bridge.js";
 import { clipText, copyText, menuOn } from "./menu.js";
@@ -24,6 +27,8 @@ const HEIGHT = "orior.terminal.height";
 const PLACE = "orior.terminal.place";
 const PLACE_LINES = 300;
 const PLACE_REST = 800;
+// How long a shell starting stays quiet before the text typed while it started goes to it.
+const SETTLE = 300;
 
 const SPECIAL = {
   Enter: "\r",
@@ -50,10 +55,27 @@ const SPECIAL = {
 
 const CURSOR_KEYS = { ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: "D", Home: "H", End: "F" };
 
-// `at` is the folder the shell last said it stands in, and `restore` the lines kept from before the
-// window started, shown once the screen is made.
-const state = { id: null, opening: null, screen: null, waiting: "", before: null, at: null, restore: null, keeping: 0 };
+// The shells, each a tab: its number in the app, its shell's number once started, its screen and
+// the view that shows it, the text typed while it started, the folder it last said it stands in,
+// and the lines kept from before the window started. `shown` is the tab shown, `beside` the one
+// beside it where the panel is split, and `focused` the one the keys go to.
+const state = { terms: [], next: 1, shown: null, beside: null, focused: null, before: null, keeping: 0 };
+
+// What a shell wrote before its tab knew its number, by that number. The system's terminal asks where
+// the cursor is before anything else and waits for the answer, which the tab gives once it hears
+// the question.
+const early = new Map();
 const parts = {};
+
+function element(tag, props = {}, ...children) {
+  const made = Object.assign(document.createElement(tag), props);
+  made.append(...children.filter((child) => child !== null && child !== undefined));
+  return made;
+}
+
+const termOf = (key) => state.terms.find((term) => term.key === key) ?? null;
+const focusedTerm = () => termOf(state.focused) ?? termOf(state.shown) ?? state.terms[0] ?? null;
+const showing = (term) => term.key === state.shown || term.key === state.beside;
 
 // What a key sends the shell, or null for a key the terminal leaves alone.
 function keyText(event, appCursor) {
@@ -84,60 +106,77 @@ function keyText(event, appCursor) {
   return null;
 }
 
-// Sends text to the shell. Text typed while the shell starts waits for it.
-function send(text) {
-  if (state.id === null) {
-    state.waiting += text;
-    openShell();
+// Sends text to a shell, the one the keys go to where none is named. Text typed while the shell
+// starts waits until the shell has written and then been quiet for SETTLE: the system's terminal
+// reads its first input as the answer to where the cursor is, and the shell takes keys once its
+// prompt is up.
+function send(text, term = focusedTerm()) {
+  if (!term) {
     return;
   }
-  invoke("term_write", { id: state.id, text }).catch(() => {});
+  if (term.id === null || !term.ready) {
+    term.waiting += text;
+    openShell(term);
+    return;
+  }
+  write(term, text);
+}
+
+function write(term, text) {
+  if (term.id !== null) {
+    invoke("term_write", { id: term.id, text }).catch(() => {});
+  }
 }
 
 // The text chosen inside the panel, or nothing.
 function chosen() {
   const selection = window.getSelection();
-  return selection && !selection.isCollapsed && parts.view.contains(selection.anchorNode) ? selection.toString() : "";
+  return selection && !selection.isCollapsed && parts.views.contains(selection.anchorNode) ? selection.toString() : "";
 }
 
-// How many characters fit across the panel and how many lines down it.
-function measure() {
+// How many characters fit across a shell's view and how many lines down it.
+function measure(term) {
   const probe = Object.assign(document.createElement("div"), { className: "term-probe", textContent: "M".repeat(10) });
-  parts.view.appendChild(probe);
+  term.view.appendChild(probe);
   const box = probe.getBoundingClientRect();
   probe.remove();
-  const shape = getComputedStyle(parts.view);
-  const across = parts.view.clientWidth - parseFloat(shape.paddingLeft) - parseFloat(shape.paddingRight);
-  const down = parts.view.clientHeight - parseFloat(shape.paddingTop) - parseFloat(shape.paddingBottom);
+  const shape = getComputedStyle(term.view);
+  const across = term.view.clientWidth - parseFloat(shape.paddingLeft) - parseFloat(shape.paddingRight);
+  const down = term.view.clientHeight - parseFloat(shape.paddingTop) - parseFloat(shape.paddingBottom);
   return { cols: Math.max(2, Math.floor(across / (box.width / 10))), rows: Math.max(2, Math.floor(down / box.height)) };
 }
 
-// Fits the screen to the panel, and tells the shell its new size.
-function fit() {
-  if (parts.panel.hidden) {
+// Fits a shell's screen to its view, and tells the shell its new size.
+function fit(term) {
+  if (parts.panel.hidden || term.view.hidden) {
     return;
   }
-  const { cols, rows } = measure();
-  if (!state.screen) {
-    state.screen = new Screen(parts.view, cols, rows, send, scrollback());
-    state.screen.onPlace = (url) => {
-      state.at = url;
+  const { cols, rows } = measure(term);
+  if (!term.screen) {
+    // What the screen answers the shell goes at once, ahead of anything typed.
+    term.screen = new Screen(term.view, cols, rows, (text) => write(term, text), scrollback());
+    term.screen.onPlace = (url) => {
+      term.at = url;
+      drawStrip();
       keepSoon();
     };
-    if (state.restore?.length) {
-      state.screen.write(`${state.restore.join("\r\n")}\r\n`);
+    if (term.restore?.length) {
+      term.screen.write(`${term.restore.join("\r\n")}\r\n`);
     }
-    state.restore = null;
+    term.restore = null;
+    term.screen.setFocus(term.key === state.focused && document.activeElement === parts.keys);
     return;
   }
-  if (cols === state.screen.cols && rows === state.screen.rowCount) {
+  if (cols === term.screen.cols && rows === term.screen.rowCount) {
     return;
   }
-  state.screen.resize(cols, rows);
-  if (state.id !== null) {
-    invoke("term_resize", { id: state.id, cols, rows }).catch(() => {});
+  term.screen.resize(cols, rows);
+  if (term.id !== null) {
+    invoke("term_resize", { id: term.id, cols, rows }).catch(() => {});
   }
 }
+
+const fitShown = () => state.terms.filter(showing).forEach(fit);
 
 // The scrollbacks a page loaded before this one left, let go before this page makes any.
 const fresh = invoke("scrollback_reset").catch(() => {});
@@ -152,30 +191,176 @@ function scrollback() {
   };
 }
 
-function openShell() {
-  if (state.id !== null || state.opening) {
+function openShell(term) {
+  if (term.id !== null || term.opening || !term.screen) {
     return;
   }
-  const { cols, rowCount: rows } = state.screen;
-  state.opening = invoke("term_open", { cols, rows, at: state.at })
+  const { cols, rowCount: rows } = term.screen;
+  term.exited = false;
+  term.ready = false;
+  term.opening = invoke("term_open", { cols, rows, at: term.at })
     .then((id) => {
-      state.id = id;
-      const waiting = state.waiting;
-      state.waiting = "";
-      if (waiting) {
-        send(waiting);
+      term.id = id;
+      for (const text of early.get(id) ?? []) {
+        heard(term, text);
       }
+      early.delete(id);
     })
-    .catch((error) => state.screen.write(`\r\n${error}\r\n`))
-    .finally(() => (state.opening = null));
+    .catch((error) => term.screen.write(`\r\n${error}\r\n`))
+    .finally(() => {
+      term.opening = null;
+      drawStrip();
+    });
 }
 
-// Keeps the terminal's place now: whether the panel is open, the folder the shell stands in, and its
-// last lines.
+// Writes what a shell said to its tab's screen. A shell starting is ready for what was typed once it
+// has been quiet for SETTLE.
+function heard(term, text) {
+  term.screen.write(text);
+  if (!term.ready) {
+    window.clearTimeout(term.settle);
+    term.settle = window.setTimeout(() => {
+      term.ready = true;
+      const waiting = term.waiting;
+      term.waiting = "";
+      if (waiting) {
+        write(term, waiting);
+      }
+    }, SETTLE);
+  }
+}
+
+// A new tab, its shell not yet started, and the place it was left where one is given.
+function addTerm(kept = {}) {
+  const view = element("div", { className: "term-view", hidden: true });
+  const term = { key: state.next++, id: null, opening: null, screen: null, waiting: "", at: typeof kept.at === "string" ? kept.at : null, restore: Array.isArray(kept.lines) ? kept.lines.map(String) : null, view, exited: false };
+  if (!parts.views.querySelector("#term-view")) {
+    view.id = "term-view";
+  }
+  view.addEventListener("mouseup", (event) => {
+    if (event.button === 0 && !chosen()) {
+      focusTerm(term);
+    }
+  });
+  parts.views.append(view);
+  state.terms.push(term);
+  return term;
+}
+
+// A tab's name: the last folder of the place its shell stands in, after its number.
+function nameOf(term, at) {
+  const place = term.at ? decodeURIComponent(term.at.replace(/^file:\/\/[^/]*/, "")).replace(/[\\/]+$/, "") : "";
+  return `${at + 1} ${place.split(/[\\/]/).pop() || "shell"}`;
+}
+
+// Draws the strip: a tab for each shell, then New Terminal and Split.
+function drawStrip() {
+  if (!parts.strip) {
+    return;
+  }
+  const tabs = state.terms.map((term, at) => {
+    const close = element("span", { className: "close", textContent: "×", title: "End the shell and close its tab" });
+    const tab = element("button", { className: `term-tab${term.exited ? " exited" : ""}`, type: "button", role: "tab", title: term.at ?? "shell" }, element("span", { textContent: nameOf(term, at) }), close);
+    tab.setAttribute("aria-selected", String(showing(term)));
+    tab.addEventListener("click", (event) => (event.target === close ? closeTerm(term) : showTerm(term)));
+    tab.addEventListener("auxclick", (event) => event.button === 1 && closeTerm(term));
+    return tab;
+  });
+  const tool = (label, path, run, on = false) => {
+    const button = element("button", { className: `term-tool${on ? " on" : ""}`, type: "button", title: label });
+    button.setAttribute("aria-label", label);
+    button.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${path}"/></svg>`;
+    button.addEventListener("click", run);
+    return button;
+  };
+  parts.strip.replaceChildren(
+    element("div", { className: "term-tabs", role: "tablist" }, ...tabs),
+    tool("New Terminal (Ctrl+Shift+`)", "M8 3.5v9M3.5 8h9", () => newTerminal()),
+    tool("Split Terminal", "M2.5 3.5h11v9h-11zM8 3.5v9", () => splitTerminal(), state.beside !== null),
+  );
+}
+
+// Shows the shown tab and the one beside it, each started, and the keys with the one they go to.
+function drawViews() {
+  for (const term of state.terms) {
+    term.view.hidden = !showing(term);
+    term.view.classList.toggle("term-chosen", state.beside !== null && term.key === state.focused);
+  }
+  parts.views.dataset.split = String(state.beside !== null);
+  drawStrip();
+  if (!parts.panel.hidden) {
+    requestAnimationFrame(() => {
+      fitShown();
+      state.terms.filter(showing).forEach(openShell);
+    });
+  }
+}
+
+function focusTerm(term) {
+  state.focused = term.key;
+  for (const one of state.terms) {
+    one.screen?.setFocus(one === term && document.activeElement === parts.keys);
+  }
+  drawViews();
+  parts.keys.focus();
+}
+
+// Shows a tab: in the place of the one the keys go to where the panel is split, else alone.
+function showTerm(term) {
+  if (!showing(term)) {
+    if (state.beside !== null && state.focused === state.beside) {
+      state.beside = term.key;
+    } else {
+      state.shown = term.key;
+    }
+  }
+  toggle(true, false);
+  focusTerm(term);
+  keepSoon();
+}
+
+// Ends a tab's shell and closes the tab. The last one closed closes the panel, and the next opening
+// starts a new one.
+function closeTerm(term) {
+  if (term.id !== null) {
+    invoke("term_close", { id: term.id }).catch(() => {});
+  }
+  term.view.remove();
+  state.terms = state.terms.filter((one) => one !== term);
+  if (state.beside === term.key) {
+    state.beside = null;
+  }
+  if (state.shown === term.key) {
+    state.shown = state.beside ?? state.terms.at(-1)?.key ?? null;
+    if (state.beside === state.shown) {
+      state.beside = null;
+    }
+  }
+  if (state.focused === term.key) {
+    state.focused = state.shown;
+  }
+  if (!state.terms.length) {
+    toggle(false);
+    const next = addTerm();
+    state.shown = state.focused = next.key;
+  }
+  drawViews();
+  keepSoon();
+}
+
+// Keeps the terminal's place now: whether the panel is open, and each shell's folder and last lines,
+// with the tab shown and the one beside it.
 function keepPlace() {
   window.clearTimeout(state.keeping);
-  const lines = state.screen ? parts.view.innerText.replace(/\s+$/, "").split("\n").slice(-PLACE_LINES) : (state.restore ?? []);
-  localStorage.setItem(PLACE, JSON.stringify({ open: !parts.panel.hidden, at: state.at, lines }));
+  const terms = state.terms.map((term) => ({
+    at: term.at,
+    lines: term.screen ? term.view.innerText.replace(/\s+$/, "").split("\n").slice(-PLACE_LINES) : (term.restore ?? []),
+  }));
+  const index = (key) => {
+    const at = state.terms.findIndex((term) => term.key === key);
+    return at < 0 ? null : at;
+  };
+  localStorage.setItem(PLACE, JSON.stringify({ open: !parts.panel.hidden, terms, shown: index(state.shown), beside: index(state.beside) }));
 }
 
 function keepSoon() {
@@ -186,13 +371,15 @@ function keepSoon() {
 // Opens the panel or closes it. An open panel takes the keys where `focus` is set, and closing it
 // hands them back to whatever held them before it opened.
 function toggle(open = parts.panel.hidden, focus = true) {
+  const was = !parts.panel.hidden;
   parts.panel.hidden = !open;
   keepSoon();
   if (open) {
     const holder = document.activeElement;
-    state.before = holder && holder !== document.body && holder !== parts.keys ? holder : null;
-    fit();
-    openShell();
+    if (!was) {
+      state.before = holder && holder !== document.body && holder !== parts.keys ? holder : null;
+    }
+    drawViews();
     if (focus) {
       parts.keys.focus();
     }
@@ -223,7 +410,7 @@ function onKey(event) {
     event.stopPropagation();
     return;
   }
-  const text = keyText(event, state.screen?.modes.appCursor);
+  const text = keyText(event, focusedTerm()?.screen?.modes.appCursor);
   if (text === null) {
     return;
   }
@@ -237,7 +424,7 @@ function onKey(event) {
 function pasteText(given) {
   const text = given.replace(/\r?\n/g, "\r");
   if (text) {
-    send(state.screen?.modes.paste ? `\x1b[200~${text}\x1b[201~` : text);
+    send(focusedTerm()?.screen?.modes.paste ? `\x1b[200~${text}\x1b[201~` : text);
   }
 }
 
@@ -250,28 +437,47 @@ export function toggleTerminal(open) {
   toggle(open);
 }
 
-// Ends the shell, which the panel says, and opens the panel with a new one.
-export async function newTerminal() {
-  if (state.id !== null) {
-    await invoke("term_close", { id: state.id }).catch(() => {});
-    state.id = null;
-  }
-  toggle(true);
+// Terminal, New Terminal: another shell in a tab of its own, shown where the keys were.
+export function newTerminal() {
+  const term = addTerm();
+  showTerm(term);
+  return term;
 }
 
+// Terminal, Split Terminal: a second shell shown beside the one shown, a new one where every other
+// is shown already; pressed again, the panel shows one shell.
+export function splitTerminal() {
+  if (state.beside !== null) {
+    state.beside = null;
+    state.focused = state.shown;
+    drawViews();
+    keepSoon();
+    return;
+  }
+  toggle(true, false);
+  const other = state.terms.find((term) => term.key !== state.shown) ?? addTerm();
+  state.beside = other.key;
+  focusTerm(other);
+  keepSoon();
+}
+
+export const terminalSplit = () => state.beside !== null;
+
+// Terminal, Kill Terminal: ends the shell the keys go to and closes its tab.
 export function killTerminal() {
-  if (state.id !== null) {
-    invoke("term_close", { id: state.id }).catch(() => {});
+  const term = focusedTerm();
+  if (term) {
+    closeTerm(term);
   }
 }
 
 export function clearTerminal() {
-  if (state.id !== null) {
+  if (focusedTerm()?.id !== null) {
     send("\x0c");
   }
 }
 
-// Opens the panel with its shell in `folder`, a path under the tree's top folder.
+// Opens the panel with the shell the keys go to in `folder`, a path under the tree's top folder.
 export function terminalAt(folder) {
   toggle(true);
   const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
@@ -279,13 +485,14 @@ export function terminalAt(folder) {
   send(`cd -- '${where.replace(/'/g, "'\\''")}'\r`);
 }
 
-// Opens the panel and runs `line` in its shell, as though typed there.
+// Opens the panel and runs `line` in the shell the keys go to, as though typed there.
 export function runInTerminal(line) {
   toggle(true);
   send(`${line}\r`);
 }
 
-// The terminal's menu: copy what is chosen in it, paste, clear the screen, or close the panel.
+// The terminal's menu: copy what is chosen in it, paste, clear the screen, a new shell, split, or
+// close the panel.
 function terminalItems() {
   const text = chosen();
   return [
@@ -293,6 +500,8 @@ function terminalItems() {
     { label: "Paste", keys: "Ctrl+Shift+V", run: async () => pasteText(await clipText()) },
     "-",
     { label: "Clear", keys: "Ctrl+L", run: () => send("\x0c") },
+    { label: "New Terminal", keys: "Ctrl+Shift+`", run: () => newTerminal() },
+    { label: "Split Terminal", checked: state.beside !== null, run: () => splitTerminal() },
     { label: "Close", keys: "Ctrl+`", run: () => toggle(false) },
   ];
 }
@@ -318,7 +527,8 @@ function grip(event) {
 export async function startTerminal() {
   for (const [name, id] of [
     ["panel", "term"],
-    ["view", "term-view"],
+    ["strip", "term-strip"],
+    ["views", "term-views"],
     ["keys", "term-keys"],
     ["grip", "term-grip"],
   ]) {
@@ -329,18 +539,24 @@ export async function startTerminal() {
     parts.panel.style.height = height;
   }
   await listen("term-out", ({ payload }) => {
-    if (payload.id === state.id && state.screen) {
-      state.screen.write(payload.text);
+    const term = state.terms.find((one) => one.id === payload.id);
+    if (term?.screen) {
+      heard(term, payload.text);
       keepSoon();
+    } else if (!term) {
+      early.set(payload.id, [...(early.get(payload.id) ?? []), payload.text].slice(-64));
     }
   });
   await listen("term-exit", ({ payload }) => {
-    if (payload.id !== state.id) {
+    const term = state.terms.find((one) => one.id === payload.id);
+    if (!term) {
       return;
     }
-    state.id = null;
-    state.waiting = "";
-    state.screen?.write(`\r\n[exited ${payload.code ?? ""}]\r\n`);
+    term.id = null;
+    term.waiting = "";
+    term.exited = true;
+    term.screen?.write(`\r\n[exited ${payload.code ?? ""}]\r\n`);
+    drawStrip();
   });
   window.addEventListener(
     "keydown",
@@ -361,22 +577,30 @@ export async function startTerminal() {
       parts.keys.value = "";
     }
   });
-  parts.keys.addEventListener("focus", () => state.screen?.setFocus(true));
-  parts.keys.addEventListener("blur", () => state.screen?.setFocus(false));
-  parts.view.addEventListener("mouseup", (event) => event.button === 0 && !chosen() && parts.keys.focus());
+  parts.keys.addEventListener("focus", () => focusedTerm()?.screen?.setFocus(true));
+  parts.keys.addEventListener("blur", () => state.terms.forEach((term) => term.screen?.setFocus(false)));
   menuOn(parts.panel, terminalItems);
   parts.grip.addEventListener("pointerdown", grip);
-  new ResizeObserver(() => requestAnimationFrame(fit)).observe(parts.view);
+  new ResizeObserver(() => requestAnimationFrame(fitShown)).observe(parts.views);
   window.addEventListener("beforeunload", keepPlace);
-  // The place kept from before the window started: its lines, its folder, and the panel open as it was.
+  // The place kept from before the window started: each shell's lines and folder, the tabs shown, and
+  // the panel open as it was. A place kept with one shell, before there were tabs, is that shell's.
   let kept = null;
   try {
     kept = JSON.parse(localStorage.getItem(PLACE) ?? "null");
   } catch {
     kept = null;
   }
-  state.at = typeof kept?.at === "string" ? kept.at : null;
-  state.restore = Array.isArray(kept?.lines) ? kept.lines.map(String) : null;
+  const terms = Array.isArray(kept?.terms) && kept.terms.length ? kept.terms : [{ at: kept?.at, lines: kept?.lines }];
+  terms.forEach((one) => addTerm(one ?? {}));
+  const keyAt = (at) => (Number.isInteger(at) && state.terms[at] ? state.terms[at].key : null);
+  state.shown = keyAt(kept?.shown) ?? state.terms[0].key;
+  state.beside = keyAt(kept?.beside);
+  if (state.beside === state.shown) {
+    state.beside = null;
+  }
+  state.focused = state.shown;
+  drawViews();
   if (kept?.open) {
     toggle(true, false);
   }

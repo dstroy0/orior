@@ -47,7 +47,7 @@ import { followsSystem, scheme, setFollowSystem, setScheme, toggleScheme } from 
 import { autoCollapse, paneShown, setAutoCollapse, togglePane } from "./sides.js";
 import { float, floatItems, solo, toolWindowsItems } from "./docks.js";
 import { openWindow } from "./windows.js";
-import { clearTerminal, killTerminal, newTerminal, runInTerminal, terminalAt, toggleTerminal } from "./terminal.js";
+import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
 import { askReports, reportForm } from "./reports.js";
@@ -409,6 +409,7 @@ const COMMANDS = {
   show: (args) => searchJobs(args[0]),
   new: newTerminal,
   toggle: () => toggleTerminal(),
+  split: () => splitTerminal(),
   clear: clearTerminal,
   kill: killTerminal,
   keys: showShortcuts,
@@ -444,6 +445,7 @@ const CHECKS = {
   "auto-report": () => state.autoReport,
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),
+  "terminal-split": terminalSplit,
   "macro-recording": recording,
 };
 
