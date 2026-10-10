@@ -30,7 +30,7 @@ import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
 import { showMerge } from "./mergeview.js";
@@ -67,6 +67,7 @@ const state = {
   // What git says of each changed file, and of each folder holding one.
   changes: new Map(),
   rolled: new Map(),
+  repos: null,
   // The places jumped from, and the ones gone back from.
   back: [],
   forward: [],
@@ -115,12 +116,51 @@ async function childrenOf(dir) {
   return state.children.get(dir);
 }
 
+// The repositories of the tree, read as a tree opens and again as git changes: each one's path in the
+// tree, empty for the one the tree is in, and the branch it is on.
+const repoPaths = () => (state.repos ?? []).map((repo) => repo.path);
+
+// The repository that holds a path of the tree: the deepest whose folder holds it.
+function repoOf(path) {
+  const held = repoPaths().filter((repo) => repo === "" || path === repo || path.startsWith(`${repo}/`));
+  return held.length ? held.reduce((deepest, repo) => (repo.length > deepest.length ? repo : deepest)) : null;
+}
+
+// The repository open, the one the Git menu, the branch on the status bar and the Commit window's
+// pull and push act on: the one that holds the file shown, or the tree's own, or the first.
+function repoOpen() {
+  const file = state.active ? fileOf(state.active) : null;
+  const paths = repoPaths();
+  return (file && repoOf(file)) ?? (paths.includes("") ? "" : (paths[0] ?? ""));
+}
+
+// A repository's name: its folder's, the tree's own folder's for the tree's.
+function repoName(repo) {
+  return (repo || document.getElementById("tree-path").textContent.replace(/\\/g, "/")).split("/").filter(Boolean).pop() ?? "";
+}
+
+// The branch on the status bar: the repository open's, named with it where the tree holds more than
+// one.
+function drawRepoBranch() {
+  const repo = repoOpen();
+  const branch = (state.repos ?? []).find((one) => one.path === repo)?.branch ?? state.branch;
+  const changed = [...state.changes.keys()].some((path) => repoOf(path) === repo);
+  drawBranch(branch && (state.repos?.length ?? 0) > 1 ? `${repoName(repo)}: ${branch}` : branch, changed);
+}
+
 // Reads what git says of the tree again: each changed file's state, and each folder's from the files
 // under it.
 async function loadChanges() {
-  const [changed, branch] = await Promise.all([invoke("tree_changed").catch(() => []), invoke("tree_branch").catch(() => null)]);
+  if (!state.repos) {
+    state.repos = await invoke("git_repositories").catch(() => []);
+  }
+  const [changed, branch] = await Promise.all([invoke("tree_changed", { repos: repoPaths() }).catch(() => []), invoke("tree_branch", { repo: repoOpen() }).catch(() => null)]);
   state.changes = new Map(changed.map(({ path, state: mark }) => [path, mark]));
   state.branch = branch;
+  const open = state.repos.find((one) => one.path === repoOpen());
+  if (open) {
+    open.branch = branch;
+  }
   drawCommit(state.changes);
   drawGit(branch);
   state.rolled = new Map();
@@ -135,7 +175,7 @@ async function loadChanges() {
       at = folder.lastIndexOf("/");
     }
   }
-  drawBranch(branch, state.changes.size > 0);
+  drawRepoBranch();
 }
 
 // Draws the tree from the folders read, and ends once the latest draw has put its rows in. A draw that
@@ -590,6 +630,10 @@ function show(path) {
   if (tab && !state.cycle) {
     state.used = [path, ...state.used.filter((one) => one !== path)];
   }
+  if ((state.repos?.length ?? 0) > 1) {
+    drawRepoBranch();
+    drawGit(state.branch);
+  }
   if (tab && !tab.commit) {
     keepRecent(tab.file);
   }
@@ -801,6 +845,7 @@ function treeChanged({ payload: changed }) {
     }
     if (changed.git) {
       state.heads.clear();
+      state.repos = null;
       markChanges(tabOf(state.active));
       await loadChanges();
     }
@@ -1902,6 +1947,10 @@ export async function startEdit(defs) {
     diff: (path, mark) => (mark === "C" ? openMerge(path) : openDiff(path, mark)),
     texts: async (path, mark) => ({ then: mark === "U" || mark === "A" ? "" : ((await invoke("file_head", { path }).catch(() => null)) ?? ""), now: await textNow(path) }),
     open: (path) => openFile(path),
+    repo: repoOpen,
+    repoOf,
+    repoName,
+    repos: () => state.repos ?? [],
   });
   startDebug({
     editor: () => state.editor,
@@ -1959,6 +2008,9 @@ export async function startEdit(defs) {
     openCommit,
     compareCommit,
     openTouched,
+    repo: repoOpen,
+    repoName,
+    repos: () => state.repos ?? [],
     showSnapshot,
     revertSnapshot,
     refresh: async () => {
@@ -2020,6 +2072,7 @@ export async function startEdit(defs) {
   window.addEventListener("focus", async () => {
     readClipFiles();
     state.heads.clear();
+    state.repos = null;
     markChanges(tabOf(state.active));
     await loadChanges();
     drawTree();
@@ -2331,6 +2384,10 @@ export function editing() {
     conflicted,
     openMerge,
     setMarks: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setMarks(on)),
+    repo: repoOpen,
+    repoOf,
+    repoName,
+    repos: () => state.repos ?? [],
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
     commentsHidden: () => Boolean(state.editor?.commentsHidden),
@@ -2373,6 +2430,8 @@ export function forgetTree() {
   state.tabs.forEach(stopServing);
   state.restored = false;
   state.heads.clear();
+  state.repos = null;
+  forgetGraph();
   state.tabs = [];
   state.used = [];
   state.back = [];

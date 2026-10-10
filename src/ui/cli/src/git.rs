@@ -69,8 +69,152 @@ pub fn branch(root: &Path) -> Option<String> {
     git(root, &["rev-parse", "--short", "HEAD"]).map(|out| String::from_utf8_lossy(&out).trim().to_string())
 }
 
-/// Every file under the tree that differs from the last commit, by its path in the tree.
-pub fn changed(root: &Path) -> Vec<Changed> {
+/// A repository of the tree: its folder's path in the tree, empty for the one the tree itself is in,
+/// and the branch it is on.
+#[derive(Serialize)]
+pub struct Repository {
+    pub path: String,
+    pub branch: Option<String>,
+}
+
+/// Folders a search for the tree's repositories does not go into: those a build or a package manager
+/// fills.
+const NOT_SEARCHED: [&str; 6] = ["node_modules", "target", "build", "dist", "__pycache__", "venv"];
+
+/// How many folders deep under the tree a search for repositories goes.
+const REPOSITORY_DEPTH: usize = 4;
+
+/// The repositories of the tree: the one the tree is in, where it is in one, then each folder under it
+/// that holds a repository of its own, a submodule among them, by path. Hidden folders and those of
+/// NOT_SEARCHED are not searched.
+pub fn repositories(root: &Path) -> Vec<Repository> {
+    let mut found = Vec::new();
+    if git(root, &["rev-parse", "--is-inside-work-tree"]).is_some() {
+        found.push(Repository { path: String::new(), branch: branch(root) });
+    }
+    let mut nested = Vec::new();
+    let mut stack = vec![(root.to_path_buf(), 0)];
+    while let Some((dir, depth)) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !entry.file_type().is_ok_and(|kind| kind.is_dir()) || name.starts_with('.') || NOT_SEARCHED.contains(&name.as_str()) {
+                continue;
+            }
+            let path = entry.path();
+            if path.join(".git").exists() {
+                nested.push(path.clone());
+            }
+            if depth + 1 < REPOSITORY_DEPTH {
+                stack.push((path, depth + 1));
+            }
+        }
+    }
+    nested.sort();
+    found.extend(nested.into_iter().map(|path| Repository { path: crate::root::relative(root, &path), branch: branch(&path) }));
+    found
+}
+
+/// The repository of `repos` that holds `path`, both paths in the tree: the deepest whose folder holds
+/// it.
+pub fn owner<'a>(repos: &'a [String], path: &str) -> Option<&'a str> {
+    repos.iter().filter(|repo| repo.is_empty() || path == repo.as_str() || path.strip_prefix(repo.as_str()).is_some_and(|rest| rest.starts_with('/'))).max_by_key(|repo| repo.len()).map(String::as_str)
+}
+
+/// `paths` in the tree by the repository of `repos` that holds each, each path written from that
+/// repository's folder. A path no repository holds is refused.
+fn grouped<'a>(repos: &'a [String], paths: &[String]) -> Result<Vec<(&'a str, Vec<String>)>, String> {
+    let mut groups: Vec<(&str, Vec<String>)> = Vec::new();
+    for path in paths {
+        let repo = owner(repos, path).ok_or_else(|| format!("no repository holds {path}"))?;
+        let short = if repo.is_empty() { path.clone() } else { path[repo.len() + 1..].to_string() };
+        match groups.iter_mut().find(|(one, _)| *one == repo) {
+            Some((_, group)) => group.push(short),
+            None => groups.push((repo, vec![short])),
+        }
+    }
+    Ok(groups)
+}
+
+/// The folder git is asked about a file from, and the file's path from there: the file's own folder,
+/// or the nearest one above it that is there where that one is gone. git then reads the file in the
+/// repository that holds it, the tree's or one under it.
+fn beside(root: &Path, file: &str) -> Result<(PathBuf, String), String> {
+    let full = inside(root, file)?;
+    let mut dir = full.parent().map_or_else(|| root.to_path_buf(), Path::to_path_buf);
+    while !dir.is_dir() && dir.starts_with(root) && dir != root {
+        dir = dir.parent().map_or_else(|| root.to_path_buf(), Path::to_path_buf);
+    }
+    Ok((dir.clone(), format!("./{}", crate::root::relative(&dir, &full))))
+}
+
+/// Every file under the tree that differs from the last commit of the repository that holds it, by its
+/// path in the tree, for the repositories at `repos`, or every one of the tree where none are named.
+pub fn changed(root: &Path, repos: Option<&[String]>) -> Vec<Changed> {
+    let found: Vec<String>;
+    let repos = match repos {
+        Some(repos) => repos,
+        None => {
+            found = repositories(root).into_iter().map(|repo| repo.path).collect();
+            &found
+        }
+    };
+    let mut all = Vec::new();
+    for repo in repos {
+        let at = if repo.is_empty() { String::new() } else { format!("{repo}/") };
+        for one in changed_at(&root.join(repo)) {
+            let path = format!("{at}{}", one.path);
+            // A repository under this one shows in its changes as a folder of new files.
+            if owner(repos, path.trim_end_matches('/')) == Some(repo.as_str()) {
+                all.push(Changed { path, state: one.state });
+            }
+        }
+    }
+    all
+}
+
+/// Commits the files at `paths` in the tree with `message`, each as it stands, in the repository that
+/// holds it, a commit to each repository that holds some. Gives git's line for each commit made.
+pub fn commit(root: &Path, message: &str, paths: &[String]) -> Result<String, String> {
+    if paths.is_empty() {
+        return Err("no file is chosen to commit".into());
+    }
+    let repos: Vec<String> = repositories(root).into_iter().map(|repo| repo.path).collect();
+    let mut said = Vec::new();
+    for (repo, group) in grouped(&repos, paths)? {
+        said.push(commit_in(&root.join(repo), message, &group).map_err(|error| [said.join("\n"), error].join("\n").trim().to_string())?);
+    }
+    Ok(said.join("\n"))
+}
+
+/// Commits the files of `whole` as each stands and the files of `parts` with the text each is given, in
+/// the repository that holds each, a commit to each repository that holds some.
+pub fn commit_parts(root: &Path, message: &str, whole: &[String], parts: &[Part]) -> Result<String, String> {
+    if whole.is_empty() && parts.is_empty() {
+        return Err("no file is chosen to commit".into());
+    }
+    let repos: Vec<String> = repositories(root).into_iter().map(|repo| repo.path).collect();
+    let paths: Vec<String> = whole.iter().cloned().chain(parts.iter().map(|part| part.path.clone())).collect();
+    let mut said = Vec::new();
+    for (repo, group) in grouped(&repos, &paths)? {
+        let mut own_whole = Vec::new();
+        let mut own_parts = Vec::new();
+        for short in group {
+            let path = if repo.is_empty() { short.clone() } else { format!("{repo}/{short}") };
+            match parts.iter().find(|part| part.path == path) {
+                Some(part) => own_parts.push(Part { path: short, text: part.text.clone() }),
+                None => own_whole.push(short),
+            }
+        }
+        said.push(commit_parts_in(&root.join(repo), message, &own_whole, &own_parts).map_err(|error| [said.join("\n"), error].join("\n").trim().to_string())?);
+    }
+    Ok(said.join("\n"))
+}
+
+/// Every file under `root` that differs from the last commit, by its path from `root`.
+fn changed_at(root: &Path) -> Vec<Changed> {
     let prefix = git(root, &["rev-parse", "--show-prefix"]).map(|out| String::from_utf8_lossy(&out).trim().to_string()).unwrap_or_default();
     let Some(out) = git(root, &["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."]) else {
         return Vec::new();
@@ -112,7 +256,7 @@ fn run(root: &Path, args: &[&str]) -> Result<String, String> {
 
 /// Commits the files at `paths` with `message`, each as it stands, whether changed, new or gone, and
 /// leaves every other file as it was. Gives git's line for the commit made.
-pub fn commit(root: &Path, message: &str, paths: &[String]) -> Result<String, String> {
+fn commit_in(root: &Path, message: &str, paths: &[String]) -> Result<String, String> {
     if message.trim().is_empty() {
         return Err("a commit needs a message".into());
     }
@@ -311,7 +455,7 @@ fn run_on(root: &Path, index: &Path, args: &[&str], input: Option<&str>) -> Resu
 /// leaving everything else as the last commit had it, in what is staged as well. The commit is made
 /// from an index of its own, read from the last commit; after it, the tree's index takes the commit's
 /// text for each file committed, and a file committed in part keeps the rest of its changes unstaged.
-pub fn commit_parts(root: &Path, message: &str, whole: &[String], parts: &[Part]) -> Result<String, String> {
+fn commit_parts_in(root: &Path, message: &str, whole: &[String], parts: &[Part]) -> Result<String, String> {
     if message.trim().is_empty() {
         return Err("a commit needs a message".into());
     }
@@ -352,8 +496,8 @@ pub fn commit_parts(root: &Path, message: &str, whole: &[String], parts: &[Part]
 
 /// Marks a file a merge left in conflict resolved, as it now stands, by staging it.
 pub fn resolve(root: &Path, path: &str) -> Result<(), String> {
-    inside(root, path)?;
-    run(root, &["add", "--", &format!("./{path}")]).map(drop)
+    let (dir, shown) = beside(root, path)?;
+    run(&dir, &["add", "--", &shown]).map(drop)
 }
 
 /// Pushes the branch to the remote it follows, or to origin under its own name where it follows none.
@@ -384,20 +528,18 @@ pub fn ahead_behind(root: &Path) -> Option<(u32, u32)> {
 /// in what is staged. A file the last commit does not hold is refused, as taking it back would delete
 /// it.
 pub fn rollback(root: &Path, path: &str) -> Result<(), String> {
-    inside(root, path)?;
-    let shown = format!("./{path}");
-    if git(root, &["cat-file", "-e", &format!("HEAD:{shown}")]).is_none() {
+    let (dir, shown) = beside(root, path)?;
+    if git(&dir, &["cat-file", "-e", &format!("HEAD:{shown}")]).is_none() {
         return Err(format!("{path} is not in the last commit: delete it from the tree to take it back"));
     }
-    run(root, &["restore", "--source=HEAD", "--staged", "--worktree", "--", &shown]).map(|_| ())
+    run(&dir, &["restore", "--source=HEAD", "--staged", "--worktree", "--", &shown]).map(|_| ())
 }
 
 /// The commits that touched `file`, the newest first, following it through renames.
 pub fn commits(root: &Path, file: &str) -> Result<Vec<Commit>, String> {
-    inside(root, file)?;
+    let (dir, shown) = beside(root, file)?;
     let limit = format!("-n{COMMITS_LIMIT}");
-    let shown = format!("./{file}");
-    Ok(git(root, &["log", "--follow", &limit, "--format=%H%x1f%ct%x1f%s", "--", &shown]).map(|out| commits_of(&out)).unwrap_or_default())
+    Ok(git(&dir, &["log", "--follow", &limit, "--format=%H%x1f%ct%x1f%s", "--", &shown]).map(|out| commits_of(&out)).unwrap_or_default())
 }
 
 fn commits_of(out: &[u8]) -> Vec<Commit> {
@@ -627,20 +769,34 @@ fn git_fed(root: &Path, args: &[&str], input: String) -> Option<Vec<u8>> {
 /// The commit that last changed each line of `file` as `text` holds it, the file as the editor has it,
 /// edits and all, a line the last commit does not hold being no commit's.
 pub fn line_history(root: &Path, file: &str, text: String) -> Result<LineHistory, String> {
-    inside(root, file)?;
-    let prefix = git(root, &["rev-parse", "--show-prefix"]).map(|out| String::from_utf8_lossy(&out).trim().to_string()).unwrap_or_default();
-    let shown = format!("./{file}");
-    let out = git_fed(root, &["blame", "--porcelain", "--contents", "-", "--", &shown], text).ok_or_else(|| format!("git has no history of {file}"))?;
-    Ok(history_of(&String::from_utf8_lossy(&out), &prefix))
+    let (dir, shown) = beside(root, file)?;
+    // git names a file from its repository's folder, the tree names it from its own: the folder's path
+    // from each ends the same, and what goes before it in either path names the other's folder.
+    let from_repo = git(&dir, &["rev-parse", "--show-prefix"]).map(|out| String::from_utf8_lossy(&out).trim().to_string()).unwrap_or_default();
+    let from_tree = match crate::root::relative(root, &dir) {
+        held if held.is_empty() => String::new(),
+        held => format!("{held}/"),
+    };
+    let (strip, add) = if from_tree.ends_with(&from_repo) {
+        (String::new(), from_tree[..from_tree.len() - from_repo.len()].to_string())
+    } else if from_repo.ends_with(&from_tree) {
+        (from_repo[..from_repo.len() - from_tree.len()].to_string(), String::new())
+    } else {
+        (from_repo, String::new())
+    };
+    let out = git_fed(&dir, &["blame", "--porcelain", "--contents", "-", "--", &shown], text).ok_or_else(|| format!("git has no history of {file}"))?;
+    Ok(history_of(&String::from_utf8_lossy(&out), &strip, &add))
 }
 
 /// Reads `git blame --porcelain`: a line of a commit's id and the line's numbers before each line of
-/// the file, the commit's own lines the first time it comes, and the line itself after a tab.
-fn history_of(out: &str, prefix: &str) -> LineHistory {
+/// the file, the commit's own lines the first time it comes, and the line itself after a tab. A path
+/// git gives, from the repository's folder, is made the tree's by taking `strip` from its start and
+/// putting `add` there.
+fn history_of(out: &str, strip: &str, add: &str) -> LineHistory {
     let mut history = LineHistory::default();
     let mut places: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     let mut at = 0;
-    let under = |path: &str| path.strip_prefix(prefix).map(str::to_string);
+    let under = |path: &str| path.strip_prefix(strip).map(|rest| format!("{add}{rest}"));
     for line in out.lines() {
         if line.starts_with('\t') {
             let held = history.commits.get(at).is_some_and(|commit| !commit.id.bytes().all(|b| b == b'0'));
@@ -676,11 +832,11 @@ fn history_of(out: &str, prefix: &str) -> LineHistory {
 
 /// The text of `file` as commit `id` left it.
 pub fn text_at(root: &Path, file: &str, id: &str) -> Result<String, String> {
-    inside(root, file)?;
+    let (dir, shown) = beside(root, file)?;
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(format!("{id} is not a commit"));
     }
-    git(root, &["show", &format!("{id}:./{file}")])
+    git(&dir, &["show", &format!("{id}:{shown}")])
         .map(|out| String::from_utf8_lossy(&out).into_owned())
         .ok_or_else(|| format!("{file} is not in {id}"))
 }
@@ -688,8 +844,8 @@ pub fn text_at(root: &Path, file: &str, id: &str) -> Result<String, String> {
 /// A file's text as the last commit left it, or nothing where the tree is not git's or the last
 /// commit does not hold the file.
 pub fn head_text(root: &Path, file: &str) -> Option<String> {
-    inside(root, file).ok()?;
-    git(root, &["show", &format!("HEAD:./{file}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
+    let (dir, shown) = beside(root, file).ok()?;
+    git(&dir, &["show", &format!("HEAD:{shown}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
 }
 
 /// The repository File, Clone Repository offers first.
@@ -963,6 +1119,69 @@ mod graphing {
 }
 
 #[cfg(test)]
+mod repositories_apart {
+    use super::{changed, commit, commits, head_text, line_history, owner, repositories, text_at};
+    use std::path::Path;
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) -> String {
+        let out = Command::new("git").args(args).current_dir(dir).output().unwrap();
+        assert!(out.status.success(), "{args:?}");
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    fn start(dir: &Path, branch: &str, file: &str, text: &str) {
+        std::fs::create_dir_all(dir).unwrap();
+        git(dir, &["init", "-q", "-b", branch]);
+        git(dir, &["config", "user.name", "t"]);
+        git(dir, &["config", "user.email", "t@t"]);
+        std::fs::write(dir.join(file), text).unwrap();
+        git(dir, &["add", file]);
+        git(dir, &["commit", "-q", "-m", "first"]);
+    }
+
+    #[test]
+    fn a_repository_owns_the_deepest_folder_that_holds_a_path() {
+        let repos = [String::new(), "lib".to_string(), "lib/inner".to_string()];
+        assert_eq!(owner(&repos, "a.txt"), Some(""));
+        assert_eq!(owner(&repos, "lib/a.txt"), Some("lib"));
+        assert_eq!(owner(&repos, "lib/inner/b/c.txt"), Some("lib/inner"));
+        assert_eq!(owner(&repos, "library/a.txt"), Some(""));
+        assert_eq!(owner(&repos[1..], "a.txt"), None);
+    }
+
+    #[test]
+    fn each_repository_of_a_tree_keeps_its_own_changes_and_commits() {
+        let root = std::env::temp_dir().join(format!("orior_ui_repos_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        start(&root, "main", "a.txt", "one\n");
+        let inner = root.join("libs").join("inner");
+        start(&inner, "trunk", "b.txt", "two\n");
+        let found: Vec<(String, Option<String>)> = repositories(&root).into_iter().map(|repo| (repo.path, repo.branch)).collect();
+        assert_eq!(found, [(String::new(), Some("main".into())), ("libs/inner".into(), Some("trunk".into()))]);
+
+        std::fs::write(root.join("a.txt"), "one more\n").unwrap();
+        std::fs::write(inner.join("b.txt"), "two more\n").unwrap();
+        let mut seen: Vec<(String, char)> = changed(&root, None).into_iter().map(|one| (one.path, one.state)).collect();
+        seen.sort();
+        assert_eq!(seen, [("a.txt".into(), 'M'), ("libs/inner/b.txt".into(), 'M')]);
+
+        commit(&root, "both", &["a.txt".into(), "libs/inner/b.txt".into()]).unwrap();
+        assert_eq!(git(&root, &["log", "-1", "--format=%s"]), "both");
+        assert_eq!(git(&inner, &["log", "-1", "--format=%s"]), "both");
+        assert!(changed(&root, None).is_empty());
+
+        assert_eq!(head_text(&root, "libs/inner/b.txt").as_deref(), Some("two more\n"));
+        let history = commits(&root, "libs/inner/b.txt").unwrap();
+        assert_eq!(history.len(), 2);
+        assert_eq!(text_at(&root, "libs/inner/b.txt", &history[1].id).unwrap(), "two\n");
+        let lines = line_history(&root, "libs/inner/b.txt", "two more\n".into()).unwrap();
+        assert_eq!(lines.commits[0].path.as_deref(), Some("libs/inner/b.txt"));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+}
+
+#[cfg(test)]
 mod stashing {
     use super::{cherry_pick, elsewhere, stash_act, stashes};
     use std::process::Command;
@@ -1067,10 +1286,10 @@ mod committing {
         write(&here, "b.txt", "two changed\n");
         write(&here, "c.txt", "three\n");
         commit(&here, "Change a and add c.", &["a.txt".into(), "c.txt".into()]).unwrap();
-        let left: Vec<String> = changed(&here).into_iter().map(|one| one.path).collect();
+        let left: Vec<String> = changed(&here, None).into_iter().map(|one| one.path).collect();
         assert_eq!(left, vec!["b.txt".to_string()], "only the file not chosen is left changed");
         rollback(&here, "b.txt").unwrap();
-        assert!(changed(&here).is_empty());
+        assert!(changed(&here, None).is_empty());
         write(&here, "d.txt", "new\n");
         assert!(rollback(&here, "d.txt").unwrap_err().contains("not in the last commit"));
         assert_eq!(ahead_behind(&here), Some((1, 0)));

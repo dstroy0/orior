@@ -37,9 +37,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Version control
 
-1. **More than one repository in a tree.** A tree holding several repositories shows each one's changes, branch and commits apart.
-2. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
-3. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
+1. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
+2. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
 
 ## Testing
 

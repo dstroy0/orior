@@ -4646,7 +4646,8 @@ textarea.report-field {
   color: var(--fg-3);
 }
 
-.problem-file .count {
+.problem-file .count,
+.commit-repo .count {
   margin-left: auto;
   padding: 0 0.4rem;
   border-radius: 0.6rem;
@@ -4657,6 +4658,19 @@ textarea.report-field {
 
 .git-branch .name {
   font-weight: 600;
+}
+
+/* The Commit window's row for a repository over its files, where the tree holds more than one: its
+ * name, the branch it is on, and how many of its files differ. */
+.commit-repo {
+  gap: 0.35rem;
+  color: var(--fg);
+  font-weight: 600;
+  cursor: default;
+}
+
+.commit-repo .where {
+  font-weight: 400;
 }
 
 /* The graph: a row a commit, its columns' strokes and its dot, the branches and tags at it, its

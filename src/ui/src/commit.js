@@ -14,6 +14,10 @@
 //
 // A commit runs git's hooks and signing as the tree has them, and saves the open files first. What
 // git says when it refuses shows under the buttons.
+//
+// Where the tree holds more than one repository, each one's files stand under a row that names it and
+// its branch, a commit goes to each repository that holds a file taken, Commit and Push pushes each of
+// them, and the bar's pull and push act on the repository open.
 
 import { invoke } from "./bridge.js";
 import { icon } from "./icons.js";
@@ -133,7 +137,10 @@ async function commit(andPush) {
     if (!andPush) {
       return made;
     }
-    await invoke("git_push");
+    // Each repository a commit went to is pushed.
+    for (const repo of new Set(paths.map((path) => state.hooks.repoOf(path)))) {
+      await invoke("git_push", { repo });
+    }
     return `${made}, and pushed`;
   });
 }
@@ -165,7 +172,7 @@ async function rollback() {
 }
 
 async function readSync() {
-  state.sync = await invoke("git_ahead_behind").catch(() => null);
+  state.sync = await invoke("git_ahead_behind", { repo: state.hooks.repo() }).catch(() => null);
 }
 
 function rowOf(path, mark) {
@@ -238,6 +245,16 @@ function partRows(path) {
   return rows;
 }
 
+// A repository's files, under a row that names it and the branch it is on, where the tree holds more
+// than one.
+function repoRows(repo, paths) {
+  if (!paths.length) {
+    return [];
+  }
+  const head = element("div", { className: "node commit-repo", title: repo.path || state.hooks.repoName(repo.path) }, element("span", { className: "name", textContent: state.hooks.repoName(repo.path) }), element("span", { className: "where", textContent: repo.branch ?? "" }), element("span", { className: "count", textContent: String(paths.length) }));
+  return [head, ...paths.flatMap((path) => rowOf(path, state.changes.get(path)))];
+}
+
 export function drawCommit(changes = state.changes) {
   state.changes = changes;
   const body = document.getElementById("changes");
@@ -254,15 +271,19 @@ export function drawCommit(changes = state.changes) {
   }
   const chosen = taken();
   const [ahead, behind] = state.sync ?? [0, 0];
+  // Pull and push act on the repository open, named where the tree holds more than one.
+  const repo = state.hooks.repo();
+  const repos = state.hooks.repos();
+  const named = repos.length > 1 ? ` ${state.hooks.repoName(repo)}` : "";
   const bar = element(
     "div",
     { className: "commit-bar" },
     toolButton("refresh", "Read the tree again", () => act("Reading the tree", async () => "")),
     toolButton("undo", state.rolling ? "Press again to roll back" : "Roll back the files taken", rollback, !chosen.length),
     element("span", { className: "commit-gap" }),
-    toolButton("pull", state.sync ? `Pull${behind ? `: ${behind} behind` : ""}` : "Pull", () => act("Pulling", () => invoke("git_pull")), !state.sync),
+    toolButton("pull", state.sync ? `Pull${named}${behind ? `: ${behind} behind` : ""}` : `Pull${named}`, () => act("Pulling", () => invoke("git_pull", { repo })), !state.sync),
     state.sync && behind ? element("span", { className: "commit-count", textContent: String(behind) }) : null,
-    toolButton("push", state.sync ? `Push${ahead ? `: ${ahead} ahead` : ""}` : "Push: sets the branch to follow origin", () => act("Pushing", () => invoke("git_push"))),
+    toolButton("push", state.sync ? `Push${named}${ahead ? `: ${ahead} ahead` : ""}` : `Push${named}: sets the branch to follow origin`, () => act("Pushing", () => invoke("git_push", { repo }))),
     state.sync && ahead ? element("span", { className: "commit-count", textContent: String(ahead) }) : null,
   );
   bar.children[1].classList.toggle("asking", state.rolling);
@@ -274,7 +295,7 @@ export function drawCommit(changes = state.changes) {
     draw();
   });
   const head = element("label", { className: "commit-head" }, all, element("span", { textContent: paths.length ? `${chosen.length} of ${paths.length} file${paths.length === 1 ? "" : "s"} taken` : "No file differs from the last commit." }));
-  const list = element("div", { className: "commit-list" }, ...paths.flatMap((path) => rowOf(path, changes.get(path))));
+  const list = element("div", { className: "commit-list" }, ...(repos.length > 1 ? repos.flatMap((one) => repoRows(one, paths.filter((path) => state.hooks.repoOf(path) === one.path))) : paths.flatMap((path) => rowOf(path, changes.get(path)))));
   const message = element("textarea", { className: "commit-message", placeholder: "Commit message", spellcheck: true, value: state.message, rows: 3 });
   message.setAttribute("aria-label", "Commit message");
   const ready = () => Boolean(state.message.trim() && taken().length && !state.busy);

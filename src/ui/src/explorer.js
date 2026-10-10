@@ -58,7 +58,7 @@ const state = {
   undo: { session: null, wait: 0 },
   // The graph: what the field searches for, the commits shown, the ones whose files are open, the
   // files of each commit read so far, and what the graph was last drawn from.
-  git: { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", branch: null },
+  git: { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", branch: null, chosen: null },
 };
 
 function element(tag, props = {}, ...children) {
@@ -489,7 +489,9 @@ export function drawProblems(files) {
 // the branches and tags at it, its subject, its author and its date. A press on a commit opens the
 // files it changed under it, and a press on one of those sets the file as the commit left it beside
 // the file as the commit before it did. The field over the graph searches the whole history, by
-// subject, author, id or branch, and shows what it finds without the graph.
+// subject, author, id or branch, and shows what it finds without the graph. Where the tree holds more
+// than one repository, a choice over the field says whose commits the graph shows, the repository
+// open's until another is chosen.
 
 // A column of the graph is this wide, and its row this high.
 const LANE = 12;
@@ -564,11 +566,38 @@ async function toggleCommit(row) {
   state.git.open.add(commit.id);
   row.setAttribute("aria-expanded", "true");
   if (!state.git.files.has(commit.id)) {
-    state.git.files.set(commit.id, await invoke("git_touched", { id: commit.id }).catch(() => []));
+    state.git.files.set(commit.id, await invoke("git_touched", { id: commit.id, repo: gitRepo() }).catch(() => []));
   }
   if (state.git.open.has(commit.id) && row.isConnected) {
     row.after(...touchedRows(commit));
   }
+}
+
+// Forgets the graph's search, its choice of repository and the commits whose files were read, for a
+// tree opened in place of this one.
+export function forgetGraph() {
+  Object.assign(state.git, { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", chosen: null });
+  document.getElementById("git-query").value = "";
+}
+
+// The repository the graph shows: the one chosen over it, or the repository open where none is
+// chosen or the one chosen is gone.
+function gitRepo() {
+  const repos = state.hooks?.repos() ?? [];
+  return repos.some((repo) => repo.path === state.git.chosen) ? state.git.chosen : (state.hooks?.repo() ?? "");
+}
+
+// The choice of repository over the graph, there while the tree holds more than one.
+function drawRepoChoice(repo) {
+  const choice = document.getElementById("git-repo");
+  const repos = state.hooks?.repos() ?? [];
+  choice.hidden = repos.length < 2;
+  const key = repos.map((one) => `${one.path}:${one.branch}`).join();
+  if (choice.dataset.key !== key) {
+    choice.dataset.key = key;
+    choice.replaceChildren(...repos.map((one) => element("option", { value: one.path, textContent: `${state.hooks.repoName(one.path)}${one.branch ? `: ${one.branch}` : ""}` })));
+  }
+  choice.value = repo;
 }
 
 export async function drawGit(branch) {
@@ -578,12 +607,15 @@ export async function drawGit(branch) {
     return;
   }
   const query = state.git.query;
-  const commits = await invoke("git_graph", { query: query || null }).catch(() => []);
-  if (query !== state.git.query) {
+  const repo = gitRepo();
+  drawRepoChoice(repo);
+  const label = (state.hooks?.repos() ?? []).find((one) => one.path === repo)?.branch ?? branch;
+  const commits = await invoke("git_graph", { query: query || null, repo }).catch(() => []);
+  if (query !== state.git.query || repo !== gitRepo()) {
     return;
   }
   // A graph that is drawn as it stands is left as it is, the focus and the scroll with it.
-  const drawn = `${branch}\n${query}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
+  const drawn = `${repo}\n${label}\n${query}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
   if (drawn === state.git.drawn && body.childElementCount) {
     return;
   }
@@ -591,7 +623,7 @@ export async function drawGit(branch) {
   state.git.commits = commits;
   const count = `${commits.length} commit${commits.length === 1 ? "" : "s"} ${query ? "found" : "shown"}`;
   const focused = body.contains(document.activeElement) ? document.activeElement.dataset.key : null;
-  body.innerHTML = `<div class="node git-branch"><span class="name">${escapeHtml(branch ?? "no branch")}</span><span class="where">${count}</span></div>${commits.map(commitRow).join("")}`;
+  body.innerHTML = `<div class="node git-branch"><span class="name">${escapeHtml(label ?? "no branch")}</span><span class="where">${count}</span></div>${commits.map(commitRow).join("")}`;
   for (const id of state.git.open) {
     const row = body.querySelector(`.git-commit[data-key="${id}"]`);
     const commit = commits.find((one) => one.id === id);
@@ -622,7 +654,7 @@ function gitItems(event) {
   return [
     { label: state.git.open.has(commit.id) ? "Close Files" : "Open Files", run: () => toggleCommit(row) },
     "-",
-    { label: "Cherry-Pick", run: () => import("./menubar.js").then((menus) => menus.runCommand("cherry-pick", [commit.id])) },
+    { label: "Cherry-Pick", run: () => import("./menubar.js").then((menus) => menus.cherryPick(commit.id, gitRepo())) },
     "-",
     { label: "Copy Commit ID", run: () => copyText(commit.id) },
     { label: "Copy Commit Message", run: () => copyText(commit.subject) },
@@ -669,6 +701,10 @@ export function startExplorer(hooks) {
     if (row) {
       toggleCommit(row);
     }
+  });
+  document.getElementById("git-repo").addEventListener("change", (event) => {
+    state.git.chosen = event.target.value;
+    drawGit(state.git.branch);
   });
   const query = document.getElementById("git-query");
   let wait = 0;

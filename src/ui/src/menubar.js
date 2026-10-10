@@ -275,8 +275,8 @@ const COMMANDS = {
   "undo-history": () => showPane("undo"),
   "compare-clipboard": () => editing().compareWithClipboard(),
   "commit-view": () => showPane("changes"),
-  push: () => gitSays("Pushing", () => invoke("git_push")),
-  pull: () => gitSays("Pulling", () => invoke("git_pull")),
+  push: () => gitSays("Pushing", () => invoke("git_push", { repo: editing().repo() })),
+  pull: () => gitSays("Pulling", () => invoke("git_pull", { repo: editing().repo() })),
   branches: () => showBranches(),
   conflicts: (args) => resolveConflicts(args[0]),
   "new-branch": (args) => newBranch(args.join(" ")),
@@ -527,19 +527,19 @@ async function gitSays(doing, act) {
 async function newBranch(given) {
   const name = given || (await askFor("New branch, made from the branch open and gone on to", ""));
   if (name) {
-    gitSays(`Making ${name}`, () => invoke("git_branch", { act: "create", name }));
+    gitSays(`Making ${name}`, () => invoke("git_branch", { act: "create", name, repo: editing().repo() }));
   }
 }
 
 // Every local branch, then every remote one, the tree's own checked: each to go on to, to merge into
 // the branch open or to rebase it onto, and a local one to rename or delete.
 async function showBranches() {
-  const list = await invoke("git_branches").catch(() => []);
+  const list = await invoke("git_branches", { repo: editing().repo() }).catch(() => []);
   const open = list.find((one) => one.current)?.name ?? "HEAD";
-  const act = (act, name, to) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_branch", { act, name, to }));
+  const act = (act, name, to) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_branch", { act, name, to, repo: editing().repo() }));
   const remove = async (name) => {
     try {
-      say(await invoke("git_branch", { act: "delete", name }));
+      say(await invoke("git_branch", { act: "delete", name, repo: editing().repo() }));
       await editing().treeChanged();
     } catch (error) {
       if (/not fully merged/.test(String(error)) && (await askYes(`${name} has commits no other branch holds. Delete it and them?`, "Delete"))) {
@@ -587,19 +587,19 @@ async function showBranches() {
 async function stashChanges(given) {
   const message = given || (await askFor("A message for the changes put aside", ""));
   if (message) {
-    gitSays("Stashing", () => invoke("git_stash", { act: "push", message }));
+    gitSays("Stashing", () => invoke("git_stash", { act: "push", message, repo: editing().repo() }));
   }
 }
 
 // Git, Stashes: each stash, the newest first, to bring back and keep, bring back and drop, or throw
 // away.
 async function showStashes() {
-  const list = await invoke("git_stashes").catch(() => []);
+  const list = await invoke("git_stashes", { repo: editing().repo() }).catch(() => []);
   if (!list.length) {
     say("No changes are put aside.");
     return;
   }
-  const act = (act, stash) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${stash.name}`, () => invoke("git_stash", { act, name: stash.name }));
+  const act = (act, stash) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${stash.name}`, () => invoke("git_stash", { act, name: stash.name, repo: editing().repo() }));
   const items = list.map((stash) => ({
     label: `${stash.name}  ${stash.subject}`,
     items: [
@@ -612,14 +612,15 @@ async function showStashes() {
 }
 
 // Git, Cherry-Pick: the commit named, or one chosen from the commits of other branches the branch open
-// does not hold, applied to the branch open as a commit of its own.
-async function cherryPick(given) {
-  const pick = (id, subject) => gitSays(`Cherry-picking ${subject ?? id.slice(0, 7)}`, () => invoke("git_cherry_pick", { id }));
+// does not hold, applied to the branch open as a commit of its own, in `repo`, the repository open
+// where none is named.
+export async function cherryPick(given, repo = editing().repo()) {
+  const pick = (id, subject) => gitSays(`Cherry-picking ${subject ?? id.slice(0, 7)}`, () => invoke("git_cherry_pick", { id, repo }));
   if (given) {
     pick(given);
     return;
   }
-  const list = await invoke("git_elsewhere").catch(() => []);
+  const list = await invoke("git_elsewhere", { repo }).catch(() => []);
   if (!list.length) {
     say("The branch open holds every commit of the other branches.");
     return;

@@ -44,6 +44,16 @@ fn root_of(app: &App) -> Result<PathBuf, String> {
     app.root.lock().map_err(|e| e.to_string())?.clone().ok_or_else(|| "no orior tree is open".to_string())
 }
 
+/// The folder of a repository of the tree, by its path in the tree, or the tree's own folder where none
+/// is named.
+fn repo_of(app: &App, repo: Option<&str>) -> Result<PathBuf, String> {
+    let root = root_of(app)?;
+    match repo.filter(|repo| !repo.is_empty()) {
+        Some(repo) => orior_cli::root::inside(&root, repo),
+        None => Ok(root),
+    }
+}
+
 #[tauri::command]
 fn root_get(app: State<App>) -> Option<String> {
     app.root.lock().ok()?.as_ref().map(|p| p.to_string_lossy().into_owned())
@@ -244,14 +254,14 @@ fn files_find(app: State<App>, query: String, recent: Vec<String>, most: usize) 
 
 /// Every local and remote branch of the tree's repository.
 #[tauri::command(async)]
-fn git_branches(app: State<App>) -> Result<Vec<git::Branch>, String> {
-    Ok(git::branches(&root_of(&app)?))
+fn git_branches(app: State<App>, repo: Option<String>) -> Result<Vec<git::Branch>, String> {
+    Ok(git::branches(&repo_of(&app, repo.as_deref())?))
 }
 
 /// Creates, switches to, renames, deletes, merges or rebases onto a branch, as `act` says.
 #[tauri::command(async)]
-fn git_branch(app: State<App>, act: String, name: String, to: Option<String>) -> Result<String, String> {
-    git::branch_act(&root_of(&app)?, &act, &name, to.as_deref().unwrap_or(""))
+fn git_branch(app: State<App>, act: String, name: String, to: Option<String>, repo: Option<String>) -> Result<String, String> {
+    git::branch_act(&repo_of(&app, repo.as_deref())?, &act, &name, to.as_deref().unwrap_or(""))
 }
 
 /// Commits whole files and files taken in part, each with the text the commit gives it.
@@ -366,13 +376,19 @@ fn zoom_set(webview: tauri::Webview, factor: f64) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn tree_changed(app: State<App>) -> Result<Vec<git::Changed>, String> {
-    Ok(git::changed(&root_of(&app)?))
+fn tree_changed(app: State<App>, repos: Option<Vec<String>>) -> Result<Vec<git::Changed>, String> {
+    Ok(git::changed(&root_of(&app)?, repos.as_deref()))
+}
+
+/// The repositories of the tree, the one it is in first, each with the branch it is on.
+#[tauri::command(async)]
+fn git_repositories(app: State<App>) -> Result<Vec<git::Repository>, String> {
+    Ok(git::repositories(&root_of(&app)?))
 }
 
 #[tauri::command]
-fn tree_branch(app: State<App>) -> Result<Option<String>, String> {
-    Ok(git::branch(&root_of(&app)?))
+fn tree_branch(app: State<App>, repo: Option<String>) -> Result<Option<String>, String> {
+    Ok(git::branch(&repo_of(&app, repo.as_deref())?))
 }
 
 /// Files an error the window met, on its own where the reporter lets errors file. Answers where the
@@ -461,13 +477,13 @@ fn git_commit(app: State<App>, message: String, paths: Vec<String>) -> Result<St
 }
 
 #[tauri::command(async)]
-fn git_push(app: State<App>) -> Result<String, String> {
-    git::push(&root_of(&app)?)
+fn git_push(app: State<App>, repo: Option<String>) -> Result<String, String> {
+    git::push(&repo_of(&app, repo.as_deref())?)
 }
 
 #[tauri::command(async)]
-fn git_pull(app: State<App>) -> Result<String, String> {
-    git::pull(&root_of(&app)?)
+fn git_pull(app: State<App>, repo: Option<String>) -> Result<String, String> {
+    git::pull(&repo_of(&app, repo.as_deref())?)
 }
 
 #[tauri::command(async)]
@@ -478,41 +494,48 @@ fn git_rollback(app: State<App>, path: String) -> Result<(), String> {
 /// How many commits the branch has that its remote does not, and the other way, or null where it
 /// follows no remote.
 #[tauri::command(async)]
-fn git_ahead_behind(app: State<App>) -> Result<Option<(u32, u32)>, String> {
-    Ok(git::ahead_behind(&root_of(&app)?))
+fn git_ahead_behind(app: State<App>, repo: Option<String>) -> Result<Option<(u32, u32)>, String> {
+    Ok(git::ahead_behind(&repo_of(&app, repo.as_deref())?))
 }
 
 /// Every branch's commits laid out as a graph, or the commits a search finds.
 #[tauri::command(async)]
-fn git_graph(app: State<App>, query: Option<String>) -> Result<Vec<git::Drawn>, String> {
-    Ok(git::graph(&root_of(&app)?, query.as_deref().unwrap_or("")))
+fn git_graph(app: State<App>, query: Option<String>, repo: Option<String>) -> Result<Vec<git::Drawn>, String> {
+    Ok(git::graph(&repo_of(&app, repo.as_deref())?, query.as_deref().unwrap_or("")))
 }
 
-/// The files a commit changed.
+/// The files a commit changed, by their paths in the tree.
 #[tauri::command(async)]
-fn git_touched(app: State<App>, id: String) -> Result<Vec<git::Touched>, String> {
-    git::touched(&root_of(&app)?, &id)
+fn git_touched(app: State<App>, id: String, repo: Option<String>) -> Result<Vec<git::Touched>, String> {
+    let mut found = git::touched(&repo_of(&app, repo.as_deref())?, &id)?;
+    if let Some(repo) = repo.filter(|repo| !repo.is_empty()) {
+        for file in &mut found {
+            file.path = format!("{repo}/{}", file.path);
+            file.was = file.was.take().map(|was| format!("{repo}/{was}"));
+        }
+    }
+    Ok(found)
 }
 
 #[tauri::command(async)]
-fn git_stashes(app: State<App>) -> Result<Vec<git::Stash>, String> {
-    Ok(git::stashes(&root_of(&app)?))
+fn git_stashes(app: State<App>, repo: Option<String>) -> Result<Vec<git::Stash>, String> {
+    Ok(git::stashes(&repo_of(&app, repo.as_deref())?))
 }
 
 #[tauri::command(async)]
-fn git_stash(app: State<App>, act: String, name: Option<String>, message: Option<String>) -> Result<String, String> {
-    git::stash_act(&root_of(&app)?, &act, name.as_deref().unwrap_or(""), message.as_deref().unwrap_or(""))
+fn git_stash(app: State<App>, act: String, name: Option<String>, message: Option<String>, repo: Option<String>) -> Result<String, String> {
+    git::stash_act(&repo_of(&app, repo.as_deref())?, &act, name.as_deref().unwrap_or(""), message.as_deref().unwrap_or(""))
 }
 
 /// The commits of other branches the branch open does not hold, to cherry-pick from.
 #[tauri::command(async)]
-fn git_elsewhere(app: State<App>) -> Result<Vec<git::Commit>, String> {
-    Ok(git::elsewhere(&root_of(&app)?))
+fn git_elsewhere(app: State<App>, repo: Option<String>) -> Result<Vec<git::Commit>, String> {
+    Ok(git::elsewhere(&repo_of(&app, repo.as_deref())?))
 }
 
 #[tauri::command(async)]
-fn git_cherry_pick(app: State<App>, id: String) -> Result<String, String> {
-    git::cherry_pick(&root_of(&app)?, &id)
+fn git_cherry_pick(app: State<App>, id: String, repo: Option<String>) -> Result<String, String> {
+    git::cherry_pick(&repo_of(&app, repo.as_deref())?, &id)
 }
 
 /// The commit that last changed each line of a file as the editor holds its text.
@@ -1229,6 +1252,7 @@ fn open(launch: Launch) {
             git_graph,
             git_touched,
             git_line_history,
+            git_repositories,
             git_stashes,
             git_stash,
             git_elsewhere,
