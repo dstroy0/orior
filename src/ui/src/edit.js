@@ -43,7 +43,7 @@ import { extractFunction } from "./extract.js";
 import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
-import { clipText, copyText, menuOn } from "./menu.js";
+import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
 import { onPatterns, tellPatterns } from "./patterns.js";
 import { onScheme } from "./scheme.js";
@@ -1058,20 +1058,43 @@ function symbolsAround(s, line) {
   return held.filter((symbol) => symbol.line === line || s.endOf(symbol.line) >= line);
 }
 
-// Opens a folder of the tree and every folder above it, and gives its row the keys.
-async function revealFolder(folder) {
-  togglePane(true);
-  let at = folder.length;
-  while (at > 0) {
-    state.expanded.add(folder.slice(0, at));
-    at = folder.lastIndexOf("/", at - 1);
+// The symbols beside one in the crumbs: those `parent` holds at `depth`, or the file's outermost
+// where it is null.
+function symbolsBeside(s, parent, depth) {
+  const chain = [];
+  const beside = [];
+  for (const one of crumbSymbols(s)) {
+    chain.length = Math.min(chain.length, one.depth);
+    if (one.depth === depth && (chain.at(-1)?.line ?? -1) === (parent?.line ?? -1)) {
+      beside.push(one);
+    }
+    chain.push(one);
   }
-  await drawTree();
-  const row = [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === folder);
-  row?.scrollIntoView({ block: "nearest" });
-  row?.focus();
+  return beside;
 }
 
+// A folder's entries as a list from the crumbs: a file opens at a press, and a folder opens its own
+// entries beside it.
+async function entryItems(dir) {
+  return (await childrenOf(dir)).map((entry) => (entry.dir ? { label: entry.name, items: () => entryItems(entry.path) } : { label: entry.name, run: () => openFile(entry.path) }));
+}
+
+// Opens the list of the files and folders in `dir` from a crumb, the one named `name` taking the keys.
+async function listBeside(crumb, dir, name) {
+  openFromCrumb(crumb, await entryItems(dir), name);
+}
+
+// Opens a list over a crumb of the status bar, the item labeled `label` taking the keys.
+function openFromCrumb(crumb, items, label) {
+  const box = crumb.getBoundingClientRect();
+  const menu = showMenu(box.left, box.top, items, { anchor: crumb });
+  const own = [...menu.querySelectorAll(".menu-item")].find((one) => one.textContent === label);
+  own?.focus();
+  own?.scrollIntoView({ block: "nearest" });
+}
+
+// The breadcrumbs of the file shown: its folders, it, and the symbols the cursor is in. A press on a
+// folder or the file opens the list of what stands beside it, and on a symbol the symbols beside it.
 function drawCrumbs() {
   const bar = document.getElementById("crumbs");
   const tab = tabOf(state.active);
@@ -1086,18 +1109,19 @@ function drawCrumbs() {
     return button;
   };
   const nodes = [];
-  parts.slice(0, -1).forEach((name, at) => nodes.push(crumb(name, () => revealFolder(parts.slice(0, at + 1).join("/")))));
-  const file = crumb(tabName(tab), () => {
-    togglePane(true);
-    reveal(tab.path).then(() => [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === tab.path)?.focus());
-  }, "file");
-  file.prepend(iconOf(tab.file.split("/").pop(), Boolean(state.known?.typeOf(tab.file))));
-  nodes.push(file);
+  // Each folder's and the file's crumb opens the list of the folder that holds it, with it chosen.
+  parts.forEach((name, at) => {
+    const part = crumb(at === parts.length - 1 ? tabName(tab) : name, () => listBeside(part, parts.slice(0, at).join("/"), name), at === parts.length - 1 ? "file" : "");
+    nodes.push(part);
+  });
+  nodes.at(-1).prepend(iconOf(tab.file.split("/").pop(), Boolean(state.known?.typeOf(tab.file))));
   const s = tab.session;
   if (s && state.editor?.s === s) {
-    for (const symbol of symbolsAround(s, state.editor.head().line)) {
-      nodes.push(crumb(symbol.name, () => jumpTo(symbol.line), "symbol"));
-    }
+    const around = symbolsAround(s, state.editor.head().line);
+    around.forEach((symbol, at) => {
+      const part = crumb(symbol.name, () => openFromCrumb(part, symbolsBeside(s, around[at - 1] ?? null, symbol.depth).map((one) => ({ label: one.name, run: () => jumpTo(one.line) })), symbol.name), "symbol");
+      nodes.push(part);
+    });
   }
   const key = nodes.map((node) => node.textContent).join("/");
   if (bar.dataset.key === key) {

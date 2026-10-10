@@ -96,8 +96,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Explorer and files
 
-1. **Breadcrumbs that go somewhere.** Each part of the breadcrumbs opens a list of the files and folders beside it, a press opening one.
-2. **orior's own files in one place.** Its settings, its plugins, its themes and its kept state in one folder of the reader's, laid out as the documentation says.
+1. **orior's own files in one place.** Its settings, its plugins, its themes and its kept state in one folder of the reader's, laid out as the documentation says.
 
 ## Running and measuring
 
