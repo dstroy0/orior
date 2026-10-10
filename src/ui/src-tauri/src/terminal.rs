@@ -47,7 +47,7 @@ struct Exit {
 /// The shell a terminal runs, at `root`: ORIOR_SHELL where it is set; on Windows Git's bash, the one
 /// the jobs run in, as a login shell; elsewhere the reader's own SHELL, else bash. Git's bash is told
 /// to stay in the folder it starts in, which a login shell otherwise leaves for the home folder.
-fn shell(root: &Path) -> Result<CommandBuilder, String> {
+pub fn shell(root: &Path) -> Result<CommandBuilder, String> {
     let mut command = if let Ok(named) = std::env::var("ORIOR_SHELL") {
         CommandBuilder::new(named)
     } else if cfg!(windows) {
@@ -128,10 +128,10 @@ fn size(cols: u16, rows: u16) -> PtySize {
 }
 
 impl Terms {
-    /// Opens a terminal `cols` wide and `rows` tall with its shell at `root`, and returns its number.
-    pub fn open(&self, app: AppHandle, root: &Path, cols: u16, rows: u16) -> Result<u64, String> {
+    /// Opens a terminal `cols` wide and `rows` tall running `command`, a shell, and returns its number.
+    pub fn open(&self, app: AppHandle, command: CommandBuilder, cols: u16, rows: u16) -> Result<u64, String> {
         let pair = native_pty_system().openpty(size(cols, rows)).map_err(|e| e.to_string())?;
-        let mut child = pair.slave.spawn_command(shell(root)?).map_err(|e| e.to_string())?;
+        let mut child = pair.slave.spawn_command(command).map_err(|e| e.to_string())?;
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
         let writer = pair.master.take_writer().map_err(|e| e.to_string())?;

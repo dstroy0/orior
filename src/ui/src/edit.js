@@ -838,9 +838,10 @@ async function load(path) {
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
     // The width the file's formatter keeps its lines to, drawn as a line down the editor.
     if (tab.session) {
-      invoke("format_width", { path: tab.path, language: tab.session.language?.id ?? "" })
-        .then((width) => {
-          tab.session.margin = width;
+      invoke("format_margin", { path: tab.path, language: tab.session.language?.id ?? "" })
+        .then((found) => {
+          tab.session.margin = found?.width ?? null;
+          tab.session.marginBy = found?.by ?? null;
           state.editor?.schedule();
         })
         .catch(() => {});
@@ -2618,6 +2619,7 @@ export async function startEdit(defs) {
   state.editor.addKeys(state.editorKeys);
   state.editor.bindKeys(state.boundKeys);
   state.editor.setVim(vimKeys());
+  state.editor.setMargin(marginLine());
   // The debugger's marks in the gutter, by the file a session shows, a split's the same as the
   // session it was made from. A file as a commit left it has none.
   const fileOfSession = (s) => state.tabs.find((tab) => tab.session === (s?.of ?? s) && !tab.commit)?.file ?? null;
@@ -2715,6 +2717,7 @@ export async function startEdit(defs) {
     editor.addKeys(state.editorKeys);
     editor.bindKeys(state.boundKeys);
     editor.setVim(vimKeys());
+    editor.setMargin(marginLine());
     for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock", "valueAt"]) {
       editor[name] = state.editor[name];
     }
@@ -3124,6 +3127,21 @@ export function setVimKeys(on) {
   localStorage.setItem(VIM_KEY, String(on));
   state.editor?.setVim(on);
   state.split?.editor.setVim(on);
+}
+
+// The line down the editor at the width the file's formatter keeps lines to, which names the
+// formatter and the width at its top: off until View, Formatter's Line Width turns it on, and kept
+// under orior.margin.
+const MARGIN_KEY = "orior.margin";
+
+export function marginLine() {
+  return localStorage.getItem(MARGIN_KEY) === "true";
+}
+
+export function setMarginLine(on = !marginLine()) {
+  localStorage.setItem(MARGIN_KEY, String(on));
+  state.editor?.setMargin(on);
+  state.split?.editor.setMargin(on);
 }
 
 // Binds the reader's keys in the editor and its split, in place of those bound before, each `run`

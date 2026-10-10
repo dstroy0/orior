@@ -355,6 +355,8 @@ pub enum Outcome {
 #[derive(Clone, Default, serde::Serialize)]
 pub struct Launch {
     pub root: Option<PathBuf>,
+    /// The tree on another machine to open the window on, as link.rs reads its address.
+    pub remote: Option<String>,
     pub menu: String,
     pub command: String,
     pub args: Vec<String>,
@@ -365,6 +367,47 @@ impl Launch {
     pub fn words(&self) -> String {
         [self.menu.as_str(), self.command.as_str()].into_iter().chain(self.args.iter().map(String::as_str)).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ")
     }
+}
+
+/// Brings the tree's dev container up as its description says, docker's output shown as it comes, and
+/// opens a window on the tree in it; orior-cli, which opens no window, names the address to open.
+fn dev_container(named: Option<&str>) -> i32 {
+    let root = match tree(named) {
+        Ok(root) => root,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let plan = match crate::devcontainer::plan(&root) {
+        Ok(plan) => plan,
+        Err(said) => {
+            err(&said);
+            return WRONG;
+        }
+    };
+    let address = match crate::devcontainer::up(&plan, &mut |line| out(&format!("$ {line}"))) {
+        Ok(address) => address,
+        Err(said) => {
+            err(&said);
+            return NO_CODE;
+        }
+    };
+    let program = std::env::current_exe().ok().filter(|program| program.file_stem().is_some_and(|stem| stem == "orior"));
+    match program {
+        Some(program) => {
+            let mut command = std::process::Command::new(program);
+            command.arg("--remote").arg(&address).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+            crate::runner::quiet(&mut command);
+            if let Err(error) = command.spawn() {
+                err(&format!("orior --remote {address}: {error}"));
+                return NO_CODE;
+            }
+            out(&format!("Opened a window on {address}"));
+        }
+        None => out(&format!("orior --remote {address}")),
+    }
+    0
 }
 
 /// The widest a usage in the help's left column is; a wider one stands on lines of its own, its
@@ -526,6 +569,7 @@ fn console(command: &str, named: Option<&str>, words: &[String], menus: &Command
         "user-css" => return user_css(),
         "toolchains" => return toolchains_words(words),
         "clone" => return clone_words(words),
+        "dev-container" => return dev_container(named),
         "format" => return format_files(words),
         "run-file" => return run_file_words(named, words),
         "validate" => return validate_files(words),
@@ -1195,6 +1239,7 @@ fn menu_job(named: Option<&str>, menu: &Menu, words: &[String]) -> i32 {
 /// window to open for one that acts there.
 pub fn run(given: Vec<String>) -> Outcome {
     let mut named = None;
+    let mut remote: Option<String> = None;
     let mut words = Vec::new();
     let mut given = given.into_iter();
     while let Some(word) = given.next() {
@@ -1209,21 +1254,40 @@ pub fn run(given: Vec<String>) -> Outcome {
             named = Some(dir);
         } else if let Some(dir) = word.strip_prefix("--root=") {
             named = Some(dir.to_string());
+        } else if word == "--remote" {
+            let Some(address) = given.next() else {
+                err("--remote needs an address: user@host:folder, docker:container:folder or wsl:distribution:folder");
+                return Outcome::Exit(WRONG);
+            };
+            remote = Some(address);
+        } else if let Some(address) = word.strip_prefix("--remote=") {
+            remote = Some(address.to_string());
         } else {
             words.push(word);
         }
     }
     let menus = commands::read();
     let named = named.as_deref();
-    let window = |menu: String, command: String, args: Vec<String>| match named.map(|dir| tree(Some(dir))).transpose() {
-        Ok(root) => Outcome::Window(Launch { root, menu, command, args }),
-        Err(said) => {
-            err(&said);
-            Outcome::Exit(NO_CODE)
+    let window = |menu: String, command: String, args: Vec<String>| {
+        if let Some(remote) = &remote {
+            return match crate::link::Address::parse(remote) {
+                Ok(_) => Outcome::Window(Launch { root: None, remote: Some(remote.clone()), menu, command, args }),
+                Err(said) => {
+                    err(&said);
+                    Outcome::Exit(WRONG)
+                }
+            };
+        }
+        match named.map(|dir| tree(Some(dir))).transpose() {
+            Ok(root) => Outcome::Window(Launch { root, remote: None, menu, command, args }),
+            Err(said) => {
+                err(&said);
+                Outcome::Exit(NO_CODE)
+            }
         }
     };
     let Some(first) = words.first().map(String::as_str) else {
-        if named.is_some() {
+        if named.is_some() || remote.is_some() {
             return window(String::new(), String::new(), Vec::new());
         }
         out(help(&menus).trim_end());
@@ -1255,6 +1319,22 @@ pub fn run(given: Vec<String>) -> Outcome {
     if matches!(first, "--version" | "-V") {
         out(&format!("orior {}", env!("CARGO_PKG_VERSION")));
         return Outcome::Exit(0);
+    }
+    // serve answers a window on another machine over its input and output, as serve.rs says.
+    if first == "serve" {
+        let root = match named.map(|dir| tree(Some(dir))).transpose() {
+            Ok(root) => root,
+            Err(said) => {
+                err(&said);
+                return Outcome::Exit(NO_CODE);
+            }
+        };
+        crate::serve::serve(root, std::io::stdin().lock(), std::io::stdout());
+        return Outcome::Exit(0);
+    }
+    // keep-run runs a job the server keeps, a process of its own, as serve.rs says.
+    if first == "keep-run" {
+        return Outcome::Exit(words.get(1).map_or(WRONG, |base| crate::serve::keep_run(std::path::Path::new(base))));
     }
     // The first run at a terminal asks whether errors file on their own, where the installer did not,
     // and a run that answers it itself asks nothing.

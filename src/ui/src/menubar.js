@@ -27,7 +27,7 @@ import { checkersNamed, setCheckers } from "./servers.js";
 import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
-import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setVimKeys, vimKeys } from "./edit.js";
+import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
@@ -52,6 +52,7 @@ import { icon } from "./icons.js";
 import { focusFollows, setFocusFollows } from "./focusfollow.js";
 import { setSystemTitleBar, systemTitleBar } from "./strip.js";
 import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
+import { openRemote } from "./remote.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -262,11 +263,20 @@ const COMMANDS = {
   "reader-menus": () => openReaderMenus(),
   profile: () => profileFile(),
   "profile-remote": (args) => profileRemote(args[0]),
+  "open-remote": (args) => openRemote(args[0]),
+  "dev-container": async () => {
+    try {
+      runInTerminal(await invoke("devcontainer_line"));
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+  },
   "stop-profile": () => stopProfile(),
   "profile-view": () => toggleProfile(),
   "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "system-title": (args) => setSystemTitleBar(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   toolbar: (args) => setToolbarShown(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
+  "margin-line": (args) => setMarginLine(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "strip-edge": (args) => setStripEdge(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   float: (args) => (args[0] ? float(args[0]) : showMenu(window.innerWidth / 3, 60, floatItems(float))),
   solo: (args) => (args.length || document.body.dataset.solo ? solo(args[0] ?? document.body.dataset.solo, args[1] ?? null) : showMenu(window.innerWidth / 3, 60, floatItems(solo))),
@@ -522,6 +532,7 @@ const CHECKS = {
   "side-tabs": () => editing().sideTabs(),
   "strip-edge": stripEdge,
   toolbar: () => toolbarShown(),
+  "margin-line": () => marginLine(),
   "focus-follows": () => focusFollows(),
   "system-title": () => systemTitleBar(),
   "macro-recording": recording,

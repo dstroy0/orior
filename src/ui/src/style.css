@@ -963,6 +963,40 @@ body[data-strip-edge] .strip-edge {
   display: none;
 }
 
+/* The machine a tree on another machine is on, quiet while its link is joined and marked while it is
+   being joined or is not reached. */
+.status-machine {
+  overflow: hidden;
+  max-width: 30vw;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status-machine:hover {
+  color: var(--bar-bright);
+}
+
+.status-machine[data-link="joining"],
+.status-machine[data-link="preparing"],
+.status-machine[data-link="dropped"],
+.status-machine[data-link="joining-again"] {
+  color: var(--ed-warning);
+}
+
+.status-machine[data-link="failed"] {
+  color: var(--fail);
+}
+
+.status-machine[hidden] {
+  display: none;
+}
+
 .status-said {
   overflow: hidden;
   max-width: 50vw;
@@ -3016,6 +3050,16 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   width: 1px;
   background: var(--ed-guide);
   pointer-events: none;
+}
+
+/* What the formatter's line is, written at its top, beside it. */
+.ed-margin-says {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--fg-3);
+  font: 11px/14px var(--head);
+  white-space: nowrap;
 }
 
 /* The documentation's margin, where the reader sets one apart from the code's. */

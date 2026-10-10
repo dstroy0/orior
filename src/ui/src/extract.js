@@ -590,12 +590,13 @@ async function extractTyped(editor, tab, id, lang, read) {
   const headIndent = indentOf(headText);
   const isC = id === "c" && /\.[ch]$/i.test(tab.file ?? "");
 
-  // Each name's type, from the server's hover where the selection first reads or sets it.
+  // Each name's type, from the server's hover where the selection first reads or sets it: null where
+  // the hover names no type of the name's own, and undefined where the server answered nothing.
   const kinds = new Map();
   const ask = async (name, line, col) => {
     if (!kinds.has(name)) {
-      const said = await hoverAt(tab, pos(line, col));
-      kinds.set(name, said ? lang.typeIn(said, name) : null);
+      const said = await hoverAt(tab, pos(line, col), null, true);
+      kinds.set(name, said ? lang.typeIn(said, name) : undefined);
     }
     return kinds.get(name);
   };
@@ -608,6 +609,10 @@ async function extractTyped(editor, tab, id, lang, read) {
         continue;
       }
       say(`The selection reads ${name}, a field, which a function outside the class does not reach.`);
+      return;
+    }
+    if (kind === undefined) {
+      say(`The language server gives no type for ${name}, which the selection reads. Extract Function again once it has read the file.`);
       return;
     }
     if (kind) {
@@ -648,7 +653,7 @@ async function extractTyped(editor, tab, id, lang, read) {
     const binding = id === "rust" ? lang.probe(name, value) : `${inferred(tab.file)} ${name} = (${value});`;
     const lines = original.split("\n");
     lines.splice(top, 0, `${indent}${binding}`);
-    const said = await hoverAt(tab, pos(top, indent.length + binding.indexOf(name)), lines.join("\n"));
+    const said = await hoverAt(tab, pos(top, indent.length + binding.indexOf(name)), lines.join("\n"), true);
     valueType = said ? lang.typeIn(said, name)?.type : null;
     if (!valueType || /\{unknown\}|\{closure/.test(valueType)) {
       say("The language server gives no type for the expression selected.");

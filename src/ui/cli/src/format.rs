@@ -97,17 +97,35 @@ fn number_in(text: &str, table: Option<&str>, key: &str) -> Option<u32> {
 /// The width the formatter of `language` keeps lines of the file at `path` to: the project's own
 /// setting for it, Black's `line-length` in a pyproject.toml, rustfmt's `max_width`, clang-format's
 /// `ColumnLimit` and Prettier's `printWidth`, or the formatter's own where the project sets none.
-/// None for a language no formatter formats, and for a limit of 0, which clang-format reads as none.
+/// None for a language no formatter formats, for a limit of 0, which clang-format reads as none, and
+/// for Markdown where Prettier's `proseWrap` is not `always`: Prettier leaves its prose's lines as
+/// they are.
 pub fn width(path: &Path, language: &str) -> Option<u32> {
-    let (_, format) = formatter_of(language).ok()?;
+    margin(path, language).map(|(width, _)| width)
+}
+
+/// The width `width` gives, and the name of the formatter that keeps lines to it.
+pub fn margin(path: &Path, language: &str) -> Option<(u32, String)> {
+    let (tool, format) = formatter_of(language).ok()?;
+    const PRETTIER: &[&str] = &[".prettierrc", ".prettierrc.json", ".prettierrc.yaml", ".prettierrc.yml"];
     let (names, table, key, own): (&[&str], Option<&str>, &str, u32) = match format.program.as_str() {
         "black" => (&["pyproject.toml"], Some("tool.black"), "line-length", 88),
         "rustfmt" => (&["rustfmt.toml", ".rustfmt.toml"], None, "max_width", 100),
         "clang-format" => (&[".clang-format", "_clang-format"], None, "ColumnLimit", 80),
-        "prettier" => (&[".prettierrc", ".prettierrc.json", ".prettierrc.yaml", ".prettierrc.yml"], None, "printWidth", 80),
+        "prettier" => (PRETTIER, None, "printWidth", 80),
         _ => return None,
     };
-    Some(nearest(path, names).and_then(|text| number_in(&text, table, key)).unwrap_or(own)).filter(|width| *width > 0)
+    let settings = nearest(path, names);
+    if language == "markdown" && !settings.as_deref().is_some_and(wraps_prose) {
+        return None;
+    }
+    let width = settings.and_then(|text| number_in(&text, table, key)).unwrap_or(own);
+    (width > 0).then_some((width, tool.name))
+}
+
+/// Whether Prettier's settings set `proseWrap` to `always`.
+fn wraps_prose(text: &str) -> bool {
+    text.split(['\n', ',', '{', '}']).any(|part| part.contains("proseWrap") && part.contains("always"))
 }
 
 /// The Rust edition of the crate that holds the file at `path`, as its Cargo.toml names it, or 2021
@@ -210,6 +228,11 @@ mod tests {
         assert_eq!(width(&dir.join("pkg").join("a.py"), "python"), Some(100));
         assert_eq!(edition_of(&dir.join("pkg").join("a.rs")), "2024");
         assert_eq!(width(&dir.join("pkg").join("a.tex"), "tex"), None);
+        std::fs::write(dir.join(".prettierrc"), "{ \"printWidth\": 100 }").unwrap();
+        assert_eq!(width(&dir.join("pkg").join("a.md"), "markdown"), None);
+        assert_eq!(margin(&dir.join("pkg").join("a.js"), "javascript").map(|(width, _)| width), Some(100));
+        std::fs::write(dir.join(".prettierrc"), "{ \"printWidth\": 100, \"proseWrap\": \"always\" }").unwrap();
+        assert_eq!(width(&dir.join("pkg").join("a.md"), "markdown"), Some(100));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

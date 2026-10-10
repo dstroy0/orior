@@ -83,6 +83,7 @@ export function parseShown(tab, from, to) {
     await flush(tab);
     classNames ??= await invoke("parse_classes").catch(() => null);
     const version = s.doc.id;
+    const told = tab.told;
     const low = Math.max(0, from - PARSE_AROUND);
     const high = Math.min(s.doc.count - 1, to + PARSE_AROUND);
     // A parse that fails, as a server still reading the tree's fails, is asked for again after a moment.
@@ -91,7 +92,8 @@ export function parseShown(tab, from, to) {
       tab.parseAgain = Date.now() + PARSE_AGAIN;
       return;
     }
-    if (s.doc.id !== version || !classNames) {
+    // A change told while the parse was read may not be in it.
+    if (s.doc.id !== version || tab.told !== told || !classNames) {
       return;
     }
     if (!found) {
@@ -241,8 +243,10 @@ export async function serve(tab) {
     wrap(tab);
   }
   const sent = s.doc.text();
+  const sentDoc = s.doc.id;
   const took = await invoke("lsp_open", { path: tab.file, language, text: sent }).catch(() => false);
   tab.serving = false;
+  tab.toldDoc = sentDoc;
   if (took && tabsOf().includes(tab)) {
     tab.served = true;
     s.diagnostics ??= [];
@@ -259,6 +263,18 @@ export async function serve(tab) {
   // What was typed while the server started is told it now.
   if ((tab.served || tab.inspected) && s.doc.text() !== sent) {
     changed(tab);
+  }
+}
+
+// Hands every open tab to its language's server again, the servers having ended, as they do with the
+// link to the tree's machine.
+export function serveAgain() {
+  for (const tab of tabsOf()) {
+    if (tab.served !== undefined || tab.inspected) {
+      window.clearTimeout(tab.telling);
+      Object.assign(tab, { served: undefined, inspected: false, untold: false, toldDoc: undefined });
+      serve(tab);
+    }
   }
 }
 
@@ -319,11 +335,32 @@ export function changed(tab) {
 
 // Tells the server of a change to a served tab now, where one is waiting for typing to rest, so
 // that what is asked next is asked of the text as it stands.
+//
+// The server holds the text of the version it was last told, `toldDoc`; a tab whose version has
+// moved since is told its text, whether the edit has said it changed yet, and one whose version has
+// come back to it is told nothing.
+//
+// A parse or hints asked before the change was told were read from the text before it: once it is
+// told, they are asked for again.
 export async function flush(tab) {
   window.clearTimeout(tab?.telling);
-  if ((tab?.served || tab?.inspected) && tab.untold) {
-    tab.untold = false;
-    await invoke("lsp_change", { path: tab.file, text: tab.session.doc.text() }).catch(() => {});
+  const s = tab?.session;
+  if (!(tab?.served || tab?.inspected) || !s) {
+    return;
+  }
+  const behind = tab.toldDoc === undefined ? tab.untold : tab.toldDoc !== s.doc.id;
+  tab.untold = false;
+  if (behind) {
+    tab.toldDoc = s.doc.id;
+    tab.told = (tab.told ?? 0) + 1;
+    await invoke("lsp_change", { path: tab.file, text: s.doc.text() }).catch(() => {});
+    if (s.highlight.parse) {
+      s.highlight.parse.stale = true;
+    }
+    if (s.hints) {
+      s.hints.stale = true;
+    }
+    s.view?.schedule();
   }
 }
 
@@ -340,14 +377,18 @@ export function stopServing(tab) {
 // The server's hover at a place in a served tab, as Markdown, or null. Given `text`, the server is
 // asked of that text in place of the tab's, and told the tab's own again after. A server still
 // reading a change, which answers that the content was modified or answers nothing, is asked again a
-// moment later, up to ASKS times for the one and a few for the other.
+// moment later, up to ASKS times for the one and a few for the other; where `named`, a name is known
+// to stand at the place, and an answer of nothing is asked again ASKS times too, as a server still
+// reading the tree gives.
 const ASKS = 20;
-export async function hoverAt(tab, p, text = null) {
+export async function hoverAt(tab, p, text = null, named = false) {
   if (!tab?.served) {
     return null;
   }
   await flush(tab);
   if (text !== null) {
+    // The server holds a text no version of the tab's is, until the tab's own is told again.
+    tab.toldDoc = null;
     await invoke("lsp_change", { path: tab.file, text }).catch(() => {});
   }
   try {
@@ -359,7 +400,7 @@ export async function hoverAt(tab, p, text = null) {
           return said;
         }
         empty += 1;
-        if (empty > 3) {
+        if (empty > (named ? ASKS : 3)) {
           return null;
         }
       } catch (error) {
@@ -372,7 +413,6 @@ export async function hoverAt(tab, p, text = null) {
     return null;
   } finally {
     if (text !== null) {
-      tab.untold = true;
       await flush(tab);
     }
   }

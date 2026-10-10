@@ -23,6 +23,7 @@ const DRAG = 6;
 
 // Each item: its name, its label, and the line it moves along, the bar's or the editor's.
 const ITEMS = [
+  ["machine", "The Tree's Machine", "bar"],
   ["crumbs", "Breadcrumbs", "bar"],
   ["runs", "Runs and Files Being Read", "bar"],
   ["said", "What Was Last Done", "bar"],

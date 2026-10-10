@@ -24,7 +24,7 @@ use serde_json::{Map, Value};
 
 /// The settings among the window's entries: a key named here, or one starting with a name here that
 /// ends in `.`.
-const SETTINGS: [&str; 38] = [
+const SETTINGS: [&str; 39] = [
     "scheme",
     "zoom",
     "opacity.",
@@ -44,6 +44,7 @@ const SETTINGS: [&str; 38] = [
     "plugins.off",
     "macros",
     "vim",
+    "margin",
     "whitespace",
     "comments-hidden",
     "past-ends",

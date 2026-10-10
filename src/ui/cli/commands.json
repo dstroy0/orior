@@ -18,13 +18,15 @@
             { "label": "File…", "command": "open-file", "keys": "Ctrl+O", "args": "[file]" },
             { "label": "Folder…", "command": "open-folder", "args": "[folder]" },
             { "label": "Repository…", "command": "open-repository", "args": "[url]" },
-            { "label": "Workspace…", "command": "open-workspace", "args": "[file]" }
+            { "label": "Workspace…", "command": "open-workspace", "args": "[file]" },
+            { "label": "Folder on Another Machine…", "command": "open-remote", "args": "[user@host:folder|docker:container:folder|wsl:distribution:folder]" }
           ]
         },
         { "label": "Add Folder to Window…", "command": "add-folder", "args": "[folder]" },
         { "label": "Add File to Window…", "command": "add-file", "args": "[file]" },
         { "label": "New Window", "command": "new-window", "keys": "Ctrl+Shift+N", "args": "[folder]" },
         { "label": "Open Folder in New Window…", "command": "open-folder-window", "args": "[folder]" },
+        { "label": "Open in Dev Container", "command": "dev-container", "console": true },
         { "label": "Clone Repository…", "command": "clone", "args": "[url] [folder]", "console": true },
         { "label": "Keep Tree as Template…", "command": "keep-template", "args": "[name]" },
         "-",
@@ -170,6 +172,7 @@
         { "label": "Move Window to Next Display", "command": "next-display" },
         { "label": "Status Bar", "items": [{ "fill": "status-items" }] },
         { "label": "Toolbar", "command": "toolbar", "args": "[on|off]", "checks": "toolbar" },
+        { "label": "Formatter's Line Width", "command": "margin-line", "args": "[on|off]", "checks": "margin-line" },
         { "label": "Focus Follows the Pointer", "command": "focus-follows", "args": "[on|off]", "checks": "focus-follows" },
         { "label": "System Title Bar", "command": "system-title", "args": "[on|off]", "checks": "system-title" },
         { "label": "Hide Tool Strip Until Its Edge", "command": "strip-edge", "args": "[on|off]", "checks": "strip-edge" },

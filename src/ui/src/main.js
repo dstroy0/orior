@@ -18,7 +18,9 @@ import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
 import { startProfile } from "./profile.js";
-import { loadRun, startRun } from "./run.js";
+import { loadRun, readRunsAgain, startRun } from "./run.js";
+import { startRemote } from "./remote.js";
+import { serveAgain } from "./servers.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
 import { startSearch } from "./search.js";
@@ -154,6 +156,17 @@ async function start() {
     (line === null || line === undefined ? openFile(path) : openAt(path, line, col ?? 0)).then(showWindow);
   });
   startStrip({ run: runCommand, jobMenus: stripMenus });
+  // A tree on another machine: once the link to it is made, the runs kept there are read, and once
+  // it is made again after a drop, every open tab is handed to its server there again.
+  await startRemote({
+    say: (text) => say(text, { failed: true }),
+    joined: (again) => {
+      readRunsAgain();
+      if (again) {
+        serveAgain();
+      }
+    },
+  });
   await begin(await invoke("root_get"));
   settlePanes();
   onView(settlePanes);

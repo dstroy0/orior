@@ -232,6 +232,10 @@ export class Editor {
     this.margin = div("ed-margin");
     this.margin.hidden = true;
     this.marginAt = null;
+    // What the line is, at its top: the formatter that keeps lines to it and the width.
+    this.marginSays = div("ed-margin-says");
+    this.margin.append(this.marginSays);
+    this.marginShown = false;
     // The documentation's margin, where the reader sets one apart from the code's.
     this.docLine = div("ed-margin doc");
     this.docLine.hidden = true;
@@ -616,8 +620,13 @@ export class Editor {
     const down = this.originRow * LINE - (top - this.pad);
     this.layers.style.transform = `translate(${-left}px, ${down}px)`;
     this.gutterRows.style.transform = `translateY(${down}px)`;
-    const width = this.s?.margin ?? null;
+    const code = this.s?.margin ?? null;
+    const width = this.marginShown ? code : null;
     const at = width ? PAD + width * this.cw - left : null;
+    const says = width ? `${this.s.marginBy ?? "The formatter"} keeps lines to ${width} columns` : "";
+    if (says !== this.marginSays.textContent) {
+      this.marginSays.textContent = says;
+    }
     if (at !== this.marginAt) {
       this.marginAt = at;
       this.margin.hidden = at === null;
@@ -625,7 +634,7 @@ export class Editor {
         this.margin.style.transform = `translateX(${at}px)`;
       }
     }
-    const doc = this.docMargin && this.docMargin !== width ? PAD + this.docMargin * this.cw - left : null;
+    const doc = this.docMargin && this.docMargin !== code ? PAD + this.docMargin * this.cw - left : null;
     if (doc !== this.docLineAt) {
       this.docLineAt = doc;
       this.docLine.hidden = doc === null;
@@ -2242,6 +2251,12 @@ export class Editor {
   }
 
   // Vim's keys, on or off.
+  // Shows the line at the width the file's formatter keeps lines to, or takes it away.
+  setMargin(on) {
+    this.marginShown = on;
+    this.follow();
+  }
+
   setVim(on) {
     this.vim?.end();
     this.vim = on ? new Vim(this) : null;
