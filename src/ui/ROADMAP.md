@@ -14,8 +14,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Editing
 
-1. **Columns past the end of a line.** The cursor goes past the end of a short line into the space beyond it, and a column selection made by dragging with Alt held takes the same columns of every line, short lines among them.
-2. **Indentation by file.** Each file's tab size and whether it indents with tabs or spaces, as an `.editorconfig` or a line in the file sets it, over the tree's own.
+1. **Indentation by file.** Each file's tab size and whether it indents with tabs or spaces, as an `.editorconfig` or a line in the file sets it, over the tree's own.
 
 ## Code intelligence
 

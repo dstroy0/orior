@@ -61,6 +61,9 @@ const CLOSER = /^\s*[\])}]+[\])};,\s]*$/;
 // comments, and the most lines a text has for its lines of comments alone to go out of sight.
 const MARKS_KEY = "orior.whitespace";
 const COMMENTS_KEY = "orior.comments-hidden";
+
+// The key of the setting that lets a cursor go past the end of its line.
+const PAST_KEY = "orior.past-ends";
 const COMMENT_LINES = 200000;
 
 // A row's text, escaped, with a mark laid over each space and each tab, neither moving a letter.
@@ -213,6 +216,7 @@ export class Editor {
     this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
     this.marksOn = localStorage.getItem(MARKS_KEY) === "true";
     this.commentsHidden = localStorage.getItem(COMMENTS_KEY) === "true";
+    this.pastEnds = localStorage.getItem(PAST_KEY) === "true";
     if (this.commentsHidden) {
       host.dataset.comments = "hidden";
     }
@@ -592,13 +596,13 @@ export class Editor {
   // Selections.
 
   copySelections() {
-    return this.s.selections.map((sel) => ({ anchor: { ...sel.anchor }, head: { ...sel.head }, goal: sel.goal }));
+    return this.s.selections.map((sel) => ({ anchor: { ...sel.anchor }, head: { ...sel.head }, goal: sel.goal, column: sel.column }));
   }
 
   // Sets the selections, in order and with any that overlap merged. `chosen` is the primary.
   setSelections(list, chosen = list.at(-1)) {
     const doc = this.doc;
-    const items = list.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: sel.goal ?? null, chosen: sel === chosen }));
+    const items = list.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: sel.goal ?? null, column: sel.column ?? false, chosen: sel === chosen }));
     items.sort((a, b) => cmp(startOf(a), startOf(b)));
     const out = [];
     for (const sel of items) {
@@ -802,6 +806,7 @@ export class Editor {
     if (!s) {
       return;
     }
+    this.fillPastEnds();
     const lang = s.language ?? {};
     const pairs = lang.pairs ?? [];
     const opens = new Map(pairs.map((pair) => [pair[0], pair[1]]));
@@ -905,6 +910,14 @@ export class Editor {
   }
 
   backspace(word = false) {
+    // Cursors past their lines' ends step back a column; past the end beside others, they are filled
+    // out to where they stand first.
+    const past = this.s.selections.map((sel) => this.pastEnd(sel));
+    if (past.every((columns) => columns > 0)) {
+      this.select(this.s.selections.map((sel, index) => ({ ...caret(sel.head, this.vcol(sel.head) + past[index] - 1), column: sel.column })));
+      return;
+    }
+    this.fillPastEnds();
     const lang = this.s.language ?? {};
     const doc = this.doc;
     const pairs = [...(lang.pairs ?? []), ...(lang.quotes ?? []).map((quote) => quote + quote)];
@@ -1776,6 +1789,7 @@ export class Editor {
   // Puts text at each selection as a paste does: whole lines copied above the cursors' lines, a copy
   // of as many selections as there are one part to each, and the text at each otherwise.
   pasteText(text) {
+    this.fillPastEnds();
     const sels = this.s.selections;
     const clip = this.clip?.text === text ? this.clip : null;
     if (clip?.whole && sels.every(empty)) {
@@ -1795,8 +1809,18 @@ export class Editor {
 
   keyMap() {
     const move = (step) => (extend) => () => this.moveBy(step, extend);
-    const left = move((sel, extend) => (!extend && !empty(sel) ? startOf(sel) : this.charLeft(sel.head)));
-    const right = move((sel, extend) => (!extend && !empty(sel) ? endOfSel(sel) : this.charRight(sel.head)));
+    const left = move((sel, extend) => {
+      if (!extend && this.pastEnd(sel) > 0) {
+        return { p: sel.head, goal: this.vcol(sel.head) + this.pastEnd(sel) - 1 };
+      }
+      return !extend && !empty(sel) ? startOf(sel) : this.charLeft(sel.head);
+    });
+    const right = move((sel, extend) => {
+      if (!extend && empty(sel) && this.pastEnds && sel.head.col === this.doc.line(sel.head.line).length) {
+        return { p: sel.head, goal: this.vcol(sel.head) + this.pastEnd(sel) + 1 };
+      }
+      return !extend && !empty(sel) ? endOfSel(sel) : this.charRight(sel.head);
+    });
     const up = move((sel) => this.vertical(sel, -1));
     const down = move((sel) => this.vertical(sel, 1));
     const wordLeft = move((sel) => this.wordLeft(sel.head));
@@ -2164,10 +2188,16 @@ export class Editor {
         this.setSelections([{ anchor: kept.anchor, head: p, goal: null }]);
       } else {
         [anchorFrom, anchorTo] = this.unitRange(unit, p);
-        this.setSelections([{ anchor: anchorFrom, head: anchorTo, goal: null }]);
+        // A press past a line's end puts the cursor there where cursors may go past line ends.
+        const v = Math.round((event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw);
+        const past = this.pastEnds && unit === "char" && p.col === this.doc.line(p.line).length && v > this.vcol(p);
+        this.setSelections([{ anchor: anchorFrom, head: anchorTo, goal: past ? v : null }]);
       }
       index = this.s.primary;
-      this.dragging = { unit, anchorFrom, anchorTo, index };
+      // A press with Alt held that then moves selects a column from where it was pressed.
+      const alt = event.altKey && !event.shiftKey && unit === "char" && !fromGutter;
+      const pressedAt = { row: this.rows().rowOf(p.line), v: Math.max(0, (event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw) };
+      this.dragging = { unit, anchorFrom, anchorTo, index, alt: alt ? pressedAt : null };
       this.doc.seal();
       this.moved();
     }
@@ -2207,6 +2237,12 @@ export class Editor {
       return;
     }
     const p = this.posAt(event);
+    if (drag.alt && !drag.column) {
+      const v = (event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw;
+      if (this.rows().rowOf(p.line) !== drag.alt.row || Math.abs(v - drag.alt.v) >= 1) {
+        drag.column = drag.alt;
+      }
+    }
     if (drag.column) {
       const rows = this.rows();
       const v = Math.max(0, (event.clientX - this.space.getBoundingClientRect().left - PAD) / this.cw);
@@ -2216,7 +2252,7 @@ export class Editor {
       for (let row = drag.column.row; ; row += step) {
         const line = rows.lineOf(row);
         const text = this.doc.line(line);
-        list.push({ anchor: pos(line, this.colAtV(text, drag.column.v)), head: pos(line, this.colAtV(text, v)), goal: v });
+        list.push({ anchor: pos(line, this.colAtV(text, drag.column.v)), head: pos(line, this.colAtV(text, v)), goal: v, column: true });
         if (row === here) {
           break;
         }
@@ -2503,6 +2539,43 @@ export class Editor {
 
   // Bracket pairs: each bracket outside a comment or a string colored by how deep it stands, the
   // depth at the start of each line kept on the session until an edit reaches it.
+  // How many columns past its line's end a cursor stands: an empty selection at the end with its
+  // column beyond it, where the setting lets cursors past line ends or the selection is a column
+  // selection's.
+  pastEnd(sel) {
+    if ((!this.pastEnds && !sel.column) || !empty(sel) || sel.goal === null || sel.goal === undefined) {
+      return 0;
+    }
+    if (sel.head.col !== this.doc.line(sel.head.line).length) {
+      return 0;
+    }
+    return Math.max(0, Math.round(sel.goal) - this.vcol(sel.head));
+  }
+
+  // Writes spaces out to each cursor past its line's end, for text typed or pasted where it stands.
+  fillPastEnds() {
+    const edits = this.s.selections.flatMap((sel) => {
+      const columns = this.pastEnd(sel);
+      return columns ? [{ from: sel.head, to: sel.head, text: " ".repeat(columns) }] : [];
+    });
+    if (edits.length) {
+      // Each cursor goes past the spaces written before it, and stays a cursor.
+      this.change(edits, "type", (map) =>
+        this.s.selections.map((sel) => {
+          const head = map(sel.head, true);
+          return { anchor: empty(sel) ? head : map(sel.anchor), head, goal: null };
+        }),
+      );
+    }
+  }
+
+  // Cursors past line ends, let or not.
+  setPastEnds(on) {
+    this.pastEnds = on;
+    localStorage.setItem(PAST_KEY, String(on));
+    this.schedule();
+  }
+
   // Marks for spaces, tabs and line ends, on or off.
   setMarks(on) {
     this.marksOn = on;
@@ -2896,7 +2969,7 @@ export class Editor {
       const row = visible(sel.head.line);
       if (row >= 0) {
         const block = this.vim?.block();
-        over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) - (block ? 0 : 1), this.yOf(row), block ? this.cw : 2));
+        over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) + this.pastEnd(sel) * this.cw - (block ? 0 : 1), this.yOf(row), block ? this.cw : 2));
       }
     }
     const pair = level === 0 ? this.bracketPair() : null;
@@ -2970,7 +3043,7 @@ export class Editor {
     const errors = (s.diagnostics ?? []).filter((diag) => diag.severity === 1).length;
     const warnings = (s.diagnostics ?? []).filter((diag) => diag.severity === 2).length;
     const mode = this.vim?.label() ?? "";
-    const said = [s.base + head.line, this.vcol(head), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings, s.readOnly, mode].join("|");
+    const said = [s.base + head.line, this.vcol(head) + this.pastEnd(primary), picked, s.selections.length, read, s.indent.tabs, s.indent.size, s.doc.eol, s.language?.id, errors, warnings, s.readOnly, mode].join("|");
     if (said === this.statusSaid) {
       return;
     }
@@ -2978,7 +3051,7 @@ export class Editor {
     const parts = [];
     const where = document.createElement("button");
     where.type = "button";
-    where.textContent = `${s.base + head.line + 1}:${this.vcol(head) + 1}`;
+    where.textContent = `${s.base + head.line + 1}:${this.vcol(head) + this.pastEnd(primary) + 1}`;
     where.title = `Line ${s.base + head.line + 1}, column ${this.vcol(head) + 1}: Go to Line (Ctrl+G)`;
     where.addEventListener("click", () => this.goto.open());
     if (mode) {

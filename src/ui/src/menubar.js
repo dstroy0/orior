@@ -247,6 +247,7 @@ const COMMANDS = {
   breadcrumbs: (args) => setCrumbs(onOff(args)),
   "bracket-pairs": (args) => editing().setBrackets(onOff(args) ?? !editing().brackets()),
   whitespace: (args) => editing().setMarks(onOff(args) ?? !editing().marks()),
+  "past-ends": (args) => editing().setPastEnds(onOff(args) ?? !editing().pastEnds()),
   "hide-comments": (args) => editing().setCommentsHidden(onOff(args) ?? !editing().commentsHidden()),
   "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
   preferences: () =>
@@ -348,6 +349,7 @@ const CHECKS = {
   breadcrumbs: crumbsShown,
   "bracket-pairs": () => editing().brackets(),
   whitespace: () => editing().marks(),
+  "past-ends": () => editing().pastEnds(),
   "hide-comments": () => editing().commentsHidden(),
   "auto-report": () => state.autoReport,
   "scheme-system": followsSystem,

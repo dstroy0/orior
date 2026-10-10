@@ -128,6 +128,7 @@
         { "label": "Breadcrumbs", "command": "breadcrumbs", "args": "[on|off]", "checks": "breadcrumbs" },
         { "label": "Bracket Pair Colorization", "command": "bracket-pairs", "args": "[on|off]", "checks": "bracket-pairs" },
         { "label": "Show Whitespace", "command": "whitespace", "args": "[on|off]", "checks": "whitespace" },
+        { "label": "Cursor Past Line Ends", "command": "past-ends", "args": "[on|off]", "checks": "past-ends" },
         { "label": "Hide Comments", "command": "hide-comments", "keys": "Ctrl+Alt+/", "args": "[on|off]", "checks": "hide-comments" },
         { "label": "Terminal", "command": "terminal-view", "keys": "Ctrl+`" },
         { "label": "Debug", "command": "debug-view", "keys": "Alt+5" },

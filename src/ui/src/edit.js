@@ -2187,6 +2187,8 @@ export function editing() {
     brackets: () => Boolean(state.editor?.bracketsOn),
     setBrackets: (on) => state.editor?.setBrackets(on),
     marks: () => Boolean(state.editor?.marksOn),
+    pastEnds: () => Boolean(state.editor?.pastEnds),
+    setPastEnds: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setPastEnds(on)),
     setMarks: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setMarks(on)),
     commentsHidden: () => Boolean(state.editor?.commentsHidden),
     setCommentsHidden: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setCommentsHidden(on)),
