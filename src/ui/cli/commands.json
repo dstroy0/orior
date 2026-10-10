@@ -201,6 +201,17 @@
         { "label": "Show Job…", "command": "show", "args": "<job>", "console": true }
       ]
     },
+    {
+      "title": "Git",
+      "items": [
+        { "label": "Commit…", "command": "commit-view" },
+        { "label": "Push", "command": "push" },
+        { "label": "Pull", "command": "pull" },
+        "-",
+        { "label": "Branches…", "command": "branches" },
+        { "label": "New Branch…", "command": "new-branch", "args": "[name]" }
+      ]
+    },
     { "title": "Build", "groups": ["build"] },
     { "title": "Protocol", "strip": "protocol", "groups": ["protocol"] },
     { "title": "Ingest", "strip": "ingest", "groups": ["ingest"] },

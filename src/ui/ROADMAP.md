@@ -37,16 +37,15 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Version control
 
-1. **Branches.** Every local and remote branch in a list, to create, switch to, rename and delete, and to merge or rebase onto the branch open.
-2. **Conflicts.** A merge window with three panes, theirs, the result and yours, each conflict taken from either side or written by hand, a press marking the file resolved.
-3. **Part of a file in a commit.** The Commit window takes single changes, or single lines, of a file, and leaves the rest for a later commit.
-4. **Compare.** Two revisions of a file side by side, or a file beside another, or beside the clipboard, with changes to white space shown or set aside.
-5. **The commit graph.** Every branch's commits drawn as a graph, each with its message, its author and its date, a press opening its changes and a search over them.
-6. **Line history.** Beside each line, the commit that last changed it, a press opening that commit's changes.
-7. **Stash and cherry-pick.** Changes put aside and brought back, and a commit of another branch applied to the one open.
-8. **More than one repository in a tree.** A tree holding several repositories shows each one's changes, branch and commits apart.
-9. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
-10. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
+1. **Conflicts.** A merge window with three panes, theirs, the result and yours, each conflict taken from either side or written by hand, a press marking the file resolved.
+2. **Part of a file in a commit.** The Commit window takes single changes, or single lines, of a file, and leaves the rest for a later commit.
+3. **Compare.** Two revisions of a file side by side, or a file beside another, or beside the clipboard, with changes to white space shown or set aside.
+4. **The commit graph.** Every branch's commits drawn as a graph, each with its message, its author and its date, a press opening its changes and a search over them.
+5. **Line history.** Beside each line, the commit that last changed it, a press opening that commit's changes.
+6. **Stash and cherry-pick.** Changes put aside and brought back, and a commit of another branch applied to the one open.
+7. **More than one repository in a tree.** A tree holding several repositories shows each one's changes, branch and commits apart.
+8. **Compare by structure.** A change shown by the code it moved, renamed or reshaped, and not by the lines it touched.
+9. **Review comments.** A comment left on a line of a change, as a pull request's review leaves one, kept with the change and listed with the others.
 
 ## Testing
 

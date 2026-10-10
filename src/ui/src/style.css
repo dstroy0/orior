@@ -805,6 +805,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  cursor: pointer;
 }
 
 .status-branch[hidden] {

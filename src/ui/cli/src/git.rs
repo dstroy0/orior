@@ -129,6 +129,76 @@ pub fn commit(root: &Path, message: &str, paths: &[String]) -> Result<String, St
     Ok(said.lines().find(|line| line.starts_with('[')).unwrap_or(said.lines().next().unwrap_or_default()).to_string())
 }
 
+/// A branch, local or remote: its short name, whether the tree is on it, the branch it follows, and
+/// when its last commit was made and its subject.
+#[derive(Serialize)]
+pub struct Branch {
+    pub name: String,
+    pub remote: bool,
+    pub current: bool,
+    pub upstream: String,
+    pub when: i64,
+    pub subject: String,
+}
+
+/// Every local and remote branch, the one with the newest commit first, less each remote's HEAD.
+pub fn branches(root: &Path) -> Vec<Branch> {
+    let format = "--format=%(refname)%00%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(committerdate:unix)%00%(subject)";
+    let Some(out) = git(root, &["for-each-ref", "--sort=-committerdate", format, "refs/heads", "refs/remotes"]) else {
+        return Vec::new();
+    };
+    String::from_utf8_lossy(&out)
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split('\0');
+            let full = parts.next()?;
+            let name = parts.next()?.to_string();
+            if full.starts_with("refs/remotes/") && full.ends_with("/HEAD") {
+                return None;
+            }
+            Some(Branch {
+                remote: full.starts_with("refs/remotes/"),
+                current: parts.next()? == "*",
+                upstream: parts.next()?.to_string(),
+                when: parts.next()?.parse().unwrap_or(0),
+                subject: parts.next().unwrap_or_default().to_string(),
+                name,
+            })
+        })
+        .collect()
+}
+
+/// Does to a branch what the branches list asks: `create` makes one from the branch open and goes on
+/// it, `switch` goes on one, a remote one made a local branch that follows it, `rename` names it `to`,
+/// `delete` takes it out where its commits are merged and `delete-unmerged` where they are not,
+/// `merge` merges it into the branch open, and `rebase` sets the branch open's own commits on it.
+/// Gives git's own words.
+pub fn branch_act(root: &Path, act: &str, name: &str, to: &str) -> Result<String, String> {
+    if name.is_empty() || name.starts_with('-') || to.starts_with('-') {
+        return Err(format!("{name} is no branch's name"));
+    }
+    let named = |branch: &str| run(root, &["check-ref-format", "--branch", branch]).map(drop);
+    match act {
+        "create" => {
+            named(name)?;
+            run(root, &["switch", "-c", name])
+        }
+        "switch" => {
+            let remote = run(root, &["show-ref", "--verify", "--quiet", &format!("refs/remotes/{name}")]).is_ok();
+            if remote { run(root, &["switch", "--track", name]) } else { run(root, &["switch", name]) }
+        }
+        "rename" => {
+            named(to)?;
+            run(root, &["branch", "-m", name, to])
+        }
+        "delete" => run(root, &["branch", "-d", name]),
+        "delete-unmerged" => run(root, &["branch", "-D", name]),
+        "merge" => run(root, &["merge", "--no-edit", name]),
+        "rebase" => run(root, &["rebase", name]),
+        _ => Err(format!("{act} is nothing a branch is asked to do")),
+    }
+}
+
 /// Pushes the branch to the remote it follows, or to origin under its own name where it follows none.
 pub fn push(root: &Path) -> Result<String, String> {
     if run(root, &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]).is_ok() {
@@ -314,6 +384,42 @@ mod clones {
         assert_eq!(clone_folder(r"D:\repos\orior.git", parent).unwrap(), parent.join("orior"));
         assert!(clone_folder("https://", parent).is_err());
         assert!(clone_folder("  ", parent).is_err());
+    }
+}
+
+#[cfg(test)]
+mod branching {
+    use super::{branch_act, branches};
+    use std::process::Command;
+
+    #[test]
+    fn a_branch_is_made_switched_to_renamed_merged_and_deleted() {
+        let root = std::env::temp_dir().join(format!("orior_ui_branches_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let git = |args: &[&str]| assert!(Command::new("git").args(args).current_dir(&root).output().unwrap().status.success(), "{args:?}");
+        git(&["init", "-q", "-b", "main"]);
+        git(&["config", "user.name", "t"]);
+        git(&["config", "user.email", "t@t"]);
+        std::fs::write(root.join("a.txt"), "one").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "first"]);
+        branch_act(&root, "create", "topic", "").unwrap();
+        std::fs::write(root.join("a.txt"), "two").unwrap();
+        git(&["commit", "-q", "-am", "second"]);
+        let listed = branches(&root);
+        assert_eq!(listed.iter().find(|branch| branch.current).map(|branch| branch.name.as_str()), Some("topic"));
+        assert_eq!(listed.iter().find(|branch| branch.name == "topic").map(|branch| branch.subject.as_str()), Some("second"));
+        branch_act(&root, "rename", "topic", "feature").unwrap();
+        branch_act(&root, "switch", "main", "").unwrap();
+        assert!(branch_act(&root, "delete", "feature", "").is_err());
+        branch_act(&root, "merge", "feature", "").unwrap();
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).unwrap(), "two");
+        branch_act(&root, "delete", "feature", "").unwrap();
+        assert_eq!(branches(&root).iter().map(|branch| branch.name.as_str()).collect::<Vec<_>>(), ["main"]);
+        assert!(branch_act(&root, "create", "-x", "").is_err());
+        assert!(branch_act(&root, "create", "bad..name", "").is_err());
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }
 

@@ -235,6 +235,18 @@ fn files_find(app: State<App>, query: String, recent: Vec<String>, most: usize) 
     Ok(files::ranked(&root_of(&app)?, &query, &recent, most))
 }
 
+/// Every local and remote branch of the tree's repository.
+#[tauri::command(async)]
+fn git_branches(app: State<App>) -> Result<Vec<git::Branch>, String> {
+    Ok(git::branches(&root_of(&app)?))
+}
+
+/// Creates, switches to, renames, deletes, merges or rebases onto a branch, as `act` says.
+#[tauri::command(async)]
+fn git_branch(app: State<App>, act: String, name: String, to: Option<String>) -> Result<String, String> {
+    git::branch_act(&root_of(&app)?, &act, &name, to.as_deref().unwrap_or(""))
+}
+
 /// The indentation the `.editorconfig` files over a file of the tree set for it.
 #[tauri::command]
 fn indent_for(app: State<App>, path: String) -> Result<orior_cli::editorconfig::Indent, String> {
@@ -1142,6 +1154,8 @@ fn open(launch: Launch) {
             patterns_set,
             kept_write,
             indent_for,
+            git_branches,
+            git_branch,
             files_copy,
             clip_files,
             files_paste,

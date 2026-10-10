@@ -272,6 +272,11 @@ const COMMANDS = {
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
   "scheme-system": (args) => setFollowSystem(onOff(args) ?? !followsSystem()),
   "undo-history": () => showPane("undo"),
+  "commit-view": () => showPane("changes"),
+  push: () => gitSays("Pushing", () => invoke("git_push")),
+  pull: () => gitSays("Pulling", () => invoke("git_pull")),
+  branches: () => showBranches(),
+  "new-branch": (args) => newBranch(args.join(" ")),
   "macro-record": () => recordMacro(),
   "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
   "macro-keep": (args) => keepLast(args.join(" ")),
@@ -494,6 +499,97 @@ function askKeys(label) {
     });
     dialog.addEventListener("close", () => done(answer));
     dialog.focus();
+  });
+}
+
+// Git, and the branch on the status bar: what git is asked to do said on the status bar, git's own
+// words where it refuses, and the tree's changes read again after.
+async function gitSays(doing, act) {
+  say(`${doing}…`);
+  try {
+    const said = await act();
+    say(String(said ?? "").split("\n").find((line) => line.trim()) ?? `${doing} done.`);
+  } catch (error) {
+    say(String(error), { failed: true });
+    return false;
+  }
+  await editing().treeChanged();
+  return true;
+}
+
+async function newBranch(given) {
+  const name = given || (await askFor("New branch, made from the branch open and gone on to", ""));
+  if (name) {
+    gitSays(`Making ${name}`, () => invoke("git_branch", { act: "create", name }));
+  }
+}
+
+// Every local branch, then every remote one, the tree's own checked: each to go on to, to merge into
+// the branch open or to rebase it onto, and a local one to rename or delete.
+async function showBranches() {
+  const list = await invoke("git_branches").catch(() => []);
+  const open = list.find((one) => one.current)?.name ?? "HEAD";
+  const act = (act, name, to) => gitSays(`${act[0].toUpperCase()}${act.slice(1)} ${name}`, () => invoke("git_branch", { act, name, to }));
+  const remove = async (name) => {
+    try {
+      say(await invoke("git_branch", { act: "delete", name }));
+      await editing().treeChanged();
+    } catch (error) {
+      if (/not fully merged/.test(String(error)) && (await askYes(`${name} has commits no other branch holds. Delete it and them?`, "Delete"))) {
+        act("delete-unmerged", name);
+      } else if (!/not fully merged/.test(String(error))) {
+        say(String(error), { failed: true });
+      }
+    }
+  };
+  const itemOf = (branch) => {
+    const items = [];
+    if (!branch.current) {
+      items.push(
+        { label: "Switch", run: () => act("switch", branch.name) },
+        { label: `Merge into ${open}`, run: () => act("merge", branch.name) },
+        { label: `Rebase ${open} onto it`, run: () => act("rebase", branch.name) },
+      );
+    }
+    if (!branch.remote) {
+      items.push({
+        label: "Rename…",
+        run: async () => {
+          const to = await askFor(`New name for ${branch.name}`, branch.name);
+          if (to && to !== branch.name) {
+            act("rename", branch.name, to);
+          }
+        },
+      });
+      if (!branch.current) {
+        items.push({ label: "Delete", run: () => remove(branch.name) });
+      }
+    }
+    return { label: branch.name, checked: branch.current, items };
+  };
+  const local = list.filter((one) => !one.remote).map(itemOf);
+  const remote = list.filter((one) => one.remote).map(itemOf);
+  const items = [{ label: "New Branch…", run: () => newBranch("") }, ...(local.length ? ["-", ...local] : []), ...(remote.length ? ["-", ...remote] : [])];
+  const anchor = document.getElementById("status-branch");
+  const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
+  showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
+}
+
+// A sheet that asks a question with a yes of its own, answering whether that was given.
+function askYes(question, yes) {
+  return new Promise((done) => {
+    const body = document.createElement("div");
+    body.className = "sheet-ask";
+    const button = Object.assign(document.createElement("button"), { type: "button", className: "primary", textContent: yes });
+    body.append(Object.assign(document.createElement("p"), { textContent: question }), button);
+    let answer = false;
+    const dialog = sheet(body);
+    button.addEventListener("click", () => {
+      answer = true;
+      dialog.close();
+    });
+    dialog.addEventListener("close", () => done(answer));
+    button.focus();
   });
 }
 
@@ -889,6 +985,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     wait = window.setTimeout(drawMenubar, 120);
   });
   drawMenubar();
+  document.getElementById("status-branch").addEventListener("click", showBranches);
   bindMacros();
   onMacros(bindMacros);
   performance.mark("keys-bound");
