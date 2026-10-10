@@ -9,16 +9,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Debugging
 
-1. **Breakpoints with conditions.** A breakpoint that stops only when an expression holds or after a count of hits, and one that writes a message to the console in place of stopping.
-2. **Stop on exceptions.** The debugger stops where an exception is thrown, or only where nothing catches it, and a stop on an exception can be stepped past to carry on.
-3. **Values under the pointer.** The value of a name the pointer rests on while the program is stopped, opened a level at a time where it holds more.
-4. **Breakpoints and watches kept.** The breakpoints and the watches written out to a file and read back in, and the values a stop showed kept to compare with a later stop, two values compared side by side field by field.
-5. **Attach.** Debug a program already running, chosen from a list of processes, or running in a container.
-6. **Two programs at once.** More than one debug session open, each with its own threads and stack, the toolbar acting on the one chosen, the processes a program starts debugged with it.
-7. **Across languages.** A Python program and the C it calls debugged together, Cython among them, a step going from the one into the other.
-8. **Stepping of the tree's own.** The code a step goes into or passes over, set for each tree, and the frames a stop shows filtered by a pattern of the reader's.
-9. **Back in time.** A run recorded as it goes, and the debugger stepping backward through it as well as forward, to the line and the values where a value went wrong.
-10. **Memory and machine code.** The bytes at an address, and the instructions about the line stopped at, bytecode among them, with a breakpoint that stops when the bytes at an address change.
+1. **Across languages.** A Python program and the C it calls debugged together, Cython among them, a step going from the one into the other.
+2. **Back in time.** A run recorded as it goes, and the debugger stepping backward through it as well as forward, to the line and the values where a value went wrong.
 
 ## Layout
 

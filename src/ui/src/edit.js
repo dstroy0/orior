@@ -46,7 +46,7 @@ import { extractFunction } from "./extract.js";
 import { changeSignature } from "./signature.js";
 import { moveDeclaration } from "./move.js";
 import { shapeSearch } from "./shapes.js";
-import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
+import { breakpointMenu, breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint, valueAt } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { coverageOf, startTests, testMenu, testsOf } from "./tests.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -2156,6 +2156,18 @@ export async function startEdit(defs) {
     const file = fileOfSession(s);
     return file ? bookmarksOf(file) : null;
   };
+  // The breakpoint strip's menu, and the value of the name under the pointer while a program is
+  // stopped.
+  state.editor.onBreakpointMenu = (line, event) => {
+    const file = fileOfSession(state.editor.s);
+    if (file) {
+      breakpointMenu(file, line, event.clientX, event.clientY);
+    }
+  };
+  state.editor.valueAt = (s, p) => {
+    const file = fileOfSession(s);
+    return file ? valueAt(file, s.doc, { line: p.line, col: p.col }) : null;
+  };
   // Each test's mark in the gutter, and the lines the last run with coverage ran, by the file a
   // session shows; a press on a mark opens the test's menu.
   state.editor.testsOf = (s) => {
@@ -2230,13 +2242,19 @@ export async function startEdit(defs) {
     editor.addKeys(state.editorKeys);
     editor.bindKeys(state.boundKeys);
     editor.setVim(vimKeys());
-    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock"]) {
+    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock", "valueAt"]) {
       editor[name] = state.editor[name];
     }
     editor.onBreakpoint = (line) => {
       const file = fileOfSession(editor.s);
       if (file) {
         toggleBreakpoint(file, line);
+      }
+    };
+    editor.onBreakpointMenu = (line, event) => {
+      const file = fileOfSession(editor.s);
+      if (file) {
+        breakpointMenu(file, line, event.clientX, event.clientY);
       }
     };
   };

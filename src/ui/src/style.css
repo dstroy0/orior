@@ -4182,6 +4182,87 @@ body[data-view="run"] .statusbar .ed-status {
   opacity: 0.75;
 }
 
+/* A breakpoint that holds a condition or a count of hits is marked with a bar across it; one that
+   writes a message in place of stopping is a diamond. */
+.ed-break.cond::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 4px;
+  height: 2px;
+  background: var(--ed-bg, #131331);
+}
+
+.ed-break.log {
+  border-radius: 1px;
+  transform: rotate(45deg) scale(0.85);
+}
+
+/* The debugger's session chooser and its exceptions' button, beside the steps; a value under the
+   pointer; values compared; and memory, instructions and bytecode read in a sheet. */
+.debug-sessions,
+.debug-exceptions {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.debug-exceptions:disabled {
+  opacity: 0.45;
+}
+
+.debug-hover {
+  min-width: 14rem;
+  max-height: 20rem;
+  overflow: auto;
+  font: 12.5px var(--code);
+}
+
+.debug-kept-head {
+  margin-top: 0.4rem;
+}
+
+.sheet-wide {
+  width: min(52rem, 90vw);
+}
+
+.debug-compare {
+  width: 100%;
+  border-collapse: collapse;
+  font: 12px var(--code);
+}
+
+.debug-compare th,
+.debug-compare td {
+  padding: 0.15rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.debug-compare tr.differs td {
+  color: var(--ed-warning);
+}
+
+.debug-memory {
+  max-height: 60vh;
+  margin: 0;
+  overflow: auto;
+  font: 12px/1.5 var(--code);
+  white-space: pre;
+}
+
+.debug-memory .here {
+  background: var(--line);
+  color: var(--fg);
+}
+
 /* A bookmark: a ribbon in signal at the gutter's edge, beside where a breakpoint is drawn. */
 .ed-bookmark {
   position: absolute;

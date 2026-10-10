@@ -120,9 +120,20 @@ export class Hover {
 
   show(found) {
     window.clearTimeout(this.wait);
-    this.el.innerHTML = found.parts
-      .map((part) => (typeof part === "string" ? markup(part) : `<div class="${escapeHtml(part.className ?? "")}">${markup(part.text)}</div>`))
-      .join("<hr>");
+    // A part is Markdown, Markdown with a class, or a node of its own, as a value's tree is.
+    this.el.replaceChildren();
+    found.parts.forEach((part, at) => {
+      if (at) {
+        this.el.append(document.createElement("hr"));
+      }
+      if (part instanceof Node) {
+        this.el.append(part);
+        return;
+      }
+      const holder = document.createElement("div");
+      holder.innerHTML = typeof part === "string" ? markup(part) : `<div class="${escapeHtml(part.className ?? "")}">${markup(part.text)}</div>`;
+      this.el.append(...holder.childNodes);
+    });
     this.el.hidden = false;
     this.shown = true;
     const host = this.ed.host.getBoundingClientRect();

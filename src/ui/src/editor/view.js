@@ -2295,6 +2295,12 @@ export class Editor {
   }
 
   onDown(event, fromGutter = false) {
+    // A press with the other button on the gutter's strip opens the breakpoint's menu.
+    if (this.s && fromGutter && event.button === 2 && this.onBreakpointMenu && event.clientX - this.gutter.getBoundingClientRect().left < BREAK_STRIP) {
+      event.preventDefault();
+      this.onBreakpointMenu(this.s.base + this.posAt(event).line, event);
+      return;
+    }
     if (!this.s || event.button !== 0) {
       return;
     }
@@ -2468,7 +2474,7 @@ export class Editor {
   // A language's hover may answer at once or later, as a language server does; an answer that
   // comes after the pointer has gone elsewhere is dropped.
   async hoverAt(clientX, clientY) {
-    if (!this.s?.language?.hover && !this.s?.diagnostics?.length) {
+    if (!this.s?.language?.hover && !this.s?.diagnostics?.length && !this.valueAt) {
       return;
     }
     const asked = (this.hoverAsked = (this.hoverAsked ?? 0) + 1);
@@ -2482,24 +2488,26 @@ export class Editor {
       return;
     }
     const said = this.diagnosticsAt(p);
-    const found = this.s.language?.hover ? await this.s.language.hover(this.doc, p) : null;
+    // While a program is stopped, the value of the name under the pointer comes first.
+    const value = this.valueAt ? await this.valueAt(this.s, p) : null;
+    const found = value ? null : this.s.language?.hover ? await this.s.language.hover(this.doc, p) : null;
     if (asked !== this.hoverAsked || this.s !== session) {
       return;
     }
-    const parts = [...said, ...(found?.parts ?? [])];
+    const parts = [...(value ? [value.node] : []), ...said, ...(found?.parts ?? [])];
     if (!parts.length) {
       this.hover.hide();
       return;
     }
-    let from = found?.from ?? p;
-    if (!found) {
+    let from = value?.from ?? found?.from ?? p;
+    if (!found && !value) {
       let col = p.col;
       while (col > 0 && /\w/.test(text[col - 1])) {
         col -= 1;
       }
       from = { line: p.line, col };
     }
-    this.hover.show({ from, to: found?.to ?? p, parts });
+    this.hover.show({ from, to: value?.to ?? found?.to ?? p, parts });
   }
 
   // What the diagnostics under a place say, each in its severity's color: a language server's, or a
@@ -3241,7 +3249,7 @@ export class Editor {
       const folded = foldable && s.folded.has(line);
       const mark = foldable ? `<span class="ed-fold${folded ? " shut" : ""}" data-fold="${line}">${folded ? "▸" : "▾"}</span>` : "";
       const stop = breaks?.get(base + line);
-      const dot = stop === undefined ? "" : `<span class="ed-break${stop ? "" : " unbound"}"></span>`;
+      const dot = stop === undefined ? "" : `<span class="ed-break${stop.bound === false ? " unbound" : ""}${stop.log ? " log" : stop.condition || stop.hits ? " cond" : ""}"></span>`;
       const here = paused === base + line ? '<span class="ed-pc"></span>' : "";
       const ribbon = marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
       const history = s.history ? this.historyMark(line) : "";

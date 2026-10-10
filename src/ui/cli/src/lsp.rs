@@ -44,7 +44,7 @@ const STARTING: Duration = Duration::from_secs(30);
 /// How much of what the server writes to its errors is kept, in bytes.
 const COMPLAINT: usize = 4096;
 
-pub(crate) fn send(input: &Mutex<ChildStdin>, message: &Value) -> Result<(), String> {
+pub(crate) fn send<W: Write>(input: &Mutex<W>, message: &Value) -> Result<(), String> {
     let body = message.to_string();
     let mut input = input.lock().map_err(|_| "the server's input is held".to_string())?;
     write!(input, "Content-Length: {}\r\n\r\n{body}", body.len()).and_then(|()| input.flush()).map_err(|error| format!("the server stopped: {error}"))

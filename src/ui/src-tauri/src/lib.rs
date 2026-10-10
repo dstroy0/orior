@@ -864,21 +864,6 @@ fn tests_stop(app: State<App>) {
     app.tests.stop();
 }
 
-/// Debugs the test `id`, named as pytest names it, with `breakpoints`, each file's lines. The adapter's
-/// events come as "debug-event". Says which toolchain debugs it.
-#[tauri::command(async)]
-fn debug_test(handle: AppHandle, app: State<App>, id: String, breakpoints: HashMap<String, Vec<u32>>) -> Result<String, String> {
-    let root = root_of(&app)?;
-    let debugger = app.debugger.clone();
-    let emit: debug::Emit = Arc::new(move |event, body| {
-        if event == "terminated" || event == "adapterStopped" {
-            debugger.ended();
-        }
-        let _ = handle.emit("debug-event", serde_json::json!({"event": event, "body": body}));
-    });
-    app.debugger.start_test(&root, &id, &breakpoints, emit)
-}
-
 /// The edit that sorts the methods of the class at or around `line` of a text in `language` by name.
 #[tauri::command]
 fn code_sort(language: String, text: String, line: u32) -> Result<servers::TextEdit, String> {
@@ -1048,65 +1033,133 @@ fn lsp_complete(app: State<App>, path: String, line: u32, col: u32) -> Result<Ve
     app.servers.complete(&root_of(&app)?.join(path), line, col)
 }
 
-/// Builds where it is built, and debugs, the file at `path` in `language`, with `breakpoints`, each
-/// file's lines. The adapter's events come as "debug-event", { event, body }. Says which toolchain
-/// debugs it.
+/// Starts a debug session as `start` says, with `options`: its breakpoints, the exceptions it stops on
+/// and the stepping the tree asks for. Each session's events come as "debug-event", { session, event,
+/// body }. Says what the session is.
 #[tauri::command(async)]
-fn debug_start(handle: AppHandle, app: State<App>, path: String, language: String, breakpoints: HashMap<String, Vec<u32>>) -> Result<String, String> {
+fn debug_start(handle: AppHandle, app: State<App>, start: debug::Start, options: debug::Options) -> Result<debug::SessionInfo, String> {
     let root = root_of(&app)?;
     let debugger = app.debugger.clone();
-    let emit: debug::Emit = Arc::new(move |event, body| {
+    let emit: debug::Emit = Arc::new(move |session, event, body| {
         if event == "terminated" || event == "adapterStopped" {
-            debugger.ended();
+            debugger.ended(session);
         }
-        let _ = handle.emit("debug-event", serde_json::json!({"event": event, "body": body}));
+        if event == "process" {
+            if let Some(pid) = body["systemProcessId"].as_u64() {
+                debugger.process(session, pid as u32);
+            }
+        }
+        let _ = handle.emit("debug-event", serde_json::json!({"session": session, "event": event, "body": body}));
     });
-    app.debugger.start(&root, &root.join(path), &language, &breakpoints, emit)
+    app.debugger.start(&root, &start, &options, emit)
+}
+
+/// The sessions running.
+#[tauri::command]
+fn debug_sessions(app: State<App>) -> Vec<debug::SessionInfo> {
+    app.debugger.sessions()
+}
+
+/// Sets the breakpoints of the file at `path` in each session that debugs its language, and gives
+/// each line one was placed on and whether it is bound to code.
+#[tauri::command(async)]
+fn debug_breakpoints(app: State<App>, path: String, breakpoints: Vec<debug::Breakpoint>) -> Result<Option<Vec<(u32, bool)>>, String> {
+    Ok(app.debugger.breakpoints(&root_of(&app)?, &path, &breakpoints))
 }
 
 #[tauri::command(async)]
-fn debug_breakpoints(app: State<App>, path: String, lines: Vec<u32>) -> Result<Vec<(u32, bool)>, String> {
-    app.debugger.breakpoints(&root_of(&app)?.join(path), &lines)
+fn debug_exceptions(app: State<App>, session: u64, on: Vec<String>) -> Result<(), String> {
+    app.debugger.exceptions(session, &on)
 }
 
 #[tauri::command(async)]
-fn debug_threads(app: State<App>) -> Result<Vec<debug::Thread>, String> {
-    app.debugger.threads()
+fn debug_raised(app: State<App>, session: u64, thread: i64) -> Result<debug::Raised, String> {
+    app.debugger.raised(session, thread)
+}
+
+#[tauri::command(async)]
+fn debug_threads(app: State<App>, session: u64) -> Result<Vec<debug::Thread>, String> {
+    app.debugger.threads(session)
 }
 
 /// The stopped thread's frames, each path as `tree_path` gives it.
 #[tauri::command(async)]
-fn debug_stack(app: State<App>, thread: i64) -> Result<Vec<debug::Frame>, String> {
+fn debug_stack(app: State<App>, session: u64, thread: i64) -> Result<Vec<debug::Frame>, String> {
     let root = root_of(&app)?;
-    Ok(app.debugger.stack(thread)?.into_iter().map(|mut frame| {
+    Ok(app.debugger.stack(session, thread)?.into_iter().map(|mut frame| {
         frame.path = frame.path.map(|path| tree_path(&root, &path));
         frame
     }).collect())
 }
 
 #[tauri::command(async)]
-fn debug_scopes(app: State<App>, frame: i64) -> Result<Vec<debug::Scope>, String> {
-    app.debugger.scopes(frame)
+fn debug_scopes(app: State<App>, session: u64, frame: i64) -> Result<Vec<debug::Scope>, String> {
+    app.debugger.scopes(session, frame)
 }
 
 #[tauri::command(async)]
-fn debug_variables(app: State<App>, reference: i64) -> Result<Vec<debug::Variable>, String> {
-    app.debugger.variables(reference)
+fn debug_variables(app: State<App>, session: u64, reference: i64) -> Result<Vec<debug::Variable>, String> {
+    app.debugger.variables(session, reference)
 }
 
 #[tauri::command(async)]
-fn debug_evaluate(app: State<App>, expression: String, frame: Option<i64>, context: String) -> Result<debug::Variable, String> {
-    app.debugger.evaluate(&expression, frame, &context)
+fn debug_evaluate(app: State<App>, session: u64, expression: String, frame: Option<i64>, context: String) -> Result<debug::Variable, String> {
+    app.debugger.evaluate(session, &expression, frame, &context)
 }
 
 #[tauri::command(async)]
-fn debug_step(app: State<App>, how: String, thread: i64) -> Result<(), String> {
-    app.debugger.step(&how, thread)
+fn debug_step(app: State<App>, session: u64, how: String, thread: i64) -> Result<(), String> {
+    app.debugger.step(session, &how, thread)
 }
 
 #[tauri::command(async)]
-fn debug_stop(app: State<App>) {
-    app.debugger.stop();
+fn debug_memory(app: State<App>, session: u64, reference: String, offset: i64, count: u64) -> Result<debug::Memory, String> {
+    app.debugger.memory(session, &reference, offset, count)
+}
+
+#[tauri::command(async)]
+fn debug_instructions(app: State<App>, session: u64, reference: String, offset: i64, count: i64) -> Result<Vec<debug::Instruction>, String> {
+    app.debugger.instructions(session, &reference, offset, count)
+}
+
+/// The bytecode of the function of the Python file at `path` that holds `line`: its name, then its
+/// instructions.
+#[tauri::command(async)]
+fn debug_bytecode(app: State<App>, path: String, line: u32) -> Result<(String, Vec<debug::Instruction>), String> {
+    let root = root_of(&app)?;
+    debug::bytecode(&root, &root.join(path), line)
+}
+
+#[tauri::command(async)]
+fn debug_watch_data(app: State<App>, session: u64, name: String, reference: Option<i64>, bytes: Option<u64>) -> Result<String, String> {
+    app.debugger.watch_data(session, &name, reference, bytes)
+}
+
+/// The text of the file at `path`, anywhere on the machine, as the reader chose it.
+#[tauri::command(async)]
+fn file_read_any(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|error| format!("{path}: {error}"))
+}
+
+/// Writes `text` to the file at `path`, anywhere on the machine, as the reader chose it.
+#[tauri::command(async)]
+fn file_write_any(path: String, text: String) -> Result<(), String> {
+    std::fs::write(&path, text).map_err(|error| format!("{path}: {error}"))
+}
+
+/// The processes of the machine, for a session to attach to.
+#[tauri::command(async)]
+fn debug_processes() -> Vec<debug::Process> {
+    debug::processes()
+}
+
+/// Ends session `session`, or every session where none is named.
+#[tauri::command(async)]
+fn debug_stop(app: State<App>, session: Option<u64>) {
+    match session {
+        Some(session) => app.debugger.stop(session),
+        None => app.debugger.stop_all(),
+    }
 }
 
 /// The file at `path`, under the tree, validated by the tool plugin for `language`.
@@ -1556,7 +1609,6 @@ fn open(launch: Launch) {
             tests_found,
             tests_run,
             tests_stop,
-            debug_test,
             maven_settings,
             maven_set,
             snapshots_line,
@@ -1577,6 +1629,16 @@ fn open(launch: Launch) {
             lsp_signature,
             edits_write,
             debug_start,
+            debug_sessions,
+            debug_exceptions,
+            debug_raised,
+            debug_memory,
+            debug_instructions,
+            debug_bytecode,
+            debug_watch_data,
+            debug_processes,
+            file_read_any,
+            file_write_any,
             debug_breakpoints,
             debug_threads,
             debug_stack,
@@ -1686,7 +1748,7 @@ fn open(launch: Launch) {
             // A language server orior started ends with it: on Windows a child outlives its parent.
             if let tauri::RunEvent::Exit = event {
                 handle.state::<App>().servers.stop_all();
-                handle.state::<App>().debugger.stop();
+                handle.state::<App>().debugger.stop_all();
             }
         });
 }

@@ -255,6 +255,7 @@ function draw() {
     });
     row.addEventListener("contextmenu", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       showMenu(event.clientX, event.clientY, [
         { label: `Run ${file.slice(cut + 1)}`, run: () => runTests([file]) },
         { label: `Run ${file.slice(cut + 1)} with Coverage`, run: () => runTests([file], { cover: true }) },
@@ -279,6 +280,7 @@ function draw() {
       });
       testRow.addEventListener("contextmenu", (event) => {
         event.preventDefault();
+        event.stopPropagation();
         showMenu(event.clientX, event.clientY, [
           { label: "Run", run: () => runTests([test.id]) },
           { label: "Run with Coverage", run: () => runTests([test.id], { cover: true }) },

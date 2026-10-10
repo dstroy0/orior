@@ -26,7 +26,7 @@ import { showCreate, showInit, showProject } from "./create.js";
 import { checkersNamed, setCheckers } from "./servers.js";
 import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
-import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
+import { askStepping, attachAddress, attachProcess, debugFile, debugging, exportBreakpoints, importBreakpoints, isPaused, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
 import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setVimKeys, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
@@ -269,6 +269,14 @@ const COMMANDS = {
   environment: (args) => chooseEnvironment(args[0]),
   "maven-settings": () => askMavenSettings(),
   "update-snapshots": () => updateSnapshots(),
+  "attach-process": () => attachProcess(),
+  "attach-address": (args) => attachAddress(args.length ? args.join(" ") : undefined),
+  stepping: () => askStepping(),
+  "export-breakpoints": () => exportBreakpoints(),
+  "import-breakpoints": () => importBreakpoints(),
+  "show-memory": (args) => showDebugMemory(args[0] ?? null),
+  "watch-memory": (args) => watchAddress(args.length ? args.join(" ") : undefined),
+  "machine-code": () => showMachineCode(),
   tests: () => showTests(),
   "run-tests": () => runAllTests(),
   "run-failed-tests": () => runFailedTests(),
@@ -510,7 +518,7 @@ const FILLS = { macros: macroItems };
 
 // A sheet that asks for a line of text, with `start` in it. Answers the text, or null where it was
 // closed with nothing taken.
-function askFor(label, start) {
+export function askFor(label, start) {
   return new Promise((done) => {
     const field = Object.assign(document.createElement("input"), { className: "report-field", type: "text", value: start, spellcheck: false, ariaLabel: label });
     const body = document.createElement("form");
@@ -1086,7 +1094,7 @@ async function showAbout() {
 }
 
 // A sheet over the app, which Escape, a press outside it or its × closes. Answers the sheet.
-function sheet(body) {
+export function sheet(body) {
   const dialog = document.createElement("dialog");
   dialog.className = "sheet";
   const close = Object.assign(document.createElement("button"), { type: "button", className: "sheet-close", textContent: "×", ariaLabel: "Close" });
