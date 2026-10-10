@@ -4,7 +4,8 @@
 // The explorer beside the editor: its panes, one over the next, each opened and closed by its head,
 // in groups the tool strip's icons choose between, one group shown at a time. Explorer holds Search,
 // which finds text in the tree's files and shows from Find in Files; Usages, which lists where a
-// symbol is used and shows from Find Usages; Open Editors, which lists the tabs; and the tree's own
+// symbol is used and shows from Find Usages; Call Hierarchy, which shows what calls a function and
+// what it calls; Open Editors, which lists the tabs; and the tree's own
 // pane of its files. Structure holds the Outline of what the open file declares and its Undo History.
 // Commit holds Changes, the files that differ from the last commit, the Timeline of commits that
 // touched the open file, its Local History, the file as each save left it, and Review, the review
@@ -27,6 +28,7 @@ const KEPT = "orior.panes";
 const PANES = [
   ["search", "Search"],
   ["usages", "Usages"],
+  ["calls", "Call Hierarchy"],
   ["todo", "TODO"],
   ["open", "Open Editors"],
   ["folder", null],
@@ -42,7 +44,7 @@ const PANES = [
 
 // The panes each icon of the tool strip shows, one group at a time.
 const GROUPS = {
-  explorer: ["search", "usages", "todo", "open", "folder"],
+  explorer: ["search", "usages", "calls", "todo", "open", "folder"],
   structure: ["outline", "undo"],
   commit: ["changes", "timeline", "local", "review"],
   problems: ["problems"],
@@ -765,7 +767,7 @@ export function startExplorer(hooks) {
   state.group = GROUPS[localStorage.getItem(GROUP_KEPT)] ? localStorage.getItem(GROUP_KEPT) : "explorer";
   drawGroupTitle();
   for (const [name] of PANES) {
-    state.panes[name] = { shown: kept[name]?.shown ?? !["search", "usages", "todo"].includes(name), open: kept[name]?.open ?? name !== "timeline" };
+    state.panes[name] = { shown: kept[name]?.shown ?? !["search", "usages", "calls", "todo"].includes(name), open: kept[name]?.open ?? name !== "timeline" };
     drawPane(name);
     paneOf(name)
       .querySelector(".pane-head")

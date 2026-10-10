@@ -18,6 +18,10 @@
 //!   language server's report that a class has no such attribute, as pyright gives of a mixin, is
 //!   not passed on where the family sets it.
 //!
+//! The index also holds each function a file declares and the calls in it, which the call hierarchy
+//! reads where no language server answers: a call of a name reaches the functions of that name in the
+//! caller's file, or, where its file declares none, those of the tree in its language.
+//!
 //! A Python import is found from the importing file's folder, from the folder above its outermost
 //! package, and from the tree's top folder, in that order; a relative one from its package. A
 //! JavaScript import is a relative path, with `.js`, `.mjs` or `/index.js` after it where the path
@@ -83,13 +87,32 @@ pub struct Class {
     pub dynamic: bool,
 }
 
-/// What a file holds for the inspections: its imports, its classes, and what it says alone.
+/// A function a file declares: its name and the span of its name, its first and last lines, and each
+/// call in it, outside the functions it holds, of a bare name or of a method of `self` or `this`, with
+/// the call's span.
+#[derive(Clone, Debug)]
+pub struct Function {
+    pub name: String,
+    pub from: Place,
+    pub to: Place,
+    pub first: u32,
+    pub last: u32,
+    pub calls: Vec<(String, Place, Place)>,
+}
+
+/// What a file holds for the inspections: its imports, its classes, its functions, and what it says
+/// alone.
 #[derive(Clone, Debug, Default)]
 pub struct Facts {
     pub imports: Vec<Import>,
     pub classes: Vec<Class>,
+    pub functions: Vec<Function>,
     pub local: Vec<Finding>,
 }
+
+/// A function the call hierarchy reaches, by its file and its place in that file's functions, and the
+/// spans of the calls that lead there.
+pub type Reached = (String, usize, Vec<(Place, Place)>);
 
 /// The languages the inspections read, by the editor's names for them.
 pub const LANGUAGES: [&str; 2] = ["python", "javascript"];
@@ -209,6 +232,79 @@ impl Tree {
     /// Every file of the index.
     pub fn paths(&self) -> Vec<String> {
         self.files.keys().cloned().collect()
+    }
+
+    /// A function of the file at `path`: the one at `at` among its functions.
+    pub fn function(&self, path: &str, at: usize) -> Option<&Function> {
+        self.files.get(path)?.facts.functions.get(at)
+    }
+
+    /// The function of the file at `path` that holds `line` most closely.
+    pub fn function_at(&self, path: &str, line: u32) -> Option<usize> {
+        let functions = &self.files.get(path)?.facts.functions;
+        functions.iter().enumerate().filter(|(_, one)| one.first <= line && line <= one.last).min_by_key(|(_, one)| one.last - one.first).map(|(at, _)| at)
+    }
+
+    /// The function of the file at `path` whose name starts on `line`.
+    pub fn function_on(&self, path: &str, line: u32) -> Option<usize> {
+        self.files.get(path)?.facts.functions.iter().position(|one| one.from.line == line)
+    }
+
+    /// The functions a call of `name` in the file at `path` reaches.
+    fn reached(&self, path: &str, name: &str) -> Vec<(String, usize)> {
+        let Some(file) = self.files.get(path) else {
+            return Vec::new();
+        };
+        let own: Vec<(String, usize)> = file.facts.functions.iter().enumerate().filter(|(_, one)| one.name == name).map(|(at, _)| (path.to_string(), at)).collect();
+        if !own.is_empty() {
+            return own;
+        }
+        let mut out = Vec::new();
+        for (other, read) in &self.files {
+            if read.language == file.language && other != path {
+                out.extend(read.facts.functions.iter().enumerate().filter(|(_, one)| one.name == name).map(|(at, _)| (other.clone(), at)));
+            }
+        }
+        out.sort();
+        out
+    }
+
+    /// The functions the function at `at` of the file at `path` calls, each with the spans of its
+    /// calls there.
+    pub fn callees(&self, path: &str, at: usize) -> Vec<Reached> {
+        let Some(function) = self.function(path, at) else {
+            return Vec::new();
+        };
+        let mut out: Vec<Reached> = Vec::new();
+        for (name, from, to) in &function.calls {
+            for (other, index) in self.reached(path, name) {
+                match out.iter_mut().find(|one| one.0 == other && one.1 == index) {
+                    Some(one) => one.2.push((from.clone(), to.clone())),
+                    None => out.push((other, index, vec![(from.clone(), to.clone())])),
+                }
+            }
+        }
+        out
+    }
+
+    /// The functions that call the function at `at` of the file at `path`, each with the spans of its
+    /// calls of it.
+    pub fn callers(&self, path: &str, at: usize) -> Vec<Reached> {
+        let Some(function) = self.function(path, at) else {
+            return Vec::new();
+        };
+        let mut paths: Vec<&String> = self.files.keys().collect();
+        paths.sort();
+        let mut out = Vec::new();
+        for other in paths {
+            for (index, caller) in self.files[other].facts.functions.iter().enumerate() {
+                let sites: Vec<(Place, Place)> = caller.calls.iter().filter(|(name, _, _)| *name == function.name).map(|(_, from, to)| (from.clone(), to.clone())).collect();
+                if !sites.is_empty() && self.reached(other, &function.name).contains(&(path.to_string(), at)) {
+                    out.push((other.clone(), index, sites));
+                }
+            }
+        }
+        out
     }
 
     /// Every finding in every file, by its path: what each says alone, then the tree's.
@@ -629,6 +725,31 @@ mod tests {
             tree.set(path, language_of(path).unwrap(), text);
         }
         tree
+    }
+
+    #[test]
+    fn a_function_s_callers_and_callees_are_found_in_python_and_javascript() {
+        let read = tree(&[
+            ("geo/area.py", "def square(side):\n    return side * side\n\n\ndef ring(a, b):\n    def inner(x):\n        return square(x)\n    return square(a) - square(b) + inner(1)\n"),
+            ("geo/use.py", "from geo.area import ring\n\n\nclass Shape:\n    def total(self):\n        return ring(2, 1) + self.part()\n\n    def part(self):\n        return 1\n"),
+            ("web/lib.js", "export function twice(x) {\n  return x * 2;\n}\n\nexport const four = () => {\n  return twice(2);\n};\n"),
+            ("web/main.js", "import { twice, four } from \"./lib.js\";\nclass App {\n  run() {\n    return twice(four()) + this.more();\n  }\n  more() {\n    return 1;\n  }\n}\n"),
+        ]);
+        let name = |(path, at, _): &Reached| read.function(path, *at).unwrap().name.clone();
+        let square = read.function_on("geo/area.py", 0).unwrap();
+        let ring = read.function_at("geo/area.py", 7).unwrap();
+        assert_eq!(read.function("geo/area.py", ring).unwrap().name, "ring");
+        assert_eq!(read.callers("geo/area.py", square).iter().map(name).collect::<Vec<_>>(), vec!["ring", "inner"]);
+        let callees = read.callees("geo/area.py", ring);
+        assert_eq!(callees.iter().map(name).collect::<Vec<_>>(), vec!["square", "inner"]);
+        assert_eq!(callees[0].2.len(), 2, "both calls of square in ring, and not the one inner makes");
+        assert_eq!(read.callers("geo/area.py", ring).iter().map(name).collect::<Vec<_>>(), vec!["total"]);
+        let total = read.function_on("geo/use.py", 4).unwrap();
+        assert_eq!(read.callees("geo/use.py", total).iter().map(name).collect::<Vec<_>>(), vec!["ring", "part"]);
+        let twice = read.function_on("web/lib.js", 0).unwrap();
+        assert_eq!(read.callers("web/lib.js", twice).iter().map(name).collect::<Vec<_>>(), vec!["four", "run"]);
+        let run = read.function_at("web/main.js", 3).unwrap();
+        assert_eq!(read.callees("web/main.js", run).iter().map(name).collect::<Vec<_>>(), vec!["twice", "four", "more"]);
     }
 
     #[test]

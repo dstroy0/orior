@@ -187,6 +187,7 @@ impl Server {
                 "definition": {"linkSupport": false},
                 "references": {},
                 "rename": {"prepareSupport": true},
+                "callHierarchy": {},
                 "signatureHelp": {"signatureInformation": {"documentationFormat": ["markdown", "plaintext"], "parameterInformation": {"labelOffsetSupport": true}, "activeParameterSupport": true}},
                 "codeAction": {
                     "codeActionLiteralSupport": {"codeActionKind": {"valueSet": kinds}},

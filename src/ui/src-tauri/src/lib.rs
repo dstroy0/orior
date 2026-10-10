@@ -727,6 +727,27 @@ fn lsp_act(app: State<App>, path: String, raw: serde_json::Value) -> Result<Vec<
     Ok(tree_edits(&root, app.servers.act(&root.join(path), &raw)?))
 }
 
+/// The function at a place, as the top of its call hierarchy, its paths as `tree_path` gives them.
+#[tauri::command(async)]
+fn calls_root(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Call>, String> {
+    let root = root_of(&app)?;
+    Ok(app.servers.call_root(&root.join(path), line, col)?.map(|call| tree_call(&root, call)))
+}
+
+/// The functions that call the function `item` names, or that it calls, as `incoming` says.
+#[tauri::command(async)]
+fn calls_of(app: State<App>, path: String, item: serde_json::Value, incoming: bool) -> Result<Vec<servers::Call>, String> {
+    let root = root_of(&app)?;
+    Ok(app.servers.calls(&root.join(path), &item, incoming)?.into_iter().map(|call| tree_call(&root, call)).collect())
+}
+
+/// A function of the call hierarchy, its paths as `tree_path` gives them.
+fn tree_call(root: &Path, mut call: servers::Call) -> servers::Call {
+    call.path = tree_path(root, &call.path);
+    call.site = tree_path(root, &call.site);
+    call
+}
+
 #[tauri::command(async)]
 fn lsp_signature(app: State<App>, path: String, line: u32, col: u32) -> Result<Option<servers::Signature>, String> {
     app.servers.signature(&root_of(&app)?.join(path), line, col)
@@ -1263,6 +1284,8 @@ fn open(launch: Launch) {
             lsp_change,
             lsp_close,
             problems_check,
+            calls_root,
+            calls_of,
             inspect_languages,
             lsp_hover,
             lsp_definition,

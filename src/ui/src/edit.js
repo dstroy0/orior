@@ -40,7 +40,7 @@ import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
 import { changed, checkTree, definition, forgetProblems, knownProblems, serve, startServers, stopServing, treeChecking, wrap } from "./servers.js";
-import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
+import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { extractFunction } from "./extract.js";
 import { changeSignature } from "./signature.js";
@@ -2517,6 +2517,7 @@ export function editing() {
     runFile: () => runTab(tabOf(state.active)),
     definition: () => state.editor?.s && goToDefinition(state.editor.head()),
     usages: findUsages,
+    calls: callHierarchy,
     rename: renameSymbol,
     extractVariable: () => state.editor?.s && extractVariable(editing().editor ?? state.editor, fileOf(state.active)),
     extractConstant: () => state.editor?.s && extractConstant(editing().editor ?? state.editor),

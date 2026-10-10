@@ -170,6 +170,21 @@ pub struct Action {
     pub raw: Value,
 }
 
+/// A function of the call hierarchy: its name and what the server says of it, its file and the span
+/// of its name, the file its calls stand in and where each starts, and the server's or the index's
+/// own name for it, which is given back to read the level below it.
+#[derive(Serialize, Clone, Debug)]
+pub struct Call {
+    pub name: String,
+    pub detail: String,
+    pub path: String,
+    pub from: Place,
+    pub to: Place,
+    pub site: String,
+    pub at: Vec<Place>,
+    pub item: Value,
+}
+
 /// A call's signature: its text, each parameter's span in it in UTF-16 units, the parameter the
 /// cursor is in, and what the server says of it.
 #[derive(Serialize, Clone, Debug)]
@@ -776,6 +791,62 @@ impl Servers {
         Ok(edits)
     }
 
+    /// The function at `line`, `col` of `path`, as the top of its call hierarchy: as its server finds
+    /// it where the server answers for calls, and as the inspections' index finds it elsewhere.
+    pub fn call_root(&self, path: &Path, line: u32, col: u32) -> Result<Option<Call>, String> {
+        if let Some(server) = self.holding(path).filter(|server| !server.capabilities["callHierarchyProvider"].is_null() && server.capabilities["callHierarchyProvider"] != false) {
+            let said = server.request("textDocument/prepareCallHierarchy", Server::at(path, line, col), ASKING)?;
+            return Ok(said.as_array().and_then(|all| all.first()).and_then(|item| call_of(item, None, &[])));
+        }
+        let (root, file) = self.indexed_file(path)?;
+        let index = self.index.lock().map_err(|_| "held".to_string())?;
+        let found = index.function_on(&file, line).or_else(|| index.function_at(&file, line));
+        Ok(found.and_then(|at| index.function(&file, at).map(|function| indexed_call(&root, &file, function, &file, &[]))))
+    }
+
+    /// The functions that call the function `item` names, where `incoming`, or that it calls, each with
+    /// the places of its calls: from the server of `path`, the file the hierarchy started in, or from
+    /// the inspections' index where the item is its.
+    pub fn calls(&self, path: &Path, item: &Value, incoming: bool) -> Result<Vec<Call>, String> {
+        if let Some(found) = item.get("orior") {
+            let (root, _) = self.indexed_file(path)?;
+            let file = found["path"].as_str().unwrap_or_default().to_string();
+            let line = found["line"].as_u64().unwrap_or(0) as u32;
+            let index = self.index.lock().map_err(|_| "held".to_string())?;
+            let Some(at) = index.function_on(&file, line) else {
+                return Ok(Vec::new());
+            };
+            let reached = if incoming { index.callers(&file, at) } else { index.callees(&file, at) };
+            return Ok(reached
+                .iter()
+                .filter_map(|(other, index_at, sites)| {
+                    let site = if incoming { other.clone() } else { file.clone() };
+                    index.function(other, *index_at).map(|function| indexed_call(&root, other, function, &site, sites))
+                })
+                .collect());
+        }
+        let server = self.asked(path)?;
+        let method = if incoming { "callHierarchy/incomingCalls" } else { "callHierarchy/outgoingCalls" };
+        let said = server.request(method, json!({"item": item}), SEARCHING)?;
+        let parent = item["uri"].as_str().and_then(lsp::path_of).map(|path| path.display().to_string());
+        Ok(said
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|one| {
+                let ranges: Vec<Place> = one["fromRanges"].as_array().into_iter().flatten().map(|range| place(&range["start"])).collect();
+                if incoming { call_of(&one["from"], None, &ranges) } else { call_of(&one["to"], parent.clone(), &ranges) }
+            })
+            .collect())
+    }
+
+    /// The tree the inspections' index holds and the path of `path` in it.
+    fn indexed_file(&self, path: &Path) -> Result<(PathBuf, String), String> {
+        let root = self.indexed.lock().map_err(|_| "held".to_string())?.clone().ok_or_else(|| "no language server answers for calls here, and orior's own index is still being read".to_string())?;
+        let file = path.strip_prefix(&root).map_err(|_| format!("{} is outside the tree", path.display()))?.to_string_lossy().replace('\\', "/");
+        Ok((root, file))
+    }
+
     /// The signature of the call the cursor at `line`, `col` is in, where it is in one.
     pub fn signature(&self, path: &Path, line: u32, col: u32) -> Result<Option<Signature>, String> {
         let Some(server) = self.holding(path) else {
@@ -1123,6 +1194,38 @@ impl Servers {
                 }
             });
         }
+    }
+}
+
+/// A function of the call hierarchy from a server's item: its calls in `site`, the item's own file
+/// where none is given, at `ranges`.
+fn call_of(item: &Value, site: Option<String>, ranges: &[Place]) -> Option<Call> {
+    let path = lsp::path_of(item["uri"].as_str()?)?.display().to_string();
+    let span = if item["selectionRange"].is_object() { &item["selectionRange"] } else { &item["range"] };
+    Some(Call {
+        name: item["name"].as_str().unwrap_or_default().to_string(),
+        detail: item["detail"].as_str().unwrap_or_default().to_string(),
+        site: site.unwrap_or_else(|| path.clone()),
+        path,
+        from: place(&span["start"]),
+        to: place(&span["end"]),
+        at: ranges.to_vec(),
+        item: item.clone(),
+    })
+}
+
+/// A function of the call hierarchy from the inspections' index: `function` of `file`, its calls in
+/// `site` at `sites`.
+fn indexed_call(root: &Path, file: &str, function: &inspect::Function, site: &str, sites: &[(Place, Place)]) -> Call {
+    Call {
+        name: function.name.clone(),
+        detail: String::new(),
+        path: root.join(file).display().to_string(),
+        from: function.from.clone(),
+        to: function.to.clone(),
+        site: root.join(site).display().to_string(),
+        at: sites.iter().map(|(from, _)| from.clone()).collect(),
+        item: json!({"orior": {"path": file, "line": function.from.line}}),
     }
 }
 

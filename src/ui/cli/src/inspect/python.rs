@@ -275,7 +275,7 @@ pub(super) fn facts(src: &str) -> super::Facts {
         }
     }
     docstrings(src, &lines, &mut local);
-    super::Facts { imports: imports(src, &lines), classes: classes(src, &lines), local }
+    super::Facts { imports: imports(src, &lines), classes: classes(src, &lines), functions: functions(src, &lines), local }
 }
 
 /// The span from the start of the line `from` to the end of the line `to` whole, its line end with
@@ -601,6 +601,49 @@ fn docstring(src: &str, tok: &Tok, found: &mut Vec<Finding>) {
             ));
         }
     }
+}
+
+/// The functions a file declares, methods among them, and the calls in each outside the functions it
+/// holds: a name before a bracket, after no dot or after `self.` or `cls.`.
+fn functions(src: &str, lines: &[Line]) -> Vec<super::Function> {
+    let mut out = Vec::new();
+    for (at, line) in lines.iter().enumerate() {
+        if head(src, line) != "def" || !opens(src, line) {
+            continue;
+        }
+        let Some(name_at) = line.toks.iter().position(|tok| text(src, tok) == "def").map(|at| at + 1).filter(|at| *at < line.toks.len()) else {
+            continue;
+        };
+        let end = block_end(lines, at);
+        let mut calls = Vec::new();
+        let mut nested_end = 0;
+        for index in at + 1..end {
+            let inner = &lines[index];
+            if index < nested_end {
+                continue;
+            }
+            if head(src, inner) == "def" && opens(src, inner) {
+                nested_end = block_end(lines, index);
+                continue;
+            }
+            for offset in 0..inner.toks.len().saturating_sub(1) {
+                let tok = &inner.toks[offset];
+                if tok.kind != Kind::Name || text(src, &inner.toks[offset + 1]) != "(" || KEYWORDS.contains(&text(src, tok)) {
+                    continue;
+                }
+                let before = offset.checked_sub(1).map(|at| text(src, &inner.toks[at]));
+                let owner = offset.checked_sub(2).map(|at| text(src, &inner.toks[at]));
+                if before == Some(".") && !matches!(owner, Some("self" | "cls")) || matches!(before, Some("def" | "class")) {
+                    continue;
+                }
+                calls.push((text(src, tok).to_string(), tok.from.clone(), tok.to.clone()));
+            }
+        }
+        let name = &line.toks[name_at];
+        let last = lines[end - 1].toks.last().map_or(name.from.line, |tok| tok.to.line);
+        out.push(super::Function { name: text(src, name).to_string(), from: name.from.clone(), to: name.to.clone(), first: line.toks[0].from.line, last, calls });
+    }
+    out
 }
 
 /// The imports a file makes as it runs: those outside every function and class, and outside a block

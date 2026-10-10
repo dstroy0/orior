@@ -173,6 +173,7 @@
         { "label": "Go to Bridge Key…", "command": "bridge", "args": "[key]", "console": true },
         { "label": "Go to Definition", "command": "definition", "keys": "F12", "needs": "editor" },
         { "label": "Find Usages", "command": "usages", "keys": "Shift+F12", "also": "Alt+F7", "needs": "editor" },
+        { "label": "Call Hierarchy", "command": "calls", "keys": "Ctrl+Alt+H", "needs": "editor" },
         "-",
         { "label": "Next Problem", "command": "next-problem", "keys": "F8", "needs": "editor" },
         { "label": "Previous Problem", "command": "previous-problem", "keys": "Shift+F8", "needs": "editor" },

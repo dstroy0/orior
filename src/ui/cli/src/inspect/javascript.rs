@@ -321,7 +321,7 @@ pub(super) fn facts(src: &str) -> Facts {
             _ => {}
         }
     }
-    Facts { imports: imports(&read), classes: Vec::new(), local }
+    Facts { imports: imports(&read), classes: Vec::new(), functions: functions(&read), local }
 }
 
 /// The span of the lines from the line of `from` to the line of `to` whole, where nothing else stands
@@ -469,6 +469,60 @@ fn unreachable(read: &Read, open: usize, found: &mut Vec<Finding>) {
         });
         at = next;
     }
+}
+
+/// The name of the function whose body opens at `open`, and the index of its token: `function name(`,
+/// a method's `name(`, and `name = function (` or `name = (…) =>` and `name = x =>`.
+fn function_name(read: &Read, open: usize) -> Option<usize> {
+    let before = open.checked_sub(1)?;
+    let named_by_assignment = |at: Option<usize>| at.filter(|at| *at >= 2 && matches!(read.words[*at - 1], "=" | ":") && read.toks[*at - 2].kind == Kind::Name).map(|at| at - 2);
+    if read.words[before] == "=>" {
+        let params = before.checked_sub(1)?;
+        let start = if read.words[params] == ")" { read.pair[params]? } else { params };
+        let start = if start >= 1 && read.words[start - 1] == "async" { start - 1 } else { start };
+        return named_by_assignment(Some(start));
+    }
+    let paren = read.pair[before].filter(|_| read.words[before] == ")")?;
+    let name = paren.checked_sub(1)?;
+    if read.words[name] == "function" {
+        let start = if name >= 1 && read.words[name - 1] == "async" { name - 1 } else { name };
+        return named_by_assignment(Some(start));
+    }
+    (read.toks[name].kind == Kind::Name).then_some(name)
+}
+
+/// The functions a file declares, with a name, and the calls in each outside the functions it holds:
+/// a name before a bracket, after no dot or after `this.`.
+fn functions(read: &Read) -> Vec<super::Function> {
+    let mut out = Vec::new();
+    for open in 0..read.toks.len() {
+        if read.braces[open] != Some(Brace::Function) {
+            continue;
+        }
+        let (Some(name_at), Some(close)) = (function_name(read, open), read.pair[open]) else {
+            continue;
+        };
+        let mut calls = Vec::new();
+        let mut at = open + 1;
+        while at < close {
+            if read.braces[at] == Some(Brace::Function) {
+                at = read.pair[at].map_or(at + 1, |end| end + 1);
+                continue;
+            }
+            let word = read.words[at];
+            let before = at.checked_sub(1).map(|one| read.words[one]);
+            let owner = at.checked_sub(2).map(|one| read.words[one]);
+            let declares = read.pair[at + 1].and_then(|end| read.words.get(end + 1)).is_some_and(|next| *next == "{");
+            if read.toks[at].kind == Kind::Name && read.words.get(at + 1) == Some(&"(") && !KEYWORDS.contains(&word) && !CONTROL.contains(&word) && !declares && (before != Some(".") || owner == Some("this")) && before != Some("function") {
+                calls.push((word.to_string(), read.toks[at].from.clone(), read.toks[at].to.clone()));
+            }
+            at += 1;
+        }
+        let name = &read.toks[name_at];
+        let first = read.toks[name_at.min(open)].from.line;
+        out.push(super::Function { name: read.words[name_at].to_string(), from: name.from.clone(), to: name.to.clone(), first, last: read.toks[close].to.line, calls });
+    }
+    out
 }
 
 /// The files the file imports by a relative path, at its top level: `import … from`, a bare

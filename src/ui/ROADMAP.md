@@ -9,13 +9,12 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Code intelligence
 
-1. **Call hierarchy.** The functions that call the one at the cursor, and those it calls, each a tree that opens a level at a time, a press going to the call.
-2. **Types written in the text.** The types a language server infers for names and parameters, drawn after them in the line and not part of it, each kind set on or off.
-3. **Diagnostics in their own form.** A diagnostic whose server writes it in Markdown shows its code, its links and its lists as written.
-4. **Highlighting from a parse.** Each file highlighted from the tree of its code, parsed as it changes, and not from patterns over a line at a time: every name colored by what it is, and folds and Expand Selection taken from the same tree.
-5. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
-6. **Code written for the reader.** A docstring drawn up from a function's parameters, its returns and what it raises, in a form of the reader's; a class's methods sorted by name; and a project begun from a template of the reader's.
-7. **Regions in Structure.** The regions a file's comments mark show in Structure as nodes that hold what stands in them, and a file can be pinned there while another is open.
+1. **Types written in the text.** The types a language server infers for names and parameters, drawn after them in the line and not part of it, each kind set on or off.
+2. **Diagnostics in their own form.** A diagnostic whose server writes it in Markdown shows its code, its links and its lists as written.
+3. **Highlighting from a parse.** Each file highlighted from the tree of its code, parsed as it changes, and not from patterns over a line at a time: every name colored by what it is, and folds and Expand Selection taken from the same tree.
+4. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
+5. **Code written for the reader.** A docstring drawn up from a function's parameters, its returns and what it raises, in a form of the reader's; a class's methods sorted by name; and a project begun from a template of the reader's.
+6. **Regions in Structure.** The regions a file's comments mark show in Structure as nodes that hold what stands in them, and a file can be pinned there while another is open.
 
 ## Languages and formatting
 

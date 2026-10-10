@@ -307,6 +307,7 @@ const COMMANDS = {
   bridge: goToBridge,
   definition: inEditor(() => editing().definition()),
   usages: inEditor(() => editing().usages()),
+  calls: inEditor(() => editing().calls()),
   rename: inEditor(() => editing().rename()),
   "extract-variable": inEditor(() => editing().extractVariable()),
   "extract-constant": inEditor(() => editing().extractConstant()),
