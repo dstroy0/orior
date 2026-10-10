@@ -231,7 +231,7 @@ select {
   content: "";
   position: absolute;
   left: 47px;
-  right: 14px;
+  right: 17px;
   bottom: -2px;
   height: 2px;
   background: var(--bar-signal);
@@ -291,7 +291,7 @@ select {
 .frame {
   position: relative;
   flex: 1;
-  padding-right: 7px;
+  padding-right: 10px;
   min-height: 0;
   display: flex;
 }
@@ -414,7 +414,7 @@ select {
 }
 
 .bar::after {
-  right: 5px;
+  right: 8px;
   bottom: -9px;
   width: 9px;
   height: 9px;
@@ -427,7 +427,7 @@ select {
 }
 
 .statusbar::after {
-  right: 5px;
+  right: 8px;
   top: -7px;
   width: 9px;
   height: 8px;
@@ -441,7 +441,7 @@ select {
   position: absolute;
   top: 0;
   left: 47px;
-  right: 14px;
+  right: 17px;
   height: 1px;
   background: color-mix(in srgb, var(--link), black 35%);
   pointer-events: none;
@@ -470,12 +470,12 @@ select {
 
 .frame {
   background:
-    linear-gradient(color-mix(in srgb, var(--link), black 35%), color-mix(in srgb, var(--link), black 35%)) right 5px top 7px / 2px calc(100% - 14px) no-repeat,
-    linear-gradient(var(--glass-tint), var(--glass-tint)) right top / 7px 100% no-repeat,
+    linear-gradient(color-mix(in srgb, var(--link), black 35%), color-mix(in srgb, var(--link), black 35%)) right 8px top 7px / 2px calc(100% - 14px) no-repeat,
+    linear-gradient(var(--glass-tint), var(--glass-tint)) right top / 10px 100% no-repeat,
     radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left 40px top 0 / 7px 7px no-repeat,
     radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left 40px bottom 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right 7px top 0 / 7px 7px no-repeat,
-    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right 7px bottom 0 / 7px 7px no-repeat;
+    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right 10px top 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right 10px bottom 0 / 7px 7px no-repeat;
 }
 
 /* The window's lattice, behind the whole page, on the deep of the lattices in the views, and the
