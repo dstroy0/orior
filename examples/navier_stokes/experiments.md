@@ -298,6 +298,24 @@ the same to within 2 in 100 for every mu from 16 to 512 that reaches it, and mu 
 as mu grows, its step at mu Y = 64 near half as large at each doubling of mu. h grows more slowly than mu Y, and at
 one Y the slope's share falls as mu grows.
 
+The phase in both directions (`core_tangent` with `phase`): the slope turns mu into mu + d/deta at Y fixed, and the
+growth e^(sqrt(mu) Psi(Y, eta)) asks 2 Y mu Psi_Y^2 = s (mu + sqrt(mu) Psi_eta). Then Psi = Phi + Phi_1 / sqrt(mu) +
+..., with Phi_1 = (1/2) int_0^Y Phi' Phi_eta dY a series in Y whose coefficients are exact, and the slope's share nears
+e^(Phi_1) - 1 as mu grows. The slope leaves the exponent sqrt(mu) Phi as it is and sets the growth's amplitude by
+e^(Phi_1). At the vertex of E_(1.1), to order 44, Phi_1 = -0.0628 Y - 0.0135 Y^2 + 0.0127 Y^3 + ..., its first
+coefficient s_eta / 4 at Y = 0, and
+
+| Y | 1/8 | 1/4 | 1/2 | 1 |
+|---|---|---|---|---|
+| e^(Phi_1) - 1 | -0.008 | -0.016 | -0.033 | -0.060 |
+
+Check (`core_tangent` with `phase`): the root squared is s / s_0 and the root times the quotient is s_eta at every order
+to 44.
+
+The slope's share at mu = 512 is seven times e^(Phi_1) - 1 at Y = 1/8 and five times at Y = 1/2: the rest is the part
+of order mu^(-1/2). sqrt(mu) times the axial share less e^(Phi_1) - 1 at Y = 1/2 is -1.89, -2.26, -2.55 and -2.76 for
+mu = 64, 128, 256 and 512, its steps falling, and the swirl's has not settled by mu = 512.
+
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
 bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
 radius near mu^(-1/2); and the integral of G against the blend near X_b.
