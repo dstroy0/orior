@@ -256,6 +256,10 @@ const CHECKERS: usize = 6;
 const CHECK_PATIENCE: Duration = Duration::from_secs(30);
 const CHECK_QUIET: Duration = Duration::from_millis(250);
 
+/// The most text a file the inspections read may hold; a larger one, which the editor reads a window
+/// at a time, is left out of their index.
+const INSPECT_MOST: u64 = 2 << 20;
+
 /// The most text a file the tree's check hands to a server may hold.
 const CHECK_MOST: u64 = 2 << 20;
 
@@ -319,6 +323,8 @@ pub struct Servers {
     /// The inspections' index of the tree, the tree it was read from, and where their findings go.
     index: Arc<Mutex<inspect::Tree>>,
     indexed: Arc<Mutex<Option<PathBuf>>>,
+    /// How many times a tree has been let go, which an index read for a tree let go is set aside by.
+    generation: Arc<std::sync::atomic::AtomicU64>,
     told: Mutex<Option<Emit>>,
     /// The text of each file the editor has open, by its key, and each one's parse as last read, by
     /// its key, with what its text hashes to.
@@ -1183,6 +1189,7 @@ impl Servers {
         if let Ok(mut inspected) = self.checks.inspected.lock() {
             inspected.clear();
         }
+        self.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         if let (Ok(mut index), Ok(mut indexed)) = (self.index.lock(), self.indexed.lock()) {
             *index = inspect::Tree::default();
             *indexed = None;
@@ -1310,26 +1317,40 @@ impl Servers {
         let ready = self.indexed.lock().is_ok_and(|read| read.as_deref() == Some(root));
         let text = text.map(str::to_string);
         let (index, indexed, published, checks, emit, root) = (self.index.clone(), self.indexed.clone(), self.published.clone(), self.checks.clone(), emit.clone(), root.to_path_buf());
+        let generation = self.generation.clone();
+        let born = generation.load(std::sync::atomic::Ordering::SeqCst);
         let work = move || {
+            // The tree's index is read with no lock held and taken in whole; one read for a tree no
+            // longer open is set aside.
+            if !indexed.lock().is_ok_and(|read| read.as_deref() == Some(root.as_path())) {
+                let mut fresh = inspect::Tree::default();
+                for one in crate::files::all(&root) {
+                    let path = root.join(&one);
+                    let small = std::fs::metadata(&path).is_ok_and(|meta| meta.len() <= INSPECT_MOST);
+                    if let (Some(language), true) = (inspect::language_of(&one), small) {
+                        if let Ok(text) = std::fs::read_to_string(&path) {
+                            fresh.set(&one, language, &text);
+                        }
+                    }
+                }
+                let (Ok(mut tree), Ok(mut read)) = (index.lock(), indexed.lock()) else {
+                    return;
+                };
+                if generation.load(std::sync::atomic::Ordering::SeqCst) != born {
+                    return;
+                }
+                *tree = fresh;
+                *read = Some(root.clone());
+            }
             let Ok(mut tree) = index.lock() else {
                 return;
             };
-            let Ok(mut read) = indexed.lock() else {
+            if !indexed.lock().is_ok_and(|read| read.as_deref() == Some(root.as_path())) {
                 return;
-            };
-            if read.as_deref() != Some(root.as_path()) {
-                *tree = inspect::Tree::default();
-                for one in crate::files::all(&root) {
-                    if let (Some(language), Ok(text)) = (inspect::language_of(&one), std::fs::read_to_string(root.join(&one))) {
-                        tree.set(&one, language, &text);
-                    }
-                }
-                *read = Some(root.clone());
             }
-            drop(read);
             match &text {
-                Some(text) => tree.set(&file, language, text),
-                None => tree.remove(&file),
+                Some(text) if text.len() as u64 <= INSPECT_MOST => tree.set(&file, language, text),
+                _ => tree.remove(&file),
             }
             let found = tree.findings();
             let supplied = tree.supplied();
