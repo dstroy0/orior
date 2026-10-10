@@ -925,6 +925,15 @@ fn toolchain_version(id: String) -> Result<String, String> {
     toolchains::version(&id)
 }
 
+/// Opens an https page a hover or a diagnostic links to in the browser.
+#[tauri::command]
+fn link_open(url: String) -> Result<(), String> {
+    if !url.starts_with("https://") {
+        return Err(format!("{url} is not an https page"));
+    }
+    orior_cli::report::open_url(&url)
+}
+
 /// Opens a toolchain's install page in the browser, and names it.
 #[tauri::command]
 fn toolchain_install(id: String) -> Result<String, String> {
@@ -1323,6 +1332,7 @@ fn open(launch: Launch) {
             toolchain_remove_group,
             toolchain_version,
             toolchain_install,
+            link_open,
             toolchain_setup,
             clone_start,
             repo_clone,

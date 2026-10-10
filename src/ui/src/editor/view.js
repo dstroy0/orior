@@ -2408,7 +2408,8 @@ export class Editor {
   }
 
   // What the diagnostics under a place say, each in its severity's color: a language server's, or a
-  // tool plugin's.
+  // tool plugin's, with its code, a link to the page that tells of it where the server names one. A
+  // message the server writes in Markdown stands under its heading as written.
   diagnosticsAt(p) {
     const line = p.line + this.s.base;
     const names = ["", "error", "warning", "note", "hint"];
@@ -2418,7 +2419,11 @@ export class Editor {
           (line > diag.from.line || (line === diag.from.line && p.col >= diag.from.col)) &&
           (line < diag.to.line || (line === diag.to.line && p.col <= Math.max(diag.to.col, diag.from.col + 1))),
       )
-      .map((diag) => ({ className: `diag s${diag.severity}`, text: `**${names[diag.severity] ?? "note"}**${diag.source ? ` ${diag.source}` : ""}: ${diag.message}` }));
+      .map((diag) => {
+        const code = diag.code ? (diag.href ? ` [${diag.code}](${diag.href})` : ` ${diag.code}`) : "";
+        const head = `**${names[diag.severity] ?? "note"}**${diag.source ? ` ${diag.source}` : ""}${code}`;
+        return { className: `diag s${diag.severity}`, text: diag.markdown ? `${head}\n\n${diag.message}` : `${head}: ${diag.message}` };
+      });
   }
 
   bind() {

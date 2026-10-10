@@ -2226,6 +2226,18 @@ export async function startEdit(defs) {
     openAt: (path, line, col) => openAt(path, line, col),
   });
   keepListKeys(document.getElementById("panes"), document.getElementById("file-filter"));
+  // A link in a hover, a diagnostic or a document opens in the browser, and the window stays.
+  document.addEventListener(
+    "click",
+    (event) => {
+      const link = event.target.closest?.("a[data-link]");
+      if (link) {
+        event.preventDefault();
+        invoke("link_open", { url: link.getAttribute("href") }).catch((error) => say(String(error), { failed: true }));
+      }
+    },
+    true,
+  );
   // The peek goes with Escape, a press outside it, a scroll of the text, or another file shown.
   window.addEventListener(
     "keydown",

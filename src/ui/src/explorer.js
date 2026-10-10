@@ -492,6 +492,16 @@ export function drawProblems(files, checking) {
   body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No problems in the tree. A language server or Run, Validate finds them." })]));
 }
 
+// A diagnostic's first line as its row shows it: where the server writes Markdown, its code spans
+// set as code.
+function firstLine(item) {
+  const line = item.message.split("\n")[0];
+  if (!item.markdown) {
+    return [line];
+  }
+  return line.split(/(`[^`]*`)/).filter(Boolean).map((piece) => (/^`[^`]*`$/.test(piece) ? element("code", { textContent: piece.slice(1, -1) }) : piece));
+}
+
 function problemFileRow(file, open) {
   const { path, items } = file;
   const cut = path.lastIndexOf("/");
@@ -522,7 +532,7 @@ function problemRows({ path, items }) {
       const row = element("button", { className: `problem s${item.severity}`, type: "button", title: `${path}:${item.from.line + 1}:${item.from.col + 1}\n${item.message}` });
       row.dataset.key = `problem:${path}:${item.from.line}:${item.from.col}`;
       row.dataset.depth = "1";
-      row.append(element("i", { className: "guide" }), element("span", { className: "problem-mark" }), element("span", { className: "name", textContent: item.message.split("\n")[0] }), element("span", { className: "where", textContent: `${item.from.line + 1}:${item.from.col + 1}` }));
+      row.append(element("i", { className: "guide" }), element("span", { className: "problem-mark" }), element("span", { className: "name" }, ...firstLine(item)), element("span", { className: "where", textContent: `${item.from.line + 1}:${item.from.col + 1}` }));
       row.addEventListener("click", () => state.hooks.openAt(path, item.from.line, item.from.col));
       return row;
     });

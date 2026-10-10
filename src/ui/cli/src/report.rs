@@ -307,7 +307,7 @@ pub fn open_page(url: &str) -> Result<(), String> {
 }
 
 /// Opens `url` in the browser, as the system opens addresses.
-pub(crate) fn open_url(url: &str) -> Result<(), String> {
+pub fn open_url(url: &str) -> Result<(), String> {
     let mut command = if cfg!(windows) {
         let mut command = Command::new("rundll32");
         command.args(["url.dll,FileProtocolHandler", url]);

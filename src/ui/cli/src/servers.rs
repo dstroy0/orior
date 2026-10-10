@@ -95,13 +95,18 @@ pub struct Place {
     pub col: u32,
 }
 
+/// A diagnostic: its span, its severity, what it says and whether that is Markdown, who said it, its
+/// code, and the page that tells of its code, where the server names one.
 #[derive(Serialize, Clone, Debug)]
 pub struct Diagnostic {
     pub from: Place,
     pub to: Place,
     pub severity: u8,
     pub message: String,
+    pub markdown: bool,
     pub source: String,
+    pub code: String,
+    pub href: String,
 }
 
 /// A file's diagnostics, the whole of them, as the server last gave them.
@@ -460,8 +465,15 @@ fn diagnostics_of(params: &Value) -> Option<Diagnostics> {
             from: place(&one["range"]["start"]),
             to: place(&one["range"]["end"]),
             severity: one["severity"].as_u64().unwrap_or(1) as u8,
-            message: one["message"].as_str().unwrap_or_default().to_string(),
+            message: one["message"].as_str().or_else(|| one["message"]["value"].as_str()).unwrap_or_default().to_string(),
+            markdown: one["message"]["kind"] == "markdown",
             source: one["source"].as_str().unwrap_or_default().to_string(),
+            code: match &one["code"] {
+                Value::String(code) => code.clone(),
+                Value::Number(code) => code.to_string(),
+                _ => String::new(),
+            },
+            href: one["codeDescription"]["href"].as_str().filter(|href| href.starts_with("https://")).unwrap_or_default().to_string(),
         })
         .collect();
     Some(Diagnostics { path: path.display().to_string(), items })
@@ -1292,7 +1304,7 @@ fn emit_whole(key: &str, uri: &str, published: &Published, checks: &Checks, emit
 /// The attribute and the class a server's report that a class has no such attribute names, as
 /// pyright writes it: `Cannot access attribute "name" for class "Class*"`.
 fn attribute_of(item: &Value) -> Option<(String, String)> {
-    let message = item["message"].as_str()?;
+    let message = item["message"].as_str().or_else(|| item["message"]["value"].as_str())?;
     let rest = message.strip_prefix("Cannot access attribute \"")?;
     let (name, rest) = rest.split_once('"')?;
     let rest = rest.strip_prefix(" for class \"")?;
@@ -1714,7 +1726,7 @@ mod tests {
         let file = dir.join("a.js");
         assert!(!servers.open(&dir, &file, "javascript", text, &emit).unwrap());
         assert!(until(10, || told.lock().unwrap().contains_key("a.js") && told.lock().unwrap().contains_key("b.py")), "{:?}", told.lock().unwrap());
-        assert_eq!(told.lock().unwrap()["a.js"], vec!["unused is declared and never read."]);
+        assert_eq!(told.lock().unwrap()["a.js"], vec!["`unused` is declared and never read."]);
         assert_eq!(told.lock().unwrap()["b.py"].len(), 1, "a file of the tree no tab holds is inspected too");
         let actions = servers.actions(&file, Place { line: 1, col: 9 }, Place { line: 1, col: 9 }).unwrap();
         assert_eq!(actions[0].title, "Take out the declaration of unused");

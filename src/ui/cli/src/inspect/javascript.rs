@@ -374,8 +374,9 @@ fn unread(read: &Read, open: usize, found: &mut Vec<Finding>) {
             from: tok.from.clone(),
             to: tok.to.clone(),
             severity: Severity::Warning,
-            message: format!("{name} is declared and never read."),
+            message: format!("`{name}` is declared and never read."),
             code: "unread",
+            href: None,
             fixes: declaration_fix(read, name_at).into_iter().collect(),
         });
     }
@@ -463,8 +464,9 @@ fn unreachable(read: &Read, open: usize, found: &mut Vec<Finding>) {
             from: read.toks[first].from.clone(),
             to: read.toks[last].to.clone(),
             severity: Severity::Warning,
-            message: format!("No path reaches this code: the {word} before it leaves the block."),
+            message: format!("No path reaches this code: the `{word}` before it leaves the block."),
             code: "unreachable",
+            href: None,
             fixes,
         });
         at = next;

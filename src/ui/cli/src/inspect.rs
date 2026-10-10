@@ -51,7 +51,8 @@ pub struct Fix {
     pub edits: Vec<TextEdit>,
 }
 
-/// What an inspection found: its span, how it is shown, what it says, its name, and its fixes.
+/// What an inspection found: its span, how it is shown, what it says in Markdown, its name, the page
+/// that tells of what it checks, and its fixes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Finding {
     pub from: Place,
@@ -59,6 +60,7 @@ pub struct Finding {
     pub severity: Severity,
     pub message: String,
     pub code: &'static str,
+    pub href: Option<&'static str>,
     pub fixes: Vec<Fix>,
 }
 
@@ -126,18 +128,23 @@ pub fn facts(language: &str, text: &str) -> Option<Facts> {
     }
 }
 
-/// A finding as a diagnostic of the protocol's form, its fixes kept in its data.
+/// A finding as a diagnostic of the protocol's form, its message Markdown and its fixes kept in its
+/// data.
 pub fn value_of(finding: &Finding) -> Value {
     let place = |place: &Place| json!({"line": place.line, "character": place.col});
     let fixes: Vec<Value> = finding.fixes.iter().map(|fix| json!({"title": fix.title, "edits": fix.edits})).collect();
-    json!({
+    let mut value = json!({
         "range": {"start": place(&finding.from), "end": place(&finding.to)},
         "severity": match finding.severity { Severity::Warning => 2, Severity::Note => 3 },
-        "message": finding.message,
+        "message": {"kind": "markdown", "value": finding.message},
         "source": "orior",
         "code": finding.code,
         "data": {"orior": fixes},
-    })
+    });
+    if let Some(href) = finding.href {
+        value["codeDescription"] = json!({"href": href});
+    }
+    value
 }
 
 /// A reading of the text a scanner walks, by its byte, its line and its column in UTF-16 units, as
@@ -421,12 +428,14 @@ impl Tree {
                     let import = &file.facts.imports[*at];
                     let mut names = vec![path.clone()];
                     names.extend(round);
+                    let way: Vec<String> = names.iter().enumerate().map(|(at, name)| format!("{}. `{name}`", at + 1)).collect();
                     out.entry(path.clone()).or_default().push(Finding {
                         from: import.from.clone(),
                         to: import.to.clone(),
                         severity: Severity::Warning,
-                        message: format!("This import leads back round to the file that makes it: {}.", names.join(" → ")),
+                        message: format!("This import leads back round to the file that makes it, by way of:\n\n{}", way.join("\n")),
                         code: "import-cycle",
+                        href: None,
                         fixes: Vec::new(),
                     });
                 }
@@ -573,8 +582,9 @@ impl Tree {
                         from: from.clone(),
                         to: to.clone(),
                         severity: Severity::Warning,
-                        message: format!("{} has no {name}: neither it, a class it comes from, nor a class that comes from it sets {name}.", class.name),
+                        message: format!("`{}` has no `{name}`: neither it, a class it comes from, nor a class that comes from it sets `{name}`.", class.name),
                         code: "unknown-attribute",
+                        href: None,
                         fixes: Vec::new(),
                     });
                 }
@@ -642,7 +652,7 @@ mod tests {
     fn a_python_name_set_and_never_read_is_found_and_its_fix_keeps_a_call() {
         let text = "def f(a):\n    total = 0\n    seen = g(a)\n    for x in a:\n        total += x\n    with open(a) as handle:\n        pass\n    try:\n        pass\n    except ValueError as error:\n        pass\n    return total\n";
         let found = facts("python", text).unwrap().local;
-        let names: Vec<&str> = found.iter().map(|one| one.message.split(' ').next().unwrap()).collect();
+        let names: Vec<&str> = found.iter().map(|one| one.message.split(' ').next().unwrap().trim_matches('`')).collect();
         assert_eq!(names, vec!["seen", "handle", "error"], "{found:?}");
         assert_eq!(apply(text, &found[0].fixes[0]), text.replace("    seen = g(a)\n", "    g(a)\n"));
         assert!(apply(text, &found[1].fixes[0]).contains("with open(a):"));
@@ -680,7 +690,7 @@ mod tests {
     fn a_javascript_declaration_never_read_and_code_after_a_return_are_found() {
         let text = "export function f(a) {\n  const unused = 1;\n  const kept = g(a);\n  let used = a + 1;\n  const obj = { used: 1, other };\n  const after = `${obj.used}`;\n  if (a) return after;\n  return used;\n  console.log(a);\n}\n\nfunction h(x) {\n  switch (x) {\n    case 1:\n      return 1;\n      x += 1;\n    case 2:\n      break;\n  }\n  return /a\\/b/.test(x) ? x / 2 : x;\n}\n";
         let found = facts("javascript", text).unwrap().local;
-        let said: Vec<String> = found.iter().map(|one| format!("{}:{} {}", one.from.line, one.code, one.message.split(' ').next().unwrap())).collect();
+        let said: Vec<String> = found.iter().map(|one| format!("{}:{} {}", one.from.line, one.code, one.message.split(' ').next().unwrap().trim_matches('`'))).collect();
         assert_eq!(said, vec!["1:unread unused", "2:unread kept", "8:unreachable No", "15:unreachable No"], "{found:?}");
         assert_eq!(apply(text, &found[0].fixes[0]), text.replace("  const unused = 1;\n", ""));
         assert_eq!(apply(text, &found[1].fixes[0]), text.replace("const kept = g(a);", "g(a);"));
@@ -766,10 +776,10 @@ mod tests {
         ])
         .findings();
         let said = |path: &str| found.get(path).map(|all| all.iter().map(|one| one.message.clone()).collect::<Vec<_>>()).unwrap_or_default();
-        assert_eq!(said("pkg/a.py"), vec!["This import leads back round to the file that makes it: pkg/a.py → pkg/b.py → pkg/a.py."]);
+        assert_eq!(said("pkg/a.py"), vec!["This import leads back round to the file that makes it, by way of:\n\n1. `pkg/a.py`\n2. `pkg/b.py`\n3. `pkg/a.py`"]);
         assert_eq!(said("pkg/b.py").len(), 1);
         assert!(said("pkg/c.py").is_empty() && said("pkg/d.py").is_empty());
-        assert_eq!(said("web/x.js"), vec!["This import leads back round to the file that makes it: web/x.js → web/y.js → web/x.js."]);
+        assert_eq!(said("web/x.js"), vec!["This import leads back round to the file that makes it, by way of:\n\n1. `web/x.js`\n2. `web/y.js`\n3. `web/x.js`"]);
         assert!(said("web/z.js").is_empty());
     }
 
@@ -785,8 +795,8 @@ mod tests {
         assert!(supplied["shapes/mixins.py"]["Saving"].contains("render"), "the class a mixin is mixed into supplies its method");
         assert!(!supplied["shapes/mixins.py"]["Saving"].contains("missing"));
         let said = |path: &str| found.get(path).map(|all| all.iter().map(|one| one.message.clone()).collect::<Vec<_>>()).unwrap_or_default();
-        assert_eq!(said("shapes/mixins.py"), vec!["Saving has no missing: neither it, a class it comes from, nor a class that comes from it sets missing."]);
-        assert_eq!(said("shapes/square.py"), vec!["Square has no colour: neither it, a class it comes from, nor a class that comes from it sets colour."]);
+        assert_eq!(said("shapes/mixins.py"), vec!["`Saving` has no `missing`: neither it, a class it comes from, nor a class that comes from it sets `missing`."]);
+        assert_eq!(said("shapes/square.py"), vec!["`Square` has no `colour`: neither it, a class it comes from, nor a class that comes from it sets `colour`."]);
         assert!(said("shapes/outside.py").is_empty());
     }
 }

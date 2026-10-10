@@ -197,7 +197,7 @@ impl Server {
                     "dataSupport": true,
                     "resolveSupport": {"properties": ["edit"]}
                 },
-                "publishDiagnostics": {"relatedInformation": false}
+                "publishDiagnostics": {"relatedInformation": false, "codeDescriptionSupport": true, "markupMessageSupport": true}
             },
             "workspace": {
                 "applyEdit": true,

@@ -312,8 +312,9 @@ fn unreachable(src: &str, lines: &[Line], found: &mut Vec<Finding>) {
                 from: first.toks[0].from.clone(),
                 to: last,
                 severity: Severity::Warning,
-                message: format!("No path reaches this code: the {word} before it leaves the block."),
+                message: format!("No path reaches this code: the `{word}` before it leaves the block."),
                 code: "unreachable",
+                href: None,
                 fixes: vec![Fix { title: "Take out the code no path reaches".into(), edits: vec![TextEdit { from, to, text: String::new() }] }],
             });
         }
@@ -401,8 +402,9 @@ fn unread(src: &str, lines: &[Line], at: usize, found: &mut Vec<Finding>) {
             from: set.tok.from.clone(),
             to: set.tok.to.clone(),
             severity: Severity::Warning,
-            message: format!("{} is set and never read.", set.name),
+            message: format!("`{}` is set and never read.", set.name),
             code: "unread",
+            href: None,
             fixes: set.fix.into_iter().collect(),
         });
     }
@@ -520,6 +522,9 @@ fn setting(src: &str, toks: &[Tok], lone: bool, line: &Line, sets: &mut Vec<Set>
     skip
 }
 
+/// The page of PEP 257, which a docstring's finding links to.
+const PEP_257: &str = "https://peps.python.org/pep-0257/";
+
 /// The docstrings out of PEP 257's form: the module's, and each function's and class's.
 fn docstrings(src: &str, lines: &[Line], found: &mut Vec<Finding>) {
     let lone = |line: &Line| line.toks.len() == 1 && line.toks[0].kind == Kind::Str || (line.toks.iter().all(|tok| tok.kind == Kind::Str || tok.field) && line.toks[0].kind == Kind::Str && line.toks.iter().filter(|tok| tok.kind == Kind::Str).count() == 1);
@@ -554,7 +559,7 @@ fn docstring(src: &str, tok: &Tok, found: &mut Vec<Finding>) {
         return;
     }
     let inner = &body[quote.len()..body.len() - quote.len()];
-    let note = |message: &str, code: &'static str, fixes: Vec<Fix>| Finding { from: tok.from.clone(), to: tok.to.clone(), severity: Severity::Note, message: format!("PEP 257: {message}"), code, fixes };
+    let note = |message: &str, code: &'static str, fixes: Vec<Fix>| Finding { from: tok.from.clone(), to: tok.to.clone(), severity: Severity::Note, message: format!("PEP 257: {message}"), code, href: Some(PEP_257), fixes };
     let whole_fix = |title: &str, text: String| Fix { title: title.to_string(), edits: vec![TextEdit { from: tok.from.clone(), to: tok.to.clone(), text }] };
     if quote != "\"\"\"" {
         let fixes = if inner.contains("\"\"\"") || inner.ends_with('"') { Vec::new() } else { vec![whole_fix("Use three double quotes", format!("{prefix}\"\"\"{inner}\"\"\""))] };
