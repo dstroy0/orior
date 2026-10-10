@@ -13,7 +13,7 @@ mod scrollback;
 mod terminal;
 
 use orior_cli::cli::{self, Launch, Outcome};
-use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, patterns, plugins, report, root, run_file, runner, servers, symbols, toolchains, validate, watch};
+use orior_cli::{bridge, catalog, commands, debug, defs, files, format, git, history, home, kept, patterns, plugins, report, root, run_file, runner, servers, symbols, toolchains, validate, watch};
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -233,6 +233,31 @@ fn tree_files(app: State<App>) -> Result<Vec<String>, String> {
 #[tauri::command(async)]
 fn files_find(app: State<App>, query: String, recent: Vec<String>, most: usize) -> Result<Vec<files::Found>, String> {
     Ok(files::ranked(&root_of(&app)?, &query, &recent, most))
+}
+
+/// Keeps the page's changed entries in orior's own folder, each key starting `orior.` with its new
+/// text, or null where it is gone.
+#[tauri::command(async)]
+fn kept_write(changes: std::collections::BTreeMap<String, Option<String>>) -> Result<(), String> {
+    let folder = home::folder().ok_or("orior has no folder of its own to keep its entries in")?;
+    let changes = changes.into_iter().filter_map(|(key, text)| Some((key.strip_prefix("orior.")?.to_string(), text))).collect();
+    kept::keep(&folder, &changes)
+}
+
+/// The script that puts what orior's folder keeps into the page's storage before the page's own
+/// scripts run, on the first load of the main window's page in a run, in place of every entry the
+/// page kept before. Where the folder keeps nothing yet, it tells the page to write all it holds
+/// there.
+fn kept_script() -> String {
+    let kept = home::folder().and_then(|folder| kept::read(&folder)).map(|entries| entries.into_iter().map(|(key, text)| (format!("orior.{key}"), text)).collect::<std::collections::BTreeMap<_, _>>());
+    let kept = serde_json::to_string(&kept).unwrap_or_else(|_| "null".into());
+    format!(
+        "(() => {{ if (location.protocol === \"view:\" || location.hostname === \"view.localhost\") return; \
+         if (sessionStorage.getItem(\"orior.kept.read\")) return; sessionStorage.setItem(\"orior.kept.read\", \"1\"); \
+         const kept = {kept}; if (kept === null) {{ window.oriorKeepAll = true; return; }} \
+         for (const key of Object.keys(localStorage)) {{ if (key.startsWith(\"orior.\") && !(key in kept)) localStorage.removeItem(key); }} \
+         for (const [key, text] of Object.entries(kept)) localStorage.setItem(key, text); }})();"
+    )
 }
 
 /// Sets the patterns that keep a part of the window from files, and says whether they changed.
@@ -1024,6 +1049,7 @@ fn open(launch: Launch) {
     let app = App { root: Mutex::new(root), launch: Mutex::new(Some(launch)), ..App::default() };
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri::plugin::Builder::<tauri::Wry, ()>::new("kept").js_init_script(kept_script()).build())
         .manage(app)
         .register_uri_scheme_protocol("view", view_scheme)
         .setup(|app| {
@@ -1108,6 +1134,7 @@ fn open(launch: Launch) {
             tree_files,
             files_find,
             patterns_set,
+            kept_write,
             files_copy,
             clip_files,
             files_paste,

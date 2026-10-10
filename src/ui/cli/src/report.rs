@@ -69,11 +69,14 @@ pub enum Filed {
 }
 
 /// What orior keeps between runs: whether errors file on their own, as the reporter answered when they
-/// were asked, at installation or on the first run, and nothing where they have not answered yet.
+/// were asked, at installation or on the first run, and nothing where they have not answered yet. The
+/// window's own settings share the file, kept as they are.
 #[derive(Default, Serialize, Deserialize)]
 struct Settings {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     auto_report: Option<bool>,
+    #[serde(flatten)]
+    window: serde_json::Map<String, serde_json::Value>,
 }
 
 struct Run {

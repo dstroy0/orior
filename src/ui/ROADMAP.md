@@ -94,10 +94,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
 9. **Focus that follows the pointer.** A pane, a list or the editor takes the keys when the pointer goes over it, set on or off.
 10. **The system's title bar.** The window drawn with the system's own title bar where the reader asks for it.
 
-## Explorer and files
-
-1. **orior's own files in one place.** Its settings, its plugins, its themes and its kept state in one folder of the reader's, laid out as the documentation says.
-
 ## Running and measuring
 
 1. **A profiler.** A run measured as it goes, its time and its memory by function, shown as a flame graph a press on which opens the function, on this machine or another.

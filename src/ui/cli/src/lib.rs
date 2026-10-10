@@ -22,6 +22,7 @@ pub mod format;
 pub mod git;
 pub mod history;
 pub mod home;
+pub mod kept;
 pub mod lsp;
 pub mod patterns;
 pub mod plugins;
