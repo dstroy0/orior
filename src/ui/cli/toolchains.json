@@ -391,6 +391,26 @@
       "checker": {"program": "shellcheck", "languages": ["shell"], "args": ["--format", "json1", "-"], "stdin": true, "reads": "shellcheck"},
       "install": {"any": "https://github.com/koalaman/shellcheck#installing"},
       "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links"], "any": ["/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "pipenv",
+      "name": "Pipenv",
+      "group": "Environments",
+      "for": "a Pipfile's environment, which the tree takes as its own",
+      "programs": ["pipenv"],
+      "version": ["--version"],
+      "install": {"any": "https://pipenv.pypa.io/en/latest/installation.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin"]}
+    },
+    {
+      "id": "nix",
+      "name": "Nix",
+      "group": "Environments",
+      "for": "a shell.nix's or a flake's development shell, which the tree takes as its own",
+      "programs": ["nix"],
+      "version": ["--version"],
+      "install": {"any": "https://nixos.org/download/"},
+      "places": {"any": ["/nix/var/nix/profiles/default/bin", "~/.nix-profile/bin"]}
     }
   ]
 }

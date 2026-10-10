@@ -5760,7 +5760,8 @@ textarea.report-field {
 
 .tools-row.path .tools-dot,
 .tools-row.chosen .tools-dot,
-.tools-row.env .tools-dot {
+.tools-row.env .tools-dot,
+.tools-row.tree .tools-dot {
   background: var(--signal);
 }
 

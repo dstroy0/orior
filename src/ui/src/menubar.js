@@ -263,6 +263,7 @@ const COMMANDS = {
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
   checkers: (args) => askCheckers(args.join(" ")),
+  environment: (args) => chooseEnvironment(args[0]),
   "parameter-hints": (args) => editing().setHints("parameter", onOff(args) ?? !editing().hints("parameter")),
   "flick-scroll": (args) => editing().setFlickScroll(onOff(args) ?? !editing().flickScroll()),
   "memory-budget": (args) => askBudget(args[0]),
@@ -614,6 +615,66 @@ async function showBranches() {
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
+}
+
+// File, Tree Environment: the environments the tree holds, each by its folder in the tree and its
+// kind, the one in use checked, and the toolchains' own Python; the one chosen kept for the tree by
+// its folder in it, which moves with the tree, and taken up again as the tree opens. An environment
+// chosen says which packages the files beside it require that it has not installed.
+const ENV_KINDS = { venv: "virtual environment", pipenv: "Pipenv", nix: "Nix" };
+
+function environmentKey() {
+  return `orior.environment.${document.getElementById("tree-path").textContent}`;
+}
+
+async function useEnvironment(env, { quiet = false } = {}) {
+  try {
+    const used = await invoke("env_use", { kind: env?.kind ?? null, place: env?.place ?? "", requires: env?.requires ?? [] });
+    if (env) {
+      localStorage.setItem(environmentKey(), JSON.stringify({ kind: env.kind, place: env.place }));
+    } else {
+      localStorage.removeItem(environmentKey());
+    }
+    if (!quiet) {
+      const where = env ? `${env.place || "the tree's top folder"}, a ${ENV_KINDS[env.kind]}` : "the toolchains' own";
+      const missing = used.missing.length ? `; it has not installed ${used.missing.join(", ")}` : "";
+      say(`The tree's environment is ${where}${used.python ? `, its Python ${used.python}` : ""}${missing}.`, { failed: Boolean(used.missing.length) });
+    }
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+async function chooseEnvironment(given) {
+  const found = await invoke("envs_found").catch(() => []);
+  const kept = JSON.parse(localStorage.getItem(environmentKey()) ?? "null");
+  if (given) {
+    const env = given === "none" ? null : found.find((one) => one.place === given || `${one.kind}:${one.place}` === given);
+    if (env === undefined) {
+      say(`The tree holds no environment at ${given}.`, { failed: true });
+      return;
+    }
+    await useEnvironment(env);
+    return;
+  }
+  const items = [
+    { label: "The Toolchains' Own Python", checked: !kept, run: () => useEnvironment(null) },
+    ...(found.length ? ["-"] : []),
+    ...found.map((env) => ({ label: `${env.place || "The tree's top folder"}: ${ENV_KINDS[env.kind]}${env.requires.length ? `, ${env.requires.length} package${env.requires.length === 1 ? "" : "s"} required` : ""}`, checked: kept?.kind === env.kind && kept?.place === env.place, run: () => useEnvironment(env) })),
+  ];
+  showMenu(window.innerWidth / 3, window.innerHeight / 4, items);
+}
+
+// Takes up again the environment kept for the tree open, where one is kept and the tree still holds it.
+export async function restoreEnvironment() {
+  const kept = JSON.parse(localStorage.getItem(environmentKey()) ?? "null");
+  if (!kept) {
+    await invoke("env_use", { kind: null, place: "", requires: [] }).catch(() => {});
+    return;
+  }
+  const found = await invoke("envs_found").catch(() => []);
+  const env = found.find((one) => one.kind === kept.kind && one.place === kept.place);
+  await useEnvironment(env ?? null, { quiet: true });
 }
 
 // View, Checkers: the type checkers and linters to run as files change, by name, as given or asked

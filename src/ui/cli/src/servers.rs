@@ -615,7 +615,14 @@ fn heard(method: &str, params: &Value, emit: &Emit, published: &Published, check
             emit(Told::Edits(workspace_edit_of(&params["edit"])));
             json!({"applied": true})
         }
-        "workspace/configuration" => Value::Array(vec![Value::Null; params["items"].as_array().map_or(0, Vec::len)]),
+        "workspace/configuration" => {
+            // Python's settings name the tree's environment's Python, where the tree has one.
+            let python = crate::toolchains::environment().and_then(|env| env.python);
+            Value::Array(params["items"].as_array().into_iter().flatten().map(|item| match (item["section"].as_str(), &python) {
+                (Some("python"), Some(python)) => json!({"pythonPath": python.display().to_string(), "defaultInterpreterPath": python.display().to_string()}),
+                _ => Value::Null,
+            }).collect())
+        }
         "workspace/inlayHint/refresh" => {
             emit(Told::Hints);
             Value::Null
@@ -1456,6 +1463,15 @@ impl Servers {
                     keep_checked(&checker.id, found, &published, &checks, &emit);
                 }
             });
+        }
+    }
+
+    /// Tells each server its settings changed, for it to ask for them again, as the tree's environment
+    /// changing asks.
+    pub fn settings_changed(&self) {
+        let running: Vec<Arc<Server>> = self.running.lock().map(|all| all.values().cloned().collect()).unwrap_or_default();
+        for server in running {
+            let _ = server.notify("workspace/didChangeConfiguration", json!({"settings": null}));
         }
     }
 

@@ -32,6 +32,7 @@ function button(text, act, props = {}) {
 
 const STATES = {
   env: () => "named by its variable",
+  tree: () => "from the tree's environment",
   chosen: () => "from your folder",
   path: () => "on PATH",
   found: () => "installed, not on PATH",

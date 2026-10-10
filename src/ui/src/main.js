@@ -10,7 +10,7 @@ import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
+import { drawMenubar, restoreEnvironment, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
 import { startStrip } from "./strip.js";
 import { loadRun, startRun } from "./run.js";
 import { catchErrors } from "./reports.js";
@@ -160,6 +160,7 @@ async function begin(root) {
     }
     await loadRun();
     drawMenubar();
+    await restoreEnvironment();
     await restoreSession();
     checkNeeded();
   } finally {

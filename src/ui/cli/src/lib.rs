@@ -19,6 +19,7 @@ pub mod dap;
 pub mod debug;
 pub mod defs;
 pub mod editorconfig;
+pub mod envs;
 pub mod files;
 pub mod format;
 pub mod git;

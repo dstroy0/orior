@@ -837,6 +837,40 @@ fn checkers_known() -> Vec<(String, String, Vec<String>)> {
     orior_cli::checkers::known().into_iter().map(|one| (one.id, one.name, one.spec.languages)).collect()
 }
 
+/// Every environment the tree holds, nearest the top first.
+#[tauri::command(async)]
+fn envs_found(app: State<App>) -> Result<Vec<orior_cli::envs::Environment>, String> {
+    Ok(orior_cli::envs::found(&root_of(&app)?))
+}
+
+/// What choosing an environment did: its Python, and the packages beside it it has not installed.
+#[derive(serde::Serialize)]
+struct EnvironmentUsed {
+    python: Option<String>,
+    missing: Vec<String>,
+}
+
+/// Makes the environment of `kind` at `place` in the tree the tree's own, or, given no kind, the
+/// toolchains' own again; each server is told, to ask for its settings again.
+#[tauri::command(async)]
+fn env_use(app: State<App>, kind: Option<String>, place: String, requires: Vec<String>) -> Result<EnvironmentUsed, String> {
+    let used = match kind {
+        Some(kind) => {
+            let env = orior_cli::envs::resolve(&root_of(&app)?, &kind, &place)?;
+            let missing = orior_cli::envs::missing(&env, &requires);
+            let python = env.python.as_ref().map(|python| python.display().to_string());
+            toolchains::set_environment(Some(env));
+            EnvironmentUsed { python, missing }
+        }
+        None => {
+            toolchains::set_environment(None);
+            EnvironmentUsed { python: None, missing: Vec::new() }
+        }
+    };
+    app.servers.settings_changed();
+    Ok(used)
+}
+
 /// The classes a parse names, by their index.
 #[tauri::command]
 fn parse_classes() -> Vec<&'static str> {
@@ -1423,6 +1457,8 @@ fn open(launch: Launch) {
             shape_search,
             code_docstring,
             checkers_set,
+            envs_found,
+            env_use,
             checkers_known,
             code_sort,
             templates_list,
