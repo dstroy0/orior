@@ -247,6 +247,131 @@ pub fn for_diff(text: &str) -> Result<String, String> {
     Ok(out)
 }
 
+/// How alike two cells' sources are, from 0 to 1: the share of their lines they hold in common.
+fn alike(one: &Value, other: &Value) -> f64 {
+    let (a, b) = (one["source"].as_str().unwrap_or_default(), other["source"].as_str().unwrap_or_default());
+    if a == b {
+        return 1.0;
+    }
+    let (left, right): (Vec<&str>, Vec<&str>) = (a.lines().collect(), b.lines().collect());
+    if left.is_empty() || right.is_empty() {
+        return 0.0;
+    }
+    let mut shared = 0;
+    let mut used = vec![false; right.len()];
+    for line in &left {
+        if let Some(at) = right.iter().enumerate().position(|(index, other)| !used[index] && other == line) {
+            used[at] = true;
+            shared += 1;
+        }
+    }
+    2.0 * shared as f64 / (left.len() + right.len()) as f64
+}
+
+/// Whether two cells are the same cell: by their ids where both carry one, and else of one kind and
+/// with at least half their sources alike.
+fn same_cell(one: &Value, other: &Value) -> bool {
+    match (one["id"].as_str(), other["id"].as_str()) {
+        (Some(left), Some(right)) => left == right,
+        _ => one["cell_type"] == other["cell_type"] && alike(one, other) >= 0.5,
+    }
+}
+
+/// For each cell of `base`, the index of the same cell in `other`, by the longest run of matches in
+/// order, as a diff aligns lines.
+fn aligned(base: &[Value], other: &[Value]) -> Vec<Option<usize>> {
+    let (n, m) = (base.len(), other.len());
+    let mut table = vec![vec![0usize; m + 1]; n + 1];
+    for i in (0..n).rev() {
+        for j in (0..m).rev() {
+            table[i][j] = if same_cell(&base[i], &other[j]) { table[i + 1][j + 1] + 1 } else { table[i + 1][j].max(table[i][j + 1]) };
+        }
+    }
+    let mut found = vec![None; n];
+    let (mut i, mut j) = (0, 0);
+    while i < n && j < m {
+        if same_cell(&base[i], &other[j]) && table[i][j] == table[i + 1][j + 1] + 1 {
+            found[i] = Some(j);
+            i += 1;
+            j += 1;
+        } else if table[i + 1][j] >= table[i][j + 1] {
+            i += 1;
+        } else {
+            j += 1;
+        }
+    }
+    found
+}
+
+fn source_of(cell: &Value) -> &str {
+    cell["source"].as_str().unwrap_or_default()
+}
+
+/// The cells two sides of a merge make of the cells of their base, as Jupyter's notebooks hold
+/// them: each cell one side changed taken from it, each cell both changed alike taken once, and each
+/// cell they changed apart, or one changed and the other deleted, a conflict of the two to choose
+/// between. Run counts, ids and metadata never conflict; a cell's outputs go with its source.
+/// Cells either side added stand after the cell they follow there.
+pub fn merge(base: &Value, ours: &Value, theirs: &Value) -> Value {
+    let cells = |book: &Value| book["cells"].as_array().cloned().unwrap_or_default();
+    let (base_cells, our_cells, their_cells) = (cells(base), cells(ours), cells(theirs));
+    let ours_at = aligned(&base_cells, &our_cells);
+    let theirs_at = aligned(&base_cells, &their_cells);
+    let mut entries: Vec<Value> = Vec::new();
+    // the cells a side added, by the base cell they follow there: None is the head
+    let added = |sides: &[Option<usize>], cells: &[Value]| -> Vec<(Option<usize>, Value)> {
+        let taken: Vec<usize> = sides.iter().flatten().copied().collect();
+        let mut out = Vec::new();
+        for (index, cell) in cells.iter().enumerate() {
+            if taken.contains(&index) {
+                continue;
+            }
+            let follows = (0..index).rev().find_map(|before| sides.iter().position(|side| *side == Some(before)));
+            out.push((follows, cell.clone()));
+        }
+        out
+    };
+    let our_added = added(&ours_at, &our_cells);
+    let their_added = added(&theirs_at, &their_cells);
+    let push_added = |entries: &mut Vec<Value>, after: Option<usize>| {
+        let mine: Vec<&Value> = our_added.iter().filter(|(follows, _)| *follows == after).map(|(_, cell)| cell).collect();
+        let yours: Vec<&Value> = their_added.iter().filter(|(follows, _)| *follows == after).map(|(_, cell)| cell).collect();
+        for cell in &mine {
+            entries.push(json!({"take": cell}));
+        }
+        for cell in yours {
+            if !mine.iter().any(|one| source_of(one) == source_of(cell)) {
+                entries.push(json!({"take": cell}));
+            }
+        }
+    };
+    push_added(&mut entries, None);
+    for (index, base_cell) in base_cells.iter().enumerate() {
+        let mine = ours_at[index].map(|at| &our_cells[at]);
+        let yours = theirs_at[index].map(|at| &their_cells[at]);
+        let changed = |cell: &Value| source_of(cell) != source_of(base_cell) || cell["cell_type"] != base_cell["cell_type"];
+        match (mine, yours) {
+            (Some(mine), Some(yours)) => {
+                let entry = match (changed(mine), changed(yours)) {
+                    (false, false) => json!({"take": mine}),
+                    (true, false) => json!({"take": mine}),
+                    (false, true) => json!({"take": yours}),
+                    (true, true) if source_of(mine) == source_of(yours) && mine["cell_type"] == yours["cell_type"] => json!({"take": mine}),
+                    (true, true) => json!({"conflict": {"base": base_cell, "ours": mine, "theirs": yours}}),
+                };
+                entries.push(entry);
+            }
+            (Some(mine), None) if changed(mine) => entries.push(json!({"conflict": {"base": base_cell, "ours": mine, "theirs": null}})),
+            (None, Some(yours)) if changed(yours) => entries.push(json!({"conflict": {"base": base_cell, "ours": null, "theirs": yours}})),
+            _ => {}
+        }
+        push_added(&mut entries, Some(index));
+    }
+    let mut book = ours.clone();
+    book["cells"] = json!([]);
+    json!({"book": book, "entries": entries})
+}
+
 #[cfg(test)]
 mod notebooks {
     use super::*;
@@ -273,6 +398,53 @@ mod notebooks {
         assert_eq!(write(Path::new("s.py"), &book).unwrap(), script);
         assert!(is_notebook(Path::new("s.py"), script));
         assert!(!is_notebook(Path::new("plain.py"), "print(1)\n"));
+    }
+
+    fn book_of(cells: &[(&str, &str)]) -> Value {
+        json!({"cells": cells.iter().map(|(kind, source)| json!({"cell_type": kind, "source": source, "metadata": {}})).collect::<Vec<_>>()})
+    }
+
+    fn shown(merged: &Value) -> Vec<String> {
+        merged["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| match entry.get("take") {
+                Some(cell) => source_of(cell).to_string(),
+                None => format!("<{}|{}>", entry["conflict"]["ours"]["source"].as_str().unwrap_or("gone"), entry["conflict"]["theirs"]["source"].as_str().unwrap_or("gone")),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_merge_takes_each_side_s_changes_and_holds_the_cells_both_changed_apart() {
+        let base = book_of(&[("code", "a = 1"), ("code", "b = 2
+print(b)"), ("code", "c = 3
+print(c)"), ("markdown", "note")]);
+        let ours = book_of(&[("code", "a = 1"), ("code", "b = 20
+print(b)"), ("code", "c = 3
+print(c)"), ("markdown", "note"), ("code", "d = 4")]);
+        let theirs = book_of(&[("code", "e = 5"), ("code", "a = 1"), ("code", "b = 2
+print(b)"), ("code", "c = 30
+print(c)"), ("markdown", "note")]);
+        assert_eq!(shown(&merge(&base, &ours, &theirs)), vec!["e = 5", "a = 1", "b = 20
+print(b)", "c = 30
+print(c)", "note", "d = 4"]);
+        let both = book_of(&[("code", "a = 1"), ("code", "b = 22
+print(b)"), ("code", "c = 3
+print(c)")]);
+        let deleted = book_of(&[("code", "a = 1"), ("code", "b = 2
+print(b)")]);
+        assert_eq!(shown(&merge(&base, &ours, &both)), vec!["a = 1", "<b = 20
+print(b)|b = 22
+print(b)>", "c = 3
+print(c)", "d = 4"]);
+        let changed_c = book_of(&[("code", "a = 1"), ("code", "b = 2
+print(b)"), ("code", "c = 33
+print(c)"), ("markdown", "note")]);
+        assert_eq!(shown(&merge(&base, &changed_c, &deleted)), vec!["a = 1", "b = 2
+print(b)", "<c = 33
+print(c)|gone>"]);
     }
 
     #[test]

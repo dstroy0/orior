@@ -15,8 +15,14 @@
 //
 // An output's HTML shows in a frame of its own with no reach into the window, and an output of more
 // than LONG lines shows its first and last lines, the whole a press away.
+//
+// A Python cell debugged is written to a file of the tree of its own under CELLS, which its
+// breakpoints are kept by, and runs on the notebook's kernel under that file's name with the
+// debugger attached to the kernel: it stops at the cell's breakpoints, or at its first line where it
+// has none, and the debugger lets go of the kernel once the cell has run.
 
 import { invoke, listen } from "./bridge.js";
+import { breakpointsOf, debugNext } from "./debug.js";
 import { Session } from "./editor/session.js";
 import { Editor } from "./editor/view.js";
 import { escapeHtml, markdownHtml } from "./markdown.js";
@@ -28,6 +34,9 @@ import { runInTerminal } from "./terminal.js";
 // and last it shows then.
 const LONG = 200;
 const ENDS = 40;
+
+// The folder of the tree the cells debugged are written to.
+const CELLS = "build/orior/cells";
 
 // The extension a kernel's language is written in, which names the cells' language to the editor.
 const EXTENSIONS = { python: "py", r: "r", julia: "jl", javascript: "js", typescript: "ts", ruby: "rb", go: "go", rust: "rs", "c++": "cpp", c: "c", matlab: "m", octave: "m", bash: "sh", scala: "scala", sql: "sql", lua: "lua", haskell: "hs" };
@@ -52,14 +61,13 @@ export function isNotebook(path) {
   return /\.ipynb$/i.test(path);
 }
 
-let nextCell = 1;
-
-// A cell of the model from a cell of the file.
+// A cell of the model from a cell of the file; a cell the file gives no id takes one as Jupyter
+// makes them.
 function cellOf(book, raw) {
   const kind = raw.cell_type ?? "code";
   const language = kind === "code" ? book.language : state.hooks.languageOf("cell.md");
   const cell = {
-    id: raw.id ?? `cell-${nextCell++}`,
+    id: raw.id ?? crypto.randomUUID().replaceAll("-", "").slice(0, 8),
     kind,
     raw,
     session: new Session(raw.source ?? "", language),
@@ -68,6 +76,8 @@ function cellOf(book, raw) {
     runs: [],
     edited: 0,
     running: false,
+    // What lets the debugger go of the kernel once the cell's run under it ends.
+    debugged: null,
     node: null,
     opened: new Set(),
   };
@@ -169,8 +179,80 @@ function cellName(book, cell) {
   return index >= 0 ? `cell ${index + 1}` : "a cell since deleted";
 }
 
-// The code of a cell in the editor's colors, as lines of spans of its classes.
-function codeHtml(session) {
+// The file of the tree a code cell of a Python notebook is written to as it is debugged, which its
+// breakpoints are kept by; null for any other cell.
+function cellFile(book, cell) {
+  if (cell.kind !== "code" || book.languageName !== "python") {
+    return null;
+  }
+  return `${CELLS}/${book.path.replace(/[^\w.-]+/g, "_")}.${cell.id.replace(/[^\w-]+/g, "_")}.py`;
+}
+
+// The notebook open and its cell whose file is `path`, or null.
+function cellAt(path) {
+  for (const book of state.books.values()) {
+    const cell = book.cells.find((one) => cellFile(book, one) === path);
+    if (cell) {
+      return { book, cell };
+    }
+  }
+  return null;
+}
+
+// The file of the cell an editor's session holds, or null where it holds none that is debugged.
+export function cellFileOf(session) {
+  for (const book of state.books.values()) {
+    const cell = book.cells.find((one) => one.session === session);
+    if (cell) {
+      return cellFile(book, cell);
+    }
+  }
+  return null;
+}
+
+// The notebook a cell's file is of, by its path, or null where it is of none open.
+export function notebookOfCellFile(path) {
+  return cellAt(path)?.book.path ?? null;
+}
+
+// Writes the cell whose file is `path` at its line `line`, its column `col`, where its notebook
+// shows.
+export function showCellLine(path, line, col = 0) {
+  const found = cellAt(path);
+  if (!found || state.shown !== found.book || !found.cell.node) {
+    return false;
+  }
+  focusCell(found.book, found.cell);
+  state.editor.goTo(line, col);
+  found.cell.node.scrollIntoView({ block: "nearest" });
+  return true;
+}
+
+// The lines of a cell that hold breakpoints, as one string to compare.
+function breaksKey(book, cell) {
+  const file = cellFile(book, cell);
+  const breaks = file ? breakpointsOf(file) : null;
+  return breaks ? [...breaks.keys()].join(",") : "";
+}
+
+// Draws again what the debugger marks: the cell's editor, and each cell in view whose breakpoints
+// have changed.
+export function repaintNotebook() {
+  const book = state.shown;
+  if (!book) {
+    return;
+  }
+  state.editor?.schedule();
+  for (const cell of book.cells) {
+    if (cell.kind === "code" && book.focused !== cell && (cell.marked ?? "") !== breaksKey(book, cell)) {
+      drawSource(book, cell);
+    }
+  }
+}
+
+// The code of a cell in the editor's colors, as lines of spans of its classes, each line in `breaks`
+// marked as holding a breakpoint.
+function codeHtml(session, breaks = null) {
   const doc = session.doc;
   const rows = [];
   for (let line = 0; line < doc.count; line += 1) {
@@ -184,7 +266,7 @@ function codeHtml(session) {
         html += name ? `<span class="${name}">${part}</span>` : part;
       }
     });
-    rows.push(html || " ");
+    rows.push(breaks?.has(line) ? `<span class="nb-break-line">${html || " "}</span>` : html || " ");
   }
   return rows.join("\n");
 }
@@ -379,8 +461,10 @@ function drawSource(book, cell) {
     source.className = "nb-source nb-markdown";
     source.innerHTML = text.trim() ? markdownHtml(text) : '<p class="nb-empty">Markdown</p>';
   } else {
+    const file = cellFile(book, cell);
+    cell.marked = breaksKey(book, cell);
     source.className = "nb-source nb-code";
-    source.innerHTML = `<pre>${codeHtml(cell.session)}</pre>`;
+    source.innerHTML = `<pre>${codeHtml(cell.session, file ? breakpointsOf(file) : null)}</pre>`;
   }
   drawForms(book, cell, cell.node.querySelector(".nb-forms"));
 }
@@ -500,6 +584,32 @@ async function runCell(book, cell) {
   }
 }
 
+// Runs a Python code cell under the debugger, which stops at the cell's breakpoints, or at its first
+// line where it has none, and lets go of the kernel once the cell has run.
+async function debugCell(book, cell) {
+  const file = cellFile(book, cell);
+  if (!file || !(await ensureKernel(book))) {
+    return;
+  }
+  const code = cell.session.doc.text();
+  try {
+    const port = await invoke("kernel_debug", { key: book.path, file, code });
+    const first = code.split("\n").findIndex((line) => line.trim() && !line.trim().startsWith("#"));
+    cell.debugged = await debugNext("127.0.0.1", port, `${cellName(book, cell)} of ${book.path}`, first >= 0 ? { path: file, line: first } : null);
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  if (!cell.debugged) {
+    return;
+  }
+  await runCell(book, cell);
+  if (!cell.running) {
+    cell.debugged?.();
+    cell.debugged = null;
+  }
+}
+
 // What a kernel said, given to the cell whose run it answers.
 function heard(book, message) {
   const cell = book.waiting.get(message.parent);
@@ -549,6 +659,8 @@ function heard(book, message) {
       if (content.status === "aborted") {
         cell.runs.pop();
       }
+      cell.debugged?.();
+      cell.debugged = null;
       break;
     default:
       return;
@@ -810,6 +922,7 @@ function cellNode(book, cell) {
 function cellMenu(book, cell, event) {
   const items = [
     { label: "Run", run: () => runCell(book, cell) },
+    { label: "Debug", disabled: !cellFile(book, cell), run: () => debugCell(book, cell) },
     { label: cell.kind === "code" ? "Change to Markdown" : "Change to Code", run: () => changeKind(book, cell) },
     { label: "Move Up", disabled: book.cells.indexOf(cell) === 0, run: () => moveCell(book, cell, -1) },
     { label: "Move Down", disabled: book.cells.indexOf(cell) === book.cells.length - 1, run: () => moveCell(book, cell, 1) },
@@ -926,6 +1039,56 @@ export function startNotebooks(hooks) {
       heard(book, payload.message);
     }
   });
+}
+
+// A notebook a merge left in conflict, merged cell by cell, over the editor in `host`: each cell
+// one side changed is taken from it, and each cell the two sides changed apart shows both, to take
+// one; once each is taken, Mark Resolved gives `resolved` the notebook the cells make.
+export function showNotebookMerge(host, path, merged, { resolved, close }) {
+  const entries = merged.entries.map((entry) => ({ ...entry, chosen: entry.take ? entry.take : undefined }));
+  const left = () => entries.filter((entry) => entry.chosen === undefined).length;
+  const done = element("button", { className: "primary merge-done", type: "button", textContent: "Mark Resolved" });
+  const where = element("span", { className: "diff-where" });
+  const count = () => {
+    where.textContent = left() ? `${left()} cell${left() === 1 ? "" : "s"} to choose` : "each cell is chosen";
+    done.disabled = left() > 0;
+  };
+  const shut = element("button", { className: "diff-button", type: "button", textContent: "×", title: "Close (Escape)" });
+  const bar = element("div", { className: "diff-bar" }, element("span", { className: "diff-name", textContent: path }), element("span", { className: "diff-sides", textContent: "the notebook's cells, yours and theirs where both changed one" }), where, done, shut);
+  const body = element("div", { className: "diff-body nb-merge-body" });
+  const view = element("section", { className: "diff-view merge-view nb-merge" }, bar, body);
+  const sourceOf = (cell) => element("pre", { className: "nb-merge-source", textContent: cell ? cell.source : "deleted on this side" });
+  entries.forEach((entry, index) => {
+    if (entry.take) {
+      body.append(element("div", { className: `nb-merge-cell ${entry.take.cell_type}` }, element("span", { className: "nb-merge-kind", textContent: entry.take.cell_type }), sourceOf(entry.take)));
+      return;
+    }
+    const sides = element("div", { className: "nb-merge-sides" });
+    for (const [label, cell] of [["Yours", entry.conflict.ours], ["Theirs", entry.conflict.theirs]]) {
+      const take = element("button", { type: "button", className: "nb-merge-take", textContent: `Take ${label}` });
+      const side = element("div", { className: "nb-merge-side" }, element("div", { className: "nb-merge-label", textContent: label }), sourceOf(cell), take);
+      take.addEventListener("click", () => {
+        entry.chosen = cell;
+        sides.querySelectorAll(".nb-merge-side").forEach((one) => one.classList.toggle("chosen", one === side));
+        count();
+      });
+      sides.append(side);
+    }
+    body.append(element("div", { className: "nb-merge-cell conflict" }, element("span", { className: "nb-merge-kind", textContent: `cell ${index + 1}: changed on both sides` }), sides));
+  });
+  done.addEventListener("click", () => {
+    const book = structuredClone(merged.book);
+    book.cells = entries.map((entry) => entry.chosen).filter(Boolean);
+    view.remove();
+    resolved(book);
+  });
+  shut.addEventListener("click", () => {
+    view.remove();
+    close?.();
+  });
+  count();
+  host.append(view);
+  return view;
 }
 
 // The notebook's editor, to bind the reader's keys in.

@@ -159,6 +159,13 @@ fn beside(root: &Path, file: &str) -> Result<(PathBuf, String), String> {
     Ok((dir.clone(), format!("./{}", crate::root::relative(&dir, &full))))
 }
 
+/// The text of a file a merge left in conflict, as one of its stages holds it: 1 the base, 2 the
+/// branch merged into, 3 the branch merged.
+pub fn stage_text(root: &Path, file: &str, stage: u8) -> Option<String> {
+    let (dir, shown) = beside(root, file).ok()?;
+    git(&dir, &["show", &format!(":{stage}:{shown}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
+}
+
 /// Every file under the tree that differs from the last commit of the repository that holds it, by its
 /// path in the tree, for the repositories at `repos`, or every one of the tree where none are named.
 pub fn changed(root: &Path, repos: Option<&[String]>) -> Vec<Changed> {

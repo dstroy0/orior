@@ -11,16 +11,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Typing that lags while a language server, a linter or a plugin works: the letter is drawn before any of them is told of it.
    - Lag that grows with the file's length or a line's: the key's cost is measured in the longest file and on the longest line the tests hold.
 
-## Notebooks
-
-1. **Notebooks.** A notebook opened as cells, each run on its own and its output shown under it, with a minimap, forms in a cell's code drawn as fields, a cell debugged, and kernels in any language the machine has.
-   - Values that no cell on the page gives, left by cells run out of order or since deleted: each cell shows when it ran in the kernel's order, and a cell whose output stands on a cell changed or run since is marked as out of date.
-   - A notebook that runs only in the order its writer ran it: Restart and Run All is one press, and Check from the Top runs it in a new kernel and stops at the first cell that fails.
-   - Diffs of a notebook that are JSON, outputs and run counts: the diff and the merge show cells' source and output, run counts and metadata aside; outputs can be kept out of a commit; and a script of `# %%` cells opens as a notebook.
-   - Kernels that are not found, or a search for them that never ends: the kernels are those of the machine's toolchains and the tree's environment, found as the toolchains window finds them, and an environment without ipykernel offers to install it.
-   - A large output that freezes the window: past a size, an output shows its first and last lines, the whole a press away.
-   - A kernel that will not stop or restart: Interrupt, then Restart, then Stop, which ends the kernel's process where it does not answer.
-
 ## Tools
 
 1. **Databases.** Connect to a database, browse its tables, run a query from the editor and read the rows it gives.

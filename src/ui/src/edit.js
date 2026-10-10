@@ -54,7 +54,7 @@ import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
 import { onPatterns, tellPatterns } from "./patterns.js";
 import { coloredLines } from "./screen.js";
-import { closeNotebook, drawNotebook, hideNotebook, isNotebook, markNotebookSaved, notebookDirty, notebookEditor, notebookFile, openNotebook, startNotebooks } from "./notebook.js";
+import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, markNotebookSaved, notebookDirty, notebookEditor, notebookFile, notebookOfCellFile, openNotebook, repaintNotebook, showCellLine, showNotebookMerge, startNotebooks } from "./notebook.js";
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
@@ -823,8 +823,8 @@ async function openInSplit(path) {
 }
 
 // Opens a file's tab without showing it, with the text kept for it where it had changes not saved.
-async function load(path, asNotebook = false) {
-  if (!tabOf(path) && (asNotebook || isNotebook(path))) {
+async function load(path, as = null) {
+  if (!tabOf(path) && (as === "notebook" || (as === null && isNotebook(path)))) {
     const tab = { path, file: path, size: 0, closing: false };
     tab.notebook = await openNotebook(path);
     state.tabs.push(tab);
@@ -1750,6 +1750,24 @@ async function compareFiles(first, second) {
 // settled, the result is written to the file, the file staged as resolved, and an open tab of it
 // takes the result.
 async function openMerge(path) {
+  if (isNotebook(path)) {
+    const merged = await invoke("notebook_merge", { path }).catch((error) => (say(String(error), { failed: true }), null));
+    if (merged) {
+      showNotebookMerge(document.querySelector("#mode-edit .desk"), path, merged, {
+        resolved: async (book) => {
+          try {
+            await invoke("notebook_write", { path, book });
+            await invoke("git_resolve", { path });
+            say(`${path} is resolved.`);
+          } catch (error) {
+            say(String(error), { failed: true });
+          }
+          await loadChanges();
+        },
+      });
+    }
+    return;
+  }
   const text = await textNow(path);
   showMerge(document.querySelector("#mode-edit .desk"), path, text, {
     resolved: async (result) => {
@@ -2679,6 +2697,33 @@ export async function startEdit(defs) {
     menu: (items, event) => showMenu(event.clientX, event.clientY, items),
   });
   notebookEditor().bindKeys(state.boundKeys ?? []);
+  // A Python cell's breakpoints, its line stopped on and the values under the pointer, by the file
+  // the cell is debugged as.
+  const cells = notebookEditor();
+  cells.breakpointsOf = (s) => {
+    const file = cellFileOf(s);
+    return file ? breakpointsOf(file) : null;
+  };
+  cells.pausedOf = (s) => {
+    const file = cellFileOf(s);
+    return file ? pausedLineOf(file) : null;
+  };
+  cells.valueAt = (s, p) => {
+    const file = cellFileOf(s);
+    return file ? valueAt(file, s.doc, { line: p.line, col: p.col }) : null;
+  };
+  cells.onBreakpoint = (line) => {
+    const file = cellFileOf(cells.s);
+    if (file) {
+      toggleBreakpoint(file, line);
+    }
+  };
+  cells.onBreakpointMenu = (line, event) => {
+    const file = cellFileOf(cells.s);
+    if (file) {
+      breakpointMenu(file, line, event.clientX, event.clientY);
+    }
+  };
   state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
@@ -2824,8 +2869,21 @@ export async function startEdit(defs) {
       }
     },
     open: (path) => openFile(path),
-    openAt: (path, line, col) => openAt(path, line, col),
-    repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+    // A line of a notebook's cell shows in the cell, where the notebook is open.
+    openAt: async (path, line, col) => {
+      const notebook = notebookOfCellFile(path);
+      if (notebook) {
+        await openFile(notebook);
+        if (showCellLine(path, line, col)) {
+          return;
+        }
+      }
+      await openAt(path, line, col);
+    },
+    repaint: () => {
+      [state.editor, state.split?.editor].forEach((one) => one?.schedule());
+      repaintNotebook();
+    },
     run: (command) => import("./menubar.js").then((menus) => menus.runCommand(command)),
   });
   startServers({
@@ -3125,7 +3183,28 @@ function tabMenu(tab) {
     { label: markedFiles().includes(tab.file) ? "Unmark File" : "Mark File", disabled: Boolean(tab.commit), run: () => toggleMark(tab.file) },
     "-",
     { label: "Copy path", run: () => copyText(tab.file) },
+    ...(tab.notebook || (tab.session && (isNotebook(tab.path) || /^\s*(#|\/\/|%|--) %%/m.test(tab.session.doc.text())))
+      ? ["-", { label: tab.notebook ? "Open as Text" : "Open as Notebook", disabled: Boolean(tab.commit), run: () => reopenAs(tab, tab.notebook ? "text" : "notebook") }]
+      : []),
   ];
+}
+
+// Opens a tab's file again as a notebook of cells, or as its text, in the tab's place; a tab with
+// changes not saved is saved first.
+async function reopenAs(tab, as) {
+  if (dirty(tab)) {
+    say("Save the file before it opens another way", { failed: true });
+    return;
+  }
+  const at = state.tabs.indexOf(tab);
+  closeTab(tab);
+  await load(tab.path, as);
+  const opened = tabOf(tab.path);
+  if (opened) {
+    state.tabs.splice(state.tabs.indexOf(opened), 1);
+    state.tabs.splice(Math.max(0, at), 0, opened);
+  }
+  show(tab.path);
 }
 
 // The editor's menu: the clipboard, choosing all, find, go to a line, and save, each the same as its

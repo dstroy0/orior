@@ -220,9 +220,25 @@ pub struct Kernel {
     session: String,
     connection: PathBuf,
     replies: Mutex<HashMap<String, Sender<Message>>>,
+    /// The port debugpy listens at in the kernel's process, once it has been asked to.
+    debug_port: Mutex<Option<u16>>,
     #[cfg(windows)]
     interrupt_event: isize,
 }
+
+/// The kernel's next run of the code `{file}` holds named by that file, in place of the name the
+/// kernel gives a cell: a breakpoint set in the file stops it. A run of other code keeps the
+/// kernel's own name, and the first run of that code puts the kernel's own naming back.
+const DEBUG_NEXT: &str = r#"def _orior_named(raw_code, transformed_code, number, _shell=get_ipython(), _file={file}, _named=type(get_ipython().compile).get_code_name):
+    with open(_file, encoding="utf-8") as held:
+        meant = held.read()
+    if raw_code.replace("\r\n", "\n") != meant.replace("\r\n", "\n"):
+        return _named(_shell.compile, raw_code, transformed_code, number)
+    del _shell.compile.get_code_name
+    return _file
+get_ipython().compile.get_code_name = _orior_named
+del _orior_named
+"#;
 
 /// The parts of a message as they go: its header, parent's header, metadata and content, signed.
 fn frames_of(key: &[u8], header: &Value, parent: &Value, content: &Value) -> Vec<Vec<u8>> {
@@ -327,6 +343,7 @@ impl Kernel {
             session,
             connection,
             replies: Mutex::new(HashMap::new()),
+            debug_port: Mutex::new(None),
             #[cfg(windows)]
             interrupt_event,
         });
@@ -420,6 +437,35 @@ impl Kernel {
         }
     }
 
+    /// Readies the kernel's next run of the code `file` holds to be debugged, under that file's name,
+    /// with debugpy listening in the kernel's process from the first time it is asked. Gives the port
+    /// debugpy listens at.
+    pub fn debug_next(&self, file: &Path) -> Result<u16, String> {
+        let mut port = self.debug_port.lock().map_err(|_| "the kernel's debugger is held".to_string())?;
+        let named = serde_json::to_string(&file.display().to_string()).map_err(|error| error.to_string())?;
+        let listen = if port.is_none() { json!({"port": "__import__('debugpy').listen(('127.0.0.1', 0))[1]"}) } else { json!({}) };
+        let asked = json!({"code": DEBUG_NEXT.replace("{file}", &named), "silent": true, "store_history": false, "user_expressions": listen, "allow_stdin": false, "stop_on_error": false});
+        let reply = self.request("shell", "execute_request", asked, Duration::from_secs(30))?;
+        let failed = |said: &Value| format!("{}: {}", said["ename"].as_str().unwrap_or("error"), said["evalue"].as_str().unwrap_or_default());
+        if reply.content["status"] != "ok" {
+            return Err(format!("{} cannot name a cell's code as its own file, as IPython 8 and later can: {}", self.spec.display_name, failed(&reply.content)));
+        }
+        if let Some(port) = *port {
+            return Ok(port);
+        }
+        let said = &reply.content["user_expressions"]["port"];
+        if said["status"] != "ok" {
+            let python = self.spec.argv.first().cloned().unwrap_or_else(|| "python".to_string());
+            return Err(match said["ename"].as_str() {
+                Some("ModuleNotFoundError") => format!("{} has no debugpy: \"{python}\" -m pip install debugpy installs it", self.spec.display_name),
+                _ => format!("debugpy did not listen in {}: {}", self.spec.display_name, failed(said)),
+            });
+        }
+        let listening = said["data"]["text/plain"].as_str().and_then(|text| text.trim().parse::<u16>().ok()).ok_or("debugpy gave no port it listens at")?;
+        *port = Some(listening);
+        Ok(listening)
+    }
+
     /// Whether the kernel's process still runs.
     pub fn alive(&self) -> bool {
         self.child.lock().map(|mut child| child.try_wait().map(|status| status.is_none()).unwrap_or(false)).unwrap_or(false)
@@ -503,5 +549,48 @@ mod kernels {
         wait_idle(&looping);
         assert!(outputs(&looping).iter().any(|(kind, content)| kind == "error" && content["ename"] == "KeyboardInterrupt"), "{:?}", outputs(&looping));
         assert!(!kernel.stop(Duration::from_secs(10)));
+    }
+
+    /// The next run of a file's code is named by the file, with debugpy listening; the runs after it,
+    /// and a run of other code, are named as the kernel names them.
+    #[test]
+    fn a_run_readied_to_debug_is_named_by_its_file() {
+        let Some(spec) = specs().into_iter().find(|spec| spec.language == "python" && spec.install.is_none()) else { return };
+        let heard: Arc<Mutex<Vec<Message>>> = Arc::default();
+        let held = heard.clone();
+        let folder = std::env::temp_dir().join(format!("orior-debug-cell-{}", std::process::id()));
+        fs::create_dir_all(&folder).unwrap();
+        let file = folder.join("cell.py");
+        let code = "import sys\nsys._getframe().f_code.co_filename";
+        fs::write(&file, code).unwrap();
+        let kernel = Kernel::start(&spec, &folder, Arc::new(move |message| held.lock().unwrap().push(message))).unwrap();
+        let result = |id: &str| {
+            let until = Instant::now() + Duration::from_secs(30);
+            loop {
+                let found = heard.lock().unwrap().iter().find(|message| message.parent == id && matches!(message.msg_type.as_str(), "execute_result" | "error")).map(|message| message.content.clone());
+                if let Some(found) = found {
+                    return found["data"]["text/plain"].as_str().map(str::to_string).unwrap_or_else(|| found.to_string());
+                }
+                assert!(Instant::now() < until, "no result for {id}");
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        };
+        let port = kernel.debug_next(&file);
+        if port.as_ref().is_err_and(|said| said.contains("has no debugpy")) {
+            kernel.stop(Duration::from_secs(10));
+            return;
+        }
+        let port = port.unwrap();
+        assert!(port > 0);
+        let other = kernel.execute("import sys\nsys._getframe().f_code.co_filename + ''").unwrap();
+        assert!(!result(&other).contains("cell.py"));
+        let debugged = kernel.execute(code).unwrap();
+        let named = result(&debugged);
+        assert!(named.contains("orior-debug-cell-") && named.contains("cell.py"), "{named}");
+        let again = kernel.execute(code).unwrap();
+        assert!(!result(&again).contains("cell.py"));
+        assert_eq!(kernel.debug_next(&file).unwrap(), port);
+        kernel.stop(Duration::from_secs(10));
+        let _ = fs::remove_dir_all(&folder);
     }
 }

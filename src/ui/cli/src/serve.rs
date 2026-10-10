@@ -970,6 +970,21 @@ impl Server {
                 self.file_write(given, text).and_then(give)
             }
             "notebook_diff_text" => crate::notebook::for_diff(&a.get::<String>("text")?).and_then(give),
+            "notebook_merge" => {
+                let root = self.root()?;
+                let given = path()?;
+                let side = |stage: u8| -> Result<Value, String> {
+                    let text = git::stage_text(&root, &given, stage).ok_or_else(|| format!("{given} holds no stage {stage} of a merge"))?;
+                    crate::notebook::read(Path::new("x.ipynb"), &text)
+                };
+                let base = side(1).unwrap_or_else(|_| json!({"cells": []}));
+                give(crate::notebook::merge(&base, &side(2)?, &side(3)?))
+            }
+            "notebook_without_outputs" => {
+                let full = at(&path()?)?;
+                let text = std::fs::read_to_string(&full).map_err(|error| format!("{}: {error}", full.display()))?;
+                crate::notebook::without_outputs(&text).and_then(give)
+            }
             "kernel_specs" => give(crate::jupyter::specs()),
             "kernels_stop_all" => {
                 self.stop_kernels();
@@ -977,6 +992,16 @@ impl Server {
             }
             "kernel_start" => self.kernel_start(a.get("key")?, a.get("name")?).and_then(give),
             "kernel_execute" => self.kernel(&a.get::<String>("key")?)?.execute(&a.get::<String>("code")?).and_then(give),
+            "kernel_debug" => {
+                let root = self.root()?;
+                let file = a.get::<String>("file")?;
+                let full = root::inside(&root, &file)?;
+                if let Some(folder) = full.parent() {
+                    std::fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+                }
+                files::write(&root, &file, &a.get::<String>("code")?)?;
+                self.kernel(&a.get::<String>("key")?)?.debug_next(&full).and_then(give)
+            }
             "kernel_interrupt" => self.kernel(&a.get::<String>("key")?)?.interrupt().and_then(give),
             "kernel_stop" => {
                 let key = a.get::<String>("key")?;

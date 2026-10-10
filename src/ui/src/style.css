@@ -2055,6 +2055,15 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   box-sizing: border-box;
 }
 
+.commit-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0.6rem 0.4rem;
+  font-size: 0.8rem;
+  color: var(--fg-2);
+}
+
 .commit-message:focus {
   outline: none;
   border-color: var(--hover);
@@ -3929,6 +3938,23 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   cursor: text;
 }
 
+/* A line of a cell not being written that holds a breakpoint: a dot in the error's color before it,
+ * as the editor's strip draws one. */
+.nb-break-line {
+  position: relative;
+}
+
+.nb-break-line::before {
+  content: "";
+  position: absolute;
+  left: -0.5rem;
+  top: calc(50% - 3.5px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ed-error);
+}
+
 .nb-source.nb-markdown {
   padding: 0.1rem 0.6rem;
   cursor: text;
@@ -4015,6 +4041,61 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: 40px;
   border: none;
   background: transparent;
+}
+
+/* A notebook's merge: its cells in order, those changed on both sides two to take one of. */
+.nb-merge-body {
+  overflow: auto;
+  padding: 0.6rem 1rem;
+}
+
+.nb-merge-cell {
+  margin-bottom: 0.5rem;
+  border-left: 2px solid var(--line);
+  padding-left: 0.6rem;
+}
+
+.nb-merge-cell.conflict {
+  border-left-color: var(--ed-warning);
+}
+
+.nb-merge-kind,
+.nb-merge-label {
+  font-size: 0.75rem;
+  color: var(--fg-3);
+}
+
+.nb-merge-source {
+  margin: 0.15rem 0;
+  padding: 0.3rem 0.5rem;
+  background: var(--well);
+  border-radius: 4px;
+  font: 12.5px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+.nb-merge-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.nb-merge-side {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0.3rem 0.5rem;
+}
+
+.nb-merge-side.chosen {
+  border-color: var(--signal);
+}
+
+.nb-merge-take {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-2);
+  cursor: pointer;
 }
 
 .nb-add {
