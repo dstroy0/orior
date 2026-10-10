@@ -265,6 +265,16 @@ impl Server {
         json!({"textDocument": {"uri": uri_of(path)}, "position": {"line": line, "character": col}})
     }
 
+    /// The process the server runs as.
+    pub fn pid(&self) -> u32 {
+        self.child.lock().map(|child| child.id()).unwrap_or(0)
+    }
+
+    /// The files the server has open.
+    pub fn files(&self) -> Vec<PathBuf> {
+        self.versions.lock().map(|versions| versions.keys().filter_map(|uri| path_of(uri)).collect()).unwrap_or_default()
+    }
+
     /// Asks the server to end, and ends it where it does not.
     pub fn stop(&self) {
         let _ = self.request("shutdown", Value::Null, Duration::from_secs(2));

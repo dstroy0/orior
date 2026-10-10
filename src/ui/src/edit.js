@@ -54,7 +54,7 @@ import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
 import { togglePane } from "./sides.js";
-import { drawBranch, say } from "./statusbar.js";
+import { drawBranch, onOverBudget, say } from "./statusbar.js";
 
 const state = {
   editor: null,
@@ -637,6 +637,11 @@ function show(path) {
     drawRepoBranch();
     drawGit(state.branch);
   }
+  // A tab whose server was stopped to hold memory to its budget is handed to one again as it shows.
+  if (tab?.session && tab.served === undefined && !tab.serving && tab.unserved) {
+    tab.unserved = false;
+    serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
+  }
   if (tab && !tab.commit) {
     keepRecent(tab.file);
   }
@@ -996,6 +1001,32 @@ async function openComment(comment) {
   await openFile(comment.path);
   const lines = tabOf(state.active)?.session?.doc.lines ?? [];
   await openAt(comment.path, anchor(comment, lines).line);
+}
+
+// Holds the app's memory to `budget` bytes: the servers no open tab needs stop, and where that is not
+// enough, the one that holds the most and does not serve the tab shown. The tabs a stopped server had
+// open lose their diagnostics and are handed to a server again as each shows.
+async function holdMemory(budget) {
+  const open = [...new Set(state.tabs.map((tab) => tab.session?.language?.id).filter(Boolean))];
+  const shown = tabOf(state.active)?.session?.language?.id ?? null;
+  const held = await invoke("memory_hold", { open, shown, budget }).catch(() => null);
+  if (!held?.stopped.length) {
+    return;
+  }
+  const root = document.getElementById("tree-path").textContent;
+  const plain = (path) => path.replace(/\\/g, "/").toLowerCase();
+  const files = new Set(held.files.map(plain));
+  for (const tab of state.tabs) {
+    if (tab.served && files.has(plain(`${root}/${tab.file}`))) {
+      Object.assign(tab, { served: undefined, untold: false, unserved: true });
+      window.clearTimeout(tab.telling);
+      if (tab.session) {
+        tab.session.diagnostics = null;
+      }
+    }
+  }
+  problemsChanged();
+  say(`${held.stopped.join(", ")} stopped to hold memory to its budget; ${held.files.length ? "its files are handed to it again as each shows" : "no open tab needed it"}.`);
 }
 
 // The file open beside the text on the clipboard.
@@ -1816,6 +1847,7 @@ export async function startEdit(defs) {
     },
     color: (key, state, lines) => invoke("highlight_lines", { key, state, lines }),
   });
+  onOverBudget(holdMemory);
   await loadPlugins();
   state.known = registerLanguages(defs);
   // A plugin read again, turned on or turned off colors every open file anew.
@@ -2413,6 +2445,7 @@ export function editing() {
     repoName,
     repos: () => state.repos ?? [],
     languageOf: (path) => state.known?.languageOf(path) ?? null,
+    holdMemory,
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
     commentsHidden: () => Boolean(state.editor?.commentsHidden),

@@ -143,6 +143,7 @@
         { "label": "Zoom In", "command": "zoom-in", "keys": "Ctrl+=" },
         { "label": "Zoom Out", "command": "zoom-out", "keys": "Ctrl+-" },
         { "label": "Reset Zoom", "command": "zoom-reset", "keys": "Ctrl+0" },
+        { "label": "Memory Budget…", "command": "memory-budget", "args": "[megabytes]" },
         "-",
         { "label": "Fold All", "command": "fold-all", "keys": "Ctrl+K Ctrl+0", "needs": "editor" },
         { "label": "Unfold All", "command": "unfold-all", "keys": "Ctrl+K Ctrl+J", "needs": "editor" }

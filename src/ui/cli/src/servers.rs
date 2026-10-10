@@ -174,6 +174,15 @@ pub enum Told {
 /// Where what the servers say on their own goes.
 pub type Emit = Arc<dyn Fn(Told) + Send + Sync>;
 
+/// A server running: its toolchain's id, its program's name, its process, and the files it has open.
+#[derive(Serialize, Debug, Clone)]
+pub struct Running {
+    pub tool: String,
+    pub program: String,
+    pub pid: u32,
+    pub files: Vec<String>,
+}
+
 const ASKING: Duration = Duration::from_secs(5);
 
 /// How long a search of the whole tree, for usages or a rename, may take.
@@ -643,6 +652,40 @@ impl Servers {
             failed.clear();
         }
         self.running.lock().map(|mut all| all.drain().map(|(_, server)| server).collect()).unwrap_or_default()
+    }
+
+    /// Every server running: its toolchain's id, its program's name, its process, and the files it
+    /// has open.
+    pub fn running(&self) -> Vec<Running> {
+        let manifest = toolchains::manifest();
+        let Ok(all) = self.running.lock() else {
+            return Vec::new();
+        };
+        all.iter()
+            .map(|(tool, server)| Running {
+                tool: tool.clone(),
+                program: manifest.iter().find(|one| &one.id == tool).and_then(|one| one.server.as_ref()).map_or_else(|| tool.clone(), |spec| spec.program.clone()),
+                pid: server.pid(),
+                files: server.files().iter().map(|path| path.display().to_string()).collect(),
+            })
+            .collect()
+    }
+
+    /// The toolchains whose servers serve any of `languages`.
+    pub fn tools_for(languages: &[String]) -> Vec<String> {
+        languages.iter().filter_map(|language| Self::spec_for(language).map(|(tool, _)| tool.id)).collect()
+    }
+
+    /// Stops the servers of `tools` without waiting, each told to end on a thread of its own, and
+    /// gives the files they had open. A server stopped starts again when a file of its language is
+    /// handed to it.
+    pub fn stop(&self, tools: &[String]) -> Vec<String> {
+        let taken: Vec<Arc<Server>> = self.running.lock().map(|mut all| tools.iter().filter_map(|tool| all.remove(tool)).collect()).unwrap_or_default();
+        let files = taken.iter().flat_map(|server| server.files()).map(|path| path.display().to_string()).collect();
+        for server in taken {
+            std::thread::spawn(move || server.stop());
+        }
+        files
     }
 
     /// Stops every server and waits for each to end, as the app closes.

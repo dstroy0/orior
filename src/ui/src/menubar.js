@@ -23,7 +23,7 @@
 import { invoke, pick } from "./bridge.js";
 import { showClone } from "./clone.js";
 import { showCreate, showInit } from "./create.js";
-import { say } from "./statusbar.js";
+import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
 import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setVimKeys, vimKeys } from "./edit.js";
@@ -250,6 +250,7 @@ const COMMANDS = {
   "past-ends": (args) => editing().setPastEnds(onOff(args) ?? !editing().pastEnds()),
   "hide-comments": (args) => editing().setCommentsHidden(onOff(args) ?? !editing().commentsHidden()),
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
+  "memory-budget": (args) => askBudget(args[0]),
   "sticky-scroll": (args) => editing().setSticky(args[0] === "on" ? true : args[0] === "off" ? false : !editing().sticky()),
   preferences: () =>
     showPreferences(sheet, {
@@ -580,6 +581,29 @@ async function showBranches() {
   const anchor = document.getElementById("status-branch");
   const box = anchor.hidden ? { left: window.innerWidth / 3, top: window.innerHeight / 3 } : anchor.getBoundingClientRect();
   showMenu(box.left, (box.bottom ?? box.top) + 2, items, { anchor: anchor.hidden ? null : anchor });
+}
+
+// View, Memory Budget: the megabytes the app is held to in RAM, as given or asked for.
+async function askBudget(given) {
+  const answer = given ?? (await askFor("The memory budget, in megabytes", String(memoryBudget())));
+  const mb = Number(answer);
+  if (answer && Number.isFinite(mb) && mb > 0) {
+    setMemoryBudget(mb);
+    say(`The memory budget is ${Math.round(mb)} MB.`);
+  } else if (answer) {
+    say(`${answer} is no number of megabytes.`, { failed: true });
+  }
+}
+
+// The memory reading's menu: what each program the app started holds, the budget, and the servers no
+// open tab needs to stop.
+function showMemory() {
+  const node = document.getElementById("status-memory");
+  const read = lastMemory();
+  const mb = (bytes) => `${Math.round(bytes / (1024 * 1024))} MB`;
+  const parts = (read?.parts ?? []).map((part) => ({ label: `${part.name}: ${mb(part.working)}`, disabled: true }));
+  const box = node.getBoundingClientRect();
+  showMenu(box.left, box.top, [...parts, ...(parts.length ? ["-"] : []), { label: `Memory Budget: ${memoryBudget()} MB…`, run: () => askBudget() }, { label: "Stop Servers No Open Tab Needs", run: () => editing().holdMemory(Number.MAX_SAFE_INTEGER) }], { anchor: node });
 }
 
 // Git, Stash Changes: every change put aside, new files with them, under the message given or asked
@@ -1053,6 +1077,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   });
   drawMenubar();
   document.getElementById("status-branch").addEventListener("click", showBranches);
+  document.getElementById("status-memory").addEventListener("click", showMemory);
   bindMacros();
   onMacros(bindMacros);
   performance.mark("keys-bound");

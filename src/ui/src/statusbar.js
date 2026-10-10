@@ -5,7 +5,8 @@
 // going and the files still being read, then a word for a moment from what was last done, such as
 // what a formatter said, which the top bar's bell keeps. On its right what the app holds in memory:
 // its own process and every process it started, the web view's among them, read again every
-// MEMORY_EVERY while the window shows; then the editor's own line, shown in the edit view only:
+// MEMORY_EVERY while the window shows, with the name of what holds the most, marked where it is over
+// the memory budget; then the editor's own line, shown in the edit view only:
 // where the cursor is as line:column, what is chosen, the line ends, the encoding, the indent, and
 // the lock. The branch the tree is on, with a star where a file differs from the last commit, is on
 // the top bar beside the tree's name.
@@ -16,26 +17,63 @@ import { still } from "./motion.js";
 
 const MEMORY_EVERY = 2000;
 
+// The memory budget: the setting's key, and the budget in megabytes where none is set. While the app
+// holds more in RAM than the budget, it is held to it no more often than HOLD_EVERY.
+const BUDGET_KEY = "orior.memory-budget";
+const BUDGET = 2048;
+const HOLD_EVERY = 10000;
+
 const megabytes = (bytes) => {
   const mb = bytes / (1024 * 1024);
   return `${mb < 100 ? mb.toFixed(1) : Math.round(mb)} MB`;
 };
 
-// The total in RAM on the bar, and over it each program's share: its processes, what it holds in RAM
-// and what it has reserved in all.
+// The budget in megabytes.
+export function memoryBudget() {
+  const set = Number(localStorage.getItem(BUDGET_KEY));
+  return Number.isFinite(set) && set > 0 ? set : BUDGET;
+}
+
+export function setMemoryBudget(mb) {
+  localStorage.setItem(BUDGET_KEY, String(Math.round(mb)));
+  drawMemory();
+}
+
+// The last reading, and what holds the app to its budget, which the editor gives.
+const memory = { read: null, hold: null, held: 0 };
+
+export function lastMemory() {
+  return memory.read;
+}
+
+export function onOverBudget(hold) {
+  memory.hold = hold;
+}
+
+// The total in RAM on the bar with the name of what holds the most beside it, and over it each
+// program's share: its processes, what it holds in RAM and what it has reserved in all. Over the
+// budget, the reading is marked and the app held to the budget.
 async function drawMemory() {
   const node = document.getElementById("status-memory");
   if (still()) {
     return;
   }
   const read = await invoke("memory_use").catch(() => null);
+  memory.read = read;
   node.hidden = !read;
   if (!read) {
     return;
   }
-  node.textContent = megabytes(read.working);
+  const budget = memoryBudget() * 1024 * 1024;
+  const over = read.working > budget;
+  node.classList.toggle("over", over);
+  node.replaceChildren(megabytes(read.working), ...(read.parts[0] ? [Object.assign(document.createElement("span"), { className: "status-memory-most", textContent: read.parts[0].name })] : []));
   const rows = read.parts.map((part) => `${part.name}${part.processes > 1 ? ` (${part.processes} processes)` : ""}: ${megabytes(part.working)}, ${megabytes(part.commit)} committed`);
-  node.title = [`${megabytes(read.working)} in RAM, ${megabytes(read.commit)} committed`, ...rows].join("\n");
+  node.title = [`${megabytes(read.working)} in RAM, ${megabytes(read.commit)} committed, of a budget of ${megabytes(budget)}`, ...rows].join("\n");
+  if (over && memory.hold && performance.now() - memory.held > HOLD_EVERY) {
+    memory.held = performance.now();
+    memory.hold(budget);
+  }
 }
 
 export function keepMemory() {

@@ -200,8 +200,51 @@ fn app_version() -> &'static str {
 /// What the app holds in memory, its own process and every one it started, or nothing where the
 /// system does not say.
 #[tauri::command]
-fn memory_use() -> Option<memory::Memory> {
-    memory::read()
+fn memory_use(app: State<App>) -> Option<memory::Memory> {
+    let mut read = memory::read()?;
+    named(&mut read, &app.servers.running());
+    Some(read)
+}
+
+// Names each part of a reading that is a language server by its program, with its toolchain's id,
+// and the web view's as the web view.
+fn named(read: &mut memory::Memory, running: &[servers::Running]) {
+    for part in &mut read.parts {
+        if let Some(server) = running.iter().find(|one| one.pid == part.pid) {
+            part.name = server.program.clone();
+            part.server = Some(server.tool.clone());
+        } else if part.name == "msedgewebview2" {
+            part.name = "web view".into();
+        }
+    }
+}
+
+/// What holding memory to the budget let go: the servers stopped and the files they had open.
+#[derive(serde::Serialize)]
+struct Held {
+    stopped: Vec<String>,
+    files: Vec<String>,
+}
+
+/// Holds the app's memory to `budget` bytes: stops the language servers no language in `open`, the
+/// languages of the open tabs, needs; and where the app still holds more than the budget, the server
+/// that holds the most and does not serve `shown`, the language of the tab shown. Gives what it
+/// stopped.
+#[tauri::command(async)]
+fn memory_hold(app: State<App>, open: Vec<String>, shown: Option<String>, budget: u64) -> Held {
+    let running = app.servers.running();
+    let needed = servers::Servers::tools_for(&open);
+    let mut stopped: Vec<String> = running.iter().filter(|one| !needed.contains(&one.tool)).map(|one| one.tool.clone()).collect();
+    if stopped.is_empty() {
+        let keep = servers::Servers::tools_for(&shown.into_iter().collect::<Vec<_>>());
+        if let Some(mut read) = memory::read().filter(|read| read.working > budget) {
+            named(&mut read, &running);
+            stopped.extend(read.parts.iter().filter_map(|part| part.server.clone().filter(|tool| !keep.contains(tool))).take(1));
+        }
+    }
+    let names = stopped.iter().map(|tool| running.iter().find(|one| &one.tool == tool).map_or_else(|| tool.clone(), |one| one.program.clone())).collect();
+    let files = app.servers.stop(&stopped);
+    Held { stopped: names, files }
 }
 
 /// Shows the window once its page has its scheme and its colors, so that no frame before them shows.
@@ -1242,6 +1285,7 @@ fn open(launch: Launch) {
             app_exit,
             window_show,
             memory_use,
+            memory_hold,
             tree_list,
             tree_find,
             tree_files,

@@ -873,11 +873,21 @@ select {
 
 .status-memory {
   font-variant-numeric: tabular-nums;
-  cursor: default;
+  cursor: pointer;
 }
 
 .status-memory[hidden] {
   display: none;
+}
+
+/* What holds the most memory, beside the total, quieter than it; and the reading over its budget. */
+.status-memory-most {
+  margin-left: 0.4rem;
+  color: var(--fg-3);
+}
+
+.status-memory.over {
+  color: var(--ed-warning);
 }
 
 .statusbar .ed-status {
