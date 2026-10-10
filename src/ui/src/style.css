@@ -220,10 +220,24 @@ select {
   gap: 0.7rem;
   height: 2.9rem;
   padding: 0 0.8rem 0 1rem;
-  background: var(--ink);
+  position: relative;
+  background-color: var(--ink);
   color: var(--bar-fg);
-  border-bottom: 2px solid var(--bar-signal);
+  border-bottom: 2px solid transparent;
   flex: none;
+}
+
+/* The bar's signal line runs over the work alone, from the curve at its top left to the curve at
+   its top right. */
+.bar::before {
+  content: "";
+  position: absolute;
+  left: 48px;
+  right: 9px;
+  bottom: -2px;
+  height: 2px;
+  background: var(--bar-signal);
+  pointer-events: none;
 }
 
 .mark {
@@ -276,7 +290,9 @@ select {
 /* The frame: the top bar, the tool strip down the left and the status bar along the foot, one ink
    around the work, and the work beside the strip: the views over the Debug and Terminal panels. */
 .frame {
+  position: relative;
   flex: 1;
+  background-color: var(--ink);
   min-height: 0;
   display: flex;
 }
@@ -363,17 +379,91 @@ select {
   background-position: left top, left bottom;
 }
 
-/* The corner where the strip's line meets the status bar's: a small curve filled in the lines' color,
-   leaving the strip's line and ending on the status bar's. */
-.work::after {
+/* The work's four corners are curves. The strip's line bends round each on the left: at the top into
+   the bar's signal line, its color passing into the signal's along the curve, and at the foot onto
+   the status bar, fading as it turns. At the top right the signal line bends down the window's edge
+   and fades. Each curve is a band, as wide as the lines it joins at either end, cut from a sweep of
+   their colors. */
+.frame::before,
+.frame::after {
   content: "";
   position: absolute;
-  left: 0;
+  left: 39px;
+  z-index: 40;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  mask-composite: subtract;
+}
+
+.frame::before {
+  top: -2px;
+  background: conic-gradient(from 270deg at 100% 100%, var(--status-line), var(--bar-signal) 90deg);
+  mask-image: radial-gradient(circle 9px at 100% 100%, #000 8.6px, transparent 9px), radial-gradient(8px 7px at 100% 100%, #000 95%, transparent 100%);
+}
+
+.frame::after {
   bottom: 0;
-  z-index: 30;
-  width: 7px;
-  height: 7px;
-  background: radial-gradient(circle at 100% 0, transparent 6.4px, var(--status-line) 7px);
+  background: conic-gradient(from 180deg at 100% 0, transparent, var(--status-line) 90deg);
+  mask-image: radial-gradient(circle 9px at 100% 0, #000 8.6px, transparent 9px), radial-gradient(circle 8px at 100% 0, #000 7.6px, transparent 8px);
+}
+
+.work {
+  clip-path: inset(0 round 8px 9px 9px 8px / 7px 7px 9px 9px);
+}
+
+.bar::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -9px;
+  z-index: 40;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  background: conic-gradient(from 0deg at 0 100%, var(--bar-signal), transparent 90deg);
+  mask-image: radial-gradient(circle 9px at 0 100%, #000 8.6px, transparent 9px), radial-gradient(9px 7px at 0 100%, #000 95%, transparent 100%);
+  mask-composite: subtract;
+}
+
+/* The frame round the work, the bar, the strip and the status bar, is one pane of glass: a fine grain,
+   a sheen along its top and its foot, two streaks of light across it, and the signal's glow pooled in
+   its corners. Each part lays the same layers against the window and not against itself: the light
+   runs on unbroken from one part into the next. */
+:root {
+  --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --glass:
+    var(--glass-grain),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 1.2rem, transparent 2.9rem),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.045), transparent 22px),
+    linear-gradient(104deg, transparent 14%, rgba(255, 255, 255, 0.05) 21%, transparent 27%, transparent 61%, rgba(255, 255, 255, 0.035) 68%, transparent 73%),
+    radial-gradient(55vw 34vh at 0 0, color-mix(in srgb, var(--bar-signal) 16%, transparent), transparent 72%),
+    radial-gradient(45vw 30vh at 100% 100%, color-mix(in srgb, var(--bar-signal) 11%, transparent), transparent 72%),
+    radial-gradient(30vw 70vh at 0 100%, rgba(150, 125, 255, 0.12), transparent 70%);
+}
+
+.bar,
+.frame,
+.strip,
+.statusbar {
+  background-image: var(--glass);
+  background-attachment: fixed;
+}
+
+/* The glass's top edge catches the light. */
+.bar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* The strip's line, between the curves. */
+.strip::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 0;
+  bottom: 9px;
+  width: 1px;
+  background: var(--status-line);
   pointer-events: none;
 }
 
@@ -383,9 +473,9 @@ select {
   width: 40px;
   display: flex;
   flex-direction: column;
+  position: relative;
   padding: 6px 0;
-  background: var(--ink);
-  border-right: 1px solid var(--status-line);
+  background-color: var(--ink);
 }
 
 .strip-group {
@@ -664,9 +754,8 @@ select {
   gap: 1.1rem;
   height: 22px;
   padding: 0 0.8rem;
-  background: var(--ink);
+  background-color: var(--ink);
   color: var(--status-fg);
-  border-top: 1px solid var(--status-line);
   font: 12px var(--head);
   white-space: nowrap;
 }
