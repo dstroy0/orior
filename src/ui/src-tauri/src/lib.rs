@@ -538,6 +538,19 @@ fn git_cherry_pick(app: State<App>, id: String, repo: Option<String>) -> Result<
     git::cherry_pick(&repo_of(&app, repo.as_deref())?, &id)
 }
 
+/// Reads a grammar of the page's and keeps it under `key` for the lines colored with it, or says what
+/// in it is not read here.
+#[tauri::command]
+fn highlight_grammar(key: String, def: serde_json::Value) -> Result<(), String> {
+    orior_cli::highlight::keep(&key, &def)
+}
+
+/// Colors lines with the grammar kept under `key`, the first starting in `state`.
+#[tauri::command(async)]
+fn highlight_lines(key: String, state: String, lines: Vec<String>) -> Result<orior_cli::highlight::Colored, String> {
+    orior_cli::highlight::color(&key, &state, &lines)
+}
+
 /// Two texts compared by structure, the older first, or null where they are too far apart.
 #[tauri::command(async)]
 fn structure_compare(then: Option<String>, now: String) -> Option<orior_cli::structure::Compared> {
@@ -1260,6 +1273,8 @@ fn open(launch: Launch) {
             git_line_history,
             git_repositories,
             structure_compare,
+            highlight_grammar,
+            highlight_lines,
             git_stashes,
             git_stash,
             git_elsewhere,

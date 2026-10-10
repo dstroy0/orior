@@ -43,7 +43,7 @@ export function printed(s, title) {
   const rows = [];
   for (let line = first; line <= last; line += 1) {
     const text = s.doc.line(line);
-    const runs = s.highlight.runsOf(line);
+    const runs = s.highlight.runsNow(line);
     let code = "";
     runs.forEach(([start, name], index) => {
       const end = runs[index + 1]?.[0] ?? text.length;

@@ -2614,7 +2614,7 @@ export class Editor {
   // The depth at the end of a line that starts at `depth`, a closing bracket never taking it below 0.
   bracketEnd(line, depth) {
     const text = this.s.doc.line(line);
-    const runs = this.s.highlight.runsOf(line);
+    const runs = this.s.highlight.runsNow(line);
     for (let index = 0; index < runs.length; index += 1) {
       const [start, name] = runs[index];
       if (UNBRACKETED.test(name)) {

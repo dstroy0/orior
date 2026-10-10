@@ -73,7 +73,12 @@ export function compile(def) {
   for (const name of Object.keys(def.tokenizer)) {
     states[name] = expand(name, new Set([name]));
   }
-  return { states, words, perLine: Boolean(def.perLine), ignoreCase: Boolean(def.ignoreCase) };
+  return { states, words, perLine: Boolean(def.perLine), ignoreCase: Boolean(def.ignoreCase), def };
+}
+
+// A grammar's definition as the app's Rust side reads it: JSON, each pattern its source and flags.
+export function grammarJson(grammar) {
+  return JSON.stringify(grammar.def, (key, value) => (value instanceof RegExp ? { pattern: value.source, flags: value.flags } : value));
 }
 
 function resolve(grammar, token, text) {
@@ -189,23 +194,83 @@ const GUESS_FROM = 300;
 
 const PLAIN = [[0, ""]];
 
+// How many lines past the last one asked for each request to the Rust side colors besides, which
+// a scroll then finds done, and how many lines below an edit are asked for as it is made.
+const AHEAD = 120;
+const SCREEN = 80;
+
+// The app's Rust side, where the page has handed it in: `keep(json)` keeps a grammar and answers its
+// key, and `color(key, state, lines)` answers each line's runs and the state each ends in.
+let colorer = null;
+const keys = new WeakMap();
+
+export function colorWith(given) {
+  colorer = given;
+}
+
+// The key a grammar is kept under on the Rust side, or null where it refuses the grammar.
+function keyOf(grammar) {
+  if (!keys.has(grammar)) {
+    keys.set(grammar, colorer.keep(grammarJson(grammar)).catch(() => null));
+  }
+  return keys.get(grammar);
+}
+
 // The tokens of the lines of a text, worked out as they are asked for, from the lines on screen
-// outward, and kept until an edit reaches them.
+// outward, and kept until an edit reaches them. Where the app's Rust side keeps the grammar, it
+// works them out: the lines asked for in a frame go in one request, and until the answer comes, a
+// line an edit reached shows the tokens it had before, carried with its line, and `colored` is
+// called once they come. Where it does not, the page works them out as they are asked for. A
+// line's tokens wanted at once, as bracket pairs and printing want them, are worked out in the
+// page for a line not yet answered.
 export class Highlight {
-  constructor(doc, grammar) {
+  constructor(doc, grammar, colored = null) {
     this.doc = doc;
     this.grammar = grammar;
     this.starts = ["root"];
     this.runs = [];
+    this.stale = [];
+    this.count = doc.count;
+    this.colored = colored;
+    this.remote = null;
+    this.wanted = null;
+    this.flying = false;
+    this.cut = Infinity;
+    if (grammar && colorer) {
+      keyOf(grammar).then((key) => {
+        if (key !== null && this.grammar === grammar) {
+          this.remote = key;
+          this.colored?.();
+        }
+      });
+    }
   }
 
-  // Forgets every line from this one on.
+  // Forgets every line from this one on. The lines after it keep, as stale, the tokens they had,
+  // moved by as many lines as the text gained or lost, to show until theirs come. The lines from it
+  // to a screen's worth below are asked for at once, so that the answer comes before the frame that
+  // draws the edit.
   forget(line) {
+    const moved = this.doc.count - this.count;
+    this.count = this.doc.count;
+    this.cut = Math.min(this.cut, line);
+    const kept = this.runs.length > line;
+    if (this.remote) {
+      for (let at = line; at < this.runs.length; at += 1) {
+        if (this.runs[at]) {
+          this.stale[at > line ? at + moved : at] = this.runs[at];
+        }
+      }
+    }
     if (this.starts.length > line + 1) {
       this.starts.length = line + 1;
     }
     if (this.runs.length > line) {
       this.runs.length = line;
+    }
+    if (this.remote && kept && line < this.doc.count) {
+      this.ask(line);
+      this.ask(Math.min(this.doc.count - 1, line + SCREEN));
     }
   }
 
@@ -219,6 +284,8 @@ export class Highlight {
     this.starts = new Array(added).concat(this.starts);
     this.starts[0] = "root";
     this.runs = new Array(added).concat(this.runs);
+    this.stale = new Array(added).concat(this.stale);
+    this.count = this.doc.count;
   }
 
   // Writes the state a line starts in. Where it differs from the one kept, everything worked out
@@ -230,13 +297,9 @@ export class Highlight {
     this.starts[line] = state;
   }
 
-  stateAt(line) {
-    if (!this.grammar || this.grammar.perLine) {
-      return "root";
-    }
-    if (this.starts[line] !== undefined) {
-      return this.starts[line];
-    }
+  // The line the tokens of `line` are worked out from: the nearest line above with its state known,
+  // or one GUESS_FROM above, started at root, where none is within LOOK_BACK.
+  knownFrom(line) {
     let from = line;
     const floor = Math.max(0, line - LOOK_BACK);
     while (from > floor && this.starts[from] === undefined) {
@@ -246,9 +309,22 @@ export class Highlight {
       from = Math.max(0, line - GUESS_FROM);
       this.starts[from] = this.starts[from] ?? "root";
     }
+    return from;
+  }
+
+  stateAt(line) {
+    if (!this.grammar || this.grammar.perLine) {
+      return "root";
+    }
+    if (this.starts[line] !== undefined) {
+      return this.starts[line];
+    }
+    const from = this.knownFrom(line);
     for (let at = from; at < line; at += 1) {
       const { runs, state } = tokenize(this.grammar, this.doc.line(at), this.starts[at]);
-      this.runs[at] = runs;
+      if (!this.remote) {
+        this.runs[at] = runs;
+      }
       this.startAt(at + 1, state);
     }
     return this.starts[line];
@@ -263,21 +339,94 @@ export class Highlight {
     if (!this.grammar) {
       return PLAIN;
     }
-    let found = this.runs[line];
-    if (!found) {
-      const { runs, state } = tokenize(this.grammar, this.doc.line(line), this.stateAt(line));
-      this.runs[line] = runs;
-      if (!this.grammar.perLine) {
-        this.startAt(line + 1, state);
-      }
-      found = runs;
+    const found = this.runs[line];
+    if (found) {
+      return found;
     }
-    return found;
+    if (!this.remote) {
+      return this.runsNow(line);
+    }
+    this.ask(line);
+    return this.stale[line] ?? PLAIN;
+  }
+
+  // A line's tokens now: kept, or worked out in the page where they are not.
+  runsNow(line) {
+    if (!this.grammar) {
+      return PLAIN;
+    }
+    const found = this.runs[line];
+    if (found) {
+      return found;
+    }
+    const { runs, state } = tokenize(this.grammar, this.doc.line(line), this.stateAt(line));
+    if (!this.remote) {
+      this.runs[line] = runs;
+    }
+    if (!this.grammar.perLine) {
+      this.startAt(line + 1, state);
+    }
+    return runs;
+  }
+
+  // Adds a line to the next request to the Rust side, which goes once the page's work in hand is done.
+  ask(line) {
+    const first = this.wanted === null;
+    this.wanted = first ? [line, line] : [Math.min(this.wanted[0], line), Math.max(this.wanted[1], line)];
+    if (first && !this.flying) {
+      queueMicrotask(() => this.send());
+    }
+  }
+
+  send() {
+    if (!this.wanted || this.flying || !this.remote) {
+      return;
+    }
+    const [low, high] = this.wanted;
+    this.wanted = null;
+    const from = this.grammar.perLine ? low : this.knownFrom(low);
+    const to = Math.min(this.doc.count - 1, high + AHEAD);
+    const lines = [];
+    for (let at = from; at <= to; at += 1) {
+      lines.push(this.doc.line(at));
+    }
+    const grammar = this.grammar;
+    const key = this.remote;
+    this.flying = true;
+    this.cut = Infinity;
+    colorer
+      .color(key, this.grammar.perLine ? "root" : this.starts[from], lines)
+      .then(({ names, runs, states }) => {
+        this.flying = false;
+        if (this.grammar !== grammar || this.remote !== key) {
+          return;
+        }
+        const classes = names.map(classOf);
+        // Only the lines above the first an edit reached since the request went are as they were.
+        const until = Math.min(from + runs.length, this.cut);
+        for (let at = from; at < until; at += 1) {
+          const own = runs[at - from].map(([col, name]) => [col, classes[name]]);
+          this.runs[at] = own;
+          this.stale[at] = undefined;
+          if (!grammar.perLine && at + 1 <= this.cut) {
+            this.startAt(at + 1, states[at - from]);
+          }
+        }
+        this.colored?.();
+        if (this.wanted) {
+          this.send();
+        }
+      })
+      .catch(() => {
+        this.flying = false;
+        this.remote = null;
+        this.colored?.();
+      });
   }
 
   // The class of the token at a place.
   classAt(line, col) {
-    const runs = this.runsOf(line);
+    const runs = this.runsNow(line);
     let name = "";
     for (const [start, cls] of runs) {
       if (start > col) {

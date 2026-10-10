@@ -186,7 +186,7 @@ export class Session {
   // Colors the text in `language` from here on, as a plugin read again asks.
   setLanguage(language) {
     this.language = language ?? null;
-    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null);
+    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule());
   }
 
   // Every region that folds. It reads the whole text, and only folding everything asks for it.

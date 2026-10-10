@@ -28,6 +28,7 @@ import { invoke, listen } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
 import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
+import { colorWith } from "./editor/tokens.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
 import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
@@ -1805,6 +1806,16 @@ function light() {
 }
 
 export async function startEdit(defs) {
+  // The editor's colors are worked out on the app's Rust side, each grammar kept there under a key.
+  let grammars = 0;
+  colorWith({
+    keep: (json) => {
+      grammars += 1;
+      const key = `grammar:${grammars}`;
+      return invoke("highlight_grammar", { key, def: JSON.parse(json) }).then(() => key);
+    },
+    color: (key, state, lines) => invoke("highlight_lines", { key, state, lines }),
+  });
   await loadPlugins();
   state.known = registerLanguages(defs);
   // A plugin read again, turned on or turned off colors every open file anew.
@@ -2401,6 +2412,7 @@ export function editing() {
     repoOf,
     repoName,
     repos: () => state.repos ?? [],
+    languageOf: (path) => state.known?.languageOf(path) ?? null,
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
     commentsHidden: () => Boolean(state.editor?.commentsHidden),
