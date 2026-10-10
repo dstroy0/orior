@@ -60,6 +60,15 @@ fn state_of(index: u8, tree: u8) -> char {
     }
 }
 
+/// The commit the tree stands at: its id, its time in seconds since 1970, and whether the tree's
+/// tracked files hold no change since it.
+pub fn head(root: &Path) -> Option<(String, i64, bool)> {
+    let said = String::from_utf8(git(root, &["log", "-1", "--format=%H %ct"])?).ok()?;
+    let (id, when) = said.trim().split_once(' ')?;
+    let clean = git(root, &["status", "--porcelain", "--untracked-files=no"]).is_some_and(|out| out.iter().all(|byte| byte.is_ascii_whitespace()));
+    Some((id.to_string(), when.parse().ok()?, clean))
+}
+
 /// The branch the tree is on, or the short id of the commit it stands at where it is on none.
 pub fn branch(root: &Path) -> Option<String> {
     let named = git(root, &["rev-parse", "--abbrev-ref", "HEAD"]).map(|out| String::from_utf8_lossy(&out).trim().to_string())?;

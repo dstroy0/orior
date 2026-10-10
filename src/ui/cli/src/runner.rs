@@ -241,7 +241,7 @@ fn arguments(step: &Step, values: &HashMap<String, Vec<String>>) -> Result<Vec<S
                     out.push(value);
                 }
             }
-            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) | Arg::EnvBut(..) | Arg::Cross(_) => {}
+            Arg::Set(..) | Arg::Unpath(_) | Arg::Only(..) | Arg::EnvBut(..) | Arg::Cross(_) | Arg::SourceDate | Arg::Folder(_) => {}
         }
     }
     Ok(out)
@@ -279,6 +279,7 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
     // each setting given goes into the step's environment, and the line shown leads with it as a
     // shell writes it
     let mut set = Vec::new();
+    let mut moved: Option<String> = None;
     for arg in &step.args {
         if let Arg::Env(key) = arg {
             if let Some(value) = values.get(key).and_then(|v| v.first()).filter(|v| !v.is_empty()) {
@@ -295,6 +296,16 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
             if let Some(value) = values.get(key).and_then(|v| v.first()).filter(|v| !v.is_empty() && *v != but) {
                 cmd.env(key, value);
                 set.push(format!("{key}={value}"));
+            }
+        }
+        if let Arg::Folder(folder) = arg {
+            cmd.current_dir(crate::root::full(root, folder));
+            moved = Some(format!("cd {folder} &&"));
+        }
+        if matches!(arg, Arg::SourceDate) && std::env::var_os("SOURCE_DATE_EPOCH").is_none() {
+            if let Some((_, when, _)) = crate::git::head(root) {
+                cmd.env("SOURCE_DATE_EPOCH", when.to_string());
+                set.push(format!("SOURCE_DATE_EPOCH={when}"));
             }
         }
         if let Arg::Cross(kind) = arg {
@@ -315,14 +326,18 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
     if !tools.is_empty() && !step.args.iter().any(|arg| matches!(arg, Arg::Unpath(_)) || matches!(arg, Arg::Set(key, _) if key == "PATH")) {
         set.insert(0, format!("PATH={}:$PATH", tools.join(":")));
     }
-    let shown = set.into_iter().chain(full).map(|w| if w.contains(' ') { format!("\"{w}\"") } else { w }).collect::<Vec<_>>();
+    let shown = moved.into_iter().chain(set.into_iter().chain(full).map(|w| if w.contains(' ') { format!("\"{w}\"") } else { w })).collect::<Vec<_>>();
     Ok((cmd, shown.join(" ")))
 }
 
-/// A step as a run holds it: its command made, or the program the build made, found as it starts.
+/// A step as a run holds it: its command made; the program the build made, found as it starts; the
+/// signing of that program, which becomes the commands that sign it; and what is said of its
+/// signature once they have run.
 enum Ready {
     Now(Command, String),
     Made { system: bool },
+    Sign,
+    Signed(PathBuf),
 }
 
 /// Starts `cmd` with no console window of its own on Windows, and in a process group of its own
@@ -453,6 +468,10 @@ impl Runs {
                 }
             });
         }
+        if job.opens == "program" && crate::executables::signs() {
+            let at = commands.iter().position(|ready| matches!(ready, Ready::Made { .. })).unwrap_or(commands.len());
+            commands.insert(at, Ready::Sign);
+        }
         let run = self.next.fetch_add(1, Ordering::SeqCst) + 1;
         // Run numbers start again in each process, and the window and the command line can run at
         // once. The folder is named by both and emptied before the run writes to it.
@@ -479,6 +498,7 @@ impl Runs {
                             let orior_path: Vec<PathBuf> = std::env::split_paths(&run_path).collect();
                             crate::binary::read(file, &orior_path).as_ref().map(crate::binary::said).unwrap_or_default().into_iter().for_each(&say);
                             crate::executables::built_advice(&root, &job.id, lines).into_iter().for_each(&say);
+                            crate::executables::compare_build(&root, &job.id, file).into_iter().for_each(&say);
                         }
                         Err(error) => say(error.clone()),
                     }
@@ -486,13 +506,37 @@ impl Runs {
                 }
                 made_file.clone().unwrap_or_else(|| Err("no file was made".to_string()))
             };
-            for ready in commands {
+            let mut queue: std::collections::VecDeque<Ready> = commands.into();
+            while let Some(ready) = queue.pop_front() {
                 if holds(&stopped, run) {
                     break;
                 }
                 let made_step = matches!(ready, Ready::Made { .. });
                 let (mut cmd, shown) = match ready {
                     Ready::Now(cmd, shown) => (cmd, shown),
+                    Ready::Sign => {
+                        let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
+                        let steps = find_made(&lines).and_then(|file| crate::executables::sign_steps(&file).map(|steps| (file, steps)));
+                        match steps {
+                            Ok((file, steps)) => {
+                                queue.push_front(Ready::Signed(file));
+                                for (cmd, shown) in steps.into_iter().rev() {
+                                    queue.push_front(Ready::Now(cmd, shown));
+                                }
+                                continue;
+                            }
+                            Err(error) => {
+                                say(error);
+                                code = None;
+                                built = false;
+                                break;
+                            }
+                        }
+                    }
+                    Ready::Signed(file) => {
+                        crate::executables::signed_said(&file).into_iter().for_each(&say);
+                        continue;
+                    }
                     Ready::Made { system } => {
                         let lines = seen.lock().map(|s| s.clone()).unwrap_or_default();
                         match find_made(&lines) {

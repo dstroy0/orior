@@ -696,13 +696,13 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                 "rust",
                 "cargo",
                 vec![
+                    Arg::Folder(folder.clone()),
                     lit("build"),
-                    lit("--manifest-path"),
-                    lit(script.clone()),
                     lit("--bin"),
                     lit(name),
                     Arg::Flag("--profile", "profile".into()),
                     Arg::FlagBut("--target", "target".into(), THIS_MACHINE.into()),
+                    Arg::When("profile".into(), "release".into(), vec!["--config".into(), format!("build.rustflags=['--remap-path-prefix={}=.']", root.display())]),
                     Arg::Cross("rust"),
                 ],
             )],
@@ -752,7 +752,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                 args.extend([lit("-C"), lit(folder)]);
                 format!("{}/{out}", root.display().to_string().replace('\\', "/"))
             };
-            args.extend([lit("-o"), Arg::Format(out), lit(package.clone())]);
+            args.extend([lit("-trimpath"), lit("-o"), Arg::Format(out), lit(package.clone())]);
             let (system, processor) = go_host();
             let systems = first_of(system, &["windows", "linux", "darwin"]);
             let processors = first_of(processor, &["amd64", "arm64"]);
@@ -777,6 +777,7 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
                     lit("-c"),
                     Arg::Value("configuration".into()),
                     when("output", "one file", &["-r", &dotnet_runtime(), "--self-contained", "true", "-p:PublishSingleFile=true", "-p:IncludeNativeLibrariesForSelfExtract=true"]),
+                    when("configuration", "Release", &["-p:ContinuousIntegrationBuild=true"]),
                 ],
             )],
         ),
@@ -827,6 +828,9 @@ fn job_of(root: &Path, exe: &Executable, title: String) -> Job {
         (Kind::Npm, _) => (String::new(), Vec::new(), Vec::new()),
     };
     let (mut params, mut steps) = (params, steps);
+    for step in &mut steps {
+        step.args.push(Arg::SourceDate);
+    }
     params.push(choice("then", &["build", "run", "run as the system runs it"]));
     params.push(Param { key: "folder".into(), kind: "dir", choices: Vec::new(), default: String::new(), required: false });
     steps.push(Step { program: Program::Made { system: false }, args: vec![Arg::Only("then".into(), "run".into())] });
@@ -886,9 +890,20 @@ fn output_of<S: AsRef<std::ffi::OsStr>>(tool: &str, name: &str, args: &[S]) -> R
     Ok(out.stdout)
 }
 
-/// The folder Cargo builds the package of `manifest` into, as `cargo metadata` says.
+/// The folder Cargo builds the package of `manifest` into, as `cargo metadata` says run in the
+/// package's folder, where Cargo reads the package's own settings as its build does.
 fn cargo_target(manifest: &Path) -> Result<PathBuf, String> {
-    let out = output_of("rust", "cargo", &[Path::new("metadata"), Path::new("--no-deps"), Path::new("--format-version"), Path::new("1"), Path::new("--offline"), Path::new("--manifest-path"), manifest])?;
+    let mut cmd = Command::new(program("rust", "cargo")?);
+    cmd.args(["metadata", "--no-deps", "--format-version", "1", "--offline", "--manifest-path"]).arg(manifest);
+    if let Some(folder) = manifest.parent() {
+        cmd.current_dir(folder);
+    }
+    crate::runner::quiet(&mut cmd);
+    let said = cmd.output().map_err(|error| format!("cargo metadata: {error}"))?;
+    if !said.status.success() {
+        return Err(format!("cargo metadata: {}", String::from_utf8_lossy(&said.stderr).trim()));
+    }
+    let out = said.stdout;
     let said: Value = serde_json::from_slice(&out).map_err(|error| format!("cargo metadata: {error}"))?;
     said["target_directory"].as_str().map(PathBuf::from).ok_or_else(|| "cargo metadata names no target_directory".to_string())
 }
@@ -974,6 +989,172 @@ pub fn advice(id: &str, lines: &[String]) -> Vec<String> {
         said.push(format!("PyInstaller is not in the Python that runs it, {python}; `\"{python}\" -m pip install pyinstaller` installs it there"));
     }
     said
+}
+
+/// A setting of how the programs a build makes are signed, `signing.<key>` in settings.json in
+/// orior's own folder: `windows`, a certificate's thumbprint in the reader's store or the path of a
+/// .pfx file, whose password comes from ORIOR_SIGN_PASSWORD and from no file; `timestamp`, the
+/// address of the timestamp server a Windows signature is stamped by; `macos`, the identity
+/// codesign signs with; and `notarize`, the keychain profile notarytool sends the program with.
+fn signing(key: &str) -> Option<String> {
+    let path = crate::home::folder()?.join("settings.json");
+    let map: serde_json::Map<String, Value> = serde_json::from_str(&fs::read_to_string(path).ok()?).ok()?;
+    map.get(&format!("signing.{key}")).and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()).map(str::to_string)
+}
+
+/// Whether the programs a build makes on this system are signed: where the settings name a
+/// certificate for it.
+pub fn signs() -> bool {
+    if cfg!(windows) {
+        signing("windows").is_some()
+    } else if cfg!(target_os = "macos") {
+        signing("macos").is_some()
+    } else {
+        false
+    }
+}
+
+/// The commands that sign the program at `file` as the settings say, each with the line shown for
+/// it, a password not shown: on Windows SignTool's; on macOS codesign's, then the program zipped and
+/// sent to Apple's notary service where a profile is named.
+pub fn sign_steps(file: &Path) -> Result<Vec<(Command, String)>, String> {
+    let shown_file = file.display().to_string();
+    let mut steps = Vec::new();
+    if cfg!(windows) {
+        let certificate = signing("windows").ok_or("settings.json names no certificate under signing.windows")?;
+        let mut cmd = Command::new(program("signtool", "signtool")?);
+        let mut shown = vec!["signtool".to_string(), "sign".into(), "/fd".into(), "sha256".into()];
+        cmd.args(["sign", "/fd", "sha256"]);
+        let as_file = Path::new(&certificate);
+        if as_file.is_file() || [".pfx", ".p12"].iter().any(|ext| certificate.to_lowercase().ends_with(ext)) {
+            cmd.arg("/f").arg(as_file);
+            shown.extend(["/f".into(), certificate.clone()]);
+            if let Some(password) = std::env::var_os("ORIOR_SIGN_PASSWORD") {
+                cmd.arg("/p").arg(password);
+                shown.extend(["/p".into(), "<ORIOR_SIGN_PASSWORD>".into()]);
+            }
+        } else {
+            let thumbprint: String = certificate.chars().filter(|char| char.is_ascii_hexdigit()).collect();
+            cmd.args(["/sha1", &thumbprint]);
+            shown.extend(["/sha1".into(), thumbprint]);
+        }
+        if let Some(server) = signing("timestamp") {
+            cmd.args(["/tr", &server, "/td", "sha256"]);
+            shown.extend(["/tr".into(), server, "/td".into(), "sha256".into()]);
+        }
+        cmd.arg(file);
+        shown.push(shown_file);
+        steps.push((cmd, shown.join(" ")));
+    } else if cfg!(target_os = "macos") {
+        let identity = signing("macos").ok_or("settings.json names no identity under signing.macos")?;
+        let mut cmd = Command::new("codesign");
+        cmd.args(["--force", "--options", "runtime", "--timestamp", "--sign", &identity]).arg(file);
+        steps.push((cmd, format!("codesign --force --options runtime --timestamp --sign \"{identity}\" {shown_file}")));
+        if let Some(profile) = signing("notarize") {
+            let zip = file.with_extension("zip");
+            let mut pack = Command::new("ditto");
+            pack.args(["-c", "-k", "--keepParent"]).arg(file).arg(&zip);
+            steps.push((pack, format!("ditto -c -k --keepParent {shown_file} {}", zip.display())));
+            let mut send = Command::new("xcrun");
+            send.args(["notarytool", "submit"]).arg(&zip).args(["--keychain-profile", &profile, "--wait"]);
+            steps.push((send, format!("xcrun notarytool submit {} --keychain-profile {profile} --wait", zip.display())));
+        }
+    }
+    Ok(steps)
+}
+
+/// What a signed program can be told of its signature: on Windows whether the system trusts it, as
+/// SignTool's own check says; on macOS that a program outside an app, a disk image or an installer
+/// cannot hold its notarization ticket, and Gatekeeper asks Apple for it as the program opens.
+pub fn signed_said(file: &Path) -> Vec<String> {
+    let mut said = Vec::new();
+    if cfg!(windows) {
+        let checked = Command::new(program("signtool", "signtool").unwrap_or_default()).args(["verify", "/pa"]).arg(file).output();
+        if let Ok(out) = checked {
+            if out.status.success() {
+                said.push("Windows trusts the program's signature".to_string());
+            } else {
+                let reason = String::from_utf8_lossy(&out.stderr).lines().chain(String::from_utf8_lossy(&out.stdout).lines()).map(str::trim).find(|line| line.starts_with("SignTool Error")).map(str::to_string).unwrap_or_default();
+                said.push(format!("the program is signed, and Windows does not trust the signature: {reason}; a certificate from an authority Windows trusts, and a reputation built as the program is downloaded, keep SmartScreen from warning"));
+            }
+        }
+    } else if cfg!(target_os = "macos") && signing("notarize").is_some() {
+        said.push("a program outside an app, a disk image or an installer cannot hold its notarization ticket: Gatekeeper asks Apple for it as the program opens, online".to_string());
+    }
+    said
+}
+
+/// The places two builds of a program differ, as ranges of bytes, the first `most` of them, and
+/// the count of bytes that differ; files of two lengths differ from the shorter one's end as well.
+fn differences(old: &[u8], new: &[u8], most: usize) -> (Vec<(usize, usize)>, usize) {
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    let mut count = 0;
+    let mut open: Option<usize> = None;
+    let shared = old.len().min(new.len());
+    for at in 0..shared {
+        if old[at] != new[at] {
+            count += 1;
+            open.get_or_insert(at);
+        } else if let Some(start) = open.take() {
+            ranges.push((start, at));
+        }
+    }
+    if let Some(start) = open {
+        ranges.push((start, shared));
+    }
+    if old.len() != new.len() {
+        count += old.len().max(new.len()) - shared;
+        ranges.push((shared, old.len().max(new.len())));
+    }
+    let shown = ranges.into_iter().take(most).collect();
+    (shown, count)
+}
+
+/// Compares the program a build made with the last build of the same commit, where the tree's
+/// tracked files hold no change since it, and keeps this build for the next: in
+/// build/orior/builds/, one commit's copy for each job. Says whether the two are the same byte for
+/// byte, or where they differ, the header's time stamp named where a Windows program's differs.
+pub fn compare_build(root: &Path, id: &str, file: &Path) -> Vec<String> {
+    let Some((commit, _, true)) = crate::git::head(root) else { return Vec::new() };
+    let slug: String = id.chars().map(|char| if char.is_alphanumeric() || char == '.' || char == '-' { char } else { '_' }).collect();
+    let folder = root.join("build").join("orior").join("builds").join(slug);
+    let name = file.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
+    let kept = folder.join(&commit).join(&name);
+    let Ok(new) = fs::read(file) else { return Vec::new() };
+    let mut said = Vec::new();
+    if let Ok(old) = fs::read(&kept) {
+        let short = &commit[..commit.len().min(10)];
+        let (ranges, count) = differences(&old, &new, 3);
+        if count == 0 {
+            said.push(format!("{name} is the same, byte for byte, as the last build of commit {short}"));
+        } else {
+            let stamp = new.starts_with(b"MZ").then(|| u32_at_le(&new, 0x3C)).flatten().map(|pe| pe as usize + 8..pe as usize + 12);
+            let places: Vec<String> = ranges
+                .iter()
+                .map(|(start, end)| {
+                    let field = stamp.as_ref().filter(|stamp| stamp.start < *end && *start < stamp.end).map(|_| " (the header's time stamp)").unwrap_or_default();
+                    format!("{start:#x} to {end:#x}{field}")
+                })
+                .collect();
+            let mut line = format!("{name} differs from the last build of commit {short} in {count} bytes, first at {}", places.join(", "));
+            // MSVC's linker writes its Rich header between the DOS stub and the PE header.
+            let msvc = stamp.as_ref().is_some_and(|stamp| new.get(0x80..stamp.start).is_some_and(|head| head.windows(4).any(|four| four == b"Rich")));
+            let stamped = ranges.iter().any(|(start, end)| stamp.as_ref().is_some_and(|stamp| stamp.start < *end && *start < stamp.end));
+            if msvc && stamped {
+                line.push_str("; MSVC's linker writes the time and a new id into each build, and its /Brepro flag keeps them out: -C link-arg=/Brepro in the tree's rustflags, or the flag among a C or C++ build's linker flags");
+            }
+            said.push(line);
+        }
+    }
+    let _ = fs::remove_dir_all(&folder);
+    if fs::create_dir_all(folder.join(&commit)).is_ok() {
+        let _ = fs::write(&kept, &new);
+    }
+    said
+}
+
+fn u32_at_le(bytes: &[u8], at: usize) -> Option<u32> {
+    bytes.get(at..at + 4).map(|four| u32::from_le_bytes([four[0], four[1], four[2], four[3]]))
 }
 
 /// The variables a tree's .env sets, each `NAME=value` line in order: a leading `export` taken off,

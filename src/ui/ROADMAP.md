@@ -13,20 +13,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Running and measuring
 
-1. **Executables.** A program built into a file that runs on its own, from the tree's build scripts, with the build's output in a job: Cargo's binaries, CMake's and Meson's executables, Go's main packages, .NET's programs, Zig's, a PyInstaller spec's, and a package.json's bin built by Node's own single executable, `bun build --compile` or `deno compile`, whichever the tree uses.
-   - A program that runs from the editor and fails when it is opened on its own, its DLLs or shared libraries found only through the toolchain folders the editor puts on PATH: the job lists each library the file loads from outside its own folder and the system's, and Run as the System Runs It starts it with the system's PATH alone.
-   - DLLs left where the build put them and not beside the program: Copy Libraries Beside It copies each one the program loads next to the file, by CMake's `TARGET_RUNTIME_DLLS` where CMake names them.
-   - A Linux program that finds its libraries by a path on the machine that built it: the job lists each such path, and each library the loader cannot find from the file's own folder.
-   - A Linux program built on a new system that asks for a newer glibc than the machine it goes to: the job says the newest glibc the file asks for, and offers Rust's musl build and Go's build with cgo off, which ask for none.
-   - A frozen Python program that fails on an import the packager missed, a module imported by name at run time: the job reads PyInstaller's warnings and the frozen program's own ImportError, and gives each missing module with the hidden import that adds it to the spec.
-   - A one-file program that starts slowly, unpacking itself to a temporary folder on every start: the job says the program's time to start, and builds it as one folder where the reader chooses.
-   - A .NET program meant to be one file that leaves its native DLLs beside it: Publish as One File sets the native libraries inside it as well.
-   - A program the system warns of as it opens, SmartScreen on Windows and Gatekeeper on macOS, for want of a signature: the build signs the file with the reader's certificate where one is named, and on macOS notarizes it and says where the ticket cannot be stapled, as on a bare program outside an app, a disk image or an installer.
-   - Tools a tree's package manager installs in the tree, in `node_modules/.bin`, `vendor/bin`, or the environment's `bin` or `Scripts`, that an editor's terminal and runs do not find: orior puts the tree's own tool folders first on the PATH of its terminals and jobs, and the job's line names them.
-   - A run that starts in the wrong folder, or without the variables in the tree's `.env`: a program runs in the folder chosen, the tree's by default, with the tree's `.env` read into its environment, and its line shows both.
-   - Two builds of one commit that differ, by the time or the folder they were built in: the build sets `SOURCE_DATE_EPOCH` from the commit and maps the tree's folder out of the file, and Compare Builds says where two files differ.
-   - A program for another system or processor, which cgo and C dependencies make hard to build: the job builds Go and Rust for the target chosen, with `zig cc` as the C compiler where C is in the build.
-2. **Deployments.** A build's files sent to the places a tree names, to several at once.
+1. **Deployments.** A build's files sent to the places a tree names, to several at once.
    - An upload over a newer file on the server that loses the changes made there: before a file goes, its copy there is compared with the copy last sent, and one changed since is shown as a difference to keep or to replace.
    - Files renamed or deleted in the tree that stay on the server: the deployment lists the files there that the tree no longer holds, each to delete or to keep.
    - Rules for which files go, and where, that are hard to see: before anything is sent, the deployment lists every file it sends, where each goes, and each file it leaves out with the rule that leaves it out.

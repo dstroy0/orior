@@ -60,6 +60,11 @@ pub enum Arg {
     /// No argument: the value of a param, where one is given other than the value named, set in the
     /// step's environment under the param's key.
     EnvBut(String, String),
+    /// No argument: the step runs in the folder named, a path in the tree, and not its top folder.
+    Folder(String),
+    /// No argument: SOURCE_DATE_EPOCH set to the time of the commit the tree stands at, which a
+    /// build writes in place of the time it runs, where the tree is in git and it is not set.
+    SourceDate,
     /// No argument: the C compiler and linker for the system and processor the job's params choose,
     /// set in the step's environment where they are another machine's, for a build of the kind
     /// named, "go" or "rust", as executables.rs gives them.

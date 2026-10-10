@@ -88,6 +88,12 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
 default.
 
+The programs a tree's builds make are signed where `settings.json` names how: `signing.windows`, a
+certificate's thumbprint in the reader's store or the path of a `.pfx` file, its password taken from
+`ORIOR_SIGN_PASSWORD` and from no file; `signing.timestamp`, the address of a timestamp server;
+`signing.macos`, the identity `codesign` signs with; and `signing.notarize`, the keychain profile
+`notarytool` sends the program with.
+
 ## The command line
 
 The program is `orior`, and it is the command line as well as the window. Given no words it opens
