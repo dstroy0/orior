@@ -83,6 +83,8 @@ const state = {
   drawn: null,
   // The keys of the menus' commands for the editor.
   editorKeys: [],
+  // The keys the reader bound, over the editor's own.
+  boundKeys: [],
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
@@ -1673,6 +1675,7 @@ export async function startEdit(defs) {
   state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
+  state.editor.bindKeys(state.boundKeys);
   // The debugger's marks in the gutter, by the file a session shows, a split's the same as the
   // session it was made from. A file as a commit left it has none.
   const fileOfSession = (s) => state.tabs.find((tab) => tab.session === (s?.of ?? s) && !tab.commit)?.file ?? null;
@@ -1725,6 +1728,7 @@ export async function startEdit(defs) {
   state.lendTo = (editor) => {
     editor.onDefinition = state.editor.onDefinition;
     editor.addKeys(state.editorKeys);
+    editor.bindKeys(state.boundKeys);
     for (const name of ["breakpointsOf", "bookmarksOf", "pausedOf", "onLock"]) {
       editor[name] = state.editor[name];
     }
@@ -2063,6 +2067,14 @@ function editorItems() {
 export function bindEditorKeys(list) {
   state.editorKeys = list;
   state.editor?.addKeys(list);
+}
+
+// Binds the reader's keys in the editor and its split, in place of those bound before, each `run`
+// told the editor its keys were pressed in.
+export function bindReaderKeys(list) {
+  state.boundKeys = list;
+  state.editor?.bindKeys(list);
+  state.split?.editor.bindKeys(list);
 }
 
 // What the menu bar does to the editor: the editor where a file of text is open in it, saving one

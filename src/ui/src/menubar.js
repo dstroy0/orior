@@ -26,7 +26,8 @@ import { showCreate, showInit } from "./create.js";
 import { say } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { debugFile, debugging, isPaused, restartDebug, step, stopDebug, toggleBreakpointHere, toggleDebugPanel } from "./debug.js";
-import { bindEditorKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
+import { bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving } from "./edit.js";
+import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
 import { openPalette, startPalette } from "./palette.js";
 import { showPreferences } from "./preferences.js";
@@ -259,6 +260,9 @@ const COMMANDS = {
   "terminal-view": () => toggleTerminal(),
   scheme: (args) => (args[0] === "light" || args[0] === "dark" ? setScheme(args[0]) : toggleScheme()),
   "scheme-system": (args) => setFollowSystem(onOff(args) ?? !followsSystem()),
+  "macro-record": () => recordMacro(),
+  "macro-play": (args) => playBack(Number.parseInt(args[0], 10) || 1, args.slice(1).join(" ")),
+  "macro-keep": (args) => keepLast(args.join(" ")),
   "split-right": () => (showView("edit"), editing().split("right")),
   "split-down": () => (showView("edit"), editing().split("down")),
   unsplit: () => editing().unsplit(),
@@ -334,6 +338,7 @@ const CHECKS = {
   "auto-report": () => state.autoReport,
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),
+  "macro-recording": recording,
 };
 
 // What a command needs before it can act, by the name commands.json gives the need.
@@ -351,7 +356,130 @@ const NEEDS = {
   debugged: () => debugging() || Boolean(editing().active),
   paused: () => isPaused(),
   running: () => debugging() && !isPaused(),
+  macro: () => Boolean(lastMacro() && editing().editor),
 };
+
+// Edit, Macros: recording starts in the editor and stops on a second press, and the last macro
+// recorded plays back, or is kept under a name. Each kept macro is listed under them, to play once or
+// many times, to bind keys to, or to forget.
+function recordMacro() {
+  const { editor } = editing();
+  if (!editor && !recording()) {
+    return;
+  }
+  const steps = toggleRecording(editor);
+  say(steps === null ? "Recording a macro: Record Macro again stops it." : steps.length ? `Recorded a macro of ${steps.length} ${steps.length === 1 ? "step" : "steps"}.` : "Nothing was recorded.");
+}
+
+async function playBack(times, name) {
+  const steps = name ? keptMacros().find((one) => one.name === name)?.steps : lastMacro();
+  if (!steps) {
+    say(name ? `No macro is kept as ${name}.` : "No macro is recorded yet.", { failed: true });
+    return;
+  }
+  showView("edit");
+  editing().editor?.focus();
+  await playMacro(editing().editor, steps, times);
+}
+
+async function keepLast(given) {
+  const name = given || (await askFor("Keep the last macro as", ""));
+  if (name) {
+    keepMacro(name);
+    say(`Kept the last macro as ${name}.`);
+  }
+}
+
+// The kept macros as items of Edit, Macros, under a line.
+function macroItems() {
+  const items = keptMacros().map((one) => ({
+    label: one.name,
+    items: [
+      { label: "Play", keys: one.keys || undefined, run: () => playBack(1, one.name) },
+      {
+        label: "Play Many Times…",
+        run: async () => {
+          const times = Number.parseInt(await askFor(`Times to play ${one.name}`, "2"), 10);
+          if (times > 0) {
+            playBack(times, one.name);
+          }
+        },
+      },
+      {
+        label: "Keys…",
+        run: async () => {
+          const keys = await askKeys(`Keys for ${one.name}`);
+          if (keys !== null) {
+            setMacroKeys(one.name, keys);
+          }
+        },
+      },
+      { label: "Forget", run: () => forgetMacro(one.name) },
+    ],
+  }));
+  return items.length ? ["-", ...items] : [];
+}
+
+// Binds each kept macro's keys in the editor, to play it where they are pressed.
+function bindMacros() {
+  bindReaderKeys(keptMacros().filter((one) => one.keys).map((one) => ({ keys: one.keys, run: (editor) => playMacro(editor, one.steps) })));
+}
+
+// The items commands.json names to be filled in as their menu opens.
+const FILLS = { macros: macroItems };
+
+// A sheet that asks for a line of text, with `start` in it. Answers the text, or null where it was
+// closed with nothing taken.
+function askFor(label, start) {
+  return new Promise((done) => {
+    const field = Object.assign(document.createElement("input"), { className: "report-field", type: "text", value: start, spellcheck: false, ariaLabel: label });
+    const body = document.createElement("form");
+    body.className = "sheet-ask";
+    const row = Object.assign(document.createElement("label"), { className: "report-row" });
+    row.append(Object.assign(document.createElement("span"), { textContent: label }), field);
+    body.append(row);
+    let answer = null;
+    body.addEventListener("submit", (event) => {
+      event.preventDefault();
+      answer = field.value.trim() || null;
+      dialog.close();
+    });
+    const dialog = sheet(body);
+    dialog.addEventListener("close", () => done(answer));
+    field.focus();
+    field.select();
+  });
+}
+
+// A sheet that takes the next keys pressed, as the menus write keys: Ctrl, Shift and Alt, then the
+// key. Backspace alone answers no keys, and Escape answers null.
+function askKeys(label) {
+  return new Promise((done) => {
+    const body = document.createElement("div");
+    body.className = "sheet-ask";
+    const shown = Object.assign(document.createElement("kbd"), { textContent: "…" });
+    body.append(Object.assign(document.createElement("p"), { textContent: label }), shown);
+    let answer = null;
+    const dialog = sheet(body);
+    dialog.addEventListener("keydown", (event) => {
+      if (["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === "Escape") {
+        dialog.close();
+        return;
+      }
+      const named = KEY_NAMES[event.code] ?? (/^Key[A-Z]$/.test(event.code) ? event.code.slice(3) : /^Digit\d$/.test(event.code) ? event.code.slice(5) : event.key.length === 1 ? event.key.toUpperCase() : event.key);
+      answer = event.key === "Backspace" && !event.ctrlKey && !event.altKey && !event.shiftKey ? "" : [event.ctrlKey && "Ctrl", event.shiftKey && "Shift", event.altKey && "Alt", named].filter(Boolean).join("+");
+      shown.textContent = answer || "…";
+      window.setTimeout(() => dialog.close(), 300);
+    });
+    dialog.addEventListener("close", () => done(answer));
+    dialog.focus();
+  });
+}
 
 // Runs a command of a menu, as its item does, with the words the command line gave it.
 export function runCommand(command, args = []) {
@@ -368,6 +496,11 @@ function paletteCommands() {
       }
       const label = item.labels?.[scheme()] ?? item.label;
       found.push({ key: `${menu.title}/${item.command}`, menu: menu.title, label: label.replace(/…$/, ""), keys: item.keys, run: () => runCommand(item.command) });
+    }
+  }
+  if (editing().editor) {
+    for (const one of keptMacros()) {
+      found.push({ key: `Macros/${one.name}`, menu: "Macros", label: one.name, keys: one.keys || undefined, run: () => playBack(1, one.name) });
     }
   }
   return found;
@@ -392,7 +525,7 @@ function itemsOf(menu) {
     item === "-"
       ? "-"
       : item.items
-        ? { label: item.label, items: item.items.map(shown) }
+        ? { label: item.label, items: item.items.flatMap(filled) }
         : {
             label: item.labels?.[scheme()] ?? item.label,
             keys: item.keys,
@@ -400,7 +533,9 @@ function itemsOf(menu) {
             disabled: Boolean(item.needs && !NEEDS[item.needs]?.()),
             run: () => runCommand(item.command),
           };
-  const items = (menu.items ?? []).map(shown);
+  // An entry to be filled in gives its items as the menu opens.
+  const filled = (item) => (item.fill ? (FILLS[item.fill]?.() ?? []) : [shown(item)]);
+  const items = (menu.items ?? []).flatMap(filled);
   const groups = menu.groups ?? [];
   let jobs;
   if (menu.split) {
@@ -588,6 +723,9 @@ function leaveBar(refocus) {
 
 // The key names commands.json writes, as the page names the key: a letter or digit by its place on
 // the keyboard, and the rest by name.
+// The menus' names for keys a code names otherwise, the other way about from KEY_CODES.
+const KEY_NAMES = { Backquote: "`", Backslash: "\\", Slash: "/", ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right" };
+
 const KEY_CODES = { "`": "Backquote", "\\": "Backslash", "/": "Slash", Up: "ArrowUp", Down: "ArrowDown", Left: "ArrowLeft", Right: "ArrowRight" };
 
 // Whether an event is the keys an item lists. Two presses, as Ctrl+K Ctrl+0, are the editor's.
@@ -652,7 +790,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   state.openFolder = openFolder;
   state.menus = JSON.parse(await commands).menus;
   // Each menu's commands in one list, those of its groups among them.
-  const flat = (items) => items.flatMap((item) => (item === "-" ? [] : item.items ? flat(item.items) : [item]));
+  const flat = (items) => items.flatMap((item) => (item === "-" || item.fill ? [] : item.items ? flat(item.items) : [item]));
   state.menus.forEach((menu) => (menu.all = flat(menu.items ?? [])));
   bindEditorKeys(
     state.menus.flatMap((menu) =>
@@ -735,6 +873,8 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     wait = window.setTimeout(drawMenubar, 120);
   });
   drawMenubar();
+  bindMacros();
+  onMacros(bindMacros);
   performance.mark("keys-bound");
   state.autoReport = await invoke("report_auto").catch(() => true);
   const [asked, question] = await invoke("report_asked").catch(() => [true, ""]);

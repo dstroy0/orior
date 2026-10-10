@@ -51,6 +51,16 @@
         { "label": "Copy", "command": "copy", "keys": "Ctrl+C", "needs": "editor" },
         { "label": "Paste", "command": "paste", "keys": "Ctrl+V", "needs": "editor" },
         "-",
+        {
+          "label": "Macros",
+          "items": [
+            { "label": "Record Macro", "command": "macro-record", "needs": "editor", "checks": "macro-recording" },
+            { "label": "Play Back Last Macro", "command": "macro-play", "args": "[times] [name]", "needs": "macro" },
+            { "label": "Keep Last Macro…", "command": "macro-keep", "args": "[name]", "needs": "macro" },
+            { "fill": "macros" }
+          ]
+        },
+        "-",
         { "label": "Find", "command": "find", "keys": "Ctrl+F", "needs": "editor" },
         { "label": "Replace", "command": "replace", "keys": "Ctrl+H", "needs": "editor" },
         "-",

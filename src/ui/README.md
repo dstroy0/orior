@@ -74,7 +74,7 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 
 | what | where in it |
 | --- | --- |
-| the settings Preferences and the menus set, and whether errors file on their own | `settings.json` |
+| the settings Preferences and the menus set, the macros kept, and whether errors file on their own | `settings.json` |
 | each theme of the reader's | `themes/`, a file each, named for the theme |
 | the reader's plugins | `plugins/`, a folder each |
 | the stylesheet laid over the window's own | `user.css` |

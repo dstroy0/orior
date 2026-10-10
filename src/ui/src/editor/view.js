@@ -83,6 +83,17 @@ const CODES = {
   NumpadEnter: "Enter", ArrowLeft: "Left", ArrowRight: "Right", ArrowUp: "Up", ArrowDown: "Down",
 };
 
+// Keys as the menus write them, Ctrl+Shift+K or Ctrl+K Ctrl+I, named as the key map names them.
+function keysName(keys) {
+  const named = (press) => {
+    const parts = press.split("+");
+    const key = parts.pop() || "+";
+    const held = [parts.includes("Ctrl") && "Mod", parts.includes("Alt") && "Alt", parts.includes("Shift") && "Shift"].filter(Boolean);
+    return [...held, key].join("+");
+  };
+  return keys.split(" ").map(named).join(" ");
+}
+
 // A key as the key map names it: Mod is Ctrl, or Cmd on a Mac, then Alt and Shift, then the key.
 function keyName(event) {
   const parts = [];
@@ -1625,6 +1636,14 @@ export class Editor {
 
   copy(event, cut) {
     event.preventDefault();
+    const text = this.takeOut(cut);
+    event.clipboardData.setData("text/plain", text.replace(/\n/g, this.doc.eol));
+    this.recording?.push({ cut });
+  }
+
+  // What a copy takes, the selections' text or for none the whole lines the cursors are on, kept for
+  // a paste; a cut takes it out of the text as well.
+  takeOut(cut) {
     const doc = this.doc;
     const sels = this.s.selections;
     const whole = sels.every(empty);
@@ -1635,7 +1654,6 @@ export class Editor {
       parts = sels.filter((sel) => !empty(sel)).map((sel) => doc.slice(startOf(sel), endOfSel(sel)));
     }
     const text = whole ? parts.join("") : parts.join("\n");
-    event.clipboardData.setData("text/plain", text.replace(/\n/g, doc.eol));
     this.clip = { text, whole, parts };
     if (cut) {
       if (whole) {
@@ -1644,14 +1662,21 @@ export class Editor {
         this.edit((sel) => (empty(sel) ? null : { from: startOf(sel), to: endOfSel(sel), text: "" }), null);
       }
     }
+    return text;
   }
 
   paste(event) {
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
-    if (!text) {
-      return;
+    if (text) {
+      this.recording?.push({ paste: text });
+      this.pasteText(text);
     }
+  }
+
+  // Puts text at each selection as a paste does: whole lines copied above the cursors' lines, a copy
+  // of as many selections as there are one part to each, and the text at each otherwise.
+  pasteText(text) {
     const sels = this.s.selections;
     const clip = this.clip?.text === text ? this.clip : null;
     if (clip?.whole && sels.every(empty)) {
@@ -1777,16 +1802,15 @@ export class Editor {
   // Binds keys written as a menu lists them, such as "Shift+Alt+F" or "Ctrl+K Ctrl+I", each to its
   // `run`. A key the editor already binds keeps its own.
   addKeys(list) {
-    const named = (press) => {
-      const parts = press.split("+");
-      const key = parts.pop() || "+";
-      const held = [parts.includes("Ctrl") && "Mod", parts.includes("Alt") && "Alt", parts.includes("Shift") && "Shift"].filter(Boolean);
-      return [...held, key].join("+");
-    };
     for (const { keys, run } of list) {
-      const name = keys.split(" ").map(named).join(" ");
-      this.keys[name] ??= run;
+      this.keys[keysName(keys)] ??= run;
     }
+  }
+
+  // The keys the reader binds, in place of any the reader bound before, each over the editor's own
+  // for the same keys.
+  bindKeys(list) {
+    this.bound = Object.fromEntries(list.map(({ keys, run }) => [keysName(keys), run]));
   }
 
   onKey(event) {
@@ -1799,22 +1823,55 @@ export class Editor {
       event.preventDefault();
       return;
     }
-    let found;
+    const full = this.chord ? `${this.chord} ${name}` : name;
+    // A key the reader bound is told which editor it was pressed in.
+    const own = this.bound[full];
+    const found = own ? () => own(this) : this.keys[full];
     if (this.chord) {
-      found = this.keys[`${this.chord} ${name}`];
       if (!/^(?:Mod|Alt|Shift|Ctrl)\+(?:Control|Meta|Alt|Shift)$|^(?:Control|Meta|Alt|Shift)$/.test(name)) {
         this.chord = null;
       }
       if (!found) {
         return;
       }
-    } else {
-      found = this.keys[name];
     }
     if (found) {
       event.preventDefault();
+      this.recording?.push({ key: full });
       found();
     }
+  }
+
+  // Recording: each key the editor acts on, each text typed, each cut, copy and paste, until it stops
+  // and gives the steps.
+  record() {
+    this.recording = [];
+  }
+
+  stopRecording() {
+    const steps = this.recording ?? [];
+    this.recording = null;
+    return steps;
+  }
+
+  // Plays steps back as the keys and the typing did, a paste after a cut or a copy among them taking
+  // what that cut or copy took, and any other the text it pasted as recorded.
+  async play(steps) {
+    let clip = null;
+    for (const step of steps) {
+      if (step.key) {
+        const own = this.bound[step.key];
+        await (own ? own(this) : this.keys[step.key]?.());
+        this.chord = null;
+      } else if (step.text) {
+        this.type(step.text);
+      } else if (step.cut !== undefined) {
+        clip = this.takeOut(step.cut);
+      } else if (step.paste !== undefined) {
+        this.pasteText(clip ?? step.paste);
+      }
+    }
+    this.schedule();
   }
 
   // Pointer.
@@ -2032,6 +2089,8 @@ export class Editor {
 
   bind() {
     this.keys = this.keyMap();
+    this.bound = {};
+    this.recording = null;
     const input = this.input;
     // A key draws what it changed in its own event, and never waits on the frame after.
     const drawn = () => this.pending && this.paint();
@@ -2050,6 +2109,7 @@ export class Editor {
       const text = event.data || input.value;
       input.value = "";
       if (text && this.s) {
+        this.recording?.push({ text });
         this.type(text);
       }
     });
@@ -2061,6 +2121,7 @@ export class Editor {
       const text = input.value.replace(/\r\n?/g, "\n");
       input.value = "";
       if (text && this.s) {
+        this.recording?.push({ text });
         this.type(text);
       }
       drawn();

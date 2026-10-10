@@ -4039,6 +4039,26 @@ textarea.report-field {
   text-align: center;
 }
 
+/* A sheet that asks for a name, a count or keys: what it asks over the field, or over the keys as
+ * they are pressed. */
+.sheet-ask {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 22rem;
+  padding: 0.4rem 0.6rem 0;
+  font: 13px var(--head);
+  color: var(--fg-2);
+}
+
+.sheet-ask kbd {
+  justify-self: start;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: 13px var(--code);
+  color: var(--fg);
+}
+
 .sheet-about .mark {
   font-size: 2.6rem;
   line-height: 1;
