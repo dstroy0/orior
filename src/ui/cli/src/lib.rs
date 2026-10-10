@@ -35,6 +35,7 @@ pub mod root;
 pub mod run_file;
 pub mod runner;
 pub mod servers;
+pub mod shape;
 pub mod structure;
 pub mod symbols;
 pub mod toolchains;

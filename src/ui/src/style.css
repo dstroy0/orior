@@ -4474,6 +4474,78 @@ textarea.report-field {
   color: var(--fg-2);
 }
 
+/* Search Structurally: the pattern and the template in the code's font, where to look and the
+ * buttons on one row, then a row a match, its file and line, and the line's text. */
+.shape-sheet {
+  display: grid;
+  gap: 0.45rem;
+  width: min(44rem, 80vw);
+}
+
+.shape-sheet h3 {
+  margin: 0 0 0.2rem;
+  font: 600 14px var(--head);
+  color: var(--fg);
+}
+
+.shape-field {
+  resize: vertical;
+  font-family: var(--code);
+}
+
+.shape-acts {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.shape-acts select {
+  flex: 1 1 auto;
+}
+
+.shape-said {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.shape-list {
+  display: grid;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.shape-row {
+  display: flex;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.2rem 0.4rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  font: 12px var(--code);
+  text-align: left;
+  cursor: pointer;
+}
+
+.shape-row:hover,
+.shape-row:focus-visible {
+  background: var(--line);
+}
+
+.shape-row .where {
+  flex: none;
+  color: var(--fg-3);
+}
+
+.shape-row .line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
 /* Change Signature: a row a parameter, its text in the code's font, an added one's value beside it,
  * and its buttons to move it and take it out. */
 .signature-sheet h3 {

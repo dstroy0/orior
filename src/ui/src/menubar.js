@@ -317,6 +317,7 @@ const COMMANDS = {
   "inline-variable": inEditor(() => editing().inlineVariable()),
   "change-signature": inEditor(() => editing().changeSignature(sheet)),
   "move-declaration": inEditor(() => editing().moveDeclaration(askFor)),
+  "shape-search": inEditor(() => editing().shapeSearch(sheet)),
   "quick-fix": inEditor(() => editing().quickFix()),
   "parameter-info": inEditor(() => editing().parameterInfo()),
   "quick-doc": inEditor(() => editing().quickDoc()),

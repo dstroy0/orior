@@ -945,6 +945,11 @@ impl Servers {
         Ok(Some(parse))
     }
 
+    /// The text of a file as the editor holds it, where the editor has it open.
+    pub fn text_of(&self, path: &Path) -> Option<String> {
+        self.texts.lock().ok()?.get(&lsp::key_of(&lsp::uri_of(path))).cloned()
+    }
+
     /// Forgets the parses that came from servers, for each to be asked for again.
     pub fn forget_tokens(&self) {
         if let Ok(mut parses) = self.parses.lock() {

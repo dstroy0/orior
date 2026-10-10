@@ -45,6 +45,7 @@ import { extractConstant, extractVariable, inlineVariable } from "./refactor.js"
 import { extractFunction } from "./extract.js";
 import { changeSignature } from "./signature.js";
 import { moveDeclaration } from "./move.js";
+import { shapeSearch } from "./shapes.js";
 import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -1076,6 +1077,18 @@ function changeSignatureHere(sheet) {
     textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path }).catch(() => null))?.text ?? null,
     apply: applyGroup,
   });
+}
+
+// Search Structurally on the file in the editor last pressed in, and the tree's files in its language.
+function shapeSearchHere(sheet) {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const tab = editor?.s ? tabOfSession(editor.s) : null;
+  const language = editor?.s?.language;
+  if (!tab || !language) {
+    say("Search Structurally reads the code of a file open in a language.");
+    return;
+  }
+  shapeSearch({ sheet, language: language.id, languageName: language.name ?? language.id, path: tab.file, open: (path, line, col) => openAt(path, line, col), apply: applyGroup });
 }
 
 // Move on the file in the editor last pressed in.
@@ -2598,6 +2611,7 @@ export function editing() {
     holdMemory,
     changeSignature: changeSignatureHere,
     moveDeclaration: moveHere,
+    shapeSearch: shapeSearchHere,
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
     hints: (kind) => Boolean(state.editor?.hintKinds[kind]),

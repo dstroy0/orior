@@ -69,6 +69,7 @@
         { "label": "Replace", "command": "replace", "keys": "Ctrl+H", "needs": "editor" },
         "-",
         { "label": "Find in Files", "command": "search", "keys": "Ctrl+Shift+F", "args": "[--case] [--word] [--regex] <text>", "console": true },
+        { "label": "Search Structurally…", "command": "shape-search", "needs": "editor" },
         "-",
         { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" },
         { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true },

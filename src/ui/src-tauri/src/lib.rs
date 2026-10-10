@@ -747,6 +747,41 @@ fn parse_spans(app: State<App>, path: String, from: servers::Place, to: servers:
     app.servers.spans(&root_of(&app)?.join(path), from, to)
 }
 
+/// What Search Structurally found: each match, and each file's edits where a template was given.
+#[derive(serde::Serialize)]
+struct Shapes {
+    found: Vec<orior_cli::shape::Found>,
+    files: Vec<servers::FileEdit>,
+}
+
+/// Every match of `pattern` in the file `path`, or in every file of the tree in `language` where no
+/// path is given, each file read as the editor holds it or the disk has it; with what `template`
+/// writes in each match's place.
+#[tauri::command(async)]
+fn shape_search(app: State<App>, language: String, pattern: String, template: Option<String>, path: Option<String>) -> Result<Shapes, String> {
+    let root = root_of(&app)?;
+    let files = match path {
+        Some(path) => vec![path],
+        None => {
+            let languages = plugins::languages();
+            files::all(&root).into_iter().filter(|file| Path::new(file).extension().and_then(|ext| languages.get(&ext.to_string_lossy().to_lowercase())).is_some_and(|one| *one == language)).collect()
+        }
+    };
+    let mut shapes = Shapes { found: Vec::new(), files: Vec::new() };
+    for file in files {
+        let full = root.join(&file);
+        let Some(text) = app.servers.text_of(&full).or_else(|| std::fs::read_to_string(&full).ok()) else {
+            continue;
+        };
+        let (found, edits) = orior_cli::shape::search(&language, &file, &text, &pattern, template.as_deref());
+        if !edits.is_empty() {
+            shapes.files.push(servers::FileEdit { path: file.clone(), edits });
+        }
+        shapes.found.extend(found);
+    }
+    Ok(shapes)
+}
+
 /// The classes a parse names, by their index.
 #[tauri::command]
 fn parse_classes() -> Vec<&'static str> {
@@ -1330,6 +1365,7 @@ fn open(launch: Launch) {
             parse_colors,
             parse_spans,
             parse_classes,
+            shape_search,
             calls_of,
             inspect_languages,
             lsp_hover,
