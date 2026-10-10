@@ -6,6 +6,7 @@
 // for a report the reader writes. Where a report went shows in the status bar, its issue a click away.
 
 import { invoke } from "./bridge.js";
+import { linkError } from "./remote.js";
 
 // A script's address, struck from what it says: a report reads the same from any window.
 const ORIGIN = new RegExp(location.origin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
@@ -30,6 +31,9 @@ function drawFiled(filed) {
 }
 
 async function reportError(message, detail) {
+  if (linkError(message)) {
+    return;
+  }
   const filed = await invoke("report_error", { category: "ui", message: message.replace(ORIGIN, ""), detail: detail.replace(ORIGIN, "") }).catch(() => null);
   drawFiled(filed);
 }

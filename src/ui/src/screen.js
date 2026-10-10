@@ -173,6 +173,34 @@ export function coloredHtml(text) {
   return html + (text.slice(from) ? runHtml(text.slice(from), style, false) : "");
 }
 
+// The lines of a text with color codes in it, each as its text with every escape sequence taken
+// out and as the page draws it, in the colors and weight its sequences set, a style carried on from
+// one line to the next.
+export function coloredLines(lines) {
+  const sequence = /\x1b(?:\[([\d;:]*)[ -/]*([@-~])|\][^\x07\x1b]*(?:\x07|\x1b\\)|[ -/]*[0-~])/g;
+  let style = PLAIN;
+  return lines.map((text) => {
+    let plain = "";
+    let html = "";
+    let from = 0;
+    const take = (part) => {
+      if (part) {
+        plain += part;
+        html += runHtml(part, style, false);
+      }
+    };
+    for (const found of text.matchAll(sequence)) {
+      take(text.slice(from, found.index));
+      if (found[2] === "m") {
+        style = restyled(style, found[1] ? found[1].split(/[;:]/).map((part) => (part === "" ? null : Number(part))) : [0]);
+      }
+      from = found.index + found[0].length;
+    }
+    take(text.slice(from));
+    return { text: plain, html };
+  });
+}
+
 function lineHtml(line, cursorAt) {
   let html = "";
   let start = 0;
@@ -198,6 +226,9 @@ function bufferOf(cols, rows, host) {
   const rowsOf = lines.map(() => host.appendChild(document.createElement("div")));
   return { lines, rows: rowsOf, host };
 }
+
+// The longest operating-system command the screen keeps to read.
+const OSC_LONGEST = 4096;
 
 export class Screen {
   // `view` is the scrolling element the screen is drawn in, `answer` what the screen says back to
@@ -261,6 +292,15 @@ export class Screen {
     this.modes = { appCursor: false, wrap: true, cursor: true, paste: false, insert: false };
   }
 
+  // An operating-system command the shell sent: OSC 7, the folder it stands in as a file URL, goes
+  // to `onPlace`; any other is read past.
+  osc(text) {
+    const cut = text.indexOf(";");
+    if (cut > 0 && text.slice(0, cut) === "7") {
+      this.onPlace?.(text.slice(cut + 1));
+    }
+  }
+
   // Reads output from the shell.
   write(text) {
     for (const char of text) {
@@ -299,20 +339,28 @@ export class Screen {
       case "osc":
         if (code === 0x07) {
           this.state = "ground";
+          this.osc(this.sequence);
         } else if (code === 0x1b) {
           this.state = "string-end";
+          this.ending = "osc";
+        } else if (this.sequence.length < OSC_LONGEST) {
+          this.sequence += char;
         }
         return;
       case "dcs":
         if (code === 0x1b) {
           this.state = "string-end";
+          this.ending = "dcs";
         }
         return;
       case "string-end":
         this.state = char === "\\" ? "ground" : "escape";
         if (this.state === "escape") {
           this.escape(char);
+        } else if (this.ending === "osc") {
+          this.osc(this.sequence);
         }
+        this.ending = null;
         return;
       case "charset":
         this.state = "ground";
@@ -352,6 +400,7 @@ export class Screen {
         return;
       case "]":
         this.state = "osc";
+        this.sequence = "";
         return;
       case "P":
         this.state = "dcs";

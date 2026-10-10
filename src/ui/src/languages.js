@@ -11,7 +11,7 @@
 
 import { pos, wordAt, wordBefore } from "./editor/document.js";
 import { compile } from "./editor/tokens.js";
-import { languageForExtension } from "./plugins.js";
+import { languageForExtension, languageForName, languageForPath } from "./plugins.js";
 
 const C11 = [
   "auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern",
@@ -334,7 +334,7 @@ export function registerLanguages(defs) {
     // The language a path opens in.
     languageOf(path) {
       const ext = extOf(path);
-      return own.get(ext) ?? languageForExtension(ext);
+      return own.get(ext) ?? languageForName(path.split(/[\\/]/).pop()) ?? languageForPath(path) ?? languageForExtension(ext);
     },
     // The file type a path is, where the tree defines one.
     typeOf(path) {

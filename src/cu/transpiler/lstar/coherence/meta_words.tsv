@@ -1,0 +1,76 @@
+not	negation operation verb
+nand	negation operation verb
+nor	negation operation verb
+neg	negation operation verb
+unless	negation qualifier concession control exception
+ne	negation comparison
+zero	negation comparison quantity
+nonzero	negation comparison
+error	negation control exception feedback
+add	operation verb
+sub	operation verb
+mul	operation verb
+div	operation verb
+rem	operation verb
+bitand	operation verb
+bitor	operation verb
+bitxor	operation verb
+shl	operation switch verb
+shr	operation switch verb
+rol	operation switch verb
+ror	operation switch verb
+absolute	operation verb
+negative	comparison qualifier
+test	comparison verb evaluation
+if	qualifier causality control
+and	qualifier modifier
+or	qualifier modifier
+constant	qualifier descriptor
+atomic	qualifier modifier
+global	qualifier modifier
+shared	qualifier modifier
+parameter	qualifier modifier input
+launch	qualifier modifier input
+record	qualifier statement feedback
+signs	qualifier vector
+exit	control verb
+return	control verb
+loop	control schedule
+back	control vector verb anaphora
+label	control descriptor
+state	control sequence
+states	control vector sequence
+start	control sequence verb
+next	control timing sequence verb transition
+dispatch	control switch schedule verb
+open	switch verb punctuation
+body	switch verb
+close	switch verb punctuation
+declare	switch statement verb
+note	switch statement verb meta
+byte	statement descriptor quantity
+halfword	statement descriptor quantity
+word	statement descriptor quantity
+wide	statement descriptor quantity
+words	statement descriptor vector quantity
+wides	statement descriptor vector quantity
+size	descriptor quantity
+predicate	descriptor feedback evaluation
+predicates	descriptor vector feedback evaluation
+i	descriptor modifier
+I	descriptor modifier
+cast	modifier verb
+low	range vector
+high	range vector
+first	range sequence
+middle	range sequence
+last	range sequence
+right	range vector
+block	range vector quantity
+dim	range vector quantity
+grid	vector quantity
+idx	vector deictic
+step	schedule sequence
+load	verb input query
+read	verb input
+ask	verb input query

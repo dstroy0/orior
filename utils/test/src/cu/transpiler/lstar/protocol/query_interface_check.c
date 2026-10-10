@@ -9,7 +9,7 @@
 // at 0x8 and the system time at 0x14, each the low word of a count in hundred nanoseconds. That layout is the answer
 // key here and is never read by the walk: the walk asks every word of the page's head whether it advances, and the
 // check holds what came back to the key.
-#include "../../../../../../../src/cu/transpiler/lstar/protocol/query_interface.h"
+#include "../../../../../../../src/cu/transpiler/lstar/protocol/query/query_interface.h"
 
 #include <stdio.h>
 

@@ -19,13 +19,14 @@
 
 import { invoke } from "./bridge.js";
 import { wordAt, wordBefore } from "./editor/document.js";
+import { sectionFolds } from "./editor/sections.js";
 import { compile } from "./editor/tokens.js";
 
 const OFF = "orior.plugins.off";
 
 const PLAIN = Object.freeze({ id: "plaintext", name: "Plain Text", grammar: null, comments: {}, pairs: [], quotes: [], indentAfter: /$^/ });
 
-const state = { found: [], readings: [], byExtension: new Map(), byId: new Map(), listeners: [] };
+const state = { found: [], readings: [], byExtension: new Map(), byName: new Map(), byPath: [], byId: new Map(), listeners: [] };
 
 // Calls `listener` each time the plugins are read or one is turned on or off, until what this answers
 // is called.
@@ -68,9 +69,16 @@ function revive(grammar) {
   return { ...grammar, tokenizer };
 }
 
+// A plugin's [pattern, kind] rules, each pattern made a pattern.
+const rulesOf = (list) => (Array.isArray(list) ? list.filter((one) => Array.isArray(one) && one.length === 2).map(([pattern, kind]) => [patternOf(pattern), String(kind)]) : []);
+
+// A plugin's [open, close] pairs of patterns, each made a pattern.
+const pairsOf = (list) => (Array.isArray(list) ? list.filter((one) => Array.isArray(one) && one.length === 2).map(([open, close]) => [patternOf(open), patternOf(close)]) : []);
+
 // A plugin as the editor's language.
 function languageOf(plugin) {
   const grammar = plugin.grammar ? compile(revive(plugin.grammar)) : null;
+  const sections = { headings: plugin.headings ? patternOf(plugin.headings) : null, skips: pairsOf(plugin.skips), blocks: pairsOf(plugin.blocks) };
   const lists = Object.entries(plugin.grammar ?? {}).filter(([, value]) => Array.isArray(value));
   const hovers = plugin.hovers && typeof plugin.hovers === "object" ? plugin.hovers : {};
   const snippets = Array.isArray(plugin.snippets) ? plugin.snippets.filter((one) => one && one.label && one.body) : [];
@@ -83,6 +91,11 @@ function languageOf(plugin) {
     pairs: plugin.pairs ?? ["()", "[]", "{}"],
     quotes: plugin.quotes ?? ['"', "'"],
     indentAfter: plugin.indentAfter ? patternOf(plugin.indentAfter) : /[{[(]\s*$/,
+    // The rules the outline reads a line by, each a pattern whose first group is the line's indent
+    // and whose second is the symbol's name, and its kind; and the headings and blocks that fold.
+    outline: rulesOf(plugin.outline),
+    sections,
+    folds: sections.headings || sections.blocks.length ? (doc) => sectionFolds(doc, sections) : undefined,
     hover: Object.keys(hovers).length
       ? (doc, at) => {
           const word = wordAt(doc, at);
@@ -109,13 +122,13 @@ function languageOf(plugin) {
 function build() {
   const off = pluginsOff();
   const readings = state.found.map(({ id, source, folder, text }) => {
-    const reading = { id, source, folder, name: id, version: "", extensions: [], error: null, replaced: false, language: null };
+    const reading = { id, source, folder, name: id, version: "", extensions: [], names: [], paths: [], error: null, replaced: false, language: null };
     try {
       const plugin = JSON.parse(text);
       if (plugin.id !== id) {
         throw new Error(`its id is ${JSON.stringify(plugin.id)}, and its folder is ${id}`);
       }
-      Object.assign(reading, { name: plugin.name ?? id, version: plugin.version ?? "", extensions: Array.isArray(plugin.extensions) ? plugin.extensions.map(String) : [] });
+      Object.assign(reading, { name: plugin.name ?? id, version: plugin.version ?? "", extensions: Array.isArray(plugin.extensions) ? plugin.extensions.map(String) : [], names: Array.isArray(plugin.names) ? plugin.names.map(String) : [], paths: Array.isArray(plugin.paths) ? plugin.paths.map(String) : [] });
       // A tool plugin opens no files: it checks those of the languages it names.
       if (plugin.kind === "tool") {
         Object.assign(reading, { kind: "tool", checks: Array.isArray(plugin.languages) ? plugin.languages.map(String) : [], about: String(plugin.about ?? "") });
@@ -135,6 +148,8 @@ function build() {
   state.readings = readings;
   state.byId = new Map();
   state.byExtension = new Map();
+  state.byName = new Map();
+  state.byPath = [];
   for (const reading of last.values()) {
     if (!reading.language || !reading.on) {
       continue;
@@ -143,6 +158,18 @@ function build() {
     for (const ext of reading.extensions.map((one) => one.toLowerCase())) {
       if (reading.source === "user" || !state.byExtension.has(ext)) {
         state.byExtension.set(ext, reading.language);
+      }
+    }
+    for (const pattern of reading.paths) {
+      try {
+        state.byPath.push([new RegExp(pattern), reading.language]);
+      } catch {
+        // A pattern that does not read opens nothing.
+      }
+    }
+    for (const name of reading.names.map((one) => one.toLowerCase())) {
+      if (reading.source === "user" || !state.byName.has(name)) {
+        state.byName.set(name, reading.language);
       }
     }
   }
@@ -168,6 +195,23 @@ export function pluginReadings() {
 // The id of the plugin a file of extension `ext` opens in, or null where none names it.
 export function openerOf(ext) {
   return state.byExtension.get(ext.toLowerCase())?.id ?? null;
+}
+
+// The language a file at `path` of the tree opens in, where a plugin's pattern of paths takes it, or
+// null.
+export function languageForPath(path) {
+  const slashed = path.replace(/\\/g, "/");
+  return state.byPath.find(([pattern]) => pattern.test(slashed))?.[1] ?? null;
+}
+
+// The language a plugin of `id` gives, or null.
+export function languageById(id) {
+  return state.byId.get(id) ?? null;
+}
+
+// The language a file named `name` opens in, where a plugin names the file whole, or null.
+export function languageForName(name) {
+  return state.byName.get(name.toLowerCase()) ?? null;
 }
 
 // The language a file of extension `ext` opens in.

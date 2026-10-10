@@ -164,8 +164,8 @@ The load also builds the program for the device (`compiler/cycle/cycle_compile_*
 Each build is kept in a cache: `$CYCLE_CACHE`, else `%LOCALAPPDATA%\cycle` or `~/.cache/cycle`. A build is found
 by its text and used only where that text matches byte for byte.
 
-The lane's text is written from a **ruleset**, one for each of the first two ways: `../../transpiler/lstar/coherence/ptx.krs` for
-PTX and `../../transpiler/lstar/coherence/c.krs` for C source, read once a process from that folder, or from the folder
+The lane's text is written from a **ruleset**, one for each of the first two ways: `../../transpiler/lstar/protocol/table/ptx.krs` for
+PTX and `../../transpiler/lstar/protocol/table/c.krs` for C source, read once a process from that folder, or from the folder
 `$CYCLE_RULESETS` names. The code generator decides what each step does, and the ruleset decides how the target writes it.
 Its base class, `Target` (`src/cu/engine/rmc/target.h`, `src/cu/engine/rmc/target_*.cu`), reads and writes rulesets and names no language. Each language
 is a class that inherits it, in files of its own: `PtxTarget` (`ptx_target.{h,cu}`) and `CTarget`

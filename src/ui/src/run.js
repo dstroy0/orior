@@ -479,6 +479,29 @@ function outputItems(event) {
   ];
 }
 
+// Reads again, from its first line, each run kept on the tree's machine that this window has not
+// seen end: a run going there when the window opened, and one whose lines stopped coming when the
+// link to the machine dropped. A tree on this machine keeps none.
+export async function readRunsAgain() {
+  const kept = await invoke("runs_kept").catch(() => []);
+  for (const one of kept) {
+    const known = state.runs.get(one.run);
+    if (known?.done || (!known && one.ended)) {
+      continue;
+    }
+    state.runs.set(one.run, { run: one.run, job: one.job, lines: [], started: 0, steps: [], clock: performance.now(), endMs: null, done: false, code: null, views: [], stopped: false });
+    if (!state.shown.has(one.job)) {
+      state.shown.set(one.job, one.run);
+    }
+    write("runs", [one.run, { job: one.job }]);
+    await invoke("run_follow", { run: one.run }).catch(() => {});
+  }
+  if (kept.length) {
+    drawList();
+    drawStage();
+  }
+}
+
 export async function loadRun() {
   state.jobs = await invoke("catalog_read");
   if (state.chosen && !state.jobs.some((job) => job.id === state.chosen)) {

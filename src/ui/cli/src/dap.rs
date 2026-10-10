@@ -4,14 +4,16 @@
 //! A client of a debug adapter, such as lldb-dap, gdb's or debugpy's, over its input and output:
 //! each message a Content-Length header and a JSON body, as the Debug Adapter Protocol frames them,
 //! the same framing a language server uses. A request is answered by a response that names its
-//! sequence number; an event goes to the function the adapter was started with. A request from the
-//! adapter, such as one to run the program in a terminal, is refused, and the adapter then runs it
-//! itself.
+//! sequence number; an event goes to the function the adapter was started with. The adapter is a
+//! program started for the session, one listening at an address that the client connects to, or one
+//! that runs in orior itself, framed the same way. A request from the adapter, such as one to run the
+//! program in a terminal, is refused, and the adapter then runs it itself.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::path::Path;
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -29,22 +31,30 @@ type Waiting = Arc<Mutex<HashMap<u64, Sender<Result<Value, String>>>>>;
 /// How much of what the adapter writes to its errors is kept, in bytes.
 const COMPLAINT: usize = 4096;
 
+/// How long an adapter listening at an address has to take the connection.
+const CONNECTING: Duration = Duration::from_secs(5);
+
 pub struct Adapter {
-    child: Mutex<Child>,
-    input: Arc<Mutex<ChildStdin>>,
+    child: Mutex<Option<Child>>,
+    socket: Option<TcpStream>,
+    input: Arc<Mutex<Box<dyn Write + Send>>>,
     next: AtomicU64,
     waiting: Waiting,
     complaint: Arc<Mutex<String>>,
+    /// Whether ending the session ends the program, as it does for one the adapter started; one
+    /// attached to is let go and runs on.
+    ends_program: bool,
 }
 
 impl Adapter {
-    /// Starts `program` with `args` in `folder`. `heard` takes the adapter's events.
-    pub fn start(program: &Path, args: &[String], folder: &Path, path_env: std::ffi::OsString, heard: Heard) -> Result<Adapter, String> {
+    /// Starts `program` with `args` in `folder`. `heard` takes the adapter's events, and ending
+    /// the session lets the program run on where `ends_program` is false.
+    pub fn start(program: &Path, args: &[String], folder: &Path, path_env: std::ffi::OsString, ends_program: bool, heard: Heard) -> Result<Adapter, String> {
         let mut command = Command::new(program);
         command.args(args).current_dir(folder).env("PATH", path_env).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         crate::runner::quiet(&mut command);
         let mut child = command.spawn().map_err(|error| format!("{}: {error}", program.display()))?;
-        let input = Arc::new(Mutex::new(child.stdin.take().ok_or("the adapter took no input")?));
+        let input = child.stdin.take().ok_or("the adapter took no input")?;
         let output = child.stdout.take().ok_or("the adapter gave no output")?;
         let complaint = Arc::new(Mutex::new(String::new()));
         if let Some(errors) = child.stderr.take() {
@@ -63,6 +73,41 @@ impl Adapter {
                 }
             });
         }
+        Ok(Self::over(Box::new(input), output, Some(child), None, complaint, ends_program, heard))
+    }
+
+    /// Connects to an adapter listening at `host`:`port`, as one a program started under debugpy
+    /// listens, or the one that debugs a process the program started. `heard` takes its events, and
+    /// ending the session lets the program run on where `ends_program` is false.
+    pub fn connect(host: &str, port: u16, ends_program: bool, heard: Heard) -> Result<Adapter, String> {
+        let address = (host, port).to_socket_addrs().map_err(|error| format!("{host}:{port}: {error}"))?.next().ok_or_else(|| format!("{host}:{port} names no address"))?;
+        let socket = TcpStream::connect_timeout(&address, CONNECTING).map_err(|error| format!("{host}:{port}: {error}"))?;
+        let _ = socket.set_nodelay(true);
+        let input = socket.try_clone().map_err(|error| error.to_string())?;
+        let output = socket.try_clone().map_err(|error| error.to_string())?;
+        Ok(Self::over(Box::new(input), output, None, Some(socket), Arc::new(Mutex::new(String::new())), ends_program, heard))
+    }
+
+    /// Starts an adapter that runs in orior itself, on a thread of its own: `serve` is handed each
+    /// request, what sends the client a message, and what hands the adapter a message of its own,
+    /// and says whether the adapter goes on.
+    pub fn within(serve: Serve, heard: Heard) -> Adapter {
+        let (asking, asked) = mpsc::channel::<Value>();
+        let (telling, told) = mpsc::channel::<Value>();
+        let itself = asking.clone();
+        std::thread::spawn(move || {
+            let mut serve = serve;
+            for request in asked {
+                if !serve(request, &telling, &itself) {
+                    break;
+                }
+            }
+        });
+        Self::over(Box::new(ToServer { sender: asking, buffer: Vec::new() }), FromServer { receiver: told, pending: Vec::new(), at: 0 }, None, None, Arc::new(Mutex::new(String::new())), true, heard)
+    }
+
+    fn over(input: Box<dyn Write + Send>, output: impl Read + Send + 'static, child: Option<Child>, socket: Option<TcpStream>, complaint: Arc<Mutex<String>>, ends_program: bool, heard: Heard) -> Adapter {
+        let input = Arc::new(Mutex::new(input));
         let waiting: Waiting = Arc::new(Mutex::new(HashMap::new()));
         let (reply_to, answers) = (input.clone(), waiting.clone());
         std::thread::spawn(move || {
@@ -99,7 +144,7 @@ impl Adapter {
             }
             heard("adapterStopped", &Value::Null);
         });
-        Ok(Adapter { child: Mutex::new(child), input, next: AtomicU64::new(1), waiting, complaint })
+        Adapter { child: Mutex::new(child), socket, input, next: AtomicU64::new(1), waiting, complaint, ends_program }
     }
 
     /// Sends a request and gives where its answer will come. A request with no arguments sends an
@@ -128,22 +173,87 @@ impl Adapter {
         self.complaint.lock().map(|text| text.trim().lines().last().unwrap_or_default().to_string()).unwrap_or_default()
     }
 
-    /// Asks the adapter to end the program and itself, and ends it where it does not.
+    /// Asks the adapter to end the program, or to let go of one it attached to, and itself, and
+    /// ends the adapter where it does not.
     pub fn stop(&self) {
-        let _ = self.request("disconnect", json!({"terminateDebuggee": true}), Duration::from_secs(3));
-        if let Ok(mut child) = self.child.lock() {
-            std::thread::sleep(Duration::from_millis(100));
-            let _ = child.kill();
-            let _ = child.wait();
+        let _ = self.request("disconnect", json!({"terminateDebuggee": self.ends_program}), Duration::from_secs(3));
+        std::thread::sleep(Duration::from_millis(100));
+        self.end();
+    }
+
+    fn end(&self) {
+        if let Some(socket) = &self.socket {
+            let _ = socket.shutdown(Shutdown::Both);
         }
+        if let Ok(mut child) = self.child.lock() {
+            if let Some(child) = child.as_mut() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+}
+
+/// An adapter that runs in orior: it takes a request, what sends the client a message, and what
+/// hands the adapter a message of its own, and says whether it goes on.
+pub type Serve = Box<dyn FnMut(Value, &Sender<Value>, &Sender<Value>) -> bool + Send>;
+
+/// The client's side of an adapter in orior: each whole message written goes to the adapter.
+struct ToServer {
+    sender: Sender<Value>,
+    buffer: Vec<u8>,
+}
+
+impl Write for ToServer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.buffer.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        while let Some(head) = self.buffer.windows(4).position(|four| four == b"\r\n\r\n") {
+            let length = String::from_utf8_lossy(&self.buffer[..head])
+                .lines()
+                .find_map(|line| line.strip_prefix("Content-Length:").and_then(|value| value.trim().parse::<usize>().ok()))
+                .ok_or_else(|| std::io::Error::other("a message with no length"))?;
+            let end = head + 4 + length;
+            if self.buffer.len() < end {
+                break;
+            }
+            let message = serde_json::from_slice(&self.buffer[head + 4..end]).map_err(std::io::Error::other)?;
+            self.buffer.drain(..end);
+            self.sender.send(message).map_err(|_| std::io::Error::other("the adapter stopped"))?;
+        }
+        Ok(())
+    }
+}
+
+/// The client's side of what an adapter in orior says: each message framed as one from a program.
+struct FromServer {
+    receiver: Receiver<Value>,
+    pending: Vec<u8>,
+    at: usize,
+}
+
+impl Read for FromServer {
+    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+        if self.at >= self.pending.len() {
+            let Ok(message) = self.receiver.recv() else {
+                return Ok(0);
+            };
+            let body = message.to_string();
+            self.pending = format!("Content-Length: {}\r\n\r\n{body}", body.len()).into_bytes();
+            self.at = 0;
+        }
+        let count = out.len().min(self.pending.len() - self.at);
+        out[..count].copy_from_slice(&self.pending[self.at..self.at + count]);
+        self.at += count;
+        Ok(count)
     }
 }
 
 impl Drop for Adapter {
     fn drop(&mut self) {
-        if let Ok(mut child) = self.child.lock() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
+        self.end();
     }
 }

@@ -1,0 +1,47 @@
+{
+  "id": "mojo",
+  "name": "Mojo",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["mojo","🔥"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "(?::\\s*(?:#.*)?|[{[(]\\s*)$",
+  "outline": [
+    ["^(\\s*)(?:@\\w+\\s+)*(?:async\\s+)?(?:fn|def)\\s+([A-Za-z_]\\w*)", "function"],
+    ["^(\\s*)(?:@\\w+\\s+)*(?:struct|trait|class)\\s+([A-Za-z_]\\w*)", "class"],
+    ["^()alias\\s+([A-Za-z_]\\w*)", "constant"]
+  ],
+  "grammar": {
+    "words": [
+      "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif",
+      "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or",
+      "pass", "raise", "return", "try", "while", "with", "yield", "match", "case", "self", "fn", "struct", "trait", "var",
+      "alias", "inout", "owned", "borrowed", "raises", "ref", "mut", "out", "read", "capturing", "where", "comptime"
+    ],
+    "builtins": [
+      "abs", "all", "any", "len", "max", "min", "print", "range", "repr", "round", "sort", "str", "int", "float", "bool",
+      "Int", "Float32", "Float64", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Bool", "String",
+      "StringLiteral", "List", "Dict", "Set", "Optional", "SIMD", "DType", "Pointer", "UnsafePointer", "Self"
+    ],
+    "tokenizer": {
+      "root": [
+        ["\\s+",""],
+        ["#.*$","comment"],
+        ["@[A-Za-z_][\\w.]*","tag"],
+        ["[rRbBfFuU]{0,2}\"\"\"","string","@long2"],
+        ["[rRbBfFuU]{0,2}'''","string","@long1"],
+        ["[rRbBfFuU]{0,2}\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["[rRbBfFuU]{0,2}'(?:[^'\\\\]|\\\\.)*'","string"],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@builtins":"predefined","@default":"identifier"}}],
+        ["0[xX][\\da-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|(?:\\d[\\d_]*)?\\.?\\d[\\d_]*(?:[eE][+-]?\\d+)?[jJ]?","number"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!~:&|+\\-*/^%@]+","operator"],
+        ["[;,.]","delimiter"]
+      ],
+      "long2": [["\"\"\"","string","@pop"],["[^\"\\\\]+|\\\\.|\"","string"]],
+      "long1": [["'''","string","@pop"],["[^'\\\\]+|\\\\.|'","string"]]
+    }
+  }
+}

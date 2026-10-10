@@ -78,7 +78,8 @@ MODULES=(cu/includes/formats/stack cu/engine/parser cu/engine/analysis/compressi
 INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate
         cu/includes/codecs/deflate cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc
         cu/includes/formats/tiff cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom
-        cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti)
+        cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti
+        cu/includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
 INCLUDES=(-I "$ENGINE" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/runtime/daemon")
 SOURCES=("$HERE/knee_period.cu" "$ENGINE"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)

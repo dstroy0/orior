@@ -1,0 +1,55 @@
+{
+  "id": "stringtemplate",
+  "name": "StringTemplate",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["stg","st"],
+  "comments": {"line":"//","block":["<!","!>"]},
+  "pairs": ["()","[]","{}","<>"],
+  "quotes": ["\""],
+  "indentAfter": "(?:<<|<%|[{[(])\\s*$",
+  "blocks": [["<<\\s*$", "^\\s*>>"], ["<%\\s*$", "^\\s*%>"]],
+  "outline": [
+    ["^()([A-Za-z_][\\w.]*)\\s*\\([^)]*\\)\\s*::=", "function"],
+    ["^()([A-Za-z_]\\w*)\\s*::=\\s*\\[", "constant"],
+    ["^()import\\s+\"([^\"]+)\"", "module"]
+  ],
+  "grammar": {
+    "words": ["import", "group", "delimiters", "default", "true", "false", "key", "implements"],
+    "functions": ["if", "else", "elseif", "endif", "first", "last", "rest", "trunc", "strip", "length", "strlen", "reverse", "super", "i", "i0", "trim", "wrap", "anchor", "separator", "format", "null"],
+    "tokenizer": {
+      "root": [
+        ["\\s+",""],
+        ["\\/\\/.*$","comment"],
+        ["\\/\\*","comment","@comment"],
+        ["<!","comment","@stcomment"],
+        ["<<","string","@template"],
+        ["<%","string","@bigstring"],
+        ["\"","string","@string"],
+        ["::=","operator"],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@default":"identifier"}}],
+        ["[{}()[\\]]","@brackets"],
+        ["[,:;.=@]","delimiter"]
+      ],
+      "template": [
+        [">>","string","@pop"],
+        ["<!","comment","@stcomment"],
+        ["<","tag","@expr"],
+        ["\\\\.","string.escape"],
+        ["[^<>\\\\]+|>","string"]
+      ],
+      "bigstring": [["%>","string","@pop"],["<","tag","@expr"],["[^%<]+|%","string"]],
+      "string": [["\"","string","@pop"],["<","tag","@expr"],["\\\\.","string.escape"],["[^\"<\\\\]+","string"]],
+      "expr": [
+        [">","tag","@pop"],
+        ["\"[^\"]*\"","string"],
+        ["\\{","tag","@subtemplate"],
+        ["[A-Za-z_]\\w*",{"cases":{"@functions":"predefined","@default":"variable"}}],
+        ["[^>\"{A-Za-z_]+","tag"]
+      ],
+      "subtemplate": [["\\}","tag","@pop"],["<","tag","@expr"],["[^}<]+","string"]],
+      "stcomment": [["!>","comment","@pop"],["[^!]+|!","comment"]],
+      "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
+    }
+  }
+}

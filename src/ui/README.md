@@ -3,7 +3,7 @@
 One window for the engine. **Run** starts every build, ingest, run, render, sim, viewer, stage pipeline
 and test suite in the tree, shows their output as it arrives, and opens each page a viewer writes in a
 window of its own. **Edit** is the editor for `.g`, `.gsm` and the k-files, with each file type's
-definition beside the file. In a file of `src/cu/transpiler/lstar/coherence/` the bridge shows
+definition beside the file. In a file of `src/cu/transpiler/lstar/protocol/table/` the bridge shows
 beside it as well: for the key under the cursor, its pairs and their verdicts in `Lstar.klq`, its
 name in each `.klm`, and each ruleset's entry of that name.
 
@@ -66,6 +66,27 @@ turns off are the ones the window turns off when it is given no line of its own.
 The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIOR_BASH` and
 `ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
 ones to use.
+
+## orior's own folder
+
+orior keeps what it carries from one run to the next in a folder of its own: `orior` in `%APPDATA%`
+on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR_HOME` names.
+
+| what | where in it |
+| --- | --- |
+| the settings Preferences and the menus set, the macros kept, and whether errors file on their own | `settings.json` |
+| each theme of the reader's | `themes/`, a file each, named for the theme |
+| the reader's plugins | `plugins/`, a folder each |
+| the stylesheet laid over the window's own | `user.css` |
+| the toolchains the reader added | `user_toolchains.json` |
+| the panes, each tree's tabs and the files opened last, the places left in them, bookmarks, breakpoints, watches and the values each job last ran with | `state.json` |
+| the text of each tab with changes not saved | `backups/`, a file each |
+| each file's Local History | `history/` |
+| the repositories File, Open, Repository clones | `repositories/` |
+
+`settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
+as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
+default.
 
 ## The command line
 

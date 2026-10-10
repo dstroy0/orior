@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 //! orior's own folder, for what it keeps between runs and what a reader adds to it: the settings,
-//! the reader's plugins under `plugins/`, and the stylesheet `user.css` the window lays over its own.
+//! the reader's plugins under `plugins/`, the stylesheet `user.css` the window lays over its own, and
+//! `menus.json`, the reader's menus and toolbar.
 //! It is `orior` in the system's folder for settings, %APPDATA% on Windows and $XDG_CONFIG_HOME or
 //! ~/.config elsewhere, or the folder ORIOR_HOME names.
 
@@ -26,6 +27,25 @@ pub fn plugins() -> Option<PathBuf> {
 
 pub fn user_css() -> Option<PathBuf> {
     folder().map(|folder| folder.join("user.css"))
+}
+
+pub fn menus() -> Option<PathBuf> {
+    folder().map(|folder| folder.join("menus.json"))
+}
+
+/// What menus.json holds when orior makes it: a note on what each part is for, and nothing laid out.
+const MENUS: &str = "{\n  \"about\": \"Each item is a command's name, as orior <menu> <command> names it, or { \\\"command\\\": name, \\\"label\\\": text, \\\"icon\\\": name }, or \\\"-\\\" for a line; { \\\"label\\\": text, \\\"items\\\": [...] } holds more. A menu named as one of orior's stands in its place, the others stand before Help, and hide takes orior's away by name.\",\n  \"menus\": [],\n  \"hide\": [],\n  \"toolbar\": []\n}\n";
+
+/// The reader's menus, made where they are not there yet.
+pub fn ensure_menus() -> Result<PathBuf, String> {
+    let path = menus().ok_or("orior has no folder of its own to keep menus in")?;
+    if !path.exists() {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir).map_err(|error| format!("{}: {error}", dir.display()))?;
+        }
+        std::fs::write(&path, MENUS).map_err(|error| format!("{}: {error}", path.display()))?;
+    }
+    Ok(path)
 }
 
 /// What user.css holds when orior makes it: a note on what it is for.
@@ -60,4 +80,18 @@ pub fn reveal(path: &std::path::Path) -> Result<(), String> {
         command
     };
     command.spawn().map(|_| ()).map_err(|error| format!("{}: {error}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_menus_made_for_the_reader_are_json_with_nothing_laid_out() {
+        let made: serde_json::Value = serde_json::from_str(MENUS).unwrap();
+        assert!(made["about"].as_str().is_some_and(|about| about.contains("hide")));
+        for key in ["menus", "hide", "toolbar"] {
+            assert_eq!(made[key], serde_json::json!([]), "{key}");
+        }
+    }
 }

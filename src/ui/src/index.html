@@ -14,16 +14,18 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body data-view="edit">
+    <canvas class="lattice lattice-window" aria-hidden="true"></canvas>
     <header class="bar">
       <span class="bar-mark" id="bar-mark"></span>
       <nav class="menubar" id="menubar" role="menubar" aria-label="orior"></nav>
+      <span class="bar-gap"></span>
       <span class="tree" id="tree-path" hidden></span>
       <span class="bar-project" id="bar-project"></span>
       <span class="status-branch" id="status-branch" hidden></span>
-      <span class="bar-gap"></span>
       <div class="bar-tools" id="bar-tools" role="toolbar" aria-label="Settings and panels"></div>
       <div class="window-controls" id="window-controls" role="group" aria-label="Window"></div>
     </header>
+    <nav class="toolbar" id="toolbar" aria-label="Toolbar" hidden></nav>
 
     <div class="frame">
     <nav class="strip" id="strip" aria-label="Tool windows"></nav>
@@ -59,6 +61,7 @@
                       <span role="checkbox" tabindex="0" aria-checked="false" data-option="regex" title="Use Regular Expression">.*</span>
                     </div>
                   </div>
+                  <select class="search-set" id="search-set" aria-label="Search in"></select>
                   <p class="search-said" id="search-said" aria-live="polite"></p>
                   <div class="search-hits" id="search-hits"></div>
                 </div>
@@ -68,6 +71,13 @@
                 <div class="pane-body search-body">
                   <p class="search-said" id="usages-said" aria-live="polite"></p>
                   <div class="search-hits" id="usages-hits"></div>
+                </div>
+              </section>
+              <section class="pane" data-pane="calls">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:calls" aria-expanded="true">Call Hierarchy</button>
+                <div class="pane-body search-body">
+                  <p class="search-said" id="calls-said" aria-live="polite"></p>
+                  <div class="search-hits" id="calls-tree"></div>
                 </div>
               </section>
               <section class="pane" data-pane="todo">
@@ -89,6 +99,10 @@
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:outline" aria-expanded="false">Outline</button>
                 <div class="pane-body" id="outline"></div>
               </section>
+              <section class="pane" data-pane="undo">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:undo" aria-expanded="true">Undo History</button>
+                <div class="pane-body" id="undo-history"></div>
+              </section>
               <section class="pane" data-pane="changes">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:changes" aria-expanded="true">Changes</button>
                 <div class="pane-body" id="changes"></div>
@@ -101,13 +115,27 @@
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:local" aria-expanded="true">Local History</button>
                 <div class="pane-body" id="local-history"></div>
               </section>
+              <section class="pane" data-pane="review">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:review" aria-expanded="true">Review</button>
+                <div class="pane-body" id="review"></div>
+              </section>
               <section class="pane" data-pane="problems">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:problems" aria-expanded="true">Problems</button>
                 <div class="pane-body" id="problems"></div>
               </section>
+              <section class="pane" data-pane="tests">
+                <button class="pane-head" type="button" data-depth="-1" data-key="pane:tests" aria-expanded="true">Tests</button>
+                <div class="pane-body" id="tests"></div>
+              </section>
               <section class="pane" data-pane="git">
                 <button class="pane-head" type="button" data-depth="-1" data-key="pane:git" aria-expanded="true">Git</button>
-                <div class="pane-body" id="git-log"></div>
+                <div class="pane-body search-body">
+                  <select class="search-set git-repo" id="git-repo" aria-label="Repository" hidden></select>
+                  <div class="search-box git-box">
+                    <input class="filter" id="git-query" type="search" placeholder="Search commits" spellcheck="false" aria-label="Search commits" />
+                  </div>
+                  <div class="search-hits" id="git-log"></div>
+                </div>
               </section>
             </div>
           </div>
@@ -168,21 +196,26 @@
       </div>
     </section>
 
+    <section class="profile" id="profile" hidden aria-label="Profile"></section>
+    <section class="profile containers" id="containers" hidden aria-label="Containers"></section>
+
     <section class="term" id="term" hidden>
       <div class="term-grip" id="term-grip" aria-hidden="true"></div>
-      <div class="term-view" id="term-view"></div>
+      <div class="term-strip" id="term-strip"></div>
+      <div class="term-views" id="term-views"></div>
       <textarea class="term-keys" id="term-keys" aria-label="Terminal" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
     </section>
     </div>
     </div>
 
     <footer class="statusbar" id="statusbar">
-      <nav class="crumbs" id="crumbs" aria-label="Breadcrumbs" hidden></nav>
-      <span class="pulse" id="pulse"></span>
-      <button class="status-said" id="status-said" type="button" hidden></button>
-      <button class="status-report" id="status-report" type="button" hidden></button>
-      <button class="status-zoom" id="status-zoom" type="button" hidden></button>
-      <span class="status-memory" id="status-memory" hidden></span>
+      <nav class="crumbs" id="crumbs" aria-label="Breadcrumbs" data-item="crumbs" hidden></nav>
+      <span class="pulse" id="pulse" data-item="runs"></span>
+      <button class="status-machine" id="status-machine" type="button" data-item="machine" hidden></button>
+      <button class="status-said" id="status-said" type="button" data-item="said" hidden></button>
+      <button class="status-report" id="status-report" type="button" data-item="report" hidden></button>
+      <button class="status-zoom" id="status-zoom" type="button" data-item="zoom" hidden></button>
+      <span class="status-memory" id="status-memory" data-item="memory" hidden></span>
     </footer>
 
     <script type="module" src="main.js"></script>

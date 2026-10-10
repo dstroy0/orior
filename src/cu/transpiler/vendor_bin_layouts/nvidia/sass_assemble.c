@@ -27,21 +27,22 @@ typedef struct
 } SassField;
 
 // the fields a kind of operand may sit in, in the order an instruction fills them
-static const SassField s_register_fields[] = {{16u, 8u, 1u}, {24u, 8u, 1u}, {32u, 8u, 1u}, {64u, 8u, 1u}};
+static const SassField s_register_fields[] = {
+    {16u, 8u, 1u, 0u}, {24u, 8u, 1u, 0u}, {32u, 8u, 1u, 0u}, {64u, 8u, 1u, 0u}};
 // A predicate operand takes three bits and the fourth negates it; the probes found six places one sits in. A load's
 // predicate at 64 holds its number inverted, PT as 000, and a load whose predicate is false writes 0
 // (interface_sass_unprinted.md)
-static const SassField s_predicate_fields[] = {{64u, 3u, 1u, 1u}, {68u, 3u, 1u}, {77u, 3u, 1u},
-                                               {81u, 3u, 1u},     {84u, 3u, 1u}, {87u, 3u, 1u}};
-static const SassField s_immediate_fields[] = {{32u, 32u, 1u}, {72u, 8u, 1u}};
+static const SassField s_predicate_fields[] = {{64u, 3u, 1u, 1u}, {68u, 3u, 1u, 0u}, {77u, 3u, 1u, 0u},
+                                               {81u, 3u, 1u, 0u}, {84u, 3u, 1u, 0u}, {87u, 3u, 1u, 0u}};
+static const SassField s_immediate_fields[] = {{32u, 32u, 1u, 0u}, {72u, 8u, 1u, 0u}};
 // a constant's offset counts words, and an address's bytes; both lie above the register fields
-static const SassField s_constant_fields[] = {{40u, 16u, 4u}};
-static const SassField s_offset_fields[] = {{40u, 24u, 1u}};
+static const SassField s_constant_fields[] = {{40u, 16u, 4u, 0u}};
+static const SassField s_offset_fields[] = {{40u, 24u, 1u, 0u}};
 // The uniform register a memory operand reads its descriptor from, in the order an instruction fills them: bits 32 to
 // 37 where no other operand holds bit 32, as a load has it, else 64 to 69, as a store has it. A memory operand that
 // takes one is an address with a run of its own at bit 101, the bit that says whether the descriptor is printed:
 // set, desc[URn]; clear, term[URn]
-static const SassField s_descriptor_fields[] = {{32u, 6u, 1u}, {64u, 6u, 1u}};
+static const SassField s_descriptor_fields[] = {{32u, 6u, 1u, 0u}, {64u, 6u, 1u, 0u}};
 #define SASS_DESCRIPTOR_FIELDS (sizeof(s_descriptor_fields) / sizeof(s_descriptor_fields[0]))
 #define SASS_DESCRIPTOR_SHOWN 101u
 // the field's value for URZ, every bit of it set

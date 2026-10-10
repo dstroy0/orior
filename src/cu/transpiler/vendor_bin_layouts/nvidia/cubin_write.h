@@ -37,7 +37,7 @@ typedef struct
 // printed, having written nothing
 int cubin_write(const CubinWrite *args, unsigned char *written, unsigned long long room, unsigned long long *size);
 
-// the container a system accepted, read from the container rows of its .ksc at `path`: its bytes into `pattern`,
+// the container a system accepted, read from the container rows of its layout at `path`: its bytes into `pattern`,
 // which holds `room`, and the kernel it enters at into `kernel`, which holds `kernel_room`. The bytes read, or 0 where
 // the file holds no such rows, a row does not read as hex, or the bytes do not fit, with the reason printed
 unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, unsigned long long room, char *kernel,
@@ -46,6 +46,12 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
 // the offsets of the exits in `code`, into `exits`, which holds `room` of them: the count found. An exit is the
 // instruction EXIT, whose encoding is taken from `exit_low` masked to the operation's own bits
 unsigned int cubin_exits_find(const unsigned char *code, unsigned long long code_size, unsigned long long exit_low,
+                              unsigned int *exits, unsigned int room);
+
+// where every exit of `kernel` lies in its code, in bytes, as the cubin itself records them in the kernel's own info
+// section: into `exits`, which holds `room` of them, and the count found. 0 where the pattern holds no such kernel or
+// its info carries no exit. The cubin's own record is read, and no instruction is named to find one
+unsigned int cubin_exits_read(const unsigned char *pattern, unsigned long long pattern_size, const char *kernel,
                               unsigned int *exits, unsigned int room);
 
 // how many registers a thread of `kernel` holds in `pattern`, which is `pattern_size` bytes and whose code section

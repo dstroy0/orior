@@ -209,10 +209,33 @@ static void ruleset_opcode_text(const Ruleset *rules, std::string &text, unsigne
             *broken = 1;
             return;
         }
+        // a scratch register the text names is taken of `scratch` the first time the writing names it, in the order
+        // the text names them, as the core counts them (ruleset_core_scratch)
+        std::vector<unsigned int> taken_slot;
+        std::vector<std::string> taken;
         text += form->pieces[0];
         for (size_t at = 0u; at < form->slots.size(); at += 1u)
         {
-            text += argument[form->slots[at]];
+            const unsigned int slot = form->slots[at];
+            if (RULESET_CORE_IS_SCRATCH(slot))
+            {
+                size_t found = 0u;
+                while ((found < taken_slot.size()) && (taken_slot[found] != slot))
+                {
+                    found += 1u;
+                }
+                if (found == taken_slot.size())
+                {
+                    taken_slot.push_back(slot);
+                    taken.push_back(scratch(RULESET_CORE_SCRATCH_BANK(slot)));
+                    *broken = *broken || taken.back().empty();
+                }
+                text += taken[found];
+            }
+            else
+            {
+                text += argument[slot];
+            }
             text += form->pieces[at + 1u];
         }
         return;
@@ -300,6 +323,8 @@ void ruleset_scratch(const Ruleset *rules, const unsigned int *banks, std::vecto
     laid_out.constructs = flat.constructs.data();
     laid_out.lines = flat.lines.data();
     laid_out.arguments = flat.arguments.data();
+    laid_out.form_slot_first = flat.form_slot_first.data();
+    laid_out.form_slots = flat.form_slots.data();
     laid_out.form_count = forms;
     laid_out.banks[0] = banks[0];
     laid_out.banks[1] = banks[1];

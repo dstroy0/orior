@@ -1,0 +1,51 @@
+{
+  "id": "raml",
+  "name": "RAML",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["raml"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": ":\\s*$",
+  "outline": [
+    ["^()title:\\s*(.+?)\\s*$", "module"],
+    ["^(\\s*)(/[^:]*):", "module"],
+    ["^(\\s*)(get|post|put|patch|delete|head|options|trace|connect)\\??:", "function"],
+    ["^()(types|traits|resourceTypes|securitySchemes|annotationTypes|uses):", "class"]
+  ],
+  "grammar": {
+    "perLine": true,
+    "tokenizer": {
+      "root": [
+        ["^#%RAML.*$","keyword"],
+        ["^(?:---|\\.\\.\\.)\\s*$","keyword"],
+        ["^(\\s*)(/[^:]*)(:)(?=\\s|$)",["","string","delimiter"]],
+        [
+          "^(\\s*)(-\\s+)?(get|post|put|patch|delete|head|options|trace|connect)(\\??:)(?=\\s|$)",
+          ["","delimiter","predefined","delimiter"]
+        ],
+        [
+          "^(\\s*)(-\\s+)?(title|version|baseUri|baseUriParameters|protocols|mediaType|documentation|types|traits|resourceTypes|securitySchemes|securedBy|uses|annotationTypes|description|displayName|queryParameters|queryString|uriParameters|headers|body|responses|is|type|properties|required|enum|pattern|minLength|maxLength|minimum|maximum|example|examples|items|default|content)(\\??:)(?=\\s|$)",
+          ["","delimiter","keyword","delimiter"]
+        ],
+        [
+          "^(\\s*)(-\\s+)?([^\\s#'\"][^:#]*?|\"[^\"]*\"|'[^']*')(:)(?=\\s|$)",
+          ["","delimiter","variable","delimiter"]
+        ],
+        ["^\\s*-(?=\\s|$)","delimiter"],
+        ["(^|\\s)#.*$","comment"],
+        ["<<[^>]*>>","tag"],
+        ["![\\w!-]*","type"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["'(?:[^']|'')*'","string"],
+        [{"pattern":"\\b(?:true|false|null)\\b","flags":"i"},"keyword"],
+        ["-?\\d+(?:\\.\\d+)?\\b","number"],
+        ["[{}[\\]]","@brackets"],
+        ["[|>]-?(?=\\s*$)","operator"],
+        ["[,:]","delimiter"],
+        ["[^\\s#\"'{}[\\],:<]+|\\s+|.","string"]
+      ]
+    }
+  }
+}

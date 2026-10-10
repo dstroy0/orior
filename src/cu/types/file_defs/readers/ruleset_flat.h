@@ -47,6 +47,8 @@ struct RulesetFlatConstructs
     std::vector<RulesetCoreConstruct> constructs;
     std::vector<RulesetCoreLine> lines;
     std::vector<RulesetCoreArgument> arguments;
+    std::vector<unsigned int> form_slot_first;
+    std::vector<unsigned int> form_slots;
 };
 
 // the memory of a relation read in host memory: the files' letters end to end, each file's span and the name a report

@@ -50,6 +50,50 @@ export function showCreate(sheet, { folder = false, start = "", made }) {
   return dialog;
 }
 
+// File, Create, Project from Template: a template of the reader's chosen, a folder to make the project
+// in and its name, the project begun there as a copy of the template with {{name}} written as its
+// name, and its folder handed to `made`. With no template yet, the sheet says where they go and opens
+// that folder.
+export async function showProject(sheet, { given = null, made }) {
+  const [templates, folder] = await invoke("templates_list").catch(() => [[], ""]);
+  const said = element("p", { className: "report-said", ariaLive: "polite" });
+  if (!templates.length) {
+    const reveal = element("button", { className: "prefs-button", type: "button", textContent: "Open the Templates Folder" });
+    reveal.addEventListener("click", () => invoke("templates_reveal").catch((error) => (said.textContent = String(error))));
+    sheet(element("div", { className: "sheet-report" }, element("h2", { textContent: "Project from Template" }), element("p", { textContent: `A template is a folder in ${folder}, {{name}} in its files' names and texts standing for the project's name. File, Keep Tree as Template keeps the tree open as one.` }), element("div", { className: "report-foot" }, said, reveal)));
+    return;
+  }
+  const choice = element("select", { className: "report-field", ariaLabel: "Template" }, ...templates.map((name) => element("option", { value: name, textContent: name })));
+  choice.value = templates.includes(given) ? given : templates[0];
+  const parent = element("input", { className: "report-field", type: "text", spellcheck: false, ariaLabel: "Folder" });
+  const choose = element("button", { className: "prefs-button", type: "button", textContent: "Choose Folder…" });
+  const name = element("input", { className: "report-field", type: "text", spellcheck: false, ariaLabel: "Name" });
+  const go = element("button", { className: "primary", type: "submit", textContent: "Create" });
+  const form = element("form", { className: "sheet-report sheet-create" }, element("h2", { textContent: "Project from Template" }), label("Template", choice), label("In", parent, choose), label("Name", name), element("div", { className: "report-foot" }, said, go));
+  choose.addEventListener("click", async () => {
+    const chosen = await pick("dir");
+    if (typeof chosen === "string") {
+      parent.value = chosen;
+    }
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!parent.value.trim() || !name.value.trim()) {
+      said.textContent = "The folder to make it in and its name are required.";
+      return;
+    }
+    try {
+      const folder = await invoke("project_create", { template: choice.value, parent: parent.value.trim(), name: name.value.trim() });
+      dialog.close();
+      await made(folder);
+    } catch (error) {
+      said.textContent = String(error);
+    }
+  });
+  const dialog = sheet(form);
+  choice.focus();
+}
+
 // Asks whether the repository goes here, in the open tree, or in a folder chosen, makes it, and
 // hands the folder to `made`.
 export async function showInit(sheet, { given = null, made }) {

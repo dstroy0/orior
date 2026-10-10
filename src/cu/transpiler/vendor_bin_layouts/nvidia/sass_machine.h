@@ -3,6 +3,8 @@
 #ifndef SASS_MACHINE_H
 #define SASS_MACHINE_H
 
+#include <stddef.h>
+
 // A form is an operation with its modifiers and, for each printed operand, what kind of thing it is and the mark it
 // carries (- or ~ on a register, ! on a predicate). Two instructions of one form differ only in the values their
 // operand fields hold, and the encoding a form was first seen with is the base every instruction of that form is
@@ -13,12 +15,18 @@
 // form's fields. Matching an operand to a field by the value the base happens to hold there is not enough, because a
 // field the operation does not use holds 0 and a register or predicate numbered 0 matches it.
 //
-// A part's own file is machines/<part>. Its first line is `forms 1`, then `part <name>`, then a line a form:
+// A part's own file is <part>.khw beside its rulesets (src/cu/types/file_defs/khw). Its first line is `forms 2`, then
+// `part <name>`, then a line a form:
 //
-//     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>;... <the instruction it was seen as>
+//     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
+//          <the instruction it was seen as>
 //
-// where <low> and <high> are the instruction's two 64-bit words in hex, low first, as a listing prints them, and the
-// runs are the bits that change each operand, by the operand's place in the printed text.
+// on one line, where <low> and <high> are the instruction's two 64-bit words in hex, low first, as a listing prints
+// them, and the runs are the bits that change each operand, by the operand's place in the printed text. A run's
+// <place> is where its operand stands in the relation's tuple, the words in their order and then the answer, as
+// 1,1 -> 2 holds them (ladder.h), and - where the part answered it none. <relation> is the relation every case of the
+// form answered and <signed> 1 where the answers read a word signed, both - where the form was asked no relation. A
+// file at `forms 1` holds no place, relation or signedness, and reads as - in each.
 
 // the longest instruction text kept, the longest operation or operand, and the most operands an instruction holds
 #define SASS_MACHINE_TEXT 192u
@@ -75,15 +83,22 @@ typedef struct
     unsigned int mark[SASS_MACHINE_OPERANDS];
 } SassInstructionParts;
 
-// one run of bits that changes one printed operand, as the probe found it
+// the place of a run whose operand stands nowhere in the relation's tuple, and the text it is written under
+#define SASS_RUN_NO_PLACE 0xffffffffu
+#define SASS_RUN_NO_PLACE_TEXT "-"
+
+// one run of bits that changes one printed operand, as the probe found it, and its operand's place in the relation's
+// tuple, SASS_RUN_NO_PLACE where the part answered it none
 typedef struct
 {
     unsigned int operand;
     unsigned int first;
     unsigned int last;
+    unsigned int place;
 } SassRun;
 
-// one form, the encoding it was first seen with, and the bits its operands sit in
+// one form, the encoding it was first seen with, the bits its operands sit in, and the relation every case of it
+// answered with whether the answers read a word signed, `relation` empty where it was asked none
 typedef struct
 {
     char operation[SASS_MACHINE_TOKEN];
@@ -94,6 +109,8 @@ typedef struct
     unsigned long long high;
     unsigned int runs;
     SassRun run[SASS_MACHINE_RUNS];
+    char relation[SASS_MACHINE_TOKEN];
+    int signed_read;
     char text[SASS_MACHINE_TEXT];
 } SassForm;
 
@@ -133,6 +150,11 @@ typedef struct
 int sass_high_half(const char *text);
 
 void sass_instruction_read(const char *text, SassInstructionParts *parts);
+
+// The text of `form` written into `written`, which holds `room`, each operand a run with a place reads written as
+// {<place>} with its mark kept, and every other operand as the form was seen with it: the form as a ruleset writes
+// it before its parameters are named. 1, or 0 where it does not fit
+int sass_text_placed(const SassForm *form, char *written, size_t room);
 
 // the encoding of EXIT as `machine` holds it, or 0 where it holds none. A cubin names the offset of every exit in
 // its own section, and whatever writes one finds them by this
@@ -193,7 +215,7 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts);
 
 // The machine written to `path`, and read back from it: 1, or 0 with the reason printed. A read takes too what the
-// part answered on the run channel from the .ksc beside it, `path` with .ksc after it: each line
+// part answered on the run channel from the .ksc beside it, `path` with .ksc in place of .khw: each line
 // `run answers <stall> stall <writer> <reader>` is the soonest <reader> reads <writer>'s result, and an operation's
 // soonest read is the largest of its lines. A machine with no .ksc beside it holds none
 int sass_machine_write(const SassMachine *machine, const char *path);

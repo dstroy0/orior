@@ -24,34 +24,48 @@
 // Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
 // when each was last shown, while Ctrl is held.
 
-import { invoke } from "./bridge.js";
+import { invoke, listen } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
 import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
+import { colorWith } from "./editor/tokens.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
-import { drawGit, drawLocalHistory, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
+import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
 import { drawCommit, startCommit } from "./commit.js";
 import { closeDiff, showDiff } from "./diffview.js";
+import { showMerge } from "./mergeview.js";
+import { anchor } from "./review.js";
 import { symbolsOf } from "./outline.js";
 import { opening, registerLanguages, rowOf } from "./languages.js";
 import { loadPlugins, onPlugins, toolFor } from "./plugins.js";
-import { changed, definition, serve, startServers, stopServing, wrap } from "./servers.js";
-import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
-import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
+import { changed, checkTree, definition, forgetProblems, hintsShown, knownProblems, parseShown, serve, spansOf, startServers, stopServing, treeChecking, wrap } from "./servers.js";
+import { callHierarchy, closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
+import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
+import { extractFunction } from "./extract.js";
+import { changeSignature } from "./signature.js";
+import { moveDeclaration } from "./move.js";
+import { shapeSearch } from "./shapes.js";
+import { breakpointMenu, breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint, valueAt } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
+import { coverageOf, startTests, testMenu, testsOf } from "./tests.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
-import { clipText, copyText, menuOn } from "./menu.js";
+import { clipText, copyText, menuOn, showMenu } from "./menu.js";
 import { runInTerminal, terminalAt } from "./terminal.js";
+import { onPatterns, tellPatterns } from "./patterns.js";
+import { coloredLines } from "./screen.js";
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, write } from "./status.js";
 import { togglePane } from "./sides.js";
-import { drawBranch, say } from "./statusbar.js";
+import { drawBranch, onOverBudget, say } from "./statusbar.js";
+import { openWindow } from "./windows.js";
 
 const state = {
   editor: null,
-  // The split editor beside the first, { node, editor, session, focused }, or null.
+  // The split beside the first side or under it, or null: its editor, its tab strip, its tabs'
+  // paths and the one it shows, each file's own session over the file's text, and whether its
+  // editor was pressed in last.
   split: null,
   known: null,
   head: null,
@@ -62,6 +76,7 @@ const state = {
   // What git says of each changed file, and of each folder holding one.
   changes: new Map(),
   rolled: new Map(),
+  repos: null,
   // The places jumped from, and the ones gone back from.
   back: [],
   forward: [],
@@ -71,8 +86,26 @@ const state = {
   cycle: null,
   // Each file's text as the last commit left it, as it is being read or once it is: null for none.
   heads: new Map(),
+  // How many files the system clipboard holds, for the tree's Paste.
+  clipFiles: 0,
+  // The batches of changes on the disk being taken, one after another.
+  watched: Promise.resolve(),
+  // How many times the tree was drawn, which tells a draw a later one overtook it, and the latest.
+  drawing: 0,
+  drawn: null,
   // The keys of the menus' commands for the editor.
   editorKeys: [],
+  // The keys the reader bound, over the editor's own.
+  boundKeys: [],
+  // Where a file opened goes instead of this window's editor, as from a window that shows a tool
+  // window alone, or null.
+  elsewhere: null,
+  // The named groups of the first side's tabs, each its name, its tabs' paths and whether it is
+  // folded.
+  groups: [],
+  // The folders and files from other places mounted beside the tree, each its name, its path on the
+  // disk and whether it is a folder.
+  mounts: [],
 };
 
 // How many places Back holds, how many files the quick open lists as opened last, and the largest
@@ -101,14 +134,56 @@ async function childrenOf(dir) {
   return state.children.get(dir);
 }
 
+// The repositories of the tree, read as a tree opens and again as git changes: each one's path in the
+// tree, empty for the one the tree is in, and the branch it is on.
+const repoPaths = () => (state.repos ?? []).map((repo) => repo.path);
+
+// The repository that holds a path of the tree: the deepest whose folder holds it.
+function repoOf(path) {
+  const held = repoPaths().filter((repo) => repo === "" || path === repo || path.startsWith(`${repo}/`));
+  return held.length ? held.reduce((deepest, repo) => (repo.length > deepest.length ? repo : deepest)) : null;
+}
+
+// The repository open, the one the Git menu, the branch on the status bar and the Commit window's
+// pull and push act on: the one that holds the file shown, or the tree's own, or the first.
+function repoOpen() {
+  const file = state.active ? fileOf(state.active) : null;
+  const paths = repoPaths();
+  return (file && repoOf(file)) ?? (paths.includes("") ? "" : (paths[0] ?? ""));
+}
+
+// A repository's name: its folder's, the tree's own folder's for the tree's.
+function repoName(repo) {
+  return (repo || document.getElementById("tree-path").textContent.replace(/\\/g, "/")).split("/").filter(Boolean).pop() ?? "";
+}
+
+// The branch on the status bar: the repository open's, named with it where the tree holds more than
+// one.
+function drawRepoBranch() {
+  const repo = repoOpen();
+  const branch = (state.repos ?? []).find((one) => one.path === repo)?.branch ?? state.branch;
+  const changed = [...state.changes.keys()].some((path) => repoOf(path) === repo);
+  drawBranch(branch && (state.repos?.length ?? 0) > 1 ? `${repoName(repo)}: ${branch}` : branch, changed);
+}
+
 // Reads what git says of the tree again: each changed file's state, and each folder's from the files
 // under it.
+// Another tree opened while the changes are read lets go of the repositories; the changes read are
+// those of the tree the read began in, and the repositories are read again on the next.
 async function loadChanges() {
-  const [changed, branch] = await Promise.all([invoke("tree_changed").catch(() => []), invoke("tree_branch").catch(() => null)]);
-  state.changes = new Map(changed.map(({ path, state: mark }) => [path, mark]));
+  if (!state.repos) {
+    state.repos = await invoke("git_repositories").catch(() => []);
+  }
+  const [changed, branch] = await Promise.all([invoke("tree_changed", { repos: repoPaths() }).catch(() => []), invoke("tree_branch", { repo: repoOpen() }).catch(() => null)]);
+  state.changes = new Map((changed ?? []).map(({ path, state: mark }) => [path, mark]));
   state.branch = branch;
+  const open = state.repos?.find((one) => one.path === repoOpen());
+  if (open) {
+    open.branch = branch;
+  }
   drawCommit(state.changes);
   drawGit(branch);
+  drawReview();
   state.rolled = new Map();
   for (const [path, mark] of state.changes) {
     let at = path.lastIndexOf("/");
@@ -121,19 +196,35 @@ async function loadChanges() {
       at = folder.lastIndexOf("/");
     }
   }
-  drawBranch(branch, state.changes.size > 0);
+  drawRepoBranch();
 }
 
-async function drawTree() {
+// Draws the tree from the folders read, and ends once the latest draw has put its rows in. A draw that
+// a later one overtakes while it reads puts nothing in, and the row that holds the keys as the rows
+// are put in keeps them.
+function drawTree() {
+  state.drawn = drawTreeOnce(state.drawing + 1);
+  return state.drawn;
+}
+
+async function drawTreeOnce(drawing) {
   const list = document.getElementById("files");
-  const focused = focusedKey(list);
+  state.drawing = drawing;
+  const put = (rows) => {
+    if (drawing !== state.drawing) {
+      return state.drawn;
+    }
+    const focused = focusedKey(list);
+    list.replaceChildren(...rows);
+    refocus(list, focused);
+    return null;
+  };
   const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
   document.querySelector('.pane[data-pane="folder"] .pane-head').textContent = top.split("/").filter(Boolean).pop() ?? "";
   const query = document.getElementById("file-filter").value.trim();
   if (query) {
     const found = await invoke("tree_find", { query });
-    list.replaceChildren(...found.map((path) => node({ name: path, path, dir: false, ignored: false }, 0)));
-    refocus(list, focused);
+    await put(found.map((path) => node({ name: path, path, dir: false, ignored: false }, 0)));
     return;
   }
   const nodes = [];
@@ -146,8 +237,61 @@ async function drawTree() {
     }
   };
   await walk("", 0);
-  list.replaceChildren(...nodes);
-  refocus(list, focused);
+  // Each folder or file from another place stands after the tree's own, under its own name.
+  for (const [at, mounted] of state.mounts.entries()) {
+    const path = `@${mounted.name}`;
+    const row = node({ name: mounted.name, path, dir: mounted.dir, ignored: false }, 0);
+    row.classList.add("mount");
+    row.classList.toggle("mount-first", at === 0);
+    row.title = mounted.path;
+    nodes.push(row);
+    if (mounted.dir && state.expanded.has(path)) {
+      await walk(path, 1);
+    }
+  }
+  await put(nodes);
+}
+
+// More than one tree in a window: folders from other places, and single files from them, mounted
+// beside the tree, each with its own place in the explorer and kept with the tree.
+
+const mountsKey = () => `orior.mounts.${treeKey()}`;
+
+async function readMounts() {
+  state.mounts = await invoke("tree_mounts").catch(() => []);
+  localStorage.setItem(mountsKey(), JSON.stringify(state.mounts.map((mounted) => mounted.path)));
+}
+
+// Mounts again the folders and files kept with the tree, as it opens.
+export async function loadMounts() {
+  const kept = readKept(mountsKey(), []);
+  for (const path of Array.isArray(kept) ? kept : []) {
+    await invoke("tree_mount", { path }).catch(() => {});
+  }
+  state.mounts = await invoke("tree_mounts").catch(() => []);
+}
+
+// File, Add Folder to Window and Add File to Window: the folder or file at `path` mounted beside the
+// tree, and its name given.
+export async function addToWindow(path) {
+  const name = await invoke("tree_mount", { path });
+  await readMounts();
+  state.expanded.add(`@${name}`);
+  await drawTree();
+  return name;
+}
+
+// Takes a mount out of the window, closing its files' tabs.
+async function removeFromWindow(name) {
+  const prefix = `@${name}`;
+  for (const tab of state.tabs.filter((one) => one.path === prefix || one.path.startsWith(`${prefix}/`))) {
+    tab.closing = true;
+    closeTab(tab);
+  }
+  await invoke("tree_unmount", { name });
+  await readMounts();
+  state.children.clear();
+  await drawTree();
 }
 
 // A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
@@ -196,6 +340,11 @@ function node(entry, depth) {
 
 function tabOf(path) {
   return state.tabs.find((tab) => tab.path === path);
+}
+
+// The tab whose file a session shows, a split's session among them, and not a commit's.
+function tabOfSession(s) {
+  return state.tabs.find((tab) => tab.session === (s?.of ?? s) && !tab.commit) ?? null;
 }
 
 // The lines a tab's file holds as saved: the document's own where its text is the file's, each
@@ -251,8 +400,16 @@ function tabName(tab) {
   return tab.commit ? `${name} @ ${tab.commit.slice(0, 7)}` : name;
 }
 
+// The tabs of the first side: those not moved to the split alone.
+const mainTabs = () => state.tabs.filter((tab) => tab.inMain !== false);
+
+// The file the reader acts on: the split's where its editor was pressed in last, else the first
+// side's.
+const actingPath = () => (state.split?.focused ? state.split.active : state.active);
+
 function drawTabs() {
   keepSession();
+  drawSplitTabs();
   const bar = document.getElementById("tabs");
   drawOpenEditors(
     state.tabs.map((tab) => ({
@@ -265,28 +422,246 @@ function drawTabs() {
       known: Boolean(state.known?.typeOf(tab.file)),
     }))
   );
-  bar.replaceChildren(
-    ...state.tabs.map((tab) => {
-      const name = tabName(tab);
-      const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
-      const button = element("button", { className: "tab", type: "button", title: tab.path, role: "tab" });
-      button.setAttribute("aria-selected", String(tab.path === state.active));
-      button.append(dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, close);
-      button.addEventListener("click", (event) => {
-        if (event.target === close) {
-          closeTab(tab);
-        } else {
-          show(tab.path);
-        }
-      });
-      button.addEventListener("auxclick", (event) => event.button === 1 && closeTab(tab));
-      return button;
-    })
-  );
+  const marks = markedFiles();
+  const tabButton = (tab) => {
+    const name = tabName(tab);
+    const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
+    const button = element("button", { className: `tab${groupOf(tab.path) ? " grouped" : ""}`, type: "button", title: tab.path, role: "tab" });
+    button.setAttribute("aria-selected", String(tab.path === state.active));
+    const mark = tab.commit ? -1 : marks.indexOf(tab.file);
+    button.append(mark >= 0 ? element("span", { className: "tab-mark", textContent: String(mark + 1), title: `Ctrl+${mark + 1}` }) : "", dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, close);
+    button.addEventListener("click", (event) => {
+      if (event.target === close) {
+        closeTab(tab);
+      } else {
+        show(tab.path);
+      }
+    });
+    button.addEventListener("auxclick", (event) => event.button === 1 && closeTab(tab));
+    dragOut(button, tab);
+    return button;
+  };
+  const drawn = [];
+  // Down the side, the marked files stand first, each by its key.
+  if (sideTabs() && marks.length) {
+    drawn.push(element("div", { className: "tab-section", textContent: "Marked" }));
+    marks.forEach((path, at) => {
+      const row = element("button", { className: "tab tab-marked", type: "button", title: `${path} (Ctrl+${at + 1})` }, element("span", { className: "tab-mark", textContent: String(at + 1) }), path.split("/").pop());
+      row.setAttribute("aria-selected", String(fileOf(state.active) === path));
+      row.addEventListener("click", () => goMark(at + 1));
+      drawn.push(row);
+    });
+    drawn.push(element("div", { className: "tab-section", textContent: "Open" }));
+  }
+  // Each group under its header, which folds it; a folded group still shows its tab that is shown.
+  for (const group of state.groups) {
+    const members = group.paths.map(tabOf).filter((tab) => tab && tab.inMain !== false);
+    if (!members.length) {
+      continue;
+    }
+    const header = element(
+      "button",
+      { className: `tab-group${group.folded ? " folded" : ""}`, type: "button", title: group.folded ? `Unfold ${group.name}` : `Fold ${group.name}` },
+      element("span", { className: "tab-group-fold", textContent: group.folded ? "▸" : "▾" }),
+      element("span", { className: "tab-group-name", textContent: group.name }),
+      element("span", { className: "tab-group-count", textContent: String(members.length) }),
+    );
+    header.setAttribute("aria-expanded", String(!group.folded));
+    header.addEventListener("click", () => {
+      group.folded = !group.folded;
+      drawTabs();
+    });
+    header.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showMenu(event.clientX, event.clientY, groupMenu(group));
+    });
+    drawn.push(header, ...members.filter((tab) => !group.folded || tab.path === state.active).map(tabButton));
+  }
+  drawn.push(...mainTabs().filter((tab) => !groupOf(tab.path)).map(tabButton));
+  bar.replaceChildren(...drawn);
 }
 
-// A tab with changes not yet saved asks for a second click before it closes.
+// Tabs down the side: the first side's tabs in a column beside its editor in place of a row above
+// it, set in View and kept.
+const SIDE_TABS = "orior.tabs.side";
+
+export const sideTabs = () => localStorage.getItem(SIDE_TABS) === "true";
+
+export function setSideTabs(on = !sideTabs()) {
+  localStorage.setItem(SIDE_TABS, String(on));
+  document.querySelector("#mode-edit .desk").dataset.tabs = on ? "side" : "row";
+  drawTabs();
+}
+
+// Groups of tabs: a tab's menu puts it in a group named by the reader, and the group's header folds
+// it, renames it, lets its tabs go or closes them.
+
+const groupOf = (path) => state.groups.find((group) => group.paths.includes(path)) ?? null;
+
+async function addToGroup(tab) {
+  const { askFor } = await import("./menubar.js");
+  const name = (await askFor("The group's name", groupOf(tab.path)?.name ?? state.groups.at(-1)?.name ?? ""))?.trim();
+  if (!name) {
+    return;
+  }
+  leaveGroup(tab.path);
+  const group = state.groups.find((one) => one.name === name);
+  if (group) {
+    group.paths.push(tab.path);
+  } else {
+    state.groups.push({ name, paths: [tab.path], folded: false });
+  }
+  drawTabs();
+}
+
+function leaveGroup(path) {
+  for (const group of state.groups) {
+    group.paths = group.paths.filter((one) => one !== path);
+  }
+  state.groups = state.groups.filter((group) => group.paths.length);
+}
+
+function groupMenu(group) {
+  return [
+    { label: group.folded ? "Unfold" : "Fold", run: () => ((group.folded = !group.folded), drawTabs()) },
+    {
+      label: "Rename Group…",
+      run: async () => {
+        const { askFor } = await import("./menubar.js");
+        const name = (await askFor("The group's name", group.name))?.trim();
+        if (name) {
+          group.name = name;
+          drawTabs();
+        }
+      },
+    },
+    { label: "Ungroup", run: () => ((state.groups = state.groups.filter((one) => one !== group)), drawTabs()) },
+    "-",
+    { label: "Close the Group's Tabs", run: () => group.paths.map(tabOf).filter(Boolean).forEach(closeTab) },
+  ];
+}
+
+// Marked files: a short list of the tree's files, nine at most, each opened by Ctrl and its number,
+// kept for the tree.
+
+const marksKey = () => `orior.marks.${treeKey()}`;
+
+export function markedFiles() {
+  const kept = readKept(marksKey(), []);
+  return Array.isArray(kept) ? kept.filter((path) => typeof path === "string").slice(0, 9) : [];
+}
+
+function keepMarks(list) {
+  localStorage.setItem(marksKey(), JSON.stringify(list.slice(0, 9)));
+  drawTabs();
+}
+
+// Go, Marked Files, Mark File: the file shown marked for the next key free, or unmarked where it was.
+export function toggleMark(path = actingPath() ? fileOf(actingPath()) : null) {
+  if (!path || tabOf(path)?.commit) {
+    return;
+  }
+  const list = markedFiles();
+  if (list.includes(path)) {
+    keepMarks(list.filter((one) => one !== path));
+    say(`${path} is no longer marked.`);
+    return;
+  }
+  if (list.length >= 9) {
+    say("Nine files are marked: Marked Files lets one go first.", { failed: true });
+    return;
+  }
+  keepMarks([...list, path]);
+  say(`${path} is marked: Ctrl+${list.length + 1} opens it.`);
+}
+
+// Ctrl and a number: the file marked for it, opened.
+export async function goMark(n) {
+  const path = markedFiles()[n - 1];
+  if (!path) {
+    say(`No file is marked for Ctrl+${n}.`);
+    return;
+  }
+  await openFile(path);
+}
+
+// Go, Marked Files: each marked file, opened by a press, and its menu to let it go or move it.
+function markItems() {
+  const list = markedFiles();
+  if (!list.length) {
+    return [{ label: "No file is marked: Mark File marks the one shown", disabled: true }];
+  }
+  return list.map((path, at) => ({
+    label: `${at + 1}  ${path}`,
+    items: [
+      { label: "Open", run: () => goMark(at + 1) },
+      { label: "Move Up", disabled: at === 0, run: () => keepMarks(list.map((one, index) => (index === at - 1 ? path : index === at ? list[at - 1] : one))) },
+      { label: "Let Go", run: () => keepMarks(list.filter((one) => one !== path)) },
+    ],
+  }));
+}
+
+// A tab dragged and let go outside the window opens its file in a new window, and leaves this one.
+function dragOut(button, tab) {
+  button.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || tab.commit) {
+      return;
+    }
+    const from = { x: event.clientX, y: event.clientY };
+    let dragging = false;
+    const move = (moved) => {
+      if (!dragging && Math.hypot(moved.clientX - from.x, moved.clientY - from.y) > 8) {
+        dragging = true;
+        // The pointer let go outside the window is heard where the tab holds it.
+        try {
+          button.setPointerCapture(event.pointerId);
+        } catch {
+          // A pointer that is no longer down has nothing to hold.
+        }
+        button.classList.add("dragged");
+      }
+    };
+    const up = (released) => {
+      button.removeEventListener("pointermove", move);
+      button.classList.remove("dragged");
+      const outside = released.clientX < 0 || released.clientY < 0 || released.clientX > window.innerWidth || released.clientY > window.innerHeight;
+      if (dragging && outside) {
+        tabToNewWindow(tab);
+      }
+    };
+    button.addEventListener("pointermove", move);
+    button.addEventListener("pointerup", up, { once: true });
+  });
+}
+
+// Opens a tab's file in a new window, with its changes not saved, and takes the tab out of this one.
+async function tabToNewWindow(tab) {
+  keepBackups();
+  try {
+    await openWindow(["file", "open-file", tab.file]);
+  } catch (error) {
+    say(String(error), { failed: true });
+    return;
+  }
+  // The text kept for its changes stays for the new window to read.
+  tab.leaving = true;
+  tab.closing = true;
+  closeTab(tab);
+}
+
+// A tab with changes not yet saved asks for a second click before it closes. A file the split also
+// shows leaves the first side and stays open there.
 function closeTab(tab) {
+  if (state.split?.paths.includes(tab.path) && tab.inMain !== false) {
+    tab.inMain = false;
+    if (state.active === tab.path) {
+      show(state.used.find((path) => path !== tab.path && tabOf(path)?.inMain !== false) ?? mainTabs().at(-1)?.path ?? null);
+    } else {
+      drawTabs();
+    }
+    return;
+  }
   if (dirty(tab) && !tab.closing) {
     tab.closing = true;
     drawTabs();
@@ -294,13 +669,14 @@ function closeTab(tab) {
   }
   state.tabs = state.tabs.filter((one) => one !== tab);
   state.used = state.used.filter((path) => path !== tab.path);
-  if (state.split && state.split.session.of === tab.session) {
-    unsplit();
-  }
+  leaveGroup(tab.path);
+  leaveSplit(tab.path);
   stopServing(tab);
-  forgetBackup(tab.path);
+  if (!tab.leaving) {
+    forgetBackup(tab.path);
+  }
   if (state.active === tab.path) {
-    state.active = state.used.find(tabOf) ?? state.tabs.at(-1)?.path ?? null;
+    state.active = state.used.find((path) => tabOf(path)?.inMain !== false) ?? mainTabs().at(-1)?.path ?? null;
     show(state.active);
   } else {
     drawTabs();
@@ -387,9 +763,56 @@ async function readOutward(tab) {
   state.editor.schedule();
 }
 
+// Opens a file on the side last pressed in.
+// Loads a file's tab, or says on the status bar why its file could not be read, as for a file gone
+// from the disk since its tab was kept. Answers whether the tab is there.
+async function loaded(path) {
+  try {
+    await load(path);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+  return Boolean(tabOf(path));
+}
+
 export async function openFile(path) {
-  await load(path);
-  show(path);
+  if (state.elsewhere) {
+    state.elsewhere(path, null, 0);
+    return;
+  }
+  const fresh = !tabOf(path);
+  if (!(await loaded(path))) {
+    return;
+  }
+  if (state.split?.focused && splittable(tabOf(path))) {
+    // A file opened in the split alone is not one of the first side's tabs.
+    if (fresh) {
+      tabOf(path).inMain = false;
+    }
+    showInSplit(path);
+  } else {
+    show(path);
+  }
+}
+
+// Open in Next Split: a file opened on the side not last pressed in, a split to the right made
+// where there is none.
+async function openInSplit(path) {
+  const fresh = !tabOf(path);
+  if (!(await loaded(path))) {
+    return;
+  }
+  if (state.split?.focused || !splittable(tabOf(path))) {
+    show(path);
+    return;
+  }
+  if (!state.split) {
+    makeSplit("right");
+  }
+  if (fresh) {
+    tabOf(path).inMain = false;
+  }
+  showInSplit(path);
 }
 
 // Opens a file's tab without showing it, with the text kept for it where it had changes not saved.
@@ -406,7 +829,16 @@ async function load(path) {
       settleAt(tab.session, place);
     } else if (opened.text !== null && opened.text !== undefined) {
       const kept = localStorage.getItem(backupKey(path));
-      tab.session = new Session(kept ?? opened.text, state.known.languageOf(path));
+      // A text with color codes in it, as a log or a run's output keeps, shows in its colors with the
+      // codes taken out, read-only, until its lock is pressed.
+      const colored = kept === null && opened.text.includes("\x1b[") ? coloredLines(opened.text.split(/\r?\n/)) : null;
+      tab.session = new Session(colored ? colored.map((one) => one.text).join("\n") : (kept ?? opened.text), state.known.languageOf(path));
+      if (colored) {
+        tab.session.colored = colored.map((one) => one.html);
+        tab.session.readOnly = true;
+        tab.readOnly = true;
+        tab.colored = opened.text;
+      }
       // Kept text that differs from the file's is a change not saved, and the tab says so.
       markSaved(tab, opened.text);
       if (kept !== null && kept !== opened.text) {
@@ -421,6 +853,34 @@ async function load(path) {
       tab.reading = readOutward(tab);
     }
     serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
+    // The width the file's formatter keeps its lines to, drawn as a line down the editor.
+    if (tab.session) {
+      invoke("format_margin", { path: tab.path, language: tab.session.language?.id ?? "" })
+        .then((found) => {
+          tab.session.margin = found?.width ?? null;
+          tab.session.marginBy = found?.by ?? null;
+          state.editor?.schedule();
+        })
+        .catch(() => {});
+      // The indentation the .editorconfig files over the file set, over what its lines say and
+      // under what a mode line of its own sets.
+      invoke("indent_for", { path: tab.path })
+        .then((set) => {
+          const s = tab.session;
+          for (const key of ["tabs", "size"]) {
+            if (set[key] !== null && s.indentSet[key] === undefined) {
+              s.indent[key] = set[key];
+            }
+          }
+          s.foldings += 1;
+          if (state.editor?.s === s) {
+            state.editor.statusSaid = null;
+            state.editor.size();
+            state.editor.schedule();
+          }
+        })
+        .catch(() => {});
+    }
   }
 }
 
@@ -428,7 +888,13 @@ async function load(path) {
 async function openCommit(path, commit) {
   const key = `${path}@${commit.id}`;
   if (!tabOf(key)) {
-    const text = await invoke("file_at", { path, id: commit.id });
+    const text = await invoke("file_at", { path, id: commit.id }).catch((error) => {
+      say(String(error), { failed: true });
+      return null;
+    });
+    if (text === null) {
+      return;
+    }
     const tab = { path: key, file: path, commit: commit.id, readOnly: true, size: text.length, closing: false };
     tab.session = new Session(text, state.known.languageOf(path), { readOnly: true });
     tab.saved = tab.session.doc.id;
@@ -437,23 +903,25 @@ async function openCommit(path, commit) {
   show(key);
 }
 
-// Split: a second editor beside the first or under it, on the file the first one shows, the text
-// the same in both and the selections, folds and place each its own. The menus act on the one last
-// pressed in. It closes with Unsplit, its own close button, or the file's tab.
-function splitEditor(direction) {
-  const tab = tabOf(state.active);
-  if (!tab?.session || tab.session.window || tab.commit) {
-    say("Split shows a file of the tree that is open and read whole.");
-    return;
-  }
-  unsplit();
+// Split: a second side beside the first or under it, with tabs of its own. Any file can be in
+// either side or both, a file in both showing the same text with the selections, folds and place
+// each its own. The menus act on the side last pressed in, and a file opened opens there. The split
+// closes with Unsplit or its own close button, its files going back to the first side, or as its
+// last tab closes.
+
+// A file of the tree, open and read whole, can be shown in the split.
+const splittable = (tab) => Boolean(tab?.session && !tab.session.window && !tab.commit);
+
+function makeSplit(direction) {
   const desk = document.querySelector("#mode-edit .desk");
   const host = element("div", { className: "editor split-editor" });
   const close = element("button", { className: "split-close", type: "button", title: "Unsplit" }, "×");
   close.setAttribute("aria-label", "Unsplit");
   close.addEventListener("click", unsplit);
-  const node = element("section", { className: "split" }, element("div", { className: "split-head" }, element("span", { className: "split-name", textContent: tab.file }), close), host);
-  node.setAttribute("aria-label", `${tab.file}, split`);
+  const strip = element("div", { className: "tabs split-tabs", role: "tablist" });
+  strip.setAttribute("aria-label", "The split's tabs");
+  const node = element("section", { className: "split" }, element("div", { className: "split-head" }, strip, close), host);
+  node.setAttribute("aria-label", "Split");
   desk.append(node);
   desk.dataset.split = direction;
   // Its status line stands in the status bar beside the first one's, the one shown being that of the
@@ -461,12 +929,123 @@ function splitEditor(direction) {
   const editor = new Editor(host, { ...state.editorHooks, statusHost: document.getElementById("statusbar"), onChange: (s) => state.editorHooks.onChange(s.of ?? s) });
   state.editor.status.after(editor.status);
   state.lendTo(editor);
-  const session = tab.session.twin();
-  state.split = { node, editor, session, focused: true };
+  state.split = { node, editor, strip, direction, paths: [], active: null, twins: new Map(), focused: true };
   editor.input.addEventListener("focus", () => splitFocused(true));
-  editor.show(session);
-  editor.focus();
   splitFocused(true);
+}
+
+// Split Right and Split Down: the file shown on the first side shown in a split beside it or under
+// it as well.
+function splitEditor(direction) {
+  const tab = tabOf(state.active);
+  if (!splittable(tab)) {
+    say("Split shows a file of the tree that is open and read whole.");
+    return;
+  }
+  unsplit();
+  makeSplit(direction);
+  showInSplit(tab.path);
+}
+
+// Shows the file at `path`, open already, in the split, in a tab of the split's own.
+function showInSplit(path) {
+  const split = state.split;
+  const tab = tabOf(path);
+  if (!split || !splittable(tab)) {
+    return;
+  }
+  if (!split.paths.includes(path)) {
+    split.paths.push(path);
+  }
+  if (!split.twins.has(path)) {
+    split.twins.set(path, tab.session.twin());
+  }
+  split.active = path;
+  split.editor.show(split.twins.get(path));
+  split.editor.focus();
+  splitFocused(true);
+  keepRecent(tab.file);
+  drawTabs();
+}
+
+function drawSplitTabs() {
+  const split = state.split;
+  if (!split) {
+    return;
+  }
+  split.strip.replaceChildren(
+    ...split.paths.map((path) => {
+      const tab = tabOf(path);
+      const close = element("span", { className: "close", textContent: tab?.closing && tab.inMain === false ? "×?" : "×", title: path });
+      const button = element("button", { className: "tab", type: "button", title: path, role: "tab" });
+      button.setAttribute("aria-selected", String(path === split.active));
+      button.append(tab && dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", tab ? tabName(tab) : path, close);
+      button.addEventListener("click", (event) => (event.target === close ? closeSplitTab(path) : showInSplit(path)));
+      button.addEventListener("auxclick", (event) => event.button === 1 && closeSplitTab(path));
+      return button;
+    })
+  );
+}
+
+// Takes the file at `path` out of the split, which shows its file used last or, with none left,
+// closes.
+function leaveSplit(path) {
+  const split = state.split;
+  if (!split?.paths.includes(path)) {
+    return;
+  }
+  split.paths = split.paths.filter((one) => one !== path);
+  split.twins.get(path)?.drop();
+  split.twins.delete(path);
+  if (!split.paths.length) {
+    unsplit();
+  } else if (split.active === path) {
+    showInSplit(split.used?.find((one) => split.paths.includes(one)) ?? split.paths.at(-1));
+  } else {
+    drawSplitTabs();
+  }
+}
+
+// Closes a tab of the split. A file open on neither side after it closes, as its tab on the first
+// side would, asking first where it has changes not saved.
+function closeSplitTab(path) {
+  const tab = tabOf(path);
+  if (tab?.inMain === false) {
+    if (dirty(tab) && !tab.closing) {
+      tab.closing = true;
+      drawSplitTabs();
+      return;
+    }
+    leaveSplit(path);
+    tab.inMain = true;
+    closeTab(tab);
+    return;
+  }
+  leaveSplit(path);
+}
+
+// View, Move to Next Split: the file shown on the side last pressed in moves to the other side, a
+// split to the right made where there is none, and the side it left shows its file used last.
+function moveToNextSplit() {
+  const path = actingPath();
+  const tab = tabOf(path);
+  if (!splittable(tab)) {
+    say("A file of the tree, open and read whole, moves to the next split.");
+    return;
+  }
+  if (state.split?.focused) {
+    leaveSplit(path);
+    show(path);
+    return;
+  }
+  if (!state.split) {
+    makeSplit("right");
+  }
+  tab.inMain = false;
+  state.moving = true;
+  show(state.used.find((one) => one !== path && tabOf(one)?.inMain !== false) ?? mainTabs().at(-1)?.path ?? null);
+  state.moving = false;
+  showInSplit(path);
 }
 
 // Marks which editor of a split the menus act on, and shows its status line.
@@ -477,22 +1056,36 @@ function splitFocused(focused) {
   state.split.focused = focused;
   state.split.editor.status.hidden = !focused;
   state.editor.status.hidden = focused;
+  if (focused && state.split.active) {
+    state.split.used = [state.split.active, ...(state.split.used ?? []).filter((one) => one !== state.split.active)];
+  }
 }
 
+// Closes the split, its files going back to the first side.
 function unsplit() {
   if (!state.split) {
     return;
   }
-  const { node, editor, session } = state.split;
+  const { node, editor, twins, paths, active } = state.split;
   state.split = null;
   editor.show(null);
-  session.drop();
+  twins.forEach((session) => session.drop());
+  for (const path of paths) {
+    const tab = tabOf(path);
+    if (tab) {
+      tab.inMain = true;
+    }
+  }
   node.remove();
   editor.status.remove();
   state.editor.status.hidden = false;
   delete document.querySelector("#mode-edit .desk").dataset.split;
+  if (!state.active && active && tabOf(active)) {
+    show(active);
+  }
   state.editor.schedule();
   state.editor.focus();
+  drawTabs();
 }
 
 // Opens every folder above a file in the tree and brings its row into sight.
@@ -517,8 +1110,20 @@ function show(path) {
   }
   state.active = path;
   const tab = tabOf(path);
+  if (tab) {
+    tab.inMain = true;
+  }
   if (tab && !state.cycle) {
     state.used = [path, ...state.used.filter((one) => one !== path)];
+  }
+  if ((state.repos?.length ?? 0) > 1) {
+    drawRepoBranch();
+    drawGit(state.branch);
+  }
+  // A tab whose server was stopped to hold memory to its budget is handed to one again as it shows.
+  if (tab?.session && tab.served === undefined && !tab.serving && tab.unserved) {
+    tab.unserved = false;
+    serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
   }
   if (tab && !tab.commit) {
     keepRecent(tab.file);
@@ -545,6 +1150,7 @@ function show(path) {
   drawCrumbs();
   reveal(path);
   drawOutline(tab?.session ?? null);
+  drawUndo(tab?.session ?? null);
   drawTimeline(tab ? tab.file : null);
   drawLocalHistory(tab?.commit ? null : (tab?.file ?? null));
 }
@@ -556,8 +1162,7 @@ function drawEmpty(shown) {
   document.getElementById("edit-empty").hidden = !shown;
 }
 
-async function saveActive() {
-  const tab = tabOf(state.active);
+async function saveActive(tab = tabOf(actingPath())) {
   if (!tab?.session || tab.readOnly) {
     return;
   }
@@ -591,6 +1196,10 @@ async function saveActive() {
 // line a file still being read has not reached yet is waited for; a file not open yet opens around
 // the line.
 export async function openAt(path, line, col = 0) {
+  if (state.elsewhere) {
+    state.elsewhere(path, line, col);
+    return;
+  }
   if (!tabOf(path)) {
     localStorage.setItem(placeKey(path), JSON.stringify({ line, col }));
   }
@@ -609,7 +1218,9 @@ export async function openAt(path, line, col = 0) {
   if ((line < s.base || line >= s.base + s.doc.count) && tab.reading) {
     await tab.reading;
   }
-  if (state.active === path) {
+  if (state.split?.focused && state.split.active === path) {
+    state.split.editor.goTo(line - s.base, col);
+  } else if (state.active === path) {
     state.editor.goTo(line - s.base, col);
   }
 }
@@ -691,18 +1302,85 @@ async function formatTab(tab, { saving: onSave = false } = {}) {
     }
     return;
   }
+  const places = replaceLines(s, lines, "format");
+  if (!onSave) {
+    say(`Formatted ${places} ${places === 1 ? "place" : "places"}.`);
+  }
+}
+
+// Puts `lines` in place of a session's own as one change of `kind`, which undo takes back, only the
+// lines that differ replaced. Says in how many places the text changed.
+function replaceLines(s, lines, kind) {
+  const doc = s.doc;
   const changes = lineChanges(doc.lines, lines);
   const edits = changes ? changes.hunks.map((hunk) => linesEdit(doc, hunk.then[0], hunk.then[1], lines.slice(hunk.now[0], hunk.now[1]))) : [{ from: { line: 0, col: 0 }, to: doc.end(), text: lines.join("\n") }];
   if (state.editor?.s === s) {
-    state.editor.change(edits, "format");
+    state.editor.change(edits, kind);
   } else {
-    doc.change(edits, "format", s.selections);
+    doc.change(edits, kind, s.selections);
     s.selections = s.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
     doc.settle(s.selections);
   }
-  if (!onSave) {
-    say(`Formatted ${changes ? changes.hunks.length : 1} ${changes?.hunks.length === 1 ? "place" : "places"}.`);
+  return changes ? changes.hunks.length : 1;
+}
+
+// Changes made on the disk outside the window, as the watcher tells of them a batch at a time: each
+// folder whose entries changed is read again, a tab with no changes of its own takes its file's new
+// text, and git's view of the tree is read again where it may have changed. Batches are taken one
+// after another.
+function treeChanged({ payload: changed }) {
+  state.watched = state.watched.then(async () => {
+    if (changed.lost) {
+      state.children.clear();
+    }
+    // Only a folder the tree has read is shown, and only one shown draws the tree again.
+    const shown = changed.folders.filter((folder) => state.children.delete(folder));
+    const files = changed.lost ? state.tabs.map((tab) => tab.path) : changed.files;
+    for (const tab of files.map(tabOf).filter((tab) => tab && !tab.commit)) {
+      await reloadTab(tab);
+    }
+    if (changed.git) {
+      state.heads.clear();
+      state.repos = null;
+      markChanges(tabOf(state.active));
+      await loadChanges();
+    }
+    if (shown.length || changed.git || changed.lost) {
+      await drawTree();
+    }
+  });
+}
+
+// A tab's file as the disk holds it now, taken in where the tab has no changes of its own: the lines
+// that differ replaced as one change, which undo takes back, and the tab marked saved at it. A tab
+// with changes of its own keeps them, and the status bar says the file changed; a file read as a
+// window, or not read as text, is left as it is.
+async function reloadTab(tab) {
+  const s = tab.session;
+  if (!s || s.window || tab.readOnly) {
+    return;
   }
+  let opened;
+  try {
+    opened = await invoke("file_read", { path: tab.path });
+  } catch {
+    return;
+  }
+  if (typeof opened.text !== "string") {
+    return;
+  }
+  const lines = opened.text.split(/\r?\n/);
+  if (lines.length === s.doc.lines.length && lines.every((line, at) => line === s.doc.lines[at])) {
+    return;
+  }
+  if (dirty(tab)) {
+    say(`${tab.file} changed on the disk, and its tab keeps the changes made here.`);
+    return;
+  }
+  replaceLines(s, lines, "reload");
+  markSaved(tab, opened.text);
+  changed(tab);
+  drawTabs();
 }
 
 // Run, Run File: the tab's file saved where it has changes, then run in the terminal with the
@@ -776,7 +1454,292 @@ async function openDiff(path, mark) {
   } else if (mark !== "D") {
     now = (await invoke("file_read", { path }).catch(() => null))?.text ?? "";
   }
-  showDiff(document.querySelector("#mode-edit .desk"), path, then, now);
+  showDiff(document.querySelector("#mode-edit .desk"), path, then, now, { review: path });
+}
+
+// Compare: two texts side by side in the changes view, `sides` naming them, the left first, and the
+// review comments of `review`, a file of the tree, under the right side's lines.
+function compareTexts(name, then, now, sides, review = name) {
+  showDiff(document.querySelector("#mode-edit .desk"), name, then, now, { sides, same: "The two are the same.", review });
+}
+
+const shortId = (commit) => commit.id.slice(0, 7);
+
+// A revision of a file beside the file as it stands, or beside another revision, the older left.
+async function compareCommit(path, commit, other = null) {
+  try {
+    if (!other) {
+      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${shortId(commit)}, then as it stands`);
+      return;
+    }
+    const [older, newer] = commit.when <= other.when ? [commit, other] : [other, commit];
+    compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${shortId(older)}, then ${shortId(newer)}`);
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+// A file as a commit left it beside the file as the commit's first parent left it, the parent left.
+// A file the commit added has nothing on the left, and one it deleted nothing on the right.
+async function openTouched(commit, file) {
+  const parent = commit.parents[0];
+  const then = file.state === "A" || !parent ? null : await invoke("file_at", { path: file.was ?? file.path, id: parent }).catch(() => null);
+  const now = file.state === "D" ? "" : await invoke("file_at", { path: file.path, id: commit.id }).catch(() => "");
+  compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${shortId(commit)}`);
+}
+
+// A review comment's file, open at the line the comment stands at in its text as it is.
+async function openComment(comment) {
+  await openFile(comment.path);
+  const lines = tabOf(state.active)?.session?.doc.lines ?? [];
+  await openAt(comment.path, anchor(comment, lines).line);
+}
+
+// Refactorings across files: each file's edits written into the tab that holds it, a tab opened for
+// a file none holds, every file's as one step of one kind, `group:` and a number, which ties them:
+// Undo or Redo in any of them takes the step back or brings it again in all of them.
+let groups = 0;
+
+async function applyGroup(files) {
+  groups += 1;
+  const kind = `group:${groups}`;
+  for (const file of files.filter((one) => one.edits.length)) {
+    if (!tabOf(file.path)) {
+      await load(file.path).catch(() => {});
+    }
+    const tab = tabOf(file.path);
+    const s = tab?.session;
+    if (!s || s.window || s.readOnly) {
+      say(`${file.path} is not open whole, or cannot be written, and was not changed.`, { failed: true });
+      continue;
+    }
+    const edits = file.edits.map(({ from, to, text }) => ({ from: { line: from.line - s.base, col: from.col }, to: { line: to.line - s.base, col: to.col }, text }));
+    if (state.editor?.s === s) {
+      state.editor.change(edits, kind);
+    } else {
+      s.doc.change(edits, kind, s.selections);
+      s.selections = s.selections.map((sel) => ({ anchor: s.doc.clamp(sel.anchor), head: s.doc.clamp(sel.head), goal: null }));
+      s.doc.settle(s.selections);
+    }
+    s.doc.seal();
+    changed(tab);
+  }
+  drawTabs();
+}
+
+// Takes back, or brings again, the step of `kind` in every tab but the one whose editor already does.
+function undoGroup(kind, back, own) {
+  for (const tab of state.tabs) {
+    const doc = tab.session?.doc;
+    if (!doc || doc === own) {
+      continue;
+    }
+    const step = back ? doc.steps.get(doc.id) : doc.steps.get(doc.next.get(doc.id));
+    if (step?.kind !== kind) {
+      continue;
+    }
+    doc.writer = tab.session;
+    const found = back ? doc.undo() : doc.redo();
+    doc.writer = null;
+    if (found?.selections) {
+      tab.session.selections = found.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
+    }
+    changed(tab);
+  }
+  drawTabs();
+}
+
+// Change Signature on the file in the editor last pressed in.
+function changeSignatureHere(sheet) {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const tab = editor?.s ? tabOfSession(editor.s) : null;
+  if (!tab) {
+    return null;
+  }
+  return changeSignature({
+    editor,
+    path: tab.file,
+    sheet,
+    search: async (name) => [...new Set((await invoke("tree_search", { query: name, how: { case: true, word: true, regex: false } }).catch(() => [])).map((hit) => hit.path))],
+    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path }).catch(() => null))?.text ?? null,
+    apply: applyGroup,
+  });
+}
+
+// Write Docstring: a docstring drawn up for the function the cursor is in, from its parameters, what
+// it returns and what it raises, in the form chosen for Python and as JSDoc for JavaScript, the cursor
+// left on its summary line; and Sort Methods by Name, the methods of the class the cursor is in sorted
+// by name. Each is one change undo takes back.
+const DOCSTRING_FORM = "orior.docstring-form";
+
+function docstringForm() {
+  return localStorage.getItem(DOCSTRING_FORM) ?? "google";
+}
+
+function setDocstringForm(form) {
+  if (!["google", "numpy", "rest", "plain"].includes(form)) {
+    say(`${form} is no docstring form: google, numpy, rest or plain.`, { failed: true });
+    return;
+  }
+  localStorage.setItem(DOCSTRING_FORM, form);
+  say(`Docstrings are drawn up in the ${form} form.`);
+}
+
+function codeHere() {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const s = editor?.s;
+  if (!s || s.window || s.readOnly || !s.language) {
+    say("This reads the code of a file open whole in a language.");
+    return null;
+  }
+  return { editor, s, line: editor.primary().head.line };
+}
+
+async function writeDocstring() {
+  const found = codeHere();
+  if (!found) {
+    return;
+  }
+  const { editor, s, line } = found;
+  try {
+    const [edit, summary] = await invoke("code_docstring", { language: s.language.id, text: s.doc.text(), line, form: docstringForm() });
+    editor.change([edit], "docstring");
+    s.doc.seal();
+    editor.select([{ anchor: summary, head: summary, goal: null }]);
+    editor.focus();
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+// Fill Paragraph: the paragraph of documentation the cursor is in filled to the documentation's
+// margin, or the code's where none is set apart, as fill.rs in the command line's crate fills it.
+async function fillParagraph() {
+  const found = codeHere();
+  if (!found) {
+    return;
+  }
+  const { editor, s, line } = found;
+  const width = editor.docMargin ?? s.margin ?? 79;
+  try {
+    const edit = await invoke("fill_paragraph", { text: s.doc.text(), line, width });
+    editor.change([edit], "fill");
+    s.doc.seal();
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+async function sortMethods() {
+  const found = codeHere();
+  if (!found) {
+    return;
+  }
+  const { editor, s, line } = found;
+  try {
+    const edit = await invoke("code_sort", { language: s.language.id, text: s.doc.text(), line });
+    editor.change([edit], "sort");
+    s.doc.seal();
+    say("The class's methods are sorted by name.");
+  } catch (error) {
+    say(String(error), { failed: true });
+  }
+}
+
+// Search Structurally on the file in the editor last pressed in, and the tree's files in its language.
+function shapeSearchHere(sheet) {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const tab = editor?.s ? tabOfSession(editor.s) : null;
+  const language = editor?.s?.language;
+  if (!tab || !language) {
+    say("Search Structurally reads the code of a file open in a language.");
+    return;
+  }
+  shapeSearch({ sheet, language: language.id, languageName: language.name ?? language.id, path: tab.file, open: (path, line, col) => openAt(path, line, col), apply: applyGroup });
+}
+
+// Move on the file in the editor last pressed in.
+function moveHere(ask) {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const tab = editor?.s ? tabOfSession(editor.s) : null;
+  if (!tab) {
+    return null;
+  }
+  return moveDeclaration({
+    editor,
+    path: tab.file,
+    ask,
+    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path }).catch(() => null))?.text ?? null,
+    make: (path) => invoke("file_create", { path }),
+    apply: applyGroup,
+  });
+}
+
+// Holds the app's memory to `budget` bytes: the servers no open tab needs stop, and where that is not
+// enough, the one that holds the most and does not serve the tab shown. The tabs a stopped server had
+// open lose their diagnostics and are handed to a server again as each shows.
+async function holdMemory(budget) {
+  const open = [...new Set(state.tabs.map((tab) => tab.session?.language?.id).filter(Boolean))];
+  const shown = tabOf(state.active)?.session?.language?.id ?? null;
+  const held = await invoke("memory_hold", { open, shown, budget }).catch(() => null);
+  if (!held?.stopped.length) {
+    return;
+  }
+  const root = document.getElementById("tree-path").textContent;
+  const plain = (path) => path.replace(/\\/g, "/").toLowerCase();
+  const files = new Set(held.files.map(plain));
+  for (const tab of state.tabs) {
+    if (tab.served && files.has(plain(`${root}/${tab.file}`))) {
+      Object.assign(tab, { served: undefined, untold: false, unserved: true });
+      window.clearTimeout(tab.telling);
+      if (tab.session) {
+        tab.session.diagnostics = null;
+      }
+    }
+  }
+  problemsChanged();
+  say(`${held.stopped.join(", ")} stopped to hold memory to its budget; ${held.files.length ? "its files are handed to it again as each shows" : "no open tab needed it"}.`);
+}
+
+// The file open beside the text on the clipboard.
+async function compareWithClipboard() {
+  const tab = tabOf(state.active);
+  if (tab?.session) {
+    compareTexts(tab.file, await clipText(), tab.session.doc.text(), "the clipboard, then the file");
+  }
+}
+
+// One file of the tree beside another, the one chosen first on the left.
+async function compareFiles(first, second) {
+  compareTexts(`${first} · ${second}`, await textNow(first), await textNow(second), `${first}, then ${second}`, second);
+}
+
+// A file a merge left in conflict, in the merge window over the editor: once every conflict is
+// settled, the result is written to the file, the file staged as resolved, and an open tab of it
+// takes the result.
+async function openMerge(path) {
+  const text = await textNow(path);
+  showMerge(document.querySelector("#mode-edit .desk"), path, text, {
+    resolved: async (result) => {
+      try {
+        await invoke("file_write", { path, text: result });
+        await invoke("git_resolve", { path });
+        say(`${path} is resolved.`);
+      } catch (error) {
+        say(String(error), { failed: true });
+      }
+      const tab = tabOf(path);
+      if (tab) {
+        await reloadTab(tab);
+      }
+      await loadChanges();
+    },
+  });
+}
+
+// The files a merge left in conflict.
+function conflicted() {
+  return [...state.changes].filter(([, mark]) => mark === "C").map(([path]) => path);
 }
 
 // Gives each open tab of `paths` its file's text as the tree holds it now, as one step undo takes
@@ -848,15 +1811,39 @@ async function revertSnapshot(path, at) {
   }
 }
 
-// The open files' diagnostics, a file at a time, for the Problems pane.
+// Every file's diagnostics, a file at a time, for the Problems pane: the open files' first, as the
+// tabs stand, then the rest of the tree's by path.
 function problemFiles() {
-  return state.tabs.filter((tab) => !tab.commit && tab.session?.diagnostics?.length).map((tab) => ({ path: tab.file, items: tab.session.diagnostics }));
+  const open = state.tabs.filter((tab) => !tab.commit && tab.session);
+  const shown = new Set(open.map((tab) => tab.file));
+  const rest = [...knownProblems()].filter(([path]) => !shown.has(path)).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return open.filter((tab) => tab.session.diagnostics?.length).map((tab) => ({ path: tab.file, items: tab.session.diagnostics, open: true })).concat(rest.map(([path, items]) => ({ path, items, open: false })));
 }
 
-// Draws the Problems pane again, and tells the tool strip how many errors and warnings there are.
+// Draws the Problems pane again, and tells the tool strip how many errors and warnings there are; at
+// most once each PROBLEMS_REST, or each CHECKING_REST while the tree's check brings a file's
+// diagnostics at a time.
+const PROBLEMS_REST = 120;
+const CHECKING_REST = 400;
+let problemsWaiting = 0;
 function problemsChanged() {
+  if (!problemsWaiting) {
+    const checking = treeChecking();
+    problemsWaiting = window.setTimeout(drawAllProblems, checking && checking.done < checking.total ? CHECKING_REST : PROBLEMS_REST);
+  }
+}
+
+// Starts the tree's check where Problems shows.
+function checkShown() {
+  if (paneOpen("problems") && shownGroup() === "problems") {
+    checkTree();
+  }
+}
+
+function drawAllProblems() {
+  problemsWaiting = 0;
   const files = problemFiles();
-  drawProblems(files);
+  drawProblems(files, treeChecking());
   const all = files.flatMap((file) => file.items);
   window.dispatchEvent(new CustomEvent("problems-changed", { detail: { errors: all.filter((one) => one.severity === 1).length, warnings: all.filter((one) => one.severity === 2).length } }));
 }
@@ -953,20 +1940,43 @@ function symbolsAround(s, line) {
   return held.filter((symbol) => symbol.line === line || s.endOf(symbol.line) >= line);
 }
 
-// Opens a folder of the tree and every folder above it, and gives its row the keys.
-async function revealFolder(folder) {
-  togglePane(true);
-  let at = folder.length;
-  while (at > 0) {
-    state.expanded.add(folder.slice(0, at));
-    at = folder.lastIndexOf("/", at - 1);
+// The symbols beside one in the crumbs: those `parent` holds at `depth`, or the file's outermost
+// where it is null.
+function symbolsBeside(s, parent, depth) {
+  const chain = [];
+  const beside = [];
+  for (const one of crumbSymbols(s)) {
+    chain.length = Math.min(chain.length, one.depth);
+    if (one.depth === depth && (chain.at(-1)?.line ?? -1) === (parent?.line ?? -1)) {
+      beside.push(one);
+    }
+    chain.push(one);
   }
-  await drawTree();
-  const row = [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === folder);
-  row?.scrollIntoView({ block: "nearest" });
-  row?.focus();
+  return beside;
 }
 
+// A folder's entries as a list from the crumbs: a file opens at a press, and a folder opens its own
+// entries beside it.
+async function entryItems(dir) {
+  return (await childrenOf(dir)).map((entry) => (entry.dir ? { label: entry.name, items: () => entryItems(entry.path) } : { label: entry.name, run: () => openFile(entry.path) }));
+}
+
+// Opens the list of the files and folders in `dir` from a crumb, the one named `name` taking the keys.
+async function listBeside(crumb, dir, name) {
+  openFromCrumb(crumb, await entryItems(dir), name);
+}
+
+// Opens a list over a crumb of the status bar, the item labeled `label` taking the keys.
+function openFromCrumb(crumb, items, label) {
+  const box = crumb.getBoundingClientRect();
+  const menu = showMenu(box.left, box.top, items, { anchor: crumb });
+  const own = [...menu.querySelectorAll(".menu-item")].find((one) => one.textContent === label);
+  own?.focus();
+  own?.scrollIntoView({ block: "nearest" });
+}
+
+// The breadcrumbs of the file shown: its folders, it, and the symbols the cursor is in. A press on a
+// folder or the file opens the list of what stands beside it, and on a symbol the symbols beside it.
 function drawCrumbs() {
   const bar = document.getElementById("crumbs");
   const tab = tabOf(state.active);
@@ -981,18 +1991,19 @@ function drawCrumbs() {
     return button;
   };
   const nodes = [];
-  parts.slice(0, -1).forEach((name, at) => nodes.push(crumb(name, () => revealFolder(parts.slice(0, at + 1).join("/")))));
-  const file = crumb(tabName(tab), () => {
-    togglePane(true);
-    reveal(tab.path).then(() => [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === tab.path)?.focus());
-  }, "file");
-  file.prepend(iconOf(tab.file.split("/").pop(), Boolean(state.known?.typeOf(tab.file))));
-  nodes.push(file);
+  // Each folder's and the file's crumb opens the list of the folder that holds it, with it chosen.
+  parts.forEach((name, at) => {
+    const part = crumb(at === parts.length - 1 ? tabName(tab) : name, () => listBeside(part, parts.slice(0, at).join("/"), name), at === parts.length - 1 ? "file" : "");
+    nodes.push(part);
+  });
+  nodes.at(-1).prepend(iconOf(tab.file.split("/").pop(), Boolean(state.known?.typeOf(tab.file))));
   const s = tab.session;
   if (s && state.editor?.s === s) {
-    for (const symbol of symbolsAround(s, state.editor.head().line)) {
-      nodes.push(crumb(symbol.name, () => jumpTo(symbol.line), "symbol"));
-    }
+    const around = symbolsAround(s, state.editor.head().line);
+    around.forEach((symbol, at) => {
+      const part = crumb(symbol.name, () => openFromCrumb(part, symbolsBeside(s, around[at - 1] ?? null, symbol.depth).map((one) => ({ label: one.name, run: () => jumpTo(one.line) })), symbol.name), "symbol");
+      nodes.push(part);
+    });
   }
   const key = nodes.map((node) => node.textContent).join("/");
   if (bar.dataset.key === key) {
@@ -1011,6 +2022,7 @@ async function markChanges(tab) {
   }
   if (tab.commit || s.window || s.base) {
     state.editor.setChanges(s, null);
+    markHistory(tab, null);
     return;
   }
   if (!state.heads.has(tab.file)) {
@@ -1019,8 +2031,10 @@ async function markChanges(tab) {
   const head = await state.heads.get(tab.file);
   if (typeof head !== "string") {
     state.editor.setChanges(s, null);
+    markHistory(tab, null);
     return;
   }
+  markHistory(tab, head);
   if (s.changesFor === s.doc.id && s.changesHead === head) {
     return;
   }
@@ -1028,6 +2042,44 @@ async function markChanges(tab) {
   s.changesHead = head;
   s.changesThen = head.split(/\r?\n/);
   state.editor.setChanges(s, lineChanges(s.changesThen, s.doc.lines));
+}
+
+// Line History: beside each line of a tab's text, the commit that last changed it, while Git, Line
+// History is on, read again as the text or the file's last commit changes. `head` is the file as
+// the last commit left it, or null where the last commit does not hold it.
+function markHistory(tab, head) {
+  const s = tab.session;
+  if (!state.lineHistory || head === null) {
+    s.historyFor = null;
+    if (s.history) {
+      state.editor.setLineHistory(s, null);
+    }
+    return;
+  }
+  if (s.historyFor === s.doc.id && s.historyHead === head) {
+    return;
+  }
+  const id = s.doc.id;
+  s.historyFor = id;
+  s.historyHead = head;
+  invoke("git_line_history", { path: tab.file, text: s.doc.text() })
+    .then((history) => s.historyFor === id && s.historyHead === head && state.editor.setLineHistory(s, history))
+    .catch(() => state.editor.setLineHistory(s, null));
+}
+
+function setLineHistory(on) {
+  state.lineHistory = on;
+  markChanges(tabOf(state.active));
+}
+
+// A press on Line History's mark: the file's change in the commit that last changed the line.
+function openLineCommit(s, line) {
+  const tab = tabOfSession(s);
+  const commit = s.history?.commits[s.history.lines[line]];
+  if (!tab || !commit) {
+    return;
+  }
+  openTouched({ id: commit.id, parents: commit.parent ? [commit.parent] : [] }, { path: commit.path ?? tab.file, was: commit.was, state: commit.parent ? "M" : "A" });
 }
 
 // The change peek. A scroll in the first PEEK_SETTLES milliseconds after it shows brought its change
@@ -1255,7 +2307,10 @@ function keepSession() {
     return;
   }
   const tabs = state.tabs.filter((tab) => !tab.commit).map((tab) => tab.path);
-  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, active: tabOf(state.active)?.commit ? null : state.active }));
+  const main = mainTabs().filter((tab) => !tab.commit).map((tab) => tab.path);
+  const split = state.split ? { paths: state.split.paths, active: state.split.active, direction: state.split.direction } : null;
+  const groups = state.groups.map(({ name, paths, folded }) => ({ name, paths, folded }));
+  localStorage.setItem(sessionKey(), JSON.stringify({ tabs, main, active: tabOf(state.active)?.commit ? null : state.active, split, groups }));
 }
 
 function keepRecent(path) {
@@ -1300,8 +2355,27 @@ export async function restoreSession() {
   for (const path of kept.tabs ?? []) {
     await load(path).catch(() => {});
   }
+  // The groups of tabs as they were.
+  state.groups = (Array.isArray(kept.groups) ? kept.groups : [])
+    .filter((group) => typeof group?.name === "string" && Array.isArray(group.paths))
+    .map((group) => ({ name: group.name, paths: group.paths.filter((path) => tabOf(path)), folded: Boolean(group.folded) }))
+    .filter((group) => group.paths.length);
   state.restored = true;
-  const shown = tabOf(kept.active) ? kept.active : state.tabs.at(-1)?.path;
+  // The split as it was, with its tabs, and the tabs of the first side.
+  const split = (kept.split?.paths ?? (kept.split?.path ? [kept.split.path] : [])).filter((path) => splittable(tabOf(path)));
+  if (split.length && ["right", "down"].includes(kept.split.direction)) {
+    makeSplit(kept.split.direction);
+    for (const path of split) {
+      showInSplit(path);
+    }
+    showInSplit(split.includes(kept.split.active) ? kept.split.active : split.at(-1));
+    for (const tab of state.tabs) {
+      if (kept.main && !kept.main.includes(tab.path) && split.includes(tab.path)) {
+        tab.inMain = false;
+      }
+    }
+  }
+  const shown = tabOf(kept.active)?.inMain !== false && tabOf(kept.active) ? kept.active : mainTabs().at(-1)?.path;
   if (shown) {
     state.moving = true;
     show(shown);
@@ -1481,6 +2555,18 @@ function light() {
 }
 
 export async function startEdit(defs) {
+  document.querySelector("#mode-edit .desk").dataset.tabs = sideTabs() ? "side" : "row";
+  // The editor's colors are worked out on the app's Rust side, each grammar kept there under a key.
+  let grammars = 0;
+  colorWith({
+    keep: (json) => {
+      grammars += 1;
+      const key = `grammar:${grammars}`;
+      return invoke("highlight_grammar", { key, def: JSON.parse(json) }).then(() => key);
+    },
+    color: (key, state, lines) => invoke("highlight_lines", { key, state, lines }),
+  });
+  onOverBudget(holdMemory);
   await loadPlugins();
   state.known = registerLanguages(defs);
   // A plugin read again, turned on or turned off colors every open file anew.
@@ -1504,6 +2590,19 @@ export async function startEdit(defs) {
   onFonts(() => state.editor?.restyle());
   state.editorHooks = {
     onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),
+    onHistory: openLineCommit,
+    onGroup: undoGroup,
+    onShown: (s, from, to) => {
+      const tab = tabOfSession(s.of ?? s);
+      if (tab) {
+        hintsShown(tab, from, to);
+        parseShown(tab, from, to);
+      }
+    },
+    spansOf: (s, from, to) => {
+      const tab = tabOfSession(s.of ?? s);
+      return tab ? spansOf(tab, from, to) : Promise.resolve([]);
+    },
     onCursor: () => {
       moved();
       cancelAnimationFrame(lighting);
@@ -1538,12 +2637,16 @@ export async function startEdit(defs) {
       drawTabs();
       window.clearTimeout(outlining);
       outlining = window.setTimeout(() => drawOutline(tabOf(state.active)?.session ?? null), 300);
+      drawUndo(tabOf(state.active)?.session ?? null);
     },
   };
   state.editor = new Editor(document.getElementById("editor"), { ...state.editorHooks, statusHost: document.getElementById("statusbar") });
   state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
   state.editor.addKeys(state.editorKeys);
+  state.editor.bindKeys(state.boundKeys);
+  state.editor.setVim(vimKeys());
+  state.editor.setMargin(marginLine());
   // The debugger's marks in the gutter, by the file a session shows, a split's the same as the
   // session it was made from. A file as a commit left it has none.
   const fileOfSession = (s) => state.tabs.find((tab) => tab.session === (s?.of ?? s) && !tab.commit)?.file ?? null;
@@ -1555,6 +2658,39 @@ export async function startEdit(defs) {
     const file = fileOfSession(s);
     return file ? bookmarksOf(file) : null;
   };
+  // The breakpoint strip's menu, and the value of the name under the pointer while a program is
+  // stopped.
+  state.editor.onBreakpointMenu = (line, event) => {
+    const file = fileOfSession(state.editor.s);
+    if (file) {
+      breakpointMenu(file, line, event.clientX, event.clientY);
+    }
+  };
+  state.editor.valueAt = (s, p) => {
+    const file = fileOfSession(s);
+    return file ? valueAt(file, s.doc, { line: p.line, col: p.col }) : null;
+  };
+  // Each test's mark in the gutter, and the lines the last run with coverage ran, by the file a
+  // session shows; a press on a mark opens the test's menu.
+  state.editor.testsOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? testsOf(file) : null;
+  };
+  state.editor.coverageOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? coverageOf(file) : null;
+  };
+  state.editor.onTestMark = (line, event) => {
+    const file = fileOfSession(state.editor.s);
+    if (file) {
+      testMenu(file, line, event.clientX, event.clientY);
+    }
+  };
+  startTests({
+    openAt: (path, line, col) => openAt(path, line, col),
+    saveAll: () => editing().saveAll({ auto: true }),
+    repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+  });
   startBookmarks({
     here: () => {
       const tab = tabOf(state.active);
@@ -1580,6 +2716,16 @@ export async function startEdit(defs) {
       say("A file as a commit left it is read-only.");
       return;
     }
+    // A text shown in its colors goes back to its codes as written, to be edited.
+    if (tab.colored !== undefined) {
+      const raw = tab.colored;
+      delete tab.colored;
+      tab.readOnly = false;
+      tab.session = new Session(raw, state.known.languageOf(tab.path));
+      markSaved(tab, raw);
+      show(tab.path);
+      return;
+    }
     s.readOnly = !s.readOnly;
     tab.readOnly = s.readOnly;
     state.editor.schedule();
@@ -1596,13 +2742,22 @@ export async function startEdit(defs) {
   state.lendTo = (editor) => {
     editor.onDefinition = state.editor.onDefinition;
     editor.addKeys(state.editorKeys);
-    for (const name of ["breakpointsOf", "bookmarksOf", "pausedOf", "onLock"]) {
+    editor.bindKeys(state.boundKeys);
+    editor.setVim(vimKeys());
+    editor.setMargin(marginLine());
+    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock", "valueAt"]) {
       editor[name] = state.editor[name];
     }
     editor.onBreakpoint = (line) => {
       const file = fileOfSession(editor.s);
       if (file) {
         toggleBreakpoint(file, line);
+      }
+    };
+    editor.onBreakpointMenu = (line, event) => {
+      const file = fileOfSession(editor.s);
+      if (file) {
+        breakpointMenu(file, line, event.clientX, event.clientY);
       }
     };
   };
@@ -1614,16 +2769,20 @@ export async function startEdit(defs) {
       await loadChanges();
       await drawTree();
     },
-    diff: (path, mark) => openDiff(path, mark),
+    diff: (path, mark) => (mark === "C" ? openMerge(path) : openDiff(path, mark)),
+    texts: async (path, mark) => ({ then: mark === "U" || mark === "A" ? "" : ((await invoke("file_head", { path }).catch(() => null)) ?? ""), now: await textNow(path) }),
     open: (path) => openFile(path),
+    repo: repoOpen,
+    repoOf,
+    repoName,
+    repos: () => state.repos ?? [],
   });
   startDebug({
     editor: () => state.editor,
-    tab: () => tabOf(state.active),
+    tab: () => tabOf(actingPath()),
     save: async (tab) => {
       if (dirty(tab) && !tab.readOnly) {
-        state.active = tab.path;
-        await saveActive();
+        await saveActive(tab);
       }
     },
     open: (path) => openFile(path),
@@ -1665,11 +2824,21 @@ export async function startEdit(defs) {
   });
   startExplorer({
     show,
+    sessionOf: (path) => (path ? tabOf(path)?.session ?? null : null),
+    activePath: () => (state.active ? tabOf(state.active)?.file ?? null : null),
     close: (path) => tabOf(path) && closeTab(tabOf(path)),
     tabMenu: (path) => tabMenu(tabOf(path)),
     goTo: (line) => jumpTo(line),
+    goToState: (id) => (state.split?.focused ? state.split.editor : state.editor)?.goToState(id),
     cursorLine,
     openCommit,
+    compareCommit,
+    openTouched,
+    openComment,
+    showChanges: (path) => openDiff(path, state.changes.get(path) ?? "M"),
+    repo: repoOpen,
+    repoName,
+    repos: () => state.repos ?? [],
     showSnapshot,
     revertSnapshot,
     refresh: async () => {
@@ -1686,16 +2855,31 @@ export async function startEdit(defs) {
     },
     panesChanged: () => {
       drawOutline(tabOf(state.active)?.session ?? null);
+      drawUndo(tabOf(state.active)?.session ?? null);
       drawTimeline(state.active ? fileOf(state.active) : null);
       drawLocalHistory(state.active ? fileOf(state.active) : null);
       drawCommit(state.changes);
-      drawProblems(problemFiles());
+      checkShown();
+      drawProblems(problemFiles(), treeChecking());
       drawGit(state.branch);
+      drawReview();
       drawTodo();
     },
     openAt: (path, line, col) => openAt(path, line, col),
   });
   keepListKeys(document.getElementById("panes"), document.getElementById("file-filter"));
+  // A link in a hover, a diagnostic or a document opens in the browser, and the window stays.
+  document.addEventListener(
+    "click",
+    (event) => {
+      const link = event.target.closest?.("a[data-link]");
+      if (link) {
+        event.preventDefault();
+        invoke("link_open", { url: link.getAttribute("href") }).catch((error) => say(String(error), { failed: true }));
+      }
+    },
+    true,
+  );
   // The peek goes with Escape, a press outside it, a scroll of the text, or another file shown.
   window.addEventListener(
     "keydown",
@@ -1711,11 +2895,26 @@ export async function startEdit(defs) {
   );
   document.addEventListener("mousedown", (event) => state.peek && !state.peek.contains(event.target) && !event.target.closest?.(".ed-change") && closePeek());
   state.editor.scroller.addEventListener("scroll", () => state.peek && performance.now() - state.peekAt > PEEK_SETTLES && closePeek());
-  menuOn(document.getElementById("files"), fileItems);
+  const files = document.getElementById("files");
+  menuOn(files, fileItems);
   menuOn(document.getElementById("tabs"), tabItems);
   menuOn(document.getElementById("editor"), editorItems);
+  // Cut, copy and paste of files by their keys while a row of the tree holds them.
+  files.addEventListener("keydown", (event) => {
+    const row = event.target.closest(".node");
+    const act = { x: () => copyFiles(row.dataset.key, true), c: () => copyFiles(row.dataset.key, false), v: () => pasteFiles(folderOfRow(row)) }[event.key.toLowerCase()];
+    if (row && act && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      act();
+    }
+  });
+  files.addEventListener("pointerdown", readClipFiles);
+  files.addEventListener("focusin", readClipFiles);
   window.addEventListener("focus", async () => {
+    readClipFiles();
     state.heads.clear();
+    state.repos = null;
     markChanges(tabOf(state.active));
     await loadChanges();
     drawTree();
@@ -1725,6 +2924,15 @@ export async function startEdit(defs) {
   drawEmpty(true);
   loadBridge();
   keepBridge(() => inBridge(state.active) && drawDefs());
+  listen("tree-changed", treeChanged);
+  // The explorer drawn again as its patterns change.
+  onPatterns((part) => {
+    if (part === "explorer") {
+      state.children.clear();
+      drawTree();
+    }
+  });
+  await tellPatterns();
   await loadChanges();
   await drawTree();
 }
@@ -1735,25 +2943,122 @@ export async function startEdit(defs) {
 const SHOWN_IN_WINDOW = new Set(["html", "htm", "svg", "png", "jpg", "jpeg"]);
 
 // A row of the tree's menu: open or close a folder, open a file in the editor or a page in a window
-// of its own, copy where it is, or open the terminal in its folder.
+// of its own, cut or copy it, paste files into its folder, copy where it is, or open the terminal in
+// its folder. Off the rows, files paste into the tree's top.
 function fileItems(event) {
   const row = event.target.closest(".node");
   if (!row) {
-    return null;
+    return event.target.closest("#files") ? [{ label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles("") }] : null;
   }
   const path = row.dataset.key;
   const folder = row.classList.contains("dir");
-  const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   const open = folder
     ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
     : { label: "Open", run: () => openFile(path) };
+  const mounted = row.classList.contains("mount") ? path.slice(1) : null;
   return [
     open,
+    ...(mounted ? [{ label: "Remove from Window", run: () => removeFromWindow(mounted) }] : []),
+    ...(folder ? [] : [{ label: "Open in Next Split", run: () => openInSplit(path) }]),
     ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
     "-",
+    { label: "Cut", keys: "Ctrl+X", run: () => copyFiles(path, true) },
+    { label: "Copy", keys: "Ctrl+C", run: () => copyFiles(path, false) },
+    { label: "Paste", keys: "Ctrl+V", disabled: !state.clipFiles, run: () => pasteFiles(folderOfRow(row)) },
+    "-",
     { label: "Copy path", run: () => copyText(path) },
-    { label: "Open in terminal", run: () => terminalAt(folder ? path : parent) },
+    { label: "Open in terminal", run: () => terminalAt(folderOfRow(row)) },
+    ...(folder
+      ? []
+      : [
+          "-",
+          { label: "Select for Compare", run: () => (state.compareFrom = path) },
+          { label: state.compareFrom ? `Compare with ${state.compareFrom.split("/").pop()}` : "Compare with Selected", disabled: !state.compareFrom || state.compareFrom === path, run: () => compareFiles(state.compareFrom, path) },
+        ]),
   ];
+}
+
+// The folder a row of the tree stands for, or the one its file is in.
+function folderOfRow(row) {
+  const path = row.dataset.key;
+  return row.classList.contains("dir") ? path : path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+}
+
+// Files on the system clipboard, cut or copied in the tree here or in another window of orior, or in
+// the system's file manager: how many there are, read again as the window or the tree takes the
+// focus, Paste being open while there are any.
+async function readClipFiles() {
+  state.clipFiles = await invoke("clip_files").catch(() => 0);
+}
+
+async function copyFiles(path, cut) {
+  try {
+    await invoke("files_copy", { paths: [path], cut });
+  } catch (error) {
+    say(String(error));
+  }
+  await readClipFiles();
+}
+
+// Pastes the files on the clipboard into a folder of the tree, moving those that were cut, and shows
+// the last of them in the tree.
+async function pasteFiles(into) {
+  let pasted = [];
+  try {
+    pasted = await invoke("files_paste", { into });
+  } catch (error) {
+    say(String(error));
+  }
+  for (const { from, to } of pasted) {
+    if (from !== null && from !== to) {
+      moveTabs(from, to);
+    }
+  }
+  await readClipFiles();
+  state.expanded.add(into);
+  state.children.clear();
+  await loadChanges();
+  await drawTree();
+  const last = pasted.at(-1)?.to;
+  if (last !== undefined) {
+    const row = [...document.querySelectorAll("#files .node")].find((one) => one.dataset.key === last);
+    row?.focus();
+    row?.scrollIntoView({ block: "nearest" });
+  }
+}
+
+// The tabs of a file moved, or of the files in a folder moved, show each file where it went: the
+// server is told the file closed where it was and opened where it is, and the text, the place and
+// any changes not saved go with it.
+function moveTabs(from, to) {
+  const moved = state.tabs.filter((tab) => !tab.commit && (tab.path === from || tab.path.startsWith(`${from}/`)));
+  for (const tab of moved) {
+    const was = tab.path;
+    const now = to + was.slice(from.length);
+    stopServing(tab);
+    const kept = localStorage.getItem(backupKey(was));
+    forgetBackup(was);
+    if (kept !== null) {
+      localStorage.setItem(backupKey(now), kept);
+    }
+    tab.path = now;
+    tab.file = now;
+    state.used = state.used.map((path) => (path === was ? now : path));
+    for (const group of state.groups) {
+      group.paths = group.paths.map((path) => (path === was ? now : path));
+    }
+    if (markedFiles().includes(was)) {
+      keepMarks(markedFiles().map((path) => (path === was ? now : path)));
+    }
+    if (state.active === was) {
+      state.active = now;
+    }
+    serve(tab).then(() => tab.served && state.editor?.s === tab.session && state.editor.schedule());
+  }
+  if (moved.length) {
+    drawTabs();
+    drawCrumbs();
+  }
 }
 
 // A tab's menu, from the tab bar or from Open Editors: close it, the others or all of them, a tab with changes asking first as its ×
@@ -1774,6 +3079,12 @@ function tabMenu(tab) {
     "-",
     { label: "Split Right", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("right")) },
     { label: "Split Down", disabled: !tab.session || Boolean(tab.commit), run: () => (show(tab.path), splitEditor("down")) },
+    { label: "Open in Next Split", disabled: !splittable(tab), run: () => openInSplit(tab.path) },
+    { label: "Open in New Window", disabled: Boolean(tab.commit), run: () => tabToNewWindow(tab) },
+    "-",
+    { label: "Add to Group…", run: () => addToGroup(tab) },
+    { label: "Remove from Group", disabled: !groupOf(tab.path), run: () => (leaveGroup(tab.path), drawTabs()) },
+    { label: markedFiles().includes(tab.file) ? "Unmark File" : "Mark File", disabled: Boolean(tab.commit), run: () => toggleMark(tab.file) },
     "-",
     { label: "Copy path", run: () => copyText(tab.file) },
   ];
@@ -1801,7 +3112,16 @@ function editorItems() {
     { label: "Go to Definition", keys: "F12", disabled: !served, run: () => goToDefinition(editor.head()) },
     { label: "Find Usages", keys: "Shift+F12", run: findUsages },
     { label: "Rename Symbol…", keys: "F2", disabled: !served, run: renameSymbol },
-    { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served, run: quickFix },
+    { label: "Quick Fix…", keys: "Ctrl+.", disabled: !served && !tabOf(state.active)?.inspected, run: quickFix },
+    {
+      label: "Refactor",
+      items: [
+        { label: "Extract Variable", keys: "Ctrl+Alt+V", run: () => extractVariable(editor, fileOf(state.active)) },
+        { label: "Extract Constant", keys: "Ctrl+Alt+C", run: () => extractConstant(editor) },
+        { label: "Extract Function", keys: "Ctrl+Alt+M", run: () => extractFunction(editor, tabOfSession(editor.s)) },
+        { label: "Inline Variable", keys: "Ctrl+Alt+N", run: () => inlineVariable(editor) },
+      ],
+    },
     "-",
     { label: "Cut", keys: "Ctrl+X", run: held("cut") },
     { label: "Copy", keys: "Ctrl+C", run: held("copy") },
@@ -1823,14 +3143,57 @@ export function bindEditorKeys(list) {
   state.editor?.addKeys(list);
 }
 
+// Vim's keys in the editor and its split, set on or off in Preferences and kept under orior.vim.
+const VIM_KEY = "orior.vim";
+
+export function vimKeys() {
+  return localStorage.getItem(VIM_KEY) === "true";
+}
+
+export function setVimKeys(on) {
+  localStorage.setItem(VIM_KEY, String(on));
+  state.editor?.setVim(on);
+  state.split?.editor.setVim(on);
+}
+
+// The line down the editor at the width the file's formatter keeps lines to, which names the
+// formatter and the width at its top: off until View, Formatter's Line Width turns it on, and kept
+// under orior.margin.
+const MARGIN_KEY = "orior.margin";
+
+export function marginLine() {
+  return localStorage.getItem(MARGIN_KEY) === "true";
+}
+
+export function setMarginLine(on = !marginLine()) {
+  localStorage.setItem(MARGIN_KEY, String(on));
+  state.editor?.setMargin(on);
+  state.split?.editor.setMargin(on);
+}
+
+// Binds the reader's keys in the editor and its split, in place of those bound before, each `run`
+// told the editor its keys were pressed in.
+export function bindReaderKeys(list) {
+  state.boundKeys = list;
+  state.editor?.bindKeys(list);
+  state.split?.editor.bindKeys(list);
+}
+
 // What the menu bar does to the editor: the editor where a file of text is open in it, saving one
 // file or all of them, and closing one tab or all of them.
 export function editing() {
   return {
     editor: state.split?.focused ? state.split.editor : state.editor?.s ? state.editor : null,
-    active: state.active,
+    active: actingPath(),
     split: splitEditor,
     unsplit,
+    moveToNextSplit,
+    openInSplit,
+    sideTabs,
+    setSideTabs,
+    toggleMark,
+    goMark,
+    markItems,
     // The tree read again after a file, a folder or a repository was made in it.
     treeChanged: async () => {
       state.children.clear();
@@ -1839,23 +3202,28 @@ export function editing() {
     },
     // The folder of the file open, as the start of a path for a file or folder to make.
     folderHere: () => {
-      const file = fileOf(state.active);
+      const file = fileOf(actingPath());
       return file?.includes("/") ? file.slice(0, file.lastIndexOf("/") + 1) : "";
     },
     splitShown: () => Boolean(state.split),
     changed: state.tabs.some(dirty),
-    activeChanged: Boolean(tabOf(state.active) && dirty(tabOf(state.active))),
+    activeChanged: Boolean(tabOf(actingPath()) && dirty(tabOf(actingPath()))),
     open: state.tabs.length > 0,
-    save: saveActive,
-    format: () => formatTab(tabOf(state.active)),
-    runFile: () => runTab(tabOf(state.active)),
+    save: () => saveActive(),
+    format: () => formatTab(tabOf(actingPath())),
+    runFile: () => runTab(tabOf(actingPath())),
     definition: () => state.editor?.s && goToDefinition(state.editor.head()),
     usages: findUsages,
+    calls: callHierarchy,
     rename: renameSymbol,
+    extractVariable: () => state.editor?.s && extractVariable(editing().editor ?? state.editor, fileOf(actingPath())),
+    extractConstant: () => state.editor?.s && extractConstant(editing().editor ?? state.editor),
+    extractFunction: () => state.editor?.s && extractFunction(editing().editor ?? state.editor, tabOfSession((editing().editor ?? state.editor).s)),
+    inlineVariable: () => state.editor?.s && inlineVariable(editing().editor ?? state.editor),
     quickFix,
     parameterInfo: () => parameterInfo(),
     quickDoc,
-    validate: () => validateTab(tabOf(state.active)),
+    validate: () => validateTab(tabOf(actingPath())),
     saveAll: async ({ auto = false } = {}) => {
       const shown = state.active;
       for (const tab of state.tabs.filter(dirty)) {
@@ -1885,10 +3253,50 @@ export function editing() {
       await loadChanges();
       drawTree();
     },
-    close: () => tabOf(state.active) && closeTab(tabOf(state.active)),
+    close: () => (state.split?.focused ? closeSplitTab(state.split.active) : tabOf(state.active) && closeTab(tabOf(state.active))),
     closeAll: () => [...state.tabs].forEach(closeTab),
     brackets: () => Boolean(state.editor?.bracketsOn),
     setBrackets: (on) => state.editor?.setBrackets(on),
+    marks: () => Boolean(state.editor?.marksOn),
+    pastEnds: () => Boolean(state.editor?.pastEnds),
+    setPastEnds: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setPastEnds(on)),
+    compareWithClipboard,
+    conflicted,
+    openMerge,
+    setMarks: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setMarks(on)),
+    repo: repoOpen,
+    repoOf,
+    repoName,
+    repos: () => state.repos ?? [],
+    languageOf: (path) => state.known?.languageOf(path) ?? null,
+    // The file of the tab open, and its text as the tab holds it, or null where none is open.
+    fileHere: () => (actingPath() ? tabOf(actingPath())?.file ?? null : null),
+    textHere: () => (actingPath() ? tabOf(actingPath())?.session?.doc.text() ?? null : null),
+    holdMemory,
+    changeSignature: changeSignatureHere,
+    moveDeclaration: moveHere,
+    shapeSearch: shapeSearchHere,
+    writeDocstring,
+    sortMethods,
+    docstringForm,
+    setDocstringForm,
+    lineHistory: () => Boolean(state.lineHistory),
+    setLineHistory,
+    continuation: () => state.editor?.continuation ?? {},
+    setContinuation: (continuation) => [state.editor, state.split?.editor].forEach((one) => one?.setContinuation(continuation)),
+    operatorNext: () => Boolean(state.editor?.operatorNext),
+    setOperatorNext: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setOperatorNext(on)),
+    docMargin: () => state.editor?.docMargin ?? null,
+    setDocMargin: (columns) => [state.editor, state.split?.editor].forEach((one) => one?.setDocMargin(columns)),
+    fillParagraph,
+    hints: (kind) => Boolean(state.editor?.hintKinds[kind]),
+    setHints: (kind, on) => [state.editor, state.split?.editor].forEach((one) => one?.setHints(kind, on)),
+    smoothScroll: () => Boolean(state.editor?.smoothOn),
+    setSmoothScroll: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setSmooth(on)),
+    flickScroll: () => Boolean(state.editor?.flickOn),
+    setFlickScroll: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setFlick(on)),
+    commentsHidden: () => Boolean(state.editor?.commentsHidden),
+    setCommentsHidden: (on) => [state.editor, state.split?.editor].forEach((one) => one?.setCommentsHidden(on)),
     sticky: () => Boolean(state.editor?.stickyOn),
     setSticky: (on) => state.editor?.setSticky(on),
     nextChange: () => stepChange(1, true),
@@ -1921,12 +3329,23 @@ export function editing() {
 
 // Forgets the folders read so far and the tabs, for a tree opened in place of this one. What the tabs
 // held stays kept with the tree they were open in.
+// Sends each file opened in this window to `elsewhere`, a function of its path, line and column, or
+// with null keeps them here.
+export function openElsewhere(elsewhere) {
+  state.elsewhere = elsewhere;
+}
+
 export function forgetTree() {
   stopDebug();
   keepBackups();
   state.tabs.forEach(stopServing);
+  forgetProblems();
+  checkShown();
   state.restored = false;
   state.heads.clear();
+  state.repos = null;
+  state.mounts = [];
+  forgetGraph();
   state.tabs = [];
   state.used = [];
   state.back = [];

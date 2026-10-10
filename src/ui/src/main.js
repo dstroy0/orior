@@ -4,23 +4,32 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { forgetTree, openAt, openFile, restoreSession, startEdit } from "./edit.js";
+import { editing, forgetTree, loadMounts, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
-import { startStrip } from "./strip.js";
-import { forgetFiles } from "./palette.js";
-import { loadRun, startRun } from "./run.js";
+import { drawMenubar, restoreEnvironment, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
+import { forgetTests, loadTests } from "./tests.js";
+import { paneOpen } from "./explorer.js";
+import { closeIcon, refreshStrip, startStrip } from "./strip.js";
+import { startDocks } from "./docks.js";
+import { startStatusItems } from "./statusitems.js";
+import { startFocusFollows } from "./focusfollow.js";
+import { startProfile } from "./profile.js";
+import { startContainers } from "./containers.js";
+import { loadRun, readRunsAgain, startRun } from "./run.js";
+import { linkJoined, startRemote } from "./remote.js";
+import { serveAgain } from "./servers.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme } from "./scheme.js";
 import { startSearch } from "./search.js";
-import { keepPane, settlePanes } from "./sides.js";
+import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
 import { watch } from "./status.js";
-import { startTerminal } from "./terminal.js";
-import { onView, showView } from "./views.js";
+import { focusTerminalView, newTerminal, runInTerminal, startTerminal } from "./terminal.js";
+import { onView, showView, shownView } from "./views.js";
+import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
 import { keepMemory, say } from "./statusbar.js";
@@ -78,31 +87,98 @@ function drawPulse(held) {
   document.getElementById("pulse").replaceChildren(...parts);
 }
 
+// The window and the keys come first: the window is asked for, and the commands the keys run read,
+// before anything else, and the reader's stylesheet is read beside the menu bar's start and not
+// ahead of it. The lattices start once the keys are bound: their first drawing sets up WebGL, and the
+// commands' answer would wait behind it.
 async function start() {
   invoke("window_show").catch(() => {});
+  const commands = invoke("commands_read");
   catchErrors();
   await startMotion();
   startWordmark();
   keepScheme();
-  await keepUserCss();
+  const styled = keepUserCss();
   keepZoom();
   keepMemory();
   startMenus();
-  keepLattices();
   watch(drawPulse);
   document.getElementById("open-button").addEventListener("click", () => openFolder());
   document.getElementById("clone-button").addEventListener("click", () => runCommand("clone"));
-  await startMenubar({ openFolder });
+  await startMenubar({ openFolder, commands });
+  keepLattices();
+  await styled;
   startSearch((path, line, col) => {
     showView("edit");
     openAt(path, line, col);
   });
   await startRun(openInEditor);
   await startTerminal();
-  keepPane(document.getElementById("job-side"), "left");
-  keepPane(document.getElementById("explorer"), "left");
+  keepPane(document.getElementById("job-side"), "left", { own: true });
+  keepPane(document.getElementById("explorer"), "left", { own: true });
   keepPane(document.getElementById("defs-side"), "right");
+  startStatusItems();
+  await startProfile({
+    file: () => editing().fileHere(),
+    save: () => (editing().activeChanged ? editing().save() : null),
+    openAt: (path, line, col) => {
+      showView("edit");
+      openAt(path, line, col);
+    },
+    say: (text) => say(text),
+  });
+  startContainers({
+    ask: async (label, start) => (await import("./menubar.js")).askFor(label, start),
+    terminal: (line) => {
+      newTerminal();
+      runInTerminal(line);
+    },
+    say: (text) => say(text, { failed: true }),
+  });
+  startFocusFollows({ terminal: focusTerminalView });
+  startDocks({
+    close: closeIcon,
+    changed: refreshStrip,
+    openElsewhere,
+    showTool: (name) => {
+      if (name === "terminal" && document.getElementById("term").hidden) {
+        runCommand("terminal-view");
+      } else if (name === "explorer") {
+        showView("edit");
+      } else if (name === "jobs") {
+        showView("run");
+      }
+    },
+    closeTool: (name) => {
+      if (name === "terminal" && !document.getElementById("term").hidden) {
+        runCommand("terminal-view");
+      } else if (name === "explorer") {
+        togglePaneNode(document.getElementById("explorer"), false);
+      } else if (name === "jobs" && shownView() === "run") {
+        showView("edit");
+      }
+    },
+  });
+  // A window that shows a tool window alone sends the files opened from it here.
+  onTold("open", ({ path, line, col }) => {
+    showView("edit");
+    (line === null || line === undefined ? openFile(path) : openAt(path, line, col ?? 0)).then(showWindow);
+  });
   startStrip({ run: runCommand, jobMenus: stripMenus });
+  // A tree on another machine: once the link to it is made, the runs kept there are read, and once
+  // it is made again after a drop, every open tab is handed to its server there again.
+  await startRemote({
+    say: (text) => say(text, { failed: true }),
+    joined: (again) => {
+      readRunsAgain();
+      if (again) {
+        serveAgain();
+      }
+    },
+  });
+  // A tree on another machine is read once the link to it is joined, its server built and sent
+  // there first where it has to be.
+  await linkJoined();
   await begin(await invoke("root_get"));
   settlePanes();
   onView(settlePanes);
@@ -119,7 +195,6 @@ async function openFolder(folder) {
   try {
     const root = await invoke("root_set", { path: chosen });
     forgetTree();
-    forgetFiles();
     await begin(root);
   } catch (error) {
     document.getElementById("open-said").textContent = String(error);
@@ -156,7 +231,15 @@ async function begin(root) {
     }
     await loadRun();
     drawMenubar();
+    await restoreEnvironment();
+    // The folders and files mounted beside the tree come back before the tabs that show them.
+    await loadMounts();
     await restoreSession();
+    // The tests of the tree open before are forgotten, and this tree's read where their window shows.
+    forgetTests();
+    if (paneOpen("tests")) {
+      loadTests();
+    }
     checkNeeded();
   } finally {
     await hideLoading();

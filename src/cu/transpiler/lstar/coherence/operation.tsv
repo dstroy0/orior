@@ -1,0 +1,17 @@
+add
+sub
+mul
+div
+rem
+bitand
+bitor
+bitxor
+nand
+nor
+not
+neg
+shl
+shr
+rol
+ror
+absolute
