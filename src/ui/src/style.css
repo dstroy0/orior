@@ -4449,6 +4449,61 @@ textarea.report-field {
   color: var(--fg-2);
 }
 
+/* Change Signature: a row a parameter, its text in the code's font, an added one's value beside it,
+ * and its buttons to move it and take it out. */
+.signature-sheet h3 {
+  margin: 0 0 0.2rem;
+  font: 600 14px var(--head);
+  color: var(--fg);
+}
+
+.signature-list {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 30rem;
+}
+
+.signature-row {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.signature-row .report-field {
+  flex: 1 1 auto;
+  font-family: var(--code);
+}
+
+.signature-row .signature-value {
+  flex: 0 1 12rem;
+}
+
+.signature-act,
+.signature-add {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  font: 13px var(--head);
+  cursor: pointer;
+}
+
+.signature-act:hover:not(:disabled),
+.signature-add:hover {
+  border-color: var(--fg-3);
+  color: var(--fg);
+}
+
+.signature-act:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.signature-add {
+  justify-self: start;
+}
+
 .sheet-ask kbd {
   justify-self: start;
   padding: 0.2rem 0.5rem;

@@ -43,6 +43,8 @@ import { changed, definition, serve, startServers, stopServing, wrap } from "./s
 import { closeSignature, findUsages, moved, parameterInfo, quickDoc, quickFix, renameSymbol, startIntel, typed } from "./intel.js";
 import { extractConstant, extractVariable, inlineVariable } from "./refactor.js";
 import { extractFunction } from "./extract.js";
+import { changeSignature } from "./signature.js";
+import { moveDeclaration } from "./move.js";
 import { breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
@@ -1005,6 +1007,94 @@ async function openComment(comment) {
   await openAt(comment.path, anchor(comment, lines).line);
 }
 
+// Refactorings across files: each file's edits written into the tab that holds it, a tab opened for
+// a file none holds, every file's as one step of one kind, `group:` and a number, which ties them:
+// Undo or Redo in any of them takes the step back or brings it again in all of them.
+let groups = 0;
+
+async function applyGroup(files) {
+  groups += 1;
+  const kind = `group:${groups}`;
+  for (const file of files.filter((one) => one.edits.length)) {
+    if (!tabOf(file.path)) {
+      await load(file.path).catch(() => {});
+    }
+    const tab = tabOf(file.path);
+    const s = tab?.session;
+    if (!s || s.window || s.readOnly) {
+      say(`${file.path} is not open whole, or cannot be written, and was not changed.`, { failed: true });
+      continue;
+    }
+    const edits = file.edits.map(({ from, to, text }) => ({ from: { line: from.line - s.base, col: from.col }, to: { line: to.line - s.base, col: to.col }, text }));
+    if (state.editor?.s === s) {
+      state.editor.change(edits, kind);
+    } else {
+      s.doc.change(edits, kind, s.selections);
+      s.selections = s.selections.map((sel) => ({ anchor: s.doc.clamp(sel.anchor), head: s.doc.clamp(sel.head), goal: null }));
+      s.doc.settle(s.selections);
+    }
+    s.doc.seal();
+    changed(tab);
+  }
+  drawTabs();
+}
+
+// Takes back, or brings again, the step of `kind` in every tab but the one whose editor already does.
+function undoGroup(kind, back, own) {
+  for (const tab of state.tabs) {
+    const doc = tab.session?.doc;
+    if (!doc || doc === own) {
+      continue;
+    }
+    const step = back ? doc.steps.get(doc.id) : doc.steps.get(doc.next.get(doc.id));
+    if (step?.kind !== kind) {
+      continue;
+    }
+    doc.writer = tab.session;
+    const found = back ? doc.undo() : doc.redo();
+    doc.writer = null;
+    if (found?.selections) {
+      tab.session.selections = found.selections.map((sel) => ({ anchor: doc.clamp(sel.anchor), head: doc.clamp(sel.head), goal: null }));
+    }
+    changed(tab);
+  }
+  drawTabs();
+}
+
+// Change Signature on the file in the editor last pressed in.
+function changeSignatureHere(sheet) {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const tab = editor?.s ? tabOfSession(editor.s) : null;
+  if (!tab) {
+    return null;
+  }
+  return changeSignature({
+    editor,
+    path: tab.file,
+    sheet,
+    search: async (name) => [...new Set((await invoke("tree_search", { query: name, how: { case: true, word: true, regex: false } }).catch(() => [])).map((hit) => hit.path))],
+    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path }).catch(() => null))?.text ?? null,
+    apply: applyGroup,
+  });
+}
+
+// Move on the file in the editor last pressed in.
+function moveHere(ask) {
+  const editor = state.split?.focused ? state.split.editor : state.editor;
+  const tab = editor?.s ? tabOfSession(editor.s) : null;
+  if (!tab) {
+    return null;
+  }
+  return moveDeclaration({
+    editor,
+    path: tab.file,
+    ask,
+    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path }).catch(() => null))?.text ?? null,
+    make: (path) => invoke("file_create", { path }),
+    apply: applyGroup,
+  });
+}
+
 // Holds the app's memory to `budget` bytes: the servers no open tab needs stop, and where that is not
 // enough, the one that holds the most and does not serve the tab shown. The tabs a stopped server had
 // open lose their diagnostics and are handed to a server again as each shows.
@@ -1882,6 +1972,7 @@ export async function startEdit(defs) {
   state.editorHooks = {
     onChangeMark: (line) => (state.peek && hunkAt(state.editor.s, line) && state.peek.dataset.line === String(line) ? closePeek() : showPeek(line)),
     onHistory: openLineCommit,
+    onGroup: undoGroup,
     onCursor: () => {
       moved();
       cancelAnimationFrame(lighting);
@@ -2456,6 +2547,8 @@ export function editing() {
     repos: () => state.repos ?? [],
     languageOf: (path) => state.known?.languageOf(path) ?? null,
     holdMemory,
+    changeSignature: changeSignatureHere,
+    moveDeclaration: moveHere,
     lineHistory: () => Boolean(state.lineHistory),
     setLineHistory,
     smoothScroll: () => Boolean(state.editor?.smoothOn),

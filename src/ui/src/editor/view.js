@@ -176,8 +176,9 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onChangeMark, onHistory, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onChangeMark, onHistory, onGroup, statusHost = null } = {}) {
     this.host = host;
+    this.onGroup = onGroup ?? (() => {});
     this.onChangeMark = onChangeMark ?? (() => {});
     this.onHistory = onHistory ?? (() => {});
     this.onCursor = onCursor ?? (() => {});
@@ -1148,7 +1149,14 @@ export class Editor {
     }, null);
   }
 
+  // Undo, or redo where `back` is false. A step tied to steps in other files, as a refactoring across
+  // files makes, is taken back or brought again in all of them.
   undo(back = true) {
+    const doc = this.doc;
+    const step = back ? doc.steps.get(doc.id) : doc.steps.get(doc.next.get(doc.id));
+    if (!this.s?.readOnly && step?.kind?.startsWith?.("group:") && step.done === back) {
+      this.onGroup(step.kind, back, doc);
+    }
     this.travel(() => (back ? this.doc.undo() : this.doc.redo()));
   }
 

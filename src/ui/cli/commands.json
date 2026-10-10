@@ -80,7 +80,9 @@
             { "label": "Extract Variable", "command": "extract-variable", "keys": "Ctrl+Alt+V", "needs": "editor" },
             { "label": "Extract Constant", "command": "extract-constant", "keys": "Ctrl+Alt+C", "needs": "editor" },
             { "label": "Extract Function", "command": "extract-function", "keys": "Ctrl+Alt+M", "needs": "editor" },
-            { "label": "Inline Variable", "command": "inline-variable", "keys": "Ctrl+Alt+N", "needs": "editor" }
+            { "label": "Inline Variable", "command": "inline-variable", "keys": "Ctrl+Alt+N", "needs": "editor" },
+            { "label": "Change Signature…", "command": "change-signature", "keys": "Ctrl+F6", "needs": "editor" },
+            { "label": "Move…", "command": "move-declaration", "needs": "editor" }
           ]
         },
         { "label": "Quick Fix…", "command": "quick-fix", "keys": "Ctrl+.", "also": "Alt+Enter", "needs": "editor" },
