@@ -96,12 +96,11 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Explorer and files
 
-1. **Type to search in the explorer.** Letters typed in the explorer find the files that match in the tree shown, each match marked, the next and the last a key away.
-2. **Files between windows and the system.** Files copied or cut in the explorer pasted into another window of orior, or into the system's file manager, and files copied there pasted into the explorer.
-3. **Every file but some.** The explorer, the search and the watching of files each kept from files by patterns of their own, one pattern able to keep all files but those it names.
-4. **Search in a set of files.** Find in Files searches a set of files named and kept, as well as the whole tree.
-5. **Breadcrumbs that go somewhere.** Each part of the breadcrumbs opens a list of the files and folders beside it, a press opening one.
-6. **orior's own files in one place.** Its settings, its plugins, its themes and its kept state in one folder of the reader's, laid out as the documentation says.
+1. **Files between windows and the system.** Files copied or cut in the explorer pasted into another window of orior, or into the system's file manager, and files copied there pasted into the explorer.
+2. **Every file but some.** The explorer, the search and the watching of files each kept from files by patterns of their own, one pattern able to keep all files but those it names.
+3. **Search in a set of files.** Find in Files searches a set of files named and kept, as well as the whole tree.
+4. **Breadcrumbs that go somewhere.** Each part of the breadcrumbs opens a list of the files and folders beside it, a press opening one.
+5. **orior's own files in one place.** Its settings, its plugins, its themes and its kept state in one folder of the reader's, laid out as the documentation says.
 
 ## Running and measuring
 

@@ -4238,6 +4238,34 @@ textarea.report-field {
   font-weight: 600;
 }
 
+/* A list's typed search: the letters of each match in signal, as Go to File marks them, on the match
+   color, and what was typed over the list's top right, in the fail color where nothing matches. */
+::highlight(list-typed) {
+  color: var(--signal);
+  background-color: var(--ed-match);
+}
+
+.list-typed {
+  position: fixed;
+  z-index: 45;
+  padding: 1px 7px;
+  background: var(--ed-widget);
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font: 12px var(--head);
+  white-space: pre;
+  pointer-events: none;
+}
+
+.list-typed.none {
+  color: var(--fail);
+}
+
+.list-typed[hidden] {
+  display: none;
+}
+
 .quick-row kbd {
   flex: none;
   margin-left: auto;
