@@ -10,6 +10,14 @@
 // A row says how deep it sits in data-depth, and a folder row says whether it is open in
 // aria-expanded. A group is a details element, open or closed as it is. A list drawn again keeps the
 // focus on the row it was on, by the row's data-key.
+//
+// Letters typed while a row holds the keys find the rows in sight whose names match them, as Go to
+// File matches a name: the first match from that row on takes the keys, each match's letters are
+// marked, Up and Down step from match to match, and Backspace takes the last letter back. Escape, a
+// click in the list, a key that opens or closes a row, or the keys leaving the list ends the search.
+// What was typed shows over the list's top right.
+
+import { fuzzy } from "./fuzzy.js";
 
 const ROWS = "button, summary";
 
@@ -54,7 +62,77 @@ function setOpen(row, open) {
   }
 }
 
+// The text of a row's name: its name's own element where it has one, else the row's text.
+const nameOf = (row) => row.querySelector(".name") ?? row;
+
+// The search typed in a list: the letters, the label that shows them, and the rows that match.
+function typedSearch(list) {
+  const shown = document.createElement("div");
+  shown.className = "list-typed";
+  shown.hidden = true;
+  document.body.append(shown);
+  const held = { text: "", matches: [] };
+  const mark = () => {
+    const ranges = [];
+    for (const { row, hits } of held.matches) {
+      const node = nameOf(row).firstChild;
+      if (node?.nodeType !== Node.TEXT_NODE) {
+        continue;
+      }
+      for (const at of hits) {
+        const range = new Range();
+        range.setStart(node, at);
+        range.setEnd(node, at + 1);
+        ranges.push(range);
+      }
+    }
+    CSS.highlights?.set("list-typed", new Highlight(...ranges));
+  };
+  return {
+    get text() {
+      return held.text;
+    },
+    // The matches for what is typed now, the row from `from` on that takes the keys.
+    find(text, from) {
+      held.text = text;
+      // In a list whose rows name what they stand for, as the explorer's files and folders do, the
+      // headings of its groups are no matches.
+      const all = rowsOf(list);
+      const named = all.filter((row) => row.querySelector(".name"));
+      const rows = named.length ? named : all;
+      held.matches = rows.map((row) => ({ row, found: fuzzy(text, nameOf(row).textContent) })).filter((one) => one.found).map(({ row, found }) => ({ row, hits: found.hits }));
+      const box = list.getBoundingClientRect();
+      shown.textContent = text;
+      shown.classList.toggle("none", !held.matches.length);
+      shown.style.top = `${Math.round(box.top + 4)}px`;
+      shown.style.right = `${Math.round(window.innerWidth - box.right + 8)}px`;
+      shown.hidden = false;
+      mark();
+      const start = Math.max(0, rows.indexOf(from));
+      const first = held.matches.find((one) => rows.indexOf(one.row) >= start) ?? held.matches[0];
+      return first?.row ?? null;
+    },
+    // The match `by` matches on from `row`, the last or the first where there is no further one.
+    step(row, by) {
+      const at = held.matches.findIndex((one) => one.row === row);
+      const next = held.matches[Math.max(0, Math.min(held.matches.length - 1, at + by))];
+      return next?.row ?? row;
+    },
+    end() {
+      if (held.text) {
+        held.text = "";
+        held.matches = [];
+        shown.hidden = true;
+        CSS.highlights?.delete("list-typed");
+      }
+    },
+  };
+}
+
 export function keepListKeys(list, search) {
+  const typed = typedSearch(list);
+  list.addEventListener("focusout", (event) => !list.contains(event.relatedTarget) && typed.end());
+  list.addEventListener("pointerdown", () => typed.end());
   list.addEventListener("keydown", (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey) {
       return;
@@ -65,6 +143,30 @@ export function keepListKeys(list, search) {
     if (at < 0) {
       return;
     }
+    const letter = event.key.length === 1 && (event.key !== " " || typed.text);
+    if (letter || (typed.text && ["Backspace", "Escape", "ArrowDown", "ArrowUp"].includes(event.key))) {
+      let next = row;
+      if (letter) {
+        next = typed.find(typed.text + event.key, row) ?? row;
+      } else if (event.key === "Backspace") {
+        const left = typed.text.slice(0, -1);
+        if (left) {
+          next = typed.find(left, row) ?? row;
+        } else {
+          typed.end();
+        }
+      } else if (event.key === "Escape") {
+        typed.end();
+        event.stopPropagation();
+      } else {
+        next = typed.step(row, event.key === "ArrowDown" ? 1 : -1);
+      }
+      event.preventDefault();
+      next.focus();
+      next.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    typed.end();
     let next = null;
     if (event.key === "ArrowDown") {
       next = rows[at + 1] ?? row;

@@ -1,0 +1,36 @@
+{
+  "id": "apiblueprint",
+  "name": "API Blueprint",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["apib"],
+  "comments": {"block":["<!--","-->"]},
+  "pairs": ["()","[]","{}","``"],
+  "quotes": [],
+  "indentAfter": "$^",
+  "headings": "^(#{1,6})\\s+(.+?)\\s*#*\\s*$",
+  "skips": [["^\\s*(?:```|~~~)", "^\\s*(?:```|~~~)\\s*$"]],
+  "outline": [["^(\\s*)[+-]\\s+((?:Request|Response)\\b.*?)\\s*$", "field"]],
+  "grammar": {
+    "tokenizer": {
+      "root": [
+        ["^FORMAT:.*$","keyword"],
+        ["^HOST:.*$","keyword"],
+        ["^\\s*(?:```|~~~).*$","string","@fence"],
+        ["^\\s{0,3}#{1,6}\\s[^\\[]*","keyword"],
+        ["\\[(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|LINK|UNLINK)(?:\\s+[^\\]]*)?\\]","predefined"],
+        ["\\[\\/[^\\]]*\\]","string"],
+        ["^\\s*[+-]\\s+(?:Request|Response|Body|Headers|Attributes|Parameters|Schema|Model|Relation|Data Structures)\\b","type"],
+        ["\\((?:[\\w.+-]+\\/[\\w.+-]+|required|optional|string|number|boolean|object|array|enum)[^)]*\\)","tag"],
+        ["^\\s*[+-](?=\\s)","operator"],
+        ["<!--","comment","@comment"],
+        ["`[^`]+`","string"],
+        ["\\*\\*[^*]+\\*\\*|__[^_]+__","strong"],
+        ["\\*[^*\\s][^*]*\\*|\\b_[^_\\s][^_]*_\\b","emphasis"],
+        ["[^`*_[(<+\\\\-]+|.",""]
+      ],
+      "fence": [["^\\s*(?:```|~~~)\\s*$","string","@pop"],[".*$","string"]],
+      "comment": [["-->","comment","@pop"],["[^-]+|-","comment"]]
+    }
+  }
+}

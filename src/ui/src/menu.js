@@ -7,11 +7,11 @@
 // menu, and anywhere else the web view's menu, which offers nothing the app does, stays shut.
 //
 // A menu is a list of items, each a label, the keys that do the same where there are some, and what
-// it does, with "-" for a line between items. An item with items of its own opens them beside it, as
-// the pointer rests on it or as Right, Enter or Space is pressed on it, and Left or Escape closes them
-// again. An item that cannot act now is drawn but cannot be chosen. Up and Down step through the
-// items, Home and End go to the ends, a letter goes to the next item it begins, Enter or Space
-// chooses, and Escape or Tab closes. A choice closes every open menu and hands the keys back to what
+// it does, with "-" for a line between items. An item with items of its own, a list or a function
+// that gives one, opens them beside it, as the pointer rests on it or as Right, Enter or Space is
+// pressed on it, and Left or Escape closes them again. An item that cannot act now is drawn but
+// cannot be chosen. Up and Down step through the items, Home and End go to the ends, a letter goes to
+// the next item it begins, Enter or Space chooses, and Escape or Tab closes. A choice closes every open menu and hands the keys back to what
 // held them before the first opened, then acts. A command for the editor or the terminal finds it as
 // it was. A menu too long for the window scrolls.
 
@@ -20,8 +20,9 @@ import { invoke } from "./bridge.js";
 const parts = [];
 // `stack` holds the open menus, the first one and then each opened from an item of the one before.
 // `side` is told of Left and Right in the first menu, which the menu bar uses to step between its
-// menus, and a pointer pressed in `keep` leaves the menus to it.
-const state = { stack: [], back: null, anchor: null, side: null, keep: null, onClose: null, rest: 0 };
+// menus, and a pointer pressed in `keep` leaves the menus to it. `opening` is the item whose items
+// are being given.
+const state = { stack: [], back: null, anchor: null, side: null, keep: null, onClose: null, rest: 0, opening: null };
 
 // How long the pointer rests on an item before the items under it open.
 const REST = 180;
@@ -95,7 +96,7 @@ function place(menu, x, y, beside = null) {
   menu.style.top = `${Math.max(4, top)}px`;
 }
 
-function openUnder(button, item, level, focusFirst) {
+async function openUnder(button, item, level, focusFirst) {
   if (state.stack[level + 1]?.parentItem === button) {
     if (focusFirst) {
       enabledIn(state.stack[level + 1])[0]?.focus();
@@ -103,8 +104,15 @@ function openUnder(button, item, level, focusFirst) {
     return;
   }
   closeFrom(level + 1);
+  state.opening = button;
+  const items = typeof item.items === "function" ? await item.items() : item.items;
+  // Items given late are dropped where another item began opening, or the menu closed, meanwhile.
+  if (state.opening !== button || !button.isConnected) {
+    return;
+  }
+  state.opening = null;
   const box = button.getBoundingClientRect();
-  const menu = build(item.items, level + 1);
+  const menu = build(items, level + 1);
   menu.parentItem = button;
   button.setAttribute("aria-expanded", "true");
   place(menu, box.right - 2, box.top - 5, box);
@@ -246,7 +254,7 @@ export function clipText() {
 }
 
 export function copyText(text) {
-  return navigator.clipboard.writeText(text).catch(() => {});
+  return invoke("clip_write", { text }).catch(() => {});
 }
 
 const inMenus = (target) => state.stack.some((menu) => menu.contains(target));

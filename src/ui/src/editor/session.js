@@ -48,6 +48,48 @@ function detectIndent(doc) {
   return { tabs: tabs > spaces, size: tabs > spaces ? 4 : size };
 }
 
+// How many lines at each end of a file a mode line is looked for in, as Vim looks.
+const MODE_LINES = 5;
+
+// The indentation a line of the file sets for it, as Vim and Emacs read one among its first and last
+// lines: `vim: set ts=4 sw=4 et:`, sw or ts the width and et or noet spaces or tabs, and
+// `-*- indent-tabs-mode: nil; tab-width: 4 -*-`. Holds only what the line sets.
+export function modeIndent(doc) {
+  const set = {};
+  const lines = new Set();
+  for (let at = 0; at < Math.min(MODE_LINES, doc.count); at += 1) {
+    lines.add(at);
+    lines.add(doc.count - 1 - at);
+  }
+  for (const line of lines) {
+    const text = doc.line(line);
+    const vim = text.match(/(?:^|\s)(?:vi|vim|ex):\s*(?:set?\s+)?(.*)/);
+    for (const option of vim ? vim[1].split(/[\s:]+/) : []) {
+      const [name, value] = option.split("=");
+      const width = Number(value);
+      if (name === "et" || name === "expandtab") {
+        set.tabs = false;
+      } else if (name === "noet" || name === "noexpandtab") {
+        set.tabs = true;
+      } else if ((name === "sw" || name === "shiftwidth") && width > 0) {
+        set.size = width;
+      } else if ((name === "ts" || name === "tabstop") && width > 0) {
+        set.size ??= width;
+      }
+    }
+    const emacs = text.match(/-\*-(.*)-\*-/);
+    for (const part of emacs ? emacs[1].split(";") : []) {
+      const [name, value] = part.split(":").map((one) => one?.trim());
+      if (name === "indent-tabs-mode") {
+        set.tabs = value !== "nil";
+      } else if (name === "tab-width" && Number(value) > 0) {
+        set.size = Number(value);
+      }
+    }
+  }
+  return set;
+}
+
 const FAR = Number.MAX_SAFE_INTEGER;
 
 export class Session {
@@ -70,7 +112,10 @@ export class Session {
     this.foldings = 0;
     this.found = new Map();
     this.foundAt = -1;
-    this.indent = detectIndent(this.doc);
+    // The indentation read from the lines, under any a mode line of the file sets, which is kept
+    // apart for what an .editorconfig sets not to go over it.
+    this.indentSet = modeIndent(this.doc);
+    this.indent = { ...detectIndent(this.doc), ...this.indentSet };
     this.snippet = null;
     this.view = null;
     this.unwatch = this.doc.watch(({ edits, first }) => {
@@ -102,6 +147,38 @@ export class Session {
         }
         this.folded = carried;
         this.foldings += 1;
+      }
+      // A parse's spans and folds stay with their lines where no edit reached them, and wait to be
+      // asked for again.
+      const parse = this.highlight.parse;
+      if (parse) {
+        const reached = (line) => edits.some((edit) => edit.from.line <= line && line <= edit.to.line);
+        const moved = (line) => mapThrough(pos(line, 0), edits, true).line;
+        const byLine = new Map();
+        for (const [line, spans] of parse.byLine) {
+          if (!reached(line)) {
+            byLine.set(moved(line), spans);
+          }
+        }
+        const folds = new Map();
+        for (const [start, end] of parse.folds) {
+          const from = moved(start);
+          const to = mapThrough(pos(end, FAR), edits, true).line;
+          if (to > from) {
+            folds.set(from, to);
+          }
+        }
+        this.highlight.parse = { ...parse, byLine, folds, stale: true };
+      }
+      // A hint stays with its line where no edit reached the line, and waits to be asked for again.
+      if (this.hints) {
+        const carried = new Map();
+        for (const [line, hints] of this.hints.byLine) {
+          if (!edits.some((edit) => edit.from.line <= line && line <= edit.to.line)) {
+            carried.set(mapThrough(pos(line, 0), edits, true).line, hints);
+          }
+        }
+        this.hints = { ...this.hints, byLine: carried, stale: true };
       }
       if (this.snippet) {
         for (const stop of this.snippet.stops) {
@@ -141,25 +218,76 @@ export class Session {
   // Colors the text in `language` from here on, as a plugin read again asks.
   setLanguage(language) {
     this.language = language ?? null;
-    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null);
+    this.highlight = new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule());
   }
 
-  // Every region that folds. It reads the whole text, and only folding everything asks for it.
+  // Every region that folds: the parse's where the file has one, the headings' and blocks' the
+  // language marks, and those read from the indentation of the lines the others leave, which only
+  // folding everything asks for.
   regions() {
-    return regions(this.doc, this.indent.size);
+    const found = regions(this.doc, this.indent.size);
+    for (const [line, end] of this.sectionFolds() ?? []) {
+      found.set(line, end);
+    }
+    for (const line of this.highlight.parse?.folds?.keys() ?? []) {
+      const end = this.parseEnd(line);
+      if (end > line) {
+        found.set(line, end);
+      }
+    }
+    return found;
   }
 
-  // Whether a line opens a region, read from the lines just after it.
+  // The last line of the region the parse gives a line, or -1 where it gives none. A parse's region
+  // runs to the line of its closing bracket; where that line starts with the bracket at the first
+  // line's indent, the region ends on the line before it, which the fold takes in where it holds
+  // closing brackets alone, as it takes in the one after a region read from the indentation.
+  parseEnd(line) {
+    const end = this.highlight.parse?.folds?.get(line);
+    if (end === undefined) {
+      return -1;
+    }
+    const text = this.doc.line(end);
+    const size = this.indent.size;
+    const own = /^\s*[\])}]/.test(text) && indentOf(text, size) === indentOf(this.doc.line(line), size) ? end - 1 : end;
+    return own > line ? own : -1;
+  }
+
+  // The folds of the headings and blocks the language marks, where it marks any, kept until the text
+  // changes.
+  sectionFolds() {
+    if (!this.language?.folds) {
+      return null;
+    }
+    if (this.sectionsAt !== this.doc.id || this.sectionsOf !== this.language) {
+      this.sections = this.language.folds(this.doc);
+      this.sectionsAt = this.doc.id;
+      this.sectionsOf = this.language;
+    }
+    return this.sections;
+  }
+
+  // Whether a line opens a region: by the parse where it gives the line one, by the language's
+  // headings and blocks, and otherwise read from the lines just after it.
   opens(line) {
-    return opens(this.doc, line, this.indent.size);
+    return this.parseEnd(line) > line || Boolean(this.sectionFolds()?.has(line)) || opens(this.doc, line, this.indent.size);
   }
 
-  // The last line of the region a line opens, or -1: the kept end where the region is folded, and
-  // otherwise read from the lines after it and kept until the text changes.
+  // The last line of the region a line opens, or -1: the kept end where the region is folded, the
+  // parse's or the language's where they give one, and otherwise read from the lines after it and
+  // kept until the text changes.
   endOf(line) {
     const folded = this.folded.get(line);
     if (folded !== undefined) {
       return folded;
+    }
+    const parsed = this.parseEnd(line);
+    if (parsed > line) {
+      return parsed;
+    }
+    const section = this.sectionFolds()?.get(line);
+    if (section !== undefined) {
+      return section;
     }
     if (this.foundAt !== this.doc.id) {
       this.found = new Map();

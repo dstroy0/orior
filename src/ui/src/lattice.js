@@ -78,7 +78,7 @@ function pensOf() {
     const loose = level / (LEVELS - 1);
     const kept = 1 - loose;
     const [red, green, blue] = shade(loose);
-    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.36 + 0.16 * kept).toFixed(3)})`, size: 0.52 + 0.16 * kept };
+    return { color: `rgba(${red}, ${green}, ${blue}, ${(0.414 + 0.184 * kept).toFixed(3)})`, size: 0.59 + 0.16 * kept };
   });
   return pens;
 }
@@ -96,8 +96,16 @@ function sided(angle, u, v) {
   return clamp((along - ORDERED) / RAMP);
 }
 
-// The loop at `seconds`: a way to read the disorder at any point.
-function orderAt(seconds) {
+// The kinds of stage as the shader reads them: one side ordered at an angle, the order spreading
+// from a front, the whole lattice at one disorder, and the order gathering from the top.
+const SIDED = 0;
+const SPREAD = 1;
+const WHOLE = 2;
+const GATHER = 3;
+
+// Where the loop stands at `seconds`: the stage's kind, the angle of a side, the front of a spread,
+// and the share of the stage done.
+function stageAt(seconds) {
   let left = seconds % LOOP;
   let turns = 0;
   for (const [name, length] of STAGES) {
@@ -108,22 +116,35 @@ function orderAt(seconds) {
     }
     const part = ease(left / length);
     if (name === "rest") {
-      return (u, v) => sided(0, u, v);
+      return { kind: SIDED, angle: 0, front: 0, part };
     }
     if (name === "spread") {
-      const front = ORDERED + (1 - ORDERED) * part;
-      return (u) => clamp((u - front) / RAMP);
+      return { kind: SPREAD, angle: 0, front: ORDERED + (1 - ORDERED) * part, part };
     }
     if (name === "invert") {
-      return () => part;
+      return { kind: WHOLE, angle: 0, front: 0, part };
     }
     if (name === "gather") {
-      return (u, v) => Math.max(sided(Math.PI / 2, u, v), 1 - part);
+      return { kind: GATHER, angle: Math.PI / 2, front: 0, part };
     }
-    const angle = (Math.PI / 2) * (1 + turns + part);
-    return (u, v) => sided(angle, u, v);
+    return { kind: SIDED, angle: (Math.PI / 2) * (1 + turns + part), front: 0, part };
   }
-  return (u, v) => sided(0, u, v);
+  return { kind: SIDED, angle: 0, front: 0, part: 0 };
+}
+
+// The loop at `seconds`: a way to read the disorder at any point.
+function orderAt(seconds) {
+  const { kind, angle, front, part } = stageAt(seconds);
+  if (kind === SPREAD) {
+    return (u) => clamp((u - front) / RAMP);
+  }
+  if (kind === WHOLE) {
+    return () => part;
+  }
+  if (kind === GATHER) {
+    return (u, v) => Math.max(sided(angle, u, v), 1 - part);
+  }
+  return (u, v) => sided(angle, u, v);
 }
 
 // Each lattice's points: place across, place down, and the way and share of the reach it moves.
@@ -161,28 +182,53 @@ function layOut(canvas) {
   return laid;
 }
 
-// The lattice drawn through WebGL: each point one vertex, its place and its level, a round dot of
-// its level's pen. A pixel's share of a dot is counted at sixteen places across the pixel, and the
-// radius taken at FITS of the pen's, which puts down the ink the page's own canvas puts down for the
-// same dots: a dot under a pixel wide stands as large and as soft as it did there. The points go in
-// level by level, as the canvas laid its levels one over another, and all of them are drawn at once:
-// the page hands the frame on without the thousands of shapes a canvas path would carry.
+// The lattice drawn through WebGL: each point one vertex, its place and its way off it handed over
+// once as the lattice is laid out, and each frame only where the loop stands. The vertex shader reads
+// the disorder at the point as orderAt does, moves the point by its share of the reach, and takes its
+// level's pen, a round dot. A pixel's share of a dot is counted at sixteen places across the pixel,
+// and the radius taken at FITS of the pen's, which puts down the ink the page's own canvas puts down
+// for the same dots: a dot under a pixel wide stands as large and as soft as it did there. The page's
+// own work a frame is a handful of numbers and one draw.
 const FITS = 0.955;
+const PI = Math.PI.toFixed(8);
 const VERTEX = `
-attribute vec3 point;
+attribute vec4 point;
 uniform vec2 size;
 uniform float scale;
+uniform float stage;
+uniform float angle;
+uniform float front;
+uniform float part;
 uniform vec4 pens[${LEVELS}];
 uniform float radii[${LEVELS}];
 varying vec4 color;
 varying vec2 center;
 varying float radius;
+float sided(float turn, float u, float v) {
+  float dx = cos(turn);
+  float dy = sin(turn);
+  float along = 0.5 + ((u - 0.5) * dx + (v - 0.5) * dy) / (abs(dx) + abs(dy));
+  return clamp((along - ${ORDERED.toFixed(4)}) / ${RAMP.toFixed(4)}, 0.0, 1.0);
+}
 void main() {
-  int level = int(point.z);
+  float u = point.x / size.x;
+  float v = point.y / size.y;
+  float loose;
+  if (stage == ${SPREAD.toFixed(1)}) {
+    loose = clamp((u - front) / ${RAMP.toFixed(4)}, 0.0, 1.0);
+  } else if (stage == ${WHOLE.toFixed(1)}) {
+    loose = part;
+  } else if (stage == ${GATHER.toFixed(1)}) {
+    loose = max(sided(${PI} / 2.0, u, v), 1.0 - part);
+  } else {
+    loose = sided(angle, u, v);
+  }
+  vec2 placed = point.xy + point.zw * (loose * loose * ${REACH.toFixed(4)});
+  int level = int(floor(loose * ${(LEVELS - 1).toFixed(1)} + 0.5));
   color = pens[level];
   radius = radii[level] * scale * ${FITS};
-  center = vec2(point.x, size.y - point.y) * scale;
-  gl_Position = vec4(point.x / size.x * 2.0 - 1.0, 1.0 - point.y / size.y * 2.0, 0.0, 1.0);
+  center = vec2(placed.x, size.y - placed.y) * scale;
+  gl_Position = vec4(placed.x / size.x * 2.0 - 1.0, 1.0 - placed.y / size.y * 2.0, 0.0, 1.0);
   gl_PointSize = ceil(radius * 2.0) + 2.0;
 }`;
 const FRAGMENT = `
@@ -231,10 +277,14 @@ function painterOf(canvas) {
         point: gl.getAttribLocation(program, "point"),
         size: gl.getUniformLocation(program, "size"),
         scale: gl.getUniformLocation(program, "scale"),
+        stage: gl.getUniformLocation(program, "stage"),
+        angle: gl.getUniformLocation(program, "angle"),
+        front: gl.getUniformLocation(program, "front"),
+        part: gl.getUniformLocation(program, "part"),
         pens: gl.getUniformLocation(program, "pens"),
         radii: gl.getUniformLocation(program, "radii"),
         pensFor: null,
-        placed: new Float32Array(0),
+        laidFor: null,
       };
     }
   }
@@ -262,25 +312,16 @@ function glPensOf() {
   return glPens;
 }
 
-function paintGl(painter, laid, levels) {
+// Draws a lattice through WebGL at the loop's stage `at`, its points handed over again only where it
+// was laid out anew.
+function paintGl(painter, laid, at) {
   const { gl } = painter;
-  const { width, height, scale } = laid;
-  let count = 0;
-  for (const placed of levels) {
-    count += placed.length / 2;
+  const { width, height, scale, points } = laid;
+  gl.bindBuffer(gl.ARRAY_BUFFER, painter.buffer);
+  if (painter.laidFor !== laid) {
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+    painter.laidFor = laid;
   }
-  if (painter.placed.length < count * 3) {
-    painter.placed = new Float32Array(count * 3);
-  }
-  let at = 0;
-  levels.forEach((placed, level) => {
-    for (let one = 0; one < placed.length; one += 2) {
-      painter.placed[at] = placed[one];
-      painter.placed[at + 1] = placed[one + 1];
-      painter.placed[at + 2] = level;
-      at += 3;
-    }
-  });
   gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -293,16 +334,23 @@ function paintGl(painter, laid, levels) {
   }
   gl.uniform2f(painter.size, width, height);
   gl.uniform1f(painter.scale, scale);
+  gl.uniform1f(painter.stage, at.kind);
+  gl.uniform1f(painter.angle, at.angle);
+  gl.uniform1f(painter.front, at.front);
+  gl.uniform1f(painter.part, at.part);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  gl.bindBuffer(gl.ARRAY_BUFFER, painter.buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, painter.placed.subarray(0, count * 3), gl.DYNAMIC_DRAW);
   gl.enableVertexAttribArray(painter.point);
-  gl.vertexAttribPointer(painter.point, 3, gl.FLOAT, false, 0, 0);
-  gl.drawArrays(gl.POINTS, 0, count);
+  gl.vertexAttribPointer(painter.point, 4, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.POINTS, 0, points.length / 4);
 }
 
 function paint(canvas, laid, seconds) {
+  const painter = painterOf(canvas);
+  if (painter) {
+    paintGl(painter, laid, stageAt(seconds));
+    return;
+  }
   const { width, height, scale, points } = laid;
   const order = orderAt(seconds);
   const levels = Array.from({ length: LEVELS }, () => []);
@@ -312,11 +360,6 @@ function paint(canvas, laid, seconds) {
     const loose = order(x / width, y / height);
     const shift = loose * loose * REACH;
     levels[Math.round(loose * (LEVELS - 1))].push(x + points[at + 2] * shift, y + points[at + 3] * shift);
-  }
-  const painter = painterOf(canvas);
-  if (painter) {
-    paintGl(painter, laid, levels);
-    return;
   }
   const pen = canvas.getContext("2d");
   pen.setTransform(scale, 0, 0, scale, 0, 0);

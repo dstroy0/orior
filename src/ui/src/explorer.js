@@ -4,42 +4,52 @@
 // The explorer beside the editor: its panes, one over the next, each opened and closed by its head,
 // in groups the tool strip's icons choose between, one group shown at a time. Explorer holds Search,
 // which finds text in the tree's files and shows from Find in Files; Usages, which lists where a
-// symbol is used and shows from Find Usages; Open Editors, which lists the tabs; and the tree's own
-// pane of its files. Structure holds the Outline of what the open file declares. Commit holds
-// Changes, the files that differ from the last commit, the Timeline of commits that touched the open
-// file, and its Local History, the file as each save left it. Problems lists the open files' diagnostics, and Git the commits of the branch. The
-// explorer's … menu shows or hides each pane of the group, reads the tree again, and closes every
-// folder. Which group shows, and which panes show and are open, is kept between visits.
+// symbol is used and shows from Find Usages; Call Hierarchy, which shows what calls a function and
+// what it calls; Open Editors, which lists the tabs; and the tree's own
+// pane of its files. Structure holds the Outline of what the open file declares and its Undo History.
+// Commit holds Changes, the files that differ from the last commit, the Timeline of commits that
+// touched the open file, its Local History, the file as each save left it, and Review, the review
+// comments left on the tree's changes. Problems lists every file's diagnostics, and Git every
+// branch's commits as a graph. The explorer's … menu shows or hides each pane of the group, reads the
+// tree again, and closes every folder. Which group shows, and which panes show and are open, is kept
+// between visits.
 //
 // A pane's head is a row of the explorer's list one level above its rows, and the list's keys open
 // and close it as they do a folder.
 
 import { invoke } from "./bridge.js";
+import { escapeHtml } from "./editor/view.js";
 import { copyText, menuOn, showMenu } from "./menu.js";
-import { symbolsOf } from "./outline.js";
+import { comments, onReview, removeComment, resolveComment } from "./review.js";
+import { structureOf } from "./outline.js";
 
 const KEPT = "orior.panes";
 
 const PANES = [
   ["search", "Search"],
   ["usages", "Usages"],
+  ["calls", "Call Hierarchy"],
   ["todo", "TODO"],
   ["open", "Open Editors"],
   ["folder", null],
   ["outline", "Outline"],
+  ["undo", "Undo History"],
   ["timeline", "Timeline"],
   ["local", "Local History"],
+  ["review", "Review"],
   ["changes", "Changes"],
   ["problems", "Problems"],
+  ["tests", "Tests"],
   ["git", "Git"],
 ];
 
 // The panes each icon of the tool strip shows, one group at a time.
 const GROUPS = {
-  explorer: ["search", "usages", "todo", "open", "folder"],
-  structure: ["outline"],
-  commit: ["changes", "timeline", "local"],
+  explorer: ["search", "usages", "calls", "todo", "open", "folder"],
+  structure: ["outline", "undo"],
+  commit: ["changes", "timeline", "local", "review"],
   problems: ["problems"],
+  tests: ["tests"],
   git: ["git"],
 };
 
@@ -50,9 +60,15 @@ const groupOf = (name) => Object.keys(GROUPS).find((group) => GROUPS[group].incl
 const state = {
   panes: {},
   hooks: null,
-  outline: { session: null, symbols: [], rows: [] },
+  outline: { session: null, symbols: [], rows: [], closed: new Set(), pinned: null },
   timeline: { path: null, commits: [] },
   local: { path: null, snapshots: [] },
+  undo: { session: null, wait: 0 },
+  // The graph: what the field searches for, the commits shown, the ones whose files are open, the
+  // files of each commit read so far, and what the graph was last drawn from.
+  git: { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", branch: null, chosen: null },
+  // The files whose rows in Problems were opened or closed by a press.
+  problems: { opened: new Set(), closed: new Set() },
 };
 
 function element(tag, props = {}, ...children) {
@@ -97,6 +113,9 @@ function paneOf(name) {
 
 function drawPane(name) {
   const pane = paneOf(name);
+  if (!pane) {
+    return;
+  }
   const { shown, open } = state.panes[name];
   pane.hidden = !shown || groupOf(name) !== state.group;
   pane.classList.toggle("expanded", open);
@@ -117,7 +136,7 @@ export function shownGroup() {
   return state.group;
 }
 
-const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", git: "Git" };
+const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git" };
 
 // The explorer's title, and its group on it, which shows the tree's filter only with the files.
 function drawGroupTitle() {
@@ -205,36 +224,96 @@ export function drawOpenEditors(tabs) {
   }
 }
 
-// Outline: what the open file declares, a row a symbol, the one the cursor is in marked.
+// Outline: what the open file declares, a row a symbol, the one the cursor is in marked; and the
+// regions its comments mark, each a row that holds the symbols inside it, opened and closed by its
+// arrow. Pinned, the pane shows the structure of the file pinned while another is open, a press on a
+// symbol going to that file, until it is unpinned or the file closes.
 
-const KIND_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6] };
+const KIND_MARKS = { function: ["ƒ", 5], method: ["ƒ", 5], class: ["◇", 3], module: ["{}", 4], constant: ["▪", 4], field: ["▪", 6], heading: ["#", 4], label: ["›", 6], region: ["▤", 2] };
 
 export function drawOutline(session) {
   const body = document.getElementById("outline");
-  state.outline.session = session;
+  const pinned = state.outline.pinned;
+  if (pinned && !state.hooks?.sessionOf?.(pinned.path)) {
+    state.outline.pinned = null;
+  }
+  const shown = state.outline.pinned ? state.hooks.sessionOf(state.outline.pinned.path) : session;
+  state.outline.session = shown;
+  const head = document.querySelector('[data-pane="outline"] .pane-head');
+  if (head) {
+    head.textContent = state.outline.pinned ? `Outline of ${state.outline.pinned.path.split("/").pop()}` : "Outline";
+  }
   if (!paneOpen("outline")) {
     return;
   }
-  const symbols = session ? symbolsOf(session.language?.id, session.doc) : [];
-  state.outline.symbols = symbols;
-  state.outline.rows = symbols.map((symbol) => {
+  const symbols = shown ? structureOf(shown.language?.id, shown.doc) : [];
+  const closed = state.outline.closed;
+  const hidden = (symbol) => symbols.some((region) => region.kind === "region" && closed.has(`${region.line}:${region.name}`) && region.line < symbol.line && symbol.line <= region.end);
+  state.outline.symbols = symbols.filter((symbol) => !hidden(symbol));
+  state.outline.rows = state.outline.symbols.map((symbol) => {
     const [mark, color] = KIND_MARKS[symbol.kind] ?? ["▪", 7];
-    const row = element("button", { className: "sym", type: "button", title: `${symbol.name}, line ${session.base + symbol.line + 1}` });
-    row.dataset.key = `${symbol.line}:${symbol.name}`;
+    const key = `${symbol.line}:${symbol.name}`;
+    const region = symbol.kind === "region";
+    const row = element("button", { className: region ? "sym dir sym-region" : "sym", type: "button", title: `${symbol.name}, line ${shown.base + symbol.line + 1}` });
+    row.dataset.key = key;
     row.dataset.depth = String(symbol.depth);
     row.append(...guides(symbol.depth));
+    if (region) {
+      row.setAttribute("aria-expanded", String(!closed.has(key)));
+      row.append(element("span", { className: "twisty" }));
+    }
     const icon = element("span", { className: "icon", textContent: mark });
     icon.style.color = `var(--t${color})`;
     row.append(icon, element("span", { className: "name", textContent: symbol.name }));
-    row.addEventListener("click", () => state.hooks.goTo(symbol.line));
+    row.addEventListener("click", (event) => {
+      if (region && (!event.isTrusted || event.target.closest(".twisty"))) {
+        if (closed.has(key)) {
+          closed.delete(key);
+        } else {
+          closed.add(key);
+        }
+        drawOutline(state.outline.session);
+        document.querySelector(`#outline [data-key="${CSS.escape(key)}"]`)?.focus();
+        return;
+      }
+      if (state.outline.pinned) {
+        state.hooks.openAt(state.outline.pinned.path, shown.base + symbol.line, 0);
+      } else {
+        state.hooks.goTo(symbol.line);
+      }
+    });
     return row;
   });
   body.replaceChildren(...state.outline.rows);
   lightOutline(state.hooks.cursorLine?.() ?? 0);
 }
 
-// Marks the symbol the cursor's line falls in: the last one that starts at or above it.
+// Pins the Outline to the file `path` shows, or, given none, unpins it to follow the file shown.
+export function pinOutline(path) {
+  state.outline.pinned = path ? { path } : null;
+  drawOutline(state.hooks.sessionOf?.(state.hooks.activePath?.()) ?? null);
+}
+
+export function outlinePinned() {
+  return state.outline.pinned?.path ?? null;
+}
+
+// The Outline's menu: pinning it to the file shown, or unpinning it.
+function outlineItems() {
+  const active = state.hooks.activePath?.();
+  const pinned = state.outline.pinned;
+  return [
+    pinned ? { label: `Unpin ${pinned.path.split("/").pop()}`, run: () => pinOutline(null) } : { label: active ? `Pin ${active.split("/").pop()}` : "Pin the File Shown", disabled: !active, run: () => pinOutline(active) },
+  ];
+}
+
+// Marks the symbol the cursor's line falls in: the last one that starts at or above it, where the
+// Outline shows the file the cursor is in.
 export function lightOutline(line) {
+  if (state.outline.pinned && state.outline.pinned.path !== state.hooks.activePath?.()) {
+    state.outline.rows.forEach((row) => row.removeAttribute("aria-current"));
+    return;
+  }
   let lit = -1;
   state.outline.symbols.forEach((symbol, index) => {
     if (symbol.line <= line) {
@@ -245,7 +324,8 @@ export function lightOutline(line) {
   state.outline.rows[lit]?.scrollIntoView({ block: "nearest" });
 }
 
-// Timeline: the commits that touched the open file, the newest first, each with its date.
+// Timeline: the commits that touched the open file, the newest first, each with its date. A commit's
+// menu opens the file as it left it, or sets it beside the file as it stands or another commit's.
 
 const day = (when) => {
   const date = new Date(when * 1000);
@@ -293,8 +373,13 @@ function timelineItems(event) {
   if (!commit) {
     return null;
   }
+  const path = state.timeline.path;
+  const others = state.timeline.commits.filter((one) => one !== commit).slice(0, 40);
   return [
-    { label: "Open", run: () => state.hooks.openCommit(state.timeline.path, commit) },
+    { label: "Open", run: () => state.hooks.openCommit(path, commit) },
+    "-",
+    { label: "Compare with Current", run: () => state.hooks.compareCommit(path, commit) },
+    { label: "Compare with Revision", disabled: !others.length, items: others.map((one) => ({ label: `${one.id.slice(0, 7)}  ${one.subject}`, run: () => state.hooks.compareCommit(path, commit, one) })) },
     "-",
     { label: "Copy Commit ID", run: () => copyText(commit.id) },
     { label: "Copy Commit Message", run: () => copyText(commit.subject) },
@@ -338,6 +423,47 @@ export async function drawLocalHistory(path, again = false) {
       return row;
     })
   );
+}
+
+// Undo History: every state the open file's text has been in since it opened, the first at the top,
+// each by when it was made and the line its step changed. A branch an edit after an undo left stands
+// a level in, under the state it was made from. The state the text is in is marked, and a press on a
+// row takes the text to its state. Drawn at most once a frame.
+export function drawUndo(session) {
+  state.undo.session = session;
+  if (state.undo.wait || !paneOpen("undo")) {
+    return;
+  }
+  state.undo.wait = window.requestAnimationFrame(() => {
+    state.undo.wait = 0;
+    const shown = state.undo.session;
+    const rows = shown ? shown.doc.states() : [];
+    const body = document.getElementById("undo-history");
+    const focused = body.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+    body.replaceChildren(
+      ...rows.map(({ id, depth, step, here }) => {
+        const line = step?.edits[0]?.[0]?.from.line;
+        const row = element("button", { className: "commit", type: "button", title: step ? `${clock(step.made)}${step.kind ? `, ${step.kind}` : ""}` : "" });
+        row.dataset.key = String(id);
+        row.dataset.depth = String(depth);
+        if (here) {
+          row.setAttribute("aria-current", "true");
+        }
+        const dot = element("span", { className: "icon commit-dot" });
+        dot.setAttribute("aria-hidden", "true");
+        row.append(...guides(depth), dot, element("span", { className: "name", textContent: step ? clock(step.made) : "As opened" }));
+        if (line !== undefined) {
+          row.append(element("span", { className: "where", textContent: `line ${shown.base + line + 1}` }));
+        }
+        row.addEventListener("click", () => state.hooks.goToState(id));
+        return row;
+      })
+    );
+    if (focused !== null) {
+      [...body.children].find((row) => row.dataset.key === focused)?.focus();
+    }
+    body.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+  });
 }
 
 function localItems(event) {
@@ -405,55 +531,299 @@ export async function drawTodo() {
   body.replaceChildren(...rows);
 }
 
-// Problems: each open file's diagnostics, a row a file and under it a row a diagnostic, the worst first.
+// Problems: each file's diagnostics, a row a file and under it a row a diagnostic, the worst first,
+// the open files first; and, while the tree's check goes on, how far it has gone. A file's row opens
+// and closes its diagnostics, which show for a file open in the editor until its row closes them.
 
-export function drawProblems(files) {
+export function drawProblems(files, checking) {
   const body = document.getElementById("problems");
   if (!paneOpen("problems") || state.group !== "problems") {
     return;
   }
   const rows = [];
-  for (const { path, items } of files) {
-    if (!items.length) {
+  if (checking && checking.done < checking.total) {
+    rows.push(element("p", { className: "pane-empty problems-checking", textContent: `Checking the tree: ${checking.done} of ${checking.total} files.` }));
+  }
+  for (const file of files) {
+    if (!file.items.length) {
       continue;
     }
-    const cut = path.lastIndexOf("/");
-    const head = element("div", { className: "node problem-file" }, iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(items.length) }));
-    rows.push(head);
-    for (const item of [...items].sort((a, b) => a.severity - b.severity || a.from.line - b.from.line)) {
+    const open = state.problems.opened.has(file.path) || (file.open && !state.problems.closed.has(file.path));
+    rows.push(problemFileRow(file, open));
+    if (open) {
+      rows.push(...problemRows(file));
+    }
+  }
+  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No problems in the tree. A language server or Run, Validate finds them." })]));
+}
+
+// A diagnostic's first line as its row shows it: where the server writes Markdown, its code spans
+// set as code.
+function firstLine(item) {
+  const line = item.message.split("\n")[0];
+  if (!item.markdown) {
+    return [line];
+  }
+  return line.split(/(`[^`]*`)/).filter(Boolean).map((piece) => (/^`[^`]*`$/.test(piece) ? element("code", { textContent: piece.slice(1, -1) }) : piece));
+}
+
+function problemFileRow(file, open) {
+  const { path, items } = file;
+  const cut = path.lastIndexOf("/");
+  const row = element("button", { className: "node dir problem-file", type: "button" }, element("span", { className: "twisty" }), iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(items.length) }));
+  row.dataset.key = `problem-file:${path}`;
+  row.dataset.depth = "0";
+  row.setAttribute("aria-expanded", String(open));
+  row.addEventListener("click", () => {
+    const opening = row.getAttribute("aria-expanded") !== "true";
+    state.problems.opened[opening ? "add" : "delete"](path);
+    state.problems.closed[opening ? "delete" : "add"](path);
+    row.setAttribute("aria-expanded", String(opening));
+    if (opening) {
+      row.after(...problemRows(file));
+    } else {
+      while (row.nextElementSibling?.classList.contains("problem")) {
+        row.nextElementSibling.remove();
+      }
+    }
+  });
+  return row;
+}
+
+function problemRows({ path, items }) {
+  return [...items]
+    .sort((a, b) => a.severity - b.severity || a.from.line - b.from.line)
+    .map((item) => {
       const row = element("button", { className: `problem s${item.severity}`, type: "button", title: `${path}:${item.from.line + 1}:${item.from.col + 1}\n${item.message}` });
       row.dataset.key = `problem:${path}:${item.from.line}:${item.from.col}`;
       row.dataset.depth = "1";
-      row.append(element("i", { className: "guide" }), element("span", { className: "problem-mark" }), element("span", { className: "name", textContent: item.message.split("\n")[0] }), element("span", { className: "where", textContent: `${item.from.line + 1}:${item.from.col + 1}` }));
+      row.append(element("i", { className: "guide" }), element("span", { className: "problem-mark" }), element("span", { className: "name" }, ...firstLine(item)), element("span", { className: "where", textContent: `${item.from.line + 1}:${item.from.col + 1}` }));
       row.addEventListener("click", () => state.hooks.openAt(path, item.from.line, item.from.col));
-      rows.push(row);
-    }
-  }
-  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No problems in the open files. A language server or Run, Validate finds them." })]));
+      return row;
+    });
 }
 
-// Git: the branch the tree is on, and its commits, the newest first.
+// Git: the branch the tree is on, and every branch's commits as a graph, the newest first, each with
+// the branches and tags at it, its subject, its author and its date. A press on a commit opens the
+// files it changed under it, and a press on one of those sets the file as the commit left it beside
+// the file as the commit before it did. The field over the graph searches the whole history, by
+// subject, author, id or branch, and shows what it finds without the graph. Where the tree holds more
+// than one repository, a choice over the field says whose commits the graph shows, the repository
+// open's until another is chosen.
+
+// A column of the graph is this wide, and its row this high.
+const LANE = 12;
+const ROW = 22;
+
+const laneX = (lane) => LANE / 2 + lane * LANE;
+
+const tone = (line) => `var(--t${[4, 2, 5, 3, 6, 1][line % 6]})`;
+
+// A row's strokes and its commit's dot, as an SVG the width of the columns it crosses.
+function lanesOf(commit) {
+  const across = Math.max(commit.lane, ...commit.lines.flatMap(([from, to]) => [from, to])) + 1;
+  const mid = ROW / 2;
+  let paths = "";
+  for (const [from, to, half, line] of commit.lines) {
+    const [top, bottom] = half ? [mid, ROW] : [0, mid];
+    const [x1, x2] = [laneX(from), laneX(to)];
+    const bend = (bottom - top) / 2;
+    const d = x1 === x2 ? `M${x1} ${top}V${bottom}` : `M${x1} ${top}C${x1} ${top + bend} ${x2} ${bottom - bend} ${x2} ${bottom}`;
+    paths += `<path d="${d}" style="stroke:${tone(line)}"/>`;
+  }
+  const merge = commit.parents.length > 1;
+  const dot = `<circle cx="${laneX(commit.lane)}" cy="${mid}" r="${merge ? 3 : 3.5}" style="${merge ? `fill:var(--surface);stroke:${tone(commit.color)}` : `fill:${tone(commit.color)};stroke:none`}"/>`;
+  return `<svg class="git-lanes" width="${across * LANE}" height="${ROW}" aria-hidden="true">${paths}${dot}</svg>`;
+}
+
+function commitRow(commit) {
+  const open = state.git.open.has(commit.id);
+  const refs = commit.refs
+    .map((ref) => {
+      const head = ref.startsWith("HEAD -> ");
+      const name = head ? ref.slice(8) : ref;
+      return `<span class="git-ref${head || ref === "HEAD" ? " git-head" : ""}${name.startsWith("tag: ") ? " git-tag" : ""}">${escapeHtml(name.replace(/^tag: /, ""))}</span>`;
+    })
+    .join("");
+  const title = `${commit.id.slice(0, 8)}  ${commit.author}  ${day(commit.when)} ${time(commit.when)}${commit.refs.length ? `\n${commit.refs.join(", ")}` : ""}\n${commit.subject}`;
+  return `<button class="commit git-commit" type="button" data-key="${commit.id}" data-depth="0" aria-expanded="${open}" title="${escapeHtml(title)}">${lanesOf(commit)}${refs}<span class="name">${escapeHtml(commit.subject)}</span><span class="git-author">${escapeHtml(commit.author)}</span><span class="where">${day(commit.when)}</span></button>`;
+}
+
+// The rows of the files a commit changed, under its row.
+function touchedRows(commit) {
+  const files = state.git.files.get(commit.id) ?? [];
+  if (!files.length) {
+    return [element("p", { className: "pane-empty git-none", textContent: "No file under the tree changed." })];
+  }
+  return files.map((file) => {
+    const cut = file.path.lastIndexOf("/");
+    const name = file.path.slice(cut + 1);
+    const row = element("button", { className: "node git-file", type: "button", title: file.was ? `${file.was} → ${file.path}` : file.path });
+    row.dataset.key = `${commit.id}:${file.path}`;
+    row.dataset.depth = "1";
+    row.dataset.change = file.state;
+    row.append(...guides(1), iconOf(name), element("span", { className: "name", textContent: name }), element("span", { className: "where", textContent: file.path.slice(0, Math.max(0, cut)) }), element("span", { className: "change", textContent: file.state }));
+    row.addEventListener("click", () => state.hooks.openTouched(commit, file));
+    return row;
+  });
+}
+
+async function toggleCommit(row) {
+  const commit = state.git.commits.find((one) => one.id === row.dataset.key);
+  if (!commit) {
+    return;
+  }
+  if (state.git.open.has(commit.id)) {
+    state.git.open.delete(commit.id);
+    row.setAttribute("aria-expanded", "false");
+    while (row.nextElementSibling && !row.nextElementSibling.classList.contains("git-commit")) {
+      row.nextElementSibling.remove();
+    }
+    return;
+  }
+  state.git.open.add(commit.id);
+  row.setAttribute("aria-expanded", "true");
+  if (!state.git.files.has(commit.id)) {
+    state.git.files.set(commit.id, await invoke("git_touched", { id: commit.id, repo: gitRepo() }).catch(() => []));
+  }
+  if (state.git.open.has(commit.id) && row.isConnected) {
+    row.after(...touchedRows(commit));
+  }
+}
+
+// Forgets the graph's search, its choice of repository and the commits whose files were read, for a
+// tree opened in place of this one.
+export function forgetGraph() {
+  Object.assign(state.git, { query: "", commits: [], open: new Set(), files: new Map(), drawn: "", chosen: null });
+  document.getElementById("git-query").value = "";
+}
+
+// The repository the graph shows: the one chosen over it, or the repository open where none is
+// chosen or the one chosen is gone.
+function gitRepo() {
+  const repos = state.hooks?.repos() ?? [];
+  return repos.some((repo) => repo.path === state.git.chosen) ? state.git.chosen : (state.hooks?.repo() ?? "");
+}
+
+// The choice of repository over the graph, there while the tree holds more than one.
+function drawRepoChoice(repo) {
+  const choice = document.getElementById("git-repo");
+  const repos = state.hooks?.repos() ?? [];
+  choice.hidden = repos.length < 2;
+  const key = repos.map((one) => `${one.path}:${one.branch}`).join();
+  if (choice.dataset.key !== key) {
+    choice.dataset.key = key;
+    choice.replaceChildren(...repos.map((one) => element("option", { value: one.path, textContent: `${state.hooks.repoName(one.path)}${one.branch ? `: ${one.branch}` : ""}` })));
+  }
+  choice.value = repo;
+}
 
 export async function drawGit(branch) {
   const body = document.getElementById("git-log");
+  state.git.branch = branch;
   if (!paneOpen("git") || state.group !== "git") {
     return;
   }
-  const commits = await invoke("tree_commits").catch(() => []);
-  const head = element("div", { className: "node git-branch" }, element("span", { className: "name", textContent: branch ?? "no branch" }), element("span", { className: "where", textContent: `${commits.length} commit${commits.length === 1 ? "" : "s"} shown` }));
-  body.replaceChildren(
-    head,
-    ...commits.map((commit) => {
-      const row = element("button", { className: "commit", type: "button", title: `${commit.id.slice(0, 8)}  ${day(commit.when)} ${time(commit.when)}\n${commit.subject}` });
-      row.dataset.key = commit.id;
-      row.dataset.depth = "0";
-      const dot = element("span", { className: "icon commit-dot" });
-      dot.setAttribute("aria-hidden", "true");
-      row.append(dot, element("span", { className: "name", textContent: commit.subject }), element("span", { className: "where", textContent: day(commit.when) }));
-      row.addEventListener("click", () => copyText(commit.id));
-      return row;
-    }),
-  );
+  const query = state.git.query;
+  const repo = gitRepo();
+  drawRepoChoice(repo);
+  const label = (state.hooks?.repos() ?? []).find((one) => one.path === repo)?.branch ?? branch;
+  const commits = await invoke("git_graph", { query: query || null, repo }).catch(() => []);
+  if (query !== state.git.query || repo !== gitRepo()) {
+    return;
+  }
+  // A graph that is drawn as it stands is left as it is, the focus and the scroll with it.
+  const drawn = `${repo}\n${label}\n${query}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
+  if (drawn === state.git.drawn && body.childElementCount) {
+    return;
+  }
+  state.git.drawn = drawn;
+  state.git.commits = commits;
+  const count = `${commits.length} commit${commits.length === 1 ? "" : "s"} ${query ? "found" : "shown"}`;
+  const focused = body.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+  body.innerHTML = `<div class="node git-branch"><span class="name">${escapeHtml(label ?? "no branch")}</span><span class="where">${count}</span></div>${commits.map(commitRow).join("")}`;
+  for (const id of state.git.open) {
+    const row = body.querySelector(`.git-commit[data-key="${id}"]`);
+    const commit = commits.find((one) => one.id === id);
+    if (row && state.git.files.has(id)) {
+      row.after(...touchedRows(commit));
+    }
+  }
+  if (focused) {
+    body.querySelector(`[data-key="${CSS.escape(focused)}"]`)?.focus();
+  }
+}
+
+function gitItems(event) {
+  const row = event.target.closest(".git-commit, .git-file");
+  const commit = state.git.commits.find((one) => one.id === (row?.closest(".git-commit") ? row.dataset.key : row?.dataset.key.split(":")[0]));
+  if (!commit) {
+    return null;
+  }
+  if (row.classList.contains("git-file")) {
+    const file = state.git.files.get(commit.id)?.find((one) => `${commit.id}:${one.path}` === row.dataset.key);
+    return [
+      { label: "Show Changes", run: () => state.hooks.openTouched(commit, file) },
+      { label: "Open as It Was", disabled: file?.state === "D", run: () => state.hooks.openCommit(file.path, commit) },
+      "-",
+      { label: "Copy Path", run: () => copyText(file.path) },
+    ];
+  }
+  return [
+    { label: state.git.open.has(commit.id) ? "Close Files" : "Open Files", run: () => toggleCommit(row) },
+    "-",
+    { label: "Cherry-Pick", run: () => import("./menubar.js").then((menus) => menus.cherryPick(commit.id, gitRepo())) },
+    "-",
+    { label: "Copy Commit ID", run: () => copyText(commit.id) },
+    { label: "Copy Commit Message", run: () => copyText(commit.subject) },
+  ];
+}
+
+// Review: every review comment of the tree, a row for each file and under it a row a comment, the
+// open ones before the resolved ones. A press opens the file at the comment's line, and a comment's
+// menu shows the file's changes, resolves or opens it again, or deletes it.
+export function drawReview() {
+  const body = document.getElementById("review");
+  if (!paneOpen("review")) {
+    return;
+  }
+  const files = new Map();
+  for (const one of comments().sort((a, b) => Number(a.done) - Number(b.done) || a.line - b.line)) {
+    files.set(one.path, [...(files.get(one.path) ?? []), one]);
+  }
+  const rows = [];
+  for (const [path, items] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
+    const cut = path.lastIndexOf("/");
+    const open = items.filter((one) => !one.done).length;
+    rows.push(element("div", { className: "node problem-file" }, iconOf(path.slice(cut + 1)), element("span", { className: "name", textContent: path.slice(cut + 1) }), element("span", { className: "where", textContent: path.slice(0, Math.max(0, cut)) }), element("span", { className: "count", textContent: String(open) })));
+    for (const one of items) {
+      const row = element("button", { className: `problem review-row${one.done ? " done" : ""}`, type: "button", title: `${path}:${one.line + 1}\n${one.body}` });
+      row.dataset.key = `review:${one.id}`;
+      row.dataset.depth = "1";
+      row.dataset.comment = one.id;
+      row.append(element("i", { className: "guide" }), element("span", { className: "review-mark" }), element("span", { className: "name", textContent: one.body.split("\n")[0] }), element("span", { className: "where", textContent: String(one.line + 1) }));
+      row.addEventListener("click", () => state.hooks.openComment(one));
+      rows.push(row);
+    }
+  }
+  body.replaceChildren(...(rows.length ? rows : [element("p", { className: "pane-empty", textContent: "No review comments. A press on a line's number in a file's changes leaves one." })]));
+}
+
+function reviewItems(event) {
+  const id = event.target.closest(".review-row")?.dataset.comment;
+  const one = comments().find((comment) => comment.id === id);
+  if (!one) {
+    return null;
+  }
+  return [
+    { label: "Open", run: () => state.hooks.openComment(one) },
+    { label: "Show Changes", run: () => state.hooks.showChanges(one.path) },
+    "-",
+    { label: one.done ? "Reopen" : "Resolve", run: () => resolveComment(one.id, !one.done) },
+    { label: "Delete", run: () => removeComment(one.id) },
+    "-",
+    { label: "Copy Comment", run: () => copyText(one.body) },
+  ];
 }
 
 // The lines down from each folder above a row to the row, one a level.
@@ -472,7 +842,7 @@ export function startExplorer(hooks) {
   state.group = GROUPS[localStorage.getItem(GROUP_KEPT)] ? localStorage.getItem(GROUP_KEPT) : "explorer";
   drawGroupTitle();
   for (const [name] of PANES) {
-    state.panes[name] = { shown: kept[name]?.shown ?? !["search", "usages", "todo"].includes(name), open: kept[name]?.open ?? name !== "timeline" };
+    state.panes[name] = { shown: kept[name]?.shown ?? !["search", "usages", "calls", "todo"].includes(name), open: kept[name]?.open ?? name !== "timeline" };
     drawPane(name);
     paneOf(name)
       .querySelector(".pane-head")
@@ -488,5 +858,35 @@ export function startExplorer(hooks) {
   }
   menuOn(document.getElementById("open-editors"), (event) => hooks.tabMenu(event.target.closest(".open-row")?.dataset.key));
   menuOn(document.getElementById("timeline"), timelineItems);
+  menuOn(document.getElementById("outline"), outlineItems);
   menuOn(document.getElementById("local-history"), localItems);
+  menuOn(document.getElementById("review"), reviewItems);
+  onReview(drawReview);
+  const graph = document.getElementById("git-log");
+  menuOn(graph, gitItems);
+  graph.addEventListener("click", (event) => {
+    const row = event.target.closest(".git-commit");
+    if (row) {
+      toggleCommit(row);
+    }
+  });
+  document.getElementById("git-repo").addEventListener("change", (event) => {
+    state.git.chosen = event.target.value;
+    drawGit(state.git.branch);
+  });
+  const query = document.getElementById("git-query");
+  let wait = 0;
+  query.addEventListener("input", () => {
+    window.clearTimeout(wait);
+    wait = window.setTimeout(() => {
+      state.git.query = query.value.trim();
+      drawGit(state.git.branch);
+    }, 250);
+  });
+  query.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      graph.querySelector("button")?.focus();
+    }
+  });
 }

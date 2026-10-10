@@ -4,56 +4,40 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Responsiveness
 
-1. **Start under a second.** The window shows with its page drawn and takes keys within a second of the launch.
-2. **Scrolling at the display's rate.** A fast scroll holds every frame a display of 120 a second draws, and not only every other one.
-
-## Code intelligence
-
-1. **Symbols of the whole tree.** Search Everywhere and Go to Symbol find a declaration in any file of the tree, not only in the file open, from an index the language servers and the outline readers keep up to date as files change.
-2. **Refactorings of orior's own.** Extract a variable, a constant or a function from a selection; inline one again; change a function's parameters across every call; move a declaration to another file. Each is one step that undo takes back, and each works where the language server offers none.
-3. **Inspections.** Checks of orior's own over the tree's languages, run as files change, each listed in Problems beside the servers' diagnostics with a quick fix where one applies.
-4. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
-
-## Version control
-
-1. **Branches.** Every local and remote branch in a list, to create, switch to, rename and delete, and to merge or rebase onto the branch open.
-2. **Conflicts.** A merge window with three panes, theirs, the result and yours, each conflict taken from either side or written by hand, a press marking the file resolved.
-3. **Part of a file in a commit.** The Commit window takes single changes, or single lines, of a file, and leaves the rest for a later commit.
-4. **Compare.** Two revisions of a file side by side, or a file beside another, or beside the clipboard.
-5. **Line history.** Beside each line, the commit that last changed it, a press opening that commit's changes.
-6. **Stash and cherry-pick.** Changes put aside and brought back, and a commit of another branch applied to the one open.
-
-## Testing
-
-1. **A test runner.** The tree's tests in a tree of their own, by file and by test, each marked passed, failed or skipped; a failure opens where it failed; failed tests run again with one press.
-2. **Tests from the gutter.** A mark beside each test in the editor runs it, or debugs it.
-3. **Coverage.** A run that records which lines ran, shown in the gutter and as a share by file.
-
-## Debugging
-
-1. **Breakpoints with conditions.** A breakpoint that stops only when an expression holds or after a count of hits, and one that writes a message to the console in place of stopping.
-2. **Stop on exceptions.** The debugger stops where an exception is thrown, or only where nothing catches it.
-3. **Attach.** Debug a program already running, chosen from a list of processes.
-4. **Memory and machine code.** The bytes at an address, and the instructions about the line stopped at.
-
-## Layout
-
-1. **Groups of tabs.** Each side of a split holds tabs of its own, any file in either.
-2. **Tool windows anywhere.** A tool window dragged to any side of the window, or out into a window of its own.
-3. **More than one window.** A window for each tree open at once, each with its own tabs and terminals.
-4. **Terminals side by side.** More than one shell open at a time, each in a tab of the terminal panel, or two side by side.
+1. **Scrolling at the display's rate.** A fast scroll holds every frame a display of 120 a second draws, and not only every other one. The frame's handover to the compositor, `Commit` and `LayerTreeHost::DoUpdateLayers` in a trace, takes about 10 ms of the 8.3 a frame has. Two measurements say what is in it: a trace of the scroll with the compositor's own categories (`cc`, `viz`, `gpu`, `disabled-by-default-cc.debug`), which splits it into the canvas flush, the layers' update, tiles and uploads; and the same scroll with the minimap not drawing, which says whether the map's canvas is the cost.
+2. **A key on the screen in the next frame.** A letter typed shows in the frame after the key, measured from the key's event to the frame that draws it, in a file of any size. The page's own work for a key is 2 to 5 ms in files of 40 to 250,000 lines; what keeps the letter from the next frame at 120 a second is the frame's commit, 11 to 14 ms with the window's three layers the size of the window, which the trace of the scroll before this item reads.
 
 ## Running and measuring
 
-1. **A profiler.** A run measured as it goes, its time and its memory by function, shown as a flame graph a press on which opens the function.
-2. **Runs on another machine.** A tree opened over SSH, or in a container, with the editor, the terminal, the jobs and the debugger working there.
+1. **Executables.** A program built into a file that runs on its own, from the tree's build scripts, with the build's output in a job.
+2. **Deployments.** A build's files sent to the places a tree names, to several at once.
+
+## Notebooks
+
+1. **Notebooks.** A notebook opened as cells, each run on its own and its output shown under it, with a minimap, forms in a cell's code drawn as fields, a cell debugged, and kernels in any language the machine has.
 
 ## Tools
 
 1. **Databases.** Connect to a database, browse its tables, run a query from the editor and read the rows it gives.
 2. **Requests.** A file of HTTP requests, each sent with a press and its answer shown beside it.
+3. **A Markdown preview.** A Markdown file shown as it reads beside its text, scrolled with it, or open as the preview alone, as the reader chooses for every Markdown file.
+4. **A live preview pane.** A pane beside the editor that renders the file being typed as it is typed, for every language that sets how something looks and runs nothing: Markdown, HTML and the CSS it takes, a CSS file over a page of its own, Mermaid's diagrams, LaTeX, SVG and the like. Each key is drawn in it as the text changes, and the place the cursor stands in the text is shown in the pane.
+5. **Files in an archive.** A zip archive opened in the explorer as a folder, its files read without unpacking it.
+
+## Plugins
+
+1. **Plugins that draw.** A plugin lays marks, overlays and its own panels over the editor and the window, sets the label of a tab, reads the theme's colors, and changes the window's chrome.
+2. **Plugins off the editor's thread.** Each plugin runs apart from the editor, and one that is slow or stuck holds up neither the keys nor the others.
+3. **Plugins that write files with care.** A plugin that serves files told when the system refuses a write, and the reader asked for the rights the write needs.
 
 ## Settings
 
-1. **Keys.** Any command's keys changed in Preferences, and whole sets of keys to choose from.
-2. **A plugin catalog.** Plugins others publish, found by name and installed from File, Plugins.
+1. **Keys.** Any command's keys changed in Preferences, and whole sets of keys to choose from, the mouse's buttons and wheel bound as keys are, the keys of a command shown where the reader reaches it another way, and keys that work whatever the keyboard's layout.
+2. **Settings by tree and by system.** Settings kept with a tree that stand over the reader's own, settings for one system only, a settings file that takes another's and changes some of it, settings that name others' values and the system's, and a theme for a tree or for a kind of file.
+3. **Themes that reach further.** A theme sets an image behind the editor, colors for every kind of token a language names, and file icons matched to names by patterns.
+4. **Settings on every machine.** The reader's settings, keys, themes and plugins carried to another machine through a file or a repository of the reader's.
+5. **Nothing from the network unasked.** orior fetches nothing, no server, no update, no package, until the reader says yes, and a setting holds it off the network entirely.
+6. **A plugin catalog.** Plugins others publish, found by name and installed from File, Plugins, each set on or off from a file, and each told what it may read and change before it runs.
+7. **Saving where rights are needed.** A file the reader may not write is saved after the system asks for the rights.
+8. **Other languages and other scripts.** The window in the reader's language, and text that runs right to left typed and drawn in its order.
+9. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.

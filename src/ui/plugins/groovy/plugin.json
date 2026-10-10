@@ -1,0 +1,48 @@
+{
+  "id": "groovy",
+  "name": "Groovy",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["groovy","gradle","gvy"],
+  "comments": {"line":"//","block":["/*","*/"]},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "words": [
+      "abstract", "as", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "continue", "def", "default", "do",
+      "double", "else", "enum", "extends", "false", "final", "finally", "float", "for", "if", "implements", "import", "in",
+      "instanceof", "int", "interface", "long", "new", "null", "package", "private", "protected", "public", "return", "short",
+      "static", "super", "switch", "this", "throw", "throws", "trait", "true", "try", "var", "void", "while"
+    ],
+    "tokenizer": {
+      "root": [
+        {"include":"@whitespace"},
+        ["[A-Za-z_$][\\w$]*",{"cases":{"@words":"keyword","@default":"identifier"}}],
+        ["0[xX][\\da-fA-F_]+[lLgG]?|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?[lLfFdDgG]?","number"],
+        ["\"\"\"","string","@triple"],
+        ["'''","string","@single_triple"],
+        ["\"","string","@double"],
+        ["'(?:[^'\\\\]|\\\\.)*'","string"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!~?:&|+\\-*/^%]+","operator"],
+        ["[;,.@]","delimiter"]
+      ],
+      "double": [
+        ["\"","string","@pop"],
+        ["\\$\\{","delimiter.bracket","@inner"],
+        ["\\\\.","string.escape"],
+        ["[^\"\\\\$]+|\\$","string"]
+      ],
+      "triple": [
+        ["\"\"\"","string","@pop"],
+        ["\\$\\{","delimiter.bracket","@inner"],
+        ["[^\"$]+|[\"$]","string"]
+      ],
+      "single_triple": [["'''","string","@pop"],["[^']+|'","string"]],
+      "inner": [["\\}","delimiter.bracket","@pop"],{"include":"@root"}],
+      "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"],["\\/\\/.*$","comment"]],
+      "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "org",
+  "name": "Org",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["org"],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": [],
+  "indentAfter": "$^",
+  "headings": "^(\\*+)\\s+(.*?)(?:\\s+:[\\w@#%:]+:)?\\s*$",
+  "skips": [[{"pattern":"^\\s*#\\+begin_","flags":"i"}, {"pattern":"^\\s*#\\+end_","flags":"i"}]],
+  "blocks": [
+    [{"pattern":"^\\s*#\\+begin_","flags":"i"}, {"pattern":"^\\s*#\\+end_","flags":"i"}],
+    ["^\\s*:(?!END:)[A-Za-z_-]+:\\s*$", "^\\s*:END:\\s*$"]
+  ],
+  "grammar": {
+    "tokenizer": {
+      "root": [
+        ["^\\*+\\s.*$","keyword"],
+        [{"pattern":"^\\s*#\\+begin_\\w+.*$","flags":"i"},"string","@block"],
+        ["^\\s*#\\+\\w+:.*$","tag"],
+        ["^\\s*#(?:\\s.*)?$","comment"],
+        ["^\\s*:[\\w-]+:","tag"],
+        ["\\[\\[[^\\]]*\\](?:\\[[^\\]]*\\])?\\]","tag"],
+        ["<\\d{4}-\\d{2}-\\d{2}[^>]*>|\\[\\d{4}-\\d{2}-\\d{2}[^\\]]*\\]","number"],
+        ["^\\s*(?:[-+]|\\d+[.)])(?=\\s)","operator"],
+        ["\\[[ X-]\\]","operator"],
+        ["\\*[^*\\s][^*]*\\*","strong"],
+        ["\\/[^/\\s][^/]*\\/","emphasis"],
+        ["=[^=\\s][^=]*=|~[^~\\s][^~]*~","string"],
+        ["\\|","delimiter"],
+        ["[^*/=~[<|\\\\]+|.",""]
+      ],
+      "block": [[{"pattern":"^\\s*#\\+end_\\w+.*$","flags":"i"},"string","@pop"],[".*$","string"]]
+    }
+  }
+}

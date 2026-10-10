@@ -1,0 +1,47 @@
+{
+  "id": "zig",
+  "name": "Zig",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["zig","zon"],
+  "comments": {"line":"//"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": "[{[(]\\s*$",
+  "outline": [
+    ["^(\\s*)(?:pub\\s+)?(?:export\\s+|extern\\s+(?:\"[^\"]*\"\\s+)?|inline\\s+|noinline\\s+)*fn\\s+([A-Za-z_]\\w*)", "function"],
+    ["^(\\s*)(?:pub\\s+)?const\\s+([A-Za-z_]\\w*)\\s*=\\s*(?:extern\\s+|packed\\s+)?(?:struct|enum|union|opaque)\\b", "class"],
+    ["^(\\s*)test\\s+(\"[^\"]*\"|[A-Za-z_]\\w*)", "function"],
+    ["^()(?:pub\\s+)?const\\s+([A-Za-z_]\\w*)\\s*=", "constant"]
+  ],
+  "grammar": {
+    "words": [
+      "addrspace", "align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv", "catch",
+      "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export", "extern", "fn", "for", "if",
+      "inline", "linksection", "noalias", "noinline", "nosuspend", "opaque", "or", "orelse", "packed", "pub", "resume",
+      "return", "struct", "suspend", "switch", "test", "threadlocal", "try", "union", "unreachable", "usingnamespace", "var",
+      "volatile", "while"
+    ],
+    "constants": ["true", "false", "null", "undefined"],
+    "types": [
+      "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "i128", "u128", "isize", "usize", "f16", "f32", "f64", "f80",
+      "f128", "bool", "void", "noreturn", "type", "anyerror", "anyopaque", "comptime_int", "comptime_float", "c_char", "c_short",
+      "c_ushort", "c_int", "c_uint", "c_long", "c_ulong", "c_longlong", "c_ulonglong"
+    ],
+    "tokenizer": {
+      "root": [
+        ["\\s+",""],
+        ["\\/\\/.*$","comment"],
+        ["\\\\\\\\.*$","string"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["'(?:[^'\\\\]|\\\\.)*'","string"],
+        ["@[A-Za-z_]\\w*","predefined"],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@constants":"constant","@types":"type","@default":"identifier"}}],
+        ["0[xX][\\da-fA-F_]+(?:\\.[\\da-fA-F_]+)?(?:[pP][+-]?\\d+)?|0[oO][0-7_]+|0[bB][01_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?","number"],
+        ["[{}()[\\]]","@brackets"],
+        ["[<>=!~?:&|+\\-*/^%]+","operator"],
+        ["[;,.]","delimiter"]
+      ]
+    }
+  }
+}

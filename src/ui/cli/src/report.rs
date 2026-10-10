@@ -69,11 +69,14 @@ pub enum Filed {
 }
 
 /// What orior keeps between runs: whether errors file on their own, as the reporter answered when they
-/// were asked, at installation or on the first run, and nothing where they have not answered yet.
+/// were asked, at installation or on the first run, and nothing where they have not answered yet. The
+/// window's own settings share the file, kept as they are.
 #[derive(Default, Serialize, Deserialize)]
 struct Settings {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     auto_report: Option<bool>,
+    #[serde(flatten)]
+    window: serde_json::Map<String, serde_json::Value>,
 }
 
 struct Run {
@@ -304,7 +307,7 @@ pub fn open_page(url: &str) -> Result<(), String> {
 }
 
 /// Opens `url` in the browser, as the system opens addresses.
-pub(crate) fn open_url(url: &str) -> Result<(), String> {
+pub fn open_url(url: &str) -> Result<(), String> {
     let mut command = if cfg!(windows) {
         let mut command = Command::new("rundll32");
         command.args(["url.dll,FileProtocolHandler", url]);
@@ -325,6 +328,11 @@ pub(crate) fn open_url(url: &str) -> Result<(), String> {
 /// Files a report: as an issue through the reporter's GitHub CLI where it is signed in, as nothing
 /// where its error is already an open issue, and otherwise as the filled-in page, opened.
 pub fn file(given: &Report, root: Option<&Path>) -> Filed {
+    file_as(given, root, true)
+}
+
+/// Files a report as `file` does, opening the page it falls back to only where `open`.
+fn file_as(given: &Report, root: Option<&Path>, open: bool) -> Filed {
     let report = Report {
         category: category_of(given).to_string(),
         title: scrub(&given.title, root),
@@ -348,7 +356,9 @@ pub fn file(given: &Report, root: Option<&Path>) -> Filed {
         }
     }
     let url = page(&report, root);
-    let _ = open_page(&url);
+    if open {
+        let _ = open_page(&url);
+    }
     Filed::Page(url)
 }
 
@@ -368,7 +378,8 @@ pub fn recent() -> String {
 }
 
 /// Files an error on its own where the reporter lets errors file, where it has not filed this run,
-/// and where the run has filed fewer than AUTO_LIMIT. Answers where it went, or nothing.
+/// and where the run has filed fewer than AUTO_LIMIT. Answers where it went, or nothing. An error
+/// the GitHub CLI cannot file opens no page: the page waits on the status bar for the reader to open.
 pub fn error(category: &str, message: &str, detail: &str, root: Option<&Path>) -> Option<Filed> {
     keep(&format!("{message}\n{detail}"), root);
     if !auto() {
@@ -390,7 +401,7 @@ pub fn error(category: &str, message: &str, detail: &str, root: Option<&Path>) -
         steps: String::new(),
         logs: detail.to_string(),
     };
-    Some(file(&report, root))
+    Some(file_as(&report, root, false))
 }
 
 /// The category of a panic, from where its backtrace first enters orior's own code: the window, the

@@ -115,6 +115,10 @@
   --t-delimiter: #9e9bc4;
   --t-strong: #e4e3f5;
   --t-emphasis: #c9b8ff;
+  --t-function: #7fd8e8;
+  --t-parameter: #f2d48a;
+  --t-property: #c9b8ff;
+  --t-module: #a8c8ff;
   color-scheme: dark;
 }
 
@@ -173,6 +177,10 @@
   --t-delimiter: #6b6990;
   --t-strong: #17163a;
   --t-emphasis: #6a4fc9;
+  --t-function: #0f6f80;
+  --t-parameter: #8a6100;
+  --t-property: #6a4fc9;
+  --t-module: #2c3fb8;
   color-scheme: light;
 }
 
@@ -194,7 +202,6 @@ body {
 body {
   display: flex;
   flex-direction: column;
-  background: var(--bg);
   color: var(--fg);
   font: 15px/1.5 var(--head);
   overflow: hidden;
@@ -214,16 +221,34 @@ select {
 }
 
 /* The bar is the ink of the site's header, underlined in signal the way the site's is. */
+:root {
+  --bar-height: calc(2.9rem - 5px);
+  --frame-right: 13px;
+}
+
 .bar {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  height: 2.9rem;
+  height: var(--bar-height);
   padding: 0 0.8rem 0 1rem;
-  background: var(--ink);
+  position: relative;
   color: var(--bar-fg);
-  border-bottom: 2px solid var(--bar-signal);
+  border-bottom: 2px solid transparent;
   flex: none;
+}
+
+/* The bar's signal line runs over the work alone, from the curve at its top left to the curve at
+   its top right. */
+.bar::before {
+  content: "";
+  position: absolute;
+  left: 47px;
+  right: calc(var(--frame-right) + 7px);
+  bottom: -2px;
+  height: 2px;
+  background: var(--bar-signal);
+  pointer-events: none;
 }
 
 .mark {
@@ -274,9 +299,12 @@ select {
 }
 
 /* The frame: the top bar, the tool strip down the left and the status bar along the foot, one ink
-   around the work, and the work beside the strip: the views over the Debug and Terminal panels. */
+   around the work, and the work beside the strip: the views over the Debug and Terminal panels. A
+   margin of the frame stands between the work and the window's right edge. */
 .frame {
+  position: relative;
   flex: 1;
+  padding-right: var(--frame-right);
   min-height: 0;
   display: flex;
 }
@@ -363,17 +391,136 @@ select {
   background-position: left top, left bottom;
 }
 
-/* The corner where the strip's line meets the status bar's: a small curve filled in the lines' color,
-   leaving the strip's line and ending on the status bar's. */
-.work::after {
+/* The work stands in four lines: the bar's signal line along its top, the strip's line down its
+   left, a line in the link color mixed with 35% black, as thick as the signal line, down its right,
+   and one in the same color, as thin as the strip's line, along its foot. Its four corners are
+   curves of one radius, and the lines bend round each from one into the next, the color passing
+   from the one line's into the other's along the curve. Each curve is a band, as wide as the lines
+   it joins at either end, cut from a sweep of their colors. */
+.frame::before,
+.frame::after,
+.bar::after,
+.statusbar::after {
   content: "";
   position: absolute;
-  left: 0;
-  bottom: 0;
-  z-index: 30;
-  width: 7px;
-  height: 7px;
-  background: radial-gradient(circle at 100% 0, transparent 6.4px, var(--status-line) 7px);
+  z-index: 40;
+  pointer-events: none;
+  mask-composite: subtract;
+}
+
+.frame::before {
+  left: calc(var(--strip-width) - 1px);
+  top: -2px;
+  width: 8px;
+  height: 9px;
+  background: conic-gradient(from 270deg at 100% 100%, var(--status-line), var(--bar-signal) 90deg);
+  mask-image: radial-gradient(8px 9px at 100% 100%, #000 95%, transparent 100%), radial-gradient(circle 7px at 100% 100%, #000 6.6px, transparent 7px);
+}
+
+.frame::after {
+  left: calc(var(--strip-width) - 1px);
+  bottom: -1px;
+  width: 8px;
+  height: 8px;
+  background: conic-gradient(from 180deg at 100% 0, color-mix(in srgb, var(--link), black 35%), var(--status-line) 90deg);
+  mask-image: radial-gradient(circle 8px at 100% 0, #000 7.6px, transparent 8px), radial-gradient(circle 7px at 100% 0, #000 6.6px, transparent 7px);
+}
+
+.bar::after {
+  right: calc(var(--frame-right) - 2px);
+  bottom: -9px;
+  width: 9px;
+  height: 9px;
+  background: conic-gradient(from 0deg at 0 100%, var(--bar-signal), color-mix(in srgb, var(--link), black 35%) 90deg);
+  mask-image: radial-gradient(circle 9px at 0 100%, #000 8.6px, transparent 9px), radial-gradient(circle 7px at 0 100%, #000 6.6px, transparent 7px);
+}
+
+.statusbar {
+  position: relative;
+}
+
+.statusbar::after {
+  right: calc(var(--frame-right) - 2px);
+  top: -7px;
+  width: 9px;
+  height: 8px;
+  background: color-mix(in srgb, var(--link), black 35%);
+  mask-image: radial-gradient(9px 8px at 0 0, #000 95%, transparent 100%), radial-gradient(circle 7px at 0 0, #000 6.6px, transparent 7px);
+}
+
+/* The line along the work's foot, on the status bar's top edge. */
+.statusbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 47px;
+  right: calc(var(--frame-right) + 7px);
+  height: 1px;
+  background: color-mix(in srgb, var(--link), black 35%);
+  pointer-events: none;
+}
+
+.work {
+  clip-path: inset(0 round 7px);
+}
+
+/* The window's lattice runs on under the frame round the work, the bar, the strip and the status
+   bar, and the frame is a pane of glass over it: a tint of the ink, as thick as the bar opacity in
+   Preferences sets it, and a fine grain. Where the frame shows beside the work, in its margin at
+   the right and outside the curves of its corners, the frame lays the tint there alone, and the
+   work, where it is empty, shows the lattice clear. The menu opacity in Preferences sets how much
+   of its own color every menu lays over what stands under it. */
+:root {
+  --bar-opacity: 30%;
+  --strip-width: 40px;
+  --menu-opacity: 100%;
+  --glass-tint: color-mix(in srgb, var(--ink) var(--bar-opacity), transparent);
+  --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+.bar,
+.strip,
+.statusbar {
+  background-color: var(--glass-tint);
+  background-image: var(--glass-grain);
+  background-attachment: fixed;
+}
+
+.frame {
+  background:
+    linear-gradient(color-mix(in srgb, var(--link), black 35%), color-mix(in srgb, var(--link), black 35%)) right calc(var(--frame-right) - 2px) top 7px / 2px calc(100% - 14px) no-repeat,
+    linear-gradient(var(--glass-tint), var(--glass-tint)) right top / var(--frame-right) 100% no-repeat,
+    radial-gradient(circle 7px at 100% 100%, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) top 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 100% 0, transparent 6.6px, var(--glass-tint) 7px) left var(--strip-width) bottom 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 100%, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) top 0 / 7px 7px no-repeat,
+    radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) bottom 0 / 7px 7px no-repeat;
+}
+
+/* The window's lattice, behind the whole page, on the deep of the lattices in the views, and the
+   body clear over it. The lattice of an empty view is the window's, seen through it. */
+.lattice-window {
+  z-index: -1;
+  background: var(--deep);
+}
+
+.empty > .lattice {
+  display: none;
+}
+
+/* The glass's top edge catches the light. */
+.bar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* The strip's line, between the curves. */
+.strip::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 0;
+  bottom: 7px;
+  width: 1px;
+  background: var(--status-line);
   pointer-events: none;
 }
 
@@ -383,9 +530,112 @@ select {
   width: 40px;
   display: flex;
   flex-direction: column;
+  position: relative;
   padding: 6px 0;
-  background: var(--ink);
-  border-right: 1px solid var(--status-line);
+}
+
+/* Under the system's own title bar, the bar's own controls of the window stand down. */
+body[data-system-title] .window-controls {
+  display: none;
+}
+
+/* The reader's toolbar under the menus, in the glass of the bar over it: a button for each command,
+   and a short line between groups of them. */
+.toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 8px 0 46px;
+  background-color: var(--glass-tint);
+  background-image: var(--glass-grain);
+  background-attachment: fixed;
+}
+
+.toolbar[hidden] {
+  display: none;
+}
+
+.toolbar-button {
+  width: 26px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.toolbar-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbar-line {
+  width: 1px;
+  height: 16px;
+  margin: 0 5px;
+  background: var(--line);
+}
+
+/* The strip hidden until its edge: the work takes the strip's room, and the strip slides out over it
+   while the pointer is at the window's left edge or on the strip. */
+body[data-strip-edge] {
+  --strip-width: 0px;
+}
+
+body[data-strip-edge] .strip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 45;
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
+}
+
+body[data-strip-edge] .strip.shown {
+  transform: none;
+}
+
+.strip-edge {
+  display: none;
+}
+
+body[data-strip-edge] .strip-edge {
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  z-index: 44;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-strip-edge] .strip {
+    transition: none;
+  }
+}
+
+/* An item of the status bar being dragged to a new place along its line. */
+[data-item].dragged {
+  opacity: 0.5;
+  cursor: grabbing;
 }
 
 .strip-group {
@@ -656,17 +906,16 @@ select {
   white-space: nowrap;
 }
 
-/* The bar along the bottom of the window, in the ink of the bar along its top. */
+/* The bar along the bottom of the window, in the ink of the bar along its top: its line of text 22px
+   tall at its foot, under the work from the work's left curve, and the room above it. */
 .statusbar {
   flex: none;
   display: flex;
   align-items: center;
   gap: 1.1rem;
-  height: 22px;
-  padding: 0 0.8rem;
-  background: var(--ink);
+  height: 25px;
+  padding: 3px 0.8rem 0 calc(var(--strip-width) + 7px);
   color: var(--status-fg);
-  border-top: 1px solid var(--status-line);
   font: 12px var(--head);
   white-space: nowrap;
 }
@@ -675,6 +924,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  cursor: pointer;
 }
 
 .status-branch[hidden] {
@@ -719,6 +969,40 @@ select {
   display: none;
 }
 
+/* The machine a tree on another machine is on, quiet while its link is joined and marked while it is
+   being joined or is not reached. */
+.status-machine {
+  overflow: hidden;
+  max-width: 30vw;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status-machine:hover {
+  color: var(--bar-bright);
+}
+
+.status-machine[data-link="joining"],
+.status-machine[data-link="preparing"],
+.status-machine[data-link="dropped"],
+.status-machine[data-link="joining-again"] {
+  color: var(--ed-warning);
+}
+
+.status-machine[data-link="failed"] {
+  color: var(--fail);
+}
+
+.status-machine[hidden] {
+  display: none;
+}
+
 .status-said {
   overflow: hidden;
   max-width: 50vw;
@@ -742,11 +1026,21 @@ select {
 
 .status-memory {
   font-variant-numeric: tabular-nums;
-  cursor: default;
+  cursor: pointer;
 }
 
 .status-memory[hidden] {
   display: none;
+}
+
+/* What holds the most memory, beside the total, quieter than it; and the reading over its budget. */
+.status-memory-most {
+  margin-left: 0.4rem;
+  color: var(--fg-3);
+}
+
+.status-memory.over {
+  color: var(--ed-warning);
 }
 
 .statusbar .ed-status {
@@ -851,6 +1145,14 @@ body[data-view="run"] .statusbar .ed-status {
   position: relative;
 }
 
+/* The work and each view are grids that the tool windows dock in: the docks lay out their columns
+   and rows, the content in the middle and each docked window at its side. */
+.work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .mode {
   position: absolute;
   inset: 0;
@@ -858,7 +1160,167 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .mode[data-active="true"] {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* A tool window docked at a side, with the sash on its inner edge that drags its width, or at the
+   foot its height. A panel of the work docked beside the views stands as tall as they do. */
+[data-dock] {
+  position: relative;
+}
+
+.dock-sash {
+  position: absolute;
+  z-index: 6;
+}
+
+[data-dock="left"] > .dock-sash {
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+[data-dock="right"] > .dock-sash {
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+[data-dock="bottom"] > .dock-sash {
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.work > [data-dock] > .term-grip {
+  display: none;
+}
+
+.work > [data-dock="left"],
+.work > [data-dock="right"] {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  min-width: 160px;
+  border-top: 0;
+}
+
+.work > [data-dock="left"] {
+  border-right: 1px solid var(--line);
+}
+
+.work > [data-dock="right"] {
+  border-left: 1px solid var(--line);
+}
+
+.work > [data-dock="bottom"] {
+  max-height: none;
+}
+
+.mode > [data-dock="right"] {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.mode > [data-dock="bottom"] {
+  width: auto;
+  height: var(--dock-size);
+  border-right: 0;
+  border-top: 1px solid var(--line);
+}
+
+.mode > [data-dock="bottom"] > .side-inner,
+.mode > [data-dock="bottom"] .defs {
+  width: auto;
+}
+
+/* A window that shows one tool window alone: the bar over it, and the tool window filling the rest. */
+body[data-solo] .strip,
+body[data-solo] .statusbar {
+  display: none;
+}
+
+body[data-solo="terminal"] .work > :not(#term),
+body[data-solo="explorer"] .work > :not(.shell),
+body[data-solo="jobs"] .work > :not(.shell),
+body[data-solo="explorer"] #mode-edit > :not(#explorer) {
+  display: none;
+}
+
+body[data-solo] [data-solo-tool] {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  width: auto;
+  height: auto;
+  max-height: none;
+  border: 0;
+}
+
+body[data-solo] [data-solo-tool] > .side-inner {
+  width: auto;
+}
+
+body[data-solo] [data-solo-tool] > .dock-sash {
+  display: none;
+}
+
+/* A tab being dragged, which let go outside the window opens its file in a new one. */
+.tab.dragged {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
+/* The places an icon dragged over its window's place can dock it: the left, the right, the foot. */
+.dock-drop {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.dock-zone {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.dock-zone.lit {
+  border: 1px solid var(--signal);
+  background: color-mix(in srgb, var(--signal) 18%, transparent);
+  color: var(--fg);
+}
+
+.dock-zone-left {
+  left: 8px;
+  top: 8px;
+  bottom: 30%;
+  width: 22%;
+}
+
+.dock-zone-right {
+  right: 8px;
+  top: 8px;
+  bottom: 30%;
+  width: 22%;
+}
+
+.dock-zone-bottom {
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  height: calc(30% - 16px);
 }
 
 .side {
@@ -1264,7 +1726,6 @@ body[data-view="run"] .statusbar .ed-status {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: var(--deep);
 }
 
 .lattice {
@@ -1486,6 +1947,68 @@ body[data-view="run"] .statusbar .ed-status {
   cursor: pointer;
 }
 
+/* A file's changes opened under it in the Commit window: its arrow, each change's row, and each line
+ * with its box, a line taken out tinted as the gutter marks one and a line added as it marks one. */
+.commit-twisty {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.commit-twisty::before {
+  content: "▸";
+}
+
+.commit-twisty[aria-expanded="true"]::before {
+  content: "▾";
+}
+
+.commit-twisty:disabled {
+  visibility: hidden;
+}
+
+.commit-hunk,
+.commit-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.05rem 0.6rem 0.05rem 2.2rem;
+  font: 12px var(--head);
+  color: var(--fg-3);
+}
+
+.commit-line {
+  padding-left: 3.2rem;
+  font: 11.5px/1.45 var(--code);
+  color: var(--ed-fg);
+}
+
+.commit-line.gone {
+  background: color-mix(in srgb, var(--ed-removed) 14%, transparent);
+}
+
+.commit-line.come {
+  background: color-mix(in srgb, var(--ed-added) 14%, transparent);
+}
+
+.commit-sign {
+  flex: none;
+  width: 1ch;
+  color: var(--fg-3);
+}
+
+.commit-text {
+  min-width: 0;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .commit-list {
   max-height: 45vh;
   overflow: auto;
@@ -1609,6 +2132,19 @@ body[data-view="run"] .statusbar .ed-status {
   font-family: var(--code);
 }
 
+.diff-space {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.diff-space input {
+  margin: 0;
+  accent-color: var(--signal);
+}
+
 .diff-sides,
 .diff-where {
   color: var(--fg-3);
@@ -1697,6 +2233,217 @@ body[data-view="run"] .statusbar .ed-status {
   background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
 }
 
+/* Compare by structure: a line tinted by what it is, a line taken out or changed in the removed
+ * color on the left and the added color on the right, a line moved and a line renamed each in a tint
+ * of its own, a line reshaped only ruled at its edge; and each token taken out, put in, moved or
+ * renamed in a stronger tint of its line's. */
+.diff-row.by-structure .left.line-changed {
+  background: color-mix(in srgb, var(--ed-removed) 12%, transparent);
+}
+
+.diff-row.by-structure .right.line-changed {
+  background: color-mix(in srgb, var(--ed-added) 12%, transparent);
+}
+
+.diff-row.by-structure .line-moved {
+  background: color-mix(in srgb, var(--t4) 12%, transparent);
+}
+
+.diff-row.by-structure .line-renamed {
+  background: color-mix(in srgb, var(--t5) 12%, transparent);
+}
+
+.diff-row.by-structure .line-reshaped {
+  box-shadow: inset 2px 0 var(--fg-3);
+}
+
+.diff-token {
+  border-radius: 2px;
+}
+
+.left .diff-token.changed {
+  background: color-mix(in srgb, var(--ed-removed) 38%, transparent);
+}
+
+.right .diff-token.changed {
+  background: color-mix(in srgb, var(--ed-added) 38%, transparent);
+}
+
+.diff-token.renamed {
+  background: color-mix(in srgb, var(--t5) 36%, transparent);
+}
+
+/* Review comments: a right line's number takes a press to leave one, and each stands under its line's
+ * row beneath the right side, ruled in signal at its left edge, dimmed once resolved. */
+.diff-num.can-comment {
+  cursor: pointer;
+}
+
+.diff-num.can-comment:hover {
+  background: var(--line);
+  color: var(--signal);
+}
+
+.diff-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.15rem 0.8rem 0.3rem calc(50% + 3.5rem);
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--signal);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: color-mix(in srgb, var(--signal) 8%, var(--surface));
+  font: 12.5px var(--head);
+  color: var(--fg);
+}
+
+.diff-comment.done {
+  border-left-color: var(--fg-3);
+  color: var(--fg-3);
+}
+
+.diff-comment.gone {
+  border-left-style: dashed;
+}
+
+.diff-comment-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+.diff-comment-when {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.diff-comment-act {
+  flex: none;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * 0.6);
+  background: none;
+  color: var(--fg-2);
+  font: 11.5px var(--head);
+  cursor: pointer;
+}
+
+.diff-comment-act:hover {
+  border-color: var(--fg-3);
+  color: var(--fg);
+}
+
+.diff-comment-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  resize: vertical;
+}
+
+.review-mark::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px 2px 2px 0;
+  background: var(--signal);
+}
+
+.review-row.done .review-mark::before {
+  background: var(--fg-3);
+}
+
+.review-row.done .name {
+  color: var(--fg-3);
+  text-decoration: line-through;
+}
+
+.diff-summary {
+  margin: 0;
+  padding: 0.25rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  font: 12px var(--head);
+  color: var(--fg-2);
+}
+
+/* Conflicts: three columns, yours, the result and theirs, each conflict under a row of the ways to
+ * settle it, its sides tinted as the gutter tints a change and its open result striped. */
+.merge-row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr) 3.5rem minmax(0, 1fr);
+}
+
+.merge-row .diff-text.middle {
+  border-right: 1px solid var(--line);
+}
+
+.merge-row .diff-text.ours {
+  background: color-mix(in srgb, var(--ed-added) 14%, transparent);
+}
+
+.merge-row .diff-text.theirs {
+  background: color-mix(in srgb, var(--ed-changed) 16%, transparent);
+}
+
+.merge-row .diff-text.taken {
+  background: color-mix(in srgb, var(--signal) 10%, transparent);
+}
+
+.merge-row .merge-open {
+  background: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--ed-removed) 35%, transparent) 5px 6px);
+}
+
+.merge-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.2rem 0.8rem;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
+  font: 12px var(--head);
+  color: var(--fg-3);
+}
+
+.merge-head .merge-name:last-child {
+  text-align: right;
+}
+
+.merge-acts {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.merge-acts button {
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.merge-acts button:hover,
+.merge-acts button[aria-pressed="true"] {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.merge-write {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+}
+
 .diff-empty {
   margin: 1.2rem;
   color: var(--fg-3);
@@ -1763,8 +2510,139 @@ body[data-view="run"] .statusbar .ed-status {
   min-height: 0;
 }
 
-/* A split: the second editor to the right of the first or under it, the tabs across both, a line
-   between them, and over the second the file it shows and its close button. */
+/* A folder or file from another place, mounted beside the tree: its row bold, the first a line
+   apart from the tree's own. */
+.node.mount {
+  font-weight: 600;
+}
+
+.node.mount-first {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+/* Tabs down the side: the first side's tabs in a column beside its editor, the marked files first
+   with their keys, each group under a header that folds it, and its tabs set in under it. */
+.desk[data-tabs="side"] {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.desk[data-tabs="side"][data-split="right"] {
+  grid-template-columns: 13rem minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.desk[data-tabs="side"][data-split="down"] {
+  grid-template-columns: 13rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.desk[data-tabs="side"] > .tabs,
+.desk[data-tabs="side"][data-split] > .tabs {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-bottom: 0;
+  border-right: 1px solid var(--line);
+}
+
+.desk[data-tabs="side"] > .editor,
+.desk[data-tabs="side"] > .binary,
+.desk[data-tabs="side"] > .empty,
+.desk[data-tabs="side"][data-split] > .editor,
+.desk[data-tabs="side"][data-split] > .binary,
+.desk[data-tabs="side"][data-split] > .empty {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.desk[data-tabs="side"][data-split="right"] > .split {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.desk[data-tabs="side"][data-split="down"] > .split {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab {
+  flex: none;
+  justify-content: flex-start;
+  padding: 0.32rem 0.4rem 0.32rem 0.85rem;
+  border-right: 0;
+  border-radius: 0;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab .close {
+  margin-left: auto;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab[aria-selected="true"] {
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.desk[data-tabs="side"] > .tabs > .tab.grouped {
+  padding-left: 1.7rem;
+}
+
+.tab-group {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: none;
+  color: var(--fg-2);
+  font: 600 12px var(--head);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.desk[data-tabs="side"] > .tabs > .tab-group {
+  padding: 0.5rem 0.7rem 0.25rem;
+  border-right: 0;
+}
+
+.tab-group:hover {
+  color: var(--fg);
+}
+
+.tab-group-fold {
+  width: 0.7rem;
+  color: var(--fg-3);
+}
+
+.tab-group-count {
+  color: var(--fg-3);
+  font-weight: 400;
+}
+
+.tab-mark {
+  min-width: 1.2em;
+  padding: 0 0.25em;
+  border-radius: 3px;
+  background: var(--line);
+  color: var(--fg);
+  font: 600 10.5px var(--code);
+  text-align: center;
+}
+
+.tab-section {
+  flex: none;
+  padding: 0.55rem 0.7rem 0.2rem;
+  color: var(--fg-3);
+  font: 600 11px var(--head);
+}
+
+/* A split: the second side to the right of the first or under it, a line between them, each side
+   with its tabs over it, and beside the second side's tabs its close button. */
 .desk[data-split] {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1777,16 +2655,19 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .desk[data-split] > .tabs {
-  grid-column: 1 / -1;
+  grid-row: 1;
+  grid-column: 1;
 }
 
-.desk[data-split] > .editor {
+.desk[data-split] > .editor,
+.desk[data-split] > .binary,
+.desk[data-split] > .empty {
   grid-row: 2;
   grid-column: 1;
 }
 
 .desk[data-split="right"] > .split {
-  grid-row: 2;
+  grid-row: 1 / -1;
   grid-column: 2;
   border-left: 1px solid var(--line);
 }
@@ -1805,23 +2686,18 @@ body[data-view="run"] .statusbar .ed-status {
 
 .split-head {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.2rem 0.4rem 0.2rem 0.85rem;
+  align-items: stretch;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
-  font: 12px var(--code);
-  color: var(--fg-2);
 }
 
-.split-name {
+.split-head > .tabs {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-bottom: 0;
 }
 
 .split-close {
+  padding: 0 0.55rem;
   border: 0;
   border-radius: 4px;
   background: none;
@@ -2049,6 +2925,32 @@ body[data-view="run"] .statusbar .ed-status {
   color: var(--ed-bracket-3);
 }
 
+/* Line History: the date and author of the commit that last changed a line, on the first line of each
+ * run of lines one commit left, a rule down the run's left edge, the run's top edge drawn. */
+.ed-history {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding-left: 5px;
+  border-left: 2px solid var(--line);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 0.85em;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.ed-history.first {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+
+.ed-history:hover {
+  border-left-color: var(--signal);
+  color: var(--ed-fg);
+}
+
 .ed-fold {
   position: absolute;
   right: 4px;
@@ -2131,6 +3033,49 @@ body[data-view="run"] .statusbar .ed-status {
 
 .ed-guide {
   background: var(--ed-guide);
+}
+
+/* Jump: over each place in sight that what was typed stands, the letter that puts the cursor there. */
+.ed-jump-mark {
+  position: fixed;
+  z-index: 40;
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--signal);
+  color: var(--bg);
+  font: 600 12px/18px var(--code);
+  pointer-events: none;
+}
+
+/* The formatter's width: a line down the editor after the last column its lines keep to. */
+.ed-margin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--ed-guide);
+  pointer-events: none;
+}
+
+/* What the formatter's line is, written at its top, beside it. */
+.ed-margin-says {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--fg-3);
+  font: 11px/14px var(--head);
+  white-space: nowrap;
+}
+
+/* The documentation's margin, where the reader sets one apart from the code's. */
+.ed-margin.doc {
+  background: none;
+  border-left: 1px dashed var(--ed-guide);
+}
+
+.ed-margin[hidden] {
+  display: none;
 }
 
 .ed-same {
@@ -2220,6 +3165,32 @@ body[data-view="run"] .statusbar .ed-status {
 
 .ed[data-typing] .ed-caret {
   animation: none;
+}
+
+/* Vim's keys: outside insert mode the caret is a block over its letter, the letter seen through it,
+ * and / or ? asks what to look for along the editor's foot. */
+.ed[data-vim]:not([data-vim="insert"]) .ed-caret {
+  opacity: 0.55;
+}
+
+.ed-vim-prompt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 0.2rem 0.6rem;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: var(--ed-bg);
+  color: var(--fg);
+  font: 13px var(--code);
+  outline: none;
+}
+
+.statusbar .status-vim {
+  color: var(--signal);
+  font-weight: 600;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2313,6 +3284,37 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 /* Tokens. Every class a grammar gives is t-<kind>, and t-<kind>-<part> beneath it. */
+/* What is not drawn, drawn where the reader asks: a dot over each space, an arrow over each tab, a
+ * mark after each line's end; and comments hidden, their text not drawn. */
+.ed-sp,
+.ed-tab {
+  position: relative;
+}
+
+.ed-sp::before,
+.ed-tab::before {
+  position: absolute;
+  left: 0;
+  color: var(--ed-guide);
+  pointer-events: none;
+}
+
+.ed-sp::before {
+  content: "·";
+}
+
+.ed-tab::before {
+  content: "→";
+}
+
+.ed-eol {
+  color: var(--ed-guide);
+}
+
+.ed[data-comments="hidden"] .t-comment {
+  visibility: hidden;
+}
+
 .t-comment {
   color: var(--t-comment);
   font-style: italic;
@@ -2360,6 +3362,23 @@ body[data-view="run"] .statusbar .ed-status {
 
 .t-delimiter {
   color: var(--t-delimiter);
+}
+
+/* The names a parse tells apart: a function's, a parameter's, an attribute's and a module's. */
+.t-function {
+  color: var(--t-function);
+}
+
+.t-parameter {
+  color: var(--t-parameter);
+}
+
+.t-property {
+  color: var(--t-property);
+}
+
+.t-module {
+  color: var(--t-module);
 }
 
 .t-strong {
@@ -2737,6 +3756,7 @@ body[data-view="run"] .statusbar .ed-status {
   overflow: hidden;
   transition:
     width 0.22s ease,
+    height 0.22s ease,
     border-color 0.22s ease;
 }
 
@@ -2769,6 +3789,15 @@ body[data-view="run"] .statusbar .ed-status {
   opacity: 0;
 }
 
+.collapsible.toward-bottom.collapsed {
+  height: 0;
+}
+
+.collapsible.toward-bottom.collapsed > .side-inner {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
 .pane-edge {
   position: absolute;
   top: 0;
@@ -2787,6 +3816,14 @@ body[data-view="run"] .statusbar .ed-status {
 
 .pane-edge-right {
   right: 0;
+}
+
+.pane-edge-bottom {
+  top: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2895,7 +3932,8 @@ body[data-view="run"] .statusbar .ed-status {
 
 /* An arrow drawn in two borders: right where closed, down where open. */
 .pane-head::before,
-.node.dir .twisty::before {
+.node.dir .twisty::before,
+.sym-region .twisty::before {
   content: "";
   width: 5px;
   height: 5px;
@@ -2911,7 +3949,8 @@ body[data-view="run"] .statusbar .ed-status {
 }
 
 .pane-head[aria-expanded="true"]::before,
-.node.dir[aria-expanded="true"] .twisty::before {
+.node.dir[aria-expanded="true"] .twisty::before,
+.sym-region[aria-expanded="true"] .twisty::before {
   transform: rotate(45deg) translate(-1px, -1px);
 }
 
@@ -2958,7 +3997,8 @@ body[data-view="run"] .statusbar .ed-status {
 
 .node[aria-current="true"],
 .open-row[aria-current="true"],
-.sym[aria-current="true"] {
+.sym[aria-current="true"],
+.commit[aria-current="true"] {
   background: var(--ed-sel-idle);
   color: var(--fg);
 }
@@ -3127,6 +4167,12 @@ body[data-view="run"] .statusbar .ed-status {
   border-radius: 50%;
 }
 
+/* The state the text is in, in Undo History. */
+.commit[aria-current="true"] .commit-dot::before {
+  border-color: var(--signal);
+  background: var(--signal);
+}
+
 /* The definitions beside the editor: the open file type's oracle table, row by row. */
 .defs-side {
   width: var(--defs);
@@ -3274,6 +4320,233 @@ body[data-view="run"] .statusbar .ed-status {
   position: relative;
   background: var(--well);
   border-top: 1px solid var(--line);
+}
+
+/* The Profile panel: its bar of views and actions and what the run is doing, then the flame graph,
+   or the run's output in its place, with the bar the pointer is on said beside it. */
+.profile {
+  flex: none;
+  height: 300px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--well);
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.profile-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-tab,
+.profile-action {
+  padding: 0.12rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.profile-tab[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.profile-action {
+  border-color: var(--line);
+}
+
+.profile-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.profile-said {
+  flex: 1;
+  min-width: 0;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.profile-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.profile-graph {
+  display: block;
+  cursor: pointer;
+}
+
+.profile-graph[hidden] {
+  display: none;
+}
+
+.profile-out {
+  padding: 0.3rem 0.7rem;
+  font: 12.5px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+.profile-line.failed {
+  color: var(--ed-error, var(--hover));
+}
+
+.profile-tip {
+  position: absolute;
+  z-index: 3;
+  max-width: 34rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--ed-widget-line, var(--line));
+  border-radius: var(--radius);
+  background: var(--ed-widget, var(--surface));
+  color: var(--fg);
+  font: 12px var(--code);
+  pointer-events: none;
+}
+
+.profile-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--fg-3);
+  font: 12.5px var(--head);
+  pointer-events: none;
+}
+
+.profile-empty[hidden] {
+  display: none;
+}
+
+/* The Containers window, laid out as the Profile panel: its list at the left, each container or pod
+   a row with its state's dot, and the logs or a command's output at the right. */
+.containers-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(16rem, 2fr) 3fr;
+}
+
+.containers-list {
+  min-width: 0;
+  overflow: auto;
+  border-right: 1px solid var(--line);
+}
+
+.containers-group {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0.7rem 0.15rem;
+  color: var(--fg-3);
+  font: 600 11.5px var(--head);
+}
+
+.containers-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.5rem;
+  width: 100%;
+  padding: 0.25rem 0.7rem;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12.5px var(--head);
+  text-align: left;
+  cursor: pointer;
+}
+
+.containers-row:hover {
+  background: var(--line);
+}
+
+.containers-row[aria-current="true"] {
+  background: var(--ed-sel-idle);
+}
+
+.containers-dot {
+  grid-row: 1 / 3;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-3);
+}
+
+.containers-row.running .containers-dot {
+  background: var(--signal);
+}
+
+.containers-row.dead .containers-dot,
+.containers-row.restarting .containers-dot {
+  background: var(--fail);
+}
+
+.containers-row .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.containers-row .status {
+  color: var(--fg-3);
+  font-size: 11.5px;
+}
+
+.containers-row .detail {
+  grid-column: 2 / 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-2);
+  font-size: 11.5px;
+}
+
+.containers-problem {
+  margin: 0.8rem;
+  color: var(--fg-2);
+  font: 12.5px var(--head);
+}
+
+.containers-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.containers-title {
+  flex: none;
+  padding: 0.3rem 0.7rem;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.containers-out {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 0 0.7rem 0.5rem;
+  font: 12px/1.45 var(--code);
+  white-space: pre-wrap;
 }
 
 /* The Debug window: a bar of steps and what the program is doing, then Frames, Variables with the
@@ -3558,6 +4831,150 @@ body[data-view="run"] .statusbar .ed-status {
   box-shadow: inset 0 0 0 1.5px var(--ed-error);
 }
 
+/* A test's mark beside the breakpoints' strip, colored by its last result; a press opens its menu.
+   Beside the change marks, a line the last run with coverage ran, or could run and did not. */
+.ed-test {
+  position: absolute;
+  left: 15px;
+  top: 0;
+  z-index: 1;
+  width: 12px;
+  color: var(--fg-3);
+  font-size: 9px;
+  line-height: var(--code-line);
+  text-align: center;
+  cursor: pointer;
+}
+
+.ed-test.passed {
+  color: var(--ed-added);
+}
+
+.ed-test.failed {
+  color: var(--ed-error);
+}
+
+.ed-test.running {
+  color: var(--signal);
+}
+
+.ed-test:hover {
+  color: var(--hover);
+}
+
+.ed-cover {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+}
+
+.ed-cover.ran {
+  background: var(--ed-added);
+}
+
+.ed-cover.missed {
+  background: var(--ed-error);
+  opacity: 0.75;
+}
+
+/* A breakpoint that holds a condition or a count of hits is marked with a bar across it; one that
+   writes a message in place of stopping is a diamond. */
+.ed-break.cond::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 4px;
+  height: 2px;
+  background: var(--ed-bg, #131331);
+}
+
+.ed-break.log {
+  border-radius: 1px;
+  transform: rotate(45deg) scale(0.85);
+}
+
+/* The debugger's session chooser and its exceptions' button, beside the steps; a value under the
+   pointer; values compared; and memory, instructions and bytecode read in a sheet. */
+.debug-sessions,
+.debug-exceptions {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.debug-exceptions:disabled {
+  opacity: 0.45;
+}
+
+.debug-hover {
+  min-width: 14rem;
+  max-height: 20rem;
+  overflow: auto;
+  font: 12.5px var(--code);
+}
+
+.debug-kept-head {
+  margin-top: 0.4rem;
+}
+
+.sheet-wide {
+  width: min(52rem, 90vw);
+}
+
+.debug-compare {
+  width: 100%;
+  border-collapse: collapse;
+  font: 12px var(--code);
+}
+
+.debug-compare th,
+.debug-compare td {
+  padding: 0.15rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+/* A value a name takes at or after the step stood at, in a recorded run's history, is dimmed; a row is
+   pressed to go to it. */
+.debug-history tbody tr {
+  cursor: pointer;
+}
+
+.debug-history tbody tr:hover td,
+.debug-history tbody tr:focus-visible td {
+  background: var(--line);
+}
+
+.debug-history tr.later td {
+  color: var(--fg-2);
+}
+
+.debug-compare tr.differs td {
+  color: var(--ed-warning);
+}
+
+.debug-memory {
+  max-height: 60vh;
+  margin: 0;
+  overflow: auto;
+  font: 12px/1.5 var(--code);
+  white-space: pre;
+}
+
+.debug-memory .here {
+  background: var(--line);
+  color: var(--fg);
+}
+
 /* A bookmark: a ribbon in signal at the gutter's edge, beside where a breakpoint is drawn. */
 .ed-bookmark {
   position: absolute;
@@ -3593,8 +5010,106 @@ body[data-view="run"] .statusbar .ed-status {
   cursor: ns-resize;
 }
 
+/* The terminal's strip: a tab for each shell, named by its folder, then New Terminal and Split; and
+   under it the shell shown, or two side by side, a line between them and the one the keys go to
+   marked at its top. */
+.term-strip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0.15rem 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.term-tabs {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.term-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.25rem 0.1rem 0.55rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--code);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.term-tab[aria-selected="true"] {
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+.term-tab.exited {
+  color: var(--fg-3);
+}
+
+.term-tab .close {
+  padding: 0 0.2rem;
+  color: var(--fg-3);
+}
+
+.term-tab .close:hover {
+  color: var(--hover);
+}
+
+.term-tool {
+  flex: none;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.term-tool:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.term-tool.on {
+  color: var(--signal);
+}
+
+.term-tool svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+
+.term-views {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.term-views > .term-view + .term-view:not([hidden]),
+.term-views > .term-view:not([hidden]) ~ .term-view:not([hidden]) {
+  border-left: 1px solid var(--line);
+}
+
+.term-view.term-chosen {
+  box-shadow: inset 0 2px 0 var(--signal);
+}
+
 .term-view {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow-y: scroll;
   padding: 0.2rem 0.6rem 0.35rem;
@@ -3682,15 +5197,17 @@ body[data-view="run"] .statusbar .ed-status {
   outline: 0;
 }
 
-/* A popup menu: a panel lifted over the page, its keys set to the right in the code face. */
+/* A popup menu: a panel lifted over the page, its keys set to the right in the code face. It stands
+   absolute and not fixed: the page never scrolls and the two place it alike, and the web view draws
+   none of the editor's text under a fixed menu that crosses it. */
 .menu {
-  position: fixed;
+  position: absolute;
   z-index: 50;
   min-width: 13rem;
   padding: 0.3rem;
   display: flex;
   flex-direction: column;
-  background: var(--ed-widget);
+  background: color-mix(in srgb, var(--ed-widget) var(--menu-opacity), transparent);
   border: 1px solid var(--ed-widget-line);
   border-radius: var(--radius);
   box-shadow: 0 10px 28px var(--lifted);
@@ -3771,6 +5288,26 @@ body[data-view="run"] .statusbar .ed-status {
 
 .sheet-keys kbd {
   font: 12px var(--code);
+  color: var(--fg-2);
+}
+
+/* Maven's settings: the POM's compiler's and Maven's own, each under its heading; one that is not set
+   here stands as text. */
+.sheet-maven {
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.sheet-maven h3 {
+  margin: 0.4rem 0 0;
+  font: 600 0.9rem var(--head);
+  color: var(--fg);
+}
+
+.sheet-maven .report-field[readonly] {
+  padding-left: 0;
+  border-color: transparent;
+  background: transparent;
   color: var(--fg-2);
 }
 
@@ -3893,6 +5430,153 @@ textarea.report-field {
   text-align: center;
 }
 
+/* A sheet that asks for a name, a count or keys: what it asks over the field, or over the keys as
+ * they are pressed. */
+.sheet-ask {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 22rem;
+  padding: 0.4rem 0.6rem 0;
+  font: 13px var(--head);
+  color: var(--fg-2);
+}
+
+/* Search Structurally: the pattern and the template in the code's font, where to look and the
+ * buttons on one row, then a row a match, its file and line, and the line's text. */
+.shape-sheet {
+  display: grid;
+  gap: 0.45rem;
+  width: min(44rem, 80vw);
+}
+
+.shape-sheet h3 {
+  margin: 0 0 0.2rem;
+  font: 600 14px var(--head);
+  color: var(--fg);
+}
+
+.shape-field {
+  resize: vertical;
+  font-family: var(--code);
+}
+
+.shape-acts {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.shape-acts select {
+  flex: 1 1 auto;
+}
+
+.shape-said {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.shape-list {
+  display: grid;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.shape-row {
+  display: flex;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.2rem 0.4rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  font: 12px var(--code);
+  text-align: left;
+  cursor: pointer;
+}
+
+.shape-row:hover,
+.shape-row:focus-visible {
+  background: var(--line);
+}
+
+.shape-row .where {
+  flex: none;
+  color: var(--fg-3);
+}
+
+.shape-row .line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+/* Change Signature: a row a parameter, its text in the code's font, an added one's value beside it,
+ * and its buttons to move it and take it out. */
+.signature-sheet h3 {
+  margin: 0 0 0.2rem;
+  font: 600 14px var(--head);
+  color: var(--fg);
+}
+
+.signature-list {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 30rem;
+}
+
+.signature-row {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.signature-row .report-field {
+  flex: 1 1 auto;
+  font-family: var(--code);
+}
+
+.signature-row .signature-value {
+  flex: 0 1 12rem;
+}
+
+.signature-act,
+.signature-add {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--fg-2);
+  font: 13px var(--head);
+  cursor: pointer;
+}
+
+.signature-act:hover:not(:disabled),
+.signature-add:hover {
+  border-color: var(--fg-3);
+  color: var(--fg);
+}
+
+.signature-act:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.signature-add {
+  justify-self: start;
+}
+
+.sheet-ask kbd {
+  justify-self: start;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: 13px var(--code);
+  color: var(--fg);
+}
+
 .sheet-about .mark {
   font-size: 2.6rem;
   line-height: 1;
@@ -3995,7 +5679,7 @@ textarea.report-field {
 .quick {
   position: fixed;
   z-index: 60;
-  top: 46px;
+  top: var(--bar-height);
   left: 50%;
   width: min(40rem, 86vw);
   transform: translateX(-50%);
@@ -4092,6 +5776,34 @@ textarea.report-field {
   font-weight: 600;
 }
 
+/* A list's typed search: the letters of each match in signal, as Go to File marks them, on the match
+   color, and what was typed over the list's top right, in the fail color where nothing matches. */
+::highlight(list-typed) {
+  color: var(--signal);
+  background-color: var(--ed-match);
+}
+
+.list-typed {
+  position: fixed;
+  z-index: 45;
+  padding: 1px 7px;
+  background: var(--ed-widget);
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font: 12px var(--head);
+  white-space: pre;
+  pointer-events: none;
+}
+
+.list-typed.none {
+  color: var(--fail);
+}
+
+.list-typed[hidden] {
+  display: none;
+}
+
 .quick-row kbd {
   flex: none;
   margin-left: auto;
@@ -4158,6 +5870,17 @@ textarea.report-field {
   outline: 1px solid var(--signal);
 }
 
+/* The set of files searched in, under the field, there while Preferences names a set. */
+.search-set {
+  margin: 0.1rem 0.75rem 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
 .search-said {
   margin: 0.15rem 0.85rem 0.3rem;
   min-height: 1em;
@@ -4168,6 +5891,167 @@ textarea.report-field {
 .search-hits {
   min-height: 0;
   overflow: auto;
+}
+
+/* A hint a language server writes in the text and not into it: a type after a name, or a
+ * parameter's name before an argument, in a smaller face on a faint ground, as wide as the
+ * columns the text after it moves over by. */
+.ed-hint {
+  display: inline-block;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--fg-3) 14%, transparent);
+  color: var(--fg-3);
+  font-size: 0.86em;
+  line-height: 1.5;
+  text-align: center;
+  text-overflow: ellipsis;
+  vertical-align: baseline;
+  white-space: pre;
+  pointer-events: none;
+}
+
+/* Tests: the window's buttons, then each file's row and its tests, each marked by its last result, a
+   failure's message under it, then each file's coverage as a bar. */
+.tests-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.tests-button {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg-2);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.tests-button:hover:not(:disabled) {
+  border-color: var(--hover);
+  color: var(--fg);
+}
+
+.tests-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tests-parallel {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  color: var(--fg-3);
+  font: 12px var(--head);
+}
+
+.tests-said.failed {
+  color: var(--ed-error);
+}
+
+.test-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--fg-3);
+}
+
+.test-mark.passed {
+  background: var(--ed-added);
+  box-shadow: none;
+}
+
+.test-mark.failed {
+  background: var(--ed-error);
+  box-shadow: none;
+}
+
+.test-mark.skipped {
+  background: var(--fg-3);
+  box-shadow: none;
+}
+
+.test-mark.running {
+  box-shadow: inset 0 0 0 1.5px var(--signal);
+  animation: test-running 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes test-running {
+  to {
+    background: var(--signal);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .test-mark.running {
+    animation: none;
+    background: var(--signal);
+  }
+}
+
+.tests-count {
+  margin-left: 0.35rem;
+  font: 11px var(--code);
+}
+
+.tests-count.passed {
+  color: var(--ed-added);
+}
+
+.tests-count.failed {
+  color: var(--ed-error);
+}
+
+.tests-count.skipped {
+  color: var(--fg-3);
+}
+
+.test-said {
+  padding: 0 0.6rem 0.2rem 2.6rem;
+  overflow: hidden;
+  color: var(--ed-error);
+  font: 11.5px var(--code);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tests-cover-head {
+  margin: 0.6rem 0.6rem 0.2rem;
+  color: var(--fg-2);
+  font: 600 12px var(--head);
+}
+
+.tests-cover-bar {
+  flex: none;
+  width: 56px;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ed-error) 55%, transparent);
+  overflow: hidden;
+}
+
+.tests-cover-ran {
+  display: block;
+  height: 100%;
+  background: var(--ed-added);
+}
+
+.tests-cover .name {
+  flex: 1;
+}
+
+.tests-cover .where {
+  margin-left: 0.4rem;
+  width: 3em;
+  text-align: right;
 }
 
 /* Problems: a file's row, then its diagnostics, each marked in its severity's color. */
@@ -4191,7 +6075,8 @@ textarea.report-field {
   color: var(--fg-3);
 }
 
-.problem-file .count {
+.problem-file .count,
+.commit-repo .count {
   margin-left: auto;
   padding: 0 0.4rem;
   border-radius: 0.6rem;
@@ -4202,6 +6087,84 @@ textarea.report-field {
 
 .git-branch .name {
   font-weight: 600;
+}
+
+/* The Commit window's row for a repository over its files, where the tree holds more than one: its
+ * name, the branch it is on, and how many of its files differ. */
+.commit-repo {
+  gap: 0.35rem;
+  color: var(--fg);
+  font-weight: 600;
+  cursor: default;
+}
+
+.commit-repo .where {
+  font-weight: 400;
+}
+
+/* The graph: a row a commit, its columns' strokes and its dot, the branches and tags at it, its
+ * subject, its author and its date. */
+.explorer .git-box .filter {
+  padding-right: 0.65rem;
+}
+
+.git-commit {
+  gap: 0.3rem;
+  padding-left: 0.3rem;
+}
+
+.git-lanes {
+  flex: none;
+  overflow: visible;
+}
+
+.git-lanes path {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.git-lanes circle {
+  stroke-width: 1.5;
+}
+
+.git-ref {
+  flex: 0 0.2 auto;
+  min-width: 3rem;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * 0.6);
+  font: 11px/16px var(--code);
+  color: var(--fg-2);
+}
+
+.git-ref.git-head {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.git-ref.git-tag {
+  color: var(--t3);
+}
+
+.git-author {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--fg-2);
+}
+
+.git-commit .where {
+  margin-left: 0;
+}
+
+.git-none {
+  padding-left: 2rem;
 }
 
 .problem {
@@ -4690,6 +6653,18 @@ textarea.report-field {
   max-width: 6rem;
 }
 
+/* The patterns that keep the explorer, the search and the watching of files from files: a list for
+ * each, side by side under the heading where the sheet is wide enough. */
+.prefs-patterns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.6rem 1.2rem;
+}
+
+.prefs-patterns h3 {
+  grid-column: 1 / -1;
+}
+
 /* Plugins: the actions, then every plugin a row, its box, its name, the extensions it opens, where it
  * comes from and its folder where it is the reader's. One that is off is dimmed, and what was wrong
  * with one that does not read runs under it in the failure color. The list scrolls and the rest stays. */
@@ -4891,7 +6866,8 @@ textarea.report-field {
 
 .tools-row.path .tools-dot,
 .tools-row.chosen .tools-dot,
-.tools-row.env .tools-dot {
+.tools-row.env .tools-dot,
+.tools-row.tree .tools-dot {
   background: var(--signal);
 }
 

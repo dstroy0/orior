@@ -31,13 +31,20 @@ pub struct Menu {
 }
 
 /// An item of a menu, "-", the line between items, or a label over items of its own, which the window
-/// opens beside it and the command line lists with the rest of the menu.
+/// opens beside it and the command line lists with the rest of the menu, or the name of items the
+/// window fills in as the menu opens, which the command line passes over.
 #[derive(Deserialize)]
 #[serde(untagged)]
 pub enum Entry {
     Line(String),
     Item(Item),
     Group(Group),
+    Fill(Fill),
+}
+
+#[derive(Deserialize)]
+pub struct Fill {
+    pub fill: String,
 }
 
 #[derive(Deserialize)]
@@ -80,7 +87,7 @@ fn flat(entries: &[Entry]) -> Vec<&Item> {
         .flat_map(|entry| match entry {
             Entry::Item(item) => vec![item],
             Entry::Group(group) => flat(&group.items),
-            Entry::Line(_) => Vec::new(),
+            Entry::Line(_) | Entry::Fill(_) => Vec::new(),
         })
         .collect()
 }

@@ -3,18 +3,20 @@
 
 // Find in Files, the explorer's Search pane: every line of the tree's files that holds what is typed,
 // a row a file with its count and under it a row a line, the match marked. Case, whole words and
-// regular expressions each turn on and off beside the field. A file's row opens and closes its lines,
-// and a line's row opens the file at the match.
+// regular expressions each turn on and off beside the field, and under it the search is set to the
+// whole tree or to a set of files Preferences names. A file's row opens and closes its lines, and a
+// line's row opens the file at the match.
 
 import { invoke } from "./bridge.js";
 import { iconOf } from "./explorer.js";
+import { onPatterns, searchSets } from "./patterns.js";
 
 // How long typing rests before the tree is searched, in milliseconds, and the most hits the tree
 // gives at once.
 const REST = 300;
 const MOST = 2000;
 
-const state = { query: null, options: null, said: null, hits: null, how: { case: false, word: false, regex: false }, closed: new Set(), asked: 0, open: null, wait: 0 };
+const state = { query: null, options: null, said: null, hits: null, set: null, how: { case: false, word: false, regex: false }, closed: new Set(), asked: 0, open: null, wait: 0 };
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -100,9 +102,10 @@ async function run() {
     return;
   }
   state.said.textContent = "Searching…";
+  const set = searchSets().find((one) => one.name === state.set.value);
   let hits;
   try {
-    hits = await invoke("tree_search", { query, how: state.how });
+    hits = await invoke("tree_search", { query, how: state.how, set: set?.lines ?? null });
   } catch (error) {
     if (asked === state.asked) {
       state.said.textContent = String(error);
@@ -138,12 +141,38 @@ export function focusSearch(text, how = {}) {
   state.query.select();
 }
 
+// The choice of the whole tree or a set of files to search in, there while Preferences names a set,
+// the one chosen kept for the next start.
+const SET_KEY = "orior.search.set";
+
+function drawSets() {
+  const sets = searchSets();
+  const chosen = localStorage.getItem(SET_KEY) ?? "";
+  state.set.replaceChildren(
+    element("option", { value: "", textContent: "Whole tree" }),
+    ...sets.map(({ name }) => element("option", { value: name, textContent: name, selected: name === chosen }))
+  );
+  state.set.hidden = !sets.length;
+}
+
 // `open(path, line, col)` opens a file at a match, each counted from zero.
 export function startSearch(open) {
   state.open = open;
   state.query = document.getElementById("search-query");
   state.said = document.getElementById("search-said");
   state.hits = document.getElementById("search-hits");
+  state.set = document.getElementById("search-set");
+  drawSets();
+  onPatterns((part) => {
+    if (part === "sets") {
+      drawSets();
+      run();
+    }
+  });
+  state.set.addEventListener("change", () => {
+    localStorage.setItem(SET_KEY, state.set.value);
+    run();
+  });
   state.query.addEventListener("input", later);
   state.query.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {

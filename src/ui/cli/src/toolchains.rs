@@ -70,6 +70,10 @@ pub struct Tool {
     /// How the tool formats a text of a language `formats` names, where it does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub format: Option<Formatter>,
+    /// How the tool checks a file or a tree as a type checker or a linter, as checkers.rs runs it,
+    /// where it does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checker: Option<crate::checkers::CheckerSpec>,
     /// The one system the tool is for, where it is for one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub only: Option<String>,
@@ -146,7 +150,7 @@ fn bundled() -> Vec<Tool> {
 
 /// orior's own toolchains, then the reader's, those for another system left out.
 pub fn manifest() -> Vec<Tool> {
-    bundled().into_iter().chain(added().tools).filter(|tool| tool.only.as_deref().map_or(true, |only| only == system())).collect()
+    bundled().into_iter().chain(added().tools).filter(|tool| tool.only.as_deref().is_none_or(|only| only == system())).collect()
 }
 
 fn added_file() -> Option<PathBuf> {
@@ -501,7 +505,31 @@ pub fn forget(id: &str) -> Result<(), String> {
     keep_chosen(&all)
 }
 
-/// Finds one tool, as the module's opening says.
+/// The tree's own environment, as envs.rs finds one: the folders it puts first on the PATH, its
+/// Python, and its folder in the tree.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TreeEnvironment {
+    pub bin: Vec<PathBuf>,
+    pub python: Option<PathBuf>,
+    pub place: String,
+}
+
+static TREE_ENVIRONMENT: std::sync::Mutex<Option<TreeEnvironment>> = std::sync::Mutex::new(None);
+
+/// Makes `env` the tree's environment, or, given none, leaves the toolchains as they are found.
+pub fn set_environment(env: Option<TreeEnvironment>) {
+    if let Ok(mut kept) = TREE_ENVIRONMENT.lock() {
+        *kept = env;
+    }
+}
+
+/// The tree's environment, where one is chosen.
+pub fn environment() -> Option<TreeEnvironment> {
+    TREE_ENVIRONMENT.lock().ok().and_then(|kept| kept.clone())
+}
+
+/// Finds one tool, as the module's opening says, and Python as the tree's environment has it first,
+/// where the tree has one.
 pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> Found {
     let mut found = Found {
         id: tool.id.clone(),
@@ -527,6 +555,10 @@ pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> F
     };
     if let Some(named) = tool.env.as_ref().and_then(std::env::var_os) {
         set("env", PathBuf::from(named));
+        return found;
+    }
+    if let Some(python) = environment().and_then(|env| env.python).filter(|_| tool.id == "python") {
+        set("tree", python);
         return found;
     }
     if let Some(program) = found.chosen.as_ref().and_then(|dir| program_in(Path::new(dir), &tool.programs)) {
@@ -706,7 +738,8 @@ pub fn run_path_with(ahead: &[PathBuf]) -> OsString {
 
 pub fn run_path() -> OsString {
     let kept = chosen();
-    let mut dirs: Vec<PathBuf> = kept.values().map(PathBuf::from).filter(|dir| dir.is_dir()).collect();
+    let mut dirs: Vec<PathBuf> = environment().map(|env| env.bin).unwrap_or_default();
+    dirs.extend(kept.values().map(PathBuf::from).filter(|dir| dir.is_dir()));
     dirs.extend(path_folders());
     let mut seen = HashSet::new();
     let dirs: Vec<PathBuf> = dirs.into_iter().filter(|dir| seen.insert(key_of(dir))).collect();
