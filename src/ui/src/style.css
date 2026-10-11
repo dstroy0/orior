@@ -2862,6 +2862,71 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   stroke-width: 0.5px;
 }
 
+.mm-solid {
+  fill: #333;
+}
+
+.mm-hollow {
+  fill: #fff;
+  stroke: #333;
+}
+
+.mm-text.small {
+  font-size: 11px;
+}
+
+.mm-text.on-task {
+  fill: #fff;
+}
+
+.mm-section {
+  fill: #f6f6fb;
+}
+
+.mm-task {
+  fill: #8a90dd;
+  stroke: #534fbc;
+}
+
+.mm-task.done {
+  fill: #d3d3d3;
+  stroke: #808080;
+}
+
+.mm-task.active {
+  fill: #bfc7ff;
+  stroke: #534fbc;
+}
+
+.mm-task.crit {
+  fill: #ff8888;
+  stroke: #ff0000;
+}
+
+.mm-grid {
+  stroke: #ddd;
+}
+
+.mm-face {
+  stroke: #666;
+}
+
+.mm-lane {
+  stroke-width: 1px;
+  stroke-dasharray: 2 3;
+  opacity: 0.6;
+}
+
+.mm-git {
+  fill: none;
+  stroke-width: 2.5px;
+}
+
+.mm-commit {
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
 .mermaid-said {
   color: var(--fg-3);
   font-size: 12px;
