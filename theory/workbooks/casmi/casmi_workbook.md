@@ -46,6 +46,8 @@ Every measurement of the ranker and the ingest, in the order it was taken, with 
 | test, group sums padded with one shared zero | `test.parquet` | submission identical; device peak 1.90 GB, under the declaration, but the shared zero made each piece one lane and each lane upload over 1 GB; the norm sums took 92 min; **refuted**, replaced |
 | test, group sums as three planes with no index | `test.parquet` | submission identical; device peak 1.89 GB; 4 min 29 s wall |
 | slice validate, after the sweep fix | `train_slice.parquet` | MRR@25 778,263 ppm, places unchanged; device peak 1.07 GB |
+| ingest, on the device | `test.parquet` | 13 of 13 members sealed and rebuilt lane for lane, 0 checks failed; 3,253,454 lanes, crystals 6.5 MB; device peak 252 MB, 2.8 s; set root `6f160318…` |
+| ingest, on the device | `train.parquet` | 379 of 379 members sealed and rebuilt lane for lane, 0 checks failed; 3,441,431,285 lanes, crystals 7.06 GB of 6.88 GB raw (102.5%); device peak 2.07 GB against 1.31 GB declared, 52 min; set root `2e3a6918…` |
 
 ## The hypotheses
 
@@ -59,7 +61,7 @@ Every design decision weighed, with what decided it.
 | **H4. Intensities on the row's least power of two** | Each intensity is kept as m · 2^s, s its exponent above the row's least nonzero exponent; the row's common power of two cancels in the cosine. | The cosine score is a ratio M²/(QR) in which the row's power of two divides out of both sides. The score run matches the host on every lane. | **measured** |
 | **H5. The match kept on the device** | The match builds its index, runs its program, counts and sorts its kept lanes and gathers them on the device, and copies back only the kept lanes. | On `test.parquet` 62.8 billion lanes reduce to 8,859,804 kept lanes on the device; only those cross back to the host. | **measured** |
 | **H6. Sweeps in pieces within a byte budget** | Each sweep runs its lanes in pieces of at most 1 GiB, uploads only the records its lanes read, shares one copy among members passed the same records, and lays the group sums as three planes read with no index. | Device peak fell from 5.26 GB to 1.89 GB on the test run, under the declaration, with the submission byte-identical. | **measured** |
-| **H7. Ingest the whole file** | `--ingest` seals every member of the parquet file (the footer and each leaf of each row group) as a crystal of a set through the engine's ingest, nothing dropped and nothing reshaped. | The engine's parquet source seals each member as the stored bytes and rebuilds it lane for lane; verified on the host against the casmi reader (test 13 members, train 379 members). The device run is pending. | **built** (device run pending) |
+| **H7. Ingest the whole file** | `--ingest` seals every member of the parquet file (the footer and each leaf of each row group) as a crystal of a set through the engine's ingest, nothing dropped and nothing reshaped. | The engine's parquet source seals each member as the stored bytes and rebuilds it lane for lane. On the device: `test.parquet` 13 of 13 and `train.parquet` 379 of 379 members sealed and rebuilt lane for lane, 0 checks failed. | **measured** |
 | **H8. Pick columns into forms before the math** | Read a chosen subset of columns into layouts of the ranker's own and seal those. | This reshapes the data the program is held not to reshape: it drops columns and organizes the file into forms before the math. | **not taken** |
 
 ## The rules the program follows
