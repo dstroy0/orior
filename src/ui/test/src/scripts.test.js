@@ -8,7 +8,7 @@
 import { invoke } from "../../src/bridge.js";
 import { editing, openFile } from "../../src/edit.js";
 import { loadPlugins, pluginReadings, pluginsOff } from "../../src/plugins.js";
-import { findSlowPlugin, finding, running } from "../../src/scripts.js";
+import { allowPlugin, findSlowPlugin, finding, running } from "../../src/scripts.js";
 import { showView } from "../../src/views.js";
 
 const { test, assert, ui } = window.__harness;
@@ -39,18 +39,21 @@ const STUCK = `orior.on("open", ({ path }) => {
 });
 `;
 
-async function plugin(id, name, code) {
+// Writes a script plugin of the reader's, asking for what `asks` names: reads, writes and reaches.
+async function plugin(id, name, code, asks = {}) {
   const home = await invoke("home_folder");
-  await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.json`, text: JSON.stringify({ id, name, version: "1.0.0", kind: "script", api: 1 }) });
+  await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.json`, text: JSON.stringify({ id, name, version: "1.0.0", kind: "script", api: 1, ...asks }) });
   await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.js`, text: code });
 }
 
 const tabNamed = (name) => [...document.querySelectorAll("#tabs .tab")].find((one) => one.textContent.includes(name));
 
 test("a plugin draws marks, a tab's label, a panel, an overlay and the chrome through orior's calls", async () => {
-  await plugin("draws", "Draws", DRAWS);
+  await plugin("draws", "Draws", DRAWS, { writes: ["locked_by_plugin.txt"] });
   await invoke("folder_create", { path: "locked_by_plugin.txt" }).catch(() => {});
   await loadPlugins();
+  assert.ok(!running().has("draws"), "a plugin that asks to write runs only once it is let");
+  await allowPlugin("draws");
   await ui.waitFor(() => running().has("draws"), 5000);
   await invoke("file_write", { path: "drawn.py", text: "first = 1\nsecond = 2\nthird = 3\n" });
   showView("edit");

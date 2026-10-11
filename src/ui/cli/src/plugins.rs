@@ -18,6 +18,11 @@
 //!                           a pattern is a string, or { pattern, flags } where it takes flags
 //!   hovers                  a word and the text hovering it shows, where it has any
 //!   snippets                { label, body } for the completion list, `${1:name}` a stop in a body
+//!   reads, writes           for a script plugin, the patterns of the tree's files it reads and
+//!                           writes, `*` any letters but `/` and `**` any folders, and `reaches`, the
+//!                           hosts it reaches on the network, `*.` before a host for any under it;
+//!                           the window holds it to these, and runs it only once the reader lets it
+//!                           (plugin_catalog.rs)
 //!
 //! The plugins that come with orior are under src/ui/plugins and built into the program. The
 //! reader's are under `plugins/` in orior's own folder, and one of the reader's stands in for one

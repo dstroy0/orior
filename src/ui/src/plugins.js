@@ -134,7 +134,8 @@ function build() {
         Object.assign(reading, { kind: "tool", checks: Array.isArray(plugin.languages) ? plugin.languages.map(String) : [], about: String(plugin.about ?? "") });
       } else if (plugin.kind === "script") {
         // A script plugin opens no files: it runs code of its own (scripts.js).
-        Object.assign(reading, { kind: "script", api: Number(plugin.api ?? 1), about: String(plugin.about ?? "") });
+        const list = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
+        Object.assign(reading, { kind: "script", api: Number(plugin.api ?? 1), about: String(plugin.about ?? ""), asks: { reads: list(plugin.reads), writes: list(plugin.writes), reaches: list(plugin.reaches) } });
       } else {
         reading.language = languageOf(plugin);
       }

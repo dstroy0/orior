@@ -8904,8 +8904,51 @@ textarea.report-field {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  height: 100%;
   font: 13px var(--head);
+}
+
+.sheet-plugins h3 {
+  margin: 0.4rem 0 0;
+  font: 600 13px var(--head);
+  color: var(--signal);
+}
+
+/* The catalog's address and its button on one line, and the plugins it lists under them, each with
+   what it asks for; a plugin that waits for the reader's leave says so under its row. */
+.plugins-catalog-line .plugins-catalog-address {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plugins-catalog-line .prefs-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.plugins-catalog {
+  max-height: 16rem;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+
+.plugin-asks,
+.plugin-about {
+  color: var(--fg-2);
+  font-size: 12px;
+}
+
+.plugin-about,
+.plugin-waits {
+  grid-column: 2 / -1;
+  margin: 0;
+}
+
+.plugin-waits {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  color: var(--fail);
+  font-size: 12px;
 }
 
 .sheet-plugins h2,
@@ -8923,8 +8966,7 @@ textarea.report-field {
 }
 
 .plugins-list {
-  flex: 1 1 auto;
-  min-height: 0;
+  max-height: 22rem;
   overflow-y: auto;
   border-top: 1px solid var(--line);
 }

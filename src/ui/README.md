@@ -179,6 +179,18 @@ Off the Network, kept as `network`, holds it off the network entirely, each reac
 it was for, and a tree's settings file does not set it. Help, Network… lists each address reached,
 when and what for.
 
+File, Plugins reads a catalog of plugins others publish, at an address the reader names on the web or
+on this machine, and installs a plugin the search finds from its package, a JSON file of its files by
+name, where its hash and its version are those the catalog gives. A script plugin's plugin.json
+says what it reads and writes, as patterns of the tree's files, and the hosts it reaches; it runs
+only once the reader lets it, Install letting it as the catalog showed, and each call is held to
+what it asked for. A plugin is updated only by Update, and an update that asks for more waits for
+Let It Run.
+
+```json
+{ "orior": "plugin catalog", "plugins": [{ "id": "word-count", "name": "Word Count", "version": "1.2.0", "about": "Counts a file's words.", "package": "word-count-1.2.0.json", "sha256": "…", "reads": ["**/*.md"], "writes": [], "reaches": [] }] }
+```
+
 A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
 the folder whose files go, the patterns of the files that stay, the places, and how many releases
 each place keeps.

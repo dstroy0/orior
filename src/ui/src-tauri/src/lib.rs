@@ -375,6 +375,30 @@ fn network_reached() -> Vec<orior_cli::net::Reached> {
     orior_cli::net::reached(1000)
 }
 
+/// The plugins the catalog at `address` lists.
+#[tauri::command(async)]
+fn plugins_catalog_read(address: String) -> Result<Vec<orior_cli::plugin_catalog::Entry>, String> {
+    orior_cli::plugin_catalog::read(&address)
+}
+
+/// Installs the plugin `entry` of the catalog at `address`, in place of the one of its id there.
+#[tauri::command(async)]
+fn plugins_catalog_install(address: String, entry: orior_cli::plugin_catalog::Entry) -> Result<String, String> {
+    orior_cli::plugin_catalog::install(&address, &entry).map(|folder| folder.display().to_string())
+}
+
+/// A request the plugin `id` sends to a host it asked to reach, as the window lets it: its answer's
+/// status, headers and body, the body in base64 where it is not text.
+#[tauri::command(async)]
+fn plugin_request(id: String, method: String, url: String, headers: Vec<(String, String)>, body: String) -> Result<serde_json::Value, String> {
+    orior_cli::net::reach(&url, &format!("the plugin {id}"))?;
+    let answer = orior_cli::requests::send(&orior_cli::requests::Sent { method, url, headers, body, redirect: false }, true);
+    if let Some(failed) = answer.failed {
+        return Err(failed);
+    }
+    Ok(serde_json::json!({ "status": answer.status, "headers": answer.headers, "body": answer.body, "binary": answer.binary }))
+}
+
 /// The picture at `path` as the data address a theme keeps for the image behind the editor: PNG,
 /// JPEG, GIF, WebP, SVG or BMP, of IMAGE_MOST bytes at most.
 #[tauri::command(async)]
@@ -1088,6 +1112,9 @@ fn open(launch: Launch) {
             image_data,
             network_hold,
             network_reached,
+            plugins_catalog_read,
+            plugins_catalog_install,
+            plugin_request,
             carry_send,
             carry_read,
             carry_take,

@@ -16,7 +16,7 @@ const WINDOW = new Set([
   "code_docstring", "code_sort", "commands_read", "devcontainer_line", "file_read_any", "file_slice", "file_write_any",
   "files_copy", "files_paste", "fill_paragraph", "format_languages", "highlight_grammar", "highlight_lines",
   "home_folder", "home_reveal", "image_data", "inspect_languages", "kept_now", "kept_write", "launch_take", "link_open", "memory_calls", "memory_hold", "memory_use", "network_hold", "network_reached", "print_page", "printers_list",
-  "parse_classes", "pick", "plugin_code", "plugin_create", "plugin_draft", "plugin_settings_read", "plugin_settings_write", "plugins_read", "project_create", "reader_menus_read",
+  "parse_classes", "pick", "plugin_code", "plugin_create", "plugin_draft", "plugin_request", "plugin_settings_read", "plugin_settings_write", "plugins_catalog_install", "plugins_catalog_read", "plugins_read", "project_create", "reader_menus_read",
   "reads_file", "remote_get", "remote_rejoin", "repo_clone", "repo_opened", "report_asked", "report_auto", "report_auto_set", "report_bug", "report_error", "report_open",
   "repos_folder", "scrollback_close", "settings_layers", "scrollback_keep", "scrollback_open", "scrollback_read", "scrollback_reset",
   "structure_compare", "templates_list", "templates_reveal", "term_close", "term_open", "term_resize", "term_write",

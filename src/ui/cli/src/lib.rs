@@ -53,6 +53,7 @@ pub mod regexp;
 pub mod requests;
 pub mod review;
 pub mod pg;
+pub mod plugin_catalog;
 pub mod plugins;
 pub mod print;
 pub mod prints;

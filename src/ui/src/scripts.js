@@ -14,8 +14,11 @@
 // its HTML in a frame that runs none of its scripts; sets the label of a file's tab; reads the
 // theme's colors; and changes the window's chrome, a badge on the top bar and the color of its
 // signal. It hears when a file opens, changes, saves and the cursor moves, and reads and writes
-// files, and from the second form on keeps settings of its own. A plugin names the form of the calls
-// it was written for, `api` in its plugin.json, and orior
+// files, from the second form on keeps settings of its own, and from the third sends requests to
+// hosts. A plugin runs only once the reader has let it read, write and reach what its plugin.json
+// asks for, and each call is held to that: a file it did not ask to read or write, or a host it did
+// not ask to reach, is refused; one that asks for more after an update waits to be let again. A
+// plugin names the form of the calls it was written for, `api` in its plugin.json, and orior
 // keeps each form it has given: a plugin of an older form gets that form's calls, each answered as
 // it was.
 
@@ -80,10 +83,87 @@ const orior = (() => {
 // apart from every other plugin's and carried with the reader's settings to another machine.
 PRELUDES[2] = PRELUDES[1].replace("api: 1,", "api: 2,").replace("    files: Object.freeze(", '    settings: Object.freeze({ read: () => call("settings.read"), write: (values) => call("settings.write", values) }),\n    files: Object.freeze(');
 
+// The third form: the second's calls, and requests to the hosts the plugin asked to reach.
+PRELUDES[3] = PRELUDES[2].replace("api: 2,", "api: 3,").replace("    files: Object.freeze(", '    net: Object.freeze({ request: (request) => call("net.request", request) }),\n    files: Object.freeze(');
+
+// What each plugin was let read, write and reach, by its id, kept as the setting plugins.allowed.
+const ALLOWED = "orior.plugins.allowed";
+
+function allowedAll() {
+  try {
+    const kept = JSON.parse(localStorage.getItem(ALLOWED) ?? "{}");
+    return kept && typeof kept === "object" ? kept : {};
+  } catch {
+    return {};
+  }
+}
+
+// What the plugin `reading` asks for that it has not been let: each of reads, writes and reaches.
+export function askedMore(reading) {
+  const asks = reading.asks ?? { reads: [], writes: [], reaches: [] };
+  const granted = allowedAll()[reading.id] ?? {};
+  const more = Object.fromEntries(["reads", "writes", "reaches"].map((kind) => [kind, asks[kind].filter((one) => !(granted[kind] ?? []).includes(one))]));
+  return Object.values(more).some((list) => list.length) ? more : null;
+}
+
+// Lets the plugin `id` read, write and reach what it asks for, and runs it where it is on.
+export function allowPlugin(id) {
+  const reading = pluginReadings().find((one) => one.id === id);
+  if (!reading) {
+    return;
+  }
+  localStorage.setItem(ALLOWED, JSON.stringify({ ...allowedAll(), [id]: reading.asks ?? { reads: [], writes: [], reaches: [] } }));
+  return syncPlugins();
+}
+
+// What a plugin asks for, said in a line: "reads *.md; writes notes/**; reaches api.example.com".
+export function asksText(asks) {
+  const part = (word, list) => (list?.length ? `${word} ${list.join(", ")}` : "");
+  return [part("reads", asks?.reads), part("writes", asks?.writes), part("reaches", asks?.reaches)].filter(Boolean).join("; ") || "asks for nothing";
+}
+
+const globs = new Map();
+
+// Whether the tree's path `path` matches the pattern `pattern`: `**` any folders, `*` any letters but
+// `/`, and `?` one.
+function matches(pattern, path) {
+  let found = globs.get(pattern);
+  if (!found) {
+    let source = "";
+    for (let at = 0; at < pattern.length; at += 1) {
+      const letter = pattern[at];
+      if (letter === "*" && pattern[at + 1] === "*") {
+        source += pattern[at + 2] === "/" ? "(?:.*/)?" : ".*";
+        at += pattern[at + 2] === "/" ? 2 : 1;
+      } else if (letter === "*") {
+        source += "[^/]*";
+      } else if (letter === "?") {
+        source += "[^/]";
+      } else {
+        source += letter.replace(/[\\^$.|+()[\]{}]/g, "\\$&");
+      }
+    }
+    found = new RegExp(`^${source}$`);
+    globs.set(pattern, found);
+  }
+  return found.test(path.replace(/\\/g, "/"));
+}
+
+// Refuses a plugin's call on `path` it did not ask for, as `kind`, reads or writes.
+function hold(one, kind, path) {
+  const patterns = one.asks?.[kind] ?? [];
+  if (!patterns.some((pattern) => matches(pattern, path))) {
+    throw new Error(`${one.name} did not ask to ${kind === "reads" ? "read" : "write"} ${path}`);
+  }
+}
+
+// Whether `host` is one of `hosts`, or under one named with `*.` before it.
+const reachable = (hosts, host) => hosts.some((one) => one === host || (one.startsWith("*.") && host.endsWith(one.slice(1))));
+
 // The theme's colors a plugin reads, by the names of the window's own.
 const COLORS = ["--bg", "--surface", "--well", "--fg", "--fg-2", "--fg-3", "--line", "--signal", "--link", "--fail", "--ed-bg", "--ed-fg", "--ed-added", "--ed-changed", "--ed-removed"];
 
-const state = { running: new Map(), hooks: null, timer: 0, finding: null, node: null };
+const state = { running: new Map(), hooks: null, timer: 0, finding: null, node: null, told: new Set() };
 
 // The marks the running plugins lay on the file at `path`: each line's, from every plugin, as
 // [{ text, kind, title, plugin }].
@@ -227,10 +307,33 @@ const CALLS = {
     one.chrome = { badge: String(chrome?.badge ?? "").slice(0, 40), accent: String(chrome?.accent ?? "") };
     drawChrome();
   },
-  "editor.text": async (one, path) => state.hooks.textOf(String(path)),
+  "editor.text": async (one, path) => {
+    hold(one, "reads", String(path));
+    return state.hooks.textOf(String(path));
+  },
   "editor.active": () => state.hooks?.active() ?? null,
-  "files.read": async (one, path) => (await invoke("file_read", { path: String(path) })).text,
-  "files.write": async (one, path, text) => state.hooks.write(one, String(path), String(text)),
+  "files.read": async (one, path) => {
+    hold(one, "reads", String(path));
+    return (await invoke("file_read", { path: String(path) })).text;
+  },
+  "files.write": async (one, path, text) => {
+    hold(one, "writes", String(path));
+    return state.hooks.write(one, String(path), String(text));
+  },
+  "net.request": async (one, request) => {
+    const url = String(request?.url ?? "");
+    let host = "";
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      throw new Error(`${url} is no address`);
+    }
+    if (!reachable(one.asks?.reaches ?? [], host)) {
+      throw new Error(`${one.name} did not ask to reach ${host}`);
+    }
+    const headers = Object.entries(request?.headers ?? {}).map(([name, value]) => [String(name), String(value)]);
+    return invoke("plugin_request", { id: one.id, method: String(request?.method ?? "GET"), url, headers, body: String(request?.body ?? "") });
+  },
   "settings.read": async (one) => invoke("plugin_settings_read", { id: one.id }),
   "settings.write": async (one, values) => invoke("plugin_settings_write", { id: one.id, values }),
 };
@@ -289,7 +392,7 @@ async function startPlugin(reading) {
   const url = URL.createObjectURL(new Blob([prelude, "\n", code], { type: "text/javascript" }));
   const worker = new Worker(url, { name: id });
   URL.revokeObjectURL(url);
-  const one = { id, name: reading.name ?? id, api, worker, answered: performance.now(), asked: 0, marks: new Map(), overlays: new Map(), panels: new Map(), labels: new Map(), chrome: null };
+  const one = { id, name: reading.name ?? id, api, asks: reading.asks, worker, answered: performance.now(), asked: 0, marks: new Map(), overlays: new Map(), panels: new Map(), labels: new Map(), chrome: null };
   worker.addEventListener("message", ({ data }) => answer(one, data));
   worker.addEventListener("error", (event) => say(`${one.name}: ${event.message}`, { failed: true }));
   state.running.set(id, one);
@@ -341,6 +444,17 @@ export async function syncPlugins() {
     }
   }
   for (const reading of scripts) {
+    const more = askedMore(reading);
+    if (more && state.running.has(reading.id)) {
+      stopPlugin(reading.id);
+    }
+    if (more && !off.has(reading.id)) {
+      if (!state.told.has(`${reading.id} ${reading.version}`)) {
+        state.told.add(`${reading.id} ${reading.version}`);
+        say(`${reading.name} waits for you to let it run: it ${asksText(more)}. File, Plugins lets it.`);
+      }
+      continue;
+    }
     if (!off.has(reading.id) && !state.running.has(reading.id)) {
       await startPlugin(reading);
     }
