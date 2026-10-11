@@ -316,6 +316,25 @@ The slope's share at mu = 512 is seven times e^(Phi_1) - 1 at Y = 1/8 and five t
 of order mu^(-1/2). sqrt(mu) times the axial share less e^(Phi_1) - 1 at Y = 1/2 is -1.89, -2.26, -2.55 and -2.76 for
 mu = 64, 128, 256 and 512, its steps falling, and the swirl's has not settled by mu = 512.
 
+The amplitude past Phi_1 (`core_tangent` with `phase`): with y = e^(sqrt(mu) Phi) (A_0 + A_1 / sqrt(mu) + ...), the
+terms of order 1 / mu give A_1, and the slope's part of A_1 / A_0 less the principal's is
+D(Y) = sqrt(Y / (2 s_0)) sum d_n Y^n, a series whose coefficients are exact, the inflow's terms canceling between the
+two. A_0 starts from the Bessel solution (L d / s_0) (I_0(sqrt(2 s_0 mu Y)) - 1) near Y = 0, of size
+(L d / s_0) (2 pi)^(-1/2) (2 s_0 mu Y)^(-1/4) there, and its eta-derivative carries d_eta / d = -2 eta / (1 - eta^2),
+near -9.9 at the vertex, where d is near 0.18. The first coefficient d_0 = s_0 (L_eta / L + d_eta / d) - (3/2) s_eta is
+-4.76, and the rest of the series is small. The slope's share is e^(Phi_1) (1 + D / sqrt(mu)) - 1 to order
+mu^(-1/2), and C(Y) = e^(Phi_1) D(Y) is
+
+| Y | 1/8 | 1/4 | 1/2 | 1 |
+|---|---|---|---|---|
+| C(Y) | -1.645 | -2.312 | -3.233 | -4.512 |
+
+Check (`core_tangent` with `phase`): d_0 is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0, taken by hand.
+
+sqrt(mu) times the axial share less e^(Phi_1) - 1, taken as C + b / sqrt(mu) through mu = 256 and 512, gives
+C = -2.313 at Y = 1/4 and -3.247 at Y = 1/2, and -1.596 at Y = 1/8, where mu Y is smallest. The swirl's own term of
+order mu^(-1/2) is a second amplitude, driven by the axial one, and its C taken the same way is near -4.6 at Y = 1/2.
+
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
 bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
 radius near mu^(-1/2); and the integral of G against the blend near X_b.

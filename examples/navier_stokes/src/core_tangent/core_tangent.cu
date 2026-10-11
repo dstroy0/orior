@@ -31,6 +31,7 @@
 // 5. Every coefficient at the cfg's eta is written whole to the cfg's record.
 // 6. Where the cfg holds `apart`, the tangent with every part off is the principal system at the vertex, order by order.
 // 7. Where the cfg holds `phase`, the root squared is s / s_0 and the root times the quotient is s_eta, at every order.
+// 8. Where the cfg holds `phase`, the amplitude's first coefficient is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0.
 // The request: core_tangent <cfg>.
 //     bash examples/navier_stokes/run.sh core_tangent examples/navier_stokes/cfg/core_tangent.cfg
 
@@ -375,6 +376,55 @@ static SimRational core_tangent_cauchy(const CoreRadiusSequence &left, const Cor
     for (unsigned int first = 0u; first <= power; first += 1u)
     {
         sum = core_radius_plus(sum, core_radius_times(left[first], right[power - first]));
+    }
+    return sum;
+}
+
+// (sum left_n Y^n) (sum right_n Y^n) to Y^reach
+static CoreRadiusSequence core_tangent_series_product(const CoreRadiusSequence &left, const CoreRadiusSequence &right, unsigned int reach)
+{
+    CoreRadiusSequence product;
+    for (unsigned int power = 0u; power <= reach; power += 1u)
+    {
+        product.push_back(core_tangent_cauchy(left, right, power));
+    }
+    return product;
+}
+
+// d/dY of sum series_n Y^n to Y^reach, series known to Y^(reach+1)
+static CoreRadiusSequence core_tangent_series_derivative(const CoreRadiusSequence &series, unsigned int reach)
+{
+    CoreRadiusSequence derivative;
+    for (unsigned int power = 0u; power <= reach; power += 1u)
+    {
+        // the power is at most the cfg's order, far inside a long long
+        derivative.push_back(core_radius_times(core_radius_number((long long)power + 1ll, 1ll), series[power + 1u]));
+    }
+    return derivative;
+}
+
+// factor times each coefficient
+static CoreRadiusSequence core_tangent_series_scaled(const CoreRadiusSequence &series, SimRational factor)
+{
+    CoreRadiusSequence scaled;
+    for (const SimRational &coefficient : series)
+    {
+        scaled.push_back(core_radius_times(factor, coefficient));
+    }
+    return scaled;
+}
+
+// left + right coefficient by coefficient, a missing coefficient 0
+static CoreRadiusSequence core_tangent_series_sum(const CoreRadiusSequence &left, const CoreRadiusSequence &right)
+{
+    CoreRadiusSequence sum = left;
+    if (sum.size() < right.size())
+    {
+        sum.resize(right.size(), core_radius_number(0ll, 1ll));
+    }
+    for (size_t power = 0u; power < right.size(); power += 1u)
+    {
+        sum[power] = core_radius_plus(sum[power], right[power]);
     }
     return sum;
 }
@@ -769,38 +819,53 @@ int main(int count, char **arguments)
     {
         // the cfg's order is a count of orders, far inside an unsigned int
         const unsigned int reach = (unsigned int)phase_order;
+        // one order past the reach, for the derivatives in Y the amplitude reads
+        const unsigned int span = reach + 1u;
         CoreRadiusOrders base;
-        core_radius_weights(&scale, angular, axial, pressure, reach, minus, &base);
+        core_radius_weights(&scale, angular, axial, pressure, span, minus, &base);
         const SimRational xi_v = core_radius_over(core_radius_plus(phase_rho, sim_rational_reciprocal(phase_rho)), two);
         const SimRational eta_v = core_radius_times(cut, xi_v);
         const SimRational eta_v_square = core_radius_times(eta_v, eta_v);
         const SimRational l_v = sim_rational_difference(one, core_radius_times(core_radius_times(two, h), eta_v_square));
         const SimRational d_v = sim_rational_difference(one, eta_v_square);
-        // L_eta = -4 h eta and d_eta = -2 eta, and U_eta = (1 / a) U_xi
+        // L_eta = -4 h eta, L_eta_eta = -4 h, d_eta = -2 eta and d_eta_eta = -2, and U_eta = (1 / a) U_xi
         const SimRational l_eta = core_radius_times(core_radius_times(core_radius_number(-4ll, 1ll), h), eta_v);
+        const SimRational l_eta_eta = core_radius_times(core_radius_number(-4ll, 1ll), h);
         const SimRational d_eta = core_radius_times(core_radius_number(-2ll, 1ll), eta_v);
-        // s, the transport's coefficient, and its eta-derivative, each as a series in Y
+        const SimRational d_eta_eta = core_radius_number(-2ll, 1ll);
+        // U and U_eta, and s, the transport's coefficient, with its first two eta-derivatives, each as a series in Y
+        CoreRadiusSequence along_series;
+        CoreRadiusSequence along_eta_series;
         CoreRadiusSequence transport;
         CoreRadiusSequence transport_eta;
-        for (unsigned int power = 0u; power <= reach; power += 1u)
+        CoreRadiusSequence transport_eta_eta;
+        for (unsigned int power = 0u; power <= span; power += 1u)
         {
+            const CoreRadiusWeights along_xi = core_radius_slope(base.g[power]);
             const SimRational along = core_radius_value(base.g[power], xi_v);
-            const SimRational along_eta = core_radius_over(core_radius_value(core_radius_slope(base.g[power]), xi_v), cut);
+            const SimRational along_eta = core_radius_over(core_radius_value(along_xi, xi_v), cut);
+            const SimRational along_eta_eta = core_radius_over(core_radius_value(core_radius_slope(along_xi), xi_v), core_radius_times(cut, cut));
             SimRational inner = core_radius_times(d_v, along);
             SimRational inner_eta = core_radius_plus(core_radius_times(d_eta, along), core_radius_times(d_v, along_eta));
+            const SimRational inner_eta_eta = core_radius_plus(core_radius_plus(core_radius_times(d_eta_eta, along), core_radius_times(core_radius_times(two, d_eta), along_eta)),
+                                                               core_radius_times(d_v, along_eta_eta));
             if (power == 0u)
             {
                 inner = core_radius_plus(inner, core_radius_times(scale.d, eta_v));
                 inner_eta = core_radius_plus(inner_eta, scale.d);
             }
+            along_series.push_back(along);
+            along_eta_series.push_back(along_eta);
             transport.push_back(core_radius_times(l_v, inner));
             transport_eta.push_back(core_radius_plus(core_radius_times(l_eta, inner), core_radius_times(l_v, inner_eta)));
+            transport_eta_eta.push_back(core_radius_plus(core_radius_plus(core_radius_times(l_eta_eta, inner), core_radius_times(core_radius_times(two, l_eta), inner_eta)),
+                                                         core_radius_times(l_v, inner_eta_eta)));
         }
-        const CoreRadiusSequence root = core_tangent_root(transport, reach);
-        const CoreRadiusSequence quotient = core_tangent_quotient(transport_eta, root, reach);
+        const CoreRadiusSequence root = core_tangent_root(transport, span);
+        const CoreRadiusSequence quotient = core_tangent_quotient(transport_eta, root, span);
         int multiplied = 1;
         CoreRadiusSequence phi_eta;
-        for (unsigned int power = 0u; power <= reach; power += 1u)
+        for (unsigned int power = 0u; power <= span; power += 1u)
         {
             const SimRational square_gap = sim_rational_difference(core_tangent_cauchy(root, root, power), core_radius_over(transport[power], transport[0]));
             const SimRational product_gap = sim_rational_difference(core_tangent_cauchy(root, quotient, power), transport_eta[power]);
@@ -815,6 +880,86 @@ int main(int count, char **arguments)
             // the power is at most the cfg's order, far inside a long long
             phi_slope.push_back(core_radius_over(core_tangent_cauchy(root, phi_eta, power - 1u), core_radius_number(4ll * (long long)power, 1ll)));
         }
+        // The amplitude past Phi_1. With y = e^(sqrt(mu) Phi) (A_0 + A_1 / sqrt(mu) + ...), the terms of order 1 / mu give
+        // 4 Y Phi' (A_1 / A_0)' = R / A_0, and the slope's part of A_1 / A_0 less the principal's is D(Y) = int_0^Y dR / (4 Y Phi') dY,
+        //     dR = -P / 2 - Y E (P / E)' - Y P^2 / 2 + s (ln A_0)_eta,   P = Phi' Phi_eta = E H / 2,
+        // E = sum e_n Y^n and H = sum g_n Y^n / (2n + 1), the inflow's terms canceling. A_0 starts from the Bessel solution
+        // (L d / s_0) (I_0(sqrt(2 s_0 mu Y)) - 1) near Y = 0: A_0 = K Y^(-1/4) e^(-int_0^Y (q - 1 / (4 Y))), K = (L d / s_0) (2 pi)^(-1/2) (2 s_0 mu)^(-1/4),
+        // q = 1 / (4 Y) + s' / (4 s) + L d U' / (2 s) - P / 2, and (ln A_0)_eta = L_eta / L + d_eta / d - (5/4) s_eta / s_0 at Y = 0 less
+        // int_0^Y q_eta. With 4 Y Phi' = 2 sqrt(2 s_0 Y) E,
+        //     D(Y) = sqrt(Y / (2 s_0)) sum r_n Y^n / (2n + 1),   r = dR / E = -H / 4 - Y H' / 2 - Y E H^2 / 8 + s_0 E (ln A_0)_eta,
+        // and the slope's share nears e^(Phi_1) (1 + D / sqrt(mu)) - 1.
+        const SimRational quarter = core_radius_number(1ll, 4ll);
+        // E_eta = (s_eta s_0 - s s_eta(0)) / (2 s_0^2 E), and with G = s_eta / E, G_eta = (s_eta_eta - G E_eta) / E
+        CoreRadiusSequence root_eta_top;
+        for (unsigned int power = 0u; power <= span; power += 1u)
+        {
+            root_eta_top.push_back(core_radius_over(sim_rational_difference(core_radius_times(transport_eta[power], transport[0]), core_radius_times(transport[power], transport_eta[0])),
+                                                   core_radius_times(two, core_radius_times(transport[0], transport[0]))));
+        }
+        const CoreRadiusSequence root_eta = core_tangent_quotient(root_eta_top, root, span);
+        const CoreRadiusSequence quotient_eta = core_tangent_quotient(
+            core_tangent_series_sum(transport_eta_eta, core_tangent_series_scaled(core_tangent_series_product(quotient, root_eta, span), minus)), root, span);
+        CoreRadiusSequence phi_eta_eta;
+        for (unsigned int power = 0u; power <= span; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            phi_eta_eta.push_back(core_radius_over(quotient_eta[power], core_radius_number(2ll * (long long)power + 1ll, 1ll)));
+        }
+        // P_eta = (E_eta H + E H_eta) / 2
+        const CoreRadiusSequence phi_product_eta = core_tangent_series_scaled(
+            core_tangent_series_sum(core_tangent_series_product(root_eta, phi_eta, reach), core_tangent_series_product(root, phi_eta_eta, reach)), half);
+        // q_eta = [(s'_eta s - s' s_eta) / 4 + (N_eta s - N s_eta) / 2] / s^2 - P_eta / 2, N = L d U', and s^2 = s_0^2 E^4
+        const CoreRadiusSequence transport_prime = core_tangent_series_derivative(transport, reach);
+        const CoreRadiusSequence transport_eta_prime = core_tangent_series_derivative(transport_eta, reach);
+        const CoreRadiusSequence along_prime = core_tangent_series_derivative(along_series, reach);
+        const CoreRadiusSequence along_eta_prime = core_tangent_series_derivative(along_eta_series, reach);
+        const SimRational inflow_factor = core_radius_times(l_v, d_v);
+        const SimRational inflow_factor_eta = core_radius_plus(core_radius_times(l_eta, d_v), core_radius_times(l_v, d_eta));
+        const CoreRadiusSequence inflow_coefficient = core_tangent_series_scaled(along_prime, inflow_factor);
+        const CoreRadiusSequence inflow_coefficient_eta = core_tangent_series_sum(core_tangent_series_scaled(along_prime, inflow_factor_eta),
+                                                                                  core_tangent_series_scaled(along_eta_prime, inflow_factor));
+        const CoreRadiusSequence prime_part = core_tangent_series_sum(core_tangent_series_product(transport_eta_prime, transport, reach),
+                                                                      core_tangent_series_scaled(core_tangent_series_product(transport_prime, transport_eta, reach), minus));
+        const CoreRadiusSequence inflow_part = core_tangent_series_sum(core_tangent_series_product(inflow_coefficient_eta, transport, reach),
+                                                                       core_tangent_series_scaled(core_tangent_series_product(inflow_coefficient, transport_eta, reach), minus));
+        CoreRadiusSequence amplitude_rate_eta = core_tangent_series_scaled(
+            core_tangent_series_sum(core_tangent_series_scaled(prime_part, quarter), core_tangent_series_scaled(inflow_part, half)),
+            sim_rational_reciprocal(core_radius_times(transport[0], transport[0])));
+        for (unsigned int division = 0u; division < 4u; division += 1u)
+        {
+            amplitude_rate_eta = core_tangent_quotient(amplitude_rate_eta, root, reach);
+        }
+        amplitude_rate_eta = core_tangent_series_sum(amplitude_rate_eta, core_tangent_series_scaled(phi_product_eta, core_radius_times(minus, half)));
+        // (ln A_0)_eta = (ln K)_eta - int_0^Y q_eta
+        const SimRational amplitude_origin_eta = sim_rational_difference(core_radius_plus(core_radius_over(l_eta, l_v), core_radius_over(d_eta, d_v)),
+                                                                         core_radius_times(core_radius_number(5ll, 4ll), core_radius_over(transport_eta[0], transport[0])));
+        CoreRadiusSequence amplitude_eta = {amplitude_origin_eta};
+        for (unsigned int power = 1u; power <= reach; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            amplitude_eta.push_back(core_radius_over(core_radius_times(minus, amplitude_rate_eta[power - 1u]), core_radius_number((long long)power, 1ll)));
+        }
+        // r_n = -(2n + 1) H_n / 4 - (Y E H^2)_n / 8 + s_0 (E (ln A_0)_eta)_n, and the amplitude's coefficient r_n / (2n + 1)
+        const CoreRadiusSequence root_phi_square = core_tangent_series_product(root, core_tangent_series_product(phi_eta, phi_eta, reach), reach);
+        const CoreRadiusSequence amplitude_part = core_tangent_series_scaled(core_tangent_series_product(root, amplitude_eta, reach), transport[0]);
+        CoreRadiusSequence amplitude_slope;
+        for (unsigned int power = 0u; power <= reach; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            const SimRational odd = core_radius_number(2ll * (long long)power + 1ll, 1ll);
+            SimRational source = core_radius_plus(core_radius_times(core_radius_times(minus, quarter), core_radius_times(odd, phi_eta[power])), amplitude_part[power]);
+            if (power > 0u)
+            {
+                source = sim_rational_difference(source, core_radius_over(root_phi_square[power - 1u], core_radius_number(8ll, 1ll)));
+            }
+            amplitude_slope.push_back(core_radius_over(source, odd));
+        }
+        // r_0 by hand: s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0
+        const SimRational first_by_hand = sim_rational_difference(core_radius_times(transport[0], core_radius_plus(core_radius_over(l_eta, l_v), core_radius_over(d_eta, d_v))),
+                                                                  core_radius_times(core_radius_number(3ll, 2ll), transport_eta[0]));
+        sim_check(&results, sim_rational_sign(sim_rational_difference(amplitude_slope[0], first_by_hand)) == 0,
+                  "the amplitude's first coefficient is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0");
         if (record != NULL)
         {
             record_text(record, ("phase at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(phase_rho) + ", to order " +
@@ -836,6 +981,24 @@ int main(int count, char **arguments)
                 const SimRational sum = core_tangent_sum_at(phi_slope, y_point);
                 record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(sum) + " " +
                                      term_book_rational(core_radius_over(core_radius_times(phi_slope[reach], last_power), sum)))
+                                        .c_str());
+            }
+            record_text(record, "the amplitude past Phi_1, D(Y) = sqrt(Y / (2 s_0)) sum d_n Y^n: for each n the coefficient d_n");
+            for (unsigned int power = 0u; power <= reach; power += 1u)
+            {
+                record_text(record, ("  " + std::to_string(power) + " " + term_book_rational(amplitude_slope[power])).c_str());
+            }
+            record_text(record, "Y, sum d_n Y^n and the last order's term over the sum");
+            for (const SimRational &y_point : phase_y)
+            {
+                SimRational last_power = one;
+                for (unsigned int power = 0u; power < reach; power += 1u)
+                {
+                    last_power = core_radius_times(last_power, y_point);
+                }
+                const SimRational sum = core_tangent_sum_at(amplitude_slope, y_point);
+                record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(sum) + " " +
+                                     term_book_rational(core_radius_over(core_radius_times(amplitude_slope[reach], last_power), sum)))
                                         .c_str());
             }
         }
