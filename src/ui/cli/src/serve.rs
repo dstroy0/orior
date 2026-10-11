@@ -328,8 +328,8 @@ impl Server {
     /// every channel and hands each message to `emit` in the thread that said it, in the order said.
     /// Before, it goes nowhere.
     pub fn tell_to(&self, emit: Emit) {
-        let own = Some(std::process::id());
-        let (Ok(server), Ok(window)) = (self.comms.register("orior", own, &[], &["*"]), self.comms.register("window", own, &["*"], &[])) else {
+        // Both are parts of this process alone, and the door takes neither key.
+        let (Ok(server), Ok(window)) = (self.comms.register("orior", None, &[], &["*"]), self.comms.register("window", None, &["*"], &[])) else {
             let _ = self.emit.set(emit);
             return;
         };

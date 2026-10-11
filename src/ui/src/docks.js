@@ -28,6 +28,7 @@ const TOOLS = {
   profile: { node: "profile", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Profile" },
   containers: { node: "containers", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Containers" },
   database: { node: "database", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 560, right: 560, bottom: 320 }, label: "Database" },
+  comms: { node: "comms", place: "work", middle: ".shell", side: "bottom", width: null, sizes: { left: 520, right: 520, bottom: 300 }, label: "Comms" },
 };
 
 const SIDES = ["left", "right", "bottom"];
@@ -46,10 +47,11 @@ const ICONS = {
   profile: "profile",
   containers: "containers",
   database: "database",
+  comms: "comms",
   definitions: "definitions",
 };
 
-const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", database: "Database", definitions: "Definitions" };
+const ICON_LABELS = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", run: "Run", debug: "Debug", terminal: "Terminal", profile: "Profile", containers: "Containers", database: "Database", comms: "Comms", definitions: "Definitions" };
 
 // The smallest a docked window is made, and the share of its place it can take at most.
 const LEAST = 120;

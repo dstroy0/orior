@@ -19,6 +19,7 @@ import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
 import { startProfile } from "./profile.js";
 import { startContainers } from "./containers.js";
+import { startComms } from "./comms.js";
 import { drawStatus as drawDatabaseStatus, startDatabase } from "./database.js";
 import { loadRun, readRunsAgain, startRun } from "./run.js";
 import { linkJoined, startRemote } from "./remote.js";
@@ -143,6 +144,7 @@ async function start() {
     ask: async (label, start) => (await import("./menubar.js")).askFor(label, start),
   });
   onShown(drawDatabaseStatus);
+  startComms();
   startFocusFollows({ terminal: focusTerminalView });
   startDocks({
     close: closeIcon,

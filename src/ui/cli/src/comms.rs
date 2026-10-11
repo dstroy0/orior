@@ -149,8 +149,9 @@ pub fn secret(count: usize) -> Result<Vec<u8>, String> {
 }
 
 impl Comms {
-    /// Registers a part named `name`, of the process `process` where it is one of its own, granted
-    /// the channels `listen` and `speak` by the container, and gives its key.
+    /// Registers a part named `name`, granted the channels `listen` and `speak` by the container, and
+    /// gives its key. The key is given to the process `process`; a part with no process is one of the
+    /// container's own, whose key the door never takes.
     pub fn register(&self, name: &str, process: Option<u32>, listen: &[&str], speak: &[&str]) -> Result<Key, String> {
         let key = Key(secret(32)?.iter().map(|byte| format!("{byte:02x}")).collect());
         let mut inner = self.inner.lock().map_err(|_| "the comms layer is held")?;
@@ -169,6 +170,14 @@ impl Comms {
             }
         }
         self.register(name, process, listen, speak)
+    }
+
+    /// Gives the part of `key` to the process `process`, once it has started: the door takes the
+    /// key from that process and from every process under it, and from no process before.
+    pub fn bind(&self, key: &Key, process: u32) {
+        if let Some(part) = self.inner.lock().ok().as_mut().and_then(|inner| inner.parts.get_mut(key)) {
+            part.process = Some(process);
+        }
     }
 
     /// Takes the part of `key` away, and every channel it listened on with it.

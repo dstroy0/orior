@@ -16,10 +16,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## The backend
 
-1. **One comms layer: keys and channels.** Every process reaches another only through the container. Each registers with it as it starts and is given a key, and the key names the channels it may listen and speak on, as the container grants them, a parent granting its children theirs; a message on a channel its key does not name is refused and said. The container knows each child for the process it started by the system's own word for who is at the other end of the pipe, and not by a key alone.
-   - An extension host that can read everything the editor can: a process, a plugin or a server has the channels it is granted and no others.
-   - Messages between processes that no one can see: the container keeps each channel's traffic, and a view lists every process, its channels and what each has said.
-2. **One transfer layer.** What is large, a file's text, a statement's rows, a run's output, goes through memory the container shares with the child, named on the comms layer, and is never copied through a message.
+1. **One transfer layer.** What is large, a file's text, a statement's rows, a run's output, goes through memory the container shares with the child, named on the comms layer, and is never copied through a message.
    - A big answer that stalls every channel behind it: the comms layer carries only what is small, and the transfer layer each large thing, side by side.
 
 ## Perception

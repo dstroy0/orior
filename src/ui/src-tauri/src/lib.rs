@@ -121,12 +121,25 @@ fn term_open(handle: AppHandle, app: State<App>, cols: u16, rows: u16, at: Optio
         let mut command = portable_pty::CommandBuilder::new(found.map_or(program, |path| path.display().to_string()));
         command.args(words);
         command.env("TERM", "xterm-256color");
-        return app.terms.open(handle, command, cols, rows);
+        return app.terms.open(handle, command, cols, rows, None);
     }
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
     let kept = at.map(|at| terminal::folder_of(&at)).filter(|folder| folder.is_dir());
     let at = kept.or_else(|| root_of(&app).ok()).or(home).or_else(|| std::env::current_dir().ok()).ok_or("no folder to open a terminal in")?;
-    app.terms.open(handle, terminal::shell(&at)?, cols, rows)
+    let mut command = terminal::shell(&at)?;
+    let part = keyed(&app, &mut command);
+    app.terms.open(handle, command, cols, rows, part)
+}
+
+/// A terminal's part of the comms layer: its shell, and every program run in it, joins the door with
+/// the key the shell is started with, and tells the window of the runs it starts.
+fn keyed(app: &App, command: &mut portable_pty::CommandBuilder) -> Option<terminal::Part> {
+    let address = app.server.open_door().ok()?;
+    let comms = app.server.comms().clone();
+    let key = comms.register("terminal", None, &["runs/*"], &["runs/*"]).ok()?;
+    command.env(orior_cli::comms::door::ADDRESS_VARIABLE, address);
+    command.env(orior_cli::comms::door::KEY_VARIABLE, key.text());
+    Some((comms, key))
 }
 
 #[tauri::command]
@@ -880,6 +893,9 @@ fn open(launch: Launch) {
             server.tell_to(Arc::new(move |event, body| {
                 let _ = handle.emit(event, body);
             }));
+            // The door of the comms layer is open from the start, for every process the container
+            // starts to join.
+            let _ = server.open_door();
             server.watch();
             if let Some(address) = remote {
                 let handle = app.handle().clone();

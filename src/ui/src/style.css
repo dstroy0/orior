@@ -4998,6 +4998,12 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: pre-wrap;
 }
 
+/* The Comms window, laid out as the Containers window: each part and each channel a row, a part's
+   dot lit where none of what it said was refused, and a channel's last messages at the right. */
+.comms-part {
+  cursor: default;
+}
+
 /* The Database window, laid out as the Containers window: the schema at the left, a level opened at a
    time, and at the right the head of what ran, the rows a statement gave in a grid that holds only
    the rows in view, each 22px high and set at its place in the spacer, and what the server said. */

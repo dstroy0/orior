@@ -292,8 +292,23 @@ fn served_as(spec: &str, file: &Path, ui: &Path) -> Option<String> {
 }
 
 /// The module at `file` with each import of a module by its path made the path the page serves it
-/// at: a test imports the very module the window runs, as its own import of it does.
+/// at: a test imports the very module the window runs, as its own import of it does. Each line is
+/// read on its own and a line of a comment not at all: an apostrophe in a comment opens no string.
 fn rewrite_imports(source: &str, file: &Path, ui: &Path) -> String {
+    source
+        .split_inclusive('\n')
+        .map(|line| {
+            let code = line.trim_start();
+            if code.starts_with("//") || code.starts_with("/*") || code.starts_with('*') {
+                line.to_string()
+            } else {
+                rewrite_line(line, file, ui)
+            }
+        })
+        .collect()
+}
+
+fn rewrite_line(source: &str, file: &Path, ui: &Path) -> String {
     let mut out = String::with_capacity(source.len());
     let mut rest = source;
     while let Some(at) = rest.find(['"', '\'']) {
@@ -325,7 +340,7 @@ fn content_type(path: &Path) -> &'static str {
 }
 
 /// Answers a request the page made under /__harness/ with the file of test/ it names.
-fn fulfil(conn: &Connection, params: &Value, ui: &Path) {
+fn fulfill(conn: &Connection, params: &Value, ui: &Path) {
     let request = params["requestId"].as_str().unwrap_or("").to_string();
     let url = params["request"]["url"].as_str().unwrap_or("");
     let named = url.split_once("/__harness/").map(|(_, part)| part.split(['?', '#']).next().unwrap_or("")).unwrap_or("");
@@ -360,7 +375,7 @@ fn serve_page(conn: Arc<Connection>, page: Arc<Page>, ui: PathBuf) {
                     let _ = conn.evaluate(&format!("window.__harness?.answer({id}, {})", json!(error)), Duration::from_secs(10));
                 });
             }
-            "Fetch.requestPaused" => fulfil(&conn, params, &ui),
+            "Fetch.requestPaused" => fulfill(&conn, params, &ui),
             "Runtime.exceptionThrown" => {
                 let details = &params["exceptionDetails"];
                 let text = details["exception"]["description"].as_str().or_else(|| details["text"].as_str()).unwrap_or("an error").to_string();
@@ -607,7 +622,7 @@ mod tests {
     fn an_import_of_the_window_s_module_is_the_page_s_own_path() {
         let ui = Path::new("/ui");
         let file = Path::new("/ui/test/src/editor/view.test.js");
-        let source = "import { a } from \"../../../src/editor/view.js\";\nimport '../../helpers.js';\nconst b = await import(\"../../../src/fuzzy.js\");\nconst c = \"../not/an/import.js\";\nimport x from \"/bridge.js\";\n";
+        let source = "// The window's view, and the harness's own helpers.\nimport { a } from \"../../../src/editor/view.js\";\nimport '../../helpers.js';\nconst b = await import(\"../../../src/fuzzy.js\");\nconst c = \"../not/an/import.js\";\nimport x from \"/bridge.js\";\n";
         let rewritten = rewrite_imports(source, file, ui);
         assert!(rewritten.contains("from \"/editor/view.js\""), "{rewritten}");
         assert!(rewritten.contains("import '/__harness/test/helpers.js'"), "{rewritten}");

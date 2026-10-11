@@ -55,6 +55,7 @@ import { setSystemTitleBar, systemTitleBar } from "./strip.js";
 import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
 import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
+import { toggleComms } from "./comms.js";
 import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
@@ -272,6 +273,7 @@ const COMMANDS = {
   "profile-view": () => toggleProfile(),
   "containers-view": () => toggleContainers(),
   "database-view": () => toggleDatabase(),
+  "comms-view": () => toggleComms(),
   "run-statement": () => runStatement(),
   "run-sql-file": () => runSqlFile(),
   "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),

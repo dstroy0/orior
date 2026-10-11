@@ -168,6 +168,7 @@
         { "label": "Profile", "command": "profile-view" },
         { "label": "Containers", "command": "containers-view" },
         { "label": "Database", "command": "database-view" },
+        { "label": "Comms", "command": "comms-view" },
         { "label": "Tool Windows", "items": [{ "fill": "tool-windows" }] },
         { "label": "Open Tool Window in a Window", "command": "float", "args": "[terminal|explorer|jobs]" },
         { "label": "Show Only a Tool Window", "command": "solo", "args": "[terminal|explorer|jobs] [window]" },

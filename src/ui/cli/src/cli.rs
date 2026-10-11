@@ -223,6 +223,31 @@ fn show(root: &std::path::Path, job: &Job) {
 }
 
 fn run_job(root: PathBuf, job: Job, words: &[String]) -> i32 {
+    run_job_telling(root, job, words, crate::comms::door::Client::from_env())
+}
+
+/// A run told to the window as it goes, on a channel of its own under runs, where a terminal of the
+/// window's started this process; elsewhere told to no one.
+struct Told {
+    window: Option<crate::comms::door::Client>,
+    channel: String,
+}
+
+impl Told {
+    fn new(window: Option<crate::comms::door::Client>) -> Told {
+        Told { window, channel: format!("runs/{}", std::process::id()) }
+    }
+
+    fn tell(&self, body: serde_json::Value) {
+        if let Some(window) = &self.window {
+            let _ = window.say(&self.channel, body);
+        }
+    }
+}
+
+/// Runs `job` as run_job does, telling `window`, where a terminal of the window's started this, of
+/// the run as it goes, on a channel of its own under runs: that it started, each line, and its end.
+fn run_job_telling(root: PathBuf, job: Job, words: &[String], window: Option<crate::comms::door::Client>) -> i32 {
     let values = match values_of(&job, words) {
         Ok(values) => values,
         Err(said) => {
@@ -232,13 +257,20 @@ fn run_job(root: PathBuf, job: Job, words: &[String]) -> i32 {
     };
     let ended: Arc<Mutex<Option<runner::End>>> = Arc::default();
     let keep = ended.clone();
+    let told = Arc::new(Told::new(window));
+    told.tell(serde_json::json!({"state": "started", "job": job.id, "title": job.title, "root": root.display().to_string(), "words": words}));
+    let telling = told.clone();
     let sink: Sink = Arc::new(move |said| match said {
-        Said::Line(line) => match line.stream {
-            "stdout" => out(&line.text),
-            "command" => err(&format!("$ {}", line.text)),
-            _ => err(&line.text),
-        },
+        Said::Line(line) => {
+            telling.tell(serde_json::json!({"line": line.text, "stream": line.stream, "ms": line.ms}));
+            match line.stream {
+                "stdout" => out(&line.text),
+                "command" => err(&format!("$ {}", line.text)),
+                _ => err(&line.text),
+            }
+        }
         Said::End(end) => {
+            telling.tell(serde_json::json!({"state": "ended", "code": end.code, "stopped": end.stopped, "ms": end.ms}));
             for page in &end.views {
                 err(&format!("page {page}"));
             }
@@ -883,13 +915,19 @@ fn run_file_words(named: Option<&str>, words: &[String]) -> i32 {
         }
     };
     err(&format!("$ {}", run.line));
-    match std::process::Command::new(bash).arg("-c").arg(&run.line).env("PATH", toolchains::run_path()).status() {
+    // The run's lines are this terminal's; the window is told that it started and how it ended.
+    let told = Told::new(crate::comms::door::Client::from_env());
+    told.tell(serde_json::json!({"state": "started", "file": file, "line": run.line, "root": root.display().to_string()}));
+    let began = std::time::Instant::now();
+    let code = match std::process::Command::new(bash).arg("-c").arg(&run.line).env("PATH", toolchains::run_path()).status() {
         Ok(status) => status.code().unwrap_or(NO_CODE),
         Err(error) => {
             err(&error.to_string());
             NO_CODE
         }
-    }
+    };
+    told.tell(serde_json::json!({"state": "ended", "code": code, "ms": began.elapsed().as_secs_f64() * 1000.0}));
+    code
 }
 
 /// `orior file clone [url] [folder]`: clones a repository, orior's where none is named, into a new
@@ -1497,6 +1535,44 @@ mod help_text {
                 assert!(text.contains(&format!("orior {} {}", menu.word(), item.command)), "{} is missing", item.command);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod telling {
+    use super::*;
+    use crate::catalog::{Program, Step};
+    use crate::comms::{door, Comms};
+    use std::time::Duration;
+
+    #[test]
+    fn a_run_a_terminal_of_the_window_s_starts_is_told_on_a_channel_of_its_own() {
+        let comms = Arc::new(Comms::default());
+        let address = door::open(comms.clone()).unwrap();
+        let window = comms.register("window", None, &["*"], &[]).unwrap();
+        let heard = comms.listen(&window, "runs/*").unwrap();
+        let terminal = comms.register("terminal", None, &["runs/*"], &["runs/*"]).unwrap();
+        comms.bind(&terminal, std::process::id());
+        let root = std::env::temp_dir().join(format!("orior-telling-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("say.py"), "print('said')\n").unwrap();
+        let job = Job { id: "test/say".into(), group: "test", title: "say".into(), file: "say.py".into(), about: String::new(), params: Vec::new(), opens: "", steps: vec![Step { program: Program::Python("say.py".into()), args: Vec::new() }] };
+        let code = run_job_telling(root.clone(), job, &[], Some(door::Client::join(&address, &terminal).unwrap()));
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(code, 0);
+        let mut told = Vec::new();
+        while let Ok(message) = heard.recv_timeout(Duration::from_secs(5)) {
+            let ended = message.body["state"] == "ended";
+            told.push(message);
+            if ended {
+                break;
+            }
+        }
+        let channel = format!("runs/{}", std::process::id());
+        assert!(told.iter().all(|message| message.channel == channel && message.from == "terminal"));
+        assert_eq!((told[0].body["state"].as_str(), told[0].body["job"].as_str()), (Some("started"), Some("test/say")));
+        assert!(told.iter().any(|message| message.body["line"] == "said" && message.body["stream"] == "stdout"), "{told:?}");
+        assert_eq!(told.last().unwrap().body["code"], 0);
     }
 }
 

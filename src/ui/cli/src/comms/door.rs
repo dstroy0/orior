@@ -6,7 +6,8 @@
 //!
 //! A frame is the length of its JSON in four bytes, least first, then the JSON. A process joins by its
 //! first frame, {"key": its key}; the container takes it only where the key is a part's and the
-//! key was given to the process at the other end, as the system says. Then the process
+//! key was given to the process at the other end, as the system says, or to a process it stands
+//! under, as a shell of the window's is given a key for every program run in it. Then the process
 //! asks {"listen": channel} and {"say": channel, "body": what}, each answered with {"ok": what was
 //! done} or {"refused": why}, and each message said on a channel it listens on comes as
 //! {"message": {"channel", "from", "body"}}.
@@ -75,11 +76,13 @@ fn serve(comms: &Comms, joined: Joined) {
         answer(json!({"refused": "that key is no part's"}));
         return;
     };
-    if let Some(given) = comms.process_of(&key) {
-        if peer != Some(given) {
-            answer(json!({"refused": format!("the key of {name} was given to another process")}));
-            return;
-        }
+    let Some(given) = comms.process_of(&key) else {
+        answer(json!({"refused": format!("the key of {name} was given to no process")}));
+        return;
+    };
+    if !peer.is_some_and(|peer| peer == given || crate::container::under(given, peer, &crate::container::parents())) {
+        answer(json!({"refused": format!("the key of {name} was given to another process")}));
+        return;
     }
     if !answer(json!({"ok": "joined", "name": name})) {
         return;
@@ -123,7 +126,19 @@ pub struct Client {
     pub name: String,
 }
 
+/// The variables a process of the container's is started with: the door's address, and its key.
+pub const ADDRESS_VARIABLE: &str = "ORIOR_COMMS";
+pub const KEY_VARIABLE: &str = "ORIOR_KEY";
+
 impl Client {
+    /// Joins the door ADDRESS_VARIABLE names with the key KEY_VARIABLE holds, where this process was
+    /// started with both.
+    pub fn from_env() -> Option<Client> {
+        let address = std::env::var(ADDRESS_VARIABLE).ok()?;
+        let key = std::env::var(KEY_VARIABLE).ok()?;
+        Client::join(&address, &Key::from_text(&key)).ok()
+    }
+
     /// Joins the door at `address` with `key`.
     pub fn join(address: &str, key: &Key) -> Result<Client, String> {
         let Joined { mut input, mut output, .. } = connect(address)?;
@@ -432,6 +447,20 @@ mod tests {
         assert!(refused.contains("given to another process"), "{refused}");
         let refused = Client::join(&address, &Key::from_text("not a key")).err().unwrap();
         assert!(refused.contains("no part's"), "{refused}");
+        let in_the_container = comms.register("the window", None, &["*"], &[]).unwrap();
+        let refused = Client::join(&address, &in_the_container).err().unwrap();
+        assert!(refused.contains("given to no process"), "{refused}");
+    }
+
+    #[test]
+    fn a_key_given_to_a_process_is_taken_from_every_process_under_it() {
+        let comms = Arc::new(Comms::default());
+        let address = open(comms.clone()).unwrap();
+        let own = std::process::id();
+        let parent = crate::container::parents().iter().find(|(child, _)| *child == own).map(|(_, parent)| *parent).unwrap();
+        let shell = comms.register("terminal", None, &["runs/*"], &["runs/*"]).unwrap();
+        comms.bind(&shell, parent);
+        assert_eq!(Client::join(&address, &shell).unwrap().name, "terminal");
     }
 
     #[test]

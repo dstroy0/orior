@@ -55,9 +55,32 @@ pub fn members() -> Vec<u32> {
 }
 
 /// Every process the system lists, by its id and its parent's.
-#[cfg(not(windows))]
 pub fn parents() -> Vec<(u32, u32)> {
-    unix::parents()
+    #[cfg(windows)]
+    {
+        windows::parents()
+    }
+    #[cfg(not(windows))]
+    {
+        unix::parents()
+    }
+}
+
+/// Whether the process `id` is `root` or stands under it in the tree `parents` gives. A parent's id
+/// the system has given again to a later process can close a loop, and the walk ends after as many
+/// steps as the tree has processes.
+pub fn under(root: u32, id: u32, parents: &[(u32, u32)]) -> bool {
+    let mut at = id;
+    for _ in 0..=parents.len() {
+        if at == root {
+            return true;
+        }
+        match parents.iter().find(|(child, _)| *child == at) {
+            Some(&(_, parent)) if parent != at => at = parent,
+            _ => return false,
+        }
+    }
+    false
 }
 
 /// The processes under `root` in the tree `parents` gives, by child and parent, each once, children
@@ -179,6 +202,29 @@ mod windows {
         }
     }
 
+    pub fn parents() -> Vec<(u32, u32)> {
+        use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+        use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+        let mut found = Vec::new();
+        // SAFETY: the snapshot is checked before use and closed once, and each entry is given its own
+        // size, as the system asks.
+        unsafe {
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if snapshot == INVALID_HANDLE_VALUE {
+                return found;
+            }
+            let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+            entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+            let mut more = Process32FirstW(snapshot, &mut entry) != 0;
+            while more {
+                found.push((entry.th32ProcessID, entry.th32ParentProcessID));
+                more = Process32NextW(snapshot, &mut entry) != 0;
+            }
+            CloseHandle(snapshot);
+        }
+        found
+    }
+
     pub fn end_members() {
         for id in members() {
             // SAFETY: each handle is checked and closed after the process is told to end.
@@ -274,6 +320,21 @@ mod tests {
         assert_eq!(found, vec![2, 3, 4, 5]);
         assert!(descendants(4, &tree).is_empty());
         assert_eq!(descendants(9, &tree), vec![6, 7]);
+    }
+
+    #[test]
+    fn a_process_stands_under_each_process_above_it_and_no_other() {
+        let tree = [(2, 1), (3, 2), (4, 3), (5, 1), (6, 9), (7, 6), (8, 8)];
+        assert!(under(1, 4, &tree));
+        assert!(under(4, 4, &tree));
+        assert!(!under(5, 4, &tree));
+        assert!(!under(1, 7, &tree));
+        assert!(!under(1, 8, &tree), "a process listed as its own parent ends the walk");
+        assert!(!under(1, 2, &[(2, 3), (3, 2)]), "a loop of ids given again ends the walk");
+        let listed = parents();
+        let own = std::process::id();
+        let parent = listed.iter().find(|(child, _)| *child == own).map(|(_, parent)| *parent).expect("the system lists this process");
+        assert!(under(parent, own, &listed));
     }
 
     #[test]
