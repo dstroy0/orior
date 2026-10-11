@@ -79,6 +79,8 @@ pub fn reveal(path: &std::path::Path) -> Result<(), String> {
         command.arg(path);
         command
     };
+    // The file manager or the program it opens in is the reader's, and stays as orior ends.
+    crate::container::outside(&mut command);
     command.spawn().map(|_| ()).map_err(|error| format!("{}: {error}", path.display()))
 }
 

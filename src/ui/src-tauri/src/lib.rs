@@ -450,7 +450,8 @@ fn window_open(app: State<App>, root: Option<String>, remote: Option<String>, wo
         }
     }
     command.args(&words).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
-    orior_cli::runner::quiet(&mut command);
+    // Another window is the reader's to keep, and stays as this one closes.
+    orior_cli::container::outside(&mut command);
     command.spawn().map(|_| ()).map_err(|error| error.to_string())
 }
 
@@ -847,6 +848,8 @@ pub fn run() {
 /// Opens the window on the tree the launch names, else the one `root::find` finds, to run the
 /// launch's command once the page is up.
 fn open(launch: Launch) {
+    // Every process the window starts stands under it, and ends with it.
+    orior_cli::container::hold();
     let remote = launch.remote.as_deref().map(Address::parse).transpose().unwrap_or_else(|said| {
         eprintln!("orior: {said}");
         None
@@ -968,6 +971,7 @@ fn open(launch: Launch) {
                 if let Some(link) = handle.state::<App>().link.get() {
                     link.end();
                 }
+                orior_cli::container::end_all();
             }
         });
 }

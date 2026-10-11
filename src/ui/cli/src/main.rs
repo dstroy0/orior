@@ -9,6 +9,8 @@ use orior_cli::report;
 
 fn main() {
     report::catch_panics();
+    // Every process a command starts stands under it, and ends with it.
+    orior_cli::container::hold();
     let code = match cli::run(std::env::args().skip(1).collect()) {
         Outcome::Exit(code) => code,
         Outcome::Window(launch) => {

@@ -322,6 +322,8 @@ pub fn open_url(url: &str) -> Result<(), String> {
         command
     };
     command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    // The browser is the reader's, and stays as orior ends.
+    crate::container::outside(&mut command);
     command.spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
