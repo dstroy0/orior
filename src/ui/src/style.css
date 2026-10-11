@@ -479,6 +479,70 @@ select {
   --glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
+/* The panes, the tabs, the editor, the panels and the sheets are glass over the lattice as well: each
+   lays the colors it paints its ground in, the theme's, as thick as its own opacity in Preferences
+   sets it. Text drawn in a ground's color takes the theme's, whole. */
+:root {
+  --pane-opacity: 100%;
+  --tab-opacity: 100%;
+  --editor-opacity: 100%;
+  --panel-opacity: 100%;
+  --sheet-opacity: 100%;
+  --theme-bg: var(--bg);
+  --theme-surface: var(--surface);
+  --theme-well: var(--well);
+  --theme-deep: var(--deep);
+  --theme-ed-bg: var(--ed-bg);
+  --theme-ed-widget: var(--ed-widget);
+}
+
+.side,
+.defs-side {
+  --part-opacity: var(--pane-opacity);
+}
+
+.tabs {
+  --part-opacity: var(--tab-opacity);
+}
+
+.editor,
+.md-preview,
+.binary,
+.notebook {
+  --part-opacity: var(--editor-opacity);
+}
+
+.term,
+.debug,
+.profile,
+.plugin-panels {
+  --part-opacity: var(--panel-opacity);
+}
+
+.sheet {
+  --part-opacity: var(--sheet-opacity);
+}
+
+.side,
+.defs-side,
+.tabs,
+.editor,
+.md-preview,
+.binary,
+.notebook,
+.term,
+.debug,
+.profile,
+.plugin-panels,
+.sheet {
+  --bg: color-mix(in srgb, var(--theme-bg) var(--part-opacity), transparent);
+  --surface: color-mix(in srgb, var(--theme-surface) var(--part-opacity), transparent);
+  --well: color-mix(in srgb, var(--theme-well) var(--part-opacity), transparent);
+  --deep: color-mix(in srgb, var(--theme-deep) var(--part-opacity), transparent);
+  --ed-bg: color-mix(in srgb, var(--theme-ed-bg) var(--part-opacity), transparent);
+  --ed-widget: color-mix(in srgb, var(--theme-ed-widget) var(--part-opacity), transparent);
+}
+
 .bar,
 .strip,
 .statusbar {
@@ -3730,7 +3794,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   padding: 0 2px;
   border-radius: 2px;
   background: var(--signal);
-  color: var(--bg);
+  color: var(--theme-bg);
   font: 600 12px/18px var(--code);
   pointer-events: none;
 }
@@ -5166,11 +5230,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 /* A file's icon: its type's mark, or a page. Its capitals stand 98% as tall as the capitals of the name beside it:
    the size is taken off the row's cap height, and the code font is set so its own capitals are that tall. Where
-   cap is unknown the mark is 98% of the row's 13px. Its box is one character of its own font, and a space stands
-   between it and the name. */
+   cap is unknown the mark is 98% of the row's 13px. Its box is two characters of its own font, as wide as the
+   widest mark, each mark centered in it, and a space stands between it and the name. */
 .icon {
   flex: none;
-  width: 1ch;
+  width: 2ch;
   margin-right: 0.3em;
   font: 700 12.75px/1 var(--code);
   font-size: 0.98cap;
@@ -5688,7 +5752,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--fg);
-  color: var(--bg);
+  color: var(--theme-bg);
   font: 600 11px var(--code);
   white-space: nowrap;
   transform: translate(-50%, -50%);
@@ -6482,7 +6546,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .t-b13 { background: var(--t13); }
 .t-b14 { background: var(--t14); }
 .t-b15 { background: var(--t15); }
-.t-f-default-bg { color: var(--well); }
+.t-f-default-bg { color: var(--theme-well); }
 .t-b-default-fg { background: var(--fg); }
 .t-bold { font-weight: 600; }
 .t-dim { opacity: 0.6; }
@@ -6500,7 +6564,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 .term-view.term-focused .t-cursor {
   background: var(--signal);
-  color: var(--well);
+  color: var(--theme-well);
   outline: 0;
 }
 
@@ -6635,6 +6699,26 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   display: grid;
   gap: 0.25rem;
   color: var(--fg-2);
+}
+
+/* A part's opacity: the slider, and its share beside it. */
+.prefs-opacity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prefs-opacity-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--signal);
+}
+
+.prefs-opacity-said {
+  flex: none;
+  width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .report-field {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
-// bar's and the menus' opacity, each item of the menus that is set on or off, the settings no menu
+// opacity of each part of the window, each item of the menus that is set on or off, the settings no menu
 // lists, each setting a settings file sets with its value and the file it comes from, the settings
 // carried to and from another machine, the patterns
 // that keep the explorer, the search and the watching of files from files, the sets of files Find in
@@ -407,10 +407,15 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [], o
     });
     languageSelect.addEventListener("change", () => setLanguage(languageSelect.value));
     rows.push(element("label", { className: "report-row" }, element("span", { textContent: "Language" }), languageSelect));
+    // Each part's opacity a slider by the steps, its share said beside it, the window changing as it moves.
     for (const setting of OPACITY_SETTINGS) {
-      const select = element("select", { className: "report-field", ariaLabel: setting.label }, ...OPACITY_STEPS.map((step) => element("option", { value: String(step), textContent: `${step}%`, selected: step === opacity(setting) })));
-      select.addEventListener("change", () => setOpacity(setting, Number(select.value)));
-      rows.push(element("label", { className: "report-row" }, element("span", { textContent: setting.label }), select));
+      const slider = element("input", { type: "range", className: "prefs-opacity-slider", min: String(OPACITY_STEPS[0]), max: String(OPACITY_STEPS.at(-1)), step: String(OPACITY_STEPS[1] - OPACITY_STEPS[0]), value: String(opacity(setting)), ariaLabel: setting.label });
+      const said = element("span", { className: "prefs-opacity-said", textContent: `${opacity(setting)}%` });
+      slider.addEventListener("input", () => {
+        setOpacity(setting, Number(slider.value));
+        said.textContent = `${slider.value}%`;
+      });
+      rows.push(element("label", { className: "report-row" }, element("span", { textContent: setting.label }), element("span", { className: "prefs-opacity" }, slider, said)));
     }
     for (const menu of menus) {
       for (const item of menu.all ?? []) {
