@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gsm_write.c: a part's relations written in gnascor's assembly, each as the cases the part answered it on
 //
-//     gsm_write <part> <path.khw> <layout> <mnemonics> <folder> <machine writer>
+//     gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>
 //
 // The face is relational (src/lng/transpiler_gsm_parser.md): a case is the operands and then the answer the relation
 // holds, 1,1->2. A form enters the part's machine file only where the part answered one relation on every case of it
@@ -10,6 +10,10 @@
 // and whether the answers read a word signed; each relation so answered is written once, as every two-word case of it
 // the ladder holds, the answer read signed where the part's was. <part>.gsm is written beside the machine file, a case
 // a line in the ladder's order, and each word in decimal.
+//
+// It runs in a query run, the .qry QRY names (qry_buffer.h): the forms the vendor's writer hands back are the blob
+// GSM_FORMS_NAME of the run's buffer, and what it prints is handed to the run's buffer as GSM_MACHINE_NAME.
+#include "../../../types/file_defs/qry/qry_buffer.h"
 #include "../interface/interface.h"
 #include "../protocol/counterexample/ladder.h"
 
@@ -20,6 +24,10 @@
 // the name a form's relation is handed back under, as khw_write writes it
 #define GSM_READS_LADDER "ladder."
 
+// the blobs of the run's buffer the vendor's writer hands: the forms it hands back, and what it printed
+#define GSM_FORMS_NAME "gsm_forms.txt"
+#define GSM_MACHINE_NAME "machine.txt"
+
 #define LADDER_TEXT(name_, text_, words_, measured_) text_,
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 #undef LADDER_TEXT
@@ -28,14 +36,14 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 static int s_answered[LADDER_ANCHOR_COUNT][2];
 
 // The vendor's writer run through the interface in its krs mode, handed the part, the machine file, the container
-// layout, the vendor's table and the file to write. Its output is read and printed. 1 where it ended clean
-static int gsm_vendor_run(char *const *word, const char *folder, const char *answers)
+// layout, the vendor's table and the name to give the forms as. Its output comes back over the interface's pipe, is
+// printed, and is handed to the run's buffer as GSM_MACHINE_NAME. 1 where it ended clean
+static int gsm_vendor_run(char *const *word)
 {
-    char output_path[1024];
-    snprintf(output_path, sizeof(output_path), "%s/machine.txt", folder);
-    char *const command[] = {word[6], word[1], word[2], word[3], word[4], (char *)answers, (char *)"krs", NULL};
+    // the interface's command is a list of words it does not write to; the casts only meet its declared type
+    char *const command[] = {word[5], word[1], word[2], word[3], word[4], (char *)GSM_FORMS_NAME, (char *)"krs", NULL};
     static char s_output[65536];
-    const InterfaceProbe probe = {command, output_path, 0ull};
+    const InterfaceProbe probe = {command, NULL, 0ull};
     InterfaceAnswer answer = {0};
     answer.output = s_output;
     answer.output_capacity = sizeof(s_output);
@@ -44,6 +52,9 @@ static int gsm_vendor_run(char *const *word, const char *folder, const char *ans
     if (answer.output_bytes != 0ull)
     {
         printf("%s", s_output);
+        const unsigned long long kept =
+            (answer.output_bytes < (sizeof(s_output) - 1u)) ? answer.output_bytes : (sizeof(s_output) - 1u);
+        qry_hand(qry_run(), GSM_MACHINE_NAME, s_output, kept, QRY_ORDINARY);
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
@@ -54,20 +65,19 @@ static int gsm_vendor_run(char *const *word, const char *folder, const char *ans
     return 1;
 }
 
-// the relations the forms the vendor's writer handed back in the file at `path` answered, into s_answered. A line whose
-// relation is none the ladder holds is left out. The count of forms read
-static unsigned int gsm_relations_read(const char *path)
+// the relations the forms the vendor's writer handed back, the `size` bytes at `bytes`, answered, into s_answered. A
+// line whose relation is none the ladder holds is left out. The count of forms read
+static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long long size)
 {
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
-    {
-        printf("  gsm_write: %s could not be read\n", path);
-        return 0u;
-    }
     char line[1024];
     unsigned int read = 0u;
-    while (fgets(line, (int)sizeof(line), file) != NULL)
+    unsigned long long next = 0ull;
+    while (next < size)
     {
+        const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
+        const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
+        snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(bytes + next));
+        next += (unsigned long long)length + 1ull;
         char relation[256];
         int signed_read = 0;
         if (sscanf(line, "%255s %d", relation, &signed_read) != 2)
@@ -85,7 +95,6 @@ static unsigned int gsm_relations_read(const char *path)
             }
         }
     }
-    fclose(file);
     return read;
 }
 
@@ -105,21 +114,38 @@ static void gsm_folder_of(const char *path, char *folder, size_t room)
 
 int main(int count, char **word)
 {
-    if (count != 7)
+    if (count != 6)
     {
-        printf("gsm_write <part> <path.khw> <layout> <mnemonics> <folder> <machine writer>\n");
+        printf("gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>\n");
         return 2;
     }
     const char *const part = word[1];
     const char *const machine = word[2];
-    const char *const folder = word[5];
-    char answers[1024];
-    snprintf(answers, sizeof(answers), "%s/gsm_forms.txt", folder);
-    if (!gsm_vendor_run(word, folder, answers))
+    QryBuffer *const run = qry_run();
+    if (run == NULL)
+    {
+        printf("  gsm_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        return 1;
+    }
+    // the forms the vendor's writer hands, told from any handed before them by their sequence
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    unsigned long long before = 0ull;
+    if (!qry_latest(run, GSM_FORMS_NAME, &bytes, &size, &before))
+    {
+        before = 0ull;
+    }
+    unsigned long long sequence = 0ull;
+    if (!gsm_vendor_run(word))
     {
         return 1;
     }
-    const unsigned int forms = gsm_relations_read(answers);
+    if (!qry_latest(run, GSM_FORMS_NAME, &bytes, &size, &sequence) || (sequence <= before))
+    {
+        printf("  gsm_write: the vendor's writer handed the run's buffer no %s\n", GSM_FORMS_NAME);
+        return 1;
+    }
+    const unsigned int forms = gsm_relations_read(bytes, size);
     char rulesets[1024];
     gsm_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];

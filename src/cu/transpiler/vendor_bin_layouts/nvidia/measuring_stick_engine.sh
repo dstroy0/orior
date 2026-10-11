@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Builds and runs measuring_stick_engine: each kernel of the measuring stick read form by form through cu.krs and
-# written in sass.krs, held against nvcc's listing on the host. No device.
+# written in sass.krs, held against nvcc's listing on the host. No device. It is one query run, query<n>-<datetime>.qry
+# in <out>/qry (qry_run.sh): what the engine prints is its blob assembler.log, and with STICK_TRACE set each kernel's
+# trace is its blob NNNN.trace.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_engine.sh
 set -u
@@ -23,6 +25,8 @@ CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 OUT="${BUILD_OUT:-$TOP/build/measuring_stick}/engine"
 mkdir -p "$OUT/objects"
+source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+qry_writer_built "$OUT"
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCLE"
     -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE"
@@ -44,7 +48,8 @@ build_object()
     OBJECTS+=("$object")
 }
 for source in "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.c" "$SCRIPTURA"/*.c \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+    "$QRY_SOURCE/qry_buffer.c"; do
     build_object c "$(basename "$source")" "$source"
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, which
@@ -60,12 +65,19 @@ c++ -o "$OUT/measuring_stick_engine" "${OBJECTS[@]}" -static -lpthread || exit 1
 
 # the rulesets are named from the top of the tree, which is where the generator reads them from; the tool writes the
 # folds it finds into sass.ksc beside sass.krs; nvdisasm reads each kernel's encodings back as the part's own
-# disassembler reads them, as many kernels at once as the host has processors. The assembler's refusals of the readings it gates go to assembler.log
+# disassembler reads them, as many kernels at once as the host has processors. What the engine prints, the
+# assembler's refusals of the readings it gates among it, goes into the run's .qry as assembler.log
 cd "$TOP" || exit 1
 rm -f "$OUT"/*.sass "$OUT"/*.bin "$OUT"/*.dis "$OUT"/*.registers
 STICK="$(cygpath -m "${BUILD_OUT:-$TOP/build/measuring_stick}")"
-"$OUT/measuring_stick_engine" "$STICK/measuring_stick.cu" "$STICK/measuring_stick_nvcc.sass" "$(cygpath -m "$OUT")" \
-    > "$OUT/assembler.log" || exit 1
+run_started "$OUT/qry"
+TABLE="$TOP/src/cu/transpiler/lstar/protocol/table"
+run_read "$TABLE/cu.krs" "$TABLE/sass.krs" "$TABLE/sass.ksc" "$TABLE/sm_86.khw" "$STICK/measuring_stick.cu" \
+    "$STICK/measuring_stick_nvcc.sass" "$STICK/measuring_stick.tsv"
+run_left "$TABLE/sass.ksc" "$TEST/measuring_stick.md" "$OUT/engine.tsv"
+"$OUT/measuring_stick_engine" "$STICK/measuring_stick.cu" "$STICK/measuring_stick_nvcc.sass" "$(cygpath -m "$OUT")" |
+    "$QRY_WRITER" hand assembler.log
+[ "${PIPESTATUS[0]}" -eq 0 ] || exit 1
 JOBS="$(nproc 2> /dev/null || echo 4)"
 running=0
 for code in "$OUT"/*.bin; do

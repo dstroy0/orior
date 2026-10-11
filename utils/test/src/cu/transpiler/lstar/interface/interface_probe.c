@@ -72,6 +72,22 @@ int main(int count, char **arguments)
         fflush(stderr);
         return 0;
     }
+    if ((strcmp(question, "flood") == 0) && (count > 2))
+    {
+        // more than any pipe holds, written a piece at a time: an interface that does not read a pipe as it is
+        // written holds the probe here
+        char piece[4096];
+        memset(piece, 'x', sizeof(piece));
+        unsigned long left = strtoul(arguments[2], NULL, 10);
+        while (left != 0ul)
+        {
+            const size_t now = (left < sizeof(piece)) ? (size_t)left : sizeof(piece);
+            fwrite(piece, 1u, now, stdout);
+            left -= (unsigned long)now;
+        }
+        fflush(stdout);
+        return 0;
+    }
     if (strcmp(question, "divide_by_zero") == 0)
     {
         printf("%d\n", s_probe_numerator / s_probe_zero);

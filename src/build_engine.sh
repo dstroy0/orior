@@ -98,63 +98,114 @@ for module in "${MODULES[@]}"; do
         [ -f "$source" ] && MODULE_SOURCES+=("$source")
     done
 done
-PORTABLE_OBJECTS=()
+# Each source compiles to an object of its own, kept between builds in a folder named for the flags it is built with,
+# and compiles again only where its object is missing, or its source or a header of the engine's is newer. As many
+# compile at once as the host has processors, ENGINE_JOBS where it is set, and the library is linked once from the
+# objects.
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) SUFFIX=obj ;;
+    *) SUFFIX=o ;;
+esac
+KEY="$(printf '%s\n' "$(uname -s)" "$ARCHES" "${EXACT_FLAGS[*]}" "${DEFINES[*]}" "${HOST_FLAGS[*]}" | cksum | cut -d' ' -f1)"
+CACHE="$FINAL/engine_objects/$KEY"
+mkdir -p "$CACHE"
+JOBS="${ENGINE_JOBS:-$(nproc 2> /dev/null || echo 4)}"
+NEWEST_HEADER="$(find "$TOP/src/cu" "$TOP/src/engine" "$EXACT_ROOT" \( -name '*.h' -o -name '*.cuh' -o -name '*.hpp' \) \
+    -printf '%T@\n' 2> /dev/null | sort -n | tail -1)"
+NEWEST_HEADER="${NEWEST_HEADER%.*}"
+FAILED="$CACHE/failed.txt"
+rm -f "$FAILED"
+
+# every object's time, read in one call, and whether the object `$1` of the source `$2` compiles again
+declare -A OBJECT_TIME=()
+while read -r seconds object; do
+    OBJECT_TIME["$object"]="$seconds"
+done < <(stat -c '%Y %n' "$CACHE"/*."$SUFFIX" 2> /dev/null)
+stale() {
+    [ -z "${OBJECT_TIME["$1"]:-}" ] || [ "$2" -nt "$1" ] || [ "${NEWEST_HEADER:-0}" -gt "${OBJECT_TIME["$1"]}" ]
+}
+
+# the source `$2` compiled to the object `$1` by the words after them: written beside it and put in its place once it
+# is whole, and where it does not compile, listed in FAILED with the compiler's words kept beside the object
+compiled() {
+    local object="$1" source="$2" part="${1%.*}.part.$SUFFIX"
+    shift 2
+    if "$@" -c "$source" -o "$part" > "$object.log" 2>&1 && mv -f "$part" "$object"; then
+        rm -f "$object.log"
+    else
+        rm -f "$part"
+        echo "$source $object.log" >> "$FAILED"
+    fi
+}
+
+# a compile started in the background once fewer than JOBS run
+queued() {
+    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do
+        wait -n
+    done
+    compiled "$@" &
+}
+
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        C_WORDS=(nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}")
+        ;;
+    *)
+        C_WORDS=(cc -std=c11 -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(cc -std=c11 -O2 -g -fPIC "${EXACT_FLAGS[@]}")
+        ;;
+esac
+CU_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}"
+          "${EXACT_FLAGS[@]}")
+
+OBJECTS=()
+COMPILED=0
+BEGAN=$(date +%s)
+# each source with the words it compiles by, its object named by its path under src, every object kept for the link
+# and the stale ones compiled
+listed() {
+    local source="$1" relative="${1#"$TOP/src/"}" object
+    shift
+    object="$CACHE/${relative//\//__}.$SUFFIX"
+    OBJECTS+=("$object")
+    if stale "$object" "$source"; then
+        COMPILED=$((COMPILED + 1))
+        queued "$object" "$source" "$@"
+    fi
+}
+for source in "${MODULE_SOURCES[@]}"; do
+    listed "$source" "${CU_WORDS[@]}"
+done
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/marginal \
                 cu/types/integerfloats/double_fields cu/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
                 cu/types/integers/exact_record "${INGEST[@]}"; do
     # A folder with no C file leaves the pattern unexpanded, and it names no file to build.
     for source in "$TOP/src/$portable"/*.c; do
-        [ -f "$source" ] || continue
-        name="$(basename "$source" .c)"
-        OBJECT="$OUT/${name}_portable.o"
-        case "$(uname -s)" in
-            MINGW*|MSYS*|CYGWIN*)
-                OBJECT="$OUT/${name}_portable.obj"
-                rm -f "$OBJECT"
-                nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" \
-                    "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
-                ;;
-            *)
-                rm -f "$OBJECT"
-                cc -std=c11 -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
-                ;;
-        esac
-        if [ ! -f "$OBJECT" ]; then
-            echo "  build failed: $portable/$name.c did not compile"
-            exit 1
-        fi
-        PORTABLE_OBJECTS+=("$OBJECT")
+        [ -f "$source" ] && listed "$source" "${C_WORDS[@]}"
     done
 done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*) EXACT_OBJECT="$OUT/${name}_portable.obj" ;;
-        *) EXACT_OBJECT="$OUT/${name}_portable.o" ;;
-    esac
-    rm -f "$EXACT_OBJECT"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" \
-                -o "$EXACT_OBJECT" ;;
-        *)
-            cc -std=c11 -O2 -g -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$EXACT_OBJECT" ;;
-    esac
-    [ -f "$EXACT_OBJECT" ] || { echo "  build failed: $name.c did not compile"; exit 1; }
-    PORTABLE_OBJECTS+=("$EXACT_OBJECT")
+    listed "$EXACT_ROOT/$name.c" "${EXACT_WORDS[@]}"
 done
+wait
+if [ -f "$FAILED" ]; then
+    while read -r source log; do
+        echo "  build failed: ${source#"$TOP/"} did not compile"
+        tail -20 "$log"
+    done < "$FAILED"
+    exit 1
+fi
+echo "  compiled $COMPILED of ${#OBJECTS[@]} objects, $JOBS at once, in $(( $(date +%s) - BEGAN )) s; the rest were current"
 
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" -shared \
-    "${LINK_FLAGS[@]}" "${DEFINES[@]}" \
-    "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
-    -o "$LIBRARY" \
-    "${MODULE_SOURCES[@]}" \
-    "${PORTABLE_OBJECTS[@]}"
+BEGAN=$(date +%s)
+nvcc "${HOST_FLAGS[@]}" -shared "${LINK_FLAGS[@]}" -o "$LIBRARY" "${OBJECTS[@]}"
 NVCC_STATUS=$?
 
 if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$LIBRARY" ]; then
     echo "  build failed: nvcc exited $NVCC_STATUS"
     exit 1
 fi
-echo "  built $LIBRARY"
+echo "  linked $LIBRARY in $(( $(date +%s) - BEGAN )) s"
 build_publish "$LIBRARY" || exit 1

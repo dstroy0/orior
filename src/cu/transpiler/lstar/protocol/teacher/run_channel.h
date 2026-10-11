@@ -87,15 +87,18 @@ typedef struct
     char refused[128];
 } RunQuestion;
 
-// The channel opened on the carrier `carrier`, the words that start it ended by NULL, each question's files kept in
-// `folder`, and each given `limit_microseconds` before its process is ended. 1, or 0 with the reason printed. A
-// channel is opened once and every question after goes through it.
+// The channel opened on the carrier `carrier`, the words that start it ended by NULL, and each question given
+// `limit_microseconds` before its process is ended. Every file of the channel is a blob of the run's .qry, handed to
+// the run's buffer (qry_buffer.h), and the carrier is handed the blobs' names: no file of the channel is written to
+// disk but by the run's writer. The round a carrier is about to carry, questions.txt, is handed critical and is on disk
+// before the carrier starts; a round that cannot be put there is not carried. 1, or 0 with the reason printed where
+// no writer runs for the run. A channel is opened once and every question after goes through it.
 //
 // A carrier whose only word is `dry` is a dry run: nothing carries a question and nothing answers it. Each question is
-// written to the folder as question<n>.bin and cases<n>.txt, and as a line of questions.txt in the form a carrier's
-// list takes, `<code> <registers> <cases> <answers> <launches>`, and it reads RUN_HELD. What the protocol put is
-// then checked by handing that list to a carrier that stops before the part
-int run_channel_open(const char *const *carrier, const char *folder, unsigned long long limit_microseconds);
+// handed as question<n>.bin and cases<n>.txt, and as a line of questions.txt in the form a carrier's list takes,
+// `<code> <registers> <cases> <answers> <slot> <launches>`, the list handed whole once the channel closes, and it reads
+// RUN_HELD. What the protocol put is then checked by handing that list to a carrier that stops before the part
+int run_channel_open(const char *const *carrier, unsigned long long limit_microseconds);
 
 // R, the part's record at `path` (record.h), opened for the channel: an untimed question R holds an answer to is
 // answered from R and never carried, one it holds timed out is carried again, and what comes back of every question

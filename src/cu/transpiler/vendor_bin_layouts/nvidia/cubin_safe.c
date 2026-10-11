@@ -6,6 +6,7 @@
 #include "sass_assemble.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // the four bits of the stall and the six of the wait, counted from the high word's first bit
@@ -290,15 +291,82 @@ unsigned int cubin_safe_fault(int part_faulted, int status)
     return (part_faulted || cubin_safe_status_fault(status)) ? CUBIN_SAFE_LAUNCH_FAULT : CUBIN_SAFE;
 }
 
-// the vendor's verdict, the held list the cross writes: the most encodings it holds and the longest line read, and the
-// bits kept of the high word, the scheduler's own left out since whatever reaches the part sets them
-#define CUBIN_SAFE_HELD_MOST 4096u
+// the vendor's verdict, the held list the cross writes: the longest line read, the room a first grow gives, and the
+// bits kept of the high word, the scheduler's own left out since whatever reaches the part sets them. The list holds
+// as many encodings as the file names: it is sized to its input, with no ceiling of its own, since a ceiling short of
+// the file would hold the rest off nothing and let it reach the part
 #define CUBIN_SAFE_HELD_LINE 1024u
+#define CUBIN_SAFE_HELD_FIRST 1024u
 #define CUBIN_SAFE_SCHED_KEPT_HIGH 0x000001ffffffffffull
-static unsigned long long s_held_low[CUBIN_SAFE_HELD_MOST];
-static unsigned long long s_held_high[CUBIN_SAFE_HELD_MOST];
+static unsigned long long *s_held_low = NULL;
+static unsigned long long *s_held_high = NULL;
 static unsigned int s_held_count = 0u;
+static unsigned int s_held_room = 0u;
 static int s_verdict_ready = 0;
+
+// the held list let go and the verdict put back to not ready: the airlock holds every code off the part until a list
+// loads whole
+static void cubin_safe_verdict_clear(void)
+{
+    free(s_held_low);
+    free(s_held_high);
+    s_held_low = NULL;
+    s_held_high = NULL;
+    s_held_count = 0u;
+    s_held_room = 0u;
+    s_verdict_ready = 0;
+}
+
+int cubin_safe_verdict_read(const char *bytes, unsigned long long size)
+{
+    cubin_safe_verdict_clear();
+    char line[CUBIN_SAFE_HELD_LINE];
+    int grown = 1;
+    unsigned long long at = 0ull;
+    while (grown && (at < size))
+    {
+        // the next line, as much of it as a held line holds
+        const char *const line_end = (const char *)memchr(bytes + at, '\n', (size_t)(size - at));
+        const size_t length = (line_end != NULL) ? (size_t)(line_end - (bytes + at)) : (size_t)(size - at);
+        const size_t kept = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
+        memcpy(line, bytes + at, kept);
+        line[kept] = '\0';
+        at += (unsigned long long)length + 1ull;
+        unsigned long long low = 0ull;
+        unsigned long long high = 0ull;
+        if (sscanf(line, "%llx %llx", &low, &high) != 2)
+        {
+            continue;
+        }
+        if (s_held_count == s_held_room)
+        {
+            const unsigned int room = (s_held_room != 0u) ? (s_held_room * 2u) : CUBIN_SAFE_HELD_FIRST;
+            unsigned long long *const low_room =
+                (unsigned long long *)realloc(s_held_low, (size_t)room * sizeof(*s_held_low));
+            unsigned long long *const high_room =
+                (unsigned long long *)realloc(s_held_high, (size_t)room * sizeof(*s_held_high));
+            // whichever grew is kept so the clear below frees it; the list grows only where both did
+            s_held_low = (low_room != NULL) ? low_room : s_held_low;
+            s_held_high = (high_room != NULL) ? high_room : s_held_high;
+            grown = (low_room != NULL) && (high_room != NULL);
+            s_held_room = grown ? room : s_held_room;
+        }
+        if (grown)
+        {
+            s_held_low[s_held_count] = low;
+            s_held_high[s_held_count] = high & CUBIN_SAFE_SCHED_KEPT_HIGH;
+            s_held_count += 1u;
+        }
+    }
+    // a list that did not fit holds nothing: the verdict stays unloaded and the airlock keeps every code off the part
+    if (!grown)
+    {
+        cubin_safe_verdict_clear();
+        return 0;
+    }
+    s_verdict_ready = 1;
+    return 1;
+}
 
 int cubin_safe_verdict_load(const char *path)
 {
@@ -307,22 +375,40 @@ int cubin_safe_verdict_load(const char *path)
     {
         return 0;
     }
-    s_held_count = 0u;
-    char line[CUBIN_SAFE_HELD_LINE];
-    while ((s_held_count < CUBIN_SAFE_HELD_MOST) && (fgets(line, sizeof(line), file) != NULL))
+    // the file read whole, then read as the list a buffer holds
+    char *bytes = NULL;
+    size_t size = 0u;
+    size_t room = 0u;
+    int whole = 1;
+    while (whole)
     {
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
-        if (sscanf(line, "%llx %llx", &low, &high) == 2)
+        if (size == room)
         {
-            s_held_low[s_held_count] = low;
-            s_held_high[s_held_count] = high & CUBIN_SAFE_SCHED_KEPT_HIGH;
-            s_held_count += 1u;
+            room = (room != 0u) ? (room * 2u) : 65536u;
+            char *const larger = (char *)realloc(bytes, room);
+            whole = (larger != NULL);
+            bytes = (larger != NULL) ? larger : bytes;
+            if (!whole)
+            {
+                break;
+            }
         }
+        const size_t read = fread(bytes + size, 1u, room - size, file);
+        if (read == 0u)
+        {
+            break;
+        }
+        size += read;
     }
+    whole = whole && (ferror(file) == 0);
     fclose(file);
-    s_verdict_ready = 1;
-    return 1;
+    const int loaded = whole && cubin_safe_verdict_read(bytes, (unsigned long long)size);
+    free(bytes);
+    if (!loaded)
+    {
+        cubin_safe_verdict_clear();
+    }
+    return loaded;
 }
 
 int cubin_safe_verdict_ready(void)
