@@ -158,6 +158,9 @@
     wheel: async (target, deltaY, deltaX = 0) => ask({ op: "wheel", ...(await pointOf(target)), deltaX, deltaY }),
     // Keys as the menus write them: Ctrl+Shift+P, F5, Escape, Alt+Enter.
     key: async (keys) => ask({ op: "key", keys }),
+    // Modifier keys held down until let go: Ctrl, Alt, Shift, or more of them joined, Ctrl+Shift.
+    hold: async (keys) => ask({ op: "hold", keys }),
+    release: async (keys) => ask({ op: "release", keys }),
     // The page is told it has the system's focus while the harness runs it; off, it has the focus
     // the window truly has, which a window behind another lacks.
     focusTold: async (on) => ask({ op: "focus", on }),

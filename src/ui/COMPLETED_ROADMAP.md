@@ -49,6 +49,12 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - Each statement commits on its own until the reader begins a transaction, and an open one shows on the status bar, which names the connection of the SQL file shown and the zone its session reads times in, until Commit or Roll Back ends it.
    - Each statement run is kept in its connection's history across restarts, and History runs one again.
 
+## How developers work
+
+1. **Menus that stay where they are, and their keys in sight.** No menu orders itself by use: an item stands where it was learned, and only a search ranks what it finds. Holding Ctrl or Alt alone for half a second shows, over each button in sight that has keys, the keys that press it, from the keys it names or the keys its title ends with, and over each menu's title its Alt letter; letting go, another key, a press, a wheel or the window going to the back takes them away.
+   - How fast an item is chosen depends on its place staying the same.
+   - Many people never learn an item's keys unless the keys are shown where they already look.
+
 ## Code intelligence
 
 1. **Symbols of the whole tree.** Go to Symbol in Tree, Ctrl+T or `#` in Go to File, and Search Everywhere find a declaration in any file of the tree, from an index of what each file declares, read by the line as the outline reads the open file. A file is read again once it changes. The whole of this repository is read in about 1.1 s, behind the window, and a search answers in about 70 ms.

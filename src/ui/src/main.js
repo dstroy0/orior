@@ -14,6 +14,7 @@ import { drawMenubar, restoreEnvironment, runCommand, runLaunch, sheet as menuba
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
+import { startKeyHints } from "./keyhints.js";
 import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
@@ -175,6 +176,7 @@ async function start() {
     (line === null || line === undefined ? openFile(path) : openAt(path, line, col ?? 0)).then(showWindow);
   });
   startStrip({ run: runCommand, jobMenus: stripMenus });
+  startKeyHints();
   // A tree on another machine: once the link to it is made, the runs kept there are read, and once
   // it is made again after a drop, every open tab is handed to its server there again.
   await startRemote({

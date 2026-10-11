@@ -277,6 +277,9 @@ pub fn perform(conn: &Connection, step: &Value) -> Result<(), String> {
         // The page told it has the system's focus, as the harness tells it, or told what is so.
         "focus" => conn.call("Emulation.setFocusEmulationEnabled", json!({"enabled": step["on"].as_bool().unwrap_or(true)}), WAIT).map(|_| ()),
         "key" => press(conn, step["keys"].as_str().unwrap_or("")),
+        // Modifier keys pressed down and held, or let go, as a reader holds Ctrl to see what it does.
+        "hold" => hold(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
+        "release" => release(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
         "type" => type_text(conn, step["text"].as_str().unwrap_or("")),
         other => Err(format!("the harness has no step {other:?}")),
     }

@@ -76,10 +76,6 @@ Each item keeps to a habit measured in developers at work.
 6. **The debugger as simple as print.** A print is a tool of its own: a line's values are printed by a message breakpoint without the file changing, and every print statement added for a task is listed and taken out in one step before a commit.
    - Most developers never start a debugger, use only its plainest parts, and print values instead.
    - Print statements left in by mistake are a common part of commits.
-7. **Menus that stay where they are, and their keys in sight.** A menu never orders itself by use: where an item stands is learned and kept. Holding Ctrl or Alt shows each button's keys over it.
-   - How fast an item is chosen depends on its place staying the same.
-   - Many people never learn an item's keys unless the keys are shown where they already look.
-
 ## Plugins
 
 1. **Plugins that draw.** A plugin lays marks, overlays and its own panels over the editor and the window, sets the label of a tab, reads the theme's colors, and changes the window's chrome.

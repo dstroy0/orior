@@ -1363,6 +1363,7 @@ function titleOf(menu, letter) {
   if (letter >= 0) {
     button.append(menu.title.slice(0, letter), Object.assign(document.createElement("u"), { textContent: menu.title[letter] }), menu.title.slice(letter + 1));
     button.dataset.letter = menu.title[letter].toLowerCase();
+    button.setAttribute("aria-keyshortcuts", `Alt+${menu.title[letter].toUpperCase()}`);
   } else {
     button.textContent = menu.title;
   }

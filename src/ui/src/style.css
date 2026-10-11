@@ -4998,6 +4998,21 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: pre-wrap;
 }
 
+/* The keys over a button while Ctrl or Alt is held alone: the button's keys on a chip centered on it,
+   in the editor's text color on its ground, over everything else and taking no press. */
+.key-hint {
+  position: fixed;
+  z-index: 10000;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  font: 600 11px var(--code);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 /* The Comms window, laid out as the Containers window: each part and each channel a row, a part's
    dot lit where none of what it said was refused, and a channel's last messages at the right. */
 .comms-part {
