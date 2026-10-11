@@ -183,6 +183,180 @@ cfg's: water at 20 C by IAPWS R6-95 and R12-08, air at 20 C and 0.1 MPa from sta
 its order of magnitude, and neutron star matter at nuclear density with its viscosity and sound speed of order
 estimates. The data are the cfg's, F_0 = 1, and not the matched datum of 5: every wall's time scales as F_low^2.
 
+## 8. The datum's tangent
+
+The datum's right side G(Pi_0) = -int_0^(X_b) F_blend^2 dX - int_(X_b)^inf F_ext^2 dX holds the exterior, and the
+exterior is not analytic at eta = -1 and +1: F_ext is the second solution U of Kummer's equation at X / (2d), and
+its expansion as d falls to 0 diverges. G therefore leaves every space of functions analytic on an ellipse about [-1, 1], and the datum is held on
+a cut |eta| <= a < 1, where the exterior is analytic. The rule is local in eta, its integrals all in X, and the cut
+problem is closed.
+
+Check (`core_radius` with `cfg/core_radius_cut.cfg`): the rule in xi = eta / a, with eta = a xi, d/deta = (1 / a)
+d/dxi, L = (1 - h a^2) - h a^2 T_2, d = (1 - a^2 / 2) - (a^2 / 2) T_2 and d f_eta = (1 / a) [(1 - xi^2) f_xi +
+(1 - a^2) xi^2 f_xi], gives at a = 1 the record of 5 to the last bit. At a = 9/10 the proof carried to 100 on the
+device gives X < 1.73 on E_(1.1), X < 1.88 on E_(5/4) and X < 1.77 on E_(3/2), below X_b = 2: the cut loses the
+feet's exact form, and the radius with it.
+
+The datum enters the core through Z_{-2A} Pi alone, and each order takes one eta-derivative and pays
+1 / (2 (k+1)^2) for it. Along a datum direction e^(mu eta) every order of the tangent is exactly e^(mu eta) times a
+polynomial in mu, and only a path that takes the derivative of e^(mu eta) at every order reaches mu^k at order k.
+
+Check (`core_tangent`): to order 20, du_k has degree k in mu and df_k degree k from k = 2, and their top weights are
+the products du_1 = L d / 2, du_(k+1) = sigma L du_k / (2 (k+1)^2), dw_k = -L d du_k / (k + 1) and
+df_(k+1) = (sigma L df_k + F_0 dw_k) / (2 (k+1)(k+2)), sigma = D eta + U_0 d, every weight exact. At eta = 1/2 on the
+cut 9/10, sigma = 173/400 and the top coefficient of dF_k is below 0 at every order: the coefficient of mu^k grows
+by a factor near sigma mu / (2 k^2) an order.
+
+The sum of every path that takes one derivative a step is a system in X at a fixed eta. With Y = X / L^2, V' = dU and
+the inflow W = -mu L d V / Y,
+    2 (Y V'')' - mu s(Y) V' + mu L d U'(Y) V = mu L d,   2 (Y dF)'' = mu s(Y) dF + W (Y F)',
+s(Y) = L (D eta + d U(Y, eta)), and a path that skips a derivative is smaller by mu^(-1/2). The growth of the tangent
+is e^(sqrt(mu) Phi(Y)) with Phi(Y) = int_0^Y sqrt(s(y) / (2 y)) dy, which at Y near 0 is the Bessel series the top
+weights sum to. s holds the core's axial field along X, and the core holds the datum from U_1 on: the exponent of
+the growth is the datum's own. The derivative of G on a direction of eta-frequency mu then grows as e^(c sqrt(mu)),
+with c set by the datum, and the lemma of the workbook, Kantorovich's, asks a bound on that derivative over a ball
+that no fixed space of functions in eta gives.
+
+On [0, Y_1], let s_eff = s - L d Y max(U', 0). Where s_eff >= s_least > 0, y = V' and y' stay at least 0, V <= Y y,
+and 2 (Y y')' >= mu s_least y + mu L d; z = (L d / s_least) (I_0(sqrt(2 s_least mu Y)) - 1) solves it with equality,
+and y - z, 0 at Y = 0, stays at least 0. Where (Y F)' is past 0 as well, W <= 0 drives dF below 0, and -dF grows
+as z does.
+
+The point is the vertex eta_v = a (rho0 + 1 / rho0) / 2 of the ellipse. The Chebyshev weights of e^(mu eta) in xi are
+2 I_m(mu a), all past 0, and its norm on E_rho0 is e^(mu eta_v); a field's norm is at least its value at the vertex,
+since |T_m(xi_v)| <= rho0^m there. The ratio of the derivative of G on e^(mu eta) to e^(mu eta)'s own norm is then at
+least the growth the tangent has at the vertex, and a point inside the cut would set e^(mu eta) against
+e^(mu eta_v) and lose.
+
+Check (`core_radius` with the cut's `principal`): at the vertex of each ellipse, on Y in [0, 1.25] cut in 64 pieces, the
+core's U, U' and (Y F)' read from the exact orders to 24, the device's magnitudes on E_rho0 to 100 and the reached
+proof's tail past it give, every bound exact,
+
+| ellipse | vertex eta_v | s_eff at least | (Y F)' at least |
+|---|---|---|---|
+| E_(1.1) | 0.9041 | 0.3941 | 0.9951 |
+| E_(5/4) | 0.9225 | 0.4085 | 0.9951 |
+| E_(3/2) | 0.9750 | 0.4550 | 0.9951 |
+
+Check (`lean/CoreRadius/Principal.lean`): `principal_comparison` puts y above theta z for theta in [0, 1) by a
+continuous induction on p - theta p_z, `principal_lower` takes theta to 1, and `principal_growth` puts y above
+(c / s0) sum_(k=1..K) (s0 mu Y / 2)^k / (k!)^2 for every K, the partial sums of (c / s0) (I_0(sqrt(2 s0 mu Y)) - 1),
+each a polynomial that solves the inequality: the kernel checks it on the axioms propext, Classical.choice and
+Quot.sound alone.
+
+Measured (`core_tangent` with `measure`): at the vertex of E_(1.1), to order 32, the base's s(Y) gives
+Phi(Y) = sqrt(2 s_0 Y) sum e_k Y^k / (2k + 1) exactly, and the principal and the full tangent are summed exactly for
+mu = 1, 4, 16 and 64 on Y = 1/8 to 1. The principal axial field follows the measured Phi with the Bessel factor:
+ln|y| - sqrt(mu) Phi(Y) + ln(mu) / 4 at Y = 1 is -3.35, -2.43, -1.99 and -1.90, and from mu = 16 on it is flat in Y to
+0.01. The full tangent over the principal, less 1, is
+
+| Y | mu = 4 | mu = 16 | mu = 64 |
+|---|---|---|---|
+| 1/4, axial | -2.75 | -0.80 | -0.30 |
+| 1, axial | -3.51 | -1.28 | -0.58 |
+| 1, swirl | -8.45 | -1.68 | -0.66 |
+
+and times sqrt(mu) it falls toward a constant near -5 at Y = 1: the paths that skip a derivative are a part of order
+mu^(-1/2) whose constant is large, and below mu = 16 they outweigh the principal part and turn its sign.
+
+Taken apart (`core_tangent` with `apart`): the tangent with mu fixed and each part the principal system leaves out
+switched on alone, the slope P_eta of d/deta (e^(mu eta) P), the plain terms that take no derivative, and the pressure
+dp_k past k = 0, at the same vertex to order 28. With every part off the weights read at the vertex are the principal
+system's at every order, exactly. At Y = 1, each part's share of the principal axial field is
+
+| part | mu = 4 | mu = 16 | mu = 64 |
+|---|---|---|---|
+| slope | -0.64 | -0.59 | -0.46 |
+| plain | -2.63 | -0.60 | -0.07 |
+| pressure | -0.0004 | -0.005 | -0.027 |
+| the parts together, less their sum | -0.24 | -0.09 | -0.02 |
+
+The plain terms fall as mu^(-1) or faster, and the pressure stays a few in a hundred. The slope falls slowest: it
+grows along Y, -0.15 at Y = 1/4 and -0.46 at Y = 1 for mu = 64, and at mu = 64 it is most of the rest, of the axial
+field and of the swirl. The phase varies along eta with s(Y, eta), and d/deta of e^(mu eta + sqrt(mu) Phi) brings
+mu + sqrt(mu) Phi_eta.
+
+The slope at larger mu (`core_tangent` with `slope`): the principal part and the slope switched on alone, at the same
+vertex to order 44, for mu = 128, 256 and 512 on Y = 1/8, 1/4 and 1/2, with the last order's term against the sum
+written for each, at most 10^-26 of it. The slope's share of the principal is
+
+| Y | axial, mu = 128 | mu = 256 | mu = 512 | swirl, mu = 128 | mu = 256 | mu = 512 |
+|---|---|---|---|---|---|---|
+| 1/8 | -0.073 | -0.067 | -0.058 | -0.152 | -0.110 | -0.085 |
+| 1/4 | -0.134 | -0.116 | -0.096 | -0.216 | -0.167 | -0.133 |
+| 1/2 | -0.232 | -0.192 | -0.154 | -0.323 | -0.257 | -0.204 |
+
+and at one Y it falls by a tenth to a quarter as mu doubles. The principal part is near a function of mu Y alone, the
+axial field to within 1 in 200 and the swirl to within 4 in 100, as e^(sqrt(mu) Phi(Y)) with Phi near sqrt(2 s_0 Y)
+is. The slope's share is near h(mu Y) / mu: mu times the axial share is
+
+| mu Y | 16 | 32 | 64 | 128 | 256 |
+|---|---|---|---|---|---|
+| mu times the axial share | -9.4 | -17.2 | -29.8 | -49.2 | -79.0 |
+
+the same to within 2 in 100 for every mu from 16 to 512 that reaches it, and mu times the swirl share nears its own h
+as mu grows, its step at mu Y = 64 near half as large at each doubling of mu. h grows more slowly than mu Y, and at
+one Y the slope's share falls as mu grows.
+
+The phase in both directions (`core_tangent` with `phase`): the slope turns mu into mu + d/deta at Y fixed, and the
+growth e^(sqrt(mu) Psi(Y, eta)) asks 2 Y mu Psi_Y^2 = s (mu + sqrt(mu) Psi_eta). Then Psi = Phi + Phi_1 / sqrt(mu) +
+..., with Phi_1 = (1/2) int_0^Y Phi' Phi_eta dY a series in Y whose coefficients are exact, and the slope's share nears
+e^(Phi_1) - 1 as mu grows. The slope leaves the exponent sqrt(mu) Phi as it is and sets the growth's amplitude by
+e^(Phi_1). At the vertex of E_(1.1), to order 44, Phi_1 = -0.0628 Y - 0.0135 Y^2 + 0.0127 Y^3 + ..., its first
+coefficient s_eta / 4 at Y = 0, and
+
+| Y | 1/8 | 1/4 | 1/2 | 1 |
+|---|---|---|---|---|
+| e^(Phi_1) - 1 | -0.008 | -0.016 | -0.033 | -0.060 |
+
+Check (`core_tangent` with `phase`): the root squared is s / s_0 and the root times the quotient is s_eta at every order
+to 44.
+
+The slope's share at mu = 512 is seven times e^(Phi_1) - 1 at Y = 1/8 and five times at Y = 1/2: the rest is the part
+of order mu^(-1/2). sqrt(mu) times the axial share less e^(Phi_1) - 1 at Y = 1/2 is -1.89, -2.26, -2.55 and -2.76 for
+mu = 64, 128, 256 and 512, its steps falling, and the swirl's has not settled by mu = 512.
+
+The amplitude past Phi_1 (`core_tangent` with `phase`): with y = e^(sqrt(mu) Phi) (A_0 + A_1 / sqrt(mu) + ...), the
+terms of order 1 / mu give A_1, and the slope's part of A_1 / A_0 less the principal's is
+D(Y) = sqrt(Y / (2 s_0)) sum d_n Y^n, a series whose coefficients are exact, the inflow's terms canceling between the
+two. A_0 starts from the Bessel solution (L d / s_0) (I_0(sqrt(2 s_0 mu Y)) - 1) near Y = 0, of size
+(L d / s_0) (2 pi)^(-1/2) (2 s_0 mu Y)^(-1/4) there, and its eta-derivative carries d_eta / d = -2 eta / (1 - eta^2),
+near -9.9 at the vertex, where d is near 0.18. The first coefficient d_0 = s_0 (L_eta / L + d_eta / d) - (3/2) s_eta is
+-4.76, and the rest of the series is small. The slope's share is e^(Phi_1) (1 + D / sqrt(mu)) - 1 to order
+mu^(-1/2), and C(Y) = e^(Phi_1) D(Y) is
+
+| Y | 1/8 | 1/4 | 1/2 | 1 |
+|---|---|---|---|---|
+| C(Y) | -1.645 | -2.312 | -3.233 | -4.512 |
+
+Check (`core_tangent` with `phase`): d_0 is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0, taken by hand.
+
+sqrt(mu) times the axial share less e^(Phi_1) - 1, taken as C + b / sqrt(mu) through mu = 256 and 512, gives
+C = -2.313 at Y = 1/4 and -3.247 at Y = 1/2, and -1.596 at Y = 1/8, where mu Y is smallest.
+
+The swirl's amplitude past Phi_1 (`core_tangent` with `phase`): with g = e^(sqrt(mu) Phi) A_0 (b_0 + b_1 / sqrt(mu) + ...),
+b_0 solves 4 Y Phi' b_0' + (2 Phi' - N / Phi') b_0 = -F / Phi', with N = L d U' and F = L d (Y f)' / Y, the same with
+the slope on and off, and the swirl's share nears e^(Phi_1) - 1 as the axial's does. b_1, slope on less off, is driven
+by the growth of e^(Phi_1), the eta-derivative of A_0 b_0, the axial D through the inflow, and P, and the swirl's share
+is e^(Phi_1) (1 + C / sqrt(mu)) - 1 with C(Y) = e^(Phi_1) sqrt(Y / (2 s_0)) sum c_n Y^n, every c_n exact. The first
+coefficient c_0 = (3/2) s_0 (L_eta / L + d_eta / d) + (1/2) s_0 f_eta / f_0 - 2 s_eta is -7.20, and the rest of the
+series is small:
+
+| Y | 1/8 | 1/4 | 1/2 | 1 |
+|---|---|---|---|---|
+| C(Y), the swirl | -2.485 | -3.484 | -4.834 | -6.553 |
+
+Check (`core_tangent` with `phase`): b_0 is -L d f_0 / s_0 and c_0 the value above at Y = 0, taken by hand.
+
+The swirl's steps in sqrt(mu) times its share less e^(Phi_1) - 1 do not fall by 1/sqrt(2) as mu doubles: its part of
+order 1 / mu is large. Taken as C + b / sqrt(mu) + c / mu through mu = 128, 256 and 512, the swirl gives C = -3.506 at
+Y = 1/4 and -4.868 at Y = 1/2, and -2.362 at Y = 1/8, with c near -100 to -130; the axial taken the same way gives
+-2.381 and -3.250.
+
+What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
+bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
+radius near mu^(-1/2); and the integral of G against the blend near X_b.
+
 ## Order
 
-0, then 1, then 2, then 3, then 4, then 5 and 6, then 7.
+0, then 1, then 2, then 3, then 4, then 5 and 6, then 7, then 8.

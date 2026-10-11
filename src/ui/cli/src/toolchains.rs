@@ -84,6 +84,11 @@ pub struct Tool {
     pub setup: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub places: HashMap<String, Vec<String>>,
+    /// A folder the program's own folder holds where the program is the tool, as a dotnet that
+    /// builds has its sdk beside it and one that only runs programs has none. A program found
+    /// without it is passed over, on the PATH and in `places` alike.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub holds: Option<String>,
     /// Whether the tree's jobs cannot run without it, which the window checks for as a tree opens.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub needed: bool,
@@ -438,10 +443,27 @@ fn folders_of(pattern: &str) -> Vec<PathBuf> {
     found.into_iter().filter(|dir| dir.is_dir()).collect()
 }
 
-/// The PATH's folders, in order and each once: on Windows the system's and the reader's as the
-/// registry holds them now, then the PATH orior started with.
+/// The tree open, whose own tools come first on the PATH.
+static TREE: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
+
+/// Makes `root` the tree whose own tools come first on the PATH.
+pub fn set_tree(root: &Path) {
+    if let Ok(mut tree) = TREE.lock() {
+        *tree = Some(root.to_path_buf());
+    }
+}
+
+/// The folders a tree's package managers install its own tools in, those that are there:
+/// node_modules/.bin for npm's and vendor/bin for Composer's.
+pub fn tree_tools() -> Vec<PathBuf> {
+    let Some(root) = TREE.lock().ok().and_then(|tree| tree.clone()) else { return Vec::new() };
+    ["node_modules/.bin", "vendor/bin"].iter().map(|folder| root.join(folder)).filter(|folder| folder.is_dir()).collect()
+}
+
+/// The PATH's folders, in order and each once: the tree's own tools' folders, then on Windows the
+/// system's and the reader's as the registry holds them now, then the PATH orior started with.
 pub fn path_folders() -> Vec<PathBuf> {
-    let mut all: Vec<PathBuf> = Vec::new();
+    let mut all: Vec<PathBuf> = tree_tools();
     #[cfg(windows)]
     {
         for text in [registry::machine_path(), registry::user_path()].into_iter().flatten() {
@@ -450,6 +472,27 @@ pub fn path_folders() -> Vec<PathBuf> {
     }
     if let Some(path) = std::env::var_os("PATH") {
         all.extend(std::env::split_paths(&path));
+    }
+    let mut seen = HashSet::new();
+    all.into_iter().filter(|dir| !dir.as_os_str().is_empty() && seen.insert(key_of(dir))).collect()
+}
+
+/// The PATH a program gets when it is opened on its own and not from orior: on Windows the
+/// system's and the reader's as the registry holds them, and elsewhere the PATH orior started with,
+/// without the folders orior puts ahead of it for its jobs.
+pub fn system_path() -> Vec<PathBuf> {
+    let mut all: Vec<PathBuf> = Vec::new();
+    #[cfg(windows)]
+    {
+        for text in [registry::machine_path(), registry::user_path()].into_iter().flatten() {
+            all.extend(std::env::split_paths(&OsString::from(registry::expand(&text))));
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        if let Some(path) = std::env::var_os("PATH") {
+            all.extend(std::env::split_paths(&path));
+        }
     }
     let mut seen = HashSet::new();
     all.into_iter().filter(|dir| !dir.as_os_str().is_empty() && seen.insert(key_of(dir))).collect()
@@ -565,14 +608,15 @@ pub fn find(tool: &Tool, path: &[PathBuf], kept: &BTreeMap<String, String>) -> F
         set("chosen", program);
         return found;
     }
+    let holds = |dir: &Path| tool.holds.as_ref().is_none_or(|inner| std::fs::read_dir(dir.join(inner)).is_ok_and(|mut entries| entries.next().is_some()));
     for name in &tool.programs {
-        if let Some(program) = path.iter().filter(|dir| !passed_over(dir, &tool.not_in)).find_map(|dir| program_in(dir, std::slice::from_ref(name))) {
+        if let Some(program) = path.iter().filter(|dir| !passed_over(dir, &tool.not_in) && holds(dir)).find_map(|dir| program_in(dir, std::slice::from_ref(name))) {
             set("path", program);
             return found;
         }
     }
     let places = for_system(&tool.places).cloned().unwrap_or_default();
-    if let Some(program) = places.iter().flat_map(|pattern| folders_of(pattern)).filter(|dir| !passed_over(dir, &tool.not_in)).find_map(|dir| program_in(&dir, &tool.programs)) {
+    if let Some(program) = places.iter().flat_map(|pattern| folders_of(pattern)).filter(|dir| !passed_over(dir, &tool.not_in) && holds(dir)).find_map(|dir| program_in(&dir, &tool.programs)) {
         set("found", program);
     }
     found
@@ -736,9 +780,12 @@ pub fn run_path_with(ahead: &[PathBuf]) -> OsString {
     std::env::join_paths(dirs).unwrap_or_else(|_| run_path())
 }
 
+/// The PATH jobs, terminals and tools run with: the tree's environment's folders, its own tools'
+/// folders, the folders the reader gave for toolchains, then the PATH's.
 pub fn run_path() -> OsString {
     let kept = chosen();
     let mut dirs: Vec<PathBuf> = environment().map(|env| env.bin).unwrap_or_default();
+    dirs.extend(tree_tools());
     dirs.extend(kept.values().map(PathBuf::from).filter(|dir| dir.is_dir()));
     dirs.extend(path_folders());
     let mut seen = HashSet::new();

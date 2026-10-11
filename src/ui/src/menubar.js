@@ -188,7 +188,7 @@ async function openAnyFile(given) {
 }
 
 // File, Open, Workspace: a .code-workspace file opened as a window that holds its folders, the first
-// of them that is an orior tree as the tree and the rest mounted beside it.
+// of them as the tree and the rest mounted beside it.
 async function openWorkspace(given) {
   const chosen = given ?? (await pick("file"));
   if (typeof chosen !== "string") {
@@ -201,19 +201,13 @@ async function openWorkspace(given) {
     say(String(error), { failed: true });
     return;
   }
-  let tree = null;
-  for (const folder of folders) {
-    if (await invoke("tree_holds", { path: folder })) {
-      tree = folder;
-      break;
-    }
-  }
+  const [tree, ...rest] = folders;
   if (!tree) {
-    say(`${chosen} names no orior tree among its folders.`, { failed: true });
+    say(`${chosen} names no folder.`, { failed: true });
     return;
   }
   await state.openFolder(tree);
-  for (const folder of folders.filter((one) => one !== tree)) {
+  for (const folder of rest) {
     await addToWindow(folder).catch((error) => say(String(error), { failed: true }));
   }
 }
@@ -288,7 +282,7 @@ const COMMANDS = {
   print: () => {
     const { editor, active } = editing();
     if (editor?.s) {
-      printText(editor.s, active ?? "");
+      printText(editor.s, active ?? "", sheet);
     }
   },
   "close-editor": () => editing().close(),
@@ -1106,6 +1100,9 @@ function askYes(question, yes) {
 export function runCommand(command, args = []) {
   return COMMANDS[command]?.(args);
 }
+
+// Whether the window answers `command` itself.
+export const hasCommand = (command) => Object.hasOwn(COMMANDS, command);
 
 // Every command the menus list that can act now, for the quick open's >.
 function paletteCommands() {

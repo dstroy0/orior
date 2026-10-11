@@ -1,0 +1,20 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+
+[package]
+name = "orior-harness"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
+rust-version = "1.85"
+publish = false
+
+[[bin]]
+name = "harness"
+path = "harness.rs"
+
+[dependencies]
+serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_Console", "Win32_UI_WindowsAndMessaging"] }

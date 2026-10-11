@@ -434,5 +434,5 @@ void eta_function_chebyshev(const std::vector<SimRational> &weights, EtaFunction
 
 int eta_function_short(void)
 {
-    return s_sim_rational_wide != 0;
+    return g_sim_rational_wide != 0;
 }

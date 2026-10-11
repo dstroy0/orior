@@ -74,6 +74,16 @@ function step(menu, by) {
   items[(at + by + items.length) % items.length]?.focus();
 }
 
+// Marks the item the pointer is on as well as giving it the keys: while the window is not the
+// system's front window an item with the keys does not match :focus, and the mark shows it all the
+// same. An item that takes the keys some other way takes the mark from it.
+function point(menu, button) {
+  for (const one of menu.querySelectorAll(":scope > .menu-item.pointed")) {
+    one.classList.remove("pointed");
+  }
+  button?.classList.add("pointed");
+}
+
 function choose(item) {
   closeMenu();
   item.run();
@@ -126,6 +136,11 @@ function build(items, level) {
   menu.className = "menu";
   menu.tabIndex = -1;
   menu.setAttribute("role", "menu");
+  menu.addEventListener("focusin", (event) => {
+    if (!event.target.classList?.contains("pointed")) {
+      point(menu, null);
+    }
+  });
   for (const item of items) {
     if (item === "-") {
       menu.append(Object.assign(document.createElement("div"), { className: "menu-line", role: "separator" }));
@@ -146,7 +161,11 @@ function build(items, level) {
     }
     button.addEventListener("click", () => (item.items ? openUnder(button, item, level, true) : choose(item)));
     button.addEventListener("pointermove", () => {
-      if (button.disabled || document.activeElement === button) {
+      if (button.disabled) {
+        return;
+      }
+      point(menu, button);
+      if (document.activeElement === button) {
         return;
       }
       button.focus();

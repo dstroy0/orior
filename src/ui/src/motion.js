@@ -8,8 +8,39 @@
 //
 // Animation keeps its time on `clock()`, which stands still while motion is stopped: an animation
 // that comes back takes up where it stood, and none of the stopped time passes in it.
+//
+// The lowest work, the lattices' motion, runs only in a frame nothing else wants: `idle()` says so
+// once no key, press, pointer move, wheel or scroll has come for YIELD, no animation that ends is
+// running, the last frame came within its time, and nothing has asked for the frames by `preempt`.
+// Anything else the window does goes first, and the lowest work skips its frames until it is done.
 
-const state = { hidden: document.hidden, waiting: new Set(), lost: 0, stoppedAt: null };
+// How long the lowest work waits after the reader's last action, in milliseconds.
+const YIELD = 250;
+
+const state = { hidden: document.hidden, waiting: new Set(), lost: 0, stoppedAt: null, acted: 0, heldUntil: 0, lastFrame: 0, frame: 1000 / 60 };
+
+for (const kind of ["keydown", "pointerdown", "pointermove", "wheel", "scroll"]) {
+  document.addEventListener(kind, () => (state.acted = performance.now()), { capture: true, passive: true });
+}
+
+// Takes the next `ms` of frames from the lowest work, for motion the page drives itself.
+export function preempt(ms) {
+  state.heldUntil = Math.max(state.heldUntil, performance.now() + ms);
+}
+
+// Whether the frame at `now` is free for the lowest work: asked once a frame by that work's loop.
+export function idle(now) {
+  const gap = now - state.lastFrame;
+  state.lastFrame = now;
+  // The display's frame: the shortest gap lately, which grows back slowly on a slower display.
+  if (gap > 0 && gap < 100) {
+    state.frame = Math.min(gap, state.frame * 1.01);
+  }
+  if (now - state.acted < YIELD || now < state.heldUntil || gap > state.frame * 2.5) {
+    return false;
+  }
+  return !document.getAnimations().some((one) => one.playState === "running" && one.effect?.getComputedTiming?.().iterations !== Infinity);
+}
 
 export const still = () => state.hidden;
 

@@ -13,10 +13,12 @@ import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { copyText, menuOn } from "./menu.js";
 import { coloredHtml } from "./screen.js";
 import { write } from "./status.js";
+import { say } from "./statusbar.js";
+import { runInTerminal } from "./terminal.js";
 import { wordmark } from "./wordmark.js";
 
 // The groups in the order the engine's own steps run, and then what reads its results.
-const ORDER = ["build", "protocol", "ingest", "run", "render", "sim", "view", "pipeline", "stage", "test"];
+const ORDER = ["build", "executable", "deploy", "protocol", "ingest", "run", "render", "sim", "view", "pipeline", "stage", "test"];
 
 // The lines a run keeps. Past this the oldest go. A run that prints without end cannot fill memory.
 const KEPT_LINES = 20000;
@@ -258,7 +260,7 @@ export async function startJob(id, values) {
   // when each began. `clock` is the page's time when the run started, as near as its lines place it.
   const steps = before.lines.filter((line) => line.stream === "command").map((line) => line.ms);
   const clock = performance.now() - (before.lines[before.lines.length - 1]?.ms ?? 0);
-  state.runs.set(run, { run, job: id, lines: before.lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], stopped: false });
+  state.runs.set(run, { run, job: id, lines: before.lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false });
   const kept = runsOf(id);
   for (const old of kept.filter((one) => one.done).slice(0, Math.max(0, kept.length - KEPT_RUNS))) {
     state.runs.delete(old.run);
@@ -306,6 +308,9 @@ function console_(job) {
     }
     head.append(views);
   }
+  if (shown?.made) {
+    head.append(madeButtons(job, shown.made));
+  }
   const lines = element("pre", { className: "lines", id: "lines" });
   shown?.lines.forEach((line) => lines.append(lineNode(line)));
   if (shown?.done) {
@@ -342,6 +347,49 @@ function lineNode(line) {
     return element("span", { className: line.stream, textContent: `${line.text}\n` });
   }
   return element("span", { className: line.stream, innerHTML: `${coloredHtml(line.text)}\n` });
+}
+
+// A path as a POSIX shell takes it, in single quotes.
+function quoted(path) {
+  return `'${path.replace(/'/g, "'\\''")}'`;
+}
+
+// The program a build made, by its full path: one in the tree is named from the tree's top folder.
+function madePath(made) {
+  if (/^([A-Za-z]:)?[\\/]/.test(made)) {
+    return made;
+  }
+  const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
+  return `${top}/${made}`;
+}
+
+// What a build that made a program offers: the program run in the terminal at the tree's top folder;
+// built and run again in the job, as orior runs it or as the system runs a program opened on its
+// own; the libraries it loads through a PATH copied beside it; and its path copied.
+function madeButtons(job, made) {
+  const buttons = element("div", { className: "views" });
+  const button = (label, act, title = made) => {
+    const one = element("button", { type: "button", textContent: label, title });
+    one.addEventListener("click", act);
+    buttons.append(one);
+  };
+  button(`Run ${made.split("/").pop()}`, () => {
+    const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
+    runInTerminal(`( cd -- ${quoted(top)} && ${quoted(madePath(made))} )`);
+  });
+  const again = (then) => startJob(job.id, { ...valuesFrom(job), then: [then] }).catch((error) => say(String(error), { failed: true }));
+  button("Run in the Job", () => again("run"));
+  button("Run as the System Runs It", () => again("run as the system runs it"));
+  button("Copy Libraries Beside It", async () => {
+    try {
+      const copied = await invoke("made_libraries_copy", { path: made });
+      say(copied.length ? `Copied ${copied.join(", ")} beside ${made.split("/").pop()}` : `${made.split("/").pop()} loads no library through a PATH`);
+    } catch (error) {
+      say(String(error), { failed: true });
+    }
+  });
+  button("Copy Path", () => copyText(madePath(made)), madePath(made));
+  return buttons;
 }
 
 function endNode(run) {
@@ -386,7 +434,7 @@ function onEnd({ payload }) {
     early(payload.run).end = payload;
     return;
   }
-  Object.assign(run, { done: true, code: payload.code, stopped: payload.stopped, views: payload.views, endMs: payload.ms });
+  Object.assign(run, { done: true, code: payload.code, stopped: payload.stopped, views: payload.views, made: payload.made ?? null, endMs: payload.ms });
   write("runs", [payload.run, null]);
   drawList();
   if (state.chosen === run.job) {
@@ -489,7 +537,7 @@ export async function readRunsAgain() {
     if (known?.done || (!known && one.ended)) {
       continue;
     }
-    state.runs.set(one.run, { run: one.run, job: one.job, lines: [], started: 0, steps: [], clock: performance.now(), endMs: null, done: false, code: null, views: [], stopped: false });
+    state.runs.set(one.run, { run: one.run, job: one.job, lines: [], started: 0, steps: [], clock: performance.now(), endMs: null, done: false, code: null, views: [], made: null, stopped: false });
     if (!state.shown.has(one.job)) {
       state.shown.set(one.job, one.run);
     }

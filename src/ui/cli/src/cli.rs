@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use crate::bridge::{self, Bridge};
@@ -241,6 +241,9 @@ fn run_job(root: PathBuf, job: Job, words: &[String]) -> i32 {
         Said::End(end) => {
             for page in &end.views {
                 err(&format!("page {page}"));
+            }
+            if let Some(made) = &end.made {
+                err(&format!("made {made}"));
             }
             if let Ok(mut kept) = keep.lock() {
                 *kept = Some(end);
@@ -536,16 +539,10 @@ pub fn subject(job: &Job) -> String {
 /// The tree a command works on: the folder `--root` names, else the one `root::find` finds.
 pub fn tree(named: Option<&str>) -> Result<PathBuf, String> {
     match named {
-        Some(dir) => {
-            let path = dunce::canonicalize(dir).map_err(|e| format!("{dir}: {e}"))?;
-            if root::holds_tree(&path) {
-                Ok(path)
-            } else {
-                Err(format!("{} holds no orior tree", path.display()))
-            }
-        }
+        Some(dir) => root::tree_at(Path::new(dir)),
         None => root::find().ok_or_else(|| "no orior tree here: run from inside one, or name one with --root".to_string()),
     }
+    .inspect(|root| crate::toolchains::set_tree(root))
 }
 
 /// A command the command line runs itself, in the terminal.
@@ -1335,6 +1332,75 @@ pub fn run(given: Vec<String>) -> Outcome {
     // keep-run runs a job the server keeps, a process of its own, as serve.rs says.
     if first == "keep-run" {
         return Outcome::Exit(words.get(1).map_or(WRONG, |base| crate::serve::keep_run(std::path::Path::new(base))));
+    }
+    // deploy previews, sends or rolls back a deployment the tree names, as deploy.rs says, the tree
+    // the one --root names or the folder it runs in: `orior deploy <name> <do> <changed> <gone>`.
+    if first == "deploy" {
+        let (Some(name), Some(act)) = (words.get(1), words.get(2).and_then(|word| crate::deploy::act_of(word))) else {
+            err("deploy takes a deployment's name and what to do, preview, send or roll back, and then what to do of files changed there and of files gone from the tree");
+            return Outcome::Exit(WRONG);
+        };
+        let root = match named.map(|dir| tree(Some(dir))).unwrap_or_else(|| std::env::current_dir().map_err(|error| error.to_string())) {
+            Ok(root) => root,
+            Err(said) => {
+                err(&said);
+                return Outcome::Exit(NO_CODE);
+            }
+        };
+        let replace = words.get(3).is_some_and(|word| word == "replace them");
+        let delete = words.get(4).is_some_and(|word| word == "delete them");
+        return Outcome::Exit(match crate::deploy::run(&root, name, act, replace, delete, &|line| out(&line)) {
+            Ok(()) => 0,
+            Err(said) => {
+                err(&said);
+                WRONG
+            }
+        });
+    }
+    // libraries says what a program loads and from where, as binary.rs reads it:
+    // `orior libraries <program>`.
+    if first == "libraries" {
+        let Some(program) = words.get(1) else {
+            err("libraries takes the program to read");
+            return Outcome::Exit(WRONG);
+        };
+        let orior_path: Vec<std::path::PathBuf> = std::env::split_paths(&crate::toolchains::run_path()).collect();
+        return Outcome::Exit(match crate::binary::read(Path::new(program), &orior_path) {
+            Ok(report) => {
+                for one in &report.libraries {
+                    let at = one.at.as_ref().map(|at| at.display().to_string()).unwrap_or_default();
+                    out(&format!("{}  {}  {at}", one.name, serde_json::to_value(&one.found).ok().and_then(|found| found.as_str().map(str::to_string)).unwrap_or_default()));
+                }
+                for said in crate::binary::said(&report) {
+                    err(&said);
+                }
+                0
+            }
+            Err(said) => {
+                err(&said);
+                WRONG
+            }
+        });
+    }
+    // sea builds a script into Node's single executable, a step of a package.json's executable job,
+    // as sea.rs says: `orior sea <script> <program> [module]`.
+    if first == "sea" {
+        let (Some(main), Some(output)) = (words.get(1), words.get(2)) else {
+            err("sea takes the script and the program to make of it, and module after them for an ES module");
+            return Outcome::Exit(WRONG);
+        };
+        let module = words.get(3).is_some_and(|word| word == "module");
+        let built = crate::executables::program("node", "node").and_then(|node| crate::sea::build(&node, Path::new(main), Path::new(output), module, &|line| out(line)));
+        return Outcome::Exit(match built {
+            Ok(program) => {
+                out(&format!("made {}", program.display()));
+                0
+            }
+            Err(said) => {
+                err(&said);
+                WRONG
+            }
+        });
     }
     // The first run at a terminal asks whether errors file on their own, where the installer did not,
     // and a run that answers it itself asks nothing.

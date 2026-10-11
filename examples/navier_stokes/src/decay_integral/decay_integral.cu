@@ -149,5 +149,5 @@ SimRational decay_integral_negative_residual(int k, SimRational x)
 
 int decay_integral_short(void)
 {
-    return s_sim_rational_wide != 0;
+    return g_sim_rational_wide != 0;
 }

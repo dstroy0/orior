@@ -16,7 +16,7 @@ export const STEPS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 // The share a setting stands at, in percent.
 export function opacity(setting) {
   const kept = localStorage.getItem(setting.key);
-  return kept !== null && STEPS.includes(Number(kept)) ? Number(kept) : setting.fallback;
+  return STEPS.map(String).includes(kept) ? Number(kept) : setting.fallback;
 }
 
 export function setOpacity(setting, percent) {

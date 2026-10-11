@@ -36,6 +36,11 @@ const state = { hooks: null, changes: new Map(), left: new Set(), busy: false, r
 // The marks of a file whose changes open under it.
 const PARTED = new Set(["M", "A", "U"]);
 
+// Where the reader's choice to leave notebooks' outputs out of a commit is kept.
+const OUTPUTS_KEY = "orior.commit.outputs";
+
+const outputsLeft = () => localStorage.getItem(OUTPUTS_KEY) === "out";
+
 // Every line a change holds, as `-n` and `+n`.
 const keysOf = (hunk) => [...Array.from({ length: hunk.then[1] - hunk.then[0] }, (_, at) => `-${hunk.then[0] + at}`), ...Array.from({ length: hunk.now[1] - hunk.now[0] }, (_, at) => `+${hunk.now[0] + at}`)];
 
@@ -128,9 +133,16 @@ async function commit(andPush) {
         throw new Error(`${path} changed since its changes were opened. Open them again to choose what to take.`);
       }
     }
-    const made = parted.length
-      ? await invoke("git_commit_parts", { message, whole: paths.filter((path) => !parted.includes(path)), parts: parted.map((path) => ({ path, text: partText(state.parts.get(path)) })) })
-      : await invoke("git_commit", { message, paths });
+    const parts = parted.map((path) => ({ path, text: partText(state.parts.get(path)) }));
+    // A notebook goes into the commit without its outputs and run counts where the reader says so,
+    // and keeps them in its file.
+    if (outputsLeft()) {
+      for (const path of paths.filter((one) => /\.ipynb$/i.test(one) && !parted.includes(one))) {
+        parts.push({ path, text: await invoke("notebook_without_outputs", { path }) });
+      }
+    }
+    const whole = paths.filter((path) => !parts.some((part) => part.path === path));
+    const made = parts.length ? await invoke("git_commit_parts", { message, whole, parts }) : await invoke("git_commit", { message, paths });
     state.parts.clear();
     state.open.clear();
     state.message = "";
@@ -315,13 +327,17 @@ export function drawCommit(changes = state.changes) {
       commit(false);
     }
   });
+  const notebooks = chosen.some((path) => /\.ipynb$/i.test(path));
+  const outputs = element("input", { type: "checkbox", checked: outputsLeft() });
+  outputs.addEventListener("change", () => localStorage.setItem(OUTPUTS_KEY, outputs.checked ? "out" : "in"));
+  const outputsRow = notebooks ? element("label", { className: "commit-option" }, outputs, element("span", { textContent: "Leave notebooks' outputs out of the commit" })) : null;
   commitButton.addEventListener("click", () => commit(false));
   pushButton.addEventListener("click", () => commit(true));
   arm();
   const buttons = element("div", { className: "commit-buttons" }, commitButton, pushButton);
   const said = state.said ? element("pre", { className: "commit-said", textContent: state.said }) : null;
   const focused = document.activeElement?.classList.contains("commit-message");
-  body.replaceChildren(bar, head, list, message, buttons, ...(said ? [said] : []));
+  body.replaceChildren(bar, head, list, message, ...(outputsRow ? [outputsRow] : []), buttons, ...(said ? [said] : []));
   if (focused) {
     message.focus();
     message.setSelectionRange(message.value.length, message.value.length);

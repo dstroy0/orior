@@ -24,7 +24,7 @@ import { invoke } from "./bridge.js";
 import { dockIcon, iconRemoved } from "./docks.js";
 import { showGroup, shownGroup, morePanes, showPane } from "./explorer.js";
 import { icon } from "./icons.js";
-import { showMenu } from "./menu.js";
+import { closeMenu, showMenu } from "./menu.js";
 import { paneNodeShown, togglePane, togglePaneNode } from "./sides.js";
 import { clearNotices, noticesSaid, noticesSeen, noticesUnseen, onNotice, say } from "./statusbar.js";
 import { onView, shownView, showView } from "./views.js";
@@ -70,9 +70,15 @@ const STRIP = {
   ],
 };
 
-function moreMenu(button) {
+// The menu of the explorer's other panes, beside the more icon. Opened by the pointer resting on
+// the icon it leaves the keys where they are, and goes again once the pointer has left the icon and
+// the menu for RESTS; opened by a press it stays, as any menu does.
+function moreMenu(button, rested = false) {
+  if (rested && button.dataset.menu === "open") {
+    return;
+  }
   const box = button.getBoundingClientRect();
-  showMenu(
+  const menu = showMenu(
     box.right + 4,
     box.top,
     morePanes().map(({ name, label }) => ({
@@ -83,8 +89,27 @@ function moreMenu(button) {
         togglePane(true, { take: false });
       },
     })),
-    { anchor: button },
+    { anchor: button, focusFirst: !rested },
   );
+  if (!rested) {
+    return;
+  }
+  let leaving = 0;
+  const away = () => {
+    window.clearTimeout(leaving);
+    leaving = window.setTimeout(() => {
+      if (!button.matches(":hover") && !menu.matches(":hover") && menu.isConnected) {
+        closeMenu(false);
+      }
+    }, RESTS);
+  };
+  const near = () => window.clearTimeout(leaving);
+  button.addEventListener("pointerleave", away);
+  menu.addEventListener("pointerleave", away);
+  menu.addEventListener("pointerenter", near);
+  button.addEventListener("pointerenter", near);
+  // A press in the menu keeps it, as a menu opened by a press.
+  menu.addEventListener("pointerdown", () => button.removeEventListener("pointerleave", away), { once: true });
 }
 
 // Marks the icon of each window that shows, and hides each the reader took off the strip.
@@ -208,6 +233,14 @@ function stripButton(name, glyph, label, keys, run, shown) {
         HOVERED.get(name)();
         window.requestAnimationFrame(refreshStrip);
       }, RESTS);
+    });
+    button.addEventListener("pointerleave", () => window.clearTimeout(resting));
+  }
+  if (name === "more") {
+    let resting = 0;
+    button.addEventListener("pointerenter", () => {
+      window.clearTimeout(resting);
+      resting = window.setTimeout(() => moreMenu(button, true), RESTS);
     });
     button.addEventListener("pointerleave", () => window.clearTimeout(resting));
   }

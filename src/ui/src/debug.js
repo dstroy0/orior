@@ -50,6 +50,9 @@ const state = {
   last: null,
   // Breakpoints by tree path: each a Map of file line to { bound, condition, hits, log }.
   breaks: new Map(),
+  // A line the next stop is at, as { path, line }, in a file with no breakpoint of its own, kept
+  // until a session stops and marked nowhere.
+  once: null,
   watches: [],
   // The variables opened in the tree, by their path of names, and the scopes closed, which are
   // open until closed.
@@ -140,6 +143,9 @@ function allBreakpoints() {
       out[path] = [...lines].map(([line, one]) => specOf(line, one));
     }
   }
+  if (state.once && !out[state.once.path]) {
+    out[state.once.path] = [specOf(state.once.line, {})];
+  }
   return out;
 }
 
@@ -148,10 +154,11 @@ async function tellBreaks(path) {
     return;
   }
   const lines = state.breaks.get(path) ?? new Map();
-  const placed = await invoke("debug_breakpoints", { path, breakpoints: [...lines].map(([line, one]) => specOf(line, one)) }).catch(() => null);
+  const once = state.once?.path === path && !lines.size ? [specOf(state.once.line, {})] : [];
+  const placed = await invoke("debug_breakpoints", { path, breakpoints: [...lines].map(([line, one]) => specOf(line, one)).concat(once) }).catch(() => null);
   if (placed) {
     const before = [...lines.values()];
-    state.breaks.set(path, new Map(placed.map(([line, bound], at) => [line, { ...before[at], bound }])));
+    state.breaks.set(path, new Map(placed.slice(0, before.length).map(([line, bound], at) => [line, { ...before[at], bound }])));
     state.hooks.repaint();
   }
 }
@@ -607,6 +614,24 @@ export async function attachAddress(given) {
   await begin(start, state.last.name);
 }
 
+// Debugs the Python a program listening at host:port runs next, the session named `name`, stopping
+// first at `first`, a line as { path, line }, where that file has no breakpoint of its own. Gives
+// what ends the session once that code has run, or null where it did not start.
+export async function debugNext(host, port, name, first = null) {
+  state.once = first && !breakpointsOf(first.path) ? first : null;
+  const info = await begin({ kind: "address", host, port, remote: null, language: "python" }, name);
+  if (!info) {
+    state.once = null;
+    return null;
+  }
+  return async () => {
+    if (state.sessions.has(info.id)) {
+      await invoke("debug_stop", { session: info.id }).catch(() => {});
+      ended(info.id, "Ended");
+    }
+  };
+}
+
 // Stops the chosen session, and its children with it.
 export async function stopDebug() {
   const session = chosen();
@@ -620,6 +645,9 @@ export async function stopDebug() {
 function ended(id, text) {
   const gone = [id, ...[...state.sessions.values()].filter((one) => one.info.parent === id).map((one) => one.info.id)];
   gone.forEach((one) => state.sessions.delete(one));
+  if (!state.sessions.size) {
+    state.once = null;
+  }
   if (gone.includes(state.chosen)) {
     state.chosen = state.sessions.size ? [...state.sessions.keys()].at(-1) : null;
   }
@@ -702,6 +730,11 @@ async function stopped(id, body) {
     state.mixing.delete(id);
     await attachNative(session, body.threadId);
     return;
+  }
+  if (state.once) {
+    const path = state.once.path;
+    state.once = null;
+    tellBreaks(path);
   }
   const asked = ++state.asked;
   let thread = body.threadId;

@@ -16,13 +16,14 @@ typedef struct
     AnchorExactInteger denominator;
 } SimRational;
 
-static int s_sim_rational_wide = 0;
+// one flag for the whole program: every file that includes this marks and reads the same one
+inline int g_sim_rational_wide = 0;
 
 static inline void sim_rational_status_check(int ok)
 {
     if (ok == 0)
     {
-        s_sim_rational_wide = 1;
+        g_sim_rational_wide = 1;
     }
 }
 
@@ -67,19 +68,24 @@ static inline void sim_rational_settle(SimRational *value)
     if ((sim_rational_small(&value->numerator, &numerator) == 0) ||
         (sim_rational_small(&value->denominator, &denominator) == 0) || (denominator <= 0ll))
     {
+        // a gcd or a division that fails leaves the value as it was, exact and not in lowest terms, and marks the run
         AnchorExactInteger common;
         AnchorExactInteger one;
-        sim_rational_status_check(anchor_exact_gcd(&value->numerator, &value->denominator, &common) == ANCHOR_EXACT_OK);
+        const int found = (anchor_exact_gcd(&value->numerator, &value->denominator, &common) == ANCHOR_EXACT_OK);
+        sim_rational_status_check(found);
         sim_exact_unsigned(&one, 1ull);
-        if (anchor_exact_compare(&common, &one) > 0)
+        if ((found != 0) && (anchor_exact_compare(&common, &one) > 0))
         {
             AnchorExactInteger top;
             AnchorExactInteger bottom;
-            sim_rational_status_check(
-                (anchor_exact_divide_exact(&value->numerator, &common, &top) == ANCHOR_EXACT_OK) &&
-                (anchor_exact_divide_exact(&value->denominator, &common, &bottom) == ANCHOR_EXACT_OK));
-            value->numerator = top;
-            value->denominator = bottom;
+            const int divided = (anchor_exact_divide_exact(&value->numerator, &common, &top) == ANCHOR_EXACT_OK) &&
+                                (anchor_exact_divide_exact(&value->denominator, &common, &bottom) == ANCHOR_EXACT_OK);
+            sim_rational_status_check(divided);
+            if (divided != 0)
+            {
+                value->numerator = top;
+                value->denominator = bottom;
+            }
         }
         return;
     }
@@ -96,7 +102,7 @@ static inline SimRational sim_rational(long long numerator, long long denominato
     SimRational value;
     if (denominator == 0ll)
     {
-        s_sim_rational_wide = 1;
+        g_sim_rational_wide = 1;
         denominator = 1ll;
         numerator = 0ll;
     }
@@ -144,7 +150,7 @@ static inline SimRational sim_rational_reciprocal(SimRational value)
 {
     if (value.numerator.sign == 0)
     {
-        s_sim_rational_wide = 1;
+        g_sim_rational_wide = 1;
         return sim_rational(0ll, 1ll);
     }
     SimRational turned;

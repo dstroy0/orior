@@ -60,6 +60,15 @@ fn state_of(index: u8, tree: u8) -> char {
     }
 }
 
+/// The commit the tree stands at: its id, its time in seconds since 1970, and whether the tree's
+/// tracked files hold no change since it.
+pub fn head(root: &Path) -> Option<(String, i64, bool)> {
+    let said = String::from_utf8(git(root, &["log", "-1", "--format=%H %ct"])?).ok()?;
+    let (id, when) = said.trim().split_once(' ')?;
+    let clean = git(root, &["status", "--porcelain", "--untracked-files=no"]).is_some_and(|out| out.iter().all(|byte| byte.is_ascii_whitespace()));
+    Some((id.to_string(), when.parse().ok()?, clean))
+}
+
 /// The branch the tree is on, or the short id of the commit it stands at where it is on none.
 pub fn branch(root: &Path) -> Option<String> {
     let named = git(root, &["rev-parse", "--abbrev-ref", "HEAD"]).map(|out| String::from_utf8_lossy(&out).trim().to_string())?;
@@ -148,6 +157,13 @@ fn beside(root: &Path, file: &str) -> Result<(PathBuf, String), String> {
         dir = dir.parent().map_or_else(|| root.to_path_buf(), Path::to_path_buf);
     }
     Ok((dir.clone(), format!("./{}", crate::root::relative(&dir, &full))))
+}
+
+/// The text of a file a merge left in conflict, as one of its stages holds it: 1 the base, 2 the
+/// branch merged into, 3 the branch merged.
+pub fn stage_text(root: &Path, file: &str, stage: u8) -> Option<String> {
+    let (dir, shown) = beside(root, file).ok()?;
+    git(&dir, &["show", &format!(":{stage}:{shown}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
 }
 
 /// Every file under the tree that differs from the last commit of the repository that holds it, by its

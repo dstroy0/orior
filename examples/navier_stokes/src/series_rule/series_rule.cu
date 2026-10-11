@@ -471,5 +471,5 @@ size_t series_rule_parts(const SeriesRule &rule)
 
 int series_rule_short(void)
 {
-    return s_sim_rational_wide != 0;
+    return g_sim_rational_wide != 0;
 }

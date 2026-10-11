@@ -217,6 +217,11 @@ function step(direction) {
 export async function showDiff(host, path, then, now, { sides = null, same = "No change from the last commit.", review = null, scroll = null } = {}) {
   state.ticket += 1;
   const ticket = state.ticket;
+  // A notebook compares as its cells' sources and outputs, its run counts, ids and metadata aside.
+  if (/\.ipynb$/i.test(path)) {
+    const cells = (text) => (text === null ? Promise.resolve(null) : invoke("notebook_diff_text", { text }).catch(() => text));
+    [then, now] = await Promise.all([cells(then), cells(now)]);
+  }
   const structured = localStorage.getItem(STRUCTURE_KEY) === "on";
   const old = (then ?? "").split(/\r?\n/);
   const fresh = now.split(/\r?\n/);

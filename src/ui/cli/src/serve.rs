@@ -40,6 +40,10 @@ pub struct Server {
     /// The folder the runs are kept in, where the server answers a window over a link: each run a
     /// process of its own, whose lines a window that joins again reads.
     keeping: Option<PathBuf>,
+    /// The kernels notebooks run on, each by the key the page starts it under, a notebook's path.
+    kernels: Mutex<HashMap<String, Arc<crate::jupyter::Kernel>>>,
+    /// The database connections open, each by its name in the tree's databases.json.
+    databases: Mutex<std::collections::BTreeMap<String, Arc<crate::db::Open>>>,
 }
 
 /// A call's arguments, each found by its own name or by the page's, as the page writes names of more
@@ -276,7 +280,7 @@ pub fn keep_run(base: &Path) -> i32 {
     });
     let failed = |said: String| {
         sink(runner::Said::Line(runner::Line { run, stream: "stderr", text: said, ms: 0.0 }));
-        sink(runner::Said::End(runner::End { run, code: None, stopped: false, views: Vec::new(), ms: 0.0 }));
+        sink(runner::Said::End(runner::End { run, code: None, stopped: false, views: Vec::new(), made: None, ms: 0.0 }));
         1
     };
     let spec: Value = match std::fs::read_to_string(kept_file(base, "job")).map_err(|error| error.to_string()).and_then(|text| serde_json::from_str(&text).map_err(|error| error.to_string())) {
@@ -309,6 +313,9 @@ pub fn keep_run(base: &Path) -> i32 {
 
 impl Server {
     pub fn new(root: Option<PathBuf>) -> Self {
+        if let Some(root) = &root {
+            toolchains::set_tree(root);
+        }
         Server { root: Mutex::new(root), ..Server::default() }
     }
 
@@ -338,6 +345,69 @@ impl Server {
     pub fn stop_all(&self) {
         self.servers.stop_all();
         self.debugger.stop_all();
+        self.stop_kernels();
+        self.close_databases();
+    }
+
+    /// Closes every database connection: as the program ends and as another tree opens.
+    fn close_databases(&self) {
+        let open: Vec<Arc<crate::db::Open>> = self.databases.lock().map(|mut open| std::mem::take(&mut *open).into_values().collect()).unwrap_or_default();
+        for one in open {
+            one.close();
+        }
+    }
+
+    fn database(&self, name: &str) -> Result<Arc<crate::db::Open>, String> {
+        self.databases.lock().map_err(|e| e.to_string())?.get(name).cloned().ok_or_else(|| format!("{name} is not connected"))
+    }
+
+    /// Connects to the database `name` of the tree's databases.json, signing in with `password`, or
+    /// the keychain's, and keeping a password given in the keychain where `keep` is set.
+    fn database_connect(&self, name: &str, password: Option<String>, keep: bool) -> Result<Value, String> {
+        let root = self.root()?;
+        let config = crate::db::read(&root)?.into_iter().find(|one| one.name == name).ok_or_else(|| format!("databases.json names no connection {name}"))?;
+        if let Some(old) = self.databases.lock().map_err(|e| e.to_string())?.remove(name) {
+            old.close();
+        }
+        let open = crate::db::Open::connect(&root, config.clone(), password.clone()).map_err(|failure| failure.to_string())?;
+        if keep {
+            if let Some(password) = password.filter(|one| !one.is_empty()) {
+                crate::db::keychain::keep(&config.account(), &password)?;
+            }
+        }
+        let said = json!({"version": open.version, "transaction": open.transaction(), "zone": open.zone.lock().map(|zone| zone.clone()).unwrap_or_default()});
+        self.databases.lock().map_err(|e| e.to_string())?.insert(name.to_string(), Arc::new(open));
+        Ok(said)
+    }
+
+    /// Ends every kernel the notebooks ran on: as the program ends, as another tree opens, and as a
+    /// page starts with no notebook open.
+    fn stop_kernels(&self) {
+        let kernels: Vec<Arc<crate::jupyter::Kernel>> = self.kernels.lock().map(|mut kernels| kernels.drain().map(|(_, kernel)| kernel).collect()).unwrap_or_default();
+        for kernel in kernels {
+            kernel.stop(std::time::Duration::from_secs(2));
+        }
+    }
+
+    /// Starts the kernel named `name` for the notebook `key`, in the notebook's folder, ending the
+    /// one it ran on before; what the kernel says goes to the page as kernel-message, under the key.
+    fn kernel_start(&self, key: String, name: String) -> Result<String, String> {
+        let root = self.root()?;
+        let spec = crate::jupyter::specs().into_iter().find(|spec| spec.name == name).ok_or_else(|| format!("the machine has no kernel {name}"))?;
+        let notebook = root::full(&root, key.trim_start_matches("check:"));
+        let folder = notebook.parent().map(Path::to_path_buf).unwrap_or(root);
+        if let Some(old) = self.kernels.lock().map_err(|e| e.to_string())?.remove(&key) {
+            old.stop(std::time::Duration::from_secs(2));
+        }
+        let emit = self.emitting();
+        let said = key.clone();
+        let kernel = crate::jupyter::Kernel::start(&spec, &folder, Arc::new(move |message| emit("kernel-message", json!({"key": said, "message": message}))))?;
+        self.kernels.lock().map_err(|e| e.to_string())?.insert(key, kernel);
+        Ok(spec.display_name)
+    }
+
+    fn kernel(&self, key: &str) -> Result<Arc<crate::jupyter::Kernel>, String> {
+        self.kernels.lock().map_err(|e| e.to_string())?.get(key).cloned().ok_or_else(|| "no kernel runs for this notebook: pick one to start it".to_string())
     }
 
     /// The folder of a repository of the tree, by its path in the tree, or the tree's own folder where
@@ -386,17 +456,17 @@ impl Server {
     }
 
     fn root_set(&self, path: String) -> Result<String, String> {
-        let path = dunce::canonicalize(&path).map_err(|e| format!("{path}: {e}"))?;
-        if !root::holds_tree(&path) {
-            return Err(format!("{} holds no orior tree", path.display()));
-        }
+        let path = root::tree_at(Path::new(&path))?;
         let mut root = self.root.lock().map_err(|e| e.to_string())?;
         let moved = root.as_ref() != Some(&path);
         *root = Some(path.clone());
+        toolchains::set_tree(&path);
         drop(root);
         // The folders mounted beside one tree are its own; another tree mounts its own. A server
         // answers for the tree it started in; another tree starts its own as its files open.
         if moved {
+            self.stop_kernels();
+            self.close_databases();
             root::unmount_all();
             self.servers.let_go();
             self.symbols.forget();
@@ -647,6 +717,12 @@ impl Server {
                 None => self.job_start(a.get("job")?, a.get::<Option<_>>("values")?.unwrap_or_default()).and_then(give),
             },
             "job_stop" => self.job_stop(a.get("run")?).and_then(give),
+            "made_libraries_copy" => {
+                let given = a.get::<String>("path")?;
+                let file = if Path::new(&given).is_absolute() { PathBuf::from(given) } else { root::full(&self.root()?, &given) };
+                let orior_path: Vec<PathBuf> = std::env::split_paths(&toolchains::run_path()).collect();
+                crate::binary::read(&file, &orior_path).and_then(|report| crate::binary::copy_beside(&file, &report)).and_then(give)
+            }
             "runs_kept" => give(self.kept_runs()),
             "run_follow" => {
                 let keep = self.keeping.as_ref().ok_or("this tree keeps no runs")?;
@@ -711,7 +787,6 @@ impl Server {
             "format_text" => format::format(&at(&path()?)?, &a.get::<String>("language")?, &a.get::<String>("text")?).and_then(give),
             "format_width" => give(format::width(&at(&path()?)?, &a.get::<String>("language")?)),
             "format_margin" => give(format::margin(&at(&path()?)?, &a.get::<String>("language")?).map(|(width, by)| json!({"width": width, "by": by}))),
-            "tree_holds" => give(root::holds_tree(Path::new(&path()?))),
             "tree_mount" => root::mount(Path::new(&path()?)).and_then(give),
             "tree_unmount" => {
                 root::unmount(&a.get::<String>("name")?);
@@ -919,6 +994,113 @@ impl Server {
                 std::fs::read(&file).map(|bytes| base64(&bytes)).map_err(|error| error.to_string()).and_then(give)
             }
             "file_write" => self.file_write(a.get("path")?, a.get("text")?).and_then(give),
+            "notebook_read" => {
+                let full = at(&path()?)?;
+                let text = std::fs::read_to_string(&full).map_err(|error| format!("{}: {error}", full.display()))?;
+                crate::notebook::read(&full, &text).and_then(give)
+            }
+            "notebook_write" => {
+                let given = path()?;
+                let text = crate::notebook::write(&at(&given)?, &a.get::<Value>("book")?)?;
+                self.file_write(given, text).and_then(give)
+            }
+            "notebook_diff_text" => crate::notebook::for_diff(&a.get::<String>("text")?).and_then(give),
+            "notebook_merge" => {
+                let root = self.root()?;
+                let given = path()?;
+                let side = |stage: u8| -> Result<Value, String> {
+                    let text = git::stage_text(&root, &given, stage).ok_or_else(|| format!("{given} holds no stage {stage} of a merge"))?;
+                    crate::notebook::read(Path::new("x.ipynb"), &text)
+                };
+                let base = side(1).unwrap_or_else(|_| json!({"cells": []}));
+                give(crate::notebook::merge(&base, &side(2)?, &side(3)?))
+            }
+            "notebook_without_outputs" => {
+                let full = at(&path()?)?;
+                let text = std::fs::read_to_string(&full).map_err(|error| format!("{}: {error}", full.display()))?;
+                crate::notebook::without_outputs(&text).and_then(give)
+            }
+            "db_list" => {
+                let open = self.databases.lock().map_err(|e| e.to_string())?.clone();
+                crate::db::listed(&self.root()?, &open).and_then(give)
+            }
+            "db_save" => {
+                let connection: crate::db::Connection = a.get("connection")?;
+                let was = a.get::<Option<String>>("was")?;
+                crate::db::save(&self.root()?, connection.clone(), was.as_deref())?;
+                if let Some(password) = a.get::<Option<String>>("password")?.filter(|one| !one.is_empty()) {
+                    crate::db::keychain::keep(&connection.account(), &password)?;
+                }
+                give(())
+            }
+            "db_remove" => {
+                let name = a.get::<String>("name")?;
+                if let Some(open) = self.databases.lock().map_err(|e| e.to_string())?.remove(&name) {
+                    open.close();
+                }
+                crate::db::remove(&self.root()?, &name).and_then(give)
+            }
+            "db_forget_password" => {
+                let name = a.get::<String>("name")?;
+                let config = crate::db::read(&self.root()?)?.into_iter().find(|one| one.name == name).ok_or_else(|| format!("databases.json names no connection {name}"))?;
+                crate::db::keychain::forget(&config.account()).and_then(give)
+            }
+            "db_connect" => self.database_connect(&a.get::<String>("name")?, a.get("password")?, a.get::<Option<bool>>("keep")?.unwrap_or(false)).and_then(give),
+            "db_close" => {
+                if let Some(open) = self.databases.lock().map_err(|e| e.to_string())?.remove(&a.get::<String>("name")?) {
+                    open.close();
+                }
+                give(())
+            }
+            "db_run" => {
+                let open = self.database(&a.get::<String>("name")?)?;
+                match open.run(&a.get::<String>("sql")?, a.get::<Option<bool>>("answered")?.unwrap_or(false), a.get::<Option<usize>>("page")?.unwrap_or(200)) {
+                    Ok(said) => give(said),
+                    Err(failure) => give(json!({"failure": failure, "transaction": open.transaction()})),
+                }
+            }
+            "db_rows" => self.database(&a.get::<String>("name")?)?.rows(a.get("from")?, a.get("count")?).map_err(|failure| failure.to_string()).and_then(give),
+            "db_stop" => self.database(&a.get::<String>("name")?)?.stop().and_then(give),
+            "db_stop_reading" => self.database(&a.get::<String>("name")?)?.stop_reading().and_then(give),
+            "db_children" => self.database(&a.get::<String>("name")?)?.children(&a.get::<Vec<String>>("path")?).map_err(|failure| failure.to_string()).and_then(give),
+            "db_export" => {
+                let target = at(&a.get::<String>("path")?)?;
+                self.database(&a.get::<String>("name")?)?.export(&target, &a.get::<String>("format")?).map_err(|failure| failure.to_string()).and_then(give)
+            }
+            "db_history" => give(self.database(&a.get::<String>("name")?)?.history()),
+            "db_statement_at" => give(crate::db::statement_at(&a.get::<String>("text")?, a.get("offset")?, &a.get::<String>("kind")?)),
+            "db_statements" => give(crate::db::statements(&a.get::<String>("text")?, &a.get::<String>("kind")?)),
+            "kernel_specs" => give(crate::jupyter::specs()),
+            "kernels_stop_all" => {
+                self.stop_kernels();
+                give(())
+            }
+            "kernel_start" => self.kernel_start(a.get("key")?, a.get("name")?).and_then(give),
+            "kernel_execute" => self.kernel(&a.get::<String>("key")?)?.execute(&a.get::<String>("code")?).and_then(give),
+            "kernel_debug" => {
+                let root = self.root()?;
+                let file = a.get::<String>("file")?;
+                let full = root::inside(&root, &file)?;
+                if let Some(folder) = full.parent() {
+                    std::fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+                }
+                files::write(&root, &file, &a.get::<String>("code")?)?;
+                self.kernel(&a.get::<String>("key")?)?.debug_next(&full).and_then(give)
+            }
+            "kernel_interrupt" => self.kernel(&a.get::<String>("key")?)?.interrupt().and_then(give),
+            "kernel_stop" => {
+                let key = a.get::<String>("key")?;
+                let kernel = self.kernels.lock().map_err(|e| e.to_string())?.remove(&key).ok_or("no kernel runs for this notebook")?;
+                give(kernel.stop(std::time::Duration::from_secs(5)))
+            }
+            "kernel_complete" => {
+                let reply = self.kernel(&a.get::<String>("key")?)?.request("shell", "complete_request", json!({"code": a.get::<String>("code")?, "cursor_pos": a.get::<u64>("cursor")?}), std::time::Duration::from_secs(3))?;
+                give(reply.content)
+            }
+            "kernel_inspect" => {
+                let reply = self.kernel(&a.get::<String>("key")?)?.request("shell", "inspect_request", json!({"code": a.get::<String>("code")?, "cursor_pos": a.get::<u64>("cursor")?, "detail_level": 0}), std::time::Duration::from_secs(3))?;
+                give(reply.content)
+            }
             "containers_list" => give(crate::containers::containers()),
             "container_act" => crate::containers::act(&a.get::<String>("name")?, &a.get::<String>("act")?).and_then(give),
             "container_logs" => crate::containers::logs(&a.get::<String>("name")?).and_then(give),

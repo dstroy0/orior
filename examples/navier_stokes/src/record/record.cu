@@ -45,5 +45,5 @@ int record_close(FILE *file)
 
 int record_short(void)
 {
-    return s_sim_rational_wide != 0;
+    return g_sim_rational_wide != 0;
 }
