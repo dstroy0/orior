@@ -548,7 +548,7 @@ fn main() -> ExitCode {
             println!("  {said}");
             report.said.push(said.clone());
         }
-        env = up.env;
+        env.extend(up.env);
     }
 
     if options.rust {

@@ -43,7 +43,7 @@ import { onView, showView, shownView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
 import { keepZoom } from "./zoom.js";
-import { keepMemory, say } from "./statusbar.js";
+import { keepMemory, say, startNotices } from "./statusbar.js";
 import { startMotion } from "./motion.js";
 import { keepUserCss } from "./usercss.js";
 
@@ -201,6 +201,7 @@ async function start() {
   startKeyHints();
   startSight();
   startWaits();
+  startNotices();
   // A tree on another machine: once the link to it is made, the runs kept there are read, and once
   // it is made again after a drop, every open tab is handed to its server there again.
   await startRemote({

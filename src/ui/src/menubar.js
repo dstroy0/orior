@@ -24,7 +24,7 @@ import { invoke, pick } from "./bridge.js";
 import { showClone } from "./clone.js";
 import { showCreate, showInit, showProject } from "./create.js";
 import { checkersNamed, setCheckers } from "./servers.js";
-import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
+import { focusOn, lastMemory, memoryBudget, say, setFocus, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
 import { authorsShown, setAuthorsShown } from "./authors.js";
@@ -454,6 +454,7 @@ const COMMANDS = {
   "peek-callers": inEditor(() => peekHere("callers")),
   "gather-lines": inEditor(() => gatherLines()),
   "gathered-lines": () => toggleBoard(),
+  focus: () => setFocus(),
   usages: inEditor(() => editing().usages()),
   calls: inEditor(() => editing().calls()),
   rename: inEditor(() => editing().rename()),
@@ -525,6 +526,7 @@ const COMMANDS = {
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
+  focus: () => focusOn(),
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
   "sticky-scroll": () => editing().sticky(),

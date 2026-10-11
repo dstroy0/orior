@@ -92,6 +92,9 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - Without cues before opening, developers open file after file to judge each one.
 4. **The task's code in one place.** Gather Lines (Ctrl+Alt+G) adds to the task the lines selected, or, with none selected, the declaration the cursor stands in down to the next at its depth; Gathered Lines (Ctrl+Alt+Shift+G) shows the task's pieces side by side over the editor, each in an editor of its own of its file's text, and a piece's name opens its file at its lines. A file a tab holds shows as the tab has it, changes not saved and all, and takes edits as the tab does. Each piece keeps the text of its first line and is found again by it where lines come or go above it. Tasks are named, one is the task gathered into, and each keeps its pieces with the tree from one run to the next.
    - Developers kept what they found in memory, in notes, or in tabs that closed, and went back to find it again.
+5. **Notices at the reader's breaks.** A notice that answers what the reader did, within a second and a half of a press or of a key that gives a command, shows at once; any other needs nothing done and waits for a break in the work: a save, a commit, a run's end, or the keys at rest for two seconds, the last of those held on the bar and each of them in the bell. No notice takes the keys. View, Focus holds every notice until it ends, the bar saying how many it holds, and a press there ends it.
+   - Suggestions offered at such a break were taken up 52% of the time; those offered in the middle of a task were mostly dismissed.
+   - An interruption on the screen that demands attention slows the reading of code.
 
 ## Code intelligence
 

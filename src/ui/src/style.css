@@ -1046,6 +1046,19 @@ body[data-strip-edge] .strip-edge {
   display: none;
 }
 
+.status-focus {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--signal);
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-focus[hidden] {
+  display: none;
+}
+
 .status-memory {
   font-variant-numeric: tabular-nums;
   cursor: pointer;

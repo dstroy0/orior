@@ -11,7 +11,7 @@
 // the lock. The branch the tree is on, with a star where a file differs from the last commit, is on
 // the top bar beside the tree's name.
 
-import { invoke } from "./bridge.js";
+import { invoke, listen, onCalls } from "./bridge.js";
 import { icon } from "./icons.js";
 import { still } from "./motion.js";
 
@@ -125,15 +125,122 @@ export function onNotice(listener) {
   noticeListeners.push(listener);
 }
 
-// Puts a word on the bar for a moment: its first line, and all of it over it. A press takes it away,
-// and does `act` first where there is one. The bell keeps it.
+// When a notice shows. One that answers what the reader did, within ANSWERS of a press or of a key
+// that gives a command, shows at once. Any other needs nothing done and waits for a break in the
+// work: a save, a commit, a run's end, or the keys at rest for REST. Focus holds every notice until
+// it ends. No notice takes the keys.
+const ANSWERS = 1500;
+const REST = 2000;
+const BREAKS = new Set(["file_write", "git_commit", "git_commit_parts"]);
+const breaks = { commanded: -Infinity, input: performance.now(), held: [], timer: 0, focus: false, listeners: [] };
+
+// Puts a word on the bar for a moment: its first line, and all of it over it, at once where it
+// answers what the reader did and at the next break where it does not. A press takes it away, and
+// does `act` first where there is one. The bell keeps it.
 export function say(text, { failed = false, act = null } = {}) {
-  notices.push({ text: String(text), failed, at: Date.now() });
+  const notice = { text: String(text), failed, act, at: Date.now() };
+  if (breaks.focus || performance.now() - breaks.commanded > ANSWERS) {
+    breaks.held.push(notice);
+    focusChanged();
+    restLater();
+    return;
+  }
+  show(notice);
+}
+
+// The notices held for a break, for the tests and for Focus's count.
+export const noticesHeld = () => breaks.held;
+
+// Shows the notices held, where Focus holds none: each kept by the bell, the last on the bar.
+export function breakTaken() {
+  if (breaks.focus || !breaks.held.length) {
+    return;
+  }
+  const held = breaks.held.splice(0);
+  held.slice(0, -1).forEach((notice) => keepNotice(notice));
+  show(held.at(-1));
+  focusChanged();
+}
+
+function restLater() {
+  window.clearTimeout(breaks.timer);
+  if (breaks.focus || !breaks.held.length) {
+    return;
+  }
+  const left = REST - (performance.now() - breaks.input);
+  breaks.timer = window.setTimeout(() => (performance.now() - breaks.input >= REST ? breakTaken() : restLater()), Math.max(0, left));
+}
+
+export const focusOn = () => breaks.focus;
+
+export function onFocusChanged(listener) {
+  breaks.listeners.push(listener);
+}
+
+function focusChanged() {
+  breaks.listeners.forEach((listener) => listener());
+  const node = document.getElementById("status-focus");
+  if (!node) {
+    return;
+  }
+  node.hidden = !breaks.focus;
+  node.textContent = breaks.held.length ? `Focus, ${breaks.held.length} held` : "Focus";
+  node.title = "Focus holds every notice until it ends: a press ends it";
+}
+
+// Focus: every notice held until it ends, and then those held shown.
+export function setFocus(on = !breaks.focus) {
+  breaks.focus = on;
+  focusChanged();
+  if (!on) {
+    breakTaken();
+  }
+}
+
+// Watches the reader's keys and presses, and the breaks in the work.
+export function startNotices() {
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      const now = performance.now();
+      breaks.input = now;
+      const typing = event.target?.classList?.contains("ed-input") && !event.ctrlKey && !event.altKey && !event.metaKey && !/^F\d+$/.test(event.key);
+      if (!typing) {
+        breaks.commanded = now;
+      }
+      restLater();
+    },
+    true,
+  );
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      breaks.input = performance.now();
+      breaks.commanded = breaks.input;
+      restLater();
+    },
+    true,
+  );
+  onCalls((command, args, promise) => {
+    if (BREAKS.has(command)) {
+      promise.then(() => breakTaken(), () => {});
+    }
+  });
+  listen("run-end", () => breakTaken());
+  document.getElementById("status-focus")?.addEventListener("click", () => setFocus(false));
+}
+
+function keepNotice(notice) {
+  notices.push({ text: notice.text, failed: notice.failed, at: notice.at });
   if (notices.length > NOTICES_KEPT) {
     notices.shift();
   }
   unseen += 1;
   noticeListeners.forEach((listener) => listener());
+}
+
+function show({ text, failed, act, ...notice }) {
+  keepNotice({ text, failed, ...notice });
   const node = document.getElementById("status-said");
   window.clearTimeout(saidTimer);
   node.textContent = String(text).split("\n")[0];
