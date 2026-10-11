@@ -1101,6 +1101,9 @@ export function runCommand(command, args = []) {
   return COMMANDS[command]?.(args);
 }
 
+// Whether the window answers `command` itself.
+export const hasCommand = (command) => Object.hasOwn(COMMANDS, command);
+
 // Every command the menus list that can act now, for the quick open's >.
 function paletteCommands() {
   const found = [];

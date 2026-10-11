@@ -4193,6 +4193,24 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   height: var(--held);
 }
 
+/* A pane coming back holds its inside where it collapsed to while the editor gives it its room. */
+.collapsible.arriving > .side-inner {
+  transition: none;
+  opacity: 0;
+}
+
+.collapsible.toward-left.arriving > .side-inner {
+  transform: translate(-100%, -100%);
+}
+
+.collapsible.toward-right.arriving > .side-inner {
+  transform: translate(100%, -100%);
+}
+
+.collapsible.toward-bottom.arriving > .side-inner {
+  transform: translateY(100%);
+}
+
 .collapsible.toward-bottom.collapsed > .side-inner {
   transform: translateY(100%);
   opacity: 0;

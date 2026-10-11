@@ -59,7 +59,7 @@ function setShown(pane, shown) {
   const { node } = pane;
   window.clearTimeout(pane.slide);
   if (shown === node.classList.contains("collapsed") && !reduced.matches) {
-    holdLattices(SLIDE + 20);
+    holdLattices(SLIDE + 60);
   }
   if (!shown && !node.classList.contains("collapsed") && !reduced.matches) {
     const box = node.getBoundingClientRect();
@@ -72,6 +72,12 @@ function setShown(pane, shown) {
   } else if (shown) {
     node.classList.remove("sliding");
     node.style.removeProperty("--held");
+    // The frame the editor gives its room back in redraws the whole window; the inside starts to
+    // slide in once that frame is drawn, and none of the slide's frames go to it.
+    if (node.classList.contains("collapsed") && !reduced.matches) {
+      node.classList.add("arriving");
+      requestAnimationFrame(() => requestAnimationFrame(() => node.classList.remove("arriving")));
+    }
   }
   node.classList.toggle("collapsed", !shown);
   node.inert = !shown;

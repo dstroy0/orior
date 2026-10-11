@@ -6,9 +6,13 @@
 //! calls, the `view` scheme its page windows load from, the terminal's pseudo-terminals and the
 //! clipboard. The same program is the command line, handing it any words it is started with.
 
+mod allocations;
 mod clip;
 mod dragging;
 mod memory;
+
+#[global_allocator]
+static ALLOCATOR: allocations::Counting = allocations::Counting;
 mod scrollback;
 mod terminal;
 
@@ -54,10 +58,17 @@ fn local_only(app: &App) -> Result<(), String> {
 /// Answers a command of the tree's side by its name, as serve.rs answers it.
 #[tauri::command(async)]
 fn call(app: State<App>, name: String, args: serde_json::Value) -> Result<serde_json::Value, String> {
-    match app.link.get() {
+    allocations::measured(&name, || match app.link.get() {
         Some(link) => link.call(&name, args),
         None => app.server.call(&name, args),
-    }
+    })
+}
+
+/// What the calls of the tree's side took and kept, by name, while the count is on: `on` turns it on
+/// or off, and `reset` empties it once read.
+#[tauri::command]
+fn memory_calls(on: Option<bool>, reset: Option<bool>) -> std::collections::BTreeMap<String, allocations::Calls> {
+    allocations::read(on, reset.unwrap_or(false))
 }
 
 /// The tree's machine, its address and how its link stands, where the tree is on another machine.
@@ -904,6 +915,7 @@ fn open(launch: Launch) {
             window_show,
             memory_use,
             memory_hold,
+            memory_calls,
             kept_write,
             files_copy,
             clip_files,
