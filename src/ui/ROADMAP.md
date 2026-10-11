@@ -17,19 +17,16 @@ What the eye cannot see is not drawn. The view, and the stretch its motion heads
 
 1. **What is in view, and what the motion heads into.** The editor, the explorer, the grid of rows and every list read and draw what shows and the stretch their scroll heads into, as far ahead as its speed carries it in the time a read takes, and hold what they read until it lies far behind; what lies behind the motion is let go first.
    - Motion says where the view goes next: among people watching video all around them, the view 200 ms later lay the way the head was turning in 97% of cases.
-2. **The lattice drawn at the rate it is seen.** The lattice is drawn at the lowest rate at which its flow still reads as motion, and a frame that would move no point by a whole pixel is not drawn.
-   - No one follows the lattice's points one by one: people follow about four moving things at once, fewer the faster they move, and see a field of moving points as one flow.
-   - The edge of the lattice's order moves too slowly to see from one frame to the next.
-3. **No animation below what can be seen.** A change that moves nothing by a pixel in a frame, or ends before it could be seen, is not animated: its end is drawn at once.
+2. **No animation below what can be seen.** A change that moves nothing by a pixel in a frame, or ends before it could be seen, is not animated: its end is drawn at once.
    - Motion the eye cannot pursue, small and unpredictable, needs fewer frames than motion it can pursue, and is given fewer.
-4. **Detail as the motion allows.** While a view scrolls fast, what the motion hides from the eye, the minimap, the colors of lines past the screen and the gutter's marks, is drawn coarse or later, and drawn whole once the motion slows.
+3. **Detail as the motion allows.** While a view scrolls fast, what the motion hides from the eye, the minimap, the colors of lines past the screen and the gutter's marks, is drawn coarse or later, and drawn whole once the motion slows.
    - A change made while the eye moves fast is seldom seen: shifts of up to 1.2 degrees went unnoticed during eye movements of 66 ms or more.
-5. **Motion the way the reader moves.** A pane, a list or a menu moves the way the reader's own action points, from where it was pressed toward where it goes.
+4. **Motion the way the reader moves.** A pane, a list or a menu moves the way the reader's own action points, from where it was pressed toward where it goes.
    - The eye places a moving thing a little ahead along its path.
-6. **The three limits of a response.** A press or a key is answered within 0.1 s; anything slower than 1 s shows it is working; anything slower than 10 s shows how far along it is and can be stopped.
+5. **The three limits of a response.** A press or a key is answered within 0.1 s; anything slower than 1 s shows it is working; anything slower than 10 s shows how far along it is and can be stopped.
    - Within 0.1 s a person feels they act on the thing itself; within 1 s their thought goes on unbroken; past 10 s they turn to something else.
    - A delay of the pointer under 50 ms goes unseen: every response to the pointer is held under it.
-7. **Waits that read as short.** A bar of progress moves steadily, and faster toward its end where it can.
+6. **Waits that read as short.** A bar of progress moves steadily, and faster toward its end where it can.
    - A bar that slows or stops near its end reads as a longer wait than the same time spent steadily.
 
 ## Tools
