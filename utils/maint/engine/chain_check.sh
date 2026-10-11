@@ -12,6 +12,8 @@
 #   record_check     holds R to what the .kqr says of it, on a record it writes
 #   survivors_check  holds the gate to P2 on the ladder's own relations
 #   scheduler_check  holds a round to P13 on the run channel's dry carrier
+#   overseer_check   holds the overseer's conference to its consensus and its lessons, in a run of its own, on a
+#                    carrier that refuses every question and reaches no part
 #   query_interface_check walks asks from inside the cell, every ending kept as the answer of the address that caused it
 #   query_order_check puts the known order of asks to the host on a clock found by asking, and solves every link
 #   stem_group_check holds the stem membership rule: groups on anchors, the same in every order
@@ -56,7 +58,13 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/survivors_check" "$TOP/utils/test/src/cu/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/scheduler_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/scheduler_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/order/scheduler.c" "$TOP/src/cu/transpiler/lstar/protocol/teacher/run_channel.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/record_R/record.c" "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
-    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" || exit 1
+    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "$TOP/src/cu/types/file_defs/qry/qry_buffer.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_check.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/overseer/overseer.c" "$TOP/src/cu/transpiler/lstar/protocol/teacher/run_channel.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/record_R/record.c" "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
+    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "$TOP/src/cu/types/file_defs/qry/qry_buffer.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_carrier" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_carrier.c" \
+    "$TOP/src/cu/types/file_defs/qry/qry_buffer.c" || exit 1
 # the walk runs as its own program, in a child the cell can lose
 BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
@@ -101,6 +109,18 @@ fi
 "$OUT/survivors_check" || exit 1
 mkdir -p "$OUT/scheduler_check.dry"
 "$OUT/scheduler_check" "$OUT/scheduler_check.dry" || exit 1
+# the overseer's check in a run of its own, whose writer takes the round the teacher hands critical, ended with the
+# subshell
+(
+    OVERSEER_CARRIER="$OUT/overseer_carrier"
+    [ -f "$OVERSEER_CARRIER.exe" ] && OVERSEER_CARRIER="$OVERSEER_CARRIER.exe"
+    command -v cygpath > /dev/null && OVERSEER_CARRIER="$(cygpath -m "$OVERSEER_CARRIER")"
+    source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+    qry_writer_built "$OUT"
+    unset QRY
+    run_started "$OUT/overseer_runs"
+    "$OUT/overseer_check" "$OVERSEER_CARRIER"
+) || exit 1
 "$OUT/host_entry_check" || exit 1
 "$OUT/bus_enum_check" "$CLASSIFY" "$OUT/classify_walk.out" || exit 1
 "$OUT/query_interface_check" "$WALK" "$OUT/query_walk.out" || exit 1

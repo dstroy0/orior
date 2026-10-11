@@ -360,10 +360,13 @@ fn report_auto() -> bool {
 }
 
 /// Whether the question of whether errors file on their own needs no asking, as the reporter has
-/// answered it or ORIOR_NO_REPORTS turned reports off for the run, and the question.
+/// answered it or ORIOR_NO_REPORTS turned reports off for the run, and the question. A build for
+/// testing, `cargo tauri dev`'s, answers yes on its own and keeps no answer: nothing a test runs
+/// waits on the question, every error it meets files as an issue, and an install still asks its
+/// reporter.
 #[tauri::command]
 fn report_asked() -> (bool, &'static str) {
-    (report::asked() || std::env::var_os("ORIOR_NO_REPORTS").is_some(), report::QUESTION)
+    (report::asked() || cfg!(debug_assertions) || std::env::var_os("ORIOR_NO_REPORTS").is_some(), report::QUESTION)
 }
 
 #[tauri::command]

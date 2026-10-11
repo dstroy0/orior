@@ -6,11 +6,11 @@
 //     measuring_stick_engine <stick .cu> <nvcc listing> <out directory>
 //
 // An expression is read against every form cu.krs gives as `{to} = <text>;`, and a statement against every form cu.krs
-// gives as a statement of its own: the text is the pattern, and each parameter past a form's to takes a value the kernel
-// holds, a number as cu.krs's bank of immediates writes one, a parameter of the kernel, or an expression read the same
-// way. Of the readings that fit, a form is kept only where sass.krs's text for it assembles with the operands it is
-// given, its to a register or, where the text writes a predicate there, a predicate; of those the reading of the fewest
-// forms is taken. An expression read once is held in its register and read again from there.
+// gives as a statement of its own: the text is the pattern, and each parameter past a form's to takes a value the
+// kernel holds, a number as cu.krs's bank of immediates writes one, a parameter of the kernel, or an expression read
+// the same way. Of the readings that fit, a form is kept only where sass.krs's text for it assembles with the operands
+// it is given, its to a register or, where the text writes a predicate there, a predicate; of those the reading of the
+// fewest forms is taken. An expression read once is held in its register and read again from there.
 //
 // The stick has one arity: an operand (T)in[i] is the word at in + 8 . i, and out[thread] =
 // (unsigned long long)r is the wide stored at out + 8 . thread, its conversion written out as C converts a signed word.
@@ -32,6 +32,9 @@
 // can show a fold the round before hid. After each round sass.ksc is written: what it held of each question this run
 // asked dropped, and every fold this run found taken. The last round is written out: each kernel as <out>/NNNN.sass and
 // its encodings <out>/NNNN.bin. Nothing goes to a device.
+//
+// Where STICK_TRACE is set, each kernel's trace is handed to the query run QRY names as the blob NNNN.trace
+// (qry_buffer.h); a trace asked for with no run's writer to take it is refused before anything is read.
 extern "C"
 {
 #include "sass_assemble.h"
@@ -39,10 +42,11 @@ extern "C"
 #include "interface_sass_probe.h"
 }
 
-#include "cu_target.h"
-#include "machine_ir_types.h"
+#include "../../../types/file_defs/qry/qry_buffer.h"
 #include "../../../types/file_defs/readers/ruleset_core_words.h"
 #include "../../../types/file_defs/readers/ruleset_reader.h"
+#include "cu_target.h"
+#include "machine_ir_types.h"
 #include "sass_target.h"
 #include "target.h"
 
@@ -248,23 +252,36 @@ struct StickPattern
 
 // The trace of the kernel being read, where STICK_TRACE is set: every reading tried, nested as it is tried, every
 // form whose text matches and every choice of its operands with why it fails, what each reading gives, every line
-// written and every question put. NULL where nothing is traced
-static FILE *s_trace = NULL;
+// written and every question put, gathered in memory and handed to the run's buffer once the kernel is read. Nothing
+// is gathered where s_tracing is false
+static std::string s_trace;
+static bool s_tracing = false;
 static unsigned int s_trace_depth = 0u;
 
 // one line of the trace, indented by the depth of the reading it is of
 static void stick_trace(const char *format, ...)
 {
-    if (s_trace == NULL)
+    if (!s_tracing)
     {
         return;
     }
-    fprintf(s_trace, "%*s", (int)(2u * s_trace_depth), "");
+    s_trace.append((size_t)(2u * s_trace_depth), ' ');
     va_list arguments;
     va_start(arguments, format);
-    vfprintf(s_trace, format, arguments);
+    va_list measured;
+    va_copy(measured, arguments);
+    const int length = vsnprintf(NULL, 0u, format, measured);
+    va_end(measured);
+    if (length > 0)
+    {
+        const size_t at = s_trace.size();
+        // a length vsnprintf returns past 0 widens to the size it is added to
+        s_trace.resize(at + (size_t)length + 1u);
+        vsnprintf(&s_trace[at], (size_t)length + 1u, format, arguments);
+        s_trace.resize(at + (size_t)length);
+    }
     va_end(arguments);
-    fputc('\n', s_trace);
+    s_trace.push_back('\n');
 }
 
 // the depth of the trace one deeper for as long as it is held
@@ -2942,6 +2959,16 @@ int main(int argc, char **argv)
         fprintf(stderr, "measuring_stick_engine <stick .cu> <nvcc listing> <out directory>\n");
         return 2;
     }
+    // the run's buffer each kernel's trace is handed to, where STICK_TRACE asks for one
+    QryBuffer *const traced = (getenv("STICK_TRACE") != NULL) ? qry_run() : NULL;
+    if ((getenv("STICK_TRACE") != NULL) && (traced == NULL))
+    {
+        fprintf(stderr,
+                "measuring_stick_engine: STICK_TRACE is set and no query writer runs: %s names no .qry a "
+                "writer holds open\n",
+                QRY_ENVIRONMENT);
+        return 2;
+    }
     const Ruleset *const cu = cu_target().ruleset(1);
     const Ruleset *const sass = sass_target().ruleset(1);
     if ((cu == NULL) || (sass == NULL))
@@ -2982,14 +3009,15 @@ int main(int argc, char **argv)
     for (const StickSource &source : sources)
     {
         StickKernel kernel(cu, sass, &machine, &patterns, 1);
-        // STICK_TRACE set writes <out>/<number>.trace beside the kernel's text
-        s_trace = (getenv("STICK_TRACE") != NULL) ? fopen((out + "/" + source.number + ".trace").c_str(), "wb") : NULL;
+        // STICK_TRACE set hands the run's buffer <number>.trace once the kernel is read
+        s_tracing = (traced != NULL);
+        s_trace.clear();
         const std::string question = stick_kernel(source, &kernel);
-        if (s_trace != NULL)
+        if (s_tracing)
         {
-            fprintf(s_trace, "%s\n", question.empty() ? "answered" : ("question " + question).c_str());
-            fclose(s_trace);
-            s_trace = NULL;
+            s_trace += question.empty() ? "answered\n" : ("question " + question + "\n");
+            qry_hand(traced, (source.number + ".trace").c_str(), s_trace.data(), s_trace.size(), QRY_ORDINARY);
+            s_tracing = false;
         }
         if (!question.empty())
         {

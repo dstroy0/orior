@@ -35,20 +35,22 @@
 // slice writes <folder>/slices.txt, each slice a line, <folder>/chains.txt, the primitives and the chains, and
 // <folder>/host_questions.cpp, every question whose operands and result are integers that a slice holds, that is a task
 // of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with the arity
-// every kernel shares. The host
-// computes each over every case and writes <folder>/host_answers.txt; read then gives each identity its verdict: the
-// first case the two questions of one of its slices answer apart closes it as two operations, and an identity alike on
-// every case asked stays open with its count of cases. A case the host's C would trap on or leave undefined is asked of
-// nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts write
-// its links, and with the rule a link breaks where asking the part as written would end it
+// every kernel shares. The host computes each over every case, and its answers are the blob IDENTITY_HOST_ANSWERS of
+// the run's buffer (qry_buffer.h), as is every <host answers> named above; read then gives each identity its verdict:
+// the first case the two questions of one of its slices answer apart closes it as two operations, and an identity alike
+// on every case asked stays open with its count of cases. A case the host's C would trap on or leave undefined is asked
+// of nothing. Each identity is written to Lstar.klq after its keys, with the forms of the given rulesets whose texts
+// write its links, and with the rule a link breaks where asking the part as written would end it
 #include "../../interface/interface.h"
+#include "../overseer/overseer.h"
+#include "../teacher/run_channel.h"
 #include "carrier_flow.h"
 #include "code_generator.h"
 #include "concept_product.h"
 #include "precept_value.h"
+#include "qry_buffer.h"
 #include "query_record.h"
 #include "query_trace.h"
-#include "../teacher/run_channel.h"
 #include "target_internal.h"
 #include "word_web.h"
 extern "C"
@@ -58,7 +60,9 @@ extern "C"
 
 #include <ctype.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <algorithm>
@@ -91,6 +95,23 @@ static const unsigned long long s_values[] = {
 // the third operand, a test's other predicate where a question reads one
 #define IDENTITY_THIRDS 2u
 #define IDENTITY_CASES (IDENTITY_VALUES * IDENTITY_VALUES * IDENTITY_THIRDS)
+
+// the blob of the run's buffer the host's answers are handed as, host_questions' output, one chain a line
+#define IDENTITY_HOST_ANSWERS "host_answers.txt"
+
+// the latest blob of `name` in the run's buffer (qry_buffer.h) as text, empty where no run's writer runs or the run
+// holds none
+static std::string run_blob_text(const char *name)
+{
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_latest(qry_run(), name, &bytes, &size, NULL))
+    {
+        return std::string();
+    }
+    // a blob is at most the buffer's bytes, which a size_t counts
+    return std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
+}
 
 // the operations that transfer control or wait, which cubin_safe.h's rule 2 keeps off the part: a question holding
 // one is not put to the part as written
@@ -1075,7 +1096,7 @@ static std::string carrier_text(const Carrier &carrier)
 static int identity_read(const std::string &folder, const std::string &klq, int count, char **files)
 {
     std::map<std::string, std::vector<std::string>> answers;
-    std::ifstream answered(folder + "/host_answers.txt");
+    std::istringstream answered(run_blob_text(IDENTITY_HOST_ANSWERS));
     std::string line;
     while (std::getline(answered, line))
     {
@@ -2200,48 +2221,102 @@ static void record_open(const char *ksc, const char *mode)
     }
 }
 
-// The trace of every ask, where KLQ_TRACE names a file: the ask's number, the code's size, the registers, the shape
-// and the launches it is put with and its count of cases, then what came back: alike, apart with the first case
-// apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
-static thread_local FILE *s_ask_trace = NULL;
+// A log the query writes, held in memory until it is handed whole to the run's buffer as a blob of its .qry
+// (qry_buffer.h): the name its blobs are written under and the bytes not yet handed
+struct AskLog
+{
+    const char *name;
+    std::string bytes;
+};
 
-// The log beside the trace, KLQ_TRACE's name and .log, that klq_decoder reads: the cases as `cases <case>...`,
-// written again where an ask is put over other cases, and each ask as `ask <number>` and what came back of every case
-// in the order of the cases, `=` alike, `x` apart and `-` where the host gives no bracket, or `recorded` or `refused`
-// where the part answered it nothing here. A mode writes what it put after the ask, and every choice a pair's put
-// makes at a link as `choice <flags> <link>`, the flags of the trace's table ORed into one word, `-` for the link
-// where the choice is the put's own (src/cu/types/file_defs/klq/query_trace.tsv). NULL where nothing is traced. A
-// pair put in a thread of its own writes its trace and its log to files of its own, each added whole to these once
-// the pair is put, so that every put stands in one piece
-static thread_local FILE *s_ask_log = NULL;
-static FILE *s_trace_whole = NULL;
-static FILE *s_log_whole = NULL;
+// The trace of every ask, where KLQ_TRACE names the query's .qry: the ask's number, the code's size, the registers,
+// the shape and the launches it is put with and its count of cases, then what came back: alike, apart with the first
+// case apart and both answers, the carrier's refusal, or nothing. NULL where nothing is traced
+static thread_local AskLog *s_ask_trace = NULL;
+
+// The log, in the query's .qry beside the trace, that klq_decoder reads: the cases as `cases <case>...`, written again
+// where an ask is put over other cases, and each ask as `ask <number>` and what came back of every case in the order of
+// the cases, `=` alike, `x` apart and `-` where the host gives no bracket, or `recorded` or `refused` where the part
+// answered it nothing here. A mode writes what it put after the ask, and every choice a pair's put makes at a link as
+// `choice <flags> <link>`, the flags of the trace's table ORed into one word, `-` for the link where the choice is the
+// put's own (src/cu/types/file_defs/klq/query_trace.tsv). NULL where nothing is traced. The trace and the log of the
+// thread that carries the asks are the two below; a pair put in a thread of its own writes its trace and its log into
+// logs of its own, each handed whole once the pair is put, so that every put stands in one piece
+static thread_local AskLog *s_ask_log = NULL;
+static AskLog s_trace_whole = {"trace", std::string()};
+static AskLog s_log_whole = {"log", std::string()};
 
 // the index of the pair this thread puts, and -1 on the thread that carries the asks, and 1 where the stand-in the
 // pair puts now is dangerous
 static thread_local int t_pair = -1;
 static thread_local int t_dangerous = 0;
 
-// the trace and its log opened where KLQ_TRACE names them
+// `format` and what follows it added to the end of `log`'s bytes, as fprintf writes them
+__attribute__((format(gnu_printf, 2, 3))) static void ask_written(AskLog *log, const char *format, ...)
+{
+    va_list values;
+    va_start(values, format);
+    va_list measured;
+    va_copy(measured, values);
+    const int length = vsnprintf(NULL, 0u, format, measured);
+    va_end(measured);
+    if (length > 0)
+    {
+        const size_t held = log->bytes.size();
+        log->bytes.resize(held + (size_t)length + 1u);
+        vsnprintf(&log->bytes[held], (size_t)length + 1u, format, values);
+        log->bytes.resize(held + (size_t)length);
+    }
+    va_end(values);
+}
+
+// the run's buffer the trace and the log are handed to, NULL while nothing is traced
+static QryBuffer *s_ask_run = NULL;
+
+// `log`'s bytes handed to the run's buffer as an ordinary blob of its name, and let go
+static void ask_handed(AskLog *log)
+{
+    if ((s_ask_run != NULL) && !log->bytes.empty())
+    {
+        qry_hand(s_ask_run, log->name, log->bytes.data(), log->bytes.size(), QRY_ORDINARY);
+    }
+    log->bytes.clear();
+}
+
+// what the thread that carries the asks wrote and has not handed, handed as the run ends
+static void ask_files_closed(void)
+{
+    ask_handed(&s_trace_whole);
+    ask_handed(&s_log_whole);
+}
+
+// the trace and the log of the thread that carries the asks opened where KLQ_TRACE is set, into the run's buffer, the
+// .qry QRY names (qry_buffer.h), and handed the rest as the run ends
 static void ask_files_opened(void)
 {
-    if ((getenv("KLQ_TRACE") == NULL) || (s_ask_trace != NULL))
+    if ((getenv("KLQ_TRACE") == NULL) || (s_ask_run != NULL))
     {
         return;
     }
-    s_ask_trace = fopen(getenv("KLQ_TRACE"), "wb");
-    s_ask_log = fopen((std::string(getenv("KLQ_TRACE")) + ".log").c_str(), "wb");
-    s_trace_whole = s_ask_trace;
-    s_log_whole = s_ask_log;
+    s_ask_run = qry_run();
+    if (s_ask_run == NULL)
+    {
+        printf("klq_identity: KLQ_TRACE is set and no query writer runs: %s names no .qry a writer holds open\n",
+               QRY_ENVIRONMENT);
+        return;
+    }
+    s_ask_trace = &s_trace_whole;
+    s_ask_log = &s_log_whole;
+    atexit(ask_files_closed);
 }
 
-// `file` flushed where every ask is to reach the disk as it is written: on the thread that carries the asks, and not
-// in a pair's own files, which are added whole once the pair is put
-static void ask_flushed(FILE *file)
+// `log` handed to the run's buffer where every ask is to reach it as it is written: on the thread that carries the
+// asks, and not from a pair's own logs, which are handed whole once the pair is put
+static void ask_flushed(AskLog *log)
 {
     if (t_pair < 0)
     {
-        fflush(file);
+        ask_handed(log);
     }
 }
 
@@ -2565,20 +2640,22 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
         s_apart_at = (held.answer == "answers") ? held.word : 0xffffffffu;
         if (s_ask_trace != NULL)
         {
-            fprintf(s_ask_trace, "ask %llu: recorded %s %08x %s\n", *asks, held.answer.c_str(), held.word, key.c_str());
+            ask_written(s_ask_trace, "ask %llu: recorded %s %08x %s\n", *asks, held.answer.c_str(), held.word,
+                        key.c_str());
             ask_flushed(s_ask_trace);
         }
         if (s_ask_log != NULL)
         {
-            fprintf(s_ask_log, "ask %llu recorded\n", *asks);
+            ask_written(s_ask_log, "ask %llu recorded\n", *asks);
         }
         return alike;
     }
     if (s_ask_trace != NULL)
     {
-        fprintf(s_ask_trace, "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases: ",
-                *asks, question->code_size, question->registers, question->threads, question->blocks,
-                question->launches, question->cases);
+        ask_written(s_ask_trace,
+                    "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases: ", *asks,
+                    question->code_size, question->registers, question->threads, question->blocks, question->launches,
+                    question->cases);
     }
     RunQuestion *const asked[1] = {question};
     asks_carried(asked, &t_dangerous, 1u);
@@ -2586,12 +2663,12 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
     {
         if (s_ask_trace != NULL)
         {
-            fprintf(s_ask_trace, "outcome %u, %s\n", question->outcome, question->refused);
+            ask_written(s_ask_trace, "outcome %u, %s\n", question->outcome, question->refused);
             ask_flushed(s_ask_trace);
         }
         if (s_ask_log != NULL)
         {
-            fprintf(s_ask_log, "ask %llu refused\n", *asks);
+            ask_written(s_ask_log, "ask %llu refused\n", *asks);
         }
         if (recordable && ((question->outcome == RUN_ILLEGAL) || (question->outcome == RUN_NOTHING)))
         {
@@ -2610,12 +2687,12 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
             record_hash(places.data(), sizeof(places[0]) * question->cases, 0xcbf29ce484222325ull);
         if ((asked_hash != t_logged_hash) || (question->cases != t_logged_count))
         {
-            fprintf(s_ask_log, "cases");
+            ask_written(s_ask_log, "cases");
             for (unsigned int place = 0u; place < question->cases; place += 1u)
             {
-                fprintf(s_ask_log, " %s", case_text(places[place]).c_str());
+                ask_written(s_ask_log, " %s", case_text(places[place]).c_str());
             }
-            fprintf(s_ask_log, "\n");
+            ask_written(s_ask_log, "\n");
             t_logged_hash = asked_hash;
             t_logged_count = question->cases;
         }
@@ -2625,7 +2702,7 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
             const int holds = bracket_holds(host[places[place]], question->answered[place]);
             came_back += (holds < 0) ? '-' : (holds != 0) ? '=' : 'x';
         }
-        fprintf(s_ask_log, "ask %llu %s\n", *asks, came_back.c_str());
+        ask_written(s_ask_log, "ask %llu %s\n", *asks, came_back.c_str());
     }
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
@@ -2634,8 +2711,8 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
         {
             if (s_ask_trace != NULL)
             {
-                fprintf(s_ask_trace, "apart at case %u, the host %s and the part %llx\n", places[place],
-                        expected.c_str(), question->answered[place]);
+                ask_written(s_ask_trace, "apart at case %u, the host %s and the part %llx\n", places[place],
+                            expected.c_str(), question->answered[place]);
                 ask_flushed(s_ask_trace);
             }
             if (recordable)
@@ -2652,8 +2729,8 @@ static int question_alike(const std::vector<unsigned char> &code, const std::vec
     }
     if (s_ask_trace != NULL)
     {
-        fprintf(s_ask_trace, "alike%s\n",
-                (question->launches != 0u) ? (", " + std::to_string(question->nanoseconds) + " ns").c_str() : "");
+        ask_written(s_ask_trace, "alike%s\n",
+                    (question->launches != 0u) ? (", " + std::to_string(question->nanoseconds) + " ns").c_str() : "");
         ask_flushed(s_ask_trace);
     }
     return 1;
@@ -2669,11 +2746,12 @@ static int stall_alike(const std::vector<unsigned char> &code, const std::vector
     return question_alike(code, host, places, question, asks);
 }
 
-// each chain's answers the host computes, one a case over every case, by the chain's number
+// each chain's answers the host computes, one a case over every case, by the chain's number, read from the latest blob
+// of `answers` in the run's buffer
 static std::map<std::string, std::vector<std::string>> host_answers_read(const char *answers)
 {
     std::map<std::string, std::vector<std::string>> host;
-    std::ifstream host_file(answers);
+    std::istringstream host_file(run_blob_text(answers));
     std::string line;
     while (std::getline(host_file, line))
     {
@@ -2853,7 +2931,7 @@ static int identity_stall(const char *engine, const char *answers, const char *k
     const unsigned long long longest = (1ull << stall.bits) - 1ull;
     const unsigned long long none = (1ull << barrier.bits) - 1ull;
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
@@ -3263,7 +3341,7 @@ static int identity_register(const char *engine, const char *answers, const char
     const unsigned long long longest = (1ull << stall.bits) - 1ull;
     const unsigned long long highest = (1ull << fields["rd"].bits) - 1ull;
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
@@ -3462,7 +3540,7 @@ static int identity_curve(const char *engine, const char *answers, const char *k
     const unsigned long long longest = (1ull << stall.bits) - 1ull;
     const unsigned int highest = (unsigned int)((1ull << fields["rd"].bits) - 1ull);
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
@@ -3672,7 +3750,7 @@ static int identity_queue(const char *engine, const char *answers, const char *k
         printf("klq_identity queue: %s lists no question\n", manifest);
         return 1;
     }
-    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
@@ -3767,8 +3845,8 @@ static std::string case_text(unsigned int at)
 // the part answers each as the host does, the identity is open with its count of cases, every case both sides are
 // computed on. A side with no chain, no host answer, or that the part refuses or the gate holds is not asked, and its
 // identity is open with 0. Each identity's verdict is written beneath it in the bridge in place of the one it held
-static int identity_text(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                         const char *klq, const char *manifest, const char *const *carrier)
+static int identity_text(const char *engine, const char *answers, const char *ksc, const char *klq,
+                         const char *manifest, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
     std::map<std::string, std::string> numbered;
@@ -3791,7 +3869,7 @@ static int identity_text(const char *engine, const char *answers, const char *ks
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
     held.close();
-    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
@@ -3882,8 +3960,8 @@ static int identity_text(const char *engine, const char *answers, const char *ks
         unasked += (verdict == "open 0") ? 1u : 0u;
         if (s_ask_trace != NULL)
         {
-            fprintf(s_ask_trace, "text_identity %s [%s %s]: %s\n", sides.c_str(), first.c_str(), second.c_str(),
-                    verdict.c_str());
+            ask_written(s_ask_trace, "text_identity %s [%s %s]: %s\n", sides.c_str(), first.c_str(), second.c_str(),
+                        verdict.c_str());
             ask_flushed(s_ask_trace);
         }
         written.push_back(verdict);
@@ -4242,16 +4320,12 @@ static int form_controls(const std::string &text)
     return controls;
 }
 
-// 1 where the form `text` reads or writes memory through an address, or sends control elsewhere: a stand-in of it is
-// carried in a process of its own. A bank of constants, `c[...]`, is read at a place no case moves, and is no address
-static int form_dangerous(const std::string &text)
+// 1 where the form `text` reads or writes memory through an address. A bank of constants, `c[...]`, is read at a place
+// no case moves, and is no address
+static int form_addresses(const std::string &text)
 {
     for (const std::vector<std::string> &instruction : form_instructions(text))
     {
-        if (opcode_controls(instruction[0]))
-        {
-            return 1;
-        }
         for (size_t at = 1u; at < instruction.size(); at += 1u)
         {
             const size_t bracket = instruction[at].find('[');
@@ -4262,6 +4336,13 @@ static int form_dangerous(const std::string &text)
         }
     }
     return 0;
+}
+
+// 1 where the form `text` reads or writes memory through an address, or sends control elsewhere: a stand-in of it is
+// carried in a process of its own
+static int form_dangerous(const std::string &text)
+{
+    return form_controls(text) || form_addresses(text);
 }
 
 // 1 where the form `text` computes a value from its operands
@@ -4537,6 +4618,110 @@ static void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, con
     }
 }
 
+// What the texts of a pair's two forms, as `sass` writes them, say of it before any ask, each word after a space: one
+// structure, one form the other with a parameter bound; both reading what the launch gives; or two operations, one
+// meaning written twice. Then the categories the texts read the pair into: both forms comparisons, every condition
+// tested an equality or some an order; either form an operation at any width, every instruction of one giving one
+// value with its first two sources either way round, or a doing word that computes no value; either form reading where
+// its lane sits, working a wide value in pieces, deciding which form runs next, or holding no instruction
+static std::string pair_categories(const Ruleset *sass, const std::string &first, const std::string &second)
+{
+    std::vector<std::string> first_names;
+    std::vector<std::string> second_names;
+    const std::string first_text = marked(sass, first, &first_names);
+    const std::string second_text = marked(sass, second, &second_names);
+    std::map<char, std::string> bound;
+    std::map<char, std::string> fixed;
+    const int structural = (form_unified(first_text, second_text, &bound, &fixed) && !fixed.empty()) ||
+                           (form_unified(second_text, first_text, &bound, &fixed) && !fixed.empty());
+    const int launched =
+        !first_text.empty() && !second_text.empty() && form_launched(first_text) && form_launched(second_text);
+    const std::vector<std::string> first_tokens = form_tokens(first_text);
+    const std::vector<std::string> second_tokens = form_tokens(second_text);
+    const int two_operations = !first_tokens.empty() && !second_tokens.empty() &&
+                               (first_tokens[0].substr(0u, first_tokens[0].find('.')) !=
+                                second_tokens[0].substr(0u, second_tokens[0].find('.')));
+    const std::set<std::string> first_conditions = form_conditions(first_text);
+    const std::set<std::string> second_conditions = form_conditions(second_text);
+    std::set<std::string> conditions = first_conditions;
+    conditions.insert(second_conditions.begin(), second_conditions.end());
+    const int compared = !first_conditions.empty() && !second_conditions.empty();
+    int ordered = 0;
+    int equal = compared;
+    for (const std::string &condition : conditions)
+    {
+        ordered |= ((condition == "LT") || (condition == "LE") || (condition == "GT") || (condition == "GE")) ? 1 : 0;
+        equal &= ((condition == "EQ") || (condition == "NE")) ? 1 : 0;
+    }
+    const int placed = form_launched(first_text) || form_launched(second_text);
+    const int ranged = form_ranged(first_text) || form_ranged(second_text);
+    const int controlled = form_controls(first_text) || form_controls(second_text);
+    const int switched = form_switches(first_text) || form_switches(second_text);
+    const int operated = form_operates(first_text) || form_operates(second_text);
+    const int commuted = form_commutes(first_text) || form_commutes(second_text);
+    const int verbed = form_verbs(first_text) || form_verbs(second_text);
+    return std::string(structural ? " structural" : "") + (launched ? " pragmatic" : "") +
+           (two_operations ? " syntactic" : "") + (compared ? " comparison" : "") + (equal ? " equality" : "") +
+           ((compared && ordered) ? " order" : "") + (operated ? " operation" : "") + (commuted ? " commutative" : "") +
+           (verbed ? " verb" : "") + (ranged ? " range" : "") + (placed ? " vector" : "") +
+           (controlled ? " control" : "") + (switched ? " switch" : "");
+}
+
+// the lines the bridge `bridge` holds beneath the pair of `first` and `second`, either way round: its verdict, the
+// metas and sets klq_decoder read it into, its concept and its intent; none where the bridge holds no such pair
+static std::vector<std::string> pair_beneath(const std::vector<std::string> &bridge, const std::string &first,
+                                             const std::string &second)
+{
+    std::vector<std::string> beneath;
+    const std::string one_way = "pair " + first + " " + second;
+    const std::string other_way = "pair " + second + " " + first;
+    for (size_t at = 0u; at < bridge.size(); at += 1u)
+    {
+        if ((bridge[at] != one_way) && (bridge[at] != other_way))
+        {
+            continue;
+        }
+        for (size_t under = at + 1u; under < bridge.size(); under += 1u)
+        {
+            const std::string &line = bridge[under];
+            const int verdict = (line.rfind("open ", 0u) == 0u) || (line.rfind("closed ", 0u) == 0u);
+            const int set = (line.size() > 10u) && (line.find(' ') == std::string::npos) &&
+                            (line.compare(line.size() - 10u, 10u, "_coherence") == 0);
+            const int named =
+                (line.rfind("concept_coherence ", 0u) == 0u) || (line.rfind("intent_coherence ", 0u) == 0u);
+            if (!verdict && !set && !named)
+            {
+                break;
+            }
+            beneath.push_back(line);
+        }
+        break;
+    }
+    return beneath;
+}
+
+// the verdicts of a pair put both ways round, `one_way` then `other_way`: the first that closes it, and otherwise open
+// with the cases alike over both
+static std::string pair_verdicts_joined(const std::string &one_way, const std::string &other_way)
+{
+    if (one_way.rfind("closed ", 0u) == 0u)
+    {
+        return one_way;
+    }
+    if (other_way.rfind("closed ", 0u) == 0u)
+    {
+        return other_way;
+    }
+    const unsigned long one = (one_way.rfind("open ", 0u) == 0u) ? std::stoul(one_way.substr(5u)) : 0ul;
+    const unsigned long other = (other_way.rfind("open ", 0u) == 0u) ? std::stoul(other_way.substr(5u)) : 0ul;
+    return "open " + std::to_string(one + other);
+}
+
+// on a pair's thread: 1 where a conference turned its put the other way round, and 1 while its put is the other way
+// round already or a witness, so that a conference rules the relation waits and turns nothing again (overseer.h)
+static thread_local int t_turned = 0;
+static thread_local int t_other_way = 0;
+
 // The bridge's pairs put to the part, `pair <form> <form>` in Lstar.klq: two forms whose sameness the text leaves
 // open. A pair is put in a carrier, a chain of ours the host computes that holds one form's text as sass.krs writes it:
 // the form's arguments are read off the chain's lines, the other form is written in its place with the arguments of
@@ -4548,8 +4733,8 @@ static void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, con
 // neither's text standing in a chain, and a pair the part refuses in every carrier, is open with 0. Each verdict is
 // written beneath its pair in the bridge in place of the one it held. Where the log is kept, each put is followed by
 // the values the form reads there on every case, the carrier cut at the form, for klq_decoder to read its product off
-static int identity_pair(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                         const char *klq, const char *machine_path, const char *const *carrier)
+static int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq,
+                         const char *machine_path, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
     const Ruleset *const sass = code_generator("sass.krs").ruleset(1);
@@ -4575,7 +4760,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
     held_bridge.close();
-    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
@@ -4588,6 +4773,11 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         return 1;
     }
     mark_pending("seed", std::to_string(seed));
+    // the lessons a run before this one taught, carried into this run (overseer.h)
+    overseer_lessons_cleared();
+    const unsigned int lessons_carried = overseer_lessons_read(qry_run());
+    unsigned int conferences = 0u;
+    unsigned int lessons_taught = 0u;
     // the asks the query record held before this cycle, read with R
     const size_t recorded_before = s_query_record.asks.size();
     // each pair's question and places, held with the pair and reached from its own thread, since a pair waits on its
@@ -4622,11 +4812,67 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         {
             word |= query_trace_flag(s_query_trace, names[at]);
         }
-        fprintf(s_ask_log, "choice 0x%llx %s\n", word, link.c_str());
+        ask_written(s_ask_log, "choice 0x%llx %s\n", word, link.c_str());
     };
     const auto chose = [&chosen](const char *name, const std::string &link) {
         const char *const names[1] = {name};
         chosen(names, 1u, link);
+    };
+    // The conference a refused put calls, held on the pair's thread once the teacher has called it (overseer.h). The
+    // learner hands its statement: what it put, the carrier, what the stand-in does and the stand-in as written. The
+    // coherence sets hand what the pair was being asked as: the sets the bridge reads it into and what its texts say
+    // of it. The counterexample hands the first case apart the pair holds, this run's or the bridge's. The ruling is
+    // written to the trace and its choice to the log, and its guidance given back: OVERSEER_HANDS_OFF where no party
+    // called a conference of `asked`
+    const auto conferred = [&](const std::string &from, const std::string &to, const std::string &statement,
+                               const std::string &standing, const std::string &carrier_name, unsigned int scratch,
+                               const RunQuestion &asked, const std::string &closed_here,
+                               const std::string &link_address) -> unsigned int {
+        QryBuffer *const run = qry_run();
+        const std::string identity = question_identity(&asked);
+        char joined[OVERSEER_STANDING_LONGEST];
+        overseer_standing_joined(standing.c_str(), joined);
+        const std::string said = statement + "; carrier " + carrier_name +
+                                 (form_addresses(standing) ? "; stand-in addresses" : "") +
+                                 (form_controls(standing) ? "; stand-in controls" : "") +
+                                 ((scratch != 0u) ? "; stand-in scratch" : "") + "; standing " + joined;
+        overseer_account(run, identity.c_str(), "learner", said.c_str());
+        std::string sets;
+        std::string counterexample = closed_here;
+        for (const std::string &line : pair_beneath(bridge, from, to))
+        {
+            if ((line.rfind("closed ", 0u) == 0u) && counterexample.empty())
+            {
+                counterexample = line;
+            }
+            else if ((line.rfind("open ", 0u) != 0u) && (line.rfind("closed ", 0u) != 0u))
+            {
+                sets += (sets.empty() ? "" : " ") + line;
+            }
+        }
+        const std::string categories = pair_categories(sass, from, to);
+        const std::string learning = (sets.empty() ? std::string("no set an answer reads it into yet") : sets) +
+                                     (categories.empty() ? std::string() : (", its texts reading it" + categories));
+        overseer_account(run, identity.c_str(), "coherence",
+                         ("the pair " + from + " " + to + "; learning " + learning).c_str());
+        overseer_account(run, identity.c_str(), "counterexample",
+                         counterexample.empty()
+                             ? "the pair holds no case apart yet"
+                             : ("the pair holds its first case apart; counterexample " + counterexample).c_str());
+        OverseerRuling ruling;
+        if (!overseer_convened(run, identity.c_str(), t_other_way, &ruling))
+        {
+            return OVERSEER_HANDS_OFF;
+        }
+        conferences += 1u;
+        lessons_taught += ruling.taught ? 1u : 0u;
+        chose("conference", link_address);
+        if (s_ask_trace != NULL)
+        {
+            ask_written(s_ask_trace, "conference %s: %s\n", identity.c_str(), ruling.said);
+            ask_flushed(s_ask_trace);
+        }
+        return ruling.guidance;
     };
     // `from` stood in for by `to` at each of its links in each carrier, until the part answers one apart: 1 with its
     // verdict, closed at the first link apart or open with the cases alike at every link the part answered, 0 where the
@@ -4778,6 +5024,19 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             char address[32];
             snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * link);
             const std::vector<std::string> &expected = host[chain.first];
+            // a stand-in a lesson of the overseer holds is answered as held at this link, and the part never sees it
+            char overseen[160];
+            if (overseer_holds(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
+            {
+                chose("overseen", link_address);
+                if (s_ask_trace != NULL)
+                {
+                    ask_written(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
+                                overseen);
+                    ask_flushed(s_ask_trace);
+                }
+                continue;
+            }
             // Past the first case apart a link adds to the product alone, and only where the form reads in a shape no
             // link read before it: a link of a shape read before holds the same rows, and is no branch of its own. The
             // cycle loops while the product is not whole and a branch is left, and ends at a whole product or with
@@ -4818,12 +5077,22 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             }
             if ((s_ask_trace != NULL) && !past_closed)
             {
-                fprintf(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
-                        alike                           ? "alike"
-                        : (put_outcome == RUN_ANSWERED) ? "apart"
-                                                        : question.refused);
+                ask_written(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
+                            alike                           ? "alike"
+                            : (put_outcome == RUN_ANSWERED) ? "apart"
+                                                            : question.refused);
                 ask_flushed(s_ask_trace);
             }
+            // a put the part refused, or a carrier ended on, calls a conference: its guidance is what the learner puts
+            // next, and a lesson it teaches holds the stand-in's own product below off the part
+            unsigned int guidance = OVERSEER_HANDS_OFF;
+            if (!past_closed && !alike && (put_outcome != RUN_ANSWERED) && (put_outcome != RUN_HELD))
+            {
+                guidance = conferred(
+                    from, to, "the pair " + from + " " + to + ", " + to + " put in place of " + from + " at " + address,
+                    standing, chain.first, scratch_taken, question, closed, link_address);
+            }
+            const int stand_in_held = overseer_holds(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen));
             // the put beneath its ask in the log: the link as it stood, the link standing in its place, each on one
             // line of the log, and the operands only the form it stood as names
             if (s_ask_log != NULL)
@@ -4832,30 +5101,30 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 std::string to_line = standing;
                 std::replace(from_line.begin(), from_line.end(), '\n', ' ');
                 std::replace(to_line.begin(), to_line.end(), '\n', ' ');
-                fprintf(s_ask_log, "pair %s in place of %s at %s\nfrom %s\nto %s\nonly", to.c_str(), from.c_str(),
-                        address, from_line.c_str(), to_line.c_str());
+                ask_written(s_ask_log, "pair %s in place of %s at %s\nfrom %s\nto %s\nonly", to.c_str(), from.c_str(),
+                            address, from_line.c_str(), to_line.c_str());
                 for (const std::string &name : from_names)
                 {
                     if ((given.count(name) != 0u) && (read_by_to.count(name) == 0u))
                     {
-                        fprintf(s_ask_log, " %s", given[name].c_str());
+                        ask_written(s_ask_log, " %s", given[name].c_str());
                     }
                 }
                 // each of the form's parameters the stand-in writes a literal in place of: one structure, bound
                 if (unified && !fixed.empty())
                 {
-                    fprintf(s_ask_log, "\nbinds");
+                    ask_written(s_ask_log, "\nbinds");
                     for (const auto &each : fixed)
                     {
                         const size_t parameter = (size_t)(each.first - 'A');
-                        fprintf(s_ask_log, " %s=%s",
-                                (parameter < from_names.size()) ? from_names[parameter].c_str() : "?",
-                                each.second.c_str());
+                        ask_written(s_ask_log, " %s=%s",
+                                    (parameter < from_names.size()) ? from_names[parameter].c_str() : "?",
+                                    each.second.c_str());
                     }
                 }
-                fprintf(s_ask_log, "\nvector registers %u lanes %u operands %u delta %ld seed %lu\n",
-                        question.registers, question.cases, magnitudes[chain.first].second, found_link.vector.first,
-                        seed);
+                ask_written(s_ask_log, "\nvector registers %u lanes %u operands %u delta %ld seed %lu\n",
+                            question.registers, question.cases, magnitudes[chain.first].second, found_link.vector.first,
+                            seed);
                 // what the form's product is made of: each register it reads that a case reaches, its value on every
                 // case as the part holds it at the form, the carrier cut there and the value stored in its place
                 const std::string form_found = found.str(0);
@@ -4936,8 +5205,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         cut_code.resize(16u * cut_count);
                         if (s_ask_trace != NULL)
                         {
-                            fprintf(s_ask_trace, "reads %s, the carrier cut at %s, %u links:\n%s", read.c_str(),
-                                    address, cut_count, cut.c_str());
+                            ask_written(s_ask_trace, "reads %s, the carrier cut at %s, %u links:\n%s", read.c_str(),
+                                        address, cut_count, cut.c_str());
                             ask_flushed(s_ask_trace);
                         }
                         cut_codes.push_back(cut_code);
@@ -4951,10 +5220,12 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     {
                         int wide = 0;
                         const std::string product = carrier_form_product(sides[side], &wide);
+                        // the stand-in's side is left unwritten where a lesson holds the stand-in off the part
                         const std::string cut =
-                            product.empty() ? std::string()
-                                            : carrier_cut_at_read(flow.first, flow.second, chain.second, link_at,
-                                                                  form_lines, product, sides[side], wide);
+                            (product.empty() || ((side == 1u) && stand_in_held))
+                                ? std::string()
+                                : carrier_cut_at_read(flow.first, flow.second, chain.second, link_at, form_lines,
+                                                      product, sides[side], wide);
                         std::vector<unsigned char> cut_code(16u * 4096u);
                         const unsigned int cut_count =
                             cut.empty() ? 0u
@@ -4963,8 +5234,8 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         cut_code.resize(16u * cut_count);
                         if (s_ask_trace != NULL)
                         {
-                            fprintf(s_ask_trace, "writes %s %s, the carrier cut after %s, %u links:\n%s",
-                                    side_names[side], product.c_str(), address, cut_count, cut.c_str());
+                            ask_written(s_ask_trace, "writes %s %s, the carrier cut after %s, %u links:\n%s",
+                                        side_names[side], product.c_str(), address, cut_count, cut.c_str());
                             ask_flushed(s_ask_trace);
                         }
                         cut_codes.push_back(cut_code);
@@ -4978,21 +5249,21 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                         // a parameter the chain binds to a literal is that literal on every case, and asks nothing
                         if (literal_reads.count(read) != 0u)
                         {
-                            fprintf(s_ask_log, "reads %s", read.c_str());
+                            ask_written(s_ask_log, "reads %s", read.c_str());
                             put_reads.push_back(std::make_pair(read, std::vector<unsigned long long>()));
                             for (unsigned int place = 0u; place < question.cases; place += 1u)
                             {
-                                fprintf(s_ask_log, " %llx", literal_reads[read]);
+                                ask_written(s_ask_log, " %llx", literal_reads[read]);
                                 put_reads.back().second.push_back(literal_reads[read]);
                             }
-                            fprintf(s_ask_log, "\n");
+                            ask_written(s_ask_log, "\n");
                             continue;
                         }
                         // an operand of a case the form loads itself is read as the question holds it, and asks nothing
                         if (read[0] == '[')
                         {
                             const unsigned int operand = (unsigned int)std::stoul(read.substr(6u));
-                            fprintf(s_ask_log, "reads [%u]", operand);
+                            ask_written(s_ask_log, "reads [%u]", operand);
                             put_reads.push_back(
                                 std::make_pair("[" + std::to_string(operand) + "]", std::vector<unsigned long long>()));
                             for (unsigned int place = 0u; place < question.cases; place += 1u)
@@ -5002,56 +5273,56 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                                     ((2u * operand + 1u) < RUN_IN_WORDS)
                                         ? (((unsigned long long)words[2u * operand + 1u] << 32u) | words[2u * operand])
                                         : 0ull;
-                                fprintf(s_ask_log, " %llx", value);
+                                ask_written(s_ask_log, " %llx", value);
                                 put_reads.back().second.push_back(value);
                             }
-                            fprintf(s_ask_log, "\n");
+                            ask_written(s_ask_log, "\n");
                             continue;
                         }
                         const RunQuestion &cut = cut_answers[cut_at];
                         const int unwritten = cut_codes[cut_at].empty();
                         cut_at += 1u;
-                        fprintf(s_ask_log, "reads %s", read.c_str());
+                        ask_written(s_ask_log, "reads %s", read.c_str());
                         put_reads.push_back(std::make_pair(read, std::vector<unsigned long long>()));
                         if (unwritten || (cut.outcome != RUN_ANSWERED))
                         {
-                            fprintf(s_ask_log, " refused %s\n", unwritten ? "unwritten" : cut.refused);
+                            ask_written(s_ask_log, " refused %s\n", unwritten ? "unwritten" : cut.refused);
                             continue;
                         }
                         for (unsigned int place = 0u; place < question.cases; place += 1u)
                         {
-                            fprintf(s_ask_log, " %llx", cut.answered[place]);
+                            ask_written(s_ask_log, " %llx", cut.answered[place]);
                             put_reads.back().second.push_back(cut.answered[place]);
                         }
-                        fprintf(s_ask_log, "\n");
+                        ask_written(s_ask_log, "\n");
                     }
                     for (unsigned int side = 0u; side < 2u; side += 1u)
                     {
                         const RunQuestion &cut = cut_answers[cut_at];
                         const int unwritten = cut_codes[cut_at].empty();
                         cut_at += 1u;
-                        fprintf(s_ask_log, "writes %s", side_names[side]);
+                        ask_written(s_ask_log, "writes %s", side_names[side]);
                         if (unwritten || (cut.outcome != RUN_ANSWERED))
                         {
-                            fprintf(s_ask_log, " refused %s\n", unwritten ? "unwritten" : cut.refused);
+                            ask_written(s_ask_log, " refused %s\n", unwritten ? "unwritten" : cut.refused);
                             continue;
                         }
                         for (unsigned int place = 0u; place < question.cases; place += 1u)
                         {
-                            fprintf(s_ask_log, " %llx", cut.answered[place]);
+                            ask_written(s_ask_log, " %llx", cut.answered[place]);
                             put_writes[side].push_back(cut.answered[place]);
                         }
-                        fprintf(s_ask_log, "\n");
+                        ask_written(s_ask_log, "\n");
                     }
                     ask_flushed(s_ask_log);
                 };
                 // the values the pair's forms write of their own, each put to the product with every case value
-                fprintf(s_ask_log, "qualifies");
+                ask_written(s_ask_log, "qualifies");
                 for (const unsigned long long value : qualifiers)
                 {
-                    fprintf(s_ask_log, " %llx", value);
+                    ask_written(s_ask_log, " %llx", value);
                 }
-                fprintf(s_ask_log, "\n");
+                ask_written(s_ask_log, "\n");
                 const size_t signal_before = concept_signal(product);
                 ConceptReads put_reads;
                 std::vector<unsigned long long> put_writes[2];
@@ -5071,13 +5342,13 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     for (unsigned int run = 0u; (run < runs) && !concept_whole(product, pair_cased); run += 1u)
                     {
                         whole_cases(&question, qualifiers, run);
-                        fprintf(s_ask_log, "pair %s in place of %s at %s\nqualified", to.c_str(), from.c_str(),
-                                address);
+                        ask_written(s_ask_log, "pair %s in place of %s at %s\nqualified", to.c_str(), from.c_str(),
+                                    address);
                         for (const unsigned long long value : qualifiers)
                         {
-                            fprintf(s_ask_log, " %llx", value);
+                            ask_written(s_ask_log, " %llx", value);
                         }
-                        fprintf(s_ask_log, "\n");
+                        ask_written(s_ask_log, "\n");
                         ConceptReads whole_reads;
                         std::vector<unsigned long long> whole_writes[2];
                         product_asked(whole_reads, whole_writes);
@@ -5086,6 +5357,17 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     stall_cases(&question, &places);
                 }
                 band_truthy |= (concept_signal(product) > signal_before) ? 1 : 0;
+            }
+            // the conference's guidance: the stand-in brought it on, and the pair is put the other way round, or its
+            // relation waits; otherwise the put goes on to its next link as it would
+            if (guidance == OVERSEER_OTHER_WAY)
+            {
+                t_turned = 1;
+                break;
+            }
+            if (guidance == OVERSEER_WAITS)
+            {
+                break;
             }
             if (past_closed && concept_whole(product, pair_cased))
             {
@@ -5269,7 +5551,7 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 }
                 if (!witnessed && (s_ask_log != NULL))
                 {
-                    fprintf(s_ask_log, "witness %s %s %s\n", first.c_str(), second.c_str(), third.c_str());
+                    ask_written(s_ask_log, "witness %s %s %s\n", first.c_str(), second.c_str(), third.c_str());
                 }
                 witnessed = 1;
                 // each form written in the link's place with the arguments the third form's link gives by name, and
@@ -5315,6 +5597,14 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                     lower("unassembled");
                     continue;
                 }
+                // a stand-in a lesson of the overseer holds is answered as held, and neither is put
+                char overseen[160];
+                if (overseer_holds(first_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)) ||
+                    overseer_holds(second_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
+                {
+                    lower("overseen");
+                    continue;
+                }
                 // both put over the pair's cases at the carrier's registers, and again declaring every register where
                 // the part refuses one
                 std::vector<RunQuestion> sides(2u, RunQuestion());
@@ -5341,6 +5631,21 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 }
                 if ((sides[0].outcome != RUN_ANSWERED) || (sides[1].outcome != RUN_ANSWERED))
                 {
+                    // each side the part refused, or a carrier ended on, calls a conference of its own; a lesson it
+                    // teaches holds the stand-in at the links after this one
+                    const std::string *const standings_of[2] = {&first_standing, &second_standing};
+                    const unsigned int scratches[2] = {first_scratch, second_scratch};
+                    for (unsigned int side = 0u; side < 2u; side += 1u)
+                    {
+                        if ((sides[side].outcome != RUN_ANSWERED) && (sides[side].outcome != RUN_HELD))
+                        {
+                            conferred(first, second,
+                                      "the pair " + first + " " + second + " witnessed at the link " + link_address +
+                                          " of " + third + ", " + ((side == 0u) ? first : second) + " standing there",
+                                      *standings_of[side], chain.first, scratches[side], sides[side], std::string(),
+                                      link_address);
+                        }
+                    }
                     lower("refused");
                     continue;
                 }
@@ -5402,55 +5707,10 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     unsigned int unasked = 0u;
     int beneath = 0;
     ask_files_opened();
-    // what the texts of a pair's two forms say of it before any ask: one structure, one form the other with a
-    // parameter bound; both reading what the launch gives; or two operations, one meaning written twice
+    // what the texts of a pair's two forms say of it before any ask, written to the log
     const auto pair_facts = [&](const std::string &first, const std::string &second) {
-        std::vector<std::string> first_names;
-        std::vector<std::string> second_names;
-        const std::string first_text = marked(sass, first, &first_names);
-        const std::string second_text = marked(sass, second, &second_names);
-        std::map<char, std::string> bound;
-        std::map<char, std::string> fixed;
-        const int structural = (form_unified(first_text, second_text, &bound, &fixed) && !fixed.empty()) ||
-                               (form_unified(second_text, first_text, &bound, &fixed) && !fixed.empty());
-        const int launched = !first_text.empty() && !second_text.empty() && form_launched(first_text) &&
-                             form_launched(second_text);
-        const std::vector<std::string> first_tokens = form_tokens(first_text);
-        const std::vector<std::string> second_tokens = form_tokens(second_text);
-        const int two_operations = !first_tokens.empty() && !second_tokens.empty() &&
-                            (first_tokens[0].substr(0u, first_tokens[0].find('.')) !=
-                             second_tokens[0].substr(0u, second_tokens[0].find('.')));
-        // the categories the texts read the pair into: both forms comparisons, every condition tested an equality or
-        // some an order; either form reading where its lane sits, working a wide value in pieces, deciding which
-        // form runs next, or holding no instruction
-        const std::set<std::string> first_conditions = form_conditions(first_text);
-        const std::set<std::string> second_conditions = form_conditions(second_text);
-        std::set<std::string> conditions = first_conditions;
-        conditions.insert(second_conditions.begin(), second_conditions.end());
-        const int compared = !first_conditions.empty() && !second_conditions.empty();
-        int ordered = 0;
-        int equal = compared;
-        for (const std::string &condition : conditions)
-        {
-            ordered |= ((condition == "LT") || (condition == "LE") || (condition == "GT") || (condition == "GE")) ? 1
-                                                                                                                  : 0;
-            equal &= ((condition == "EQ") || (condition == "NE")) ? 1 : 0;
-        }
-        const int placed = form_launched(first_text) || form_launched(second_text);
-        const int ranged = form_ranged(first_text) || form_ranged(second_text);
-        const int controlled = form_controls(first_text) || form_controls(second_text);
-        const int switched = form_switches(first_text) || form_switches(second_text);
-        // either form an operation, at any width; either form's every instruction one value with its first two
-        // sources either way round; either form a doing word that computes no value
-        const int operated = form_operates(first_text) || form_operates(second_text);
-        const int commuted = form_commutes(first_text) || form_commutes(second_text);
-        const int verbed = form_verbs(first_text) || form_verbs(second_text);
-        fprintf(s_ask_log, "facts %s %s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", first.c_str(), second.c_str(),
-                structural ? " structural" : "", launched ? " pragmatic" : "", two_operations ? " syntactic" : "",
-                compared ? " comparison" : "", equal ? " equality" : "", (compared && ordered) ? " order" : "",
-                operated ? " operation" : "", commuted ? " commutative" : "", verbed ? " verb" : "",
-                ranged ? " range" : "", placed ? " vector" : "", controlled ? " control" : "",
-                switched ? " switch" : "");
+        ask_written(s_ask_log, "facts %s %s%s\n", first.c_str(), second.c_str(),
+                    pair_categories(sass, first, second).c_str());
     };
     // every pair of the bridge, in its order, the question and places its put asks with, the hash of what its put
     // reads, and the verdict it came to
@@ -5520,29 +5780,9 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
         }
     }
     // Each pair put in a thread of its own, run only in its turn: its facts, its put, and the stand-in the other way
-    // round where the form's own way answered nothing. Its trace and its log are files of its own beside the trace,
-    // added whole to the trace and the log once it is put
+    // round where the form's own way answered nothing. Its trace and its log are logs of its own, held in memory and
+    // handed whole to the query's writer once it is put, after what the thread that carries the asks wrote before it
     s_round_asks.assign(pairs.size(), std::vector<CarriedAsk>());
-    const std::string traced = (getenv("KLQ_TRACE") != NULL) ? std::string(getenv("KLQ_TRACE")) : std::string();
-    const auto file_added = [](FILE *whole, const std::string &path) {
-        FILE *const part = fopen(path.c_str(), "rb");
-        if ((whole != NULL) && (part != NULL))
-        {
-            char moved[65536];
-            size_t read = fread(moved, 1u, sizeof(moved), part);
-            while (read != 0u)
-            {
-                fwrite(moved, 1u, read, whole);
-                read = fread(moved, 1u, sizeof(moved), part);
-            }
-            fflush(whole);
-        }
-        if (part != NULL)
-        {
-            fclose(part);
-        }
-        remove(path.c_str());
-    };
     std::vector<std::thread> threads;
     for (size_t at = 0u; at < pairs.size(); at += 1u)
     {
@@ -5556,12 +5796,12 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
                 s_turn_changed.wait(lock, [at]() { return s_turn == (int)at; });
             }
             t_pair = (int)at;
-            const std::string trace_path = traced + ".pair" + std::to_string(at);
-            const std::string log_path = traced + ".log.pair" + std::to_string(at);
-            if (s_log_whole != NULL)
+            AskLog pair_trace = {s_trace_whole.name, std::string()};
+            AskLog pair_log = {s_log_whole.name, std::string()};
+            if (s_ask_run != NULL)
             {
-                s_ask_trace = fopen(trace_path.c_str(), "wb");
-                s_ask_log = fopen(log_path.c_str(), "wb");
+                s_ask_trace = &pair_trace;
+                s_ask_log = &pair_log;
             }
             PairPut &pair = pairs[at];
             t_question = pair.question.get();
@@ -5571,24 +5811,33 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
             {
                 pair_facts(pair.first, pair.second);
             }
-            if (!put(pair.first, pair.second, &pair.verdict) && !put(pair.second, pair.first, &pair.verdict))
+            // the form's own way first, then the other way round where it answered nothing or a conference turned it,
+            // then the lower witness where neither answered
+            t_turned = 0;
+            t_other_way = 0;
+            const int one_way = put(pair.first, pair.second, &pair.verdict);
+            int either_way = one_way;
+            if (!one_way || t_turned)
+            {
+                t_other_way = 1;
+                std::string other_verdict;
+                const int other_way = put(pair.second, pair.first, &other_verdict);
+                pair.verdict = one_way ? pair_verdicts_joined(pair.verdict, other_verdict) : other_verdict;
+                either_way = one_way || other_way;
+            }
+            if (!either_way)
             {
                 witness_lower(pair.first, pair.second, &pair.verdict);
             }
-            if (s_log_whole != NULL)
+            if (s_ask_log != NULL)
             {
-                if (s_ask_trace != NULL)
-                {
-                    fclose(s_ask_trace);
-                }
-                if (s_ask_log != NULL)
-                {
-                    fclose(s_ask_log);
-                }
                 s_ask_trace = NULL;
                 s_ask_log = NULL;
-                file_added(s_trace_whole, trace_path);
-                file_added(s_log_whole, log_path);
+                // the thread that carries the asks waits out this pair's turn: what it wrote before the pair goes first
+                ask_handed(&s_trace_whole);
+                ask_handed(&s_log_whole);
+                ask_handed(&pair_trace);
+                ask_handed(&pair_log);
             }
             std::unique_lock<std::mutex> lock(s_turn_lock);
             pair.put_whole = 1;
@@ -5675,6 +5924,10 @@ static int identity_pair(const char *engine, const char *answers, const char *ks
     fclose(file);
     printf("klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open, closed,
            unasked, klq);
+    // the lessons held, those carried in and those taught, handed to the run for the next run to carry
+    overseer_lessons_handed(qry_run());
+    printf("klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n", conferences,
+           lessons_taught, lessons_carried);
     // the path this cycle read off the asks, each pair and its verdict, an open pair the question a further pass takes
     // up, written to the query record with every ask it held and every ask this cycle put once R is written back
     s_query_record.paths.clear();
@@ -6021,7 +6274,7 @@ static int identity_cost(const char *engine, const char *answers, const char *ks
     std::vector<CostRow> rows;
     std::map<std::string, std::vector<size_t>> operators;
     kdm_rows_read(kdm, &lines, &rows, &operators);
-    if (!run_channel_open(carrier, folder.c_str(), 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
@@ -6357,7 +6610,7 @@ int main(int count, char **words)
     {
         std::vector<const char *> carrier(words + 9, words + count);
         carrier.push_back(NULL);
-        return identity_pair(words[2], words[3], words[4], words[5], words[6], words[7], carrier.data());
+        return identity_pair(words[2], words[3], words[4], words[6], words[7], carrier.data());
     }
     if ((count >= 10) && (std::string(words[1]) == "cost") && (std::string(words[8]) == "--"))
     {
@@ -6369,7 +6622,7 @@ int main(int count, char **words)
     {
         std::vector<const char *> carrier(words + 9, words + count);
         carrier.push_back(NULL);
-        return identity_text(words[2], words[3], words[4], words[5], words[6], words[7], carrier.data());
+        return identity_text(words[2], words[3], words[4], words[6], words[7], carrier.data());
     }
     if ((count >= 9) && (std::string(words[1]) == "queue") && (std::string(words[7]) == "--"))
     {

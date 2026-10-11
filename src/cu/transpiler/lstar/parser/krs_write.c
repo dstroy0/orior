@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krs_write.c: a language's ruleset and its part's, written from the forms the part answered for
 //
-//     krs_write <language> <part> <path.khw> <layout> <mnemonics> <folder> <machine writer> <named ruleset>
+//     krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>
 //
 // Every form in the part's file this writes is there because the part answered for it (P8), and no name is matched
 // to an operation. The vendor's writer (`machine writer` above, run through the interface) reads the part's machine
@@ -22,8 +22,12 @@
 // Two files are written beside the machine file: <language>.krs, which opens a ruleset of the language and names the
 // part, and <part>.krs, which the reader reads after it (ruleset_flat.cu) and which holds the forms. A bank, a fixed
 // register, the toolchain and the header are answered by no form, and neither file gives one.
+//
+// It runs in a query run, the .qry QRY names (qry_buffer.h): the forms the vendor's writer hands back are the blob
+// KRS_FORMS_NAME of the run's buffer, and what it prints is handed to the run's buffer as KRS_MACHINE_NAME.
 #include "../../../engine/rmc/precept_value.h"
 #include "../../../engine/rmc/word_web.h"
+#include "../../../types/file_defs/qry/qry_buffer.h"
 #include "../interface/interface.h"
 #include "../protocol/counterexample/ladder.h"
 
@@ -43,6 +47,10 @@
 
 // the name a form's relation is handed back under, as khw_write writes it
 #define KRS_READS_LADDER "ladder."
+
+// the blobs of the run's buffer the vendor's writer hands: the forms it hands back, and what it printed
+#define KRS_FORMS_NAME "krs_forms.txt"
+#define KRS_MACHINE_NAME "machine.txt"
 
 #define LADDER_TEXT(name_, text_, words_, measured_) text_,
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
@@ -81,14 +89,14 @@ static char s_given_name[KRS_FORMS][KRS_NAME];
 static unsigned int s_givens;
 
 // The vendor's writer run through the interface in its krs mode, handed the part, the machine file, the container
-// layout, the vendor's table and the file to write. Its output is read and printed. 1 where it ended clean
-static int krs_vendor_run(char *const *word, const char *folder, const char *answers)
+// layout, the vendor's table and the name to give the forms as. Its output comes back over the interface's pipe, is
+// printed, and is handed to the run's buffer as KRS_MACHINE_NAME. 1 where it ended clean
+static int krs_vendor_run(char *const *word)
 {
-    char output_path[1024];
-    snprintf(output_path, sizeof(output_path), "%s/machine.txt", folder);
-    char *const command[] = {word[7], word[2], word[3], word[4], word[5], (char *)answers, (char *)"krs", NULL};
+    // the interface's command is a list of words it does not write to; the casts only meet its declared type
+    char *const command[] = {word[6], word[2], word[3], word[4], word[5], (char *)KRS_FORMS_NAME, (char *)"krs", NULL};
     static char s_output[65536];
-    const InterfaceProbe probe = {command, output_path, 0ull};
+    const InterfaceProbe probe = {command, NULL, 0ull};
     InterfaceAnswer answer = {0};
     answer.output = s_output;
     answer.output_capacity = sizeof(s_output);
@@ -97,6 +105,9 @@ static int krs_vendor_run(char *const *word, const char *folder, const char *ans
     if (answer.output_bytes != 0ull)
     {
         printf("%s", s_output);
+        const unsigned long long kept =
+            (answer.output_bytes < (sizeof(s_output) - 1u)) ? answer.output_bytes : (sizeof(s_output) - 1u);
+        qry_hand(qry_run(), KRS_MACHINE_NAME, s_output, kept, QRY_ORDINARY);
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
@@ -107,20 +118,19 @@ static int krs_vendor_run(char *const *word, const char *folder, const char *ans
     return 1;
 }
 
-// the forms the vendor's writer handed back in the file at `path`, read into s_form. A line whose relation is none the
-// ladder holds is left out. The count read
-static unsigned int krs_forms_read(const char *path)
+// the forms the vendor's writer handed back, the `size` bytes at `bytes`, read into s_form. A line whose relation is
+// none the ladder holds is left out. The count read
+static unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
 {
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
-    {
-        printf("  krs_write: %s could not be read\n", path);
-        return 0u;
-    }
     char line[KRS_LINE + 300u];
     s_forms = 0u;
-    while ((fgets(line, (int)sizeof(line), file) != NULL) && (s_forms < KRS_FORMS))
+    unsigned long long next = 0ull;
+    while ((next < size) && (s_forms < KRS_FORMS))
     {
+        const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
+        const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
+        snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(bytes + next));
+        next += (unsigned long long)length + 1ull;
         line[strcspn(line, "\r\n")] = '\0';
         char relation[256];
         int signed_read = 0;
@@ -149,7 +159,6 @@ static unsigned int krs_forms_read(const char *path)
         snprintf(s_form[s_forms].text, sizeof(s_form[s_forms].text), "%s", line + at);
         s_forms += 1u;
     }
-    fclose(file);
     return s_forms;
 }
 
@@ -429,23 +438,40 @@ static void krs_folder_of(const char *path, char *folder, size_t room)
 
 int main(int count, char **word)
 {
-    if (count != 9)
+    if (count != 8)
     {
-        printf("krs_write <language> <part> <path.khw> <layout> <mnemonics> <folder> <machine writer> <named ruleset>\n");
+        printf("krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>\n");
         return 2;
     }
     const char *const language = word[1];
     const char *const part = word[2];
     const char *const machine = word[3];
-    const char *const folder = word[6];
-    const char *const named_ruleset = word[8];
-    char answers[1024];
-    snprintf(answers, sizeof(answers), "%s/krs_forms.txt", folder);
-    if (!krs_vendor_run(word, folder, answers))
+    const char *const named_ruleset = word[7];
+    QryBuffer *const run = qry_run();
+    if (run == NULL)
+    {
+        printf("  krs_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        return 1;
+    }
+    // the forms the vendor's writer hands, told from any handed before them by their sequence
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    unsigned long long before = 0ull;
+    if (!qry_latest(run, KRS_FORMS_NAME, &bytes, &size, &before))
+    {
+        before = 0ull;
+    }
+    unsigned long long sequence = 0ull;
+    if (!krs_vendor_run(word))
     {
         return 1;
     }
-    krs_forms_read(answers);
+    if (!qry_latest(run, KRS_FORMS_NAME, &bytes, &size, &sequence) || (sequence <= before))
+    {
+        printf("  krs_write: the vendor's writer handed the run's buffer no %s\n", KRS_FORMS_NAME);
+        return 1;
+    }
+    krs_forms_read(bytes, size);
     char rulesets[1024];
     krs_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];

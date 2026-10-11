@@ -11,6 +11,10 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Typing that lags while a language server, a linter or a plugin works: the letter is drawn before any of them is told of it.
    - Lag that grows with the file's length or a line's: the key's cost is measured in the longest file and on the longest line the tests hold.
 
+## Code intelligence
+
+1. **What the pointer rests on stays.** What the editor shows of a name the pointer rests on stays open while the pointer moves toward it and while it rests in it, and goes only once the pointer has left it a moment: a small step off the name does not close it.
+
 ## Tools
 
 1. **Databases.** Connect to a database, browse its tables, run a query from the editor and read the rows it gives.

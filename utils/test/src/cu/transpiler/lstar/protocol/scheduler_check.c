@@ -8,10 +8,19 @@
 //   held       a question nothing carried answers nothing, and the round counts none answered
 //
 //     scheduler_check <folder>
+//
+// The dry channel hands every question to the run's buffer (qry_buffer.h); the check makes that buffer itself in
+// <folder>, with no writer process, as a dry channel hands nothing critical, and reads the round back from it
+#if !defined(_WIN32)
+// setenv is POSIX, outside strict C11
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
+#include "../../../../../../../src/cu/types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -35,8 +44,18 @@ int main(int count, char **words)
         printf("scheduler_check <folder>\n");
         return 2;
     }
+    // the run's buffer, made here, named to the channel as a run names it
+    char path[1024];
+    snprintf(path, sizeof(path), "%s/scheduler_check.qry", words[1]);
+    QryBuffer *const run = qry_create(path);
+    check_that(run != NULL, "the run's buffer is made");
+#if defined(_WIN32)
+    _putenv_s(QRY_ENVIRONMENT, path);
+#else
+    setenv(QRY_ENVIRONMENT, path, 1);
+#endif
     const char *const carrier[] = {"dry", NULL};
-    check_that(run_channel_open(carrier, words[1], 1000000ull) == 1, "the dry channel opens");
+    check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens");
     RunQuestion *const pool = (RunQuestion *)calloc(CHECK_QUESTIONS, sizeof(RunQuestion));
     if (pool == NULL)
     {
@@ -69,37 +88,36 @@ int main(int count, char **words)
     }
     check_that(held == CHECK_QUESTIONS, "every question of the round is put, and reads held");
 
-    // the order the dry channel wrote them in, read back off each question's code
+    // the order the dry channel handed them in, read back off each question's code in the run's buffer
     unsigned int written[CHECK_QUESTIONS];
     unsigned int written_count = 0u;
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/questions.txt", words[1]);
-    FILE *const list = fopen(path, "rb");
-    char line[4096];
-    while ((list != NULL) && (fgets(line, sizeof(line), list) != NULL) && (written_count < CHECK_QUESTIONS))
+    const unsigned char *list = NULL;
+    unsigned long long list_size = 0ull;
+    const int listed = qry_latest(run, "questions.txt", &list, &list_size, NULL);
+    check_that(listed, "the dry channel handed its list to the run's buffer");
+    unsigned long long at_line = 0ull;
+    while (listed && (at_line < list_size) && (written_count < CHECK_QUESTIONS))
     {
-        char code_path[2048];
-        if (sscanf(line, "%2047s", code_path) != 1)
+        const unsigned char *const line_end =
+            (const unsigned char *)memchr(list + at_line, '\n', (size_t)(list_size - at_line));
+        const size_t line_length =
+            (line_end != NULL) ? (size_t)(line_end - (list + at_line)) : (size_t)(list_size - at_line);
+        char line[256];
+        const size_t kept = (line_length < (sizeof(line) - 1u)) ? line_length : (sizeof(line) - 1u);
+        memcpy(line, list + at_line, kept);
+        line[kept] = '\0';
+        at_line += (unsigned long long)line_length + 1ull;
+        char code_name[256];
+        const unsigned char *code = NULL;
+        unsigned long long code_size = 0ull;
+        if ((sscanf(line, "%255s", code_name) == 1) && qry_latest(run, code_name, &code, &code_size, NULL) &&
+            (code_size >= 2ull))
         {
-            continue;
-        }
-        FILE *const code = fopen(code_path, "rb");
-        unsigned char bytes[2] = {0u, 0u};
-        if ((code != NULL) && (fread(bytes, 1u, 2u, code) == 2u))
-        {
-            written[written_count] = (unsigned int)bytes[0] | ((unsigned int)bytes[1] << 8u);
+            written[written_count] = (unsigned int)code[0] | ((unsigned int)code[1] << 8u);
             written_count += 1u;
         }
-        if (code != NULL)
-        {
-            fclose(code);
-        }
     }
-    if (list != NULL)
-    {
-        fclose(list);
-    }
-    check_that(written_count == CHECK_QUESTIONS, "the dry channel wrote every question of the round");
+    check_that(written_count == CHECK_QUESTIONS, "the dry channel handed every question of the round");
     // within each process the three-settling questions come first, in the order handed, then the rest
     int ordered = 1;
     for (unsigned int first = 0u; first < written_count; first += SCHEDULER_ROUND_MOST)
@@ -116,6 +134,7 @@ int main(int count, char **words)
         }
     }
     check_that(ordered, "the most settling first, and the order handed between equals");
+    qry_close(run);
     free(pool);
     printf("scheduler_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

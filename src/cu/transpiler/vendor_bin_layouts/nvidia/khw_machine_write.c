@@ -5,22 +5,26 @@
 //
 //     khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
-// Four modes. In `krs` the file at `path.khw` is read and each form that answered a relation is written to `answers`
-// for the protocol, one a line: the relation, 1 where the answers read a word signed and 0 where not, the encoding the
-// form was first seen with, low word first, and the form's text with each operand that stands in the relation's tuple
-// written as its place, {<place>}, for the protocol to name; nothing else is read. In `kernel` the container the layout holds is read and the kernel the system accepted is written to
-// `answers` for the protocol: a header of its places and the registers a thread holds, then one line a place with the
-// place's encoding. In `gate` the file holds those same places, one form a place, so that the gate reads every
-// question of a round against what the part has already run (cubin_safe.h). In `final` the file holds the forms the
-// part answered for, read from the answers file the protocol wrote, each named from the vendor's table
-// (mnemonic_nvidia.tsv) and laid out as the instruction its runs make; a form the table names none of is no form of
-// the file. The answers file is one form a line: the relation the protocol read, whether it read a word signed and
-// whether it asked, the encoding, how many runs its operands sit in, and each run's first and last bit and its place
-// in the relation's tuple, - where it has none. Each form is written with its relation, its signedness and its runs'
-// places as the protocol read them.
+// Four modes. What `krs` and `kernel` write for the protocol is given as `answers`, and what `final` reads from the
+// protocol is read from it: the blob of that name in the run's buffer where a run's writer runs (qry_buffer.h), and the
+// file where none does. In `krs` the file at `path.khw` is
+// read and each form that answered a relation is given one a line: the relation, 1 where the answers read a word
+// signed and 0 where not, the encoding the form was first seen with, low word first, and the form's text with each
+// operand that stands in the relation's tuple written as its place, {<place>}, for the protocol to name; nothing else
+// is read. In `kernel` the container the layout holds is read and the kernel the system accepted is given: a header of
+// its places and the registers a thread holds, then one line a place with the place's encoding. In `gate` the file
+// holds those same places, one form a place, so that the gate reads every question of a round against what the part has
+// already run (cubin_safe.h). In `final` the file holds the forms the part answered for, read from `answers` as the
+// protocol gave them, each named from the vendor's table (mnemonic_nvidia.tsv) and laid out as the instruction its runs
+// make; a form the table names none of is no form of the file. The answers are one form a line: the relation the
+// protocol read, whether it read a word signed and whether it asked, the encoding, how many runs its operands sit in,
+// and each run's first and last bit and its place in the relation's tuple, - where it has none. Each form is written
+// with its relation, its signedness and its runs' places as the protocol read them.
+#include "../../../types/file_defs/qry/qry_buffer.h"
 #include "cubin_write.h"
 #include "sass_machine.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -415,21 +419,55 @@ static int khw_runs_read(KhwForm *held, const char *text)
     return 1;
 }
 
-// the forms the protocol answered for, read from the answers file at `path` into `form`, as many as `room` holds. The
-// count read
-static unsigned int khw_answers_read(const char *path, KhwForm *form, unsigned int room)
+// the forms the protocol answered for, read from `answers` into `form`, as many as `room` holds: the latest blob of
+// that name in the run's buffer where a run's writer runs (qry_buffer.h), and the file where none does. The count read
+static unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int room)
 {
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    QryBuffer *const run = qry_run();
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    unsigned char *owned = NULL;
+    if (run != NULL)
     {
-        printf("  khw_machine_write: %s could not be read\n", path);
-        return 0u;
+        if (!qry_latest(run, answers, &bytes, &size, NULL))
+        {
+            printf("  khw_machine_write: the run's buffer holds no %s\n", answers);
+            return 0u;
+        }
+    }
+    else
+    {
+        FILE *const file = fopen(answers, "rb");
+        long length = -1L;
+        if ((file != NULL) && (fseek(file, 0L, SEEK_END) == 0))
+        {
+            length = ftell(file);
+        }
+        // a length ftell gives past -1 widens to the count it is
+        owned = ((length >= 0L) && (fseek(file, 0L, SEEK_SET) == 0)) ? (unsigned char *)malloc((size_t)length + 1u)
+                                                                      : NULL;
+        size = (owned != NULL) ? (unsigned long long)fread(owned, 1u, (size_t)length, file) : 0ull;
+        if (file != NULL)
+        {
+            fclose(file);
+        }
+        if (owned == NULL)
+        {
+            printf("  khw_machine_write: %s could not be read\n", answers);
+            return 0u;
+        }
+        bytes = owned;
     }
     char line[2048];
     unsigned int read = 0u;
-    while ((fgets(line, sizeof(line), file) != NULL) && (read < room))
+    unsigned long long next = 0ull;
+    while ((next < size) && (read < room))
     {
-        if ((line[0] == '#') || (line[0] == '\0') || (line[0] == '\n'))
+        const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
+        const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
+        snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(bytes + next));
+        next += (unsigned long long)length + 1ull;
+        if ((line[0] == '#') || (line[0] == '\0') || (line[0] == '\r'))
         {
             continue;
         }
@@ -448,8 +486,69 @@ static unsigned int khw_answers_read(const char *path, KhwForm *form, unsigned i
         form[read] = held;
         read += 1u;
     }
-    fclose(file);
+    free(owned);
     return read;
+}
+
+// What a mode writes for the protocol, gathered in memory before it is given: the bytes, their count and the room
+// they have, and 0 once a line did not fit
+typedef struct
+{
+    char *bytes;
+    size_t size;
+    size_t room;
+    int whole;
+} KhwListing;
+
+// a line added to `listing`, the room grown once to fit it
+static void khw_listed(KhwListing *listing, const char *format, ...)
+{
+    for (unsigned int tried = 0u; listing->whole && (tried < 2u); tried += 1u)
+    {
+        char *const end = (listing->bytes != NULL) ? (listing->bytes + listing->size) : NULL;
+        va_list words;
+        va_start(words, format);
+        const int length = vsnprintf(end, listing->room - listing->size, format, words);
+        va_end(words);
+        // a length vsnprintf returns is never negative for these formats
+        if ((length >= 0) && (((size_t)length + 1u) <= (listing->room - listing->size)))
+        {
+            listing->size += (size_t)length;
+            return;
+        }
+        const size_t room = (listing->room * 2u) + (size_t)length + 1u;
+        char *const larger = (char *)realloc(listing->bytes, room);
+        listing->whole = (larger != NULL);
+        listing->bytes = (larger != NULL) ? larger : listing->bytes;
+        listing->room = (larger != NULL) ? room : listing->room;
+    }
+    listing->whole = 0;
+}
+
+// `listing` given to the protocol as `answers`: the blob of that name in the run's buffer where a run's writer runs
+// (qry_buffer.h), and the file where none does. 1, or 0 with the reason printed
+static int khw_listing_given(KhwListing *listing, const char *answers)
+{
+    QryBuffer *const run = qry_run();
+    int given = listing->whole;
+    if (given && (run != NULL))
+    {
+        given = (qry_hand(run, answers, listing->bytes, listing->size, QRY_ORDINARY) != 0ull);
+    }
+    else if (given)
+    {
+        FILE *const out = fopen(answers, "wb");
+        given = (out != NULL) && (fwrite(listing->bytes, 1u, listing->size, out) == listing->size);
+        given = (out != NULL) && (fclose(out) == 0) && given;
+    }
+    free(listing->bytes);
+    listing->bytes = NULL;
+    if (!given)
+    {
+        printf("  khw_machine_write: %s could not be %s\n", answers,
+               (run != NULL) ? "handed to the run's buffer" : "written");
+    }
+    return given;
 }
 
 int main(int count, char **word)
@@ -467,26 +566,25 @@ int main(int count, char **word)
     const char *const mode = word[6];
     if (strcmp(mode, "kernel") == 0)
     {
-        // the kernel read out of the container and written to `answers` for the protocol: its places and the registers
-        // a thread holds, then one line a place with the place's encoding
+        // the kernel read out of the container and written for the protocol: its places and the registers a thread
+        // holds, then one line a place with the place's encoding. It is the blob `answers` of the run's buffer where a
+        // run's writer runs (qry_buffer.h), and the file `answers` where none does
         if (!khw_kernel_read(layout))
         {
             return 1;
         }
-        FILE *const out = fopen(answers, "wb");
-        if (out == NULL)
-        {
-            printf("  khw_machine_write: %s could not be written\n", answers);
-            return 1;
-        }
-        fprintf(out, "kernel %u %u\n", s_kernel_places, s_registers);
+        KhwListing listing = {NULL, 0u, 0u, 1};
+        khw_listed(&listing, "kernel %u %u\n", s_kernel_places, s_registers);
         for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
         {
             const unsigned long long low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
             const unsigned long long high = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 8u);
-            fprintf(out, "%016llx %016llx\n", low, high);
+            khw_listed(&listing, "%016llx %016llx\n", low, high);
         }
-        fclose(out);
+        if (!khw_listing_given(&listing, answers))
+        {
+            return 1;
+        }
         printf("  the kernel %s: %u places, %u registers a thread\n", s_kernel, s_kernel_places, s_registers);
         return 0;
     }
@@ -496,12 +594,7 @@ int main(int count, char **word)
         {
             return 1;
         }
-        FILE *const out = fopen(answers, "wb");
-        if (out == NULL)
-        {
-            printf("  khw_machine_write: %s could not be written\n", answers);
-            return 1;
-        }
+        KhwListing listing = {NULL, 0u, 0u, 1};
         unsigned int written = 0u;
         for (unsigned int at = 0u; at < s_machine.forms; at += 1u)
         {
@@ -511,12 +604,15 @@ int main(int count, char **word)
             {
                 continue;
             }
-            fprintf(out, "%s %d %016llx %016llx %s\n", form->relation, (form->signed_read != 0) ? 1 : 0, form->low,
-                    form->high, placed);
+            khw_listed(&listing, "%s %d %016llx %016llx %s\n", form->relation, (form->signed_read != 0) ? 1 : 0,
+                       form->low, form->high, placed);
             written += 1u;
         }
-        fclose(out);
-        printf("  khw_machine_write: %u of the %u forms of %s answered a relation, written to %s\n", written,
+        if (!khw_listing_given(&listing, answers))
+        {
+            return 1;
+        }
+        printf("  khw_machine_write: %u of the %u forms of %s answered a relation, given as %s\n", written,
                s_machine.forms, path, answers);
         return 0;
     }
