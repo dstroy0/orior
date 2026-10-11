@@ -16,13 +16,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Tools
 
-1. **Requests.** A file of HTTP requests, each sent with a press and its answer shown beside it.
-   - A sign-in and a cloud account to send a request: none; requests are `.http` files in the tree, plain text kept with git.
-   - Secrets in a file that gets committed: each environment's private values come from a file of the reader's, which orior adds to `.gitignore` as it makes it.
-   - Answers lost once the next is sent: each request keeps its last answers, and one is compared with another.
-   - Requests copied from a browser or a terminal: a curl line pasted becomes a request, and Copy as curl gives one back.
-   - A client that holds a gigabyte to send text: requests go out from the window's own process.
-2. **Runs watched as they run.** Every run a script starts, from the command line or anywhere else, shows in the window while it runs: each is found as its .qry file appears in a runs folder and is live while its writer runs, its blobs read from the run's shared buffer as they are written, a panic shown the moment it lands, each conference's accounts shown as the experts give them with the overseer's ruling, and the run's table of contents read once it ends.
+1. **Runs watched as they run.** Every run a script starts, from the command line or anywhere else, shows in the window while it runs: each is found as its .qry file appears in a runs folder and is live while its writer runs, its blobs read from the run's shared buffer as they are written, a panic shown the moment it lands, each conference's accounts shown as the experts give them with the overseer's ruling, and the run's table of contents read once it ends.
    - A run started from a terminal that the window never hears of: the window finds each run by its file and its writer, wherever it was started.
    - A fault in the middle of a long run seen only at its end: a panic in the shared buffer shows in the window as it is written.
    - A ruling seen without what led to it: a conference, the blob `conference_` followed by its question's identity with each space written as an underscore, shows each line `<expert>: <account>` as it is written, and the line that starts `overseer:` as the ruling; the lessons in `overseer.txt`, one `lesson <cause> <carrier or *> <stand-in>` a line, show beside the runs.

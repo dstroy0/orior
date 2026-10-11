@@ -3034,6 +3034,142 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   text-decoration: underline;
 }
 
+/* A file of requests' answers: the environment and Send over them as they scroll, the status in the
+   theme's colors for one that went well, one that moved and one that failed, and the last answers
+   under it. */
+.md-preview[data-kind="requests"] {
+  font-size: 13px;
+}
+
+.md-preview .rq-bar {
+  position: sticky;
+  top: -16px;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.md-preview :is(.rq-bar, .rq-history-bar) :is(button, select) {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--well);
+  color: var(--fg);
+  font: 12px var(--head);
+  cursor: pointer;
+}
+
+.md-preview .rq-send {
+  border-color: color-mix(in srgb, var(--signal) 60%, transparent);
+  color: var(--signal);
+}
+
+.md-preview :is(.rq-bar, .rq-history-bar) button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.md-preview .rq-status {
+  margin: 0 0 4px;
+  font: 13px var(--code);
+}
+
+.md-preview .rq-status.good strong {
+  color: var(--signal);
+}
+
+.md-preview .rq-status.moved strong {
+  color: var(--link);
+}
+
+.md-preview .rq-status.failed,
+.md-preview .rq-status.failed strong {
+  color: var(--fail);
+}
+
+.md-preview .rq-times,
+.md-preview .rq-empty {
+  margin: 0 0 8px;
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
+.md-preview :is(.rq-headers, .rq-sent) {
+  margin: 0 0 8px;
+}
+
+.md-preview .rq-headers th {
+  font-weight: 600;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.md-preview .rq-headers td {
+  word-break: break-all;
+}
+
+.md-preview .rq-body {
+  white-space: pre-wrap;
+}
+
+.md-preview .rq-image {
+  min-width: 32px;
+  image-rendering: pixelated;
+}
+
+.md-preview .rq-history {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.md-preview .rq-history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--fg-2);
+}
+
+.md-preview .rq-history ol {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.md-preview .rq-history li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.md-preview .rq-past {
+  flex: 1;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--code);
+  text-align: left;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.md-preview .rq-past:hover {
+  background: var(--well);
+}
+
+.md-preview .rq-past.shown {
+  background: color-mix(in srgb, var(--signal) 12%, transparent);
+  color: var(--fg);
+}
+
 /* A folder or file from another place, mounted beside the tree: its row bold, the first a line
    apart from the tree's own. */
 .node.mount {

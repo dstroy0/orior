@@ -19,6 +19,7 @@ import { startKeyHints } from "./keyhints.js";
 import { startSight } from "./sight.js";
 import { startWaits } from "./waits.js";
 import { startPreview } from "./preview.js";
+import { startRequests } from "./requests.js";
 import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
@@ -263,6 +264,7 @@ async function begin(root) {
       started = true;
       await startEdit(defs);
       startPreview();
+      startRequests();
     }
     await loadRun();
     drawMenubar();

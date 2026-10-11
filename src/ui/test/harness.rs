@@ -532,6 +532,9 @@ fn main() -> ExitCode {
     let mut report = Report::default();
 
     let mut env: Vec<(String, String)> = Vec::new();
+    if let Some(address) = servers::http() {
+        env.push(("ORIOR_TEST_HTTP".into(), address));
+    }
     if options.servers {
         println!("servers");
         let up = servers::start(&here);

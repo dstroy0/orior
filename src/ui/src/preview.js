@@ -4,8 +4,9 @@
 // The live preview: the file in the editor shown as it reads, beside its text or alone, as the reader
 // chooses once for every file it shows (View, Preview, Ctrl+K V), for each kind of file that sets how
 // something looks and runs nothing: Markdown, HTML and the CSS it takes, CSS over a page of its own,
-// SVG, Mermaid's diagrams and LaTeX. Each change is drawn as it is typed, and the place the cursor
-// stands in the text is marked in the preview.
+// SVG, Mermaid's diagrams and LaTeX; and the answers of a file of requests (requests.js). Each
+// change is drawn as it is typed, and the place the cursor stands in the text is marked in the
+// preview.
 //
 // Markdown is drawn a block at a time, each block tied to the line it came from, and the text and the
 // preview scroll by those lines: the one the reader scrolls leads, and the other follows to the same
@@ -26,6 +27,7 @@ import { editing, jumpTo, onCursorMoved, onEdit, onShown, openAt, openFile } fro
 import { markdownBlocks } from "./markdown.js";
 import { mermaidSvg } from "./mermaid.js";
 import { PageFrame, pageOf } from "./pagepreview.js";
+import { hideRequests, requestsCursor, showRequests } from "./requests.js";
 import { say } from "./statusbar.js";
 import { hideTex, markTex, showTex, texChanged } from "./texpreview.js";
 
@@ -43,12 +45,13 @@ const KINDS = [
   ["svg", /\.svg$/i],
   ["mermaid", /\.(mmd|mermaid)$/i],
   ["latex", /\.(tex|latex|ltx)$/i],
+  ["requests", /\.(http|rest)$/i],
 ];
 
 const state = { pane: null, kind: null, session: null, path: null, blocks: [], seen: null, timer: 0, idle: 0, paneSet: null, editorSet: null, scroller: null, diagram: null, frame: null, sheets: new Map(), linked: new Set(), last: null };
 
-// The kind of preview the file at `path` has: "markdown", "html", "css", "svg", "mermaid" or
-// "latex", or null for a file that has none.
+// The kind of preview the file at `path` has: "markdown", "html", "css", "svg", "mermaid", "latex"
+// or "requests", the answers of a file of requests, or null for a file that has none.
 export const kindOf = (path) => KINDS.find(([, pattern]) => pattern.test(path ?? ""))?.[0] ?? null;
 
 export const isMarkdown = (path) => kindOf(path) === "markdown";
@@ -182,7 +185,7 @@ export function render() {
     drawDiagram(s.doc.text());
   } else if (state.kind === "latex") {
     texChanged();
-  } else {
+  } else if (state.kind !== "requests") {
     drawPage(s.doc.text());
   }
   mark(false);
@@ -264,6 +267,8 @@ function mark(reveal) {
     markNodes(line);
   } else if (state.kind === "latex") {
     markTex(line, reveal);
+  } else if (state.kind === "requests") {
+    requestsCursor(line);
   } else {
     state.frame?.mark(line, reveal);
   }
@@ -382,6 +387,9 @@ export function apply() {
     if (state.kind === "latex") {
       hideTex();
     }
+    if (state.kind === "requests") {
+      hideRequests();
+    }
     Object.assign(state, { session: null, path: null, kind: null });
     delete state.pane.dataset.kind;
     return;
@@ -391,6 +399,9 @@ export function apply() {
   if (!under && (state.session !== editor.s || state.path !== active || state.kind !== kind)) {
     if (state.kind === "latex") {
       hideTex();
+    }
+    if (state.kind === "requests") {
+      hideRequests();
     }
     Object.assign(state, { session: editor.s, path: active, kind, blocks: [], seen: null, diagram: null, sheets: new Map(), linked: new Set(), last: null });
     state.pane.dataset.kind = kind;
@@ -402,6 +413,9 @@ export function apply() {
     if (kind === "latex") {
       state.seen = editor.s.doc.id;
       showTex(state.pane, editor.s, active, goTo);
+    } else if (kind === "requests") {
+      state.seen = editor.s.doc.id;
+      showRequests(state.pane, editor.s, active);
     } else {
       render();
     }

@@ -19,7 +19,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
-use crate::{bridge, catalog, debug, defs, files, format, git, history, latex, patterns, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
+use crate::{bridge, catalog, debug, defs, files, format, git, history, latex, patterns, requests, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
 
 /// Where what the server tells goes: the event's name and its body.
 pub type Emit = Arc<dyn Fn(&str, Value) + Send + Sync>;
@@ -818,6 +818,19 @@ impl Server {
             "git_cherry_pick" => git::cherry_pick(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, &a.get::<String>("id")?).and_then(give),
             "git_line_history" => git::line_history(&self.root()?, &path()?, a.get("text")?).and_then(give),
             "file_at" => git::text_at(&self.root()?, &path()?, &a.get::<String>("id")?).and_then(give),
+            "requests_parse" => give(requests::parse(&a.get::<String>("text")?)),
+            "requests_environments" => requests::environments(&self.root()?, &path()?).and_then(give),
+            "requests_send" => requests::send_at(&self.root()?, &path()?, &a.get::<String>("text")?, a.get("line")?, a.get::<Option<String>>("env")?.as_deref()).and_then(give),
+            "requests_answers" => {
+                let root = self.root()?;
+                let parsed = requests::parse(&a.get::<String>("text")?);
+                let key = requests::request_at(&parsed, a.get("line")?).map(requests::Request::key).ok_or("the file holds no request")?;
+                let folder = requests::kept_folder(&root, &path()?).ok_or("orior's own folder is not known")?;
+                give(json!({"key": key, "answers": requests::answers(&folder, &key)}))
+            }
+            "requests_curl" => requests::ready(&self.root()?, &path()?, &a.get::<String>("text")?, a.get("line")?, a.get::<Option<String>>("env")?.as_deref()).map(|(_, sent)| requests::to_curl(&sent)).and_then(give),
+            "requests_from_curl" => requests::from_curl(&a.get::<String>("text")?).and_then(give),
+            "requests_private" => requests::make_private(&self.root()?, &path()?).and_then(give),
             "latex_make" => latex::make(&self.root()?, &path()?, &a.get::<String>("text")?).and_then(give),
             "format_text" => format::format(&at(&path()?)?, &a.get::<String>("language")?, &a.get::<String>("text")?).and_then(give),
             "format_width" => give(format::width(&at(&path()?)?, &a.get::<String>("language")?)),

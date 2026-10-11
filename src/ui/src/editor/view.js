@@ -206,7 +206,7 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onEdit, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onEdit, pasteAs, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
     this.host = host;
     this.onGroup = onGroup ?? (() => {});
     this.onChangeMark = onChangeMark ?? (() => {});
@@ -214,6 +214,7 @@ export class Editor {
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
     this.onEdit = onEdit ?? (() => {});
+    this.pasteAs = pasteAs ?? (() => null);
     this.onShown = onShown ?? (() => {});
     this.spansOf = spansOf ?? (async () => []);
     host.classList.add("ed");
@@ -1972,12 +1973,19 @@ export class Editor {
     return text;
   }
 
+  // A paste puts the text on the clipboard, or the text pasteAs gives for it, at once or when its
+  // promise keeps it.
   paste(event) {
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
     if (text) {
       this.note({ paste: text });
-      this.pasteText(text);
+      const given = this.pasteAs(this.s, text);
+      if (typeof given?.then === "function") {
+        given.then((made) => this.pasteText(made ?? text), () => this.pasteText(text));
+      } else {
+        this.pasteText(given ?? text);
+      }
     }
   }
 

@@ -74,6 +74,12 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - A page reloaded whole on each change, its scroll, its form's fields and its state lost: a change is patched into the page where it changed, each node of the same kind in the same place kept, and while a stylesheet the page links is edited in its own tab, the page stays shown, the sheet swapped into it as it is typed, at the same scroll.
    - LaTeX that takes seconds to show a change: the text in the editor is made, saved or not, one make at a time, the last pages staying until the next are drawn and the errors of a make that failed listed over them, each taking the editor to its line; SyncTeX's boxes, read by orior's own code, mark on the pages the line the cursor stands on, and a press on a page takes the editor to the line set there.
    - A diagram drawn again on every key: a diagram is drawn again only when its own block changes, and a move of the cursor draws nothing again.
+6. **Requests.** A file of HTTP requests, `.http` or `.rest`, written as JetBrains' HTTP Client writes them and colored as it is written: Ctrl+Enter, or Send over the answers, sends the request the cursor stands in, and its answer shows beside it in the preview, its status, how long each part took, its headers, what was sent, and its body, JSON laid out and an image as itself. Variables come from the file and from the environment chosen, read from http-client.env.json and the reader's http-client.private.env.json. Run, Send Request, Copy as curl and Private Environment File.
+   - A sign-in and a cloud account to send a request: none; requests are `.http` files in the tree, plain text kept with git.
+   - Secrets in a file that gets committed: each environment's private values come from the reader's http-client.private.env.json, which Private Environment File makes beside the file and names in the tree's .gitignore as it makes it.
+   - Answers lost once the next is sent: each request keeps its last ten answers, the last first, and two of them checked are compared side by side.
+   - Requests copied from a browser or a terminal: a curl line pasted into the file becomes a request, one copied for cmd as well, and Copy as curl gives the request back as a curl line.
+   - A client that holds a gigabyte to send text: requests go out from the window's own process over orior's own HTTP/1.1, and HTTPS through the system's own TLS, Schannel, Secure Transport or libssl, the certificate checked against the system's roots and the host's name.
 
 ## How developers work
 

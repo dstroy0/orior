@@ -1263,6 +1263,14 @@ export function onCursorMoved(listener) {
   cursorListeners.push(listener);
 }
 
+// What may give a paste into a file another text: each is asked with the file's path and the text,
+// and the first that gives a text, or a promise of one, is pasted in its place.
+const pasteListeners = [];
+
+export function onPasteAs(listener) {
+  pasteListeners.push(listener);
+}
+
 export function onShown(listener) {
   shownListeners.push(listener);
 }
@@ -2755,6 +2763,16 @@ export async function startEdit(defs) {
       return tab ? spansOf(tab, from, to) : Promise.resolve([]);
     },
     onEdit: (s) => editListeners.forEach((listener) => listener(s.of ?? s)),
+    pasteAs: (s, text) => {
+      const path = tabOfSession(s.of ?? s)?.file ?? null;
+      for (const listener of pasteListeners) {
+        const given = listener(path, text);
+        if (given) {
+          return given;
+        }
+      }
+      return null;
+    },
     onCursor: () => {
       moved();
       cursorListeners.forEach((listener) => listener());

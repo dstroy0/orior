@@ -57,6 +57,7 @@ import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
 import { previewMode, setPreview } from "./preview.js";
+import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
 import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
@@ -278,6 +279,9 @@ const COMMANDS = {
   preview: (args) => setPreview(args[0] ?? (previewMode() === "beside" ? "off" : "beside")),
   "preview-alone": () => setPreview(previewMode() === "alone" ? "off" : "alone"),
   "run-statement": () => runStatement(),
+  "send-request": () => sendRequest(),
+  "copy-as-curl": () => copyCurl(),
+  "private-environment": () => privateEnvironment(),
   "run-sql-file": () => runSqlFile(),
   "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "system-title": (args) => setSystemTitleBar(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
@@ -566,6 +570,7 @@ const NEEDS = {
   running: () => debugging() && !isPaused(),
   macro: () => Boolean(lastMacro() && editing().editor),
   sql: () => /\.sql$/i.test(editing().fileHere() ?? ""),
+  http: () => isRequests(editing().fileHere() ?? ""),
 };
 
 // Edit, Macros: recording starts in the editor and stops on a second press, and the last macro
@@ -1515,6 +1520,30 @@ function onShortcut(event) {
   }
 }
 
+// The keys of the commands `items`, each for one kind of file, offered to the editor first: a key goes
+// to the command whose kind the file shown is, of those that share it, as Ctrl+Enter goes to Run
+// Statement in an SQL file and to Send Request in a file of requests, and to the editor's own use of
+// the key where the file is of none of their kinds.
+export function firstKeys(items, needs = NEEDS, run = runCommand) {
+  const byKeys = new Map();
+  for (const item of items) {
+    for (const keys of [item.keys, item.also].filter(Boolean)) {
+      byKeys.set(keys, [...(byKeys.get(keys) ?? []), item]);
+    }
+  }
+  return [...byKeys].map(([keys, commands]) => ({
+    keys,
+    first: true,
+    run: () => {
+      const found = commands.find((item) => needs[item.needs]?.());
+      if (found) {
+        run(found.command);
+      }
+      return Boolean(found);
+    },
+  }));
+}
+
 // Runs the command the command line opened the window for, once the tree is read.
 export async function runLaunch() {
   const launch = await invoke("launch_take").catch(() => null);
@@ -1537,11 +1566,7 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     state.menus.flatMap((menu) =>
       menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
     ).concat(
-      // The keys of a command for SQL files go to it first where the file shown is one, and to the
-      // editor's own use of the keys where it is not.
-      state.menus.flatMap((menu) =>
-        menu.all.filter((item) => item.needs === "sql").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, first: true, run: () => NEEDS.sql() && (runCommand(item.command), true) }))),
-      ),
+      firstKeys(state.menus.flatMap((menu) => menu.all.filter((item) => item.needs === "sql" || item.needs === "http"))),
     ),
   );
   startPalette({

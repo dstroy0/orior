@@ -218,6 +218,66 @@ fn ssh_ready(name: &str, port: u16, here: &Path) -> Result<String, String> {
     Ok(slash(&config))
 }
 
+/// An HTTP server in the harness's own process, on the loopback, for the tests of requests: `/echo`
+/// answers with the request it was sent as JSON, `/count` with how many times it was asked, `/moved`
+/// with a redirect to `/echo`, `/image` with a PNG of one pixel, and any other path with 404. Gives
+/// its address, host and port.
+pub fn http() -> Option<String> {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").ok()?;
+    let address = listener.local_addr().ok()?.to_string();
+    let asked = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    std::thread::spawn(move || {
+        for socket in listener.incoming().flatten() {
+            let asked = asked.clone();
+            std::thread::spawn(move || {
+                let _ = answer_http(socket, &asked);
+            });
+        }
+    });
+    Some(address)
+}
+
+fn answer_http(socket: std::net::TcpStream, asked: &std::sync::atomic::AtomicUsize) -> std::io::Result<()> {
+    use std::io::{BufRead, Read, Write};
+    let mut reader = std::io::BufReader::new(socket.try_clone()?);
+    let mut first = String::new();
+    reader.read_line(&mut first)?;
+    let mut headers = serde_json::Map::new();
+    loop {
+        let mut line = String::new();
+        reader.read_line(&mut line)?;
+        let line = line.trim_end();
+        if line.is_empty() {
+            break;
+        }
+        if let Some((name, value)) = line.split_once(':') {
+            headers.insert(name.trim().to_ascii_lowercase(), serde_json::json!(value.trim()));
+        }
+    }
+    let length = headers.get("content-length").and_then(|value| value.as_str()).and_then(|value| value.parse().ok()).unwrap_or(0usize);
+    let mut body = vec![0u8; length];
+    reader.read_exact(&mut body)?;
+    let mut parts = first.split_whitespace();
+    let (method, path) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+    let (status, kind, extra, content): (&str, &str, String, Vec<u8>) = match path.split('?').next().unwrap_or("") {
+        "/echo" => ("200 OK", "application/json", String::new(), serde_json::json!({"method": method, "path": path, "headers": headers, "body": String::from_utf8_lossy(&body)}).to_string().into_bytes()),
+        "/count" => ("200 OK", "text/plain", String::new(), (asked.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1).to_string().into_bytes()),
+        "/moved" => ("302 Found", "text/plain", "Location: /echo\r\n".into(), Vec::new()),
+        "/image" => (
+            "200 OK",
+            "image/png",
+            String::new(),
+            vec![
+                0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xe0, 0xaf, 0x0a, 0xfe, 0x0f, 0x00, 0x03, 0x54, 0x01, 0xdc, 0xb5, 0xb5, 0xf7, 0x5e, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+            ],
+        ),
+        _ => ("404 Not Found", "text/plain", String::new(), b"no such path".to_vec()),
+    };
+    let mut out = socket;
+    out.write_all(format!("HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\n{extra}Connection: close\r\n\r\n", content.len()).as_bytes())?;
+    out.write_all(&content)
+}
+
 /// Takes each test server away.
 pub fn stop() {
     for container in CONTAINERS {
