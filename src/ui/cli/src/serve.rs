@@ -44,6 +44,10 @@ pub struct Server {
     kernels: Mutex<HashMap<String, Arc<crate::jupyter::Kernel>>>,
     /// The database connections open, each by its name in the tree's databases.json.
     databases: Mutex<std::collections::BTreeMap<String, Arc<crate::db::Open>>>,
+    /// The comms layer every part of the container speaks through, and the address its door opens
+    /// at for a process of the container's.
+    comms: Arc<crate::comms::Comms>,
+    door: OnceLock<String>,
 }
 
 /// A call's arguments, each found by its own name or by the page's, as the page writes names of more
@@ -319,9 +323,39 @@ impl Server {
         Server { root: Mutex::new(root), ..Server::default() }
     }
 
-    /// Sends what the server tells to `emit`, from now on; before, it goes nowhere.
+    /// Sends what the server tells to `emit`, from now on, through the comms layer: the server is a
+    /// part that speaks each event on the channel of its name, and the window a part that listens on
+    /// every channel and hands each message to `emit` in the thread that said it, in the order said.
+    /// Before, it goes nowhere.
     pub fn tell_to(&self, emit: Emit) {
-        let _ = self.emit.set(emit);
+        let own = Some(std::process::id());
+        let (Ok(server), Ok(window)) = (self.comms.register("orior", own, &[], &["*"]), self.comms.register("window", own, &["*"], &[])) else {
+            let _ = self.emit.set(emit);
+            return;
+        };
+        let told = emit.clone();
+        if self.comms.listen_with(&window, "*", move |message| told(&message.channel, message.body.clone())).is_err() {
+            let _ = self.emit.set(emit);
+            return;
+        }
+        let comms = self.comms.clone();
+        let _ = self.emit.set(Arc::new(move |event, body| {
+            let _ = comms.say(&server, event, body);
+        }));
+    }
+
+    /// The comms layer every part of the container speaks through.
+    pub fn comms(&self) -> &Arc<crate::comms::Comms> {
+        &self.comms
+    }
+
+    /// Opens the comms layer's door to the container's processes, once, and gives its address.
+    pub fn open_door(&self) -> Result<String, String> {
+        if let Some(address) = self.door.get() {
+            return Ok(address.clone());
+        }
+        let address = crate::comms::door::open(self.comms.clone())?;
+        Ok(self.door.get_or_init(|| address).clone())
     }
 
     fn emitting(&self) -> Emit {
@@ -1020,6 +1054,9 @@ impl Server {
                 let text = std::fs::read_to_string(&full).map_err(|error| format!("{}: {error}", full.display()))?;
                 crate::notebook::without_outputs(&text).and_then(give)
             }
+            "comms_parts" => give(self.comms.parts()),
+            "comms_channels" => give(self.comms.channels()),
+            "comms_door" => self.open_door().and_then(give),
             "db_list" => {
                 let open = self.databases.lock().map_err(|e| e.to_string())?.clone();
                 crate::db::listed(&self.root()?, &open).and_then(give)
@@ -1203,8 +1240,10 @@ mod tests {
         }
         serve(Some(root.clone()), std::io::Cursor::new(input), Out(sender));
         let mut text = String::new();
+        // An answer counts once its line is whole; a line comes in more than one write.
+        let answered = |text: &str| text.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter(|line| line.get("id").is_some()).count();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        while text.matches("\"id\"").count() < 3 && std::time::Instant::now() < deadline {
+        while answered(&text) < 3 && std::time::Instant::now() < deadline {
             if let Ok(bytes) = heard.recv_timeout(std::time::Duration::from_millis(100)) {
                 text.push_str(&String::from_utf8_lossy(&bytes));
             }
