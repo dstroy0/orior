@@ -16,6 +16,10 @@ import { showView } from "../../src/views.js";
 
 const { test, assert, ui } = window.__harness;
 
+// What of Preferences answers `selector` in the sheet open now: a sheet closed a moment before stays on the
+// page until its close is heard, with its own rows.
+const inSheet = (selector) => [...(document.querySelector("dialog.sheet[open]")?.querySelectorAll(selector) ?? [])];
+
 // Makes the theme `name` over the scheme shown, from `parts`, and chooses it.
 function useTheme(name, parts) {
   saveTheme({ name, base: scheme(), colors: {}, ...parts });
@@ -68,12 +72,12 @@ test("a theme lays an image behind the editor's text at the share it sets, read 
   assert.equal(behind().opacity, "0.3");
   assert.equal(Number(behind().zIndex), -1, "under the text");
   runCommand("preferences");
-  await ui.waitFor(() => document.querySelector(".prefs-image-share"), 5000);
-  const share = document.querySelector(".prefs-image-share");
+  await ui.waitFor(() => inSheet(".prefs-image-share")[0], 5000);
+  const share = inSheet(".prefs-image-share")[0];
   share.value = "0.5";
   share.dispatchEvent(new Event("change"));
   await ui.waitFor(() => behind().opacity === "0.5", 2000);
-  await ui.click([...document.querySelectorAll(".prefs-image button")].find((one) => one.textContent === "Remove"));
+  await ui.click(inSheet(".prefs-image button").find((one) => one.textContent === "Remove"));
   await ui.waitFor(() => behind().backgroundImage === "none", 2000);
   document.querySelector("dialog.sheet")?.close();
   leave("Picture for Themes");
@@ -94,10 +98,10 @@ test("a file takes the icon of the first of the theme's patterns its name matche
   await opened("themes_c.test.js", "test();\n");
   await ui.waitFor(() => [...document.querySelectorAll(".icon")].some((one) => one.textContent === "T" && one.parentElement.textContent.includes("themes_c.test.js")), 3000);
   runCommand("preferences");
-  await ui.waitFor(() => document.querySelectorAll(".prefs-icon-row").length === 2, 5000);
-  await ui.click([...document.querySelectorAll(".prefs-icons button")].find((one) => one.textContent === "Add"));
-  await ui.waitFor(() => document.querySelectorAll(".prefs-icon-row").length === 3, 2000);
-  const row = () => [...document.querySelectorAll(".prefs-icon-row")].at(-1);
+  await ui.waitFor(() => inSheet(".prefs-icon-row").length === 2, 5000);
+  await ui.click(inSheet(".prefs-icons button").find((one) => one.textContent === "Add"));
+  await ui.waitFor(() => inSheet(".prefs-icon-row").length === 3, 2000);
+  const row = () => inSheet(".prefs-icon-row").at(-1);
   row().scrollIntoView({ block: "center" });
   await ui.click(row().querySelector(".prefs-icon-pattern"));
   await ui.type("*.py");
@@ -119,14 +123,14 @@ test("Preferences marks each color whose contrast with the color under it is too
   const under = paletteOf(scheme()).get("--ed-bg");
   useTheme("Faint for Themes", { colors: { "--t-comment": under } });
   runCommand("preferences");
-  const row = () => document.querySelector('.prefs-color[data-name="--t-comment"]');
+  const row = () => inSheet('.prefs-color[data-name="--t-comment"]')[0];
   await ui.waitFor(() => row(), 5000);
   assert.ok(row().classList.contains("low"));
   assert.match(row().querySelector(".prefs-contrast").textContent, /^1\.0:1 on --ed-bg$/);
-  assert.match(document.querySelector(".prefs-contrasts").textContent, /--t-comment on --ed-bg, 1\.0:1/);
-  await ui.click(".prefs-palette .filter");
+  assert.match(inSheet(".prefs-contrasts")[0].textContent, /--t-comment on --ed-bg, 1\.0:1/);
+  await ui.click(inSheet(".prefs-palette .filter")[0]);
   await ui.type("--t-comment");
-  await ui.waitFor(() => [...document.querySelectorAll(".prefs-color")].every((one) => one.dataset.name.startsWith("--t-comment")), 2000);
+  await ui.waitFor(() => inSheet(".prefs-color").every((one) => one.dataset.name.startsWith("--t-comment")), 2000);
   await ui.click(row().querySelector(".prefs-value"));
   const text = row().querySelector(".prefs-value");
   text.select();
