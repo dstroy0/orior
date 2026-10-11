@@ -8597,6 +8597,63 @@ textarea.report-field {
   cursor: pointer;
 }
 
+/* Preferences, Keys: each command a row of its label, its keys, Set and Reset, the keys more than one
+   command holds listed over them. */
+.prefs-key-rows {
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.prefs-key-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  font: 12.5px var(--head);
+}
+
+.prefs-key-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prefs-key-keys {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.prefs-key {
+  display: inline-flex;
+  align-items: center;
+}
+
+.prefs-key-off {
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.prefs-keys-filter {
+  width: 100%;
+  margin: 0.4rem 0;
+}
+
+.prefs-shared {
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.prefs-shared ul {
+  margin: 0.2rem 0 0.4rem;
+  padding-left: 1.2rem;
+}
+
 /* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
 .tab.preview {
   font-style: italic;

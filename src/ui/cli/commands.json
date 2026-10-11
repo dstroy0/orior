@@ -205,8 +205,8 @@
     {
       "title": "Go",
       "items": [
-        { "label": "Back", "command": "back", "keys": "Alt+Left" },
-        { "label": "Forward", "command": "forward", "keys": "Alt+Right" },
+        { "label": "Back", "command": "back", "keys": "Alt+Left", "also": "Mouse4" },
+        { "label": "Forward", "command": "forward", "keys": "Alt+Right", "also": "Mouse5" },
         { "label": "Last Editor", "command": "last-editor", "keys": "Ctrl+Tab" },
         "-",
         { "label": "Search Everywhere…", "command": "search-everywhere", "keys": "Shift Shift" },
@@ -340,7 +340,7 @@
       "title": "Terminal",
       "items": [
         { "label": "New Terminal", "command": "new", "keys": "Ctrl+Shift+`" },
-        { "label": "Toggle Terminal", "command": "toggle", "keys": "Ctrl+`" },
+        { "label": "Toggle Terminal", "command": "toggle" },
         { "label": "Split Terminal", "command": "split", "keys": "Ctrl+Shift+5", "checks": "terminal-split" },
         "-",
         { "label": "Clear", "command": "clear" },

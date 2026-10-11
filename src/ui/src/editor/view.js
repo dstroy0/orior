@@ -14,6 +14,7 @@ import { hiddenSpans, indentOf, joinSpans, openersOf, Rows } from "./folding.js"
 import { Find, GoTo } from "./find.js";
 import { Layer } from "./layer.js";
 import { Minimap } from "./minimap.js";
+import { letterOf } from "../keys.js";
 import { selectionPath } from "./shape.js";
 import { Vim } from "./vim.js";
 import { Hover, Suggest } from "./widgets.js";
@@ -173,8 +174,7 @@ function keyName(event) {
   const code = event.code ?? "";
   let key = CODES[code];
   if (!key) {
-    const letter = code.match(/^Key([A-Z])$/) ?? code.match(/^Digit(\d)$/);
-    key = letter ? letter[1] : event.key;
+    key = letterOf(event) ?? event.key;
   }
   parts.push(key);
   return parts.join("+");
@@ -2126,8 +2126,10 @@ export class Editor {
   }
 
   // Binds keys written as a menu lists them, such as "Shift+Alt+F" or "Ctrl+K Ctrl+I", each to its
-  // `run`. A key the editor already binds keeps its own.
+  // `run`, in place of those the menus bound before. A key the editor already binds keeps its own.
   addKeys(list) {
+    this.keys = this.keyMap();
+    this.first = {};
     for (const { keys, run, first } of list) {
       if (first) {
         this.first[keysName(keys)] = run;

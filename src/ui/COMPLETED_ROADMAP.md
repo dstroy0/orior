@@ -115,6 +115,9 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 1. **Saving where rights are needed.** A file the reader may not write is saved after the system asks for the rights: a save the system refuses asks the reader first, and on Write with Rights the text is staged in a file of orior's own and copied over the file with the rights.
    - A save with raised rights that fails, or offers no way to raise them: on Windows the system's own prompt raises orior's own program, run again as `orior write-raised`, which writes that one file and ends; on Linux pkexec runs cp; on macOS the system's authorization does; a reader who declines leaves the file as it was.
+2. **Keys.** Preferences, Keys sets any command's keys by pressing them, two at most for a command, each a press, two presses, a button of the mouse past its first three, or the wheel turned with a key held; each is taken off by its cross, and Reset gives a command back the keys of the set. Keys from chooses orior's own keys or JetBrains', and the mouse's back and forward buttons go back and forward as Alt+Left and Alt+Right do. A command's keys show where the reader reaches it, in the menus, the palette and the toolbar, and change there as they change in Preferences.
+   - Keys that do the wrong thing on AZERTY, QWERTZ and the like, as Undo closing a tab: a letter or a digit is bound by the character it types or by its place on the board, as the reader sets, and on a layout that types none of the Latin alphabet, as a Greek or a Cyrillic one does, by its place.
+   - Two commands on one key, found only when one of them fails: Preferences lists each key that more than one command holds, with those commands, and each set of keys holds no key twice but where the commands act in different places.
 
 ## Code intelligence
 

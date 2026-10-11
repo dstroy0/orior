@@ -57,6 +57,7 @@ import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
 import { reviewChange } from "./changeview.js";
+import { buttonName, keysOf as commandKeys, letterOf, onKeys, wheelName } from "./keys.js";
 import { gatherLines, toggleBoard } from "./gather.js";
 import { peekHere } from "./peek.js";
 import { printHere } from "./prints.js";
@@ -1499,11 +1500,8 @@ function pressed(keys, event) {
   if (parts.includes("Ctrl") !== event.ctrlKey || parts.includes("Shift") !== event.shiftKey || parts.includes("Alt") !== event.altKey) {
     return false;
   }
-  if (/^[A-Z]$/.test(key)) {
-    return event.code === `Key${key}`;
-  }
-  if (/^\d$/.test(key)) {
-    return event.code === `Digit${key}`;
+  if (/^[A-Z]$/.test(key) || /^\d$/.test(key)) {
+    return letterOf(event) === key;
   }
   return KEY_CODES[key] ? event.code === KEY_CODES[key] : event.key === key;
 }
@@ -1559,6 +1557,44 @@ export function firstKeys(items, needs = NEEDS, run = runCommand) {
   }));
 }
 
+// Gives each command its keys, as the reader's keys, then the set chosen, then commands.json give them
+// (keys.js), and binds those the editor takes first.
+function applyKeys() {
+  for (const item of state.menus.flatMap((menu) => menu.all)) {
+    item.base ??= [item.keys, item.also].filter(Boolean);
+    const [keys = "", also = ""] = item.command ? commandKeys(item.command, item.base) : item.base;
+    item.keys = keys;
+    item.also = also;
+  }
+  bindEditorKeys(
+    state.menus.flatMap((menu) =>
+      menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
+    ).concat(
+      firstKeys(state.menus.flatMap((menu) => menu.all.filter((item) => item.needs === "sql" || item.needs === "http"))),
+    ),
+  );
+}
+
+// Every command of the menus, each once, for Preferences' keys.
+export const allCommands = () => state.menus.flatMap((menu) => menu.all.map((item) => ({ ...item, menu: menu.title, item })));
+
+// Runs the command that holds `name`, a button of the mouse or the wheel turned with a key held, where
+// one does and can act now; says whether one did.
+function runHeld(name) {
+  if (!name) {
+    return false;
+  }
+  for (const menu of state.menus ?? []) {
+    for (const item of menu.all) {
+      if ((item.keys === name || item.also === name) && (!item.needs || item.needs === "editor" || NEEDS[item.needs]?.())) {
+        runCommand(item.command);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Runs the command the command line opened the window for, once the tree is read.
 export async function runLaunch() {
   const launch = await invoke("launch_take").catch(() => null);
@@ -1577,13 +1613,11 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   // Each menu's commands in one list, those of its groups among them.
   const flat = (items) => items.flatMap((item) => (item === "-" || item.fill ? [] : item.items ? flat(item.items) : [item]));
   state.menus.forEach((menu) => (menu.all = flat(menu.items ?? [])));
-  bindEditorKeys(
-    state.menus.flatMap((menu) =>
-      menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
-    ).concat(
-      firstKeys(state.menus.flatMap((menu) => menu.all.filter((item) => item.needs === "sql" || item.needs === "http"))),
-    ),
-  );
+  applyKeys();
+  onKeys(() => {
+    applyKeys();
+    drawMenubar();
+  });
   startPalette({
     commands: paletteCommands,
     findFiles: (query, recent, most) => invoke("files_find", { query, recent, most }),
@@ -1642,6 +1676,29 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     }
     onShortcut(event);
   });
+  // A button of the mouse past its first three, and the wheel turned with a key held, run the command
+  // that holds them, where one does.
+  for (const kind of ["mousedown", "mouseup"]) {
+    window.addEventListener(
+      kind,
+      (event) => {
+        const name = buttonName(event);
+        if (name && (kind === "mousedown" ? state.menus?.some((menu) => menu.all.some((item) => item.keys === name || item.also === name)) : runHeld(name))) {
+          event.preventDefault();
+        }
+      },
+      true,
+    );
+  }
+  window.addEventListener(
+    "wheel",
+    (event) => {
+      if (runHeld(wheelName(event))) {
+        event.preventDefault();
+      }
+    },
+    { capture: true, passive: false },
+  );
   window.addEventListener("keyup", (event) => {
     if (event.key !== "Alt") {
       return;
