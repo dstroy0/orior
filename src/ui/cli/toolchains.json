@@ -571,6 +571,26 @@
       "version": ["--version"],
       "install": {"any": "https://docs.deno.com/runtime/getting_started/installation/"},
       "places": {"windows": ["%USERPROFILE%\\.deno\\bin"], "any": ["~/.deno/bin"]}
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "group": "Databases",
+      "for": "a PostgreSQL server on this machine, its psql and pg_ctl; the database window speaks to any server itself",
+      "programs": ["psql", "pg_ctl", "postgres"],
+      "version": ["--version"],
+      "install": {"windows": "https://www.enterprisedb.com/download-postgresql-binaries", "macos": "https://postgresapp.com/", "linux": "https://www.postgresql.org/download/linux/"},
+      "places": {"windows": ["%ProgramFiles%\\PostgreSQL\\*\\bin", "D:\\PostgreSQL\\*\\pgsql\\bin", "C:\\PostgreSQL\\*\\pgsql\\bin"], "macos": ["/Applications/Postgres.app/Contents/Versions/latest/bin", "/opt/homebrew/bin"], "linux": ["/usr/lib/postgresql/*/bin", "/usr/bin"]}
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "group": "Databases",
+      "for": "a MySQL server on this machine and its mysql client; the database window speaks to any MySQL or MariaDB server itself",
+      "programs": ["mysql", "mysqld"],
+      "version": ["--version"],
+      "install": {"any": "https://dev.mysql.com/downloads/mysql/"},
+      "places": {"windows": ["%ProgramFiles%\\MySQL\\MySQL Server *\\bin", "D:\\MySQL\\*\\mysql-*-winx64\\bin", "C:\\MySQL\\*\\mysql-*-winx64\\bin"], "macos": ["/usr/local/mysql/bin", "/opt/homebrew/bin"], "linux": ["/usr/sbin", "/usr/bin"]}
     }
   ]
 }
