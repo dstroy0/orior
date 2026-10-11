@@ -2601,8 +2601,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   min-height: 0;
 }
 
-/* The Markdown preview: beside the text, the editor giving it the right half, or alone over the
-   editor's whole place. It reads as GitHub draws Markdown, in the theme's colors. */
+/* The preview: beside the text, the editor giving it the right half, or alone over the editor's
+   whole place. Markdown reads in it as GitHub draws Markdown, in the theme's colors. */
 #mode-edit .desk[data-preview="beside"] > .editor {
   margin-right: 50%;
 }
@@ -2930,6 +2930,108 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .mermaid-said {
   color: var(--fg-3);
   font-size: 12px;
+}
+
+/* The place the cursor stands in the text, marked in the preview: a Markdown block, a diagram's
+   nodes, a page's element outlined over its frame, and a LaTeX line's boxes on its pages. */
+.md-preview [data-line].here {
+  outline: 1px solid color-mix(in srgb, var(--signal) 55%, transparent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.mm-node-group.here > :is(rect, circle, ellipse, polygon, path) {
+  stroke: #0f7a53;
+  stroke-width: 2.5px;
+}
+
+/* A page of HTML, CSS or SVG fills the preview in a frame on the white a page is drawn on. */
+.md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]),
+.desk[data-preview="alone"] > .md-preview:is([data-kind="html"], [data-kind="css"], [data-kind="svg"]) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.preview-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.preview-here {
+  position: absolute;
+  outline: 2px solid var(--signal);
+  outline-offset: 1px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.preview-here[hidden] {
+  display: none;
+}
+
+/* A LaTeX file's pages, white on the deep ground, each as wide as the preview; the errors of a make
+   that failed stand over them as the pages scroll. */
+.md-preview[data-kind="latex"] {
+  padding-top: 16px;
+  background: var(--deep);
+}
+
+.tex-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.tex-page {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.tex-here {
+  fill: rgba(15, 122, 83, 0.16);
+  stroke: #0f7a53;
+  stroke-width: 0.6;
+}
+
+.md-preview .tex-errors {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 0 12px;
+  padding: 6px 8px;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, var(--fail) 50%, transparent);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.tex-error {
+  display: block;
+  width: 100%;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--fail);
+  font: 12px/1.5 var(--code);
+  text-align: left;
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+
+.tex-error:disabled {
+  cursor: default;
+}
+
+.tex-error:hover:not(:disabled) {
+  text-decoration: underline;
 }
 
 /* A folder or file from another place, mounted beside the tree: its row bold, the first a line

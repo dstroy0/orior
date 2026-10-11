@@ -1250,6 +1250,19 @@ function show(path) {
 // What is told each time the file shown changes, with the file's path, or null where none shows.
 const shownListeners = [];
 
+// What is told of each change to an open file's text as it is made, with the file's session, and of
+// each move of the cursor once the keys rest.
+const editListeners = [];
+const cursorListeners = [];
+
+export function onEdit(listener) {
+  editListeners.push(listener);
+}
+
+export function onCursorMoved(listener) {
+  cursorListeners.push(listener);
+}
+
 export function onShown(listener) {
   shownListeners.push(listener);
 }
@@ -2741,8 +2754,10 @@ export async function startEdit(defs) {
       const tab = tabOfSession(s.of ?? s);
       return tab ? spansOf(tab, from, to) : Promise.resolve([]);
     },
+    onEdit: (s) => editListeners.forEach((listener) => listener(s.of ?? s)),
     onCursor: () => {
       moved();
+      cursorListeners.forEach((listener) => listener());
       cancelAnimationFrame(lighting);
       lighting = requestAnimationFrame(() => {
         light();
@@ -3417,6 +3432,8 @@ export function editing() {
     changed: state.tabs.some(dirty),
     activeChanged: Boolean(tabOf(actingPath()) && dirty(tabOf(actingPath()))),
     open: state.tabs.length > 0,
+    // The session of the file at `path` where a tab holds it.
+    sessionOf: (path) => tabOf(path)?.session ?? null,
     save: () => saveActive(),
     format: () => formatTab(tabOf(actingPath())),
     runFile: () => runTab(tabOf(actingPath())),

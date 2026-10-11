@@ -19,7 +19,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
-use crate::{bridge, catalog, debug, defs, files, format, git, history, patterns, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
+use crate::{bridge, catalog, debug, defs, files, format, git, history, latex, patterns, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
 
 /// Where what the server tells goes: the event's name and its body.
 pub type Emit = Arc<dyn Fn(&str, Value) + Send + Sync>;
@@ -818,6 +818,7 @@ impl Server {
             "git_cherry_pick" => git::cherry_pick(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, &a.get::<String>("id")?).and_then(give),
             "git_line_history" => git::line_history(&self.root()?, &path()?, a.get("text")?).and_then(give),
             "file_at" => git::text_at(&self.root()?, &path()?, &a.get::<String>("id")?).and_then(give),
+            "latex_make" => latex::make(&self.root()?, &path()?, &a.get::<String>("text")?).and_then(give),
             "format_text" => format::format(&at(&path()?)?, &a.get::<String>("language")?, &a.get::<String>("text")?).and_then(give),
             "format_width" => give(format::width(&at(&path()?)?, &a.get::<String>("language")?)),
             "format_margin" => give(format::margin(&at(&path()?)?, &a.get::<String>("language")?).map(|(width, by)| json!({"width": width, "by": by}))),

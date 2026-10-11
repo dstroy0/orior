@@ -206,13 +206,14 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onEdit, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
     this.host = host;
     this.onGroup = onGroup ?? (() => {});
     this.onChangeMark = onChangeMark ?? (() => {});
     this.onHistory = onHistory ?? (() => {});
     this.onCursor = onCursor ?? (() => {});
     this.onChange = onChange ?? (() => {});
+    this.onEdit = onEdit ?? (() => {});
     this.onShown = onShown ?? (() => {});
     this.spansOf = spansOf ?? (async () => []);
     host.classList.add("ed");
@@ -928,8 +929,10 @@ export class Editor {
     );
   }
 
+  // Each change to the text is told at once to onEdit, and to onChange once the keys rest.
   edited() {
     const s = this.s;
+    this.onEdit(s);
     this.later("find", () => this.find.refresh());
     this.later("change", () => this.onChange(s));
   }

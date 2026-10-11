@@ -26,6 +26,13 @@ const STOPS = {
   profile_start: () => invoke("profile_stop"),
 };
 
+// The calls the window makes on its own as the reader types on, which no one waits on: the live
+// preview's make of a LaTeX file, whose last pages stay while it runs.
+export const UNWAITED = new Set(["latex_make"]);
+
+// Whether the call `command`, made now, is watched: one a press or a key made, and not one of those.
+export const watches = (command, now = performance.now()) => now - state.acted <= ACTED && !UNWAITED.has(command);
+
 const state = { acted: -Infinity, waits: new Set(), progress: new Map(), timer: 0, node: null };
 
 // Takes how far along the work of the call `command` is, as its own events tell it: { done, of, unit }.
@@ -105,7 +112,7 @@ export function startWaits() {
     document.addEventListener(kind, () => (state.acted = performance.now()), true);
   }
   onCalls((command, args, promise, stop) => {
-    if (performance.now() - state.acted <= ACTED) {
+    if (watches(command)) {
       watch(command, args, promise, stop);
     }
   });

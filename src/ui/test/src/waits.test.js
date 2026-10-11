@@ -4,7 +4,7 @@
 // The three limits of a response: a press's call late past a tenth of a second, a second and ten.
 
 import { invoke } from "../../src/bridge.js";
-import { ANSWER, LONG, progressOf, tick, watch, WORKING } from "../../src/waits.js";
+import { ANSWER, LONG, progressOf, tick, watch, watches, WORKING } from "../../src/waits.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -71,4 +71,10 @@ test("past ten seconds the bar offers Stop, which stops the wait", async () => {
   } finally {
     call.answer();
   }
+});
+
+test("a call the window makes on its own as the reader types on, a LaTeX file's make, is not watched", async () => {
+  await ui.click("#statusbar");
+  assert.equal(watches("tree_search"), true, "a press's call is watched");
+  assert.equal(watches("latex_make"), false);
 });

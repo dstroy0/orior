@@ -41,6 +41,7 @@ pub mod home;
 pub mod inspect;
 pub mod jupyter;
 pub mod kept;
+pub mod latex;
 pub mod link;
 pub mod lsp;
 pub mod mysql;
