@@ -42,6 +42,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - A tree of thousands of files that lays out every row on each change: only the rows in sight are laid out and painted.
 5. **Detail as the motion allows.** While the editor scrolls fast, what the motion hides from the eye waits, more of it the faster the scroll: first the guides, the marks on the word under the cursor and the bracket pair; then the colors of lines not yet worked out, the fold marks, the find matches, the diagnostics and the gutter's marks, all but its numbers, breakpoints and paused line; then every color, the minimap's drawn in one. A frame that runs past its time drops a step whatever the speed. Once the view rests a frame draws everything, and the lines ahead of where it was heading are colored a slice at a time.
    - A change made while the eye moves fast is seldom seen: shifts of up to 1.2 degrees went unnoticed during eye movements of 66 ms or more.
+6. **Motion the way the reader moves.** A menu grows out of the point it was opened from, a press's point or the edge of the item a submenu opened from, in a tenth of a second; a tool window comes in from the edge it docks at, the foot, the left or the right; and a pane collapses toward its own edge and comes back from it. None moves while the window is hidden or where the system asks for less motion.
+   - The eye places a moving thing a little ahead along its path.
 
 ## Tools
 

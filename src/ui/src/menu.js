@@ -16,6 +16,7 @@
 // it was. A menu too long for the window scrolls.
 
 import { invoke } from "./bridge.js";
+import { moves } from "./motion.js";
 
 const parts = [];
 // `stack` holds the open menus, the first one and then each opened from an item of the one before.
@@ -104,6 +105,21 @@ function place(menu, x, y, beside = null) {
   }
   menu.style.left = `${left}px`;
   menu.style.top = `${Math.max(4, top)}px`;
+  grow(menu, x - left, y - Math.max(4, top), box);
+}
+
+// How long a menu takes to grow out of the point it opened from, in milliseconds: within the tenth of
+// a second an answer to a press keeps to.
+export const GROWS = 100;
+
+// Grows `menu` out of the point `x`, `y` within it where it was opened from: a press's point, or
+// the edge of the item a submenu opened from.
+function grow(menu, x, y, box) {
+  if (!moves()) {
+    return;
+  }
+  menu.style.transformOrigin = `${Math.max(0, Math.min(box.width, x))}px ${Math.max(0, Math.min(box.height, y))}px`;
+  menu.animate([{ transform: "scale(0.94)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: GROWS, easing: "ease-out" });
 }
 
 async function openUnder(button, item, level, focusFirst) {

@@ -54,6 +54,10 @@ export function idle(now) {
 
 export const still = () => state.hidden;
 
+// Whether the page draws motion of its own: not while it is hidden, and not where the reader's system
+// asks for less motion.
+export const moves = () => !still() && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 // The display's frame, in milliseconds.
 export const frameMs = () => state.frame;
 
