@@ -95,6 +95,9 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 5. **Notices at the reader's breaks.** A notice that answers what the reader did, within a second and a half of a press or of a key that gives a command, shows at once; any other needs nothing done and waits for a break in the work: a save, a commit, a run's end, or the keys at rest for two seconds, the last of those held on the bar and each of them in the bell. No notice takes the keys. View, Focus holds every notice until it ends, the bar saying how many it holds, and a press there ends it.
    - Suggestions offered at such a break were taken up 52% of the time; those offered in the middle of a task were mostly dismissed.
    - An interruption on the screen that demands attention slows the reading of code.
+6. **A change reviewed by its structure.** Git, Review Changes by Structure shows the tree's change against its last commit, or a commit's against its first parent, as the declarations it touches across its files and not file by file: each piece its declaration's lines, those taken out and those put in marked, and one added or taken out whole said to be. The pieces that call one another stand together in a row, each caller before what it calls, and the names a piece calls go to those pieces; a piece's name opens its file at its line. A commit is named with who made it; authors stay off everywhere else until the reader turns them on.
+   - In about 40% of pull requests more than half the changed functions call each other, and the function a caller needs is often in another file.
+   - A function moved shows as one move, not as lines taken out of one file and lines put into another: one taken out of a place and put in at another, in the same file or another, by its name and kind and with most of its lines kept, is one piece, named with where it stood.
 
 ## Code intelligence
 

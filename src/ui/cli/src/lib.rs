@@ -49,6 +49,7 @@ pub mod notebook;
 pub mod patterns;
 pub mod regexp;
 pub mod requests;
+pub mod review;
 pub mod pg;
 pub mod plugins;
 pub mod print;

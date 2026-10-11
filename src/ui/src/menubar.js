@@ -56,6 +56,7 @@ import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profil
 import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
+import { reviewChange } from "./changeview.js";
 import { gatherLines, toggleBoard } from "./gather.js";
 import { peekHere } from "./peek.js";
 import { previewMode, setPreview } from "./preview.js";
@@ -455,6 +456,7 @@ const COMMANDS = {
   "gather-lines": inEditor(() => gatherLines()),
   "gathered-lines": () => toggleBoard(),
   focus: () => setFocus(),
+  "review-structure": (args) => reviewChange(args[0] ?? null),
   usages: inEditor(() => editing().usages()),
   calls: inEditor(() => editing().calls()),
   rename: inEditor(() => editing().rename()),

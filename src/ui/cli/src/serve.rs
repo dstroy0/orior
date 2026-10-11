@@ -818,6 +818,7 @@ impl Server {
             "git_cherry_pick" => git::cherry_pick(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, &a.get::<String>("id")?).and_then(give),
             "git_line_history" => git::line_history(&self.root()?, &path()?, a.get("text")?).and_then(give),
             "file_at" => git::text_at(&self.root()?, &path()?, &a.get::<String>("id")?).and_then(give),
+            "review_structure" => crate::review::review(&self.root()?, a.get::<Option<String>>("commit")?.as_deref()).and_then(give),
             "file_said" => purpose::said(&self.root()?, &path()?).and_then(give),
             "file_users" => purpose::users(&self.root()?, &path()?).and_then(|(users, all)| give(json!({"users": users, "all": all}))),
             "requests_parse" => give(requests::parse(&a.get::<String>("text")?)),

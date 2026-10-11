@@ -8211,6 +8211,152 @@ textarea.report-field {
   font: 13px var(--head);
 }
 
+/* A change by its declarations, over the editor: each group of pieces that call one another in a
+   row, each piece its lines with those taken out and those put in marked in the theme's colors. */
+.cv {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.cv:focus {
+  outline: none;
+}
+
+.cv-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 34px;
+  padding: 0 0.4rem 0 0.8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  font: 12.5px var(--head);
+}
+
+.cv-title {
+  color: var(--fg);
+}
+
+.cv-count {
+  flex: 1;
+  color: var(--fg-3);
+}
+
+.cv-button {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.cv-body {
+  flex: 1;
+  padding: 12px;
+  overflow: auto;
+}
+
+.cv-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+
+.cv-piece {
+  flex: 0 0 min(38rem, 90%);
+  min-width: 0;
+  border: 1px solid var(--ed-widget-line);
+  border-left: 3px solid var(--ed-changed);
+  border-radius: var(--radius);
+  background: var(--ed-bg);
+}
+
+.cv-piece.added {
+  border-left-color: var(--ed-added);
+}
+
+.cv-piece.removed {
+  border-left-color: var(--ed-removed);
+}
+
+.cv-piece.moved {
+  border-left-color: var(--link);
+}
+
+.cv-piece header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--ed-widget-line);
+  background: var(--ed-widget);
+  font: 12px var(--head);
+}
+
+.cv-name,
+.cv-call {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: 600 12.5px var(--code);
+  cursor: pointer;
+}
+
+.cv-call {
+  font-weight: 400;
+}
+
+.cv-kind,
+.cv-path,
+.cv-calls {
+  color: var(--fg-3);
+}
+
+.cv-how {
+  color: var(--fg-2);
+}
+
+.cv-calls {
+  margin: 0;
+  padding: 0.2rem 0.6rem;
+  font: 12px var(--head);
+}
+
+.cv-lines {
+  margin: 0;
+  padding: 0.3rem 0;
+  max-height: 24rem;
+  overflow: auto;
+  font: var(--code-size) / var(--code-line) var(--code);
+}
+
+.cv-line {
+  padding: 0 0.6rem;
+  white-space: pre;
+}
+
+.cv-line.out {
+  background: color-mix(in srgb, var(--ed-removed) 16%, transparent);
+}
+
+.cv-line.in {
+  background: color-mix(in srgb, var(--ed-added) 14%, transparent);
+}
+
+.cv-empty,
+.cv-other {
+  color: var(--fg-3);
+  font: 13px var(--head);
+}
+
 /* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
 .tab.preview {
   font-style: italic;

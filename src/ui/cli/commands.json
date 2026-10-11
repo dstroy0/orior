@@ -309,6 +309,7 @@
       "title": "Git",
       "items": [
         { "label": "Commit…", "command": "commit-view" },
+        { "label": "Review Changes by Structure", "command": "review-structure", "args": "[commit]" },
         { "label": "Push", "command": "push" },
         { "label": "Pull", "command": "pull" },
         "-",

@@ -25,10 +25,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 Each item keeps to a habit measured in developers at work.
 
-1. **A change reviewed by its structure.** A change is shown as the functions it touches, each beside those it calls, and not file by file. A diff names who made the commit; nothing else shows who wrote a line unless the reader turns it on.
-   - In about 40% of pull requests more than half the changed functions call each other, and the function a caller needs is often in another file.
-   - A function moved shows as one move, not as lines taken out of one file and lines put into another.
-2. **The debugger as simple as print.** A print is a tool of its own: a line's values are printed by a message breakpoint without the file changing, and every print statement added for a task is listed and taken out in one step before a commit.
+1. **The debugger as simple as print.** A print is a tool of its own: a line's values are printed by a message breakpoint without the file changing, and every print statement added for a task is listed and taken out in one step before a commit.
    - Most developers never start a debugger, use only its plainest parts, and print values instead.
    - Print statements left in by mistake are a common part of commits.
 ## Plugins

@@ -863,6 +863,27 @@ pub fn text_at(root: &Path, file: &str, id: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{file} is not in {id}"))
 }
 
+/// A file's text as the first parent of commit `id` left it, or nothing where the commit has no
+/// parent or the parent does not hold the file.
+pub fn text_before(root: &Path, file: &str, id: &str) -> Option<String> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let (dir, shown) = beside(root, file).ok()?;
+    git(&dir, &["show", &format!("{id}^1:{shown}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
+}
+
+/// Who made commit `id`, and its subject.
+pub fn made_by(root: &Path, id: &str) -> Option<(String, String)> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let out = git(root, &["log", "-1", "--format=%an%x00%s", id])?;
+    let text = String::from_utf8_lossy(&out);
+    let (name, subject) = text.trim_end().split_once('\0')?;
+    Some((name.to_string(), subject.to_string()))
+}
+
 /// A file's text as the last commit left it, or nothing where the tree is not git's or the last
 /// commit does not hold the file.
 pub fn head_text(root: &Path, file: &str) -> Option<String> {
