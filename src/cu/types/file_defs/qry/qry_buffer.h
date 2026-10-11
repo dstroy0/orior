@@ -26,7 +26,7 @@
 // less than QRY_CRITICAL_ROOM for the others is dumped, and a blob named QRY_DUMPED says which.
 //
 // The buffer keeps the run's table beside its blobs, a row a blob added as it is handed: the name's hash, the
-// sequence, the time, the priority and where the blob's tag, name and bytes sit. A read of every blob of a name, or of
+// sequence, the time, the priority and where the blob's name and bytes sit. A read of every blob of a name, or of
 // its first, goes down the rows and touches no blob but its own. As the run ends the writer dumps the run from memory
 // as the .qry: the table first, its rows put in the order of their names' hashes and then their sequences, then every
 // blob in the order handed (qry.h), in its place of the .qry the writer wrote as the run ran.
@@ -43,13 +43,32 @@ extern "C"
 #endif
 
 // The sizes every process of a run is built with, each a build's to set; a process built with other sizes than the
-// writer's is refused the buffer.
+// writer's is refused the buffer. The host's own, the widths, alignments and steps its sweep of timings found fastest,
+// stand in qry_host.h beside this file where the sweep has written one (qry_sweep.c), and set those it names; the rest
+// hold the values below.
+#if defined(__has_include)
+#if __has_include("qry_host.h")
+#include "qry_host.h"
+#endif
+#endif
 //
 // the bytes of blobs a run's buffer holds, reserved at once and given memory QRY_COMMIT_BYTES at a time as it fills
 #ifndef QRY_BUFFER_BYTES
 #define QRY_BUFFER_BYTES (64ull << 30u)
 #endif
+#ifndef QRY_COMMIT_BYTES
 #define QRY_COMMIT_BYTES (64ull << 20u)
+#endif
+
+// the boundary every frame and every blob's bytes start on, a power of two of at least eight bytes
+#ifndef QRY_FRAME_ALIGN
+#define QRY_FRAME_ALIGN 64ull
+#endif
+
+// the most one write to the disk takes: a stretch past it goes in writes of this many bytes
+#ifndef QRY_WRITE_CALL_BYTES
+#define QRY_WRITE_CALL_BYTES (1ull << 30u)
+#endif
 
 // the names the buffer finds a blob by, a power of two
 #ifndef QRY_INDEX_SLOTS
@@ -95,6 +114,12 @@ extern "C"
 // the name each party's account of a panic is handed under, the carrier's, the fault telemetry's, the gate's and the
 // teacher's, each a panic; a reader joins them to hear the whole call
 #define QRY_PANIC_CALL "panic"
+
+// the name a question's conference is handed under, followed by an underscore and the question's identity as R keeps
+// it (record.h), each space of it an underscore, since a name takes no space: every party with an account of a
+// question the part refused hands it under that name, and a reader joins them to hear the conference whole
+// (overseer.h)
+#define QRY_CONFERENCE_CALL "conference"
 
 // the environment variable that names the run's .qry
 #define QRY_ENVIRONMENT "QRY"
@@ -144,8 +169,8 @@ extern "C"
 
     // every blob of `name` in the .qry file at `path`, put in order by their sequence and joined into memory of the
     // caller's to free: 1, or 0 and why in `error`, which holds `room`, where the file could not be read. A stretch of
-    // the file no tag of qry.h opens, the ordinary bytes a run's end left unwritten before a panic written through
-    // after them, is stepped over to the next blob whose tags read whole, and `error` says how many bytes were stepped
+    // the file no frame of qry.h opens, the ordinary bytes a run's end left unwritten before a panic written through
+    // after them, is stepped over to the next frame that reads whole, and `error` says how many bytes were stepped
     // over; it is empty where none were
     int qry_file_joined(const char *path, const char *name, unsigned char **bytes, unsigned long long *size,
                         char *error, size_t room);
@@ -153,7 +178,7 @@ extern "C"
     // every name of the .qry file at `path` handed to `each` with `context` once, its latest blob by sequence, in the
     // order of those blobs' sequences: the name, the bytes and their count, in the mapped file and standing for the
     // call alone. A finished run's blobs are carried into a new run by this. 1, or 0 and why in `error` where the file
-    // could not be read; a stretch no tag opens is stepped over and said, as qry_file_joined does
+    // could not be read; a stretch no frame opens is stepped over and said, as qry_file_joined does
     int qry_file_latest_each(const char *path,
                              void (*each)(void *context, const char *name, const unsigned char *bytes,
                                           unsigned long long size),

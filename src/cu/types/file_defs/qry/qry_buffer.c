@@ -41,11 +41,15 @@
 // the head's first word once it is made whole
 #define QRY_MAGIC "qrybuf1"
 
-// the longest begin tag: the tag, a name, four counts of twenty digits, `begin`, the spaces and the line's end
-#define QRY_BEGIN_LONGEST (QRY_NAME_LONGEST + 112u)
+// a frame's most bytes past its blob's: its head, the longest name, the bytes' start rounded up to the alignment and
+// its last word rounded up to it again
+#define QRY_FRAME_MOST (sizeof(QryFrameHead) + QRY_NAME_LONGEST + (2ull * QRY_FRAME_ALIGN) + 8ull)
 
-// the most one write call takes, which every system's count of a write holds
-#define QRY_WRITE_CALL_BYTES (1ull << 30u)
+_Static_assert((QRY_FRAME_ALIGN >= 8ull) && ((QRY_FRAME_ALIGN & (QRY_FRAME_ALIGN - 1ull)) == 0ull),
+               "QRY_FRAME_ALIGN must be a power of two of at least 8 bytes");
+_Static_assert(sizeof(QryFrameHead) == 56u, "QryFrameHead must be the 56 bytes qry.h gives a frame's head");
+_Static_assert((QRY_WRITE_CALL_BYTES != 0ull) && (QRY_WRITE_CALL_BYTES <= (1ull << 30u)),
+               "QRY_WRITE_CALL_BYTES must be a count of bytes past 0 that every system's count of a write holds");
 
 // a panic's or a critical blob's place in the buffer, its framed bytes, its sequence and its priority
 typedef struct
@@ -56,7 +60,7 @@ typedef struct
     unsigned long long priority;
 } QrySpan;
 
-// a name's slot in the index: the name's hash, and the place of its latest blob's begin tag plus 1, 0 where empty
+// a name's slot in the index: the name's hash, and the place of its latest blob's frame plus 1, 0 where empty
 typedef struct
 {
     _Atomic unsigned long long hash;
@@ -387,9 +391,9 @@ static int qry_rows_committed(QryBuffer *buffer, unsigned long long rows)
     return 1;
 }
 
-// A blob at `at` read by its tags, every byte of it before `end`: its name's place and length, its bytes' place and
-// count, its sequence, the time it was handed and its priority, and where the next blob begins. 1, or 0 where a tag is
-// none qry.h gives
+// A blob at `at` read by its frame, every byte of it before `end`: its name's place and length, its bytes' place and
+// count, its sequence, the time it was handed and its priority, and where the next frame begins. 1, or 0 where the
+// frame is none qry.h gives, or its last word is not its sequence
 typedef struct
 {
     unsigned long long name_at;
@@ -404,75 +408,41 @@ typedef struct
 
 static int qry_blob_read(const unsigned char *data, unsigned long long end, unsigned long long at, QryBlob *blob)
 {
-    const unsigned long long reach = ((end - at) < QRY_BEGIN_LONGEST) ? (end - at) : QRY_BEGIN_LONGEST;
-    const unsigned char *const line_end = (const unsigned char *)memchr(data + at, '\n', (size_t)reach);
-    const size_t tag_length = strlen(QRY_TAG);
-    if ((line_end == NULL) || (reach < tag_length + 1u) || (memcmp(data + at, QRY_TAG, tag_length) != 0) ||
-        (data[at + tag_length] != ' '))
+    QryFrameHead head;
+    if ((at > end) || ((end - at) < sizeof(head)))
     {
         return 0;
     }
-    // the begin tag's words: its name, then four counts, then `begin`
-    const unsigned long long name_at = at + tag_length + 1u;
-    const unsigned char *const name_end =
-        (const unsigned char *)memchr(data + name_at, ' ', (size_t)(line_end - (data + name_at)));
-    if ((name_end == NULL) || (name_end == data + name_at))
+    memcpy(&head, data + at, sizeof(head));
+    const unsigned long long opened = sizeof(head) + (unsigned long long)head.name_length;
+    if ((memcmp(head.magic, QRY_FRAME_MAGIC, sizeof(head.magic)) != 0) || (head.framed > (end - at)) ||
+        ((head.framed % 8ull) != 0ull) || (head.framed < (opened + 8ull)) || (head.name_length == 0u) ||
+        (head.name_length > QRY_NAME_LONGEST) || (head.bytes_at < opened) || (head.bytes_at > (head.framed - 8ull)) ||
+        (head.size > (head.framed - 8ull - head.bytes_at)))
     {
         return 0;
     }
-    unsigned long long counts[4] = {0ull, 0ull, 0ull, 0ull};
-    const unsigned char *cursor = name_end + 1;
-    for (unsigned int place = 0u; place < 4u; place += 1u)
-    {
-        if ((cursor >= line_end) || (*cursor < '0') || (*cursor > '9'))
-        {
-            return 0;
-        }
-        while ((cursor < line_end) && (*cursor >= '0') && (*cursor <= '9'))
-        {
-            counts[place] = (counts[place] * 10ull) + (unsigned long long)(*cursor - '0');
-            cursor += 1;
-        }
-        if ((cursor >= line_end) || (*cursor != ' '))
-        {
-            return 0;
-        }
-        cursor += 1;
-    }
-    const size_t begin_length = strlen(QRY_BEGIN);
-    if (((size_t)(line_end - cursor) != begin_length) || (memcmp(cursor, QRY_BEGIN, begin_length) != 0))
+    unsigned long long last = 0ull;
+    memcpy(&last, data + at + head.framed - 8ull, sizeof(last));
+    if (last != head.sequence)
     {
         return 0;
     }
-    blob->name_at = name_at;
-    blob->name_length = (unsigned long long)(name_end - (data + name_at));
-    blob->bytes_at = (unsigned long long)((line_end + 1) - data);
-    blob->size = counts[0];
-    blob->sequence = counts[1];
-    blob->nanoseconds = counts[2];
-    blob->priority = counts[3];
-    // the end tag, `qry <name> end`, right after the bytes
-    if (blob->size > (end - blob->bytes_at))
-    {
-        return 0;
-    }
-    const unsigned long long end_at = blob->bytes_at + blob->size;
-    const unsigned long long end_length = tag_length + 1u + blob->name_length + 1u + strlen(QRY_END) + 1u;
-    if ((end - end_at) < end_length)
-    {
-        return 0;
-    }
-    const unsigned char *const closing = data + end_at;
-    if ((memcmp(closing, QRY_TAG, tag_length) != 0) || (closing[tag_length] != ' ') ||
-        (memcmp(closing + tag_length + 1u, data + name_at, (size_t)blob->name_length) != 0) ||
-        (closing[tag_length + 1u + blob->name_length] != ' ') ||
-        (memcmp(closing + tag_length + 2u + blob->name_length, QRY_END, strlen(QRY_END)) != 0) ||
-        (closing[end_length - 1u] != '\n'))
-    {
-        return 0;
-    }
-    blob->next = end_at + end_length;
+    blob->name_at = at + sizeof(head);
+    blob->name_length = head.name_length;
+    blob->bytes_at = at + head.bytes_at;
+    blob->size = head.size;
+    blob->sequence = head.sequence;
+    blob->nanoseconds = head.nanoseconds;
+    blob->priority = head.priority;
+    blob->next = at + head.framed;
     return 1;
+}
+
+// `count` rounded up to the frames' alignment
+static unsigned long long qry_aligned(unsigned long long count)
+{
+    return (count + QRY_FRAME_ALIGN - 1ull) & ~(QRY_FRAME_ALIGN - 1ull);
 }
 
 // the place plus 1 of the latest blob of `name` the index holds, or 0
@@ -536,26 +506,33 @@ static unsigned long long qry_appended(QryBuffer *buffer, const char *name, size
     QryHead *const head = buffer->head;
     head->sequence += 1ull;
     const unsigned long long sequence = head->sequence;
-    char begin[QRY_BEGIN_LONGEST];
-    char end[QRY_NAME_LONGEST + 16u];
     const unsigned long long handed_at = qry_nanoseconds();
-    const int begin_length = snprintf(begin, sizeof(begin), "%s %.*s %llu %llu %llu %u %s\n", QRY_TAG, (int)length,
-                                      name, size, sequence, handed_at, priority, QRY_BEGIN);
-    const int end_length = snprintf(end, sizeof(end), "%s %.*s %s\n", QRY_TAG, (int)length, name, QRY_END);
+    // the frame: its head and the name, the bytes from the next boundary, and the sequence as the last word, the whole
+    // a count of boundaries
+    const unsigned long long bytes_at = qry_aligned(sizeof(QryFrameHead) + (unsigned long long)length);
+    const unsigned long long framed = qry_aligned(bytes_at + size + 8ull);
     const unsigned long long tail = atomic_load(&head->tail);
-    const unsigned long long framed = (unsigned long long)begin_length + size + (unsigned long long)end_length;
     *placed = 0;
-    if ((framed > room) || (tail > (room - framed)) || !qry_committed(buffer, tail + framed))
+    if ((framed < size) || (framed > room) || (tail > (room - framed)) || !qry_committed(buffer, tail + framed))
     {
         return sequence;
     }
-    memcpy(buffer->data + tail, begin, (size_t)begin_length);
+    unsigned char *const frame = buffer->data + tail;
+    // a name is at most QRY_NAME_LONGEST bytes and a priority at most QRY_ORDINARY, and the bytes start within the
+    // frame's first QRY_FRAME_MOST bytes: each fits an unsigned int
+    QryFrameHead opened = {{0},      framed, sequence, handed_at, size, (unsigned int)length, (unsigned int)bytes_at,
+                           priority, 0u};
+    memcpy(opened.magic, QRY_FRAME_MAGIC, sizeof(opened.magic));
+    memcpy(frame, &opened, sizeof(opened));
+    memcpy(frame + sizeof(opened), name, length);
+    memset(frame + sizeof(opened) + length, 0, (size_t)(bytes_at - sizeof(opened) - length));
     if (size != 0ull)
     {
         // the blob fits the buffer, whose bytes a size_t counts
-        memcpy(buffer->data + tail + (unsigned long long)begin_length, bytes, (size_t)size);
+        memcpy(frame + bytes_at, bytes, (size_t)size);
     }
-    memcpy(buffer->data + tail + (unsigned long long)begin_length + size, end, (size_t)end_length);
+    memset(frame + bytes_at + size, 0, (size_t)(framed - 8ull - bytes_at - size));
+    memcpy(frame + framed - 8ull, &sequence, sizeof(sequence));
     if (priority < QRY_ORDINARY)
     {
         const unsigned long long spans = atomic_load(&head->spans);
@@ -568,23 +545,17 @@ static unsigned long long qry_appended(QryBuffer *buffer, const char *name, size
             atomic_compare_exchange_strong(&head->panicked, &none, sequence);
         }
     }
-    // its row of the table, where the table holds one more: the name's hash, the places of its tag, name and bytes in
-    // the buffer, and what its begin tag says
+    // its row of the table, where the table holds one more: the name's hash, the places of its name and bytes in the
+    // buffer, and what its frame's head says
     const unsigned long long rows = atomic_load(&head->rows);
     const int rowed = (head->table_full == 0ull) && qry_rows_committed(buffer, rows + 1ull);
     if (rowed)
     {
         // a name and a priority are each far below what an unsigned int counts
         // its CRC is the dump's to take, off the hand's way
-        buffer->row[rows] = (QryRow){qry_hash(name, length),
-                                     sequence,
-                                     handed_at,
-                                     0ull,
-                                     tail + strlen(QRY_TAG) + 1ull,
-                                     tail + (unsigned long long)begin_length,
-                                     size,
-                                     (unsigned int)length,
-                                     priority};
+        buffer->row[rows] = (QryRow){
+            qry_hash(name, length), sequence, handed_at, 0ull, tail + sizeof(QryFrameHead), tail + bytes_at, size,
+            (unsigned int)length,   priority};
     }
     head->table_full = rowed ? head->table_full : 1ull;
     // published before it is indexed or rowed: a reader that finds it by the index or the table finds every byte of
@@ -899,8 +870,8 @@ unsigned long long qry_hand(QryBuffer *buffer, const char *name, const void *byt
     qry_lock(buffer);
     const unsigned long long room = (priority < QRY_ORDINARY) ? head->capacity : (head->capacity - QRY_CRITICAL_ROOM);
     // a dump said once, before the first blob that goes in after it: a blob that would be dumped too says nothing, and
-    // a run of dumps is one blob QRY_DUMPED. The frame is taken at its most, every count twenty digits
-    const unsigned long long framed_most = size + (2ull * (unsigned long long)length) + 128ull;
+    // a run of dumps is one blob QRY_DUMPED. The frame is taken at its most
+    const unsigned long long framed_most = size + QRY_FRAME_MOST;
     if (atomic_load(&head->tail) <= ((room > framed_most) ? (room - framed_most) : 0ull))
     {
         qry_dumped_said(buffer);
@@ -1212,21 +1183,15 @@ static void qry_unmapped(QryMapped *mapped)
     memset(mapped, 0, sizeof(*mapped));
 }
 
-// the next place past `at` where a blob whose tags read whole begins, at the start of a line, or `size` where none does
+// the next place past `at` where a frame that reads whole begins, or `size` where none does: a frame starts on a word,
+// and each word past `at` whose bytes are the frame magic is read as one
 static unsigned long long qry_next_whole(const unsigned char *bytes, unsigned long long size, unsigned long long at)
 {
     QryBlob blob;
-    unsigned long long from = at;
-    while (from < size)
+    for (unsigned long long from = (at + 8ull) & ~7ull; (from < size) && ((size - from) >= sizeof(QryFrameHead));
+         from += 8ull)
     {
-        // the next line's start, past the line end at or after `from`: every turn steps past one line end
-        const unsigned char *const line_end = (const unsigned char *)memchr(bytes + from, '\n', (size_t)(size - from));
-        if (line_end == NULL)
-        {
-            return size;
-        }
-        from = (unsigned long long)(line_end - bytes) + 1ull;
-        if ((from < size) && qry_blob_read(bytes, size, from, &blob))
+        if ((memcmp(bytes + from, QRY_FRAME_MAGIC, 8u) == 0) && qry_blob_read(bytes, size, from, &blob))
         {
             return from;
         }
@@ -1235,7 +1200,7 @@ static unsigned long long qry_next_whole(const unsigned char *bytes, unsigned lo
 }
 
 // The table a mapped .qry opens with (qry.h), its head copied to `table` and its rows found in place: 1, or 0 where the
-// .qry opens with none, or with one whose rows or blobs do not lie inside it, and it is read by its tags
+// .qry opens with none, or with one whose rows or blobs do not lie inside it, and it is read by its frames
 static int qry_table_found(const QryMapped *mapped, QryTableHead *table, const QryRow **rows)
 {
     if ((mapped->size < sizeof(QryTableHead)) || (memcmp(mapped->bytes, QRY_TABLE_MAGIC, sizeof(table->magic)) != 0))
@@ -1253,7 +1218,7 @@ static int qry_table_found(const QryMapped *mapped, QryTableHead *table, const Q
         return 0;
     }
     // the rows start on a whole row past the mapping's start, which the system places on a page; they are held to the
-    // head's CRC, the root of every check past it, and rows that do not hold it leave the file read by its tags
+    // head's CRC, the root of every check past it, and rows that do not hold it leave the file read by its frames
     *rows = (const QryRow *)(const void *)(mapped->bytes + table->rows_at);
     return qry_crc(mapped->bytes + table->rows_at, table->rows * sizeof(QryRow)) == table->rows_crc;
 }
@@ -1276,14 +1241,14 @@ static int qry_row_filed(const QryMapped *mapped, const QryTableHead *table, con
            (memcmp(mapped->bytes + row->name_at, name, length) == 0);
 }
 
-// whether the blob `row` of a mapped .qry's table jumps to reads whole by its own tags, is the blob the row says, and
+// whether the blob `row` of a mapped .qry's table jumps to reads whole by its own frame, is the blob the row says, and
 // holds the bytes the row's CRC was taken of: what a reader reads it reads checked, and a blob the file lost is told
 // from one it holds
 static int qry_row_whole(const QryMapped *mapped, const QryTableHead *table, const QryRow *row)
 {
     QryBlob blob;
     const unsigned long long end = table->blobs_at + table->blobs_bytes;
-    const unsigned long long opened = strlen(QRY_TAG) + 1ull;
+    const unsigned long long opened = sizeof(QryFrameHead);
     return (row->name_at >= (table->blobs_at + opened)) && (row->name_at < end) &&
            qry_blob_read(mapped->bytes, end, row->name_at - opened, &blob) && (blob.name_at == row->name_at) &&
            (blob.bytes_at == row->bytes_at) && (blob.size == row->size) && (blob.sequence == row->sequence) &&
@@ -1372,7 +1337,7 @@ int qry_file_joined(const char *path, const char *name, unsigned char **bytes, u
         }
         else if (lost != 0ull)
         {
-            snprintf(error, room, "%s: %llu bytes of %s whose tags do not read whole were stepped over", path, lost,
+            snprintf(error, room, "%s: %llu bytes of %s whose frames do not read whole were stepped over", path, lost,
                      name);
         }
         return joined;
@@ -1382,8 +1347,8 @@ int qry_file_joined(const char *path, const char *name, unsigned char **bytes, u
     size_t filed_room = 0u;
     unsigned long long skipped = 0ull;
     int whole = 1;
-    // each blob read by its tags in place and taken where it is of `name`; a stretch no tag opens is stepped over to
-    // the next blob whose tags read whole
+    // each blob read by its frame in place and taken where it is of `name`; a stretch no frame opens is stepped over to
+    // the next frame that reads whole
     unsigned long long at = 0ull;
     while (whole && (at < mapped.size))
     {
@@ -1434,7 +1399,7 @@ int qry_file_joined(const char *path, const char *name, unsigned char **bytes, u
     }
     if (skipped != 0ull)
     {
-        snprintf(error, room, "%s: %llu bytes no tag opens were stepped over", path, skipped);
+        snprintf(error, room, "%s: %llu bytes no frame opens were stepped over", path, skipped);
     }
     return 1;
 }
@@ -1532,15 +1497,25 @@ int qry_file_latest_each(const char *path,
         qry_unmapped(&mapped);
         if (lost != 0ull)
         {
-            snprintf(error, room, "%s: %llu bytes of blobs whose tags do not read whole were stepped over", path, lost);
+            snprintf(error, room, "%s: %llu bytes of blobs whose frames do not read whole were stepped over", path, lost);
         }
         return 1;
     }
-    // the names counted by the blobs, at most one a blob, and a table of twice as many slots
+    // the frames counted, a name at most one a frame, and a table of twice as many slots: each frame read by its head
+    // and stepped over whole, a stretch none opens stepped over to the next
     size_t slots = 64u;
-    for (unsigned long long at = 0ull; at < mapped.size; at += 1ull)
+    for (unsigned long long walk = 0ull; walk < mapped.size;)
     {
-        slots += (mapped.bytes[at] == '\n') ? 1u : 0u;
+        QryBlob blob;
+        if (qry_blob_read(mapped.bytes, mapped.size, walk, &blob))
+        {
+            slots += 2u;
+            walk = blob.next;
+        }
+        else
+        {
+            walk = qry_next_whole(mapped.bytes, mapped.size, walk);
+        }
     }
     size_t power = 64u;
     while (power < slots)
@@ -1613,7 +1588,7 @@ int qry_file_latest_each(const char *path,
     qry_unmapped(&mapped);
     if (skipped != 0ull)
     {
-        snprintf(error, room, "%s: %llu bytes no tag opens were stepped over", path, skipped);
+        snprintf(error, room, "%s: %llu bytes no frame opens were stepped over", path, skipped);
     }
     return 1;
 }
@@ -1801,7 +1776,7 @@ static int qry_firsts_written(QryBuffer *buffer, QryFile *file, QryWriterState *
                 bytes += s_taken[place].size;
                 if (priority == QRY_PANIC)
                 {
-                    // a panic's time from its hand to the disk, its hand's time read off its begin tag
+                    // a panic's time from its hand to the disk, its hand's time read off its frame
                     QryBlob blob;
                     const unsigned long long now = qry_nanoseconds();
                     if (qry_blob_read(buffer->data, *tail_seen, s_taken[place].at, &blob) && (now > blob.nanoseconds))
@@ -1861,7 +1836,7 @@ static void qry_range_written(QryBuffer *buffer, QryFile *file, unsigned long lo
             }
         }
         const unsigned long long stop = (next != state->early_count) ? state->early[next].at : to;
-        // the slice's end stepped blob by blob from its start, each blob's end read off its own tags
+        // the slice's end stepped blob by blob from its start, each blob's end read off its own frame
         unsigned long long slice_end = at;
         QryBlob blob;
         while ((slice_end < stop) && ((slice_end - at) < QRY_SLICE_BYTES) &&
@@ -1869,7 +1844,7 @@ static void qry_range_written(QryBuffer *buffer, QryFile *file, unsigned long lo
         {
             slice_end = blob.next;
         }
-        // a stretch whose tags do not read is written whole to its stop, as it stands in the buffer
+        // a stretch whose frames do not read is written whole to its stop, as it stands in the buffer
         slice_end = ((slice_end == at) && (at < stop)) ? stop : slice_end;
         whole &= qry_file_added(file, buffer->data + at, slice_end - at, 0);
         bytes += slice_end - at;
@@ -1903,7 +1878,7 @@ static int qry_row_order(const void *left, const void *right)
 }
 
 // a row of every blob before `tail`, in memory of the caller's to free: the table's own where it holds a row of every
-// blob, else each read off the blob's tags. NULL where there was no memory; `count` the rows
+// blob, else each read off the blob's frame. NULL where there was no memory; `count` the rows
 static QryRow *qry_rows_taken(QryBuffer *buffer, unsigned long long tail, unsigned long long rows,
                               unsigned long long *count)
 {
@@ -1967,8 +1942,12 @@ static int qry_table_dumped(QryBuffer *buffer, unsigned long long *count)
     table.rows = *count;
     table.rows_at = sizeof(QryTableHead);
     table.row_bytes = sizeof(QryRow);
-    table.blobs_at = table.rows_at + (*count * sizeof(QryRow));
+    // the frames from the first boundary past the rows, where the buffer's own alignment holds in the file
+    table.blobs_at = qry_aligned(table.rows_at + (*count * sizeof(QryRow)));
     table.blobs_bytes = tail;
+    table.frame_align = QRY_FRAME_ALIGN;
+    static const unsigned char s_zeros[QRY_FRAME_ALIGN] = {0};
+    const unsigned long long padding = table.blobs_at - table.rows_at - (*count * sizeof(QryRow));
     // each row given its blob's CRC and its places made the file's, and the rows' CRC the root of the file's checks
     for (unsigned long long row = 0ull; row < *count; row += 1ull)
     {
@@ -1985,7 +1964,7 @@ static int qry_table_dumped(QryBuffer *buffer, unsigned long long *count)
     {
         whole = qry_file_added(&file, (const unsigned char *)&table, sizeof(table), 0) &&
                 qry_file_added(&file, (const unsigned char *)taken, *count * sizeof(QryRow), 0) &&
-                qry_file_added(&file, buffer->data, tail, 0);
+                qry_file_added(&file, s_zeros, padding, 0) && qry_file_added(&file, buffer->data, tail, 0);
         whole = qry_file_closed(&file) && whole;
     }
     free(taken);

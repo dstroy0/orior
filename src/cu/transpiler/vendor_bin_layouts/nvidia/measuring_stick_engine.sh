@@ -32,13 +32,14 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCL
     -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE"
     -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA" -I "$CUBIN" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
 OBJECTS=()
-# an object is compiled again only where its source, or a header of the code generator or the interface, is newer
+# an object is compiled again only where its source, or a header of the code generator, the interface or the run's
+# buffer, is newer
 build_object()
 {
     local object="$OUT/objects/$2.o"
     if [ ! -f "$object" ] || [ "$3" -nt "$object" ] || [ "$1" = c++-tool ] ||
-        [ -n "$(find "$CODEGEN_CU" "$CODEGEN_CU_2" "$TOP/utils/test/src/cu/transpiler/lstar/interface" -name '*.h' \
-            -newer "$object" -print -quit)" ]; then
+        [ -n "$(find "$CODEGEN_CU" "$CODEGEN_CU_2" "$TOP/utils/test/src/cu/transpiler/lstar/interface" "$QRY_SOURCE" \
+            -name '*.h' -newer "$object" -print -quit)" ]; then
         case "$1" in
             c) cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -I "$TOP/src/cu/types/file_defs/readers" \
                    -I "$TOP/src/cu/transpiler/lstar/interface" -c "$3" -o "$object" || exit 1 ;;

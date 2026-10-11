@@ -54,6 +54,49 @@ static char s_cases_text[RUN_CASES_TEXT];
 // the panic the teacher has handed its account of: it speaks once for each
 static unsigned long long s_panic_answered = 0ull;
 
+static void run_channel_identity(const RunQuestion *question, char *identity);
+
+// The conference a question the part refused calls (QRY_CONFERENCE_CALL, overseer.h): the teacher's account of it, the
+// question as it was put, how it came back and whether a panic is on the line, then every account the carrier said
+// after the refusal in its answer, `said` of `said_size` bytes, as the carrier said it
+static void run_channel_conference_called(const RunQuestion *asked, const char *how, const unsigned char *said,
+                                          unsigned long long said_size)
+{
+    char identity[96];
+    char name[160];
+    char account[512];
+    run_channel_identity(asked, identity);
+    snprintf(name, sizeof(name), "%s_%s", QRY_CONFERENCE_CALL, identity);
+    // a blob's name takes no space: each space of the identity an underscore
+    for (char *space = strchr(name, ' '); space != NULL; space = strchr(space, ' '))
+    {
+        *space = '_';
+    }
+    const unsigned long long panic = qry_panicked(s_channel.buffer);
+    const int length =
+        snprintf(account, sizeof(account),
+                 "teacher: the question of %llu bytes of code, %u registers, %u threads in %u blocks, %u "
+                 "launches, over %u cases, %s; %s\n",
+                 asked->code_size, asked->registers, asked->threads, asked->blocks, asked->launches, asked->cases, how,
+                 (panic != 0ull) ? "a panic is on the line" : "the line is quiet");
+    // the account fits its room, and its length is not negative
+    const size_t kept = (length < 0)                         ? 0u
+                        : ((size_t)length < sizeof(account)) ? (size_t)length
+                                                             : (sizeof(account) - 1u);
+    unsigned char *const whole = (unsigned char *)malloc(kept + (size_t)said_size);
+    if (whole == NULL)
+    {
+        return;
+    }
+    memcpy(whole, account, kept);
+    if (said_size != 0ull)
+    {
+        memcpy(whole + kept, said, (size_t)said_size);
+    }
+    qry_hand(s_channel.buffer, name, whole, (unsigned long long)kept + said_size, QRY_ORDINARY);
+    free(whole);
+}
+
 // The sequence of the panic on the line, or 0 while it is quiet: once a panic opens it the run is halted, and the
 // teacher puts no question after it (qry_buffer.h)
 static unsigned long long run_channel_on_line(void)
@@ -215,6 +258,15 @@ static void run_channel_read(RunQuestion *asked, const char *answers_name, unsig
     {
         asked->outcome = (strncmp(s_answer_line, "skipped", 7u) == 0) ? (unsigned int)RUN_HELD : (unsigned int)RUN_ILLEGAL;
         snprintf(asked->refused, sizeof(asked->refused), "%.120s", s_answer_line);
+        // a refusal calls a conference, the carrier's accounts after the refusal's line handed with the teacher's
+        if (asked->outcome == RUN_ILLEGAL)
+        {
+            char how[160];
+            snprintf(how, sizeof(how), "the part refused it, %.120s", s_answer_line);
+            const unsigned long long said_at =
+                (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
+            run_channel_conference_called(asked, how, bytes + said_at, size - said_at);
+        }
         return;
     }
     const char *at = s_answer_line + 8u;
@@ -524,11 +576,16 @@ static int run_channel_carried(RunQuestion *asked)
     }
     if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
-        // a carrier that did not end clean wrote no answer worth reading: its ending is the answer
+        // a carrier that did not end clean wrote no answer worth reading: its ending is the answer, and where it was
+        // ended, or a panic is on the line, it ended carrying this question, which calls a conference
         asked->outcome = (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL
                                                                      : (unsigned int)RUN_NOTHING;
         snprintf(asked->refused, sizeof(asked->refused), "the carrier %s, code %llx",
                  interface_ending_name(answer.ending), answer.code);
+        if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ull))
+        {
+            run_channel_conference_called(asked, asked->refused, NULL, 0ull);
+        }
         return 0;
     }
     run_channel_read(asked, answers_name, after);
@@ -688,6 +745,11 @@ static unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned
                 (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
             snprintf(asked[at]->refused, sizeof(asked[at]->refused), "the carrier %s, code %llx",
                      interface_ending_name(answer.ending), answer.code);
+            // a carrier ended, or one that left a panic on the line, ended carrying this question: a conference
+            if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ull))
+            {
+                run_channel_conference_called(asked[at], asked[at]->refused, NULL, 0ull);
+            }
             at += 1u;
         }
         // a panic on the line: the teacher's account handed, the question the carrier was carrying the one its ending

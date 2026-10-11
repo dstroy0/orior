@@ -77,9 +77,10 @@ for source in "$CODEGEN"/*.cu "$PARSER"/*.cu "$PROTOCOL/table/klq_identity.cu"; 
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-# the run channel, the interface it carries each question through and the run's buffer, in C
-for source in "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/record_R/record.c" "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" \
-    "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" "$QRY_SOURCE/qry_buffer.c"; do
+# the run channel, the interface it carries each question through, the overseer and the run's buffer, in C
+for source in "$PROTOCOL/teacher/run_channel.c" "$PROTOCOL/record_R/record.c" "$PROTOCOL/overseer/overseer.c" \
+    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$LAYOUTS/nvidia/sass_assemble.c" \
+    "$LAYOUTS/nvidia/sass_machine.c" "$QRY_SOURCE/qry_buffer.c"; do
     object="$OUT/$(basename "$source")_identity.o"
     if stale "$source" "$object"; then
         rm -f "$object"
@@ -157,7 +158,8 @@ if { [ "$#" -eq 1 ] && { [ "$1" = "stall" ] || [ "$1" = "register" ] || [ "$1" =
     [ "$MODE" = "cost" ] && set -- "$COHERENCE/sm_86.kdm" "$COHERENCE/sm_86.khw"
     mkdir -p "$WORK/$MODE"
     run_started "$RUNS"
-    run_carried "$RUNS" "$WORK/host_answers.txt"
+    # the host's answers, and the overseer's lessons where a run before this one was taught any (overseer.h)
+    run_carried "$RUNS" "$WORK/host_answers.txt" "$WORK/overseer.txt"
     "$QRY_WRITER" latest host_answers.txt > /dev/null 2>&1 ||
         { echo "  no host answers: run utils/maint/engine/klq_identity.sh first"; exit 1; }
     run_configs

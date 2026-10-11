@@ -11,7 +11,7 @@
 //                                     every byte of the standard input handed as one blob of <name> at <priority>, 0 a
 //                                     panic, 1 critical and on disk before it returns, 2 ordinary where none is given
 //     qry_writer read <name>          every blob of <name> joined to the standard output, from the buffer while the
-//                                     writer runs and from the .qry once it has stopped, a stretch of the file no tag
+//                                     writer runs and from the .qry once it has stopped, a stretch of the file no frame
 //                                     opens stepped over and said
 //     qry_writer latest <name>        the latest blob of <name> to the standard output, from the buffer while the
 //                                     writer runs and from the .qry once it has stopped

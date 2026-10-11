@@ -208,4 +208,7 @@ if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$LIBRARY" ]; then
     exit 1
 fi
 echo "  linked $LIBRARY in $(( $(date +%s) - BEGAN )) s"
+# the objects linked, a line each, for a program that links the engine into itself: on Windows the library gives a
+# program only the calls the engine marks for export
+printf '%s\n' "${OBJECTS[@]}" > "$OUT/cell_tracking_engine.objects"
 build_publish "$LIBRARY" || exit 1
