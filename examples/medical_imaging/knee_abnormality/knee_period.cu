@@ -83,6 +83,16 @@ typedef struct
 
 static const char *s_daemon = NULL;
 
+// how long a job waits for room on the device before the run gives the device up; 0 waits until it fits
+static unsigned long long s_waiting = 0ull;
+
+// set where a job was not taken: the daemon refused it, it found no room in time, or it was held and lost
+static int s_refused = 0;
+
+// set where every job's declaration is counted from its own buffers, and a job held over its signum's last peak is
+// confirmed on its declaration
+static int s_confirming = 0;
+
 static unsigned long long knee_now_microseconds(void)
 {
     // a steady clock's count is non-negative and re-signs exactly
@@ -205,16 +215,29 @@ static int knee_job_submit(const char *kind, const unsigned long long *shape, un
     ask.idle_microseconds = KNEE_IDLE_MICROSECONDS;
     ask.daemon_path = s_daemon;
     ask.error = &error;
+    ask.waiting_microseconds = s_waiting;
     if (tessera_job_submit(&ask, &job->client, &job->ticket) != 0L)
     {
-        fprintf(stderr, "  tessera: %s: the daemon (%s) did not take the job\n", kind, s_daemon);
+        s_refused = 1;
+        if ((s_waiting != 0ull) && (job->ticket.waited >= s_waiting))
+        {
+            fprintf(stderr, "  tessera: %s found no room for %llu device bytes in %llu s, and gives the device up\n",
+                    kind, declared, s_waiting / 1000000ull);
+        }
+        else
+        {
+            fprintf(stderr, "  tessera: %s: the daemon (%s) did not take the job\n", kind, s_daemon);
+        }
         return 0;
     }
     if (job->ticket.asked != 0u)
     {
-        const long answered = tessera_job_wait(job->client, &job->ticket, &error);
+        // a declaration counted from the job's own buffers is confirmed where it is held over its signum's last peak
+        const long answered = (s_confirming != 0) ? tessera_job_override(job->client, &job->ticket, &error)
+                                                  : tessera_job_wait(job->client, &job->ticket, &error);
         if ((answered != 0L) || (job->ticket.lost != 0u))
         {
+            s_refused = 1;
             fprintf(stderr, "  tessera: %s was held past its holding time and lost (ticket in %s)\n", kind,
                     job->ticket.lost_path);
             if (answered == 0L)
@@ -255,16 +278,49 @@ static void knee_shape(const KneeSeries *series, unsigned long long shape[KNEE_R
     }
 }
 
-// a series' crystal, lowered and proved against its seal, as one job holding the tower's and the coder's pools; `side`
-// takes its side bytes where it is not NULL
+// the bytes of a file, 0 where it does not open
+static unsigned long long knee_file_bytes(const char *path)
+{
+    FILE *const file = fopen(path, "rb");
+    if (file == NULL)
+    {
+        return 0ull;
+    }
+#if defined(_WIN32)
+    const long long end = (_fseeki64(file, 0, SEEK_END) == 0) ? _ftelli64(file) : -1ll;
+#else
+    const long long end = (fseeko(file, 0, SEEK_END) == 0) ? (long long)ftello(file) : -1ll;
+#endif
+    fclose(file);
+    // a file's length is not negative where it was told
+    return (end > 0ll) ? (unsigned long long)end : 0ull;
+}
+
+static unsigned long long knee_allocation_bytes(unsigned long long bytes);
+
+// a series' crystal, lowered and proved against its seal, as one job holding the tower's and the coder's pools, the
+// coder's stream, and the seal's chunk offsets, stream and leaves; the stream is at most the crystal file's bytes.
+// `side` takes its side bytes where it is not NULL
 static unsigned short *knee_load(const KneeSeries *series, EngineSignum *root, EngineSideBytes *side)
 {
     unsigned long long shape[KNEE_RANK];
     knee_shape(series, shape);
     const unsigned long long lanes = shape[0] * shape[1] * shape[2];
+    char path[ENGINE_PATH_CAPACITY];
+    const unsigned long long file_bytes =
+        engine_sample_path(path, sizeof(path), series->set, series->name, ".kcr") ? knee_file_bytes(path) : 0ull;
+    const unsigned long long chunks = compression_chunks(lanes);
+    const unsigned long long stream = knee_allocation_bytes(file_bytes + sizeof(unsigned int));
+    const unsigned long long seal = knee_allocation_bytes(chunks * sizeof(unsigned long long)) + stream +
+                                    knee_allocation_bytes(chunks * sizeof(EngineSignum));
+    if (file_bytes == 0ull)
+    {
+        fprintf(stderr, "  %s: its crystal did not open\n", series->name);
+        return NULL;
+    }
     KneeJob job;
-    if (!knee_job_submit("knee crystal load", shape, tower_reserve_bytes(lanes) + compression_reserve_bytes(lanes),
-                         &job))
+    if (!knee_job_submit("knee crystal load", shape,
+                         tower_reserve_bytes(lanes) + compression_reserve_bytes(lanes) + stream + seal, &job))
     {
         return NULL;
     }
@@ -273,6 +329,8 @@ static unsigned short *knee_load(const KneeSeries *series, EngineSignum *root, E
     unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
     unsigned short *volume = NULL;
     const long loaded = engine_iapx_load(series->set, series->name, extent, &volume, root, side, &error);
+    // the tower's and the coder's pools go with the job: the process holds nothing on the device between jobs
+    engine_resident_release();
     const int released = knee_job_release("knee crystal load", &job);
     if ((loaded != 0L) || !released || (memcmp(extent, series->extent, sizeof(extent)) != 0))
     {
@@ -1473,19 +1531,34 @@ static void knee_residual_orders(const KneeOrders *orders, EngineResidualRequest
     memcpy(request->background_spaced, orders->background_spaced, sizeof(request->background_spaced));
 }
 
+// a rung's residual request over `extent`, in the fewest limbs that hold it; 0 where it needs more than the engine holds
+static unsigned int knee_rung_request(const KneeOrders *orders, const unsigned int extent[KNEE_RANK],
+                                      EngineResidualRequest *request)
+{
+    memset(request, 0, sizeof(*request));
+    request->depth = extent[0];
+    request->height = extent[1];
+    request->width = extent[2];
+    knee_residual_orders(orders, request);
+    request->unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
+    const unsigned long long limbs = engine_residual_limbs(request);
+    // the limbs are held at or below ENGINE_RESIDUAL_LIMBS here, and narrow exactly
+    request->limbs = (limbs <= ENGINE_RESIDUAL_LIMBS) ? (unsigned int)limbs : 0u;
+    return request->limbs;
+}
+
 // knee_orders_held for a rung's orders
 static int knee_rung_held(const KneeOrders *orders, EngineError *error)
 {
     unsigned short voxel = 0u;
     int offset_halves[ENGINE_AXES] = {0, 0, 0};
+    const unsigned int one[KNEE_RANK] = {1u, 1u, 1u};
     EngineResidualRequest request;
-    memset(&request, 0, sizeof(request));
+    if (knee_rung_request(orders, one, &request) == 0u)
+    {
+        return 0;
+    }
     request.volume = &voxel;
-    request.depth = 1u;
-    request.height = 1u;
-    request.width = 1u;
-    knee_residual_orders(orders, &request);
-    request.unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
     request.offset_halves = offset_halves;
     request.error = error;
     const unsigned int *device_residual = NULL;
@@ -1691,13 +1764,11 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
     rung->positive = (unsigned long long *)malloc(words * sizeof(unsigned long long));
     int offset_halves[ENGINE_AXES] = {0, 0, 0};
     EngineResidualRequest residual;
-    memset(&residual, 0, sizeof(residual));
+    if (knee_rung_request(&rung->orders, extent, &residual) == 0u)
+    {
+        return -1;
+    }
     residual.volume = volume;
-    residual.depth = extent[0];
-    residual.height = extent[1];
-    residual.width = extent[2];
-    knee_residual_orders(&rung->orders, &residual);
-    residual.unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
     residual.offset_halves = offset_halves;
     residual.error = error;
     const unsigned int *device_residual = NULL;
@@ -1715,6 +1786,7 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
     MaxTreeObjectsRequest objects;
     memset(&objects, 0, sizeof(objects));
     objects.device_residual = device_residual;
+    objects.limbs = residual.limbs;
     objects.depth = extent[0];
     objects.height = extent[1];
     objects.width = extent[2];
@@ -1775,8 +1847,9 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
 }
 
 // each body's partner on the rung after it: the voxels both rungs' bodies hold, counted for every pair of bodies
-// (body_overlap), and the heaviest matching of those counts
-static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int extent[KNEE_RANK])
+// (body_overlap), and the heaviest matching of those counts. `runs` takes the most runs the overlap held
+static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int extent[KNEE_RANK],
+                          unsigned long long *runs)
 {
     for (unsigned int body = 0u; body < earlier->count; body += 1u)
     {
@@ -1824,7 +1897,10 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
         overlap.peaks_before = peaks_before;
         overlap.peaks_after = peaks_after;
         overlap.counts = counts;
+        unsigned long long counted = 0ull;
+        overlap.runs = &counted;
         total = body_overlap_run(&overlap);
+        *runs = (counted > *runs) ? counted : *runs;
         if ((total < 0L) || ((unsigned long)total <= (unsigned long)capacity))
         {
             break;
@@ -2078,36 +2154,124 @@ static int knee_ladder_write(const char *dir, const char *name, const MaxTreeLay
     return ok;
 }
 
+#define KNEE_LADDER_RUNGS 32u
+
+// a series' job declares room for KNEE_LADDER_ROOM_BODIES bodies and KNEE_LADDER_ROOM_RUNS overlap runs in every
+// thousand voxels. A rung that cuts more bodies, or a link that counts more runs, gives the device back, and the ladder
+// asks again with room for what it counted before it goes on
+#define KNEE_LADDER_ROOM_BODIES 20ull
+#define KNEE_LADDER_ROOM_RUNS 450ull
+
+// the pages the residual's key and a verdict program hold on the device, one an allocation
+#define KNEE_LADDER_PROGRAM_PAGES 8ull
+
+// the series a ladder leaves to be cut in slabs: its ladder holds more device bytes whole than a series may take
+#define KNEE_LADDER_WHOLE 2
+
+// how long a ladder's job waits for room where `--waiting` is not given
+#define KNEE_LADDER_WAITING_SECONDS 600ull
+
+// the most device bytes one series' ladder may declare; a series past it is left whole for the slabs
+static unsigned long long s_device_cap = 0ull;
+
+// the bodies a rung and the runs a link may hold under a series' job
+typedef struct
+{
+    unsigned long long bodies;
+    unsigned long long runs;
+} KneeRoom;
+
+// the device bytes a series' ladder holds at once, those of its widest rung: the lanes, the residual and the unit
+// sweep's planes in that rung's limbs (engine_residual_bytes), the max tree over every voxel with room for its bodies,
+// a rung's bodies packed in `limbs` words with the verdicts' records, each member's packed bodies and the lanes' index
+// beside them, and the overlap's labels, sign words and runs; 0 where the ladder reaches no rung
+static unsigned long long knee_ladder_bytes(const EngineResidualRequest *widest, unsigned long long voxels,
+                                            const KneeRoom *room, unsigned int limbs)
+{
+    if (widest->limbs == 0u)
+    {
+        return 0ull;
+    }
+    const unsigned long long packed = knee_allocation_bytes((room->bodies + 1ull) * limbs * sizeof(unsigned int));
+    const unsigned long long tree = max_tree_objects_bytes((size_t)voxels, (size_t)room->bodies);
+    const unsigned long long verdicts =
+        packed + (KNEE_LADDER_MEMBERS * packed) +
+        knee_allocation_bytes(room->bodies * KNEE_LADDER_MEMBERS * sizeof(unsigned int));
+    const unsigned long long overlap = body_overlap_bytes(voxels, room->runs, DEVICE_POOL_PAGE_BYTES);
+    return (tree == 0ull) ? 0ull
+                          : (engine_residual_bytes(widest) + tree + packed + verdicts + overlap +
+                             (KNEE_LADDER_PROGRAM_PAGES * DEVICE_POOL_PAGE_BYTES));
+}
+
+// the engine's buffers and the overlap's go with the job: the process holds nothing on the device between jobs
+static int knee_ladder_release(unsigned long long declared, KneeJob *job)
+{
+    engine_resident_release();
+    body_overlap_release();
+    return (declared == 0ull) || knee_job_release("knee ladder", job);
+}
+
 // rung k smooths and takes the background at n = 2^(k + 1) on the finest axis (knee_rung_orders), a difference of
 // smooths whose doubling keeps Lindeberg's t / Δt the same on every rung, each smooth laid as spaced pairs so its bits
 // grow with the count of its pairs. A rung is cut into bodies, linked to the rung before, and its verdicts run: which
 // bodies rose, and which bodies of the rung before peaked. The ladder ends where no body rose, where an axis's window
 // is longer than the axis, or where the residual refuses the orders. Each rung is one line; the last line of a series
 // says why it ended and how many bodies are still open. Where `bodies` is not NULL the peaked and open bodies are
-// written there (knee_ladder_write)
-#define KNEE_LADDER_RUNGS 32u
-
+// written there (knee_ladder_write).
+//
+// The series' job declares every device byte the ladder holds at its widest rung (knee_ladder_bytes), and the device
+// is given back before the series returns. A series whose ladder would declare more than s_device_cap is left whole
+// for the slabs, and KNEE_LADDER_WHOLE returned
 static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spacing,
                               const unsigned int comb[KNEE_RANK], const char *bodies, KneeText *text)
 {
     const unsigned int extent[KNEE_RANK] = {(unsigned int)series->extent[1], (unsigned int)series->extent[2],
                                             (unsigned int)series->extent[3]};
     const unsigned long long voxels = (unsigned long long)extent[0] * extent[1] * extent[2];
+    MaxTreeLayout layout;
+    max_tree_layout(extent[0], extent[1], extent[2], KNEE_LADDER_RUNGS, 1u, &layout);
+    // the widest rung the ladder can reach: every rung's limbs and planes are at least the rung's before it, and the
+    // engine holds its buffers at the most asked. The widest rung's bytes are the series' most
+    EngineResidualRequest widest;
+    memset(&widest, 0, sizeof(widest));
+    for (unsigned int step = 0u; step < KNEE_LADDER_RUNGS; step += 1u)
+    {
+        KneeOrders orders;
+        EngineResidualRequest request;
+        unsigned int longer = 0u;
+        const int ordered = knee_rung_orders(spacing, 2u << step, comb, &orders);
+        for (unsigned int axis = 0u; ordered && (axis < KNEE_RANK); axis += 1u)
+        {
+            longer |= (unsigned int)(knee_rung_window(&orders, axis) > (unsigned long long)extent[axis]);
+        }
+        if (!ordered || (longer != 0u) || (knee_rung_request(&orders, extent, &request) == 0u))
+        {
+            break;
+        }
+        widest = request;
+    }
+    KneeRoom room = {((voxels * KNEE_LADDER_ROOM_BODIES) + 999ull) / 1000ull,
+                     ((voxels * KNEE_LADDER_ROOM_RUNS) + 999ull) / 1000ull};
+    // a ladder with no rung to reach ends before it holds anything on the device, and asks no job
+    unsigned long long declared = knee_ladder_bytes(&widest, voxels, &room, layout.limbs);
+    if (declared > s_device_cap)
+    {
+        fprintf(stderr, "  %s: its ladder holds %llu device bytes whole, past the %llu a series may take; it is left for "
+                        "the slabs\n",
+                series->name, declared, s_device_cap);
+        return KNEE_LADDER_WHOLE;
+    }
     EngineSignum root;
     unsigned short *const volume = knee_load(series, &root, NULL);
     if (volume == NULL)
     {
         return 0;
     }
-    MaxTreeLayout layout;
-    max_tree_layout(extent[0], extent[1], extent[2], KNEE_LADDER_RUNGS, 1u, &layout);
     unsigned long long shape[KNEE_RANK];
     knee_shape(series, shape);
     KneeJob job;
-    if (!knee_job_submit("knee ladder", shape,
-                         knee_allocation_bytes(voxels * sizeof(unsigned short)) +
-                             (2ull * knee_allocation_bytes(voxels * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int))),
-                         &job))
+    memset(&job, 0, sizeof(job));
+    if ((declared != 0ull) && !knee_job_submit("knee ladder", shape, declared, &job))
     {
         free(volume);
         return 0;
@@ -2117,8 +2281,11 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     EngineError error;
     memset(&error, 0, sizeof(error));
     int ok = 1;
+    int left_whole = 0;
+    int held = 1;
     const char *ended = "no body rose";
     unsigned long long open = 0ull;
+    unsigned long long runs = 0ull;
     unsigned int made = 0u;
     KneeKept kept = {NULL, 0u, 0u, layout.limbs};
     unsigned int rung_words[KNEE_LADDER_RUNGS * 5u];
@@ -2163,7 +2330,26 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
             engine_error_clear();
             break;
         }
-        ok = (cut > 0) && ((step == 0u) || knee_rung_link(before, here, extent));
+        ok = (cut > 0) && ((step == 0u) || knee_rung_link(before, here, extent, &runs));
+        if (ok && (((unsigned long long)here->count > room.bodies) || (runs > room.runs)))
+        {
+            // the rung is cut and linked, and its bodies and links are on the host: the job is given back and asked
+            // again with room for what the rung counted, before the verdicts go on
+            room.bodies = ((unsigned long long)here->count > room.bodies) ? here->count : room.bodies;
+            room.runs = (runs > room.runs) ? runs : room.runs;
+            held = knee_ladder_release(declared, &job);
+            declared = knee_ladder_bytes(&widest, voxels, &room, layout.limbs);
+            left_whole = held && (declared > s_device_cap);
+            fprintf(stderr, "  %s: rung %u asks again with room for %llu bodies and %llu runs, %llu device bytes\n",
+                    series->name, step, room.bodies, room.runs, declared);
+            held = held && !left_whole && knee_job_submit("knee ladder", shape, declared, &job);
+            if (!held)
+            {
+                ended = left_whole ? "the room it counted is past what a series may take" : "its job was not taken";
+                ok = 0;
+                break;
+            }
+        }
         for (unsigned int body = 0u; ok && (step == 0u) && (body < here->count); body += 1u)
         {
             here->before[body] = here->count;
@@ -2221,7 +2407,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
             break;
         }
     }
-    const int released = knee_job_release("knee ladder", &job);
+    const int released = !held || knee_ladder_release(declared, &job);
     // the bodies the last rung leaves rising are kept after the peaked ones
     const size_t peaked_count = kept.count;
     for (unsigned int body = 0u; ok && (last != NULL) && (body < last->count); body += 1u)
@@ -2238,6 +2424,14 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     free(last_rose);
     free(kept.words);
     free(volume);
+    if (left_whole)
+    {
+        fprintf(stderr, "  %s: its ladder holds %llu device bytes whole, past the %llu a series may take; it is left for "
+                        "the slabs\n",
+                series->name, declared, s_device_cap);
+        text->used = 0u;
+        return KNEE_LADDER_WHOLE;
+    }
     if (!ok || !released || !written)
     {
         fprintf(stderr, "  %s: the ladder did not run: %s (kind %u, module %u, site %u)\n", series->name, ended,
@@ -2260,10 +2454,16 @@ static int knee_take_ladder(const char *line, void *context)
 
 // the ladder over a set: each series' P from the readings and its voxel from the spacing, one series' lines written
 // together once its ladder ends, and its bodies' file in `--bodies` (knee_ladder_write), a directory that is there. A
-// series with no reading or no spacing on an axis is reported and left out
+// series with no reading or no spacing on an axis is reported and left out.
+//
+// A series' job declares every device byte its ladder holds (knee_ladder_bytes), and the engine frees them before the
+// job releases. A series whose ladder declares more than `--device-bytes` (half the device's memory where it is not
+// given) is left whole for the slabs. The run stops, with what it has written kept, where a job finds no room in
+// `--waiting` seconds (600 where it is not given, 0 to wait until it fits) or where the daemon takes no job
 //
 //   knee_period ladder --daemon <tessera_daemon> --readings <periods.tsv> --spacing <spacing.tsv> --set <dir>
-//                      --out <ladder.tsv> [--bodies <dir>] [--list <file>]
+//                      --out <ladder.tsv> [--bodies <dir>] [--list <file>] [--waiting <seconds>]
+//                      [--device-bytes <bytes>]
 static int knee_ladder(int argc, char **argv)
 {
     const char *readings = NULL;
@@ -2272,6 +2472,8 @@ static int knee_ladder(int argc, char **argv)
     const char *out = NULL;
     const char *list = NULL;
     const char *bodies = NULL;
+    const char *waiting = NULL;
+    const char *device_bytes = NULL;
     for (int at = 1; (at + 1) < argc; at += 2)
     {
         const char *const value = argv[at + 1];
@@ -2282,13 +2484,28 @@ static int knee_ladder(int argc, char **argv)
         out = (strcmp(argv[at], "--out") == 0) ? value : out;
         list = (strcmp(argv[at], "--list") == 0) ? value : list;
         bodies = (strcmp(argv[at], "--bodies") == 0) ? value : bodies;
+        waiting = (strcmp(argv[at], "--waiting") == 0) ? value : waiting;
+        device_bytes = (strcmp(argv[at], "--device-bytes") == 0) ? value : device_bytes;
     }
     if ((s_daemon == NULL) || (readings == NULL) || (spacing_path == NULL) || (set == NULL) || (out == NULL))
     {
         fprintf(stderr, "usage: knee_period ladder --daemon <tessera_daemon> --readings <periods.tsv> --spacing "
-                        "<spacing.tsv> --set <dir> --out <ladder.tsv> [--bodies <dir>] [--list <file>]\n");
+                        "<spacing.tsv> --set <dir> --out <ladder.tsv> [--bodies <dir>] [--list <file>] "
+                        "[--waiting <seconds>] [--device-bytes <bytes>]\n");
         return 2;
     }
+    size_t device_free = 0u;
+    size_t device_total = 0u;
+    if (cudaMemGetInfo(&device_free, &device_total) != cudaSuccess)
+    {
+        fprintf(stderr, "  the device did not tell its memory\n");
+        return 1;
+    }
+    s_confirming = 1;
+    s_waiting = ((waiting != NULL) ? strtoull(waiting, NULL, 10) : KNEE_LADDER_WAITING_SECONDS) * 1000000ull;
+    s_device_cap = (device_bytes != NULL) ? strtoull(device_bytes, NULL, 10) : ((unsigned long long)device_total / 2ull);
+    printf("  a series' ladder may declare %llu device bytes of the device's %llu, and a job waits %llu s for room\n",
+           s_device_cap, (unsigned long long)device_total, s_waiting / 1000000ull);
     unsigned long long period_count = 0ull;
     KneePeriod *const periods = knee_periods_read(readings, &period_count);
     unsigned long long spacing_count = 0ull;
@@ -2344,7 +2561,9 @@ static int knee_ladder(int argc, char **argv)
     unsigned int ran = 0u;
     unsigned int left = 0u;
     unsigned int failed = 0u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    unsigned int left_whole = 0u;
+    int stopped = 0;
+    for (unsigned int at = 0u; (stopped == 0) && (at < count); at += 1u)
     {
         if ((written.count != 0ull) &&
             (bsearch(&names[at], written.names, (size_t)written.count, sizeof(char *), knee_text_order) != NULL))
@@ -2378,7 +2597,12 @@ static int knee_ladder(int argc, char **argv)
             continue;
         }
         KneeText text = {NULL, 0u, 0u};
-        if (knee_ladder_series(&series, spacing, period->period, bodies, &text))
+        const int laddered = knee_ladder_series(&series, spacing, period->period, bodies, &text);
+        if (laddered == KNEE_LADDER_WHOLE)
+        {
+            left_whole += 1u;
+        }
+        else if (laddered != 0)
         {
             fwrite(text.bytes, 1u, text.used, file);
             fflush(file);
@@ -2390,10 +2614,17 @@ static int knee_ladder(int argc, char **argv)
             failed += 1u;
         }
         free(text.bytes);
+        if (s_refused != 0)
+        {
+            stopped = 1;
+            fprintf(stderr, "  the ladder stops at %s and gives the device up: its job was not taken\n",
+                    names[at]);
+        }
     }
     fclose(file);
-    printf("  the ladder is done: %u series, %u run, %u left out, %u did not run\n", count, ran, left, failed);
-    return (failed == 0u) ? 0 : 1;
+    printf("  the ladder is %s: %u series, %u run, %u left out, %u left for the slabs, %u did not run\n",
+           (stopped != 0) ? "stopped" : "done", count, ran, left, left_whole, failed);
+    return ((failed == 0u) && (stopped == 0)) ? 0 : 1;
 }
 
 int main(int argc, char **argv)

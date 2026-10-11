@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "unit_sweep.h"
+#include "../../runtime/device_pool/device_pool.h"
 
 #include <cuda_runtime.h>
 
@@ -546,6 +547,42 @@ static int unit_sweep_planes_load(const UnitSweepRequest *request, const UnitSwe
                    cudaMemcpy(&over_width, buffers->over_width, sizeof(unsigned int), cudaMemcpyDeviceToHost),
                    buffers->over_width, error);
     return ok && UNIT_SWEEP_CHECK(over_width == 0u, &request->input_bits, error, ENGINE_ERROR_REQUEST);
+}
+
+extern "C" unsigned long long unit_sweep_bits(const UnitSweepRequest *request)
+{
+    unsigned long long bits = ((request->device_planes != NULL) ? request->input_bits : UNIT_SWEEP_INPUT_BITS) + 1ull;
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        bits += (unsigned long long)request->smooth_orders[axis] + request->background_orders[axis] +
+                unit_sweep_comb_growth(request->comb[axis]);
+        for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
+        {
+            bits += 2ull * ((unsigned long long)request->smooth_spaced[axis][spacing] +
+                            request->background_spaced[axis][spacing]);
+        }
+    }
+    return bits;
+}
+
+extern "C" unsigned long long unit_sweep_bytes(const UnitSweepRequest *request)
+{
+    const unsigned long long voxels = (unsigned long long)request->depth * request->height * request->width;
+    unsigned long long narrow_bits = (request->device_planes != NULL) ? request->input_bits : UNIT_SWEEP_INPUT_BITS;
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        narrow_bits += (unsigned long long)request->smooth_orders[axis] + unit_sweep_comb_growth(request->comb[axis]);
+        for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
+        {
+            narrow_bits += 2ull * request->smooth_spaced[axis][spacing];
+        }
+    }
+    const unsigned long long wide_bits = unit_sweep_bits(request) - 1ull;
+    const unsigned long long narrow = voxels * ((narrow_bits + 31ull) / 32ull) * sizeof(unsigned int);
+    const unsigned long long wide = voxels * ((wide_bits + 31ull) / 32ull) * sizeof(unsigned int);
+    // each allocation is mapped in whole pages: the two planes, and a page for each counter
+    const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ull;
+    return ((narrow + page) & ~page) + ((wide + page) & ~page) + (2ull * DEVICE_POOL_PAGE_BYTES);
 }
 
 extern "C" long unit_sweep_residual(const UnitSweepRequest *request)

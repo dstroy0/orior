@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_residual.cu: the residual: keys, planes and their growth
 #include "engine_internal.h"
+#include "runtime/device_pool/device_pool.h"
 
 static EngineResidualResident s_residual_resident;
 
+static EngineResidualPlanesResident s_residual_planes_resident;
+
 static EngineResidualResults s_residual_results;
 
-static int engine_residual_key(const EngineResidualRequest *request)
+static int engine_residual_key(const EngineResidualRequest *request, unsigned int limbs)
 {
     EngineResidualResident *const resident = &s_residual_resident;
     EngineError *const error = request->error;
@@ -31,8 +34,8 @@ static int engine_residual_key(const EngineResidualRequest *request)
     const long bits = engine_key_encode(program, RESIDUAL_STEPS, &key, error);
     // bits is checked non-negative before it re-signs to unsigned long
     const int imprinted = ENGINE_CHECK(bits >= 0L, program, error, ENGINE_ERROR_REQUEST) &&
-                          ENGINE_CHECK((unsigned long)bits <= (32ul * ENGINE_RESIDUAL_LIMBS),
-                                       request->background_orders, error, ENGINE_ERROR_REQUEST);
+                          ENGINE_CHECK((unsigned long)bits <= (32ul * limbs), request->background_orders, error,
+                                       ENGINE_ERROR_REQUEST);
     if (imprinted == 0)
     {
         cycle_key_release(key);
@@ -47,30 +50,107 @@ static int engine_residual_key(const EngineResidualRequest *request)
     return 1;
 }
 
-static int engine_residual_reserve(size_t voxels, EngineError *error)
+static void engine_residual_free(void)
 {
     EngineResidualResident *const resident = &s_residual_resident;
-    if (resident->voxels == voxels)
-    {
-        return 1;
-    }
     cudaFree(resident->volume);
     cudaFree(resident->residual);
     cudaFree(resident->check);
     resident->volume = NULL;
     resident->residual = NULL;
     resident->check = NULL;
-    resident->voxels = 0u;
-    const int ok = ENGINE_STATUS_CHECK(cudaMalloc((void **)&resident->volume, voxels * sizeof(unsigned short)),
-                                       &resident->volume, error) &&
-                   ENGINE_STATUS_CHECK(
-                       cudaMalloc((void **)&resident->residual, voxels * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)),
-                       &resident->residual, error) &&
-                   ENGINE_STATUS_CHECK(
-                       cudaMalloc((void **)&resident->check, voxels * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)),
-                       &resident->check, error);
-    resident->voxels = (ok != 0) ? voxels : 0u;
+    resident->volume_voxels = 0u;
+    resident->residual_words = 0u;
+    resident->check_words = 0u;
+}
+
+// a buffer held while it is large enough, and made again where a request needs more
+static int engine_residual_grow(void **buffer, size_t *held, size_t wanted, size_t unit, EngineError *error)
+{
+    if (wanted <= *held)
+    {
+        return 1;
+    }
+    cudaFree(*buffer);
+    *buffer = NULL;
+    *held = 0u;
+    const int ok = ENGINE_STATUS_CHECK(cudaMalloc(buffer, wanted * unit), buffer, error);
+    *held = (ok != 0) ? wanted : 0u;
     return ok;
+}
+
+// the lanes, the residual in `limbs` limbs a lane, and the check where the residual is proved
+static int engine_residual_reserve(size_t voxels, unsigned int limbs, int proving, EngineError *error)
+{
+    EngineResidualResident *const resident = &s_residual_resident;
+    const size_t words = voxels * limbs;
+    const int ok =
+        engine_residual_grow((void **)&resident->volume, &resident->volume_voxels, voxels, sizeof(unsigned short),
+                             error) &&
+        engine_residual_grow((void **)&resident->residual, &resident->residual_words, words, sizeof(unsigned int),
+                             error) &&
+        ((proving == 0) || engine_residual_grow((void **)&resident->check, &resident->check_words, words,
+                                                sizeof(unsigned int), error));
+    if (ok == 0)
+    {
+        engine_residual_free();
+    }
+    return ok;
+}
+
+// the unit sweep's request for a residual request, its lanes not yet on the device
+static void engine_residual_sweep_of(const EngineResidualRequest *request, UnitSweepRequest *sweep)
+{
+    memset(sweep, 0, sizeof(*sweep));
+    sweep->depth = request->depth;
+    sweep->height = request->height;
+    sweep->width = request->width;
+    memcpy(sweep->smooth_orders, request->smooth_orders, sizeof(sweep->smooth_orders));
+    memcpy(sweep->background_orders, request->background_orders, sizeof(sweep->background_orders));
+    memcpy(sweep->comb, request->comb, sizeof(sweep->comb));
+    memcpy(sweep->smooth_spaced, request->smooth_spaced, sizeof(sweep->smooth_spaced));
+    memcpy(sweep->background_spaced, request->background_spaced, sizeof(sweep->background_spaced));
+}
+
+extern "C" unsigned long long engine_residual_limbs(const EngineResidualRequest *request)
+{
+    UnitSweepRequest sweep;
+    engine_residual_sweep_of(request, &sweep);
+    return (unit_sweep_bits(&sweep) + 31ull) / 32ull;
+}
+
+extern "C" unsigned long long engine_residual_bytes(const EngineResidualRequest *request)
+{
+    const unsigned long long voxels = (unsigned long long)request->depth * request->height * request->width;
+    const unsigned long long limbs = (request->limbs != 0u) ? request->limbs : ENGINE_RESIDUAL_LIMBS;
+    // each allocation is mapped in whole pages
+    const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ull;
+    const unsigned long long lanes = ((voxels * sizeof(unsigned short)) + page) & ~page;
+    const unsigned long long residual = ((voxels * limbs * sizeof(unsigned int)) + page) & ~page;
+    UnitSweepRequest sweep;
+    engine_residual_sweep_of(request, &sweep);
+    const int proving = (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? 1 : 0;
+    const int sweep_runs = (request->unit_sweep != ENGINE_RESIDUAL_BY_KEY) ? 1 : 0;
+    return lanes + residual + ((proving != 0) ? residual : 0ull) +
+           ((sweep_runs != 0) ? unit_sweep_bytes(&sweep) : 0ull);
+}
+
+extern "C" void engine_resident_release(void)
+{
+    EngineResidualResident *const resident = &s_residual_resident;
+    engine_residual_free();
+    cycle_key_release(resident->key);
+    resident->key = NULL;
+    EngineResidualPlanesResident *const planes = &s_residual_planes_resident;
+    cudaFree(planes->planes);
+    cudaFree(planes->residual);
+    memset(planes, 0, sizeof(*planes));
+    unit_sweep_release();
+    max_tree_resident_release();
+    tower_resident_release();
+    compression_resident_release();
+    cycle_resident_release();
+    cycle_record_sum_release();
 }
 
 // the parity of the half voxels both terms move along an axis: the smooth order's, and a comb of n's n - 1
@@ -138,16 +218,19 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     }
     const unsigned long long plane_voxels = (unsigned long long)request->height * request->width;
     const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFull) ? (plane_voxels * request->depth) : 0ull;
+    const unsigned int limbs = (request->limbs != 0u) ? request->limbs : ENGINE_RESIDUAL_LIMBS;
+    const int proving = (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? 1 : 0;
     const int sized = ENGINE_CHECK((voxels != 0ull) && (voxels <= (0xFFFFFFFFull / ENGINE_RESIDUAL_LIMBS)),
                                    &request->depth, error, ENGINE_ERROR_REQUEST) &&
-                      engine_residual_key(request);
+                      ENGINE_CHECK(limbs <= ENGINE_RESIDUAL_LIMBS, &request->limbs, error, ENGINE_ERROR_REQUEST) &&
+                      engine_residual_key(request, limbs);
     if (sized == 0)
     {
         return ENGINE_ERROR;
     }
     EngineResidualResident *const resident = &s_residual_resident;
     int steps_succeeded =
-        engine_residual_reserve((size_t)voxels, error) &&
+        engine_residual_reserve((size_t)voxels, limbs, proving, error) &&
         ENGINE_STATUS_CHECK(cudaMemcpy(resident->volume, request->volume, (size_t)voxels * sizeof(unsigned short),
                                        cudaMemcpyHostToDevice),
                             resident->volume, error);
@@ -162,27 +245,17 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     cycle_request.key = resident->key;
     cycle_request.atoms = &atom;
     cycle_request.count = 1ull;
-    cycle_request.limbs = ENGINE_RESIDUAL_LIMBS;
+    cycle_request.limbs = limbs;
     cycle_request.device_out = resident->residual;
     cycle_request.error = error;
     UnitSweepRequest sweep_request;
-    memset(&sweep_request, 0, sizeof(sweep_request));
+    engine_residual_sweep_of(request, &sweep_request);
     sweep_request.device_volume = resident->volume;
-    sweep_request.depth = request->depth;
-    sweep_request.height = request->height;
-    sweep_request.width = request->width;
-    memcpy(sweep_request.smooth_orders, request->smooth_orders, sizeof(sweep_request.smooth_orders));
-    memcpy(sweep_request.background_orders, request->background_orders, sizeof(sweep_request.background_orders));
-    memcpy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
-    memcpy(sweep_request.smooth_spaced, request->smooth_spaced, sizeof(sweep_request.smooth_spaced));
-    memcpy(sweep_request.background_spaced, request->background_spaced, sizeof(sweep_request.background_spaced));
-    sweep_request.limbs = ENGINE_RESIDUAL_LIMBS;
-    sweep_request.device_out =
-        (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? resident->check : resident->residual;
+    sweep_request.limbs = limbs;
+    sweep_request.device_out = (proving != 0) ? resident->check : resident->residual;
     sweep_request.error = error;
     const int key_runs = (request->unit_sweep != ENGINE_RESIDUAL_BY_UNIT_SWEEP) ? 1 : 0;
     const int sweep_runs = (request->unit_sweep != ENGINE_RESIDUAL_BY_KEY) ? 1 : 0;
-    const int proving = (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? 1 : 0;
     steps_succeeded = steps_succeeded && ENGINE_STATUS_CHECK(cudaDeviceSynchronize(), resident->volume, error);
     const unsigned long long key_started = engine_clock_microseconds();
     steps_succeeded = steps_succeeded &&
@@ -197,8 +270,7 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
                                ENGINE_STATUS_CHECK(cudaDeviceSynchronize(), sweep_request.device_out, error)));
     const unsigned long long sweep_finished = engine_clock_microseconds();
     unsigned long long differing_lanes = 0ull;
-    const UnitSweepComparison comparison = {resident->residual,    resident->check,  voxels,
-                                            ENGINE_RESIDUAL_LIMBS, &differing_lanes, error};
+    const UnitSweepComparison comparison = {resident->residual, resident->check, voxels, limbs, &differing_lanes, error};
     steps_succeeded =
         steps_succeeded && ((proving == 0) || ENGINE_CHECK(unit_sweep_lanes_compare(&comparison) == 0L, resident->check,
                                                            error, ENGINE_ERROR_RESOURCE));
@@ -211,13 +283,7 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     }
     if (steps_succeeded == 0)
     {
-        cudaFree(resident->volume);
-        cudaFree(resident->residual);
-        cudaFree(resident->check);
-        resident->volume = NULL;
-        resident->residual = NULL;
-        resident->check = NULL;
-        resident->voxels = 0u;
+        engine_residual_free();
         return ENGINE_ERROR;
     }
     s_residual_results.frames += 1ull;
@@ -227,8 +293,6 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     *device_residual = resident->residual;
     return 0L;
 }
-
-static EngineResidualPlanesResident s_residual_planes_resident;
 
 static int engine_residual_planes_grow(unsigned int **words, size_t *capacity, size_t wanted, EngineError *error)
 {

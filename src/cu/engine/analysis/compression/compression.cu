@@ -231,6 +231,20 @@ struct CompressionResident
 
 static CompressionResident s_compression_resident;
 
+extern "C" void compression_resident_release(void)
+{
+    CompressionResident *const resident = &s_compression_resident;
+    device_pool_release(&resident->chunk_pool);
+    device_pool_release(&resident->stream_pool);
+    resident->chunk_bits = NULL;
+    resident->chunk_offsets = NULL;
+    resident->chunk_capacity = 0u;
+    resident->stream = NULL;
+    resident->stream_capacity = 0u;
+    resident->scan = NULL;
+    resident->scan_bytes = 0u;
+}
+
 #define COMPRESSION_CHUNK_SLICES 3u
 
 // the chunk pool's slices for `chunks`, in the order they are laid out and taken: each chunk's bits, each chunk's

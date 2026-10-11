@@ -133,6 +133,9 @@ extern "C"
     // cycle_record_sum keeps its device scratch between calls, grown to the most a sum has asked; this gives it back
     void cycle_record_sum_release(void);
 
+    // cycle_run keeps its scratch, its lanes' table and its folds on the device between calls; this gives them back
+    void cycle_resident_release(void);
+
     // The sort: within each run of `group` consecutive records of `count`, the lanes in the order of their output at
     // bit `offset`, `bits` wide, read as a magnitude, least first, and records whose outputs are equal in the order of
     // their lanes. `order` takes `count` lanes, 32 bits each: entry i of a run is the lane of the run's record that
