@@ -231,15 +231,22 @@ pub fn tests_of(mut command: Command) -> (Vec<Outcome>, String) {
     let mut outcomes = Vec::new();
     let mut failures = String::new();
     let mut in_failures = false;
+    // A test's verdict comes after its name on the same line, unless what a test's own child writes
+    // lands between the two; such a test is judged by cargo's list of failures at the end.
+    let mut unsure = Vec::new();
+    let mut failed = std::collections::HashSet::new();
     if let Some(stdout) = child.stdout.take() {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
             if let Some(rest) = line.strip_prefix("test ") {
                 if let Some((name, said)) = rest.rsplit_once(" ... ") {
-                    let ok = said.starts_with("ok") || said.starts_with("ignored");
-                    if !ok {
+                    if said.starts_with("ok") || said.starts_with("ignored") {
+                        outcomes.push(Outcome { name: name.to_string(), ok: true, ms: 0, error: String::new() });
+                    } else if said.starts_with("FAILED") {
                         println!("    FAILED {name}");
+                        outcomes.push(Outcome { name: name.to_string(), ok: false, ms: 0, error: String::new() });
+                    } else {
+                        unsure.push(name.to_string());
                     }
-                    outcomes.push(Outcome { name: name.to_string(), ok, ms: 0, error: String::new() });
                     continue;
                 }
                 if rest.starts_with("result:") {
@@ -252,10 +259,20 @@ pub fn tests_of(mut command: Command) -> (Vec<Outcome>, String) {
                 in_failures = true;
             }
             if in_failures {
+                if let Some(name) = line.strip_prefix("    ").filter(|name| !name.is_empty() && !name.contains(char::is_whitespace)) {
+                    failed.insert(name.to_string());
+                }
                 failures.push_str(&line);
                 failures.push('\n');
             }
         }
+    }
+    for name in unsure {
+        let ok = !failed.contains(&name);
+        if !ok {
+            println!("    FAILED {name}");
+        }
+        outcomes.push(Outcome { name, ok, ms: 0, error: String::new() });
     }
     let status = child.wait();
     if !status.as_ref().is_ok_and(|status| status.success()) && outcomes.iter().all(|one| one.ok) {
@@ -661,6 +678,23 @@ mod tests {
         assert!(rewritten.contains("import(\"/fuzzy.js\")"), "{rewritten}");
         assert!(rewritten.contains("\"../not/an/import.js\""), "{rewritten}");
         assert!(rewritten.contains("from \"/bridge.js\""), "{rewritten}");
+    }
+
+    #[test]
+    fn a_verdict_pushed_off_its_line_is_read_from_cargo_s_list_of_failures() {
+        let file = std::env::temp_dir().join(format!("orior-harness-cargo-{}.txt", std::process::id()));
+        let said = "test a::one ... ok\ntest a::two ... said by a child\nok\ntest a::three ... printed\nFAILED\n\nfailures:\n\n---- a::three stdout ----\nit broke\n\nfailures:\n    a::three\n\ntest result: FAILED. 2 passed; 1 failed\n";
+        std::fs::write(&file, said).unwrap();
+        let mut command = Command::new(if cfg!(windows) { "cmd" } else { "cat" });
+        if cfg!(windows) {
+            command.args(["/c", "type"]);
+        }
+        command.arg(&file);
+        let (outcomes, failures) = tests_of(command);
+        let _ = std::fs::remove_file(&file);
+        let verdicts: Vec<(&str, bool)> = outcomes.iter().map(|one| (one.name.as_str(), one.ok)).collect();
+        assert_eq!(verdicts, [("a::one", true), ("a::two", true), ("a::three", false)]);
+        assert!(failures.contains("it broke"));
     }
 
     #[test]

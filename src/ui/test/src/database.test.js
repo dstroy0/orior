@@ -269,10 +269,11 @@ test("a character past the basic plane before a statement moves neither the stat
   const before = callsTo("db_run").length;
   await ui.key("Ctrl+Enter");
   await ui.waitFor(() => callsTo("db_run").length > before, 10000);
-  await ui.waitFor(() => panel().querySelector(".database-failure")?.textContent.includes("nope"), 10000);
+  // The test before leaves the same failure on the panel; the cursor moves only once this one comes.
+  const at = () => editing().editor.primary().head;
+  await ui.waitFor(() => at().line === 1 && at().col !== 2, 10000).catch(() => {});
   assert.match(callsTo("db_run").at(-1).args.sql.trim(), /^SELECT nope FROM harness_t;?$/);
-  const { head: cursor } = editing().editor.primary();
-  assert.deepEqual([cursor.line, cursor.col], [1, 7], "the cursor stands at nope");
+  assert.deepEqual([at().line, at().col], [1, 7], "the cursor stands at nope");
 });
 
 test("Export writes the rows to a file of the tree", async () => {

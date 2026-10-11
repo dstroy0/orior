@@ -1345,7 +1345,8 @@ mod tests {
         let one = found.iter().find(|one| one.pid == child.id()).unwrap_or_else(|| panic!("{} not among {}", child.id(), found.len()));
         assert!(one.command.contains(if cfg!(windows) { "127.0.0.1" } else { "3" }), "{one:?}");
         assert!(!found.iter().any(|one| one.pid == std::process::id()));
-        assert!(took < Duration::from_millis(500), "{took:?}");
+        // Quick enough for a picker, even with the machine loaded by a whole run of tests.
+        assert!(took < Duration::from_millis(2000), "{took:?}");
     }
 
     #[test]

@@ -410,7 +410,8 @@ mod watching {
         std::fs::write(root.join("src/b.rs"), "three").unwrap();
         let mut files = Vec::new();
         let mut folders = Vec::new();
-        while let Ok(changed) = receive.recv_timeout(Duration::from_secs(5)) {
+        // A system run in an emulator of another processor tells of a change slowly.
+        while let Ok(changed) = receive.recv_timeout(Duration::from_secs(20)) {
             files.extend(changed.files);
             folders.extend(changed.folders);
             if files.contains(&"src/a.rs".to_string()) && files.contains(&"src/b.rs".to_string()) {
