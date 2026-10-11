@@ -18,12 +18,13 @@
 // The status bar names the connection of the file shown, the zone its session reads times in, and
 // a transaction open, which it commits or rolls back from its menu.
 
+import { Ahead } from "./ahead.js";
 import { invoke } from "./bridge.js";
 import { menuOn, showMenu } from "./menu.js";
 import { say } from "./statusbar.js";
 
-// The rows asked for at a time, the height of a row of the grid, and the rows read beyond those in
-// view.
+// The rows asked for at a time past the end, the height of a row of the grid, and the fewest rows
+// read beyond those in view each way.
 const PAGE = 200;
 const ROW = 22;
 const SPARE = 40;
@@ -512,7 +513,11 @@ function headLine() {
 }
 
 let fetching = false;
-// Draws the rows in view, asking the server for those not held, and for more as the end comes near.
+// The grid's motion: rows are read as far ahead the way it scrolls as its speed carries it over two
+// reads, and those behind the motion are let go first.
+const ahead = new Ahead(SPARE);
+// Draws the rows in view, asking the server for those not held in the stretch the scroll heads
+// into, and for more as the end comes near.
 async function drawGrid() {
   const result = state.result;
   if (!result) {
@@ -534,32 +539,36 @@ async function drawGrid() {
   parts.gridHead.replaceChildren(...result.columns.map((column) => element("span", { className: column.numeric ? "num" : "", textContent: column.name, title: column.kind })));
   const total = result.read + (result.done ? 0 : 1);
   parts.spacer.style.height = `${total * ROW}px`;
-  const first = Math.max(0, Math.floor(parts.grid.scrollTop / ROW) - 5);
+  const shown = Math.floor(parts.grid.scrollTop / ROW);
+  const first = Math.max(0, shown - 5);
   const count = Math.ceil(parts.grid.clientHeight / ROW) + 10;
+  ahead.moved(shown);
+  const [from, to] = ahead.span(first, first + count);
   const missing = [];
-  for (let index = first; index < Math.min(first + count, result.read); index += 1) {
+  for (let index = from; index < Math.min(to, result.read); index += 1) {
     if (!result.rows.has(index)) {
       missing.push(index);
     }
   }
-  const nearEnd = !result.done && first + count + SPARE >= result.read;
+  const nearEnd = !result.done && to >= result.read;
   if ((missing.length || nearEnd) && !fetching) {
     fetching = true;
-    const from = missing.length ? missing[0] : result.read;
-    const want = missing.length ? missing.at(-1) - from + 1 + SPARE : PAGE;
-    invoke("db_rows", { name: result.name, from, count: want })
+    // The read covers the rows missing from the stretch, or the next page where none is.
+    const start = missing.length ? missing[0] : result.read;
+    const want = missing.length ? missing.at(-1) - start + 1 : PAGE;
+    const began = performance.now();
+    invoke("db_rows", { name: result.name, from: start, count: want })
       .then((got) => {
+        ahead.read(performance.now() - began);
         if (state.result !== result) {
           return;
         }
-        got.rows.forEach((row, at) => result.rows.set(from + at, row));
+        got.rows.forEach((row, at) => result.rows.set(start + at, row));
         result.read = got.read;
         result.done = got.done;
-        // The rows far from the view are let go; the server holds them.
-        for (const index of result.rows.keys()) {
-          if (Math.abs(index - first) > PAGE * 3) {
-            result.rows.delete(index);
-          }
+        // The rows far from the view are let go, behind the motion first; the server holds them.
+        for (const index of ahead.letGo([...result.rows.keys()], first, first + count, PAGE * 3)) {
+          result.rows.delete(index);
         }
       })
       .catch((error) => say(String(error), { failed: true }))
@@ -583,6 +592,9 @@ async function drawGrid() {
   }
   parts.rows.replaceChildren(...rows);
 }
+
+// The rows of the last result the grid holds, for the tests.
+export const heldRows = () => [...(state.result?.rows.keys() ?? [])];
 
 async function exportRows() {
   const result = state.result;

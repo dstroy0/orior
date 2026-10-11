@@ -108,6 +108,11 @@ const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const DROPS = [0.8, 2.5, 7];
 const REST = 140;
 const AHEAD = 3;
+// How many rows ahead of the view the idle coloring reaches, for a view `shown` rows high: AHEAD
+// screens, or as far as `speed`, in pixels a millisecond, carries the view over two screens' coloring
+// of `screenMs` each, where that is farther.
+export const coloringReach = (shown, speed, screenMs) => Math.max(shown * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
+
 // The milliseconds a frame may spend drawing. A frame over it drops a level whatever the speed, and
 // the level comes back a step at a time only after frames run well inside it.
 const BUDGET = 8;
@@ -2782,6 +2787,8 @@ export class Editor {
     this.lastScroll = now;
     // Smoothed: one long jump between two events does not throw the level up and back.
     const speed = 0.6 * status.scroll.speed + 0.4 * (Math.abs(moved) / spent);
+    // The speed the view had as it came to rest, which the idle coloring reaches ahead by.
+    this.lastSpeed = speed;
     const level = Math.max(status.frame.strain, DROPS.filter((drop) => speed > drop).length);
     write("scroll", { speed, level, heading: moved ? Math.sign(moved) : status.scroll.heading });
     // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late.
@@ -2830,8 +2837,8 @@ export class Editor {
     }
   }
 
-  // Colors the lines ahead of the view in the way it was heading, while the page is idle.
-  // Scrolling on finds them done.
+  // Colors the lines ahead of the view in the way it was heading, while the page is idle, as far as
+  // coloringReach says for the speed the view had as it came to rest. Scrolling on finds them done.
   warm() {
     const s = this.s;
     if (!s?.highlight.grammar) {
@@ -2843,15 +2850,24 @@ export class Editor {
     const heading = status.scroll.heading;
     const from = heading > 0 ? first + shown : Math.max(0, first - 1);
     let row = from;
-    const end = heading > 0 ? Math.min(rows.size, from + shown * AHEAD) : Math.max(0, from - shown * AHEAD);
+    const reach = coloringReach(shown, this.lastSpeed ?? 0, this.screenColorMs ?? 0);
+    const end = heading > 0 ? Math.min(rows.size, from + reach) : Math.max(0, from - reach);
     const idle = (run) => (window.requestIdleCallback ? window.requestIdleCallback(run) : window.setTimeout(() => run({ timeRemaining: () => 8 }), 16));
     const slice = (deadline) => {
       if (this.s !== s || pressed()) {
         return;
       }
+      const began = performance.now();
+      const was = row;
       while (deadline.timeRemaining() > 2 && (heading > 0 ? row < end : row >= end)) {
         s.highlight.runsOf(rows.lineOf(row));
         row += heading;
+      }
+      // How long a screen of lines takes to color, kept smoothed over the slices.
+      const colored = Math.abs(row - was);
+      if (colored > 0) {
+        const screen = ((performance.now() - began) / colored) * shown;
+        this.screenColorMs = this.screenColorMs === undefined ? screen : 0.7 * this.screenColorMs + 0.3 * screen;
       }
       write("colors", { ahead: Math.abs(row - from) });
       if (heading > 0 ? row < end : row >= end) {

@@ -58,7 +58,7 @@ import { coloredLines } from "./screen.js";
 import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, markNotebookSaved, notebookDirty, notebookEditor, notebookFile, notebookOfCellFile, openNotebook, repaintNotebook, showCellLine, showNotebookMerge, startNotebooks } from "./notebook.js";
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
-import { calm, write } from "./status.js";
+import { calm, status, write } from "./status.js";
 import { togglePane } from "./sides.js";
 import { drawBranch, onOverBudget, say } from "./statusbar.js";
 import { openWindow } from "./windows.js";
@@ -734,8 +734,14 @@ async function sliceAt(path, start, end) {
   return { start: at(0), end: at(8), size: at(16), text: textOf.decode(new Uint8Array(sent, 24)) };
 }
 
+// The side of a windowed file the next slice is read from, "below" or "above": the way the view
+// heads while it scrolls, and below and above in turn at rest, `below` saying whose turn it is.
+export function nextSlice({ canAbove, canBelow, moving, heading, below }) {
+  return canBelow && (!canAbove || (moving ? heading > 0 : below)) ? "below" : "above";
+}
+
 // Reads the rest of a windowed file, a slice at a time, standing back whenever the status block says
-// the view is pressed, and writing how far it has read there.
+// the view is pressed, and writing how far it has read there. The slices come as nextSlice says.
 async function readOutward(tab) {
   const s = tab.session;
   let below = true;
@@ -746,7 +752,8 @@ async function readOutward(tab) {
     }
     write("reads", [tab.path, { read: s.window.end - s.window.start, size: s.window.size }]);
     const canAbove = s.window.start > 0;
-    const goBelow = s.window.end < s.window.size && (below || !canAbove);
+    const canBelow = s.window.end < s.window.size;
+    const goBelow = nextSlice({ canAbove, canBelow, moving: status.scroll.speed > 0, heading: status.scroll.heading, below }) === "below";
     below = !below;
     if (goBelow) {
       const got = await sliceAt(tab.path, s.window.end, s.window.end + SLICE);

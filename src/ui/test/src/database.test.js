@@ -5,7 +5,7 @@
 // a SQLite file of the run's tree. Each test goes on from the state the one before it left: the
 // rest run on the connection the first makes.
 
-import { readConnections, runOn } from "../../src/database.js";
+import { heldRows, readConnections, runOn } from "../../src/database.js";
 import { editing, openFile } from "../../src/edit.js";
 import { runCommand } from "../../src/menubar.js";
 import { invoke } from "../../src/bridge.js";
@@ -192,6 +192,27 @@ test("rows come a page at a time as the grid scrolls, the grid holding only thos
   await ui.waitFor(() => /5000 rows/.test(head()), 20000);
   assert.ok(callsTo("db_rows").length > fetched, "more rows were asked for as the grid scrolled");
   assert.ok(panel().querySelectorAll(".db-row").length < 200, "still only the rows in view");
+});
+
+test("rows are read ahead the way the grid scrolls, as far as its speed carries it, and those behind it go first", async () => {
+  const grid = panel().querySelector(".db-grid");
+  const asked = callsTo("db_rows").length;
+  const first = () => Math.floor(grid.scrollTop / 22);
+  // Up from the end, past the most the grid holds, 600 rows: what it read on the way down goes.
+  const start = first();
+  for (let turn = 0; turn < 60 && start - first() < 1600; turn += 1) {
+    await ui.wheel(grid, -1500);
+    await ui.rest(40);
+  }
+  await ui.rest(400);
+  const reads = callsTo("db_rows").slice(asked);
+  assert.ok(reads.some((one) => one.args.from < first() - 40), `a read reached past the least above the view at ${first()}: ${JSON.stringify(reads.map((one) => one.args))}`);
+  const held = heldRows();
+  assert.ok(!held.some((row) => row >= 4900), `the rows farthest behind the motion, at the end, went first: ${Math.max(...held)}`);
+  for (let row = first(); row < first() + 10; row += 1) {
+    assert.ok(held.includes(row), `row ${row} in view is held`);
+  }
+  assert.ok(held.length <= 600 + 200, `the grid holds no more than its most and a read: ${held.length}`);
 });
 
 test("Stop stops a statement as it runs", async () => {

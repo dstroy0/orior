@@ -18,8 +18,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 What the eye cannot see is not drawn. The view, and the stretch its motion heads into, is read and drawn first and whole; motion no eye can follow is drawn at the lowest rate that still reads as motion; and a change too small or too short to be seen is not animated. Each figure here is a measured one.
 
-1. **What is in view, and what the motion heads into.** The editor, the explorer, the grid of rows and every list read and draw what shows and the stretch their scroll heads into, as far ahead as its speed carries it in the time a read takes, and hold what they read until it lies far behind; what lies behind the motion is let go first.
-   - Motion says where the view goes next: among people watching video all around them, the view 200 ms later lay the way the head was turning in 97% of cases.
+1. **What is in view, in the explorer and every list.** The explorer and every list beside a view lay out and paint only the rows in sight and the stretch their scroll heads into, as the editor and the grid of rows do, with a row's focus ring and the lanes of the commit graph drawn whole where the rows beside them are not.
+   - A tree of thousands of files that lays out every row on each change: only the rows in sight are laid out and painted.
 2. **Detail as the motion allows.** While a view scrolls fast, what the motion hides from the eye, the minimap, the colors of lines past the screen and the gutter's marks, is drawn coarse or later, and drawn whole once the motion slows.
    - A change made while the eye moves fast is seldom seen: shifts of up to 1.2 degrees went unnoticed during eye movements of 66 ms or more.
 3. **Motion the way the reader moves.** A pane, a list or a menu moves the way the reader's own action points, from where it was pressed toward where it goes.
