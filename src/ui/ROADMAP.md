@@ -14,6 +14,17 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Tokens, diffs and searches that hold the page's one thread on a large file: each one that costs a frame runs in Rust beside the page and hands back only its answer.
    - A speedup on one machine that is a slowdown or a wrong answer on another: each vector path is tested beside the plain loop, on x86-64 and on aarch64, and gives the same answer.
 
+## The backend
+
+1. **One container, every process under it.** orior's backend is one process that holds every other it starts as a child of its own: the language servers, kernels, debuggers, shells, database links, plugins and runs. On Windows they stand in a job object, which ends each with the container and counts their memory as one; on Linux, in a cgroup of the user's own; on macOS, in a process group whose footprints the container adds up. Each child is supervised: one that dies is started again alone, and one that dies too often in a short time is stopped and said, as a supervision tree of Erlang's does.
+   - Language servers that hold 12 or 13 GB out of sight of the editor: the status bar's memory is the container's and every child's together, each child's beside it, and a child over the budget the reader sets is said and can be started again from there.
+   - A server or a shell left running after the editor that started it has gone: every child ends with the container.
+2. **One comms layer: keys and channels.** Every process reaches another only through the container. Each registers with it as it starts and is given a key, and the key names the channels it may listen and speak on, as the container grants them, a parent granting its children theirs; a message on a channel its key does not name is refused and said. The container knows each child for the process it started by the system's own word for who is at the other end of the pipe, and not by a key alone.
+   - An extension host that can read everything the editor can: a process, a plugin or a server has the channels it is granted and no others.
+   - Messages between processes that no one can see: the container keeps each channel's traffic, and a view lists every process, its channels and what each has said.
+3. **One transfer layer.** What is large, a file's text, a statement's rows, a run's output, goes through memory the container shares with the child, named on the comms layer, and is never copied through a message.
+   - A big answer that stalls every channel behind it: the comms layer carries only what is small, and the transfer layer each large thing, side by side.
+
 ## Perception
 
 What the eye cannot see is not drawn. The view, and the stretch its motion heads into, is read and drawn first and whole; motion no eye can follow is drawn at the lowest rate that still reads as motion; and a change too small or too short to be seen is not animated. Each figure here is a measured one.
