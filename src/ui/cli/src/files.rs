@@ -45,6 +45,11 @@ pub struct Entry {
     pub dir: bool,
     /// Whether the tree's ignore files leave the entry out.
     pub ignored: bool,
+    /// Whether the entry is an archive, which opens as a folder.
+    pub archive: bool,
+    /// A name in an archive whose bytes are not UTF-8 by the archive's word: its bytes, in hex.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -109,6 +114,11 @@ fn seen(root: &Path) -> Option<Arc<Seen>> {
         }
         files.insert(path.to_string());
     }
+    // A tree in a folder its repository ignores is one git lists nothing of: it is read from the disk.
+    if files.is_empty() {
+        *kept = Some((root.to_path_buf(), Instant::now(), None));
+        return None;
+    }
     let view = Arc::new(Seen { files, dirs });
     *kept = Some((root.to_path_buf(), Instant::now(), Some(view.clone())));
     Some(view)
@@ -133,6 +143,11 @@ pub fn tracked(root: &Path, path: &str) -> bool {
 /// A folder's entries, less what the explorer's patterns hide. Where a pattern keeps only what it
 /// names, a folder shows while it holds a file kept or a pattern keeps it.
 pub fn list(root: &Path, dir: &str) -> Result<Vec<Entry>, String> {
+    // An archive, and a folder within one, lists what the archive holds.
+    if crate::archive::split(root, dir).is_some() {
+        let children = crate::archive::list(root, dir)?;
+        return Ok(children.into_iter().map(|child| Entry { name: child.name, path: child.path, dir: child.dir, ignored: false, archive: child.archive, raw: child.raw }).collect());
+    }
     let path = inside(root, dir)?;
     let view = seen(root);
     let patterns = patterns::of(Part::Explorer);
@@ -163,7 +178,8 @@ pub fn list(root: &Path, dir: &str) -> Result<Vec<Entry>, String> {
                 None if is_dir && SKIPPED.contains(&name.as_str()) => return None,
                 None => false,
             };
-            Some(Entry { path, name, dir: is_dir, ignored })
+            let archive = !is_dir && crate::archive::kind_of(&name).is_some();
+            Some(Entry { path, name, dir: is_dir || archive, ignored, archive, raw: None })
         })
         .collect();
     entries.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
@@ -617,6 +633,20 @@ pub fn find(root: &Path, query: &str) -> Vec<String> {
 }
 
 pub fn read(root: &Path, file: &str) -> Result<Opened, String> {
+    // A file within an archive is read out of it whole.
+    if let Some((_, inner)) = crate::archive::split(root, file)
+        && !inner.is_empty()
+    {
+        let bytes = crate::archive::read(root, file)?;
+        let size = bytes.len() as u64;
+        let path = file.trim_matches('/').to_string();
+        if !bytes[..bytes.len().min(8192)].contains(&0)
+            && let Ok(text) = String::from_utf8(bytes.clone())
+        {
+            return Ok(Opened { path, size, text: Some(text), bytes: None, windowed: false });
+        }
+        return Ok(Opened { path, size, text: None, bytes: Some(bytes.into_iter().take(SHOWN_BYTES).collect()), windowed: false });
+    }
     let path = inside(root, file)?;
     let size = path.metadata().map_err(|e| format!("{file}: {e}"))?.len();
     let path_text = relative(root, &path);
@@ -758,6 +788,12 @@ pub fn create_folder(root: &Path, dir: &str) -> Result<(), String> {
 /// Writes the text beside the file and moves it over the file. A failed write leaves the file as
 /// it was.
 pub fn write(root: &Path, file: &str, text: &str) -> Result<(), String> {
+    // A file within an archive is saved back into it.
+    if let Some((_, inner)) = crate::archive::split(root, file)
+        && !inner.is_empty()
+    {
+        return crate::archive::write(root, file, text.as_bytes());
+    }
     let path = inside(root, file)?;
     let parent = path.parent().ok_or_else(|| format!("{file} has no folder"))?;
     let name = path.file_name().ok_or_else(|| format!("{file} has no name"))?.to_string_lossy();
@@ -874,6 +910,29 @@ mod pasting {
         assert_eq!(brought[0].from, None);
         assert!(!outside.exists());
         fs::remove_dir_all(&root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod listing {
+    use super::all;
+    use std::fs;
+    use std::process::Command;
+
+    #[test]
+    fn a_tree_in_a_folder_its_repository_ignores_lists_its_files_from_the_disk() {
+        let repo = std::env::temp_dir().join(format!("orior_ui_listing_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&repo);
+        fs::create_dir_all(repo.join("runs/tree/src")).unwrap();
+        fs::write(repo.join(".gitignore"), "runs/\n").unwrap();
+        fs::write(repo.join("runs/tree/a.js"), "one").unwrap();
+        fs::write(repo.join("runs/tree/src/b.js"), "two").unwrap();
+        let repo = dunce::canonicalize(&repo).unwrap();
+        assert!(Command::new("git").arg("init").arg("-q").current_dir(&repo).status().unwrap().success());
+        let mut listed = all(&repo.join("runs/tree"));
+        listed.sort();
+        assert_eq!(listed, vec!["a.js".to_string(), "src/b.js".to_string()]);
+        fs::remove_dir_all(&repo).unwrap();
     }
 }
 

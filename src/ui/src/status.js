@@ -3,23 +3,23 @@
 
 // The status block: one record every process in the page reads from and writes to.
 //
-//   scroll   the view's speed, which way it heads, and the level of work a frame drops
-//   frame    how long the last frame took and the strain the throttle holds
+//   scroll   the view's speed and which way it heads
+//   frame    how long the last frame took
 //   reads    each file still being read, by path: the bytes in and the bytes in all
 //   colors   how many lines ahead of the view the idle coloring has reached
 //   runs     each run still going, by number: its job
 //   bridge   the coherence index: how many keys, maps and rulesets it holds, and when it was read
 //   input    whether a key or the pointer is working the editor now
 //
-// A process writes only its own part and reads any. The throttle writes `scroll` and `frame`, and
-// a file being read and the idle coloring read them and stand back while a frame is under strain.
+// A process writes only its own part and reads any. The view writes `scroll` and `frame`, and a
+// file being read and the idle coloring read them and stand back while the view moves.
 // While `input` is active everything but the rows on screen waits, and a key costs only its own
 // rows.
 
 export const status = {
   input: { active: false },
-  scroll: { speed: 0, level: 0, heading: 1 },
-  frame: { spent: 0, strain: 0 },
+  scroll: { speed: 0, heading: 1 },
+  frame: { spent: 0 },
   reads: new Map(),
   colors: { ahead: 0 },
   runs: new Map(),
@@ -57,9 +57,9 @@ export function watch(watcher) {
   return () => watchers.delete(watcher);
 }
 
-// Whether the view is taking input, moving or straining, the time for background work to stand back.
+// Whether the view is taking input or moving, the time for background work to stand back.
 export function pressed() {
-  return status.input.active || status.scroll.level > 0 || status.frame.strain > 0;
+  return status.input.active || status.scroll.speed > 0;
 }
 
 // Waits for an idle moment the view is not pressed in, checking each idle moment.

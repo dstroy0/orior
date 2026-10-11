@@ -145,6 +145,29 @@ export class Hover {
     const left = Math.max(4, Math.min(at.left - host.left, host.width - width - 12));
     this.el.style.left = `${left}px`;
     this.el.style.top = `${top}px`;
+    // What it is kept open by, from the editor's corner, which it moves with: the name and a character's
+    // step either side of it, the box, and the gap between the two the pointer crosses on its way to
+    // the box.
+    const end = this.ed.rectOf(found.to ?? found.from);
+    const step = this.ed.cw;
+    const near = { left: at.left - host.left - step, right: Math.max(at.left, end.left) - host.left + step, top: at.top - host.top - 2, bottom: at.bottom - host.top + 2 };
+    this.keptBy = [near, { left: left - 4, right: left + width + 4, top: Math.min(top, near.bottom), bottom: Math.max(top + height, near.top) }];
+  }
+
+  // Whether the pointer at the page's x, y keeps it open: on the name or a step off it, in the box, or
+  // between the two.
+  keeps(x, y) {
+    if (!this.shown || !this.keptBy) {
+      return false;
+    }
+    const host = this.ed.host.getBoundingClientRect();
+    const [at, down] = [x - host.left, y - host.top];
+    return this.keptBy.some((one) => at >= one.left && at <= one.right && down >= one.top && down <= one.bottom);
+  }
+
+  // The pointer is back where it keeps it open: it goes no longer.
+  stay() {
+    window.clearTimeout(this.wait);
   }
 
   hide() {

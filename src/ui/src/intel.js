@@ -71,6 +71,37 @@ function served() {
   return found;
 }
 
+// The places the symbol at the cursor is defined at, used at, or called from, as `kind` asks,
+// "definition", "usages" or "callers": each its file, its line and column from 0, and the text of the
+// line where the server gives it, with the name asked about. Null after saying why there is nothing
+// to ask.
+export async function placesHere(kind) {
+  const found = served();
+  if (!found) {
+    return null;
+  }
+  const word = wordAt(found.s.doc, found.head);
+  const name = word?.text ?? "the symbol";
+  await flush(found.tab);
+  if (kind === "definition") {
+    const places = await invoke("lsp_definition", found.at).catch(() => []);
+    return { name, places: places.map((one) => ({ path: one.path, line: one.line, col: one.col, text: "" })) };
+  }
+  if (kind === "usages") {
+    const usages = await invoke("lsp_references", found.at);
+    return { name, places: usages.map((one) => ({ path: one.path, line: one.from.line, col: one.from.col, text: one.text })) };
+  }
+  const root = await invoke("calls_root", found.at);
+  if (!root) {
+    return { name, places: [] };
+  }
+  const calls = await invoke("calls_of", { path: found.tab.file, item: root.item, incoming: true });
+  return {
+    name: root.name,
+    places: calls.flatMap((call) => (call.at.length ? call.at : [call.from]).map((at) => ({ path: call.path, line: at.line, col: at.col, text: call.site, caller: call.name }))),
+  };
+}
+
 // Edits.
 
 // Writes each file's edits: into the tab that holds the file, as one step undo takes back, and to

@@ -384,12 +384,37 @@ const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 export function drawLattice(canvas) {
   const laid = layOut(canvas);
   if (laid) {
-    paint(canvas, laid, still() ? 0 : clock() / 1000);
+    laid.drawnAt = still() ? 0 : clock() / 1000;
+    paint(canvas, laid, laid.drawnAt);
   }
 }
 
-// Moves every lattice in sight a frame, no faster than one each FRAME, and only in a frame nothing
-// else wants: the lattices are the window's lowest work, and their frame redraws the whole window.
+// The places across and down, each from 0 to 1, where the loop's change is read to judge a frame.
+const PROBES = 24;
+
+// Whether the loop moved, from `then` to `now` in seconds, enough to be seen: some point moved by a
+// whole pixel of the page. No one follows the lattice's points one by one, a frame that moves none
+// of them by a pixel shows nothing a reader could see, and the shade a point takes changes by too
+// little between such frames to be seen on a dot a pixel wide. Over the whole loop, a frame offered
+// each FRAME is drawn about one time in three.
+export function shows(then, now) {
+  const before = orderAt(then);
+  const after = orderAt(now);
+  for (let across = 0; across <= PROBES; across += 1) {
+    for (let down = 0; down <= PROBES; down += 1) {
+      const [u, v] = [across / PROBES, down / PROBES];
+      const [was, is] = [before(u, v), after(u, v)];
+      if (Math.abs(is * is - was * was) * REACH >= 1) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Moves every lattice in sight a frame, no faster than one each FRAME, only in a frame nothing else
+// wants, and only where the frame would show: the lattices are the window's lowest work, and their
+// frame redraws the whole window.
 let last = 0;
 function tick(now) {
   if (paused()) {
@@ -402,15 +427,22 @@ function tick(now) {
     return;
   }
   last = now;
+  const seconds = clock(now) / 1000;
   for (const [canvas, laid] of lattices) {
     if (!canvas.isConnected) {
       lattices.delete(canvas);
-    } else if (canvas.offsetParent !== null) {
-      paint(canvas, laid, clock(now) / 1000);
+    } else if (canvas.offsetParent !== null && (laid.recolored || laid.drawnAt === undefined || shows(laid.drawnAt, seconds))) {
+      laid.drawnAt = seconds;
+      laid.recolored = false;
+      paint(canvas, laid, seconds);
     }
   }
 }
 requestAnimationFrame(tick);
+
+// A scheme or a theme changed, every lattice is drawn again in its colors at the next frame, moving
+// or not.
+onScheme(() => lattices.forEach((laid) => (laid.recolored = true)));
 
 // Lays a lattice out again each time its size changes, which a lattice in a hidden view also does
 // when the view is shown. One taken off the page is let go.

@@ -19,7 +19,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
-use crate::{bridge, catalog, debug, defs, files, format, git, history, patterns, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
+use crate::{bridge, catalog, debug, defs, files, format, git, history, latex, patterns, purpose, requests, plugins, root, run_file, runner, servers, symbols, toolchains, validate, watch};
 
 /// Where what the server tells goes: the event's name and its body.
 pub type Emit = Arc<dyn Fn(&str, Value) + Send + Sync>;
@@ -44,6 +44,10 @@ pub struct Server {
     kernels: Mutex<HashMap<String, Arc<crate::jupyter::Kernel>>>,
     /// The database connections open, each by its name in the tree's databases.json.
     databases: Mutex<std::collections::BTreeMap<String, Arc<crate::db::Open>>>,
+    /// The comms layer every part of the container speaks through, and the address its door opens
+    /// at for a process of the container's.
+    comms: Arc<crate::comms::Comms>,
+    door: OnceLock<String>,
 }
 
 /// A call's arguments, each found by its own name or by the page's, as the page writes names of more
@@ -319,9 +323,39 @@ impl Server {
         Server { root: Mutex::new(root), ..Server::default() }
     }
 
-    /// Sends what the server tells to `emit`, from now on; before, it goes nowhere.
+    /// Sends what the server tells to `emit`, from now on, through the comms layer: the server is a
+    /// part that speaks each event on the channel of its name, and the window a part that listens on
+    /// every channel and hands each message to `emit` in the thread that said it, in the order said.
+    /// Before, it goes nowhere.
     pub fn tell_to(&self, emit: Emit) {
-        let _ = self.emit.set(emit);
+        // Both are parts of this process alone, and the door takes neither key.
+        let (Ok(server), Ok(window)) = (self.comms.register("orior", None, &[], &["*"]), self.comms.register("window", None, &["*"], &[])) else {
+            let _ = self.emit.set(emit);
+            return;
+        };
+        let told = emit.clone();
+        if self.comms.listen_with(&window, "*", move |message| told(&message.channel, message.body.clone())).is_err() {
+            let _ = self.emit.set(emit);
+            return;
+        }
+        let comms = self.comms.clone();
+        let _ = self.emit.set(Arc::new(move |event, body| {
+            let _ = comms.say(&server, event, body);
+        }));
+    }
+
+    /// The comms layer every part of the container speaks through.
+    pub fn comms(&self) -> &Arc<crate::comms::Comms> {
+        &self.comms
+    }
+
+    /// Opens the comms layer's door to the container's processes, once, and gives its address.
+    pub fn open_door(&self) -> Result<String, String> {
+        if let Some(address) = self.door.get() {
+            return Ok(address.clone());
+        }
+        let address = crate::comms::door::open(self.comms.clone())?;
+        Ok(self.door.get_or_init(|| address).clone())
     }
 
     fn emitting(&self) -> Emit {
@@ -760,13 +794,42 @@ impl Server {
             "git_repositories" => give(git::repositories(&self.root()?)),
             "tree_branch" => give(git::branch(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?)),
             "file_head" => give(git::head_text(&self.root()?, &path()?)),
+            "qry_runs" => give(crate::qry::listed(&self.root()?)),
+            "qry_read" => crate::qry::read(&at(&path()?)?, a.get("from")?).and_then(give),
+            // A blob queued on its channel to the run named, or to the run the window is joined to, and
+            // the call answered at once: the backend's own threads hand it.
+            "qry_hand" => {
+                let run = match a.get::<Option<String>>("path")? {
+                    Some(path) => at(&path)?,
+                    None => crate::qry::joined().ok_or("the window is joined to no run")?,
+                };
+                let channel = a.get::<Option<crate::qry::Channel>>("channel")?.unwrap_or(crate::qry::Channel::Primary);
+                let priority = a.get::<Option<u32>>("priority")?.unwrap_or(crate::qry::ORDINARY);
+                crate::qry::queue(channel, run, a.get("name")?, a.get::<String>("text")?.into_bytes(), priority);
+                give(())
+            }
+            // A file of the tree queued to the run on the primary channel as qry_run.sh's run_read hands
+            // one, the blob named by its path from the top of the tree.
+            "qry_hand_file" => {
+                let file = a.get::<String>("file")?;
+                let bytes = std::fs::read(at(&file)?).map_err(|error| format!("{file}: {error}"))?;
+                crate::qry::queue(crate::qry::Channel::Primary, at(&path()?)?, file.replace('\\', "/"), bytes, crate::qry::ORDINARY);
+                give(())
+            }
+            "qry_join" => {
+                let run = a.get::<Option<String>>("path")?.map(|path| at(&path)).transpose()?;
+                crate::qry::join_window(run);
+                give(crate::qry::joined().map(|run| run.to_string_lossy().into_owned()))
+            }
+            "qry_window" => give(serde_json::json!({ "path": crate::qry::joined().map(|run| run.to_string_lossy().into_owned()), "queued": crate::qry::queued() })),
+            "qry_joined" => crate::qry::joined_bytes(&at(&path()?)?, &a.get::<String>("name")?).map(|bytes| String::from_utf8_lossy(&bytes).into_owned()).and_then(give),
             "file_commits" => git::commits(&self.root()?, &path()?).and_then(give),
             "git_commit" => git::commit(&self.root()?, &a.get::<String>("message")?, &a.get::<Vec<String>>("paths")?).and_then(give),
             "git_push" => git::push(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?).and_then(give),
             "git_pull" => git::pull(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?).and_then(give),
             "git_rollback" => git::rollback(&self.root()?, &path()?).and_then(give),
             "git_ahead_behind" => give(git::ahead_behind(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?)),
-            "git_graph" => give(git::graph(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, a.get::<Option<String>>("query")?.as_deref().unwrap_or(""))),
+            "git_graph" => give(git::graph(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, a.get::<Option<String>>("query")?.as_deref().unwrap_or(""), a.get::<Option<bool>>("authors")?.unwrap_or(false))),
             "git_touched" => {
                 let repo: Option<String> = a.get("repo")?;
                 let mut found = git::touched(&self.repo_of(repo.as_deref())?, &a.get::<String>("id")?)?;
@@ -784,6 +847,25 @@ impl Server {
             "git_cherry_pick" => git::cherry_pick(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, &a.get::<String>("id")?).and_then(give),
             "git_line_history" => git::line_history(&self.root()?, &path()?, a.get("text")?).and_then(give),
             "file_at" => git::text_at(&self.root()?, &path()?, &a.get::<String>("id")?).and_then(give),
+            "review_structure" => crate::review::review(&self.root()?, a.get::<Option<String>>("commit")?.as_deref()).and_then(give),
+            "prints_added" => give(crate::prints::added(&self.root()?)),
+            "settings_tree" => give(crate::settings::tree(&self.root()?)),
+            "file_said" => purpose::said(&self.root()?, &path()?).and_then(give),
+            "file_users" => purpose::users(&self.root()?, &path()?).and_then(|(users, all)| give(json!({"users": users, "all": all}))),
+            "requests_parse" => give(requests::parse(&a.get::<String>("text")?)),
+            "requests_environments" => requests::environments(&self.root()?, &path()?).and_then(give),
+            "requests_send" => requests::send_at(&self.root()?, &path()?, &a.get::<String>("text")?, a.get("line")?, a.get::<Option<String>>("env")?.as_deref()).and_then(give),
+            "requests_answers" => {
+                let root = self.root()?;
+                let parsed = requests::parse(&a.get::<String>("text")?);
+                let key = requests::request_at(&parsed, a.get("line")?).map(requests::Request::key).ok_or("the file holds no request")?;
+                let folder = requests::kept_folder(&root, &path()?).ok_or("orior's own folder is not known")?;
+                give(json!({"key": key, "answers": requests::answers(&folder, &key)}))
+            }
+            "requests_curl" => requests::ready(&self.root()?, &path()?, &a.get::<String>("text")?, a.get("line")?, a.get::<Option<String>>("env")?.as_deref()).map(|(_, sent)| requests::to_curl(&sent)).and_then(give),
+            "requests_from_curl" => requests::from_curl(&a.get::<String>("text")?).and_then(give),
+            "requests_private" => requests::make_private(&self.root()?, &path()?).and_then(give),
+            "latex_make" => latex::make(&self.root()?, &path()?, &a.get::<String>("text")?).and_then(give),
             "format_text" => format::format(&at(&path()?)?, &a.get::<String>("language")?, &a.get::<String>("text")?).and_then(give),
             "format_width" => give(format::width(&at(&path()?)?, &a.get::<String>("language")?)),
             "format_margin" => give(format::margin(&at(&path()?)?, &a.get::<String>("language")?).map(|(width, by)| json!({"width": width, "by": by}))),
@@ -993,6 +1075,7 @@ impl Server {
                 }
                 std::fs::read(&file).map(|bytes| base64(&bytes)).map_err(|error| error.to_string()).and_then(give)
             }
+            "file_write_raised" => crate::raised::write(&root::inside(&self.root()?, &path()?)?, a.get::<String>("text")?.as_bytes()).and_then(give),
             "file_write" => self.file_write(a.get("path")?, a.get("text")?).and_then(give),
             "notebook_read" => {
                 let full = at(&path()?)?;
@@ -1020,6 +1103,9 @@ impl Server {
                 let text = std::fs::read_to_string(&full).map_err(|error| format!("{}: {error}", full.display()))?;
                 crate::notebook::without_outputs(&text).and_then(give)
             }
+            "comms_parts" => give(self.comms.parts()),
+            "comms_channels" => give(self.comms.channels()),
+            "comms_door" => self.open_door().and_then(give),
             "db_list" => {
                 let open = self.databases.lock().map_err(|e| e.to_string())?.clone();
                 crate::db::listed(&self.root()?, &open).and_then(give)
@@ -1065,7 +1151,10 @@ impl Server {
             "db_children" => self.database(&a.get::<String>("name")?)?.children(&a.get::<Vec<String>>("path")?).map_err(|failure| failure.to_string()).and_then(give),
             "db_export" => {
                 let target = at(&a.get::<String>("path")?)?;
-                self.database(&a.get::<String>("name")?)?.export(&target, &a.get::<String>("format")?).map_err(|failure| failure.to_string()).and_then(give)
+                // How far along the export is goes to the window as it writes.
+                let emit = self.emitting();
+                let told = move |written: usize| emit("call-progress", json!({"call": "db_export", "done": written, "unit": "rows written"}));
+                self.database(&a.get::<String>("name")?)?.export(&target, &a.get::<String>("format")?, &told).map_err(|failure| failure.to_string()).and_then(give)
             }
             "db_history" => give(self.database(&a.get::<String>("name")?)?.history()),
             "db_statement_at" => give(crate::db::statement_at(&a.get::<String>("text")?, a.get("offset")?, &a.get::<String>("kind")?)),
@@ -1203,8 +1292,10 @@ mod tests {
         }
         serve(Some(root.clone()), std::io::Cursor::new(input), Out(sender));
         let mut text = String::new();
+        // An answer counts once its line is whole; a line comes in more than one write.
+        let answered = |text: &str| text.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter(|line| line.get("id").is_some()).count();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        while text.matches("\"id\"").count() < 3 && std::time::Instant::now() < deadline {
+        while answered(&text) < 3 && std::time::Instant::now() < deadline {
             if let Ok(bytes) = heard.recv_timeout(std::time::Duration::from_millis(100)) {
                 text.push_str(&String::from_utf8_lossy(&bytes));
             }

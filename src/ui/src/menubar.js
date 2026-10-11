@@ -24,9 +24,10 @@ import { invoke, pick } from "./bridge.js";
 import { showClone } from "./clone.js";
 import { showCreate, showInit, showProject } from "./create.js";
 import { checkersNamed, setCheckers } from "./servers.js";
-import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
+import { focusOn, lastMemory, memoryBudget, say, setFocus, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
+import { authorsShown, setAuthorsShown } from "./authors.js";
 import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
@@ -34,10 +35,11 @@ import { openPalette, startPalette } from "./palette.js";
 import { fuzzy } from "./fuzzy.js";
 import { runAllTests, runFailedTests, setTestsParallel, stopTests, testsParallel } from "./tests.js";
 import { showPreferences } from "./preferences.js";
+import { offNetwork, setOffNetwork, showNetwork } from "./network.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
 import { runToolchains } from "./toolchains.js";
-import { openUserCss } from "./usercss.js";
+import { loadUserCss, openUserCss } from "./usercss.js";
 import { focusSearch } from "./search.js";
 import { zoomBy } from "./zoom.js";
 import { printText } from "./print.js";
@@ -54,6 +56,16 @@ import { setSystemTitleBar, systemTitleBar } from "./strip.js";
 import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
 import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
+import { toggleComms } from "./comms.js";
+import { reviewChange } from "./changeview.js";
+import { buttonName, keysOf as commandKeys, letterOf, onKeys, wheelName } from "./keys.js";
+import { gatherLines, toggleBoard } from "./gather.js";
+import { peekHere } from "./peek.js";
+import { printHere } from "./prints.js";
+import { findSlowPlugin } from "./scripts.js";
+import { previewMode, setPreview } from "./preview.js";
+import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
+import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -269,6 +281,15 @@ const COMMANDS = {
   "stop-profile": () => stopProfile(),
   "profile-view": () => toggleProfile(),
   "containers-view": () => toggleContainers(),
+  "database-view": () => toggleDatabase(),
+  "comms-view": () => toggleComms(),
+  preview: (args) => setPreview(args[0] ?? (previewMode() === "beside" ? "off" : "beside")),
+  "preview-alone": () => setPreview(previewMode() === "alone" ? "off" : "alone"),
+  "run-statement": () => runStatement(),
+  "send-request": () => sendRequest(),
+  "copy-as-curl": () => copyCurl(),
+  "private-environment": () => privateEnvironment(),
+  "run-sql-file": () => runSqlFile(),
   "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "system-title": (args) => setSystemTitleBar(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   toolbar: (args) => setToolbarShown(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
@@ -350,6 +371,7 @@ const COMMANDS = {
   "past-ends": (args) => editing().setPastEnds(onOff(args) ?? !editing().pastEnds()),
   "hide-comments": (args) => editing().setCommentsHidden(onOff(args) ?? !editing().commentsHidden()),
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
+  "git-authors": (args) => setAuthorsShown(onOff(args) ?? !authorsShown()),
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
   checkers: (args) => askCheckers(args.join(" ")),
@@ -378,6 +400,15 @@ const COMMANDS = {
     showPreferences(sheet, {
       menus: state.menus,
       runCommand,
+      openFile: (path) => {
+        showView("edit");
+        return openFile(path);
+      },
+      reloadOwn: async () => {
+        await loadPlugins();
+        await loadUserCss();
+        await loadReaderMenus();
+      },
       checks: CHECKS,
       more: [
         { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },
@@ -432,6 +463,15 @@ const COMMANDS = {
   jump: inEditor((e) => (e.startJump(), say("Jump: type the letter or two where the cursor is to go, then the mark there."))),
   bridge: goToBridge,
   definition: inEditor(() => editing().definition()),
+  "peek-definition": inEditor(() => peekHere("definition")),
+  "peek-usages": inEditor(() => peekHere("usages")),
+  "peek-callers": inEditor(() => peekHere("callers")),
+  "gather-lines": inEditor(() => gatherLines()),
+  "gathered-lines": () => toggleBoard(),
+  focus: () => setFocus(),
+  "find-slow-plugin": () => findSlowPlugin(),
+  "review-structure": (args) => reviewChange(args[0] ?? null),
+  "print-here": inEditor(() => printHere()),
   usages: inEditor(() => editing().usages()),
   calls: inEditor(() => editing().calls()),
   rename: inEditor(() => editing().rename()),
@@ -498,11 +538,14 @@ const COMMANDS = {
     await invoke("report_auto_set", { on });
     state.autoReport = on;
   },
+  network: () => showNetwork(sheet),
+  "network-off": (args) => setOffNetwork(onOff(args) ?? !offNetwork()),
   about: showAbout,
 };
 
 // Whether an item that is on or off is on, by the name commands.json gives it.
 const CHECKS = {
+  focus: () => focusOn(),
   "side-bar": paneShown,
   "auto-collapse": autoCollapse,
   "sticky-scroll": () => editing().sticky(),
@@ -516,12 +559,14 @@ const CHECKS = {
   "past-ends": () => editing().pastEnds(),
   "hide-comments": () => editing().commentsHidden(),
   "line-history": () => editing().lineHistory(),
+  "git-authors": () => authorsShown(),
   "smooth-scroll": () => editing().smoothScroll(),
   "operator-next-line": () => editing().operatorNext(),
   "type-hints": () => editing().hints("type"),
   "parameter-hints": () => editing().hints("parameter"),
   "flick-scroll": () => editing().flickScroll(),
   "auto-report": () => state.autoReport,
+  "network-off": offNetwork,
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),
   "terminal-split": terminalSplit,
@@ -529,6 +574,8 @@ const CHECKS = {
   "strip-edge": stripEdge,
   toolbar: () => toolbarShown(),
   "margin-line": () => marginLine(),
+  preview: () => previewMode() === "beside",
+  "preview-alone": () => previewMode() === "alone",
   "focus-follows": () => focusFollows(),
   "system-title": () => systemTitleBar(),
   "macro-recording": recording,
@@ -551,6 +598,8 @@ const NEEDS = {
   back: () => canStepBack(),
   running: () => debugging() && !isPaused(),
   macro: () => Boolean(lastMacro() && editing().editor),
+  sql: () => /\.sql$/i.test(editing().fileHere() ?? ""),
+  http: () => isRequests(editing().fileHere() ?? ""),
 };
 
 // Edit, Macros: recording starts in the editor and stops on a second press, and the last macro
@@ -1353,6 +1402,7 @@ function titleOf(menu, letter) {
   if (letter >= 0) {
     button.append(menu.title.slice(0, letter), Object.assign(document.createElement("u"), { textContent: menu.title[letter] }), menu.title.slice(letter + 1));
     button.dataset.letter = menu.title[letter].toLowerCase();
+    button.setAttribute("aria-keyshortcuts", `Alt+${menu.title[letter].toUpperCase()}`);
   } else {
     button.textContent = menu.title;
   }
@@ -1463,11 +1513,8 @@ function pressed(keys, event) {
   if (parts.includes("Ctrl") !== event.ctrlKey || parts.includes("Shift") !== event.shiftKey || parts.includes("Alt") !== event.altKey) {
     return false;
   }
-  if (/^[A-Z]$/.test(key)) {
-    return event.code === `Key${key}`;
-  }
-  if (/^\d$/.test(key)) {
-    return event.code === `Digit${key}`;
+  if (/^[A-Z]$/.test(key) || /^\d$/.test(key)) {
+    return letterOf(event) === key;
   }
   return KEY_CODES[key] ? event.code === KEY_CODES[key] : event.key === key;
 }
@@ -1499,6 +1546,68 @@ function onShortcut(event) {
   }
 }
 
+// The keys of the commands `items`, each for one kind of file, offered to the editor first: a key goes
+// to the command whose kind the file shown is, of those that share it, as Ctrl+Enter goes to Run
+// Statement in an SQL file and to Send Request in a file of requests, and to the editor's own use of
+// the key where the file is of none of their kinds.
+export function firstKeys(items, needs = NEEDS, run = runCommand) {
+  const byKeys = new Map();
+  for (const item of items) {
+    for (const keys of [item.keys, item.also].filter(Boolean)) {
+      byKeys.set(keys, [...(byKeys.get(keys) ?? []), item]);
+    }
+  }
+  return [...byKeys].map(([keys, commands]) => ({
+    keys,
+    first: true,
+    run: () => {
+      const found = commands.find((item) => needs[item.needs]?.());
+      if (found) {
+        run(found.command);
+      }
+      return Boolean(found);
+    },
+  }));
+}
+
+// Gives each command its keys, as the reader's keys, then the set chosen, then commands.json give them
+// (keys.js), and binds those the editor takes first.
+function applyKeys() {
+  for (const item of state.menus.flatMap((menu) => menu.all)) {
+    item.base ??= [item.keys, item.also].filter(Boolean);
+    const [keys = "", also = ""] = item.command ? commandKeys(item.command, item.base) : item.base;
+    item.keys = keys;
+    item.also = also;
+  }
+  bindEditorKeys(
+    state.menus.flatMap((menu) =>
+      menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
+    ).concat(
+      firstKeys(state.menus.flatMap((menu) => menu.all.filter((item) => item.needs === "sql" || item.needs === "http"))),
+    ),
+  );
+}
+
+// Every command of the menus, each once, for Preferences' keys.
+export const allCommands = () => state.menus.flatMap((menu) => menu.all.map((item) => ({ ...item, menu: menu.title, item })));
+
+// Runs the command that holds `name`, a button of the mouse or the wheel turned with a key held, where
+// one does and can act now; says whether one did.
+function runHeld(name) {
+  if (!name) {
+    return false;
+  }
+  for (const menu of state.menus ?? []) {
+    for (const item of menu.all) {
+      if ((item.keys === name || item.also === name) && (!item.needs || item.needs === "editor" || NEEDS[item.needs]?.())) {
+        runCommand(item.command);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Runs the command the command line opened the window for, once the tree is read.
 export async function runLaunch() {
   const launch = await invoke("launch_take").catch(() => null);
@@ -1517,11 +1626,11 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   // Each menu's commands in one list, those of its groups among them.
   const flat = (items) => items.flatMap((item) => (item === "-" || item.fill ? [] : item.items ? flat(item.items) : [item]));
   state.menus.forEach((menu) => (menu.all = flat(menu.items ?? [])));
-  bindEditorKeys(
-    state.menus.flatMap((menu) =>
-      menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
-    ),
-  );
+  applyKeys();
+  onKeys(() => {
+    applyKeys();
+    drawMenubar();
+  });
   startPalette({
     commands: paletteCommands,
     findFiles: (query, recent, most) => invoke("files_find", { query, recent, most }),
@@ -1580,6 +1689,29 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
     }
     onShortcut(event);
   });
+  // A button of the mouse past its first three, and the wheel turned with a key held, run the command
+  // that holds them, where one does.
+  for (const kind of ["mousedown", "mouseup"]) {
+    window.addEventListener(
+      kind,
+      (event) => {
+        const name = buttonName(event);
+        if (name && (kind === "mousedown" ? state.menus?.some((menu) => menu.all.some((item) => item.keys === name || item.also === name)) : runHeld(name))) {
+          event.preventDefault();
+        }
+      },
+      true,
+    );
+  }
+  window.addEventListener(
+    "wheel",
+    (event) => {
+      if (runHeld(wheelName(event))) {
+        event.preventDefault();
+      }
+    },
+    { capture: true, passive: false },
+  );
   window.addEventListener("keyup", (event) => {
     if (event.key !== "Alt") {
       return;

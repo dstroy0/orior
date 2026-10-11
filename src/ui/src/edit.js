@@ -24,11 +24,13 @@
 // Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
 // when each was last shown, while Ctrl is held.
 
+import { onAuthors } from "./authors.js";
 import { invoke, listen } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
 import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { colorWith } from "./editor/tokens.js";
+import { findWith } from "./editor/find.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
 import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
@@ -48,6 +50,8 @@ import { moveDeclaration } from "./move.js";
 import { shapeSearch } from "./shapes.js";
 import { breakpointMenu, breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint, valueAt } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
+import { startRuns } from "./runs.js";
+import { startTrace } from "./trace.js";
 import { coverageOf, startTests, testMenu, testsOf } from "./tests.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn, showMenu } from "./menu.js";
@@ -56,8 +60,11 @@ import { onPatterns, tellPatterns } from "./patterns.js";
 import { coloredLines } from "./screen.js";
 import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, markNotebookSaved, notebookDirty, notebookEditor, notebookFile, notebookOfCellFile, openNotebook, repaintNotebook, showCellLine, showNotebookMerge, startNotebooks } from "./notebook.js";
 import { onScheme } from "./scheme.js";
+import { iconsKey, kindColors } from "./themes.js";
 import { onFonts } from "./fonts.js";
-import { calm, write } from "./status.js";
+import { calm, status, write } from "./status.js";
+import { writeWithCare } from "./rights.js";
+import { marksOf, startScripts, syncPlugins, tabLabelOf, tell } from "./scripts.js";
 import { togglePane } from "./sides.js";
 import { drawBranch, onOverBudget, say } from "./statusbar.js";
 import { openWindow } from "./windows.js";
@@ -87,6 +94,9 @@ const state = {
   cycle: null,
   // Each file's text as the last commit left it, as it is being read or once it is: null for none.
   heads: new Map(),
+  // How many times the last commit's files were forgotten, for a text held on the Rust side to know
+  // to read its file as the commit holds it again.
+  headsAge: 0,
   // How many files the system clipboard holds, for the tree's Paste.
   clipFiles: 0,
   // The batches of changes on the disk being taken, one after another.
@@ -295,8 +305,65 @@ async function removeFromWindow(name) {
   await drawTree();
 }
 
+// The encodings an archive's names may be read in, each by its label and how the menu names it, the
+// first the archive's own word: UTF-8 where its flag says so, the old DOS page elsewhere.
+export const NAME_ENCODINGS = [
+  ["", "As the Archive Says"],
+  ["utf-8", "UTF-8"],
+  ["windows-1252", "Western (Windows-1252)"],
+  ["iso-8859-2", "Central European (ISO-8859-2)"],
+  ["windows-1251", "Cyrillic (Windows-1251)"],
+  ["koi8-r", "Cyrillic (KOI8-R)"],
+  ["shift_jis", "Japanese (Shift_JIS)"],
+  ["euc-jp", "Japanese (EUC-JP)"],
+  ["gbk", "Chinese, Simplified (GBK)"],
+  ["big5", "Chinese, Traditional (Big5)"],
+  ["euc-kr", "Korean (EUC-KR)"],
+];
+
+const NAMES_KEY = "orior.archive.names";
+
+// The encoding chosen for each archive's names, by the archive's path.
+export function namesChosen() {
+  try {
+    return JSON.parse(localStorage.getItem(NAMES_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+// Reads the names of the archive at `path` in `label`, or as the archive says where it is empty.
+export async function chooseNames(path, label) {
+  const chosen = namesChosen();
+  if (label) {
+    chosen[path] = label;
+  } else {
+    delete chosen[path];
+  }
+  localStorage.setItem(NAMES_KEY, JSON.stringify(chosen));
+  await drawTree();
+}
+
+// The name an entry shows: its name's own bytes read in the encoding chosen for the archive it is
+// in, where the archive does not say its names are UTF-8 and the reader chose one.
+function shownName(entry) {
+  if (!entry.raw) {
+    return entry.name;
+  }
+  const chosen = namesChosen();
+  const archive = Object.keys(chosen).find((path) => entry.path.startsWith(`${path}/`));
+  if (!archive) {
+    return entry.name;
+  }
+  try {
+    return new TextDecoder(chosen[archive]).decode(Uint8Array.from(entry.raw.match(/../g).map((pair) => parseInt(pair, 16))));
+  } catch {
+    return entry.name;
+  }
+}
+
 // A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
-// name, and git's letter for it.
+// name, and git's letter for it. An archive is a folder with its file's icon.
 function node(entry, depth) {
   const known = !entry.dir && state.known?.typeOf(entry.path);
   const mark = entry.dir ? state.rolled.get(entry.path) : state.changes.get(entry.path);
@@ -306,10 +373,13 @@ function node(entry, depth) {
     title: entry.path,
   });
   button.append(...guides(depth), element("span", { className: "twisty" }));
-  if (!entry.dir) {
+  if (!entry.dir || entry.archive) {
     button.append(iconOf(entry.name, Boolean(known)));
   }
-  button.append(element("span", { className: "name", textContent: entry.name }));
+  button.append(element("span", { className: "name", textContent: shownName(entry) }));
+  if (entry.archive) {
+    button.dataset.archive = "true";
+  }
   if (mark) {
     button.dataset.change = mark;
     button.append(element("span", { className: "change", textContent: entry.dir ? "●" : mark }));
@@ -430,10 +500,11 @@ function drawTabs() {
   const tabButton = (tab) => {
     const name = tabName(tab);
     const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
-    const button = element("button", { className: `tab${groupOf(tab.path) ? " grouped" : ""}`, type: "button", title: tab.path, role: "tab" });
+    const button = element("button", { className: `tab${groupOf(tab.path) ? " grouped" : ""}${tab.preview ? " preview" : ""}`, type: "button", title: tab.path, role: "tab" });
+    const label = tab.commit ? "" : tabLabelOf(tab.file);
     button.setAttribute("aria-selected", String(tab.path === state.active));
     const mark = tab.commit ? -1 : marks.indexOf(tab.file);
-    button.append(mark >= 0 ? element("span", { className: "tab-mark", textContent: String(mark + 1), title: `Ctrl+${mark + 1}` }) : "", dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, close);
+    button.append(mark >= 0 ? element("span", { className: "tab-mark", textContent: String(mark + 1), title: `Ctrl+${mark + 1}` }) : "", dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, label ? element("span", { className: "tab-label", textContent: label }) : "", close);
     button.addEventListener("click", (event) => {
       if (event.target === close) {
         closeTab(tab);
@@ -442,6 +513,12 @@ function drawTabs() {
       }
     });
     button.addEventListener("auxclick", (event) => event.button === 1 && closeTab(tab));
+    button.addEventListener("dblclick", () => {
+      if (tab.preview) {
+        tab.preview = false;
+        drawTabs();
+      }
+    });
     dragOut(button, tab);
     return button;
   };
@@ -676,6 +753,7 @@ function closeTab(tab) {
   leaveGroup(tab.path);
   leaveSplit(tab.path);
   stopServing(tab);
+  letGo(tab.session?.doc);
   if (tab.notebook) {
     closeNotebook(tab.notebook);
   }
@@ -733,8 +811,14 @@ async function sliceAt(path, start, end) {
   return { start: at(0), end: at(8), size: at(16), text: textOf.decode(new Uint8Array(sent, 24)) };
 }
 
+// The side of a windowed file the next slice is read from, "below" or "above": the way the view
+// heads while it scrolls, and below and above in turn at rest, `below` saying whose turn it is.
+export function nextSlice({ canAbove, canBelow, moving, heading, below }) {
+  return canBelow && (!canAbove || (moving ? heading > 0 : below)) ? "below" : "above";
+}
+
 // Reads the rest of a windowed file, a slice at a time, standing back whenever the status block says
-// the view is pressed, and writing how far it has read there.
+// the view is pressed, and writing how far it has read there. The slices come as nextSlice says.
 async function readOutward(tab) {
   const s = tab.session;
   let below = true;
@@ -745,7 +829,8 @@ async function readOutward(tab) {
     }
     write("reads", [tab.path, { read: s.window.end - s.window.start, size: s.window.size }]);
     const canAbove = s.window.start > 0;
-    const goBelow = s.window.end < s.window.size && (below || !canAbove);
+    const canBelow = s.window.end < s.window.size;
+    const goBelow = nextSlice({ canAbove, canBelow, moving: status.scroll.speed > 0, heading: status.scroll.heading, below }) === "below";
     below = !below;
     if (goBelow) {
       const got = await sliceAt(tab.path, s.window.end, s.window.end + SLICE);
@@ -764,9 +849,11 @@ async function readOutward(tab) {
   write("reads", [tab.path, null]);
   s.window = null;
   // Read whole with no edit made on the way, the file's lines are the document's.
-  if (s.doc.id === tab.saved) {
+  const own = s.doc.id === tab.saved;
+  if (own) {
     keepSaved(tab);
   }
+  hold(tab, own);
   state.editor.schedule();
 }
 
@@ -782,7 +869,10 @@ async function loaded(path) {
   return Boolean(tabOf(path));
 }
 
-export async function openFile(path) {
+// Opens the file at `path` in a tab and shows it. Where `preview`, a tab it opens is a preview,
+// its name in italics, until it is edited or its tab pressed twice, and the next preview opened
+// takes its place; a file opened any other way is a preview no longer.
+export async function openFile(path, { preview = false } = {}) {
   if (state.elsewhere) {
     state.elsewhere(path, null, 0);
     return;
@@ -790,6 +880,13 @@ export async function openFile(path) {
   const fresh = !tabOf(path);
   if (!(await loaded(path))) {
     return;
+  }
+  const opened = tabOf(path);
+  if (preview && fresh) {
+    state.tabs.filter((one) => one.preview && one !== opened && !dirty(one)).forEach((one) => closeTab(one));
+    opened.preview = true;
+  } else if (!preview) {
+    opened.preview = false;
   }
   if (state.split?.focused && splittable(tabOf(path))) {
     // A file opened in the split alone is not one of the first side's tabs.
@@ -858,6 +955,7 @@ async function load(path, as = null) {
         tab.saved = -1;
       }
       settleAt(tab.session, place);
+      hold(tab, !colored && (kept === null || kept === opened.text));
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
     }
@@ -1176,6 +1274,35 @@ function show(path) {
   drawUndo(tab?.session ?? null);
   drawTimeline(tab ? tab.file : null);
   drawLocalHistory(tab?.commit ? null : (tab?.file ?? null));
+  shownListeners.forEach((listener) => listener(tab?.file ?? null));
+}
+
+// What is told each time the file shown changes, with the file's path, or null where none shows.
+const shownListeners = [];
+
+// What is told of each change to an open file's text as it is made, with the file's session, and of
+// each move of the cursor once the keys rest.
+const editListeners = [];
+const cursorListeners = [];
+
+export function onEdit(listener) {
+  editListeners.push(listener);
+}
+
+export function onCursorMoved(listener) {
+  cursorListeners.push(listener);
+}
+
+// What may give a paste into a file another text: each is asked with the file's path and the text,
+// and the first that gives a text, or a promise of one, is pasted in its place.
+const pasteListeners = [];
+
+export function onPasteAs(listener) {
+  pasteListeners.push(listener);
+}
+
+export function onShown(listener) {
+  shownListeners.push(listener);
 }
 
 // With no file open the desk shows the name over the lattice, as the run view does with no job
@@ -1208,7 +1335,7 @@ async function saveActive(tab = tabOf(actingPath())) {
   const lines = tab.session.doc.lines.slice();
   const eol = tab.session.doc.eol;
   const written = tab.session.doc.text();
-  await invoke("file_write", { path: tab.path, text: written });
+  await writeWithCare(tab.path, written);
   tab.saved = writing;
   tab.savedLines = lines;
   tab.savedEol = eol;
@@ -1226,8 +1353,8 @@ async function saveActive(tab = tabOf(actingPath())) {
 
 // Opens a file with the cursor on a line and column of it, each counted from the file's first. A
 // line a file still being read has not reached yet is waited for; a file not open yet opens around
-// the line.
-export async function openAt(path, line, col = 0) {
+// the line. Where `preview`, a tab it opens is a preview, as openFile makes one.
+export async function openAt(path, line, col = 0, { preview = false } = {}) {
   if (state.elsewhere) {
     state.elsewhere(path, line, col);
     return;
@@ -1238,7 +1365,7 @@ export async function openAt(path, line, col = 0) {
   markPlace();
   state.moving = true;
   try {
-    await openFile(path);
+    await openFile(path, { preview });
   } finally {
     state.moving = false;
   }
@@ -1372,7 +1499,7 @@ function treeChanged({ payload: changed }) {
       await reloadTab(tab);
     }
     if (changed.git) {
-      state.heads.clear();
+      forgetHeads();
       state.repos = null;
       markChanges(tabOf(state.active));
       await loadChanges();
@@ -1497,15 +1624,19 @@ function compareTexts(name, then, now, sides, review = name) {
 
 const shortId = (commit) => commit.id.slice(0, 7);
 
+// A commit as a diff's bar names it: its id, and who made it, as a change is answered for where it
+// is reviewed, whether authors show elsewhere.
+const madeBy = (commit) => `${shortId(commit)}${commit.author ? ` by ${commit.author}` : ""}`;
+
 // A revision of a file beside the file as it stands, or beside another revision, the older left.
 async function compareCommit(path, commit, other = null) {
   try {
     if (!other) {
-      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${shortId(commit)}, then as it stands`);
+      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${madeBy(commit)}, then as it stands`);
       return;
     }
     const [older, newer] = commit.when <= other.when ? [commit, other] : [other, commit];
-    compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${shortId(older)}, then ${shortId(newer)}`);
+    compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${madeBy(older)}, then ${madeBy(newer)}`);
   } catch (error) {
     say(String(error), { failed: true });
   }
@@ -1517,7 +1648,7 @@ async function openTouched(commit, file) {
   const parent = commit.parents[0];
   const then = file.state === "A" || !parent ? null : await invoke("file_at", { path: file.was ?? file.path, id: parent }).catch(() => null);
   const now = file.state === "D" ? "" : await invoke("file_at", { path: file.path, id: commit.id }).catch(() => "");
-  compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${shortId(commit)}`);
+  compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${madeBy(commit)}`);
 }
 
 // A review comment's file, open at the line the comment stands at in its text as it is.
@@ -2063,6 +2194,136 @@ function drawCrumbs() {
   bar.replaceChildren(...nodes.flatMap((node, at) => (at ? [element("span", { className: "crumb-gap", textContent: "›", ariaHidden: "true" }), node] : [node])));
 }
 
+// Texts of HOLD_FROM lines or more are held on the Rust side as the page holds them, for the work on
+// them that costs a frame here to run there and hand back only its answer: the gutter's marks against
+// the last commit, which cost the page a frame from about there, and find on a text of more. The Rust
+// side reads the file itself; a text the page holds as the file does not goes over in parts of PART
+// characters, each holding the page about a millisecond. Each change the page's document writes to a
+// held text goes after it, out of the event that made it, and the calls about one text go one after
+// another, each once the one before is answered.
+const HOLD_FROM = 10000;
+const PART = 90000;
+let holds = 0;
+
+function shapeOf(doc) {
+  let units = 0;
+  for (const line of doc.lines) {
+    units += line.length;
+  }
+  return { lines: doc.count, units };
+}
+
+// Runs `work`, a call about a held text, once every call before it about that text is answered.
+function along(held, work) {
+  const next = held.chain.then(work);
+  held.chain = next.catch(() => {});
+  return next;
+}
+
+// Holds the text of a tab's file on the Rust side, read there from the file where `fromFile` says the
+// tab's text is the file's own; otherwise, or where what was read differs, the page gives it.
+function hold(tab, fromFile) {
+  const s = tab.session;
+  const doc = s?.doc;
+  if (!doc || doc.held !== undefined || s.window || s.base || tab.commit || doc.count < HOLD_FROM) {
+    return;
+  }
+  holds += 1;
+  const held = { key: `${tab.file}#${holds}`, ready: false, changes: [], waiting: false, chain: Promise.resolve(), headsAge: -1 };
+  doc.held = held;
+  const shape = shapeOf(doc);
+  held.unwatch = doc.watch(({ edits }) => {
+    held.changes.push(edits.map(({ from, to, text }) => ({ from: { line: from.line, col: from.col }, to: { line: to.line, col: to.col }, text })));
+    if (held.ready && !held.waiting) {
+      held.waiting = true;
+      window.setTimeout(() => sendChanges(doc), 0);
+    }
+  });
+  along(held, async () => {
+    const read = fromFile ? await invoke("document_read", { key: held.key, path: tab.file }).catch(() => null) : null;
+    if (!read || read.lines !== shape.lines || read.units !== shape.units) {
+      // The text as it stands goes whole, and the changes made since it was measured are in it.
+      const text = doc.text();
+      held.changes = [];
+      for (let at = 0; at === 0 || at < text.length; at += PART) {
+        await invoke("document_part", { key: held.key, part: text.slice(at, at + PART), first: at === 0, done: at + PART >= text.length });
+      }
+    }
+    held.ready = true;
+    sendChanges(doc);
+  }).catch(() => letGo(doc));
+}
+
+// Sends the changes written to a held text since the last were sent.
+function sendChanges(doc) {
+  const held = doc?.held;
+  if (!held?.ready) {
+    return;
+  }
+  held.waiting = false;
+  if (!held.changes.length) {
+    return;
+  }
+  const changes = held.changes;
+  held.changes = [];
+  along(held, () => invoke("document_edit", { key: held.key, changes })).catch(() => letGo(doc));
+}
+
+// Lets go of a text held on the Rust side; it is not held again.
+function letGo(doc) {
+  const held = doc?.held;
+  if (!held) {
+    return;
+  }
+  held.unwatch?.();
+  doc.held = null;
+  invoke("document_release", { key: held.key }).catch(() => {});
+}
+
+function forgetHeads() {
+  state.heads.clear();
+  state.headsAge += 1;
+}
+
+// The gutter's marks for a held text, worked out on the Rust side against its file as the last commit
+// holds it; the lines each change spans there come with them, for the peek and to put back.
+async function markHeld(tab) {
+  const s = tab.session;
+  const held = s.doc.held;
+  sendChanges(s.doc);
+  const fresh = held.headsAge !== state.headsAge;
+  const id = s.doc.id;
+  if (!fresh && s.changesFor === id) {
+    return;
+  }
+  held.headsAge = state.headsAge;
+  const marks = await along(held, () => invoke("document_changes", { key: held.key, path: tab.file, fresh })).catch(() => null);
+  if (s.doc.id !== id || s.doc.held !== held) {
+    return;
+  }
+  if (!marks?.head) {
+    state.editor.setChanges(s, null);
+    markHistory(tab, null);
+    return;
+  }
+  markHistory(tab, `${held.key} ${state.headsAge}`);
+  s.changesFor = id;
+  s.changesHead = null;
+  const found = marks.changes;
+  if (!found) {
+    s.changesThen = null;
+    state.editor.setChanges(s, null);
+    return;
+  }
+  const then = [];
+  for (const hunk of found.hunks) {
+    (hunk.thenLines ?? []).forEach((line, at) => (then[hunk.then[0] + at] = line));
+  }
+  s.changesThen = then;
+  const hunks = found.hunks.map(({ now, then: was }) => ({ now, then: was }));
+  state.editor.setChanges(s, { added: new Set(found.added), changed: new Set(found.changed), removed: new Set(found.removed), hunks });
+}
+
 // Marks the lines of a tab's text that differ from the last commit. A file read only in part, a file
 // as a commit left it, and a file the last commit does not hold have no marks.
 async function markChanges(tab) {
@@ -2073,6 +2334,13 @@ async function markChanges(tab) {
   if (tab.commit || s.window || s.base) {
     state.editor.setChanges(s, null);
     markHistory(tab, null);
+    return;
+  }
+  if (s.doc.held) {
+    await along(s.doc.held, () => null).catch(() => null);
+  }
+  if (s.doc.held?.ready) {
+    await markHeld(tab);
     return;
   }
   if (!state.heads.has(tab.file)) {
@@ -2121,6 +2389,14 @@ function setLineHistory(on) {
   state.lineHistory = on;
   markChanges(tabOf(state.active));
 }
+
+// Authors shown or hidden, the Line History shown is drawn again, its column the width it needs.
+onAuthors(() => {
+  const s = state.editor?.s;
+  if (s?.history) {
+    state.editor.setLineHistory(s, s.history);
+  }
+});
 
 // A press on Line History's mark: the file's change in the commit that last changed the line.
 function openLineCommit(s, line) {
@@ -2616,6 +2892,16 @@ export async function startEdit(defs) {
     },
     color: (key, state, lines) => invoke("highlight_lines", { key, state, lines }),
   });
+  // Find on a large text held on the Rust side runs there; a search it does not run as the page does
+  // answers null, and the page runs it.
+  findWith((doc, sought, most) => {
+    const held = doc.held;
+    if (!held?.ready) {
+      return null;
+    }
+    sendChanges(doc);
+    return along(held, () => invoke("document_find", { key: held.key, sought, most })).catch(() => null);
+  });
   onOverBudget(holdMemory);
   await loadPlugins();
   state.known = registerLanguages(defs);
@@ -2626,6 +2912,7 @@ export async function startEdit(defs) {
       wrap(tab);
     }
     state.editor?.restyle();
+    syncPlugins();
   });
   state.head = defs.head;
   let lighting = 0;
@@ -2653,8 +2940,20 @@ export async function startEdit(defs) {
       const tab = tabOfSession(s.of ?? s);
       return tab ? spansOf(tab, from, to) : Promise.resolve([]);
     },
+    onEdit: (s) => editListeners.forEach((listener) => listener(s.of ?? s)),
+    pasteAs: (s, text) => {
+      const path = tabOfSession(s.of ?? s)?.file ?? null;
+      for (const listener of pasteListeners) {
+        const given = listener(path, text);
+        if (given) {
+          return given;
+        }
+      }
+      return null;
+    },
     onCursor: () => {
       moved();
+      cursorListeners.forEach((listener) => listener());
       cancelAnimationFrame(lighting);
       lighting = requestAnimationFrame(() => {
         light();
@@ -2668,6 +2967,7 @@ export async function startEdit(defs) {
       const tab = state.tabs.find((one) => one.session === session);
       if (tab) {
         tab.closing = false;
+        tab.preview = false;
         changed(tab);
         typed();
         if (tab.validated) {
@@ -2726,6 +3026,7 @@ export async function startEdit(defs) {
   };
   state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
+  state.editor.themeOf = (s) => kindColors(s?.language?.id);
   state.editor.addKeys(state.editorKeys);
   state.editor.bindKeys(state.boundKeys);
   state.editor.setVim(vimKeys());
@@ -2769,10 +3070,40 @@ export async function startEdit(defs) {
       testMenu(file, line, event.clientX, event.clientY);
     }
   };
+  startRuns();
+  startTrace();
   startTests({
     openAt: (path, line, col) => openAt(path, line, col),
     saveAll: () => editing().saveAll({ auto: true }),
     repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+  });
+  state.editor.pluginMarksOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? marksOf(file) : null;
+  };
+  startScripts({
+    repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+    tabsChanged: () => drawTabs(),
+    active: () => (state.active ? tabOf(state.active)?.file ?? null : null),
+    editor: () => state.editor,
+    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path })).text,
+    write: (one, path, text) => writeWithCare(path, text, { who: one.name }).then(() => null),
+  });
+  syncPlugins();
+  onShown((path) => path && tell("open", { path }));
+  onEdit((s) => {
+    const tab = tabOfSession(s);
+    if (tab && !tab.commit) {
+      window.clearTimeout(state.telling);
+      state.telling = window.setTimeout(() => tell("edit", { path: tab.file }), 150);
+    }
+  });
+  onCursorMoved(() => {
+    const tab = tabOf(state.active);
+    const head = state.editor?.s ? state.editor.head() : null;
+    if (tab?.session && head && !tab.commit) {
+      tell("cursor", { path: tab.file, line: tab.session.base + head.line, col: head.col });
+    }
   });
   startBookmarks({
     here: () => {
@@ -2804,7 +3135,9 @@ export async function startEdit(defs) {
       const raw = tab.colored;
       delete tab.colored;
       tab.readOnly = false;
+      letGo(tab.session.doc);
       tab.session = new Session(raw, state.known.languageOf(tab.path));
+      hold(tab, true);
       markSaved(tab, raw);
       show(tab.path);
       return;
@@ -2828,7 +3161,7 @@ export async function startEdit(defs) {
     editor.bindKeys(state.boundKeys);
     editor.setVim(vimKeys());
     editor.setMargin(marginLine());
-    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock", "valueAt"]) {
+    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock", "valueAt", "themeOf"]) {
       editor[name] = state.editor[name];
     }
     editor.onBreakpoint = (line) => {
@@ -2912,7 +3245,18 @@ export async function startEdit(defs) {
       await drawTree();
     },
   });
-  onScheme(() => state.editor.refreshColors());
+  onScheme(() => {
+    [state.editor, state.split?.editor].filter(Boolean).forEach((editor) => {
+      editor.drawTheme();
+      editor.refreshColors();
+    });
+    // The theme's icons of files, where they changed.
+    if (iconsKey() !== state.iconsDrawn) {
+      state.iconsDrawn = iconsKey();
+      drawTabs();
+      drawTree();
+    }
+  });
   let wait = 0;
   document.getElementById("file-filter").addEventListener("input", () => {
     window.clearTimeout(wait);
@@ -3009,7 +3353,7 @@ export async function startEdit(defs) {
   files.addEventListener("focusin", readClipFiles);
   window.addEventListener("focus", async () => {
     readClipFiles();
-    state.heads.clear();
+    forgetHeads();
     state.repos = null;
     markChanges(tabOf(state.active));
     await loadChanges();
@@ -3052,9 +3396,11 @@ function fileItems(event) {
     ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
     : { label: "Open", run: () => openFile(path) };
   const mounted = row.classList.contains("mount") ? path.slice(1) : null;
+  const names = namesChosen()[path] ?? "";
   return [
     open,
     ...(mounted ? [{ label: "Remove from Window", run: () => removeFromWindow(mounted) }] : []),
+    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, shown]) => ({ label: shown, checked: names === label, run: () => chooseNames(path, label) })) }] : []),
     ...(folder ? [] : [{ label: "Open in Next Split", run: () => openInSplit(path) }]),
     ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
     "-",
@@ -3288,6 +3634,19 @@ export function setMarginLine(on = !marginLine()) {
   state.split?.editor.setMargin(on);
 }
 
+// The editor and its split as the settings in force give them, once a file changes them: each
+// editor's own settings, Vim's keys, the formatter's line, each kind of file's theme, and the
+// breadcrumbs.
+export function takeSettings() {
+  for (const editor of [state.editor, state.split?.editor].filter(Boolean)) {
+    editor.takeSettings();
+    editor.setVim(vimKeys());
+    editor.setMargin(marginLine());
+    editor.drawTheme();
+  }
+  drawCrumbs();
+}
+
 // Binds the reader's keys in the editor and its split, in place of those bound before, each `run`
 // told the editor its keys were pressed in.
 export function bindReaderKeys(list) {
@@ -3299,6 +3658,25 @@ export function bindReaderKeys(list) {
 
 // What the menu bar does to the editor: the editor where a file of text is open in it, saving one
 // file or all of them, and closing one tab or all of them.
+// A session of the file at `path` for a view over the editor: a twin of its tab's where a tab holds
+// it whole, live and taking edits as the tab does, and the file as it was read, taking none, where
+// none does. A path outside the tree is read where it is.
+export async function viewSession(path) {
+  const tab = tabOf(path);
+  if (tab?.session && !tab.session.window && !tab.notebook) {
+    return tab.session.twin();
+  }
+  const outside = /^(?:[A-Za-z]:[\\/]|\/|\\\\)/.test(path);
+  const text = outside ? await invoke("file_read_any", { path }) : (await invoke("file_read", { path })).text;
+  return new Session(text ?? "", state.known.languageOf(path), { readOnly: true });
+}
+
+// An editor in `host` for a view over the editor, its edits told as a tab's are.
+export function viewEditor(host) {
+  const { onEdit, pasteAs, spansOf, onShown, onChange } = state.editorHooks;
+  return new Editor(host, { onEdit, pasteAs, spansOf, onShown, onChange: (s) => onChange(s.of ?? s), statusHost: document.createElement("div") });
+}
+
 export function editing() {
   return {
     editor: state.split?.focused ? state.split.editor : state.editor?.s ? state.editor : null,
@@ -3327,6 +3705,8 @@ export function editing() {
     changed: state.tabs.some(dirty),
     activeChanged: Boolean(tabOf(actingPath()) && dirty(tabOf(actingPath()))),
     open: state.tabs.length > 0,
+    // The session of the file at `path` where a tab holds it.
+    sessionOf: (path) => tabOf(path)?.session ?? null,
     save: () => saveActive(),
     format: () => formatTab(tabOf(actingPath())),
     runFile: () => runTab(tabOf(actingPath())),
@@ -3354,7 +3734,7 @@ export function editing() {
         const lines = tab.session.doc.lines.slice();
         const eol = tab.session.doc.eol;
         const written = tab.session.doc.text();
-        await invoke("file_write", { path: tab.path, text: written });
+        await writeWithCare(tab.path, written);
         tab.saved = writing;
         tab.savedLines = lines;
         tab.savedEol = eol;
@@ -3460,7 +3840,7 @@ export function forgetTree() {
   forgetProblems();
   checkShown();
   state.restored = false;
-  state.heads.clear();
+  forgetHeads();
   state.repos = null;
   state.mounts = [];
   forgetGraph();

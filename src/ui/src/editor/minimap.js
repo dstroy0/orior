@@ -107,9 +107,7 @@ export class Minimap {
     return { rows, fit, start, range, onScreen, sliderTop, sliderHeight: Math.max(8, onScreen * ROW) };
   }
 
-  // `level` is the editor's: from 2 the map takes only the colors already worked out, and at 3 it
-  // draws every line in one color.
-  paint(level = 0, scrollTop = this.ed.scroller.scrollTop) {
+  paint(scrollTop = this.ed.scroller.scrollTop) {
     const ed = this.ed;
     const s = ed.s;
     const canvas = this.canvas;
@@ -155,7 +153,7 @@ export class Minimap {
     const lines = this.linesCanvas(Math.round(width * ratio), Math.round(height * ratio));
     const pen = lines.getContext("2d");
     const kept = this.linesFor;
-    const key = [s.doc.id, s.foldings, s.base, rows.size, Math.min(level, 3) >= 2 ? Math.min(level, 3) : 0, this.colorsMade, lines.width, lines.height].join("|");
+    const key = [s.doc.id, s.foldings, s.base, rows.size, this.colorsMade, lines.width, lines.height].join("|");
     const moved = kept && kept.session === s && kept.key === key ? start - kept.start : null;
     let from = start;
     let to = end;
@@ -187,7 +185,7 @@ export class Minimap {
     for (let row = from; row < to; row += 1) {
       const line = rows.lineOf(row);
       const text = doc.line(line);
-      const runs = level >= 3 ? PLAIN : level === 2 ? s.highlight.cached(line) ?? PLAIN : s.highlight.runsOf(line);
+      const runs = s.highlight.runsOf(line);
       const y = (row - start) * ROW;
       let v = 0;
       let index = 0;

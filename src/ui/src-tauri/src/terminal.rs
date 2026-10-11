@@ -32,6 +32,10 @@ pub struct Terms {
     open: Arc<Mutex<HashMap<u64, Term>>>,
 }
 
+/// A terminal's part of the comms layer, and its key, given to the shell once it starts and taken
+/// away as it ends.
+pub type Part = (Arc<orior_cli::comms::Comms>, orior_cli::comms::Key);
+
 #[derive(Clone, Serialize)]
 struct Out {
     id: u64,
@@ -61,7 +65,11 @@ pub fn shell(root: &Path) -> Result<CommandBuilder, String> {
         own
     };
     command.cwd(root);
-    command.env("PATH", orior_cli::toolchains::run_path());
+    // orior's own folder comes last: `orior` runs in the terminal where no other is installed, and
+    // shadows no program of the reader's.
+    let mut path: Vec<PathBuf> = std::env::split_paths(&orior_cli::toolchains::run_path()).collect();
+    path.extend(std::env::current_exe().ok().and_then(|program| program.parent().map(Path::to_path_buf)));
+    command.env("PATH", std::env::join_paths(path).unwrap_or_else(|_| orior_cli::toolchains::run_path()));
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
     // Bash says the folder it stands in before each prompt, as OSC 7, where nothing of the reader's
@@ -129,9 +137,22 @@ fn size(cols: u16, rows: u16) -> PtySize {
 
 impl Terms {
     /// Opens a terminal `cols` wide and `rows` tall running `command`, a shell, and returns its number.
-    pub fn open(&self, app: AppHandle, command: CommandBuilder, cols: u16, rows: u16) -> Result<u64, String> {
+    /// The shell is given `part`'s key as it starts, and the part leaves as the shell ends.
+    pub fn open(&self, app: AppHandle, command: CommandBuilder, cols: u16, rows: u16, part: Option<Part>) -> Result<u64, String> {
         let pair = native_pty_system().openpty(size(cols, rows)).map_err(|e| e.to_string())?;
-        let mut child = pair.slave.spawn_command(command).map_err(|e| e.to_string())?;
+        let spawned = pair.slave.spawn_command(command).map_err(|e| e.to_string());
+        let mut child = match spawned {
+            Ok(child) => child,
+            Err(error) => {
+                if let Some((comms, key)) = &part {
+                    comms.leave(key);
+                }
+                return Err(error);
+            }
+        };
+        if let (Some((comms, key)), Some(shell)) = (&part, child.process_id()) {
+            comms.bind(key, shell);
+        }
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
         let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
@@ -164,6 +185,9 @@ impl Terms {
         let open = self.open.clone();
         thread::spawn(move || {
             let code = child.wait().ok().map(|status| status.exit_code());
+            if let Some((comms, key)) = part {
+                comms.leave(&key);
+            }
             if let Ok(mut open) = open.lock() {
                 open.remove(&id);
             }

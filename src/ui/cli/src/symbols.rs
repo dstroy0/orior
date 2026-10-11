@@ -389,6 +389,17 @@ fn declared(language: Language, text: &str) -> Vec<(String, &'static str, u32)> 
     found
 }
 
+/// Whether the declarations of the file at `path` are read: whether its language is one read here.
+pub fn reads(path: &str) -> bool {
+    language_of(path).is_some()
+}
+
+/// The declarations of the text `text`, read in the language of the file at `path`: each its name,
+/// its kind and its line, from 0.
+pub fn declarations(path: &str, text: &str) -> Vec<(String, &'static str, u32)> {
+    language_of(path).map(|language| declared(language, text)).unwrap_or_default()
+}
+
 /// The declarations of the file at `path` under `root`, as written in that file now.
 pub fn declared_in(root: &Path, path: &str) -> Vec<Declared> {
     let Some(language) = language_of(path) else { return Vec::new() };

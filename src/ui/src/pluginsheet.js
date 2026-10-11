@@ -2,14 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Plugins and File, New Language Plugin. The first lists every plugin as plugins.js read it,
-// each with what it opens, where it comes from and a box that turns it on or off, and what was wrong
-// with one that does not read. The second asks what a language plugin needs, shows a sample colored
+// each with what it opens, where it comes from and a box that turns it on or off, what was wrong
+// with one that does not read, and for a script plugin what it reads, writes and reaches, with Let It
+// Run where it waits for the reader's leave (scripts.js). Under them stands the catalog the reader
+// names (plugin_catalog.rs): the plugins it lists that the search finds, each with what it asks for,
+// installed by Install and let run as it asks, and updated only by Update, an update that asks for
+// more waiting to be let again. The second asks what a language plugin needs, shows a sample colored
 // by the plugin those answers make and the plugin's file as it would be written, both changing as the
 // answers do, and writes it to the reader's plugins folder, as `orior file new-plugin` does.
 
 import { invoke } from "./bridge.js";
 import { tokenize } from "./editor/tokens.js";
 import { languageFromText, loadPlugins, onPlugins, openerOf, pluginReadings, setPluginOn } from "./plugins.js";
+import { allowPlugin, askedMore, asksText } from "./scripts.js";
+
+const CATALOG = "orior.plugins.catalog";
+
+// Whether the version `a` comes after `b`, each read as numbers between dots.
+function later(a, b) {
+  const [one, two] = [a, b].map((text) => String(text).split(".").map((part) => Number.parseInt(part, 10) || 0));
+  for (let at = 0; at < Math.max(one.length, two.length); at += 1) {
+    if ((one[at] ?? 0) !== (two[at] ?? 0)) {
+      return (one[at] ?? 0) > (two[at] ?? 0);
+    }
+  }
+  return false;
+}
+
+// Whether each of what `asks` asks for is among what `shown` named.
+const within = (asks, shown) => ["reads", "writes", "reaches"].every((kind) => (asks?.[kind] ?? []).every((one) => (shown?.[kind] ?? []).includes(one)));
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -48,6 +69,7 @@ export function showPlugins(sheet) {
       "span",
       { className: "plugin-opens" },
       ...(reading.kind === "tool" ? [element("span", { textContent: `checks ${reading.checks.join(", ")}`, title: reading.about })] : []),
+      ...(reading.kind === "script" ? [element("span", { className: "plugin-asks", textContent: asksText(reading.asks), title: reading.about })] : []),
       ...reading.extensions.map((ext) => {
         const opener = openerOf(ext);
         const other = !reading.error && opener && opener !== reading.id;
@@ -66,8 +88,95 @@ export function showPlugins(sheet) {
     if (reading.error) {
       made.append(element("p", { className: "plugin-error", textContent: reading.error }));
     }
+    const more = reading.kind === "script" && !reading.error && reading.on ? askedMore(reading) : null;
+    if (more) {
+      made.append(
+        element(
+          "p",
+          { className: "plugin-waits" },
+          `It waits for you to let it run: it ${asksText(more)}. `,
+          button("Let It Run", async () => {
+            await allowPlugin(reading.id);
+            said.textContent = `${reading.name} runs.`;
+            draw();
+          }),
+        ),
+      );
+    }
+    made.dataset.id = reading.id;
     return made;
   }
+
+  // The catalog: its address, kept as plugins.catalog, and the plugins it lists.
+  const address = element("input", { className: "report-field plugins-catalog-address", type: "text", value: localStorage.getItem(CATALOG) ?? "", placeholder: "A catalog's address, on the web or on this machine", ariaLabel: "Catalog", spellcheck: false });
+  const catalog = element("div", { className: "plugins-catalog", role: "list" });
+  let listed = [];
+  let listedFrom = "";
+
+  function catalogRow(entry) {
+    const here = pluginReadings().find((reading) => reading.id === entry.id && !reading.replaced);
+    const act = !here ? "Install" : here.source === "user" && later(entry.version, here.version) ? `Update to ${entry.version}` : null;
+    const made = element(
+      "div",
+      { className: "plugin-row plugin-listed", role: "listitem" },
+      element("span"),
+      element("span", { className: "plugin-name" }, element("strong", { textContent: entry.name || entry.id }), element("span", { textContent: ` ${entry.id} ${entry.version}` })),
+      element("span", { className: "plugin-asks", textContent: asksText(entry), title: entry.about }),
+      element("span", { className: "plugin-source", textContent: here ? `installed, ${here.version}` : "" }),
+      act
+        ? button(act, async (event) => {
+            event.target.disabled = true;
+            try {
+              await invoke("plugins_catalog_install", { address: listedFrom, entry });
+              await loadPlugins();
+              const now = pluginReadings().find((reading) => reading.id === entry.id);
+              // An install the reader pressed seeing what it asks for lets it run, where it asks for no
+              // more than it showed; an update runs as it was let, and one that asks for more waits.
+              if (!here && now?.kind === "script" && within(now.asks, entry)) {
+                await allowPlugin(entry.id);
+              }
+              said.textContent = now && askedMore(now) ? `${entry.name || entry.id} ${entry.version} is installed, and waits for you to let it run.` : `${entry.name || entry.id} ${entry.version} is installed.`;
+            } catch (error) {
+              said.textContent = String(error);
+            }
+            draw();
+          })
+        : element("span"),
+    );
+    if (entry.about) {
+      made.append(element("p", { className: "plugin-about", textContent: entry.about }));
+    }
+    made.dataset.id = entry.id;
+    return made;
+  }
+
+  function drawCatalog() {
+    const word = filter.value.trim().toLowerCase();
+    const found = listed.filter((entry) => !word || [entry.id, entry.name, entry.about].some((text) => String(text ?? "").toLowerCase().includes(word)));
+    catalog.replaceChildren(...found.map(catalogRow));
+    if (listedFrom && !found.length) {
+      catalog.append(element("p", { className: "prefs-said", textContent: word ? "The catalog lists no plugin that matches." : "The catalog lists no plugins." }));
+    }
+  }
+
+  const readCatalog = button("Read the Catalog", async () => {
+    const from = address.value.trim();
+    localStorage.setItem(CATALOG, from);
+    if (!from) {
+      said.textContent = "Name a catalog first.";
+      return;
+    }
+    try {
+      listed = await invoke("plugins_catalog_read", { address: from });
+      listedFrom = from;
+      said.textContent = `The catalog lists ${listed.length} plugin${listed.length === 1 ? "" : "s"}.`;
+    } catch (error) {
+      listed = [];
+      listedFrom = "";
+      said.textContent = String(error);
+    }
+    drawCatalog();
+  });
 
   function draw() {
     const word = filter.value.trim().toLowerCase();
@@ -76,6 +185,7 @@ export function showPlugins(sheet) {
     if (!shown.length) {
       list.append(element("p", { className: "prefs-said", textContent: word ? "No plugin matches." : "No plugins were found." }));
     }
+    drawCatalog();
   }
 
   filter.addEventListener("input", draw);
@@ -97,6 +207,9 @@ export function showPlugins(sheet) {
     said,
     filter,
     list,
+    element("h3", { textContent: "Catalog" }),
+    element("div", { className: "prefs-line plugins-catalog-line" }, address, readCatalog),
+    catalog,
   );
   draw();
   const dialog = sheet(body);

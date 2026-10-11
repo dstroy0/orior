@@ -51,8 +51,8 @@ fn browser_arguments(ui: &Path, port: u16) -> String {
 }
 
 /// Starts the window from `program` with `run` as the run's folder and `tree` as its tree, on
-/// `monitor`, and waits for its page.
-pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option<u32>) -> Result<Window, String> {
+/// `monitor`, with the settings `extra` gives besides, and waits for its page.
+pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option<u32>, extra: &[(String, String)]) -> Result<Window, String> {
     keep_own_handles();
     let port = free_port()?;
     let log = File::create(run.join("window.log")).map_err(|error| error.to_string())?;
@@ -63,6 +63,7 @@ pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option
         .env("ORIOR_NO_REPORTS", "1")
         .env("WEBVIEW2_USER_DATA_FOLDER", run.join("webview"))
         .env("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", browser_arguments(ui, port))
+        .envs(extra.iter().map(|(key, value)| (key, value)))
         .stdin(Stdio::null())
         .stdout(log.try_clone().map_err(|error| error.to_string())?)
         .stderr(log)
@@ -110,7 +111,8 @@ mod tests {
         let ui = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let given = browser_arguments(ui, 41234);
         assert!(given.ends_with("--remote-debugging-port=41234"), "{given}");
-        assert!(given.contains("--disable-direct-composition"), "{given}");
+        assert!(given.contains("--disable-features=msWebOOUI"), "{given}");
+        assert!(!given.contains("--disable-direct-composition"), "the page is drawn on the GPU: {given}");
         assert_eq!(browser_arguments(Path::new("/nowhere"), 1), "--remote-debugging-port=1");
     }
 

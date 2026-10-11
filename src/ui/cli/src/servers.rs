@@ -259,6 +259,10 @@ const CHECKERS: usize = 6;
 const CHECK_PATIENCE: Duration = Duration::from_secs(30);
 const CHECK_QUIET: Duration = Duration::from_millis(250);
 
+/// How often a server that ends is started again: at most RESTARTS times in any RESTARTS_WITHIN.
+const RESTARTS: usize = 3;
+const RESTARTS_WITHIN: Duration = Duration::from_secs(60);
+
 /// The most text a file the inspections read may hold; a larger one, which the editor reads a window
 /// at a time, is left out of their index.
 const INSPECT_MOST: u64 = 2 << 20;
@@ -342,6 +346,8 @@ pub struct Servers {
     root: Mutex<Option<PathBuf>>,
     running: Mutex<HashMap<String, Arc<Server>>>,
     failed: Mutex<HashMap<String, String>>,
+    /// The times each server, by its toolchain's id, has ended and been started again.
+    restarts: Mutex<HashMap<String, crate::container::Restarts>>,
     published: Arc<Published>,
     checks: Arc<Checks>,
     /// The inspections' index of the tree, the tree it was read from, and where their findings go.
@@ -709,8 +715,27 @@ impl Servers {
                 *kept = Some(root.to_path_buf());
             }
         }
-        if let Some(server) = self.running.lock().map_err(|_| "held".to_string())?.get(&tool.id) {
-            return Ok(Some((server.clone(), spec)));
+        // A server that has ended is started again and given back the files it held, unless it has
+        // ended RESTARTS times of late; then it is left stopped, and why is said.
+        let mut reopen = Vec::new();
+        {
+            let mut running = self.running.lock().map_err(|_| "held".to_string())?;
+            if let Some(server) = running.get(&tool.id) {
+                if server.alive() {
+                    return Ok(Some((server.clone(), spec)));
+                }
+                if let Some(ended) = running.remove(&tool.id) {
+                    let mut restarts = self.restarts.lock().map_err(|_| "held".to_string())?;
+                    let again = restarts.entry(tool.id.clone()).or_insert_with(|| crate::container::Restarts::new(RESTARTS, RESTARTS_WITHIN)).died(std::time::Instant::now());
+                    if !again {
+                        let why = ended.complaint();
+                        let said = format!("{} ended {} times within {} s and is left stopped{}", spec.program, RESTARTS + 1, RESTARTS_WITHIN.as_secs(), if why.is_empty() { String::new() } else { format!(": {why}") });
+                        self.failed.lock().map_err(|_| "held".to_string())?.insert(tool.id.clone(), said.clone());
+                        return Err(said);
+                    }
+                    reopen = ended.held();
+                }
+            }
         }
         if let Some(said) = self.failed.lock().map_err(|_| "held".to_string())?.get(&tool.id) {
             return Err(said.clone());
@@ -733,6 +758,9 @@ impl Servers {
         match started {
             Ok(server) => {
                 let server = Arc::new(server);
+                for (path, text) in reopen {
+                    let _ = server.open(&path, &Self::id_of(&spec, &path, language), &text);
+                }
                 self.running.lock().map_err(|_| "held".to_string())?.insert(tool.id.clone(), server.clone());
                 Ok(Some((server, spec)))
             }
@@ -1191,6 +1219,9 @@ impl Servers {
     fn take_all(&self) -> Vec<Arc<Server>> {
         if let Ok(mut failed) = self.failed.lock() {
             failed.clear();
+        }
+        if let Ok(mut restarts) = self.restarts.lock() {
+            restarts.clear();
         }
         self.running.lock().map(|mut all| all.drain().map(|(_, server)| server).collect()).unwrap_or_default()
     }

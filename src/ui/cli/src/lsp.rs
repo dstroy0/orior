@@ -36,6 +36,8 @@ pub struct Server {
     versions: Mutex<HashMap<String, (i64, String)>>,
     /// What the server said it can do, as it answered `initialize`.
     pub capabilities: Value,
+    /// The last of what the server wrote to its errors.
+    complaint: Arc<Mutex<String>>,
 }
 
 /// How long the server has to answer that it started.
@@ -174,7 +176,7 @@ impl Server {
                 }
             }
         });
-        let mut server = Server { child: Mutex::new(child), input, next: AtomicU64::new(1), waiting, versions: Mutex::new(HashMap::new()), capabilities: Value::Null };
+        let mut server = Server { child: Mutex::new(child), input, next: AtomicU64::new(1), waiting, versions: Mutex::new(HashMap::new()), capabilities: Value::Null, complaint: complaint.clone() };
         let root_uri = uri_of(root);
         let name = root.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
         let kinds = ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports"];
@@ -314,6 +316,21 @@ impl Server {
     }
 
     /// Asks the server to end, and ends it where it does not.
+    /// Whether the server's process still runs.
+    pub fn alive(&self) -> bool {
+        self.child.lock().is_ok_and(|mut child| matches!(child.try_wait(), Ok(None)))
+    }
+
+    /// Each file the server has open, with the text it was last given.
+    pub fn held(&self) -> Vec<(PathBuf, String)> {
+        self.versions.lock().map(|versions| versions.iter().filter_map(|(uri, (_, text))| Some((path_of(uri)?, text.clone()))).collect()).unwrap_or_default()
+    }
+
+    /// The last line the server wrote to its errors, or nothing.
+    pub fn complaint(&self) -> String {
+        self.complaint.lock().map(|text| text.trim().lines().last().unwrap_or_default().to_string()).unwrap_or_default()
+    }
+
     pub fn stop(&self) {
         let _ = self.request("shutdown", Value::Null, Duration::from_secs(2));
         let _ = self.notify("exit", Value::Null);
@@ -346,6 +363,68 @@ mod tests {
         assert!(uri.contains("a%20b/c%23.cu"));
         let back = path_of(&uri).unwrap();
         assert_eq!(back.display().to_string().replace('\\', "/"), path.display().to_string().replace('\\', "/"));
+    }
+
+    /// A language server in Python that answers initialize, says on its errors each file it is given,
+    /// and ends as orior/end asks.
+    const STAND_IN: &str = r#"
+import json, sys
+def read():
+    length = 0
+    while True:
+        line = sys.stdin.buffer.readline()
+        if not line:
+            return None
+        line = line.strip()
+        if not line:
+            break
+        name, _, value = line.decode().partition(":")
+        if name.lower() == "content-length":
+            length = int(value)
+    return json.loads(sys.stdin.buffer.read(length))
+def send(message):
+    data = json.dumps(message).encode()
+    sys.stdout.buffer.write(b"Content-Length: %d\r\n\r\n" % len(data) + data)
+    sys.stdout.buffer.flush()
+while True:
+    message = read()
+    if message is None:
+        break
+    method = message.get("method")
+    if method == "initialize":
+        send({"jsonrpc": "2.0", "id": message["id"], "result": {"capabilities": {}}})
+    elif method == "textDocument/didOpen":
+        sys.stderr.write("given " + message["params"]["textDocument"]["uri"] + "\n")
+        sys.stderr.flush()
+    elif method == "orior/end":
+        sys.stderr.write("ending as asked\n")
+        sys.stderr.flush()
+        sys.exit(3)
+"#;
+
+    #[test]
+    fn a_server_that_ends_is_known_to_have_ended_with_what_it_held_and_why() {
+        let Some(python) = crate::test_runs::python() else { return };
+        let dir = std::env::temp_dir().join(format!("orior-lsp-stand-in-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("stand_in.py");
+        std::fs::write(&script, STAND_IN).unwrap();
+        let path_env = std::env::var_os("PATH").unwrap_or_default();
+        let server = Server::start(&python, &[script.display().to_string()], &dir, Value::Null, path_env, Box::new(|_, _| Value::Null)).unwrap();
+        assert!(server.alive());
+        let file = dir.join("a.txt");
+        server.open(&file, "plaintext", "one\n").unwrap();
+        server.notify("orior/end", Value::Null).unwrap();
+        let until = std::time::Instant::now() + Duration::from_secs(5);
+        while server.alive() && std::time::Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(!server.alive(), "the server's end is known");
+        let held: Vec<(String, String)> = server.held().into_iter().map(|(path, text)| (path.display().to_string().replace('\\', "/"), text)).collect();
+        assert_eq!(held, vec![(file.display().to_string().replace('\\', "/"), "one\n".to_string())]);
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(server.complaint(), "ending as asked");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

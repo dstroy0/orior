@@ -257,7 +257,7 @@ fn changed_at(root: &Path) -> Vec<Changed> {
 
 /// Runs git at `root` with nothing to answer a prompt with, and gives what it wrote, or what it said
 /// went wrong.
-fn run(root: &Path, args: &[&str]) -> Result<String, String> {
+pub(crate) fn run(root: &Path, args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("git");
     command.args(args).current_dir(root).env("GIT_TERMINAL_PROMPT", "0").stdin(Stdio::null());
     crate::runner::quiet(&mut command);
@@ -429,7 +429,11 @@ pub fn elsewhere(root: &Path) -> Vec<Commit> {
         return Vec::new();
     };
     let since = format!("--since=@{oldest}");
-    let ours: std::collections::HashSet<String> = git(root, &["log", "HEAD", "--no-merges", &since, format]).map(|out| read(&out).into_iter().map(|(_, made)| made).collect()).unwrap_or_default();
+    // Where the branch's own commits cannot be read, no commit is said to be elsewhere: each would be.
+    let Some(ours) = git(root, &["log", "HEAD", "--no-merges", &since, format]) else {
+        return Vec::new();
+    };
+    let ours: std::collections::HashSet<String> = read(&ours).into_iter().map(|(_, made)| made).collect();
     found.into_iter().filter(|(_, made)| !ours.contains(made)).map(|(commit, _)| commit).collect()
 }
 
@@ -516,8 +520,14 @@ pub fn resolve(root: &Path, path: &str) -> Result<(), String> {
     run(&dir, &["add", "--", &shown]).map(drop)
 }
 
+/// The address of the remote the branch follows, or of origin, as git would reach it.
+fn remote_address(root: &Path) -> String {
+    run(root, &["ls-remote", "--get-url"]).unwrap_or_default()
+}
+
 /// Pushes the branch to the remote it follows, or to origin under its own name where it follows none.
 pub fn push(root: &Path) -> Result<String, String> {
+    crate::net::reach(&remote_address(root), "git push")?;
     if run(root, &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]).is_ok() {
         run(root, &["push"])
     } else {
@@ -528,6 +538,7 @@ pub fn push(root: &Path) -> Result<String, String> {
 /// Brings in the commits of the remote branch the tree's follows, only where its own commits are all
 /// among them, so that nothing is merged or rewritten.
 pub fn pull(root: &Path) -> Result<String, String> {
+    crate::net::reach(&remote_address(root), "git pull")?;
     run(root, &["pull", "--ff-only"])
 }
 
@@ -593,9 +604,10 @@ pub struct Drawn {
 }
 
 /// The commits of every branch, the newest first and none before its children, laid out as a graph.
-/// With a `query`, the commits whose subject, author, id or branches hold each of its words, in any
-/// case, from the whole history, each on a line of its own.
-pub fn graph(root: &Path, query: &str) -> Vec<Drawn> {
+/// With a `query`, the commits whose subject, id or branches hold each of its words, in any case,
+/// and their author where `authors` asks for authors, from the whole history, each on a line of its
+/// own.
+pub fn graph(root: &Path, query: &str, authors: bool) -> Vec<Drawn> {
     let limit = format!("-n{GRAPH_LIMIT}");
     let mut args = vec!["log", "--all", "--date-order", "--format=%H%x1f%P%x1f%an%x1f%at%x1f%D%x1f%s"];
     let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
@@ -611,7 +623,8 @@ pub fn graph(root: &Path, query: &str) -> Vec<Drawn> {
         return drawn;
     }
     drawn.retain(|commit| {
-        let held = format!("{} {} {} {}", commit.subject, commit.author, commit.id, commit.refs.join(" ")).to_lowercase();
+        let author = if authors { commit.author.as_str() } else { "" };
+        let held = format!("{} {} {} {}", commit.subject, author, commit.id, commit.refs.join(" ")).to_lowercase();
         words.iter().all(|word| held.contains(word.as_str()))
     });
     drawn.truncate(GRAPH_LIMIT);
@@ -857,6 +870,27 @@ pub fn text_at(root: &Path, file: &str, id: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{file} is not in {id}"))
 }
 
+/// A file's text as the first parent of commit `id` left it, or nothing where the commit has no
+/// parent or the parent does not hold the file.
+pub fn text_before(root: &Path, file: &str, id: &str) -> Option<String> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let (dir, shown) = beside(root, file).ok()?;
+    git(&dir, &["show", &format!("{id}^1:{shown}")]).map(|out| String::from_utf8_lossy(&out).into_owned())
+}
+
+/// Who made commit `id`, and its subject.
+pub fn made_by(root: &Path, id: &str) -> Option<(String, String)> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let out = git(root, &["log", "-1", "--format=%an%x00%s", id])?;
+    let text = String::from_utf8_lossy(&out);
+    let (name, subject) = text.trim_end().split_once('\0')?;
+    Some((name.to_string(), subject.to_string()))
+}
+
 /// A file's text as the last commit left it, or nothing where the tree is not git's or the last
 /// commit does not hold the file.
 pub fn head_text(root: &Path, file: &str) -> Option<String> {
@@ -903,6 +937,7 @@ pub fn clone_folder(url: &str, parent: &Path) -> Result<PathBuf, String> {
 /// line git ends with a carriage return is one it writes over with the next. Answers the folder, or
 /// the first line git marked fatal.
 pub fn clone(url: &str, target: &Path, mut said: impl FnMut(&str, bool)) -> Result<PathBuf, String> {
+    crate::net::reach(url, "git clone")?;
     if target.read_dir().is_ok_and(|mut held| held.next().is_some()) {
         return Err(format!("{} is there already and holds files", target.display()));
     }
@@ -1095,12 +1130,14 @@ mod graphing {
         assert_eq!(seen, [("b.txt".into(), 'D', None), ("c.txt".into(), 'R', Some("a.txt".into())), ("d.txt".into(), 'A', None)]);
         assert_eq!(touched(&root, &first).unwrap().len(), 2);
         assert!(touched(&root, "not-hex").is_err());
-        let all = graph(&root, "");
+        let all = graph(&root, "", false);
         assert_eq!(all.iter().map(|one| one.subject.as_str()).collect::<Vec<_>>(), ["Second, renamed", "first"]);
         assert!(all[0].refs.iter().any(|one| one.contains("main")));
         assert_eq!(all[0].author, "Ada");
-        assert_eq!(graph(&root, "RENAMED ada").iter().map(|one| one.id.as_str()).collect::<Vec<_>>(), [second.as_str()]);
-        assert!(graph(&root, "nowhere").is_empty());
+        assert_eq!(graph(&root, "RENAMED ada", true).iter().map(|one| one.id.as_str()).collect::<Vec<_>>(), [second.as_str()]);
+        assert!(graph(&root, "RENAMED ada", false).is_empty(), "an author is matched only where authors show");
+        assert_eq!(graph(&root, "RENAMED", false).len(), 1);
+        assert!(graph(&root, "nowhere", false).is_empty());
         std::fs::remove_dir_all(&root).unwrap();
     }
 

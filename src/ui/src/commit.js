@@ -25,6 +25,8 @@ import { iconOf } from "./explorer.js";
 import { menuOn, copyText } from "./menu.js";
 import { say } from "./statusbar.js";
 import { lineChanges } from "./editor/diff.js";
+import { openAt } from "./edit.js";
+import { addedPrints, takeOutPrints } from "./prints.js";
 
 const MARKS = { M: "modified", A: "added", D: "deleted", R: "renamed", U: "new", C: "conflicted" };
 
@@ -267,6 +269,41 @@ function repoRows(repo, paths) {
   return [head, ...paths.flatMap((path) => rowOf(path, state.changes.get(path)))];
 }
 
+// The print statements the change added, read again as the window is drawn, and drawn again where
+// they are other than they were.
+let printsKey = "";
+
+async function readPrints() {
+  const found = await addedPrints();
+  const key = JSON.stringify(found);
+  if (key !== printsKey) {
+    printsKey = key;
+    state.prints = found;
+    drawCommit();
+  }
+}
+
+// The prints the change added, each opening at its line, and Take Them Out, or nothing where it added
+// none.
+function printsNote() {
+  const prints = state.prints ?? [];
+  if (!prints.length) {
+    return null;
+  }
+  const take = element("button", { className: "commit-button", type: "button", textContent: "Take Them Out" });
+  take.addEventListener("click", async () => {
+    await takeOutPrints(prints);
+    printsKey = "";
+    readPrints();
+  });
+  const rows = prints.map((print) => {
+    const row = element("button", { className: "commit-print", type: "button", textContent: `${print.path}:${print.line + 1}  ${print.text.trim()}`, title: `Open ${print.path} at line ${print.line + 1}` });
+    row.addEventListener("click", () => openAt(print.path, print.line));
+    return row;
+  });
+  return element("div", { className: "commit-prints" }, element("p", { className: "commit-prints-head", textContent: `${prints.length} print${prints.length === 1 ? "" : "s"} added since the last commit` }), ...rows, take);
+}
+
 export function drawCommit(changes = state.changes) {
   state.changes = changes;
   const body = document.getElementById("changes");
@@ -335,9 +372,11 @@ export function drawCommit(changes = state.changes) {
   pushButton.addEventListener("click", () => commit(true));
   arm();
   const buttons = element("div", { className: "commit-buttons" }, commitButton, pushButton);
+  const prints = printsNote();
   const said = state.said ? element("pre", { className: "commit-said", textContent: state.said }) : null;
   const focused = document.activeElement?.classList.contains("commit-message");
-  body.replaceChildren(bar, head, list, message, ...(outputsRow ? [outputsRow] : []), buttons, ...(said ? [said] : []));
+  body.replaceChildren(bar, head, list, ...(prints ? [prints] : []), message, ...(outputsRow ? [outputsRow] : []), buttons, ...(said ? [said] : []));
+  readPrints();
   if (focused) {
     message.focus();
     message.setSelectionRange(message.value.length, message.value.length);

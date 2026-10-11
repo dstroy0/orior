@@ -33,6 +33,12 @@ pub fn menus() -> Option<PathBuf> {
     folder().map(|folder| folder.join("menus.json"))
 }
 
+/// The folder of the reader's language files, `<tag>.json` each, which give the window's texts in
+/// the reader's language (the window's language.js).
+pub fn languages() -> Option<PathBuf> {
+    folder().map(|folder| folder.join("languages"))
+}
+
 /// What menus.json holds when orior makes it: a note on what each part is for, and nothing laid out.
 const MENUS: &str = "{\n  \"about\": \"Each item is a command's name, as orior <menu> <command> names it, or { \\\"command\\\": name, \\\"label\\\": text, \\\"icon\\\": name }, or \\\"-\\\" for a line; { \\\"label\\\": text, \\\"items\\\": [...] } holds more. A menu named as one of orior's stands in its place, the others stand before Help, and hide takes orior's away by name.\",\n  \"menus\": [],\n  \"hide\": [],\n  \"toolbar\": []\n}\n";
 
@@ -79,7 +85,8 @@ pub fn reveal(path: &std::path::Path) -> Result<(), String> {
         command.arg(path);
         command
     };
-    command.spawn().map(|_| ()).map_err(|error| format!("{}: {error}", path.display()))
+    // The file manager or the program it opens in is the reader's, and stays as orior ends.
+    crate::container::start_outside(&mut command).map(|_| ()).map_err(|error| format!("{}: {error}", path.display()))
 }
 
 #[cfg(test)]

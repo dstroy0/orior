@@ -20,7 +20,7 @@ mod terminal;
 use orior_cli::cli::{self, Launch, Outcome};
 use orior_cli::link::{Address, Link};
 use orior_cli::serve::Server;
-use orior_cli::{commands, files, format, git, home, kept, plugins, report, root, servers, toolchains};
+use orior_cli::{carry, commands, files, format, git, home, kept, plugins, report, root, servers, settings, toolchains};
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -121,12 +121,25 @@ fn term_open(handle: AppHandle, app: State<App>, cols: u16, rows: u16, at: Optio
         let mut command = portable_pty::CommandBuilder::new(found.map_or(program, |path| path.display().to_string()));
         command.args(words);
         command.env("TERM", "xterm-256color");
-        return app.terms.open(handle, command, cols, rows);
+        return app.terms.open(handle, command, cols, rows, None);
     }
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
     let kept = at.map(|at| terminal::folder_of(&at)).filter(|folder| folder.is_dir());
     let at = kept.or_else(|| root_of(&app).ok()).or(home).or_else(|| std::env::current_dir().ok()).ok_or("no folder to open a terminal in")?;
-    app.terms.open(handle, terminal::shell(&at)?, cols, rows)
+    let mut command = terminal::shell(&at)?;
+    let part = keyed(&app, &mut command);
+    app.terms.open(handle, command, cols, rows, part)
+}
+
+/// A terminal's part of the comms layer: its shell, and every program run in it, joins the door with
+/// the key the shell is started with, and tells the window of the runs it starts.
+fn keyed(app: &App, command: &mut portable_pty::CommandBuilder) -> Option<terminal::Part> {
+    let address = app.server.open_door().ok()?;
+    let comms = app.server.comms().clone();
+    let key = comms.register("terminal", None, &["runs/*"], &["runs/*"]).ok()?;
+    command.env(orior_cli::comms::door::ADDRESS_VARIABLE, address);
+    command.env(orior_cli::comms::door::KEY_VARIABLE, key.text());
+    Some((comms, key))
 }
 
 #[tauri::command]
@@ -276,6 +289,159 @@ fn kept_write(changes: std::collections::BTreeMap<String, Option<String>>) -> Re
     let folder = home::folder().ok_or("orior has no folder of its own to keep its entries in")?;
     let changes = changes.into_iter().filter_map(|(key, text)| Some((key.strip_prefix("orior.")?.to_string(), text))).collect();
     kept::keep(&folder, &changes)
+}
+
+/// The settings in force for the tree at `root`, from the reader's settings and the tree's, `tree`,
+/// as the tree's side read them (settings.rs).
+#[tauri::command(async)]
+fn settings_layers(tree: settings::Chain, root: String) -> settings::Layers {
+    settings::layers(&settings::reader(), &tree, &root)
+}
+
+fn own_folder() -> Result<PathBuf, String> {
+    home::folder().ok_or_else(|| "orior has no folder of its own".to_string())
+}
+
+/// Writes the reader's settings that travel to `to`, a file or a folder of the reader's (carry.rs).
+#[tauri::command(async)]
+fn carry_send(to: String) -> Result<String, String> {
+    carry::send(&own_folder()?, Path::new(&to))
+}
+
+/// What the file or the folder `from` carries, and how it differs from the reader's own here.
+#[tauri::command(async)]
+fn carry_read(from: String) -> Result<serde_json::Value, String> {
+    let there = carry::read(Path::new(&from))?;
+    let differences = carry::differences(&own_folder()?, &there);
+    Ok(serde_json::json!({ "there": there, "differences": differences }))
+}
+
+/// Takes in the files of `places` that `there`, read from `from`, carries, and of settings.json the
+/// settings of `keys` alone.
+#[tauri::command(async)]
+fn carry_take(from: String, there: std::collections::BTreeMap<String, String>, places: Vec<String>, keys: Vec<String>) -> Result<carry::Taking, String> {
+    carry::take(&own_folder()?, &from, &there, &places, &keys)
+}
+
+/// Every taking kept, the last first.
+#[tauri::command(async)]
+fn carry_takings() -> Vec<carry::Taking> {
+    own_folder().map(|folder| carry::takings(&folder)).unwrap_or_default()
+}
+
+#[tauri::command(async)]
+fn carry_undo(id: String) -> Result<carry::Taking, String> {
+    carry::undo(&own_folder()?, &id)
+}
+
+/// The settings and the themes orior's folder keeps now, by key without `orior.`, and each of the
+/// page's keys `keys` that is a setting the folder no longer keeps.
+#[tauri::command(async)]
+fn kept_now(keys: Vec<String>) -> serde_json::Value {
+    let entries = own_folder().ok().and_then(|folder| kept::read(&folder)).unwrap_or_default();
+    let set: std::collections::BTreeMap<&String, &String> = entries.iter().filter(|(key, _)| kept::is_carried(key)).collect();
+    let gone: Vec<&str> = keys.iter().filter_map(|key| key.strip_prefix("orior.")).filter(|key| kept::is_carried(key) && *key != "themes" && !entries.contains_key(*key)).collect();
+    serde_json::json!({ "set": set, "gone": gone })
+}
+
+/// The settings of the plugin `id`, as it last wrote them, or an empty object.
+#[tauri::command(async)]
+fn plugin_settings_read(id: String) -> Result<serde_json::Value, String> {
+    let path = own_folder()?.join("plugin_settings").join(format!("{}.json", plugins::slug(&id)));
+    Ok(std::fs::read_to_string(&path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_else(|| serde_json::json!({})))
+}
+
+/// Keeps `values` as the settings of the plugin `id`, in place of those it kept before.
+#[tauri::command(async)]
+fn plugin_settings_write(id: String, values: serde_json::Value) -> Result<(), String> {
+    if !values.is_object() {
+        return Err("a plugin's settings are an object".into());
+    }
+    let folder = own_folder()?.join("plugin_settings");
+    std::fs::create_dir_all(&folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    let path = folder.join(format!("{}.json", plugins::slug(&id)));
+    std::fs::write(&path, serde_json::to_string_pretty(&values).unwrap_or_default() + "\n").map_err(|error| format!("{}: {error}", path.display()))
+}
+
+/// Holds orior off the network, or lets it on, as the reader's setting `network` says (net.rs).
+#[tauri::command]
+fn network_hold(off: bool) {
+    orior_cli::net::hold(off);
+}
+
+/// The addresses orior has reached, the last first, with when and what for.
+#[tauri::command(async)]
+fn network_reached() -> Vec<orior_cli::net::Reached> {
+    orior_cli::net::reached(1000)
+}
+
+/// The text of the reader's language file for the language `tag`, or nothing where there is none.
+#[tauri::command(async)]
+fn language_read(tag: String) -> String {
+    if tag.is_empty() || !tag.chars().all(|letter| letter.is_ascii_alphanumeric() || letter == '-') {
+        return String::new();
+    }
+    home::languages().and_then(|folder| std::fs::read_to_string(folder.join(format!("{tag}.json"))).ok()).unwrap_or_default()
+}
+
+/// The languages the reader has files for, by tag, in order.
+#[tauri::command(async)]
+fn languages_list() -> Vec<String> {
+    let mut found: Vec<String> = home::languages()
+        .and_then(|folder| std::fs::read_dir(folder).ok())
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| entry.file_name().to_string_lossy().strip_suffix(".json").map(String::from))
+        .collect();
+    found.sort();
+    found
+}
+
+/// The plugins the catalog at `address` lists.
+#[tauri::command(async)]
+fn plugins_catalog_read(address: String) -> Result<Vec<orior_cli::plugin_catalog::Entry>, String> {
+    orior_cli::plugin_catalog::read(&address)
+}
+
+/// Installs the plugin `entry` of the catalog at `address`, in place of the one of its id there.
+#[tauri::command(async)]
+fn plugins_catalog_install(address: String, entry: orior_cli::plugin_catalog::Entry) -> Result<String, String> {
+    orior_cli::plugin_catalog::install(&address, &entry).map(|folder| folder.display().to_string())
+}
+
+/// A request the plugin `id` sends to a host it asked to reach, as the window lets it: its answer's
+/// status, headers and body, the body in base64 where it is not text.
+#[tauri::command(async)]
+fn plugin_request(id: String, method: String, url: String, headers: Vec<(String, String)>, body: String) -> Result<serde_json::Value, String> {
+    orior_cli::net::reach(&url, &format!("the plugin {id}"))?;
+    let answer = orior_cli::requests::send(&orior_cli::requests::Sent { method, url, headers, body, redirect: false }, true);
+    if let Some(failed) = answer.failed {
+        return Err(failed);
+    }
+    Ok(serde_json::json!({ "status": answer.status, "headers": answer.headers, "body": answer.body, "binary": answer.binary }))
+}
+
+/// The picture at `path` as the data address a theme keeps for the image behind the editor: PNG,
+/// JPEG, GIF, WebP, SVG or BMP, of IMAGE_MOST bytes at most.
+#[tauri::command(async)]
+fn image_data(path: String) -> Result<String, String> {
+    const IMAGE_MOST: u64 = 8 << 20;
+    let path = PathBuf::from(path);
+    let kind = match path.extension().and_then(|end| end.to_str()).map(str::to_ascii_lowercase).as_deref() {
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("bmp") => "image/bmp",
+        _ => return Err(format!("{} is not a picture of a kind a theme takes: PNG, JPEG, GIF, WebP, SVG or BMP", path.display())),
+    };
+    let said = |error: std::io::Error| format!("{}: {error}", path.display());
+    if std::fs::metadata(&path).map_err(said)?.len() > IMAGE_MOST {
+        return Err(format!("{} is over {} MB, the most an image behind the editor is", path.display(), IMAGE_MOST >> 20));
+    }
+    Ok(format!("data:{kind};base64,{}", orior_cli::serve::base64(&std::fs::read(&path).map_err(said)?)))
 }
 
 /// The script that puts what orior's folder keeps into the page's storage before the page's own
@@ -451,8 +617,8 @@ fn window_open(app: State<App>, root: Option<String>, remote: Option<String>, wo
         }
     }
     command.args(&words).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
-    orior_cli::runner::quiet(&mut command);
-    command.spawn().map(|_| ()).map_err(|error| error.to_string())
+    // Another window is the reader's to keep, and stays as this one closes.
+    orior_cli::container::start_outside(&mut command).map(|_| ()).map_err(|error| error.to_string())
 }
 
 /// Reads a grammar of the page's and keeps it under `key` for the lines colored with it, or says what
@@ -466,6 +632,60 @@ fn highlight_grammar(key: String, def: serde_json::Value) -> Result<(), String> 
 #[tauri::command(async)]
 fn highlight_lines(key: String, state: String, lines: Vec<String>) -> Result<orior_cli::highlight::Colored, String> {
     orior_cli::highlight::color(&key, &state, &lines)
+}
+
+/// Holds the file at `path`, read from the tree as the page read it, whole or, for a file the page
+/// reads a window at a time, by its slices, under `key` for the page's slow work on it to run here, and
+/// answers its shape for the page to compare with its own; null where the file is not text.
+#[tauri::command(async)]
+fn document_read(app: State<App>, key: String, path: String) -> Result<Option<orior_cli::document::Shape>, String> {
+    let opened = call(app.clone(), "file_read".into(), serde_json::json!({ "path": path }))?;
+    if let Some(text) = opened.get("text").and_then(|text| text.as_str()) {
+        return Ok(Some(orior_cli::document::hold(&key, text)));
+    }
+    if opened.get("windowed").and_then(|windowed| windowed.as_bool()) != Some(true) {
+        return Ok(None);
+    }
+    let size = opened.get("size").and_then(|size| size.as_u64()).unwrap_or(0);
+    let slice = call(app, "file_slice".into(), serde_json::json!({ "path": path, "start": 0, "end": size }))?;
+    Ok(slice.get("text").and_then(|text| text.as_str()).map(|text| orior_cli::document::hold(&key, text)))
+}
+
+/// Holds a text the page gives a part at a time under `key`, answering its shape once the last comes.
+#[tauri::command(async)]
+fn document_part(key: String, part: String, first: bool, done: bool) -> Option<orior_cli::document::Shape> {
+    orior_cli::document::hold_part(&key, &part, first, done)
+}
+
+/// Writes the changes the page made to the text held under `key`, in order, answering its shape.
+#[tauri::command(async)]
+fn document_edit(key: String, changes: Vec<Vec<orior_cli::document::Edit>>) -> Result<orior_cli::document::Shape, String> {
+    orior_cli::document::edit(&key, &changes)
+}
+
+/// Lets go of the text held under `key`.
+#[tauri::command(async)]
+fn document_release(key: String) {
+    orior_cli::document::release(&key);
+}
+
+/// The gutter's marks for the text held under `key` against the file at `path` as the last commit
+/// holds it, read from the tree where it is not kept beside the text yet or `fresh` asks; null where
+/// no text is held under `key`.
+#[tauri::command(async)]
+fn document_changes(app: State<App>, key: String, path: String, fresh: bool) -> Result<Option<orior_cli::document::Marks>, String> {
+    if fresh || !orior_cli::document::has_head(&key) {
+        let head = call(app, "file_head".into(), serde_json::json!({ "path": path }))?;
+        return Ok(orior_cli::document::marks(&key, Some(head.as_str())));
+    }
+    Ok(orior_cli::document::marks(&key, None))
+}
+
+/// Find's matches in the text held under `key`, each [line, from col, to col], at most `most`; an
+/// error where the search is the page's own.
+#[tauri::command(async)]
+fn document_find(key: String, sought: orior_cli::document::Sought, most: usize) -> Result<Vec<[usize; 3]>, String> {
+    orior_cli::document::find(&key, &sought, most)
 }
 
 /// Two texts compared by structure, the older first, or null where they are too far apart.
@@ -566,9 +786,13 @@ fn file_read_any(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|error| format!("{path}: {error}"))
 }
 
-/// Writes `text` to the file at `path`, anywhere on the machine, as the reader chose it.
+/// Writes `text` to the file at `path`, anywhere on the machine, as the reader chose it, making the
+/// folders it stands in where they are not there.
 #[tauri::command(async)]
 fn file_write_any(path: String, text: String) -> Result<(), String> {
+    if let Some(folder) = Path::new(&path).parent().filter(|folder| !folder.as_os_str().is_empty()) {
+        std::fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    }
     std::fs::write(&path, text).map_err(|error| format!("{path}: {error}"))
 }
 
@@ -635,6 +859,18 @@ fn plugins_read() -> Vec<plugins::Plugin> {
     plugins::all()
 }
 
+/// The code the script plugin `id` runs.
+#[tauri::command]
+fn plugin_code(id: String) -> Result<String, String> {
+    plugins::code_of(&id)
+}
+
+/// orior's own folder, where it keeps what it keeps and the reader's plugins are.
+#[tauri::command]
+fn home_folder() -> Result<String, String> {
+    home::folder().map(|folder| folder.display().to_string()).ok_or_else(|| "orior has no folder of its own".to_string())
+}
+
 /// The plugin the generator's answers ask for, as its file would hold it.
 #[tauri::command]
 fn plugin_draft(spec: plugins::Spec) -> Result<String, String> {
@@ -660,14 +896,22 @@ fn reader_menus_read() -> String {
 }
 
 /// Opens one of orior's own places as the system opens it: "user-css", made first where it is not
-/// there, "menus", the reader's menus and toolbar, made first likewise, "plugins", the reader's
-/// plugins folder, made first likewise, or the folder of one of the reader's plugins.
+/// there, "menus", the reader's menus and toolbar, made first likewise, "settings", the reader's
+/// settings.json, made first likewise, "plugins", the reader's plugins folder, made first likewise,
+/// or the folder of one of the reader's plugins.
 #[tauri::command]
 fn home_reveal(what: String) -> Result<(), String> {
     let plugins_dir = home::plugins().ok_or("orior has no folder of its own")?;
     let path = match what.as_str() {
         "user-css" => home::ensure_user_css()?,
         "menus" => home::ensure_menus()?,
+        "settings" => {
+            let path = home::folder().ok_or("orior has no folder of its own")?.join("settings.json");
+            if !path.is_file() {
+                std::fs::create_dir_all(path.parent().unwrap_or(&path)).and_then(|_| std::fs::write(&path, "{}\n")).map_err(|error| format!("{}: {error}", path.display()))?;
+            }
+            path
+        }
         "plugins" => {
             std::fs::create_dir_all(&plugins_dir).map_err(|error| format!("{}: {error}", plugins_dir.display()))?;
             plugins_dir
@@ -848,6 +1092,12 @@ pub fn run() {
 /// Opens the window on the tree the launch names, else the one `root::find` finds, to run the
 /// launch's command once the page is up.
 fn open(launch: Launch) {
+    // Inside a Flatpak's sandbox the machine's own programs run on the machine (host.rs).
+    if let Some(Err(said)) = orior_cli::host::prepare() {
+        eprintln!("orior: {said}");
+    }
+    // Every process the window starts stands under it, and ends with it.
+    orior_cli::container::hold();
     let remote = launch.remote.as_deref().map(Address::parse).transpose().unwrap_or_else(|said| {
         eprintln!("orior: {said}");
         None
@@ -878,6 +1128,9 @@ fn open(launch: Launch) {
             server.tell_to(Arc::new(move |event, body| {
                 let _ = handle.emit(event, body);
             }));
+            // The door of the comms layer is open from the start, for every process the container
+            // starts to join.
+            let _ = server.open_door();
             server.watch();
             if let Some(address) = remote {
                 let handle = app.handle().clone();
@@ -890,10 +1143,18 @@ fn open(launch: Launch) {
         })
         .invoke_handler(tauri::generate_handler![
             call,
+            document_read,
+            document_part,
+            document_edit,
+            document_release,
+            document_changes,
+            document_find,
             remote_get,
             remote_rejoin,
             devcontainer_line,
             plugins_read,
+            plugin_code,
+            home_folder,
             plugin_draft,
             plugin_create,
             user_css_read,
@@ -935,6 +1196,23 @@ fn open(launch: Launch) {
             printers_list,
             print_page,
             kept_write,
+            settings_layers,
+            image_data,
+            network_hold,
+            network_reached,
+            plugins_catalog_read,
+            language_read,
+            languages_list,
+            plugins_catalog_install,
+            plugin_request,
+            carry_send,
+            carry_read,
+            carry_take,
+            carry_takings,
+            carry_undo,
+            kept_now,
+            plugin_settings_read,
+            plugin_settings_write,
             files_copy,
             clip_files,
             files_paste,
@@ -969,6 +1247,7 @@ fn open(launch: Launch) {
                 if let Some(link) = handle.state::<App>().link.get() {
                     link.end();
                 }
+                orior_cli::container::end_all();
             }
         });
 }

@@ -6,6 +6,18 @@
 import { cmp, pos } from "./document.js";
 
 const MOST = 20000;
+// A text of FIND_FROM lines or more is searched on the Rust side where it holds the text: from about
+// there, the page's own scan of the tests' long file costs it a frame. The matches are drawn once the
+// answer comes, and a search the Rust side does not run as the page does stays the page's.
+const FIND_FROM = 100000;
+let elsewhere = null;
+
+// Gives find the way to search a text held on the Rust side: `given(doc, sought, most)` answers a
+// promise of the matches as [line, from col, to col], or of null where the search is the page's, or
+// null where the text is not held.
+export function findWith(given) {
+  elsewhere = given;
+}
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -166,29 +178,53 @@ export class Find {
 
   refresh() {
     const ed = this.ed;
-    this.matches = [];
+    this.asking = null;
     if (!this.shown || !ed.s) {
+      this.matches = [];
       return;
     }
     const pattern = this.pattern();
     this.bar.dataset.bad = String(Boolean(this.query.value) && !pattern);
-    if (pattern) {
-      const doc = ed.doc;
-      for (let line = 0; line < doc.count && this.matches.length < MOST; line += 1) {
-        const text = doc.line(line);
-        pattern.lastIndex = 0;
-        for (let found = pattern.exec(text); found; found = pattern.exec(text)) {
-          if (!found[0].length) {
-            pattern.lastIndex += 1;
-            continue;
-          }
-          this.matches.push({ from: pos(line, found.index), to: pos(line, found.index + found[0].length) });
+    const doc = ed.doc;
+    const sought = { query: this.query.value, regex: this.options.regex, case: this.options.case, word: this.options.word, unicode: Boolean(pattern?.unicode) };
+    const asked = pattern && doc.count >= FIND_FROM ? elsewhere?.(doc, sought, MOST) : null;
+    if (asked) {
+      // The matches already drawn stay until the answer comes.
+      this.asking = asked;
+      asked.then((found) => {
+        if (this.asking !== asked) {
+          return;
         }
+        this.asking = null;
+        this.found(found ? found.map(([line, from, to]) => ({ from: pos(line, from), to: pos(line, to) })) : this.scan(doc, pattern));
+      });
+      return;
+    }
+    this.found(pattern ? this.scan(doc, pattern) : []);
+  }
+
+  // The page's own search: each line of `doc` in turn, at most MOST matches.
+  scan(doc, pattern) {
+    const matches = [];
+    for (let line = 0; line < doc.count && matches.length < MOST; line += 1) {
+      const text = doc.line(line);
+      pattern.lastIndex = 0;
+      for (let found = pattern.exec(text); found; found = pattern.exec(text)) {
+        if (!found[0].length) {
+          pattern.lastIndex += 1;
+          continue;
+        }
+        matches.push({ from: pos(line, found.index), to: pos(line, found.index + found[0].length) });
       }
     }
+    return matches;
+  }
+
+  found(matches) {
+    this.matches = matches;
     this.index = this.nearest(true);
     this.drawCount();
-    ed.schedule();
+    this.ed.schedule();
   }
 
   // The match at or after the primary selection's start, or with `fromStart` off after its end.

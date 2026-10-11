@@ -17,11 +17,13 @@
 // A pane's head is a row of the explorer's list one level above its rows, and the list's keys open
 // and close it as they do a folder.
 
+import { authorsShown, onAuthors } from "./authors.js";
 import { invoke } from "./bridge.js";
 import { escapeHtml } from "./editor/view.js";
 import { copyText, menuOn, showMenu } from "./menu.js";
 import { comments, onReview, removeComment, resolveComment } from "./review.js";
 import { structureOf } from "./outline.js";
+import { themeIcon } from "./themes.js";
 
 const KEPT = "orior.panes";
 
@@ -41,6 +43,7 @@ const PANES = [
   ["problems", "Problems"],
   ["tests", "Tests"],
   ["git", "Git"],
+  ["runs", "Runs"],
 ];
 
 // The panes each icon of the tool strip shows, one group at a time.
@@ -51,6 +54,7 @@ const GROUPS = {
   problems: ["problems"],
   tests: ["tests"],
   git: ["git"],
+  runs: ["runs"],
 };
 
 const GROUP_KEPT = "orior.panes.group";
@@ -77,7 +81,8 @@ function element(tag, props = {}, ...children) {
   return made;
 }
 
-// A file's icon: a mark for its type in a color of the palette, or a page where the type has no mark.
+// A file's icon: the one the theme gives its name, else a mark for its type in a color of the
+// palette, or a page where the type has no mark.
 const ICONS = {
   js: ["JS", 3], mjs: ["JS", 3], json: ["{}", 3], cfg: ["{}", 3], rs: ["rs", 1], py: ["py", 4],
   sh: ["$", 2], bash: ["$", 2], ps1: ["PS", 4], psm1: ["PS", 4], bat: ["$", 7], cmd: ["$", 7],
@@ -92,10 +97,13 @@ const NAMED = { ".gitignore": ["◆", 1], ".gitattributes": ["◆", 1], ".gitmod
 
 export function iconOf(name, known = false) {
   const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
-  const [mark, color] = known ? ["K", 2] : (NAMED[name] ?? ICONS[ext] ?? [null, 0]);
+  const themed = known ? null : themeIcon(name);
+  const [mark, color] = themed ? [themed.mark, null] : known ? ["K", 2] : (NAMED[name] ?? ICONS[ext] ?? [null, 0]);
   const icon = element("span", { className: mark ? "icon" : "icon page", textContent: mark ?? "" });
   icon.setAttribute("aria-hidden", "true");
-  if (mark) {
+  if (themed?.color) {
+    icon.style.color = themed.color;
+  } else if (mark && color !== null) {
     icon.style.color = `var(--t${color})`;
   }
   return icon;
@@ -136,7 +144,7 @@ export function shownGroup() {
   return state.group;
 }
 
-const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git" };
+const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", runs: "Runs" };
 
 // The explorer's title, and its group on it, which shows the tree's filter only with the files.
 function drawGroupTitle() {
@@ -604,10 +612,11 @@ function problemRows({ path, items }) {
 }
 
 // Git: the branch the tree is on, and every branch's commits as a graph, the newest first, each with
-// the branches and tags at it, its subject, its author and its date. A press on a commit opens the
-// files it changed under it, and a press on one of those sets the file as the commit left it beside
-// the file as the commit before it did. The field over the graph searches the whole history, by
-// subject, author, id or branch, and shows what it finds without the graph. Where the tree holds more
+// the branches and tags at it, its subject and its date, and its author where Git, Authors is on. A
+// press on a commit opens the files it changed under it, and a press on one of those sets the file as
+// the commit left it beside the file as the commit before it did. The field over the graph searches
+// the whole history, by subject, id or branch, and by author where authors show, and shows what it
+// finds without the graph. Where the tree holds more
 // than one repository, a choice over the field says whose commits the graph shows, the repository
 // open's until another is chosen.
 
@@ -645,8 +654,10 @@ function commitRow(commit) {
       return `<span class="git-ref${head || ref === "HEAD" ? " git-head" : ""}${name.startsWith("tag: ") ? " git-tag" : ""}">${escapeHtml(name.replace(/^tag: /, ""))}</span>`;
     })
     .join("");
-  const title = `${commit.id.slice(0, 8)}  ${commit.author}  ${day(commit.when)} ${time(commit.when)}${commit.refs.length ? `\n${commit.refs.join(", ")}` : ""}\n${commit.subject}`;
-  return `<button class="commit git-commit" type="button" data-key="${commit.id}" data-depth="0" aria-expanded="${open}" title="${escapeHtml(title)}">${lanesOf(commit)}${refs}<span class="name">${escapeHtml(commit.subject)}</span><span class="git-author">${escapeHtml(commit.author)}</span><span class="where">${day(commit.when)}</span></button>`;
+  const authors = authorsShown();
+  const title = `${commit.id.slice(0, 8)}  ${authors ? `${commit.author}  ` : ""}${day(commit.when)} ${time(commit.when)}${commit.refs.length ? `\n${commit.refs.join(", ")}` : ""}\n${commit.subject}`;
+  const author = authors ? `<span class="git-author">${escapeHtml(commit.author)}</span>` : "";
+  return `<button class="commit git-commit" type="button" data-key="${commit.id}" data-depth="0" aria-expanded="${open}" title="${escapeHtml(title)}">${lanesOf(commit)}${refs}<span class="name">${escapeHtml(commit.subject)}</span>${author}<span class="where">${day(commit.when)}</span></button>`;
 }
 
 // The rows of the files a commit changed, under its row.
@@ -728,12 +739,13 @@ export async function drawGit(branch) {
   const repo = gitRepo();
   drawRepoChoice(repo);
   const label = (state.hooks?.repos() ?? []).find((one) => one.path === repo)?.branch ?? branch;
-  const commits = await invoke("git_graph", { query: query || null, repo }).catch(() => []);
-  if (query !== state.git.query || repo !== gitRepo()) {
+  const authors = authorsShown();
+  const commits = await invoke("git_graph", { query: query || null, repo, authors }).catch(() => []);
+  if (query !== state.git.query || repo !== gitRepo() || authors !== authorsShown()) {
     return;
   }
   // A graph that is drawn as it stands is left as it is, the focus and the scroll with it.
-  const drawn = `${repo}\n${label}\n${query}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
+  const drawn = `${repo}\n${label}\n${query}\n${authors}\n${commits.map((one) => `${one.id}${one.refs.join()}`).join()}`;
   if (drawn === state.git.drawn && body.childElementCount) {
     return;
   }
@@ -833,6 +845,10 @@ export function guides(depth) {
 
 export function startExplorer(hooks) {
   state.hooks = hooks;
+  onAuthors(() => {
+    state.git.drawn = "";
+    drawGit(state.git.branch);
+  });
   let kept = {};
   try {
     kept = JSON.parse(localStorage.getItem(KEPT) ?? "{}") ?? {};

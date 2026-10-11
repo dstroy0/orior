@@ -170,6 +170,7 @@ impl Mysql {
     /// Connects to `database` at host:port as `user`, signing in with `password` as the account
     /// asks, within `wait`.
     pub fn connect(host: &str, port: u16, user: &str, password: &str, database: &str, wait: Duration) -> Result<Mysql, Failure> {
+        crate::net::reach(&format!("{host}:{port}"), "a MySQL connection")?;
         let address = std::net::ToSocketAddrs::to_socket_addrs(&(host, port)).map_err(|error| format!("{host}:{port}: {error}"))?.next().ok_or_else(|| format!("{host} has no address"))?;
         let stream = TcpStream::connect_timeout(&address, wait).map_err(|error| format!("{host}:{port}: {error}"))?;
         stream.set_nodelay(true).ok();

@@ -219,6 +219,8 @@ fn button_bit(button: &str) -> u32 {
         "left" => 1,
         "right" => 2,
         "middle" => 4,
+        "back" => 8,
+        "forward" => 16,
         _ => 0,
     }
 }
@@ -239,6 +241,41 @@ fn modifier_bits(keys: &str) -> Result<u32, String> {
 
 fn number(step: &Value, name: &str) -> Result<f64, String> {
     step[name].as_f64().ok_or_else(|| format!("the step has no {name}"))
+}
+
+/// The programs a step left running, each stopped once the window's tests have run.
+static STARTED: std::sync::Mutex<Vec<std::process::Child>> = std::sync::Mutex::new(Vec::new());
+
+/// Runs the program a step names with its words, its environment and what its standard input reads.
+fn run(step: &Value) -> Result<(), String> {
+    use std::io::Write as _;
+    let program = step["program"].as_str().ok_or("the step names no program")?;
+    let words: Vec<&str> = step["args"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+    let mut command = std::process::Command::new(program);
+    command.args(&words).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    for (key, value) in step["env"].as_object().into_iter().flatten() {
+        command.env(key, value.as_str().unwrap_or(""));
+    }
+    let mut child = command.spawn().map_err(|error| format!("{program}: {error}"))?;
+    if let Some(mut input) = child.stdin.take() {
+        input.write_all(step["input"].as_str().unwrap_or("").as_bytes()).map_err(|error| format!("{program}: {error}"))?;
+    }
+    if step["wait"].as_bool() == Some(false) {
+        STARTED.lock().map_err(|error| error.to_string())?.push(child);
+        return Ok(());
+    }
+    let ended = child.wait().map_err(|error| format!("{program}: {error}"))?;
+    if ended.success() { Ok(()) } else { Err(format!("{program} {} ended {ended}", words.join(" "))) }
+}
+
+/// Stops each program a step left running.
+pub fn stop_started() {
+    if let Ok(mut started) = STARTED.lock() {
+        for mut child in started.drain(..) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
 }
 
 /// Performs one step runner.js asked for.
@@ -276,7 +313,24 @@ pub fn perform(conn: &Connection, step: &Value) -> Result<(), String> {
         }
         // The page told it has the system's focus, as the harness tells it, or told what is so.
         "focus" => conn.call("Emulation.setFocusEmulationEnabled", json!({"enabled": step["on"].as_bool().unwrap_or(true)}), WAIT).map(|_| ()),
+        // A media feature the system sets told to the page, as prefers-reduced-motion, or with no
+        // value, what the system truly sets.
+        "media" => {
+            let feature = json!({"name": step["name"].as_str().unwrap_or(""), "value": step["value"].as_str().unwrap_or("")});
+            conn.call("Emulation.setEmulatedMedia", json!({"features": [feature]}), WAIT).map(|_| ())
+        }
+        // A program started apart from the window, as a script in a terminal of the system's starts
+        // one: waited for, and failed where it fails, or left running where `wait` is false.
+        "run" => run(step),
+        "browser_trace" if step["end"] == true => {
+            let word = |key: &str| step[key].as_str().ok_or_else(|| format!("the step names no {key}"));
+            crate::frames::end(conn, word("writer")?, word("qry")?, word("name")?)
+        }
+        "browser_trace" => crate::frames::start(conn),
         "key" => press(conn, step["keys"].as_str().unwrap_or("")),
+        // Modifier keys pressed down and held, or let go, as a reader holds Ctrl to see what it does.
+        "hold" => hold(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
+        "release" => release(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
         "type" => type_text(conn, step["text"].as_str().unwrap_or("")),
         other => Err(format!("the harness has no step {other:?}")),
     }

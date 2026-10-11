@@ -3,12 +3,14 @@
 
 // A layer of the editor that holds one node for each row on screen and keeps each node's markup in
 // RAM. Drawing the layer again writes only the rows whose markup changed. A key that changes one
-// row costs the page that row alone, and every other row stays as the page last drew it.
+// row costs the page that row alone, and every other row stays as the page last drew it. `writes`
+// counts the rows written since the layer was made.
 
 export class Layer {
   constructor(host) {
     this.host = host;
     this.held = new Map();
+    this.writes = 0;
   }
 
   // `parts` gives each row on screen its class and markup. `top` places a row's node, where the
@@ -38,6 +40,7 @@ export class Layer {
       if (held.html !== html) {
         held.node.innerHTML = html;
         held.html = html;
+        this.writes += 1;
       }
     }
   }

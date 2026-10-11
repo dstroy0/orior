@@ -358,6 +358,27 @@ mod tests {
     }
 
     #[test]
+    fn a_json_line_holding_a_string_of_thousands_of_characters_colors_in_a_worker_s_stack() {
+        let plugin: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../plugins/json/plugin.json")).unwrap()).unwrap();
+        let body: String = (0..15_000).map(|at| if at % 1000 == 0 { "\\\"" } else { "x" }).collect();
+        let length = body.chars().count() as u32;
+        let line = format!("{{\"body\": \"{body}\", \"n\": 1}}");
+        let named = std::thread::Builder::new()
+            .stack_size(2 << 20)
+            .spawn(move || {
+                let grammar = Grammar::new(&plugin["grammar"]).unwrap();
+                let (runs, _) = grammar.line(&line, "root");
+                names(&grammar, &runs).into_iter().map(|(col, name)| (col, name.to_string())).collect::<Vec<_>>()
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        let string = named.iter().position(|(col, _)| *col == 9).expect("a run starts at the string");
+        assert!(named[string].1.contains("string"), "{:?}", &named[string]);
+        assert_eq!(named[string + 1].0, 9 + length + 2, "the string runs to its closing quote");
+    }
+
+    #[test]
     fn a_line_is_colored_by_its_rules() {
         let grammar = grammar();
         let (runs, state) = grammar.line("if (x) return 12", "root");

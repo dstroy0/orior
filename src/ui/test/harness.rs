@@ -5,7 +5,8 @@
 //!
 //! 1. the servers the tests reach, from servers.rs, each in a container of the harness's own;
 //! 2. the Rust tests of the command line, of the app and of the harness, with cargo test, told
-//!    where each server listens;
+//!    where each server listens; and the command line's on each system of systems.rs, Linux in its
+//!    kinds and on aarch64 in Docker, the Macs and Windows on Arm built for alone;
 //! 3. the window's tests: test/ mirrors src/ui, each module src/x.js tested by test/src/x.test.js,
 //!    each run in orior's own window, started for the run with a home and a tree of its own, its
 //!    page loaded fresh for each file, every press, key, drag and wheel sent as real input through
@@ -20,9 +21,12 @@
 //! else the highest numbered that is not the main one. The report goes to test/runs/<time>/report.md. The run fails where any test fails, the window
 //! throws, or a part has no test.
 
+mod bench;
 mod cdp;
+mod frames;
 mod input;
 mod servers;
+mod systems;
 mod window;
 
 use std::collections::BTreeMap;
@@ -48,11 +52,12 @@ struct Options {
     keep_window: bool,
     stop_servers: bool,
     monitors: bool,
+    systems: bool,
 }
 
 impl Options {
     fn read() -> Result<Options, String> {
-        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false };
+        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false, systems: true };
         let mut args = std::env::args().skip(1);
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -60,6 +65,7 @@ impl Options {
                 "--monitor" => options.monitor = Some(args.next().and_then(|number| number.parse().ok()).ok_or("--monitor needs the monitor's number, as the system's display settings give it")?),
                 "--no-servers" => options.servers = false,
                 "--no-rust" => options.rust = false,
+                "--no-systems" => options.systems = false,
                 "--no-window" => options.window = false,
                 "--keep-window" => options.keep_window = true,
                 "--stop-servers" => options.stop_servers = true,
@@ -72,14 +78,14 @@ impl Options {
     }
 }
 
-const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-window] [--keep-window] [--stop-servers]";
+const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-systems] [--no-window] [--keep-window] [--stop-servers]";
 
 /// A test's outcome: its name, whether it passed, and why not.
-struct Outcome {
-    name: String,
-    ok: bool,
-    ms: u64,
-    error: String,
+pub struct Outcome {
+    pub name: String,
+    pub ok: bool,
+    pub ms: u64,
+    pub error: String,
 }
 
 /// What each part of the run found, for the report.
@@ -151,6 +157,29 @@ impl Report {
 }
 
 /// The time now as year-month-day-hourminutesecond, UTC.
+/// The query run's writer of src/cu built with the system's C compiler where its sources are newer, as
+/// qry_run.sh builds it, for the window's tests of runs to start runs with apart from the window; None
+/// where its sources or a compiler are missing.
+fn qry_writer(ui: &Path, here: &Path) -> Option<PathBuf> {
+    let sources = ui.parent()?.join("cu").join("types").join("file_defs").join("qry");
+    let read = ["qry_writer.c", "qry_buffer.c", "qry_buffer.h", "qry.h"].map(|name| sources.join(name));
+    if !read[0].exists() {
+        return None;
+    }
+    let out = here.join("target").join("qry");
+    std::fs::create_dir_all(&out).ok()?;
+    let binary = out.join(if cfg!(windows) { "qry_writer.exe" } else { "qry_writer" });
+    let newest = read.iter().filter_map(|file| file.metadata().ok()?.modified().ok()).max();
+    let built = binary.metadata().ok().and_then(|meta| meta.modified().ok());
+    if built.is_none() || newest > built {
+        let made = Command::new("cc").args(["-std=c11", "-O2", "-Wall", "-Wextra", "-o"]).arg(&binary).arg(&read[0]).arg(&read[1]).status().ok()?;
+        if !made.success() {
+            return None;
+        }
+    }
+    Some(binary)
+}
+
 fn stamp() -> String {
     let seconds = SystemTime::now().duration_since(UNIX_EPOCH).map(|since| since.as_secs()).unwrap_or(0);
     let (days, rest) = ((seconds / 86_400) as i64, seconds % 86_400);
@@ -212,7 +241,14 @@ fn cargo_test(manifest: &Path, target: Option<&Path>, env: &[(String, String)]) 
     if let Some(target) = target {
         command.arg("--target-dir").arg(target);
     }
-    command.envs(env.iter().map(|(key, value)| (key, value))).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::inherit());
+    command.envs(env.iter().map(|(key, value)| (key, value)));
+    tests_of(command)
+}
+
+/// Runs `command`, a cargo test here or in a system's container, and gives each test's outcome and
+/// the output of those that failed.
+pub fn tests_of(mut command: Command) -> (Vec<Outcome>, String) {
+    command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::inherit());
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) => return (vec![Outcome { name: "cargo test".into(), ok: false, ms: 0, error: error.to_string() }], String::new()),
@@ -220,15 +256,22 @@ fn cargo_test(manifest: &Path, target: Option<&Path>, env: &[(String, String)]) 
     let mut outcomes = Vec::new();
     let mut failures = String::new();
     let mut in_failures = false;
+    // A test's verdict comes after its name on the same line, unless what a test's own child writes
+    // lands between the two; such a test is judged by cargo's list of failures at the end.
+    let mut unsure = Vec::new();
+    let mut failed = std::collections::HashSet::new();
     if let Some(stdout) = child.stdout.take() {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
             if let Some(rest) = line.strip_prefix("test ") {
                 if let Some((name, said)) = rest.rsplit_once(" ... ") {
-                    let ok = said.starts_with("ok") || said.starts_with("ignored");
-                    if !ok {
+                    if said.starts_with("ok") || said.starts_with("ignored") {
+                        outcomes.push(Outcome { name: name.to_string(), ok: true, ms: 0, error: String::new() });
+                    } else if said.starts_with("FAILED") {
                         println!("    FAILED {name}");
+                        outcomes.push(Outcome { name: name.to_string(), ok: false, ms: 0, error: String::new() });
+                    } else {
+                        unsure.push(name.to_string());
                     }
-                    outcomes.push(Outcome { name: name.to_string(), ok, ms: 0, error: String::new() });
                     continue;
                 }
                 if rest.starts_with("result:") {
@@ -241,10 +284,20 @@ fn cargo_test(manifest: &Path, target: Option<&Path>, env: &[(String, String)]) 
                 in_failures = true;
             }
             if in_failures {
+                if let Some(name) = line.strip_prefix("    ").filter(|name| !name.is_empty() && !name.contains(char::is_whitespace)) {
+                    failed.insert(name.to_string());
+                }
                 failures.push_str(&line);
                 failures.push('\n');
             }
         }
+    }
+    for name in unsure {
+        let ok = !failed.contains(&name);
+        if !ok {
+            println!("    FAILED {name}");
+        }
+        outcomes.push(Outcome { name, ok, ms: 0, error: String::new() });
     }
     let status = child.wait();
     if !status.as_ref().is_ok_and(|status| status.success()) && outcomes.iter().all(|one| one.ok) {
@@ -292,8 +345,23 @@ fn served_as(spec: &str, file: &Path, ui: &Path) -> Option<String> {
 }
 
 /// The module at `file` with each import of a module by its path made the path the page serves it
-/// at: a test imports the very module the window runs, as its own import of it does.
+/// at: a test imports the very module the window runs, as its own import of it does. Each line is
+/// read on its own and a line of a comment not at all: an apostrophe in a comment opens no string.
 fn rewrite_imports(source: &str, file: &Path, ui: &Path) -> String {
+    source
+        .split_inclusive('\n')
+        .map(|line| {
+            let code = line.trim_start();
+            if code.starts_with("//") || code.starts_with("/*") || code.starts_with('*') {
+                line.to_string()
+            } else {
+                rewrite_line(line, file, ui)
+            }
+        })
+        .collect()
+}
+
+fn rewrite_line(source: &str, file: &Path, ui: &Path) -> String {
     let mut out = String::with_capacity(source.len());
     let mut rest = source;
     while let Some(at) = rest.find(['"', '\'']) {
@@ -325,7 +393,7 @@ fn content_type(path: &Path) -> &'static str {
 }
 
 /// Answers a request the page made under /__harness/ with the file of test/ it names.
-fn fulfil(conn: &Connection, params: &Value, ui: &Path) {
+fn fulfill(conn: &Connection, params: &Value, ui: &Path) {
     let request = params["requestId"].as_str().unwrap_or("").to_string();
     let url = params["request"]["url"].as_str().unwrap_or("");
     let named = url.split_once("/__harness/").map(|(_, part)| part.split(['?', '#']).next().unwrap_or("")).unwrap_or("");
@@ -360,7 +428,7 @@ fn serve_page(conn: Arc<Connection>, page: Arc<Page>, ui: PathBuf) {
                     let _ = conn.evaluate(&format!("window.__harness?.answer({id}, {})", json!(error)), Duration::from_secs(10));
                 });
             }
-            "Fetch.requestPaused" => fulfil(&conn, params, &ui),
+            "Fetch.requestPaused" => fulfill(&conn, params, &ui),
             "Runtime.exceptionThrown" => {
                 let details = &params["exceptionDetails"];
                 let text = details["exception"]["description"].as_str().or_else(|| details["text"].as_str()).unwrap_or("an error").to_string();
@@ -381,6 +449,8 @@ fn serve_page(conn: Arc<Connection>, page: Arc<Page>, ui: PathBuf) {
                     errors.push(format!("{} {} {}", entry["source"].as_str().unwrap_or("log"), entry["text"].as_str().unwrap_or(""), entry["url"].as_str().unwrap_or("")).trim().to_string());
                 }
             }
+            // The browser's own trace, as it comes and as it ends.
+            "Tracing.dataCollected" | "Tracing.tracingComplete" => frames::heard(event["method"].as_str().unwrap_or(""), params),
             "harness.closed" => {
                 page.closed.store(true, Ordering::SeqCst);
                 return;
@@ -406,9 +476,11 @@ fn wait_started(conn: &Connection, page: &Page) -> Result<(), String> {
 }
 
 /// Runs the test files `files`, each a path under test/, in the window at `conn`, the page loaded
-/// fresh for each.
-fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[String], report: &mut Report) {
+/// fresh for each and told, as window.__harness.servers, where each test server listens.
+fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[String], servers: &[(String, String)], report: &mut Report) {
     let runner = std::fs::read_to_string(ui.join("test").join("runner.js")).unwrap_or_default();
+    let told: serde_json::Map<String, Value> = servers.iter().map(|(key, value)| (key.clone(), json!(value))).collect();
+    let tell = format!("window.__harness.servers = {}", Value::Object(told));
     for (at, file) in files.iter().enumerate() {
         if page.closed.load(Ordering::SeqCst) {
             report.files.push((file.clone(), vec![Outcome { name: "the file".into(), ok: false, ms: 0, error: "the window closed before it ran".into() }], Vec::new()));
@@ -420,7 +492,7 @@ fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[Strin
             let _ = conn.call("Page.reload", json!({"ignoreCache": true}), Duration::from_secs(30));
         }
         let mut outcomes = Vec::new();
-        let started = wait_started(conn, page).and_then(|_| conn.evaluate(&runner, Duration::from_secs(10)).map(|_| ()));
+        let started = wait_started(conn, page).and_then(|_| conn.evaluate(&runner, Duration::from_secs(10))).and_then(|_| conn.evaluate(&tell, Duration::from_secs(10)).map(|_| ()));
         if let Ok(mut errors) = page.errors.lock() {
             errors.clear();
         }
@@ -487,6 +559,19 @@ fn main() -> ExitCode {
     let mut report = Report::default();
 
     let mut env: Vec<(String, String)> = Vec::new();
+    if let Some(address) = servers::http() {
+        env.push(("ORIOR_TEST_HTTP".into(), address));
+    }
+    if let Some(writer) = qry_writer(&ui, &here) {
+        env.push(("ORIOR_TEST_QRY_WRITER".into(), writer.to_string_lossy().replace('\\', "/")));
+    }
+    // The files the window is measured on, fetched once and checked whole, and named to its tests by
+    // their folder in the run's tree.
+    let benched = bench::fetched(&here);
+    match &benched {
+        Ok(_) => env.push(("ORIOR_TEST_BENCH".into(), "bench".into())),
+        Err(error) => report.said.push(format!("the benchmark files: {error}")),
+    }
     if options.servers {
         println!("servers");
         let up = servers::start(&here);
@@ -500,7 +585,7 @@ fn main() -> ExitCode {
             println!("  {said}");
             report.said.push(said.clone());
         }
-        env = up.env;
+        env.extend(up.env);
     }
 
     if options.rust {
@@ -513,15 +598,41 @@ fn main() -> ExitCode {
         }
     }
 
+    // The command line's crate on each other system Docker runs, and built for each it cannot.
+    if options.systems && options.rust && options.only.is_empty() {
+        println!("systems");
+        if servers::docker_runs() {
+            for (name, folder, platform) in systems::SYSTEMS {
+                println!("  {name}");
+                let (outcomes, failures) = match systems::tests_in(name, folder, platform, &here, &ui, &env) {
+                    Ok(command) => tests_of(command),
+                    Err(error) => (vec![Outcome { name: "the system".into(), ok: false, ms: 0, error }], String::new()),
+                };
+                report.crates.push((format!("cli on {name}"), outcomes, failures));
+            }
+        } else {
+            report.said.push("Docker does not answer: the crates' tests ran on this system alone".into());
+        }
+        for (name, target) in systems::BUILT_ONLY {
+            println!("  {name}, built only");
+            report.crates.push((format!("cli for {name}, built only"), vec![systems::built_for(target, &ui, &here)], String::new()));
+        }
+    }
+
     let tests: Vec<String> = files_under(&here.join("src"), ".test.js").into_iter().map(|file| format!("src/{file}")).filter(|file| options.only.is_empty() || options.only.iter().any(|only| file.contains(only.as_str()))).collect();
     if options.window && !tests.is_empty() {
         println!("window");
         let tree = run.join("tree");
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
+            .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| window::build(&ui, &here.join("target").join("app")))
-            .and_then(|program| window::start(&program, &ui, &run, &tree, options.monitor));
+            .and_then(|program| {
+                // The window's tunnels go through the harness's own ssh, its config and its key.
+                let extra: Vec<(String, String)> = env.iter().filter(|(key, _)| key == "ORIOR_TEST_SSH").map(|(_, value)| ("ORIOR_SSH".to_string(), value.clone())).collect();
+                window::start(&program, &ui, &run, &tree, options.monitor, &extra)
+            });
         match started {
             Err(error) => {
                 println!("  {error}");
@@ -542,7 +653,8 @@ fn main() -> ExitCode {
                         Err(error) => report.said.push(format!("the window's debugging port: {error}")),
                         Ok(()) => {
                             window::keep_placed(&shown, options.monitor);
-                            run_files(&conn, &page, &ui, &tests, &mut report);
+                            run_files(&conn, &page, &ui, &tests, &env, &mut report);
+                            input::stop_started();
                         }
                     }
                     if options.keep_window {
@@ -575,7 +687,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        for file in ["cdp.rs", "harness.rs", "input.rs", "servers.rs", "window.rs"] {
+        for file in ["bench.rs", "cdp.rs", "frames.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "window.rs"] {
             if untested_rust(&here.join(file)) {
                 report.untested.push(format!("test/{file}"));
             }
@@ -601,13 +713,30 @@ mod tests {
     fn an_import_of_the_window_s_module_is_the_page_s_own_path() {
         let ui = Path::new("/ui");
         let file = Path::new("/ui/test/src/editor/view.test.js");
-        let source = "import { a } from \"../../../src/editor/view.js\";\nimport '../../helpers.js';\nconst b = await import(\"../../../src/fuzzy.js\");\nconst c = \"../not/an/import.js\";\nimport x from \"/bridge.js\";\n";
+        let source = "// The window's view, and the harness's own helpers.\nimport { a } from \"../../../src/editor/view.js\";\nimport '../../helpers.js';\nconst b = await import(\"../../../src/fuzzy.js\");\nconst c = \"../not/an/import.js\";\nimport x from \"/bridge.js\";\n";
         let rewritten = rewrite_imports(source, file, ui);
         assert!(rewritten.contains("from \"/editor/view.js\""), "{rewritten}");
         assert!(rewritten.contains("import '/__harness/test/helpers.js'"), "{rewritten}");
         assert!(rewritten.contains("import(\"/fuzzy.js\")"), "{rewritten}");
         assert!(rewritten.contains("\"../not/an/import.js\""), "{rewritten}");
         assert!(rewritten.contains("from \"/bridge.js\""), "{rewritten}");
+    }
+
+    #[test]
+    fn a_verdict_pushed_off_its_line_is_read_from_cargo_s_list_of_failures() {
+        let file = std::env::temp_dir().join(format!("orior-harness-cargo-{}.txt", std::process::id()));
+        let said = "test a::one ... ok\ntest a::two ... said by a child\nok\ntest a::three ... printed\nFAILED\n\nfailures:\n\n---- a::three stdout ----\nit broke\n\nfailures:\n    a::three\n\ntest result: FAILED. 2 passed; 1 failed\n";
+        std::fs::write(&file, said).unwrap();
+        let mut command = Command::new(if cfg!(windows) { "cmd" } else { "cat" });
+        if cfg!(windows) {
+            command.args(["/c", "type"]);
+        }
+        command.arg(&file);
+        let (outcomes, failures) = tests_of(command);
+        let _ = std::fs::remove_file(&file);
+        let verdicts: Vec<(&str, bool)> = outcomes.iter().map(|one| (one.name.as_str(), one.ok)).collect();
+        assert_eq!(verdicts, [("a::one", true), ("a::two", true), ("a::three", false)]);
+        assert!(failures.contains("it broke"));
     }
 
     #[test]

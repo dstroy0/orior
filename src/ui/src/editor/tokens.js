@@ -26,6 +26,30 @@ const LONGEST = 20000;
 
 const classes = new Map();
 
+// Every kind of token the grammars compiled name, as "keyword" or "number.cost", for the themes that
+// color each.
+const kinds = new Set();
+
+export function tokenKinds() {
+  return [...kinds].sort();
+}
+
+// Notes each kind of token a rule's action names: a token, a list of them, cases, or a rule's own.
+function noteKinds(action) {
+  if (typeof action === "string") {
+    const kind = action === "@brackets" ? "delimiter.bracket" : action;
+    if (kind && !kind.startsWith("@")) {
+      kinds.add(kind);
+    }
+  } else if (Array.isArray(action)) {
+    action.forEach(noteKinds);
+  } else if (action?.cases) {
+    Object.values(action.cases).forEach(noteKinds);
+  } else if (action && typeof action === "object") {
+    noteKinds(action.token);
+  }
+}
+
 // The class names of a token: "number.cost" is t-number and t-number-cost. A color given to
 // number reaches every kind of number.
 export function classOf(token) {
@@ -65,6 +89,7 @@ export function compile(def) {
         continue;
       }
       const [pattern, action, next] = rule;
+      noteKinds(action);
       const own = action && typeof action === "object" && !Array.isArray(action) && !action.cases;
       out.push({ re: sticky(pattern), token: own ? action.token : action, next: own ? action.next : next });
     }
@@ -425,6 +450,33 @@ export class Highlight {
     if (!this.remote) {
       this.runs[line] = runs;
     }
+    if (!this.grammar.perLine) {
+      this.startAt(line + 1, state);
+    }
+    return runs;
+  }
+
+  // A line's tokens to draw it by at any speed: kept, or worked out in the page now where they are not
+  // yet, the Rust side asked for the lines past it meanwhile. No row is drawn without its colors, and
+  // the same tokens coming back from the Rust side draw it no other way.
+  runsShown(line) {
+    return this.laid(line, this.ownRunsShown(line));
+  }
+
+  ownRunsShown(line) {
+    if (!this.grammar) {
+      return PLAIN;
+    }
+    const found = this.runs[line];
+    if (found) {
+      return found;
+    }
+    if (this.remote) {
+      this.ask(line);
+    }
+    const { runs, state } = tokenize(this.grammar, this.doc.line(line), this.stateAt(line));
+    this.runs[line] = runs;
+    this.stale[line] = undefined;
     if (!this.grammar.perLine) {
       this.startAt(line + 1, state);
     }

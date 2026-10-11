@@ -117,6 +117,8 @@
     const until = performance.now() + 5000;
     let last = null;
     let why = "";
+    // An element a scrolling part clips, as a sheet's own scroll does, is scrolled into view once.
+    let scrolled = false;
     while (performance.now() < until) {
       const node = elementOf(target);
       const box = node.getBoundingClientRect();
@@ -134,6 +136,10 @@
         why = "keeps moving";
       } else if (!hit || !(hit === node || node.contains(hit))) {
         why = `is under ${named(hit)}`;
+        if (!scrolled) {
+          scrolled = true;
+          node.scrollIntoView({ block: "center", inline: "nearest" });
+        }
       } else {
         return point;
       }
@@ -158,9 +164,22 @@
     wheel: async (target, deltaY, deltaX = 0) => ask({ op: "wheel", ...(await pointOf(target)), deltaX, deltaY }),
     // Keys as the menus write them: Ctrl+Shift+P, F5, Escape, Alt+Enter.
     key: async (keys) => ask({ op: "key", keys }),
+    // Modifier keys held down until let go: Ctrl, Alt, Shift, or more of them joined, Ctrl+Shift.
+    hold: async (keys) => ask({ op: "hold", keys }),
+    release: async (keys) => ask({ op: "release", keys }),
     // The page is told it has the system's focus while the harness runs it; off, it has the focus
     // the window truly has, which a window behind another lacks.
     focusTold: async (on) => ask({ op: "focus", on }),
+    // A media feature the system sets, as prefers-reduced-motion, told to the page as `value`; with
+    // no value, the page has what the system truly sets.
+    media: async (name, value = "") => ask({ op: "media", name, value }),
+    // A program started apart from the window, waited for unless `wait` is false: its words, its
+    // environment and what its standard input reads.
+    run: async (program, args = [], { env = {}, input = "", wait = true } = {}) => ask({ op: "run", program, args, env, input, wait }),
+    // The browser's own trace of the window's frames, started, and ended with its summary handed to the
+    // query run `qry` as the blob `name` by the run's `writer`.
+    browserTrace: async () => ask({ op: "browser_trace" }),
+    browserTraced: async (writer, qry, name) => ask({ op: "browser_trace", end: true, writer, qry, name }),
     type: async (text) => ask({ op: "type", text }),
     // Waits for `what`, a selector shown or a function's true value, and gives it.
     waitFor: async (what, ms = 5000) => {
