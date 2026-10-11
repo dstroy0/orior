@@ -59,6 +59,8 @@ test("a plugin draws marks, a tab's label, a panel, an overlay and the chrome th
   showView("edit");
   await openFile("drawn.py");
   await ui.waitFor(() => document.querySelector(".ed-plugin-text"), 5000);
+  // The plugin's calls come one after another, the overlay the last of what it draws.
+  await ui.waitFor(() => document.querySelector(".plugin-overlay"), 5000);
   assert.ok(document.querySelector(".ed-plugin.warn"), "a mark in the gutter in the color of its kind");
   assert.equal(document.querySelector(".ed-plugin-text").textContent, "two words");
   assert.equal(document.querySelector(".plugin-overlay").textContent, "over the first line");

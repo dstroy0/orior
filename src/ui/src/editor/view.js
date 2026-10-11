@@ -79,17 +79,24 @@ const COLUMN_KEY = "orior.column";
 // Sticky scroll: the most lines it holds along the top.
 const STICKY_MOST = 5;
 
-// Smooth scrolling: a wheel's step and a page key glide over GLIDE milliseconds, easing out. Flick
-// scrolling: a touchpad's movement runs on once the fingers lift, where no event has come for
-// FLICK_REST and the system gives no run of its own, from no slower than FLICK_LEAST pixels a
-// millisecond, slowing by a factor of e every FLICK_SLOWS until under FLICK_STOP. Each is a setting,
-// on where none is kept.
-const GLIDE = 130;
+// Smooth scrolling: a wheel's step and a page key glide to where they head on a critically damped
+// spring of rate GLIDE_RATE a second, which covers all but a twentieth of its way in about 190 ms. A
+// step during a glide moves where it heads and the glide keeps its speed: under a steady wheel each
+// frame moves the text an even step, and no frame stands still. The spring moves in pieces of at most GLIDE_PIECE ms, each
+// frame by the time since the one before. Flick scrolling: a touchpad's movement runs on once the
+// fingers lift, where no event has come for FLICK_REST and the system gives no run of its own, from
+// no slower than FLICK_LEAST pixels a millisecond, slowing by a factor of e every FLICK_SLOWS until
+// under FLICK_STOP. Each is a setting, on where none is kept.
+const GLIDE_RATE = 25;
+const GLIDE_PIECE = 4;
 const FLICK_REST = 50;
 const FLICK_LEAST = 0.3;
 const FLICK_SLOWS = 325;
 const FLICK_STOP = 0.02;
 const SMOOTH_KEY = "orior.smooth-scroll";
+// Smooth scrolling is on unless the reader turned it off, or turned on the system's reduced motion
+// and never turned it on here.
+export const smoothScrolling = () => (localStorage.getItem(SMOOTH_KEY) ?? String(!matchMedia("(prefers-reduced-motion: reduce)").matches)) !== "false";
 
 // The kept settings of the reader's formatting: the continuation indent of each place a bracket
 // stands, in columns; whether an operator's sign goes to the next line where a line breaks after it
@@ -139,6 +146,12 @@ const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 // a scroll rests before it counts as stopped, and how many screens ahead the idle coloring reaches.
 const DROPS = [0.8, 2.5, 7];
 const REST = 140;
+// A level falls a step once the speed has stayed under FALL_UNDER of the speed that set it, and the
+// strain under it, for FALL ms. A level that changes draws every row on screen again, and one that
+// fell and rose as the speed swayed about a step would draw them all again and again, and show and
+// hide the sticky lines as it went.
+const FALL = 250;
+const FALL_UNDER = 0.7;
 const AHEAD = 3;
 // How many rows ahead of the view the idle coloring reaches, for a view `shown` rows high: AHEAD
 // screens, or as far as `speed`, in pixels a millisecond, carries the view over two screens' coloring
@@ -832,7 +845,7 @@ export class Editor {
       delete this.host.dataset.comments;
     }
     this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
-    this.smoothOn = localStorage.getItem(SMOOTH_KEY) !== "false";
+    this.smoothOn = smoothScrolling();
     this.hintKinds = { type: localStorage.getItem(HINT_KEYS.type) !== "false", parameter: localStorage.getItem(HINT_KEYS.parameter) !== "false" };
     try {
       this.continuation = JSON.parse(localStorage.getItem(CONTINUATION_KEY) ?? "{}") ?? {};
@@ -2850,27 +2863,39 @@ export class Editor {
     }
   }
 
-  // Glides the scrolling space to `to`, from where it stands, a later glide taking up from there.
+  // Glides the scrolling space to `to`: from where it stands, or where a glide under way heads
+  // there instead, keeping its speed.
   glideTo(to) {
     const most = this.scroller.scrollHeight - this.scroller.clientHeight;
-    const first = !this.glide;
-    this.glide = { from: this.scroller.scrollTop, to: Math.max(0, Math.min(most, to)), at: performance.now() };
-    if (first) {
-      const step = (now) => {
-        const glide = this.glide;
-        if (!glide) {
-          return;
-        }
-        const part = Math.max(0, Math.min(1, (now - glide.at) / GLIDE));
-        this.scroller.scrollTop = glide.from + (glide.to - glide.from) * (1 - (1 - part) ** 3);
-        if (part < 1) {
-          requestAnimationFrame(step);
-        } else {
-          this.glide = null;
-        }
-      };
-      requestAnimationFrame(step);
+    const target = Math.max(0, Math.min(most, to));
+    if (this.glide) {
+      this.glide.to = target;
+      return;
     }
+    const glide = { to: target, at: this.scroller.scrollTop, speed: 0, last: null };
+    this.glide = glide;
+    // Each glide moves the space by its own frames alone, and stops once another takes its place.
+    const step = (now) => {
+      if (this.glide !== glide) {
+        return;
+      }
+      let left = glide.last === null ? GLIDE_PIECE * 2 : Math.min(64, now - glide.last);
+      glide.last = now;
+      while (left > 0) {
+        const piece = Math.min(GLIDE_PIECE, left) / 1000;
+        left -= piece * 1000;
+        glide.speed += (GLIDE_RATE * GLIDE_RATE * (glide.to - glide.at) - 2 * GLIDE_RATE * glide.speed) * piece;
+        glide.at += glide.speed * piece;
+      }
+      if (Math.abs(glide.to - glide.at) < 0.5 && Math.abs(glide.speed) < 20) {
+        this.scroller.scrollTop = glide.to;
+        this.glide = null;
+        return;
+      }
+      this.scroller.scrollTop = glide.at;
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
 
   // The touchpad's speed, the latest movement weighed most, and the run-on once it rests.
@@ -2968,7 +2993,7 @@ export class Editor {
     const speed = 0.6 * status.scroll.speed + 0.4 * (Math.abs(moved) / spent);
     // The speed the view had as it came to rest, which the idle coloring reaches ahead by.
     this.lastSpeed = speed;
-    const level = Math.max(status.frame.strain, DROPS.filter((drop) => speed > drop).length);
+    const level = this.leveled(speed, status.frame.strain);
     write("scroll", { speed, level, heading: moved ? Math.sign(moved) : status.scroll.heading });
     // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late.
     this.follow(top, left);
@@ -2984,6 +3009,7 @@ export class Editor {
     this.restWait = window.setTimeout(() => {
       write("scroll", { speed: 0, level: 0 });
       write("frame", { strain: 0 });
+      this.fallSince = null;
       this.resting = true;
       try {
         this.paint();
@@ -2994,10 +3020,36 @@ export class Editor {
     }, REST);
   }
 
-  // The throttle: how long the last frame took moves the strain up at once or down a step.
-  strained(spent) {
+  // The level a frame drops to, for the view's speed and the strain: a higher one at once, and a step
+  // lower only as FALL and FALL_UNDER say.
+  leveled(speed, strain) {
+    const level = status.scroll.level;
+    const asked = Math.max(strain, DROPS.filter((drop) => speed > drop).length);
+    if (asked > level) {
+      this.fallSince = null;
+      return asked;
+    }
+    if (Math.max(strain, DROPS.filter((drop) => speed > drop * FALL_UNDER).length) >= level) {
+      this.fallSince = null;
+      return level;
+    }
+    const now = performance.now();
+    this.fallSince ??= now;
+    if (now - this.fallSince < FALL) {
+      return level;
+    }
+    this.fallSince = now;
+    return level - 1;
+  }
+
+  // The throttle: how long the last frame took moves the strain up at once or down a step. A frame
+  // that drew every row again for a new level moves it neither way: it says what the change cost,
+  // and not what the frames after it will.
+  strained(spent, levelChanged = false) {
     let strain = status.frame.strain;
-    if (spent > BUDGET) {
+    if (levelChanged) {
+      this.easy = 0;
+    } else if (spent > BUDGET) {
       strain = Math.min(DROPS.length, strain + 1);
       this.easy = 0;
     } else if (spent < BUDGET / 3 && strain > 0) {
@@ -3012,7 +3064,7 @@ export class Editor {
       this.rest();
     }
     if (status.scroll.speed) {
-      write("scroll", { level: Math.max(strain, DROPS.filter((drop) => status.scroll.speed > drop).length) });
+      write("scroll", { level: this.leveled(status.scroll.speed, strain) });
     }
   }
 
@@ -3539,7 +3591,8 @@ export class Editor {
     // one blank character, the rows' spans drawn as one shape; on a line that holds text running
     // right to left, each run of its characters as the page draws them is a shape of its own.
     const shapes = [];
-    const spaceLeft = this.space.getBoundingClientRect().left;
+    // Read only for a line that runs right to left: a read here lays out the rows just written.
+    let spaceLeft = null;
     for (const sel of sels) {
       if (empty(sel)) {
         continue;
@@ -3560,6 +3613,7 @@ export class Editor {
         const head = node ? this.textAt(node, from) : null;
         const past = node ? (this.textAt(node, to) ?? this.textAt(node, to - 1)) : null;
         if (head && past) {
+          spaceLeft ??= this.space.getBoundingClientRect().left;
           const range = document.createRange();
           range.setStart(head.text, head.offset);
           range.setEnd(past.text, to < text.length ? past.offset : past.offset + 1);
@@ -3613,17 +3667,18 @@ export class Editor {
     this.input.style.top = `${this.yOf(headRow)}px`;
     // Off the rows on screen: the map and the status line wait while input is active, except that a
     // map whose text has scrolled draws in the same frame as the text, its slider never behind it.
-    const scrolled = this.mapTop !== this.scroller.scrollTop;
+    const scrolled = this.mapTop !== scrolledTop;
     if (!status.input.active || scrolled) {
       this.minimap.paint(level, scrolledTop);
-      this.mapTop = this.scroller.scrollTop;
+      this.mapTop = scrolledTop;
     }
     if (!status.input.active) {
       this.drawStatus();
     }
     this.drawSticky(rows, top, scrolledLeft);
     this.suggest.place();
-    this.strained(performance.now() - began);
+    this.strained(performance.now() - began, level !== this.drawnLevel);
+    this.drawnLevel = level;
   }
 
   // Moves the cursor to the next of the language server's diagnostics after it, or the one before

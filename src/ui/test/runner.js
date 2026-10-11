@@ -170,6 +170,9 @@
     // The page is told it has the system's focus while the harness runs it; off, it has the focus
     // the window truly has, which a window behind another lacks.
     focusTold: async (on) => ask({ op: "focus", on }),
+    // A media feature the system sets, as prefers-reduced-motion, told to the page as `value`; with
+    // no value, the page has what the system truly sets.
+    media: async (name, value = "") => ask({ op: "media", name, value }),
     type: async (text) => ask({ op: "type", text }),
     // Waits for `what`, a selector shown or a function's true value, and gives it.
     waitFor: async (what, ms = 5000) => {

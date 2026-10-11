@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The editor's view: how far ahead of a view at rest its lines are colored, what it holds back
-// while it scrolls fast, and text that runs right to left placed where the page draws it.
+// while it scrolls fast, a fast scroll at the display's own rate, the level a scroll holds, smooth
+// scrolling under reduced motion and the even steps of a steady wheel, and text that runs right to
+// left placed where the page draws it.
 
-import { coloringReach, runsRightToLeft } from "../../../src/editor/view.js";
+import { coloringReach, runsRightToLeft, smoothScrolling } from "../../../src/editor/view.js";
 import { invoke } from "../../../src/bridge.js";
 import { editing, openFile } from "../../../src/edit.js";
 import { showView } from "../../../src/views.js";
@@ -97,4 +99,157 @@ test("the word keys stop at the ends of words of either script, a letter's marks
   await ui.key("Ctrl+Right");
   await ui.key("Ctrl+Left");
   assert.equal(view.primary().head.col, 7, "back to the start of the next word");
+});
+
+// The frames the page is given over `ms`, as requestAnimationFrame calls it: the times of each.
+function framesOver(ms) {
+  return new Promise((done) => {
+    const times = [];
+    const tick = (now) => {
+      times.push(now);
+      if (now - times[0] < ms) {
+        requestAnimationFrame(tick);
+      } else {
+        done(times);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+test("a fast scroll through a long file holds the display's own rate, as files save beside it", async () => {
+  const lines = [];
+  for (let line = 0; line < 20000; line += 1) {
+    lines.push(`def step_${line}(value, other=${line}):  # a line of a long file, number ${line}`, `    return [value * other for _ in range(${line % 17})]`);
+  }
+  await invoke("file_write", { path: "rate.py", text: `${lines.join("\n")}\n` });
+  showView("edit");
+  await openFile("rate.py");
+  await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  view.goTo(0, 0);
+  const rest = await framesOver(1000);
+  const display = (rest.length - 1) / ((rest.at(-1) - rest[0]) / 1000);
+  const box = view.scroller.getBoundingClientRect();
+  const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  const counting = framesOver(4000);
+  const until = performance.now() + 4000;
+  let saves = 0;
+  while (performance.now() < until) {
+    await ui.wheel(at, 200);
+    if (performance.now() > saves * 500 + (until - 4000)) {
+      saves += 1;
+      invoke("file_write", { path: `rate_save_${saves}.txt`, text: "saved while the editor scrolls\n".repeat(2000) });
+    }
+  }
+  const times = await counting;
+  const gaps = times.slice(1).map((time, at) => time - times[at]);
+  const rate = gaps.length / ((times.at(-1) - times[0]) / 1000);
+  assert.ok(view.scrollY() > 1000, "the view moved");
+  assert.ok(saves >= 6, `files were saved as it scrolled: ${saves}`);
+  assert.ok(rate >= display * 0.8, `${rate.toFixed(1)} frames a second of the display's ${display.toFixed(1)}`);
+  assert.ok(Math.max(...gaps) < 100, `the longest wait between two frames, ${Math.max(...gaps).toFixed(1)} ms`);
+});
+
+test("the level a frame drops to rises at once, and falls a step only once the view has stayed well under its speed for a while", async () => {
+  await openFile("rate.py");
+  await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  // The view's own way of leveling, on a hold of the test's own, the level written just before each
+  // ask: the editor's own scrolls and rests write the level too, and the test's waits give them time.
+  // Its speeds, in pixels a millisecond, step the level up past 0.8, 2.5 and 7.
+  const held = { fallSince: null };
+  const leveled = (speed, level, strain = 0) => {
+    write("scroll", { level });
+    return view.leveled.call(held, speed, strain);
+  };
+  const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+  try {
+    assert.equal(leveled(3, 0), 2, "a speed past a step raises it at once");
+    assert.equal(leveled(0, 0, 2), 2, "and so does the strain");
+    assert.equal(leveled(2.2, 2), 2, "just under the step that set it, it holds");
+    await wait(400);
+    assert.equal(leveled(2.2, 2), 2, "and holds however long the speed sways there");
+    assert.equal(leveled(1, 2), 2, "well under, it holds at first");
+    await wait(100);
+    assert.equal(leveled(1, 2), 2, "and for a moment");
+    await wait(300);
+    assert.equal(leveled(1, 2), 1, "and then falls one step");
+    assert.equal(leveled(0, 1), 1, "the next step waits as long again");
+    assert.equal(leveled(3, 1), 2, "and a speed past a step raises it at once whatever it waited for");
+  } finally {
+    write("scroll", { level: 0 });
+  }
+});
+
+test("smooth scrolling starts off where the system asks for reduced motion, and the reader's own choice wins either way", async () => {
+  const kept = localStorage.getItem("orior.smooth-scroll");
+  try {
+    localStorage.removeItem("orior.smooth-scroll");
+    await ui.media("prefers-reduced-motion", "reduce");
+    assert.equal(smoothScrolling(), false, "reduced motion: off");
+    localStorage.setItem("orior.smooth-scroll", "true");
+    assert.equal(smoothScrolling(), true, "turned on here, it is on");
+    localStorage.removeItem("orior.smooth-scroll");
+    await ui.media("prefers-reduced-motion", "no-preference");
+    assert.equal(smoothScrolling(), true, "no preference: on");
+    localStorage.setItem("orior.smooth-scroll", "false");
+    assert.equal(smoothScrolling(), false, "turned off here, it is off");
+  } finally {
+    await ui.media("prefers-reduced-motion");
+    if (kept === null) {
+      localStorage.removeItem("orior.smooth-scroll");
+    } else {
+      localStorage.setItem("orior.smooth-scroll", kept);
+    }
+  }
+});
+
+test("under a steady wheel every frame moves the text an even step, and the level holds", async () => {
+  await openFile("rate.py");
+  await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  const { status } = await import("../../../src/status.js");
+  const smooth = view.smoothOn;
+  view.smoothOn = true;
+  view.goTo(0, 0);
+  await framesOver(300);
+  const box = view.scroller.getBoundingClientRect();
+  const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  const frames = [];
+  let wheeling = true;
+  const tick = (now) => {
+    frames.push([now, view.scrollY(), status.scroll.level]);
+    if (wheeling) {
+      requestAnimationFrame(tick);
+    }
+  };
+  requestAnimationFrame(tick);
+  const until = performance.now() + 3000;
+  while (performance.now() < until) {
+    await ui.wheel(at, 120);
+    await new Promise((done) => setTimeout(done, 30));
+  }
+  wheeling = false;
+  view.smoothOn = smooth;
+  // The glide's first frames gather speed, and its last ones after the wheel stops lose it.
+  const steady = frames.filter(([time]) => time > frames[0][0] + 300 && time < until - 100);
+  const steps = steady.slice(1).map(([time, y], index) => [time - steady[index][0], y - steady[index][1]]);
+  const middleOf = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+  const interval = middleOf(steps.map(([gap]) => gap));
+  const late = steps.filter(([gap]) => gap > 1.5 * interval).length;
+  const still = steps.filter(([, moved]) => moved === 0).length;
+  // A step read in a frame may be the glide's of the frame before, so only the steps whose frame and
+  // the frames on either side came on time say how even the glide is.
+  const onTime = (index) => steps[index] && steps[index][0] <= 1.5 * interval;
+  const even = steps.filter((_, index) => onTime(index - 1) && onTime(index) && onTime(index + 1)).map(([, moved]) => moved);
+  const middle = middleOf(even);
+  const spread = Math.sqrt(even.reduce((sum, moved) => sum + (moved - middle) ** 2, 0) / even.length) / middle;
+  const changes = steady.slice(1).filter(([, , level], index) => level !== steady[index][2]).length;
+  assert.ok(steps.length > 100, `frames counted: ${steps.length}`);
+  const missed = steps.map(([gap], index) => [index, Math.round(gap), steady[index + 1][2]]).filter(([, gap]) => gap > 1.5 * interval);
+  assert.ok(late <= steps.length * 0.03, `frames the page missed: ${late} of ${steps.length}, each [frame, ms, level]: ${JSON.stringify(missed)}`);
+  assert.ok(still <= 2, `frames the text stood still: ${still} of ${steps.length}`);
+  assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
+  assert.ok(changes <= 3, `the level changed ${changes} times in ${steps.length} frames`);
 });

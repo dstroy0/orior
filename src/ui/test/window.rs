@@ -112,7 +112,8 @@ mod tests {
         let ui = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let given = browser_arguments(ui, 41234);
         assert!(given.ends_with("--remote-debugging-port=41234"), "{given}");
-        assert!(given.contains("--disable-direct-composition"), "{given}");
+        assert!(given.contains("--disable-features=msWebOOUI"), "{given}");
+        assert!(!given.contains("--disable-direct-composition"), "the page is drawn on the GPU: {given}");
         assert_eq!(browser_arguments(Path::new("/nowhere"), 1), "--remote-debugging-port=1");
     }
 

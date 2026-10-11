@@ -91,10 +91,11 @@ Reports turns it on or off later, and `ORIOR_NO_REPORTS` turns it off for a run.
 | macOS | the Xcode command line tools |
 | Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
 
-On Windows the window starts with `--disable-direct-composition`, set in `tauri.conf.json`. With
-direct composition on, a window whose page moves holds to 60 frames a second whatever the display's
-rate, and stalls for up to half a second every few seconds. The first three features that line
-turns off are the ones the window turns off when it is given no line of its own.
+On Windows the window keeps direct composition, which draws the page on the GPU: a fast scroll
+through a long file holds the display's own rate, 142 frames a second on a display of 144. Without
+it the page is drawn by the processor, about 15 ms a frame for a window of 2560 by 1440, and the
+same scroll holds 48. The features `tauri.conf.json` turns off are the ones the window turns off
+when it is given no line of its own.
 
 The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIOR_BASH` and
 `ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
