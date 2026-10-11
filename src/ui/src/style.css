@@ -4140,15 +4140,15 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   font-weight: 500;
 }
 
-/* A pane that takes the editor's room: the job list, the explorer, the definitions. Collapsed, it
- * gives its width back and its inside slides up and toward the edge it stands at. The pointer at
- * that edge of the view brings it back. */
+/* A pane that takes the editor's room: the job list, the explorer, the definitions. Collapsed, its
+ * inside slides up and toward the edge it stands at while the pane holds its room at --held, and the
+ * room goes back to the editor in one step as the slide ends; shown again, it takes its room in one
+ * step and its inside slides in. Only the pane's own area moves while it slides: the window is drawn
+ * without direct composition, and a slide that moved the editor too would redraw all of it on each
+ * frame. The pointer at that edge of the view brings it back. */
 .collapsible {
   overflow: hidden;
-  transition:
-    width 0.22s ease,
-    height 0.22s ease,
-    border-color 0.22s ease;
+  transition: border-color 0.22s ease;
 }
 
 .side-inner {
@@ -4170,6 +4170,10 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   border-color: transparent;
 }
 
+.collapsible.collapsed.sliding {
+  width: var(--held);
+}
+
 .collapsible.toward-left.collapsed > .side-inner {
   transform: translate(-100%, -100%);
   opacity: 0;
@@ -4182,6 +4186,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 .collapsible.toward-bottom.collapsed {
   height: 0;
+}
+
+.collapsible.toward-bottom.collapsed.sliding {
+  width: auto;
+  height: var(--held);
 }
 
 .collapsible.toward-bottom.collapsed > .side-inner {

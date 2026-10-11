@@ -388,6 +388,16 @@ export function drawLattice(canvas) {
   }
 }
 
+// The moment until which every lattice holds still, as a pane slides.
+let heldUntil = 0;
+
+// Holds every lattice still for `ms`. The window is drawn without direct composition, and a frame of
+// the window's lattice redraws the whole window, which takes its frames from a slide that moves only
+// a pane.
+export function holdLattices(ms) {
+  heldUntil = Math.max(heldUntil, performance.now() + ms);
+}
+
 // Moves every lattice in sight a frame, no faster than one each FRAME.
 let last = 0;
 function tick(now) {
@@ -396,7 +406,7 @@ function tick(now) {
     return;
   }
   requestAnimationFrame(tick);
-  if (now - last < FRAME || document.hidden || still()) {
+  if (now - last < FRAME || now < heldUntil || document.hidden || still()) {
     return;
   }
   last = now;
