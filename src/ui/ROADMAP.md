@@ -21,19 +21,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - A fault in the middle of a long run seen only at its end: a panic in the shared buffer shows in the window as it is written.
    - A ruling seen without what led to it: a conference, the blob `conference_` followed by its question's identity with each space written as an underscore, shows each line `<expert>: <account>` as it is written, and the line that starts `overseer:` as the ruling; the lessons in `overseer.txt`, one `lesson <cause> <carrier or *> <stand-in>` a line, show beside the runs.
 
-## How developers work
-
-Each item keeps to a habit measured in developers at work.
-
-## Plugins
-
-1. **Plugins that draw.** A plugin lays marks, overlays and its own panels over the editor and the window, sets the label of a tab, reads the theme's colors, and changes the window's chrome.
-   - Plugins that reach into the editor's own parts and break when it changes: a plugin draws through calls whose form is kept from one version to the next, and a plugin written for an older form goes on working.
-2. **Plugins off the editor's thread.** Each plugin runs apart from the editor, and one that is slow or stuck holds up neither the keys nor the others.
-   - One plugin's slowness that freezes all the others, which share its process: each plugin has its own, and one that does not answer is named on the status bar with its time, and can be stopped from there.
-   - A window slowed by a plugin the reader cannot name: Find the Slow Plugin turns half of them off at a time until the one is found.
-3. **Plugins that write files with care.** A plugin that serves files told when the system refuses a write, and the reader asked for the rights the write needs.
-
 ## Settings
 
 1. **Keys.** Any command's keys changed in Preferences, and whole sets of keys to choose from, the mouse's buttons and wheel bound as keys are, the keys of a command shown where the reader reaches it another way, and keys that work whatever the keyboard's layout.
@@ -51,9 +38,7 @@ Each item keeps to a habit measured in developers at work.
 6. **A plugin catalog.** Plugins others publish, found by name and installed from File, Plugins, each set on or off from a file, and each told what it may read and change before it runs.
    - Plugins in a catalog that carry malware and run with all of the reader's rights: each plugin says what it reads, writes and reaches on the network, orior holds it to that, and an update that asks for more asks the reader again.
    - Plugins that update themselves unasked: a plugin is updated when the reader says so.
-7. **Saving where rights are needed.** A file the reader may not write is saved after the system asks for the rights.
-   - A save with raised rights that fails, or offers no way to raise them: on Windows the system's own prompt raises a helper that writes that file alone, on Linux pkexec does, and on macOS the system's authorization does.
-8. **Other languages and other scripts.** The window in the reader's language, and text that runs right to left typed and drawn in its order.
+7. **Other languages and other scripts.** The window in the reader's language, and text that runs right to left typed and drawn in its order.
    - A cursor that jumps the wrong way, or words drawn in reverse, where Arabic or Hebrew meets text that runs left to right: the arrows move by the order the text is read in, and the word keys stop at the words of either script.
-9. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.
+8. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.
    - An editor from Flathub that cannot reach the machine's compilers, SDKs and tools from inside its sandbox: orior's Flatpak runs the tree's tools and its terminal's shell on the machine itself, through `flatpak-spawn --host`.

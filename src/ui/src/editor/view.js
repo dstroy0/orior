@@ -3262,6 +3262,8 @@ export class Editor {
     const tests = this.testsOf?.(s) ?? null;
     const covered = this.coverageOf?.(s) ?? null;
     const paused = this.pausedOf?.(s) ?? null;
+    // The marks plugins lay, each line's from every plugin.
+    const plugged = level < 2 ? (this.pluginMarksOf?.(s) ?? null) : null;
 
     const text = new Map();
     const under = new Map();
@@ -3324,7 +3326,12 @@ export class Editor {
       const test = whole ? tests?.get(base + line) : undefined;
       const testMark = test === undefined ? "" : `<span class="ed-test ${test}" data-test="${base + line}" title="Run or debug the test">▶</span>`;
       const cover = !whole ? "" : covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + number + mark + cover + (whole ? this.changeMark(line) : "")]);
+      const laid = plugged?.get(base + line);
+      const plugMark = laid ? `<span class="ed-plugin ${laid[0].kind}" title="${escapeHtml(laid.map((one) => one.title + (one.text ? `: ${one.text}` : "")).join("\n"))}"></span>` : "";
+      if (laid?.some((one) => one.text)) {
+        over.push(`<div class="ed-plugin-text ${laid[0].kind}" style="left:${this.xOf({ line, col: doc.line(line).length }) + 2 * this.cw}px;top:${this.yOf(row)}px;height:${LINE}px">${escapeHtml(laid.map((one) => one.text).filter(Boolean).join("  "))}</div>`);
+      }
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + plugMark + number + mark + cover + (whole ? this.changeMark(line) : "")]);
     }
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {

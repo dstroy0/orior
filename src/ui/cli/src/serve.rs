@@ -1045,6 +1045,7 @@ impl Server {
                 }
                 std::fs::read(&file).map(|bytes| base64(&bytes)).map_err(|error| error.to_string()).and_then(give)
             }
+            "file_write_raised" => crate::raised::write(&root::inside(&self.root()?, &path()?)?, a.get::<String>("text")?.as_bytes()).and_then(give),
             "file_write" => self.file_write(a.get("path")?, a.get("text")?).and_then(give),
             "notebook_read" => {
                 let full = at(&path()?)?;

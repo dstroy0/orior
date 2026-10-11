@@ -132,6 +132,9 @@ function build() {
       // A tool plugin opens no files: it checks those of the languages it names.
       if (plugin.kind === "tool") {
         Object.assign(reading, { kind: "tool", checks: Array.isArray(plugin.languages) ? plugin.languages.map(String) : [], about: String(plugin.about ?? "") });
+      } else if (plugin.kind === "script") {
+        // A script plugin opens no files: it runs code of its own (scripts.js).
+        Object.assign(reading, { kind: "script", api: Number(plugin.api ?? 1), about: String(plugin.about ?? "") });
       } else {
         reading.language = languageOf(plugin);
       }

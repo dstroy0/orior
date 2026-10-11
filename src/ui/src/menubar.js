@@ -60,6 +60,7 @@ import { reviewChange } from "./changeview.js";
 import { gatherLines, toggleBoard } from "./gather.js";
 import { peekHere } from "./peek.js";
 import { printHere } from "./prints.js";
+import { findSlowPlugin } from "./scripts.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
 import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
@@ -457,6 +458,7 @@ const COMMANDS = {
   "gather-lines": inEditor(() => gatherLines()),
   "gathered-lines": () => toggleBoard(),
   focus: () => setFocus(),
+  "find-slow-plugin": () => findSlowPlugin(),
   "review-structure": (args) => reviewChange(args[0] ?? null),
   "print-here": inEditor(() => printHere()),
   usages: inEditor(() => editing().usages()),

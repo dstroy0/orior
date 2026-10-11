@@ -102,6 +102,20 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - Most developers never start a debugger, use only its plainest parts, and print values instead.
    - Print statements left in by mistake are a common part of commits.
 
+## Plugins
+
+1. **Plugins that draw.** A plugin of kind `script` runs code of its own and draws through orior's calls, `orior` in its worker: it lays marks on a file's lines, each a dot in the gutter in the color of its kind with a word after the line's end; lays an overlay of text under a line; shows panels of its own down the window's right side, each its HTML in a frame that runs none of its scripts; sets the label of a file's tab; reads the theme's colors; and changes the window's chrome, a badge on the top bar and the color of its signal. It hears when a file opens, changes and saves and when the cursor moves, and reads and writes the tree's files.
+   - Plugins that reach into the editor's own parts and break when it changes: a plugin draws through the calls alone, and names the form of the calls it was written for, `api` in its plugin.json; orior keeps each form it has given, and a plugin of an older form gets that form's calls, each answered as it was.
+2. **Plugins off the editor's thread.** Each script plugin runs in a worker of its own, apart from the editor and from every other plugin, and one that is slow or stuck holds up neither the keys nor the others.
+   - One plugin's slowness that freezes all the others: each plugin has a worker of its own; each is asked every second whether it is there, and one that has not answered for two seconds is named on the status bar with how long, and Stop there ends it.
+   - A window slowed by a plugin the reader cannot name: View, Find the Slow Plugin turns half of the plugins on off at a time, asking each time whether the window is still slow, until one is left, names it, and sets each plugin back as it was.
+3. **Plugins that write files with care.** A plugin's write the system refuses is not left to fail: the reader is asked, the plugin named, whether to write the file with the rights it needs; on Write with Rights the system asks for the rights in its own way and the file is written, and on Leave It the file stays as it was and the plugin is told the system refused.
+
+## Settings
+
+1. **Saving where rights are needed.** A file the reader may not write is saved after the system asks for the rights: a save the system refuses asks the reader first, and on Write with Rights the text is staged in a file of orior's own and copied over the file with the rights.
+   - A save with raised rights that fails, or offers no way to raise them: on Windows the system's own prompt raises orior's own program, run again as `orior write-raised`, which writes that one file and ends; on Linux pkexec runs cp; on macOS the system's authorization does; a reader who declines leaves the file as it was.
+
 ## Code intelligence
 
 1. **Symbols of the whole tree.** Go to Symbol in Tree, Ctrl+T or `#` in Go to File, and Search Everywhere find a declaration in any file of the tree, from an index of what each file declares, read by the line as the outline reads the open file. A file is read again once it changes. The whole of this repository is read in about 1.1 s, behind the window, and a search answers in about 70 ms.

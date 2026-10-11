@@ -8395,6 +8395,208 @@ textarea.report-field {
   margin-top: 4px;
 }
 
+/* What plugins draw: a mark in the gutter and its word after the line's end in the color of its
+   kind, an overlay of text under a line, panels of their own down the window's right side, a badge
+   on the top bar and a label on a tab. */
+.ed-plugin {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: var(--link);
+  vertical-align: middle;
+}
+
+.ed-plugin.warn {
+  background: var(--hover);
+}
+
+.ed-plugin.error {
+  background: var(--fail);
+}
+
+.ed-plugin.note {
+  background: var(--fg-3);
+}
+
+.ed-plugin-text {
+  position: absolute;
+  overflow: hidden;
+  max-width: 40rem;
+  color: var(--link);
+  font-style: italic;
+  white-space: pre;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.ed-plugin-text.warn {
+  color: var(--hover);
+}
+
+.ed-plugin-text.error {
+  color: var(--fail);
+}
+
+.ed-plugin-text.note {
+  color: var(--fg-3);
+}
+
+.plugin-overlay {
+  position: absolute;
+  z-index: 5;
+  max-width: 36rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--ed-widget-line);
+  border-left: 3px solid var(--link);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--ed-widget);
+  box-shadow: 0 6px 18px var(--lifted);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
+.plugin-panels {
+  position: fixed;
+  top: 64px;
+  right: 12px;
+  bottom: 40px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(26rem, 40vw);
+  pointer-events: none;
+}
+
+.plugin-panels[hidden] {
+  display: none;
+}
+
+.plugin-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 8rem;
+  max-height: 50%;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 10px 26px var(--lifted);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.plugin-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.4rem 0.25rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.plugin-panel-close {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.plugin-panel-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.plugin-badge {
+  margin: 0 0.5rem;
+  padding: 1px 8px;
+  border: 1px solid color-mix(in srgb, var(--signal) 50%, transparent);
+  border-radius: 10px;
+  color: var(--signal);
+  font: 11.5px var(--head);
+}
+
+.plugin-badge[hidden] {
+  display: none;
+}
+
+.tab .tab-label {
+  margin-left: 0.35rem;
+  color: var(--fg-3);
+  font-size: 11px;
+}
+
+.status-plugin {
+  color: var(--fail);
+}
+
+.status-plugin[hidden] {
+  display: none;
+}
+
+.status-plugin-stop {
+  margin-left: 0.4rem;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--well);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Find the Slow Plugin and Write with Rights: a question at the top of the window that waits for a
+   press and takes no keys until it gets one. */
+:is(.slow-finder, .rights-ask) {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  z-index: 60;
+  width: min(34rem, 90vw);
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 12px 30px var(--lifted);
+  color: var(--fg);
+  font: 13px var(--head);
+  transform: translateX(-50%);
+}
+
+:is(.slow-finder, .rights-ask)[hidden] {
+  display: none;
+}
+
+.slow-finder-said,
+.rights-said {
+  margin: 0 0 0.6rem;
+}
+
+.slow-finder-buttons,
+.rights-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.slow-finder-button,
+.rights-button {
+  padding: 3px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--well);
+  color: var(--fg);
+  font: 12.5px var(--head);
+  cursor: pointer;
+}
+
 /* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
 .tab.preview {
   font-style: italic;

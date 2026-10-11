@@ -169,6 +169,7 @@
         { "label": "Containers", "command": "containers-view" },
         { "label": "Database", "command": "database-view" },
         { "label": "Comms", "command": "comms-view" },
+        { "label": "Find the Slow Plugin", "command": "find-slow-plugin" },
         { "label": "Focus", "command": "focus", "checks": "focus" },
         { "label": "Preview", "command": "preview", "keys": "Ctrl+K V", "args": "[off|beside|alone]", "checks": "preview" },
         { "label": "Preview Alone", "command": "preview-alone", "checks": "preview-alone" },

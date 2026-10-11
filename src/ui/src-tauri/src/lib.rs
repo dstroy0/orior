@@ -578,9 +578,13 @@ fn file_read_any(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|error| format!("{path}: {error}"))
 }
 
-/// Writes `text` to the file at `path`, anywhere on the machine, as the reader chose it.
+/// Writes `text` to the file at `path`, anywhere on the machine, as the reader chose it, making the
+/// folders it stands in where they are not there.
 #[tauri::command(async)]
 fn file_write_any(path: String, text: String) -> Result<(), String> {
+    if let Some(folder) = Path::new(&path).parent().filter(|folder| !folder.as_os_str().is_empty()) {
+        std::fs::create_dir_all(folder).map_err(|error| format!("{}: {error}", folder.display()))?;
+    }
     std::fs::write(&path, text).map_err(|error| format!("{path}: {error}"))
 }
 
@@ -645,6 +649,18 @@ fn repo_opened(url: String) -> Option<String> {
 #[tauri::command]
 fn plugins_read() -> Vec<plugins::Plugin> {
     plugins::all()
+}
+
+/// The code the script plugin `id` runs.
+#[tauri::command]
+fn plugin_code(id: String) -> Result<String, String> {
+    plugins::code_of(&id)
+}
+
+/// orior's own folder, where it keeps what it keeps and the reader's plugins are.
+#[tauri::command]
+fn home_folder() -> Result<String, String> {
+    home::folder().map(|folder| folder.display().to_string()).ok_or_else(|| "orior has no folder of its own".to_string())
 }
 
 /// The plugin the generator's answers ask for, as its file would hold it.
@@ -911,6 +927,8 @@ fn open(launch: Launch) {
             remote_rejoin,
             devcontainer_line,
             plugins_read,
+            plugin_code,
+            home_folder,
             plugin_draft,
             plugin_create,
             user_css_read,

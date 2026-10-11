@@ -1367,6 +1367,21 @@ pub fn run(given: Vec<String>) -> Outcome {
         crate::serve::serve(root, std::io::stdin().lock(), std::io::stdout());
         return Outcome::Exit(0);
     }
+    // write-raised copies a file orior staged over the file the reader gave the rights to write, as
+    // raised.rs says: `orior write-raised <staged> <file>`.
+    if first == "write-raised" {
+        let (Some(from), Some(to)) = (words.get(1), words.get(2)) else {
+            err("write-raised takes the file staged and the file to write");
+            return Outcome::Exit(WRONG);
+        };
+        return match crate::raised::copy_over(std::path::Path::new(from), std::path::Path::new(to)) {
+            Ok(()) => Outcome::Exit(0),
+            Err(said) => {
+                err(&said);
+                Outcome::Exit(1)
+            }
+        };
+    }
     // keep-run runs a job the server keeps, a process of its own, as serve.rs says.
     if first == "keep-run" {
         return Outcome::Exit(words.get(1).map_or(WRONG, |base| crate::serve::keep_run(std::path::Path::new(base))));

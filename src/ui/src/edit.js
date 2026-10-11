@@ -59,6 +59,8 @@ import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, mark
 import { onScheme } from "./scheme.js";
 import { onFonts } from "./fonts.js";
 import { calm, status, write } from "./status.js";
+import { writeWithCare } from "./rights.js";
+import { marksOf, startScripts, syncPlugins, tabLabelOf, tell } from "./scripts.js";
 import { togglePane } from "./sides.js";
 import { drawBranch, onOverBudget, say } from "./statusbar.js";
 import { openWindow } from "./windows.js";
@@ -492,9 +494,10 @@ function drawTabs() {
     const name = tabName(tab);
     const close = element("span", { className: "close", textContent: tab.closing ? "×?" : "×", title: tab.path });
     const button = element("button", { className: `tab${groupOf(tab.path) ? " grouped" : ""}${tab.preview ? " preview" : ""}`, type: "button", title: tab.path, role: "tab" });
+    const label = tab.commit ? "" : tabLabelOf(tab.file);
     button.setAttribute("aria-selected", String(tab.path === state.active));
     const mark = tab.commit ? -1 : marks.indexOf(tab.file);
-    button.append(mark >= 0 ? element("span", { className: "tab-mark", textContent: String(mark + 1), title: `Ctrl+${mark + 1}` }) : "", dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, close);
+    button.append(mark >= 0 ? element("span", { className: "tab-mark", textContent: String(mark + 1), title: `Ctrl+${mark + 1}` }) : "", dirty(tab) ? element("span", { className: "dirty", textContent: "●" }) : "", name, label ? element("span", { className: "tab-label", textContent: label }) : "", close);
     button.addEventListener("click", (event) => {
       if (event.target === close) {
         closeTab(tab);
@@ -1321,7 +1324,7 @@ async function saveActive(tab = tabOf(actingPath())) {
   const lines = tab.session.doc.lines.slice();
   const eol = tab.session.doc.eol;
   const written = tab.session.doc.text();
-  await invoke("file_write", { path: tab.path, text: written });
+  await writeWithCare(tab.path, written);
   tab.saved = writing;
   tab.savedLines = lines;
   tab.savedEol = eol;
@@ -2751,6 +2754,7 @@ export async function startEdit(defs) {
       wrap(tab);
     }
     state.editor?.restyle();
+    syncPlugins();
   });
   state.head = defs.head;
   let lighting = 0;
@@ -2911,6 +2915,34 @@ export async function startEdit(defs) {
     openAt: (path, line, col) => openAt(path, line, col),
     saveAll: () => editing().saveAll({ auto: true }),
     repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+  });
+  state.editor.pluginMarksOf = (s) => {
+    const file = fileOfSession(s);
+    return file ? marksOf(file) : null;
+  };
+  startScripts({
+    repaint: () => [state.editor, state.split?.editor].forEach((one) => one?.schedule()),
+    tabsChanged: () => drawTabs(),
+    active: () => (state.active ? tabOf(state.active)?.file ?? null : null),
+    editor: () => state.editor,
+    textOf: async (path) => tabOf(path)?.session?.doc.text() ?? (await invoke("file_read", { path })).text,
+    write: (one, path, text) => writeWithCare(path, text, { who: one.name }).then(() => null),
+  });
+  syncPlugins();
+  onShown((path) => path && tell("open", { path }));
+  onEdit((s) => {
+    const tab = tabOfSession(s);
+    if (tab && !tab.commit) {
+      window.clearTimeout(state.telling);
+      state.telling = window.setTimeout(() => tell("edit", { path: tab.file }), 150);
+    }
+  });
+  onCursorMoved(() => {
+    const tab = tabOf(state.active);
+    const head = state.editor?.s ? state.editor.head() : null;
+    if (tab?.session && head && !tab.commit) {
+      tell("cursor", { path: tab.file, line: tab.session.base + head.line, col: head.col });
+    }
   });
   startBookmarks({
     here: () => {
@@ -3515,7 +3547,7 @@ export function editing() {
         const lines = tab.session.doc.lines.slice();
         const eol = tab.session.doc.eol;
         const written = tab.session.doc.text();
-        await invoke("file_write", { path: tab.path, text: written });
+        await writeWithCare(tab.path, written);
         tab.saved = writing;
         tab.savedLines = lines;
         tab.savedEol = eol;

@@ -5,7 +5,10 @@
 //! by its id holding plugin.json:
 //!
 //!   id, name, version       the plugin's own name for itself, the name it shows, and its version
-//!   kind                    "language", or "tool" for a tool plugin, which validate.rs reads
+//!   kind                    "language", "tool" for a tool plugin, which validate.rs reads, or
+//!                           "script" for a plugin that runs code of its own, which the window's
+//!                           scripts.js runs: the file `main` names beside plugin.json, plugin.js
+//!                           where it names none, in the form of orior's calls `api` names
 //!   extensions              the file extensions it opens, without the dot
 //!   names                   the whole names of the files it opens beside them, where it has any
 //!   comments                { line, block: [open, close] }, either left out where it has none
@@ -109,6 +112,20 @@ fn user_in(dir: &Path) -> Vec<Plugin> {
     }
     found.sort_by(|a, b| a.id.cmp(&b.id));
     found
+}
+
+/// The code the script plugin `id` runs: the file its plugin.json names as `main`, plugin.js where it
+/// names none, in the plugin's own folder. A name that leaves the folder is refused.
+pub fn code_of(id: &str) -> Result<String, String> {
+    let plugin = all().into_iter().rev().find(|one| one.id == id).ok_or_else(|| format!("no plugin is named {id}"))?;
+    let read: Value = serde_json::from_str(&plugin.text).map_err(|error| format!("{id}: {error}"))?;
+    let main = read["main"].as_str().unwrap_or("plugin.js");
+    if Path::new(main).components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
+        return Err(format!("{id} names {main}, which is not a file of its own folder"));
+    }
+    let folder = plugin.folder.ok_or_else(|| format!("{id} comes with orior and runs no code"))?;
+    let file = Path::new(&folder).join(main);
+    std::fs::read_to_string(&file).map_err(|error| format!("{}: {error}", file.display()))
 }
 
 /// What the generator is asked for. Every field may be left out.

@@ -56,6 +56,7 @@ pub mod print;
 pub mod prints;
 pub mod profile;
 pub mod purpose;
+pub mod raised;
 pub mod python_paths;
 pub mod recording;
 pub mod report;
