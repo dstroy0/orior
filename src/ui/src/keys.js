@@ -87,6 +87,11 @@ export function keySettings() {
 
 export function setKeySettings(change) {
   localStorage.setItem(KEY, JSON.stringify({ ...keySettings(), ...change }));
+  keysChanged();
+}
+
+// Tells each listener the keys changed, as setKeySettings or a settings file changes them.
+export function keysChanged() {
   listeners.forEach((listener) => listener());
 }
 

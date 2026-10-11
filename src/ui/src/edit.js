@@ -57,6 +57,7 @@ import { onPatterns, tellPatterns } from "./patterns.js";
 import { coloredLines } from "./screen.js";
 import { cellFileOf, closeNotebook, drawNotebook, hideNotebook, isNotebook, markNotebookSaved, notebookDirty, notebookEditor, notebookFile, notebookOfCellFile, openNotebook, repaintNotebook, showCellLine, showNotebookMerge, startNotebooks } from "./notebook.js";
 import { onScheme } from "./scheme.js";
+import { kindColors } from "./themes.js";
 import { onFonts } from "./fonts.js";
 import { calm, status, write } from "./status.js";
 import { writeWithCare } from "./rights.js";
@@ -2868,6 +2869,7 @@ export async function startEdit(defs) {
   };
   state.editor.input.addEventListener("focus", () => splitFocused(false));
   state.editor.onDefinition = (p) => goToDefinition(p);
+  state.editor.themeOf = (s) => kindColors(s?.language?.id);
   state.editor.addKeys(state.editorKeys);
   state.editor.bindKeys(state.boundKeys);
   state.editor.setVim(vimKeys());
@@ -2998,7 +3000,7 @@ export async function startEdit(defs) {
     editor.bindKeys(state.boundKeys);
     editor.setVim(vimKeys());
     editor.setMargin(marginLine());
-    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock", "valueAt"]) {
+    for (const name of ["breakpointsOf", "bookmarksOf", "testsOf", "coverageOf", "pausedOf", "onLock", "valueAt", "themeOf"]) {
       editor[name] = state.editor[name];
     }
     editor.onBreakpoint = (line) => {
@@ -3082,7 +3084,12 @@ export async function startEdit(defs) {
       await drawTree();
     },
   });
-  onScheme(() => state.editor.refreshColors());
+  onScheme(() =>
+    [state.editor, state.split?.editor].filter(Boolean).forEach((editor) => {
+      editor.drawTheme();
+      editor.refreshColors();
+    }),
+  );
   let wait = 0;
   document.getElementById("file-filter").addEventListener("input", () => {
     window.clearTimeout(wait);
@@ -3458,6 +3465,19 @@ export function setMarginLine(on = !marginLine()) {
   localStorage.setItem(MARGIN_KEY, String(on));
   state.editor?.setMargin(on);
   state.split?.editor.setMargin(on);
+}
+
+// The editor and its split as the settings in force give them, once a file changes them: each
+// editor's own settings, Vim's keys, the formatter's line, each kind of file's theme, and the
+// breadcrumbs.
+export function takeSettings() {
+  for (const editor of [state.editor, state.split?.editor].filter(Boolean)) {
+    editor.takeSettings();
+    editor.setVim(vimKeys());
+    editor.setMargin(marginLine());
+    editor.drawTheme();
+  }
+  drawCrumbs();
 }
 
 // Binds the reader's keys in the editor and its split, in place of those bound before, each `run`

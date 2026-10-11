@@ -8,6 +8,7 @@
 import { invoke } from "../../src/bridge.js";
 import { breakpointsOf } from "../../src/debug.js";
 import { editing, openFile } from "../../src/edit.js";
+import { showGroup } from "../../src/explorer.js";
 import { runCommand } from "../../src/menubar.js";
 import { addedPrints, messageOf } from "../../src/prints.js";
 import { togglePane } from "../../src/sides.js";
@@ -54,4 +55,6 @@ test("the prints a change added stand in the Commit window and are taken out in 
   await ui.waitFor(() => !editing().sessionOf("printing/a.py").doc.text().includes("print(x)"), 5000);
   assert.equal(editing().sessionOf("printing/a.py").doc.text(), "def f(x):\n    print(\"kept\")\n    return x\n", "the tab's own text, one edit undo takes back");
   assert.equal((await invoke("file_read", { path: "printing/b.js" })).text, "const a = 1;\nexport { a };\n", "the file no tab holds, as it is written");
+  // The side shows the tree's files again for the tests after this one.
+  showGroup("explorer");
 });

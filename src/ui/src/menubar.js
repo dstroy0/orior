@@ -399,6 +399,10 @@ const COMMANDS = {
     showPreferences(sheet, {
       menus: state.menus,
       runCommand,
+      openFile: (path) => {
+        showView("edit");
+        return openFile(path);
+      },
       checks: CHECKS,
       more: [
         { label: "Trim Trailing Whitespace", on: () => saving("trim"), set: (on) => setSaving("trim", on) },

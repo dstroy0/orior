@@ -18,7 +18,7 @@ const WINDOW = new Set([
   "home_folder", "home_reveal", "inspect_languages", "kept_write", "launch_take", "link_open", "memory_calls", "memory_hold", "memory_use", "print_page", "printers_list",
   "parse_classes", "pick", "plugin_code", "plugin_create", "plugin_draft", "plugins_read", "project_create", "reader_menus_read",
   "reads_file", "remote_get", "remote_rejoin", "repo_clone", "repo_opened", "report_asked", "report_auto", "report_auto_set", "report_bug", "report_error", "report_open",
-  "repos_folder", "scrollback_close", "scrollback_keep", "scrollback_open", "scrollback_read", "scrollback_reset",
+  "repos_folder", "scrollback_close", "settings_layers", "scrollback_keep", "scrollback_open", "scrollback_read", "scrollback_reset",
   "structure_compare", "templates_list", "templates_reveal", "term_close", "term_open", "term_resize", "term_write",
   "toolchain_install", "user_css_read", "view_open", "window_act", "window_open", "window_show", "workspace_read",
   "zoom_set",

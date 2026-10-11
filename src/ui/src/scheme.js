@@ -53,8 +53,13 @@ export function setFollowSystem(on = !followsSystem()) {
   }
 }
 
-export function keepScheme() {
+// Shows the scheme in force without keeping it, as a settings file changes it.
+export function showKeptScheme() {
   const kept = localStorage.getItem(KEY);
   show(kept === SYSTEM ? (dark.matches ? "dark" : "light") : kept === "light" ? "light" : "dark");
+}
+
+export function keepScheme() {
+  showKeptScheme();
   dark.addEventListener("change", () => followsSystem() && show(dark.matches ? "dark" : "light"));
 }

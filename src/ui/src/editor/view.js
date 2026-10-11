@@ -269,25 +269,7 @@ export class Editor {
     this.status.dataset.item = "editor";
     this.sticky = div("ed-sticky");
     this.sticky.hidden = true;
-    this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
-    this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
-    this.marksOn = localStorage.getItem(MARKS_KEY) === "true";
-    this.commentsHidden = localStorage.getItem(COMMENTS_KEY) === "true";
-    this.pastEnds = localStorage.getItem(PAST_KEY) === "true";
-    if (this.commentsHidden) {
-      host.dataset.comments = "hidden";
-    }
-    this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
-    this.smoothOn = localStorage.getItem(SMOOTH_KEY) !== "false";
-    this.hintKinds = { type: localStorage.getItem(HINT_KEYS.type) !== "false", parameter: localStorage.getItem(HINT_KEYS.parameter) !== "false" };
-    try {
-      this.continuation = JSON.parse(localStorage.getItem(CONTINUATION_KEY) ?? "{}") ?? {};
-    } catch {
-      this.continuation = {};
-    }
-    this.operatorNext = localStorage.getItem(OPERATOR_KEY) === "true";
-    this.docMargin = Number(localStorage.getItem(DOC_MARGIN_KEY)) || null;
-    this.flickOn = localStorage.getItem(FLICK_KEY) !== "false";
+    this.readSettings();
     // The glide under way, { from, to, at }, in the scrolling space's own units, and the run-on.
     this.glide = null;
     this.flick = null;
@@ -712,6 +694,61 @@ export class Editor {
     return pos(line, this.colAtV(this.doc.line(line), (event.clientX - rect.left - PAD) / this.cw, true, line));
   }
 
+  // The editor's settings as the page's storage gives them, read as the editor is made and again as
+  // the settings in force change.
+  readSettings() {
+    this.stickyOn = localStorage.getItem(STICKY_KEY) !== "false";
+    this.bracketsOn = localStorage.getItem(BRACKETS_KEY) !== "false";
+    this.marksOn = localStorage.getItem(MARKS_KEY) === "true";
+    this.commentsHidden = localStorage.getItem(COMMENTS_KEY) === "true";
+    this.pastEnds = localStorage.getItem(PAST_KEY) === "true";
+    if (this.commentsHidden) {
+      this.host.dataset.comments = "hidden";
+    } else {
+      delete this.host.dataset.comments;
+    }
+    this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
+    this.smoothOn = localStorage.getItem(SMOOTH_KEY) !== "false";
+    this.hintKinds = { type: localStorage.getItem(HINT_KEYS.type) !== "false", parameter: localStorage.getItem(HINT_KEYS.parameter) !== "false" };
+    try {
+      this.continuation = JSON.parse(localStorage.getItem(CONTINUATION_KEY) ?? "{}") ?? {};
+    } catch {
+      this.continuation = {};
+    }
+    this.operatorNext = localStorage.getItem(OPERATOR_KEY) === "true";
+    this.docMargin = Number(localStorage.getItem(DOC_MARGIN_KEY)) || null;
+    this.flickOn = localStorage.getItem(FLICK_KEY) !== "false";
+  }
+
+  // Reads the settings again, as the files in force changed them, and draws with them.
+  takeSettings() {
+    this.readSettings();
+    this.textLayer.clear();
+    if (this.s) {
+      this.size();
+    }
+    this.schedule();
+  }
+
+  // The colors the session shown is drawn in where its kind of file has a theme of its own, as
+  // `themeOf` gives them, set on the editor in place of those set before; the window's where it has
+  // none.
+  drawTheme() {
+    const colors = this.themeOf?.(this.s) ?? null;
+    if (!colors && !this.themed?.length) {
+      return;
+    }
+    for (const name of this.themed ?? []) {
+      this.host.style.removeProperty(name);
+    }
+    this.themed = Object.keys(colors ?? {});
+    for (const [name, value] of Object.entries(colors ?? {})) {
+      this.host.style.setProperty(name, value);
+    }
+    this.host.toggleAttribute("data-themed", Boolean(colors));
+    this.refreshColors();
+  }
+
   // Showing a session.
 
   show(session) {
@@ -735,6 +772,7 @@ export class Editor {
       this.scroller.scrollLeft = session.left;
       this.find.refresh();
     }
+    this.drawTheme();
     this.paint();
     this.onCursor();
   }

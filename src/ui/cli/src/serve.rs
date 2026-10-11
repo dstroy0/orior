@@ -820,6 +820,7 @@ impl Server {
             "file_at" => git::text_at(&self.root()?, &path()?, &a.get::<String>("id")?).and_then(give),
             "review_structure" => crate::review::review(&self.root()?, a.get::<Option<String>>("commit")?.as_deref()).and_then(give),
             "prints_added" => give(crate::prints::added(&self.root()?)),
+            "settings_tree" => give(crate::settings::tree(&self.root()?)),
             "file_said" => purpose::said(&self.root()?, &path()?).and_then(give),
             "file_users" => purpose::users(&self.root()?, &path()?).and_then(|(users, all)| give(json!({"users": users, "all": all}))),
             "requests_parse" => give(requests::parse(&a.get::<String>("text")?)),

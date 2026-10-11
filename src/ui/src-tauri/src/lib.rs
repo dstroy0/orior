@@ -20,7 +20,7 @@ mod terminal;
 use orior_cli::cli::{self, Launch, Outcome};
 use orior_cli::link::{Address, Link};
 use orior_cli::serve::Server;
-use orior_cli::{commands, files, format, git, home, kept, plugins, report, root, servers, toolchains};
+use orior_cli::{commands, files, format, git, home, kept, plugins, report, root, servers, settings, toolchains};
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -289,6 +289,13 @@ fn kept_write(changes: std::collections::BTreeMap<String, Option<String>>) -> Re
     let folder = home::folder().ok_or("orior has no folder of its own to keep its entries in")?;
     let changes = changes.into_iter().filter_map(|(key, text)| Some((key.strip_prefix("orior.")?.to_string(), text))).collect();
     kept::keep(&folder, &changes)
+}
+
+/// The settings in force for the tree at `root`, from the reader's settings and the tree's, `tree`,
+/// as the tree's side read them (settings.rs).
+#[tauri::command(async)]
+fn settings_layers(tree: settings::Chain, root: String) -> settings::Layers {
+    settings::layers(&settings::reader(), &tree, &root)
 }
 
 /// The script that puts what orior's folder keeps into the page's storage before the page's own
@@ -688,14 +695,22 @@ fn reader_menus_read() -> String {
 }
 
 /// Opens one of orior's own places as the system opens it: "user-css", made first where it is not
-/// there, "menus", the reader's menus and toolbar, made first likewise, "plugins", the reader's
-/// plugins folder, made first likewise, or the folder of one of the reader's plugins.
+/// there, "menus", the reader's menus and toolbar, made first likewise, "settings", the reader's
+/// settings.json, made first likewise, "plugins", the reader's plugins folder, made first likewise,
+/// or the folder of one of the reader's plugins.
 #[tauri::command]
 fn home_reveal(what: String) -> Result<(), String> {
     let plugins_dir = home::plugins().ok_or("orior has no folder of its own")?;
     let path = match what.as_str() {
         "user-css" => home::ensure_user_css()?,
         "menus" => home::ensure_menus()?,
+        "settings" => {
+            let path = home::folder().ok_or("orior has no folder of its own")?.join("settings.json");
+            if !path.is_file() {
+                std::fs::create_dir_all(path.parent().unwrap_or(&path)).and_then(|_| std::fs::write(&path, "{}\n")).map_err(|error| format!("{}: {error}", path.display()))?;
+            }
+            path
+        }
         "plugins" => {
             std::fs::create_dir_all(&plugins_dir).map_err(|error| format!("{}: {error}", plugins_dir.display()))?;
             plugins_dir
@@ -970,6 +985,7 @@ fn open(launch: Launch) {
             printers_list,
             print_page,
             kept_write,
+            settings_layers,
             files_copy,
             clip_files,
             files_paste,

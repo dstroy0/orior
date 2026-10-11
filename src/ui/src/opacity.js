@@ -19,6 +19,13 @@ export function opacity(setting) {
   return STEPS.map(String).includes(kept) ? Number(kept) : setting.fallback;
 }
 
+// Shows each share in force without keeping it, as a settings file changes it.
+export function showOpacity() {
+  for (const setting of OPACITY_SETTINGS) {
+    document.documentElement.style.setProperty(setting.name, `${opacity(setting)}%`);
+  }
+}
+
 export function setOpacity(setting, percent) {
   localStorage.setItem(setting.key, String(percent));
   document.documentElement.style.setProperty(setting.name, `${percent}%`);

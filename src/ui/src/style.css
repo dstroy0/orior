@@ -8597,6 +8597,75 @@ textarea.report-field {
   cursor: pointer;
 }
 
+/* Preferences, Settings in force: each setting a row of its key, its value and the file it comes
+   from, the files it stands over after it, and what the files could not say under them. */
+.prefs-force-files {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prefs-force-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(4rem, 1fr) minmax(0, 1.6fr);
+  max-height: 16rem;
+  overflow: hidden auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.prefs-force-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  gap: 0.8rem;
+  align-items: baseline;
+  padding: 0.25rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  font: 12.5px var(--head);
+}
+
+.prefs-force-row:last-child {
+  border-bottom: 0;
+}
+
+.prefs-force-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prefs-force-from {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.prefs-file-far {
+  color: var(--fg-2);
+}
+
+.prefs-force-under,
+.prefs-force-none {
+  color: var(--fg-3);
+}
+
+.prefs-file {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.prefs-force-problems {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+  color: var(--fail);
+  font: 12px var(--head);
+}
+
 /* Preferences, Keys: each command a row of its label, its keys, Set and Reset, the keys more than one
    command holds listed over them. */
 .prefs-key-rows {

@@ -122,6 +122,28 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
 default.
 
+A tree's own settings are in `.orior/settings.json` at its top folder, and stand over the reader's
+as the tree opens and each time the file changes; Preferences, Settings in force, shows each setting
+a file sets, its value, and the file it comes from. A settings file, the tree's or `settings.json`,
+is JSON with comments and trailing commas, and has keys of its own beside its settings: `takes`, the
+path of another settings file, from the file's folder, whose settings it changes; `windows`, `linux`
+and `macos`, the settings for that system alone; and `[kind]`, as `[markdown]`, the theme of each
+scheme, `theme.dark` and `theme.light`, the editor shows that language's files in. Text in a value
+names another setting's value as `${setting:name}`, a variable of the system's environment as
+`${env:NAME}`, and the home folder, the tree's folder and the system as `${home}`, `${tree}` and
+`${system}`. A tree's file does not set `signing.`, `environment.`, `checkers` or `titlebar`, which
+run programs or name the reader's own.
+
+```json
+{
+  "takes": "../shared/settings.json",
+  "whitespace": "true",
+  "windows": { "zoom": 1.25 },
+  "[markdown]": { "theme.dark": "Light" },
+  "fonts": { "--code": "${env:CODE_FONT}" }
+}
+```
+
 A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
 the folder whose files go, the patterns of the files that stay, the places, and how many releases
 each place keeps.

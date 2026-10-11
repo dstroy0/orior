@@ -3,11 +3,12 @@
 
 // File, Preferences: the color theme of each scheme and every color of its palette, the zoom, the
 // bar's and the menus' opacity, each item of the menus that is set on or off, the settings no menu
-// lists, the patterns that keep the explorer, the search and the watching of files from files, the
-// sets of files Find in Files searches in, and the keys: the set of keys, how a letter's key is
-// bound, each key more than one command holds, and each command's keys, set by pressing them. A color changed in the scheme's own theme starts a
-// theme of the reader's from it, and every change shows at once. A theme copies out as text and
-// reads back in from the clipboard.
+// lists, each setting a settings file sets with its value and the file it comes from, the patterns
+// that keep the explorer, the search and the watching of files from files, the sets of files Find in
+// Files searches in, and the keys: the set of keys, how a letter's key is bound, each key more than
+// one command holds, and each command's keys, set by pressing them. A color changed in the scheme's
+// own theme starts a theme of the reader's from it, and every change shows at once. A theme copies
+// out as text and reads back in from the clipboard.
 
 import { FONT_SETTINGS, fontDefault, fonts, setFont } from "./fonts.js";
 import { buttonName, keySettings, pressName, setKeySettings, SETS, sharedKeys, wheelName } from "./keys.js";
@@ -17,6 +18,8 @@ import { PATTERN_PARTS, patternsOf, setPatterns, setSets, setsText } from "./pat
 import { scheme, setScheme } from "./scheme.js";
 import { BASES, builtIn, choose, chosen, deleteTheme, freeName, readTheme, saveTheme, themeNamed, themes, themeText } from "./themes.js";
 import { setZoom, STEPS, zoom } from "./zoom.js";
+import { readSettings, settingsInForce, TREE_FILE } from "./settings.js";
+import { invoke } from "./bridge.js";
 
 const BASE_NAMES = { dark: "Dark", light: "Light" };
 
@@ -65,7 +68,7 @@ function groupOf(name) {
   return "--*";
 }
 
-export function showPreferences(sheet, { menus, runCommand, checks, more = [] }) {
+export function showPreferences(sheet, { menus, runCommand, checks, more = [], openFile = null }) {
   const body = element("div", { className: "sheet-prefs" });
   const state = { filter: "" };
 
@@ -311,6 +314,68 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
     return element("section", { className: "prefs-patterns" }, element("h3", { textContent: "Files" }), ...rows);
   }
 
+  // The settings in force: each setting a settings file sets, its value, the file and the part of it
+  // the value comes from, and the files it stands over; the files read, each opened by a press, the
+  // tree's in the editor and the reader's own as the system opens it; and what the files could not
+  // say.
+  function inForceSection() {
+    const read = settingsInForce();
+    const yours = "your settings.json";
+    // A file the tree holds opens in the editor, the reader's own as the system opens it, and any
+    // other is named alone.
+    const opener = (file) => {
+      if (/^(?:[A-Za-z]:[\\/]|\/|\\\\)/.test(file) && file !== read.own_file) {
+        return element("span", { className: "prefs-file-far", textContent: file });
+      }
+      const button = element("button", { type: "button", className: "prefs-file", textContent: file === read.own_file ? yours : file, title: `Open ${file}` });
+      button.addEventListener("click", async () => {
+        if (file === read.own_file) {
+          await invoke("home_reveal", { what: "settings" }).catch(() => {});
+          return;
+        }
+        body.closest("dialog")?.close();
+        await openFile?.(file);
+      });
+      return button;
+    };
+    const named = (source) => {
+      const file = source.file === read.own_file ? yours : source.file;
+      return source.part ? `${file} for ${source.part}` : file;
+    };
+    const rows = Object.entries(read.from).map(([key, sources]) => {
+      const [first, ...under] = sources;
+      const value = key.startsWith("[") ? first.text : (localStorage.getItem(`orior.${key}`) ?? first.text);
+      const row = element(
+        "div",
+        { className: "prefs-force-row" },
+        element("code", { className: "prefs-force-key", textContent: key }),
+        element("code", { className: "prefs-force-value", textContent: value, title: value }),
+        element("span", { className: "prefs-force-from" }, opener(first.file), first.part ? ` for ${first.part}` : null, under.length ? element("span", { className: "prefs-force-under", textContent: ` over ${under.map(named).join(", ")}`, title: under.map((one) => one.file).join("\n") }) : null),
+      );
+      row.dataset.key = key;
+      return row;
+    });
+    const own = element("button", { type: "button", className: "prefs-button", textContent: "Your settings.json" });
+    own.addEventListener("click", () => invoke("home_reveal", { what: "settings" }).catch(() => {}));
+    const tree = element("button", { type: "button", className: "prefs-button", textContent: `The tree's ${TREE_FILE}` });
+    tree.addEventListener("click", async () => {
+      if (!read.files.includes(TREE_FILE)) {
+        await invoke("folder_create", { path: TREE_FILE.split("/")[0] }).catch(() => {});
+        await invoke("file_write", { path: TREE_FILE, text: "{\n}\n" }).catch(() => {});
+      }
+      body.closest("dialog")?.close();
+      await openFile?.(TREE_FILE);
+    });
+    return element(
+      "section",
+      { className: "prefs-force" },
+      element("h3", { textContent: "Settings in force" }),
+      element("div", { className: "prefs-force-files" }, own, tree),
+      rows.length ? element("div", { className: "prefs-force-rows" }, ...rows) : element("p", { className: "prefs-force-none", textContent: "No settings file sets a setting: each is your own or orior's." }),
+      read.problems.length ? element("ul", { className: "prefs-force-problems" }, ...read.problems.map((problem) => element("li", { textContent: problem }))) : null,
+    );
+  }
+
   // The keys: the set chosen, how a letter's key is bound, each key more than one command holds with
   // those commands, and each command's keys, two at most, each set by pressing it, a button of the
   // mouse past its first three or the wheel turned with a key held, and each taken off by its cross.
@@ -426,7 +491,7 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
     const focusName = body.contains(focused) ? focused.closest(".prefs-color")?.dataset.name : null;
     const scroll = body.querySelector(".prefs-colors")?.scrollTop ?? 0;
     const keysScroll = body.querySelector(".prefs-key-rows")?.scrollTop ?? 0;
-    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
+    body.replaceChildren(element("h2", { textContent: "Preferences" }), settingsSection(), inForceSection(), keysSection(), fontsSection(), patternsSection(), themeRow(), colorsSection());
     const keyRows = body.querySelector(".prefs-key-rows");
     if (keyRows) {
       keyRows.scrollTop = keysScroll;
@@ -440,4 +505,6 @@ export function showPreferences(sheet, { menus, runCommand, checks, more = [] })
 
   draw();
   sheet(body);
+  // The files are read again as Preferences opens, so that each setting kept since shows with its file.
+  readSettings().then(() => body.isConnected && draw());
 }

@@ -5,7 +5,7 @@
 
 import { invoke, pick } from "./bridge.js";
 import { progressBar } from "./progress.js";
-import { editing, forgetTree, loadMounts, onShown, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
+import { editing, forgetTree, loadMounts, onShown, openAt, openElsewhere, openFile, restoreSession, startEdit, takeSettings } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
@@ -34,7 +34,12 @@ import { loadRun, readRunsAgain, startRun } from "./run.js";
 import { linkJoined, startRemote } from "./remote.js";
 import { serveAgain } from "./servers.js";
 import { catchErrors } from "./reports.js";
-import { keepScheme } from "./scheme.js";
+import { keepScheme, showKeptScheme } from "./scheme.js";
+import { onSettings, readSettings, startSettings } from "./settings.js";
+import { applyThemes } from "./themes.js";
+import { applyFonts } from "./fonts.js";
+import { showOpacity } from "./opacity.js";
+import { keysChanged } from "./keys.js";
 import { startSearch } from "./search.js";
 import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
 import { watch } from "./status.js";
@@ -42,7 +47,7 @@ import { focusTerminalView, newTerminal, runInTerminal, startTerminal } from "./
 import { onView, showView, shownView } from "./views.js";
 import { onTold, showWindow } from "./windows.js";
 import { startWordmark } from "./wordmark.js";
-import { keepZoom } from "./zoom.js";
+import { keepZoom, showZoom } from "./zoom.js";
 import { keepMemory, say, startNotices } from "./statusbar.js";
 import { startMotion } from "./motion.js";
 import { keepUserCss } from "./usercss.js";
@@ -112,6 +117,33 @@ function drawPulse(held) {
   document.getElementById("pulse").replaceChildren(...parts);
 }
 
+// Shows again each setting a settings file changed whose part of the page took it as the window
+// started: the scheme, the themes, the fonts, the opacity, the zoom, the keys and the editor's own.
+function showSettings(changed) {
+  const has = (name) => [...changed].some((key) => (name.endsWith(".") ? key.startsWith(name) : key === name));
+  if (has("scheme")) {
+    showKeptScheme();
+  }
+  if (has("theme.") || has("themes")) {
+    applyThemes();
+  }
+  if (has("fonts")) {
+    applyFonts();
+  }
+  if (has("opacity.")) {
+    showOpacity();
+  }
+  if (has("zoom")) {
+    showZoom();
+  }
+  if (has("keys")) {
+    keysChanged();
+  }
+  if (started) {
+    takeSettings();
+  }
+}
+
 // The window and the keys come first: the window is asked for, and the commands the keys run read,
 // before anything else, and the reader's stylesheet is read beside the menu bar's start and not
 // ahead of it. The lattices start once the keys are bound: their first drawing sets up WebGL, and the
@@ -123,6 +155,8 @@ async function start() {
   await startMotion();
   startWordmark();
   keepScheme();
+  onSettings(showSettings);
+  startSettings();
   const styled = keepUserCss();
   keepZoom();
   keepMemory();
@@ -263,6 +297,7 @@ async function begin(root) {
     if (!(await settle(root))) {
       return;
     }
+    await readSettings(root);
     const defs = await invoke("definitions_read");
     if (!started) {
       started = true;

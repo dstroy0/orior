@@ -67,6 +67,7 @@ pub mod serve;
 pub mod run_file;
 pub mod runner;
 pub mod servers;
+pub mod settings;
 pub mod shape;
 pub mod sql;
 pub mod structure;

@@ -7,7 +7,8 @@
 // for it, or its own colors where none is. The themes and the choice are kept, and early.js sets them
 // before the page's first frame from the same keys.
 
-import { notifyScheme } from "./scheme.js";
+import { notifyScheme, scheme } from "./scheme.js";
+import { kindSetting } from "./settings.js";
 
 export const THEMES = "orior.themes";
 export const CHOSEN = "orior.theme.";
@@ -106,6 +107,29 @@ export function choose(base, name) {
   }
   applyThemes();
 }
+
+// The colors the editor shows a file of the language `kind` in, where a settings file gives that kind
+// a theme for the scheme shown (settings.js): every color of the theme's own scheme with the theme's
+// over them, Dark and Light being the schemes' own. Null where none is given or the theme named is
+// not one of the reader's.
+export function kindColors(kind) {
+  const name = kind ? kindSetting(kind, CHOSEN.slice("orior.".length) + scheme()) : null;
+  const own = Object.entries(BASE_OWN).find(([, named]) => named === name)?.[0];
+  const theme = own ? { base: own, colors: {} } : name ? themeNamed(name) : null;
+  if (!theme) {
+    return null;
+  }
+  const colors = Object.fromEntries(builtIn()[theme.base]);
+  for (const [color, value] of Object.entries(theme.colors ?? {})) {
+    if (/^--[\w-]+$/.test(color) && !/[;{}]/.test(String(value))) {
+      colors[color] = value;
+    }
+  }
+  return colors;
+}
+
+// The names of the schemes' own colors, as a setting names them.
+const BASE_OWN = { dark: "Dark", light: "Light" };
 
 // A name no theme has yet, from `wanted`, with a number after it where it is taken.
 export function freeName(wanted) {
