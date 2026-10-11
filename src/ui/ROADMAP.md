@@ -14,13 +14,18 @@ What the window does not do yet, by area. Each item says what it gives the reade
 ## Tools
 
 1. **Databases.** Connect to a database, browse its tables, run a query from the editor and read the rows it gives.
-   - A large schema whose reading takes minutes and is read again whole after each change: the schema is read a level at a time as it is opened, an object changed is read again alone, and the editor never waits on it.
-   - An UPDATE or a DELETE with no WHERE run against the wrong database: a connection marked as one that matters asks before any statement that writes, and a write with no WHERE asks on every connection, with the count of rows it would change.
+   - A large schema whose reading takes minutes, cannot be stopped, and is read again whole after each change: the schema is read a level at a time as it is opened, a reading can be stopped, an object changed is read again alone, and the editor never waits on it.
+   - An UPDATE or a DELETE with no WHERE run against the wrong database: a connection marked as one that matters opens read-only, the server itself refusing a write, or asks before any statement that writes, as the reader sets it; and a write with no WHERE asks on every connection, with the count of rows it would change.
+   - A whole script run by a key meant for one statement, the cursor on a blank line or in a comment: Run takes the statement the cursor stands in or the text selected, runs nothing where the cursor stands in no statement, and the whole file runs only from Run File.
    - A large result that freezes the client: rows come a page at a time as the grid scrolls, and a query running can be stopped.
+   - An export that runs the query again, its session's settings gone: an export writes the rows the result holds and reads the rest from the same run.
    - A client that starts slowly and holds gigabytes: the database window starts with the window and holds the rows shown.
-   - Passwords kept in the client's files: passwords go to the system's keychain, and a tunnel goes through the system's ssh and its agent.
-   - A transaction left open: a connection with a transaction open says so on the status bar until it is committed or rolled back.
-   - A driver fetched without the reader asking: none is fetched until the reader says yes.
+   - Passwords kept in the client's files, under a key its own source publishes: passwords go to the system's keychain and nowhere else.
+   - A tunnel that fails where the terminal's ssh works, on a cipher, a key's format or a jump host: a tunnel goes through the system's ssh with the reader's own config, keys and agent, and one that drops is made again.
+   - A transaction left open, a query that only read holding its locks: each statement commits on its own until the reader begins a transaction, and a connection with one open says so on the status bar until it is committed or rolled back.
+   - Drivers that fail to download, ask for another Java or run out of memory: orior speaks PostgreSQL's and MySQL's protocols itself and reads SQLite through the sqlite3 Python holds, with no driver and nothing fetched.
+   - Times shown in the client's zone with no offset: a time with a zone shows with its offset, in the zone of the session that read it, which the status bar names.
+   - Queries and their history lost at a restart: a query is a `.sql` file of the tree, kept as every file is, and each statement run is kept in its connection's history across restarts.
 2. **Requests.** A file of HTTP requests, each sent with a press and its answer shown beside it.
    - A sign-in and a cloud account to send a request: none; requests are `.http` files in the tree, plain text kept with git.
    - Secrets in a file that gets committed: each environment's private values come from a file of the reader's, which orior adds to `.gitignore` as it makes it.
