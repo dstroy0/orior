@@ -50,6 +50,7 @@ import { moveDeclaration } from "./move.js";
 import { shapeSearch } from "./shapes.js";
 import { breakpointMenu, breakpointsOf, pausedLineOf, startDebug, stopDebug, toggleBreakpoint, valueAt } from "./debug.js";
 import { bookmarksOf, startBookmarks } from "./bookmarks.js";
+import { startRuns } from "./runs.js";
 import { coverageOf, startTests, testMenu, testsOf } from "./tests.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { clipText, copyText, menuOn, showMenu } from "./menu.js";
@@ -3068,6 +3069,7 @@ export async function startEdit(defs) {
       testMenu(file, line, event.clientX, event.clientY);
     }
   };
+  startRuns();
   startTests({
     openAt: (path, line, col) => openAt(path, line, col),
     saveAll: () => editing().saveAll({ auto: true }),

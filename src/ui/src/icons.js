@@ -54,6 +54,7 @@ const SHAPES = {
   sim: ["M1.8 8.6C3.3 3.4 4.9 3.4 6.4 8.2s3.2 4.8 4.7.4c.9-2.6 2-3.4 3.1-2.6"],
   pipeline: ["M1.5 6h3.2v4H1.5zM6.4 6h3.2v4H6.4zM11.3 6h3.2v4h-3.2z", "M4.7 8h1.7M9.6 8h1.7"],
   stage: ["M8 2.3 14 5.3 8 8.3 2 5.3z", "M2 8.1l6 3 6-3", "M2 10.9l6 3 6-3"],
+  runs: ["M1.5 8.5h2.8l1.6-4.2 2.7 7.4 1.6-3.2h4.3"],
 };
 
 // The filled parts: dots and the like, as circles [cx, cy, r].

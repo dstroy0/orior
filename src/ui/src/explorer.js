@@ -43,6 +43,7 @@ const PANES = [
   ["problems", "Problems"],
   ["tests", "Tests"],
   ["git", "Git"],
+  ["runs", "Runs"],
 ];
 
 // The panes each icon of the tool strip shows, one group at a time.
@@ -53,6 +54,7 @@ const GROUPS = {
   problems: ["problems"],
   tests: ["tests"],
   git: ["git"],
+  runs: ["runs"],
 };
 
 const GROUP_KEPT = "orior.panes.group";
@@ -142,7 +144,7 @@ export function shownGroup() {
   return state.group;
 }
 
-const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git" };
+const GROUP_TITLES = { explorer: "Explorer", structure: "Structure", commit: "Commit", problems: "Problems", tests: "Tests", git: "Git", runs: "Runs" };
 
 // The explorer's title, and its group on it, which shows the tree's filter only with the files.
 function drawGroupTitle() {

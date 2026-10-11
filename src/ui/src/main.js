@@ -12,6 +12,7 @@ import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
 import { drawMenubar, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
+import { forgetRuns } from "./runs.js";
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
@@ -321,6 +322,7 @@ async function begin(root) {
     await restoreSession();
     // The tests of the tree open before are forgotten, and this tree's read where their window shows.
     forgetTests();
+    forgetRuns();
     if (paneOpen("tests")) {
       loadTests();
     }

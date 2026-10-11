@@ -794,6 +794,8 @@ impl Server {
             "git_repositories" => give(git::repositories(&self.root()?)),
             "tree_branch" => give(git::branch(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?)),
             "file_head" => give(git::head_text(&self.root()?, &path()?)),
+            "qry_runs" => give(crate::qry::listed(&self.root()?)),
+            "qry_read" => crate::qry::read(&at(&path()?)?, a.get("from")?).and_then(give),
             "file_commits" => git::commits(&self.root()?, &path()?).and_then(give),
             "git_commit" => git::commit(&self.root()?, &a.get::<String>("message")?, &a.get::<Vec<String>>("paths")?).and_then(give),
             "git_push" => git::push(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?).and_then(give),

@@ -155,6 +155,29 @@ impl Report {
 }
 
 /// The time now as year-month-day-hourminutesecond, UTC.
+/// The query run's writer of src/cu built with the system's C compiler where its sources are newer, as
+/// qry_run.sh builds it, for the window's tests of runs to start runs with apart from the window; None
+/// where its sources or a compiler are missing.
+fn qry_writer(ui: &Path, here: &Path) -> Option<PathBuf> {
+    let sources = ui.parent()?.join("cu").join("types").join("file_defs").join("qry");
+    let read = ["qry_writer.c", "qry_buffer.c", "qry_buffer.h", "qry.h"].map(|name| sources.join(name));
+    if !read[0].exists() {
+        return None;
+    }
+    let out = here.join("target").join("qry");
+    std::fs::create_dir_all(&out).ok()?;
+    let binary = out.join(if cfg!(windows) { "qry_writer.exe" } else { "qry_writer" });
+    let newest = read.iter().filter_map(|file| file.metadata().ok()?.modified().ok()).max();
+    let built = binary.metadata().ok().and_then(|meta| meta.modified().ok());
+    if built.is_none() || newest > built {
+        let made = Command::new("cc").args(["-std=c11", "-O2", "-Wall", "-Wextra", "-o"]).arg(&binary).arg(&read[0]).arg(&read[1]).status().ok()?;
+        if !made.success() {
+            return None;
+        }
+    }
+    Some(binary)
+}
+
 fn stamp() -> String {
     let seconds = SystemTime::now().duration_since(UNIX_EPOCH).map(|since| since.as_secs()).unwrap_or(0);
     let (days, rest) = ((seconds / 86_400) as i64, seconds % 86_400);
@@ -535,6 +558,9 @@ fn main() -> ExitCode {
     if let Some(address) = servers::http() {
         env.push(("ORIOR_TEST_HTTP".into(), address));
     }
+    if let Some(writer) = qry_writer(&ui, &here) {
+        env.push(("ORIOR_TEST_QRY_WRITER".into(), writer.to_string_lossy().replace('\\', "/")));
+    }
     if options.servers {
         println!("servers");
         let up = servers::start(&here);
@@ -616,6 +642,7 @@ fn main() -> ExitCode {
                         Ok(()) => {
                             window::keep_placed(&shown, options.monitor);
                             run_files(&conn, &page, &ui, &tests, &env, &mut report);
+                            input::stop_started();
                         }
                     }
                     if options.keep_window {

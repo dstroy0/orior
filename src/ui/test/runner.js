@@ -173,6 +173,9 @@
     // A media feature the system sets, as prefers-reduced-motion, told to the page as `value`; with
     // no value, the page has what the system truly sets.
     media: async (name, value = "") => ask({ op: "media", name, value }),
+    // A program started apart from the window, waited for unless `wait` is false: its words, its
+    // environment and what its standard input reads.
+    run: async (program, args = [], { env = {}, input = "", wait = true } = {}) => ask({ op: "run", program, args, env, input, wait }),
     type: async (text) => ask({ op: "type", text }),
     // Waits for `what`, a selector shown or a function's true value, and gives it.
     waitFor: async (what, ms = 5000) => {

@@ -698,8 +698,10 @@ body[data-strip-edge] .strip-edge {
   outline-offset: 0;
 }
 
-/* A dot over an icon whose window has something to read: errors in Problems, unread notifications. */
+/* A dot over an icon whose window has something to read: errors in Problems, a live run in Runs, unread
+   notifications. */
 .strip-button.marked::after,
+.strip-button.live::after,
 .bar-tool.unread::after {
   content: "";
   position: absolute;
@@ -9305,6 +9307,197 @@ textarea.report-field {
   .plugin-row {
     grid-template-columns: auto 1fr auto;
   }
+}
+
+/* Runs: each folder of runs, its runs newest first, a live one said in signal and one that has
+   panicked in the error's color; an open run's panics, its conferences, the overseer's ruling in
+   signal, and its latest blobs; the folder's lessons under its runs. */
+#runs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.runs-empty {
+  margin: 0.5rem 0.75rem;
+  color: var(--fg-3);
+  font: 12px var(--head);
+}
+
+.runs-folder-head {
+  padding: 0.25rem 0.75rem;
+  color: var(--fg-3);
+  font: 11px var(--code);
+  overflow-wrap: anywhere;
+}
+
+.runs-run {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.2rem 0.75rem;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: 12px var(--code);
+  text-align: left;
+  cursor: pointer;
+}
+
+.runs-run:hover,
+.runs-run[aria-expanded="true"] {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.runs-run-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runs-live {
+  flex: none;
+  color: var(--signal);
+  font: 11px var(--head);
+}
+
+.runs-run.panicked .runs-live {
+  color: var(--ed-error);
+}
+
+.runs-size,
+.runs-seq {
+  flex: none;
+  color: var(--fg-3);
+  font: 11px var(--code);
+}
+
+.runs-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem 0.5rem 1.5rem;
+}
+
+.runs-panic,
+.runs-conference {
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--fg-3);
+}
+
+.runs-panic {
+  border-left-color: var(--ed-error);
+}
+
+.runs-panic .runs-seq {
+  color: var(--ed-error);
+}
+
+.runs-panic-text {
+  margin: 0.15rem 0 0;
+  color: var(--fg);
+  font: 12px var(--code);
+  white-space: pre-wrap;
+}
+
+.runs-question {
+  margin-bottom: 0.15rem;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.runs-account {
+  display: flex;
+  gap: 0.5rem;
+  font: 12px var(--code);
+}
+
+.runs-who {
+  flex: none;
+  color: var(--fg-2);
+}
+
+.runs-said {
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.runs-ruling .runs-who,
+.runs-ruling .runs-said {
+  color: var(--signal);
+}
+
+.runs-count {
+  margin: 0;
+  color: var(--fg-3);
+  font: 11px var(--head);
+}
+
+.runs-said-error {
+  margin: 0;
+  color: var(--ed-error);
+  font: 12px var(--head);
+}
+
+.runs-blobs {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.runs-blob {
+  display: flex;
+  gap: 0.5rem;
+  color: var(--fg-2);
+  font: 11px var(--code);
+}
+
+.runs-blob .runs-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runs-blob.panic {
+  color: var(--ed-error);
+}
+
+.runs-blob.critical {
+  color: var(--fg);
+}
+
+.runs-lessons {
+  padding: 0.25rem 0.75rem 0 1.5rem;
+}
+
+.runs-lessons-head {
+  color: var(--fg-3);
+  font: 11px var(--head);
+}
+
+.runs-lesson {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.5rem;
+  font: 12px var(--code);
+}
+
+.runs-cause {
+  color: var(--fg);
+}
+
+.runs-carrier {
+  color: var(--fg-3);
+}
+
+.runs-stand-in {
+  color: var(--fg-2);
 }
 
 /* While the window's frame is held, every animation of the page holds and no transition runs. */
