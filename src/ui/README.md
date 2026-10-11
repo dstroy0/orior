@@ -23,6 +23,12 @@ The app reads all of it from the tree each time:
 
 A job's description is the opening comment or docstring of its own file.
 
+## Precepts
+
+1. Never cause the user friction: a snappy response, and the user does what they need to while we background our processes.
+2. Always give stateful, graceful errors.
+3. Do not annoy the user: if they are trying to do something, notify them and leave them alone.
+
 ## Running it
 
 It needs Rust 1.77 or later to build. Every line of the page is in `src/`, written for this tree,
