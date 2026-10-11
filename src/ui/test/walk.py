@@ -193,6 +193,10 @@ def put_home_back(home, kept):
             path.write_bytes(data)
 
 
+class Hung(Exception):
+    """The page stopped answering."""
+
+
 class Walker:
     def __init__(self, options):
         self.options = options
@@ -212,7 +216,18 @@ class Walker:
         self.conn.on("Page.screencastFrame", self.framed)
 
     def js(self, expression, timeout=60):
-        return self.conn.evaluate(expression, timeout=timeout)
+        """The value of `expression` in the page. A page that does not answer is held by something
+        over it, as a dialog of the system's: an Escape goes to it and the question is asked again,
+        and a page that still does not answer stops the walk."""
+        try:
+            return self.conn.evaluate(expression, timeout=timeout)
+        except TimeoutError:
+            for kind in ("rawKeyDown", "keyUp"):
+                self.conn.call("Input.dispatchKeyEvent", timeout=5, type=kind, key="Escape", code="Escape", windowsVirtualKeyCode=27, nativeVirtualKeyCode=27)
+            try:
+                return self.conn.evaluate(expression, timeout=15)
+            except TimeoutError:
+                raise Hung(f"the page stopped answering and an Escape did not free it: {expression[:80]}") from None
 
     def watch(self):
         """Puts monitor.js into the page, and stops the walk unless its watch holds every call: a call
@@ -491,6 +506,11 @@ class Walker:
                             flags += self.judge(ran, report or {}, left)
                         flags += self.judge_memory(memory)
                     record["flags"] = [{"weight": weight, "kind": kind, "text": text} for weight, kind, text in sorted(flags, reverse=True)]
+                except Hung as error:
+                    record["flags"] = [{"weight": 99, "kind": "hung the page", "text": str(error)[:300]}]
+                    self.records.append(record)
+                    print(f"{command} held the page: the walk stops")
+                    break
                 except (RuntimeError, TimeoutError) as error:
                     record["flags"] = [{"weight": 95, "kind": "walker", "text": str(error)[:300]}]
                     if self.conn.closed:
@@ -503,28 +523,30 @@ class Walker:
                 kept = f"{record['memory']['kept'] / 1024:+8.0f} KiB" if record.get("memory") else ""
                 print(f"{index:3d}/{len(commands)} {command:24s} {record.get('report', {}).get('active', '')!s:>6} ms {kept}  {worst}")
         finally:
-            if not self.conn.closed:
-                for closing in ("stop-debug", "stop-profile", "stop-tests", "zoom-reset"):
-                    try:
-                        self.js(f"window.__walk ? window.__walk.run({json.dumps(closing)}, [], 3000) : null", timeout=30)
-                    except (RuntimeError, TimeoutError):
-                        pass
-                if self.memory:
-                    try:
-                        self.js("window.__TAURI_INTERNALS__.invoke('memory_calls', { on: false, reset: true })")
-                    except (RuntimeError, TimeoutError):
-                        pass
-                if clip is not None:
-                    self.js(f"window.__TAURI_INTERNALS__.invoke('clip_write', {{ text: {json.dumps(clip)} }}).catch(() => null)")
-                self.js(f"(() => {{ localStorage.clear(); for (const [key, value] of JSON.parse({json.dumps(storage)})) localStorage.setItem(key, value); return 1; }})()")
-                if original:
-                    self.js(f"(async () => {{ await (await import('/menubar.js')).runCommand('open-folder', [{json.dumps(original)}]); return 1; }})()", timeout=60)
-                if watched:
-                    self.js("window.__walk ? window.__walk.restore() : null")
-                time.sleep(1.5)
+            # The report goes first, and each step that puts the window back is tried on its own:
+            # one that fails leaves the others to be done.
+            self.write()
+            steps = [(f"stop {closing}", f"window.__walk ? window.__walk.run({json.dumps(closing)}, [], 3000) : null") for closing in ("stop-debug", "stop-profile", "stop-tests", "zoom-reset")]
+            if self.memory:
+                steps.append(("the call count off", "window.__TAURI_INTERNALS__.invoke('memory_calls', { on: false, reset: true })"))
+            if clip is not None:
+                steps.append(("the clipboard", f"window.__TAURI_INTERNALS__.invoke('clip_write', {{ text: {json.dumps(clip)} }}).catch(() => null)"))
+            steps.append(("the page's kept entries", f"(() => {{ localStorage.clear(); for (const [key, value] of JSON.parse({json.dumps(storage)})) localStorage.setItem(key, value); return 1; }})()"))
+            if original:
+                steps.append(("the tree open", f"(async () => {{ document.querySelectorAll('dialog[open]').forEach((one) => one.close()); await (await import('/menubar.js')).runCommand('open-folder', [{json.dumps(original)}]); return 1; }})()"))
+            if watched:
+                steps.append(("the page's own calls", "window.__walk ? window.__walk.restore() : null"))
+            for label, step in steps:
+                if self.conn.closed:
+                    print(f"not put back, the window being closed: {label}")
+                    continue
+                try:
+                    self.js(step, timeout=60)
+                except (RuntimeError, TimeoutError, Hung) as error:
+                    print(f"not put back: {label}: {error}")
+            time.sleep(1.5)
             put_home_back(home, kept_home)
             self.conn.close()
-            self.write()
             shutil.rmtree(self.scratch, ignore_errors=True)
 
     def write_memory(self):

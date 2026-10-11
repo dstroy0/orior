@@ -25,7 +25,7 @@
     "app_exit", "window_open", "window_act", "view_open", "link_open", "home_reveal", "templates_reveal",
     "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
     "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_keep", "plugin_create", "project_create",
-    "walker_probe",
+    "walker_probe", "print_page",
   ]);
   // A plugin's call reaches the system itself, a dialog, the shell or the process; only events pass.
   const refused = (name) => REFUSED.has(name) || name.startsWith("deploy") || name === "pick" || (name.startsWith("plugin:") && !name.startsWith("plugin:event|"));
@@ -186,10 +186,16 @@
     try {
       const done = menus.runCommand(command, args);
       const sync = performance.now() - started;
+      let prompted = false;
       if (done && typeof done.then === "function") {
-        ended = await Promise.race([done.then(() => true, (error) => ((threw = String(error?.stack || error)), true)), new Promise((stop) => setTimeout(() => stop(false), wait))]);
+        // A command that asks for a line waits on it: the walker answers it once this gives back.
+        const asked = new Promise((stop) => {
+          const look = () => (document.querySelector("dialog[open] form.sheet-ask") ? ((prompted = true), stop(false)) : setTimeout(look, 40));
+          look();
+        });
+        ended = await Promise.race([done.then(() => true, (error) => ((threw = String(error?.stack || error)), true)), asked, new Promise((stop) => setTimeout(() => stop(false), wait))]);
       }
-      return { sync: Math.round(sync), took: Math.round(performance.now() - started), ended, threw };
+      return { sync: Math.round(sync), took: Math.round(performance.now() - started), ended: ended || prompted, prompted, threw };
     } catch (error) {
       return { sync: Math.round(performance.now() - started), took: Math.round(performance.now() - started), ended: true, threw: String(error?.stack || error) };
     }

@@ -282,7 +282,7 @@ const COMMANDS = {
   print: () => {
     const { editor, active } = editing();
     if (editor?.s) {
-      printText(editor.s, active ?? "");
+      printText(editor.s, active ?? "", sheet);
     }
   },
   "close-editor": () => editing().close(),

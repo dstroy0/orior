@@ -5890,6 +5890,55 @@ textarea.report-field {
   color: var(--fg-2);
 }
 
+/* The print sheet: the page as it prints, on white paper of the page's proportions, turned for
+ * landscape and grayed for gray, beside the printer and how it prints. */
+.print-sheet {
+  width: min(40rem, 86vw);
+}
+
+.print-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.print-paper {
+  width: 12.5rem;
+  aspect-ratio: 210 / 297;
+  overflow: hidden;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--line), 0 8px 22px var(--ed-suggest-shadow);
+}
+
+.print-paper.landscape {
+  width: 16rem;
+  aspect-ratio: 297 / 210;
+}
+
+.print-paper.gray {
+  filter: grayscale(1);
+}
+
+.print-preview {
+  width: 400%;
+  height: 400%;
+  border: 0;
+  transform: scale(0.25);
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.print-settings {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.print-settings .report-row[hidden] {
+  display: none;
+}
+
 /* Search Structurally: the pattern and the template in the code's font, where to look and the
  * buttons on one row, then a row a match, its file and line, and the line's text. */
 .shape-sheet {

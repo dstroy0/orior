@@ -42,6 +42,8 @@ pub struct Server {
     keeping: Option<PathBuf>,
     /// The kernels notebooks run on, each by the key the page starts it under, a notebook's path.
     kernels: Mutex<HashMap<String, Arc<crate::jupyter::Kernel>>>,
+    /// The database connections open, each by its name in the tree's databases.json.
+    databases: Mutex<std::collections::BTreeMap<String, Arc<crate::db::Open>>>,
 }
 
 /// A call's arguments, each found by its own name or by the page's, as the page writes names of more
@@ -344,6 +346,38 @@ impl Server {
         self.servers.stop_all();
         self.debugger.stop_all();
         self.stop_kernels();
+        self.close_databases();
+    }
+
+    /// Closes every database connection: as the program ends and as another tree opens.
+    fn close_databases(&self) {
+        let open: Vec<Arc<crate::db::Open>> = self.databases.lock().map(|mut open| std::mem::take(&mut *open).into_values().collect()).unwrap_or_default();
+        for one in open {
+            one.close();
+        }
+    }
+
+    fn database(&self, name: &str) -> Result<Arc<crate::db::Open>, String> {
+        self.databases.lock().map_err(|e| e.to_string())?.get(name).cloned().ok_or_else(|| format!("{name} is not connected"))
+    }
+
+    /// Connects to the database `name` of the tree's databases.json, signing in with `password`, or
+    /// the keychain's, and keeping a password given in the keychain where `keep` is set.
+    fn database_connect(&self, name: &str, password: Option<String>, keep: bool) -> Result<Value, String> {
+        let root = self.root()?;
+        let config = crate::db::read(&root)?.into_iter().find(|one| one.name == name).ok_or_else(|| format!("databases.json names no connection {name}"))?;
+        if let Some(old) = self.databases.lock().map_err(|e| e.to_string())?.remove(name) {
+            old.close();
+        }
+        let open = crate::db::Open::connect(&root, config.clone(), password.clone()).map_err(|failure| failure.to_string())?;
+        if keep {
+            if let Some(password) = password.filter(|one| !one.is_empty()) {
+                crate::db::keychain::keep(&config.account(), &password)?;
+            }
+        }
+        let said = json!({"version": open.version, "transaction": open.transaction(), "zone": open.zone.lock().map(|zone| zone.clone()).unwrap_or_default()});
+        self.databases.lock().map_err(|e| e.to_string())?.insert(name.to_string(), Arc::new(open));
+        Ok(said)
     }
 
     /// Ends every kernel the notebooks ran on: as the program ends, as another tree opens, and as a
@@ -432,6 +466,7 @@ impl Server {
         // answers for the tree it started in; another tree starts its own as its files open.
         if moved {
             self.stop_kernels();
+            self.close_databases();
             root::unmount_all();
             self.servers.let_go();
             self.symbols.forget();
@@ -985,6 +1020,56 @@ impl Server {
                 let text = std::fs::read_to_string(&full).map_err(|error| format!("{}: {error}", full.display()))?;
                 crate::notebook::without_outputs(&text).and_then(give)
             }
+            "db_list" => {
+                let open = self.databases.lock().map_err(|e| e.to_string())?.clone();
+                crate::db::listed(&self.root()?, &open).and_then(give)
+            }
+            "db_save" => {
+                let connection: crate::db::Connection = a.get("connection")?;
+                let was = a.get::<Option<String>>("was")?;
+                crate::db::save(&self.root()?, connection.clone(), was.as_deref())?;
+                if let Some(password) = a.get::<Option<String>>("password")?.filter(|one| !one.is_empty()) {
+                    crate::db::keychain::keep(&connection.account(), &password)?;
+                }
+                give(())
+            }
+            "db_remove" => {
+                let name = a.get::<String>("name")?;
+                if let Some(open) = self.databases.lock().map_err(|e| e.to_string())?.remove(&name) {
+                    open.close();
+                }
+                crate::db::remove(&self.root()?, &name).and_then(give)
+            }
+            "db_forget_password" => {
+                let name = a.get::<String>("name")?;
+                let config = crate::db::read(&self.root()?)?.into_iter().find(|one| one.name == name).ok_or_else(|| format!("databases.json names no connection {name}"))?;
+                crate::db::keychain::forget(&config.account()).and_then(give)
+            }
+            "db_connect" => self.database_connect(&a.get::<String>("name")?, a.get("password")?, a.get::<Option<bool>>("keep")?.unwrap_or(false)).and_then(give),
+            "db_close" => {
+                if let Some(open) = self.databases.lock().map_err(|e| e.to_string())?.remove(&a.get::<String>("name")?) {
+                    open.close();
+                }
+                give(())
+            }
+            "db_run" => {
+                let open = self.database(&a.get::<String>("name")?)?;
+                match open.run(&a.get::<String>("sql")?, a.get::<Option<bool>>("answered")?.unwrap_or(false), a.get::<Option<usize>>("page")?.unwrap_or(200)) {
+                    Ok(said) => give(said),
+                    Err(failure) => give(json!({"failure": failure, "transaction": open.transaction()})),
+                }
+            }
+            "db_rows" => self.database(&a.get::<String>("name")?)?.rows(a.get("from")?, a.get("count")?).map_err(|failure| failure.to_string()).and_then(give),
+            "db_stop" => self.database(&a.get::<String>("name")?)?.stop().and_then(give),
+            "db_stop_reading" => self.database(&a.get::<String>("name")?)?.stop_reading().and_then(give),
+            "db_children" => self.database(&a.get::<String>("name")?)?.children(&a.get::<Vec<String>>("path")?).map_err(|failure| failure.to_string()).and_then(give),
+            "db_export" => {
+                let target = at(&a.get::<String>("path")?)?;
+                self.database(&a.get::<String>("name")?)?.export(&target, &a.get::<String>("format")?).map_err(|failure| failure.to_string()).and_then(give)
+            }
+            "db_history" => give(self.database(&a.get::<String>("name")?)?.history()),
+            "db_statement_at" => give(crate::db::statement_at(&a.get::<String>("text")?, a.get("offset")?, &a.get::<String>("kind")?)),
+            "db_statements" => give(crate::db::statements(&a.get::<String>("text")?, &a.get::<String>("kind")?)),
             "kernel_specs" => give(crate::jupyter::specs()),
             "kernels_stop_all" => {
                 self.stop_kernels();

@@ -10,6 +10,7 @@ mod allocations;
 mod clip;
 mod dragging;
 mod memory;
+mod printing;
 
 #[global_allocator]
 static ALLOCATOR: allocations::Counting = allocations::Counting;
@@ -62,6 +63,18 @@ fn call(app: State<App>, name: String, args: serde_json::Value) -> Result<serde_
         Some(link) => link.call(&name, args),
         None => app.server.call(&name, args),
     })
+}
+
+/// The system's printers, and whether a page prints on them with no dialog of the system's.
+#[tauri::command(async)]
+fn printers_list() -> serde_json::Value {
+    serde_json::json!({ "printers": printing::printers(), "silent": printing::SILENT })
+}
+
+/// Prints a page from orior's print sheet, or writes it as a PDF, as `settings` say.
+#[tauri::command(async)]
+fn print_page(app: tauri::AppHandle, html: String, settings: printing::Settings) -> Result<String, String> {
+    printing::print(&app, html, settings)
 }
 
 /// What the calls of the tree's side took and kept, by name, while the count is on: `on` turns it on
@@ -916,6 +929,8 @@ fn open(launch: Launch) {
             memory_use,
             memory_hold,
             memory_calls,
+            printers_list,
+            print_page,
             kept_write,
             files_copy,
             clip_files,
