@@ -18,11 +18,13 @@
 // The planning reads every case against every survivor at each level. That is the price of choosing well, and it is
 // paid on this host against arithmetic every system that computes agrees about. A target is asked only the cases
 // the descent placed.
+#include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
-#include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
+#include "../../../../../../../src/cu/types/file_defs/kdm/kdm.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define GATE_NEEDLE_MOST (LADDER_CASE_COUNT + CHAIN_SWEEP)
@@ -178,41 +180,48 @@ static void gate_asks(unsigned int anchor, unsigned int alignments, const size_t
 // the folder a target's half is written to, or NULL where none was named
 static const char *s_put_folder;
 
-// What a target is asked for `anchor`, written to s_put_folder where one was named: <anchor>.kdm, every arrangement the
-// descent ran over as a row of a .kdm with the descent's verdict last, 1 standing and 0 out, and <anchor>_cases.txt,
-// the cases it placed, a line each as the two words and the word the relation gives them. A target that runs every
-// arrangement over the placed cases alone leaves standing what the descent leaves standing
+// What a target is asked for `anchor`, handed to the run's writer in s_put_folder where one was named: <anchor>.kdm
+// (kdm.h), every arrangement the descent ran over as a row of a .kdm with the descent's verdict last, 1 standing and 0
+// out, after a who line of the descent's, and <anchor>_cases.txt, the cases it placed, a line each as the two words and
+// the word the relation gives them. A target that runs every arrangement over the placed cases alone leaves standing
+// what the descent leaves standing
 static void gate_put(unsigned int anchor, unsigned int alignments, const size_t *chosen, unsigned int placed)
 {
     if (s_put_folder == NULL)
     {
         return;
     }
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.kdm", s_put_folder, s_anchor_text[anchor]);
-    FILE *const rows = fopen(path, "wb");
-    snprintf(path, sizeof(path), "%s/%s_cases.txt", s_put_folder, s_anchor_text[anchor]);
-    FILE *const cases = fopen(path, "wb");
-    if ((rows == NULL) || (cases == NULL))
-    {
-        printf("  %-8s the target's half was not written to %s\n", s_anchor_text[anchor], s_put_folder);
-        return;
-    }
+    QryText rows = {NULL, 0ull, 0ull, 0};
     for (unsigned int at = 0u; at < alignments; at += 1u)
     {
         char text[256];
         chain_text(&s_fitted.chain[at], text, sizeof(text));
-        fprintf(rows, "%s\t%u\t%s\t-\t0\t%u\n", s_anchor_text[anchor], s_fitted.chain[at].nodes, text,
-                (s_survivors[at] != 0u) ? 1u : 0u);
+        qry_text_printed(&rows, "%s\t%u\t%s\t-\t0\t%u\n", s_anchor_text[anchor], s_fitted.chain[at].nodes, text,
+                         (s_survivors[at] != 0u) ? 1u : 0u);
     }
+    static KdmFile s_rows;
+    const char **lines = NULL;
+    unsigned int count = 0u;
+    char path[1024];
+    snprintf(path, sizeof(path), "%s/%s.kdm", s_put_folder, s_anchor_text[anchor]);
+    const int put = ktext_lines_cut(&rows, &lines, &count) &&
+                    ((count == 0u) || (ktext_lines_put(&s_rows, 0u, lines, count) != 0u)) && kdm_write(&s_rows, path);
+    free(lines);
+    qry_text_freed(&rows);
+    kdm_free(&s_rows);
+    QryText cases = {NULL, 0ull, 0ull, 0};
     for (unsigned int at = 0u; at < placed; at += 1u)
     {
         const size_t which = chosen[at];
-        fprintf(cases, "%08x %08x %08x\n", s_gate.given[which].operand[0], s_gate.given[which].operand[1],
-                s_gate.expected[which]);
+        qry_text_printed(&cases, "%08x %08x %08x\n", s_gate.given[which].operand[0], s_gate.given[which].operand[1],
+                         s_gate.expected[which]);
     }
-    fclose(rows);
-    fclose(cases);
+    snprintf(path, sizeof(path), "%s/%s_cases.txt", s_put_folder, s_anchor_text[anchor]);
+    const unsigned long long filed = qry_text_filed(qry_run(), path, &cases);
+    if (!put || (filed == 0ull))
+    {
+        printf("  %-8s the target's half was not written to %s\n", s_anchor_text[anchor], s_put_folder);
+    }
 }
 
 // one relation measured; 1 where every reading agrees with its ground truth

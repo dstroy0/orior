@@ -39,7 +39,7 @@
 
 // a frame's head, the frame's first bytes: the magic, the frame's bytes from its head through its last word, the
 // blob's sequence, the time it was handed and its bytes, the name's length, where its bytes start counted from the
-// frame's start, the priority it was handed at, and a word no reader reads yet
+// frame's start, the priority it was handed at, and its marks, which no reader of the file needs
 typedef struct
 {
     char magic[8];
@@ -50,8 +50,14 @@ typedef struct
     unsigned int name_length;
     unsigned int bytes_at;
     unsigned int priority;
-    unsigned int spare;
+    unsigned int marks;
 } QryFrameHead;
+
+// a frame's marks: its writer also wrote its bytes into the named stream of the .qry that bears its name
+// (qry_buffer.h, qry_streamed), or into the current file its name gives, its path from the top of the tree
+// (qry_filed)
+#define QRY_MARK_STREAMED 1u
+#define QRY_MARK_FILED 2u
 
 // the table's head: the magic, the count of rows, where the rows start and the bytes of each, where the frames start
 // and how many bytes they take, the CRC-64/XZ of the rows, and the alignment the frames start on

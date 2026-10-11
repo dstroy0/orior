@@ -420,43 +420,21 @@ static int khw_runs_read(KhwForm *held, const char *text)
 }
 
 // the forms the protocol answered for, read from `answers` into `form`, as many as `room` holds: the latest blob of
-// that name in the run's buffer where a run's writer runs (qry_buffer.h), and the file where none does. The count read
+// that name in the run's buffer (qry_buffer.h). The count read, 0 where no run's writer runs or the run holds none
 static unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int room)
 {
     QryBuffer *const run = qry_run();
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    unsigned char *owned = NULL;
-    if (run != NULL)
+    if (run == NULL)
     {
-        if (!qry_latest(run, answers, &bytes, &size, NULL))
-        {
-            printf("  khw_machine_write: the run's buffer holds no %s\n", answers);
-            return 0u;
-        }
+        printf("  khw_machine_write: no run's writer runs to read %s from\n", answers);
+        return 0u;
     }
-    else
+    if (!qry_latest(run, answers, &bytes, &size, NULL))
     {
-        FILE *const file = fopen(answers, "rb");
-        long length = -1L;
-        if ((file != NULL) && (fseek(file, 0L, SEEK_END) == 0))
-        {
-            length = ftell(file);
-        }
-        // a length ftell gives past -1 widens to the count it is
-        owned = ((length >= 0L) && (fseek(file, 0L, SEEK_SET) == 0)) ? (unsigned char *)malloc((size_t)length + 1u)
-                                                                      : NULL;
-        size = (owned != NULL) ? (unsigned long long)fread(owned, 1u, (size_t)length, file) : 0ull;
-        if (file != NULL)
-        {
-            fclose(file);
-        }
-        if (owned == NULL)
-        {
-            printf("  khw_machine_write: %s could not be read\n", answers);
-            return 0u;
-        }
-        bytes = owned;
+        printf("  khw_machine_write: the run's buffer holds no %s\n", answers);
+        return 0u;
     }
     char line[2048];
     unsigned int read = 0u;
@@ -486,7 +464,6 @@ static unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigne
         form[read] = held;
         read += 1u;
     }
-    free(owned);
     return read;
 }
 
@@ -525,28 +502,19 @@ static void khw_listed(KhwListing *listing, const char *format, ...)
     listing->whole = 0;
 }
 
-// `listing` given to the protocol as `answers`: the blob of that name in the run's buffer where a run's writer runs
-// (qry_buffer.h), and the file where none does. 1, or 0 with the reason printed
+// `listing` given to the protocol as `answers`: the blob of that name in the run's buffer (qry_buffer.h). 1, or 0 with
+// the reason printed, where no run's writer runs or it was not handed
 static int khw_listing_given(KhwListing *listing, const char *answers)
 {
     QryBuffer *const run = qry_run();
-    int given = listing->whole;
-    if (given && (run != NULL))
-    {
-        given = (qry_hand(run, answers, listing->bytes, listing->size, QRY_ORDINARY) != 0ull);
-    }
-    else if (given)
-    {
-        FILE *const out = fopen(answers, "wb");
-        given = (out != NULL) && (fwrite(listing->bytes, 1u, listing->size, out) == listing->size);
-        given = (out != NULL) && (fclose(out) == 0) && given;
-    }
+    const int given = listing->whole && (run != NULL) &&
+                      (qry_hand(run, answers, listing->bytes, listing->size, QRY_ORDINARY) != 0ull);
     free(listing->bytes);
     listing->bytes = NULL;
     if (!given)
     {
-        printf("  khw_machine_write: %s could not be %s\n", answers,
-               (run != NULL) ? "handed to the run's buffer" : "written");
+        printf("  khw_machine_write: %s could not be handed to the run's buffer%s\n", answers,
+               (run == NULL) ? ": no run's writer runs" : "");
     }
     return given;
 }

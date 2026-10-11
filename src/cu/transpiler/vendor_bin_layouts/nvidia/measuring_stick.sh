@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The measuring stick: every function of the CUDA language in a kernel of its own (measuring_stick.py), compiled by
 # nvcc for sm_86 and disassembled, the answer key what the engine builds for each function is held against. nvcc's
-# listing is read kernel by kernel, and against sass.krs, into measuring_stick.md (measuring_stick_read.py). nvcc runs
+# listing is read kernel by kernel, and against sass.krs, into measuring_stick.md (measuring_stick_read.c). nvcc runs
 # only where the stick's text has changed since the cubin beside it was compiled. Nothing goes to a device.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick.sh
@@ -32,5 +32,9 @@ else
     "$CUDA/bin/cuobjdump" -sass "$OUT/measuring_stick_nvcc.cubin" > "$OUT/measuring_stick_nvcc.sass" || exit 1
 fi
 
-"$PYTHON" "$TEST/measuring_stick_read.py" "$WIN_OUT/measuring_stick_nvcc.sass" "$WIN_OUT/measuring_stick.tsv" \
+# the record is written by the run's writer, in the run this script joins or starts in <out>/qry (qry_run.sh)
+source "$TOP/src/cu/types/file_defs/qry/qry_run.sh"
+qry_writer_built "$OUT"
+run_started "$OUT/qry"
+"$TEST/measuring_stick_read.sh" "$WIN_OUT/measuring_stick_nvcc.sass" "$WIN_OUT/measuring_stick.tsv" \
     "$(cygpath -m "$TOP/src/cu/transpiler/lstar/protocol/table")/sass.krs" "$(cygpath -m "$TEST")/measuring_stick.md"

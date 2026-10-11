@@ -571,13 +571,22 @@ int main(int argc, char **argv)
             metas[held.first].insert("data_quality_coherence");
         }
     }
+    // the bridge as the run holds it: the latest the learner handed, or the file where the run holds none
     std::vector<std::string> bridge;
-    std::ifstream held_bridge(argv[3], std::ios::binary);
+    unsigned char *bridge_bytes = NULL;
+    unsigned long long bridge_size = 0ull;
+    if (!qry_file_read(qry_run(), argv[3], &bridge_bytes, &bridge_size))
+    {
+        printf("klq_decoder: %s could not be read\n", argv[3]);
+        return 1;
+    }
+    // a file read whole is at most what a size_t counts
+    std::istringstream held_bridge(std::string((const char *)bridge_bytes, (size_t)bridge_size));
+    free(bridge_bytes);
     while (std::getline(held_bridge, line))
     {
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
-    held_bridge.close();
     const std::string suffix = "_coherence";
     const auto set_line = [&](const std::string &entry) {
         return (entry.find(' ') == std::string::npos) && (entry.size() > suffix.size()) &&
@@ -781,17 +790,17 @@ int main(int argc, char **argv)
         }
     }
     pair_closed();
-    FILE *const file = fopen(argv[3], "wb");
-    if (file == NULL)
-    {
-        printf("klq_decoder: %s could not be written\n", argv[3]);
-        return 1;
-    }
+    // the bridge handed to the run's writer, which writes it in the file's place (qry_filed)
+    std::string bridge_text;
     for (const std::string &kept : written)
     {
-        fprintf(file, "%s\n", kept.c_str());
+        bridge_text += kept + "\n";
     }
-    fclose(file);
+    if (qry_filed(qry_run(), argv[3], bridge_text.data(), bridge_text.size()) == 0ull)
+    {
+        printf("klq_decoder: %s could not be written through the run's writer\n", argv[3]);
+        return 1;
+    }
     for (const auto &held : decoded)
     {
         std::string lights;

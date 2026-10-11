@@ -33,8 +33,8 @@
 // asked dropped, and every fold this run found taken. The last round is written out: each kernel as <out>/NNNN.sass and
 // its encodings <out>/NNNN.bin. Nothing goes to a device.
 //
-// Where STICK_TRACE is set, each kernel's trace is handed to the query run QRY names as the blob NNNN.trace
-// (qry_buffer.h); a trace asked for with no run's writer to take it is refused before anything is read.
+// Each kernel's trace is handed to the query run QRY names as the blob NNNN.trace, as every path's trace is unless
+// QRY_TRACE is 0 (qry_buffer.h); with no run's writer to take it, nothing is read.
 extern "C"
 {
 #include "sass_assemble.h"
@@ -250,7 +250,7 @@ struct StickPattern
     int select;
 };
 
-// The trace of the kernel being read, where STICK_TRACE is set: every reading tried, nested as it is tried, every
+// The trace of the kernel being read, unless QRY_TRACE is 0: every reading tried, nested as it is tried, every
 // form whose text matches and every choice of its operands with why it fails, what each reading gives, every line
 // written and every question put, gathered in memory and handed to the run's buffer once the kernel is read. Nothing
 // is gathered where s_tracing is false
@@ -2959,13 +2959,14 @@ int main(int argc, char **argv)
         fprintf(stderr, "measuring_stick_engine <stick .cu> <nvcc listing> <out directory>\n");
         return 2;
     }
-    // the run's buffer each kernel's trace is handed to, where STICK_TRACE asks for one
-    QryBuffer *const traced = (getenv("STICK_TRACE") != NULL) ? qry_run() : NULL;
-    if ((getenv("STICK_TRACE") != NULL) && (traced == NULL))
+    // the run's buffer each kernel's trace is handed to, as every path's trace is unless QRY_TRACE is 0
+    const int tracing = qry_traced("measuring_stick_engine", QRY_ORDINARY);
+    QryBuffer *const traced = tracing ? qry_run() : NULL;
+    if (tracing && (traced == NULL))
     {
         fprintf(stderr,
-                "measuring_stick_engine: STICK_TRACE is set and no query writer runs: %s names no .qry a "
-                "writer holds open\n",
+                "measuring_stick_engine: no query writer runs to take the trace: %s names no .qry a writer holds "
+                "open\n",
                 QRY_ENVIRONMENT);
         return 2;
     }
@@ -3009,7 +3010,7 @@ int main(int argc, char **argv)
     for (const StickSource &source : sources)
     {
         StickKernel kernel(cu, sass, &machine, &patterns, 1);
-        // STICK_TRACE set hands the run's buffer <number>.trace once the kernel is read
+        // the run's buffer handed <number>.trace once the kernel is read, unless QRY_TRACE is 0
         s_tracing = (traced != NULL);
         s_trace.clear();
         const std::string question = stick_kernel(source, &kernel);

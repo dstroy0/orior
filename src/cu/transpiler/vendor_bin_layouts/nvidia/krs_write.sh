@@ -22,7 +22,7 @@ qry_writer_built "$OUT"
 
 BINARY="$OUT/krs_write"
 cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -o "$BINARY" "$PARSER/krs_write.c" \
-    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "$QRY_SOURCE/qry_buffer.c" ||
+    "$INTERFACE/interface.c" "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" ||
     { echo "  build failed: krs_write did not compile"; exit 1; }
 
 # the vendor's writer, a program the protocol runs through the interface to read the machine file it laid out
@@ -30,11 +30,10 @@ WRITER="$OUT/khw_machine_write"
 cc -std=c11 -O2 -Wall -o "$WRITER" "$LAYOUTS/nvidia/khw_machine_write.c" \
     "$LAYOUTS/nvidia/cubin_write.c" "$LAYOUTS/container_write.c" "$LAYOUTS/container_pattern.c" \
     "$LAYOUTS/container_layout.c" "$LAYOUTS/nvidia/sass_assemble.c" "$LAYOUTS/nvidia/sass_machine.c" \
-    "$QRY_SOURCE/qry_buffer.c" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
+    "${FILE_DEFS[@]}" || { echo "  build failed: khw_machine_write did not compile"; exit 1; }
 
 run_started "$WORK/qry"
 run_read "$COHERENCE/sm_86.khw" "$COHERENCE/sm_86.ksc" "$COHERENCE/sm_86.krs" "$COHERENCE/sass.krs" "$COHERENCE/cu.krs" \
     "$LAYOUTS/nvidia/elf64_nvidia.tsv" "$LAYOUTS/nvidia/mnemonic_nvidia.tsv"
-run_left "$COHERENCE/sm_86.krs" "$COHERENCE/sass.krs"
 "$BINARY" sass sm_86 "$COHERENCE/sm_86.khw" "$LAYOUTS/nvidia/elf64_nvidia.tsv" "$LAYOUTS/nvidia/mnemonic_nvidia.tsv" \
     "$WRITER" "$COHERENCE/cu.krs"

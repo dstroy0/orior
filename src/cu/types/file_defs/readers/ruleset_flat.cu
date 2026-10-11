@@ -2,6 +2,8 @@
 // ruleset_flat.cu: the schema and a read ruleset flattened for the .krs reader's core, and what the core read kept
 #include "ruleset_flat.h"
 
+#include "../klang.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -35,22 +37,22 @@ static int ruleset_append(const std::string &path, std::string *text)
     return 1;
 }
 
-// the lines of a part's .kdm or of a .ksc a ruleset reads, each with its newline: those that open with bank, fixed,
-// form, err or nop. The arrangements, the pipes, the questions and the comments are the file's own and are passed over
+// the lines of a part's .kdm or of a .ksc a ruleset reads: the text of each of its blocks of the ruleset's language,
+// `__krs__(` to `)__krs__` (klang.h), each ended by a newline. The arrangements, the pipes, the questions and the
+// comments are the file's own and stand outside every such block
 static std::string ruleset_lines_read(const std::string &kdm)
 {
     std::string lines;
-    size_t at = 0u;
-    while (at < kdm.size())
+    KlangBlock block;
+    size_t from = 0u;
+    while (klang_block_find(kdm.data(), kdm.size(), from, "krs", &block))
     {
-        const size_t end = (kdm.find('\n', at) == std::string::npos) ? kdm.size() : kdm.find('\n', at);
-        const std::string line = kdm.substr(at, end - at);
-        const std::string first = line.substr(0u, line.find_first_of(" \t\r"));
-        if ((first == "bank") || (first == "fixed") || (first == "form") || (first == "err") || (first == "nop"))
+        lines += kdm.substr(block.text, block.text_end - block.text);
+        if (!lines.empty() && (lines.back() != '\n'))
         {
-            lines += line + "\n";
+            lines.push_back('\n');
         }
-        at = end + 1u;
+        from = block.closed;
     }
     return lines;
 }

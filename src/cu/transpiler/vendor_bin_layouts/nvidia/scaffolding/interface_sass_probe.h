@@ -12,6 +12,7 @@
 // is the operation's, one the disassembler refuses is an encoding the part lacks, and one that changes nothing in the
 // text is either control (the stall, yield and barriers the scheduler sets) or unused. Every process is run through the
 // interface, whose runner loses nothing when the disassembler fails
+#include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../../../lstar/interface/interface.h"
 #include "../sass_machine.h"
 
@@ -131,24 +132,32 @@ void sass_pipe_take(const char *operation, const char *writing, unsigned int lea
 // 1 where a pipe is held for `operation`, its writing in `writing`, of SASS_TEXT, and its lane in `least` and `over`
 int sass_pipe_held(const char *operation, char *writing, unsigned int *least, unsigned int *over);
 
-// the pipes of `machines`/<part>.kdm taken beside those held: 1, or 0 where the file does not open
+// the pipes of `machines`/<part>.kdm taken beside those held, as the run holds it (kdm.h): 1, or 0 where there is no
+// such file
 int sass_pipe_read(const char *machines, const char *part);
 
-// `machines`/<part>.kdm written back with the pipes held in place of those it held, after every other line of it: 1,
-// or 0 with the reason printed
-int sass_pipe_write(const char *machines, const char *part);
+// `machines`/<part>.kdm handed back to the run's writer with the pipes held in place of those it held, at the end of
+// its tail under a who line of `who` (kdm.h): 1, or 0 with the reason printed
+int sass_pipe_write_by(const char *machines, const char *part, QryWho who);
 
-// `machines`/<part>.ksc read back into the classification in place of the questions and counts it held, for a later
-// pass to add to in place of overwriting it: its folds among them, and its equal writings beside those already taken.
-// 1, or 0 where the file does not open (a first run has none)
+// sass_pipe_write_by, the who the code that calls it
+#define sass_pipe_write(machines_, part_) sass_pipe_write_by((machines_), (part_), QRY_WHO_HERE)
+
+// `machines`/<part>.ksc read back into the classification in place of the questions and counts it held, as the run
+// holds it (ksc.h), for a later pass to add to in place of overwriting it: its folds among them, and its equal writings
+// beside those already taken. 1, or 0 where there is no such file (a first run has none)
 int sass_class_read(const char *machines, const char *part);
 
 // every kept question on `channel` of class `answered` that opens with `opening` taken out, and its count: a pass that
 // asks a question again drops what an earlier pass found of it before taking what it finds itself
 void sass_class_drop(unsigned int channel, unsigned int answered, const char *opening);
 
-// the system's classification written to `machines`/<part>.ksc: 1, or 0 with the reason printed
-int sass_class_write(const char *machines, const char *part);
+// the system's classification handed to the run's writer as `machines`/<part>.ksc, every line after its first under a
+// who line of `who` (ksc.h): 1, or 0 with the reason printed
+int sass_class_write_by(const char *machines, const char *part, QryWho who);
+
+// sass_class_write_by, the who the code that calls it
+#define sass_class_write(machines_, part_) sass_class_write_by((machines_), (part_), QRY_WHO_HERE)
 
 // one operation the listings hold, keyed by the low 12 bits of its encoding: the first instruction seen with it
 typedef struct

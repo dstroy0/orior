@@ -31,8 +31,14 @@
 #                                  file's path from the top of the tree
 #     run_left <file>...           each file handed to the run as the script ends, as the run leaves it, named the same
 #                                  way; run_named <file> prints the name
+#     run_filed <file>             the standard input handed as the current file <file>: the run's writer, the only
+#                                  thing that writes a file, writes it in the file's place (qry_writer file)
 QRY_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# every C source of the file definitions a program of the run links, the writer and each format's reader and writer
+source "$QRY_SOURCE/../file_defs.sh"
 QRY_TOP="$(cd "$QRY_SOURCE/../../../../.." && pwd)"
+# the top of the tree every program of a run hands a current file under (qry_buffer.h, qry_filed)
+export QRY_TOP
 QRY_LEFT=()
 QRY_KEPT="${QRY_KEPT:-64}"
 
@@ -266,4 +272,8 @@ run_read() {
 
 run_left() {
     QRY_LEFT+=("$@")
+}
+
+run_filed() {
+    "$QRY_WRITER" file "$1" || { echo "  $1 was not written through the run's writer"; return 1; }
 }

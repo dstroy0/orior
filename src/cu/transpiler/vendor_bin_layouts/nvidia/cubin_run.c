@@ -3,7 +3,7 @@
 // cubin_safe on the host, and run over its cases, a thread a case. This is the run channel's carrier for a part behind
 // NVIDIA's driver (run_channel.h). A question is carried in a process of its own, so a part that refuses one takes
 // this process with it and nothing else, or with --list, many untimed questions in one process, the driver opened
-// once, each answered to its own file as it is carried: a part that refuses one takes the process with it, every
+// once, each answered to its own blob as it is carried: a part that refuses one takes the process with it, every
 // answer written before it stands, and the questions after it are left for the channel to carry again.
 //
 //     cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> <blocks>]]
@@ -12,14 +12,14 @@
 //     [<launches>]
 //     cubin_run --dry <machine file> <layout> ...          either of the above, with the part taken out
 //
-// Where a run's writer runs, the .qry QRY names (qry_buffer.h), every input named, the code, the cases, the list and
-// the held list, is the latest blob of that name in the run's buffer, and every answer, dry record and container is
-// handed to it, a refusal critical and on disk before the carrier goes on: the carrier writes no file. Where none runs
-// each is the file it names, and a live run reaches no part, since the record of what the part was handed and of any
-// fault has nowhere to go: it is answered `skipped no query writer`.
+// The carrier runs only where a run's writer runs, the .qry QRY names (qry_buffer.h): every input named, the code, the
+// cases, the list and the held list, is the latest blob of that name in the run's buffer, and every answer, dry record
+// and container is handed to it, a refusal critical and on disk before the carrier goes on: the carrier writes no
+// file. Where none runs it carries nothing and exits 2, since the record of what the part was handed and of any fault
+// would have nowhere to go.
 //
 // A dry run writes and holds every question as ever and stops before the driver: each question is answered
-// `skipped dry, the part taken out`, and what it would have handed the part is added to dry.txt beside its answers
+// `skipped dry, the part taken out`, and what it would have handed the part is handed as the run's blob dry.txt
 // (cubin_run_dry_written). Handed the list a dry run of the protocol writes (run_channel.h), it checks every
 // question the protocol put.
 //
@@ -28,7 +28,7 @@
 //   --query                      the query object: every place of the code read back as our reader names it, not
 //                                only the places that are not as the run's first question holds them
 //   --gate-check                 the safety word laid on and cubin_safe's verdict on what it then holds
-//   --diff-output-against-vendor the post-safety-word container as it would reach the part, written beside the answers
+//   --diff-output-against-vendor the post-safety-word container as it would reach the part, handed named as the answers
 //                                with .cubin, for scaffolding to read against the vendor's own disassembler, the same
 //                                C compiled through the vendor's compiler beside it. Our gate judges by operation key;
 //                                only the vendor's reader knows a whole encoding illegal
@@ -70,7 +70,8 @@
 //     timed <launches> <nanoseconds> <least> <most>
 //
 // The driver is reached by name and by its own entry points, and nothing of its vendor's toolchain is compiled
-// against. Exit 0 where a line was written, 2 where the files, the machine or the driver were not reached.
+// against. Exit 0 where a line was written, 2 where no run's writer runs, or the inputs, the machine or the driver were
+// not reached.
 #if !defined(_WIN32)
 // clock_gettime and the monotonic clock are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
@@ -159,32 +160,15 @@ static unsigned int s_cases[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_IN_WORDS];
 static unsigned int s_case_count;
 static unsigned int s_answers[CUBIN_RUN_THREADS_MOST][CUBIN_RUN_OUT_WORDS];
 
-// The run's buffer, where a run's writer runs (qry_buffer.h): every channel input the carrier is named is a blob of
-// it, the latest of that name, and every answer, dry line and container it gives is handed to it: no file of the
-// channel is written but by the run's writer. NULL where none runs, and then each is the file it names
+// The run's buffer (qry_buffer.h): every channel input the carrier is named is a blob of it, the latest of that name,
+// and every answer, dry line and container it gives is handed to it: no file of the channel is written but by the
+// run's writer. The carrier carries nothing where it is NULL (main)
 static QryBuffer *s_run = NULL;
 
-// `path` read whole into `bytes`, which holds `room`: the bytes read, or 0 where it was not read or does not fit
-static unsigned long long cubin_run_file(const char *path, unsigned char *bytes, unsigned long long room)
-{
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
-    {
-        return 0ull;
-    }
-    const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
-    fclose(file);
-    return (read < room) ? read : 0ull;
-}
-
-// the channel input `name` read whole into `bytes`, which holds `room`: the latest blob of it in the run's buffer, or
-// the file it names where no run's writer runs. The bytes read, or 0 where it was not read or does not fit
+// the channel input `name` read whole into `bytes`, which holds `room`: the latest blob of it in the run's buffer. The
+// bytes read, or 0 where it was not read or does not fit
 static unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsigned long long room)
 {
-    if (s_run == NULL)
-    {
-        return cubin_run_file(name, bytes, room);
-    }
     const unsigned char *held = NULL;
     unsigned long long size = 0ull;
     if (!qry_latest(s_run, name, &held, &size, NULL) || (size >= room))
@@ -196,34 +180,24 @@ static unsigned long long cubin_run_input(const char *name, unsigned char *bytes
     return size;
 }
 
-// the lines of a channel input: its blob in the run's buffer, read in place, or the file it names
+// the lines of a channel input: its blob in the run's buffer, read in place
 typedef struct
 {
     const unsigned char *bytes;
     unsigned long long size;
     unsigned long long at;
-    FILE *file;
 } CubinRunLines;
 
 // the lines of the input `name` opened: 1, or 0 where it is not there
 static int cubin_run_lines_open(CubinRunLines *lines, const char *name)
 {
     memset(lines, 0, sizeof(*lines));
-    if (s_run != NULL)
-    {
-        return qry_latest(s_run, name, &lines->bytes, &lines->size, NULL);
-    }
-    lines->file = fopen(name, "rb");
-    return lines->file != NULL;
+    return qry_latest(s_run, name, &lines->bytes, &lines->size, NULL);
 }
 
 // the next line into `line`, which holds `room`, as much of it as fits and its end kept: 1, or 0 past the last
 static int cubin_run_line(CubinRunLines *lines, char *line, size_t room)
 {
-    if (lines->file != NULL)
-    {
-        return fgets(line, (int)room, lines->file) != NULL;
-    }
     if (lines->at >= lines->size)
     {
         return 0;
@@ -240,10 +214,6 @@ static int cubin_run_line(CubinRunLines *lines, char *line, size_t room)
 
 static void cubin_run_lines_close(CubinRunLines *lines)
 {
-    if (lines->file != NULL)
-    {
-        fclose(lines->file);
-    }
     memset(lines, 0, sizeof(*lines));
 }
 
@@ -326,23 +296,11 @@ static int cubin_run_say(CubinRunSaying *saying, const char *format, ...)
     return kept;
 }
 
-// What `saying` holds given whole as `name`: handed to the run's buffer at `priority`, or, where no run's writer runs,
-// written to the file `name`, added to its end where `added`. `carried` where it was given, 2 where it was not, and
-// what was said let go either way
-static int cubin_run_said(CubinRunSaying *saying, const char *name, int added, unsigned int priority, int carried)
+// What `saying` holds given whole as `name`: handed to the run's buffer at `priority`, a blob of its own after any of
+// the name before it. `carried` where it was given, 2 where it was not, and what was said let go either way
+static int cubin_run_said(CubinRunSaying *saying, const char *name, unsigned int priority, int carried)
 {
-    int given = 0;
-    if (s_run != NULL)
-    {
-        given = qry_hand(s_run, name, saying->text, saying->size, priority) != 0ull;
-    }
-    else
-    {
-        FILE *const out = fopen(name, added ? "ab" : "wb");
-        given =
-            (out != NULL) && ((saying->size == 0u) || (fwrite(saying->text, 1u, saying->size, out) == saying->size));
-        given = (out != NULL) && (fclose(out) == 0) && given;
-    }
+    const int given = qry_hand(s_run, name, saying->text, saying->size, priority) != 0ull;
     saying->size = 0u;
     return given ? carried : 2;
 }
@@ -776,54 +734,29 @@ static unsigned int s_facets = 0u;
 // (cubin_safe_verdict_load, cubin_safe_verdict_ready, cubin_safe_verdict_holds): the carrier reads the --held file into
 // the gate and asks the gate before the driver, a slot instruction the verdict holds never reaching the part.
 
-// The container as it would reach the part, `size` bytes of it, written beside `answers_path` with .cubin for its
-// extension: the --diff-output-against-vendor facet's object, for scaffolding to read against the vendor's own
-// disassembler. It is the post-safety-word container, written whatever the gate's verdict; a question the gate
-// held is read too
+// The container as it would reach the part, `size` bytes of it, handed as the run's blob named as `answers_path` with
+// .cubin for its extension: the --diff-output-against-vendor facet's object, for scaffolding to read against the
+// vendor's own disassembler. It is the post-safety-word container, handed whatever the gate's verdict; a question the
+// gate held is read too
 static void cubin_run_container_out(const char *answers_path, const unsigned char *container, unsigned long long size)
 {
     char path[CUBIN_RUN_LINE];
     const char *const dot = strrchr(answers_path, '.');
     const int stem = (dot != NULL) ? (int)(dot - answers_path) : (int)strlen(answers_path);
     snprintf(path, sizeof(path), "%.*s.cubin", stem, answers_path);
-    if (s_run != NULL)
-    {
-        qry_hand(s_run, path, container, size, QRY_ORDINARY);
-        return;
-    }
-    FILE *const out = fopen(path, "wb");
-    if (out != NULL)
-    {
-        fwrite(container, 1u, (size_t)size, out);
-        fclose(out);
-    }
+    qry_hand(s_run, path, container, size, QRY_ORDINARY);
 }
 
 // What a dry run would have handed the part, a record of each question: the question's shape, the gate's verdict, its
 // cases, and each place of its code. With the --query facet every place is written; without it, only the places that
 // are not as the run's first question holds them, read back as our reader reads them. The first question's code is
-// kept as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run's buffer, and the
-// base the blob dry_base.bin; where no run's writer runs, each is a file beside the answers file, the record added to
-static void cubin_run_dry_written(const char *answers_path, unsigned long long code_size, unsigned int registers,
-                                  unsigned int launches, const CubinRunShape *shape, unsigned int verdict,
-                                  unsigned long long at)
+// kept as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run's buffer, a blob
+// a question, and the base the blob dry_base.bin
+static void cubin_run_dry_written(unsigned long long code_size, unsigned int registers, unsigned int launches,
+                                  const CubinRunShape *shape, unsigned int verdict, unsigned long long at)
 {
-    char path[CUBIN_RUN_LINE];
-    char base_path[CUBIN_RUN_LINE];
-    if (s_run != NULL)
-    {
-        snprintf(path, sizeof(path), "dry.txt");
-        snprintf(base_path, sizeof(base_path), "dry_base.bin");
-    }
-    else
-    {
-        const char *const forward = strrchr(answers_path, '/');
-        const char *const back = strrchr(answers_path, '\\');
-        const char *const slash = (back == NULL) ? forward : ((forward == NULL) || (back > forward)) ? back : forward;
-        const int folder = (slash != NULL) ? (int)(slash - answers_path) : 1;
-        snprintf(path, sizeof(path), "%.*s/dry.txt", folder, (slash != NULL) ? answers_path : ".");
-        snprintf(base_path, sizeof(base_path), "%.*s/dry_base.bin", folder, (slash != NULL) ? answers_path : ".");
-    }
+    const char *const path = "dry.txt";
+    const char *const base_path = "dry_base.bin";
     CubinRunSaying *const dry = &s_dry_said;
     cubin_run_say(dry,
                   "question: %llu bytes of code, %u registers, %u threads in %u blocks, %u launches, %u cases; the "
@@ -842,19 +775,10 @@ static void cubin_run_dry_written(const char *answers_path, unsigned long long c
     }
     cubin_run_say(dry, "%s\n", (s_case_count > 64u) ? " ..." : "");
     static unsigned char s_base[CUBIN_RUN_BYTES];
-    unsigned long long base_size = cubin_run_input(base_path, s_base, sizeof(s_base));
-    if ((base_size == 0ull) && (s_run != NULL))
+    const unsigned long long base_size = cubin_run_input(base_path, s_base, sizeof(s_base));
+    if (base_size == 0ull)
     {
         qry_hand(s_run, base_path, s_code, code_size, QRY_ORDINARY);
-    }
-    else if (base_size == 0ull)
-    {
-        FILE *const base = fopen(base_path, "wb");
-        if (base != NULL)
-        {
-            fwrite(s_code, 1u, (size_t)code_size, base);
-            fclose(base);
-        }
     }
     for (unsigned long long place = 0ull; (place + 16ull) <= code_size; place += 16ull)
     {
@@ -877,14 +801,14 @@ static void cubin_run_dry_written(const char *answers_path, unsigned long long c
         }
         cubin_run_say(dry, "  %04llx  %016llx %016llx  %s\n", place, low, high, text);
     }
-    cubin_run_said(dry, path, 1, QRY_ORDINARY, 0);
+    cubin_run_said(dry, path, QRY_ORDINARY, 0);
 }
 
 // One question carried: its code at `code_path` put in the container of `pattern_size` bytes in s_pattern, its kernel
 // `kernel`, declaring `registers`, over the cases at `cases_path`, launched as `shape` says where `shaped`, timed over
 // `launches` where that is not 0, and its line written to `answers_path`. 0 where a line was written, 1 where the line
 // is the driver's or the part's refusal of a launch, after which the context answers no other question, and 2
-// where the files, the machine or the driver were not reached
+// where the inputs, the machine or the driver were not reached
 // one word of an instruction in `code` at `byte`, read and written back
 static unsigned long long cubin_run_word(const unsigned char *code, unsigned int byte)
 {
@@ -1002,9 +926,9 @@ static void cubin_run_account_given(CubinRunSaying *answers, CubinRunSaying *cal
 {
     // an account is a line, far below what an int counts
     cubin_run_say(answers, "%.*s", (int)call->size, call->text);
-    if (panicked && (s_run != NULL))
+    if (panicked)
     {
-        cubin_run_said(call, QRY_PANIC_CALL, 0, QRY_PANIC, 0);
+        cubin_run_said(call, QRY_PANIC_CALL, QRY_PANIC, 0);
     }
     call->size = 0u;
 }
@@ -1098,7 +1022,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     {
         cubin_run_say(answers, "skipped a launch of %u threads in %u blocks for %u cases\n", shape.threads,
                       shape.blocks, s_case_count);
-        return cubin_run_said(answers, answers_path, 0, QRY_ORDINARY, 0);
+        return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // the scheduler's own word set here, before the gate and the part: the protocol sent the code as the part
     // accepted it and named the slot
@@ -1117,7 +1041,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     if (!cubin_write(&written, s_container, sizeof(s_container), &size))
     {
         cubin_run_say(answers, "skipped not written\n");
-        return cubin_run_said(answers, answers_path, 0, QRY_ORDINARY, 0);
+        return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // read on the host before the driver sees it: code that breaks a rule of cubin_safe is answered without the part,
     // its register fields bound by the count this question's kernel allots (rule 6)
@@ -1129,18 +1053,18 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
         {
             cubin_run_container_out(answers_path, s_container, size);
         }
-        cubin_run_dry_written(answers_path, code_size, registers, launches, &shape, verdict, at);
+        cubin_run_dry_written(code_size, registers, launches, &shape, verdict, at);
     }
     if (verdict != CUBIN_SAFE)
     {
         cubin_run_say(answers, "skipped %u %s at byte %llu\n", verdict, cubin_safe_name(verdict), at);
-        return cubin_run_said(answers, answers_path, 0, QRY_ORDINARY, 0);
+        return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // a dry run stops here, before the driver: the question is answered as one held off the part
     if (s_dry)
     {
         cubin_run_say(answers, "skipped dry, the part taken out\n");
-        return cubin_run_said(answers, answers_path, 0, QRY_ORDINARY, 0);
+        return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // the safety airlock: a live run reaches the part only with the vendor's verdict in hand (--held). Without it this
     // code was never read for a fault, and an unread encoding can fault the part and crash the machine: it is held off
@@ -1148,14 +1072,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     if (!cubin_safe_verdict_ready())
     {
         cubin_run_say(answers, "skipped no vendor verdict, the cross must read this code before the part\n");
-        return cubin_run_said(answers, answers_path, 0, QRY_ORDINARY, 0);
-    }
-    // a live run reaches the part only where the run's writer runs: the record of what the part was handed and of any
-    // fault it gives back is critical, no setting turns it off, and with no writer it has nowhere to go
-    if (s_run == NULL)
-    {
-        cubin_run_say(answers, "skipped no query writer, the run's critical record has nowhere to go\n");
-        return cubin_run_said(answers, answers_path, 0, QRY_ORDINARY, 0);
+        return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
     }
     // a slot instruction the vendor's reader held off the part was already caught by cubin_safe_image above, where the
     // verdict is loaded (cubin_safe_verdict_holds): the gate holds the whole code, not the slot alone
@@ -1187,7 +1104,7 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
         const int panicked = s_launch_faulted || s_launch_timed_out;
         cubin_run_refusal_said(answers, panicked, code_path, code_size, registers, slot, launches, &shape, name, status,
                                verdict, at);
-        return cubin_run_said(answers, answers_path, 0, panicked ? QRY_PANIC : QRY_ORDINARY, 1);
+        return cubin_run_said(answers, answers_path, panicked ? QRY_PANIC : QRY_ORDINARY, 1);
     }
     cubin_run_say(answers, "answered");
     for (unsigned int place = 0u; place < s_case_count; place += 1u)
@@ -1199,17 +1116,12 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
     {
         cubin_run_say(answers, "timed %u %llu %llu %llu\n", launches, nanoseconds, s_timed_least, s_timed_most);
     }
-    return cubin_run_said(answers, answers_path, 0, QRY_ORDINARY, 0);
+    return cubin_run_said(answers, answers_path, QRY_ORDINARY, 0);
 }
 
-// the held list named `name` loaded into the gate: the blob of it in the run's buffer, or the file it names where no
-// run's writer runs. 1, or 0 where it did not read
+// the held list named `name` loaded into the gate: the blob of it in the run's buffer. 1, or 0 where it did not read
 static int cubin_run_verdict_load(const char *name)
 {
-    if (s_run == NULL)
-    {
-        return cubin_safe_verdict_load(name);
-    }
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     return qry_latest(s_run, name, &bytes, &size, NULL) && cubin_safe_verdict_read((const char *)bytes, size);
@@ -1217,8 +1129,15 @@ static int cubin_run_verdict_load(const char *name)
 
 int main(int count, char **words)
 {
-    // the run's buffer, where a run's writer runs: every input after is read from it and every answer handed to it
+    // the run's buffer: every input after is read from it and every answer handed to it. A live run's record of what
+    // the part was handed and of any fault it gives back is critical, no setting turns it off, and with no writer it
+    // has nowhere to go: nothing is carried
     s_run = qry_run();
+    if (s_run == NULL)
+    {
+        fprintf(stderr, "cubin_run: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        return 2;
+    }
     // `--dry` before the machine file runs every question as ever up to the driver, and none past it
     if ((count >= 2) && (strcmp(words[1], "--dry") == 0))
     {
@@ -1303,7 +1222,7 @@ int main(int count, char **words)
     }
     // Each line of the list one question of no shape of its own, `<code> <registers> <cases> <answers> <slot>
     // [<launches>]`, timed over its launches where it gives a count that is not 0, all carried in this one process and
-    // each answered to its own file as it is carried, each timed question's time its own. A launch the driver or the
+    // each answered to its own blob as it is carried, each timed question's time its own. A launch the driver or the
     // part refuses leaves a context that answers no other question, and the questions after it are left unanswered, for
     // the channel to carry in a process of their own
     CubinRunLines list;

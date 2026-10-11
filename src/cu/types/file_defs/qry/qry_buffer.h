@@ -124,6 +124,21 @@ extern "C"
 // the environment variable that names the run's .qry
 #define QRY_ENVIRONMENT "QRY"
 
+// the environment variable that names the top of the tree the run's current files stand in: a file is handed under
+// its path from there (qry_file_named), and the run's writer writes no file outside it
+#define QRY_TOP_ENVIRONMENT "QRY_TOP"
+
+// The environment variable that chooses which paths hand their trace to the run's .qry (qry_traced). Unset, every path
+// a run takes does. Set, it is a list of path names apart by commas: where it names any path plainly, only those
+// trace and every other is kept out; a path named after a `-` is kept out and every other traces; `0` keeps every
+// path out. A path's name is its own: klq_identity, the learner's trace and log; teacher, a line for every question
+// and what came of it (run_channel.h); airlock, what its pop and its cross printed of each round;
+// measuring_stick_query, what the vendor printed of each reading; measuring_stick_engine, each kernel's trace; and a
+// program's own name, what it printed, where a script hands that to the run (qry_writer tee). A panic and a critical
+// blob always reach the run, whatever path hands them: no setting keeps one out. What the run works from, a question,
+// an answer, a container, a held list or a conference, is no trace and is never kept out
+#define QRY_TRACE_ENVIRONMENT "QRY_TRACE"
+
     typedef struct QryBuffer QryBuffer;
 
     // the buffer of the .qry at `path` made, for its writer: NULL where one is open by that name already, or no memory
@@ -135,6 +150,10 @@ extern "C"
     // the run's buffer, the .qry QRY_ENVIRONMENT names, opened once a process: NULL where it names none or no writer
     // runs
     QryBuffer *qry_run(void);
+
+    // 1 where the path named `path` hands its trace of `priority` to the run: always a panic's or a critical one's,
+    // which nothing keeps out, and an ordinary one's where QRY_TRACE_ENVIRONMENT does not keep it out; 0 otherwise
+    int qry_traced(const char *path, unsigned int priority);
 
     // the buffer let go by this process
     void qry_close(QryBuffer *buffer);
@@ -148,6 +167,118 @@ extern "C"
     // and nothing waits
     unsigned long long qry_hand(QryBuffer *buffer, const char *name, const void *bytes, unsigned long long size,
                                 unsigned int priority);
+
+    // `size` bytes at `bytes` handed as a critical blob of `name` that the writer also writes into a named stream of
+    // the .qry it writes, `<the .qry's path>:<name>`, for a program that reads its input only from a file's path, as
+    // the vendor's disassembler does: no file but the .qry is written, and the stream goes with the .qry the writer
+    // puts in its place as the run ends. Its sequence once the stream holds those bytes, read back and held to them,
+    // with the stream's path in `path`, which holds `room`; 0 where it could not be had: the name holds `/`, `\` or
+    // `:`, the system gives a file no named stream, or the writer did not write it. Only NTFS gives a file named
+    // streams
+    unsigned long long qry_streamed(QryBuffer *buffer, const char *name, const void *bytes, unsigned long long size,
+                                    char *path, size_t room);
+
+    // The name the file at `path` is handed under, into `name`, which holds `room`: its path from the top of the tree
+    // QRY_TOP_ENVIRONMENT names, `/` between its folders, where it stands under that top. 1, or 0 where it stands
+    // outside it, no top is named, or the name does not fit
+    int qry_file_named(const char *path, char *name, size_t room);
+
+// the who table, from the top of the tree: every C and C++ source numbered in hex, a number never given twice
+// (who_table.sh)
+#define QRY_WHO_TABLE "src/cu/types/file_defs/who/who.tsv"
+
+// the name of the blob each file written is followed by in the run: its sequence and the who of the write, three words
+#define QRY_FILED_CALL "filed"
+
+// the letters of a who's code, without its end
+#define QRY_WHO_CODE_LETTERS 32u
+
+    // A who, the code that made a write and when, as numbers in place of names: the number the who table gives the
+    // source file, the line in it, the number it gives the program's own source, the source of the program's name,
+    // and the time in nanoseconds since 1970 in UTC. A number of 0 is a source the table does not give. Its code is
+    // its two words in hex, the first the source, the line and the program sixteen bits each above sixteen of 0, the
+    // second the time, read back through the table as a stack trace is through its symbols
+    typedef struct
+    {
+        unsigned int source;
+        unsigned int line;
+        unsigned int program;
+        unsigned long long nanoseconds;
+    } QryWho;
+
+    // the who of the code at line `line` of the source `file`, as __FILE__ and __LINE__ give them, in this program,
+    // now. The table is read once a process, as the run holds it
+    QryWho qry_who(const char *file, unsigned int line);
+
+// the who of the code this stands in
+#define QRY_WHO_HERE qry_who(__FILE__, (unsigned int)__LINE__)
+
+    // `who` as its two words, into `words`
+    void qry_who_words(QryWho who, unsigned long long *words);
+
+    // the who two words `words` hold
+    QryWho qry_who_of_words(const unsigned long long *words);
+
+    // `who`'s code into `code`, which holds `room`, QRY_WHO_CODE_LETTERS hex digits and its end
+    void qry_who_code(QryWho who, char *code, size_t room);
+
+    // the code `code` read back into `who`: 1, or 0 where it is not QRY_WHO_CODE_LETTERS hex digits
+    int qry_who_read(const char *code, QryWho *who);
+
+    // `who` named into `text`, which holds `room`: the source's path from the top of the tree and the line, the
+    // program's source, and the time in UTC to the nanosecond, `-` for a number the table does not give. 1, or 0
+    // where it does not fit
+    int qry_who_named(QryWho who, char *text, size_t room);
+
+    // `size` bytes at `bytes` handed as the current file at `path`, critical: the run's writer, the only thing that
+    // writes a file, puts them in the .qry under the file's name (qry_file_named) and writes them in the file's place,
+    // beside it first and then put in its place whole, before the hand returns. Every file a run's programs make,
+    // their thin wrappers of this, is written so: the writer keeps the pressure of every write and the memory every
+    // one takes. The write is followed in the run by a blob QRY_FILED_CALL, critical, its sequence and `who` made the
+    // write. Its sequence once the file reads back as those bytes, or 0 where it was not written or stands outside
+    // the top of the tree
+    unsigned long long qry_filed_by(QryBuffer *buffer, const char *path, const void *bytes, unsigned long long size,
+                                    QryWho who);
+
+// qry_filed_by, the who the code that calls it
+#define qry_filed(buffer_, path_, bytes_, size_) qry_filed_by((buffer_), (path_), (bytes_), (size_), QRY_WHO_HERE)
+
+    // The file at `path` as the run holds it: the latest blob of its name (qry_file_named) in the run's buffer, or
+    // where the run holds none, the file read whole. Into memory of the caller's to free; 1, or 0 where neither is
+    // there
+    int qry_file_read(QryBuffer *buffer, const char *path, unsigned char **bytes, unsigned long long *size);
+
+    // the line of `bytes`, `size` of them, from `*at` through its line's end copied into `line`, which holds `room`,
+    // ended by a zero byte and cut to the room as fgets cuts one, and `*at` moved past what was copied: 1, or 0 where
+    // no byte is left. A file read whole (qry_file_read) is read line by line by this as by fgets
+    int qry_line_next(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line,
+                      size_t room);
+
+    // text a program puts together in memory before it hands it to the run's writer whole: its bytes, their count and
+    // the room they have, and 1 in `failed` where the system gave no memory for some of it. A text starts as zeros
+    typedef struct
+    {
+        char *bytes;
+        unsigned long long size;
+        unsigned long long room;
+        int failed;
+    } QryText;
+
+    // `format` and what follows it added to the end of `text`, as fprintf writes them
+    void qry_text_printed(QryText *text, const char *format, ...);
+
+    // `size` bytes at `bytes` added to the end of `text`
+    void qry_text_added(QryText *text, const void *bytes, unsigned long long size);
+
+    // `text` handed to the run's writer as the current file at `path` (qry_filed_by), written by `who`, and let go: its
+    // sequence, or 0 where it was not written or some of it had no memory
+    unsigned long long qry_text_filed_by(QryBuffer *buffer, const char *path, QryText *text, QryWho who);
+
+// qry_text_filed_by, the who the code that calls it
+#define qry_text_filed(buffer_, path_, text_) qry_text_filed_by((buffer_), (path_), (text_), QRY_WHO_HERE)
+
+    // `text` let go unhanded
+    void qry_text_freed(QryText *text);
 
     // the sequence of the first panic handed in the run, the line open from then on, or 0 where none has been
     unsigned long long qry_panicked(QryBuffer *buffer);

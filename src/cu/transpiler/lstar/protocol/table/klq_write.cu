@@ -17,12 +17,14 @@
 // ruleset's: each line is kept as the bridge held it and written after the keys. A pair the bridge held a verdict for,
 // put to the part, is written with that verdict, and with the set, the concept and the intent klq_decoder read it into
 #include "code_generator.h"
+#include "qry_buffer.h"
 #include "target_internal.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
-#include <fstream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -74,13 +76,8 @@ static int language_read(const char *file, HeldSet *set)
 // written
 static int map_write(const std::string &path, const std::string &stem, const HeldSet *set, const RulesetSchema *schema)
 {
-    FILE *const map = fopen(path.c_str(), "wb");
-    if (map == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 0;
-    }
-    fprintf(map, "klm %s\n", stem.c_str());
+    QryText map = {};
+    qry_text_printed(&map, "klm %s\n", stem.c_str());
     unsigned int keys = 0u;
     unsigned int relations = 0u;
     for (unsigned int at = 0u; at < set->relations.entry_count; at += 1u)
@@ -90,24 +87,28 @@ static int map_write(const std::string &path, const std::string &stem, const Hel
             continue;
         }
         const std::string name = entry_name(set, at);
-        fprintf(map, "key %s %s\n", name.c_str(), name.c_str());
+        qry_text_printed(&map, "key %s %s\n", name.c_str(), name.c_str());
         keys += 1u;
         const unsigned int kind = set->relations.entries[at].kind;
         if (kind != RULESET_CORE_ENTRY_FORM)
         {
-            fprintf(map, "kind %s %s\n", name.c_str(), s_kind_written[kind]);
+            qry_text_printed(&map, "kind %s %s\n", name.c_str(), s_kind_written[kind]);
             relations += 1u;
         }
         for (unsigned int earlier = 0u; earlier < at; earlier += 1u)
         {
             if (entry_keyed(set, schema, earlier) && ruleset_core_map_same(&set->relations, at, earlier))
             {
-                fprintf(map, "breaks %s %s\n", name.c_str(), entry_name(set, earlier).c_str());
+                qry_text_printed(&map, "breaks %s %s\n", name.c_str(), entry_name(set, earlier).c_str());
                 relations += 1u;
             }
         }
     }
-    fclose(map);
+    if (qry_text_filed(qry_run(), path.c_str(), &map) == 0ull)
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 0;
+    }
     printf("  %s: %u keys, %u relations of the map witnessed\n", path.c_str(), keys, relations);
     return 1;
 }
@@ -189,7 +190,17 @@ int main(int argc, char **argv)
     std::map<std::string, std::string> relations;
     std::map<std::string, std::string> intents;
     std::string pair_held;
-    std::ifstream held_bridge(path, std::ios::binary);
+    // the bridge as the run holds it (qry_file_read), empty on a first run
+    unsigned char *bridge_bytes = NULL;
+    unsigned long long bridge_size = 0ull;
+    std::string bridge_text;
+    if (qry_file_read(qry_run(), path.c_str(), &bridge_bytes, &bridge_size))
+    {
+        // a file read whole is at most what a size_t counts
+        bridge_text.assign(reinterpret_cast<const char *>(bridge_bytes), static_cast<size_t>(bridge_size));
+        free(bridge_bytes);
+    }
+    std::istringstream held_bridge(bridge_text);
     std::string line;
     int first = 1;
     while (std::getline(held_bridge, line))
@@ -226,14 +237,8 @@ int main(int argc, char **argv)
         }
         first = 0;
     }
-    held_bridge.close();
-    FILE *const bridge = fopen(path.c_str(), "wb");
-    if (bridge == NULL)
-    {
-        printf("  %s could not be written\n", path.c_str());
-        return 1;
-    }
-    fprintf(bridge, "klq L*\n");
+    QryText bridge = {};
+    qry_text_printed(&bridge, "klq L*\n");
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < (unsigned int)keys.size(); at += 1u)
     {
@@ -246,35 +251,39 @@ int main(int argc, char **argv)
         {
             continue;
         }
-        fprintf(bridge, "key %s\n", keys[at].c_str());
+        qry_text_printed(&bridge, "key %s\n", keys[at].c_str());
         written += 1u;
         for (const std::pair<std::string, std::string> &held : pairs)
         {
             if (held.first == keys[at])
             {
                 const std::string pair = "pair " + held.first + " " + held.second;
-                fprintf(bridge, "%s\n%s\n", pair.c_str(),
-                        (verdicts.count(pair) != 0u) ? verdicts[pair].c_str() : "open 0");
+                qry_text_printed(&bridge, "%s\n%s\n", pair.c_str(),
+                                 (verdicts.count(pair) != 0u) ? verdicts[pair].c_str() : "open 0");
                 for (const std::string &set : sets[pair])
                 {
-                    fprintf(bridge, "%s\n", set.c_str());
+                    qry_text_printed(&bridge, "%s\n", set.c_str());
                 }
                 if (relations.count(pair) != 0u)
                 {
-                    fprintf(bridge, "%s\n", relations[pair].c_str());
+                    qry_text_printed(&bridge, "%s\n", relations[pair].c_str());
                 }
                 if (intents.count(pair) != 0u)
                 {
-                    fprintf(bridge, "%s\n", intents[pair].c_str());
+                    qry_text_printed(&bridge, "%s\n", intents[pair].c_str());
                 }
             }
         }
     }
     for (const std::string &kept_line : identities)
     {
-        fprintf(bridge, "%s\n", kept_line.c_str());
+        qry_text_printed(&bridge, "%s\n", kept_line.c_str());
     }
-    fclose(bridge);
+    if (qry_text_filed(qry_run(), path.c_str(), &bridge) == 0ull)
+    {
+        printf("  %s could not be written\n", path.c_str());
+        return 1;
+    }
     printf("  %s: %u keys, %u pairs open, %u pairs of names the schema does not name, %u lines no ruleset writes "
            "kept\n",
            path.c_str(), written, (unsigned int)pairs.size(), unkeyed, (unsigned int)identities.size());

@@ -545,8 +545,8 @@ reads has changed.
     for any member of a class, and a specific block holding the best combination available for one section of
     one member. Keeping the asks beside the paths leaves the fingerprint independent of `.kdm` in place of a
     cache of it. A refused or censored probe appears nowhere in a table of chain costs, and it separates two
-    parts that cost the same. Every mode of `klq_identity.sh` writes `sm_86.kqr` (`src/cu/types/file_defs/kqr`,
-    read and written by `query_record.cu` in `src/cu/types/file_defs/readers`) beside R: every untimed ask and
+    parts that cost the same. Every mode of `klq_identity.sh` writes `sm_86.kqr`
+    (read and written by `kqr.c` in `src/cu/types/file_defs/kqr`) beside R: every untimed ask and
     what came back, each case's word or the refusal, timed_out where the watchdog ended it and censored where the
     gate held it off the part to protect the whole; every timed ask a sample of its own with the nanoseconds its
     launches took; then each pair and its verdict. A cycle reads it first and asks the part only what no cycle
@@ -583,6 +583,70 @@ reads has changed.
     scaffolding until the channel in Open 2 carries it. The other 131 functions that compute and the 47 that call
     the operating system are rows in `TREE_LAYOUT_PLAN.tsv`, listed by
     `utils/maint/engine/tree_layout_check.py --write`.
+
+13. **A run is one table of blobs, and is to be a database of its own, a table for each area of it.** A run's `.qry`
+    holds every blob handed to it and a table of them, a row a blob: its name's hash, its sequence, its time, its
+    priority and where its bytes sit (`qry.h`). Every process of the run hands into one buffer in shared memory, a copy
+    to its tail under one lock they share, and a file handed to the run is written in its place before the hand
+    returns (`qry_filed`). The run as planned:
+    - **A table for each area.** The teacher's asks, the carrier's launches, the gate's verdicts, the overseer's
+      conferences and lessons, the cross's pairs, the writers' files and every trace each own a table. A row is fixed
+      numbers: its key, the run's sequence; its who (`QryWho`), the source, the line, the program and the time; and
+      the columns its table names, each a number. A text is held once, in the run's table of texts, and a row names
+      it by its number, as a `.kqr` names its texts (`krep_records.h`). A table's columns and codes stand in its
+      oracle, `<area>.oracle.tsv`, and its reader and the decoder read them from there.
+    - **The tables.** Past the key and the who, each row holds these columns, every one a number, a text by its
+      number and bytes of a length a row cannot fix by the key of their blob:
+      - texts: the text's bytes, each text once.
+      - blobs: the blob's name, its bytes and its priority, as the `.qry`'s table holds them (`qry.h`).
+      - links: the key a link is from, the key it is to and the link's code: every relation between rows that one
+        column cannot hold, the launches a verdict read, the accounts a conference heard, the rows a file was
+        written from.
+      - asks, the teacher's: the records `.kqr` holds, a row each (`kqr.h`). An ask its identity, the hash of its code,
+        its registers, threads, blocks and launches, its count of cases and the hash of its cases, then its answer's
+        code, the blob of its words and the text of its refusal; a sample its identity, its answer's code, its
+        nanoseconds and the least and the most one launch took; a cycle, a seed and a round each its number; a pair
+        its two forms' texts, the hash of what its put reads and its verdict's text.
+      - launches, the carrier's: the ask's key, the blobs of its code and its container, the outcome's code,
+        answered, refused, timed out or faulted, its nanoseconds, the least and the most one launch took, and the
+        text of what the carrier said.
+      - verdicts, the gate's: the ask's key, the rule's number, held or put, and the text of its reason.
+      - accounts, conferences and lessons, the overseer's: an account the expert's code and the text it gave; a
+        conference the question's key, the cause's code and its ruling's code, consensus or none, the accounts it
+        heard its links; a lesson the conference's key, the cause's code, the text of its carrier or every carrier,
+        and the text of the stand-in as written.
+      - pairs, the cross's: the texts of its two forms, the verdict's code, closed or open, its count of cases alike
+        and the key of the case that closed it.
+      - files, the writers': the text of its path and the blob of its bytes, the rows it was written from its links.
+    - **A trace is rows.** Every row carries its who, the source and the line of the code that made it; an area's
+      trace is its rows in the order of their keys. A decision that makes no row of its own, an ask the gate puts
+      past a rule, is a row of its area's table with the decision's code.
+    - **A buffer for each area.** Each area of a process hands into a buffer of its own in the run's shared memory,
+      with its own tail and no lock another area takes, and the run's sequence is one counter every hand takes the
+      next of. No area waits on another, and none waits on the disk but a critical hand.
+    - **One writer.** The pressure buffer drains every area's buffer into the `.qry`: panics first, then critical,
+      then the ordinary rows in stretches, as it writes blobs. As the run ends it dumps each table's rows and its
+      index beside the blobs, and the blobs stay a table of their own for raw bytes, a cubin or a listing.
+    - **Rows keyed to rows.** A row names the rows it follows from by their keys: a launch the ask it carried, a
+      verdict the launches it read, a conference the refusals it heard, a file the rows it was written from. A
+      question about a run is a walk over keys, and the decoder (`kdecode`) is its select: a table, a range of keys,
+      raw or decoded.
+    - **Files as views.** Nothing writes a file in its place while the run runs. A file handed to the run is a row
+      of the files table and its bytes, every program of the run reads the latest of it from the run
+      (`qry_file_read`), and the writer writes each file in its place as the run ends. A tool outside the run that
+      reads a file from the disk while the run runs, nvcc, nvdisasm or a script's `cmp`, is pointed at a stream the
+      run puts out for it (`qry_streamed`), as `measuring_stick_query.c` points nvdisasm.
+
+    It is built in this order, each step held by the checks that hold the run now (`chain_check.sh`, the overseer's
+    check, the writers' bytes):
+    1. A buffer for each area under the blob calls as they stand, and the time of a hand measured under contention
+       before and after.
+    2. Files written as the run ends, and every step that reads a filed file from the disk while the run runs found
+       and pointed at a stream.
+    3. Rows: the head and the records of `krep_records.h` made a table of the run, the teacher's asks first, which
+       `.kqr` holds, and `.kqr` then a view of that table.
+    4. The carrier's launches, the gate's verdicts, the overseer, the cross and the writers, a table each.
+    5. `kdecode` reading the tables.
 
 ## Pending Doug
 

@@ -9,8 +9,13 @@
 //
 // Where the path already holds a .kdm, its costs come forward onto the arrangements found this time, matched by the
 // arrangement and never by where it sat in the file. A cost is therefore kept across a rewrite, and a rewrite that
-// finds an arrangement nobody has timed leaves it untimed.
+// finds an arrangement nobody has timed leaves it untimed. The .kdm's section is what this writes (kdm.h); its tail,
+// the part's registers, widths, loads and stores in their block of the ruleset's language and its pipes, stands as the
+// file held it, since none of it is found from the relations.
 #include "../protocol/gate/chain_build.h"
+
+#include "../../../types/file_defs/kdm/kdm.h"
+#include "../../../types/file_defs/qry/qry_buffer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,9 +39,9 @@ typedef struct
     char text[KDM_TEXT_LONGEST];
     char cost[KDM_COST_LONGEST];
     unsigned int runs;
-} KdmRow;
+} KdmHeld;
 
-static KdmRow s_held[KDM_ROWS];
+static KdmHeld s_held[KDM_ROWS];
 
 // the texts of the rows one operator has written, each once
 static char s_written[CHAIN_MOST][KDM_TEXT_LONGEST];
@@ -68,85 +73,41 @@ static int kdm_exact_text(const char *text)
 }
 static unsigned int s_held_rows;
 
-// the head of the arrangements' rows, the last line this writer writes before them
-#define KDM_ROWS_HEAD "# operator\tnodes\tchain\tcost\truns\n"
+// the .kdm as the run holds it (kdm.h), its section written again and its tail kept
+static KdmFile s_file;
 
-// the most letters of the lines past the rows carried into a rewrite
-#define KDM_KEPT_LONGEST 65536u
-
-// Every line past the rows' head that is not a row: the part's registers, widths, loads and stores as its ruleset
-// reads them, its pipes, and their comments. A rewrite writes it back after the rows as it stood, since none of it is
-// found from the relations
-static char s_kept[KDM_KEPT_LONGEST];
-static size_t s_kept_length;
-
-// the rows of `path` into s_held, and its lines past the rows into s_kept. A path that holds nothing is a first run and
-// not a failure
-static void kdm_read(const char *path)
+// the rows of the .kdm at `path` into s_held, each by its chain. A path that holds nothing is a first run and not a
+// failure
+static void kdm_costs_read(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    static KdmRow s_row;
+    kdm_read(&s_file, path);
+    for (unsigned int at = 0u; (at < s_file.lines) && (s_held_rows < KDM_ROWS); at += 1u)
     {
-        return;
-    }
-    char line[512];
-    int past_head = 0;
-    while (fgets(line, sizeof(line), file) != NULL)
-    {
-        const size_t length = strlen(line);
-        if ((past_head != 0) && (strchr(line, '\t') == NULL) && ((s_kept_length + length) < sizeof(s_kept)))
-        {
-            memcpy(&s_kept[s_kept_length], line, length);
-            s_kept_length += length;
-            continue;
-        }
-        past_head = past_head || (strcmp(line, KDM_ROWS_HEAD) == 0);
-        if ((line[0] == '#') || (line[0] == '\n') || (line[0] == '\r') || (s_held_rows == KDM_ROWS))
+        if (!kdm_row_read(s_file.line[at], &s_row) || (strlen(s_row.chain) >= sizeof(s_held[0].text)))
         {
             continue;
         }
-        // operator, nodes, chain, cost, runs
-        char *at = strchr(line, '\t');
-        at = (at != NULL) ? strchr(at + 1, '\t') : NULL;
-        if (at == NULL)
-        {
-            continue;
-        }
-        char *const chain = at + 1;
-        at = strchr(chain, '\t');
-        if (at == NULL)
-        {
-            continue;
-        }
-        *at = '\0';
-        KdmRow *const row = &s_held[s_held_rows];
-        snprintf(row->text, sizeof(row->text), "%s", chain);
-        char *const cost = at + 1;
-        char *const runs = strchr(cost, '\t');
-        if (runs == NULL)
-        {
-            continue;
-        }
-        *runs = '\0';
-        row->runs = (unsigned int)strtoul(runs + 1, NULL, 10);
+        KdmHeld *const row = &s_held[s_held_rows];
+        snprintf(row->text, sizeof(row->text), "%s", s_row.chain);
+        row->runs = s_row.runs;
         // a cost that is not an exact rational of decimal digits is not carried: it is refused, and the row reads
         // as never timed
-        if ((kdm_exact_text(cost) == 0) || (strlen(cost) >= sizeof(row->cost)))
+        if ((kdm_exact_text(s_row.cost) == 0) || (strlen(s_row.cost) >= sizeof(row->cost)))
         {
             row->runs = 0u;
             row->cost[0] = '\0';
         }
         else
         {
-            snprintf(row->cost, sizeof(row->cost), "%s", cost);
+            snprintf(row->cost, sizeof(row->cost), "%s", s_row.cost);
         }
         s_held_rows += 1u;
     }
-    fclose(file);
 }
 
 // the row `text` stood in the last time, or NULL where nothing has timed it
-static const KdmRow *kdm_cost(const char *text)
+static const KdmHeld *kdm_cost(const char *text)
 {
     for (unsigned int at = 0u; at < s_held_rows; at += 1u)
     {
@@ -197,25 +158,26 @@ int main(int count, char **word)
         return 2;
     }
     const char *const part = word[1];
-    kdm_read(word[2]);
+    kdm_costs_read(word[2]);
     const unsigned int seed = kdm_seed(part);
-    FILE *const file = fopen(word[2], "wb");
-    if (file == NULL)
-    {
-        printf("  kdm_write: %s could not be written\n", word[2]);
-        return 1;
-    }
-    fprintf(file, "kdm %s\n", part);
-    fprintf(file, "# Every arrangement of primitives that produces an operator, and what each costs this part.\n");
-    fprintf(file, "# Found from the relations alone. No ruleset, no machine file and no naming went into a row\n");
-    fprintf(file, "# here. A cost is an exact rational, numerator/denominator in the part's clock count, and a cost\n");
-    fprintf(file, "# of - over 0 runs has not been timed on anything.\n");
-    fprintf(file, "#\n");
-    fprintf(file, "# The rows of an operator are in no order. Timed in the order they were found, a chain's\n");
-    fprintf(file, "# reading carries where it sat and not what it costs; shuffled, that washes out over runs and\n");
-    fprintf(file, "# what is left is the difference between the arrangements. The order moves whenever a run is\n");
-    fprintf(file, "# folded in, which is why it moves and a cost does not.\n\n");
-    fprintf(file, "%s", KDM_ROWS_HEAD);
+    // the section, every line after the first to the tail (kdm.h), put together and then written in the file's place
+    QryText file = {0};
+    qry_text_printed(&file,
+                     "# Every arrangement of primitives that produces an operator, and what each costs this part.\n");
+    qry_text_printed(&file,
+                     "# Found from the relations alone. No ruleset, no machine file and no naming went into a row\n");
+    qry_text_printed(
+        &file, "# here. A cost is an exact rational, numerator/denominator in the part's clock count, and a cost\n");
+    qry_text_printed(&file, "# of - over 0 runs has not been timed on anything.\n");
+    qry_text_printed(&file, "#\n");
+    qry_text_printed(&file,
+                     "# The rows of an operator are in no order. Timed in the order they were found, a chain's\n");
+    qry_text_printed(&file,
+                     "# reading carries where it sat and not what it costs; shuffled, that washes out over runs and\n");
+    qry_text_printed(&file,
+                     "# what is left is the difference between the arrangements. The order moves whenever a run is\n");
+    qry_text_printed(&file, "# folded in, which is why it moves and a cost does not.\n\n");
+    qry_text_printed(&file, "%s\n", KDM_ROWS_HEAD);
 
     static ChainSet set;
     static LadderQuestion cases[LADDER_CASE_COUNT];
@@ -249,15 +211,15 @@ int main(int count, char **word)
             }
             memcpy(s_written[distinct], text, sizeof(text));
             distinct += 1u;
-            const KdmRow *const held = kdm_cost(text);
+            const KdmHeld *const held = kdm_cost(text);
             if (held == NULL)
             {
-                fprintf(file, "%s\t%u\t%s\t-\t0\n", s_anchor_text[anchor], set.chain[at].nodes, text);
+                qry_text_printed(&file, "%s\t%u\t%s\t-\t0\n", s_anchor_text[anchor], set.chain[at].nodes, text);
             }
             else
             {
-                fprintf(file, "%s\t%u\t%s\t%s\t%u\n", s_anchor_text[anchor], set.chain[at].nodes, text, held->cost,
-                        held->runs);
+                qry_text_printed(&file, "%s\t%u\t%s\t%s\t%u\n", s_anchor_text[anchor], set.chain[at].nodes, text,
+                                 held->cost, held->runs);
                 timed += 1u;
             }
             written += 1u;
@@ -266,11 +228,21 @@ int main(int count, char **word)
         {
             // an operator no arrangement of this length reaches. Saying so is the point: it is what the part has to
             // be asked about outright, or what a longer chain has to be found for
-            fprintf(file, "%s\t0\t-\t-\t0\n", s_anchor_text[anchor]);
+            qry_text_printed(&file, "%s\t0\t-\t-\t0\n", s_anchor_text[anchor]);
         }
     }
-    fwrite(s_kept, 1u, s_kept_length, file);
-    fclose(file);
+    const char **lines = NULL;
+    unsigned int line_count = 0u;
+    const int put = ktext_lines_cut(&file, &lines, &line_count) &&
+                    kdm_section_written(&s_file, part, lines, line_count) && kdm_write(&s_file, word[2]);
+    free(lines);
+    qry_text_freed(&file);
+    kdm_free(&s_file);
+    if (!put)
+    {
+        printf("  kdm_write: %s could not be written\n", word[2]);
+        return 1;
+    }
     printf("  kdm_write: %u chains into %s, %u of them timed\n", written, word[2], timed);
     return 0;
 }

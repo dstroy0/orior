@@ -42,4 +42,4 @@ lt	core op																			1
 le	core op																				1																																							
 gt	core op																					1																																						
 ge	core op																						1																																					
-use	plain	brings a .gsm file into .g, wrapped as __gsm__(file)																																																										
+use	plain	brings a .gsm file into .g, wrapped as __gsm__(file)__gsm__																																																										

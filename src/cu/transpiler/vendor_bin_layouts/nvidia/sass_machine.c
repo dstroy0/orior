@@ -2,9 +2,20 @@
 // sass_machine.c: an instruction's text read into its parts, and a part's forms kept, written and read back
 #include "sass_machine.h"
 
+#include "../../../types/file_defs/ksc/ksc.h"
+#include "../../../types/file_defs/qry/qry_buffer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// the end of a line of a machine file as the system writes a text file's: the file is handed to the run's writer as
+// bytes, which it writes as they are
+#if defined(_WIN32)
+#define SASS_LINE_END "\r\n"
+#else
+#define SASS_LINE_END "\n"
+#endif
 
 // a kind as a machine file writes it, by its place in SassOperandKind, and a mark by its place in SassOperandMark
 static const char *const s_kind_names[] = {"unknown",  "register", "predicate", "immediate", "constant",
@@ -434,17 +445,15 @@ static void sass_kinds_write(const SassForm *form, char *written, size_t room)
 
 int sass_machine_write(const SassMachine *machine, const char *path)
 {
-    FILE *const file = fopen(path, "w");
-    if (file == NULL)
-    {
-        printf("  sass_machine: %s could not be written\n", path);
-        return 0;
-    }
-    fprintf(file, "forms 2\n");
-    fprintf(file, "# The part's instructions as the cell's probes read them back: one line a form, an operation and\n"
-                  "# the kind and mark of each printed operand, with the encoding the form was first seen with and\n"
-                  "# the instruction it was seen as. The format is the comment at the head of sass_machine.h.\n");
-    fprintf(file, "part %s\n", machine->part);
+    QryText file = {0};
+    qry_text_printed(&file, "forms 2" SASS_LINE_END);
+    qry_text_printed(&file,
+                     "# The part's instructions as the cell's probes read them back: one line a form, an operation "
+                     "and" SASS_LINE_END
+                     "# the kind and mark of each printed operand, with the encoding the form was first seen with "
+                     "and" SASS_LINE_END "# the instruction it was seen as. The format is the comment at the head of "
+                     "sass_machine.h." SASS_LINE_END);
+    qry_text_printed(&file, "part %s" SASS_LINE_END, machine->part);
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         const SassForm *const form = &machine->form[number];
@@ -453,11 +462,17 @@ int sass_machine_write(const SassMachine *machine, const char *path)
         sass_kinds_write(form, kinds, sizeof(kinds));
         sass_runs_write(form, runs, sizeof(runs));
         const int asked = (form->relation[0] != '\0');
-        fprintf(file, "form %s %s 0x%016llx 0x%016llx %s %s %s %s\n", form->operation, kinds, form->low, form->high,
-                runs, asked ? form->relation : SASS_RUN_NO_PLACE_TEXT,
-                asked ? ((form->signed_read != 0) ? "1" : "0") : SASS_RUN_NO_PLACE_TEXT, form->text);
+        qry_text_printed(&file, "form %s %s 0x%016llx 0x%016llx %s %s %s %s" SASS_LINE_END, form->operation, kinds,
+                         form->low, form->high, runs, asked ? form->relation : SASS_RUN_NO_PLACE_TEXT,
+                         asked ? ((form->signed_read != 0) ? "1" : "0") : SASS_RUN_NO_PLACE_TEXT, form->text);
     }
-    return (fclose(file) == 0) ? 1 : 0;
+    // handed to the run's writer whole, which writes it in the file's place (qry_filed)
+    if (qry_text_filed(qry_run(), path, &file) == 0ull)
+    {
+        printf("  sass_machine: %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
+        return 0;
+    }
+    return 1;
 }
 
 // the place of `word` among the names, or `count` where it is none of them
@@ -516,30 +531,30 @@ static void sass_answers_read(SassMachine *machine, const char *path)
     const size_t length = strlen(path);
     const int typed = (length > 4u) && (strcmp(path + length - 4u, ".khw") == 0);
     snprintf(ksc, sizeof(ksc), "%.*s.ksc", (int)(typed ? (length - 4u) : length), path);
-    FILE *const file = fopen(ksc, "r");
-    if (file == NULL)
+    // the .ksc as the run holds it (ksc.h)
+    static KscFile s_file;
+    static KscRow s_row;
+    ksc_read(&s_file, ksc);
+    for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        return;
-    }
-    char line[512];
-    while (fgets(line, (int)sizeof(line), file) != NULL)
-    {
-        unsigned int stall = 0u;
         char writer[SASS_MACHINE_TOKEN];
         char reader[SASS_MACHINE_TOKEN];
-        unsigned int last = 0u;
-        // sscanf counts the number it converted whether the words after it match, and %n is set only where
-        // they all did
-        int matched = 0;
-        if ((sscanf(line, "run answers %x register last%n", &last, &matched) == 1) && (matched != 0))
-        {
-            machine->register_last = last;
-            continue;
-        }
-        if (sscanf(line, "run answers %x stall %63s %63s", &stall, writer, reader) != 3)
+        if (!ksc_row_read(s_file.line[line], "run", &s_row) || (strcmp(s_row.answer, "answers") != 0))
         {
             continue;
         }
+        // a stall and a register are each at most eight hex digits, which an unsigned int holds
+        const unsigned int answered = (unsigned int)s_row.value;
+        if (strncmp(s_row.question, "register last", 13u) == 0)
+        {
+            machine->register_last = answered;
+            continue;
+        }
+        if (sscanf(s_row.question, "stall %63s %63s", writer, reader) != 2)
+        {
+            continue;
+        }
+        const unsigned int stall = answered;
         unsigned int at = 0u;
         while ((at < machine->soonests) && (strcmp(machine->soonest[at].operation, writer) != 0))
         {
@@ -557,13 +572,16 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         }
         machine->soonest[at].stall = (stall > machine->soonest[at].stall) ? stall : machine->soonest[at].stall;
     }
-    fclose(file);
+    ksc_free(&s_file);
 }
 
 int sass_machine_read(SassMachine *machine, const char *path)
 {
-    FILE *const file = fopen(path, "r");
-    if (file == NULL)
+    // the machine file as the run holds it (qry_file_read)
+    unsigned char *file_bytes = NULL;
+    unsigned long long file_size = 0ull;
+    unsigned long long file_at = 0ull;
+    if (!qry_file_read(qry_run(), path, &file_bytes, &file_size))
     {
         printf("  sass_machine: %s could not be read\n", path);
         return 0;
@@ -572,7 +590,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
     char line[SASS_MACHINE_TEXT + (SASS_MACHINE_TOKEN * (SASS_MACHINE_OPERANDS + 4u))];
     unsigned int version = 0u;
     int broken = 0;
-    while (fgets(line, (int)sizeof(line), file) != NULL)
+    while (qry_line_next(file_bytes, file_size, &file_at, line, sizeof(line)))
     {
         line[strcspn(line, "\r\n")] = '\0';
         if ((line[0] == '#') || (line[0] == '\0'))
@@ -635,7 +653,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
         broken = sass_runs_read(form, runs) ? broken : 1;
         machine->forms += 1u;
     }
-    fclose(file);
+    free(file_bytes);
     if (((version != 1u) && (version != 2u)) || broken || (machine->forms == 0u))
     {
         printf("  sass_machine: %s is not a machine file this reads (forms %u, %u read)\n", path, version,
