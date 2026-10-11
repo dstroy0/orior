@@ -8,12 +8,17 @@
 
 use serde::Serialize;
 
+/// What one program the app started holds, with every process it started in turn: its name, the
+/// process the app started, how many processes, what they hold in RAM and what they have reserved,
+/// and, for a language server, its toolchain's id.
 #[derive(Serialize, Default, Clone)]
 pub struct Part {
     pub name: String,
+    pub pid: u32,
     pub processes: u32,
     pub working: u64,
     pub commit: u64,
+    pub server: Option<String>,
 }
 
 #[derive(Serialize, Default)]
@@ -90,11 +95,24 @@ pub fn read() -> Option<Memory> {
         at += 1;
     }
 
-    let mut parts: BTreeMap<String, Part> = BTreeMap::new();
+    // Each process counts with the process the app started it from: a server's helpers with the
+    // server, the web view's renderers with its browser.
+    let started_from = |pid: u32| {
+        let mut at = pid;
+        while let Some(&(parent, _)) = all.get(&at) {
+            if parent == own || at == own || parent == at {
+                break;
+            }
+            at = parent;
+        }
+        at
+    };
+    let mut parts: BTreeMap<u32, Part> = BTreeMap::new();
     let mut memory = Memory::default();
     for (pid, (working, commit, _)) in found {
-        let name = if pid == own { "orior".to_string() } else { all.get(&pid).map(|(_, name)| name.trim_end_matches(".exe").to_string()).unwrap_or_default() };
-        let part = parts.entry(name.clone()).or_insert_with(|| Part { name, ..Part::default() });
+        let root = if pid == own { own } else { started_from(pid) };
+        let name = if root == own { "orior".to_string() } else { all.get(&root).map(|(_, name)| name.trim_end_matches(".exe").to_string()).unwrap_or_default() };
+        let part = parts.entry(root).or_insert_with(|| Part { name, pid: root, ..Part::default() });
         part.processes += 1;
         part.working += working;
         part.commit += commit;

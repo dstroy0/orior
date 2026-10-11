@@ -53,6 +53,9 @@ extern "C"
     // largest.
     unsigned long long tower_reserve_bytes(unsigned long long lanes);
 
+    // frees the pool and the edge table the tower holds between calls
+    void tower_resident_release(void);
+
     typedef struct
     {
         const unsigned short *device_lanes;

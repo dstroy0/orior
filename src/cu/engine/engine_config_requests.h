@@ -85,6 +85,9 @@ extern "C"
         // the variance of an order 2 · 4^j: a smooth of wide variance costs bits in the count of its pairs.
         unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
         unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
+        // the limbs a residual lane is held in, from 1 to ENGINE_RESIDUAL_LIMBS; 0 holds it in ENGINE_RESIDUAL_LIMBS.
+        // engine_residual_limbs gives the fewest that hold the request's residual
+        unsigned int limbs;
     } EngineResidualRequest;
 
 #define ENGINE_RESIDUAL_BY_UNIT_SWEEP 0u

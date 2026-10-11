@@ -148,10 +148,10 @@
       "programs": ["cargo", "rustc", "rustfmt"],
       "runs": {"rust": "{rustc} {file} -o {out} && {out}"},
       "builds": {"rust": ["{rustc}", "-g", "-C", "opt-level=0", "{path}", "-o", "{out}"]},
-      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml"},
+      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck"},
       "version": ["--version"],
       "formats": ["rust"],
-      "format": {"program": "rustfmt", "args": ["--edition", "2021"]},
+      "format": {"program": "rustfmt", "args": ["--edition", "{edition}"]},
       "install": {"any": "https://rustup.rs/"},
       "places": {"windows": ["%USERPROFILE%\\.cargo\\bin"], "any": ["~/.cargo/bin"]}
     },
@@ -237,6 +237,56 @@
         "any": "curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain stable && ~/.elan/bin/lean --version"
       },
       "places": {"windows": ["%USERPROFILE%\\.elan\\bin"], "any": ["~/.elan/bin"]}
+    },
+    {
+      "id": "zig",
+      "name": "Zig",
+      "group": "Languages",
+      "for": "builds and runs Zig",
+      "programs": ["zig"],
+      "version": ["version"],
+      "install": {"any": "https://ziglang.org/download/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
+    },
+    {
+      "id": "zls",
+      "name": "ZLS",
+      "group": "Languages",
+      "for": "reads Zig for an editor",
+      "programs": ["zls"],
+      "server": {"program": "zls", "args": [], "languages": ["zig"]},
+      "install": {"any": "https://github.com/zigtools/zls/releases"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
+    },
+    {
+      "id": "mojo",
+      "name": "Mojo",
+      "group": "Languages",
+      "for": "builds and runs Mojo, and reads it for an editor",
+      "programs": ["mojo", "mojo-lsp-server"],
+      "server": {"program": "mojo-lsp-server", "args": [], "languages": ["mojo"]},
+      "install": {"any": "https://docs.modular.com/mojo/manual/get-started"},
+      "places": {"any": ["~/.modular/bin", "~/.pixi/bin", "~/.local/bin"]}
+    },
+    {
+      "id": "quarto",
+      "name": "Quarto",
+      "group": "Languages",
+      "for": "renders a .qmd to a document",
+      "programs": ["quarto"],
+      "version": ["--version"],
+      "install": {"any": "https://quarto.org/docs/get-started/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Quarto\\bin", "%ProgramFiles%\\Quarto\\bin"], "any": ["/usr/local/bin", "/opt/quarto/bin"]}
+    },
+    {
+      "id": "ansible-language-server",
+      "name": "Ansible Language Server",
+      "group": "Languages",
+      "for": "reads Ansible's playbooks and roles for an editor",
+      "programs": ["ansible-language-server"],
+      "server": {"program": "ansible-language-server", "args": ["--stdio"], "languages": ["ansible"]},
+      "install": {"any": "https://github.com/ansible/vscode-ansible"},
+      "places": {"windows": ["%APPDATA%\\npm"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin"]}
     },
     {
       "id": "tex",
@@ -325,6 +375,132 @@
       "format": {"program": "prettier", "args": ["--stdin-filepath", "{file}"]},
       "install": {"any": "https://prettier.io/docs/install"},
       "places": {"windows": ["%APPDATA%\\npm"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"], "linux": ["/usr/local/bin", "/usr/bin"]}
+    },
+    {
+      "id": "ruff",
+      "name": "Ruff",
+      "group": "Checkers",
+      "for": "checks Python as ruff does, its fixes offered as quick fixes",
+      "programs": ["ruff"],
+      "version": ["--version"],
+      "checker": {"program": "ruff", "languages": ["python"], "args": ["check", "--output-format", "json", "--exit-zero", "--stdin-filename", "{file}", "-"], "stdin": true, "tree": ["check", "--output-format", "json", "--exit-zero", "."], "reads": "ruff"},
+      "install": {"any": "https://docs.astral.sh/ruff/installation/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin"]}
+    },
+    {
+      "id": "flake8",
+      "name": "flake8",
+      "group": "Checkers",
+      "for": "checks Python as flake8 does",
+      "programs": ["flake8"],
+      "version": ["--version"],
+      "checker": {"program": "flake8", "languages": ["python"], "args": ["--format", "%(path)s:%(row)d:%(col)d: %(code)s %(text)s", "--stdin-display-name", "{file}", "-"], "stdin": true, "tree": ["--format", "%(path)s:%(row)d:%(col)d: %(code)s %(text)s", "."], "reads": "lines"},
+      "install": {"any": "https://flake8.pycqa.org/en/latest/"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin"]}
+    },
+    {
+      "id": "mypy",
+      "name": "mypy",
+      "group": "Checkers",
+      "for": "checks Python's types as mypy does",
+      "programs": ["mypy"],
+      "version": ["--version"],
+      "checker": {"program": "mypy", "languages": ["python"], "args": ["--show-column-numbers", "--no-error-summary", "--no-color-output", "{file}"], "tree": ["--show-column-numbers", "--no-error-summary", "--no-color-output", "."], "reads": "lines"},
+      "install": {"any": "https://mypy.readthedocs.io/en/stable/getting_started.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin"]}
+    },
+    {
+      "id": "pylint",
+      "name": "Pylint",
+      "group": "Checkers",
+      "for": "checks Python as Pylint does",
+      "programs": ["pylint"],
+      "version": ["--version"],
+      "checker": {"program": "pylint", "languages": ["python"], "args": ["--output-format", "parseable", "--score", "n", "{file}"], "reads": "lines"},
+      "install": {"any": "https://pylint.readthedocs.io/en/stable/user_guide/installation/index.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin"]}
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint",
+      "group": "Checkers",
+      "for": "checks JavaScript as ESLint does; npm installs it",
+      "programs": ["eslint"],
+      "version": ["--version"],
+      "checker": {"program": "eslint", "languages": ["javascript"], "args": ["--format", "json", "--stdin", "--stdin-filename", "{file}"], "stdin": true, "tree": ["--format", "json", "."], "reads": "eslint"},
+      "install": {"any": "https://eslint.org/docs/latest/use/getting-started"},
+      "places": {"windows": ["%APPDATA%\\npm"], "any": ["/opt/homebrew/bin", "/usr/local/bin"]}
+    },
+    {
+      "id": "shellcheck",
+      "name": "ShellCheck",
+      "group": "Checkers",
+      "for": "checks shell scripts as ShellCheck does",
+      "programs": ["shellcheck"],
+      "version": ["--version"],
+      "checker": {"program": "shellcheck", "languages": ["shell"], "args": ["--format", "json1", "-"], "stdin": true, "reads": "shellcheck"},
+      "install": {"any": "https://github.com/koalaman/shellcheck#installing"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links"], "any": ["/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "pipenv",
+      "name": "Pipenv",
+      "group": "Environments",
+      "for": "a Pipfile's environment, which the tree takes as its own",
+      "programs": ["pipenv"],
+      "version": ["--version"],
+      "install": {"any": "https://pipenv.pypa.io/en/latest/installation.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin"]}
+    },
+    {
+      "id": "nix",
+      "name": "Nix",
+      "group": "Environments",
+      "for": "a shell.nix's or a flake's development shell, which the tree takes as its own",
+      "programs": ["nix"],
+      "version": ["--version"],
+      "install": {"any": "https://nixos.org/download/"},
+      "places": {"any": ["/nix/var/nix/profiles/default/bin", "~/.nix-profile/bin"]}
+    },
+    {
+      "id": "jdk",
+      "name": "Java",
+      "group": "Java and its builds",
+      "for": "Java's compiler and runtime, which Maven and Gradle build with",
+      "programs": ["javac", "java"],
+      "version": ["-version"],
+      "install": {"any": "https://adoptium.net/temurin/releases/"},
+      "places": {"windows": ["%ProgramFiles%\\Eclipse Adoptium\\jdk-*\\bin", "%ProgramFiles%\\Java\\jdk-*\\bin", "%ProgramFiles%\\Microsoft\\jdk-*\\bin"], "macos": ["/Library/Java/JavaVirtualMachines/*/Contents/Home/bin", "/opt/homebrew/opt/openjdk/bin"], "linux": ["/usr/lib/jvm/*/bin", "/usr/bin"]}
+    },
+    {
+      "id": "maven",
+      "name": "Maven",
+      "group": "Java and its builds",
+      "for": "the builds a pom.xml gives, their snapshots updated and their settings read",
+      "programs": ["mvn"],
+      "version": ["--version"],
+      "install": {"any": "https://maven.apache.org/download.cgi"},
+      "places": {"windows": ["%ProgramFiles%\\Apache\\maven*\\bin", "%USERPROFILE%\\scoop\\shims"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin", "/opt/maven/bin"]}
+    },
+    {
+      "id": "gradle",
+      "name": "Gradle",
+      "group": "Java and its builds",
+      "for": "the builds a build.gradle or a build.gradle.kts gives where the tree holds no gradlew",
+      "programs": ["gradle"],
+      "version": ["--version"],
+      "install": {"any": "https://gradle.org/install/"},
+      "places": {"windows": ["C:\\Gradle\\gradle-*\\bin", "%USERPROFILE%\\scoop\\shims"], "macos": ["/opt/homebrew/bin"], "linux": ["/usr/bin", "/opt/gradle/gradle-*/bin"]}
+    },
+    {
+      "id": "scons",
+      "name": "SCons",
+      "group": "C, C++ and CUDA",
+      "for": "the builds an SConstruct gives",
+      "programs": ["scons"],
+      "version": ["--version"],
+      "install": {"any": "https://scons.org/pages/download.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
     }
   ]
 }

@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "kind": "language",
   "extensions": ["py"],
+  "names": ["SConstruct","SConscript"],
   "comments": {"line":"#"},
   "pairs": ["()","[]","{}"],
   "quotes": ["\"","'"],

@@ -1,0 +1,55 @@
+{
+  "id": "ansible",
+  "name": "Ansible",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": [],
+  "paths": [
+    "(^|/)roles/[^/]+/(tasks|handlers|defaults|vars|meta)/[^/]+\\.ya?ml$",
+    "(^|/)playbooks?/[^/]+\\.ya?ml$",
+    "(^|/)(site|playbook[^/]*)\\.ya?ml$",
+    "(^|/)(group_vars|host_vars)/[^/]+(\\.ya?ml)?$"
+  ],
+  "comments": {"line":"#"},
+  "pairs": ["()","[]","{}"],
+  "quotes": ["\"","'"],
+  "indentAfter": ":\\s*$",
+  "outline": [
+    ["^(\\s*)-\\s+hosts:\\s*(.+?)\\s*$", "module"],
+    ["^(\\s*)-\\s+name:\\s*(.+?)\\s*$", "function"],
+    ["^(\\s*)-\\s+(?:import_playbook|import_tasks|include_tasks|include_role|import_role):\\s*(.+?)\\s*$", "module"]
+  ],
+  "grammar": {
+    "perLine": true,
+    "tokenizer": {
+      "root": [
+        ["^(?:---|\\.\\.\\.)\\s*$","keyword"],
+        [
+          "^(\\s*)(-\\s+)?(hosts|tasks|pre_tasks|post_tasks|handlers|roles|vars|vars_files|vars_prompt|become|become_user|become_method|gather_facts|name|when|loop|loop_control|with_items|with_dict|register|notify|listen|tags|block|rescue|always|import_tasks|include_tasks|import_playbook|include_role|import_role|include_vars|delegate_to|run_once|ignore_errors|changed_when|failed_when|environment|until|retries|delay|no_log|check_mode|serial|strategy|connection|remote_user|args)(:)(?=\\s|$)",
+          ["","delimiter","keyword","delimiter"]
+        ],
+        [
+          "^(\\s*)(-\\s+)?([a-z_]+\\.[a-z_]+\\.[a-z_]+)(:)(?=\\s|$)",
+          ["","delimiter","type","delimiter"]
+        ],
+        [
+          "^(\\s*)(-\\s+)?([^\\s#'\"][^:#]*?|\"[^\"]*\"|'[^']*')(:)(?=\\s|$)",
+          ["","delimiter","variable","delimiter"]
+        ],
+        ["^\\s*-(?=\\s|$)","delimiter"],
+        ["(^|\\s)#.*$","comment"],
+        ["\\{\\{[^}]*\\}\\}|\\{%[^%]*%\\}","tag"],
+        ["[&*][\\w-]+","tag"],
+        ["![\\w!-]*","type"],
+        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["'(?:[^']|'')*'","string"],
+        [{"pattern":"\\b(?:true|false|null|yes|no|on|off)\\b","flags":"i"},"keyword"],
+        ["-?\\d+(?:\\.\\d+)?\\b","number"],
+        ["[{}[\\]]","@brackets"],
+        ["[|>]-?(?=\\s*$)","operator"],
+        ["[,:]","delimiter"],
+        ["[^\\s#\"'{}[\\],:]+|\\s+|.","string"]
+      ]
+    }
+  }
+}

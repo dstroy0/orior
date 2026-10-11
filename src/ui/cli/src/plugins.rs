@@ -7,6 +7,7 @@
 //!   id, name, version       the plugin's own name for itself, the name it shows, and its version
 //!   kind                    "language", or "tool" for a tool plugin, which validate.rs reads
 //!   extensions              the file extensions it opens, without the dot
+//!   names                   the whole names of the files it opens beside them, where it has any
 //!   comments                { line, block: [open, close] }, either left out where it has none
 //!   pairs, quotes           the brackets it closes and the quotes it pairs
 //!   indentAfter             a pattern a line ends with to indent the next deeper
@@ -50,6 +51,50 @@ pub fn all() -> Vec<Plugin> {
         found.extend(user_in(&dir));
     }
     found
+}
+
+/// The language each extension opens as, by the language plugins, a reader's plugin standing in for
+/// one that comes with orior.
+pub fn languages() -> std::collections::HashMap<String, String> {
+    let mut found = std::collections::HashMap::new();
+    for plugin in all() {
+        let Ok(value) = serde_json::from_str::<Value>(&plugin.text) else {
+            continue;
+        };
+        if value["kind"].as_str().unwrap_or("language") != "language" {
+            continue;
+        }
+        let id = value["id"].as_str().unwrap_or(&plugin.id).to_string();
+        for ext in value["extensions"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            found.insert(ext.to_ascii_lowercase(), id.clone());
+        }
+        for name in value["names"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            found.insert(format!("/{}", name.to_lowercase()), id.clone());
+        }
+        for pattern in value["paths"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            found.insert(format!("?{pattern}"), id.clone());
+        }
+    }
+    found
+}
+
+/// The language the file at `path` opens as, of those `languages` gives: by its whole name where a
+/// plugin names it, by a plugin's pattern of paths where one takes it, and by its extension where
+/// neither does.
+pub fn language_for(languages: &std::collections::HashMap<String, String>, path: &Path) -> Option<String> {
+    let name = path.file_name()?.to_string_lossy().to_lowercase();
+    if let Some(found) = languages.get(&format!("/{name}")) {
+        return Some(found.clone());
+    }
+    let slashed: Vec<char> = path.to_string_lossy().replace('\\', "/").chars().collect();
+    for (key, id) in languages.iter().filter(|(key, _)| key.starts_with('?')) {
+        if let Ok(pattern) = crate::regexp::Regexp::new(&key[1..], "") {
+            if (0..=slashed.len()).any(|at| pattern.match_at(&slashed, at).is_some()) {
+                return Some(id.clone());
+            }
+        }
+    }
+    languages.get(&path.extension()?.to_string_lossy().to_lowercase()).cloned()
 }
 
 fn user_in(dir: &Path) -> Vec<Plugin> {
@@ -364,11 +409,23 @@ mod tests {
             let value: Value = serde_json::from_str(text).unwrap_or_else(|error| panic!("{id}: {error}"));
             assert_eq!(value["id"], json!(id), "{id}");
             match value["kind"].as_str() {
-                Some("language") => assert!(value["extensions"].as_array().is_some_and(|list| !list.is_empty()), "{id}"),
+                Some("language") => assert!(["extensions", "names", "paths"].iter().any(|key| value[*key].as_array().is_some_and(|list| !list.is_empty())), "{id}"),
                 Some("tool") => assert!(value["languages"].as_array().is_some_and(|list| !list.is_empty()), "{id}"),
                 other => panic!("{id}: kind {other:?}"),
             }
         }
+    }
+
+    #[test]
+    fn a_file_opens_by_its_name_its_path_or_its_extension() {
+        let languages = languages();
+        let of = |path: &str| language_for(&languages, Path::new(path));
+        assert_eq!(of("src/SConscript").as_deref(), Some("python"));
+        assert_eq!(of("ci/Jenkinsfile").as_deref(), Some("jenkins"));
+        assert_eq!(of("deploy/roles/web/tasks/main.yml").as_deref(), Some("ansible"));
+        assert_eq!(of("deploy\\playbooks\\site.yaml").as_deref(), Some("ansible"));
+        assert_eq!(of("config/app.yml").as_deref(), Some("yaml"));
+        assert_eq!(of("build.zig").as_deref(), Some("zig"));
     }
 
     #[test]

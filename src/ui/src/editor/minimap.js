@@ -37,6 +37,7 @@ export class Minimap {
     if (!this.colors) {
       this.style = getComputedStyle(this.ed.host);
       this.colors = new Map();
+      this.colorsMade = (this.colorsMade ?? 0) + 1;
     }
     let found = this.colors.get(name);
     if (found === undefined) {
@@ -54,16 +55,36 @@ export class Minimap {
     return found;
   }
 
-  geometry() {
+  // The canvas the map's lines are kept in, the size of the map in the screen's pixels.
+  linesCanvas(width, height) {
+    if (!this.lines) {
+      this.lines = document.createElement("canvas");
+    }
+    if (this.lines.width !== width || this.lines.height !== height) {
+      this.lines.width = width;
+      this.lines.height = height;
+      this.linesFor = null;
+    }
+    return this.lines;
+  }
+
+  // The map's size, as the editor's resize observer last gave it.
+  size() {
+    this.kept ??= { width: this.canvas.clientWidth, height: this.canvas.clientHeight };
+    return this.kept;
+  }
+
+  // Where the map stands beside the view, the view scrolled to `scrollTop`, the scroller's own.
+  geometry(scrollTop = this.ed.scroller.scrollTop) {
     const ed = this.ed;
     const rows = ed.rows();
-    const height = this.canvas.clientHeight;
+    const height = this.size().height;
     const fit = Math.max(1, Math.floor(height / ROW));
-    const scroller = ed.scroller;
-    const range = Math.max(1, scroller.scrollHeight - scroller.clientHeight);
-    const onScreen = scroller.clientHeight / ed.lineHeight;
+    const view = ed.viewSize();
+    const range = Math.max(1, (ed.spaceHeight ?? ed.scroller.scrollHeight) - view.height);
+    const onScreen = view.height / ed.lineHeight;
     const s = ed.s;
-    const viewRow = ed.scrollY() / ed.lineHeight;
+    const viewRow = (scrollTop - ed.pad) / ed.lineHeight;
     // The view's line in the whole file. Lines read in above the view leave it where it is.
     const fileTop = (s?.base ?? 0) + viewRow;
     let start = 0;
@@ -78,7 +99,7 @@ export class Minimap {
       const ratio = Math.min(1, Math.max(0, fileTop / Math.max(1, total - onScreen)));
       start = Math.round(ratio * Math.max(0, total - fit)) - s.base;
     } else if (rows.size > fit) {
-      start = Math.round(Math.min(1, scroller.scrollTop / range) * (rows.size - fit));
+      start = Math.round(Math.min(1, scrollTop / range) * (rows.size - fit));
     }
     start = Math.round(Math.max(0, Math.min(Math.max(0, rows.size - fit), start)));
     this.held = { session: s, fileTop, offset: viewRow - start };
@@ -88,13 +109,12 @@ export class Minimap {
 
   // `level` is the editor's: from 2 the map takes only the colors already worked out, and at 3 it
   // draws every line in one color.
-  paint(level = 0) {
+  paint(level = 0, scrollTop = this.ed.scroller.scrollTop) {
     const ed = this.ed;
     const s = ed.s;
     const canvas = this.canvas;
     const ratio = window.devicePixelRatio || 1;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    const { width, height } = this.size();
     if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
       canvas.width = Math.round(width * ratio);
       canvas.height = Math.round(height * ratio);
@@ -105,7 +125,7 @@ export class Minimap {
     if (!s || !width) {
       return;
     }
-    const { rows, fit, start, sliderTop, sliderHeight } = this.geometry();
+    const { rows, fit, start, sliderTop, sliderHeight } = this.geometry(scrollTop);
     const end = Math.min(rows.size, start + fit);
     const size = s.indent.size;
     const doc = s.doc;
@@ -129,8 +149,42 @@ export class Minimap {
         context.fillRect(0, (rows.rowOf(match.from.line) - start) * ROW, width, ROW);
       }
     }
-    context.globalAlpha = 0.8;
-    for (let row = start; row < end; row += 1) {
+    // The lines, from the map's own canvas of them, which keeps the rows in view drawn. A scroll moves
+    // what it holds and draws only the rows that come into view; a change to the text, its folding,
+    // the colors, the detail or the map's size draws every row in view again.
+    const lines = this.linesCanvas(Math.round(width * ratio), Math.round(height * ratio));
+    const pen = lines.getContext("2d");
+    const kept = this.linesFor;
+    const key = [s.doc.id, s.foldings, s.base, rows.size, Math.min(level, 3) >= 2 ? Math.min(level, 3) : 0, this.colorsMade, lines.width, lines.height].join("|");
+    const moved = kept && kept.session === s && kept.key === key ? start - kept.start : null;
+    let from = start;
+    let to = end;
+    if (moved !== null && Math.abs(moved) < fit) {
+      if (moved !== 0) {
+        // The rows still in view move up or down by the rows the map moved, and only those it
+        // brought into view are drawn.
+        pen.setTransform(1, 0, 0, 1, 0, 0);
+        pen.globalCompositeOperation = "copy";
+        pen.drawImage(lines, 0, -moved * ROW * ratio);
+        pen.globalCompositeOperation = "source-over";
+        if (moved > 0) {
+          from = Math.max(start, end - moved);
+          pen.clearRect(0, (from - start) * ROW * ratio, lines.width, lines.height);
+        } else {
+          to = Math.min(end, start - moved);
+          pen.clearRect(0, 0, lines.width, (to - start) * ROW * ratio);
+        }
+      } else {
+        to = from;
+      }
+    } else {
+      pen.setTransform(1, 0, 0, 1, 0, 0);
+      pen.clearRect(0, 0, lines.width, lines.height);
+    }
+    this.linesFor = { session: s, key, start };
+    pen.setTransform(ratio, 0, 0, ratio, 0, 0);
+    pen.globalAlpha = 0.8;
+    for (let row = from; row < to; row += 1) {
       const line = rows.lineOf(row);
       const text = doc.line(line);
       const runs = level >= 3 ? PLAIN : level === 2 ? s.highlight.cached(line) ?? PLAIN : s.highlight.runsOf(line);
@@ -139,26 +193,29 @@ export class Minimap {
       let index = 0;
       for (let run = 0; run < runs.length && v < WIDEST; run += 1) {
         const stop = runs[run + 1]?.[0] ?? text.length;
-        context.fillStyle = this.colorOf(runs[run][1] || "t-plain");
-        let from = -1;
+        pen.fillStyle = this.colorOf(runs[run][1] || "t-plain");
+        let begun = -1;
         for (; index < stop && v < WIDEST; index += 1) {
           const char = text[index];
           const blank = char === " " || char === "\t";
-          if (!blank && from < 0) {
-            from = v;
+          if (!blank && begun < 0) {
+            begun = v;
           }
-          if (blank && from >= 0) {
-            context.fillRect(MARGIN + from * CHAR, y, (v - from) * CHAR, ROW - 0.5);
-            from = -1;
+          if (blank && begun >= 0) {
+            pen.fillRect(MARGIN + begun * CHAR, y, (v - begun) * CHAR, ROW - 0.5);
+            begun = -1;
           }
           v += char === "\t" ? size - (v % size) : 1;
         }
-        if (from >= 0) {
-          context.fillRect(MARGIN + from * CHAR, y, (v - from) * CHAR, ROW - 0.5);
+        if (begun >= 0) {
+          pen.fillRect(MARGIN + begun * CHAR, y, (v - begun) * CHAR, ROW - 0.5);
         }
       }
     }
-    context.globalAlpha = 1;
+    pen.globalAlpha = 1;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.drawImage(lines, 0, 0);
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.fillStyle = this.colorOf(this.dragging ? "ed-mini-slider-on" : "ed-mini-slider");
     context.fillRect(0, sliderTop, width, sliderHeight);
     this.paintStrip(context, width, height, rows);

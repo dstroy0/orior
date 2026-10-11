@@ -4,7 +4,9 @@
 // Language servers, as servers.rs in the command line's crate runs them: a tab whose language has
 // one in the toolchain manifest is handed to it when it opens, told of each change a moment after
 // typing rests, and let go when it closes. Its hovers, completions and definitions come from the
-// server, and the server's diagnostics are drawn under the text they are about.
+// server, and the server's diagnostics are drawn under the text they are about. A tab of a language
+// orior's own inspections read is handed over, told of its changes and let go the same way where no
+// server serves it, and hears the inspections' findings.
 
 import { invoke, listen } from "./bridge.js";
 
@@ -13,19 +15,210 @@ const CHANGE_REST = 300;
 let tabsOf = () => [];
 let painted = () => {};
 
+// Inlay hints: the types and the parameter names a server writes in a served tab's text, asked for
+// the lines shown and HINTS_AROUND on each side, once typing and scrolling rest, and again after the
+// text changes or the view moves past them.
+const HINTS_AROUND = 60;
+const HINTS_REST = 250;
+
+export function hintsShown(tab, from, to) {
+  const s = tab?.session;
+  if (!tab.served || !s || s.window) {
+    return;
+  }
+  const have = s.hints;
+  if (have && !have.stale && have.from <= from && have.to >= Math.min(to, s.doc.count - 1)) {
+    return;
+  }
+  window.clearTimeout(tab.hinting);
+  tab.hinting = window.setTimeout(async () => {
+    await flush(tab);
+    const low = Math.max(0, from - HINTS_AROUND);
+    const high = Math.min(s.doc.count - 1, to + HINTS_AROUND);
+    const asked = (tab.hintsAsked = (tab.hintsAsked ?? 0) + 1);
+    const version = s.doc.id;
+    const found = await invoke("lsp_hints", { path: tab.file, from: s.base + low, to: s.base + high }).catch(() => null);
+    if (!found || asked !== tab.hintsAsked || s.doc.id !== version) {
+      return;
+    }
+    const byLine = new Map();
+    for (const hint of found) {
+      const line = hint.line - s.base;
+      if (line < 0 || line >= s.doc.count) {
+        continue;
+      }
+      const width = [...hint.label].length + (hint.left ? 1 : 0) + (hint.right ? 1 : 0);
+      if (!byLine.has(line)) {
+        byLine.set(line, []);
+      }
+      byLine.get(line).push({ col: hint.col, label: hint.label, kind: hint.kind, left: hint.left, right: hint.right, width });
+    }
+    for (const hints of byLine.values()) {
+      hints.sort((a, b) => a.col - b.col || (a.kind === 2) - (b.kind === 2));
+    }
+    s.hints = { byLine, from: low, to: high, stale: false };
+    s.view?.schedule();
+  }, HINTS_REST);
+}
+
+// The parse of a served or an inspected tab, orior's own or its server's, asked for the lines shown
+// and PARSE_AROUND on each side once typing and scrolling rest, its spans laid over the colors the
+// language's patterns give and its folds standing in for those the indentation gives.
+const PARSE_AROUND = 120;
+const PARSE_REST = 150;
+const PARSE_AGAIN = 2000;
+let classNames = null;
+
+export function parseShown(tab, from, to) {
+  const s = tab?.session;
+  if (!(tab.served || tab.inspected) || !s || s.window || tab.unparsed === s.doc.id || (tab.parseAgain ?? 0) > Date.now()) {
+    return;
+  }
+  const have = s.highlight.parse;
+  if (have && !have.stale && have.from <= from && have.to >= Math.min(to, s.doc.count - 1)) {
+    return;
+  }
+  window.clearTimeout(tab.parsing);
+  tab.parsing = window.setTimeout(async () => {
+    await flush(tab);
+    classNames ??= await invoke("parse_classes").catch(() => null);
+    const version = s.doc.id;
+    const told = tab.told;
+    const low = Math.max(0, from - PARSE_AROUND);
+    const high = Math.min(s.doc.count - 1, to + PARSE_AROUND);
+    // A parse that fails, as a server still reading the tree's fails, is asked for again after a moment.
+    const found = await invoke("parse_colors", { path: tab.file, from: low, to: high }).catch(() => undefined);
+    if (found === undefined) {
+      tab.parseAgain = Date.now() + PARSE_AGAIN;
+      return;
+    }
+    // A change told while the parse was read may not be in it.
+    if (s.doc.id !== version || tab.told !== told || !classNames) {
+      return;
+    }
+    if (!found) {
+      tab.unparsed = version;
+      return;
+    }
+    const kept = s.highlight.parse;
+    const byLine = kept && !kept.stale ? kept.byLine : new Map();
+    found.lines.forEach((spans, index) => byLine.set(found.from + index, spans));
+    const span = kept && !kept.stale ? [Math.min(kept.from, found.from), Math.max(kept.to, found.from + found.lines.length - 1)] : [found.from, found.from + found.lines.length - 1];
+    s.highlight.parse = { byLine, names: classNames, whole: found.whole, from: span[0], to: span[1], folds: new Map(found.folds), stale: false };
+    s.view?.schedule();
+  }, PARSE_REST);
+}
+
+// The spans of a served or an inspected tab that hold `from` to `to` and are more than it, the least
+// first, for Expand Selection.
+export async function spansOf(tab, from, to) {
+  const s = tab?.session;
+  if (!(tab?.served || tab?.inspected) || !s || s.window) {
+    return [];
+  }
+  await flush(tab);
+  const found = await invoke("parse_spans", { path: tab.file, from: { line: s.base + from.line, col: from.col }, to: { line: s.base + to.line, col: to.col } }).catch(() => []);
+  return found.map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
+}
+
+// The checkers the reader names, as checkers.rs in the command line's crate runs them, kept by
+// their names, a comma between each.
+const CHECKERS_KEY = "orior.checkers";
+
+export function checkersNamed() {
+  return (localStorage.getItem(CHECKERS_KEY) ?? "").split(",").map((name) => name.trim()).filter(Boolean);
+}
+
+// Names the checkers to run as files change. Gives the names no checker answers to.
+export async function setCheckers(names) {
+  localStorage.setItem(CHECKERS_KEY, names.join(", "));
+  return invoke("checkers_set", { names }).catch(() => []);
+}
+
+// Every file's diagnostics as its server last gave them, open in a tab or not; how far the tree's
+// check has gone; and whether it has started in the tree open.
+const known = new Map();
+let checking = null;
+let checked = false;
+
+// The languages orior's own inspections read.
+let inspected = new Set();
+
 // `tabs` gives the open tabs, and `paint` draws the editor again after diagnostics arrive.
 export function startServers({ tabs, paint }) {
   tabsOf = tabs;
   painted = paint;
+  invoke("checkers_set", { names: checkersNamed() }).catch(() => {});
+  invoke("inspect_languages")
+    .then((languages) => {
+      inspected = new Set(languages);
+    })
+    .catch(() => {});
   listen("lsp-diagnostics", (event) => {
     const { path, items } = event.payload;
+    if (items.length) {
+      known.set(path, items);
+    } else {
+      known.delete(path);
+    }
     for (const tab of tabsOf()) {
-      if ((tab.served || tab.serving) && tab.file === path) {
+      if ((tab.served || tab.serving || tab.inspected) && tab.file === path) {
         tab.session.diagnostics = items;
       }
     }
     painted();
   });
+  // A server that colors its files again has every tab's parse asked for again.
+  listen("lsp-parse", () => {
+    for (const tab of tabsOf()) {
+      tab.unparsed = null;
+      if (tab.session?.highlight.parse) {
+        tab.session.highlight.parse.stale = true;
+      }
+    }
+    painted();
+  });
+  // A server that has read more of the tree has every tab's hints asked for again.
+  listen("lsp-hints", () => {
+    for (const tab of tabsOf()) {
+      if (tab.session?.hints) {
+        tab.session.hints.stale = true;
+      }
+    }
+    painted();
+  });
+  listen("tree-check", (event) => {
+    checking = event.payload;
+    painted();
+  });
+}
+
+// The tree's check, started once in the tree open: every file of the tree no tab holds is handed to
+// its language's server, as servers.rs checks the tree, and is checked again as it changes.
+export function checkTree() {
+  if (!checked) {
+    checked = true;
+    invoke("problems_check").catch(() => {
+      checked = false;
+    });
+  }
+}
+
+// Every file's diagnostics the servers have given, by its path.
+export function knownProblems() {
+  return known;
+}
+
+// How far the tree's check has gone, `{ done, total }`, or null before it starts.
+export function treeChecking() {
+  return checking;
+}
+
+// Forgets the diagnostics and the check of the tree open, for another tree opened in its place.
+export function forgetProblems() {
+  known.clear();
+  checking = null;
+  checked = false;
 }
 
 // Hands a tab to its language's server where there is one. A file read a window at a time, or
@@ -40,10 +233,20 @@ export async function serve(tab) {
   if (!language) {
     return;
   }
-  // The diagnostics a server already holds for the file can come before it answers.
+  // The diagnostics a server already holds for the file can come before it answers. A file orior
+  // reads itself, a build file or JSON, is completed from the start, as its server starts or where
+  // none serves it.
   tab.serving = true;
-  const took = await invoke("lsp_open", { path: tab.file, language, text: s.doc.text() }).catch(() => false);
+  tab.readHere = await invoke("reads_file", { path: tab.file }).catch(() => false);
+  if (tab.readHere) {
+    s.diagnostics ??= [];
+    wrap(tab);
+  }
+  const sent = s.doc.text();
+  const sentDoc = s.doc.id;
+  const took = await invoke("lsp_open", { path: tab.file, language, text: sent }).catch(() => false);
   tab.serving = false;
+  tab.toldDoc = sentDoc;
   if (took && tabsOf().includes(tab)) {
     tab.served = true;
     s.diagnostics ??= [];
@@ -53,14 +256,34 @@ export async function serve(tab) {
     invoke("lsp_hover", { path: tab.file, line: 0, col: 0 }).catch(() => {});
   } else if (took) {
     invoke("lsp_close", { path: tab.file }).catch(() => {});
+  } else if ((inspected.has(language) || tab.readHere) && tabsOf().includes(tab)) {
+    tab.inspected = true;
+    s.diagnostics ??= [];
+  }
+  // What was typed while the server started is told it now.
+  if ((tab.served || tab.inspected) && s.doc.text() !== sent) {
+    changed(tab);
   }
 }
 
-// Gives a served tab's language the server's hover and completion, over the language's own. A
-// language set again, as a plugin read again sets it, is given them again.
+// Hands every open tab to its language's server again, the servers having ended, as they do with the
+// link to the tree's machine.
+export function serveAgain() {
+  for (const tab of tabsOf()) {
+    if (tab.served !== undefined || tab.inspected) {
+      window.clearTimeout(tab.telling);
+      Object.assign(tab, { served: undefined, inspected: false, untold: false, toldDoc: undefined });
+      serve(tab);
+    }
+  }
+}
+
+// Gives a served tab's language the server's hover and completion, over the language's own, and the
+// tab of a file orior reads itself, a build file or JSON, the completions orior gives it. A language
+// set again, as a plugin read again sets it, is given them again.
 export function wrap(tab) {
   const s = tab.session;
-  if (!tab.served || !s?.language || s.language.served) {
+  if (!(tab.served || tab.readHere) || !s?.language || s.language.served) {
     return;
   }
   const own = s.language;
@@ -99,9 +322,10 @@ export function wrap(tab) {
   });
 }
 
-// Tells the server of a change to a served tab, once typing has rested.
+// Tells the server of a change to a served tab, or the inspections of one to an inspected tab, once
+// typing has rested.
 export function changed(tab) {
-  if (!tab?.served) {
+  if (!tab?.served && !tab?.inspected) {
     return;
   }
   window.clearTimeout(tab.telling);
@@ -111,20 +335,86 @@ export function changed(tab) {
 
 // Tells the server of a change to a served tab now, where one is waiting for typing to rest, so
 // that what is asked next is asked of the text as it stands.
+//
+// The server holds the text of the version it was last told, `toldDoc`; a tab whose version has
+// moved since is told its text, whether the edit has said it changed yet, and one whose version has
+// come back to it is told nothing.
+//
+// A parse or hints asked before the change was told were read from the text before it: once it is
+// told, they are asked for again.
 export async function flush(tab) {
   window.clearTimeout(tab?.telling);
-  if (tab?.served && tab.untold) {
-    tab.untold = false;
-    await invoke("lsp_change", { path: tab.file, text: tab.session.doc.text() }).catch(() => {});
+  const s = tab?.session;
+  if (!(tab?.served || tab?.inspected) || !s) {
+    return;
+  }
+  const behind = tab.toldDoc === undefined ? tab.untold : tab.toldDoc !== s.doc.id;
+  tab.untold = false;
+  if (behind) {
+    tab.toldDoc = s.doc.id;
+    tab.told = (tab.told ?? 0) + 1;
+    await invoke("lsp_change", { path: tab.file, text: s.doc.text() }).catch(() => {});
+    if (s.highlight.parse) {
+      s.highlight.parse.stale = true;
+    }
+    if (s.hints) {
+      s.hints.stale = true;
+    }
+    s.view?.schedule();
   }
 }
 
 export function stopServing(tab) {
-  if (tab?.served) {
+  if (tab?.served || tab?.inspected) {
     tab.served = false;
+    tab.inspected = false;
     tab.untold = false;
     window.clearTimeout(tab.telling);
     invoke("lsp_close", { path: tab.file }).catch(() => {});
+  }
+}
+
+// The server's hover at a place in a served tab, as Markdown, or null. Given `text`, the server is
+// asked of that text in place of the tab's, and told the tab's own again after. A server still
+// reading a change, which answers that the content was modified or answers nothing, is asked again a
+// moment later, up to ASKS times for the one and a few for the other; where `named`, a name is known
+// to stand at the place, and an answer of nothing is asked again ASKS times too, as a server still
+// reading the tree gives.
+const ASKS = 20;
+export async function hoverAt(tab, p, text = null, named = false) {
+  if (!tab?.served) {
+    return null;
+  }
+  await flush(tab);
+  if (text !== null) {
+    // The server holds a text no version of the tab's is, until the tab's own is told again.
+    tab.toldDoc = null;
+    await invoke("lsp_change", { path: tab.file, text }).catch(() => {});
+  }
+  try {
+    let empty = 0;
+    for (let asked = 0; asked < ASKS; asked += 1) {
+      try {
+        const said = await invoke("lsp_hover", { path: tab.file, line: tab.session.base + p.line, col: p.col });
+        if (said) {
+          return said;
+        }
+        empty += 1;
+        if (empty > (named ? ASKS : 3)) {
+          return null;
+        }
+      } catch (error) {
+        if (!/modified/i.test(String(error))) {
+          return null;
+        }
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
+    return null;
+  } finally {
+    if (text !== null) {
+      await flush(tab);
+    }
   }
 }
 

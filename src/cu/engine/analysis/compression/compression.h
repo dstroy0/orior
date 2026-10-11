@@ -45,6 +45,9 @@ extern "C"
     // values and held as a pool of its own, whose bytes are the stream's limbs and one more, rounded to the page.
     unsigned long long compression_reserve_bytes(unsigned long long count);
 
+    // frees the chunk pool and the stream compression holds between calls
+    void compression_resident_release(void);
+
 #ifdef __cplusplus
 }
 #endif

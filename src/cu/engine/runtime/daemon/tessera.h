@@ -100,6 +100,9 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned int override_budget;
         const char *daemon_path;
         EngineError *error;
+        // how long the submit waits for the job to fit the headroom; past it the submit errs, its connection closes
+        // and the daemon drops the job. 0 waits until it fits
+        unsigned long long waiting_microseconds;
     } TesseraJobAsk;
 
     // `standing` is the bytes the job's process already held on the device as it asked (its CUDA context and whatever
@@ -111,6 +114,9 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned long long last_peak;
         unsigned long long grown_to;
         unsigned long long standing;
+        // the microseconds the submit waited for its answer; a submit that errs with `waited` at or past the ask's
+        // `waiting_microseconds` found no headroom in time
+        unsigned long long waited;
         unsigned int asked;
         unsigned int lost;
         char lost_path[ENGINE_PATH_CAPACITY];

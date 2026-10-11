@@ -3,7 +3,8 @@
 
 // What folds, read from indentation: a line opens a region when the next line that is not blank is
 // indented deeper, and the region runs to the last line before one indented no deeper than it.
-// A closing brace at the opening line's depth stays outside the region and shows when folded.
+// A closing brace at the opening line's depth stays outside the region; a folded region takes it
+// in where its line holds closing brackets alone, and draws them on the region's first line.
 
 // The width a line's leading white space takes, or -1 for a blank line.
 export function indentOf(text, size) {
@@ -58,6 +59,29 @@ export function regionEnd(doc, line, size) {
   return last;
 }
 
+// How far up from a line the lines that open the regions around it are looked for.
+const REACH = 20000;
+
+// The first lines of the regions a line stands inside, the outermost first and the `most` innermost
+// at most, read from the lines above it alone: walking up, each line indented less than every line
+// after it down to the line opens one. A blank line stands inside what the next line that is not
+// blank stands inside.
+export function openersOf(doc, line, size, most) {
+  let depth = -1;
+  for (let at = line; at < Math.min(doc.count, line + AHEAD) && depth < 0; at += 1) {
+    depth = indentOf(doc.line(at), size);
+  }
+  const found = [];
+  for (let at = line - 1; at >= Math.max(0, line - REACH) && depth > 0 && found.length < most; at -= 1) {
+    const own = indentOf(doc.line(at), size);
+    if (own >= 0 && own < depth) {
+      found.push(at);
+      depth = own;
+    }
+  }
+  return found.reverse();
+}
+
 // Every region as a map from its first line to its last.
 export function regions(doc, size) {
   const found = new Map();
@@ -87,7 +111,8 @@ export function regions(doc, size) {
 }
 
 // The rows a text shows once some regions are folded: which line each row shows, and which row
-// shows each line. A line inside a folded region has the row of the line that opens it.
+// shows each line. A line inside a folded region has the row of the line that opens it, and a line
+// hidden before every line shown has the first row.
 export class Rows {
   constructor(count, hidden) {
     this.count = count;
@@ -106,7 +131,7 @@ export class Rows {
       }
       const inside = at < hidden.length && hidden[at][0] <= line && line <= hidden[at][1];
       if (inside) {
-        rows[line] = size - 1;
+        rows[line] = Math.max(0, size - 1);
       } else {
         lines[size] = line;
         rows[line] = size;
@@ -132,10 +157,15 @@ export class Rows {
 // The spans of lines the folded regions hide, merged and in order, from a map of each folded
 // region's first line to its last.
 export function hiddenSpans(folded) {
-  const spans = [...folded]
-    .map(([start, end]) => [start + 1, end])
-    .filter(([first, last]) => last >= first)
-    .sort((a, b) => a[0] - b[0]);
+  return joinSpans(
+    [...folded].map(([start, end]) => [start + 1, end]),
+    [],
+  );
+}
+
+// Two lists of spans of hidden lines as one, merged and in order, each span its first and last line.
+export function joinSpans(first, second) {
+  const spans = [...first, ...second].filter(([start, last]) => last >= start).sort((a, b) => a[0] - b[0]);
   const merged = [];
   for (const span of spans) {
     if (merged.length && span[0] <= merged.at(-1)[1] + 1) {

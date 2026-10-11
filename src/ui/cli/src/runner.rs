@@ -130,6 +130,18 @@ pub fn built(root: &Path, name: &str) -> Result<PathBuf, String> {
         .ok_or_else(|| format!("no {file} under build/, examples/build/ or src/build/: run its build job first"))
 }
 
+/// The program and its words an environment variable names: its text as one word where it is a file,
+/// as a Windows path with its backslashes is, and else its words as a shell splits them. None where it
+/// is not set or names nothing.
+pub fn program_words(variable: &str) -> Option<Vec<String>> {
+    let text = std::env::var(variable).ok()?;
+    let text = text.trim();
+    if Path::new(text).is_file() {
+        return Some(vec![text.to_string()]);
+    }
+    shell_words(text).ok().filter(|words| !words.is_empty())
+}
+
 /// Splits text into words the way a shell does for plain words, single quotes and double quotes.
 pub fn shell_words(text: &str) -> Result<Vec<String>, String> {
     let mut words = Vec::new();
@@ -250,7 +262,9 @@ fn command(root: &Path, step: &Step, values: &HashMap<String, Vec<String>>) -> R
     Ok((cmd, shown.join(" ")))
 }
 
-pub(crate) fn quiet(cmd: &mut Command) {
+/// Starts `cmd` with no console window of its own on Windows, and in a process group of its own
+/// elsewhere, where a signal to the window's group does not reach it.
+pub fn quiet(cmd: &mut Command) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -318,6 +332,25 @@ fn pages(root: &Path, view_out: &Path, lines: &[String]) -> Vec<String> {
     named
 }
 
+/// Says why `values` do not do for `job`: a value it needs not given, or one given that is not among
+/// a choice's values.
+pub fn check(job: &Job, values: &HashMap<String, Vec<String>>) -> Result<(), String> {
+    for param in &job.params {
+        let given = values.get(&param.key).is_some_and(|v| v.iter().any(|v| !v.is_empty()));
+        if param.required && !given {
+            return Err(format!("{} needs a value", param.key));
+        }
+        if param.kind == "choice" || param.kind == "many" {
+            for value in values.get(&param.key).into_iter().flatten().filter(|v| !v.is_empty()) {
+                if !param.choices.contains(value) {
+                    return Err(format!("{value} is not one of {}'s values", param.key));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// The commands a job's steps run with these values, each as the line a run shows for it.
 pub fn shown(root: &Path, job: &Job, values: &HashMap<String, Vec<String>>) -> Result<Vec<String>, String> {
     job.steps.iter().map(|step| command(root, step, values).map(|(_, shown)| shown)).collect()
@@ -331,19 +364,7 @@ impl Runs {
 
     /// Starts a job. Its steps run on a thread of their own, which the returned handle waits on.
     pub fn start(&self, sink: Sink, root: PathBuf, job: Job, values: HashMap<String, Vec<String>>) -> Result<(u64, thread::JoinHandle<()>), String> {
-        for param in &job.params {
-            let given = values.get(&param.key).is_some_and(|v| v.iter().any(|v| !v.is_empty()));
-            if param.required && !given {
-                return Err(format!("{} needs a value", param.key));
-            }
-            if param.kind == "choice" || param.kind == "many" {
-                for value in values.get(&param.key).into_iter().flatten().filter(|v| !v.is_empty()) {
-                    if !param.choices.contains(value) {
-                        return Err(format!("{value} is not one of {}'s values", param.key));
-                    }
-                }
-            }
-        }
+        check(&job, &values)?;
         let mut commands = Vec::new();
         for step in &job.steps {
             commands.push(command(&root, step, &values)?);

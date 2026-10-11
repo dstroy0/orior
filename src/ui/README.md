@@ -69,6 +69,27 @@ The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIO
 `ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
 ones to use.
 
+## orior's own folder
+
+orior keeps what it carries from one run to the next in a folder of its own: `orior` in `%APPDATA%`
+on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR_HOME` names.
+
+| what | where in it |
+| --- | --- |
+| the settings Preferences and the menus set, the macros kept, and whether errors file on their own | `settings.json` |
+| each theme of the reader's | `themes/`, a file each, named for the theme |
+| the reader's plugins | `plugins/`, a folder each |
+| the stylesheet laid over the window's own | `user.css` |
+| the toolchains the reader added | `user_toolchains.json` |
+| the panes, each tree's tabs and the files opened last, the places left in them, bookmarks, breakpoints, watches and the values each job last ran with | `state.json` |
+| the text of each tab with changes not saved | `backups/`, a file each |
+| each file's Local History | `history/` |
+| the repositories File, Open, Repository clones | `repositories/` |
+
+`settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
+as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
+default.
+
 ## The command line
 
 The program is `orior`, and it is the command line as well as the window. Given no words it opens

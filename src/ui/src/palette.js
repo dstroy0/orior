@@ -4,26 +4,20 @@
 // The quick open along the top of the window, which reads what is typed by its first letter: a file
 // of the tree by default, the files opened last first, and path:line:column going to that place; >
 // for the menus' commands, the ones run last first; : for a line of the open file, as :line:column;
-// and @ for what the open file declares. Up and Down choose, Enter goes, and Escape gives the keys
-// back to what had them.
+// @ for what the open file declares; and # for what any file of the tree declares. Up and Down
+// choose, Enter goes, and Escape gives the keys back to what had them.
 //
 // Search Everywhere, which Shift pressed twice opens, reads what is typed as all of these at once:
-// the files that answer it, then what the open file declares, then the commands, each under its
+// the files that answer it, then what the tree's files declare, then the commands, each under its
 // heading.
 
 import { fuzzy, marked } from "./fuzzy.js";
 
 const MOST = 200;
 
-// What a file named exactly as typed scores over the match itself, and one whose name starts with
-// it half that.
-const EXACT = 40;
 const RECENT_COMMANDS = "orior.palette.recent";
 
-// How long the tree's list of files is held before it is read again, in milliseconds.
-const FILES_HELD = 20000;
-
-const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, files: null, read: 0, drawing: 0, everywhere: false, custom: null };
+const state = { node: null, input: null, list: null, items: [], chosen: 0, before: null, hooks: null, drawing: 0, everywhere: false, custom: null };
 
 // How many of each kind Search Everywhere shows, and how close two presses of Shift come to open it,
 // in milliseconds.
@@ -46,19 +40,6 @@ function recentCommands() {
 
 function ranCommand(key) {
   localStorage.setItem(RECENT_COMMANDS, JSON.stringify([key, ...recentCommands().filter((one) => one !== key)].slice(0, 20)));
-}
-
-async function treeFiles() {
-  if (!state.files || performance.now() - state.read > FILES_HELD) {
-    state.files = await state.hooks.files().catch(() => []);
-    state.read = performance.now();
-  }
-  return state.files;
-}
-
-// Forgets the tree's files, for a tree opened in place of this one.
-export function forgetFiles() {
-  state.files = null;
 }
 
 // The rows for what is typed, each { label, hits, detail, keys, run }.
@@ -122,9 +103,27 @@ function symbolRows(query) {
   return rows.sort((a, b) => b.score - a.score);
 }
 
+// What the tree's files declare whose names answer `query`, from the index the app keeps of them.
+// While the index is still being read, a last row says more may be found.
+async function treeSymbolRows(query) {
+  const found = await state.hooks.treeSymbols(query).catch(() => null);
+  if (!found) {
+    return [{ label: "Open a tree to go to what its files declare.", hits: [], run: null }];
+  }
+  const rows = found.symbols.map((symbol) => ({
+    label: symbol.name,
+    hits: fuzzy(query, symbol.name)?.hits ?? [],
+    detail: `${symbol.kind}, ${symbol.path}:${symbol.line + 1}`,
+    run: () => state.hooks.openFile(symbol.path, symbol.line, 0),
+  }));
+  if (found.reading) {
+    rows.push({ label: "Reading the tree's files: more may be found.", hits: [], run: null });
+  }
+  return rows;
+}
+
 async function fileRows(query) {
   const { path, line, col } = placeOf(query.trim());
-  const files = await treeFiles();
   const recent = state.hooks.recent();
   const go = (file) => () => state.hooks.openFile(file, line ? line - 1 : null, col ? col - 1 : 0);
   const rowOf = (file, hits, score, detail = "") => {
@@ -141,27 +140,10 @@ async function fileRows(query) {
   if (!path) {
     return recent.map((file, at) => rowOf(file, [], -at, "recently opened"));
   }
-  const rows = [];
-  const kept = new Set(recent);
-  // A name the same as what was typed comes first, then one that starts with it, ahead of a longer
-  // name that only holds it.
-  const asked = path.toLowerCase().split("/").pop();
-  const named = (file) => {
-    const name = file.slice(file.lastIndexOf("/") + 1).toLowerCase();
-    const stem = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
-    if (name === asked || stem === asked) {
-      return EXACT;
-    }
-    return name.startsWith(asked) ? EXACT / 2 : 0;
-  };
-  for (const file of files) {
-    const found = fuzzy(path, file, file.lastIndexOf("/") + 1);
-    if (found) {
-      rows.push(rowOf(file, found.hits, found.score + (kept.has(file) ? 6 : 0) + named(file)));
-    }
-  }
-  rows.sort((a, b) => b.score - a.score);
-  return rows.slice(0, MOST);
+  // The tree's files are matched in files.rs, where the list of them is held: a name the same as
+  // what was typed first, then one that starts with it, ahead of a longer name that only holds it.
+  const found = await state.hooks.findFiles(path, recent, MOST).catch(() => []);
+  return found.map((one) => rowOf(one.path, one.hits, one.score));
 }
 
 // A heading over the rows of one kind, which the keys step past.
@@ -170,7 +152,8 @@ const heading = (label) => ({ label, hits: [], run: null, heading: true });
 async function everywhereRows(text) {
   const query = text.trim();
   const files = (await fileRows(query)).slice(0, EVERYWHERE_EACH);
-  const symbols = state.hooks.symbols() ? symbolRows(query).slice(0, EVERYWHERE_EACH) : [];
+  // With nothing typed, what the open file declares; with a query, what the whole tree does.
+  const symbols = query ? (await treeSymbolRows(query)).filter((row) => row.run).slice(0, EVERYWHERE_EACH) : state.hooks.symbols() ? symbolRows(query).slice(0, EVERYWHERE_EACH) : [];
   const commands = commandRows(query).slice(0, EVERYWHERE_EACH);
   return [
     ...(files.length ? [heading("Files"), ...files] : []),
@@ -195,6 +178,9 @@ async function rowsFor(text) {
   if (text.startsWith("@")) {
     return symbolRows(text.slice(1).trim());
   }
+  if (text.startsWith("#")) {
+    return treeSymbolRows(text.slice(1).trim());
+  }
   return fileRows(text);
 }
 
@@ -208,7 +194,7 @@ function placeholderOf(text) {
   if (text.startsWith(">")) {
     return "Type the name of a command to run.";
   }
-  return "Search files by name (append :line to go to a line, or type > for commands, : for a line, @ for a symbol)";
+  return "Search files by name (append :line to go to a line, or type > for commands, : for a line, @ for a symbol here, # for one in the tree)";
 }
 
 function drawRows() {
@@ -300,7 +286,7 @@ export function paletteOpen() {
   return Boolean(state.node && !state.node.hidden);
 }
 
-// `hooks` gives the palette what it reads: commands(), files(), recent(), symbols(), lineCount(),
+// `hooks` gives the palette what it reads: commands(), files(), recent(), symbols(), treeSymbols(query), lineCount(),
 // goLine(line, col) and openFile(path, line, col).
 export function startPalette(hooks) {
   state.hooks = hooks;

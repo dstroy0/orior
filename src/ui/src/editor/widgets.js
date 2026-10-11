@@ -23,6 +23,10 @@ export function markup(text) {
 
 const RULE = "\u0000";
 
+// A link written as [text](address) or as a bare address, to an http or https page; a press on it
+// opens it in the browser, as edit.js has it.
+const LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s<]*[^\s<.,;:!?)\]])/g;
+
 function inline(text) {
   return text
     .split(/(`[^`]*`)/)
@@ -31,6 +35,7 @@ function inline(text) {
         return `<code>${escapeHtml(piece.slice(1, -1))}</code>`;
       }
       return escapeHtml(piece)
+        .replace(LINK, (_, label, address, bare) => `<a href="${address ?? bare}" data-link>${label ?? bare}</a>`)
         .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
         .replace(/(^|[^\p{L}\p{N}])_([^_]+)_(?![\p{L}\p{N}])/gu, "$1<i>$2</i>")
         .replace(/\n/g, "<br>");
@@ -50,9 +55,50 @@ function prose(text) {
         return "<hr>";
       }
       const heading = paragraph.match(/^#{1,6}[ \t]+(.+)$/);
-      return heading ? `<p><b>${inline(heading[1])}</b></p>` : `<p>${inline(paragraph)}</p>`;
+      return heading ? `<p><b>${inline(heading[1])}</b></p>` : block(paragraph);
     })
     .join("");
+}
+
+// A paragraph's lines: its lists, each item a line that starts with a dash, a star, a plus or a
+// number and a stop, a line indented under an item going on with it; and its text between them.
+function block(paragraph) {
+  const out = [];
+  let text = [];
+  let list = null;
+  const textDone = () => {
+    if (text.length) {
+      out.push(`<p>${inline(text.join("\n"))}</p>`);
+      text = [];
+    }
+  };
+  const listDone = () => {
+    if (list) {
+      const tag = list.ordered ? "ol" : "ul";
+      out.push(`<${tag}${list.ordered && list.start !== 1 ? ` start="${list.start}"` : ""}>${list.items.map((item) => `<li>${inline(item)}</li>`).join("")}</${tag}>`);
+      list = null;
+    }
+  };
+  for (const line of paragraph.split("\n")) {
+    const item = line.match(/^\s*(?:([-*+])|(\d+)[.)])\s+(.*)$/);
+    if (item) {
+      textDone();
+      const ordered = !item[1];
+      if (list && list.ordered !== ordered) {
+        listDone();
+      }
+      list ??= { ordered, start: ordered ? Number(item[2]) : 1, items: [] };
+      list.items.push(item[3]);
+    } else if (list && /^\s+\S/.test(line)) {
+      list.items[list.items.length - 1] += `\n${line.trim()}`;
+    } else {
+      listDone();
+      text.push(line);
+    }
+  }
+  textDone();
+  listDone();
+  return out.join("");
 }
 
 export class Hover {
@@ -74,9 +120,20 @@ export class Hover {
 
   show(found) {
     window.clearTimeout(this.wait);
-    this.el.innerHTML = found.parts
-      .map((part) => (typeof part === "string" ? markup(part) : `<div class="${escapeHtml(part.className ?? "")}">${markup(part.text)}</div>`))
-      .join("<hr>");
+    // A part is Markdown, Markdown with a class, or a node of its own, as a value's tree is.
+    this.el.replaceChildren();
+    found.parts.forEach((part, at) => {
+      if (at) {
+        this.el.append(document.createElement("hr"));
+      }
+      if (part instanceof Node) {
+        this.el.append(part);
+        return;
+      }
+      const holder = document.createElement("div");
+      holder.innerHTML = typeof part === "string" ? markup(part) : `<div class="${escapeHtml(part.className ?? "")}">${markup(part.text)}</div>`;
+      this.el.append(...holder.childNodes);
+    });
     this.el.hidden = false;
     this.shown = true;
     const host = this.ed.host.getBoundingClientRect();

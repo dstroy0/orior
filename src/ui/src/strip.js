@@ -21,6 +21,7 @@
 // or restores it.
 
 import { invoke } from "./bridge.js";
+import { dockIcon, iconRemoved } from "./docks.js";
 import { showGroup, shownGroup, morePanes, showPane } from "./explorer.js";
 import { icon } from "./icons.js";
 import { showMenu } from "./menu.js";
@@ -61,7 +62,10 @@ const STRIP = {
     ["run", "run", "Run", "Ctrl+Shift+D", () => (shownView() === "run" ? togglePane() : showView("run")), () => shownView() === "run"],
     ["debug", "debug", "Debug", "Alt+5", () => state.hooks.run("debug-view"), () => !document.getElementById("debug").hidden],
     ["terminal", "terminal", "Terminal", "Ctrl+`", () => state.hooks.run("terminal-view"), () => !document.getElementById("term").hidden],
+    ["profile", "profile", "Profile", "", () => state.hooks.run("profile-view"), () => !document.getElementById("profile").hidden],
+    ["containers", "containers", "Containers", "", () => state.hooks.run("containers-view"), () => !document.getElementById("containers").hidden],
     ["problems", "problems", "Problems", "", () => openGroup("problems"), () => explorerShown("problems")],
+    ["tests", "tests", "Tests", "", () => openGroup("tests"), () => explorerShown("tests")],
     ["git", "git", "Git", "", () => openGroup("git"), () => explorerShown("git")],
   ],
 };
@@ -83,9 +87,10 @@ function moreMenu(button) {
   );
 }
 
-// Marks the icon of each window that shows.
+// Marks the icon of each window that shows, and hides each the reader took off the strip.
 export function refreshStrip() {
   for (const [name, { button, shown }] of state.buttons) {
+    button.hidden = iconRemoved(name);
     const on = shown();
     button.classList.toggle("on", on);
     button.setAttribute("aria-pressed", String(on));
@@ -93,6 +98,10 @@ export function refreshStrip() {
       button.classList.toggle("marked", state.errors > 0);
       button.title = state.errors ? `Problems: ${state.errors} error${state.errors === 1 ? "" : "s"}` : "Problems";
     }
+  }
+  const definitions = document.getElementById("tool-definitions");
+  if (definitions) {
+    definitions.hidden = iconRemoved("definitions");
   }
   const bell = document.getElementById("tool-notifications");
   bell?.classList.toggle("marked", noticesUnseen() > 0 && noticesSaid().some((notice) => notice.failed));
@@ -156,7 +165,7 @@ const showGroupPane = (group) => {
   togglePane(true, { take: false, pin: false });
 };
 const HOVERED = new Map([
-  ...["explorer", "structure", "commit", "problems", "git"].map((group) => [group, () => showGroupPane(group)]),
+  ...["explorer", "structure", "commit", "problems", "tests", "git"].map((group) => [group, () => showGroupPane(group)]),
   [
     "run",
     () => {
@@ -172,6 +181,10 @@ function stripButton(name, glyph, label, keys, run, shown) {
   const button = element("button", { className: `strip-button strip-${name}`, type: "button", title: keys ? `${label} (${keys})` : label }, icon(glyph));
   button.setAttribute("aria-label", label);
   button.addEventListener("click", () => {
+    // The press that ends a drag of the icon to dock its window is no press on it.
+    if (button.dataset.dragged) {
+      return;
+    }
     // A press on the icon whose pane the preview shows keeps it, where a press would otherwise
     // close it.
     if (preview.kept && preview.showing === name) {
@@ -198,8 +211,24 @@ function stripButton(name, glyph, label, keys, run, shown) {
     });
     button.addEventListener("pointerleave", () => window.clearTimeout(resting));
   }
+  if (name !== "more") {
+    dockIcon(name, button);
+  }
   state.buttons.set(name, { button, shown });
   return button;
+}
+
+// Closes the window of an icon taken off the strip.
+export function closeIcon(name) {
+  const shown = state.buttons.get(name)?.shown;
+  if (name === "definitions") {
+    const side = document.getElementById("defs-side");
+    if (paneNodeShown(side)) {
+      togglePaneNode(side, false);
+    }
+  } else if (shown?.()) {
+    state.buttons.get(name).button.click();
+  }
 }
 
 // Notifications: what the status bar has said, the newest first, in a panel under the bell.
@@ -279,6 +308,18 @@ function drawJobs() {
   );
 }
 
+// View, System Title Bar: the window drawn with the system's own title bar and its controls, in place
+// of the bar's, kept, and read by the window as it opens.
+const TITLE_BAR = "orior.titlebar";
+
+export const systemTitleBar = () => localStorage.getItem(TITLE_BAR) === "system";
+
+export function setSystemTitleBar(on = !systemTitleBar()) {
+  localStorage.setItem(TITLE_BAR, on ? "system" : "own");
+  document.body.toggleAttribute("data-system-title", on);
+  return invoke("window_act", { act: on ? "system-title" : "own-title" }).catch(() => false);
+}
+
 // The window's controls, and the top bar as the handle the window moves by.
 function startWindow() {
   const act = (what) => invoke("window_act", { act: what }).catch(() => false);
@@ -295,13 +336,14 @@ function startWindow() {
     return button;
   };
   maximize.addEventListener("click", () => act("maximize").then(drawMaximized));
+  document.body.toggleAttribute("data-system-title", systemTitleBar());
   document.getElementById("window-controls").replaceChildren(control("minimize", "Minimize", "minimize"), maximize, control("close", "Close", "close", "window-close"));
   act("state").then(drawMaximized);
   window.addEventListener("resize", () => act("state").then(drawMaximized));
   // A press on the bar itself, its tree name or its empty middle moves the window; a press on a menu,
-  // a tool or a control does what it does.
+  // a tool or a control does what it does. Under the system's own title bar, that bar moves it.
   document.querySelector("header.bar").addEventListener("mousedown", (event) => {
-    if (event.button !== 0 || event.target.closest("button, nav, .bar-tools, .window-controls, input")) {
+    if (event.button !== 0 || systemTitleBar() || event.target.closest("button, nav, .bar-tools, .window-controls, input")) {
       return;
     }
     event.preventDefault();
@@ -331,6 +373,7 @@ export function startStrip(hooks) {
       toolButton("tool-toolchains", "database", "Toolchains", () => hooks.run("toolchains")),
       toolButton("tool-definitions", "m", "Definitions", () => toggleDefinitions()),
     );
+  dockIcon("definitions", document.getElementById("tool-definitions"));
   document.addEventListener("mousedown", (event) => state.popover && !state.popover.contains(event.target) && !event.target.closest?.("#tool-notifications") && closeNotices());
   window.addEventListener("keydown", (event) => event.key === "Escape" && state.popover && closeNotices());
   onNotice(refreshStrip);
@@ -342,7 +385,7 @@ export function startStrip(hooks) {
   });
   // The panes and panels show and collapse from many places; the strip follows what they do.
   const watched = new MutationObserver(() => refreshStrip());
-  for (const id of ["explorer", "job-side", "debug", "term", "defs-side"]) {
+  for (const id of ["explorer", "job-side", "debug", "term", "defs-side", "profile", "containers"]) {
     watched.observe(document.getElementById(id), { attributes: true, attributeFilter: ["hidden", "class"] });
   }
   refreshStrip();

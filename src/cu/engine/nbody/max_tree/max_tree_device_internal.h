@@ -4,6 +4,7 @@
 #define MAX_TREE_DEVICE_INTERNAL_H
 
 #include "max_tree.h"
+#include "../../runtime/device_pool/device_pool.h"
 
 #include <cub/cub.cuh>
 #include <cuda_runtime.h>
@@ -35,15 +36,17 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_error_check((condition_), (kind_), ENGINE_MODULE_MAX_TREE, (unsigned int)__LINE__,                          \
                        (const void *)(evacaddr_), (error_))
 
-__device__ static inline unsigned int max_tree_selected(const unsigned int *residual, unsigned int voxel)
+// a residual lane above zero, the lanes `held` limbs apart
+__device__ static inline unsigned int max_tree_selected(const unsigned int *residual, unsigned int voxel,
+                                                        unsigned int held = ENGINE_RESIDUAL_LIMBS)
 {
-    const unsigned int *const limbs = &residual[(size_t)voxel * ENGINE_RESIDUAL_LIMBS];
+    const unsigned int *const limbs = &residual[(size_t)voxel * held];
     unsigned int any = 0u;
-    for (unsigned int limb = 0u; limb < ENGINE_RESIDUAL_LIMBS; limb += 1u)
+    for (unsigned int limb = 0u; limb < held; limb += 1u)
     {
         any |= limbs[limb];
     }
-    return (unsigned int)(((limbs[ENGINE_RESIDUAL_LIMBS - 1u] >> 31u) == 0u) && (any != 0u));
+    return (unsigned int)(((limbs[held - 1u] >> 31u) == 0u) && (any != 0u));
 }
 
 __device__ static inline unsigned int max_tree_below(const unsigned int *residual, unsigned int left,
@@ -103,13 +106,13 @@ int max_tree_contract(const unsigned int *residual, unsigned int depth, unsigned
 
 __global__ void max_tree_iota_kernel(unsigned int voxels, unsigned int *order);
 
-__global__ void max_tree_code_gather_kernel(const unsigned int *residual, const unsigned int *order,
+__global__ void max_tree_code_gather_kernel(const unsigned int *residual, unsigned int held, const unsigned int *order,
                                             unsigned int voxels, unsigned int limb, unsigned int *keys);
 
-__global__ void max_tree_code_flags_kernel(const unsigned int *residual, const unsigned int *order, unsigned int voxels,
-                                           unsigned int *flags);
+__global__ void max_tree_code_flags_kernel(const unsigned int *residual, unsigned int held, const unsigned int *order,
+                                           unsigned int voxels, unsigned int *flags);
 
-__global__ void max_tree_code_scatter_kernel(const unsigned int *residual, const unsigned int *order,
+__global__ void max_tree_code_scatter_kernel(const unsigned int *residual, unsigned int held, const unsigned int *order,
                                              const unsigned int *ranks, unsigned int voxels, unsigned int *code);
 
 int max_tree_code_contract(const unsigned int *code, unsigned int depth, unsigned int height, unsigned int width,
@@ -148,7 +151,7 @@ __global__ void max_tree_roots_kernel(const unsigned char *ranges, const unsigne
 __global__ void max_tree_peak_kernel(const unsigned int *code, const unsigned char *ranges, const unsigned int *label,
                                      unsigned int voxels, unsigned long long *best);
 
-__global__ void max_tree_mark_kernel(const unsigned int *residual, const unsigned int *code,
+__global__ void max_tree_mark_kernel(const unsigned int *residual, unsigned int held, const unsigned int *code,
                                      const unsigned char *ranges, const unsigned int *label,
                                      const unsigned long long *best, unsigned int voxels, unsigned int writing,
                                      unsigned int *at_chunk, unsigned int *slot_at, EngineBody *bodies);
@@ -158,8 +161,8 @@ __global__ void max_tree_object_census_kernel(const unsigned char *ranges, const
                                               unsigned int depth, unsigned int height, unsigned int width,
                                               EngineBody *bodies, unsigned int *labels);
 
-__global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int voxels, unsigned int words,
-                                     unsigned long long *packed);
+__global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int held, unsigned int voxels,
+                                     unsigned int words, unsigned long long *packed);
 
 __global__ void max_tree_code_values_kernel(const unsigned int *residual, const unsigned int *order,
                                             const unsigned int *flags, const unsigned int *code, unsigned int voxels,

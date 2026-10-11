@@ -229,6 +229,20 @@ std::vector<TowerStep> tower_floors(const unsigned long long *extent)
 
 TowerResident g_tower_resident;
 
+extern "C" void tower_resident_release(void)
+{
+    TowerResident *const resident = &g_tower_resident;
+    device_pool_release(&resident->pool);
+    cudaFree(resident->edge_table);
+    resident->coefficients = NULL;
+    resident->scratch = NULL;
+    resident->flag = NULL;
+    resident->mismatches = NULL;
+    resident->lanes = 0u;
+    resident->edge_table = NULL;
+    resident->edge_entries = 0u;
+}
+
 int tower_edge_reserve(unsigned int entries, EngineError *error)
 {
     TowerResident *const resident = &g_tower_resident;

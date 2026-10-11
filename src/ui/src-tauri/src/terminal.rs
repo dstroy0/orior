@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -47,7 +47,7 @@ struct Exit {
 /// The shell a terminal runs, at `root`: ORIOR_SHELL where it is set; on Windows Git's bash, the one
 /// the jobs run in, as a login shell; elsewhere the reader's own SHELL, else bash. Git's bash is told
 /// to stay in the folder it starts in, which a login shell otherwise leaves for the home folder.
-fn shell(root: &Path) -> Result<CommandBuilder, String> {
+pub fn shell(root: &Path) -> Result<CommandBuilder, String> {
     let mut command = if let Ok(named) = std::env::var("ORIOR_SHELL") {
         CommandBuilder::new(named)
     } else if cfg!(windows) {
@@ -64,7 +64,43 @@ fn shell(root: &Path) -> Result<CommandBuilder, String> {
     command.env("PATH", orior_cli::toolchains::run_path());
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
+    // Bash says the folder it stands in before each prompt, as OSC 7, where nothing of the reader's
+    // already sets what it does before a prompt: the window keeps the folder to open in again.
+    let bash = std::env::var("ORIOR_SHELL").is_err() && (cfg!(windows) || std::env::var("SHELL").map_or(true, |shell| shell.ends_with("bash")));
+    if bash && std::env::var_os("PROMPT_COMMAND").is_none() {
+        command.env("PROMPT_COMMAND", r#"printf '\033]7;file://%s%s\007' "${HOSTNAME:-}" "$PWD""#);
+    }
     Ok(command)
+}
+
+/// The folder a file URL names, as OSC 7 gives it: its host taken off, its escapes read, and on
+/// Windows a path of Git's bash, `/d/x`, read as `D:/x`.
+pub fn folder_of(url: &str) -> PathBuf {
+    let path = url.strip_prefix("file://").map_or(url, |rest| rest.find('/').map_or(rest, |cut| &rest[cut..]));
+    let bytes = path.as_bytes();
+    let mut read = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        let escaped = (bytes[at] == b'%').then(|| bytes.get(at + 1..at + 3)).flatten().and_then(|hex| u8::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok());
+        match escaped {
+            Some(byte) => {
+                read.push(byte);
+                at += 3;
+            }
+            None => {
+                read.push(bytes[at]);
+                at += 1;
+            }
+        }
+    }
+    let path = String::from_utf8_lossy(&read).into_owned();
+    if cfg!(windows) {
+        let parts = path.as_bytes();
+        if parts.len() >= 2 && parts[0] == b'/' && parts[1].is_ascii_alphabetic() && (parts.len() == 2 || parts[2] == b'/') {
+            return PathBuf::from(format!("{}:/{}", char::from(parts[1]).to_ascii_uppercase(), path.get(3..).unwrap_or("")));
+        }
+    }
+    PathBuf::from(path)
 }
 
 /// How many bytes at the start of `bytes` are whole characters. A character cut by the end of a read
@@ -92,10 +128,10 @@ fn size(cols: u16, rows: u16) -> PtySize {
 }
 
 impl Terms {
-    /// Opens a terminal `cols` wide and `rows` tall with its shell at `root`, and returns its number.
-    pub fn open(&self, app: AppHandle, root: &Path, cols: u16, rows: u16) -> Result<u64, String> {
+    /// Opens a terminal `cols` wide and `rows` tall running `command`, a shell, and returns its number.
+    pub fn open(&self, app: AppHandle, command: CommandBuilder, cols: u16, rows: u16) -> Result<u64, String> {
         let pair = native_pty_system().openpty(size(cols, rows)).map_err(|e| e.to_string())?;
-        let mut child = pair.slave.spawn_command(shell(root)?).map_err(|e| e.to_string())?;
+        let mut child = pair.slave.spawn_command(command).map_err(|e| e.to_string())?;
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
         let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
@@ -157,6 +193,20 @@ impl Terms {
             Some(term) => term.killer.kill().map_err(|e| e.to_string()),
             None => Ok(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod places {
+    use super::folder_of;
+    use std::path::PathBuf;
+
+    #[test]
+    fn a_folder_is_read_from_its_url() {
+        let drive = if cfg!(windows) { "D:/git project/x" } else { "/d/git project/x" };
+        assert_eq!(folder_of("file://host/d/git%20project/x"), PathBuf::from(drive));
+        assert_eq!(folder_of("file:///home/u"), PathBuf::from("/home/u"));
+        assert_eq!(folder_of("/srv/a b"), PathBuf::from("/srv/a b"));
     }
 }
 

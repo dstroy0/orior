@@ -64,6 +64,15 @@ extern "C" unsigned int cycle_key_scratch_limbs(const CycleKey *key)
 
 static CycleResident s_cycle_resident;
 
+extern "C" void cycle_resident_release(void)
+{
+    CycleResident *const resident = &s_cycle_resident;
+    cudaFree(resident->scratch);
+    cudaFree(resident->table);
+    cudaFree(resident->folds);
+    memset(resident, 0, sizeof(*resident));
+}
+
 // The stack a launch grew past `before`, given back once its work is done. The runtime raises the stack limit to the
 // widest frame a kernel launches with, reserves that frame for every thread the device keeps resident, and holds it
 // until the limit is set back. A `before` of 0 is a limit never read, and nothing is set.
