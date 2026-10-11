@@ -59,6 +59,10 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - A connection that matters opens read-only or asks before each statement that writes, and a write that reaches every row of what it names asks first on every connection, with the count of rows.
    - Each statement commits on its own until the reader begins a transaction, and an open one shows on the status bar, which names the connection of the SQL file shown and the zone its session reads times in, until Commit or Roll Back ends it.
    - Each statement run is kept in its connection's history across restarts, and History runs one again.
+2. **Files in an archive.** A zip, and a jar, a wheel or any other zip by another name, a tar, a gzipped tar and a gzipped file open in the explorer as folders, with their files' icons, and their files are read without unpacking them; a path of the tree runs on into an archive past its file, and on into an archive inside it. A file changed in an archive is saved back into it: the archive is written anew beside the old one, every other file's bytes as they were, and put in the old one's place. Deflate, CRC-32, zip, zip64, tar and gzip are orior's own code, with nothing from outside, and Python's zipfile and tarfile read what it writes.
+   - Names that come out garbled: each name is read in the encoding the archive's flag gives, UTF-8 or the old DOS page, and the archive's menu, Names' Encoding, reads them in another, Shift_JIS, GBK, Big5, EUC-KR, Cyrillic or Western among them.
+   - An archive inside an archive: it opens as a folder too, and a file in it saves back through both.
+   - Jars, wheels and tarballs that are archives too: a jar, a wheel, a tar and a gzipped tar open as a zip does.
 
 ## How developers work
 

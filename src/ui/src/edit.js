@@ -296,8 +296,65 @@ async function removeFromWindow(name) {
   await drawTree();
 }
 
+// The encodings an archive's names may be read in, each by its label and how the menu names it, the
+// first the archive's own word: UTF-8 where its flag says so, the old DOS page elsewhere.
+export const NAME_ENCODINGS = [
+  ["", "As the Archive Says"],
+  ["utf-8", "UTF-8"],
+  ["windows-1252", "Western (Windows-1252)"],
+  ["iso-8859-2", "Central European (ISO-8859-2)"],
+  ["windows-1251", "Cyrillic (Windows-1251)"],
+  ["koi8-r", "Cyrillic (KOI8-R)"],
+  ["shift_jis", "Japanese (Shift_JIS)"],
+  ["euc-jp", "Japanese (EUC-JP)"],
+  ["gbk", "Chinese, Simplified (GBK)"],
+  ["big5", "Chinese, Traditional (Big5)"],
+  ["euc-kr", "Korean (EUC-KR)"],
+];
+
+const NAMES_KEY = "orior.archive.names";
+
+// The encoding chosen for each archive's names, by the archive's path.
+export function namesChosen() {
+  try {
+    return JSON.parse(localStorage.getItem(NAMES_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+// Reads the names of the archive at `path` in `label`, or as the archive says where it is empty.
+export async function chooseNames(path, label) {
+  const chosen = namesChosen();
+  if (label) {
+    chosen[path] = label;
+  } else {
+    delete chosen[path];
+  }
+  localStorage.setItem(NAMES_KEY, JSON.stringify(chosen));
+  await drawTree();
+}
+
+// The name an entry shows: its name's own bytes read in the encoding chosen for the archive it is
+// in, where the archive does not say its names are UTF-8 and the reader chose one.
+function shownName(entry) {
+  if (!entry.raw) {
+    return entry.name;
+  }
+  const chosen = namesChosen();
+  const archive = Object.keys(chosen).find((path) => entry.path.startsWith(`${path}/`));
+  if (!archive) {
+    return entry.name;
+  }
+  try {
+    return new TextDecoder(chosen[archive]).decode(Uint8Array.from(entry.raw.match(/../g).map((pair) => parseInt(pair, 16))));
+  } catch {
+    return entry.name;
+  }
+}
+
 // A row of the tree: a line down from each folder above it, the folder's arrow, the file's icon, the
-// name, and git's letter for it.
+// name, and git's letter for it. An archive is a folder with its file's icon.
 function node(entry, depth) {
   const known = !entry.dir && state.known?.typeOf(entry.path);
   const mark = entry.dir ? state.rolled.get(entry.path) : state.changes.get(entry.path);
@@ -307,10 +364,13 @@ function node(entry, depth) {
     title: entry.path,
   });
   button.append(...guides(depth), element("span", { className: "twisty" }));
-  if (!entry.dir) {
+  if (!entry.dir || entry.archive) {
     button.append(iconOf(entry.name, Boolean(known)));
   }
-  button.append(element("span", { className: "name", textContent: entry.name }));
+  button.append(element("span", { className: "name", textContent: shownName(entry) }));
+  if (entry.archive) {
+    button.dataset.archive = "true";
+  }
   if (mark) {
     button.dataset.change = mark;
     button.append(element("span", { className: "change", textContent: entry.dir ? "●" : mark }));
@@ -3080,9 +3140,11 @@ function fileItems(event) {
     ? { label: state.expanded.has(path) ? "Close" : "Open", run: () => row.click() }
     : { label: "Open", run: () => openFile(path) };
   const mounted = row.classList.contains("mount") ? path.slice(1) : null;
+  const names = namesChosen()[path] ?? "";
   return [
     open,
     ...(mounted ? [{ label: "Remove from Window", run: () => removeFromWindow(mounted) }] : []),
+    ...(row.dataset.archive ? [{ label: "Names' Encoding", items: NAME_ENCODINGS.map(([label, shown]) => ({ label: shown, checked: names === label, run: () => chooseNames(path, label) })) }] : []),
     ...(folder ? [] : [{ label: "Open in Next Split", run: () => openInSplit(path) }]),
     ...(!folder && SHOWN_IN_WINDOW.has(extOf(path)) ? [{ label: "Open in a window", run: () => invoke("view_open", { path }) }] : []),
     "-",

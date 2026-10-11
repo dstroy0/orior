@@ -13,6 +13,7 @@
 pub mod binary;
 pub mod bridge;
 pub mod builds;
+pub mod archive;
 pub mod catalog;
 pub mod checkers;
 pub mod cli;
