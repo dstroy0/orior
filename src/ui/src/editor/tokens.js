@@ -456,6 +456,33 @@ export class Highlight {
     return runs;
   }
 
+  // A line's tokens to draw it by at any speed: kept, or worked out in the page now where they are not
+  // yet, the Rust side asked for the lines past it meanwhile. No row is drawn without its colors, and
+  // the same tokens coming back from the Rust side draw it no other way.
+  runsShown(line) {
+    return this.laid(line, this.ownRunsShown(line));
+  }
+
+  ownRunsShown(line) {
+    if (!this.grammar) {
+      return PLAIN;
+    }
+    const found = this.runs[line];
+    if (found) {
+      return found;
+    }
+    if (this.remote) {
+      this.ask(line);
+    }
+    const { runs, state } = tokenize(this.grammar, this.doc.line(line), this.stateAt(line));
+    this.runs[line] = runs;
+    this.stale[line] = undefined;
+    if (!this.grammar.perLine) {
+      this.startAt(line + 1, state);
+    }
+    return runs;
+  }
+
   // Adds a line to the next request to the Rust side, which goes once the page's work in hand is done.
   ask(line) {
     const first = this.wanted === null;

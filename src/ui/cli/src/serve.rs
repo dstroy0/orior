@@ -796,6 +796,33 @@ impl Server {
             "file_head" => give(git::head_text(&self.root()?, &path()?)),
             "qry_runs" => give(crate::qry::listed(&self.root()?)),
             "qry_read" => crate::qry::read(&at(&path()?)?, a.get("from")?).and_then(give),
+            // A blob queued on its channel to the run named, or to the run the window is joined to, and
+            // the call answered at once: the backend's own threads hand it.
+            "qry_hand" => {
+                let run = match a.get::<Option<String>>("path")? {
+                    Some(path) => at(&path)?,
+                    None => crate::qry::joined().ok_or("the window is joined to no run")?,
+                };
+                let channel = a.get::<Option<crate::qry::Channel>>("channel")?.unwrap_or(crate::qry::Channel::Primary);
+                let priority = a.get::<Option<u32>>("priority")?.unwrap_or(crate::qry::ORDINARY);
+                crate::qry::queue(channel, run, a.get("name")?, a.get::<String>("text")?.into_bytes(), priority);
+                give(())
+            }
+            // A file of the tree queued to the run on the primary channel as qry_run.sh's run_read hands
+            // one, the blob named by its path from the top of the tree.
+            "qry_hand_file" => {
+                let file = a.get::<String>("file")?;
+                let bytes = std::fs::read(at(&file)?).map_err(|error| format!("{file}: {error}"))?;
+                crate::qry::queue(crate::qry::Channel::Primary, at(&path()?)?, file.replace('\\', "/"), bytes, crate::qry::ORDINARY);
+                give(())
+            }
+            "qry_join" => {
+                let run = a.get::<Option<String>>("path")?.map(|path| at(&path)).transpose()?;
+                crate::qry::join_window(run);
+                give(crate::qry::joined().map(|run| run.to_string_lossy().into_owned()))
+            }
+            "qry_window" => give(serde_json::json!({ "path": crate::qry::joined().map(|run| run.to_string_lossy().into_owned()), "queued": crate::qry::queued() })),
+            "qry_joined" => crate::qry::joined_bytes(&at(&path()?)?, &a.get::<String>("name")?).map(|bytes| String::from_utf8_lossy(&bytes).into_owned()).and_then(give),
             "file_commits" => git::commits(&self.root()?, &path()?).and_then(give),
             "git_commit" => git::commit(&self.root()?, &a.get::<String>("message")?, &a.get::<Vec<String>>("paths")?).and_then(give),
             "git_push" => git::push(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?).and_then(give),

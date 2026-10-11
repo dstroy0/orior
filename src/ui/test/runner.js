@@ -176,6 +176,10 @@
     // A program started apart from the window, waited for unless `wait` is false: its words, its
     // environment and what its standard input reads.
     run: async (program, args = [], { env = {}, input = "", wait = true } = {}) => ask({ op: "run", program, args, env, input, wait }),
+    // The browser's own trace of the window's frames, started, and ended with its summary handed to the
+    // query run `qry` as the blob `name` by the run's `writer`.
+    browserTrace: async () => ask({ op: "browser_trace" }),
+    browserTraced: async (writer, qry, name) => ask({ op: "browser_trace", end: true, writer, qry, name }),
     type: async (text) => ask({ op: "type", text }),
     // Waits for `what`, a selector shown or a function's true value, and gives it.
     waitFor: async (what, ms = 5000) => {

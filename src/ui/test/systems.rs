@@ -72,10 +72,10 @@ pub fn tests_in(name: &str, folder: &str, platform: &str, here: &Path, ui: &Path
     // as a system's own init does.
     command.args(["run", "--rm", "--init", "--platform", platform, "--add-host", "host.docker.internal:host-gateway"]);
     command.arg("--mount").arg(format!("type=bind,source={},target=/ui,readonly", ui.display()));
-    // The query runs' writer of src/cu, where the crate's tests of qry.rs build it, two folders up from
-    // the crate.
-    if let Some(writer) = ui.parent().map(|src| src.join("cu").join("types").join("file_defs").join("qry")).filter(|writer| writer.is_dir()) {
-        command.arg("--mount").arg(format!("type=bind,source={},target=/cu/types/file_defs/qry,readonly", writer.display()));
+    // src/cu, two folders up from the crate, where the crate's tests of qry.rs build the query runs'
+    // writer from its sources and the headers they include.
+    if let Some(cu) = ui.parent().map(|src| src.join("cu")).filter(|cu| cu.is_dir()) {
+        command.arg("--mount").arg(format!("type=bind,source={},target=/cu,readonly", cu.display()));
     }
     command.args(["-v", &format!("orior-test-{name}-cargo:/root/.cargo/registry"), "-v", &format!("orior-test-{name}-target:/target")]);
     // Docker's own resolver drops a name now and then; cargo asks again ten times before it gives up.

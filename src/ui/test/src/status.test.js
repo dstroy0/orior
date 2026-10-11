@@ -42,25 +42,20 @@ test("watchers hear once a frame, whatever was written in it, until they stop", 
   assert.equal(heard, 1, "a stopped watcher hears nothing");
 });
 
-test("the view is pressed while it takes input, moves or strains", () => {
-  const kept = [status.input.active, status.scroll.level, status.frame.strain];
+test("the view is pressed while it takes input or moves", () => {
+  const kept = [status.input.active, status.scroll.speed];
   try {
     write("input", { active: false });
-    write("scroll", { level: 0 });
-    write("frame", { strain: 0 });
+    write("scroll", { speed: 0 });
     assert.equal(pressed(), false);
     write("input", { active: true });
     assert.equal(pressed(), true);
     write("input", { active: false });
-    write("scroll", { level: 2 });
-    assert.equal(pressed(), true);
-    write("scroll", { level: 0 });
-    write("frame", { strain: 1 });
+    write("scroll", { speed: 3 });
     assert.equal(pressed(), true);
   } finally {
     write("input", { active: kept[0] });
-    write("scroll", { level: kept[1] });
-    write("frame", { strain: kept[2] });
+    write("scroll", { speed: kept[1] });
   }
 });
 

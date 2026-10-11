@@ -21,7 +21,9 @@
 //! else the highest numbered that is not the main one. The report goes to test/runs/<time>/report.md. The run fails where any test fails, the window
 //! throws, or a part has no test.
 
+mod bench;
 mod cdp;
+mod frames;
 mod input;
 mod servers;
 mod systems;
@@ -447,6 +449,8 @@ fn serve_page(conn: Arc<Connection>, page: Arc<Page>, ui: PathBuf) {
                     errors.push(format!("{} {} {}", entry["source"].as_str().unwrap_or("log"), entry["text"].as_str().unwrap_or(""), entry["url"].as_str().unwrap_or("")).trim().to_string());
                 }
             }
+            // The browser's own trace, as it comes and as it ends.
+            "Tracing.dataCollected" | "Tracing.tracingComplete" => frames::heard(event["method"].as_str().unwrap_or(""), params),
             "harness.closed" => {
                 page.closed.store(true, Ordering::SeqCst);
                 return;
@@ -561,6 +565,13 @@ fn main() -> ExitCode {
     if let Some(writer) = qry_writer(&ui, &here) {
         env.push(("ORIOR_TEST_QRY_WRITER".into(), writer.to_string_lossy().replace('\\', "/")));
     }
+    // The files the window is measured on, fetched once and checked whole, and named to its tests by
+    // their folder in the run's tree.
+    let benched = bench::fetched(&here);
+    match &benched {
+        Ok(_) => env.push(("ORIOR_TEST_BENCH".into(), "bench".into())),
+        Err(error) => report.said.push(format!("the benchmark files: {error}")),
+    }
     if options.servers {
         println!("servers");
         let up = servers::start(&here);
@@ -614,6 +625,7 @@ fn main() -> ExitCode {
         let tree = run.join("tree");
         let started = copy_folder(&here.join("fixtures").join("tree"), &tree)
             .map_err(|error| format!("the run's tree: {error}"))
+            .and_then(|_| benched.as_ref().map_or(Ok(()), |folder| bench::placed(folder, &tree)))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| window::build(&ui, &here.join("target").join("app")))
             .and_then(|program| {

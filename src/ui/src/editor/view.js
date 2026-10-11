@@ -19,6 +19,7 @@ import { selectionPath } from "./shape.js";
 import { Vim } from "./vim.js";
 import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
+import { enter, leave } from "../trace.js";
 import { icon } from "../icons.js";
 import { authorsShown } from "../authors.js";
 
@@ -126,6 +127,13 @@ const BRACKETS_LINES = 200000;
 const BRACKETS_READ = 20000;
 const UNBRACKETED = /\bt-(?:comment|string|regexp)/;
 const SHOWN = 10000;
+// A row is drawn as far as the view reaches across and a step past it, the step whole, so that a
+// scroll across draws the rows again only as it passes one: a line of tens of thousands of
+// characters lays out what can be seen, and not the rest.
+const REACH_STEP = 512;
+
+// The most rows whose markup is kept; past it the kept rows are let go and made again as they show.
+const ROWS_KEPT = 5000;
 
 // A line of closing brackets alone, with the commas, semicolons and spaces that may follow them.
 const CLOSER = /^\s*[\])}]+[\])};,\s]*$/;
@@ -142,16 +150,9 @@ const COMMENT_LINES = 200000;
 // A row's text, escaped, with a mark laid over each space and each tab, neither moving a letter.
 const marked = (html) => html.replace(/ /g, '<span class="ed-sp"> </span>').replace(/\t/g, '<span class="ed-tab">\t</span>');
 const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
-// The scroll speeds, in pixels a millisecond, past which a frame drops more of its work, how long
-// a scroll rests before it counts as stopped, and how many screens ahead the idle coloring reaches.
-const DROPS = [0.8, 2.5, 7];
+// How long a scroll rests before it counts as stopped, and how many screens ahead the idle coloring
+// reaches.
 const REST = 140;
-// A level falls a step once the speed has stayed under FALL_UNDER of the speed that set it, and the
-// strain under it, for FALL ms. A level that changes draws every row on screen again, and one that
-// fell and rose as the speed swayed about a step would draw them all again and again, and show and
-// hide the sticky lines as it went.
-const FALL = 250;
-const FALL_UNDER = 0.7;
 const AHEAD = 3;
 // How many rows ahead of the view the idle coloring reaches, for a view `shown` rows high: AHEAD
 // screens, or as far as `speed`, in pixels a millisecond, carries the view over two screens' coloring
@@ -161,9 +162,6 @@ export const lineHeight = () => LINE;
 
 export const coloringReach =(shown, speed, screenMs) => Math.max(shown * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
 
-// The milliseconds a frame may spend drawing. A frame over it drops a level whatever the speed, and
-// the level comes back a step at a time only after frames run well inside it.
-const BUDGET = 8;
 // How long input rests before the work it held runs.
 const INPUT_REST = 300;
 
@@ -1836,7 +1834,19 @@ export class Editor {
 
   // The bracket at or before the primary cursor and the one it pairs with, outside strings and
   // comments, or null.
+  // The bracket pair at the cursor, read once for each state of the text and place of the cursor: a
+  // scroll asks for it every frame, and its answer stays until either moves.
   bracketPair() {
+    const s = this.s;
+    const head = this.primary().head;
+    const key = [s.doc.id, s.doc.count, s.base, head.line, head.col].join("|");
+    if (this.pairKept?.session !== s || this.pairKept.key !== key) {
+      this.pairKept = { session: s, key, pair: this.bracketPairNow() };
+    }
+    return this.pairKept.pair;
+  }
+
+  bracketPairNow() {
     const s = this.s;
     const head = this.primary().head;
     const pairs = { "(": ")", "[": "]", "{": "}" };
@@ -2837,18 +2847,10 @@ export class Editor {
 
   // Drawing.
   //
-  // Each frame does only the work its rows need, and the faster the view moves the more it
-  // drops. `level` runs from 0, everything, to 3:
-  //
-  //   1  the guides, the marks on the word under the cursor and the bracket pair wait
-  //   2  rows take only the colors already worked out, and the fold marks, the find matches, the
-  //      diagnostics and the gutter's marks wait, all but its numbers, breakpoints and paused line
-  //   3  rows are plain, and the minimap draws its lines in one color
-  //
-  // As the speed falls the level falls with it, and once the view rests a frame draws everything
-  // and the lines ahead of where it was heading are colored a slice at a time. Over the speed sits
-  // a throttle: a frame that runs past BUDGET raises `strain`, and the level is whichever of the two
-  // is higher. A slow frame costs detail and never smoothness.
+  // Each frame draws every row on screen in its one form whatever the speed: its colors, its
+  // brackets, guides and marks, and its gutter, the same at speed as at rest, so that a scroll
+  // animates the whole way and no row is drawn again as the view slows. Once the view rests, the
+  // lines ahead of where it was heading are colored a slice at a time while the page is idle.
 
   // A wheel over the text or the gutter. A wheel's step glides where smooth scrolling is on; a
   // touchpad's movement, in pixels and not in steps, follows the fingers and is tracked for the
@@ -2889,22 +2891,33 @@ export class Editor {
       if (this.glide !== glide) {
         return;
       }
-      let left = glide.last === null ? GLIDE_PIECE * 2 : Math.min(64, now - glide.last);
-      glide.last = now;
-      while (left > 0) {
-        const piece = Math.min(GLIDE_PIECE, left) / 1000;
-        left -= piece * 1000;
-        glide.speed += (GLIDE_RATE * GLIDE_RATE * (glide.to - glide.at) - 2 * GLIDE_RATE * glide.speed) * piece;
-        glide.at += glide.speed * piece;
+      const call = enter("glide");
+      try {
+        this.glided(glide, now, step);
+      } finally {
+        leave(call);
       }
-      if (Math.abs(glide.to - glide.at) < 0.5 && Math.abs(glide.speed) < 20) {
-        this.scroller.scrollTop = glide.to;
-        this.glide = null;
-        return;
-      }
-      this.scroller.scrollTop = glide.at;
-      requestAnimationFrame(step);
     };
+    requestAnimationFrame(step);
+  }
+
+  // One frame of a glide: the spring moved on by the time since the frame before, and the space
+  // scrolled to where it stands, the glide ended once it stands at its end.
+  glided(glide, now, step) {
+    let left = glide.last === null ? GLIDE_PIECE * 2 : Math.min(64, now - glide.last);
+    glide.last = now;
+    while (left > 0) {
+      const piece = Math.min(GLIDE_PIECE, left) / 1000;
+      left -= piece * 1000;
+      glide.speed += (GLIDE_RATE * GLIDE_RATE * (glide.to - glide.at) - 2 * GLIDE_RATE * glide.speed) * piece;
+      glide.at += glide.speed * piece;
+    }
+    if (Math.abs(glide.to - glide.at) < 0.5 && Math.abs(glide.speed) < 20) {
+      this.scroller.scrollTop = glide.to;
+      this.glide = null;
+      return;
+    }
+    this.scroller.scrollTop = glide.at;
     requestAnimationFrame(step);
   }
 
@@ -2985,7 +2998,7 @@ export class Editor {
     this.hover.hide();
     const now = performance.now();
     if (top === this.placedTop) {
-      // The view's own jump: however far it went, nothing moved fast, and the level stands.
+      // The view's own jump: however far it went, nothing moved fast.
       this.placedTop = null;
       this.lastTop = top;
       this.lastScroll = now;
@@ -2999,83 +3012,25 @@ export class Editor {
     const spent = Math.max(1, now - (this.lastScroll ?? now - 16));
     this.lastTop = top;
     this.lastScroll = now;
-    // Smoothed: one long jump between two events does not throw the level up and back.
+    // Smoothed: one long jump between two events does not throw the speed up and back.
     const speed = 0.6 * status.scroll.speed + 0.4 * (Math.abs(moved) / spent);
     // The speed the view had as it came to rest, which the idle coloring reaches ahead by.
     this.lastSpeed = speed;
-    const level = this.leveled(speed, status.frame.strain);
-    write("scroll", { speed, level, heading: moved ? Math.sign(moved) : status.scroll.heading });
+    write("scroll", { speed, heading: moved ? Math.sign(moved) : status.scroll.heading });
     // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late.
     this.follow(top, left);
     this.rest();
     this.schedule();
   }
 
-  // Once the view has rested REST, the speed and the strain fall to nothing and a frame draws
-  // everything. A strain no frame comes after to ease it would otherwise hold background work back
-  // for good. The frame drawn at rest does not wait for another rest, however long it takes.
+  // Once the view has rested REST, its speed falls to nothing, the work held back while it moved
+  // goes on, and the lines ahead of where it was heading are colored while the page is idle.
   rest() {
     window.clearTimeout(this.restWait);
     this.restWait = window.setTimeout(() => {
-      write("scroll", { speed: 0, level: 0 });
-      write("frame", { strain: 0 });
-      this.fallSince = null;
-      this.resting = true;
-      try {
-        this.paint();
-      } finally {
-        this.resting = false;
-      }
+      write("scroll", { speed: 0 });
       this.warm();
     }, REST);
-  }
-
-  // The level a frame drops to, for the view's speed and the strain: a higher one at once, and a step
-  // lower only as FALL and FALL_UNDER say.
-  leveled(speed, strain) {
-    const level = status.scroll.level;
-    const asked = Math.max(strain, DROPS.filter((drop) => speed > drop).length);
-    if (asked > level) {
-      this.fallSince = null;
-      return asked;
-    }
-    if (Math.max(strain, DROPS.filter((drop) => speed > drop * FALL_UNDER).length) >= level) {
-      this.fallSince = null;
-      return level;
-    }
-    const now = performance.now();
-    this.fallSince ??= now;
-    if (now - this.fallSince < FALL) {
-      return level;
-    }
-    this.fallSince = now;
-    return level - 1;
-  }
-
-  // The throttle: how long the last frame took moves the strain up at once or down a step. A frame
-  // that drew every row again for a new level moves it neither way: it says what the change cost,
-  // and not what the frames after it will.
-  strained(spent, levelChanged = false) {
-    let strain = status.frame.strain;
-    if (levelChanged) {
-      this.easy = 0;
-    } else if (spent > BUDGET) {
-      strain = Math.min(DROPS.length, strain + 1);
-      this.easy = 0;
-    } else if (spent < BUDGET / 3 && strain > 0) {
-      this.easy = (this.easy ?? 0) + 1;
-      if (this.easy >= 6) {
-        strain -= 1;
-        this.easy = 0;
-      }
-    }
-    write("frame", { spent, strain });
-    if (strain > 0 && !this.resting) {
-      this.rest();
-    }
-    if (status.scroll.speed) {
-      write("scroll", { level: this.leveled(status.scroll.speed, strain) });
-    }
   }
 
   // Colors the lines ahead of the view in the way it was heading, while the page is idle, as far as
@@ -3235,6 +3190,13 @@ export class Editor {
     return s.depths[line];
   }
 
+  // How many characters across a row is drawn to: as far as the view reaches, in whole steps of
+  // REACH_STEP, and a step more.
+  reach() {
+    const seen = Math.ceil(((this.leftNow ?? this.scroller.scrollLeft) + this.viewSize().width) / this.cw);
+    return (Math.floor(seen / REACH_STEP) + 2) * REACH_STEP;
+  }
+
   rowHtml(line) {
     const s = this.s;
     // A text shown in the colors its codes set draws each line as they made it.
@@ -3242,10 +3204,21 @@ export class Editor {
       return (s.colored[line] ?? "") + (s.folded.has(line) && s.endOf(line) >= 0 ? `<span class="ed-folded" data-fold="${line}">⋯</span>` : "");
     }
     const text = s.doc.line(line);
-    const level = status.scroll.level;
-    const runs = level >= 3 ? [[0, ""]] : level === 2 ? s.highlight.cached(line) ?? [[0, ""]] : s.highlight.runsOf(line);
-    const shown = Math.min(text.length, SHOWN);
-    let depth = this.bracketsOn && level < 2 && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
+    const runs = s.highlight.runsShown(line);
+    const shown = Math.min(text.length, SHOWN, this.reach());
+    let depth = this.bracketsOn && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
+    // A row's markup is kept while its text, its colors, its depth, its hints and its marks are the
+    // ones it was made from, so that a scroll makes only the rows that come into view. A folded row
+    // reads the line its fold closes at, and is made each time.
+    const folded = s.folded.has(line);
+    const made = [text, runs, depth, s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, shown];
+    if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_KEPT) {
+      this.rowsKept = { session: s, rows: new Map() };
+    }
+    const kept = folded ? null : this.rowsKept.rows.get(line);
+    if (kept && kept.made.every((part, at) => part === made[at])) {
+      return kept.html;
+    }
     const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
     // The hints drawn before each col, each before the text from its col on.
     const hints = this.hintsOn(line);
@@ -3310,6 +3283,9 @@ export class Editor {
       if (closed !== end) {
         html += escapeHtml(s.doc.line(closed).trim());
       }
+    }
+    if (!folded) {
+      this.rowsKept.rows.set(line, { made, html });
     }
     return html;
   }
@@ -3420,7 +3396,17 @@ export class Editor {
     return Math.floor(width / size);
   }
 
+  // A frame drawn, it and each of its stages traced where the window is joined to a run.
   paint() {
+    const call = enter("paint");
+    try {
+      this.painted();
+    } finally {
+      leave(call);
+    }
+  }
+
+  painted() {
     const began = performance.now();
     if (this.pending) {
       cancelAnimationFrame(this.pending);
@@ -3442,7 +3428,6 @@ export class Editor {
     const doc = s.doc;
     const rows = this.rows();
     const cw = this.cw;
-    const level = status.scroll.level;
     const base = s.base;
     const total = this.linesInFile();
     // The gutter holds, left to right, the strip a breakpoint is set in, Line History's column where
@@ -3450,6 +3435,7 @@ export class Editor {
     // Where the view stands, read before this frame changes the page.
     const scrolledTop = this.scroller.scrollTop;
     const scrolledLeft = this.scroller.scrollLeft;
+    this.leftNow = scrolledLeft;
     const historyWidth = s.history ? Math.round(historyChars() * cw) + 8 : 0;
     const gutterWidth = Math.round(String(total).length * cw + 36 + BREAK_STRIP) + historyWidth;
     if (gutterWidth !== this.gutterWidth) {
@@ -3465,7 +3451,9 @@ export class Editor {
     const first = Math.max(0, Math.floor(top / LINE) - (status.scroll.heading < 0 ? lead : 2));
     const last = Math.min(rows.size - 1, Math.ceil((top + height) / LINE) + (status.scroll.heading > 0 ? lead : 2));
     if (rows.size) {
+      const shownCall = enter("shown");
       this.onShown(s, rows.lineOf(first), rows.lineOf(last));
+      leave(shownCall);
     }
     // The origin moves only once the rows drawn have left the two spans of ORIGIN_ROWS below it. A
     // new origin moves every row, and the layers that place a row once as they make it start over.
@@ -3489,7 +3477,7 @@ export class Editor {
     const covered = this.coverageOf?.(s) ?? null;
     const paused = this.pausedOf?.(s) ?? null;
     // The marks plugins lay, each line's from every plugin.
-    const plugged = level < 2 ? (this.pluginMarksOf?.(s) ?? null) : null;
+    const plugged = this.pluginMarksOf?.(s) ?? null;
 
     const text = new Map();
     const under = new Map();
@@ -3502,9 +3490,7 @@ export class Editor {
     };
 
     let occurrence = null;
-    if (level >= 1) {
-      occurrence = null;
-    } else if (empty(primary)) {
+    if (empty(primary)) {
       occurrence = wordAt(doc, primary.head)?.text ?? null;
     } else if (startOf(primary).line === endOfSel(primary).line) {
       const picked = doc.slice(startOf(primary), endOfSel(primary));
@@ -3513,9 +3499,10 @@ export class Editor {
     if (occurrence && occurrence.length > 120) {
       occurrence = null;
     }
-    const matches = this.find.shown && level <= 1 ? this.find.between(rows.lineOf(first), rows.lineOf(last)) : [];
+    const matches = this.find.shown ? this.find.between(rows.lineOf(first), rows.lineOf(last)) : [];
     const current = this.find.shown ? this.find.current() : null;
 
+    const rowsCall = enter("rows");
     for (let row = first; row <= last; row += 1) {
       const line = rows.lineOf(row);
       text.set(row, ["ed-row", this.rowHtml(line)]);
@@ -3525,7 +3512,7 @@ export class Editor {
       if (paused === base + line) {
         band(row, this.box("ed-paused", 0, this.yOf(row), spaceWidth));
       }
-      const levels = level >= 1 ? 0 : this.guides(line);
+      const levels = this.guides(line);
       for (let step = 0; step < levels; step += 1) {
         band(row, this.box("ed-guide", PAD + step * s.indent.size * cw, this.yOf(row), 1));
       }
@@ -3538,27 +3525,25 @@ export class Editor {
         }
       }
       const number = `<span class="ed-num-text">${base + line + 1}</span>`;
-      const foldable = s.folded.has(line) || (level <= 1 && s.opens(line));
+      const foldable = s.folded.has(line) || s.opens(line);
       const folded = foldable && s.folded.has(line);
       const mark = foldable ? `<span class="ed-fold${folded ? " shut" : ""}" data-fold="${line}">${folded ? "▸" : "▾"}</span>` : "";
       const stop = breaks?.get(base + line);
       const dot = stop === undefined ? "" : `<span class="ed-break${stop.bound === false ? " unbound" : ""}${stop.log ? " log" : stop.condition || stop.hits ? " cond" : ""}"></span>`;
       const here = paused === base + line ? '<span class="ed-pc"></span>' : "";
-      // At speed the gutter keeps its numbers, its breakpoints and the paused line, and the rest of
-      // its marks wait for the view to slow.
-      const whole = level < 2;
-      const ribbon = whole && marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
-      const history = whole && s.history ? this.historyMark(line) : "";
-      const test = whole ? tests?.get(base + line) : undefined;
+      const ribbon = marked?.has(base + line) ? '<span class="ed-bookmark"></span>' : "";
+      const history = s.history ? this.historyMark(line) : "";
+      const test = tests?.get(base + line);
       const testMark = test === undefined ? "" : `<span class="ed-test ${test}" data-test="${base + line}" title="Run or debug the test">▶</span>`;
-      const cover = !whole ? "" : covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
+      const cover = covered?.ran.has(base + line) ? '<span class="ed-cover ran"></span>' : covered?.missed.has(base + line) ? '<span class="ed-cover missed"></span>' : "";
       const laid = plugged?.get(base + line);
       const plugMark = laid ? `<span class="ed-plugin ${laid[0].kind}" title="${escapeHtml(laid.map((one) => one.title + (one.text ? `: ${one.text}` : "")).join("\n"))}"></span>` : "";
       if (laid?.some((one) => one.text)) {
         over.push(`<div class="ed-plugin-text ${laid[0].kind}" style="left:${this.xOf({ line, col: doc.line(line).length }) + 2 * this.cw}px;top:${this.yOf(row)}px;height:${LINE}px">${escapeHtml(laid.map((one) => one.text).filter(Boolean).join("  "))}</div>`);
       }
-      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + plugMark + number + mark + cover + (whole ? this.changeMark(line) : "")]);
+      gutter.set(row, [headLines.has(line) ? "ed-num on" : "ed-num", dot + here + ribbon + history + testMark + plugMark + number + mark + cover + this.changeMark(line)]);
     }
+    leave(rowsCall);
     for (const match of matches) {
       for (let line = match.from.line; line <= match.to.line; line += 1) {
         const row = visible(line);
@@ -3573,7 +3558,7 @@ export class Editor {
     }
     // A language server's diagnostics, each underlined in the color of its severity: 1 an error, 2 a
     // warning, 3 a note and 4 a hint. One that spans nothing marks the character it stands at.
-    for (const diag of level < 2 ? (s.diagnostics ?? []) : []) {
+    for (const diag of s.diagnostics ?? []) {
       for (let line = diag.from.line - s.base; line <= diag.to.line - s.base; line += 1) {
         const row = line >= 0 && line < doc.count ? visible(line) : -1;
         if (row < 0) {
@@ -3596,7 +3581,9 @@ export class Editor {
       }
     }
     const rowTop = (row) => this.yOf(row);
+    const textCall = enter("text");
     this.textLayer.draw(text, rowTop);
+    leave(textCall);
     // Each selection covers its characters on each row it reaches, and a line's end inside it as
     // one blank character, the rows' spans drawn as one shape; on a line that holds text running
     // right to left, each run of its characters as the page draws them is a shape of its own.
@@ -3654,7 +3641,9 @@ export class Editor {
         over.push(this.box(sel === primary ? "ed-caret main" : "ed-caret", this.xOf(sel.head) + this.pastEnd(sel) * this.cw - (block ? 0 : 1), this.yOf(row), block ? this.cw : 2));
       }
     }
-    const pair = level === 0 ? this.bracketPair() : null;
+    const pairCall = enter("pair");
+    const pair = this.bracketPair();
+    leave(pairCall);
     if (pair) {
       for (const at of pair) {
         const row = visible(at.line);
@@ -3664,8 +3653,10 @@ export class Editor {
       }
     }
 
+    const layersCall = enter("layers");
     this.underLayer.draw(new Map([...under].map(([row, html]) => [row, ["ed-band", html]])));
     this.gutterLayer.draw(gutter, rowTop);
+    leave(layersCall);
     const marks = over.join("");
     if (this.overHtml !== marks) {
       this.over.innerHTML = marks;
@@ -3679,16 +3670,21 @@ export class Editor {
     // map whose text has scrolled draws in the same frame as the text, its slider never behind it.
     const scrolled = this.mapTop !== scrolledTop;
     if (!status.input.active || scrolled) {
-      this.minimap.paint(level, scrolledTop);
+      const mapCall = enter("minimap");
+      this.minimap.paint(scrolledTop);
+      leave(mapCall);
       this.mapTop = scrolledTop;
     }
     if (!status.input.active) {
+      const statusCall = enter("status");
       this.drawStatus();
+      leave(statusCall);
     }
+    const stickyCall = enter("sticky");
     this.drawSticky(rows, top, scrolledLeft);
+    leave(stickyCall);
     this.suggest.place();
-    this.strained(performance.now() - began, level !== this.drawnLevel);
-    this.drawnLevel = level;
+    write("frame", { spent: performance.now() - began });
   }
 
   // Moves the cursor to the next of the language server's diagnostics after it, or the one before
@@ -3794,7 +3790,7 @@ export class Editor {
   // the text changes, and never from the whole text, which a file of any size keeps cheap.
   drawSticky(rows, top, left = this.scroller.scrollLeft) {
     const s = this.s;
-    if (!this.stickyOn || status.scroll.level >= 2) {
+    if (!this.stickyOn) {
       this.sticky.hidden = true;
       this.stickyKey = "";
       return;
@@ -3805,7 +3801,9 @@ export class Editor {
     // The held lines cover rows of their own, and they hold the regions of the row under them.
     for (let pass = 0; pass < 3 && this.stickyHeldFor !== heldFor; pass += 1) {
       const line = rows.lineOf(Math.min(rows.size - 1, firstRow + held.length));
+      const openersCall = enter("openers");
       const next = openersOf(s.doc, line, s.indent.size, STICKY_MOST);
+      leave(openersCall);
       if (next.join() === held.join()) {
         break;
       }
@@ -3827,12 +3825,14 @@ export class Editor {
       return;
     }
     this.sticky.style.width = `${gutter + this.viewSize().width}px`;
+    const heldCall = enter("held");
     this.sticky.innerHTML = held
       .map(
         (line) =>
           `<div class="ed-sticky-row" data-line="${line}" style="height:${LINE}px"><span class="ed-sticky-num" style="width:${gutter}px">${s.base + line + 1}</span><span class="ed-sticky-text"><span style="display:inline-block;padding-left:${PAD}px;transform:translateX(${-left}px)">${this.rowHtml(line)}</span></span></div>`
       )
       .join("");
+    leave(heldCall);
   }
 
   // Colors the minimap reads from the stylesheet, read again once the scheme changes.

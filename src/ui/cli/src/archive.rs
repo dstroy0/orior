@@ -12,6 +12,10 @@
 //! A zip's names are UTF-8 where its flag says so, and otherwise the old DOS page, 437; each name's
 //! own bytes go with it, for the window to read in an encoding the reader chooses. Deflate, CRC-32,
 //! zip, tar and gzip are read and written here, with nothing from outside.
+//!
+//! A query run's .qry (qry.rs) opens as a folder of its blobs, each name's blobs joined in the order
+//! handed into one file, a name with slashes in folders of its own, as a run names a file it read by
+//! its path. A run's .qry is the record of what the run did and is never written back.
 
 use std::path::{Path, PathBuf};
 
@@ -23,6 +27,7 @@ pub enum Kind {
     Tar,
     TarGz,
     Gz,
+    Qry,
 }
 
 /// The kind of archive a file is by its name, or none.
@@ -31,6 +36,8 @@ pub fn kind_of(name: &str) -> Option<Kind> {
     const ZIPS: &[&str] = &[".zip", ".jar", ".war", ".ear", ".whl", ".apk", ".nupkg", ".vsix", ".xpi", ".epub"];
     if ZIPS.iter().any(|end| lower.ends_with(end)) {
         Some(Kind::Zip)
+    } else if lower.ends_with(".qry") {
+        Some(Kind::Qry)
     } else if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
         Some(Kind::TarGz)
     } else if lower.ends_with(".tar") {
@@ -573,6 +580,16 @@ fn members_of(bytes: &[u8], kind: Kind, inner: &str) -> Result<(Vec<Member>, Vec
             let data = gunzip(bytes)?;
             Ok((vec![Member { name: inner.to_string(), raw: None, dir: false, size: data.len() as u64, at: 0 }], data))
         }
+        // Each name's blobs joined, one after another in what the run holds, each member at its place.
+        Kind::Qry => {
+            let mut joined = Vec::new();
+            let mut members = Vec::new();
+            for (name, bytes) in crate::qry::members(bytes)? {
+                members.push(Member { name: clean(&name), raw: None, dir: false, size: bytes.len() as u64, at: joined.len() });
+                joined.extend(bytes);
+            }
+            Ok((members, joined))
+        }
     }
 }
 
@@ -588,6 +605,7 @@ fn data_of(bytes: &[u8], kind: Kind, unpacked: &[u8], member: &Member) -> Result
         Kind::Tar => tar_data(bytes, member),
         Kind::TarGz => tar_data(unpacked, member),
         Kind::Gz => Ok(unpacked.to_vec()),
+        Kind::Qry => Ok(unpacked[member.at..member.at + member.size as usize].to_vec()),
     }
 }
 
@@ -673,6 +691,9 @@ fn tar_with(bytes: &[u8], target: &Member, data: &[u8]) -> Result<Vec<u8>, Strin
 /// The bytes of an archive of `kind` named `name` with the member at `path` set to `data`, a path
 /// that runs on into an archive inside it changing that one.
 fn replace(bytes: &[u8], kind: Kind, name: &str, path: &[&str], data: &[u8]) -> Result<Vec<u8>, String> {
+    if kind == Kind::Qry {
+        return Err(format!("{name} is a run's record of what it did, and is not written back"));
+    }
     let (members, unpacked) = members_of(bytes, kind, &gz_inner(name))?;
     for cut in (1..=path.len()).rev() {
         let inner = path[..cut].join("/");
@@ -688,6 +709,7 @@ fn replace(bytes: &[u8], kind: Kind, name: &str, path: &[&str], data: &[u8]) -> 
             Kind::Tar => tar_with(bytes, member, &new),
             Kind::TarGz => Ok(gzip(&tar_with(&unpacked, member, &new)?)),
             Kind::Gz => Ok(gzip(&new)),
+            Kind::Qry => unreachable!("a run's .qry is refused above"),
         };
     }
     Err(format!("{name} holds no {}", path.join("/")))
@@ -916,6 +938,27 @@ mod tests {
         assert_eq!(read(&dir, "a.jar/top.txt").unwrap(), b"top", "the other files are as they were");
         assert_eq!(list(&dir, "a.jar").unwrap().len(), 3);
         assert!(!dir.join(".a.jar.saving").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_run_s_qry_opens_as_a_folder_of_its_blobs_each_name_s_joined_and_is_never_written_back() {
+        let dir = tree("qry");
+        let blob = |name: &str, bytes: &[u8], sequence: u64| {
+            let mut out = format!("qry {name} {} {sequence} 1000 2 begin\n", bytes.len()).into_bytes();
+            out.extend_from_slice(bytes);
+            out.extend(format!("qry {name} end\n").into_bytes());
+            out
+        };
+        let run = [blob("bench/sqlite3.c", b"int main(void)\n", 1), blob("window.trace", b"paint 0.000 0.400\n", 2), blob("questions.txt", b"why\n", 3), blob("window.trace", b"paint 6.900 0.380\n", 4)].concat();
+        std::fs::write(dir.join("query1-x.qry"), &run).unwrap();
+        assert_eq!(kind_of("build/qry/query1-x.QRY"), Some(Kind::Qry));
+        let top: Vec<(String, bool)> = list(&dir, "query1-x.qry").unwrap().into_iter().map(|one| (one.name, one.dir)).collect();
+        assert_eq!(top, [("bench".to_string(), true), ("questions.txt".to_string(), false), ("window.trace".to_string(), false)], "a name with slashes in folders of its own");
+        assert_eq!(read(&dir, "query1-x.qry/bench/sqlite3.c").unwrap(), b"int main(void)\n");
+        assert_eq!(read(&dir, "query1-x.qry/window.trace").unwrap(), b"paint 0.000 0.400\npaint 6.900 0.380\n", "each name's blobs joined in the order handed");
+        assert!(write(&dir, "query1-x.qry/questions.txt", b"changed").unwrap_err().contains("not written back"));
+        assert_eq!(std::fs::read(dir.join("query1-x.qry")).unwrap(), run, "the run's file as it was");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

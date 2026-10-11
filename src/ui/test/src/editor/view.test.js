@@ -1,16 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The editor's view: how far ahead of a view at rest its lines are colored, what it holds back
-// while it scrolls fast, a fast scroll at the display's own rate, the level a scroll holds, smooth
-// scrolling under reduced motion and the even steps of a steady wheel, and text that runs right to
-// left placed where the page draws it.
+// The editor's view: how far ahead of a view at rest its lines are colored, its marks drawn at every
+// speed, a fast scroll at the display's own rate, smooth scrolling under reduced motion and the even
+// steps of a steady wheel, text that runs right to left placed where the page draws it, and the files
+// people report other editors slow on scrolled the whole way in one form.
 
-import { coloringReach, runsRightToLeft, smoothScrolling } from "../../../src/editor/view.js";
+import { coloringReach, lineHeight, runsRightToLeft, smoothScrolling } from "../../../src/editor/view.js";
 import { invoke } from "../../../src/bridge.js";
 import { editing, onEdit, openFile } from "../../../src/edit.js";
 import { showView } from "../../../src/views.js";
-import { write } from "../../../src/status.js";
+import { status, write } from "../../../src/status.js";
+import { joinRun, traceTime, TRACE_BLOB } from "../../../src/trace.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -27,7 +28,7 @@ test("a view that came to rest fast is colored as far as its speed carries it ov
   assert.ok(Math.abs(coloringReach(40, 100, 60) - 2 * fast) <= 2, "twice the coloring time reaches twice as far");
 });
 
-test("while the view scrolls fast the gutter's change marks and the diagnostics wait, and come back as it slows", async () => {
+test("at every speed the gutter's change marks and the diagnostics are drawn, as at rest", async () => {
   showView("edit");
   await openFile("hello.py");
   await ui.waitFor(() => editing().editor?.s, 5000);
@@ -40,15 +41,12 @@ test("while the view scrolls fast the gutter's change marks and the diagnostics 
   try {
     view.paint();
     assert.deepEqual(drawn(), { change: true, diagnostic: true }, "at rest everything is drawn");
-    write("scroll", { level: 2 });
+    write("scroll", { speed: 12 });
     view.paint();
-    assert.deepEqual(drawn(), { change: false, diagnostic: false }, "at speed they wait");
-    assert.ok(view.gutter.querySelector(".ed-num-text"), "the numbers stay");
-    write("scroll", { level: 0 });
-    view.paint();
-    assert.deepEqual(drawn(), { change: true, diagnostic: true }, "at rest again they come back");
+    assert.deepEqual(drawn(), { change: true, diagnostic: true }, "and at speed the same");
+    assert.ok(view.gutter.querySelector(".ed-num-text"), "with the numbers");
   } finally {
-    write("scroll", { level: 0 });
+    write("scroll", { speed: 0 });
     s.diagnostics = [];
     view.setChanges(s, null);
     view.paint();
@@ -101,6 +99,9 @@ test("the word keys stop at the ends of words of either script, a letter's marks
   assert.equal(view.primary().head.col, 7, "back to the start of the next word");
 });
 
+// A line of the window's trace: its indent, the call's name, when it was entered and how long it ran.
+const TRACED = /^( *)([\w.]+) (\d+\.\d{3}) (\d+\.\d{3})$/;
+
 // The frames the page is given over `ms`, as requestAnimationFrame calls it: the times of each.
 function framesOver(ms) {
   return new Promise((done) => {
@@ -151,37 +152,6 @@ test("a fast scroll through a long file holds the display's own rate, as files s
   assert.ok(Math.max(...gaps) < 100, `the longest wait between two frames, ${Math.max(...gaps).toFixed(1)} ms`);
 });
 
-test("the level a frame drops to rises at once, and falls a step only once the view has stayed well under its speed for a while", async () => {
-  await openFile("rate.py");
-  await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
-  const view = editing().editor;
-  // The view's own way of leveling, on a hold of the test's own, the level written just before each
-  // ask: the editor's own scrolls and rests write the level too, and the test's waits give them time.
-  // Its speeds, in pixels a millisecond, step the level up past 0.8, 2.5 and 7.
-  const held = { fallSince: null };
-  const leveled = (speed, level, strain = 0) => {
-    write("scroll", { level });
-    return view.leveled.call(held, speed, strain);
-  };
-  const wait = (ms) => new Promise((done) => setTimeout(done, ms));
-  try {
-    assert.equal(leveled(3, 0), 2, "a speed past a step raises it at once");
-    assert.equal(leveled(0, 0, 2), 2, "and so does the strain");
-    assert.equal(leveled(2.2, 2), 2, "just under the step that set it, it holds");
-    await wait(400);
-    assert.equal(leveled(2.2, 2), 2, "and holds however long the speed sways there");
-    assert.equal(leveled(1, 2), 2, "well under, it holds at first");
-    await wait(100);
-    assert.equal(leveled(1, 2), 2, "and for a moment");
-    await wait(300);
-    assert.equal(leveled(1, 2), 1, "and then falls one step");
-    assert.equal(leveled(0, 1), 1, "the next step waits as long again");
-    assert.equal(leveled(3, 1), 2, "and a speed past a step raises it at once whatever it waited for");
-  } finally {
-    write("scroll", { level: 0 });
-  }
-});
-
 test("smooth scrolling starts off where the system asks for reduced motion, and the reader's own choice wins either way", async () => {
   const kept = localStorage.getItem("orior.smooth-scroll");
   try {
@@ -205,11 +175,10 @@ test("smooth scrolling starts off where the system asks for reduced motion, and 
   }
 });
 
-test("under a steady wheel every frame moves the text an even step, and the level holds", async () => {
+test("under a steady wheel every frame moves the text an even step", async () => {
   await openFile("rate.py");
   await ui.waitFor(() => editing().active === "rate.py" && editing().editor?.s, 5000);
   const view = editing().editor;
-  const { status } = await import("../../../src/status.js");
   const smooth = view.smoothOn;
   view.smoothOn = true;
   view.goTo(0, 0);
@@ -221,10 +190,18 @@ test("under a steady wheel every frame moves the text an even step, and the leve
   const missedAtRest = restGaps.filter((gap) => gap > 1.5 * restInterval).length / restGaps.length;
   const box = view.scroller.getBoundingClientRect();
   const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  const writer = window.__harness.servers.ORIOR_TEST_QRY_WRITER;
+  const root = (await invoke("root_get")).replaceAll("\\", "/");
+  await invoke("folder_create", { path: "build/trace" }).catch(() => {});
+  const traceRun = "build/trace/query1-steady.qry";
+  await ui.run(writer, ["start", `${root}/${traceRun}`], { wait: false });
+  await ui.run(writer, ["ready", `${root}/${traceRun}`]);
+  await joinRun(traceRun);
+  await ui.browserTrace();
   const frames = [];
   let wheeling = true;
   const tick = (now) => {
-    frames.push([now, view.scrollY(), status.scroll.level]);
+    frames.push([now, view.scrollY()]);
     if (wheeling) {
       requestAnimationFrame(tick);
     }
@@ -237,6 +214,13 @@ test("under a steady wheel every frame moves the text an even step, and the leve
   }
   wheeling = false;
   view.smoothOn = smooth;
+  await joinRun(null);
+  await ui.browserTraced(writer, `${root}/${traceRun}`, "browser.trace");
+  await new Promise((done) => setTimeout(done, 300));
+  const paints = paintsOf(await invoke("qry_joined", { path: traceRun, name: TRACE_BLOB }));
+  const browser = (await invoke("qry_joined", { path: traceRun, name: "browser.trace" })).split("\n").slice(0, 14).join("; ");
+  await ui.run(writer, ["stop", `${root}/${traceRun}`]);
+  const slowest = [...paints].sort((a, b) => b.spent - a.spent).slice(0, 5).map((paint) => `${paint.spent.toFixed(2)} ms ${JSON.stringify(Object.fromEntries(Object.entries(paint.stages).map(([stage, ms]) => [stage, Number(ms.toFixed(2))])))}`).join("; ");
   // The glide's first frames gather speed, and its last ones after the wheel stops lose it.
   const steady = frames.filter(([time]) => time > frames[0][0] + 300 && time < until - 100);
   const steps = steady.slice(1).map(([time, y], index) => [time - steady[index][0], y - steady[index][1]]);
@@ -250,13 +234,11 @@ test("under a steady wheel every frame moves the text an even step, and the leve
   const even = steps.filter((_, index) => onTime(index - 1) && onTime(index) && onTime(index + 1)).map(([, moved]) => moved);
   const middle = middleOf(even);
   const spread = Math.sqrt(even.reduce((sum, moved) => sum + (moved - middle) ** 2, 0) / even.length) / middle;
-  const changes = steady.slice(1).filter(([, , level], index) => level !== steady[index][2]).length;
   assert.ok(steps.length > 100, `frames counted: ${steps.length}`);
-  const missed = steps.map(([gap], index) => [index, Math.round(gap), steady[index + 1][2]]).filter(([, gap]) => gap > 1.5 * interval);
-  assert.ok(late <= steps.length * (0.03 + missedAtRest), `frames the page missed: ${late} of ${steps.length}, ${(missedAtRest * 100).toFixed(1)}% at rest, each [frame, ms, level]: ${JSON.stringify(missed)}`);
+  const missed = steps.map(([gap], index) => [index, Math.round(gap)]).filter(([, gap]) => gap > 1.5 * interval);
+  assert.ok(late <= steps.length * (0.03 + missedAtRest), `frames the page missed: ${late} of ${steps.length}, ${(missedAtRest * 100).toFixed(1)}% at rest, each [frame, ms]: ${JSON.stringify(missed)}; the slowest frames the trace holds: ${slowest}; the browser's busiest work: ${browser}`);
   assert.ok(still <= 2, `frames the text stood still: ${still} of ${steps.length}`);
   assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
-  assert.ok(changes <= 3, `the level changed ${changes} times in ${steps.length} frames`);
 });
 
 // Whether the listener the test gives onEdit is listening: it stays given for the page's life.
@@ -353,3 +335,150 @@ test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000
     assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
   }
 });
+
+// The files people report other editors slow to open and to scroll, which the harness fetched and put
+// in the tree, each scrolled with the window joined to a run of its own, and the window's own trace of
+// its frames read back from the run.
+const BENCH = window.__harness.servers.ORIOR_TEST_BENCH;
+
+// Each frame the trace says the view drew: when it began and how long it took, and its stages'.
+function paintsOf(trace) {
+  const paints = [];
+  for (const line of trace.split("\n")) {
+    const found = TRACED.exec(line);
+    if (!found) {
+      continue;
+    }
+    const [, indent, name, at, spent] = found;
+    if (indent === "" && name === "paint") {
+      paints.push({ at: Number(at), spent: Number(spent), stages: {} });
+    } else if (indent === "  " && paints.length) {
+      paints.at(-1).stages[name] = (paints.at(-1).stages[name] ?? 0) + Number(spent);
+    } else if (indent === "    " && paints.length) {
+      paints.at(-1).stages[name] = (paints.at(-1).stages[name] ?? 0) + Number(spent);
+    }
+  }
+  return paints;
+}
+
+// Scrolls the file of the tree at `path` under a steady fast wheel for `seconds` with the window joined
+// to a run, and gives what each frame drew and what the trace says of it.
+async function scrolledThrough(path, seconds) {
+  const writer = window.__harness.servers.ORIOR_TEST_QRY_WRITER;
+  const root = (await invoke("root_get")).replaceAll("\\", "/");
+  await invoke("folder_create", { path: "build/trace" }).catch(() => {});
+  const relative = `build/trace/query1-${path.replace(/\W/g, "_")}.qry`;
+  showView("edit");
+  await openFile(path);
+  await ui.waitFor(() => editing().active === path && editing().editor?.s, 30000);
+  await ui.waitFor(() => !status.reads.size, 60000);
+  const view = editing().editor;
+  const smooth = view.smoothOn;
+  view.smoothOn = true;
+  view.goTo(0, 0);
+  const rest = await framesOver(1000);
+  const restGaps = rest.slice(1).map((time, index) => time - rest[index]);
+  const interval = [...restGaps].sort((a, b) => a - b)[Math.floor(restGaps.length / 2)];
+  const missedAtRest = restGaps.filter((gap) => gap > 1.5 * interval).length / restGaps.length;
+  await ui.run(writer, ["start", `${root}/${relative}`], { wait: false });
+  const frames = [];
+  try {
+    await ui.run(writer, ["ready", `${root}/${relative}`]);
+    await joinRun(relative);
+    await ui.browserTrace();
+    // Each frame as it begins: where the view stands, the rows the text layer has written, and, for a
+    // few lines on screen, whether each is drawn with a color.
+    let sampling = true;
+    const sample = () => {
+      const first = Math.floor(view.scrollY() / lineHeight());
+      const lines = [first + 2, first + 12, first + 22].filter((line) => line < view.s.doc.count);
+      frames.push({ at: traceTime(), y: view.scrollY(), writes: view.textLayer.writes, colored: lines.map((line) => [line, /class="t-/.test(view.rowNode(line)?.innerHTML ?? "")]) });
+      if (sampling) {
+        requestAnimationFrame(sample);
+      }
+    };
+    requestAnimationFrame(sample);
+    const box = view.scroller.getBoundingClientRect();
+    const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    const began = traceTime();
+    const until = performance.now() + seconds * 1000;
+    while (performance.now() < until) {
+      await ui.wheel(at, 120);
+      await new Promise((done) => setTimeout(done, 20));
+    }
+    const stopped = traceTime();
+    await new Promise((done) => setTimeout(done, 1500));
+    sampling = false;
+    await joinRun(null);
+    await ui.browserTraced(writer, `${root}/${relative}`, "browser.trace");
+    await ui.waitFor(async () => (await invoke("qry_joined", { path: relative, name: TRACE_BLOB })).length > 0, 5000);
+    await new Promise((done) => setTimeout(done, 300));
+    const paints = paintsOf(await invoke("qry_joined", { path: relative, name: TRACE_BLOB }));
+    const browser = (await invoke("qry_joined", { path: relative, name: "browser.trace" })).split("\n").slice(0, 14).join("; ");
+    return { view, interval, missedAtRest, frames, paints, began, stopped, browser };
+  } finally {
+    view.smoothOn = smooth;
+    await joinRun(null);
+    await ui.run(writer, ["stop", `${root}/${relative}`]).catch(() => {});
+  }
+}
+
+// The scroll of the file at `path` judged: every frame on time, every line on screen drawn as it is at
+// rest, and the text at rest a moment after the wheel stops with no row written again.
+async function judged(name, path) {
+    const { view, interval, missedAtRest, frames, paints, began, stopped, browser } = await scrolledThrough(path, 3);
+    const during = paints.filter((paint) => paint.at > began + 300 && paint.at < stopped);
+    const gaps = during.slice(1).map((paint, index) => paint.at - during[index].at);
+    const late = gaps.filter((gap) => gap > 1.5 * interval);
+    const slow = [...during].sort((a, b) => b.spent - a.spent).slice(0, 3).map((paint) => `${paint.spent.toFixed(2)} ms ${JSON.stringify(Object.fromEntries(Object.entries(paint.stages).map(([stage, ms]) => [stage, Number(ms.toFixed(2))])))}`);
+    const said = `${name}: ${during.length} frames drawn, ${(1000 / interval).toFixed(0)} Hz; the slowest ${slow.join("; ")}`;
+    assert.ok(during.length > 100, `frames the trace holds: ${said}`);
+    assert.ok(late.length <= gaps.length * (0.03 + missedAtRest), `frames late: ${late.length} of ${gaps.length}, ${(missedAtRest * 100).toFixed(1)}% at rest: ${said}; the browser's busiest work: ${browser}`);
+    // Every line sampled on screen as the wheel turned is drawn as it is at rest.
+    const plain = [];
+    for (const frame of frames.filter((one) => one.at < stopped)) {
+      for (const [line, colored] of frame.colored) {
+        const atRest = view.s.highlight.runsNow(line).some(([, cls]) => cls);
+        if (atRest && !colored) {
+          plain.push(line);
+        }
+      }
+    }
+    assert.equal(plain.length, 0, `lines drawn without the colors they have at rest: ${plain.length}, the first ${plain.slice(0, 8).join(" ")}: ${said}`);
+    // The text stands a moment after the wheel stops, and no row is written again once it stands.
+    const moved = frames.filter((frame, index) => index > 0 && frame.y !== frames[index - 1].y).map((frame) => frame.at);
+    const stood = Math.max(stopped, ...moved);
+    assert.ok(stood - stopped <= 400, `the text stood ${(stood - stopped).toFixed(0)} ms after the last wheel step: ${said}`);
+    const written = frames.filter((frame) => frame.at >= stood);
+    assert.equal(written.at(-1).writes - written[0].writes, 0, `rows written again after the text stood: ${said}`);
+}
+
+for (const [name, keywords] of [["checker.ts", true], ["sqlite3.c", true], ["large-file.json", false]]) {
+  test(`a fast wheel through ${name} animates the entire way: every frame on time, every row drawn once in its one form${keywords ? ", its keywords colored the whole way" : ""}, and the text at rest a moment after the wheel stops`, async () => {
+    assert.ok(BENCH, "the harness fetched the files people report slow");
+    await judged(name, `${BENCH}/${name}`);
+  }, { timeout: 120000 });
+}
+
+test("our own container files scroll the same way: a file read from a run's .qry, and a scroll's own trace read from the run it was handed to", async () => {
+  assert.ok(BENCH, "the harness fetched the files people report slow");
+  const writer = window.__harness.servers.ORIOR_TEST_QRY_WRITER;
+  const root = (await invoke("root_get")).replaceAll("\\", "/");
+  await invoke("folder_create", { path: "build/bench" }).catch(() => {});
+  const container = "build/bench/query1-bench.qry";
+  await ui.run(writer, ["start", `${root}/${container}`], { wait: false });
+  try {
+    await ui.run(writer, ["ready", `${root}/${container}`]);
+    const before = (await invoke("qry_window")).queued.handed;
+    for (const name of ["checker.ts", "sqlite3.c", "large-file.json"]) {
+      await invoke("qry_hand_file", { path: container, file: `${BENCH}/${name}` });
+    }
+    await ui.waitFor(async () => (await invoke("qry_window")).queued.handed >= before + 3, 30000);
+  } finally {
+    await ui.run(writer, ["stop", `${root}/${container}`]);
+  }
+  const held = await invoke("tree_list", { dir: container });
+  assert.ok(held.some((child) => child.name === "bench" && child.dir), `the run's files under the folder they were read from: ${JSON.stringify(held.map((child) => child.name))}`);
+  await judged("sqlite3.c in a run's .qry", `${container}/${BENCH}/sqlite3.c`);
+  await judged("the trace of a scroll", `build/trace/query1-${`${BENCH}/sqlite3.c`.replace(/\W/g, "_")}.qry/window.trace`);
+}, { timeout: 240000 });

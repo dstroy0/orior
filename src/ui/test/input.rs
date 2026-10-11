@@ -322,6 +322,11 @@ pub fn perform(conn: &Connection, step: &Value) -> Result<(), String> {
         // A program started apart from the window, as a script in a terminal of the system's starts
         // one: waited for, and failed where it fails, or left running where `wait` is false.
         "run" => run(step),
+        "browser_trace" if step["end"] == true => {
+            let word = |key: &str| step[key].as_str().ok_or_else(|| format!("the step names no {key}"));
+            crate::frames::end(conn, word("writer")?, word("qry")?, word("name")?)
+        }
+        "browser_trace" => crate::frames::start(conn),
         "key" => press(conn, step["keys"].as_str().unwrap_or("")),
         // Modifier keys pressed down and held, or let go, as a reader holds Ctrl to see what it does.
         "hold" => hold(conn, modifier_bits(step["keys"].as_str().unwrap_or(""))?),
