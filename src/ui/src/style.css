@@ -4417,6 +4417,29 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   max-height: calc(22px * 8 + 0.3rem);
 }
 
+/* A row out of sight is neither laid out nor painted, and keeps the height it had, 22 pixels until it
+   is first drawn; a row the scroll heads into is drawn ahead of it, as sight.js marks it. */
+.node,
+.open-row,
+.sym,
+.commit,
+.item,
+.search-hit,
+.problem {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 22px;
+}
+
+.node.ahead,
+.open-row.ahead,
+.sym.ahead,
+.commit.ahead,
+.item.ahead,
+.search-hit.ahead,
+.problem.ahead {
+  content-visibility: visible;
+}
+
 /* A row of a pane: the tree's, Open Editors', Outline's and Timeline's alike. */
 .node,
 .open-row,

@@ -15,6 +15,7 @@ import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
 import { startKeyHints } from "./keyhints.js";
+import { startSight } from "./sight.js";
 import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
@@ -177,6 +178,7 @@ async function start() {
   });
   startStrip({ run: runCommand, jobMenus: stripMenus });
   startKeyHints();
+  startSight();
   // A tree on another machine: once the link to it is made, the runs kept there are read, and once
   // it is made again after a drop, every open tab is handed to its server there again.
   await startRemote({

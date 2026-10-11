@@ -38,6 +38,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - Motion the eye cannot pursue, small and unpredictable, needs fewer frames than motion it can pursue, and is given fewer: a twisty's quarter turn of a few pixels is drawn in as many frames as it has pixels to move.
 3. **What is in view, and what the motion heads into, in the editor and the grid of rows.** The grid of rows reads the rows in view, as many more the way it scrolls as its speed carries it over two reads, each read timed as it comes, and a few the other way; it holds up to 600 rows and lets go those behind the motion first, the farthest first. The editor draws more rows past the edge it heads for the faster it goes, colors ahead of a view at rest as far as the speed it came to rest with carries it over two screens' coloring, and reads a large file a slice at a time the way it scrolls, and below and above in turn at rest.
    - Motion says where the view goes next: among people watching video all around them, the view 200 ms later lay the way the head was turning in 97% of cases.
+4. **What is in view, in the explorer and every list.** A row of the explorer's tree and panes, and of the jobs beside a run, is neither laid out nor painted while it is out of sight, and keeps the height it had: the scroll stands where it would. As a list scrolls, the rows past its edge the way it heads, as many as its speed carries it over two frames' drawing and never fewer than eight, are drawn ahead of it.
+   - A tree of thousands of files that lays out every row on each change: only the rows in sight are laid out and painted.
 
 ## Tools
 
