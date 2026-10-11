@@ -53,8 +53,9 @@ extern "C"
     } InterfaceFault;
 
     // a probe: its command, NULL-ended, the program first and found along PATH where it names no folder; the file its
-    // output and its errors are written to, together, as they are written (the interface makes it anew); and the most time
-    // it is given, 0 for no limit. Its input is empty
+    // output and its errors are written to, together, as they are written (the interface makes it anew), or NULL where
+    // they come back through a pipe straight into the answer, read as they are written so the probe never waits on
+    // them, and no file is made; and the most time it is given, 0 for no limit. Its input is empty
     typedef struct
     {
         char *const *command;

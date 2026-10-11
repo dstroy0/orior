@@ -3004,12 +3004,17 @@ body[data-view="run"] .statusbar .ed-status {
   height: 100%;
 }
 
-/* A file's icon: its type's mark, or a page. */
+/* A file's icon: its type's mark, or a page. Its capitals stand 98% as tall as the capitals of the name beside it:
+   the size is taken off the row's cap height, and the code font is set so its own capitals are that tall. Where
+   cap is unknown the mark is 98% of the row's 13px. Its box is one character of its own font, and a space stands
+   between it and the name. */
 .icon {
   flex: none;
-  width: 16px;
-  margin-right: 0.35rem;
-  font: 700 9.5px/1 var(--code);
+  width: 1ch;
+  margin-right: 0.3em;
+  font: 700 12.75px/1 var(--code);
+  font-size: 0.98cap;
+  font-size-adjust: cap-height 1;
   text-align: center;
   letter-spacing: -0.04em;
 }
@@ -3017,8 +3022,9 @@ body[data-view="run"] .statusbar .ed-status {
 .icon.page::before {
   content: "";
   display: inline-block;
-  width: 8px;
-  height: 10px;
+  box-sizing: border-box;
+  width: 0.8cap;
+  height: 1cap;
   border: 1px solid var(--fg-3);
   border-radius: 1px;
 }
@@ -3116,6 +3122,11 @@ body[data-view="run"] .statusbar .ed-status {
 
 .commit .where {
   flex: none;
+}
+
+.icon.commit-dot {
+  width: 16px;
+  margin-right: 0.35rem;
 }
 
 .commit-dot::before {

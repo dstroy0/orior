@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // khw_write.c: a part's forms learned by asking the part, and its .khw written from the answers
 //
-//     khw_write <part> <path.khw> <layout> <mnemonics> <folder> <machine writer> [<rounds>] -- <carrier word>...
+//     khw_write <part> <path.khw> <layout> <mnemonics> <machine writer> [<rounds>] -- <carrier word>...
 //
 // Every form in the file this writes is there because the part answered for it (P8). Nothing reads a listing, a
 // disassembler or a vendor's table of operations: the part is handed code and cases over the run channel
@@ -51,8 +51,10 @@
 #include "../protocol/query/answer_read.h"
 #include "../protocol/teacher/run_channel.h"
 
+#include "../../../types/file_defs/qry/qry_buffer.h"
 #include "../interface/interface.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,6 +92,16 @@
 // the name a form's relation is written under in the answers file, for the vendor's writer to name it from
 #define KHW_READS_LADDER "ladder."
 
+// the blobs of the run's buffer the vendor's writer hands: the kernel it reads out of the container, and what it
+// printed each time it ran
+#define KHW_KERNEL_NAME "kernel.txt"
+#define KHW_MACHINE_NAME "machine.txt"
+
+// the blobs of the run's buffer the forms are kept in: the forms the part answered for, which the vendor's writer
+// names and lays out, and the working set the passes of the split hand each other
+#define KHW_FORMS_NAME "forms.txt"
+#define KHW_WORK_NAME "forms_work.txt"
+
 // how many registers a thread of the kernel holds, read with the kernel
 static unsigned int s_registers;
 
@@ -103,12 +115,11 @@ static unsigned long long s_unreached_low;
 static unsigned long long s_unreached_high;
 
 // the path the file is written to, the part named in it, the container layout and the vendor's table the vendor's
-// writer is handed, the folder its output is written to, and the vendor's writer itself
+// writer is handed, and the vendor's writer itself
 static const char *s_path;
 static const char *s_part;
 static const char *s_layout;
 static const char *s_mnemonics;
-static const char *s_folder;
 static const char *s_machine_writer;
 
 // one question, how many the run has put, and the launches the question is timed over, 0 where it is untimed
@@ -552,7 +563,7 @@ static int khw_turning_case(unsigned int anchor, int swapped, unsigned int *word
 // The first round of `held`'s fields put: each bit from KHW_TURN_FIRST to KHW_TURN_LAST turned one at a time over
 // `word`, each a question of the slot, and the round carried. What came back is left in s_pool, a question a turned
 // bit in its order. The code a turned bit holds is the form's with that one bit over, and no answer is needed to put
-// it: a dry run writes every one of them to the folder, where the vendor's own disassembler reads them back
+// it: a dry run hands every one of them to the run's buffer, where the vendor's own disassembler reads them back
 static void khw_turns_asked(const KhwAnswered *held, const unsigned int word[1][2])
 {
     s_pooled = 0u;
@@ -714,46 +725,72 @@ static void khw_fields_asked(KhwAnswered *held)
 
 static int khw_vendor_run(const char *mode, const char *answers);
 
-// the kernel the vendor's writer reads out of the container, got through the interface and read back from the file it
-// writes (khw_machine_write, kernel mode): the places it holds into s_kernel_places, the registers a thread holds into
-// s_registers, and each place's encoding into s_kernel_text. 1, or 0 with the reason printed
-static int khw_kernel_read(void)
+// the line at `*at` of the `size` bytes at `bytes` read into `line`, which holds `room`, as much of it as fits, and
+// `*at` moved past it: 1, or 0 where no line is left
+static int khw_line_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line,
+                         size_t room)
 {
-    char kernel_path[1024];
-    snprintf(kernel_path, sizeof(kernel_path), "%s/kernel.txt", s_folder);
-    if (!khw_vendor_run("kernel", kernel_path))
+    if (*at >= size)
     {
         return 0;
     }
-    FILE *const file = fopen(kernel_path, "rb");
-    if (file == NULL)
+    const unsigned char *const end = (const unsigned char *)memchr(bytes + *at, '\n', (size_t)(size - *at));
+    const size_t length = (end != NULL) ? (size_t)(end - (bytes + *at)) : (size_t)(size - *at);
+    snprintf(line, room, "%.*s", (int)length, (const char *)(bytes + *at));
+    *at += (unsigned long long)length + 1ull;
+    return 1;
+}
+
+// the kernel the vendor's writer reads out of the container, got through the interface and read back from the blob
+// it hands the run's buffer (khw_machine_write, kernel mode), the one handed after any before it of the name: the
+// places it holds into s_kernel_places, the registers a thread holds into s_registers, and each place's encoding into
+// s_kernel_text. 1, or 0 with the reason printed
+static int khw_kernel_read(void)
+{
+    QryBuffer *const run = qry_run();
+    if (run == NULL)
     {
-        printf("  khw_write: %s could not be read\n", kernel_path);
+        printf("  khw_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        return 0;
+    }
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    unsigned long long before = 0ull;
+    if (!qry_latest(run, KHW_KERNEL_NAME, &bytes, &size, &before))
+    {
+        before = 0ull;
+    }
+    unsigned long long sequence = 0ull;
+    if (!khw_vendor_run("kernel", KHW_KERNEL_NAME))
+    {
+        return 0;
+    }
+    if (!qry_latest(run, KHW_KERNEL_NAME, &bytes, &size, &sequence) || (sequence <= before))
+    {
+        printf("  khw_write: the vendor's writer handed the run's buffer no %s\n", KHW_KERNEL_NAME);
         return 0;
     }
     char line[256];
-    if ((fgets(line, sizeof(line), file) == NULL) ||
+    unsigned long long at = 0ull;
+    if (!khw_line_read(bytes, size, &at, line, sizeof(line)) ||
         (sscanf(line, "kernel %u %u", &s_kernel_places, &s_registers) != 2) || (s_kernel_places == 0u) ||
         (s_kernel_places > KHW_PLACES) || (s_registers == 0u))
     {
-        printf("  khw_write: %s holds no kernel this reads\n", kernel_path);
-        fclose(file);
+        printf("  khw_write: %s holds no kernel this reads\n", KHW_KERNEL_NAME);
         return 0;
     }
     for (unsigned int place = 0u; place < s_kernel_places; place += 1u)
     {
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
-        if ((fgets(line, sizeof(line), file) == NULL) || (sscanf(line, "%llx %llx", &low, &high) != 2))
+        if (!khw_line_read(bytes, size, &at, line, sizeof(line)) || (sscanf(line, "%llx %llx", &low, &high) != 2))
         {
-            printf("  khw_write: %s holds %u places, fewer than its header says\n", kernel_path, place);
-            fclose(file);
+            printf("  khw_write: %s holds %u places, fewer than its header says\n", KHW_KERNEL_NAME, place);
             return 0;
         }
         khw_word_write(&s_kernel_text[place * KHW_INSTRUCTION], 0u, low);
         khw_word_write(&s_kernel_text[place * KHW_INSTRUCTION], 8u, high);
     }
-    fclose(file);
     return 1;
 }
 
@@ -896,14 +933,63 @@ static unsigned int khw_widened(unsigned int from, int discover)
 }
 
 // run `run` of `held` written to `file` as its first bit, its last and its place, KHW_PLACE_NONE_TEXT where it has none
-static void khw_run_printed(FILE *file, const KhwAnswered *held, unsigned int run)
+// text gathered in memory for a blob of the run's buffer: its bytes, their count and the room they have, and 0 once a
+// line did not fit
+typedef struct
+{
+    char *bytes;
+    size_t size;
+    size_t room;
+    int whole;
+} KhwText;
+
+// a line added to `text`, the room grown once to fit it
+static void khw_text_added(KhwText *text, const char *format, ...)
+{
+    for (unsigned int tried = 0u; text->whole && (tried < 2u); tried += 1u)
+    {
+        char *const end = (text->bytes != NULL) ? (text->bytes + text->size) : NULL;
+        va_list words;
+        va_start(words, format);
+        const int length = vsnprintf(end, text->room - text->size, format, words);
+        va_end(words);
+        // a length vsnprintf returns is never negative for these formats
+        if ((length >= 0) && (((size_t)length + 1u) <= (text->room - text->size)))
+        {
+            text->size += (size_t)length;
+            return;
+        }
+        const size_t room = (text->room * 2u) + (size_t)((length > 0) ? length : 0) + 1u;
+        char *const larger = (char *)realloc(text->bytes, room);
+        text->whole = (larger != NULL);
+        text->bytes = (larger != NULL) ? larger : text->bytes;
+        text->room = (larger != NULL) ? room : text->room;
+    }
+    text->whole = 0;
+}
+
+// `text` handed to the run's buffer as the blob `name`, and let go. 1, or 0 with the reason printed
+static int khw_text_handed(KhwText *text, const char *name)
+{
+    const int handed =
+        text->whole && (qry_hand(qry_run(), name, text->bytes, (unsigned long long)text->size, QRY_ORDINARY) != 0ull);
+    free(text->bytes);
+    text->bytes = NULL;
+    if (!handed)
+    {
+        printf("  khw_write: %s was not handed to the run's buffer\n", name);
+    }
+    return handed;
+}
+
+static void khw_run_printed(KhwText *text, const KhwAnswered *held, unsigned int run)
 {
     if (held->place[run] == KHW_PLACE_NONE)
     {
-        fprintf(file, " %u %u %s", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT);
+        khw_text_added(text, " %u %u %s", held->first[run], held->last[run], KHW_PLACE_NONE_TEXT);
         return;
     }
-    fprintf(file, " %u %u %u", held->first[run], held->last[run], held->place[run]);
+    khw_text_added(text, " %u %u %u", held->first[run], held->last[run], held->place[run]);
 }
 
 // the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place,
@@ -951,18 +1037,13 @@ static int khw_runs_read(KhwAnswered *held, const char *text)
     return 1;
 }
 
-// the forms the part answered for written to the answers file at `path`, one a line, for the vendor's writer to name
-// and lay out: the relation the gate read, whether the answers read a word signed and whether the part was asked, the
-// encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet classified, or one
-// with no operand run, names nothing; the vendor lays out none of them. 1, or 0 with the reason printed
-static int khw_answers_written(const char *path)
+// the forms the part answered for handed to the run's buffer as KHW_FORMS_NAME, one a line, for the vendor's writer to
+// name and lay out: the relation the gate read, whether the answers read a word signed and whether the part was asked,
+// the encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet classified, or
+// one with no operand run, names nothing; the vendor lays out none of them. 1, or 0 with the reason printed
+static int khw_answers_written(void)
 {
-    FILE *const file = fopen(path, "wb");
-    if (file == NULL)
-    {
-        printf("  khw_write: %s could not be written\n", path);
-        return 0;
-    }
+    KhwText text = {NULL, 0u, 0u, 1};
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         const KhwAnswered *const held = &s_named[at];
@@ -970,46 +1051,38 @@ static int khw_answers_written(const char *path)
         {
             continue;
         }
-        fprintf(file, "%s%s %d %d %016llx %016llx %u", KHW_READS_LADDER, s_anchor_text[held->anchor],
-                held->signed_read, held->signedness_asked, held->low, held->high, held->runs);
+        khw_text_added(&text, "%s%s %d %d %016llx %016llx %u", KHW_READS_LADDER, s_anchor_text[held->anchor],
+                       held->signed_read, held->signedness_asked, held->low, held->high, held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {
-            khw_run_printed(file, held, run);
+            khw_run_printed(&text, held, run);
         }
-        fprintf(file, "\n");
+        khw_text_added(&text, "\n");
     }
-    fclose(file);
-    return 1;
+    return khw_text_handed(&text, KHW_FORMS_NAME);
 }
 
-// The working set written to `path`, every form of it a line read back by khw_forms_read the next pass: its phase and
-// the order its words were read, the relation, the signedness, the encoding, and its runs with their places. A
-// discovered form carries no run, a turned form the candidates its register-runs will sort, each with no place, a
-// classified form the operands kept. It is the
-// state the passes of the split hand each other, kept apart from what the vendor lays out. 1, or 0 with the reason
-// printed
-static int khw_forms_work_written(const char *path)
+// The working set handed to the run's buffer as KHW_WORK_NAME, every form of it a line read back by khw_forms_read the
+// next pass: its phase and the order its words were read, the relation, the signedness, the encoding, and its runs
+// with their places. A discovered form carries no run, a turned form the candidates its register-runs will sort, each
+// with no place, a classified form the operands kept. It is the state the passes of the split hand each other, kept
+// apart from what the vendor lays out. 1, or 0 with the reason printed
+static int khw_forms_work_written(void)
 {
-    FILE *const file = fopen(path, "wb");
-    if (file == NULL)
-    {
-        printf("  khw_write: %s could not be written\n", path);
-        return 0;
-    }
+    KhwText text = {NULL, 0u, 0u, 1};
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         const KhwAnswered *const held = &s_named[at];
-        fprintf(file, "%u %d %s%s %d %d %016llx %016llx %u", held->phase, held->swapped, KHW_READS_LADDER,
-                s_anchor_text[held->anchor], held->signed_read, held->signedness_asked, held->low, held->high,
-                held->runs);
+        khw_text_added(&text, "%u %d %s%s %d %d %016llx %016llx %u", held->phase, held->swapped, KHW_READS_LADDER,
+                       s_anchor_text[held->anchor], held->signed_read, held->signedness_asked, held->low, held->high,
+                       held->runs);
         for (unsigned int run = 0u; run < held->runs; run += 1u)
         {
-            khw_run_printed(file, held, run);
+            khw_run_printed(&text, held, run);
         }
-        fprintf(file, "\n");
+        khw_text_added(&text, "\n");
     }
-    fclose(file);
-    return 1;
+    return khw_text_handed(&text, KHW_WORK_NAME);
 }
 
 // the row a form's cost is kept under in the part's .ksc, its word the least launch and its question the form and the
@@ -1100,15 +1173,14 @@ static unsigned int khw_costs_asked(const char *path)
 }
 
 // The vendor's writer run through the interface in `mode`, handed the part, the file to write, the container layout,
-// the vendor's table and the answers file. Its output is read and printed. 1 where it ended clean
+// the vendor's table and the answers file. Its output comes back over the interface's pipe, is printed, and is handed
+// to the run's buffer as KHW_MACHINE_NAME. 1 where it ended clean
 static int khw_vendor_run(const char *mode, const char *answers)
 {
-    char output_path[1024];
-    snprintf(output_path, sizeof(output_path), "%s/machine.txt", s_folder);
     char *const command[] = {(char *)s_machine_writer, (char *)s_part,  (char *)s_path, (char *)s_layout,
-                             (char *)s_mnemonics,       (char *)answers, (char *)mode,   NULL};
+                             (char *)s_mnemonics,      (char *)answers, (char *)mode,   NULL};
     static char s_output[65536];
-    const InterfaceProbe probe = {command, output_path, 0ull};
+    const InterfaceProbe probe = {command, NULL, 0ull};
     InterfaceAnswer answer = {0};
     answer.output = s_output;
     answer.output_capacity = sizeof(s_output);
@@ -1117,6 +1189,9 @@ static int khw_vendor_run(const char *mode, const char *answers)
     if (answer.output_bytes != 0ull)
     {
         printf("%s", s_output);
+        const unsigned long long kept =
+            (answer.output_bytes < (sizeof(s_output) - 1u)) ? answer.output_bytes : (sizeof(s_output) - 1u);
+        qry_hand(qry_run(), KHW_MACHINE_NAME, s_output, kept, QRY_ORDINARY);
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
@@ -1127,20 +1202,22 @@ static int khw_vendor_run(const char *mode, const char *answers)
     return 1;
 }
 
-// The forms read from the file at `path` into s_named: the working set the split passes keep, a line to a form with
-// its phase and the order its words were read ahead of the relation, or a vendor-laid-out answers file, a line without
-// those, every form of it classified and read in order. Each form's encoding and the runs its operands sit in, the
-// relation and the signedness read past. The count read, 0 where the file holds none or is not there
-static unsigned int khw_forms_read(const char *path)
+// The forms read from the latest blob of `name` in the run's buffer into s_named: the working set the split passes
+// keep, a line to a form with its phase and the order its words were read ahead of the relation, or the forms the part
+// answered for, a line without those, every form of it classified and read in order. Each form's encoding and the runs
+// its operands sit in, the relation and the signedness read past. The count read, 0 where the run holds none
+static unsigned int khw_forms_read(const char *name)
 {
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    const unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_latest(qry_run(), name, &bytes, &size, NULL))
     {
         return 0u;
     }
     char line[2048];
     unsigned int read = 0u;
-    while ((fgets(line, sizeof(line), file) != NULL) && (read < KHW_FORMS))
+    unsigned long long next = 0ull;
+    while ((read < KHW_FORMS) && khw_line_read(bytes, size, &next, line, sizeof(line)))
     {
         if ((line[0] == '#') || (line[0] == '\n') || (line[0] == '\0'))
         {
@@ -1182,7 +1259,6 @@ static unsigned int khw_forms_read(const char *path)
         s_named[read] = held;
         read += 1u;
     }
-    fclose(file);
     return read;
 }
 
@@ -1211,12 +1287,12 @@ static void khw_enumerate_runs(const KhwAnswered *held, const unsigned int word[
 }
 
 // The slot's questions emitted off the part for the vendor's disassembler to read back: each known form's fields and
-// register-runs, none carried, a dry run writing them to the folder (measuring_stick_query.sh). Where `forms` names a
-// file a prior run learned, every form it holds is read and each one's bits turned one at a time (its fields and, with
-// them, every bit a widening would turn) and its runs set to the two registers; where it names none, the kernel's own
-// slot form alone, its bits turned. The slot and the forms are the protocol's own, read from a part before; the vendor
-// names none of the questions and no byte of its knowledge enters a form. It is how the process is tuned against
-// questions the part has not yet answered, off the part
+// register-runs, none carried, a dry run handing them to the run's buffer (measuring_stick_query.sh). Where `forms`
+// names a blob of the run's buffer holding forms a prior run learned, every form it holds is read and each one's bits
+// turned one at a time (its fields and, with them, every bit a widening would turn) and its runs set to the two
+// registers; where it names none, the kernel's own slot form alone, its bits turned. The slot and the forms are the
+// protocol's own, read from a part before; the vendor names none of the questions and no byte of its knowledge enters a
+// form. It is how the process is tuned against questions the part has not yet answered, off the part
 static void khw_enumerate(unsigned int slot, const char *forms)
 {
     s_slot = slot;
@@ -1245,22 +1321,20 @@ int main(int count, char **word)
     {
         split += 1;
     }
-    if ((split < 7) || (split >= count) || ((count - split) < 2))
+    if ((split < 6) || (split >= count) || ((count - split) < 2))
     {
-        printf("khw_write <part> <path.khw> <layout> <mnemonics> <folder> <machine writer> [<rounds>] -- <carrier "
-               "word>...\n");
+        printf("khw_write <part> <path.khw> <layout> <mnemonics> <machine writer> [<rounds>] -- <carrier word>...\n");
         return 2;
     }
     s_part = word[1];
     s_path = word[2];
     s_layout = word[3];
     s_mnemonics = word[4];
-    s_folder = word[5];
-    s_machine_writer = word[6];
-    // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <path>]: the slot whose questions are
-    // emitted for the vendor's disassembler, and the forms a prior run learned to seed them from, in place of the learn
-    // loop (khw_enumerate). The split's passes over the working set: [--discover] widens it a round and keeps what it
-    // finds with its fields unasked; [--turns] asks the turns of what a discover left; [--registers] asks the register-
+    s_machine_writer = word[5];
+    // [<rounds>] and, for a dry run tuned off the part, [--slot <n>] and [--forms <name>]: the slot whose questions are
+    // emitted for the vendor's disassembler, and the blob of the run's buffer holding the forms a prior run learned to
+    // seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set: [--discover]
+    // widens it a round and keeps what it finds with its fields unasked; [--turns] asks the turns of what a discover left; [--registers] asks the register-
     // runs the turns found; [--costs] times every classified form (P6) and keeps its least and spread in the part's
     // .ksc. A cross-check reads each pass's questions before it, and no form's turns or register-runs reach the part
     // before the vendor has read them
@@ -1271,7 +1345,7 @@ int main(int count, char **word)
     int turns = 0;
     int registers = 0;
     int costs = 0;
-    for (int at = 7; at < split; at += 1)
+    for (int at = 6; at < split; at += 1)
     {
         if ((strcmp(word[at], "--slot") == 0) && ((at + 1) < split))
         {
@@ -1308,11 +1382,9 @@ int main(int count, char **word)
     {
         return 1;
     }
-    char forms_path[1024];
-    snprintf(forms_path, sizeof(forms_path), "%s/forms.txt", s_folder);
     // the gate's file written before asking: the vendor's writer lays the kernel's places out, and the carrier reads
     // the questions of every round against them
-    if (!khw_vendor_run("gate", forms_path))
+    if (!khw_vendor_run("gate", KHW_FORMS_NAME))
     {
         return 1;
     }
@@ -1324,13 +1396,14 @@ int main(int count, char **word)
         words += 1u;
     }
     carrier[words] = NULL;
-    if (!run_channel_open(carrier, s_folder, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ull))
     {
         return 1;
     }
     // R beside the machine file, its .kqr, so that no question the part has answered is put to it again
     char record[1024];
-    const size_t stem = strlen(s_path) - (((strlen(s_path) > 4u) && (strcmp(s_path + strlen(s_path) - 4u, ".khw") == 0)) ? 4u : 0u);
+    const size_t stem =
+        strlen(s_path) - (((strlen(s_path) > 4u) && (strcmp(s_path + strlen(s_path) - 4u, ".khw") == 0)) ? 4u : 0u);
     snprintf(record, sizeof(record), "%.*s.kqr", (int)stem, s_path);
     if (!run_channel_record(record, s_part, "khw_write"))
     {
@@ -1363,12 +1436,10 @@ int main(int count, char **word)
     // the split: a discover pass widens the working set a round and keeps what it finds unasked, a turns pass asks the
     // turns of what a discover left, a register pass asks the register-runs the turns found. A cross-check reads each
     // pass's questions before it, and neither a form's turns nor its register-runs reach the part before the vendor has
-    // read them. The working set is the folder's forms_work.txt, which the passes hand each other; the slot is found
+    // read them. The working set is the run's blob KHW_WORK_NAME, which the passes hand each other; the slot is found
     // afresh each pass, off the kernel's code
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
-        char work_path[1024];
-        snprintf(work_path, sizeof(work_path), "%s/forms_work.txt", s_folder);
         KhwAnswered kernel;
         memset(&kernel, 0, sizeof(kernel));
         unsigned long long nanoseconds = 0ull;
@@ -1380,7 +1451,7 @@ int main(int count, char **word)
             return 1;
         }
         s_slot = slot;
-        s_names = khw_forms_read(work_path);
+        s_names = khw_forms_read(KHW_WORK_NAME);
         if (discover != 0)
         {
             unsigned int seeded = 0u;
@@ -1405,7 +1476,7 @@ int main(int count, char **word)
             }
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();
-            if (!khw_forms_work_written(work_path))
+            if (!khw_forms_work_written())
             {
                 return 1;
             }
@@ -1427,7 +1498,7 @@ int main(int count, char **word)
                 }
             }
             run_channel_close();
-            if (!khw_forms_work_written(work_path))
+            if (!khw_forms_work_written())
             {
                 return 1;
             }
@@ -1457,8 +1528,7 @@ int main(int count, char **word)
             }
         }
         run_channel_close();
-        if (!khw_forms_work_written(work_path) || !khw_answers_written(forms_path) ||
-            !khw_vendor_run("final", forms_path))
+        if (!khw_forms_work_written() || !khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
         {
             return 1;
         }
@@ -1471,8 +1541,8 @@ int main(int count, char **word)
     unsigned long long nanoseconds = 0ull;
     unsigned int slot = 0u;
     const int related = khw_first_round(&kernel, &slot, &nanoseconds);
-    printf("  the first round: the kernel's relation and %llu places asked for the slot, %llu asks\n",
-           s_asks - 1ull, s_asks);
+    printf("  the first round: the kernel's relation and %llu places asked for the slot, %llu asks\n", s_asks - 1ull,
+           s_asks);
     if (!related)
     {
         printf("  khw_write: the kernel the system accepted answered no relation of the ladder (%s), and "
@@ -1510,7 +1580,7 @@ int main(int count, char **word)
     }
     run_channel_close();
     // the forms the part answered written out, and the vendor's writer run once more to name them and lay out the file
-    if (!khw_answers_written(forms_path) || !khw_vendor_run("final", forms_path))
+    if (!khw_answers_written() || !khw_vendor_run("final", KHW_FORMS_NAME))
     {
         return 1;
     }

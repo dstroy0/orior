@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// klq_decoder.cu: reads the log klq_identity writes beside its trace, and writes the set of our coherence each pair of
-// the bridge is read into beneath its verdict in Lstar.klq (P13, the qualifiers and the modifiers)
+// klq_decoder.cu: reads the log klq_identity writes into the query's .qry beside its trace, and writes the set of our
+// coherence each pair of the bridge is read into beneath its verdict in Lstar.klq (P13, the qualifiers and the
+// modifiers)
 //
-//   klq_decoder <log> <carrier folder> <Lstar.klq>
+//   klq_decoder <query .qry> <carrier folder> <Lstar.klq>
 //
 // A pair is read where its two forms are one text but for their modifiers, the first word of each link's text the same
 // up to its first `.`. Each put of one form in the other's place that the part answered is read off the cases it
@@ -11,10 +12,10 @@
 // the case words it reads (carrier_flow.h). A pair apart where a case word decides it that a flag only the form it
 // stood as names reads, and no other operand of the link, is a qualifier's. A pair whose forms name the same operands,
 // apart where a case word the link reads decides it, is a modifier's, and a statement's where it is alike on every case
-// whose values, as the part holds them at the link, every statement reads as themselves. A pair of forms of a flag that name
-// the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair answered alike
-// at every put is a qualifier's. A pair is written a member of every set a test reads it into, and of every meta, each
-// a light of its own, and a pair the part answered apart in this log that no test reads into a set is written
+// whose values, as the part holds them at the link, every statement reads as themselves. A pair of forms of a flag that
+// name the same operands, apart whatever the link reads, is a negation's: the two members of one node. A pair answered
+// alike at every put is a qualifier's. A pair is written a member of every set a test reads it into, and of every meta,
+// each a light of its own, and a pair the part answered apart in this log that no test reads into a set is written
 // unknown_coherence. A pair the log holds no answer of keeps the set line the bridge held beneath it, and one that
 // holds none is written unknown_coherence: no answer has read it into a set, and it is a member of every one. The
 // texts the log read of a pair read it into its categories before any ask, a comparison, an equality or an order, an
@@ -28,9 +29,11 @@
 // it, and two pairs of one product are one concept whatever forms name them
 #include "carrier_flow.h"
 #include "concept_product.h"
+#include "qry_buffer.h"
 #include "query_trace.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <fstream>
 #include <iterator>
@@ -283,15 +286,30 @@ int main(int argc, char **argv)
 {
     if (argc != 4)
     {
-        printf("klq_decoder <log> <carrier folder> <Lstar.klq>\n");
+        printf("klq_decoder <query .qry> <carrier folder> <Lstar.klq>\n");
         return 1;
     }
-    std::ifstream log(argv[1], std::ios::binary);
-    if (!log)
+    // the log, every blob of it joined in the order handed: from the run's buffer while its writer runs, from the .qry
+    // once it has stopped (qry_buffer.h)
+    unsigned char *joined = NULL;
+    unsigned long long joined_size = 0ull;
+    char joined_error[512] = "";
+    QryBuffer *const run = qry_open(argv[1]);
+    const int logged = (run != NULL)
+                           ? qry_joined(run, "log", &joined, &joined_size)
+                           : qry_file_joined(argv[1], "log", &joined, &joined_size, joined_error, sizeof(joined_error));
+    qry_close(run);
+    if (!logged)
     {
-        printf("klq_decoder: %s could not be read\n", argv[1]);
+        printf("klq_decoder: %s\n", (joined_error[0] != '\0') ? joined_error : "the log could not be read");
         return 1;
     }
+    if (joined_error[0] != '\0')
+    {
+        printf("klq_decoder: %s\n", joined_error);
+    }
+    std::istringstream log(std::string((const char *)joined, (size_t)joined_size));
+    free(joined);
     std::vector<std::vector<std::vector<std::string>>> case_sets;
     std::vector<LoggedPut> puts;
     std::string came_back;

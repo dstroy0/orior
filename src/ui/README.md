@@ -49,8 +49,10 @@ do; `cargo tauri dev` serves it from `src/` as it changes.
 
 orior files the errors it meets as issues on dstroy0/orior on its own, and asks once whether to,
 yes the answer given by default. The Windows installer asks as it installs (`src-tauri/windows/hooks.nsh`);
-every other install asks on its first run, in the window or at the terminal. Help, Automatic Error
-Reports turns it on or off later, and `ORIOR_NO_REPORTS` turns it off for a run.
+every other install asks on its first run, in the window or at the terminal. A build for testing,
+`cargo tauri dev`'s, answers yes on its own and asks nothing: every error a test meets is filed as an
+issue. Help, Automatic Error Reports turns it on or off later, and `ORIOR_NO_REPORTS` turns it off
+for a run.
 
 | platform | also needs |
 | --- | --- |

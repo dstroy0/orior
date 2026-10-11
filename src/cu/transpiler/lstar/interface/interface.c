@@ -15,6 +15,7 @@
 #else
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -28,10 +29,42 @@
 #define INTERFACE_POLL_MICROSECONDS 1000ull
 // a probe's output is read back in pieces this long
 #define INTERFACE_READ_BYTES 4096u
+// the most a pipe's reader is waited on once the probe and every process it started have ended
+#define INTERFACE_DRAIN_MILLISECONDS 5000ull
 
 #define INTERFACE_CHECK(condition_, evacaddr_, error_, kind_)                                                               \
     engine_error_check((condition_), (kind_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
                        (error_))
+
+// `read` bytes of the probe's output at `piece` kept in the answer, as many as its capacity holds past the `*total`
+// before them, and counted whole
+static void interface_output_kept(InterfaceAnswer *answer, unsigned long long *total, const char *piece,
+                                  unsigned long long read)
+{
+    const unsigned long long kept_capacity =
+        (answer->output_capacity != 0ull) ? (answer->output_capacity - 1ull) : 0ull;
+    const unsigned long long kept = (*total < kept_capacity) ? (kept_capacity - *total) : 0ull;
+    const unsigned long long copied = (kept < read) ? kept : read;
+    if ((answer->output != NULL) && (copied != 0ull))
+    {
+        // a copy is at most one piece, which a size_t holds
+        memcpy(answer->output + *total, piece, (size_t)copied);
+    }
+    *total += read;
+}
+
+// the answer's output ended by a zero byte inside its capacity, and its length whole
+static void interface_output_ended(InterfaceAnswer *answer, unsigned long long total)
+{
+    if ((answer->output != NULL) && (answer->output_capacity != 0ull))
+    {
+        const unsigned long long end =
+            (total < (answer->output_capacity - 1ull)) ? total : (answer->output_capacity - 1ull);
+        // the end is inside the capacity, which the caller's buffer holds
+        answer->output[(size_t)end] = '\0';
+    }
+    answer->output_bytes = total;
+}
 
 static unsigned long long interface_now(void)
 {
@@ -163,19 +196,65 @@ static const char *interface_program_found(const char *program, char *found, siz
     return ((length != 0u) && (length < capacity)) ? found : program;
 }
 
-// the probe started suspended in a job of its own that ends every process in it when the interface lets it go, then run to
-// its end or its limit. 0 where it was waited on to its end; -1 where the output file could not be made
+// the pipe a probe's output comes back through, drained by a thread of the interface's while the probe runs: a
+// probe that writes more than the pipe holds never waits on it
+typedef struct
+{
+    HANDLE pipe;
+    InterfaceAnswer *answer;
+    unsigned long long total;
+} InterfacePipe;
+
+static DWORD WINAPI interface_pipe_drained(LPVOID argument)
+{
+    InterfacePipe *const piped = (InterfacePipe *)argument;
+    char piece[INTERFACE_READ_BYTES];
+    DWORD read = 0u;
+    while (ReadFile(piped->pipe, piece, sizeof(piece), &read, NULL) && (read != 0u))
+    {
+        interface_output_kept(piped->answer, &piped->total, piece, read);
+    }
+    return 0u;
+}
+
+// the probe started suspended in a job of its own that ends every process in it when the interface lets it go, then run
+// to its end or its limit, its output the file or the pipe. 0 where it was waited on to its end; -1 where the output
+// file or the pipe could not be made
+//
+// A started process inherits every inheritable handle its starter holds at that moment, its own and every other
+// probe's. Probes started from threads at once would each hold the others' pipes open, and a pipe a probe that has
+// ended still holds open in another never reaches its end. So from the moment a probe's inheritable handles are made
+// to the moment the interface lets its own copies go, no other probe of this process is started
+static SRWLOCK s_interface_starting = SRWLOCK_INIT;
+
 static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
     SECURITY_ATTRIBUTES inherited;
     memset(&inherited, 0, sizeof(inherited));
     inherited.nLength = sizeof(inherited);
     inherited.bInheritHandle = TRUE;
-    const HANDLE output = CreateFileA(probe->output_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited,
-                                      CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (!INTERFACE_CHECK(output != INVALID_HANDLE_VALUE, probe->output_path, error, ENGINE_ERROR_RESOURCE))
+    HANDLE output = INVALID_HANDLE_VALUE;
+    HANDLE pipe_read = NULL;
+    AcquireSRWLockExclusive(&s_interface_starting);
+    if (probe->output_path != NULL)
     {
-        return -1L;
+        output = CreateFileA(probe->output_path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited,
+                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (!INTERFACE_CHECK(output != INVALID_HANDLE_VALUE, probe->output_path, error, ENGINE_ERROR_RESOURCE))
+        {
+            ReleaseSRWLockExclusive(&s_interface_starting);
+            return -1L;
+        }
+    }
+    else
+    {
+        // the probe is handed the pipe's write end, and the interface keeps the read end to itself
+        if (!INTERFACE_CHECK(CreatePipe(&pipe_read, &output, &inherited, 0u), probe, error, ENGINE_ERROR_RESOURCE))
+        {
+            ReleaseSRWLockExclusive(&s_interface_starting);
+            return -1L;
+        }
+        SetHandleInformation(pipe_read, HANDLE_FLAG_INHERIT, 0u);
     }
     const HANDLE input = CreateFileA("NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited, OPEN_EXISTING,
                                      FILE_ATTRIBUTE_NORMAL, NULL);
@@ -201,6 +280,8 @@ static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *
     const unsigned long long began = interface_now();
     const int made = (line != NULL) && CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_SUSPENDED | CREATE_NO_WINDOW,
                                                       NULL, NULL, &startup, &started);
+    // the reason a probe did not start, read before any call after can set another
+    const DWORD start_error = made ? 0u : GetLastError();
     SetErrorMode(mode);
     free(line);
     CloseHandle(output);
@@ -208,18 +289,39 @@ static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *
     {
         CloseHandle(input);
     }
+    ReleaseSRWLockExclusive(&s_interface_starting);
     if (!made)
     {
         if (job != NULL)
         {
             CloseHandle(job);
         }
+        if (pipe_read != NULL)
+        {
+            CloseHandle(pipe_read);
+        }
         answer->ending = INTERFACE_ENDING_NOT_STARTED;
-        answer->code = GetLastError();
+        answer->code = start_error;
         return 0L;
     }
     // a job the probe cannot join leaves only the probe itself to end at its limit
     const int joined = limited && AssignProcessToJobObject(job, started.hProcess);
+    InterfacePipe piped = {pipe_read, answer, 0ull};
+    const HANDLE reader = (pipe_read != NULL) ? CreateThread(NULL, 0u, interface_pipe_drained, &piped, 0u, NULL) : NULL;
+    if ((pipe_read != NULL) && (reader == NULL))
+    {
+        // a pipe nothing drains would hold the probe once it fills: the probe is ended before it runs
+        TerminateProcess(started.hProcess, 1u);
+        CloseHandle(started.hThread);
+        CloseHandle(started.hProcess);
+        CloseHandle(pipe_read);
+        if (job != NULL)
+        {
+            CloseHandle(job);
+        }
+        INTERFACE_CHECK(0, probe, error, ENGINE_ERROR_RESOURCE);
+        return -1L;
+    }
     ResumeThread(started.hThread);
     CloseHandle(started.hThread);
     // a limit's milliseconds, rounded up, fit a DWORD below INFINITE for any limit under 49 days
@@ -244,6 +346,19 @@ static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *
     if (job != NULL)
     {
         CloseHandle(job);
+    }
+    // the pipe's reader ends at the pipe's end, once every process that held its write end has ended; one a process
+    // outside the job still holds is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far kept
+    if (reader != NULL)
+    {
+        if (WaitForSingleObject(reader, (DWORD)INTERFACE_DRAIN_MILLISECONDS) == WAIT_TIMEOUT)
+        {
+            CancelSynchronousIo(reader);
+            WaitForSingleObject(reader, INFINITE);
+        }
+        CloseHandle(reader);
+        CloseHandle(pipe_read);
+        interface_output_ended(answer, piped.total);
     }
     const int faulted = (code & 0x80000000u) != 0u;
     answer->code = code;
@@ -283,17 +398,59 @@ static void interface_pause(unsigned long long microseconds)
     nanosleep(&pause, NULL);
 }
 
-// the probe started in a process group of its own, its output the file and its input empty, then run to its end or its
-// limit. A pipe that closes on exec tells a probe that never started from one that exited: the probe writes its errno
-// there where exec fails. 0 where it was waited on to its end; -1 where the output file could not be made or the
-// probe could not be waited on
+// what the pipe holds now read into the answer: 1 once it is at its end, 0 where it holds no more for now
+static int interface_pipe_read(int pipe_read, InterfaceAnswer *answer, unsigned long long *total)
+{
+    char piece[INTERFACE_READ_BYTES];
+    ssize_t got = read(pipe_read, piece, sizeof(piece));
+    while (got > 0)
+    {
+        // a read is at most one piece, which is not negative here
+        interface_output_kept(answer, total, piece, (unsigned long long)got);
+        got = read(pipe_read, piece, sizeof(piece));
+    }
+    return got == 0;
+}
+
+// the probe started in a process group of its own, its output the file or the pipe and its input empty, then run to
+// its end or its limit, the pipe read as it is written. A pipe that closes on exec tells a probe that never started
+// from one that exited: the probe writes its errno there where exec fails. 0 where it was waited on to its end; -1
+// where the output file or the pipe could not be made or the probe could not be waited on.
+//
+// A pipe is made, then told to close on exec: a probe forked from another thread between the two would carry the pipe
+// into its process and hold it open past this probe's end. So from the moment a probe's pipes are made to its fork, no
+// other probe of this process is forked
+static pthread_mutex_t s_interface_starting = PTHREAD_MUTEX_INITIALIZER;
+
 static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
-    const int output = open(probe->output_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
-    if (!INTERFACE_CHECK(output >= 0, probe->output_path, error, ENGINE_ERROR_RESOURCE))
+    int output = -1;
+    int pipe_read = -1;
+    pthread_mutex_lock(&s_interface_starting);
+    if (probe->output_path != NULL)
     {
+        output = open(probe->output_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    }
+    else
+    {
+        // the probe is handed the write end on its standard output and error; the read end is the interface's, and
+        // never waits
+        int ends[2] = {-1, -1};
+        if (pipe(ends) == 0)
+        {
+            fcntl(ends[0], F_SETFD, FD_CLOEXEC);
+            fcntl(ends[1], F_SETFD, FD_CLOEXEC);
+            fcntl(ends[0], F_SETFL, fcntl(ends[0], F_GETFL) | O_NONBLOCK);
+            pipe_read = ends[0];
+            output = ends[1];
+        }
+    }
+    if (!INTERFACE_CHECK(output >= 0, probe, error, ENGINE_ERROR_RESOURCE))
+    {
+        pthread_mutex_unlock(&s_interface_starting);
         return -1L;
     }
+    unsigned long long total = 0ull;
     const int input = open("/dev/null", O_RDONLY | O_CLOEXEC);
     int told[2] = {-1, -1};
     const int piped = pipe(told) == 0;
@@ -304,6 +461,10 @@ static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *
     }
     const unsigned long long began = interface_now();
     const pid_t made = piped ? fork() : -1;
+    if (made != 0)
+    {
+        pthread_mutex_unlock(&s_interface_starting);
+    }
     if (made == 0)
     {
         setpgid(0, 0);
@@ -334,6 +495,10 @@ static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *
         {
             close(told[0]);
         }
+        if (pipe_read >= 0)
+        {
+            close(pipe_read);
+        }
         answer->ending = INTERFACE_ENDING_NOT_STARTED;
         // errno is a positive code where fork or pipe failed
         answer->code = (unsigned long long)errno;
@@ -353,6 +518,10 @@ static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *
     pid_t reaped = waitpid(made, &status, WNOHANG);
     while ((reaped == 0) && !out_of_time)
     {
+        if (pipe_read >= 0)
+        {
+            interface_pipe_read(pipe_read, answer, &total);
+        }
         interface_pause(INTERFACE_POLL_MICROSECONDS);
         reaped = waitpid(made, &status, WNOHANG);
         out_of_time =
@@ -370,6 +539,19 @@ static long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *
     answer->microseconds = interface_now() - began;
     // every process the probe started and left ends with it
     kill(-made, SIGKILL);
+    // the rest of the pipe read to its end, once every process of the group that held its write end has ended; one a
+    // process outside the group still holds is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far kept
+    if (pipe_read >= 0)
+    {
+        const unsigned long long drained_from = interface_now();
+        while (!interface_pipe_read(pipe_read, answer, &total) &&
+               ((interface_now() - drained_from) < (INTERFACE_DRAIN_MILLISECONDS * INTERFACE_THOUSAND)))
+        {
+            interface_pause(INTERFACE_POLL_MICROSECONDS);
+        }
+        close(pipe_read);
+        interface_output_ended(answer, total);
+    }
     if (!INTERFACE_CHECK(reaped == made, probe->output_path, error, ENGINE_ERROR_RESOURCE))
     {
         return -1L;
@@ -409,28 +591,12 @@ static long interface_output_read(const InterfaceProbe *probe, InterfaceAnswer *
     size_t read = fread(piece, 1u, sizeof(piece), file);
     while (read != 0u)
     {
-        const unsigned long long kept_capacity =
-            (answer->output_capacity != 0ull) ? (answer->output_capacity - 1ull) : 0ull;
-        const unsigned long long kept = (total < kept_capacity) ? (kept_capacity - total) : 0ull;
-        const unsigned long long copied = (kept < read) ? kept : read;
-        if ((answer->output != NULL) && (copied != 0ull))
-        {
-            // a copy is at most one piece, which a size_t holds
-            memcpy(answer->output + total, piece, (size_t)copied);
-        }
-        total += read;
+        interface_output_kept(answer, &total, piece, read);
         read = fread(piece, 1u, sizeof(piece), file);
     }
     const int complete = ferror(file) == 0;
     fclose(file);
-    if ((answer->output != NULL) && (answer->output_capacity != 0ull))
-    {
-        const unsigned long long end =
-            (total < (answer->output_capacity - 1ull)) ? total : (answer->output_capacity - 1ull);
-        // the end is inside the capacity, which the caller's buffer holds
-        answer->output[(size_t)end] = '\0';
-    }
-    answer->output_bytes = total;
+    interface_output_ended(answer, total);
     return INTERFACE_CHECK(complete, probe->output_path, error, ENGINE_ERROR_RESOURCE) ? 0L : -1L;
 }
 
@@ -445,8 +611,7 @@ long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, E
     {
         answer->output[0] = '\0';
     }
-    if (!INTERFACE_CHECK((probe->command != NULL) && (probe->command[0] != NULL) && (probe->output_path != NULL), probe,
-                    error, ENGINE_ERROR_REQUEST))
+    if (!INTERFACE_CHECK((probe->command != NULL) && (probe->command[0] != NULL), probe, error, ENGINE_ERROR_REQUEST))
     {
         return -1L;
     }
@@ -454,5 +619,6 @@ long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, E
     {
         return -1L;
     }
-    return interface_output_read(probe, answer, error);
+    // output that came through the pipe is in the answer already
+    return (probe->output_path != NULL) ? interface_output_read(probe, answer, error) : 0L;
 }

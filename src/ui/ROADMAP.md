@@ -13,6 +13,7 @@ What the window does not do yet, by area. Each item says what it gives the reade
 2. **Refactorings of orior's own.** Extract a variable, a constant or a function from a selection; inline one again; change a function's parameters across every call; move a declaration to another file. Each is one step that undo takes back, and each works where the language server offers none.
 3. **Inspections.** Checks of orior's own over the tree's languages, run as files change, each listed in Problems beside the servers' diagnostics with a quick fix where one applies.
 4. **Structural search and replace.** Find code by its shape, with placeholders for names, expressions and statements, and replace each match from a template that uses what the placeholders took.
+5. **What the pointer rests on stays.** What the editor shows of a name the pointer rests on stays open while the pointer moves toward it and while it rests in it, and goes only once the pointer has left it a moment: a small step off the name does not close it.
 
 ## Version control
 

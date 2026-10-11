@@ -56,7 +56,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/survivors_check" "$TOP/utils/test/src/cu/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/scheduler_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/scheduler_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/order/scheduler.c" "$TOP/src/cu/transpiler/lstar/protocol/teacher/run_channel.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/record_R/record.c" "$TOP/src/cu/transpiler/lstar/interface/interface.c" \
-    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" || exit 1
+    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "$TOP/src/cu/types/file_defs/qry/qry_buffer.c" || exit 1
 # the walk runs as its own program, in a child the cell can lose
 BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
