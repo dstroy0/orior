@@ -315,6 +315,6 @@ int main(void)
     scriptura_text(line, " of ");
     scriptura_decimal(line, states, 1u);
     scriptura_text(line, " states\n");
-    sim_check(&results, s_sim_rational_wide == 0, "every value fit the exact integer's width");
+    sim_check(&results, g_sim_rational_wide == 0, "every value fit the exact integer's width");
     return sim_close(&results, "ask and state");
 }

@@ -158,5 +158,5 @@ void run_cfg_missing(ScripturaLine *line, const char *members)
 
 int run_cfg_short(void)
 {
-    return s_sim_rational_wide != 0;
+    return g_sim_rational_wide != 0;
 }
