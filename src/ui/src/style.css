@@ -4998,6 +4998,161 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   white-space: pre-wrap;
 }
 
+/* The Database window, laid out as the Containers window: the schema at the left, a level opened at a
+   time, and at the right the head of what ran, the rows a statement gave in a grid that holds only
+   the rows in view, each 22px high and set at its place in the spacer, and what the server said. */
+.database .profile-bar select {
+  max-width: 22rem;
+}
+
+.db-node {
+  display: grid;
+  grid-template-columns: 0.9rem minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  padding: 0.12rem 0.7rem 0.12rem 0.3rem;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12.5px var(--head);
+  text-align: left;
+  cursor: pointer;
+}
+
+.db-node:hover,
+.db-node:focus-visible {
+  outline: none;
+  background: var(--line);
+}
+
+.db-node .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-node .detail {
+  padding-left: 0.6rem;
+  color: var(--fg-3);
+  font-size: 11.5px;
+}
+
+.db-twisty {
+  color: var(--fg-3);
+}
+
+.db-side {
+  overflow: hidden;
+}
+
+.db-grid-head {
+  flex: none;
+  display: grid;
+  overflow: hidden;
+  padding: 0 0.7rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
+  font: 600 12px/22px var(--code);
+}
+
+.db-grid {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+}
+
+.db-spacer {
+  width: 1px;
+}
+
+.db-rows {
+  position: absolute;
+  inset: 0 auto auto 0;
+  min-width: 100%;
+}
+
+.db-row {
+  position: absolute;
+  left: 0;
+  display: grid;
+  height: 22px;
+  padding: 0 0.7rem;
+  font: 12px/22px var(--code);
+  white-space: nowrap;
+}
+
+.db-grid-head > span,
+.db-row > span {
+  overflow: hidden;
+  padding-right: 1ch;
+  text-overflow: ellipsis;
+}
+
+.db-grid-head > .num,
+.db-row > .num {
+  text-align: right;
+}
+
+.db-row > .null,
+.db-wait {
+  color: var(--fg-3);
+  font-style: italic;
+}
+
+.db-messages {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  padding: 0 0.7rem;
+}
+
+.database-failure {
+  margin: 0.4rem 0;
+  color: var(--ed-error);
+  font: 12px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+.database-notice {
+  margin: 0.3rem 0;
+  color: var(--fg-2);
+  font: 12px var(--head);
+}
+
+.database-statement {
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  font: 12px/1.45 var(--code);
+  white-space: pre-wrap;
+}
+
+/* The status bar's connection of the file shown, marked while a transaction is open on it. */
+.status-database {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.status-database:hover {
+  color: var(--bar-bright);
+}
+
+.status-database[data-transaction="open"],
+.status-database[data-transaction="failed"] {
+  color: var(--fuse-fire, var(--signal));
+}
+
+.status-database[hidden] {
+  display: none;
+}
+
 /* The Debug window: a bar of steps and what the program is doing, then Frames, Variables with the
  * watches over them, and Console, side by side. */
 .debug {

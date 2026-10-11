@@ -51,8 +51,8 @@ fn browser_arguments(ui: &Path, port: u16) -> String {
 }
 
 /// Starts the window from `program` with `run` as the run's folder and `tree` as its tree, on
-/// `monitor`, and waits for its page.
-pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option<u32>) -> Result<Window, String> {
+/// `monitor`, with the settings `extra` gives besides, and waits for its page.
+pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option<u32>, extra: &[(String, String)]) -> Result<Window, String> {
     keep_own_handles();
     let port = free_port()?;
     let log = File::create(run.join("window.log")).map_err(|error| error.to_string())?;
@@ -64,6 +64,7 @@ pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option
         .env_remove("ORIOR_NO_REPORTS")
         .env("WEBVIEW2_USER_DATA_FOLDER", run.join("webview"))
         .env("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", browser_arguments(ui, port))
+        .envs(extra.iter().map(|(key, value)| (key, value)))
         .stdin(Stdio::null())
         .stdout(log.try_clone().map_err(|error| error.to_string())?)
         .stderr(log)

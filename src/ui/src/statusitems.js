@@ -28,6 +28,7 @@ const ITEMS = [
   ["runs", "Runs and Files Being Read", "bar"],
   ["said", "What Was Last Done", "bar"],
   ["report", "Report", "bar"],
+  ["database", "Database Connection", "bar"],
   ["zoom", "Zoom", "bar"],
   ["memory", "Memory", "bar"],
   ["editor", "The Editor's Line", "bar"],

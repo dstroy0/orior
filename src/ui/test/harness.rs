@@ -406,9 +406,11 @@ fn wait_started(conn: &Connection, page: &Page) -> Result<(), String> {
 }
 
 /// Runs the test files `files`, each a path under test/, in the window at `conn`, the page loaded
-/// fresh for each.
-fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[String], report: &mut Report) {
+/// fresh for each and told, as window.__harness.servers, where each test server listens.
+fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[String], servers: &[(String, String)], report: &mut Report) {
     let runner = std::fs::read_to_string(ui.join("test").join("runner.js")).unwrap_or_default();
+    let told: serde_json::Map<String, Value> = servers.iter().map(|(key, value)| (key.clone(), json!(value))).collect();
+    let tell = format!("window.__harness.servers = {}", Value::Object(told));
     for (at, file) in files.iter().enumerate() {
         if page.closed.load(Ordering::SeqCst) {
             report.files.push((file.clone(), vec![Outcome { name: "the file".into(), ok: false, ms: 0, error: "the window closed before it ran".into() }], Vec::new()));
@@ -420,7 +422,7 @@ fn run_files(conn: &Arc<Connection>, page: &Arc<Page>, ui: &Path, files: &[Strin
             let _ = conn.call("Page.reload", json!({"ignoreCache": true}), Duration::from_secs(30));
         }
         let mut outcomes = Vec::new();
-        let started = wait_started(conn, page).and_then(|_| conn.evaluate(&runner, Duration::from_secs(10)).map(|_| ()));
+        let started = wait_started(conn, page).and_then(|_| conn.evaluate(&runner, Duration::from_secs(10))).and_then(|_| conn.evaluate(&tell, Duration::from_secs(10)).map(|_| ()));
         if let Ok(mut errors) = page.errors.lock() {
             errors.clear();
         }
@@ -521,7 +523,11 @@ fn main() -> ExitCode {
             .map_err(|error| format!("the run's tree: {error}"))
             .and_then(|_| std::fs::create_dir_all(run.join("home")).map_err(|error| error.to_string()))
             .and_then(|_| window::build(&ui, &here.join("target").join("app")))
-            .and_then(|program| window::start(&program, &ui, &run, &tree, options.monitor));
+            .and_then(|program| {
+                // The window's tunnels go through the harness's own ssh, its config and its key.
+                let extra: Vec<(String, String)> = env.iter().filter(|(key, _)| key == "ORIOR_TEST_SSH").map(|(_, value)| ("ORIOR_SSH".to_string(), value.clone())).collect();
+                window::start(&program, &ui, &run, &tree, options.monitor, &extra)
+            });
         match started {
             Err(error) => {
                 println!("  {error}");
@@ -542,7 +548,7 @@ fn main() -> ExitCode {
                         Err(error) => report.said.push(format!("the window's debugging port: {error}")),
                         Ok(()) => {
                             window::keep_placed(&shown, options.monitor);
-                            run_files(&conn, &page, &ui, &tests, &mut report);
+                            run_files(&conn, &page, &ui, &tests, &env, &mut report);
                         }
                     }
                     if options.keep_window {

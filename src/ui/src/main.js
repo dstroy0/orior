@@ -4,13 +4,13 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
-import { editing, forgetTree, loadMounts, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
+import { editing, forgetTree, loadMounts, onShown, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
 import { keepLattices } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
 import { startMenus } from "./menu.js";
-import { drawMenubar, restoreEnvironment, runCommand, runLaunch, startMenubar, stripMenus } from "./menubar.js";
+import { drawMenubar, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar, stripMenus } from "./menubar.js";
 import { forgetTests, loadTests } from "./tests.js";
 import { paneOpen } from "./explorer.js";
 import { closeIcon, refreshStrip, startStrip } from "./strip.js";
@@ -19,6 +19,7 @@ import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
 import { startProfile } from "./profile.js";
 import { startContainers } from "./containers.js";
+import { drawStatus as drawDatabaseStatus, startDatabase } from "./database.js";
 import { loadRun, readRunsAgain, startRun } from "./run.js";
 import { linkJoined, startRemote } from "./remote.js";
 import { serveAgain } from "./servers.js";
@@ -135,6 +136,13 @@ async function start() {
     },
     say: (text) => say(text, { failed: true }),
   });
+  startDatabase({
+    editor: () => editing().editor,
+    file: () => editing().fileHere(),
+    sheet: menubarSheet,
+    ask: async (label, start) => (await import("./menubar.js")).askFor(label, start),
+  });
+  onShown(drawDatabaseStatus);
   startFocusFollows({ terminal: focusTerminalView });
   startDocks({
     close: closeIcon,

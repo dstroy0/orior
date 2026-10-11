@@ -1177,6 +1177,14 @@ function show(path) {
   drawUndo(tab?.session ?? null);
   drawTimeline(tab ? tab.file : null);
   drawLocalHistory(tab?.commit ? null : (tab?.file ?? null));
+  shownListeners.forEach((listener) => listener(tab?.file ?? null));
+}
+
+// What is told each time the file shown changes, with the file's path, or null where none shows.
+const shownListeners = [];
+
+export function onShown(listener) {
+  shownListeners.push(listener);
 }
 
 // With no file open the desk shows the name over the lattice, as the run view does with no job

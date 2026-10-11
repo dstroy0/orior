@@ -55,6 +55,7 @@ import { setSystemTitleBar, systemTitleBar } from "./strip.js";
 import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profile.js";
 import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
+import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
 import { showView } from "./views.js";
@@ -270,6 +271,9 @@ const COMMANDS = {
   "stop-profile": () => stopProfile(),
   "profile-view": () => toggleProfile(),
   "containers-view": () => toggleContainers(),
+  "database-view": () => toggleDatabase(),
+  "run-statement": () => runStatement(),
+  "run-sql-file": () => runSqlFile(),
   "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   "system-title": (args) => setSystemTitleBar(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
   toolbar: (args) => setToolbarShown(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
@@ -554,6 +558,7 @@ const NEEDS = {
   back: () => canStepBack(),
   running: () => debugging() && !isPaused(),
   macro: () => Boolean(lastMacro() && editing().editor),
+  sql: () => /\.sql$/i.test(editing().fileHere() ?? ""),
 };
 
 // Edit, Macros: recording starts in the editor and stops on a second press, and the last macro
@@ -1523,6 +1528,12 @@ export async function startMenubar({ openFolder, commands = invoke("commands_rea
   bindEditorKeys(
     state.menus.flatMap((menu) =>
       menu.all.filter((item) => item.needs === "editor").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, run: () => runCommand(item.command) }))),
+    ).concat(
+      // The keys of a command for SQL files go to it first where the file shown is one, and to the
+      // editor's own use of the keys where it is not.
+      state.menus.flatMap((menu) =>
+        menu.all.filter((item) => item.needs === "sql").flatMap((item) => [item.keys, item.also].filter(Boolean).map((keys) => ({ keys, first: true, run: () => NEEDS.sql() && (runCommand(item.command), true) }))),
+      ),
     ),
   );
   startPalette({

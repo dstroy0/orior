@@ -24,6 +24,16 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 1. **The lattice drawn at the rate it is seen.** A lattice draws a frame only where some point has moved by a whole pixel of the page since the frame before, no faster than one each 33 ms and only in a frame nothing else wants, and draws again at once in a new scheme or theme. Over its loop it draws about one frame in three of those offered, and none while it rests. No one follows its points one by one, and a frame that moves none of them by a pixel shows nothing a reader could see.
 
+## Tools
+
+1. **Databases.** The Database window, from the tool strip or View, Database, holds the connections the tree's databases.json names, PostgreSQL, MySQL or MariaDB, and SQLite, each made, changed or taken out from its sheet. orior speaks PostgreSQL's and MySQL's protocols itself, SCRAM, md5 and the clear for one and the native and SHA-2 sign-ins for the other, and reads SQLite through the sqlite3 of the tree's Python, with no driver and nothing fetched. A password goes to the system's keychain only where the reader asks, and never to a file. A connection through ssh goes through the system's ssh, or the one ORIOR_SSH names, with the reader's config, keys and agent, and a tunnel that drops is made again at the next statement.
+   - The schema is read a level at a time as each level is opened, a reading can be stopped from the bar, and a statement that makes, changes or drops an object reads again the level that holds it.
+   - Run Statement, Ctrl+Enter in an SQL file, runs the statement the cursor stands in or the text selected, and nothing where the cursor stands in no statement; Run SQL File runs each statement in turn and stops at the first that fails. A statement the server finds wrong puts the cursor where the server says, a character past the basic plane before it counted as one.
+   - Rows come a page at a time as the grid scrolls, the server holding them and the grid only those in view, and Stop stops a statement as it runs. Export writes the rows held and reads the rest from the same run.
+   - A connection that matters opens read-only or asks before each statement that writes, and a write that reaches every row of what it names asks first on every connection, with the count of rows.
+   - Each statement commits on its own until the reader begins a transaction, and an open one shows on the status bar, which names the connection of the SQL file shown and the zone its session reads times in, until Commit or Roll Back ends it.
+   - Each statement run is kept in its connection's history across restarts, and History runs one again.
+
 ## Code intelligence
 
 1. **Symbols of the whole tree.** Go to Symbol in Tree, Ctrl+T or `#` in Go to File, and Search Everywhere find a declaration in any file of the tree, from an index of what each file declares, read by the line as the outline reads the open file. A file is read again once it changes. The whole of this repository is read in about 1.1 s, behind the window, and a search answers in about 70 ms.

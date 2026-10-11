@@ -8,8 +8,9 @@
 //! PostgreSQL and MySQL are spoken by pg.rs and mysql.rs; SQLite is read through the sqlite3 module
 //! of the tree's Python, in a process of its own that takes one statement at a time and stops one
 //! when asked. A password goes to the system's keychain, and never to a file; a connection reached
-//! through ssh goes through the system's ssh with the reader's own config, keys and agent, and a
-//! link whose connection broke is made again, tunnel and all, at the next statement.
+//! through ssh goes through the system's ssh with the reader's own config, keys and agent, or the ssh
+//! ORIOR_SSH names, as a tree on another machine does, and a link whose connection broke is made
+//! again, tunnel and all, at the next statement.
 //!
 //! A statement's rows are held here as they are read, a page at a time as the grid asks for them,
 //! and the rest wait in the server. An export writes the rows held and reads the rest from the same
@@ -260,10 +261,17 @@ struct Tunnel {
 }
 
 impl Tunnel {
+    /// A tunnel through the ssh ORIOR_SSH names, with its own words, or else the system's.
     fn open(through: &str, host: &str, port: u16) -> Result<Tunnel, Failure> {
+        Tunnel::open_with(crate::runner::program_words("ORIOR_SSH").unwrap_or_else(|| vec!["ssh".into()]), through, host, port)
+    }
+
+    /// A tunnel through the ssh `words` name, the program first.
+    fn open_with(mut words: Vec<String>, through: &str, host: &str, port: u16) -> Result<Tunnel, Failure> {
         let local = std::net::TcpListener::bind(("127.0.0.1", 0)).and_then(|listener| listener.local_addr()).map(|address| address.port()).map_err(|error| error.to_string())?;
-        let mut command = Command::new("ssh");
+        let mut command = Command::new(words.remove(0));
         command
+            .args(&words)
             .args(["-N", "-L", &format!("127.0.0.1:{local}:{host}:{port}"), "-o", "ExitOnForwardFailure=yes", "-o", "BatchMode=yes", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", through])
             .env("PATH", crate::toolchains::run_path())
             .stdin(Stdio::null())
@@ -1211,6 +1219,29 @@ mod connections {
         cleanup.run("DROP TABLE orior_guard", true, 10).unwrap();
         cleanup.close();
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The ssh the test harness gives, which signs in to its ssh server with a key and config of its
+    /// own, the name that server goes by, and where it reaches this machine.
+    fn test_ssh() -> Option<(Vec<String>, String, String)> {
+        let words = crate::runner::shell_words(&std::env::var("ORIOR_TEST_SSH").ok()?).ok()?;
+        Some((words, std::env::var("ORIOR_TEST_SSH_HOST").ok()?, std::env::var("ORIOR_TEST_SSH_TO").ok()?))
+    }
+
+    #[test]
+    fn a_tunnel_through_ssh_reaches_the_server_and_is_down_once_its_ssh_ends() {
+        let (Some((words, through, to)), Ok(password)) = (test_ssh(), std::env::var("ORIOR_PG_PASSWORD")) else { return };
+        let (_, port) = test_server("PG", 5432);
+        let mut tunnel = Tunnel::open_with(words.clone(), &through, &to, port).unwrap();
+        let mut pg = crate::pg::Pg::connect("127.0.0.1", tunnel.port, "postgres", &password, "postgres", WAIT).unwrap();
+        assert_eq!(pg.all("select 'through ssh'").unwrap(), vec![vec![Some("through ssh".to_string())]]);
+        pg.close();
+        assert!(tunnel.alive());
+        let _ = tunnel.child.kill();
+        let _ = tunnel.child.wait();
+        assert!(!tunnel.alive(), "a tunnel whose ssh ended is down, and the next statement makes it again");
+        let refused = Tunnel::open_with(words, &format!("nobody@{through}"), &to, port).err().unwrap();
+        assert!(refused.message.contains("ended"), "{}", refused.message);
     }
 
     #[test]

@@ -2109,8 +2109,12 @@ export class Editor {
   // Binds keys written as a menu lists them, such as "Shift+Alt+F" or "Ctrl+K Ctrl+I", each to its
   // `run`. A key the editor already binds keeps its own.
   addKeys(list) {
-    for (const { keys, run } of list) {
-      this.keys[keysName(keys)] ??= run;
+    for (const { keys, run, first } of list) {
+      if (first) {
+        this.first[keysName(keys)] = run;
+      } else {
+        this.keys[keysName(keys)] ??= run;
+      }
     }
   }
 
@@ -2139,6 +2143,14 @@ export class Editor {
       return;
     }
     const full = this.chord ? `${this.chord} ${name}` : name;
+    // A key offered first to a command takes it where the command takes it, as Run Statement takes
+    // Ctrl+Enter in an SQL file, and leaves it to the editor's own use where the command declines.
+    if (this.first[full]?.() === true) {
+      event.preventDefault();
+      this.chord = null;
+      this.note({ key: full });
+      return;
+    }
     // A key the reader bound is told which editor it was pressed in.
     const own = this.bound[full];
     const found = own ? () => own(this) : this.keys[full];
@@ -2552,6 +2564,7 @@ export class Editor {
   bind() {
     this.keys = this.keyMap();
     this.bound = {};
+    this.first = {};
     this.vim = null;
     this.recording = null;
     const input = this.input;

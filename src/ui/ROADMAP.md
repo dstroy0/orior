@@ -34,35 +34,22 @@ What the eye cannot see is not drawn. The view, and the stretch its motion heads
 
 ## Tools
 
-1. **Databases.** Connect to a database, browse its tables, run a query from the editor and read the rows it gives.
-   - A large schema whose reading takes minutes, cannot be stopped, and is read again whole after each change: the schema is read a level at a time as it is opened, a reading can be stopped, an object changed is read again alone, and the editor never waits on it.
-   - An UPDATE or a DELETE with no WHERE run against the wrong database: a connection marked as one that matters opens read-only, the server itself refusing a write, or asks before any statement that writes, as the reader sets it; and a write with no WHERE asks on every connection, with the count of rows it would change.
-   - A whole script run by a key meant for one statement, the cursor on a blank line or in a comment: Run takes the statement the cursor stands in or the text selected, runs nothing where the cursor stands in no statement, and the whole file runs only from Run File.
-   - A large result that freezes the client: rows come a page at a time as the grid scrolls, and a query running can be stopped.
-   - An export that runs the query again, its session's settings gone: an export writes the rows the result holds and reads the rest from the same run.
-   - A client that starts slowly and holds gigabytes: the database window starts with the window and holds the rows shown.
-   - Passwords kept in the client's files, under a key its own source publishes: passwords go to the system's keychain and nowhere else.
-   - A tunnel that fails where the terminal's ssh works, on a cipher, a key's format or a jump host: a tunnel goes through the system's ssh with the reader's own config, keys and agent, and one that drops is made again.
-   - A transaction left open, a query that only read holding its locks: each statement commits on its own until the reader begins a transaction, and a connection with one open says so on the status bar until it is committed or rolled back.
-   - Drivers that fail to download, ask for another Java or run out of memory: orior speaks PostgreSQL's and MySQL's protocols itself and reads SQLite through the sqlite3 Python holds, with no driver and nothing fetched.
-   - Times shown in the client's zone with no offset: a time with a zone shows with its offset, in the zone of the session that read it, which the status bar names.
-   - Queries and their history lost at a restart: a query is a `.sql` file of the tree, kept as every file is, and each statement run is kept in its connection's history across restarts.
-2. **Requests.** A file of HTTP requests, each sent with a press and its answer shown beside it.
+1. **Requests.** A file of HTTP requests, each sent with a press and its answer shown beside it.
    - A sign-in and a cloud account to send a request: none; requests are `.http` files in the tree, plain text kept with git.
    - Secrets in a file that gets committed: each environment's private values come from a file of the reader's, which orior adds to `.gitignore` as it makes it.
    - Answers lost once the next is sent: each request keeps its last answers, and one is compared with another.
    - Requests copied from a browser or a terminal: a curl line pasted becomes a request, and Copy as curl gives one back.
    - A client that holds a gigabyte to send text: requests go out from the window's own process.
-3. **A Markdown preview.** A Markdown file shown as it reads beside its text, scrolled with it, or open as the preview alone, as the reader chooses for every Markdown file.
+2. **A Markdown preview.** A Markdown file shown as it reads beside its text, scrolled with it, or open as the preview alone, as the reader chooses for every Markdown file.
    - A preview that jumps back to the top as the text is typed, or scrolls out of step with it: each block of the preview is tied to the line it came from, and the two scroll by those lines.
    - A preview that differs from GitHub's: tables, task lists, footnotes, alerts, math and Mermaid are drawn as GitHub draws them.
    - Images by a path relative to the file that do not show: an image's path is taken from the file's own folder.
    - A large file whose preview holds up the editor: only the blocks that changed are drawn again, and never on the editor's time.
-4. **A live preview pane.** A pane beside the editor that renders the file being typed as it is typed, for every language that sets how something looks and runs nothing: Markdown, HTML and the CSS it takes, a CSS file over a page of its own, Mermaid's diagrams, LaTeX, SVG and the like. Each key is drawn in it as the text changes, and the place the cursor stands in the text is shown in the pane.
+3. **A live preview pane.** A pane beside the editor that renders the file being typed as it is typed, for every language that sets how something looks and runs nothing: Markdown, HTML and the CSS it takes, a CSS file over a page of its own, Mermaid's diagrams, LaTeX, SVG and the like. Each key is drawn in it as the text changes, and the place the cursor stands in the text is shown in the pane.
    - A page reloaded whole on each change, its scroll, its form's fields and its state lost: a stylesheet changed is swapped in place, and a page changed is patched where it changed, at the same scroll.
    - LaTeX that takes seconds to show a change: the last good page stays while the next one is made, and SyncTeX takes the reader from the text to the page and back.
    - A diagram drawn again on every key: a diagram is drawn again only when its own block changes.
-5. **Files in an archive.** A zip archive opened in the explorer as a folder, its files read without unpacking it.
+4. **Files in an archive.** A zip archive opened in the explorer as a folder, its files read without unpacking it.
    - Names that come out garbled: each name is read in the encoding the archive's flag gives, UTF-8 or the old DOS page, and the reader can choose another.
    - An archive inside an archive: it opens as a folder too.
    - Files in an archive that can only be read: a file changed in an archive is saved back into it, the archive written anew beside the old one and then put in its place.
