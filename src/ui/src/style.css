@@ -223,7 +223,7 @@ select {
 /* The bar is the ink of the site's header, underlined in signal the way the site's is. */
 :root {
   --bar-height: calc(2.9rem - 5px);
-  --frame-right: 13px;
+  --frame-right: 12px;
 }
 
 .bar {
@@ -264,6 +264,7 @@ select {
   align-self: stretch;
   flex: 0 1 auto;
   min-width: 0;
+  margin-left: -3px;
   overflow: hidden;
 }
 
@@ -779,7 +780,7 @@ body[data-strip-edge] .strip-edge {
   flex: none;
   align-self: stretch;
   display: flex;
-  margin: 0 -0.8rem 0 0.4rem;
+  margin: 0 calc(5px - 0.8rem) 0 0.4rem;
 }
 
 .window-button {
@@ -907,14 +908,14 @@ body[data-strip-edge] .strip-edge {
 }
 
 /* The bar along the bottom of the window, in the ink of the bar along its top: its line of text 22px
-   tall at its foot, under the work from the work's left curve, and the room above it. */
+   tall, 2px above its foot, under the work from the work's left curve, and the room above it. */
 .statusbar {
   flex: none;
   display: flex;
   align-items: center;
   gap: 1.1rem;
-  height: 25px;
-  padding: 3px 0.8rem 0 calc(var(--strip-width) + 7px);
+  height: 27px;
+  padding: 3px calc(0.8rem + 3px) 2px calc(var(--strip-width) + 7px);
   color: var(--status-fg);
   font: 12px var(--head);
   white-space: nowrap;
@@ -1814,10 +1815,19 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 /* The bar holds the eye alone, a quarter larger than it stands in the name. */
 .bar-mark .eye-mark {
-  width: calc(1.164em * 1.25);
-  height: calc(1.15em * 1.25);
+  width: calc(1.164em * 1.475);
+  height: calc(1.15em * 1.475);
   margin: 0;
   vertical-align: middle;
+}
+
+/* The eye stands down and left of the place the bar's flow gives it, and the menu after it keeps
+   its own place. */
+.bar-mark {
+  position: relative;
+  left: -4px;
+  top: 6.2px;
+  margin-right: -4.4px;
 }
 
 .bar-mark .eye-mark path {
