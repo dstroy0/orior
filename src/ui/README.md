@@ -29,6 +29,14 @@ A job's description is the opening comment or docstring of its own file.
 2. Always give stateful, graceful errors.
 3. Do not annoy the user: if they are trying to do something, notify them and leave them alone.
 
+## How a feature is made
+
+1. The feature is built.
+2. Its test goes in `test/`, which mirrors `src/` file for file: `src/x.js` is tested by `test/src/x.test.js`. A Rust module keeps its unit tests in its own `tests` module, as Rust's convention has it, and a test that spans modules goes in its crate's `tests/` folder.
+3. A feature of the window is tested through the window's debugging port, every way it can be used: each press, key, menu item, drag, hover and scroll, each state it can be in, and each error it can give, checked for what it shows and what it does.
+4. `test/harness.rs` runs every test, the crates' and the window's, in the dev app on the third monitor, and names each source file with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
+5. The feature is committed and pushed once all of it passes.
+
 ## Running it
 
 It needs Rust 1.77 or later to build. Every line of the page is in `src/`, written for this tree,
