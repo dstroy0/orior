@@ -1176,6 +1176,29 @@ body[data-view="run"] .statusbar .ed-status {
   display: none;
 }
 
+.pulse-read {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* A bar of progress: a track, and the share done drawn across it from the left. */
+.progress {
+  display: inline-block;
+  width: 4rem;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.progress-done {
+  display: block;
+  height: 100%;
+  background: currentColor;
+  transform-origin: left center;
+}
+
 .pulse button {
   border: 0;
   padding: 0;

@@ -11,6 +11,7 @@
 // thought goes on unbroken; past ten seconds they turn to something else.
 
 import { invoke, listen, onCalls } from "./bridge.js";
+import { progressBar } from "./progress.js";
 
 const ACTED = 300;
 export const ANSWER = 100;
@@ -26,6 +27,12 @@ const STOPS = {
 };
 
 const state = { acted: -Infinity, waits: new Set(), progress: new Map(), timer: 0, node: null };
+
+// Takes how far along the work of the call `command` is, as its own events tell it: { done, of, unit }.
+export const progressOf = (command, progress) => {
+  state.progress.set(command, { call: command, ...progress });
+  tick();
+};
 
 // Watches the call `command`, made with `args`, whose answer is `promise`; `stop` ends the wait on it.
 // `began` is when it was made.
@@ -71,6 +78,13 @@ export function tick(now = performance.now()) {
     if (!node.hidden) {
       const text = Object.assign(document.createElement("span"), { textContent: told(oldest, age) });
       const parts = [text];
+      // Where the work tells its whole, a bar shows how far along it is.
+      const progress = state.progress.get(oldest.command);
+      if (progress?.of) {
+        oldest.bar ??= progressBar();
+        oldest.bar.set(progress.done / progress.of);
+        parts.push(oldest.bar);
+      }
       if (age >= LONG) {
         const stop = Object.assign(document.createElement("button"), { type: "button", className: "status-wait-stop", textContent: "Stop" });
         stop.addEventListener("click", () => stopWait(oldest));
@@ -95,8 +109,5 @@ export function startWaits() {
       watch(command, args, promise, stop);
     }
   });
-  listen("call-progress", ({ payload }) => {
-    state.progress.set(payload.call, payload);
-    tick();
-  });
+  listen("call-progress", ({ payload }) => progressOf(payload.call, payload));
 }

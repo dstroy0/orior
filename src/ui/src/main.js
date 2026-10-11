@@ -4,6 +4,7 @@
 // The app's start: the scheme, the tree to work on, and the two views.
 
 import { invoke, pick } from "./bridge.js";
+import { progressBar } from "./progress.js";
 import { editing, forgetTree, loadMounts, onShown, openAt, openElsewhere, openFile, restoreSession, startEdit } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
@@ -77,7 +78,11 @@ async function settle(root, said) {
   return true;
 }
 
-// The bar's reading of the status block: the runs going and the files still being read.
+// The bars of the files being read, kept from one drawing to the next so each moves steadily.
+const readBars = new Map();
+
+// The bar's reading of the status block: the runs going and the files still being read, each with a
+// bar of how far along it is.
 function drawPulse(held) {
   const parts = [];
   if (held.runs.size) {
@@ -85,9 +90,19 @@ function drawPulse(held) {
     runs.addEventListener("click", () => showView("run"));
     parts.push(runs);
   }
+  for (const path of readBars.keys()) {
+    if (!held.reads.has(path)) {
+      readBars.delete(path);
+    }
+  }
   for (const [path, { read, size }] of held.reads) {
     const name = path.split("/").pop();
-    parts.push(Object.assign(document.createElement("span"), { textContent: `${name} ${Math.floor((100 * read) / Math.max(1, size))}%`, title: path }));
+    const bar = readBars.get(path) ?? progressBar();
+    readBars.set(path, bar);
+    bar.set(read / Math.max(1, size));
+    const reading = Object.assign(document.createElement("span"), { className: "pulse-read", title: path });
+    reading.append(`${name} `, bar, ` ${Math.floor((100 * read) / Math.max(1, size))}%`);
+    parts.push(reading);
   }
   document.getElementById("pulse").replaceChildren(...parts);
 }

@@ -47,6 +47,8 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 7. **The three limits of a response.** Each call a press or a key makes is watched until it answers. Past a tenth of a second the pointer shows the window at work; past a second the status bar says what the window waits on and for how long; past ten it says how far along the work is where the work tells, as an export of rows does row by row, and offers Stop, which stops the work where it has a stop of its own, a statement, an export, a run of tests or a profile, and the wait always. A hover's and a press's own marks are drawn by the page's styles in the frame the pointer moves.
    - Within 0.1 s a person feels they act on the thing itself; within 1 s their thought goes on unbroken; past 10 s they turn to something else.
    - A delay of the pointer under 50 ms goes unseen: every response to the pointer is held under it.
+8. **Waits that read as short.** A bar of progress, where the work tells its size, moves at one pace from one report to the next and never back, and faster toward its end: it draws the share done to the power 1.5, the words beside it saying the share as it is. Each file the editor reads a slice at a time shows one on the status bar, and so does a wait past ten seconds whose work tells its whole.
+   - A bar that slows or stops near its end reads as a longer wait than the same time spent steadily.
 
 ## Tools
 

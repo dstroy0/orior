@@ -14,13 +14,6 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Tokens, diffs and searches that hold the page's one thread on a large file: each one that costs a frame runs in Rust beside the page and hands back only its answer.
    - A speedup on one machine that is a slowdown or a wrong answer on another: each vector path is tested beside the plain loop, on x86-64 and on aarch64, and gives the same answer.
 
-## Perception
-
-What the eye cannot see is not drawn. The view, and the stretch its motion heads into, is read and drawn first and whole; motion no eye can follow is drawn at the lowest rate that still reads as motion; and a change too small or too short to be seen is not animated. Each figure here is a measured one.
-
-1. **Waits that read as short.** A bar of progress moves steadily, and faster toward its end where it can.
-   - A bar that slows or stops near its end reads as a longer wait than the same time spent steadily.
-
 ## Tools
 
 1. **Requests.** A file of HTTP requests, each sent with a press and its answer shown beside it.

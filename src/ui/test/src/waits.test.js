@@ -4,7 +4,7 @@
 // The three limits of a response: a press's call late past a tenth of a second, a second and ten.
 
 import { invoke } from "../../src/bridge.js";
-import { ANSWER, LONG, tick, watch, WORKING } from "../../src/waits.js";
+import { ANSWER, LONG, progressOf, tick, watch, WORKING } from "../../src/waits.js";
 
 const { test, assert, ui } = window.__harness;
 
@@ -42,6 +42,19 @@ test("past a tenth of a second the pointer says the window is at work, and past 
     call.answer();
   }
   await ui.waitFor(() => !waiting() && node().hidden, 1000);
+});
+
+test("a wait whose work tells its whole shows how far along it is, in words and a bar", async () => {
+  const call = hanging();
+  watch("db_export", { name: "x" }, call.promise, call.stop, performance.now() - LONG - 500);
+  try {
+    progressOf("db_export", { done: 300, of: 1200, unit: "rows written" });
+    assert.match(node().textContent, /Waiting on db export: 300 of 1200 rows written, 1\d s/);
+    assert.equal(node().querySelector(".progress").getAttribute("aria-valuenow"), "25");
+  } finally {
+    call.answer();
+  }
+  await ui.waitFor(() => node().hidden, 1000);
 });
 
 test("past ten seconds the bar offers Stop, which stops the wait", async () => {
