@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // casmi_driver: the CASMI library and its ranking on the engine, each part one job on the device's tessera daemon.
-// --ingest reads a parquet file into its forms on the device and seals them as the crystals of a set (src/ingest);
-// --rank reads a set back and ranks each query molecule's structures (src/rank)
+// --ingest seals every member of a parquet file as a crystal of a set through the engine's ingest (src/ingest);
+// --rank reads the parquet files and ranks each query molecule's structures (src/rank)
 #include "../ingest/ingest.h"
 #include "../rank/rank.h"
 #include "../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
@@ -21,8 +21,8 @@ int main(int count, char **arguments)
         scriptura_text(&results.line, "usage: casmi_driver --ingest FILE.parquet SET\n"
                                       "       casmi_driver --rank TRAIN.parquet CFG validate\n"
                                       "       casmi_driver --rank TRAIN.parquet CFG test TEST.parquet\n"
-                                      "  --ingest: read the file's columns into their forms on the device and seal"
-                                      " them as crystals of the set SET\n"
+                                      "  --ingest: seal every member of the file, its footer and each leaf of each"
+                                      " row group, as a crystal of the set SET\n"
                                       "  --rank: rank each query molecule's structures from the train file, CFG's"
                                       " envelope and query library; test ranks TEST.parquet's molecules against every"
                                       " spectrum of the train file and writes CFG's output.submission\n");

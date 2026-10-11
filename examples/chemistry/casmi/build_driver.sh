@@ -76,7 +76,7 @@ MODULES=(cu/includes/formats/cfg_json cu/includes/formats/stack cu/engine/parser
 INGEST=(cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate cu/includes/codecs/deflate
         cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc cu/includes/formats/tiff
         cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom cu/includes/formats/npy
-        cu/includes/formats/nrrd cu/includes/formats/nifti)
+        cu/includes/formats/nrrd cu/includes/formats/nifti cu/includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
 INCLUDES=(-I "$ENGINE" -I "$ENGINE/../includes/codecs/crc" -I "$TOP/src/sims/cu" -I "$ROOT/src")
 SOURCES=("$ENGINE"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
@@ -150,7 +150,7 @@ done
 
 rm -f "$BINARY"
 nvcc "${COMPILE_FLAGS[@]}" "${LINK_FLAGS[@]}" \
-    -o "$BINARY" "$ROOT/src/casmi_driver/casmi_driver.cu" "$ROOT/src/ingest/ingest.cu" "$ROOT/src/forms/forms.cu" \
+    -o "$BINARY" "$ROOT/src/casmi_driver/casmi_driver.cu" "$ROOT/src/ingest/ingest.cu" \
     "$ROOT"/src/rank/rank*.cu \
     "${ENGINE_OBJECTS[@]}" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build casmi_driver"; exit 1; }
