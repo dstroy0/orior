@@ -32,6 +32,8 @@
 // 6. Where the cfg holds `apart`, the tangent with every part off is the principal system at the vertex, order by order.
 // 7. Where the cfg holds `phase`, the root squared is s / s_0 and the root times the quotient is s_eta, at every order.
 // 8. Where the cfg holds `phase`, the amplitude's first coefficient is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0.
+// 9. Where the cfg holds `phase`, the swirl's b_0 is -L d f_0 / s_0 and its first coefficient
+//    (3/2) s_0 (L_eta / L + d_eta / d) + (1/2) s_0 f_eta / f_0 - 2 s_eta at Y = 0.
 // The request: core_tangent <cfg>.
 //     bash examples/navier_stokes/run.sh core_tangent examples/navier_stokes/cfg/core_tangent.cfg
 
@@ -427,6 +429,33 @@ static CoreRadiusSequence core_tangent_series_sum(const CoreRadiusSequence &left
         sum[power] = core_radius_plus(sum[power], right[power]);
     }
     return sum;
+}
+
+// e^(sum series_n Y^n) to Y^reach, series_0 = 0: (n + 1) x_(n+1) = sum_(i=0..n) (i + 1) series_(i+1) x_(n-i)
+static CoreRadiusSequence core_tangent_series_exponential(const CoreRadiusSequence &series, unsigned int reach)
+{
+    CoreRadiusSequence exponential = {core_radius_number(1ll, 1ll)};
+    for (unsigned int power = 0u; power < reach; power += 1u)
+    {
+        SimRational sum = core_radius_number(0ll, 1ll);
+        for (unsigned int first = 0u; first <= power; first += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            const SimRational weight = core_radius_times(core_radius_number((long long)first + 1ll, 1ll), series[first + 1u]);
+            sum = core_radius_plus(sum, core_radius_times(weight, exponential[power - first]));
+        }
+        // the power is at most the cfg's order, far inside a long long
+        exponential.push_back(core_radius_over(sum, core_radius_number((long long)power + 1ll, 1ll)));
+    }
+    return exponential;
+}
+
+// series / s to Y^reach, s = s_0 E^2 with E the root, E_0 = 1
+static CoreRadiusSequence core_tangent_over_transport(const CoreRadiusSequence &series, const CoreRadiusSequence &root, SimRational transport_zero,
+                                                     unsigned int reach)
+{
+    const CoreRadiusSequence scaled = core_tangent_series_scaled(series, sim_rational_reciprocal(transport_zero));
+    return core_tangent_quotient(core_tangent_quotient(scaled, root, reach), root, reach);
 }
 
 int main(int count, char **arguments)
@@ -833,9 +862,11 @@ int main(int count, char **arguments)
         const SimRational l_eta_eta = core_radius_times(core_radius_number(-4ll, 1ll), h);
         const SimRational d_eta = core_radius_times(core_radius_number(-2ll, 1ll), eta_v);
         const SimRational d_eta_eta = core_radius_number(-2ll, 1ll);
-        // U and U_eta, and s, the transport's coefficient, with its first two eta-derivatives, each as a series in Y
+        // U and U_eta, F and F_eta, and s, the transport's coefficient, with its first two eta-derivatives, each as a series in Y
         CoreRadiusSequence along_series;
         CoreRadiusSequence along_eta_series;
+        CoreRadiusSequence swirl_series;
+        CoreRadiusSequence swirl_eta_series;
         CoreRadiusSequence transport;
         CoreRadiusSequence transport_eta;
         CoreRadiusSequence transport_eta_eta;
@@ -856,6 +887,8 @@ int main(int count, char **arguments)
             }
             along_series.push_back(along);
             along_eta_series.push_back(along_eta);
+            swirl_series.push_back(core_radius_value(base.f[power], xi_v));
+            swirl_eta_series.push_back(core_radius_over(core_radius_value(core_radius_slope(base.f[power]), xi_v), cut));
             transport.push_back(core_radius_times(l_v, inner));
             transport_eta.push_back(core_radius_plus(core_radius_times(l_eta, inner), core_radius_times(l_v, inner_eta)));
             transport_eta_eta.push_back(core_radius_plus(core_radius_plus(core_radius_times(l_eta_eta, inner), core_radius_times(core_radius_times(two, l_eta), inner_eta)),
@@ -960,6 +993,116 @@ int main(int count, char **arguments)
                                                                   core_radius_times(core_radius_number(3ll, 2ll), transport_eta[0]));
         sim_check(&results, sim_rational_sign(sim_rational_difference(amplitude_slope[0], first_by_hand)) == 0,
                   "the amplitude's first coefficient is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0");
+        // The swirl's amplitude past Phi_1. With g = e^(sqrt(mu) Phi) A_0 (b_0 + b_1 / sqrt(mu) + ...), the terms of order
+        // 1 / sqrt(mu) give 4 Y Phi' b_0' + (2 Phi' - N / Phi') b_0 = -F / Phi', F = L d (Y f)' / Y, the same with the slope on and
+        // off: the swirl's share nears e^(Phi_1) - 1 as the axial's does. The terms of order 1 / mu give the same operator on b_1
+        // with the source, slope on less off,
+        //     dS = -2 P ((Y b_0)' + b_0 Y l) - Y b_0 (P' + P^2 / 2) + s ((ln A_0)_eta b_0 + b_0_eta) - 2 Fs (E sum d_n Y^n + P),
+        // Y l = Y A_0' / A_0 of the principal and Fs = L d (Y f)' / (2 s). With J = e^(-int_0^Y N / (2 s)) the operator is
+        // (sqrt(Y) J b)' = sqrt(Y) J (source) / (4 Y Phi'). Then b_0 = -J^(-1) sum 2 (J Fs)_n Y^n / (2n + 1), -L d f_0 / s_0 at
+        // Y = 0, which asks f_0 past 0 at the point, and the swirl's share is e^(Phi_1) (1 + C / sqrt(mu)) - 1 with
+        //     C(Y) = e^(Phi_1) sqrt(Y / (2 s_0)) sum c_n Y^n,   sum c_n Y^n = (sum (J dS / E)_n Y^n / (n + 1)) / (2 J b_0).
+        const SimRational zero = core_radius_number(0ll, 1ll);
+        // N / (2 s) and its eta-derivative (N_eta s - N s_eta) / (2 s^2), and J = e^w with w = -int_0^Y N / (2 s)
+        const CoreRadiusSequence inflow_rate = core_tangent_series_scaled(core_tangent_over_transport(inflow_coefficient, root, transport[0], reach), half);
+        const CoreRadiusSequence inflow_rate_eta = core_tangent_series_scaled(
+            core_tangent_over_transport(core_tangent_over_transport(inflow_part, root, transport[0], reach), root, transport[0], reach), half);
+        CoreRadiusSequence inflow_exponent = {zero};
+        CoreRadiusSequence inflow_exponent_eta = {zero};
+        for (unsigned int power = 1u; power <= span; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            const SimRational order_power = core_radius_number((long long)power, 1ll);
+            inflow_exponent.push_back(core_radius_over(core_radius_times(minus, inflow_rate[power - 1u]), order_power));
+            inflow_exponent_eta.push_back(core_radius_over(core_radius_times(minus, inflow_rate_eta[power - 1u]), order_power));
+        }
+        const CoreRadiusSequence inflow_exponential = core_tangent_series_exponential(inflow_exponent, span);
+        // Fs = L d (Y f)' / (2 s) and Fs_eta = [(L d)_eta (Y f)' + L d (Y f_eta)'] / (2 s) - Fs s_eta / s
+        CoreRadiusSequence swirl_y_prime;
+        CoreRadiusSequence swirl_eta_y_prime;
+        for (unsigned int power = 0u; power <= span; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            const SimRational next = core_radius_number((long long)power + 1ll, 1ll);
+            swirl_y_prime.push_back(core_radius_times(next, swirl_series[power]));
+            swirl_eta_y_prime.push_back(core_radius_times(next, swirl_eta_series[power]));
+        }
+        const CoreRadiusSequence swirl_forcing =
+            core_tangent_over_transport(core_tangent_series_scaled(swirl_y_prime, core_radius_times(half, inflow_factor)), root, transport[0], span);
+        const CoreRadiusSequence swirl_forcing_top = core_tangent_series_sum(core_tangent_series_scaled(swirl_y_prime, core_radius_times(half, inflow_factor_eta)),
+                                                                             core_tangent_series_scaled(swirl_eta_y_prime, core_radius_times(half, inflow_factor)));
+        const CoreRadiusSequence swirl_forcing_eta = core_tangent_series_sum(
+            core_tangent_over_transport(swirl_forcing_top, root, transport[0], span),
+            core_tangent_series_scaled(core_tangent_over_transport(core_tangent_series_product(swirl_forcing, transport_eta, span), root, transport[0], span), minus));
+        // b_0 = -I / J and b_0_eta = (w_eta I - I_eta) / J, with I = sum 2 (J Fs)_n Y^n / (2n + 1) and I_eta from J (w_eta Fs + Fs_eta)
+        const CoreRadiusSequence swirl_carried = core_tangent_series_product(inflow_exponential, swirl_forcing, span);
+        const CoreRadiusSequence swirl_carried_eta = core_tangent_series_product(
+            inflow_exponential, core_tangent_series_sum(core_tangent_series_product(inflow_exponent_eta, swirl_forcing, span), swirl_forcing_eta), span);
+        CoreRadiusSequence swirl_integral;
+        CoreRadiusSequence swirl_integral_eta;
+        for (unsigned int power = 0u; power <= span; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            const SimRational odd = core_radius_number(2ll * (long long)power + 1ll, 1ll);
+            swirl_integral.push_back(core_radius_over(core_radius_times(two, swirl_carried[power]), odd));
+            swirl_integral_eta.push_back(core_radius_over(core_radius_times(two, swirl_carried_eta[power]), odd));
+        }
+        const CoreRadiusSequence swirl_ratio = core_tangent_quotient(core_tangent_series_scaled(swirl_integral, minus), inflow_exponential, span);
+        const CoreRadiusSequence swirl_ratio_eta = core_tangent_quotient(
+            core_tangent_series_sum(core_tangent_series_product(inflow_exponent_eta, swirl_integral, span), core_tangent_series_scaled(swirl_integral_eta, minus)),
+            inflow_exponential, span);
+        // Y l = -1/4 - Y s' / (4 s) - Y N / (2 s), the principal's, and P = E H / 2 with P'
+        const CoreRadiusSequence prime_rate = core_tangent_over_transport(transport_prime, root, transport[0], reach);
+        CoreRadiusSequence amplitude_log_rate = {core_radius_times(minus, quarter)};
+        for (unsigned int power = 1u; power <= reach; power += 1u)
+        {
+            amplitude_log_rate.push_back(sim_rational_difference(core_radius_times(core_radius_times(minus, quarter), prime_rate[power - 1u]), inflow_rate[power - 1u]));
+        }
+        const CoreRadiusSequence phi_product = core_tangent_series_scaled(core_tangent_series_product(root, phi_eta, span), half);
+        const CoreRadiusSequence phi_product_prime = core_tangent_series_derivative(phi_product, reach);
+        // dS term by term: (Y b_0)' + b_0 Y l, Y b_0 (P' + P^2 / 2), s ((ln A_0)_eta b_0 + b_0_eta), and Fs (E sum d_n Y^n + P)
+        // (Y A_0 b_0)' / A_0 = (Y b_0)' + b_0 Y l
+        CoreRadiusSequence swirl_moment_prime = core_tangent_series_product(swirl_ratio, amplitude_log_rate, reach);
+        for (unsigned int power = 0u; power <= reach; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            swirl_moment_prime[power] = core_radius_plus(swirl_moment_prime[power], core_radius_times(core_radius_number((long long)power + 1ll, 1ll), swirl_ratio[power]));
+        }
+        const CoreRadiusSequence ratio_growth = core_tangent_series_product(
+            swirl_ratio, core_tangent_series_sum(phi_product_prime, core_tangent_series_scaled(core_tangent_series_product(phi_product, phi_product, reach), half)), reach);
+        const CoreRadiusSequence ratio_slope = core_tangent_series_product(
+            transport, core_tangent_series_sum(core_tangent_series_product(amplitude_eta, swirl_ratio, reach), swirl_ratio_eta), reach);
+        const CoreRadiusSequence ratio_forcing = core_tangent_series_product(
+            swirl_forcing, core_tangent_series_sum(core_tangent_series_product(root, amplitude_slope, reach), phi_product), reach);
+        const SimRational minus_two = core_radius_number(-2ll, 1ll);
+        CoreRadiusSequence swirl_source = core_tangent_series_sum(core_tangent_series_scaled(core_tangent_series_product(phi_product, swirl_moment_prime, reach), minus_two),
+                                                                  core_tangent_series_sum(ratio_slope, core_tangent_series_scaled(ratio_forcing, minus_two)));
+        for (unsigned int power = 1u; power <= reach; power += 1u)
+        {
+            swirl_source[power] = sim_rational_difference(swirl_source[power], ratio_growth[power - 1u]);
+        }
+        // sum c_n Y^n = (sum (J dS / E)_n Y^n / (n + 1)) / (2 J b_0)
+        const CoreRadiusSequence source_carried = core_tangent_quotient(core_tangent_series_product(inflow_exponential, swirl_source, reach), root, reach);
+        CoreRadiusSequence source_integral;
+        for (unsigned int power = 0u; power <= reach; power += 1u)
+        {
+            // the power is at most the cfg's order, far inside a long long
+            source_integral.push_back(core_radius_over(source_carried[power], core_radius_number((long long)power + 1ll, 1ll)));
+        }
+        const SimRational ratio_zero = swirl_ratio[0];
+        const CoreRadiusSequence swirl_slope = core_tangent_quotient(
+            core_tangent_series_scaled(source_integral, sim_rational_reciprocal(core_radius_times(two, ratio_zero))),
+            core_tangent_series_scaled(core_tangent_series_product(inflow_exponential, swirl_ratio, reach), sim_rational_reciprocal(ratio_zero)), reach);
+        // b_0 and c_0 by hand at Y = 0: -L d f_0 / s_0 and (3/2) s_0 (L_eta / L + d_eta / d) + (1/2) s_0 f_eta / f_0 - 2 s_eta
+        const SimRational ratio_by_hand = core_radius_over(core_radius_times(minus, core_radius_times(inflow_factor, swirl_series[0])), transport[0]);
+        const SimRational inflow_factor_log_eta = core_radius_plus(core_radius_over(l_eta, l_v), core_radius_over(d_eta, d_v));
+        const SimRational swirl_by_hand = sim_rational_difference(
+            core_radius_plus(core_radius_times(core_radius_times(core_radius_number(3ll, 2ll), transport[0]), inflow_factor_log_eta),
+                             core_radius_times(core_radius_times(half, transport[0]), core_radius_over(swirl_eta_series[0], swirl_series[0]))),
+            core_radius_times(two, transport_eta[0]));
+        sim_check(&results,
+                  (sim_rational_sign(sim_rational_difference(ratio_zero, ratio_by_hand)) == 0) && (sim_rational_sign(sim_rational_difference(swirl_slope[0], swirl_by_hand)) == 0),
+                  "the swirl's b_0 is -L d f_0 / s_0 and its first coefficient (3/2) s_0 (L_eta / L + d_eta / d) + (1/2) s_0 f_eta / f_0 - 2 s_eta at Y = 0");
         if (record != NULL)
         {
             record_text(record, ("phase at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(phase_rho) + ", to order " +
@@ -999,6 +1142,24 @@ int main(int count, char **arguments)
                 const SimRational sum = core_tangent_sum_at(amplitude_slope, y_point);
                 record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(sum) + " " +
                                      term_book_rational(core_radius_over(core_radius_times(amplitude_slope[reach], last_power), sum)))
+                                        .c_str());
+            }
+            record_text(record, "the swirl's amplitude past Phi_1, C(Y) = e^(Phi_1) sqrt(Y / (2 s_0)) sum c_n Y^n: for each n the coefficient c_n");
+            for (unsigned int power = 0u; power <= reach; power += 1u)
+            {
+                record_text(record, ("  " + std::to_string(power) + " " + term_book_rational(swirl_slope[power])).c_str());
+            }
+            record_text(record, "Y, sum c_n Y^n and the last order's term over the sum");
+            for (const SimRational &y_point : phase_y)
+            {
+                SimRational last_power = one;
+                for (unsigned int power = 0u; power < reach; power += 1u)
+                {
+                    last_power = core_radius_times(last_power, y_point);
+                }
+                const SimRational sum = core_tangent_sum_at(swirl_slope, y_point);
+                record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(sum) + " " +
+                                     term_book_rational(core_radius_over(core_radius_times(swirl_slope[reach], last_power), sum)))
                                         .c_str());
             }
         }

@@ -332,8 +332,26 @@ mu^(-1/2), and C(Y) = e^(Phi_1) D(Y) is
 Check (`core_tangent` with `phase`): d_0 is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0, taken by hand.
 
 sqrt(mu) times the axial share less e^(Phi_1) - 1, taken as C + b / sqrt(mu) through mu = 256 and 512, gives
-C = -2.313 at Y = 1/4 and -3.247 at Y = 1/2, and -1.596 at Y = 1/8, where mu Y is smallest. The swirl's own term of
-order mu^(-1/2) is a second amplitude, driven by the axial one, and its C taken the same way is near -4.6 at Y = 1/2.
+C = -2.313 at Y = 1/4 and -3.247 at Y = 1/2, and -1.596 at Y = 1/8, where mu Y is smallest.
+
+The swirl's amplitude past Phi_1 (`core_tangent` with `phase`): with g = e^(sqrt(mu) Phi) A_0 (b_0 + b_1 / sqrt(mu) + ...),
+b_0 solves 4 Y Phi' b_0' + (2 Phi' - N / Phi') b_0 = -F / Phi', with N = L d U' and F = L d (Y f)' / Y, the same with
+the slope on and off, and the swirl's share nears e^(Phi_1) - 1 as the axial's does. b_1, slope on less off, is driven
+by the growth of e^(Phi_1), the eta-derivative of A_0 b_0, the axial D through the inflow, and P, and the swirl's share
+is e^(Phi_1) (1 + C / sqrt(mu)) - 1 with C(Y) = e^(Phi_1) sqrt(Y / (2 s_0)) sum c_n Y^n, every c_n exact. The first
+coefficient c_0 = (3/2) s_0 (L_eta / L + d_eta / d) + (1/2) s_0 f_eta / f_0 - 2 s_eta is -7.20, and the rest of the
+series is small:
+
+| Y | 1/8 | 1/4 | 1/2 | 1 |
+|---|---|---|---|---|
+| C(Y), the swirl | -2.485 | -3.484 | -4.834 | -6.553 |
+
+Check (`core_tangent` with `phase`): b_0 is -L d f_0 / s_0 and c_0 the value above at Y = 0, taken by hand.
+
+The swirl's steps in sqrt(mu) times its share less e^(Phi_1) - 1 do not fall by 1/sqrt(2) as mu doubles: its part of
+order 1 / mu is large. Taken as C + b / sqrt(mu) + c / mu through mu = 128, 256 and 512, the swirl gives C = -3.506 at
+Y = 1/4 and -4.868 at Y = 1/2, and -2.362 at Y = 1/8, with c near -100 to -130; the axial taken the same way gives
+-2.381 and -3.250.
 
 What is left to prove it: lower bounds on the system in X with error bounds of Olver's kind, on the base fields'
 bounds, for the paths that skip a derivative; the amplitude's eta-derivatives, by Cauchy's estimates on disks of
