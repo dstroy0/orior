@@ -9,6 +9,10 @@ use orior_cli::report;
 
 fn main() {
     report::catch_panics();
+    // Inside a Flatpak's sandbox the machine's own programs run on the machine (host.rs).
+    if let Some(Err(said)) = orior_cli::host::prepare() {
+        eprintln!("orior: {said}");
+    }
     // Every process a command starts stands under it, and ends with it.
     orior_cli::container::hold();
     let code = match cli::run(std::env::args().skip(1).collect()) {

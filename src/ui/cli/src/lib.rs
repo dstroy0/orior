@@ -39,6 +39,7 @@ pub mod git;
 pub mod highlight;
 pub mod history;
 pub mod home;
+pub mod host;
 pub mod inspect;
 pub mod jupyter;
 pub mod kept;

@@ -1037,6 +1037,10 @@ pub fn run() {
 /// Opens the window on the tree the launch names, else the one `root::find` finds, to run the
 /// launch's command once the page is up.
 fn open(launch: Launch) {
+    // Inside a Flatpak's sandbox the machine's own programs run on the machine (host.rs).
+    if let Some(Err(said)) = orior_cli::host::prepare() {
+        eprintln!("orior: {said}");
+    }
     // Every process the window starts stands under it, and ends with it.
     orior_cli::container::hold();
     let remote = launch.remote.as_deref().map(Address::parse).transpose().unwrap_or_else(|said| {

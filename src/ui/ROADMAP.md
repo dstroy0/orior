@@ -23,5 +23,3 @@ What the window does not do yet, by area. Each item says what it gives the reade
 
 ## Settings
 
-1. **Packages for Linux.** orior installed from Flathub and the Snap Store as well as from its own release.
-   - An editor from Flathub that cannot reach the machine's compilers, SDKs and tools from inside its sandbox: orior's Flatpak runs the tree's tools and its terminal's shell on the machine itself, through `flatpak-spawn --host`.

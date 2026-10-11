@@ -221,6 +221,22 @@ certificate's thumbprint in the reader's store or the path of a `.pfx` file, its
 `signing.macos`, the identity `codesign` signs with; and `signing.notarize`, the keychain profile
 `notarytool` sends the program with.
 
+## Packages for Linux
+
+`packaging/linux/` builds orior as a Flatpak and as a snap. The Flatpak's manifest,
+`com.dstroy0.orior.yml`, builds the window and the command line offline against GNOME's runtime,
+the crates listed in `cargo-sources.json`, which `python -I packaging/linux/cargo_sources.py` writes
+again from the two Cargo.locks after a crate changes. `sh packaging/linux/check_flatpak.sh`, run
+from this folder, checks the manifest, the desktop file, the metadata and the crates' list in a
+container of 172 MB, and fetches no runtime: Flathub builds the Flatpak from the manifest. The snap's
+`snapcraft.yaml` builds them on core24 with classic confinement.
+
+Inside the Flatpak's sandbox none of the machine's compilers, SDKs and tools are there: orior gives
+each program on the machine's PATH a stand-in that runs it on the machine through `flatpak-spawn
+--host`, in the folder it was started in, and puts their folder first on its PATH as it starts:
+the tree's jobs and tools, the language servers, git and the terminal's shell run on the machine
+itself. A variable a run sets reaches the machine's program where `ORIOR_HOST_ENV` names it.
+
 ## The command line
 
 The program is `orior`, and it is the command line as well as the window. Given no words it opens

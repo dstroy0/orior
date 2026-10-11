@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational -->
+<component type="desktop-application">
+  <id>com.dstroy0.orior</id>
+  <name>orior</name>
+  <summary>One window for the engine</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <developer id="com.dstroy0">
+    <name>Douglas Quigg</name>
+  </developer>
+  <description>
+    <p>Run starts every build, ingest, run, render, sim, viewer, stage pipeline and test suite in the tree, shows their output as it arrives, and opens each page a viewer writes in a window of its own.</p>
+    <p>Edit is the editor for .g, .gsm and the k-files, with each file type's definition beside the file.</p>
+  </description>
+  <launchable type="desktop-id">com.dstroy0.orior.desktop</launchable>
+  <url type="homepage">https://github.com/dstroy0/orior</url>
+  <url type="bugtracker">https://github.com/dstroy0/orior/issues</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-11"/>
+  </releases>
+</component>
