@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// casmi_driver: the CASMI library and its ranking on the engine, each part one job on the device's tessera daemon.
+// --ingest seals every member of a parquet file as a crystal of a set through the engine's ingest (src/ingest);
+// --rank reads the parquet files and ranks each query molecule's structures (src/rank)
+#include "../ingest/ingest.h"
+#include "../rank/rank.h"
+#include "../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "sim.h"
+
+#include <string.h>
+
+int main(int count, char **arguments)
+{
+    char capacity[SIM_LINE_CAPACITY];
+    SimResults results;
+    sim_open(&results, capacity);
+    const int ingest = (count == 4) && (strcmp(arguments[1], "--ingest") == 0);
+    const int rank = ((count == 5) || (count == 6)) && (strcmp(arguments[1], "--rank") == 0);
+    if (!ingest && !rank)
+    {
+        scriptura_text(&results.line, "usage: casmi_driver --ingest FILE.parquet SET\n"
+                                      "       casmi_driver --rank TRAIN.parquet CFG validate\n"
+                                      "       casmi_driver --rank TRAIN.parquet CFG test TEST.parquet\n"
+                                      "  --ingest: seal every member of the file, its footer and each leaf of each"
+                                      " row group, as a crystal of the set SET\n"
+                                      "  --rank: rank each query molecule's structures from the train file, CFG's"
+                                      " envelope and query library; test ranks TEST.parquet's molecules against every"
+                                      " spectrum of the train file and writes CFG's output.submission\n");
+        sim_flush(&results);
+        return 2;
+    }
+    if (ingest)
+    {
+        (void)ingest_run(&results, count, arguments);
+    }
+    else
+    {
+        (void)rank_run(&results, count, arguments);
+    }
+    return sim_close(&results, "casmi driver");
+}
