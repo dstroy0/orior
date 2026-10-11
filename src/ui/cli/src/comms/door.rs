@@ -269,7 +269,9 @@ impl Client {
     }
 
     /// Asks `asked`, the region `region` going with it where there is one, and gives the answer. The
-    /// region is held until the answer comes, by which time the container has read it.
+    /// region is held until the answer comes, by which time the container has read it. The answer is
+    /// waited for ten seconds, and two more for each mebibyte the region holds, as the container reads
+    /// it whole first.
     fn ask(&self, asked: Value, region: Option<&Region>) -> Result<Value, String> {
         let mut output = self.output.lock().map_err(|_| "the door is held")?;
         let wrote = match region {
@@ -277,7 +279,7 @@ impl Client {
             None => write_frame(&mut **output, &asked),
         };
         wrote.map_err(|error| error.to_string())?;
-        let answer = self.answers.lock().map_err(|_| "the door is held")?.recv_timeout(Duration::from_secs(10)).map_err(|_| "the container gave no answer".to_string())?;
+        let answer = self.answers.lock().map_err(|_| "the door is held")?.recv_timeout(Duration::from_secs(10 + 2 * region.map_or(0, |region| region.len() as u64 >> 20))).map_err(|_| "the container gave no answer".to_string())?;
         match answer["refused"].as_str() {
             Some(why) => Err(why.to_string()),
             None => Ok(answer),
@@ -642,9 +644,11 @@ mod tests {
         let big = "orior ".repeat(MOST / 5);
         assert!(big.len() > MOST);
         assert_eq!(client.say("runs/big", json!(big)).unwrap(), 1);
-        assert_eq!(heard.recv_timeout(Duration::from_secs(10)).unwrap().body.as_str().map(str::len), Some(big.len()));
+        // A system run in an emulator of another processor reads twenty mebibytes slowly.
+        let long = Duration::from_secs(120);
+        assert_eq!(heard.recv_timeout(long).unwrap().body.as_str().map(str::len), Some(big.len()));
         comms.say(&window, "runs/back", json!(big)).unwrap();
-        let back = client.next(Duration::from_secs(10)).unwrap();
+        let back = client.next(long).unwrap();
         assert_eq!((back.channel.as_str(), back.from.as_str(), back.body.as_str().map(str::len)), ("runs/back", "window", Some(big.len())));
         assert_eq!(client.say("runs/big", json!("small")).unwrap(), 1, "a short body goes in its frame");
         let channels = comms.channels();

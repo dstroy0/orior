@@ -429,7 +429,11 @@ pub fn elsewhere(root: &Path) -> Vec<Commit> {
         return Vec::new();
     };
     let since = format!("--since=@{oldest}");
-    let ours: std::collections::HashSet<String> = git(root, &["log", "HEAD", "--no-merges", &since, format]).map(|out| read(&out).into_iter().map(|(_, made)| made).collect()).unwrap_or_default();
+    // Where the branch's own commits cannot be read, no commit is said to be elsewhere: each would be.
+    let Some(ours) = git(root, &["log", "HEAD", "--no-merges", &since, format]) else {
+        return Vec::new();
+    };
+    let ours: std::collections::HashSet<String> = read(&ours).into_iter().map(|(_, made)| made).collect();
     found.into_iter().filter(|(_, made)| !ours.contains(made)).map(|(commit, _)| commit).collect()
 }
 

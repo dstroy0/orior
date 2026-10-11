@@ -78,7 +78,10 @@ pub fn tests_in(name: &str, folder: &str, platform: &str, here: &Path, ui: &Path
     for (key, value) in seen_from_a_container(env) {
         command.arg("-e").arg(format!("{key}={value}"));
     }
-    command.args([&image, "cargo", "test", "--no-fail-fast", "--manifest-path", "/ui/cli/Cargo.toml"]);
+    // The crates are fetched first, three times at most and ten seconds apart, and the tests run
+    // offline: a name Docker's resolver drops for a moment fails no test.
+    let fetched = "for try in 1 2 3; do cargo fetch --manifest-path /ui/cli/Cargo.toml && break; sleep 10; done";
+    command.args([&image, "sh", "-c", &format!("{fetched}; cargo test --offline --no-fail-fast --manifest-path /ui/cli/Cargo.toml")]);
     Ok(command)
 }
 
