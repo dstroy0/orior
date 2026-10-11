@@ -52,9 +52,8 @@ leaves those out. A Mac's system and Windows on Arm run only on machines of thei
 crate is built for each of them in their place. Then it runs the window's tests, in orior built for
 the run with a home and a tree of its own: a run leaves the reader's orior as it was. The window
 goes on the highest numbered monitor that is not the main one, or the one `--monitor` or
-`ORIOR_TEST_MONITOR` names; `--monitors` lists them. Each error the window meets in a run files as
-an issue, once, where the GitHub CLI is signed in. The run fails while any test fails or any source
-file has no test, and its report is in `test/runs/<time>/report.md`.
+`ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while any test fails or any
+source file has no test, and its report is in `test/runs/<time>/report.md`.
 
 ## Running it
 

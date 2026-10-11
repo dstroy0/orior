@@ -8,14 +8,14 @@ TOP="$(cd "$ROOT/.." && pwd)"
 SRC="$(cd "$TOP/../src" && pwd)"
 PROGRAM="${1:-}"
 CFG="${2:-}"
-PROGRAMS="core_rule|matching_rule|core_radius"
+PROGRAMS="core_rule|matching_rule|core_radius|core_tangent"
 case "$PROGRAM" in
-    core_rule|matching_rule|core_radius) ;;
+    core_rule|matching_rule|core_radius|core_tangent) ;;
     *) echo "  usage: run.sh $PROGRAMS <cfg>"; exit 2 ;;
 esac
 [ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh $PROGRAMS <cfg>"; exit 2; }
 # the driver's modules, each src/<module>/<module>.cu with its header beside it
-MODULES=(run_cfg term_form record witness_cube eta_function decay_integral series_rule jet_rule)
+MODULES=(run_cfg term_form record witness_cube eta_function decay_integral series_rule jet_rule core_radius_weights)
 source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 

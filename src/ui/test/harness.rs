@@ -687,7 +687,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        for file in ["cdp.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "window.rs"] {
+        for file in ["bench.rs", "cdp.rs", "frames.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "window.rs"] {
             if untested_rust(&here.join(file)) {
                 report.untested.push(format!("test/{file}"));
             }

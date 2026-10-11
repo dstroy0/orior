@@ -60,8 +60,7 @@ pub fn start(program: &Path, ui: &Path, run: &Path, tree: &Path, monitor: Option
         .current_dir(tree)
         .env("ORIOR_HOME", run.join("home"))
         .env("ORIOR_ROOT", tree)
-        // Each error the window meets in a run files as an issue, once.
-        .env_remove("ORIOR_NO_REPORTS")
+        .env("ORIOR_NO_REPORTS", "1")
         .env("WEBVIEW2_USER_DATA_FOLDER", run.join("webview"))
         .env("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", browser_arguments(ui, port))
         .envs(extra.iter().map(|(key, value)| (key, value)))

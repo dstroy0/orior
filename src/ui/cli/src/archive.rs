@@ -944,12 +944,7 @@ mod tests {
     #[test]
     fn a_run_s_qry_opens_as_a_folder_of_its_blobs_each_name_s_joined_and_is_never_written_back() {
         let dir = tree("qry");
-        let blob = |name: &str, bytes: &[u8], sequence: u64| {
-            let mut out = format!("qry {name} {} {sequence} 1000 2 begin\n", bytes.len()).into_bytes();
-            out.extend_from_slice(bytes);
-            out.extend(format!("qry {name} end\n").into_bytes());
-            out
-        };
+        let blob = |name: &str, bytes: &[u8], sequence: u64| crate::qry::frame(name, bytes, sequence, 1000, 2).0;
         let run = [blob("bench/sqlite3.c", b"int main(void)\n", 1), blob("window.trace", b"paint 0.000 0.400\n", 2), blob("questions.txt", b"why\n", 3), blob("window.trace", b"paint 6.900 0.380\n", 4)].concat();
         std::fs::write(dir.join("query1-x.qry"), &run).unwrap();
         assert_eq!(kind_of("build/qry/query1-x.QRY"), Some(Kind::Qry));

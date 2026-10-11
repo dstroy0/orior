@@ -939,29 +939,102 @@ static void cubin_run_safe_word(unsigned char *code, unsigned long long code_siz
     }
 }
 
-// The carrier losing its mind, a launch that faulted the part or hung past its bound, called in: three accounts, each
-// handed as a panic of the call (QRY_PANIC_CALL) to the run's buffer, opening the line every party of the run sees.
-// The proctor's, the carrier's own, of the launch it carried; the listener's, the part's fault telemetry's, of the Xid
-// critical errors the part stamped against it; and the gate's, of the code it passed, its verdict, the held list and
-// the slot instruction against it. Nothing waits on the disk: the carrier goes straight on off the part
-static void cubin_run_panic_called(const char *code_path, unsigned long long code_size, unsigned int registers,
-                                   unsigned int slot, unsigned int launches, const CubinRunShape *shape,
-                                   const char *status_name, CubinRunStatus status, unsigned int verdict,
-                                   unsigned long long at)
+// a part of a driver's error name and the cause a conference reads it as (overseer.h)
+typedef struct
 {
-    if (s_run == NULL)
+    const char *part;
+    const char *cause;
+} CubinRunCauseName;
+
+// The driver's errors by the cause each reads as: the instruction's own encoding where the part would not take the
+// code or run it, an address the code reached, a register past what the kernel holds, a launch that did not return,
+// and an exception that names none of those
+static const CubinRunCauseName s_cause_names[] = {{"ILLEGAL_INSTRUCTION", "instruction"},
+                                                  {"INVALID_PC", "instruction"},
+                                                  {"INVALID_IMAGE", "instruction"},
+                                                  {"INVALID_SOURCE", "instruction"},
+                                                  {"NO_BINARY_FOR_GPU", "instruction"},
+                                                  {"INVALID_PTX", "instruction"},
+                                                  {"ADDRESS", "address"},
+                                                  {"OUT_OF_RESOURCES", "register"},
+                                                  {"TIMEOUT", "time"},
+                                                  {"LAUNCH_FAILED", "exception"},
+                                                  {"HARDWARE_STACK_ERROR", "exception"},
+                                                  {"ASSERT", "exception"}};
+
+// the cause the driver's error `name` reads as, NULL where it reads none
+static const char *cubin_run_cause_named(const char *name)
+{
+    for (size_t at = 0u; (name != NULL) && (at < (sizeof(s_cause_names) / sizeof(s_cause_names[0]))); at += 1u)
     {
-        return;
+        if (strstr(name, s_cause_names[at].part) != NULL)
+        {
+            return s_cause_names[at].cause;
+        }
     }
+    return NULL;
+}
+
+// The cause the Xid critical errors the part stamped read as: a fault of the part's memory map (31) an address, a
+// channel that stopped (8) or a context switch past its time (109) a launch that did not return, and an exception of
+// the graphics engine (13) or of its class (69) an exception. The first of those, in that order, that the errors
+// hold; NULL where they hold none
+static const char *cubin_run_cause_heard(void)
+{
+    static const unsigned long long s_heard[] = {31ull, 8ull, 109ull, 13ull, 69ull};
+    static const char *const s_heard_cause[] = {"address", "time", "time", "exception", "exception"};
+    for (size_t heard = 0u; heard < (sizeof(s_heard) / sizeof(s_heard[0])); heard += 1u)
+    {
+        for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_KEPT); place += 1u)
+        {
+            if (s_xid_data[place] == s_heard[heard])
+            {
+                return s_heard_cause[heard];
+            }
+        }
+    }
+    return NULL;
+}
+
+// The account `call` holds said in the answer `answers` too, and handed as a panic of the call where `panicked` and
+// the run's writer runs; let go either way
+static void cubin_run_account_given(CubinRunSaying *answers, CubinRunSaying *call, int panicked)
+{
+    // an account is a line, far below what an int counts
+    cubin_run_say(answers, "%.*s", (int)call->size, call->text);
+    if (panicked && (s_run != NULL))
+    {
+        cubin_run_said(call, QRY_PANIC_CALL, 0, QRY_PANIC, 0);
+    }
+    call->size = 0u;
+}
+
+// A launch the part refused, its accounts said in its answer `answers` after the refusal, where the conference the
+// refusal calls reads them (overseer.h): the proctor's, the carrier's own, of the launch it carried; the listener's,
+// the part's fault telemetry's, of the Xid critical errors the part stamped against it; and the gate's, of the code it
+// passed, its verdict, the held list and the slot instruction against it. The proctor and the listener each end in the
+// cause it reads, where it reads one. Where the carrier lost its mind, a launch that faulted the part or hung past its
+// bound, each account is also handed as a panic of the call (QRY_PANIC_CALL) to the run's buffer, opening the line
+// every party of the run sees. Nothing waits on the disk: the carrier goes straight on off the part
+static void cubin_run_refusal_said(CubinRunSaying *answers, int panicked, const char *code_path,
+                                   unsigned long long code_size, unsigned int registers, unsigned int slot,
+                                   unsigned int launches, const CubinRunShape *shape, const char *status_name,
+                                   CubinRunStatus status, unsigned int verdict, unsigned long long at)
+{
     CubinRunSaying *const call = &s_call_said;
     call->size = 0u;
+    const char *const proctor_cause = cubin_run_cause_named(status_name);
     cubin_run_say(call,
                   "proctor: the launch of %s, %llu bytes of code, %u registers, %u threads in %u blocks over %u cases, "
-                  "%u launches timed after it, %s: the driver's status %s (%d)\n",
+                  "%u launches timed after it, %s: the driver's status %s (%d)%s%s\n",
                   code_path, code_size, registers, shape->threads, shape->blocks, s_case_count, launches,
-                  s_launch_faulted ? "faulted the part" : "hung past its bound",
-                  (status_name != NULL) ? status_name : "with no name", status);
-    cubin_run_said(call, QRY_PANIC_CALL, 0, QRY_PANIC, 0);
+                  s_launch_faulted     ? "faulted the part"
+                  : s_launch_timed_out ? "hung past its bound"
+                                       : "was refused, the part left whole",
+                  (status_name != NULL) ? status_name : "with no name", status,
+                  (proctor_cause != NULL) ? "; cause " : "", (proctor_cause != NULL) ? proctor_cause : "");
+    cubin_run_account_given(answers, call, panicked);
+    const char *const listener_cause = cubin_run_cause_heard();
     if (!s_telemetry_ready)
     {
         cubin_run_say(call, "listener: the part's fault telemetry was not reached this run, and heard nothing\n");
@@ -977,9 +1050,10 @@ static void cubin_run_panic_called(const char *code_path, unsigned long long cod
         {
             cubin_run_say(call, " %llu", s_xid_data[place]);
         }
-        cubin_run_say(call, "%s\n", (s_xid_count > CUBIN_RUN_XID_KEPT) ? " ..." : "");
+        cubin_run_say(call, "%s%s%s\n", (s_xid_count > CUBIN_RUN_XID_KEPT) ? " ..." : "",
+                      (listener_cause != NULL) ? "; cause " : "", (listener_cause != NULL) ? listener_cause : "");
     }
-    cubin_run_said(call, QRY_PANIC_CALL, 0, QRY_PANIC, 0);
+    cubin_run_account_given(answers, call, panicked);
     // the slot instruction as the gate read it, the safety word laid on, where the code holds a slot
     const int slotted = (((unsigned long long)slot * 16ull) + 16ull) <= code_size;
     const unsigned long long low = slotted ? cubin_run_word(s_code, slot * 16u) : 0ull;
@@ -1001,7 +1075,7 @@ static void cubin_run_panic_called(const char *code_path, unsigned long long cod
         cubin_run_say(call, "; the code holds no slot");
     }
     cubin_run_say(call, "\n");
-    cubin_run_said(call, QRY_PANIC_CALL, 0, QRY_PANIC, 0);
+    cubin_run_account_given(answers, call, panicked);
 }
 
 static int cubin_run_question(const char *kernel, unsigned long long pattern_size, const char *code_path,
@@ -1108,12 +1182,11 @@ static int cubin_run_question(const char *kernel, unsigned long long pattern_siz
                       s_launch_faulted ? " the part faulted" : "");
         // the carrier losing its mind, a launch that faulted the part or hung past its bound, is a panic: the call
         // opened with every party's account and the answer handed with them, nothing waiting on the disk. A refusal
-        // that left the part whole is an answer like any other
+        // that left the part whole is an answer like any other. Either way the accounts are said in the answer, for
+        // the conference the refusal calls
         const int panicked = s_launch_faulted || s_launch_timed_out;
-        if (panicked)
-        {
-            cubin_run_panic_called(code_path, code_size, registers, slot, launches, &shape, name, status, verdict, at);
-        }
+        cubin_run_refusal_said(answers, panicked, code_path, code_size, registers, slot, launches, &shape, name, status,
+                               verdict, at);
         return cubin_run_said(answers, answers_path, 0, panicked ? QRY_PANIC : QRY_ORDINARY, 1);
     }
     cubin_run_say(answers, "answered");

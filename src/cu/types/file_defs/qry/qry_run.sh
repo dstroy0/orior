@@ -3,16 +3,21 @@
 # run by QRY. A run's .qry holds everything the run did and every file it ran against, as it read each one and as it
 # left each one it changed, so that one .qry says what one iteration saw and did.
 #
-# As a run the script started ends, every other run of its folder still a .qry, and no writer's, is kept as the
-# engine's crystal (qry_crystal.c), the folder query<n>-<datetime> beside where its .qry stood, and the .qry let go once
-# the crystal held byte for byte; the newest run stays a .qry for the next to read. Only the newest QRY_KEPT runs of a
-# folder are kept, 64 where it is not set. A run kept as a crystal is read back out of it where a run before it is
-# read and no .qry holds what is sought.
+# As a run the script started ends, only the newest QRY_KEPT runs of its folder are kept, 64 where it is not set.
+# While the host is idle, qry_kept.sh keeps every other run of a folder still a .qry, and no writer's, as the engine's
+# crystal (qry_crystal.c), the folder query<n>-<datetime> beside where its .qry stood, and the .qry let go once the
+# crystal held byte for byte; the newest run stays a .qry for the next to read. A run kept as a crystal is read back
+# out of it where a run before it is read and no .qry holds what is sought. Nothing a script starts by waits on the
+# engine: only qry_kept.sh builds the crystal's program.
 #
 #     source src/cu/types/file_defs/qry/qry_run.sh
 #     qry_writer_built <folder>    the writer built into <folder> where its sources are newer, QRY_WRITER its path, and
-#                                  the crystal's program beside the engine in build/qry_crystal where nvcc is found,
-#                                  QRY_CRYSTAL its path, empty where it is not built
+#                                  QRY_CRYSTAL the crystal's program where it is built, empty where it is not
+#     qry_crystal_built            the crystal's program built beside the engine in build/qry_crystal/engine where
+#                                  nvcc is found, what changed of the engine compiled first, QRY_CRYSTAL its path, empty
+#                                  where none could be had
+#     run_crystals <folder>        each run of <folder> but the newest and any whose writer runs kept as its crystal
+#     run_kept <folder>            only the newest QRY_KEPT runs of <folder> kept
 #     run_started <folder>         where QRY names a .qry whose writer runs, the script joins that run and QRY_JOINED
 #                                  is 1; where it names none, query<n>-<datetime>.qry is made in <folder>, <n> one past
 #                                  the highest it holds, its writer started and stopped as the script ends however it
@@ -46,45 +51,56 @@ qry_writer_built() {
     [ -f "$binary.exe" ] && binary="$binary.exe"
     if ! { [ -f "$binary" ] && [ "$binary" -nt "$QRY_SOURCE/qry_writer.c" ] &&
         [ "$binary" -nt "$QRY_SOURCE/qry_buffer.c" ] && [ "$binary" -nt "$QRY_SOURCE/qry_buffer.h" ] &&
-        [ "$binary" -nt "$QRY_SOURCE/qry.h" ]; }; then
+        [ "$binary" -nt "$QRY_SOURCE/qry.h" ] && { [ ! -f "$QRY_SOURCE/qry_host.h" ] ||
+        [ "$binary" -nt "$QRY_SOURCE/qry_host.h" ]; }; }; then
         mkdir -p "$1"
         cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "$QRY_SOURCE/qry_writer.c" "$QRY_SOURCE/qry_buffer.c" ||
             { echo "  build failed: qry_writer did not compile"; exit 1; }
     fi
-    qry_crystal_built
+    QRY_CRYSTAL=""
+    local crystal="$QRY_TOP/build/qry_crystal/engine/qry_crystal"
+    [ -f "$crystal.exe" ] && crystal="$crystal.exe"
+    [ -f "$crystal" ] && QRY_CRYSTAL="$crystal"
 }
 
-# the crystal's program, built against the engine (src/build_engine.sh) in build/qry_crystal/engine, the engine built
-# there once where it is not, and the program again where its source is newer. QRY_CRYSTAL is left empty where nvcc or
-# a host compiler it takes is not found, and the runs are then kept as their .qry
+# the crystal's program, built against the engine (src/build_engine.sh) in build/qry_crystal/engine, the engine's
+# changed sources compiled there first, and the program again where its source or the engine's header is newer than
+# it, or on Windows an object of the engine it links in. On Windows the program takes the engine's objects into itself:
+# the library there gives a program only the calls the engine marks for export. Where the engine does not build, the
+# program built before it is still taken; where there is none, or nvcc or a host compiler it takes is not found,
+# QRY_CRYSTAL is left empty and the runs are kept as their .qry
 qry_crystal_built() {
     QRY_CRYSTAL=""
     command -v nvcc > /dev/null || return 0
-    local engine="$QRY_TOP/build/qry_crystal/engine" library host=() link=() binary
+    local engine="$QRY_TOP/build/qry_crystal/engine" host=() link=() binary object stale=0
     case "$(uname -s)" in
         MINGW* | MSYS* | CYGWIN*)
-            library="$engine/cell_tracking_engine.lib"
             binary="$engine/qry_crystal.exe"
             local msvc
             msvc="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 \
                 "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2> /dev/null | tail -1)"
             [ -n "$msvc" ] || return 0
             host=(-ccbin "$msvc" -Xcompiler "/std:c11 /O2 /Zc:preprocessor /D_CRT_SECURE_NO_WARNINGS")
-            link=("$library")
             ;;
         *)
-            library="$engine/libcell_tracking_engine.so"
             binary="$engine/qry_crystal"
             link=(-L "$engine" -lcell_tracking_engine -Xlinker -rpath -Xlinker "$engine")
             ;;
     esac
-    if [ ! -f "$library" ]; then
-        echo "  the crystal's engine is built once, into $engine"
-        mkdir -p "$engine"
-        BUILD_OUT="$engine" bash "$QRY_TOP/src/build_engine.sh" > "$engine/build.log" 2>&1 ||
-            { echo "  the crystal's engine did not build ($engine/build.log); runs are kept as their .qry"; return 0; }
+    mkdir -p "$engine"
+    if ! BUILD_OUT="$engine" bash "$QRY_TOP/src/build_engine.sh" > "$engine/build.log" 2>&1; then
+        echo "  the crystal's engine did not build ($engine/build.log)"
+        [ -f "$binary" ] && QRY_CRYSTAL="$binary"
+        return 0
     fi
-    if [ ! -f "$binary" ] || [ "$QRY_SOURCE/qry_crystal.c" -nt "$binary" ]; then
+    if [ "${#host[@]}" -ne 0 ]; then
+        mapfile -t link < "$engine/cell_tracking_engine.objects"
+        for object in "${link[@]}"; do
+            [ "$object" -nt "$binary" ] && { stale=1; break; }
+        done
+    fi
+    if [ "$stale" -eq 1 ] || [ ! -f "$binary" ] || [ "$QRY_SOURCE/qry_crystal.c" -nt "$binary" ] ||
+        [ "$QRY_TOP/src/cu/engine/engine.h" -nt "$binary" ]; then
         nvcc "${host[@]}" -I "$QRY_TOP/src/cu/engine" -o "$binary" "$QRY_SOURCE/qry_crystal.c" "${link[@]}" \
             > "$engine/qry_crystal_build.log" 2>&1 ||
             { echo "  qry_crystal did not build ($engine/qry_crystal_build.log); runs are kept as their .qry"; return 0; }
@@ -151,7 +167,7 @@ run_started() {
 }
 
 # the script's end: every file run_left named handed as the run leaves it, the writer stopped where the script started
-# it, and the runs of its folder kept
+# it, and only the newest runs of its folder kept
 run_ended() {
     local left
     for left in "${QRY_LEFT[@]}"; do
@@ -170,29 +186,38 @@ run_stopped() {
     QRY_WRITER_PROCESS=""
 }
 
-# the runs of the folder `$1` kept: each .qry but the newest and any whose writer runs kept as its crystal, the .qry
-# let go only once the crystal held, then only the newest QRY_KEPT runs kept at all
+# each .qry of the folder `$1` but the newest and any whose writer runs kept as its crystal, the .qry let go only once
+# the crystal held and is smaller than it, and each said with the milliseconds it took
+run_crystals() {
+    local number held named newest="" began said
+    [ -n "${QRY_CRYSTAL:-}" ] || return 0
+    while read -r number held; do
+        case "$held" in
+            *.qry) ;;
+            *) continue ;;
+        esac
+        [ -n "$newest" ] || { newest="$held"; continue; }
+        named="$held"
+        command -v cygpath > /dev/null && named="$(cygpath -m "$held")"
+        "$QRY_WRITER" runs "$named" && continue
+        began="$(date +%s%N)"
+        if ! said="$("$QRY_CRYSTAL" write "$named" "${held%.qry}")"; then
+            echo "  $(basename "$held") is kept as its .qry: its crystal did not hold"
+            rm -rf "${held%.qry}"
+        elif [ "$(du -sb "${held%.qry}" | cut -f1)" -ge "$(stat -c %s "$held")" ]; then
+            echo "  $(basename "$held") is kept as its .qry: its crystal is no smaller"
+            rm -rf "${held%.qry}"
+        else
+            rm -f "$held"
+            echo "$said, in $((($(date +%s%N) - began) / 1000000)) ms"
+        fi
+    done < <(run_each "$1")
+}
+
+# the runs of the folder `$1` read back out of their crystals let go, and only the newest QRY_KEPT runs kept at all
 run_kept() {
-    local number held named newest=""
+    local number held
     rm -rf "$1/restored"
-    if [ -n "${QRY_CRYSTAL:-}" ]; then
-        while read -r number held; do
-            case "$held" in
-                *.qry) ;;
-                *) continue ;;
-            esac
-            [ -n "$newest" ] || { newest="$held"; continue; }
-            named="$held"
-            command -v cygpath > /dev/null && named="$(cygpath -m "$held")"
-            "$QRY_WRITER" runs "$named" && continue
-            if "$QRY_CRYSTAL" write "$named" "${held%.qry}"; then
-                rm -f "$held"
-            else
-                echo "  $(basename "$held") is kept as its .qry: its crystal did not hold"
-                rm -rf "${held%.qry}"
-            fi
-        done < <(run_each "$1")
-    fi
     run_each "$1" | tail -n "+$((QRY_KEPT + 1))" | while read -r number held; do
         rm -rf "$held"
     done

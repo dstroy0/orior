@@ -8,13 +8,13 @@
 //! names qry_buffer.c gives it, from the hash of the string every process of the run names the .qry by.
 //! A script that starts a run names it by its full path, with `/` between its folders where Git's bash
 //! runs it, and the window tries that path so written, then as the system writes it. Its blobs are
-//! read from their tags in the order handed, up to the tail, which the writer moves only once a blob is
-//! whole, and each read goes on from where the last stopped.
+//! read from their frames in the order handed, up to the tail, which the writer moves only once a blob
+//! is whole, and each read goes on from where the last stopped.
 //!
 //! A finished run's .qry opens with its table: its rows are held to the head's CRC-64/XZ and each blob
-//! read whole to its row's. A .qry whose writer ended before its run did has no table: its tags are
-//! walked, a stretch no tag opens stepped over and said, and its blobs put in the order of their
-//! sequences.
+//! read whole to its row's. A .qry whose writer ended before its run did has no table: its frames are
+//! walked, a stretch no whole frame opens stepped over and said, and its blobs put in the order of
+//! their sequences.
 //!
 //! What a blob says is read for a panic or a critical blob, a conference, and a blob of at most
 //! TEXT_SMALL bytes, and at most TEXT_MOST bytes of it; of any other blob, its name and its count.
@@ -30,7 +30,13 @@ use serde::Serialize;
 const TABLE_MAGIC: &[u8; 8] = b"qry toc\n";
 const BUFFER_MAGIC: &[u8; 8] = b"qrybuf1\0";
 const NAME_LONGEST: usize = 255;
-const BEGIN_LONGEST: usize = NAME_LONGEST + 112;
+const FRAME_MAGIC: &[u8; 8] = b"qryblob\n";
+/// The bytes of a frame's head (qry.h's QryFrameHead), the boundary frames and a frame's bytes start
+/// on as qry_buffer.h sets it where a build sets none, and the most a frame takes besides its blob's
+/// bytes, QRY_FRAME_MOST.
+const FRAME_HEAD: usize = 56;
+const FRAME_ALIGN: usize = 64;
+const FRAME_MOST: u64 = (FRAME_HEAD + NAME_LONGEST + 2 * FRAME_ALIGN + 8) as u64;
 const TEXT_SMALL: u64 = 4096;
 const TEXT_MOST: u64 = 65536;
 
@@ -147,48 +153,93 @@ fn texted(name: &str, priority: u32, size: u64) -> bool {
     priority < 2 || name.starts_with(CONFERENCE) || size <= TEXT_SMALL
 }
 
-/// A begin tag read: the name, the count, the sequence, the time and the priority, and the tag's length.
-fn begin_tag(line: &[u8]) -> Option<(String, u64, u64, u64, u32, usize)> {
-    let end = line.iter().position(|&byte| byte == b'\n')?;
-    let words: Vec<&[u8]> = line[..end].split(|&byte| byte == b' ').collect();
-    if words.len() != 7 || words[0] != b"qry" || words[6] != b"begin" || words[1].is_empty() || words[1].len() > NAME_LONGEST {
+/// `count` rounded up to the frames' boundary.
+fn aligned(count: usize) -> usize {
+    (count + FRAME_ALIGN - 1) & !(FRAME_ALIGN - 1)
+}
+
+/// A frame read at `at` in `data`, as qry_blob_read reads one: its blob's name, sequence, time and
+/// priority, where its bytes start and how many, and where the next frame starts; none where the frame
+/// is none qry.h gives, or its last word is not its sequence.
+struct Frame {
+    name: String,
+    sequence: u64,
+    nanoseconds: u64,
+    priority: u32,
+    bytes_at: usize,
+    size: usize,
+    next: usize,
+}
+
+fn frame_at(data: &[u8], at: usize) -> Option<Frame> {
+    if at > data.len() || data.len() - at < FRAME_HEAD {
         return None;
     }
-    let count = |word: &[u8]| -> Option<u64> { (!word.is_empty() && word.iter().all(u8::is_ascii_digit)).then(|| std::str::from_utf8(word).ok()?.parse().ok())? };
-    let name = std::str::from_utf8(words[1]).ok()?.to_string();
-    Some((name, count(words[2])?, count(words[3])?, count(words[4])?, u32::try_from(count(words[5])?).ok()?, end + 1))
+    let head = &data[at..at + FRAME_HEAD];
+    let long = |place: usize| u64::from_le_bytes(head[place..place + 8].try_into().expect("eight bytes"));
+    let short = |place: usize| u32::from_le_bytes(head[place..place + 4].try_into().expect("four bytes"));
+    let (framed, sequence, nanoseconds, size) = (long(8), long(16), long(24), long(32));
+    let (name_length, bytes_at, priority) = (short(40) as u64, short(44) as u64, short(48));
+    let opened = FRAME_HEAD as u64 + name_length;
+    if &head[..8] != FRAME_MAGIC || framed > (data.len() - at) as u64 || framed % 8 != 0 || framed < opened + 8 || name_length == 0 || name_length > NAME_LONGEST as u64 || bytes_at < opened || bytes_at > framed - 8 || size > framed - 8 - bytes_at {
+        return None;
+    }
+    let end = at + framed as usize;
+    if u64::from_le_bytes(data[end - 8..end].try_into().expect("eight bytes")) != sequence {
+        return None;
+    }
+    let name = String::from_utf8_lossy(&data[at + FRAME_HEAD..at + FRAME_HEAD + name_length as usize]).into_owned();
+    Some(Frame { name, sequence, nanoseconds, priority, bytes_at: at + bytes_at as usize, size: size as usize, next: end })
 }
 
-fn end_tag(name: &str) -> Vec<u8> {
-    format!("qry {name} end\n").into_bytes()
+/// Where the first whole frame past `at` starts, looked for on each boundary of eight bytes after it, as
+/// qry_next_whole looks; the end of `data` where none does.
+fn next_whole(data: &[u8], at: usize) -> usize {
+    let mut from = (at + 8) & !7;
+    while from < data.len() && data.len() - from >= FRAME_HEAD {
+        if &data[from..from + 8] == FRAME_MAGIC && frame_at(data, from).is_some() {
+            return from;
+        }
+        from += 8;
+    }
+    data.len()
 }
 
-/// The blobs framed in `data` from `at` on, as far as their tags read whole: each blob, with its text
-/// where it is read, and where the next blob starts. Where `step` is set, a stretch no tag opens is
-/// stepped over to the next blob that reads whole, and its bytes counted.
+/// The frame of the blob `name` of `bytes`, handed as the `sequence`-th at `nanoseconds` at `priority`,
+/// as qry_appended frames one: its head and its name, its bytes from the next boundary, and its
+/// sequence as its last word, the whole a count of boundaries. The frame, and where its bytes start.
+pub fn frame(name: &str, bytes: &[u8], sequence: u64, nanoseconds: u64, priority: u32) -> (Vec<u8>, usize) {
+    let bytes_at = aligned(FRAME_HEAD + name.len());
+    let framed = aligned(bytes_at + bytes.len() + 8);
+    let mut out = vec![0u8; framed];
+    out[..8].copy_from_slice(FRAME_MAGIC);
+    for (place, value) in [(8, framed as u64), (16, sequence), (24, nanoseconds), (32, bytes.len() as u64)] {
+        out[place..place + 8].copy_from_slice(&value.to_le_bytes());
+    }
+    for (place, value) in [(40, name.len() as u32), (44, bytes_at as u32), (48, priority)] {
+        out[place..place + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    out[FRAME_HEAD..FRAME_HEAD + name.len()].copy_from_slice(name.as_bytes());
+    out[bytes_at..bytes_at + bytes.len()].copy_from_slice(bytes);
+    out[framed - 8..].copy_from_slice(&sequence.to_le_bytes());
+    (out, bytes_at)
+}
+
+/// The blobs framed in `data` from `at` on, as far as their frames read whole: each blob, with its text
+/// where it is read, and where the next frame starts. Where `step` is set, a stretch no whole frame
+/// opens is stepped over to the next that does, and its bytes counted.
 fn walked(data: &[u8], mut at: usize, step: bool) -> (Vec<Blob>, usize, u64) {
     let mut blobs = Vec::new();
     let mut stepped = 0;
     while at < data.len() {
-        let reach = (data.len() - at).min(BEGIN_LONGEST);
-        let framed = begin_tag(&data[at..at + reach]).and_then(|(name, size, sequence, nanoseconds, priority, length)| {
-            let bytes_at = at + length;
-            let end_at = bytes_at.checked_add(usize::try_from(size).ok()?)?;
-            let closing = end_tag(&name);
-            (data.len() >= end_at + closing.len() && data[end_at..end_at + closing.len()] == closing[..]).then(|| {
-                let text = texted(&name, priority, size).then(|| String::from_utf8_lossy(&data[bytes_at..end_at.min(bytes_at + TEXT_MOST as usize)]).into_owned());
-                (Blob { name, sequence, nanoseconds, priority, size, text, whole: None }, end_at + closing.len())
-            })
-        });
-        match framed {
-            Some((blob, next)) => {
-                blobs.push(blob);
-                at = next;
+        match frame_at(data, at) {
+            Some(found) => {
+                let text = texted(&found.name, found.priority, found.size as u64).then(|| String::from_utf8_lossy(&data[found.bytes_at..found.bytes_at + found.size.min(TEXT_MOST as usize)]).into_owned());
+                blobs.push(Blob { name: found.name, sequence: found.sequence, nanoseconds: found.nanoseconds, priority: found.priority, size: found.size as u64, text, whole: None });
+                at = found.next;
             }
             None if step => {
-                // On to the next line that opens with a tag, every byte before it stepped over.
-                let found = data[at + 1..].windows(5).position(|five| five == b"\nqry ").map(|found| at + 1 + found + 1);
-                let to = found.unwrap_or(data.len());
+                let to = next_whole(data, at);
                 stepped += (to - at) as u64;
                 at = to;
             }
@@ -359,24 +410,17 @@ pub fn read(path: &Path, from: u64) -> Result<Read, String> {
     read_file(path)
 }
 
-/// Each blob framed in `data` from its start, its name, its sequence and its bytes, a stretch no tag
-/// opens stepped over to the next line that opens with one, as `walked` steps over it.
+/// Each blob framed in `data` from its start, its name, its sequence and its bytes, a stretch no whole
+/// frame opens stepped over to the next that does, as `walked` steps over it.
 fn each_framed<'a>(data: &'a [u8], mut each: impl FnMut(&str, u64, &'a [u8])) {
     let mut at = 0;
     while at < data.len() {
-        let reach = (data.len() - at).min(BEGIN_LONGEST);
-        let framed = begin_tag(&data[at..at + reach]).and_then(|(name, size, sequence, _, _, length)| {
-            let bytes_at = at + length;
-            let end_at = usize::try_from(size).ok().and_then(|size| bytes_at.checked_add(size))?;
-            let closing = end_tag(&name);
-            (data.len() >= end_at + closing.len() && data[end_at..end_at + closing.len()] == closing[..]).then(|| (name, sequence, bytes_at, end_at, end_at + closing.len()))
-        });
-        match framed {
-            Some((name, sequence, bytes_at, end_at, next)) => {
-                each(&name, sequence, &data[bytes_at..end_at]);
-                at = next;
+        match frame_at(data, at) {
+            Some(found) => {
+                each(&found.name, found.sequence, &data[found.bytes_at..found.bytes_at + found.size]);
+                at = found.next;
             }
-            None => at = data[at + 1..].windows(5).position(|five| five == b"\nqry ").map_or(data.len(), |found| at + 1 + found + 1),
+            None => at = next_whole(data, at),
         }
     }
 }
@@ -549,15 +593,14 @@ impl Joined {
         true
     }
 
-    /// The blob whose begin tag stands at `at` in the blobs, before `tail`, read by its tag.
+    /// Whether the frame at `at` in the blobs, before `tail`, is of a blob named `name`.
     fn blob_named(&self, at: u64, tail: u64, name: &str) -> bool {
         if at >= tail {
             return false;
         }
-        let reach = (tail - at).min(BEGIN_LONGEST as u64) as usize;
-        // SAFETY: every byte before the tail is a blob handed whole.
-        let line = unsafe { std::slice::from_raw_parts(self.view.add((self.data_at + at) as usize), reach) };
-        begin_tag(line).is_some_and(|(found, ..)| found == name)
+        // SAFETY: every byte before the tail is a frame handed whole.
+        let frames = unsafe { std::slice::from_raw_parts(self.view.add((self.data_at + at) as usize), (tail - at) as usize) };
+        frame_at(frames, 0).is_some_and(|found| found.name == name)
     }
 
     /// The blob of `name` at `at` made the latest the index holds of it, under the lock.
@@ -585,20 +628,16 @@ impl Joined {
         let sequence = self.get(head::SEQUENCE) + 1;
         self.set(head::SEQUENCE, sequence);
         let handed_at = nanoseconds();
-        let begin = format!("qry {name} {} {sequence} {handed_at} {priority} begin\n", bytes.len());
-        let end = end_tag(name);
+        let (framed_bytes, bytes_at) = frame(name, bytes, sequence, handed_at, priority);
         let tail = self.get(head::TAIL);
-        let framed = (begin.len() + bytes.len() + end.len()) as u64;
+        let framed = framed_bytes.len() as u64;
         if framed > room || tail > room - framed || !self.committed(tail + framed) {
             return (sequence, false);
         }
         // SAFETY: the frame lies past the tail and inside the memory just given; no reader reads past the
         // tail, and no hand writes while this one holds the lock.
         unsafe {
-            let at = self.view.add((self.data_at + tail) as usize);
-            std::ptr::copy_nonoverlapping(begin.as_ptr(), at, begin.len());
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), at.add(begin.len()), bytes.len());
-            std::ptr::copy_nonoverlapping(end.as_ptr(), at.add(begin.len() + bytes.len()), end.len());
+            std::ptr::copy_nonoverlapping(framed_bytes.as_ptr(), self.view.add((self.data_at + tail) as usize), framed_bytes.len());
         }
         if priority < ORDINARY {
             let spans = self.get(head::SPANS);
@@ -617,7 +656,7 @@ impl Joined {
         let rowed = self.get(head::TABLE_FULL) == 0 && self.rows_committed(rows + 1);
         if rowed {
             let row = self.rows_at + rows * 64;
-            for (place, value) in [hash(name.as_bytes()), sequence, handed_at, 0, tail + 4, tail + begin.len() as u64, bytes.len() as u64].into_iter().enumerate() {
+            for (place, value) in [hash(name.as_bytes()), sequence, handed_at, 0, tail + FRAME_HEAD as u64, tail + bytes_at as u64, bytes.len() as u64].into_iter().enumerate() {
                 self.set(row + place as u64 * 8, value);
             }
             self.set(row + 56, name.len() as u64 | ((priority as u64) << 32));
@@ -652,7 +691,7 @@ impl Joined {
         let capacity = self.get(head::CAPACITY);
         let room = if priority < ORDINARY { capacity } else { capacity - CRITICAL_ROOM };
         // A dump said once, before the first blob that goes in after it.
-        let framed_most = bytes.len() as u64 + 2 * name.len() as u64 + 128;
+        let framed_most = bytes.len() as u64 + FRAME_MOST;
         if self.get(head::TAIL) <= room.saturating_sub(framed_most) {
             self.dumped_said();
         }
@@ -1271,10 +1310,7 @@ mod tests {
     use super::*;
 
     fn framed(name: &str, bytes: &[u8], sequence: u64, priority: u32) -> Vec<u8> {
-        let mut out = format!("qry {name} {} {sequence} {} {priority} begin\n", bytes.len(), 1_000 + sequence).into_bytes();
-        out.extend_from_slice(bytes);
-        out.extend(end_tag(name));
-        out
+        frame(name, bytes, sequence, 1_000 + sequence, priority).0
     }
 
     fn written(name: &str, bytes: &[u8]) -> PathBuf {
@@ -1296,13 +1332,14 @@ mod tests {
     fn a_run_its_writer_left_is_read_by_its_tags_in_sequence_a_stretch_no_tag_opens_stepped_over() {
         let mut data = framed("log", b"first\n", 2, 2);
         data.extend(framed("panic", b"the part faulted", 3, 0));
-        data.extend(b"half a blob the run never fin\n");
+        // A frame the run never finished: its first boundary alone.
+        data.extend(&framed("cut", &[1u8; 300], 9, 2)[..64]);
         data.extend(framed("conference_why_it_failed", b"carrier: it hung\noverseer: a stall\n", 1, 2));
         let read = read_file(&written("left", &data)).unwrap();
         assert!(!read.table && !read.live);
         assert_eq!(read.blobs.iter().map(|blob| blob.sequence).collect::<Vec<_>>(), vec![1, 2, 3], "in the order handed");
         assert_eq!(read.panicked, 3);
-        assert_eq!(read.stepped, 30);
+        assert_eq!(read.stepped, 64);
         assert_eq!(read.blobs[0].text.as_deref(), Some("carrier: it hung\noverseer: a stall\n"));
         let mut more = data.clone();
         more.extend(framed("log", b"second\n", 4, 2));
@@ -1317,11 +1354,11 @@ mod tests {
         let mut body = Vec::new();
         let blobs_at = 64 + 64 * blobs.len() as u64;
         for (index, (name, bytes, priority)) in blobs.iter().enumerate() {
-            let tag_at = blobs_at + body.len() as u64;
-            let frame = framed(name, bytes, index as u64 + 1, *priority);
-            let bytes_at = tag_at + frame.len() as u64 - bytes.len() as u64 - end_tag(name).len() as u64;
+            let frame_start = blobs_at + body.len() as u64;
+            let (frame, inside) = super::frame(name, bytes, index as u64 + 1, 1_000 + index as u64 + 1, *priority);
+            let bytes_at = frame_start + inside as u64;
             let mut row = Vec::new();
-            for value in [hash(name.as_bytes()), index as u64 + 1, 2_000, crc(bytes), tag_at + 4, bytes_at, bytes.len() as u64] {
+            for value in [hash(name.as_bytes()), index as u64 + 1, 2_000, crc(bytes), frame_start + FRAME_HEAD as u64, bytes_at, bytes.len() as u64] {
                 row.extend(value.to_le_bytes());
             }
             row.extend((name.len() as u32).to_le_bytes());

@@ -39,7 +39,7 @@ static void term_form_check(int ok)
 {
     if (!ok)
     {
-        s_sim_rational_wide = 1;
+        g_sim_rational_wide = 1;
     }
 }
 
@@ -511,7 +511,7 @@ static void term_form_write_integer(FILE *file, const AnchorExactInteger &value,
     sim_exact_decimal(&line, &value);
     if (line.at >= line.capacity)
     {
-        s_sim_rational_wide = 1;
+        g_sim_rational_wide = 1;
     }
     fwrite(line.out, 1u, (size_t)line.at, file);
 }
@@ -623,5 +623,5 @@ unsigned long long term_form_bits(const TermForm &form)
 
 int term_form_short(void)
 {
-    return s_sim_rational_wide != 0;
+    return g_sim_rational_wide != 0;
 }

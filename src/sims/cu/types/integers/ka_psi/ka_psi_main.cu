@@ -175,6 +175,6 @@ int main(void)
         psi_separate_all_scales(&results, psi_case);
         psi_cover(&results, psi_case);
     }
-    sim_check(&results, s_sim_rational_wide == 0, "every value fit the exact integer and every sign was decided");
+    sim_check(&results, g_sim_rational_wide == 0, "every value fit the exact integer and every sign was decided");
     return sim_close(&results, "ka psi");
 }
