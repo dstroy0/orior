@@ -345,7 +345,7 @@ impl Runs {
         }
         let run = self.last.fetch_add(1, Ordering::SeqCst) + 1;
         self.stopped.store(false, Ordering::SeqCst);
-        let cores = std::thread::available_parallelism().map_or(1, usize::from);
+        let cores = crate::cores::for_work();
         let shares = if parallel { shares(&given, cores) } else { vec![given.clone()] };
         let runner = if pytest { "pytest" } else { "unittest" };
         tell(Heard::Started { run, given: given.len(), workers: shares.len(), runner: runner.to_string() });

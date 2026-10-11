@@ -490,6 +490,18 @@ const HITS_LIMIT: usize = 2000;
 /// The most characters of a found line kept.
 const HIT_TEXT: usize = 240;
 
+/// The most heads a search's reader reads with.
+const HEADS: usize = 8;
+
+/// The files read between two looks at whether another head reads faster.
+const HEAD_SPAN: usize = 64;
+
+/// How much faster the reads must come since the head spawned last for the reader to spawn another.
+const HEAD_GAIN: f64 = 1.1;
+
+/// The files a search's reader reads ahead of each worker.
+const READ_AHEAD: usize = 2;
+
 /// The files larger than this a search of a tree git cannot read passes over.
 const SEARCHED_BYTES: u64 = 4 * 1024 * 1024;
 
@@ -498,9 +510,10 @@ fn hit(path: String, line: u64, col: u64, text: &str) -> Hit {
 }
 
 /// Every line in the tree's files that holds the query, at most HITS_LIMIT of them, less the files
-/// the search's patterns hide, and only in the files `set` names where it names any. Git searches
-/// what it tracks or would track; a tree git cannot read is searched a file at a time, the query
-/// read as the text itself.
+/// the search's patterns hide, and only in the files `set` names where it names any. The files are
+/// what git tracks or would track, or the whole tree where git cannot read it. Text is found by the
+/// sift: one reader reads the files, with as many heads as read faster, and a worker on each other
+/// core orior's work may take searches the next file read; a regular expression is git's to search.
 pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Result<Vec<Hit>, String> {
     if query.is_empty() {
         return Ok(Vec::new());
@@ -515,6 +528,177 @@ pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Resul
         specs.push(".".into());
     }
     specs.extend(patterns.hidden_specs().into_iter().chain(set.hidden_specs()));
+    if how.regex {
+        if let Some(found) = search_by_git(root, query, how, &specs, &searched) {
+            return found;
+        }
+    }
+    let mut listing = Command::new("git");
+    listing.args(["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--"]).args(&specs).current_dir(root).stdin(Stdio::null()).stderr(Stdio::null());
+    crate::runner::quiet(&mut listing);
+    let listed = listing.output().ok().filter(|out| out.status.success()).map(|out| String::from_utf8_lossy(&out.stdout).split('\0').filter(|path| !path.is_empty()).map(str::to_string).collect::<BTreeSet<String>>());
+    // A tree inside a folder its repository ignores is one git lists nothing of, and is searched as a
+    // tree git cannot read.
+    let listed = listed.filter(|listed| !listed.is_empty() || !ignored_by_git(root));
+    let (paths, most): (Vec<String>, u64) = match listed {
+        Some(listed) => (listed.into_iter().filter(|path| searched(path)).collect(), u64::MAX),
+        None => (all(root).into_iter().filter(|path| searched(path)).collect(), SEARCHED_BYTES),
+    };
+    // One reader takes the files from the disk and hands each, mapped or read, to the workers through a
+    // queue that holds READ_AHEAD files of each worker's at most; a mapped file's pages are brought in
+    // by the worker that searches it. The reader reads with one head, and spawns another each span of
+    // HEAD_SPAN files while the head it spawned last raised the files read a millisecond, at most
+    // HEADS of them: the disk is asked for no more at once than reading faster takes. The heads and
+    // the workers share the cores the reader's work may take (cores.rs), a quarter of them the heads'
+    // at most.
+    let budget = crate::cores::for_work();
+    let heads_most = HEADS.min((budget / 4).max(1));
+    let workers = budget.saturating_sub(heads_most).clamp(1, paths.len().max(1));
+    let (give, take) = std::sync::mpsc::sync_channel::<(usize, crate::mapped::Mapped)>(workers * READ_AHEAD);
+    let take = Mutex::new(take);
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let read = std::sync::atomic::AtomicUsize::new(0);
+    let mut found: Vec<(usize, Vec<Hit>)> = std::thread::scope(|scope| {
+        let paths = &paths;
+        let (next, read) = (&next, &read);
+        let head = move |give: std::sync::mpsc::SyncSender<(usize, crate::mapped::Mapped)>| loop {
+            let index = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let Some(path) = paths.get(index) else { break };
+            let opened = crate::mapped::Mapped::open(&root.join(path));
+            read.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let Ok(bytes) = opened else { continue };
+            if bytes.len() as u64 > most {
+                continue;
+            }
+            if give.send((index, bytes)).is_err() {
+                break;
+            }
+        };
+        scope.spawn(move || {
+            scope.spawn({
+                let give = give.clone();
+                move || head(give)
+            });
+            let mut heads = 1;
+            let mut rate = 0.0;
+            let mut since = (Instant::now(), 0);
+            while heads < heads_most {
+                std::thread::sleep(Duration::from_micros(200));
+                let done = read.load(std::sync::atomic::Ordering::Relaxed);
+                if done >= paths.len() {
+                    break;
+                }
+                if done - since.1 < HEAD_SPAN {
+                    continue;
+                }
+                let now = (done - since.1) as f64 / since.0.elapsed().as_secs_f64().max(1e-9);
+                if heads > 1 && now <= rate * HEAD_GAIN {
+                    break;
+                }
+                rate = now;
+                since = (Instant::now(), done);
+                heads += 1;
+                scope.spawn({
+                    let give = give.clone();
+                    move || head(give)
+                });
+            }
+        });
+        let handles: Vec<_> = (0..workers)
+            .map(|_| {
+                scope.spawn(|| {
+                    let mut mine = Vec::new();
+                    loop {
+                        let next = take.lock().map(|take| take.recv());
+                        let Ok(Ok((index, bytes))) = next else { break };
+                        if bytes[..bytes.len().min(8192)].contains(&0) {
+                            continue;
+                        }
+                        let hits = hits_in(&paths[index], &bytes, query, how);
+                        if !hits.is_empty() {
+                            mine.push((index, hits));
+                        }
+                    }
+                    mine
+                })
+            })
+            .collect();
+        handles.into_iter().flat_map(|handle| handle.join().unwrap_or_default()).collect()
+    });
+    found.sort_by_key(|(index, _)| *index);
+    Ok(found.into_iter().flat_map(|(_, hits)| hits).take(HITS_LIMIT).collect())
+}
+
+/// Whether the repository the tree is in ignores the tree's own folder.
+fn ignored_by_git(root: &Path) -> bool {
+    let mut asked = Command::new("git");
+    asked.args(["check-ignore", "-q", "."]).current_dir(root).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    crate::runner::quiet(&mut asked);
+    asked.status().is_ok_and(|status| status.success())
+}
+
+/// Whether a character joins a word, for a search of whole words.
+fn wordy(c: Option<char>) -> bool {
+    c.is_some_and(|c| c.is_alphanumeric() || c == '_')
+}
+
+/// The lines of one file that hold the query, the first place on each line it stands, at most
+/// HITS_LIMIT of them. Text in ASCII without case, and any text with case, is found by the sift over
+/// the file's bytes; text outside ASCII without case is found line by line in its lower case.
+fn hits_in(path: &str, bytes: &[u8], query: &str, how: Searching) -> Vec<Hit> {
+    let mut found = Vec::new();
+    if how.case || query.is_ascii() {
+        let mut line = 1u64;
+        let mut counted = 0;
+        let mut last_line = 0;
+        for at in crate::sift::find_all(bytes, query.as_bytes(), !how.case) {
+            line += bytes[counted..at].iter().filter(|&&byte| byte == b'\n').count() as u64;
+            counted = at;
+            if line == last_line {
+                continue;
+            }
+            let start = bytes[..at].iter().rposition(|&byte| byte == b'\n').map_or(0, |newline| newline + 1);
+            let end = bytes[at..].iter().position(|&byte| byte == b'\n').map_or(bytes.len(), |newline| at + newline);
+            let before = String::from_utf8_lossy(&bytes[start..at]);
+            if how.word {
+                let after = String::from_utf8_lossy(&bytes[at + query.len()..end]);
+                if wordy(before.chars().next_back()) || wordy(after.chars().next()) {
+                    continue;
+                }
+            }
+            last_line = line;
+            let text = String::from_utf8_lossy(&bytes[start..end]);
+            found.push(hit(path.to_string(), line, before.chars().count() as u64 + 1, text.trim_end_matches('\r')));
+            if found.len() >= HITS_LIMIT {
+                break;
+            }
+        }
+        return found;
+    }
+    let wanted = query.to_lowercase();
+    let text = String::from_utf8_lossy(bytes);
+    for (index, line) in text.lines().enumerate() {
+        let seen_as = line.to_lowercase();
+        let mut from = 0;
+        while let Some(at) = seen_as[from..].find(&wanted) {
+            let at = from + at;
+            if !how.word || (!wordy(seen_as[..at].chars().next_back()) && !wordy(seen_as[at + wanted.len()..].chars().next())) {
+                let col = line.get(..at).map_or(0, |before| before.chars().count()) as u64 + 1;
+                found.push(hit(path.to_string(), index as u64 + 1, col, line));
+                break;
+            }
+            from = at + wanted.len().max(1);
+        }
+        if found.len() >= HITS_LIMIT {
+            break;
+        }
+    }
+    found
+}
+
+/// A regular expression searched by git, over the files `specs` name and `searched` keeps, or nothing
+/// where git cannot search the tree, which is then searched for the query as text.
+fn search_by_git(root: &Path, query: &str, how: Searching, specs: &[String], searched: &dyn Fn(&str) -> bool) -> Option<Result<Vec<Hit>, String>> {
     let mut git = Command::new("git");
     git.args(["grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"]).current_dir(root);
     if !how.case {
@@ -523,71 +707,32 @@ pub fn search(root: &Path, query: &str, how: Searching, set: &Patterns) -> Resul
     if how.word {
         git.arg("-w");
     }
-    git.arg(if how.regex { "-E" } else { "-F" });
+    git.arg("-E");
     git.args(["-e", query, "--"]).args(specs);
     git.stdin(Stdio::null()).stderr(Stdio::piped());
     crate::runner::quiet(&mut git);
-    if let Ok(out) = git.output() {
-        // Git says 1 where nothing matched, and more where it could not search.
-        match out.status.code() {
-            Some(0) => {
-                let prefix = Command::new("git").args(["rev-parse", "--show-prefix"]).current_dir(root).output().ok().map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string()).unwrap_or_default();
-                return Ok(String::from_utf8_lossy(&out.stdout)
-                    .lines()
-                    .filter_map(|line| {
-                        let mut parts = line.splitn(4, ':');
-                        let path = parts.next()?;
-                        let number = parts.next()?.parse().ok()?;
-                        let col = parts.next()?.parse().ok()?;
-                        let path = path.strip_prefix(prefix.as_str()).unwrap_or(path).to_string();
-                        searched(&path).then(|| hit(path, number, col, parts.next().unwrap_or_default()))
-                    })
-                    .take(HITS_LIMIT)
-                    .collect());
-            }
-            Some(1) => return Ok(Vec::new()),
-            _ if String::from_utf8_lossy(&out.stderr).contains("regular expression") => {
-                return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
-            }
-            _ => {}
+    let out = git.output().ok()?;
+    // Git says 1 where nothing matched, and more where it could not search.
+    match out.status.code() {
+        Some(0) => {
+            let prefix = Command::new("git").args(["rev-parse", "--show-prefix"]).current_dir(root).output().ok().map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string()).unwrap_or_default();
+            Some(Ok(String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .filter_map(|line| {
+                    let mut parts = line.splitn(4, ':');
+                    let path = parts.next()?;
+                    let number = parts.next()?.parse().ok()?;
+                    let col = parts.next()?.parse().ok()?;
+                    let path = path.strip_prefix(prefix.as_str()).unwrap_or(path).to_string();
+                    searched(&path).then(|| hit(path, number, col, parts.next().unwrap_or_default()))
+                })
+                .take(HITS_LIMIT)
+                .collect()))
         }
+        Some(1) => Some(Ok(Vec::new())),
+        _ if String::from_utf8_lossy(&out.stderr).contains("regular expression") => Some(Err(String::from_utf8_lossy(&out.stderr).trim().to_string())),
+        _ => None,
     }
-    let wanted = if how.case { query.to_string() } else { query.to_lowercase() };
-    let boundary = |text: &str, at: usize, length: usize| {
-        let before = text[..at].chars().next_back();
-        let after = text[at + length..].chars().next();
-        let wordy = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
-        !wordy(before) && !wordy(after)
-    };
-    let mut found = Vec::new();
-    for path in all(root).into_iter().filter(|path| searched(path)) {
-        let full = root.join(&path);
-        if full.metadata().map_or(true, |meta| meta.len() > SEARCHED_BYTES) {
-            continue;
-        }
-        let Ok(bytes) = fs::read(&full) else { continue };
-        if bytes[..bytes.len().min(8192)].contains(&0) {
-            continue;
-        }
-        let text = String::from_utf8_lossy(&bytes);
-        for (index, line) in text.lines().enumerate() {
-            let seen_as = if how.case { line.to_string() } else { line.to_lowercase() };
-            let mut from = 0;
-            while let Some(at) = seen_as[from..].find(&wanted) {
-                let at = from + at;
-                if !how.word || boundary(&seen_as, at, wanted.len()) {
-                    let col = line.get(..at).map_or(0, |before| before.chars().count()) as u64 + 1;
-                    found.push(hit(path.clone(), index as u64 + 1, col, line));
-                    break;
-                }
-                from = at + wanted.len().max(1);
-            }
-            if found.len() >= HITS_LIMIT {
-                return Ok(found);
-            }
-        }
-    }
-    Ok(found)
 }
 
 /// The most paths a search returns.

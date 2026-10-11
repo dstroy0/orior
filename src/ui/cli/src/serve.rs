@@ -821,6 +821,10 @@ impl Server {
                 crate::qry::join_window(run);
                 give(crate::qry::joined().map(|run| run.to_string_lossy().into_owned()))
             }
+            "cores_keep" => {
+                crate::cores::keep(a.get::<usize>("kept")?);
+                give(serde_json::json!({ "kept": crate::cores::kept(), "work": crate::cores::for_work(), "machine": crate::cores::machine() }))
+            }
             "qry_window" => give(serde_json::json!({ "path": crate::qry::joined().map(|run| run.to_string_lossy().into_owned()), "queued": crate::qry::queued() })),
             "qry_joined" => crate::qry::joined_bytes(&at(&path()?)?, &a.get::<String>("name")?).map(|bytes| String::from_utf8_lossy(&bytes).into_owned()).and_then(give),
             "file_commits" => git::commits(&self.root()?, &path()?).and_then(give),

@@ -172,8 +172,8 @@ one's own settings, `menus.json` and `user.css` to a file or to a folder of the 
 repository's commits made and pushed, and takes them in from one on another machine. What a taking
 would change shows first, a file at a time and `settings.json` a setting at a time, and nothing is
 written until the reader takes what is chosen; each taking is kept in `carried/` and undone from
-the list there. `machine`, `signing.`, `environment.`, `memory-budget` and `carry.place` stay
-on the machine that set them.
+the list there. `machine`, `signing.`, `environment.`, `memory-budget`, `cores-kept` and
+`carry.place` stay on the machine that set them.
 
 orior reaches an address off this machine only for what the reader asked of it: a request sent, a
 database connected, a debug adapter joined, a command run over ssh, a repository cloned, pulled or

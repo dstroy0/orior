@@ -42,6 +42,7 @@ import { startLanguage } from "./language.js";
 import { applyThemes } from "./themes.js";
 import { applyFonts } from "./fonts.js";
 import { showOpacity } from "./opacity.js";
+import { giveCores } from "./cores.js";
 import { keysChanged } from "./keys.js";
 import { startSearch } from "./search.js";
 import { keepPane, settlePanes, togglePaneNode } from "./sides.js";
@@ -121,7 +122,8 @@ function drawPulse(held) {
 }
 
 // Shows again each setting a settings file changed whose part of the page took it as the window
-// started: the scheme, the themes, the fonts, the opacity, the zoom, the keys and the editor's own.
+// started: the scheme, the themes, the fonts, the opacity, the zoom, the cores kept, the keys and the
+// editor's own.
 function showSettings(changed) {
   const has = (name) => [...changed].some((key) => (name.endsWith(".") ? key.startsWith(name) : key === name));
   if (has("scheme")) {
@@ -139,6 +141,9 @@ function showSettings(changed) {
   if (has("zoom")) {
     showZoom();
   }
+  if (has("cores-kept")) {
+    giveCores();
+  }
   if (has("keys")) {
     keysChanged();
   }
@@ -154,6 +159,7 @@ function showSettings(changed) {
 async function start() {
   invoke("window_show").catch(() => {});
   const commands = invoke("commands_read");
+  giveCores();
   catchErrors();
   await startMotion();
   startWordmark();

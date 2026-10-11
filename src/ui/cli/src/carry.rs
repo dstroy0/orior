@@ -27,7 +27,7 @@ const CARRIED: [&str; 7] = ["settings.json", "menus.json", "user.css", "themes/"
 /// ends in `.`: the part of settings.json for this machine alone, how programs are signed here, the
 /// environments of the trees here, the memory the window may take here, and the file or folder the
 /// settings are carried through.
-const MACHINE: [&str; 5] = ["machine", "signing.", "environment.", "memory-budget", "carry.place"];
+const MACHINE: [&str; 6] = ["machine", "signing.", "environment.", "memory-budget", "cores-kept", "carry.place"];
 
 /// What a carried file says it is.
 const MARK: &str = "orior settings";
