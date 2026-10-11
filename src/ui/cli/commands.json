@@ -239,6 +239,8 @@
         { "label": "Peek Definition", "command": "peek-definition", "keys": "Alt+F12", "also": "Ctrl+Shift+I", "needs": "editor" },
         { "label": "Peek Usages", "command": "peek-usages", "keys": "Ctrl+Alt+F7", "needs": "editor" },
         { "label": "Peek Callers", "command": "peek-callers", "needs": "editor" },
+        { "label": "Gather Lines", "command": "gather-lines", "keys": "Ctrl+Alt+G", "needs": "editor" },
+        { "label": "Gathered Lines", "command": "gathered-lines", "keys": "Ctrl+Alt+Shift+G" },
         { "label": "Find Usages", "command": "usages", "keys": "Shift+F12", "also": "Alt+F7", "needs": "editor" },
         { "label": "Call Hierarchy", "command": "calls", "keys": "Ctrl+Alt+H", "needs": "editor" },
         "-",

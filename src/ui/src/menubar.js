@@ -56,6 +56,7 @@ import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profil
 import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
+import { gatherLines, toggleBoard } from "./gather.js";
 import { peekHere } from "./peek.js";
 import { previewMode, setPreview } from "./preview.js";
 import { copyCurl, isRequests, privateEnvironment, sendRequest } from "./requests.js";
@@ -451,6 +452,8 @@ const COMMANDS = {
   "peek-definition": inEditor(() => peekHere("definition")),
   "peek-usages": inEditor(() => peekHere("usages")),
   "peek-callers": inEditor(() => peekHere("callers")),
+  "gather-lines": inEditor(() => gatherLines()),
+  "gathered-lines": () => toggleBoard(),
   usages: inEditor(() => editing().usages()),
   calls: inEditor(() => editing().calls()),
   rename: inEditor(() => editing().rename()),

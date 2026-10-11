@@ -8092,6 +8092,112 @@ textarea.report-field {
   background: var(--line);
 }
 
+/* Gathered Lines: a task's pieces side by side over the editor, as many across as there is room
+   for, each its file's lines in an editor of its own under the place it comes from. */
+.gather {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.gather:focus {
+  outline: none;
+}
+
+.gather-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 34px;
+  padding: 0 0.4rem 0 0.8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  font: 12.5px var(--head);
+}
+
+.gather-bar :is(select, input, button) {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--well);
+  color: var(--fg);
+  font: 12px var(--head);
+}
+
+.gather-count {
+  flex: 1;
+  color: var(--fg-3);
+}
+
+.gather-pieces {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 32rem), 1fr));
+  align-content: start;
+  gap: 12px;
+  padding: 12px;
+  overflow: auto;
+}
+
+.gather-piece {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--ed-widget-line);
+  border-radius: var(--radius);
+  background: var(--ed-bg);
+  overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 18rem;
+}
+
+.gather-piece header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+  border-bottom: 1px solid var(--ed-widget-line);
+  background: var(--ed-widget);
+}
+
+.gather-go {
+  flex: 1;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: 12px var(--code);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.gather-piece .gather-button {
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.gather-editor {
+  grid-template-columns: auto minmax(0, 1fr) 0;
+}
+
+.gather-editor .ed-mini {
+  display: none;
+}
+
+.gather-empty,
+.gather-gone {
+  color: var(--fg-3);
+  font: 13px var(--head);
+}
+
 /* A tab opened from a peek is a preview until it is edited or pressed twice: its name in italics. */
 .tab.preview {
   font-style: italic;

@@ -18,6 +18,7 @@ import { closeIcon, refreshStrip, startStrip } from "./strip.js";
 import { startKeyHints } from "./keyhints.js";
 import { startSight } from "./sight.js";
 import { startWaits } from "./waits.js";
+import { startGather } from "./gather.js";
 import { startPeek } from "./peek.js";
 import { startPreview } from "./preview.js";
 import { startPurpose } from "./purpose.js";
@@ -269,6 +270,7 @@ async function begin(root) {
       startRequests();
       startPeek();
       startPurpose();
+      startGather();
     }
     await loadRun();
     drawMenubar();
