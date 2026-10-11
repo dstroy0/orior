@@ -63,6 +63,11 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - Names that come out garbled: each name is read in the encoding the archive's flag gives, UTF-8 or the old DOS page, and the archive's menu, Names' Encoding, reads them in another, Shift_JIS, GBK, Big5, EUC-KR, Cyrillic or Western among them.
    - An archive inside an archive: it opens as a folder too, and a file in it saves back through both.
    - Jars, wheels and tarballs that are archives too: a jar, a wheel, a tar and a gzipped tar open as a zip does.
+3. **A Markdown preview.** A Markdown file shown as it reads, beside its text and scrolled with it, or alone in the editor's place, as the reader chooses once for every Markdown file: View, Markdown Preview (Ctrl+K V) and Markdown Preview Alone.
+   - A preview that jumps back to the top as the text is typed, or scrolls out of step with it: each block of the preview is tied to the line it came from, the two scroll by those lines, the one the reader scrolls leading, and the scroll the other makes to follow leads nothing in turn.
+   - A preview that differs from GitHub's: headings, lists and task lists, quotes and GitHub's five alerts, tables, footnotes numbered as they are cited, math between dollars and in math fences drawn as MathML from orior's own reading of TeX, and Mermaid's flowcharts, sequence diagrams and pies drawn as SVG by orior's own layout, in GitHub's colors; a diagram of another kind shows as its text, its kind named.
+   - Images by a path relative to the file that do not show: an image's path is taken from the file's own folder, and a link to another file of the tree opens it in the editor.
+   - A large file whose preview holds up the editor: the text is read again in time the page has free, a block whose HTML is as it was stays as drawn, one whose lines only moved is told its new lines, and only a block that changed is drawn again; a diagram is laid out again only when its own text changes.
 
 ## How developers work
 

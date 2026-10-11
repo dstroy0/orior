@@ -1,13 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// Markdown as HTML, as GitHub reads it: headings, paragraphs, lists and task lists, quotes, code
-// fenced or indented, tables, rules, links, images, emphasis, strikethrough and links written bare.
-// Each block carries the line of the text it starts on, as data-line, which a preview scrolls by.
+// Markdown as HTML, as GitHub reads it: headings, paragraphs, lists and task lists, quotes and the
+// alerts written as quotes, code fenced or indented, tables, rules, links, images, emphasis,
+// strikethrough, links written bare, footnotes, math between dollars and in math fences, drawn as
+// MathML, and Mermaid's diagrams in mermaid fences, drawn as SVG. Each block carries the line of the
+// text it starts on, as data-line, which a preview scrolls by.
 //
 // HTML in the text keeps the tags and the attributes ALLOWED names, and no other: a script, a
 // handler, a style or a link to javascript: never reaches the page. A link's or an image's address
 // goes through `resolve`, which turns one relative to the file into one the page can reach.
+
+import { mermaidSvg } from "./mermaid.js";
+import { texToMathml } from "./tex.js";
 
 const ALLOWED = {
   a: ["href", "title"], abbr: ["title"], b: [], blockquote: [], br: [], code: [], dd: [], del: [], details: ["open"], div: ["align"], dl: [], dt: [], em: [],
@@ -17,6 +22,13 @@ const ALLOWED = {
 };
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
+
+// The footnotes of the text being read: each by its name, its text and its number once cited.
+const notes = { defined: new Map(), cited: [] };
+
+// The kinds of alert a quote can open with, as GitHub names them.
+const ALERTS = { NOTE: "Note", TIP: "Tip", IMPORTANT: "Important", WARNING: "Warning", CAUTION: "Caution" };
+
 export const escapeHtml = (text) => text.replace(/[&<>"]/g, (letter) => ESCAPES[letter]);
 
 // An address that is safe to follow: none that runs script.
@@ -67,7 +79,17 @@ function inline(text, resolve) {
   // code spans first, whose contents take no other mark
   out = out.replace(/(`+)([\s\S]*?[^`])\1(?!`)/g, (_, ticks, code) => hold(`<code>${escapeHtml(code.replace(/^ (.*) $/, "$1"))}</code>`));
   out = out.replace(/\\([\\`*_{}[\]()#+\-.!|~<>$])/g, (_, letter) => hold(escapeHtml(letter)));
-  out = out.replace(/\$([^\s$](?:[^$]*[^\s$])?)\$/g, (_, math) => hold(`<code class="math">${escapeHtml(math)}</code>`));
+  out = out.replace(/\$([^\s$](?:[^$]*[^\s$])?)\$/g, (_, math) => hold(texToMathml(math, false)));
+  out = out.replace(/\[\^([^\]\s]+)\]/g, (whole, name) => {
+    if (!notes.defined.has(name)) {
+      return whole;
+    }
+    if (!notes.cited.includes(name)) {
+      notes.cited.push(name);
+    }
+    const number = notes.cited.indexOf(name) + 1;
+    return hold(`<sup><a href="#fn-${escapeHtml(name)}" id="fnref-${escapeHtml(name)}" class="footnote-ref">${number}</a></sup>`);
+  });
   out = out.replace(/<(https?:\/\/[^>\s]+|mailto:[^>\s]+)>/g, (_, url) => hold(`<a href="${escapeHtml(safeUrl(url))}">${escapeHtml(url)}</a>`));
   out = out.replace(/<\/?[A-Za-z][^>]*>/g, (tag) => hold(sanitized(tag, resolve)));
   out = out.replace(/!\[([^\]]*)\]\(\s*<?([^)\s>]*)>?(?:\s+"([^"]*)")?\s*\)/g, (_, alt, url, title) =>
@@ -97,8 +119,8 @@ const HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
 const ITEM = /^( {0,3})([-*+]|\d{1,9}[.)])([ \t]+|$)(.*)$/;
 const ALIGN = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 
-// The blocks of `lines`, the first at line `base` of the text, as HTML.
-function blocks(lines, base, resolve) {
+// The blocks of `lines`, the first at line `base` of the text, each as HTML.
+function blockList(lines, base, resolve) {
   const out = [];
   let at = 0;
   const tagged = (tag, line, inner, extra = "") => `<${tag} data-line="${base + line}"${extra}>${inner}</${tag}>`;
@@ -120,7 +142,13 @@ function blocks(lines, base, resolve) {
       }
       at += 1;
       const language = info.trim().split(/\s+/)[0];
-      out.push(tagged("pre", start, `<code${language ? ` class="language-${escapeHtml(language)}"` : ""}>${escapeHtml(body.join("\n"))}</code>`));
+      if (language === "mermaid") {
+        out.push(tagged("div", start, mermaidSvg(body.join("\n")), ' class="mermaid"'));
+      } else if (language === "math") {
+        out.push(tagged("div", start, texToMathml(body.join("\n"), true), ' class="math"'));
+      } else {
+        out.push(tagged("pre", start, `<code${language ? ` class="language-${escapeHtml(language)}"` : ""}>${escapeHtml(body.join("\n"))}</code>`));
+      }
       continue;
     }
     if (/^ {0,3}\$\$/.test(line)) {
@@ -130,7 +158,7 @@ function blocks(lines, base, resolve) {
         body.push(lines[at]);
         at += 1;
       }
-      out.push(tagged("pre", start, `<code class="math">${escapeHtml(body.join("\n").replace(/\$\$\s*$/, "").trim())}</code>`));
+      out.push(tagged("div", start, texToMathml(body.join("\n").replace(/\$\$\s*$/, "").trim(), true), ' class="math"'));
       continue;
     }
     const heading = line.match(HEADING);
@@ -165,7 +193,13 @@ function blocks(lines, base, resolve) {
         body.push(lines[at].replace(/^ {0,3}> ?/, ""));
         at += 1;
       }
-      out.push(tagged("blockquote", start, blocks(body, base + start, resolve)));
+      const alert = body[0]?.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i);
+      if (alert) {
+        const kind = alert[1].toUpperCase();
+        out.push(tagged("div", start, `<p class="markdown-alert-title">${ALERTS[kind]}</p>${blocks(body.slice(1), base + start + 1, resolve)}`, ` class="markdown-alert markdown-alert-${kind.toLowerCase()}"`));
+      } else {
+        out.push(tagged("blockquote", start, blocks(body, base + start, resolve)));
+      }
       continue;
     }
     const item = line.match(ITEM);
@@ -260,10 +294,44 @@ function blocks(lines, base, resolve) {
       out.push(tagged("p", start, inline(body.join("\n").trim(), resolve)));
     }
   }
-  return out.join("\n");
+  return out;
 }
 
-// The Markdown `text` as HTML; `resolve` turns an address in it into one the page can reach.
-export function markdownHtml(text, resolve = (url) => url) {
-  return blocks(text.replace(/\r\n?/g, "\n").split("\n"), 0, resolve);
+// The blocks of `lines` as HTML, one after another.
+const blocks = (lines, base, resolve) => blockList(lines, base, resolve).join("\n");
+
+// The Markdown `text` as its blocks, each HTML; `resolve` turns an address in it into one the page
+// can reach. Each footnote's definition is taken out of the text where it stands, its lines left
+// blank, and the notes cited are listed in a block at the end in the order they were first cited.
+export function markdownBlocks(text, resolve = (url) => url) {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  notes.defined = new Map();
+  notes.cited = [];
+  for (let at = 0; at < lines.length; at += 1) {
+    const note = lines[at].match(/^ {0,3}\[\^([^\]\s]+)\]:[ \t]?(.*)$/);
+    if (!note) {
+      continue;
+    }
+    const body = [note[2]];
+    const line = at;
+    lines[at] = "";
+    while (at + 1 < lines.length && /^( {2,}|\t)\S/.test(lines[at + 1])) {
+      at += 1;
+      body.push(lines[at].trim());
+      lines[at] = "";
+    }
+    notes.defined.set(note[1], { text: body.join("\n"), line });
+  }
+  const html = blockList(lines, 0, resolve);
+  if (notes.cited.length) {
+    const items = notes.cited.map((name) => {
+      const note = notes.defined.get(name);
+      return `<li id="fn-${escapeHtml(name)}" data-line="${note.line}">${inline(note.text, resolve)} <a href="#fnref-${escapeHtml(name)}" class="footnote-back" aria-label="Back to the text">↩</a></li>`;
+    });
+    html.push(`<section class="footnotes" data-line="${notes.defined.get(notes.cited[0]).line}"><ol>${items.join("")}</ol></section>`);
+  }
+  return html;
 }
+
+// The Markdown `text` as HTML, its blocks one after another.
+export const markdownHtml = (text, resolve = (url) => url) => markdownBlocks(text, resolve).join("\n");

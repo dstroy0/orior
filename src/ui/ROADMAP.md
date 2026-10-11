@@ -22,11 +22,8 @@ What the window does not do yet, by area. Each item says what it gives the reade
    - Answers lost once the next is sent: each request keeps its last answers, and one is compared with another.
    - Requests copied from a browser or a terminal: a curl line pasted becomes a request, and Copy as curl gives one back.
    - A client that holds a gigabyte to send text: requests go out from the window's own process.
-2. **A Markdown preview.** A Markdown file shown as it reads beside its text, scrolled with it, or open as the preview alone, as the reader chooses for every Markdown file.
-   - A preview that jumps back to the top as the text is typed, or scrolls out of step with it: each block of the preview is tied to the line it came from, and the two scroll by those lines.
-   - A preview that differs from GitHub's: tables, task lists, footnotes, alerts, math and Mermaid are drawn as GitHub draws them.
-   - Images by a path relative to the file that do not show: an image's path is taken from the file's own folder.
-   - A large file whose preview holds up the editor: only the blocks that changed are drawn again, and never on the editor's time.
+2. **Mermaid's other diagrams.** A Markdown file's `classDiagram`, `stateDiagram`, `erDiagram`, `gantt`, `journey`, `gitGraph` and `mindmap` diagrams drawn as GitHub draws them, as its flowcharts, sequence diagrams and pies are.
+   - A diagram shown as code in the preview and as a drawing on GitHub: each kind GitHub draws is drawn.
 3. **A live preview pane.** A pane beside the editor that renders the file being typed as it is typed, for every language that sets how something looks and runs nothing: Markdown, HTML and the CSS it takes, a CSS file over a page of its own, Mermaid's diagrams, LaTeX, SVG and the like. Each key is drawn in it as the text changes, and the place the cursor stands in the text is shown in the pane.
    - A page reloaded whole on each change, its scroll, its form's fields and its state lost: a stylesheet changed is swapped in place, and a page changed is patched where it changed, at the same scroll.
    - LaTeX that takes seconds to show a change: the last good page stays while the next one is made, and SyncTeX takes the reader from the text to the page and back.

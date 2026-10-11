@@ -111,7 +111,10 @@ const AHEAD = 3;
 // How many rows ahead of the view the idle coloring reaches, for a view `shown` rows high: AHEAD
 // screens, or as far as `speed`, in pixels a millisecond, carries the view over two screens' coloring
 // of `screenMs` each, where that is farther.
-export const coloringReach = (shown, speed, screenMs) => Math.max(shown * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
+// The height of a row, in pixels, as the editor's zoom sets it.
+export const lineHeight = () => LINE;
+
+export const coloringReach =(shown, speed, screenMs) => Math.max(shown * AHEAD, Math.ceil((speed / LINE) * screenMs * 2));
 
 // The milliseconds a frame may spend drawing. A frame over it drops a level whatever the speed, and
 // the level comes back a step at a time only after frames run well inside it.

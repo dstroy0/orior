@@ -2601,6 +2601,272 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   min-height: 0;
 }
 
+/* The Markdown preview: beside the text, the editor giving it the right half, or alone over the
+   editor's whole place. It reads as GitHub draws Markdown, in the theme's colors. */
+#mode-edit .desk[data-preview="beside"] > .editor {
+  margin-right: 50%;
+}
+
+#mode-edit .desk[data-preview="alone"] > .editor {
+  visibility: hidden;
+}
+
+.md-preview {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 50%;
+  overflow: auto;
+  padding: 16px 28px 40px;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  font: 15px/1.6 var(--head);
+  overflow-wrap: break-word;
+}
+
+.md-preview[hidden] {
+  display: none;
+}
+
+.desk[data-preview="alone"] > .md-preview {
+  width: 100%;
+  border-left: 0;
+  padding-inline: max(28px, calc((100% - 880px) / 2));
+}
+
+.md-preview > :first-child {
+  margin-top: 0;
+}
+
+.md-preview :is(h1, h2, h3, h4, h5, h6) {
+  margin: 24px 0 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.md-preview :is(h1, h2) {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--line);
+}
+
+.md-preview h1 {
+  font-size: 2em;
+}
+
+.md-preview h2 {
+  font-size: 1.5em;
+}
+
+.md-preview h3 {
+  font-size: 1.25em;
+}
+
+.md-preview :is(p, ul, ol, blockquote, table, pre, .math, .mermaid, .markdown-alert, details) {
+  margin: 0 0 16px;
+}
+
+.md-preview :is(ul, ol) {
+  padding-left: 2em;
+}
+
+.md-preview li.task {
+  list-style: none;
+}
+
+.md-preview li.task > input {
+  margin: 0 0.3em 0.2em -1.5em;
+  vertical-align: middle;
+}
+
+.md-preview code {
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  background: var(--well);
+  font: 85% var(--code);
+}
+
+.md-preview pre {
+  padding: 16px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--well);
+  font: 85%/1.45 var(--code);
+}
+
+.md-preview pre code {
+  padding: 0;
+  background: none;
+  font-size: 100%;
+}
+
+.md-preview blockquote {
+  padding: 0 1em;
+  border-left: 0.25em solid var(--line);
+  color: var(--fg-2);
+}
+
+.md-preview table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.md-preview :is(th, td) {
+  padding: 6px 13px;
+  border: 1px solid var(--line);
+}
+
+.md-preview tr:nth-child(2n) {
+  background: var(--well);
+}
+
+.md-preview img {
+  max-width: 100%;
+}
+
+.md-preview hr {
+  height: 0.25em;
+  margin: 24px 0;
+  border: 0;
+  background: var(--line);
+}
+
+.md-preview .math {
+  overflow-x: auto;
+}
+
+.md-preview math {
+  font-size: 1.1em;
+}
+
+/* An alert, its kind's color down its edge and on its title, as GitHub colors each kind. */
+.md-preview .markdown-alert {
+  padding: 0.5rem 1rem;
+  border-left: 0.25em solid var(--alert);
+}
+
+.markdown-alert-title {
+  margin: 0 0 4px;
+  color: var(--alert);
+  font-weight: 600;
+}
+
+.markdown-alert-note {
+  --alert: #4493f8;
+}
+
+.markdown-alert-tip {
+  --alert: #3fb950;
+}
+
+.markdown-alert-important {
+  --alert: #ab7df8;
+}
+
+.markdown-alert-warning {
+  --alert: #d29922;
+}
+
+.markdown-alert-caution {
+  --alert: #f85149;
+}
+
+.md-preview .footnotes {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--fg-2);
+  font-size: 12px;
+}
+
+.md-preview .footnote-ref {
+  font-size: 0.75em;
+}
+
+/* Mermaid's diagrams, on the light card and in the colors GitHub draws them in. */
+.md-preview .mermaid {
+  overflow-x: auto;
+  text-align: center;
+}
+
+.mermaid-diagram {
+  padding: 8px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.mm-node {
+  fill: #ececff;
+  stroke: #9370db;
+  stroke-width: 1px;
+}
+
+.mm-node-line {
+  stroke: #9370db;
+}
+
+.mm-text {
+  fill: #333;
+  font: 14px system-ui, sans-serif;
+}
+
+.mm-text.strong {
+  font-weight: 600;
+}
+
+.mm-edge {
+  fill: none;
+  stroke: #333;
+  stroke-width: 1.5px;
+}
+
+.mm-edge.dotted {
+  stroke-dasharray: 3 3;
+}
+
+.mm-edge.thick {
+  stroke-width: 3.5px;
+}
+
+.mm-head {
+  fill: #333;
+}
+
+.mm-label {
+  fill: #e8e8e8;
+}
+
+.mm-note {
+  fill: #fff5ad;
+  stroke: #aaaa33;
+}
+
+.mm-lifeline {
+  stroke: #999;
+  stroke-dasharray: 2 2;
+}
+
+.mm-frame {
+  fill: none;
+  stroke: #666;
+}
+
+.mm-frame-tab {
+  fill: #f0f0f0;
+  stroke: #666;
+}
+
+.mm-slice {
+  stroke: #333;
+  stroke-width: 0.5px;
+}
+
+.mermaid-said {
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
 /* A folder or file from another place, mounted beside the tree: its row bold, the first a line
    apart from the tree's own. */
 .node.mount {

@@ -18,6 +18,7 @@ import { closeIcon, refreshStrip, startStrip } from "./strip.js";
 import { startKeyHints } from "./keyhints.js";
 import { startSight } from "./sight.js";
 import { startWaits } from "./waits.js";
+import { startPreview } from "./mdpreview.js";
 import { startDocks } from "./docks.js";
 import { startStatusItems } from "./statusitems.js";
 import { startFocusFollows } from "./focusfollow.js";
@@ -261,6 +262,7 @@ async function begin(root) {
     if (!started) {
       started = true;
       await startEdit(defs);
+      startPreview();
     }
     await loadRun();
     drawMenubar();

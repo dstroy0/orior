@@ -56,6 +56,7 @@ import { profileFile, profileRemote, stopProfile, toggleProfile } from "./profil
 import { openRemote } from "./remote.js";
 import { toggleContainers } from "./containers.js";
 import { toggleComms } from "./comms.js";
+import { previewMode, setPreview } from "./mdpreview.js";
 import { runSqlFile, runStatement, toggleDatabase } from "./database.js";
 import { clearTerminal, killTerminal, newTerminal, runInTerminal, splitTerminal, terminalAt, terminalSplit, toggleTerminal } from "./terminal.js";
 import { applyEdits } from "./intel.js";
@@ -274,6 +275,8 @@ const COMMANDS = {
   "containers-view": () => toggleContainers(),
   "database-view": () => toggleDatabase(),
   "comms-view": () => toggleComms(),
+  "markdown-preview": (args) => setPreview(args[0] ?? (previewMode() === "beside" ? "off" : "beside")),
+  "markdown-preview-alone": () => setPreview(previewMode() === "alone" ? "off" : "alone"),
   "run-statement": () => runStatement(),
   "run-sql-file": () => runSqlFile(),
   "focus-follows": (args) => setFocusFollows(args[0] === "on" ? true : args[0] === "off" ? false : undefined),
@@ -538,6 +541,8 @@ const CHECKS = {
   "strip-edge": stripEdge,
   toolbar: () => toolbarShown(),
   "margin-line": () => marginLine(),
+  "markdown-preview": () => previewMode() === "beside",
+  "markdown-preview-alone": () => previewMode() === "alone",
   "focus-follows": () => focusFollows(),
   "system-title": () => systemTitleBar(),
   "macro-recording": recording,
