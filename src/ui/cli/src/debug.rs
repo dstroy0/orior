@@ -1338,8 +1338,17 @@ mod tests {
         }
         let mut child = command.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).spawn().unwrap();
         let started = std::time::Instant::now();
-        let found = processes();
+        let mut found = processes();
         let took = started.elapsed();
+        // On Linux a process takes its name as its program starts and its line an instant after, once
+        // the system has laid the program out: the list is read again until the line shows.
+        for _ in 0..40 {
+            if found.iter().any(|one| one.pid == child.id() && !one.command.is_empty()) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+            found = processes();
+        }
         let _ = child.kill();
         let _ = child.wait();
         let one = found.iter().find(|one| one.pid == child.id()).unwrap_or_else(|| panic!("{} not among {}", child.id(), found.len()));

@@ -633,6 +633,60 @@ fn highlight_lines(key: String, state: String, lines: Vec<String>) -> Result<ori
     orior_cli::highlight::color(&key, &state, &lines)
 }
 
+/// Holds the file at `path`, read from the tree as the page read it, whole or, for a file the page
+/// reads a window at a time, by its slices, under `key` for the page's slow work on it to run here, and
+/// answers its shape for the page to compare with its own; null where the file is not text.
+#[tauri::command(async)]
+fn document_read(app: State<App>, key: String, path: String) -> Result<Option<orior_cli::document::Shape>, String> {
+    let opened = call(app.clone(), "file_read".into(), serde_json::json!({ "path": path }))?;
+    if let Some(text) = opened.get("text").and_then(|text| text.as_str()) {
+        return Ok(Some(orior_cli::document::hold(&key, text)));
+    }
+    if opened.get("windowed").and_then(|windowed| windowed.as_bool()) != Some(true) {
+        return Ok(None);
+    }
+    let size = opened.get("size").and_then(|size| size.as_u64()).unwrap_or(0);
+    let slice = call(app, "file_slice".into(), serde_json::json!({ "path": path, "start": 0, "end": size }))?;
+    Ok(slice.get("text").and_then(|text| text.as_str()).map(|text| orior_cli::document::hold(&key, text)))
+}
+
+/// Holds a text the page gives a part at a time under `key`, answering its shape once the last comes.
+#[tauri::command(async)]
+fn document_part(key: String, part: String, first: bool, done: bool) -> Option<orior_cli::document::Shape> {
+    orior_cli::document::hold_part(&key, &part, first, done)
+}
+
+/// Writes the changes the page made to the text held under `key`, in order, answering its shape.
+#[tauri::command(async)]
+fn document_edit(key: String, changes: Vec<Vec<orior_cli::document::Edit>>) -> Result<orior_cli::document::Shape, String> {
+    orior_cli::document::edit(&key, &changes)
+}
+
+/// Lets go of the text held under `key`.
+#[tauri::command(async)]
+fn document_release(key: String) {
+    orior_cli::document::release(&key);
+}
+
+/// The gutter's marks for the text held under `key` against the file at `path` as the last commit
+/// holds it, read from the tree where it is not kept beside the text yet or `fresh` asks; null where
+/// no text is held under `key`.
+#[tauri::command(async)]
+fn document_changes(app: State<App>, key: String, path: String, fresh: bool) -> Result<Option<orior_cli::document::Marks>, String> {
+    if fresh || !orior_cli::document::has_head(&key) {
+        let head = call(app, "file_head".into(), serde_json::json!({ "path": path }))?;
+        return Ok(orior_cli::document::marks(&key, Some(head.as_str())));
+    }
+    Ok(orior_cli::document::marks(&key, None))
+}
+
+/// Find's matches in the text held under `key`, each [line, from col, to col], at most `most`; an
+/// error where the search is the page's own.
+#[tauri::command(async)]
+fn document_find(key: String, sought: orior_cli::document::Sought, most: usize) -> Result<Vec<[usize; 3]>, String> {
+    orior_cli::document::find(&key, &sought, most)
+}
+
 /// Two texts compared by structure, the older first, or null where they are too far apart.
 #[tauri::command(async)]
 fn structure_compare(then: Option<String>, now: String) -> Option<orior_cli::structure::Compared> {
@@ -1088,6 +1142,12 @@ fn open(launch: Launch) {
         })
         .invoke_handler(tauri::generate_handler![
             call,
+            document_read,
+            document_part,
+            document_edit,
+            document_release,
+            document_changes,
+            document_find,
             remote_get,
             remote_rejoin,
             devcontainer_line,

@@ -13,7 +13,8 @@ const bridge = () => window.__TAURI_INTERNALS__;
 
 const WINDOW = new Set([
   "app_exit", "app_version", "call", "carry_read", "carry_send", "carry_take", "carry_takings", "carry_undo", "checkers_known", "clip_files", "clip_read", "clip_write", "clone_start",
-  "code_docstring", "code_sort", "commands_read", "devcontainer_line", "file_read_any", "file_slice", "file_write_any",
+  "code_docstring", "code_sort", "commands_read", "devcontainer_line", "document_changes", "document_edit", "document_find", "document_part", "document_read", "document_release",
+  "file_read_any", "file_slice", "file_write_any",
   "files_copy", "files_paste", "fill_paragraph", "format_languages", "highlight_grammar", "highlight_lines",
   "home_folder", "home_reveal", "image_data", "inspect_languages", "kept_now", "kept_write", "language_read", "languages_list", "launch_take", "link_open", "memory_calls", "memory_hold", "memory_use", "network_hold", "network_reached", "print_page", "printers_list",
   "parse_classes", "pick", "plugin_code", "plugin_create", "plugin_draft", "plugin_request", "plugin_settings_read", "plugin_settings_write", "plugins_catalog_install", "plugins_catalog_read", "plugins_read", "project_create", "reader_menus_read",

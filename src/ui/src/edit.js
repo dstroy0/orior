@@ -30,6 +30,7 @@ import { wordAt } from "./editor/document.js";
 import { lineChanges } from "./editor/diff.js";
 import { Session } from "./editor/session.js";
 import { colorWith } from "./editor/tokens.js";
+import { findWith } from "./editor/find.js";
 import { Editor } from "./editor/view.js";
 import { drawBridge, inBridge, keepBridge, keyAt, loadBridge } from "./bridge_panel.js";
 import { drawGit, drawLocalHistory, drawReview, drawTodo, drawOpenEditors, drawOutline, drawProblems, drawTimeline, drawUndo, forgetGraph, guides, iconOf, lightOutline, paneOpen, shownGroup, startExplorer } from "./explorer.js";
@@ -91,6 +92,9 @@ const state = {
   cycle: null,
   // Each file's text as the last commit left it, as it is being read or once it is: null for none.
   heads: new Map(),
+  // How many times the last commit's files were forgotten, for a text held on the Rust side to know
+  // to read its file as the commit holds it again.
+  headsAge: 0,
   // How many files the system clipboard holds, for the tree's Paste.
   clipFiles: 0,
   // The batches of changes on the disk being taken, one after another.
@@ -747,6 +751,7 @@ function closeTab(tab) {
   leaveGroup(tab.path);
   leaveSplit(tab.path);
   stopServing(tab);
+  letGo(tab.session?.doc);
   if (tab.notebook) {
     closeNotebook(tab.notebook);
   }
@@ -842,9 +847,11 @@ async function readOutward(tab) {
   write("reads", [tab.path, null]);
   s.window = null;
   // Read whole with no edit made on the way, the file's lines are the document's.
-  if (s.doc.id === tab.saved) {
+  const own = s.doc.id === tab.saved;
+  if (own) {
     keepSaved(tab);
   }
+  hold(tab, own);
   state.editor.schedule();
 }
 
@@ -946,6 +953,7 @@ async function load(path, as = null) {
         tab.saved = -1;
       }
       settleAt(tab.session, place);
+      hold(tab, !colored && (kept === null || kept === opened.text));
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
     }
@@ -1489,7 +1497,7 @@ function treeChanged({ payload: changed }) {
       await reloadTab(tab);
     }
     if (changed.git) {
-      state.heads.clear();
+      forgetHeads();
       state.repos = null;
       markChanges(tabOf(state.active));
       await loadChanges();
@@ -2184,6 +2192,136 @@ function drawCrumbs() {
   bar.replaceChildren(...nodes.flatMap((node, at) => (at ? [element("span", { className: "crumb-gap", textContent: "›", ariaHidden: "true" }), node] : [node])));
 }
 
+// Texts of HOLD_FROM lines or more are held on the Rust side as the page holds them, for the work on
+// them that costs a frame here to run there and hand back only its answer: the gutter's marks against
+// the last commit, which cost the page a frame from about there, and find on a text of more. The Rust
+// side reads the file itself; a text the page holds as the file does not goes over in parts of PART
+// characters, each holding the page about a millisecond. Each change the page's document writes to a
+// held text goes after it, out of the event that made it, and the calls about one text go one after
+// another, each once the one before is answered.
+const HOLD_FROM = 10000;
+const PART = 90000;
+let holds = 0;
+
+function shapeOf(doc) {
+  let units = 0;
+  for (const line of doc.lines) {
+    units += line.length;
+  }
+  return { lines: doc.count, units };
+}
+
+// Runs `work`, a call about a held text, once every call before it about that text is answered.
+function along(held, work) {
+  const next = held.chain.then(work);
+  held.chain = next.catch(() => {});
+  return next;
+}
+
+// Holds the text of a tab's file on the Rust side, read there from the file where `fromFile` says the
+// tab's text is the file's own; otherwise, or where what was read differs, the page gives it.
+function hold(tab, fromFile) {
+  const s = tab.session;
+  const doc = s?.doc;
+  if (!doc || doc.held !== undefined || s.window || s.base || tab.commit || doc.count < HOLD_FROM) {
+    return;
+  }
+  holds += 1;
+  const held = { key: `${tab.file}#${holds}`, ready: false, changes: [], waiting: false, chain: Promise.resolve(), headsAge: -1 };
+  doc.held = held;
+  const shape = shapeOf(doc);
+  held.unwatch = doc.watch(({ edits }) => {
+    held.changes.push(edits.map(({ from, to, text }) => ({ from: { line: from.line, col: from.col }, to: { line: to.line, col: to.col }, text })));
+    if (held.ready && !held.waiting) {
+      held.waiting = true;
+      window.setTimeout(() => sendChanges(doc), 0);
+    }
+  });
+  along(held, async () => {
+    const read = fromFile ? await invoke("document_read", { key: held.key, path: tab.file }).catch(() => null) : null;
+    if (!read || read.lines !== shape.lines || read.units !== shape.units) {
+      // The text as it stands goes whole, and the changes made since it was measured are in it.
+      const text = doc.text();
+      held.changes = [];
+      for (let at = 0; at === 0 || at < text.length; at += PART) {
+        await invoke("document_part", { key: held.key, part: text.slice(at, at + PART), first: at === 0, done: at + PART >= text.length });
+      }
+    }
+    held.ready = true;
+    sendChanges(doc);
+  }).catch(() => letGo(doc));
+}
+
+// Sends the changes written to a held text since the last were sent.
+function sendChanges(doc) {
+  const held = doc?.held;
+  if (!held?.ready) {
+    return;
+  }
+  held.waiting = false;
+  if (!held.changes.length) {
+    return;
+  }
+  const changes = held.changes;
+  held.changes = [];
+  along(held, () => invoke("document_edit", { key: held.key, changes })).catch(() => letGo(doc));
+}
+
+// Lets go of a text held on the Rust side; it is not held again.
+function letGo(doc) {
+  const held = doc?.held;
+  if (!held) {
+    return;
+  }
+  held.unwatch?.();
+  doc.held = null;
+  invoke("document_release", { key: held.key }).catch(() => {});
+}
+
+function forgetHeads() {
+  state.heads.clear();
+  state.headsAge += 1;
+}
+
+// The gutter's marks for a held text, worked out on the Rust side against its file as the last commit
+// holds it; the lines each change spans there come with them, for the peek and to put back.
+async function markHeld(tab) {
+  const s = tab.session;
+  const held = s.doc.held;
+  sendChanges(s.doc);
+  const fresh = held.headsAge !== state.headsAge;
+  const id = s.doc.id;
+  if (!fresh && s.changesFor === id) {
+    return;
+  }
+  held.headsAge = state.headsAge;
+  const marks = await along(held, () => invoke("document_changes", { key: held.key, path: tab.file, fresh })).catch(() => null);
+  if (s.doc.id !== id || s.doc.held !== held) {
+    return;
+  }
+  if (!marks?.head) {
+    state.editor.setChanges(s, null);
+    markHistory(tab, null);
+    return;
+  }
+  markHistory(tab, `${held.key} ${state.headsAge}`);
+  s.changesFor = id;
+  s.changesHead = null;
+  const found = marks.changes;
+  if (!found) {
+    s.changesThen = null;
+    state.editor.setChanges(s, null);
+    return;
+  }
+  const then = [];
+  for (const hunk of found.hunks) {
+    (hunk.thenLines ?? []).forEach((line, at) => (then[hunk.then[0] + at] = line));
+  }
+  s.changesThen = then;
+  const hunks = found.hunks.map(({ now, then: was }) => ({ now, then: was }));
+  state.editor.setChanges(s, { added: new Set(found.added), changed: new Set(found.changed), removed: new Set(found.removed), hunks });
+}
+
 // Marks the lines of a tab's text that differ from the last commit. A file read only in part, a file
 // as a commit left it, and a file the last commit does not hold have no marks.
 async function markChanges(tab) {
@@ -2194,6 +2332,13 @@ async function markChanges(tab) {
   if (tab.commit || s.window || s.base) {
     state.editor.setChanges(s, null);
     markHistory(tab, null);
+    return;
+  }
+  if (s.doc.held) {
+    await along(s.doc.held, () => null).catch(() => null);
+  }
+  if (s.doc.held?.ready) {
+    await markHeld(tab);
     return;
   }
   if (!state.heads.has(tab.file)) {
@@ -2745,6 +2890,16 @@ export async function startEdit(defs) {
     },
     color: (key, state, lines) => invoke("highlight_lines", { key, state, lines }),
   });
+  // Find on a large text held on the Rust side runs there; a search it does not run as the page does
+  // answers null, and the page runs it.
+  findWith((doc, sought, most) => {
+    const held = doc.held;
+    if (!held?.ready) {
+      return null;
+    }
+    sendChanges(doc);
+    return along(held, () => invoke("document_find", { key: held.key, sought, most })).catch(() => null);
+  });
   onOverBudget(holdMemory);
   await loadPlugins();
   state.known = registerLanguages(defs);
@@ -2976,7 +3131,9 @@ export async function startEdit(defs) {
       const raw = tab.colored;
       delete tab.colored;
       tab.readOnly = false;
+      letGo(tab.session.doc);
       tab.session = new Session(raw, state.known.languageOf(tab.path));
+      hold(tab, true);
       markSaved(tab, raw);
       show(tab.path);
       return;
@@ -3192,7 +3349,7 @@ export async function startEdit(defs) {
   files.addEventListener("focusin", readClipFiles);
   window.addEventListener("focus", async () => {
     readClipFiles();
-    state.heads.clear();
+    forgetHeads();
     state.repos = null;
     markChanges(tabOf(state.active));
     await loadChanges();
@@ -3679,7 +3836,7 @@ export function forgetTree() {
   forgetProblems();
   checkShown();
   state.restored = false;
-  state.heads.clear();
+  forgetHeads();
   state.repos = null;
   state.mounts = [];
   forgetGraph();

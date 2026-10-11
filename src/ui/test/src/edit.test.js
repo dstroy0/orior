@@ -1,11 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The editor's tabs and files: which side of a large file, read a slice at a time, is read next, and
-// a zip in the tree opened as a folder, its files read, changed and saved back into it.
+// The editor's tabs and files: which side of a large file, read a slice at a time, is read next, a
+// zip in the tree opened as a folder, its files read, changed and saved back into it, and a large text
+// held on the Rust side, its changes following it there and its gutter's marks worked out there.
 
 import { invoke } from "../../src/bridge.js";
-import { chooseNames, editing, nextSlice } from "../../src/edit.js";
+import { chooseNames, editing, nextSlice, openFile } from "../../src/edit.js";
+import { lineChanges } from "../../src/editor/diff.js";
 import { togglePane } from "../../src/sides.js";
 import { showView } from "../../src/views.js";
 
@@ -66,4 +68,55 @@ test("names the zip does not say are UTF-8 read in the encoding the reader choos
   await ui.click(rowOf("bundle.zip"));
   await ui.waitFor(() => !rowOf("bundle.zip/docs"), 3000);
   togglePane(false);
+});
+
+test("a large text is held on the Rust side, each change follows it there, and its gutter's marks come from there as the page's own diff gives them", async () => {
+  const lines = Array.from({ length: 20000 }, (_, line) => `value_${line} = compute(${line}) + ${line % 7}`);
+  const root = await invoke("root_get");
+  await invoke("folder_create", { path: "held" }).catch(() => {});
+  await invoke("repo_init", { folder: `${root}/held` });
+  await invoke("file_write", { path: "held/held.py", text: `${lines.join("\n")}\n` });
+  await invoke("git_commit", { message: "a large file held", paths: ["held/held.py"] });
+  showView("edit");
+  await openFile("held/held.py");
+  await ui.waitFor(() => editing().active === "held/held.py" && editing().editor?.s?.doc.held?.ready, 10000);
+  const view = editing().editor;
+  const s = view.s;
+  const held = s.doc.held;
+  view.goTo(5000, 0);
+  view.focus();
+  await ui.type("changed_");
+  view.goTo(12000, 0);
+  await ui.key("Shift+Down");
+  await ui.key("Delete");
+  view.goTo(15000, 0);
+  await ui.type("put in\n");
+  // Each change has gone to the Rust side, once the calls about the text are answered, and the text
+  // there is the page's, line for line and unit for unit.
+  await new Promise((rest) => setTimeout(rest, 50));
+  await held.chain;
+  const shape = await invoke("document_edit", { key: held.key, changes: [] });
+  assert.deepEqual(shape, { lines: s.doc.count, units: s.doc.lines.reduce((sum, line) => sum + line.length, 0) });
+  const head = (await invoke("file_head", { path: "held/held.py" })).split(/\r?\n/);
+  const own = lineChanges(head, s.doc.lines);
+  await ui.waitFor(() => s.changes && s.changes.hunks.length === own.hunks.length, 5000);
+  assert.deepEqual([...s.changes.changed].sort((a, b) => a - b), [...own.changed].sort((a, b) => a - b), "changed");
+  assert.deepEqual([...s.changes.added].sort((a, b) => a - b), [...own.added].sort((a, b) => a - b), "added");
+  assert.deepEqual([...s.changes.removed].sort((a, b) => a - b), [...own.removed].sort((a, b) => a - b), "taken out");
+  assert.deepEqual(s.changes.hunks, own.hunks);
+  for (const hunk of own.hunks) {
+    assert.deepEqual(s.changesThen.slice(hunk.then[0], hunk.then[1]), head.slice(hunk.then[0], hunk.then[1]), "the lines a change spans as the commit holds them");
+  }
+  // Closed, its tab's text is let go on the Rust side.
+  await ui.click(document.querySelector(`#tabs .tab .close[title="held/held.py"]`));
+  await ui.click(document.querySelector(`#tabs .tab .close[title="held/held.py"]`));
+  await ui.waitFor(() => !document.querySelector(`#tabs .tab .close[title="held/held.py"]`), 3000);
+  let gone = false;
+  for (let tries = 0; tries < 30 && !gone; tries += 1) {
+    gone = await invoke("document_edit", { key: held.key, changes: [] }).then(() => false, () => true);
+    if (!gone) {
+      await new Promise((rest) => setTimeout(rest, 100));
+    }
+  }
+  assert.ok(gone, "no text is held under its key");
 });

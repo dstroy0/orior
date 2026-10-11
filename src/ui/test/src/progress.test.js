@@ -31,6 +31,8 @@ test("a bar moves at one pace toward a new share, and never back", () => {
 
 test("a file being read shows on the status bar with its bar and its share as it is", async () => {
   const pulse = document.getElementById("pulse");
+  // A large file the tree's tabs reopen is read first, and its own share shows until it is read.
+  await ui.waitFor(() => !pulse.querySelector(".pulse-read"), 60000);
   try {
     write("reads", ["big/log.txt", { read: 250, size: 1000 }]);
     await ui.waitFor(() => pulse.querySelector(".pulse-read"), 2000);
