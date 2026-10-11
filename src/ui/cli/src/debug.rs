@@ -1231,7 +1231,23 @@ fn listed() -> Vec<Process> {
     found
 }
 
-#[cfg(not(windows))]
+/// On Linux the system's own list in /proc: each process's name from its comm, and its line from its
+/// cmdline, the words apart by nuls. A process that ends while the list is read is left out.
+#[cfg(target_os = "linux")]
+fn listed() -> Vec<Process> {
+    let Ok(entries) = std::fs::read_dir("/proc") else { return Vec::new() };
+    entries
+        .filter_map(|entry| {
+            let pid: u32 = entry.ok()?.file_name().to_str()?.parse().ok()?;
+            let name = std::fs::read_to_string(format!("/proc/{pid}/comm")).ok()?.trim_end().to_string();
+            let line = std::fs::read(format!("/proc/{pid}/cmdline")).unwrap_or_default();
+            let command = line.split(|byte| *byte == 0).filter(|word| !word.is_empty()).map(String::from_utf8_lossy).collect::<Vec<_>>().join(" ");
+            Some(Process { pid, name, command })
+        })
+        .collect()
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
 fn listed() -> Vec<Process> {
     let mut command = Command::new("ps");
     command.args(["-eo", "pid=,comm=,args="]).stdin(std::process::Stdio::null());

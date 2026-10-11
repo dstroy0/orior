@@ -10,7 +10,9 @@
 //! descendants from the system's list of processes, and ends them as it ends.
 //!
 //! What orior opens for the reader to keep, a page in the browser, a folder in the file manager or
-//! another window of orior's, is started outside the container and outlives it.
+//! another window of orior's, is started outside the container and outlives it. On Windows it breaks
+//! away from the job. On Linux and macOS it is its own process group, the container leaves it and
+//! every process under it out of its members, and a thread gathers it as it ends.
 
 /// Puts this process at the head of its container. Says whether the container holds: on Windows,
 /// whether the job was made and this process put in it; elsewhere, always.
@@ -25,20 +27,36 @@ pub fn hold() -> bool {
     }
 }
 
-/// Starts `command` outside the container: what it starts is the reader's to keep, and does not end
-/// with orior.
-pub fn outside(command: &mut std::process::Command) -> &mut std::process::Command {
+/// The processes started outside the container that have not yet ended.
+#[cfg(unix)]
+static OUTSIDE: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+/// Starts `command` outside the container, and gives its process's id: what it starts is the
+/// reader's to keep, and does not end with orior.
+pub fn start_outside(command: &mut std::process::Command) -> std::io::Result<u32> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         command.creation_flags(windows_sys::Win32::System::Threading::CREATE_BREAKAWAY_FROM_JOB);
+        command.spawn().map(|child| child.id())
     }
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
         command.process_group(0);
+        let mut child = command.spawn()?;
+        let id = child.id();
+        if let Ok(mut outside) = OUTSIDE.lock() {
+            outside.push(id);
+        }
+        std::thread::spawn(move || {
+            let _ = child.wait();
+            if let Ok(mut outside) = OUTSIDE.lock() {
+                outside.retain(|one| *one != id);
+            }
+        });
+        Ok(id)
     }
-    command
 }
 
 /// Every process in the container but the container itself, by its id.
@@ -50,7 +68,8 @@ pub fn members() -> Vec<u32> {
     #[cfg(not(windows))]
     {
         let all = unix::parents();
-        descendants(std::process::id(), &all)
+        let outside = OUTSIDE.lock().map(|outside| outside.clone()).unwrap_or_default();
+        descendants(std::process::id(), &all).into_iter().filter(|member| !outside.iter().any(|one| under(*one, *member, &all))).collect()
     }
 }
 
@@ -382,9 +401,14 @@ mod tests {
                 read && code == STILL_ACTIVE as u32
             }
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "linux")]
         {
-            std::path::Path::new(&format!("/proc/{id}")).exists() || std::process::Command::new("kill").args(["-0", &id.to_string()]).status().is_ok_and(|status| status.success())
+            // A process that has ended and is not yet gathered by its parent, a zombie, runs no more.
+            std::fs::read_to_string(format!("/proc/{id}/stat")).is_ok_and(|stat| stat.rsplit_once(") ").is_some_and(|(_, rest)| !rest.starts_with('Z')))
+        }
+        #[cfg(all(unix, not(target_os = "linux")))]
+        {
+            std::process::Command::new("kill").args(["-0", &id.to_string()]).status().is_ok_and(|status| status.success())
         }
     }
 
@@ -395,12 +419,12 @@ mod tests {
         if std::env::var_os("ORIOR_CONTAINER_HEAD").is_some() {
             assert!(hold(), "the container holds");
             let inside = waiting_program().spawn().unwrap();
-            let outside_child = outside(&mut waiting_program()).spawn().unwrap();
+            let outside_child = start_outside(&mut waiting_program()).unwrap();
             std::thread::sleep(Duration::from_millis(300));
             assert!(members().contains(&inside.id()), "the container lists what it started");
-            println!("ids {} {}", inside.id(), outside_child.id());
+            assert!(!members().contains(&outside_child), "the container leaves out what it started outside");
+            println!("ids {} {outside_child}", inside.id());
             std::mem::forget(inside);
-            std::mem::forget(outside_child);
             #[cfg(not(windows))]
             end_all();
             return;

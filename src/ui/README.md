@@ -44,13 +44,17 @@ cargo run --manifest-path src/ui/test/Cargo.toml -- [--only TEXT] [--monitor N]
 ```
 
 The harness starts the servers the tests reach, each a Docker container of its own on this
-machine's loopback: PostgreSQL, MySQL, MariaDB, and CUPS with three printers. Without Docker the
-tests that reach them do not run, and the report names them. It runs each crate's tests, then the
-window's, in orior built for the run with a home and a tree of its own: a run leaves the
-reader's orior as it was. The window goes on the highest numbered monitor that is not the main one,
-or the one `--monitor` or `ORIOR_TEST_MONITOR` names; `--monitors` lists them. Each error the window
-meets in a run files as an issue, once, where the GitHub CLI is signed in. The run fails while any
-test fails or any source file has no test, and its report is in `test/runs/<time>/report.md`.
+machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three printers, and an ssh server for
+tunnels. Without Docker the tests that reach them do not run, and the report names them. It runs
+each crate's tests, then the command line's crate's tests again in Debian, Ubuntu, Fedora, Alpine
+and Arch Linux and in Debian on aarch64, each a Docker image of `test/systems/`; `--no-systems`
+leaves those out. A Mac's system and Windows on Arm run only on machines of their own, and the
+crate is built for each of them in their place. Then it runs the window's tests, in orior built for
+the run with a home and a tree of its own: a run leaves the reader's orior as it was. The window
+goes on the highest numbered monitor that is not the main one, or the one `--monitor` or
+`ORIOR_TEST_MONITOR` names; `--monitors` lists them. Each error the window meets in a run files as
+an issue, once, where the GitHub CLI is signed in. The run fails while any test fails or any source
+file has no test, and its report is in `test/runs/<time>/report.md`.
 
 ## Running it
 

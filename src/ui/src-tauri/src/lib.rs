@@ -464,8 +464,7 @@ fn window_open(app: State<App>, root: Option<String>, remote: Option<String>, wo
     }
     command.args(&words).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
     // Another window is the reader's to keep, and stays as this one closes.
-    orior_cli::container::outside(&mut command);
-    command.spawn().map(|_| ()).map_err(|error| error.to_string())
+    orior_cli::container::start_outside(&mut command).map(|_| ()).map_err(|error| error.to_string())
 }
 
 /// Reads a grammar of the page's and keeps it under `key` for the lines colored with it, or says what

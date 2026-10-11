@@ -323,8 +323,7 @@ pub fn open_url(url: &str) -> Result<(), String> {
     };
     command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     // The browser is the reader's, and stays as orior ends.
-    crate::container::outside(&mut command);
-    command.spawn().map(|_| ()).map_err(|e| e.to_string())
+    crate::container::start_outside(&mut command).map(|_| ()).map_err(|e| e.to_string())
 }
 
 /// Files a report: as an issue through the reporter's GitHub CLI where it is signed in, as nothing

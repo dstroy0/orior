@@ -292,10 +292,11 @@ mod tests {
 
     #[test]
     fn findings_written_a_line_each_read_as_flake8_mypy_and_pylint_write_them() {
-        let root = Path::new("D:/tree");
-        let out = "a.py:3:5: E501 line too long (90 > 79 characters)\nD:\\tree\\b.py:7:1: error: Incompatible return value type  [return-value]\nb.py:8:2: note: See the docs\nc.py:1: [C0114(missing-module-docstring), ] Missing module docstring\nnot a finding\n";
+        // A path a checker writes whole is the system's own: a drive's on Windows, from / elsewhere.
+        let (root, whole) = if cfg!(windows) { (Path::new("D:/tree"), "D:\\tree\\b.py") } else { (Path::new("/tree"), "/tree/b.py") };
+        let out = format!("a.py:3:5: E501 line too long (90 > 79 characters)\n{whole}:7:1: error: Incompatible return value type  [return-value]\nb.py:8:2: note: See the docs\nc.py:1: [C0114(missing-module-docstring), ] Missing module docstring\nnot a finding\n");
         assert_eq!(
-            said(&read_as("lines", out, root, None)),
+            said(&read_as("lines", &out, root, None)),
             vec![
                 "a.py 2:4 s2 E501 line too long (90 > 79 characters)",
                 "b.py 6:0 s1 return-value Incompatible return value type",

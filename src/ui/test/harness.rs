@@ -5,7 +5,8 @@
 //!
 //! 1. the servers the tests reach, from servers.rs, each in a container of the harness's own;
 //! 2. the Rust tests of the command line, of the app and of the harness, with cargo test, told
-//!    where each server listens;
+//!    where each server listens; and the command line's on each system of systems.rs, Linux in its
+//!    kinds and on aarch64 in Docker, the Macs and Windows on Arm built for alone;
 //! 3. the window's tests: test/ mirrors src/ui, each module src/x.js tested by test/src/x.test.js,
 //!    each run in orior's own window, started for the run with a home and a tree of its own, its
 //!    page loaded fresh for each file, every press, key, drag and wheel sent as real input through
@@ -23,6 +24,7 @@
 mod cdp;
 mod input;
 mod servers;
+mod systems;
 mod window;
 
 use std::collections::BTreeMap;
@@ -48,11 +50,12 @@ struct Options {
     keep_window: bool,
     stop_servers: bool,
     monitors: bool,
+    systems: bool,
 }
 
 impl Options {
     fn read() -> Result<Options, String> {
-        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false };
+        let mut options = Options { only: Vec::new(), monitor: std::env::var("ORIOR_TEST_MONITOR").ok().and_then(|named| named.parse().ok()), servers: true, rust: true, window: true, keep_window: false, stop_servers: false, monitors: false, systems: true };
         let mut args = std::env::args().skip(1);
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -60,6 +63,7 @@ impl Options {
                 "--monitor" => options.monitor = Some(args.next().and_then(|number| number.parse().ok()).ok_or("--monitor needs the monitor's number, as the system's display settings give it")?),
                 "--no-servers" => options.servers = false,
                 "--no-rust" => options.rust = false,
+                "--no-systems" => options.systems = false,
                 "--no-window" => options.window = false,
                 "--keep-window" => options.keep_window = true,
                 "--stop-servers" => options.stop_servers = true,
@@ -72,14 +76,14 @@ impl Options {
     }
 }
 
-const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-window] [--keep-window] [--stop-servers]";
+const USAGE: &str = "harness [--only TEXT] [--monitor N] [--monitors] [--no-servers] [--no-rust] [--no-systems] [--no-window] [--keep-window] [--stop-servers]";
 
 /// A test's outcome: its name, whether it passed, and why not.
-struct Outcome {
-    name: String,
-    ok: bool,
-    ms: u64,
-    error: String,
+pub struct Outcome {
+    pub name: String,
+    pub ok: bool,
+    pub ms: u64,
+    pub error: String,
 }
 
 /// What each part of the run found, for the report.
@@ -212,7 +216,14 @@ fn cargo_test(manifest: &Path, target: Option<&Path>, env: &[(String, String)]) 
     if let Some(target) = target {
         command.arg("--target-dir").arg(target);
     }
-    command.envs(env.iter().map(|(key, value)| (key, value))).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::inherit());
+    command.envs(env.iter().map(|(key, value)| (key, value)));
+    tests_of(command)
+}
+
+/// Runs `command`, a cargo test here or in a system's container, and gives each test's outcome and
+/// the output of those that failed.
+pub fn tests_of(mut command: Command) -> (Vec<Outcome>, String) {
+    command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::inherit());
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) => return (vec![Outcome { name: "cargo test".into(), ok: false, ms: 0, error: error.to_string() }], String::new()),
@@ -530,6 +541,27 @@ fn main() -> ExitCode {
         }
     }
 
+    // The command line's crate on each other system Docker runs, and built for each it cannot.
+    if options.systems && options.rust && options.only.is_empty() {
+        println!("systems");
+        if servers::docker_runs() {
+            for (name, folder, platform) in systems::SYSTEMS {
+                println!("  {name}");
+                let (outcomes, failures) = match systems::tests_in(name, folder, platform, &here, &ui, &env) {
+                    Ok(command) => tests_of(command),
+                    Err(error) => (vec![Outcome { name: "the system".into(), ok: false, ms: 0, error }], String::new()),
+                };
+                report.crates.push((format!("cli on {name}"), outcomes, failures));
+            }
+        } else {
+            report.said.push("Docker does not answer: the crates' tests ran on this system alone".into());
+        }
+        for (name, target) in systems::BUILT_ONLY {
+            println!("  {name}, built only");
+            report.crates.push((format!("cli for {name}, built only"), vec![systems::built_for(target, &ui, &here)], String::new()));
+        }
+    }
+
     let tests: Vec<String> = files_under(&here.join("src"), ".test.js").into_iter().map(|file| format!("src/{file}")).filter(|file| options.only.is_empty() || options.only.iter().any(|only| file.contains(only.as_str()))).collect();
     if options.window && !tests.is_empty() {
         println!("window");
@@ -596,7 +628,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        for file in ["cdp.rs", "harness.rs", "input.rs", "servers.rs", "window.rs"] {
+        for file in ["cdp.rs", "harness.rs", "input.rs", "servers.rs", "systems.rs", "window.rs"] {
             if untested_rust(&here.join(file)) {
                 report.untested.push(format!("test/{file}"));
             }
