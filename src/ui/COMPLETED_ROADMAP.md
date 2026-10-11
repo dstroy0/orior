@@ -24,6 +24,9 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
    - An editor that draws 60 frames a second on a display of 120 or 144: the test reads the display's rate from the page's own frames at rest and holds the scroll to it, whatever the display's rate is.
    - A scroll that judders: a test holds a steady wheel to at most 3% of frames missed, at most two frames where the text stands still, steps within 0.3 of each other, and at most three changes of level.
    - Smooth scrolling starts off where the system asks for reduced motion, and the reader's own choice wins either way.
+17. **A key on the screen in the next frame.** A letter typed is drawn in its own event, its row written before the frame after it begins. In the middle of a file of 250,000 lines the page's own work for a key is 2.3 ms in the middle and 3.4 ms at most, and inside a line of 20,000 characters 1.8 and 2.6, and the frame after each key comes on time, 30 keys of 30 in each. From the key's event to the display, as Chrome's own EventLatency reads it, a key takes 10 to 11 ms at 144 frames a second: the wait for the frame after it and that frame's own way to the display. With the page drawn on the GPU, the frame's commit takes about 2 ms.
+   - Typing that lags while a language server, a linter or a plugin works: what hears of each edit as it is made, the preview and the plugins among them, is told once the key has drawn it, and a test finds the letter in its row as the first of them hears of the edit.
+   - Lag that grows with the file's length or a line's: a test types in the middle of 250,000 lines and inside a line of 20,000 characters, and holds each letter to the frame after its key, the page's own work for it to 5 ms in the middle and 12 at most.
 
 ## The backend
 

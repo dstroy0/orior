@@ -8,7 +8,7 @@
 
 import { coloringReach, runsRightToLeft, smoothScrolling } from "../../../src/editor/view.js";
 import { invoke } from "../../../src/bridge.js";
-import { editing, openFile } from "../../../src/edit.js";
+import { editing, onEdit, openFile } from "../../../src/edit.js";
 import { showView } from "../../../src/views.js";
 import { write } from "../../../src/status.js";
 
@@ -239,8 +239,8 @@ test("under a steady wheel every frame moves the text an even step, and the leve
   const interval = middleOf(steps.map(([gap]) => gap));
   const late = steps.filter(([gap]) => gap > 1.5 * interval).length;
   const still = steps.filter(([, moved]) => moved === 0).length;
-  // A step read in a frame may be the glide's of the frame before, so only the steps whose frame and
-  // the frames on either side came on time say how even the glide is.
+  // A step read in a frame may be the glide's of the frame before: only the steps whose frame and the
+  // frames on either side came on time say how even the glide is.
   const onTime = (index) => steps[index] && steps[index][0] <= 1.5 * interval;
   const even = steps.filter((_, index) => onTime(index - 1) && onTime(index) && onTime(index + 1)).map(([, moved]) => moved);
   const middle = middleOf(even);
@@ -252,4 +252,99 @@ test("under a steady wheel every frame moves the text an even step, and the leve
   assert.ok(still <= 2, `frames the text stood still: ${still} of ${steps.length}`);
   assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
   assert.ok(changes <= 3, `the level changed ${changes} times in ${steps.length} frames`);
+});
+
+// Whether the listener the test gives onEdit is listening: it stays given for the page's life.
+let hearing = null;
+onEdit((s) => hearing?.(s));
+
+test("a letter typed is drawn before anything told of each edit hears of it", async () => {
+  await invoke("file_write", { path: "told.py", text: "first = 1\n" });
+  showView("edit");
+  await openFile("told.py");
+  await ui.waitFor(() => editing().active === "told.py" && editing().editor?.s, 5000);
+  const view = editing().editor;
+  view.goTo(0, 0);
+  view.focus();
+  const heard = [];
+  hearing = () => heard.push(view.rowNode(0)?.textContent ?? "");
+  try {
+    await ui.type("x");
+    await ui.waitFor(() => heard.length > 0, 2000);
+  } finally {
+    hearing = null;
+  }
+  assert.equal(view.s.doc.line(0), "xfirst = 1");
+  assert.ok(heard[0].startsWith("xfirst"), `the row as the first told of the edit found it: ${JSON.stringify(heard[0])}`);
+});
+
+// Types `count` letters into the editor shown and gives, for each: whether the letter was in its row
+// when the frame after it began, the page's own milliseconds for it from its key to its row drawn,
+// and the milliseconds from the frame after it to the next, the display's interval where that frame
+// came on time.
+async function keysTimed(view, line, count) {
+  const timed = [];
+  let key = null;
+  let typed = 0;
+  const began = (event) => {
+    if (event.inputType !== "insertText") {
+      return;
+    }
+    const at = performance.now();
+    const want = event.data.repeat(typed);
+    const one = { at };
+    key = one;
+    requestAnimationFrame((first) => {
+      const drawn = (view.rowNode(line)?.textContent ?? "").includes(want);
+      requestAnimationFrame((second) => timed.push({ drawn, own: one.done - at, frame: second - first }));
+    });
+  };
+  const done = () => {
+    if (key && key.done === undefined) {
+      key.done = performance.now();
+    }
+  };
+  document.addEventListener("beforeinput", began, true);
+  document.addEventListener("input", done);
+  try {
+    for (let at = 0; at < count; at += 1) {
+      const before = timed.length;
+      typed = at + 1;
+      await ui.type("q");
+      await ui.waitFor(() => timed.length > before, 2000);
+      await new Promise((rest) => setTimeout(rest, 40));
+    }
+  } finally {
+    document.removeEventListener("beforeinput", began, true);
+    document.removeEventListener("input", done);
+  }
+  return timed;
+}
+
+test("a letter typed in the middle of 250,000 lines, and inside a line of 20,000 characters, is drawn in the frame after its key", async () => {
+  const rest = await framesOver(500);
+  const interval = (rest.at(-1) - rest[0]) / (rest.length - 1);
+  const files = [
+    ["keys_long.py", Array.from({ length: 250000 }, (_, line) => `x_${line} = ${line} * 2  # line ${line}`).join("\n") + "\n", 125000, 0],
+    ["keys_wide.txt", "w".repeat(20000) + "\n", 0, 5000],
+  ];
+  for (const [path, text, line, col] of files) {
+    await invoke("file_write", { path, text });
+    showView("edit");
+    await openFile(path);
+    await ui.waitFor(() => editing().active === path && editing().editor?.s, 10000);
+    const view = editing().editor;
+    await ui.waitFor(() => view.s.base + view.s.doc.count >= line + 1, 10000);
+    view.goTo(line - view.s.base, col);
+    view.focus();
+    await framesOver(500);
+    const timed = await keysTimed(view, line - view.s.base, 20);
+    const own = timed.map((one) => one.own).sort((a, b) => a - b);
+    const late = timed.filter((one) => one.frame > 1.5 * interval).length;
+    const said = `${path}: own ms ${own.map((ms) => ms.toFixed(1)).join(" ")}; frames after ${timed.map((one) => one.frame.toFixed(1)).join(" ")}`;
+    assert.equal(timed.filter((one) => one.drawn).length, timed.length, `each letter in its row as the frame after it began: ${said}`);
+    assert.ok(own[Math.floor(own.length / 2)] <= 5, `the page's own work for a key, in the middle: ${said}`);
+    assert.ok(own.at(-1) <= 12, `and at most: ${said}`);
+    assert.ok(late <= 2, `frames after a key that came late: ${late} of ${timed.length}: ${said}`);
+  }
 });

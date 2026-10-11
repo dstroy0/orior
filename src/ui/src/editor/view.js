@@ -1105,10 +1105,11 @@ export class Editor {
     );
   }
 
-  // Each change to the text is told at once to onEdit, and to onChange once the keys rest.
+  // Each change to the text is told to onEdit as soon as the event that made it is done, after a key
+  // has drawn it, and to onChange once the keys rest.
   edited() {
     const s = this.s;
-    this.onEdit(s);
+    queueMicrotask(() => this.onEdit(s));
     this.later("find", () => this.find.refresh());
     this.later("change", () => this.onChange(s));
   }
