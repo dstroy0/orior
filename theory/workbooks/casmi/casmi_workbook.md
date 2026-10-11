@@ -47,6 +47,7 @@ Every measurement of the ranker and the ingest, in the order it was taken, with 
 | test, group sums as three planes with no index | `test.parquet` | submission identical; device peak 1.89 GB; 4 min 29 s wall |
 | slice validate, after the sweep fix | `train_slice.parquet` | MRR@25 778,263 ppm, places unchanged; device peak 1.07 GB |
 | ingest, on the device | `test.parquet` | 13 of 13 members sealed and rebuilt lane for lane, 0 checks failed; 3,253,454 lanes, crystals 6.5 MB; device peak 252 MB, 2.8 s; set root `6f160318…` |
+| validate misses, each written with its cause | `train.parquet` | MRR@25 883,984 ppm and the places unchanged; of the 45 misses, 2 a candidate with no matched peak and 43 outranked, 34 of them by a structure of the answer's formula; 19 of the 43 lose by less than 1% of the first's cosine squared and 8 by less than 0.1%; 22 sit at place 2 |
 | ingest, on the device | `train.parquet` | 379 of 379 members sealed and rebuilt lane for lane, 0 checks failed; 3,441,431,285 lanes, crystals 7.06 GB of 6.88 GB raw (102.5%); device peak 2.07 GB against 1.31 GB declared, 52 min; set root `2e3a6918…` |
 
 ## The hypotheses
@@ -63,6 +64,8 @@ Every design decision weighed, with what decided it.
 | **H6. Sweeps in pieces within a byte budget** | Each sweep runs its lanes in pieces of at most 1 GiB, uploads only the records its lanes read, shares one copy among members passed the same records, and lays the group sums as three planes read with no index. | Device peak fell from 5.26 GB to 1.89 GB on the test run, under the declaration, with the submission byte-identical. | **measured** |
 | **H7. Ingest the whole file** | `--ingest` seals every member of the parquet file (the footer and each leaf of each row group) as a crystal of a set through the engine's ingest, nothing dropped and nothing reshaped. | The engine's parquet source seals each member as the stored bytes and rebuilds it lane for lane. On the device: `test.parquet` 13 of 13 and `train.parquet` 379 of 379 members sealed and rebuilt lane for lane, 0 checks failed. | **measured** |
 | **H8. Pick columns into forms before the math** | Read a chosen subset of columns into layouts of the ranker's own and seal those. | This reshapes the data the program is held not to reshape: it drops columns and organizes the file into forms before the math. | **not taken** |
+| **H9. The misses are isomers** | The answers the ranker misses lose to a structure of their own formula, whose spectrum the cosine cannot tell from theirs. | On `train.parquet` validate, 34 of the 45 misses lose to a structure of the same formula; 18 of the 19 that lose by less than 1% of cosine squared do. | **measured** |
+| **H10. The score is the cosine** | The score program's M² over Q·R is cos². | The match's inside reads 4 where the peaks match: M² over Q·R is 16 cos² on every pair. Lists and the MRR are unchanged by the constant; the miss lines divide it out. | **not so** (it is 16 cos²) |
 
 ## The rules the program follows
 

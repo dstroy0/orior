@@ -185,6 +185,30 @@ static void rank_exact_signed(long long value, AnchorExactInteger *out)
     out->sign = (value < 0ll) ? -out->sign : out->sign;
 }
 
+// The match's inside is (1 - high)(1 + low) of two signs of -1 or +1: 4 where the peaks match and 0 elsewhere. A
+// kept weight is 4 I_q I_r and M^2 over Q R is 16 cos^2 on every pair alike
+#define RANK_INSIDE_SQUARED 16ull
+
+// a pair's cosine squared in parts per million, floored: 10^6 M^2 over 16 Q R, exact; ~0 where it does not fit
+static unsigned long long rank_score_ppm(const unsigned int *record, RankField numerator, RankField denominator)
+{
+    AnchorExactInteger top;
+    AnchorExactInteger bottom;
+    AnchorExactInteger million;
+    AnchorExactInteger scaled;
+    AnchorExactInteger quotient;
+    AnchorExactInteger remainder;
+    rank_field_read(record, numerator, &top);
+    rank_field_read(record, denominator, &bottom);
+    rank_exact_of(1000000ull / RANK_INSIDE_SQUARED, &million);
+    if ((anchor_exact_multiply(&top, &million, &scaled) != ANCHOR_EXACT_OK) ||
+        (anchor_exact_divide(&scaled, &bottom, &quotient, &remainder) != ANCHOR_EXACT_OK))
+    {
+        return ~0ull;
+    }
+    return ((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0];
+}
+
 // ---- a stored double ----
 
 // A double's 64 stored bits as its mantissa m and exponent E, x = m 2^(E - 1075); a zero is m = 0 at E = 1075, over 1
@@ -1699,6 +1723,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     unsigned long long truth_no_reference = 0ull;
     unsigned long long truth_outside = 0ull;
     unsigned long long truth_unscored = 0ull;
+    unsigned long long truth_isomer = 0ull;
     for (unsigned long long molecule = 0ull; molecule < molecule_count; molecule += 1ull)
     {
         std::vector<unsigned int> candidate;
@@ -1781,6 +1806,53 @@ int rank_run(SimResults *results, int count, char **arguments)
             truth_no_reference += has_reference ? 0ull : 1ull;
             truth_outside += (has_reference && !is_candidate) ? 1ull : 0ull;
             truth_unscored += (is_candidate && !is_scored) ? 1ull : 0ull;
+            // a miss, the answer past place 1: its cause, and the structure the list puts first, each's cosine
+            // squared in parts per million and whether the two share a formula
+            if (place != 1u)
+            {
+                unsigned int truth_group = RANK_ABSENT;
+                for (unsigned long long group = molecule_group_first[molecule];
+                     group < molecule_group_first[molecule + 1ull]; group += 1ull)
+                {
+                    truth_group = (group_structure[group] == truth) ? (unsigned int)group : truth_group;
+                }
+                scriptura_text(&results->line, "  miss ");
+                scriptura_text(&results->line, set.strings[RANK_KEY][truth].c_str());
+                if (place == 0u)
+                {
+                    scriptura_text(&results->line, " not listed: ");
+                }
+                else
+                {
+                    rank_line_decimal(results, " place ", place);
+                    scriptura_text(&results->line, ": ");
+                }
+                scriptura_text(&results->line, !has_reference  ? "no reference spectrum"
+                                                : !is_candidate ? "formula outside every window"
+                                                : !is_scored    ? "no matched peak"
+                                                                : "outranked");
+                if (chosen_count[molecule] != 0u)
+                {
+                    const unsigned int first_group = chosen[(molecule * RANK_LIST_MOST)];
+                    const unsigned int first = group_structure[first_group];
+                    const int same_formula = formula_text_of_structure[first] == formula_text_of_structure[truth];
+                    scriptura_text(&results->line, "; first ");
+                    scriptura_text(&results->line, set.strings[RANK_KEY][first].c_str());
+                    rank_line_decimal(results, " cos2 ",
+                                      rank_score_ppm(&scores[(size_t)structure_winner[first_group] * score_limbs],
+                                                     score_numerator, score_denominator));
+                    if (truth_group != RANK_ABSENT)
+                    {
+                        rank_line_decimal(results, ", answer cos2 ",
+                                          rank_score_ppm(&scores[(size_t)structure_winner[truth_group] * score_limbs],
+                                                         score_numerator, score_denominator));
+                    }
+                    scriptura_text(&results->line, same_formula ? ", same formula" : ", another formula");
+                    truth_isomer += (is_scored && same_formula) ? 1ull : 0ull;
+                }
+                rank_line_decimal(results, "; candidates ", candidate.size());
+                rank_line_end(results);
+            }
         }
         for (size_t each = 0u; each < candidate.size(); each += 1u)
         {
@@ -1820,6 +1892,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, "; with no reference spectrum ", truth_no_reference);
     rank_line_decimal(results, "; formula outside every window ", truth_outside);
     rank_line_decimal(results, "; candidate with no matched peak ", truth_unscored);
+    rank_line_decimal(results, "; scored and outranked by a structure of its formula ", truth_isomer);
     rank_line_end(results);
     scriptura_text(&results->line, "  answers at each place, 1 to 25, then not listed:");
     for (unsigned int place = 1u; place <= RANK_LIST_MOST; place += 1u)
