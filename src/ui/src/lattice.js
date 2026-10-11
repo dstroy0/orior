@@ -14,7 +14,7 @@
 // still, ordered at the left.
 
 import { rgbOf } from "./colors.js";
-import { clock, still as paused, whenMoving } from "./motion.js";
+import { clock, idle, still as paused, whenMoving } from "./motion.js";
 import { onScheme } from "./scheme.js";
 
 // The spacing of the points, and how far the most disordered point goes from its place, in pixels.
@@ -388,17 +388,8 @@ export function drawLattice(canvas) {
   }
 }
 
-// The moment until which every lattice holds still, as a pane slides.
-let heldUntil = 0;
-
-// Holds every lattice still for `ms`. The window is drawn without direct composition, and a frame of
-// the window's lattice redraws the whole window, which takes its frames from a slide that moves only
-// a pane.
-export function holdLattices(ms) {
-  heldUntil = Math.max(heldUntil, performance.now() + ms);
-}
-
-// Moves every lattice in sight a frame, no faster than one each FRAME.
+// Moves every lattice in sight a frame, no faster than one each FRAME, and only in a frame nothing
+// else wants: the lattices are the window's lowest work, and their frame redraws the whole window.
 let last = 0;
 function tick(now) {
   if (paused()) {
@@ -406,7 +397,8 @@ function tick(now) {
     return;
   }
   requestAnimationFrame(tick);
-  if (now - last < FRAME || now < heldUntil || document.hidden || still()) {
+  const free = idle(now);
+  if (now - last < FRAME || !free || document.hidden || still()) {
     return;
   }
   last = now;

@@ -15,9 +15,8 @@
 // panes collapse on their own is the reader's to set, and kept; Ctrl+B shows or collapses the view's
 // own pane either way.
 
-import { holdLattices } from "./lattice.js";
 import { menuOpen } from "./menu.js";
-import { still } from "./motion.js";
+import { preempt, still } from "./motion.js";
 
 const AUTO = "orior.panes.auto";
 
@@ -59,7 +58,7 @@ function setShown(pane, shown) {
   const { node } = pane;
   window.clearTimeout(pane.slide);
   if (shown === node.classList.contains("collapsed") && !reduced.matches) {
-    holdLattices(SLIDE + 60);
+    preempt(SLIDE + 60);
   }
   if (!shown && !node.classList.contains("collapsed") && !reduced.matches) {
     const box = node.getBoundingClientRect();
