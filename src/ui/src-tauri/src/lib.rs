@@ -6,9 +6,14 @@
 //! calls, the `view` scheme its page windows load from, the terminal's pseudo-terminals and the
 //! clipboard. The same program is the command line, handing it any words it is started with.
 
+mod allocations;
 mod clip;
 mod dragging;
 mod memory;
+mod printing;
+
+#[global_allocator]
+static ALLOCATOR: allocations::Counting = allocations::Counting;
 mod scrollback;
 mod terminal;
 
@@ -54,10 +59,29 @@ fn local_only(app: &App) -> Result<(), String> {
 /// Answers a command of the tree's side by its name, as serve.rs answers it.
 #[tauri::command(async)]
 fn call(app: State<App>, name: String, args: serde_json::Value) -> Result<serde_json::Value, String> {
-    match app.link.get() {
+    allocations::measured(&name, || match app.link.get() {
         Some(link) => link.call(&name, args),
         None => app.server.call(&name, args),
-    }
+    })
+}
+
+/// The system's printers, and whether a page prints on them with no dialog of the system's.
+#[tauri::command(async)]
+fn printers_list() -> serde_json::Value {
+    serde_json::json!({ "printers": printing::printers(), "silent": printing::SILENT })
+}
+
+/// Prints a page from orior's print sheet, or writes it as a PDF, as `settings` say.
+#[tauri::command(async)]
+fn print_page(app: tauri::AppHandle, html: String, settings: printing::Settings) -> Result<String, String> {
+    printing::print(&app, html, settings)
+}
+
+/// What the calls of the tree's side took and kept, by name, while the count is on: `on` turns it on
+/// or off, and `reset` empties it once read.
+#[tauri::command]
+fn memory_calls(on: Option<bool>, reset: Option<bool>) -> std::collections::BTreeMap<String, allocations::Calls> {
+    allocations::read(on, reset.unwrap_or(false))
 }
 
 /// The tree's machine, its address and how its link stands, where the tree is on another machine.
@@ -335,11 +359,11 @@ fn report_auto() -> bool {
     report::auto()
 }
 
-/// Whether the reporter has answered whether errors file on their own, and the question they are
-/// asked where they have not.
+/// Whether the question of whether errors file on their own needs no asking, as the reporter has
+/// answered it or ORIOR_NO_REPORTS turned reports off for the run, and the question.
 #[tauri::command]
 fn report_asked() -> (bool, &'static str) {
-    (report::asked(), report::QUESTION)
+    (report::asked() || std::env::var_os("ORIOR_NO_REPORTS").is_some(), report::QUESTION)
 }
 
 #[tauri::command]
@@ -904,6 +928,9 @@ fn open(launch: Launch) {
             window_show,
             memory_use,
             memory_hold,
+            memory_calls,
+            printers_list,
+            print_page,
             kept_write,
             files_copy,
             clip_files,

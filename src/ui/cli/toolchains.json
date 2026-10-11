@@ -62,6 +62,16 @@
       "places": {"windows": ["%ProgramFiles%\\GitHub CLI"], "macos": ["/opt/homebrew/bin", "/usr/local/bin"]}
     },
     {
+      "id": "ssh",
+      "name": "OpenSSH",
+      "group": "orior's own",
+      "for": "trees on other machines, the tunnels to databases, profiling elsewhere and deployments, each with the reader's own keys and agent",
+      "programs": ["ssh"],
+      "version": ["-V"],
+      "install": {"windows": "https://learn.microsoft.com/windows-server/administration/openssh/openssh_install_firstuse", "any": "https://www.openssh.com/"},
+      "places": {"windows": ["%SystemRoot%\\System32\\OpenSSH", "%ProgramFiles%\\Git\\usr\\bin"], "any": ["/usr/bin"]}
+    },
+    {
       "id": "cuda",
       "name": "CUDA Toolkit",
       "group": "C, C++ and CUDA",
@@ -246,7 +256,7 @@
       "programs": ["zig"],
       "version": ["version"],
       "install": {"any": "https://ziglang.org/download/"},
-      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
+      "places": {"windows": ["%LOCALAPPDATA%\\Microsoft\\WinGet\\Links", "%USERPROFILE%\\scoop\\shims", "%LOCALAPPDATA%\\Programs\\zig-*"], "any": ["/opt/homebrew/bin", "/usr/local/bin", "~/.local/bin"]}
     },
     {
       "id": "zls",
@@ -501,6 +511,118 @@
       "version": ["--version"],
       "install": {"any": "https://scons.org/pages/download.html"},
       "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "meson",
+      "name": "Meson",
+      "group": "C, C++ and CUDA",
+      "for": "the builds a meson.build gives",
+      "programs": ["meson"],
+      "version": ["--version"],
+      "install": {"any": "https://mesonbuild.com/Getting-meson.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts", "%ProgramFiles%\\Meson"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "go",
+      "name": "Go",
+      "group": "Languages",
+      "for": "builds the programs of a go.mod's main packages",
+      "programs": ["go"],
+      "version": ["version"],
+      "install": {"any": "https://go.dev/dl/"},
+      "places": {"windows": ["%ProgramFiles%\\Go\\bin", "%USERPROFILE%\\go\\bin"], "macos": ["/usr/local/go/bin", "/opt/homebrew/bin"], "linux": ["/usr/local/go/bin", "/usr/bin"]}
+    },
+    {
+      "id": "dotnet",
+      "name": ".NET SDK",
+      "group": "Languages",
+      "for": "builds the programs of .NET projects",
+      "programs": ["dotnet"],
+      "version": ["--version"],
+      "holds": "sdk",
+      "install": {"any": "https://dotnet.microsoft.com/download"},
+      "places": {"windows": ["%ProgramFiles%\\dotnet", "%LOCALAPPDATA%\\Microsoft\\dotnet"], "macos": ["/usr/local/share/dotnet", "~/.dotnet"], "linux": ["/usr/share/dotnet", "/usr/lib/dotnet", "~/.dotnet"]}
+    },
+    {
+      "id": "pyinstaller",
+      "name": "PyInstaller",
+      "group": "Languages",
+      "for": "builds a Python program into one file or one folder from its spec, run by the tree's Python",
+      "programs": ["pyinstaller"],
+      "version": ["--version"],
+      "install": {"any": "https://pyinstaller.org/en/stable/installation.html"},
+      "places": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python3*\\Scripts", "%APPDATA%\\Python\\Python3*\\Scripts"], "any": ["~/.local/bin", "/opt/homebrew/bin", "/usr/bin"]}
+    },
+    {
+      "id": "signtool",
+      "name": "SignTool",
+      "group": "Languages",
+      "for": "signs the programs a build makes with the certificate settings.json names under signing.windows",
+      "programs": ["signtool"],
+      "install": {"windows": "https://developer.microsoft.com/windows/downloads/windows-sdk/"},
+      "places": {"windows": ["%ProgramFiles(x86)%\\Windows Kits\\10\\bin\\10.*\\x64", "%ProgramFiles(x86)%\\Windows Kits\\10\\App Certification Kit"]}
+    },
+    {
+      "id": "bun",
+      "name": "Bun",
+      "group": "Languages",
+      "for": "builds a package.json's bin into one file",
+      "programs": ["bun"],
+      "version": ["--version"],
+      "install": {"any": "https://bun.sh/docs/installation"},
+      "places": {"windows": ["%USERPROFILE%\\.bun\\bin"], "any": ["~/.bun/bin"]}
+    },
+    {
+      "id": "deno",
+      "name": "Deno",
+      "group": "Languages",
+      "for": "builds a package.json's bin into one file where the tree uses Deno",
+      "programs": ["deno"],
+      "version": ["--version"],
+      "install": {"any": "https://docs.deno.com/runtime/getting_started/installation/"},
+      "places": {"windows": ["%USERPROFILE%\\.deno\\bin"], "any": ["~/.deno/bin"]}
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "group": "Databases",
+      "for": "a PostgreSQL server on this machine, its psql and pg_ctl; the database window speaks to any server itself",
+      "programs": ["psql", "pg_ctl", "postgres"],
+      "version": ["--version"],
+      "install": {"windows": "https://www.enterprisedb.com/download-postgresql-binaries", "macos": "https://postgresapp.com/", "linux": "https://www.postgresql.org/download/linux/"},
+      "places": {"windows": ["%ProgramFiles%\\PostgreSQL\\*\\bin", "D:\\PostgreSQL\\*\\pgsql\\bin", "C:\\PostgreSQL\\*\\pgsql\\bin"], "macos": ["/Applications/Postgres.app/Contents/Versions/latest/bin", "/opt/homebrew/bin"], "linux": ["/usr/lib/postgresql/*/bin", "/usr/bin"]}
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "group": "Databases",
+      "for": "a MySQL server on this machine and its mysql client; the database window speaks to any MySQL or MariaDB server itself",
+      "programs": ["mysql", "mysqld"],
+      "version": ["--version"],
+      "install": {"any": "https://dev.mysql.com/downloads/mysql/"},
+      "places": {"windows": ["%ProgramFiles%\\MySQL\\MySQL Server *\\bin", "D:\\MySQL\\*\\mysql-*-winx64\\bin", "C:\\MySQL\\*\\mysql-*-winx64\\bin"], "macos": ["/usr/local/mysql/bin", "/opt/homebrew/bin"], "linux": ["/usr/sbin", "/usr/bin"]}
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "group": "Containers",
+      "for": "the Containers window, trees in containers and dev containers, deployments to containers, and the servers orior's own tests run against",
+      "programs": ["docker"],
+      "version": ["--version"],
+      "install": {"windows": "https://docs.docker.com/desktop/setup/install/windows-install/", "macos": "https://docs.docker.com/desktop/setup/install/mac-install/", "linux": "https://docs.docker.com/engine/install/"},
+      "setup": {"windows": "winget install -e --id Docker.DockerDesktop", "macos": "brew install --cask docker", "linux": "curl -fsSL https://get.docker.com | sh"},
+      "places": {"windows": ["%ProgramFiles%\\Docker\\Docker\\resources\\bin"], "macos": ["/Applications/Docker.app/Contents/Resources/bin", "/usr/local/bin", "/opt/homebrew/bin"], "linux": ["/usr/bin", "/usr/local/bin"]}
+    },
+    {
+      "id": "kubectl",
+      "name": "kubectl",
+      "group": "Containers",
+      "for": "a Kubernetes cluster's pods in the Containers window, their logs and a terminal in them",
+      "programs": ["kubectl"],
+      "version": ["version", "--client"],
+      "install": {"any": "https://kubernetes.io/docs/tasks/tools/"},
+      "setup": {"windows": "winget install -e --id Kubernetes.kubectl", "macos": "brew install kubectl"},
+      "places": {"windows": ["%ProgramFiles%\\Docker\\Docker\\resources\\bin", "%USERPROFILE%\\.kube\\bin"], "macos": ["/usr/local/bin", "/opt/homebrew/bin"], "linux": ["/usr/local/bin", "/usr/bin"]}
     }
   ]
 }

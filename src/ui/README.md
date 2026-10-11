@@ -23,6 +23,34 @@ The app reads all of it from the tree each time:
 
 A job's description is the opening comment or docstring of its own file.
 
+## Precepts
+
+1. Never cause the user friction: a snappy response, and the user does what they need to while we background our processes.
+2. Always give stateful, graceful errors.
+3. Do not annoy the user: if they are trying to do something, notify them and leave them alone.
+
+## How a feature is made
+
+1. The feature is built.
+2. Its test goes in `test/`, which mirrors `src/` file for file: `src/x.js` is tested by `test/src/x.test.js`. A Rust module keeps its unit tests in its own `tests` module, as Rust's convention has it, and a test that spans modules goes in its crate's `tests/` folder.
+3. A feature of the window is tested through the window's debugging port, every way it can be used: each press, key, menu item, drag, hover and scroll, each state it can be in, and each error it can give, checked for what it shows and what it does.
+4. `test/harness.rs` runs every test, the crates' and the window's, and names each source file with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
+5. The feature is committed and pushed once all of it passes.
+
+## Testing it
+
+```
+cargo run --manifest-path src/ui/test/Cargo.toml -- [--only TEXT] [--monitor N]
+```
+
+The harness starts the servers the tests reach, each a Docker container of its own on this
+machine's loopback: PostgreSQL, MySQL, MariaDB, and CUPS with three printers. Without Docker the
+tests that reach them do not run, and the report names them. It runs each crate's tests, then the
+window's, in orior built for the run with a home and a tree of its own: a run leaves the
+reader's orior as it was. The window goes on the highest numbered monitor that is not the main one,
+or the one `--monitor` or `ORIOR_TEST_MONITOR` names; `--monitors` lists them. The run fails while
+any test fails or any source file has no test, and its report is in `test/runs/<time>/report.md`.
+
 ## Running it
 
 It needs Rust 1.77 or later to build. Every line of the page is in `src/`, written for this tree,
@@ -83,10 +111,31 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | the text of each tab with changes not saved | `backups/`, a file each |
 | each file's Local History | `history/` |
 | the repositories File, Open, Repository clones | `repositories/` |
+| the hashes of the files each deployment last sent to each place | `deployed/`, a file each |
 
 `settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
 default.
+
+A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
+the folder whose files go, the patterns of the files that stay, the places, and how many releases
+each place keeps.
+
+```json
+{"deployments": [{"name": "site", "from": "dist", "exclude": ["*.map", "drafts/"], "to": ["me@web1:/srv/site", "docker:web:/srv/site"], "keep": 5}]}
+```
+
+A place is an address as File, Open, Folder on Another Machine… takes one, or a folder on this
+machine. A machine takes each deployment as a new release under `releases/`, and `current` is
+turned to it once every place holds it; `"inPlace": true` sends the files into the folder itself, as
+a folder on this machine always takes them. The hashes of the files last sent to each place are
+kept in `deployed/` in orior's own folder, to tell a file changed at a place since.
+
+The programs a tree's builds make are signed where `settings.json` names how: `signing.windows`, a
+certificate's thumbprint in the reader's store or the path of a `.pfx` file, its password taken from
+`ORIOR_SIGN_PASSWORD` and from no file; `signing.timestamp`, the address of a timestamp server;
+`signing.macos`, the identity `codesign` signs with; and `signing.notarize`, the keychain profile
+`notarytool` sends the program with.
 
 ## The command line
 

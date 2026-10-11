@@ -16,12 +16,17 @@
 // own pane either way.
 
 import { menuOpen } from "./menu.js";
-import { still } from "./motion.js";
+import { preempt, still } from "./motion.js";
 
 const AUTO = "orior.panes.auto";
 
 // How long the pointer stays away before a pane collapses, in milliseconds.
 const REST = 700;
+
+// How long a pane's inside takes to slide away, as style.css sets it, in milliseconds.
+const SLIDE = 220;
+
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const panes = [];
 
@@ -47,9 +52,34 @@ export function autoCollapse() {
   return localStorage.getItem(AUTO) !== "false";
 }
 
+// Shows a pane or collapses it. A pane collapsing holds its room while its inside slides away and
+// gives it back in one step after; one shown takes its room at once and its inside slides in.
 function setShown(pane, shown) {
-  pane.node.classList.toggle("collapsed", !shown);
-  pane.node.inert = !shown;
+  const { node } = pane;
+  window.clearTimeout(pane.slide);
+  if (shown === node.classList.contains("collapsed") && !reduced.matches) {
+    preempt(SLIDE + 60);
+  }
+  if (!shown && !node.classList.contains("collapsed") && !reduced.matches) {
+    const box = node.getBoundingClientRect();
+    node.style.setProperty("--held", `${node.classList.contains("toward-bottom") ? box.height : box.width}px`);
+    node.classList.add("sliding");
+    pane.slide = window.setTimeout(() => {
+      node.classList.remove("sliding");
+      node.style.removeProperty("--held");
+    }, SLIDE);
+  } else if (shown) {
+    node.classList.remove("sliding");
+    node.style.removeProperty("--held");
+    // The frame the editor gives its room back in redraws the whole window; the inside starts to
+    // slide in once that frame is drawn, and none of the slide's frames go to it.
+    if (node.classList.contains("collapsed") && !reduced.matches) {
+      node.classList.add("arriving");
+      requestAnimationFrame(() => requestAnimationFrame(() => node.classList.remove("arriving")));
+    }
+  }
+  node.classList.toggle("collapsed", !shown);
+  node.inert = !shown;
   pane.edge.hidden = shown;
 }
 

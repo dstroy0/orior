@@ -43,6 +43,32 @@ pub enum Arg {
     /// No argument: the value of a param, where one is given, set in the step's environment under the
     /// param's key as the variable's name.
     Env(String),
+    /// The value of a param, where one is given, between the two texts, as one word.
+    Around(String, String, String),
+    /// The words, where the param's value is the value named.
+    When(String, String, Vec<String>),
+    /// No argument: the variable set to the value in the step's environment.
+    Set(String, String),
+    /// No argument: the step's PATH without the folders that hold the program named.
+    Unpath(String),
+    /// No argument: the step runs only where the param's value is the value named.
+    Only(String, String),
+    /// The text with each {key} in it filled with that param's value, as one word.
+    Format(String),
+    /// A flag and then the value of a param, where one is given other than the value named.
+    FlagBut(&'static str, String, String),
+    /// No argument: the value of a param, where one is given other than the value named, set in the
+    /// step's environment under the param's key.
+    EnvBut(String, String),
+    /// No argument: the step runs in the folder named, a path in the tree, and not its top folder.
+    Folder(String),
+    /// No argument: SOURCE_DATE_EPOCH set to the time of the commit the tree stands at, which a
+    /// build writes in place of the time it runs, where the tree is in git and it is not set.
+    SourceDate,
+    /// No argument: the C compiler and linker for the system and processor the job's params choose,
+    /// set in the step's environment where they are another machine's, for a build of the kind
+    /// named, "go" or "rust", as executables.rs gives them.
+    Cross(&'static str),
 }
 
 #[derive(Clone)]
@@ -53,6 +79,13 @@ pub enum Program {
     Python(String),
     /// A program a build job writes under one of the build folders, by its name.
     Built(&'static str),
+    /// The program `program` of the toolchain `tool`, found where the toolchains window finds it.
+    Tool { tool: String, program: String },
+    /// orior itself, the program running, which takes the command line's words.
+    Orior,
+    /// The program the job's build made, found once the steps before it end; run with the PATH a
+    /// program opened on its own gets, where `system`.
+    Made { system: bool },
 }
 
 #[derive(Clone)]
@@ -581,6 +614,8 @@ fn protocol(root: &Path, jobs: &mut Vec<Job>) {
 pub fn read(root: &Path) -> Vec<Job> {
     let mut jobs = Vec::new();
     builds(root, &mut jobs);
+    crate::executables::jobs(root, &mut jobs);
+    crate::deploy::jobs(root, &mut jobs);
     protocol(root, &mut jobs);
     driver(root, &mut jobs);
     runners(root, &mut jobs);
