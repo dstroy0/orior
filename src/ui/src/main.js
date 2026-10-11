@@ -36,6 +36,7 @@ import { serveAgain } from "./servers.js";
 import { catchErrors } from "./reports.js";
 import { keepScheme, showKeptScheme } from "./scheme.js";
 import { onSettings, readSettings, startSettings } from "./settings.js";
+import { startNetwork } from "./network.js";
 import { applyThemes } from "./themes.js";
 import { applyFonts } from "./fonts.js";
 import { showOpacity } from "./opacity.js";
@@ -237,6 +238,7 @@ async function start() {
   startSight();
   startWaits();
   startNotices();
+  startNetwork();
   // A tree on another machine: once the link to it is made, the runs kept there are read, and once
   // it is made again after a drop, every open tab is handed to its server there again.
   await startRemote({

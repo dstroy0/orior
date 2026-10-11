@@ -548,6 +548,7 @@ fn millis(since: Instant) -> f64 {
 fn once(method: &str, url: &str, headers: &[(String, String)], body: &[u8], verify: bool) -> Result<Answer, String> {
     let began = Instant::now();
     let to = address(url)?;
+    crate::net::reach(url, &format!("a {method} request"))?;
     let mut times = Times::default();
     let mut step = Instant::now();
     let places: Vec<_> = (to.host.as_str(), to.port).to_socket_addrs().map_err(|error| format!("{}: {error}", to.host))?.collect();

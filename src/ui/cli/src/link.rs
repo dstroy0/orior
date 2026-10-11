@@ -137,6 +137,9 @@ impl Address {
     /// writes before it has read all it is given would otherwise wait on a full pipe while its input
     /// waits on it.
     pub(crate) fn ask(&self, line: &str, input: Option<&[u8]>) -> Result<String, String> {
+        if let Way::Ssh(host) = &self.way {
+            crate::net::reach(host, "a command run over ssh")?;
+        }
         let mut command = self.command(line);
         command.stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = command.spawn().map_err(|error| format!("{}: {error}", self.runs(line, false).0))?;

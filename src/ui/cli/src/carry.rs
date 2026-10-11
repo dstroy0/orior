@@ -118,7 +118,7 @@ pub fn send(home: &Path, to: &Path) -> Result<String, String> {
     }
     let repository = to.join(".git").exists();
     if repository && crate::git::run(to, &["remote"]).is_ok_and(|remotes| !remotes.is_empty()) {
-        crate::git::run(to, &["pull", "--ff-only"])?;
+        crate::git::pull(to)?;
     }
     for (place, path) in carried_files(to) {
         if !packed.contains_key(&place) {
@@ -152,7 +152,7 @@ pub fn send(home: &Path, to: &Path) -> Result<String, String> {
 pub fn read(from: &Path) -> Result<BTreeMap<String, String>, String> {
     if from.is_dir() {
         if from.join(".git").exists() && crate::git::run(from, &["remote"]).is_ok_and(|remotes| !remotes.is_empty()) {
-            crate::git::run(from, &["pull", "--ff-only"])?;
+            crate::git::pull(from)?;
         }
         let mut found = BTreeMap::new();
         for (place, path) in carried_files(from) {

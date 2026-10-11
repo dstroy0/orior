@@ -46,6 +46,7 @@ pub mod latex;
 pub mod link;
 pub mod lsp;
 pub mod mysql;
+pub mod net;
 pub mod notebook;
 pub mod patterns;
 pub mod regexp;

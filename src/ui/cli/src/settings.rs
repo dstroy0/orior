@@ -35,9 +35,10 @@ const SYSTEMS: [&str; 3] = ["windows", "linux", "macos"];
 
 /// The settings a tree's file does not set, each a key or the start of keys where it ends in `.`:
 /// how the programs a build makes are signed, the environment a tree's runs take, the checkers run
-/// as files change, and the window's title bar. Each runs a program or names the reader's own, and a
-/// tree cloned from anywhere would set it.
-const TREE_HELD: [&str; 4] = ["signing.", "environment.", "checkers", "titlebar"];
+/// as files change, the window's title bar, and whether orior is held off the network. Each runs a
+/// program, names the reader's own or lets orior reach out, and a tree cloned from anywhere would set
+/// it.
+const TREE_HELD: [&str; 5] = ["signing.", "environment.", "checkers", "titlebar", "network"];
 
 /// The settings a kind of file sets.
 const KIND_KEYS: [&str; 2] = ["theme.dark", "theme.light"];

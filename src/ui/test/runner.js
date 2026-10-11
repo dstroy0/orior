@@ -117,6 +117,8 @@
     const until = performance.now() + 5000;
     let last = null;
     let why = "";
+    // An element a scrolling part clips, as a sheet's own scroll does, is scrolled into view once.
+    let scrolled = false;
     while (performance.now() < until) {
       const node = elementOf(target);
       const box = node.getBoundingClientRect();
@@ -134,6 +136,10 @@
         why = "keeps moving";
       } else if (!hit || !(hit === node || node.contains(hit))) {
         why = `is under ${named(hit)}`;
+        if (!scrolled) {
+          scrolled = true;
+          node.scrollIntoView({ block: "center", inline: "nearest" });
+        }
       } else {
         return point;
       }

@@ -520,8 +520,14 @@ pub fn resolve(root: &Path, path: &str) -> Result<(), String> {
     run(&dir, &["add", "--", &shown]).map(drop)
 }
 
+/// The address of the remote the branch follows, or of origin, as git would reach it.
+fn remote_address(root: &Path) -> String {
+    run(root, &["ls-remote", "--get-url"]).unwrap_or_default()
+}
+
 /// Pushes the branch to the remote it follows, or to origin under its own name where it follows none.
 pub fn push(root: &Path) -> Result<String, String> {
+    crate::net::reach(&remote_address(root), "git push")?;
     if run(root, &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]).is_ok() {
         run(root, &["push"])
     } else {
@@ -532,6 +538,7 @@ pub fn push(root: &Path) -> Result<String, String> {
 /// Brings in the commits of the remote branch the tree's follows, only where its own commits are all
 /// among them, so that nothing is merged or rewritten.
 pub fn pull(root: &Path) -> Result<String, String> {
+    crate::net::reach(&remote_address(root), "git pull")?;
     run(root, &["pull", "--ff-only"])
 }
 
@@ -930,6 +937,7 @@ pub fn clone_folder(url: &str, parent: &Path) -> Result<PathBuf, String> {
 /// line git ends with a carriage return is one it writes over with the next. Answers the folder, or
 /// the first line git marked fatal.
 pub fn clone(url: &str, target: &Path, mut said: impl FnMut(&str, bool)) -> Result<PathBuf, String> {
+    crate::net::reach(url, "git clone")?;
     if target.read_dir().is_ok_and(|mut held| held.next().is_some()) {
         return Err(format!("{} is there already and holds files", target.display()));
     }

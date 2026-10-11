@@ -354,6 +354,8 @@
         "-",
         { "label": "Report a Bug…", "command": "report", "args": "[library|cli|ui|unknown] [title]", "console": true },
         { "label": "Automatic Error Reports", "command": "auto-report", "args": "[on|off]", "console": true, "checks": "auto-report" },
+        { "label": "Network…", "command": "network" },
+        { "label": "Off the Network", "command": "network-off", "args": "[on|off]", "checks": "network-off" },
         "-",
         { "label": "About", "command": "about", "console": true }
       ]

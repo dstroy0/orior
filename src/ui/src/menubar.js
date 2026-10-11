@@ -35,6 +35,7 @@ import { openPalette, startPalette } from "./palette.js";
 import { fuzzy } from "./fuzzy.js";
 import { runAllTests, runFailedTests, setTestsParallel, stopTests, testsParallel } from "./tests.js";
 import { showPreferences } from "./preferences.js";
+import { offNetwork, setOffNetwork, showNetwork } from "./network.js";
 import { showGenerator, showPlugins } from "./pluginsheet.js";
 import { loadPlugins } from "./plugins.js";
 import { runToolchains } from "./toolchains.js";
@@ -537,6 +538,8 @@ const COMMANDS = {
     await invoke("report_auto_set", { on });
     state.autoReport = on;
   },
+  network: () => showNetwork(sheet),
+  "network-off": (args) => setOffNetwork(onOff(args) ?? !offNetwork()),
   about: showAbout,
 };
 
@@ -563,6 +566,7 @@ const CHECKS = {
   "parameter-hints": () => editing().hints("parameter"),
   "flick-scroll": () => editing().flickScroll(),
   "auto-report": () => state.autoReport,
+  "network-off": offNetwork,
   "scheme-system": followsSystem,
   split: () => editing().splitShown(),
   "terminal-split": terminalSplit,

@@ -119,6 +119,7 @@ on Windows, in `$XDG_CONFIG_HOME` or `~/.config` elsewhere, or the folder `ORIOR
 | the repositories File, Open, Repository clones | `repositories/` |
 | the hashes of the files each deployment last sent to each place | `deployed/`, a file each |
 | each taking of another machine's settings, the files it wrote over as they were | `carried/`, a folder each |
+| each address orior has reached off this machine, when and what for, the last thousand | `network.jsonl` |
 
 `settings.json` and `state.json` hold each entry under its own key, as JSON. orior reads the folder
 as it starts, which takes in an edit made while it was closed; a key taken out goes back to its
@@ -170,6 +171,13 @@ would change shows first, a file at a time and `settings.json` a setting at a ti
 written until the reader takes what is chosen; each taking is kept in `carried/` and undone from
 the list there. `machine`, `signing.`, `environment.`, `memory-budget` and `carry.place` stay
 on the machine that set them.
+
+orior reaches an address off this machine only for what the reader asked of it: a request sent, a
+database connected, a debug adapter joined, a command run over ssh, a repository cloned, pulled or
+pushed, and an error report the reader let file on its own; it sends nothing about the reader. Help,
+Off the Network, kept as `network`, holds it off the network entirely, each reach refused with what
+it was for, and a tree's settings file does not set it. Help, Network… lists each address reached,
+when and what for.
 
 A tree names its deployments in `deploy.json` at its top folder, each a job of Build: its name,
 the folder whose files go, the patterns of the files that stay, the places, and how many releases

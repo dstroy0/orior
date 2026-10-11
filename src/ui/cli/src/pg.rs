@@ -89,6 +89,7 @@ pub struct Cancel {
 impl Cancel {
     /// Asks the server to stop the statement the connection runs now.
     pub fn send(&self) -> Result<(), String> {
+        crate::net::reach(&format!("{}:{}", self.host, self.port), "stopping a PostgreSQL statement")?;
         let mut stream = TcpStream::connect((self.host.as_str(), self.port)).map_err(|error| format!("{}:{}: {error}", self.host, self.port))?;
         let mut body = Vec::new();
         body.extend_from_slice(&80877102u32.to_be_bytes());
@@ -175,6 +176,7 @@ impl Pg {
     /// Connects to `database` at host:port as `user`, signing in with `password` as the server
     /// asks, within `wait`.
     pub fn connect(host: &str, port: u16, user: &str, password: &str, database: &str, wait: Duration) -> Result<Pg, Failure> {
+        crate::net::reach(&format!("{host}:{port}"), "a PostgreSQL connection")?;
         let address = std::net::ToSocketAddrs::to_socket_addrs(&(host, port)).map_err(|error| format!("{host}:{port}: {error}"))?.next().ok_or_else(|| format!("{host} has no address"))?;
         let stream = TcpStream::connect_timeout(&address, wait).map_err(|error| format!("{host}:{port}: {error}"))?;
         stream.set_nodelay(true).ok();

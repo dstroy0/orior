@@ -363,6 +363,18 @@ fn plugin_settings_write(id: String, values: serde_json::Value) -> Result<(), St
     std::fs::write(&path, serde_json::to_string_pretty(&values).unwrap_or_default() + "\n").map_err(|error| format!("{}: {error}", path.display()))
 }
 
+/// Holds orior off the network, or lets it on, as the reader's setting `network` says (net.rs).
+#[tauri::command]
+fn network_hold(off: bool) {
+    orior_cli::net::hold(off);
+}
+
+/// The addresses orior has reached, the last first, with when and what for.
+#[tauri::command(async)]
+fn network_reached() -> Vec<orior_cli::net::Reached> {
+    orior_cli::net::reached(1000)
+}
+
 /// The picture at `path` as the data address a theme keeps for the image behind the editor: PNG,
 /// JPEG, GIF, WebP, SVG or BMP, of IMAGE_MOST bytes at most.
 #[tauri::command(async)]
@@ -1074,6 +1086,8 @@ fn open(launch: Launch) {
             kept_write,
             settings_layers,
             image_data,
+            network_hold,
+            network_reached,
             carry_send,
             carry_read,
             carry_take,

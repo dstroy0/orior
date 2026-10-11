@@ -80,6 +80,7 @@ impl Adapter {
     /// listens, or the one that debugs a process the program started. `heard` takes its events, and
     /// ending the session lets the program run on where `ends_program` is false.
     pub fn connect(host: &str, port: u16, ends_program: bool, heard: Heard) -> Result<Adapter, String> {
+        crate::net::reach(&format!("{host}:{port}"), "a debug adapter")?;
         let address = (host, port).to_socket_addrs().map_err(|error| format!("{host}:{port}: {error}"))?.next().ok_or_else(|| format!("{host}:{port} names no address"))?;
         let socket = TcpStream::connect_timeout(&address, CONNECTING).map_err(|error| format!("{host}:{port}: {error}"))?;
         let _ = socket.set_nodelay(true);
