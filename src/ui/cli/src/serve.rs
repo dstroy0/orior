@@ -766,7 +766,7 @@ impl Server {
             "git_pull" => git::pull(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?).and_then(give),
             "git_rollback" => git::rollback(&self.root()?, &path()?).and_then(give),
             "git_ahead_behind" => give(git::ahead_behind(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?)),
-            "git_graph" => give(git::graph(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, a.get::<Option<String>>("query")?.as_deref().unwrap_or(""))),
+            "git_graph" => give(git::graph(&self.repo_of(a.get::<Option<String>>("repo")?.as_deref())?, a.get::<Option<String>>("query")?.as_deref().unwrap_or(""), a.get::<Option<bool>>("authors")?.unwrap_or(false))),
             "git_touched" => {
                 let repo: Option<String> = a.get("repo")?;
                 let mut found = git::touched(&self.repo_of(repo.as_deref())?, &a.get::<String>("id")?)?;

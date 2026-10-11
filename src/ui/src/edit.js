@@ -24,6 +24,7 @@
 // Forward walk the places the cursor jumped from and to, and Last Editor steps through the tabs by
 // when each was last shown, while Ctrl is held.
 
+import { onAuthors } from "./authors.js";
 import { invoke, listen } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
 import { lineChanges } from "./editor/diff.js";
@@ -1497,15 +1498,19 @@ function compareTexts(name, then, now, sides, review = name) {
 
 const shortId = (commit) => commit.id.slice(0, 7);
 
+// A commit as a diff's bar names it: its id, and who made it, as a change is answered for where it
+// is reviewed, whether authors show elsewhere.
+const madeBy = (commit) => `${shortId(commit)}${commit.author ? ` by ${commit.author}` : ""}`;
+
 // A revision of a file beside the file as it stands, or beside another revision, the older left.
 async function compareCommit(path, commit, other = null) {
   try {
     if (!other) {
-      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${shortId(commit)}, then as it stands`);
+      compareTexts(path, await invoke("file_at", { path, id: commit.id }), await textNow(path), `${madeBy(commit)}, then as it stands`);
       return;
     }
     const [older, newer] = commit.when <= other.when ? [commit, other] : [other, commit];
-    compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${shortId(older)}, then ${shortId(newer)}`);
+    compareTexts(path, await invoke("file_at", { path, id: older.id }), await invoke("file_at", { path, id: newer.id }), `${madeBy(older)}, then ${madeBy(newer)}`);
   } catch (error) {
     say(String(error), { failed: true });
   }
@@ -1517,7 +1522,7 @@ async function openTouched(commit, file) {
   const parent = commit.parents[0];
   const then = file.state === "A" || !parent ? null : await invoke("file_at", { path: file.was ?? file.path, id: parent }).catch(() => null);
   const now = file.state === "D" ? "" : await invoke("file_at", { path: file.path, id: commit.id }).catch(() => "");
-  compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${shortId(commit)}`);
+  compareTexts(file.path, then, now, `${parent ? parent.slice(0, 7) : "nothing"}, then ${madeBy(commit)}`);
 }
 
 // A review comment's file, open at the line the comment stands at in its text as it is.
@@ -2121,6 +2126,14 @@ function setLineHistory(on) {
   state.lineHistory = on;
   markChanges(tabOf(state.active));
 }
+
+// Authors shown or hidden, the Line History shown is drawn again, its column the width it needs.
+onAuthors(() => {
+  const s = state.editor?.s;
+  if (s?.history) {
+    state.editor.setLineHistory(s, s.history);
+  }
+});
 
 // A press on Line History's mark: the file's change in the commit that last changed the line.
 function openLineCommit(s, line) {

@@ -305,6 +305,7 @@
         { "label": "Cherry-Pick…", "command": "cherry-pick", "args": "[commit]" },
         "-",
         { "label": "Line History", "command": "line-history", "args": "[on|off]", "checks": "line-history" },
+        { "label": "Authors", "command": "git-authors", "args": "[on|off]", "checks": "git-authors" },
         "-",
         { "label": "Resolve Conflicts…", "command": "conflicts", "args": "[file]" }
       ]

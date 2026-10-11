@@ -27,6 +27,7 @@ import { checkersNamed, setCheckers } from "./servers.js";
 import { lastMemory, memoryBudget, say, setMemoryBudget } from "./statusbar.js";
 import { showBookmarks, toggleBookmark } from "./bookmarks.js";
 import { askStepping, attachAddress, attachProcess, canStepBack, debugFile, debugging, debugMixed, exportBreakpoints, importBreakpoints, isPaused, recordFile, restartDebug, showMachineCode, showMemory as showDebugMemory, step, stopDebug, toggleBreakpointHere, toggleDebugPanel, watchAddress } from "./debug.js";
+import { authorsShown, setAuthorsShown } from "./authors.js";
 import { addToWindow, bindEditorKeys, bindReaderKeys, crumbsShown, editing, openAt as openFileAt, openFile, recentFiles, saving, setCrumbs, setSaving, setMarginLine, setVimKeys, marginLine, vimKeys } from "./edit.js";
 import { forgetMacro, keepMacro, keptMacros, lastMacro, onMacros, playMacro, recording, setMacroKeys, toggleRecording } from "./macros.js";
 import { showPane } from "./explorer.js";
@@ -350,6 +351,7 @@ const COMMANDS = {
   "past-ends": (args) => editing().setPastEnds(onOff(args) ?? !editing().pastEnds()),
   "hide-comments": (args) => editing().setCommentsHidden(onOff(args) ?? !editing().commentsHidden()),
   "line-history": (args) => editing().setLineHistory(onOff(args) ?? !editing().lineHistory()),
+  "git-authors": (args) => setAuthorsShown(onOff(args) ?? !authorsShown()),
   "smooth-scroll": (args) => editing().setSmoothScroll(onOff(args) ?? !editing().smoothScroll()),
   "type-hints": (args) => editing().setHints("type", onOff(args) ?? !editing().hints("type")),
   checkers: (args) => askCheckers(args.join(" ")),
@@ -516,6 +518,7 @@ const CHECKS = {
   "past-ends": () => editing().pastEnds(),
   "hide-comments": () => editing().commentsHidden(),
   "line-history": () => editing().lineHistory(),
+  "git-authors": () => authorsShown(),
   "smooth-scroll": () => editing().smoothScroll(),
   "operator-next-line": () => editing().operatorNext(),
   "type-hints": () => editing().hints("type"),

@@ -593,9 +593,10 @@ pub struct Drawn {
 }
 
 /// The commits of every branch, the newest first and none before its children, laid out as a graph.
-/// With a `query`, the commits whose subject, author, id or branches hold each of its words, in any
-/// case, from the whole history, each on a line of its own.
-pub fn graph(root: &Path, query: &str) -> Vec<Drawn> {
+/// With a `query`, the commits whose subject, id or branches hold each of its words, in any case,
+/// and their author where `authors` asks for authors, from the whole history, each on a line of its
+/// own.
+pub fn graph(root: &Path, query: &str, authors: bool) -> Vec<Drawn> {
     let limit = format!("-n{GRAPH_LIMIT}");
     let mut args = vec!["log", "--all", "--date-order", "--format=%H%x1f%P%x1f%an%x1f%at%x1f%D%x1f%s"];
     let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
@@ -611,7 +612,8 @@ pub fn graph(root: &Path, query: &str) -> Vec<Drawn> {
         return drawn;
     }
     drawn.retain(|commit| {
-        let held = format!("{} {} {} {}", commit.subject, commit.author, commit.id, commit.refs.join(" ")).to_lowercase();
+        let author = if authors { commit.author.as_str() } else { "" };
+        let held = format!("{} {} {} {}", commit.subject, author, commit.id, commit.refs.join(" ")).to_lowercase();
         words.iter().all(|word| held.contains(word.as_str()))
     });
     drawn.truncate(GRAPH_LIMIT);
@@ -1095,12 +1097,14 @@ mod graphing {
         assert_eq!(seen, [("b.txt".into(), 'D', None), ("c.txt".into(), 'R', Some("a.txt".into())), ("d.txt".into(), 'A', None)]);
         assert_eq!(touched(&root, &first).unwrap().len(), 2);
         assert!(touched(&root, "not-hex").is_err());
-        let all = graph(&root, "");
+        let all = graph(&root, "", false);
         assert_eq!(all.iter().map(|one| one.subject.as_str()).collect::<Vec<_>>(), ["Second, renamed", "first"]);
         assert!(all[0].refs.iter().any(|one| one.contains("main")));
         assert_eq!(all[0].author, "Ada");
-        assert_eq!(graph(&root, "RENAMED ada").iter().map(|one| one.id.as_str()).collect::<Vec<_>>(), [second.as_str()]);
-        assert!(graph(&root, "nowhere").is_empty());
+        assert_eq!(graph(&root, "RENAMED ada", true).iter().map(|one| one.id.as_str()).collect::<Vec<_>>(), [second.as_str()]);
+        assert!(graph(&root, "RENAMED ada", false).is_empty(), "an author is matched only where authors show");
+        assert_eq!(graph(&root, "RENAMED", false).len(), 1);
+        assert!(graph(&root, "nowhere", false).is_empty());
         std::fs::remove_dir_all(&root).unwrap();
     }
 

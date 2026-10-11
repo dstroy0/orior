@@ -19,12 +19,16 @@ import { Vim } from "./vim.js";
 import { Hover, Suggest } from "./widgets.js";
 import { pressed, status, write } from "../status.js";
 import { icon } from "../icons.js";
+import { authorsShown } from "../authors.js";
 
 const PAD = 10;
 // How wide the gutter's strip for breakpoints is, in pixels.
 const BREAK_STRIP = 16;
-// How wide Line History's column is, in characters.
+// How wide Line History's column is, in characters: a date and an author's name where authors show,
+// and a date alone where they do not.
 const HISTORY_CHARS = 22;
+const DATE_CHARS = 11;
+const historyChars = () => (authorsShown() ? HISTORY_CHARS : DATE_CHARS);
 // The height of a row, read from the code's line height each time the editor measures.
 let LINE = 20;
 
@@ -3071,9 +3075,9 @@ export class Editor {
     }
   }
 
-  // Line History's mark for a line: the date and author of the commit that last changed it, on the
-  // first line of each run of lines that commit left, and the commit's id and subject under the
-  // pointer. A line no commit holds has none.
+  // Line History's mark for a line: the date of the commit that last changed it, and its author
+  // where Git, Authors is on, on the first line of each run of lines that commit left, and the
+  // commit's id and subject under the pointer. A line no commit holds has none.
   historyMark(line) {
     const history = this.s.history;
     const at = history.lines[line] ?? -1;
@@ -3084,9 +3088,10 @@ export class Editor {
     const first = line === 0 || history.lines[line - 1] !== at;
     const date = new Date(commit.when * 1000);
     const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    const title = escapeHtml(`${commit.id.slice(0, 8)}  ${commit.author}  ${day}\n${commit.subject}`);
-    const width = Math.round(HISTORY_CHARS * this.cw);
-    return `<span class="ed-history${first ? " first" : ""}" data-history="${line}" style="left:${BREAK_STRIP}px;width:${width}px" title="${title}">${first ? `${day} ${escapeHtml(commit.author)}` : ""}</span>`;
+    const authors = authorsShown();
+    const title = escapeHtml(`${commit.id.slice(0, 8)}  ${authors ? `${commit.author}  ` : ""}${day}\n${commit.subject}`);
+    const width = Math.round(historyChars() * this.cw);
+    return `<span class="ed-history${first ? " first" : ""}" data-history="${line}" style="left:${BREAK_STRIP}px;width:${width}px" title="${title}">${first ? `${day}${authors ? ` ${escapeHtml(commit.author)}` : ""}` : ""}</span>`;
   }
 
   // Sets the commit that last changed each of a session's lines, or takes them away.
@@ -3175,7 +3180,7 @@ export class Editor {
     // Where the view stands, read before this frame changes the page.
     const scrolledTop = this.scroller.scrollTop;
     const scrolledLeft = this.scroller.scrollLeft;
-    const historyWidth = s.history ? Math.round(HISTORY_CHARS * cw) + 8 : 0;
+    const historyWidth = s.history ? Math.round(historyChars() * cw) + 8 : 0;
     const gutterWidth = Math.round(String(total).length * cw + 36 + BREAK_STRIP) + historyWidth;
     if (gutterWidth !== this.gutterWidth) {
       this.gutterWidth = gutterWidth;
