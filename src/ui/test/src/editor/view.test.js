@@ -213,7 +213,12 @@ test("under a steady wheel every frame moves the text an even step, and the leve
   const smooth = view.smoothOn;
   view.smoothOn = true;
   view.goTo(0, 0);
-  await framesOver(300);
+  // The share of frames the page misses at rest, the machine's own, which a scroll may miss too, and 3%
+  // past it.
+  const rest = await framesOver(1000);
+  const restGaps = rest.slice(1).map((time, index) => time - rest[index]);
+  const restInterval = [...restGaps].sort((a, b) => a - b)[Math.floor(restGaps.length / 2)];
+  const missedAtRest = restGaps.filter((gap) => gap > 1.5 * restInterval).length / restGaps.length;
   const box = view.scroller.getBoundingClientRect();
   const at = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
   const frames = [];
@@ -248,7 +253,7 @@ test("under a steady wheel every frame moves the text an even step, and the leve
   const changes = steady.slice(1).filter(([, , level], index) => level !== steady[index][2]).length;
   assert.ok(steps.length > 100, `frames counted: ${steps.length}`);
   const missed = steps.map(([gap], index) => [index, Math.round(gap), steady[index + 1][2]]).filter(([, gap]) => gap > 1.5 * interval);
-  assert.ok(late <= steps.length * 0.03, `frames the page missed: ${late} of ${steps.length}, each [frame, ms, level]: ${JSON.stringify(missed)}`);
+  assert.ok(late <= steps.length * (0.03 + missedAtRest), `frames the page missed: ${late} of ${steps.length}, ${(missedAtRest * 100).toFixed(1)}% at rest, each [frame, ms, level]: ${JSON.stringify(missed)}`);
   assert.ok(still <= 2, `frames the text stood still: ${still} of ${steps.length}`);
   assert.ok(spread < 0.3, `the steps spread by ${spread.toFixed(2)} of their middle, ${middle} px`);
   assert.ok(changes <= 3, `the level changed ${changes} times in ${steps.length} frames`);

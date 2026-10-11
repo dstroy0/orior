@@ -2697,11 +2697,22 @@ export class Editor {
       return;
     }
     const { clientX, clientY } = event;
+    // What the pointer rests on stays while the pointer is on its name, a step off it, or on its way
+    // to it, and no other name is asked about; once the pointer has left all of them, it goes a moment
+    // after, or what the pointer rests on next takes its place.
+    if (this.hover.keeps(clientX, clientY)) {
+      this.hover.stay();
+      return;
+    }
+    if (this.hover.shown) {
+      this.hover.hideSoon();
+    }
     this.hoverWait = window.setTimeout(() => this.hoverAt(clientX, clientY), 380);
   }
 
   // A language's hover may answer at once or later, as a language server does; an answer that
-  // comes after the pointer has gone elsewhere is dropped.
+  // comes after the pointer has gone elsewhere is dropped. Where nothing is there, what is shown goes
+  // as the pointer's leaving it asked.
   async hoverAt(clientX, clientY) {
     if (!this.s?.language?.hover && !this.s?.diagnostics?.length && !this.valueAt) {
       return;
@@ -2713,7 +2724,6 @@ export class Editor {
     const x = clientX - rect.left;
     const text = this.doc.line(p.line);
     if (x > PAD + this.vcolOf(text, text.length, p.line) * this.cw + this.cw || x < PAD) {
-      this.hover.hide();
       return;
     }
     const said = this.diagnosticsAt(p);
@@ -2725,7 +2735,6 @@ export class Editor {
     }
     const parts = [...(value ? [value.node] : []), ...said, ...(found?.parts ?? [])];
     if (!parts.length) {
-      this.hover.hide();
       return;
     }
     let from = value?.from ?? found?.from ?? p;
