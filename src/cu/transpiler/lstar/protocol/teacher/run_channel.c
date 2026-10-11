@@ -532,7 +532,10 @@ static long long run_channel_airlock_ran(char *const *command, unsigned long lon
     answer.output = s_airlock_output;
     answer.output_capacity = sizeof(s_airlock_output);
     EngineError error = {0};
+    // what this process handed moved into the run before the airlock reads it, and what it handed once it ends
+    qry_moved(s_channel.buffer);
     const long ran = interface_probe_run(&probe, &answer, &error);
+    qry_settled(s_channel.buffer);
     const unsigned long long kept =
         (answer.output_bytes < sizeof(s_airlock_output)) ? answer.output_bytes : sizeof(s_airlock_output);
     // what the pop and the cross printed, the airlock's trace (qry_buffer.h, QRY_TRACE)
@@ -584,8 +587,10 @@ static int run_channel_airlock_passed(unsigned int questions)
         renamed[length] = '\n';
         length += 1u;
     }
-    const unsigned long long began = qry_hand(s_channel.buffer, RUN_AIRLOCK_LIST, renamed, length, QRY_ORDINARY);
+    const unsigned long long handed = qry_hand(s_channel.buffer, RUN_AIRLOCK_LIST, renamed, length, QRY_ORDINARY);
     free(renamed);
+    // the list's sequence, once it is moved into the run: the held list the cross hands comes after it
+    const unsigned long long began = (handed != 0ull) ? qry_moved(s_channel.buffer) : 0ull;
     if (began == 0ull)
     {
         return 0;
@@ -813,7 +818,10 @@ static int run_channel_carried(RunQuestion *asked)
     answer.output = s_carrier_output;
     answer.output_capacity = sizeof(s_carrier_output);
     EngineError error = {0};
+    // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
+    qry_moved(s_channel.buffer);
     const long ran = interface_probe_run(&probe, &answer, &error);
+    qry_settled(s_channel.buffer);
     run_channel_output_handed(&answer);
     // a panic on the line, the carrier's or its ending's: the teacher's account handed
     run_channel_teacher_said(1u, after, &answer, 0u, line);
@@ -973,7 +981,10 @@ static unsigned int run_channel_carried_many(RunQuestion *const *asked, unsigned
         answer.output = s_carrier_output;
         answer.output_capacity = sizeof(s_carrier_output);
         EngineError error = {0};
+        // what this process handed moved into the run before the carrier reads it, and what it handed once it ends
+        qry_moved(s_channel.buffer);
         const long ran = interface_probe_run(&probe, &answer, &error);
+        qry_settled(s_channel.buffer);
         run_channel_output_handed(&answer);
         if ((ran != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
         {

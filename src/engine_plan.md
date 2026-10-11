@@ -586,9 +586,9 @@ reads has changed.
 
 13. **A run is one table of blobs, and is to be a database of its own, a table for each area of it.** A run's `.qry`
     holds every blob handed to it and a table of them, a row a blob: its name's hash, its sequence, its time, its
-    priority and where its bytes sit (`qry.h`). Every process of the run hands into one buffer in shared memory, a copy
-    to its tail under one lock they share, and a file handed to the run is written in its place before the hand
-    returns (`qry_filed`). The run as planned:
+    priority and where its bytes sit (`qry.h`). Each process of the run hands into a ring of its own, which the writer
+    moves into the run in turn; a file handed to the run is written in its place once the run ends (`qry_filed`), and
+    while the run runs every file is read from memory (`qry_file_read`). The run as planned:
     - **A table for each area.** The teacher's asks, the carrier's launches, the gate's verdicts, the overseer's
       conferences and lessons, the cross's pairs, the writers' files and every trace each own a table. A row is fixed
       numbers: its key, the run's sequence; its who (`QryWho`), the source, the line, the program and the time; and
@@ -621,9 +621,13 @@ reads has changed.
     - **A trace is rows.** Every row carries its who, the source and the line of the code that made it; an area's
       trace is its rows in the order of their keys. A decision that makes no row of its own, an ask the gate puts
       past a rule, is a row of its area's table with the decision's code.
-    - **A buffer for each area.** Each area of a process hands into a buffer of its own in the run's shared memory,
-      with its own tail and no lock another area takes, and the run's sequence is one counter every hand takes the
-      next of. No area waits on another, and none waits on the disk but a critical hand.
+    - **A buffer for each member.** Each process of a run is a member and hands its ordinary blobs into a ring of its
+      own in the run's shared memory, at the ring's tail, with no lock another member takes (`qry_buffer.h`). The
+      writer takes the members in turn and on a member's turn moves everything from the ring's head to its tail into
+      the run's buffer in one go, each blob given its sequence as it goes in; a ring that holds nothing has a turn that
+      does nothing, and the member keeps adding past what is taken. A panic and a critical blob go in at the tail as
+      they are handed, ahead of every member. A process moves its own ring before another reads what it handed
+      (`qry_moved`) and settles every ring once a process it started has ended (`qry_settled`).
     - **One writer.** The pressure buffer drains every area's buffer into the `.qry`: panics first, then critical,
       then the ordinary rows in stretches, as it writes blobs. As the run ends it dumps each table's rows and its
       index beside the blobs, and the blobs stay a table of their own for raw bytes, a cubin or a listing.
@@ -633,16 +637,28 @@ reads has changed.
       raw or decoded.
     - **Files as views.** Nothing writes a file in its place while the run runs. A file handed to the run is a row
       of the files table and its bytes, every program of the run reads the latest of it from the run
-      (`qry_file_read`), and the writer writes each file in its place as the run ends. A tool outside the run that
-      reads a file from the disk while the run runs, nvcc, nvdisasm or a script's `cmp`, is pointed at a stream the
-      run puts out for it (`qry_streamed`), as `measuring_stick_query.c` points nvdisasm.
+      (`qry_file_read`), and the writer writes each file in its place as the run ends. A file the run reads from the
+      disk is taken into the run the first time it is read, and read from memory after: while the run runs, it reads
+      from memory and not the disk. A tool outside the run that reads a file from the disk while the run runs, nvcc,
+      nvdisasm or a script's `cmp`, is pointed at a stream the run puts out for it (`qry_streamed`), as
+      `measuring_stick_query.c` points nvdisasm.
 
     It is built in this order, each step held by the checks that hold the run now (`chain_check.sh`, the overseer's
     check, the writers' bytes):
-    1. A buffer for each area under the blob calls as they stand, and the time of a hand measured under contention
-       before and after.
+    1. A buffer for each member under the blob calls as they stand, and the time of a hand measured under contention
+       before and after. Built and measured (`build/harness/qry/hand_time.sh`, 2000 hands of 256 bytes or 200 of 64 KiB
+       a process): a hand of 256 bytes takes a median of 0.1 µs at 1, 4 and 16 processes against 1.2 to 1.4 µs under
+       the one lock, and its 99th hundredth 1.4 to 2.3 µs against 5.5 to 18; a hand of 64 KiB takes a median of 31 to
+       41 µs against 30 to 50, its 99th hundredth 170 to 2491 µs against 56 to 341, and 16 processes hand theirs in
+       15.4 ms against 25.0. Every byte reaches the run as handed.
     2. Files written as the run ends, and every step that reads a filed file from the disk while the run runs found
-       and pointed at a stream.
+       and pointed at a stream. Built: the writer writes each file's latest handed bytes in its place once the `.qry`
+       is dumped and before it says it has stopped; a file the run reads from the disk is taken into the run and read
+       from memory after; the engine's ruleset reader reads every ruleset, `.kdm` and `.ksc` as the run holds it, a
+       program built without the run's buffer linked to stand-ins that read the disk (`ruleset_flat.cu`); and every
+       other read of a file the run writes, `klq_identity`'s pipe rows, the descent's cases and `sass.krs` in the
+       scaffolding and the monolith, goes through the run. `kdm_check` holds a file the run writes to be read from the
+       run and not the disk while the run runs, and `chain_check.sh` holds it in its place once the run has ended.
     3. Rows: the head and the records of `krep_records.h` made a table of the run, the teacher's asks first, which
        `.kqr` holds, and `.kqr` then a view of that table.
     4. The carrier's launches, the gate's verdicts, the overseer, the cross and the writers, a table each.

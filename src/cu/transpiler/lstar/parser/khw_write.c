@@ -1164,7 +1164,10 @@ static int khw_vendor_run(const char *mode, const char *answers)
     answer.output = s_output;
     answer.output_capacity = sizeof(s_output);
     EngineError error = {0};
+    // what this process handed moved into the run before the writer reads it, and what the writer handed once it ends
+    qry_moved(qry_run());
     const long ran = interface_probe_run(&probe, &answer, &error);
+    qry_settled(qry_run());
     if (answer.output_bytes != 0ull)
     {
         printf("%s", s_output);

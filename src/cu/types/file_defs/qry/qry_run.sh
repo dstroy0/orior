@@ -32,7 +32,8 @@
 #     run_left <file>...           each file handed to the run as the script ends, as the run leaves it, named the same
 #                                  way; run_named <file> prints the name
 #     run_filed <file>             the standard input handed as the current file <file>: the run's writer, the only
-#                                  thing that writes a file, writes it in the file's place (qry_writer file)
+#                                  thing that writes a file, writes it in the file's place once the run ends, and until
+#                                  then every program of the run reads it as the run holds it (qry_writer file)
 QRY_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # every C source of the file definitions a program of the run links, the writer and each format's reader and writer
 source "$QRY_SOURCE/../file_defs.sh"
@@ -177,7 +178,7 @@ run_started() {
 run_ended() {
     local left
     for left in "${QRY_LEFT[@]}"; do
-        [ -f "$left" ] && "$QRY_WRITER" hand "$(run_named "$left")" < "$left"
+        "$QRY_WRITER" left "$left"
     done
     QRY_LEFT=()
     [ -n "${QRY_WRITER_PROCESS:-}" ] || return 0

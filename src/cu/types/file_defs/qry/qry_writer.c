@@ -11,8 +11,12 @@
 //                                     every byte of the standard input handed as one blob of <name> at <priority>, 0 a
 //                                     panic, 1 critical and on disk before it returns, 2 ordinary where none is given
 //     qry_writer file <path>          every byte of the standard input handed as the current file at <path>, under the
-//                                     top of the tree (QRY_TOP): the run's writer writes it in the file's place, and it
-//                                     is on disk before this returns (qry_filed)
+//                                     top of the tree (QRY_TOP): the .qry holds it before this returns, and the run's
+//                                     writer writes it in the file's place once the run ends (qry_filed)
+//     qry_writer left <path>          the file at <path> handed to the run as the run leaves it, under its name from
+//                                     the top of the tree (qry_file_named) or its own where it stands outside:
+//                                     nothing where the run holds it as a current file, the run leaving it as it
+//                                     holds it; the file read whole where the run does not (qry_file_held)
 //     qry_writer current <path>       the file at <path> as the run holds it to the standard output: its latest blob,
 //     or
 //                                     the file where the run holds none (qry_file_read)
@@ -355,6 +359,35 @@ int main(int count, char **words)
             fprintf(stderr, "qry_writer: %s was not handed to %s\n", words[2], path);
         }
         return (sequence != 0ull) ? 0 : 1;
+    }
+    if ((strcmp(word, "left") == 0) && (count == 3))
+    {
+        // the run's own current file is how the run leaves it; any other file is handed as the disk holds it
+        qry_writer_binary();
+        QryBuffer *const buffer = qry_open(path);
+        if (buffer == NULL)
+        {
+            return 1;
+        }
+        int handed = 1;
+        if (!qry_file_held(buffer, words[2]))
+        {
+            char name[QRY_NAME_LONGEST + 1u];
+            const char *const slash = strrchr(words[2], '/');
+            const char *const own = (slash != NULL) ? (slash + 1) : words[2];
+            snprintf(name, sizeof(name), "%s", own);
+            qry_file_named(words[2], name, sizeof(name));
+            // a file that is not there is left as nothing, and nothing is handed
+            unsigned char *bytes = NULL;
+            unsigned long long size = 0ull;
+            if (qry_file_read(NULL, words[2], &bytes, &size))
+            {
+                handed = (qry_hand(buffer, name, bytes, size, QRY_ORDINARY) != 0ull);
+            }
+            free(bytes);
+        }
+        qry_close(buffer);
+        return handed ? 0 : 1;
     }
     if ((strcmp(word, "file") == 0) && (count == 3))
     {

@@ -23,6 +23,7 @@
 #include "../../../../engine/rmc/precept_value.h"
 #include "../../../../engine/rmc/word_web.h"
 #include "../../../../types/file_defs/kdm/kdm.h"
+#include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../../../lstar/protocol/counterexample/ladder.h"
 #include "../cubin_safe.h"
 #include "../cubin_write.h"
@@ -987,18 +988,23 @@ static int writings_descent_read(const char *record, unsigned int pairs, char **
         char line[WRITINGS_LINE];
         unsigned int placed[WRITINGS_CASES][3];
         unsigned int placed_count = 0u;
-        FILE *const cases = fopen(cases_path, "rb");
+        // the descent's cases as the run holds them, the descent's run having written them through its writer
+        unsigned char *cases = NULL;
+        unsigned long long cases_size = 0ull;
+        unsigned long long cases_at = 0ull;
+        const int cases_read = qry_file_read(qry_run(), cases_path, &cases, &cases_size);
         snprintf(path, sizeof(path), "%s/chains.txt", into);
         FILE *const chains = fopen(path, "rb");
         snprintf(path, sizeof(path), "%s/answers.txt", into);
         FILE *const answers = fopen(path, "rb");
-        if ((cases == NULL) || (chains == NULL) || (answers == NULL))
+        if (!cases_read || (chains == NULL) || (answers == NULL))
         {
             fprintf(stderr, "the cases %s or the chains in %s did not read\n", cases_path, into);
+            free(cases);
             fclose(out);
             return 2;
         }
-        while ((placed_count < WRITINGS_CASES) && (fgets(line, sizeof(line), cases) != NULL))
+        while ((placed_count < WRITINGS_CASES) && qry_line_next(cases, cases_size, &cases_at, line, sizeof(line)))
         {
             if (sscanf(line, "%x %x %x", &placed[placed_count][0], &placed[placed_count][1],
                        &placed[placed_count][2]) == 3)
@@ -1006,7 +1012,7 @@ static int writings_descent_read(const char *record, unsigned int pairs, char **
                 placed_count += 1u;
             }
         }
-        fclose(cases);
+        free(cases);
         char relation[32] = "";
         unsigned int count = 0u;
         while ((count < WRITINGS_CHAINS_MOST) && (fgets(line, sizeof(line), chains) != NULL))
@@ -1125,20 +1131,25 @@ static void writings_flat(const char *text, char *out, size_t room)
 // holds, 1 where one does not, 2 where nothing could be read
 static int writings_krs_read(const char *folder, const char *ruleset, const char *record)
 {
-    FILE *const rules = writings_load(folder) ? fopen(ruleset, "rb") : NULL;
-    FILE *const out = (rules != NULL) ? fopen(record, "wb") : NULL;
+    // the ruleset as the run holds it, or the disk where the run holds none (qry_file_read)
+    unsigned char *rules = NULL;
+    unsigned long long rules_size = 0ull;
+    unsigned long long rules_at = 0ull;
+    const int rules_read = writings_load(folder) && qry_file_read(qry_run(), ruleset, &rules, &rules_size);
+    FILE *const out = rules_read ? fopen(record, "wb") : NULL;
     if (out == NULL)
     {
         fprintf(stderr, "the search in %s, the ruleset %s or the record %s was not reached\n", folder, ruleset, record);
+        free(rules);
         return 2;
     }
     static char s_rule[512][WRITINGS_LINE];
     unsigned int rule_count = 0u;
-    while ((rule_count < 512u) && (fgets(s_rule[rule_count], sizeof(s_rule[0]), rules) != NULL))
+    while ((rule_count < 512u) && qry_line_next(rules, rules_size, &rules_at, s_rule[rule_count], sizeof(s_rule[0])))
     {
         rule_count += (strncmp(s_rule[rule_count], "form ", 5u) == 0) ? 1u : 0u;
     }
-    fclose(rules);
+    free(rules);
     fprintf(out, "# A ruleset's forms held to the part's writings\n\n");
     fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is one "
                  "precept over its operands is looked up in `%s`, its form written with its result and operands where "

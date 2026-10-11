@@ -102,16 +102,16 @@ file & holds \\
 \end{longtable}
 }
 
-\textbf{The record.} \texttt{src/\allowbreak{}cu/\allowbreak{}transpiler/\allowbreak{}lstar/\allowbreak{}protocol/\allowbreak{}record\_\allowbreak{}R/\allowbreak{}}
+\textbf{The record.} \texttt{src/\allowbreak{}cu/\allowbreak{}types/\allowbreak{}file\_\allowbreak{}defs/\allowbreak{}kqr/\allowbreak{}}
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3352\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.6648\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2874\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.7126\linewidth-2\tabcolsep\relax}}
 \toprule
 file & holds \\
 \midrule
 \endhead
-\texttt{record.\allowbreak{}h}, \texttt{record.\allowbreak{}c} & R: every ask with its answer, the part and the size it was read on, read whole when opened and written whole when closed, an ask it holds not put again (Q9, Q10, P13) \\
+\texttt{kqr.\allowbreak{}h}, \texttt{kqr.\allowbreak{}c} & R: every ask with its answer, the part and the size it was read on, read whole when opened and written whole when closed, an ask it holds not put again (Q9, Q10, P13) \\
 \bottomrule
 \end{longtable}
 }
@@ -199,7 +199,7 @@ The rulesets \texttt{c.\allowbreak{}krs}, \texttt{cu.\allowbreak{}krs}, \texttt{
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4297\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5703\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4309\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5691\linewidth-2\tabcolsep\relax}}
 \toprule
 file & holds \\
 \midrule
@@ -217,10 +217,11 @@ file & holds \\
 \texttt{survivors\_\allowbreak{}check.\allowbreak{}c} & the survivors a conjunction, no order of the cases changing which stand, and the descent's price (P2, Q4) \\
 \texttt{answer\_\allowbreak{}read\_\allowbreak{}check.\allowbreak{}c} & the four answers read against the host's bracket, and gray where no answer decides (P11) \\
 \texttt{scheduler\_\allowbreak{}check.\allowbreak{}c} & the queue of gray entries, the most-settling ask first, carried in rounds (P13) \\
-\texttt{record\_\allowbreak{}check.\allowbreak{}c} & R read whole and written whole, an ask it holds not put again (Q9) \\
 \bottomrule
 \end{longtable}
 }
+
+\textbf{The record, checked.} \texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}types/\allowbreak{}file\_\allowbreak{}defs/\allowbreak{}kqr/\allowbreak{}kqr\_\allowbreak{}check.\allowbreak{}c}, built and run by \texttt{chain\_\allowbreak{}check.\allowbreak{}sh}: R read whole and written whole, an ask it holds not put again (Q9).
 
 \textbf{The relations, checked.} \texttt{utils/\allowbreak{}test/\allowbreak{}src/\allowbreak{}cu/\allowbreak{}engine/\allowbreak{}rmc/\allowbreak{}ruleset\_\allowbreak{}read\_\allowbreak{}test.\allowbreak{}cu}, run by \texttt{ruleset\_\allowbreak{}read\_\allowbreak{}test.\allowbreak{}sh}: every target's files and the map between cu's and sass's (Q19).
 
@@ -313,7 +314,7 @@ file & holds \\
 \tablerecord{\textbf{Q9. The record}}
 \begin{description}
 \item[{the algebra it holds to}] A known order is a carrier and a shuffle is not: the same asks reach the part either way, and only the record of the order makes the answers decodable. The record holds every ask, its order and its seed, every answer with its cost, refusals and censored samples each marked, and then the winning path per problem over those same asks.
-\item[{does}] \texttt{chain\_\allowbreak{}shuffle} takes a seed. Every mode of \texttt{klq\_\allowbreak{}identity.\allowbreak{}sh} writes the part's query record, \texttt{sm\_\allowbreak{}86.\allowbreak{}kqr} (\texttt{src/\allowbreak{}cu/\allowbreak{}types/\allowbreak{}file\_\allowbreak{}defs/\allowbreak{}kqr}, \texttt{query\_\allowbreak{}record.\allowbreak{}cu}), beside R: every untimed ask and what came back, each case's word or the refusal, timed\_\allowbreak{}out where the watchdog ended it and censored where the gate held it off the part to protect the whole, or the carrier would not write its container or give each case a thread; every timed ask a sample of its own with the nanoseconds its launches took; then each pair and its verdict. A cycle reads it first and asks the part only what no cycle asked, a timed ask excepted and an ask that timed out asked again until an answer resolves it. An ask the part answered illegal, timed or not, is censored every time after without a process, the part's answer kept as it gave it. The asks and samples stand in the order they were put, each cycle that put a new one before them as \texttt{cycle <number> <mode>}, with \texttt{seed <seed>} where its mode draws one and \texttt{round <number>} in the pair mode; a cycle the record answers whole writes no line.
+\item[{does}] \texttt{chain\_\allowbreak{}shuffle} takes a seed. Every mode of \texttt{klq\_\allowbreak{}identity.\allowbreak{}sh} writes the part's query record, \texttt{sm\_\allowbreak{}86.\allowbreak{}kqr} (\texttt{src/\allowbreak{}cu/\allowbreak{}types/\allowbreak{}file\_\allowbreak{}defs/\allowbreak{}kqr}, \texttt{kqr.\allowbreak{}c}), beside R: every untimed ask and what came back, each case's word or the refusal, timed\_\allowbreak{}out where the watchdog ended it and censored where the gate held it off the part to protect the whole, or the carrier would not write its container or give each case a thread; every timed ask a sample of its own with the nanoseconds its launches took; then each pair and its verdict. A cycle reads it first and asks the part only what no cycle asked, a timed ask excepted and an ask that timed out asked again until an answer resolves it. An ask the part answered illegal, timed or not, is censored every time after without a process, the part's answer kept as it gave it. The asks and samples stand in the order they were put, each cycle that put a new one before them as \texttt{cycle <number> <mode>}, with \texttt{seed <seed>} where its mode draws one and \texttt{round <number>} in the pair mode; a cycle the record answers whole writes no line.
 \item[{wants}] The query record, \texttt{.\allowbreak{}kqr}, under the member's stem beside \texttt{.\allowbreak{}kdm} and \texttt{.\allowbreak{}knf}, holding the order, the seed and the costs beside the asks (Open 9 in the plan). The record stores what the host cannot reproduce and nothing it can. The known order follows from \texttt{n}, the sweep from its seed, the candidates from the ladder's cases and the descent's placement from those. The record holds those few numbers and the target's answers, and the file is small for that reason. \texttt{Lstar.\allowbreak{}klq} holds the questions put across languages and their verdicts; the record holds one member's asks and their costs.
 \item[{tried, and what it gave}] \textbf{Measured} (\texttt{klq\_\allowbreak{}identity.\allowbreak{}sh pair}, seed 1): the first cycle puts 384 asks and writes them to \texttt{sm\_\allowbreak{}86.\allowbreak{}kqr}; the second answers all 384 from it, starts no process, and writes the same bridge and the same record. The curve of task 1006 (\texttt{klq\_\allowbreak{}identity.\allowbreak{}sh curve 1006}) writes 293 samples, 278 with the nanoseconds its launches took and 15 refused. The six loads the stall walk read too soon after \texttt{IMAD.\allowbreak{}WIDE.\allowbreak{}U32} wrote their address are answered illegal, and are censored in every cycle after.
 \item[{status}] \textbf{measured} (the asks, the costs, the order and the seed)
@@ -418,6 +419,16 @@ file & holds \\
 \item[{tried, and what it gave}] \textbf{Measured} on the host (\texttt{ruleset\_\allowbreak{}read\_\allowbreak{}test.\allowbreak{}sh}, every target's files against its schema): sass 262 witnessed, ptx 65, c 25, cu 25, vhdl 9, yosys 0, and 0 open, every name a construct writes and every name a schema holds being given by a file its target reads. Files given on the command line are read the same way against no schema. \textbf{Measured}, the map read directly between two sets with no \texttt{.\allowbreak{}klm} written: cu's files to sass's hold 32 witnessed relations and 0 open, and sass's to cu's 32 and 0. \textbf{Measured} on the measuring stick (\texttt{measuring\_\allowbreak{}stick.\allowbreak{}sh} and \texttt{measuring\_\allowbreak{}stick\_\allowbreak{}engine.\allowbreak{}sh}, 1006 kernels, no device): of the 44 open pairs in sass's files, 15 are two forms writing the same operations apart in their operands, and 29 write different operations. nvcc writes both forms of each of the 29 in a question of the stick, and the engine both of 15. \textbf{Measured} on the stick's 1006 questions (\texttt{klq\_\allowbreak{}identity.\allowbreak{}sh}, no device): 2972 slices carry 1007 identities in 1113 contexts. The host computes the 325 integer questions over 648 cases each, 351 contexts close on a case apart, 762 are asked of nothing, and rule 2 keeps 4 links off the part. The 1006 chains hold 679 whole identities and 2029 primitives and read as 12492 constituents. nvcc's listing sifted through its own identities is known whole 1006 of 1006. Of the engine's 320 chains none is known whole: 63 of their links nvcc never writes, and 1832 of their pairs side by side nvcc never writes so.
 \item[{status}] \textbf{measured} (the relations on the host, the identities, contexts, chains and sift on the stick), \textbf{theory} (the questions put to the part)
 \item[{next}] Put the primitives together by their categories, sift each through the chain identities, and add those nvcc has never written to the stick as questions, each marked with the rule that keeps it off the part where one does.
+\end{description}
+
+\tablerecord{\textbf{Q20. The run, a database}}
+\begin{description}
+\item[{the algebra it holds to}] A run is a table for each area of it: the teacher's asks, the carrier's launches, the gate's verdicts, the overseer's conferences, the cross's pairs, the writers' files and the traces. A row is fixed numbers: its key, the run's sequence; its who, the source, the line, the program and the time; and the columns its table names. A text is held once and a row names it by its number. A row names the rows it follows from by their keys, every relation one column cannot hold a row of the links table, and a question about a run is a walk over keys. A trace is rows: each carries the source and the line of the code that made it, and an area's trace is its rows in the order of their keys. A file is a view of the run, written in its place as the run ends.
+\item[{does}] A run's \texttt{.\allowbreak{}qry} is one table of blobs, a row a blob (\texttt{qry.\allowbreak{}h}). Every process hands into one buffer under one lock, and a file handed to the run is written in its place before the hand returns (\texttt{qry\_\allowbreak{}filed}). \texttt{.\allowbreak{}kqr} holds the teacher's asks as records of numbers and their texts once each (\texttt{krep\_\allowbreak{}records.\allowbreak{}h}, Q9).
+\item[{wants}] A buffer for each area, the pressure buffer the one writer draining them all, a table of rows for each area with its columns and codes in its oracle, every file written as the run ends and a tool outside the run pointed at a stream, and \texttt{kdecode} the select over the tables (Open 13 in the plan).
+\item[{tried, and what it gave}] Nothing tried.
+\item[{status}] \textbf{theory}
+\item[{next}] A buffer for each area under the blob calls as they stand, and the time of a hand measured under contention before and after.
 \end{description}
 
 \section{\texorpdfstring{The algebra of the protocol}{The algebra of the protocol}}

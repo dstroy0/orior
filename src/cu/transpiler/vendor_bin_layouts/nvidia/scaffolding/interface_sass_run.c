@@ -21,6 +21,7 @@
 // refusal adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that
 // line. A pause after each launch keeps a run of launches from flooding the part and taking the display down with it.
 // Exit 0 where every line ran, 2 where the list or the device was not reached.
+#include "../../../../types/file_defs/qry/qry_buffer.h"
 #include "../cubin_safe.h"
 
 #include <cuda.h>
@@ -51,15 +52,18 @@ static unsigned int s_answers[SASS_RUN_THREADS][SASS_RUN_OUT_WORDS];
 // zero: 1, or 0 where it does not read, holds no case or holds more than a launch's threads
 static int sass_run_cases(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
+    // the cases as the run holds them, a descent's written through the run's writer, or the disk where it holds none
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    unsigned long long at = 0ull;
+    if (!qry_file_read(qry_run(), path, &bytes, &size))
     {
         return 0;
     }
     char line[SASS_RUN_LINE];
     unsigned int count = 0u;
     int fits = 1;
-    while (fits && (fgets(line, sizeof(line), file) != NULL))
+    while (fits && qry_line_next(bytes, size, &at, line, sizeof(line)))
     {
         unsigned int words[SASS_RUN_IN_WORDS] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
         const int read = sscanf(line, "%x %x %x %x %x %x %x %x", &words[0], &words[1], &words[2], &words[3], &words[4],
@@ -75,7 +79,7 @@ static int sass_run_cases(const char *path)
             count += 1u;
         }
     }
-    fclose(file);
+    free(bytes);
     s_case_count = count;
     return fits && (count != 0u);
 }

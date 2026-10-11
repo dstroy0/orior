@@ -1030,7 +1030,10 @@ static int forms_read(int count, char **files, std::vector<std::pair<std::string
         // the row's choice, whichever way it went
         for (unsigned int at = 0u; at < paths_count; at += 1u)
         {
-            std::ifstream file(paths[at]);
+            // each file as the run holds it (ruleset_bytes_read)
+            std::string held;
+            ruleset_bytes_read(paths[at], &held);
+            std::stringstream file(held);
             std::string line;
             while (std::getline(file, line))
             {

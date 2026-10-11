@@ -3,9 +3,67 @@
 #include "ruleset_flat.h"
 
 #include "../klang.h"
+#include "../qry/qry_buffer.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+// The run's buffer (qry_buffer.c) is linked into a program of a run, and many a program reads rulesets with no run at
+// all. Where it is not linked these stand in for its two calls the reader makes, weakly: no run, and every file read
+// whole from the disk, as qry_file_read reads one where no run holds it. Linked, its own are taken
+extern "C" QryBuffer *ruleset_run_none(void)
+{
+    return NULL;
+}
+
+extern "C" int ruleset_file_read_disk(QryBuffer *buffer, const char *path, unsigned char **bytes,
+                                      unsigned long long *size)
+{
+    (void)buffer;
+    *bytes = NULL;
+    *size = 0ull;
+    FILE *const file = fopen(path, "rb");
+    if (file == NULL)
+    {
+        return 0;
+    }
+    size_t room = 65536u;
+    size_t length = 0u;
+    unsigned char *read = (unsigned char *)malloc(room + 1u);
+    size_t got = 0u;
+    while ((read != NULL) && ((got = fread(read + length, 1u, room - length, file)) != 0u))
+    {
+        length += got;
+        if (length == room)
+        {
+            unsigned char *const larger = (unsigned char *)realloc(read, (room * 2u) + 1u);
+            free((larger == NULL) ? read : NULL);
+            read = larger;
+            room *= 2u;
+        }
+    }
+    fclose(file);
+    *bytes = read;
+    *size = length;
+    return read != NULL;
+}
+
+#if defined(_MSC_VER)
+#pragma comment(linker, "/alternatename:qry_run=ruleset_run_none")
+#pragma comment(linker, "/alternatename:qry_file_read=ruleset_file_read_disk")
+#else
+extern "C" __attribute__((weak)) QryBuffer *qry_run(void)
+{
+    return ruleset_run_none();
+}
+
+extern "C" __attribute__((weak)) int qry_file_read(QryBuffer *buffer, const char *path, unsigned char **bytes,
+                                                   unsigned long long *size)
+{
+    return ruleset_file_read_disk(buffer, path, bytes, size);
+}
+#endif
 
 // the folder a part's files are read from: src/cu/transpiler/lstar/protocol/table in the tree this file was built from, where
 // the part's machine file, its .kdm and its .ksc are
@@ -17,24 +75,26 @@ static std::string ruleset_part_folder(void)
     return here + "../../../transpiler/lstar/protocol/table";
 }
 
-// the file at `path` read whole onto the end of `text`: 1, or 0 where it could not be opened. Reading stops once the
-// text reaches RULESET_FILE_MAX letters, which the caller refuses
-static int ruleset_append(const std::string &path, std::string *text)
+int ruleset_bytes_read(const std::string &path, std::string *text)
 {
-    FILE *const file = fopen(path.c_str(), "rb");
-    if (file == NULL)
+    unsigned char *bytes = NULL;
+    unsigned long long size = 0ull;
+    if (!qry_file_read(qry_run(), path.c_str(), &bytes, &size))
     {
         return 0;
     }
-    char block[4096];
-    size_t read = fread(block, 1u, sizeof(block), file);
-    while ((read != 0u) && (text->size() < RULESET_FILE_MAX))
-    {
-        text->append(block, read);
-        read = fread(block, 1u, sizeof(block), file);
-    }
-    fclose(file);
+    const unsigned long long room = (text->size() < RULESET_FILE_MAX) ? (RULESET_FILE_MAX - text->size()) : 0ull;
+    // a ruleset the reader holds is below RULESET_FILE_MAX letters, which a size_t counts; one past it is cut there
+    // and refused by the caller
+    text->append((const char *)bytes, (size_t)((size < room) ? size : room));
+    free(bytes);
     return 1;
+}
+
+// the file at `path` read whole onto the end of `text`, as the run holds it (ruleset_bytes_read)
+static int ruleset_append(const std::string &path, std::string *text)
+{
+    return ruleset_bytes_read(path, text);
 }
 
 // the lines of a part's .kdm or of a .ksc a ruleset reads: the text of each of its blocks of the ruleset's language,
@@ -94,12 +154,11 @@ unsigned int ruleset_paths(const RulesetSchema *schema, const std::string &path,
         paths[count + 1u] = part + ".kdm";
         count += 2u;
     }
-    // the folds the .ksc beside the file holds as forms, where it has one
+    // the folds the .ksc beside the file holds as forms, where it has one, as the run holds it
     const std::string ksc = path.substr(0u, path.find_last_of('.')) + ".ksc";
-    FILE *const file = fopen(ksc.c_str(), "rb");
-    if (file != NULL)
+    std::string held;
+    if (ruleset_bytes_read(ksc, &held))
     {
-        fclose(file);
         paths[count] = ksc;
         count += 1u;
     }

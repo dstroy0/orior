@@ -82,18 +82,22 @@ void ruleset_folds_read(Ruleset *rules)
 {
     rules->folds.clear();
     const size_t dot = rules->path.find_last_of('.');
-    FILE *const file = fopen((rules->path.substr(0u, dot) + ".ksc").c_str(), "rb");
-    if (file == NULL)
+    // the .ksc beside the ruleset as the run holds it (ruleset_bytes_read)
+    std::string ksc;
+    if (!ruleset_bytes_read(rules->path.substr(0u, dot) + ".ksc", &ksc))
     {
         return;
     }
     const std::string folds = "compile folds ";
     const std::string system = ": the system folds the ";
     const std::string put = " put for ";
-    char text[512];
-    while (fgets(text, sizeof(text), file) != NULL)
+    size_t line_at = 0u;
+    while (line_at < ksc.size())
     {
-        const std::string fold = ruleset_words(text).empty() ? std::string() : std::string(text);
+        const size_t line_end = (ksc.find('\n', line_at) == std::string::npos) ? ksc.size() : ksc.find('\n', line_at);
+        const std::string text = ksc.substr(line_at, line_end - line_at);
+        line_at = line_end + 1u;
+        const std::string fold = ruleset_words(text).empty() ? std::string() : text;
         const size_t colon = fold.find(system);
         const size_t kind_end = fold.find(put, colon + system.size());
         if ((fold.compare(0u, folds.size(), folds) != 0) || (colon == std::string::npos) ||
@@ -120,7 +124,6 @@ void ruleset_folds_read(Ruleset *rules)
             }
         }
     }
-    fclose(file);
 }
 
 // a ruleset read once a process into `rules` from its schema's file; NULL where it errors. Where the schema names a

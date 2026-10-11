@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <sched.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <sys/mman.h>
@@ -109,6 +110,40 @@ typedef struct
 } QryHead;
 
 _Static_assert(sizeof(QryHead) <= QRY_HEAD_BYTES, "QryHead must fit in QRY_HEAD_BYTES");
+
+// A member's ring, in the shared memory: the process that holds it, 0 where none does; the bytes the writer has taken
+// from it and the bytes its member has added to it, each counted from the run's start, a place in the ring the count's
+// remainder; and the sequence of the last blob the writer moved out of it. Only the member moves `tail` and only the
+// writer moves `head`
+typedef struct
+{
+    _Atomic unsigned long long owner;
+    _Atomic unsigned long long head;
+    _Atomic unsigned long long tail;
+    _Atomic unsigned long long moved;
+    unsigned long long unused[4];
+} QryMember;
+
+// A blob in a member's ring: its whole bytes from its head through its bytes, a count of eight; the time it was
+// handed; its bytes' count; its name's length; and its marks. Its name follows, then its bytes. Where a blob would not
+// fit before the ring's end, the stretch it leaves there is one whole word, its count, and no blob
+typedef struct
+{
+    unsigned long long whole;
+    unsigned long long nanoseconds;
+    unsigned long long size;
+    unsigned int name_length;
+    unsigned int marks;
+} QryRingBlob;
+
+// the bytes the members' heads take, a whole count of 64 KiB
+#define QRY_MEMBERS_BYTES ((((unsigned long long)QRY_MEMBERS * 64ull) + 65535ull) & ~65535ull)
+
+_Static_assert(sizeof(QryMember) == 64u, "QryMember must be 64 bytes, a member's head on a line of its own");
+_Static_assert(sizeof(QryRingBlob) == 32u, "QryRingBlob must be the 32 bytes a ring's blob opens with");
+_Static_assert((QRY_MEMBERS != 0u) && (QRY_MEMBER_BYTES >= 65536ull) &&
+                   ((QRY_MEMBER_BYTES & (QRY_MEMBER_BYTES - 1ull)) == 0ull) && ((QRY_MEMBER_BYTES % 65536ull) == 0ull),
+               "QRY_MEMBERS must be past 0 and QRY_MEMBER_BYTES a power of two of at least 64 KiB");
 _Static_assert(sizeof(QryRow) == 64u, "QryRow must be the 64 bytes qry.h gives a row");
 _Static_assert(sizeof(QryTableHead) == 64u, "QryTableHead must be the 64 bytes qry.h gives the table's head");
 _Static_assert(((QRY_TABLE_ROWS * 64ull) % 65536ull) == 0ull, "QRY_TABLE_ROWS must fill whole 64 KiB of rows");
@@ -116,14 +151,23 @@ _Static_assert((QRY_INDEX_SLOTS & (QRY_INDEX_SLOTS - 1ull)) == 0ull, "QRY_INDEX_
 _Static_assert((QRY_COMMIT_BYTES % 65536ull) == 0ull, "QRY_COMMIT_BYTES must be a whole count of 64 KiB");
 _Static_assert(QRY_SLICE_BYTES != 0ull, "QRY_SLICE_BYTES must be a count of bytes past 0");
 
+// The process's own view of the buffer: besides the shared memory's parts, the ring this process holds as a member,
+// QRY_MEMBERS where it holds none; the flag its threads take turns handing by; and of the last blob it handed, whether
+// it went into the ring, and where it went in at the tail, its sequence
 struct QryBuffer
 {
     char path[1024];
     QryHead *head;
     QrySlot *slot;
+    QryMember *member;
     QryRow *row;
+    unsigned char *ring;
     unsigned char *data;
     int made;
+    unsigned int own;
+    atomic_flag adding;
+    int last_ringed;
+    unsigned long long last_placed;
 #if defined(_WIN32)
     HANDLE section;
     HANDLE lock;
@@ -139,11 +183,18 @@ struct QryBuffer
 #endif
 };
 
-// the bytes the whole view takes: the head, the index, the table and the blobs
+// this process's ring moved and let go; a buffer kept among those let go as the process ends, or dropped from them; and
+// this process's ring moved before it reads (each below, with the rings)
+static void qry_member_released(QryBuffer *buffer);
+static void qry_held_kept(QryBuffer *buffer, int kept);
+static void qry_own_moved(QryBuffer *buffer);
+
+// the bytes the whole view takes: the head, the index, the members' heads, the table, the members' rings and the blobs
 static unsigned long long qry_view_bytes(void)
 {
-    return (unsigned long long)QRY_HEAD_BYTES + (QRY_INDEX_SLOTS * QRY_SLOT_BYTES) +
-           (QRY_TABLE_ROWS * (unsigned long long)sizeof(QryRow)) + QRY_BUFFER_BYTES;
+    return (unsigned long long)QRY_HEAD_BYTES + (QRY_INDEX_SLOTS * QRY_SLOT_BYTES) + QRY_MEMBERS_BYTES +
+           (QRY_TABLE_ROWS * (unsigned long long)sizeof(QryRow)) +
+           ((unsigned long long)QRY_MEMBERS * QRY_MEMBER_BYTES) + QRY_BUFFER_BYTES;
 }
 
 // the hash of `length` bytes at `text`, never 0, which marks an empty slot
@@ -214,7 +265,8 @@ static unsigned long long qry_sizes(void)
 {
     const unsigned long long sizes[] = {
         QRY_BUFFER_BYTES,  QRY_INDEX_SLOTS,    QRY_WRITE_BYTES, QRY_WRITE_MILLISECONDS,
-        QRY_CRITICAL_ROOM, QRY_CRITICAL_SPANS, QRY_TABLE_ROWS,  (unsigned long long)sizeof(QryHead)};
+        QRY_CRITICAL_ROOM, QRY_CRITICAL_SPANS, QRY_TABLE_ROWS,  (unsigned long long)sizeof(QryHead),
+        QRY_MEMBERS,       QRY_MEMBER_BYTES};
     return qry_hash((const char *)sizes, sizeof(sizes));
 }
 
@@ -496,18 +548,18 @@ static int qry_index_set(QryBuffer *buffer, const char *name, size_t length, uns
     return 0;
 }
 
-// One blob framed and put at the tail under the lock, its sequence the next, its head bearing `marks` (qry.h). It takes
-// room up to `room` bytes of the buffer. A panic's or a critical blob's place is kept for the writer and its sequence
-// made the latest handed before the tail passes it, and a panic opens the line where none has. Its sequence, with
-// `placed` 1 where it went in, or 0 where it did not fit
+// One blob framed and put at the tail under the lock, its sequence the next, its head bearing `marks` (qry.h) and the
+// time it was handed, `handed_at`, or now where that is 0. It takes room up to `room` bytes of the buffer. A panic's or
+// a critical blob's place is kept for the writer and its sequence made the latest handed before the tail passes it,
+// and a panic opens the line where none has. Its sequence, with `placed` 1 where it went in, or 0 where it did not fit
 static unsigned long long qry_appended(QryBuffer *buffer, const char *name, size_t length, const void *bytes,
                                        unsigned long long size, unsigned int priority, unsigned int marks,
-                                       unsigned long long room, int *placed)
+                                       unsigned long long room, unsigned long long handed_at, int *placed)
 {
     QryHead *const head = buffer->head;
     head->sequence += 1ull;
     const unsigned long long sequence = head->sequence;
-    const unsigned long long handed_at = qry_nanoseconds();
+    handed_at = (handed_at != 0ull) ? handed_at : qry_nanoseconds();
     // the frame: its head and the name, the bytes from the next boundary, and the sequence as the last word, the whole
     // a count of boundaries
     const unsigned long long bytes_at = qry_aligned(sizeof(QryFrameHead) + (unsigned long long)length);
@@ -585,7 +637,7 @@ static void qry_dumped_said(QryBuffer *buffer)
                                 head->dumped_blobs, head->dumped_bytes, head->dumped_first, head->dumped_last);
     int placed = 0;
     qry_appended(buffer, QRY_DUMPED, strlen(QRY_DUMPED), said, (unsigned long long)length, QRY_CRITICAL, 0u,
-                 head->capacity, &placed);
+                 head->capacity, 0ull, &placed);
     if (placed)
     {
         head->dumped_blobs = 0ull;
@@ -601,6 +653,8 @@ static QryBuffer *qry_buffer_new(const char *path)
     if (buffer != NULL)
     {
         snprintf(buffer->path, sizeof(buffer->path), "%s", path);
+        buffer->own = QRY_MEMBERS;
+        atomic_flag_clear(&buffer->adding);
 #if !defined(_WIN32)
         buffer->memory = -1;
 #endif
@@ -608,14 +662,22 @@ static QryBuffer *qry_buffer_new(const char *path)
     return buffer;
 }
 
-// the head, the index, the table and the blobs found in a view starting at `view`
+// the head, the index, the members' heads, the table, the members' rings and the blobs found in a view starting at
+// `view`
 static void qry_buffer_placed(QryBuffer *buffer, unsigned char *view)
 {
-    buffer->head = (QryHead *)view;
-    buffer->slot = (QrySlot *)(view + QRY_HEAD_BYTES);
-    buffer->row = (QryRow *)(view + QRY_HEAD_BYTES + (QRY_INDEX_SLOTS * QRY_SLOT_BYTES));
-    buffer->data = view + QRY_HEAD_BYTES + (QRY_INDEX_SLOTS * QRY_SLOT_BYTES) +
-                   (QRY_TABLE_ROWS * (unsigned long long)sizeof(QryRow));
+    unsigned char *at = view;
+    buffer->head = (QryHead *)at;
+    at += QRY_HEAD_BYTES;
+    buffer->slot = (QrySlot *)at;
+    at += QRY_INDEX_SLOTS * QRY_SLOT_BYTES;
+    buffer->member = (QryMember *)at;
+    at += QRY_MEMBERS_BYTES;
+    buffer->row = (QryRow *)at;
+    at += QRY_TABLE_ROWS * (unsigned long long)sizeof(QryRow);
+    buffer->ring = at;
+    at += (unsigned long long)QRY_MEMBERS * QRY_MEMBER_BYTES;
+    buffer->data = at;
 }
 
 QryBuffer *qry_create(const char *path)
@@ -638,7 +700,8 @@ QryBuffer *qry_create(const char *path)
     const int fresh = (buffer->section != NULL) && (GetLastError() != ERROR_ALREADY_EXISTS);
     unsigned char *const view =
         fresh ? (unsigned char *)MapViewOfFile(buffer->section, FILE_MAP_ALL_ACCESS, 0u, 0u, 0u) : NULL;
-    const unsigned long long fixed = (unsigned long long)QRY_HEAD_BYTES + (QRY_INDEX_SLOTS * QRY_SLOT_BYTES);
+    const unsigned long long fixed =
+        (unsigned long long)QRY_HEAD_BYTES + (QRY_INDEX_SLOTS * QRY_SLOT_BYTES) + QRY_MEMBERS_BYTES;
     if ((view == NULL) || (VirtualAlloc(view, (size_t)fixed, MEM_COMMIT, PAGE_READWRITE) == NULL))
     {
         if (view != NULL)
@@ -828,6 +891,12 @@ void qry_close(QryBuffer *buffer)
     {
         return;
     }
+    // the ring this process holds moved and let go before the view goes
+    if ((buffer->head != NULL) && (buffer->own != QRY_MEMBERS))
+    {
+        qry_member_released(buffer);
+        qry_held_kept(buffer, 0);
+    }
 #if defined(_WIN32)
     if (buffer->head != NULL)
     {
@@ -1010,27 +1079,6 @@ static int qry_file_placed(const char *name, size_t length, char *path, size_t r
     return (written > 0) && ((size_t)written < room);
 }
 
-// 1 where the file at `path` reads back as the `size` bytes at `bytes`
-static int qry_file_holds(const char *path, const unsigned char *bytes, unsigned long long size)
-{
-    FILE *const file = fopen(path, "rb");
-    if (file == NULL)
-    {
-        return 0;
-    }
-    static unsigned char s_piece[65536];
-    unsigned long long read = 0ull;
-    int held = 1;
-    size_t got = 0u;
-    while (held && ((got = fread(s_piece, 1u, sizeof(s_piece), file)) != 0u))
-    {
-        held = ((read + got) <= size) && (memcmp(s_piece, bytes + read, got) == 0);
-        read += got;
-    }
-    fclose(file);
-    return held && (read == size);
-}
-
 unsigned long long qry_filed_by(QryBuffer *buffer, const char *path, const void *bytes, unsigned long long size,
                                 QryWho who)
 {
@@ -1041,8 +1089,9 @@ unsigned long long qry_filed_by(QryBuffer *buffer, const char *path, const void 
     {
         return 0ull;
     }
+    // in the .qry on disk once the hand returns; in the file's place once the run ends (qry_files_put)
     const unsigned long long sequence = qry_handed(buffer, name, bytes, size, QRY_CRITICAL, QRY_MARK_FILED);
-    if ((sequence == 0ull) || !qry_file_holds(placed, (const unsigned char *)bytes, size))
+    if (sequence == 0ull)
     {
         return 0ull;
     }
@@ -1417,6 +1466,31 @@ void qry_text_freed(QryText *text)
     memset(text, 0, sizeof(*text));
 }
 
+int qry_file_held(QryBuffer *buffer, const char *path)
+{
+    char name[QRY_NAME_LONGEST + 1u];
+    if ((buffer == NULL) || !qry_file_named(path, name, sizeof(name)))
+    {
+        return 0;
+    }
+    qry_own_moved(buffer);
+    const size_t length = strlen(name);
+    const unsigned long long tail = atomic_load(&buffer->head->tail);
+    QryBlob blob;
+    for (unsigned long long walk = 0ull; (walk < tail) && qry_blob_read(buffer->data, tail, walk, &blob);
+         walk = blob.next)
+    {
+        QryFrameHead opened;
+        memcpy(&opened, buffer->data + walk, sizeof(opened));
+        if (((opened.marks & QRY_MARK_FILED) != 0u) && (blob.name_length == length) &&
+            (memcmp(buffer->data + blob.name_at, name, length) == 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int qry_file_read(QryBuffer *buffer, const char *path, unsigned char **bytes, unsigned long long *size)
 {
     *bytes = NULL;
@@ -1424,8 +1498,8 @@ int qry_file_read(QryBuffer *buffer, const char *path, unsigned char **bytes, un
     char name[QRY_NAME_LONGEST + 1u];
     const unsigned char *held = NULL;
     unsigned long long held_size = 0ull;
-    if ((buffer != NULL) && qry_file_named(path, name, sizeof(name)) &&
-        qry_latest(buffer, name, &held, &held_size, NULL))
+    const int named = (buffer != NULL) && qry_file_named(path, name, sizeof(name));
+    if (named && qry_latest(buffer, name, &held, &held_size, NULL))
     {
         // a blob is at most the buffer's bytes, which a size_t counts
         *bytes = (unsigned char *)malloc((size_t)held_size + 1u);
@@ -1465,6 +1539,12 @@ int qry_file_read(QryBuffer *buffer, const char *path, unsigned char **bytes, un
     fclose(file);
     *bytes = read;
     *size = length;
+    // a file the run reads from the disk is taken into the run as it read it: every read of it after, by any process
+    // of the run, is from memory, and the file does not change under the run
+    if ((read != NULL) && named)
+    {
+        qry_hand(buffer, name, read, (unsigned long long)length, QRY_ORDINARY);
+    }
     return read != NULL;
 }
 
@@ -1520,6 +1600,374 @@ unsigned long long qry_streamed(QryBuffer *buffer, const char *name, const void 
 #endif
 }
 
+// One blob put in at the buffer's tail under the lock, a dump said before it where one waits and it does not fit
+// (qry_dumped_said), and counted as dumped where it is ordinary and does not fit: its sequence, with `placed` 1 where
+// it went in
+static unsigned long long qry_placed(QryBuffer *buffer, const char *name, size_t length, const void *bytes,
+                                     unsigned long long size, unsigned int priority, unsigned int marks,
+                                     unsigned long long handed_at, int *placed)
+{
+    QryHead *const head = buffer->head;
+    const unsigned long long room = (priority < QRY_ORDINARY) ? head->capacity : (head->capacity - QRY_CRITICAL_ROOM);
+    // a dump said once, before the first blob that goes in after it: a blob that would be dumped too says nothing, and
+    // a run of dumps is one blob QRY_DUMPED. The frame is taken at its most
+    const unsigned long long framed_most = size + QRY_FRAME_MOST;
+    if (atomic_load(&head->tail) <= ((room > framed_most) ? (room - framed_most) : 0ull))
+    {
+        qry_dumped_said(buffer);
+    }
+    const unsigned long long sequence =
+        qry_appended(buffer, name, length, bytes, size, priority, marks, room, handed_at, placed);
+    if (!*placed && (priority == QRY_ORDINARY))
+    {
+        head->dumped_first = (head->dumped_blobs == 0ull) ? sequence : head->dumped_first;
+        head->dumped_last = sequence;
+        head->dumped_blobs += 1ull;
+        head->dumped_bytes += size;
+        head->dumped_all += 1ull;
+    }
+    return sequence;
+}
+
+// this process's number, as the system gives it
+static unsigned long long qry_process_self(void)
+{
+#if defined(_WIN32)
+    return (unsigned long long)GetCurrentProcessId();
+#else
+    return (unsigned long long)getpid();
+#endif
+}
+
+// 1 while the process `number` runs, and where the system will not say
+static int qry_process_alive(unsigned long long number)
+{
+#if defined(_WIN32)
+    const HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, (DWORD)number);
+    if (process == NULL)
+    {
+        return GetLastError() != ERROR_INVALID_PARAMETER;
+    }
+    const int alive = (WaitForSingleObject(process, 0u) == WAIT_TIMEOUT);
+    CloseHandle(process);
+    return alive;
+#else
+    return (kill((pid_t)number, 0) == 0) || (errno == EPERM);
+#endif
+}
+
+// one wait while another is moved: the thread's turn given up at first, and a millisecond's sleep past
+// QRY_PAUSE_YIELDS of them, `*waited` counting the waits. A sleep is the system timer's step, as much as 15 ms on
+// Windows, and a move takes far less: the yields cover the moves a writer makes under load
+#define QRY_PAUSE_YIELDS 20000u
+static void qry_paused(unsigned int *waited)
+{
+    if (*waited < QRY_PAUSE_YIELDS)
+    {
+        *waited += 1u;
+#if defined(_WIN32)
+        SwitchToThread();
+#else
+        sched_yield();
+#endif
+        return;
+    }
+    qry_sleep_millisecond();
+}
+
+// the buffers whose rings this process holds, each let go as it ends
+#define QRY_HELD_BUFFERS 8u
+static QryBuffer *s_held_buffers[QRY_HELD_BUFFERS];
+static atomic_flag s_held_turn = ATOMIC_FLAG_INIT;
+static atomic_int s_held_ending = 0;
+
+// every ring this process holds moved and let go, as the process ends
+static void qry_held_ended(void)
+{
+    for (unsigned int at = 0u; at < QRY_HELD_BUFFERS; at += 1u)
+    {
+        if (s_held_buffers[at] != NULL)
+        {
+            qry_member_released(s_held_buffers[at]);
+        }
+    }
+}
+
+// `buffer` kept among those whose rings are let go as the process ends, or dropped from them where `kept` is 0
+static void qry_held_kept(QryBuffer *buffer, int kept)
+{
+    while (atomic_flag_test_and_set(&s_held_turn))
+    {
+    }
+    int registered = 0;
+    for (unsigned int at = 0u; (at < QRY_HELD_BUFFERS) && !registered; at += 1u)
+    {
+        if (kept ? (s_held_buffers[at] == NULL) : (s_held_buffers[at] == buffer))
+        {
+            s_held_buffers[at] = kept ? buffer : NULL;
+            registered = 1;
+        }
+    }
+    atomic_flag_clear(&s_held_turn);
+    int none = 0;
+    if (kept && atomic_compare_exchange_strong(&s_held_ending, &none, 1))
+    {
+        atexit(qry_held_ended);
+    }
+}
+
+// The ring this process holds in `buffer`, taken the first time it hands an ordinary blob: a free one, or one whose
+// process has ended with nothing left in it, its memory given. Its place, or QRY_MEMBERS where none can be had. Taken
+// with the process's own turn at adding held (buffer->adding)
+static unsigned int qry_member_claimed(QryBuffer *buffer)
+{
+    if (buffer->own != QRY_MEMBERS)
+    {
+        return buffer->own;
+    }
+    const unsigned long long self = qry_process_self();
+    for (unsigned int pass = 0u; pass < 2u; pass += 1u)
+    {
+        for (unsigned int place = 0u; place < QRY_MEMBERS; place += 1u)
+        {
+            QryMember *const member = &buffer->member[place];
+            unsigned long long owner = atomic_load(&member->owner);
+            // the second pass takes back a ring whose process ended with nothing left in it
+            const int free_ring = (owner == 0ull) || ((pass == 1u) && (owner != self) &&
+                                                      (atomic_load(&member->head) == atomic_load(&member->tail)) &&
+                                                      !qry_process_alive(owner));
+            if (!free_ring || !atomic_compare_exchange_strong(&member->owner, &owner, self))
+            {
+                continue;
+            }
+#if defined(_WIN32)
+            // a ring is QRY_MEMBER_BYTES, which a size_t counts
+            if (VirtualAlloc(buffer->ring + ((unsigned long long)place * QRY_MEMBER_BYTES), (size_t)QRY_MEMBER_BYTES,
+                             MEM_COMMIT, PAGE_READWRITE) == NULL)
+            {
+                atomic_store(&member->owner, 0ull);
+                return QRY_MEMBERS;
+            }
+#endif
+            buffer->own = place;
+            qry_held_kept(buffer, 1);
+            return place;
+        }
+    }
+    return QRY_MEMBERS;
+}
+
+// the bytes a blob of a name of `length` and `size` bytes takes in a ring, a count of eight
+static unsigned long long qry_ring_whole(size_t length, unsigned long long size)
+{
+    return ((unsigned long long)sizeof(QryRingBlob) + (unsigned long long)length + size + 7ull) & ~7ull;
+}
+
+// `size` bytes at `bytes` of `name` added at the tail of this process's ring `own`, made whole before the tail moves
+// past them, a ring that holds no room for them first waited on: 1, or 0 where the writer stopped while it waited.
+// Taken with the process's own turn at adding held (buffer->adding)
+static int qry_member_added(QryBuffer *buffer, unsigned int own, const char *name, size_t length, const void *bytes,
+                            unsigned long long size, unsigned int marks)
+{
+    QryMember *const member = &buffer->member[own];
+    unsigned char *const ring = buffer->ring + ((unsigned long long)own * QRY_MEMBER_BYTES);
+    const unsigned long long whole = qry_ring_whole(length, size);
+    const unsigned long long tail = atomic_load(&member->tail);
+    const unsigned long long place = tail & (QRY_MEMBER_BYTES - 1ull);
+    // a blob that does not fit before the ring's end starts again at its start, past the stretch it leaves
+    const unsigned long long left = ((QRY_MEMBER_BYTES - place) < whole) ? (QRY_MEMBER_BYTES - place) : 0ull;
+    unsigned int waited = 0u;
+    while ((tail + left + whole - atomic_load(&member->head)) > QRY_MEMBER_BYTES)
+    {
+        if (!qry_writer_alive(buffer))
+        {
+            return 0;
+        }
+        qry_wake(buffer);
+        qry_paused(&waited);
+    }
+    // the stretch left marked as no blob: its count, and where it holds a blob's head, a head with no name
+    if (left >= sizeof(QryRingBlob))
+    {
+        const QryRingBlob none = {left, 0ull, 0ull, 0u, 0u};
+        memcpy(ring + place, &none, sizeof(none));
+    }
+    else if (left != 0ull)
+    {
+        memcpy(ring + place, &left, sizeof(left));
+    }
+    unsigned char *const at = ring + ((tail + left) & (QRY_MEMBER_BYTES - 1ull));
+    // a name is at most QRY_NAME_LONGEST bytes, which an unsigned int counts, and a blob that fits a ring is counted by
+    // a size_t
+    const QryRingBlob opened = {whole, qry_nanoseconds(), size, (unsigned int)length, marks};
+    memcpy(at, &opened, sizeof(opened));
+    memcpy(at + sizeof(opened), name, length);
+    if (size != 0ull)
+    {
+        memcpy(at + sizeof(opened) + length, bytes, (size_t)size);
+    }
+    const int was_empty = (atomic_load(&member->head) == tail);
+    atomic_store(&member->tail, tail + left + whole);
+    // the writer told once a ring holds something again, never for each blob
+    if (was_empty)
+    {
+        qry_wake(buffer);
+    }
+    return 1;
+}
+
+// Every member's ring moved into the buffer, each in its turn in the order of the rings: on a ring's turn, every blob
+// from its head to its tail as the turn reads it, under the lock a panic's or a critical hand takes, each given its
+// sequence as it goes in; a ring that holds nothing has a turn that does nothing. The ring's head is moved past what
+// was taken once all of it is in, and the sequence of the last blob kept as the ring's. 1 where any was moved
+static int qry_members_moved(QryBuffer *buffer)
+{
+    int moved = 0;
+    for (unsigned int place = 0u; place < QRY_MEMBERS; place += 1u)
+    {
+        QryMember *const member = &buffer->member[place];
+        const unsigned long long head = atomic_load(&member->head);
+        const unsigned long long tail = atomic_load(&member->tail);
+        if (head == tail)
+        {
+            continue;
+        }
+        const unsigned char *const ring = buffer->ring + ((unsigned long long)place * QRY_MEMBER_BYTES);
+        unsigned long long last = 0ull;
+        qry_lock(buffer);
+        unsigned long long at = head;
+        while (at < tail)
+        {
+            const unsigned char *const opened_at = ring + (at & (QRY_MEMBER_BYTES - 1ull));
+            QryRingBlob opened;
+            memcpy(&opened.whole, opened_at, sizeof(opened.whole));
+            // a count that is no blob's ends the turn's reading, the ring taken whole
+            if ((opened.whole < sizeof(opened.whole)) || ((opened.whole % 8ull) != 0ull) ||
+                (opened.whole > (tail - at)))
+            {
+                break;
+            }
+            if (opened.whole >= sizeof(opened))
+            {
+                memcpy(&opened, opened_at, sizeof(opened));
+            }
+            // the stretch a blob left before the ring's end
+            if ((opened.whole < sizeof(opened)) || (opened.name_length == 0u) ||
+                (qry_ring_whole(opened.name_length, opened.size) != opened.whole))
+            {
+                at += opened.whole;
+                continue;
+            }
+            int placed = 0;
+            const unsigned long long sequence =
+                qry_placed(buffer, (const char *)(opened_at + sizeof(opened)), (size_t)opened.name_length,
+                           opened_at + sizeof(opened) + opened.name_length, opened.size, QRY_ORDINARY, opened.marks,
+                           opened.nanoseconds, &placed);
+            last = placed ? sequence : last;
+            at += opened.whole;
+            // the ring's room given back blob by blob, for a member waiting on it to go on
+            if (last != 0ull)
+            {
+                atomic_store(&member->moved, last);
+            }
+            atomic_store(&member->head, at);
+        }
+        qry_unlock(buffer);
+        atomic_store(&member->head, tail);
+        moved = 1;
+    }
+    return moved;
+}
+
+// 1 where every member's ring holds nothing
+static int qry_members_empty(QryBuffer *buffer)
+{
+    int empty = 1;
+    for (unsigned int place = 0u; (place < QRY_MEMBERS) && empty; place += 1u)
+    {
+        empty = (atomic_load(&buffer->member[place].head) == atomic_load(&buffer->member[place].tail));
+    }
+    return empty;
+}
+
+unsigned long long qry_moved(QryBuffer *buffer)
+{
+    if (buffer == NULL)
+    {
+        return 0ull;
+    }
+    if (buffer->own == QRY_MEMBERS)
+    {
+        return buffer->last_placed;
+    }
+    QryMember *const member = &buffer->member[buffer->own];
+    const unsigned long long tail = atomic_load(&member->tail);
+    unsigned int waited = 0u;
+    if (atomic_load(&member->head) < tail)
+    {
+        qry_wake(buffer);
+    }
+    while (atomic_load(&member->head) < tail)
+    {
+        if (!qry_writer_alive(buffer))
+        {
+            return 0ull;
+        }
+        qry_paused(&waited);
+    }
+    return buffer->last_ringed ? atomic_load(&member->moved) : buffer->last_placed;
+}
+
+int qry_settled(QryBuffer *buffer)
+{
+    if (buffer == NULL)
+    {
+        return 1;
+    }
+    unsigned long long tails[QRY_MEMBERS];
+    for (unsigned int place = 0u; place < QRY_MEMBERS; place += 1u)
+    {
+        tails[place] = atomic_load(&buffer->member[place].tail);
+    }
+    qry_wake(buffer);
+    for (unsigned int place = 0u; place < QRY_MEMBERS; place += 1u)
+    {
+        unsigned int waited = 0u;
+        while (atomic_load(&buffer->member[place].head) < tails[place])
+        {
+            if (!qry_writer_alive(buffer))
+            {
+                return 0;
+            }
+            qry_paused(&waited);
+        }
+    }
+    return 1;
+}
+
+// this process's ring moved into the buffer where it holds anything, before the process reads the buffer: a process
+// reads what it handed itself
+static void qry_own_moved(QryBuffer *buffer)
+{
+    if ((buffer != NULL) && (buffer->own != QRY_MEMBERS) &&
+        (atomic_load(&buffer->member[buffer->own].head) != atomic_load(&buffer->member[buffer->own].tail)))
+    {
+        qry_moved(buffer);
+    }
+}
+
+// this process's ring moved and let go, where it holds one
+static void qry_member_released(QryBuffer *buffer)
+{
+    if (buffer->own == QRY_MEMBERS)
+    {
+        return;
+    }
+    qry_moved(buffer);
+    atomic_store(&buffer->member[buffer->own].owner, 0ull);
+    buffer->own = QRY_MEMBERS;
+}
+
 static unsigned long long qry_handed(QryBuffer *buffer, const char *name, const void *bytes, unsigned long long size,
                                      unsigned int priority, unsigned int marks)
 {
@@ -1529,30 +1977,49 @@ static unsigned long long qry_handed(QryBuffer *buffer, const char *name, const 
     {
         return 0ull;
     }
+    // an ordinary blob goes into this process's ring, where it holds one and the ring holds the blob within half of it.
+    // The process that holds the writer has no turn to wait for: its blobs go in at the tail
+    const int writer_here = (buffer->head->writer_process == qry_process_self());
+    unsigned int waited = 0u;
+    if (!writer_here && (priority == QRY_ORDINARY) && (marks == 0u) &&
+        (qry_ring_whole(length, size) <= (QRY_MEMBER_BYTES / 2ull)))
+    {
+        while (atomic_flag_test_and_set(&buffer->adding))
+        {
+            qry_paused(&waited);
+        }
+        const unsigned int own = qry_member_claimed(buffer);
+        const int added = (own != QRY_MEMBERS) && qry_member_added(buffer, own, name, length, bytes, size, marks);
+        buffer->last_ringed = (own != QRY_MEMBERS) ? added : buffer->last_ringed;
+        atomic_flag_clear(&buffer->adding);
+        if (own != QRY_MEMBERS)
+        {
+            return added ? 1ull : 0ull;
+        }
+    }
+    // an ordinary blob that goes in at the tail goes in after every blob this process handed before it
+    if (priority == QRY_ORDINARY)
+    {
+        qry_moved(buffer);
+    }
     QryHead *const head = buffer->head;
     qry_lock(buffer);
-    const unsigned long long room = (priority < QRY_ORDINARY) ? head->capacity : (head->capacity - QRY_CRITICAL_ROOM);
-    // a dump said once, before the first blob that goes in after it: a blob that would be dumped too says nothing, and
-    // a run of dumps is one blob QRY_DUMPED. The frame is taken at its most
-    const unsigned long long framed_most = size + QRY_FRAME_MOST;
-    if (atomic_load(&head->tail) <= ((room > framed_most) ? (room - framed_most) : 0ull))
-    {
-        qry_dumped_said(buffer);
-    }
     const unsigned long long written = atomic_load(&head->written);
     const unsigned long long before = atomic_load(&head->tail) - written;
     int placed = 0;
-    const unsigned long long sequence = qry_appended(buffer, name, length, bytes, size, priority, marks, room, &placed);
-    if (!placed && (priority == QRY_ORDINARY))
-    {
-        head->dumped_first = (head->dumped_blobs == 0ull) ? sequence : head->dumped_first;
-        head->dumped_last = sequence;
-        head->dumped_blobs += 1ull;
-        head->dumped_bytes += size;
-        head->dumped_all += 1ull;
-    }
+    const unsigned long long sequence = qry_placed(buffer, name, length, bytes, size, priority, marks, 0ull, &placed);
     const unsigned long long after = atomic_load(&head->tail) - written;
     qry_unlock(buffer);
+    if (placed)
+    {
+        while (atomic_flag_test_and_set(&buffer->adding))
+        {
+            qry_paused(&waited);
+        }
+        buffer->last_ringed = 0;
+        buffer->last_placed = sequence;
+        atomic_flag_clear(&buffer->adding);
+    }
     // the writer woken at once for a panic or a critical blob, and once as the queue crosses QRY_WRITE_BYTES, never
     // for each ordinary blob
     if (placed && ((priority < QRY_ORDINARY) || ((before < QRY_WRITE_BYTES) && (after >= QRY_WRITE_BYTES))))
@@ -1575,6 +2042,7 @@ int qry_latest(QryBuffer *buffer, const char *name, const unsigned char **bytes,
     {
         return 0;
     }
+    qry_own_moved(buffer);
     const unsigned long long tail = atomic_load(&buffer->head->tail);
     unsigned long long at = qry_index_find(buffer, name, length);
     QryBlob blob;
@@ -1665,6 +2133,7 @@ int qry_first(QryBuffer *buffer, const char *name, const unsigned char **bytes, 
     {
         return 0;
     }
+    qry_own_moved(buffer);
     // the rows down, in the order handed, where the table holds a row of every blob
     const unsigned long long hash = qry_hash(name, length);
     const unsigned long long rows = atomic_load(&buffer->head->rows);
@@ -1706,6 +2175,7 @@ int qry_joined(QryBuffer *buffer, const char *name, unsigned char **bytes, unsig
     {
         return 0;
     }
+    qry_own_moved(buffer);
     unsigned long long room = 0ull;
     // the rows down, in the order handed, where the table holds a row of every blob: no blob but the name's is read
     if (buffer->head->table_full == 0ull)
@@ -2435,38 +2905,126 @@ static int qry_bytes_put(const char *path, const unsigned char *bytes, unsigned 
 #endif
 }
 
+// The bytes of the frame at `at` in the buffer, a blob marked QRY_MARK_FILED, written in the place of the current file
+// its name gives, its path from the top of the tree: beside it as `<file>.part` and then put in its place whole. 1, or
+// 0 where they were not written whole
+static int qry_file_put(QryBuffer *buffer, unsigned long long at)
+{
+    QryFrameHead opened;
+    memcpy(&opened, buffer->data + at, sizeof(opened));
+    const char *const name = (const char *)(buffer->data + at + sizeof(opened));
+    const unsigned char *const bytes = buffer->data + at + opened.bytes_at;
+    char placed[1400];
+    char beside[1410];
+    if (!qry_file_placed(name, (size_t)opened.name_length, placed, sizeof(placed)))
+    {
+        return 0;
+    }
+    snprintf(beside, sizeof(beside), "%s.part", placed);
+    const int put = qry_bytes_put(beside, bytes, opened.size);
+#if defined(_WIN32)
+    const int moved = put && (MoveFileExA(beside, placed, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0);
+#else
+    const int moved = put && (rename(beside, placed) == 0);
+#endif
+    if (!moved)
+    {
+        remove(beside);
+    }
+    return moved;
+}
+
+// a blob marked QRY_MARK_FILED: its name's hash and place, its sequence, and its frame's place in the buffer
+typedef struct
+{
+    unsigned long long hash;
+    unsigned long long name_at;
+    unsigned long long name_length;
+    unsigned long long sequence;
+    unsigned long long at;
+} QryFileBlob;
+
+// the order of two filed blobs: by their names, the hash first, and then by their sequences
+static const unsigned char *s_file_blobs_data;
+static int qry_file_blob_order(const void *left, const void *right)
+{
+    const QryFileBlob *const one = (const QryFileBlob *)left;
+    const QryFileBlob *const two = (const QryFileBlob *)right;
+    if (one->hash != two->hash)
+    {
+        return (one->hash < two->hash) ? -1 : 1;
+    }
+    const unsigned long long shorter = (one->name_length < two->name_length) ? one->name_length : two->name_length;
+    // a name is at most QRY_NAME_LONGEST bytes, which a size_t counts
+    const int named = memcmp(s_file_blobs_data + one->name_at, s_file_blobs_data + two->name_at, (size_t)shorter);
+    if ((named != 0) || (one->name_length != two->name_length))
+    {
+        return (named != 0) ? named : ((one->name_length < two->name_length) ? -1 : 1);
+    }
+    return (one->sequence < two->sequence) ? -1 : ((one->sequence > two->sequence) ? 1 : 0);
+}
+
+// Every current file the run holds written in its place as the run ends: of each name, its latest blob marked
+// QRY_MARK_FILED (qry_file_put), up to the buffer's tail `tail`. 1, or 0 where one was not written whole; `count` the
+// files written
+static int qry_files_put(QryBuffer *buffer, unsigned long long tail, unsigned long long *count)
+{
+    *count = 0ull;
+    unsigned long long blobs = 0ull;
+    QryBlob blob;
+    for (unsigned long long walk = 0ull; (walk < tail) && qry_blob_read(buffer->data, tail, walk, &blob);
+         walk = blob.next)
+    {
+        blobs += 1ull;
+    }
+    QryFileBlob *const filed = (QryFileBlob *)malloc((size_t)(blobs + 1ull) * sizeof(QryFileBlob));
+    if (filed == NULL)
+    {
+        return 0;
+    }
+    unsigned long long kept = 0ull;
+    for (unsigned long long walk = 0ull; (walk < tail) && qry_blob_read(buffer->data, tail, walk, &blob);
+         walk = blob.next)
+    {
+        QryFrameHead opened;
+        memcpy(&opened, buffer->data + walk, sizeof(opened));
+        if ((opened.marks & QRY_MARK_FILED) != 0u)
+        {
+            filed[kept] = (QryFileBlob){qry_hash((const char *)(buffer->data + blob.name_at), (size_t)blob.name_length),
+                                        blob.name_at, blob.name_length, blob.sequence, walk};
+            kept += 1ull;
+        }
+    }
+    s_file_blobs_data = buffer->data;
+    qsort(filed, (size_t)kept, sizeof(QryFileBlob), qry_file_blob_order);
+    int whole = 1;
+    for (unsigned long long at = 0ull; at < kept; at += 1ull)
+    {
+        // the last of each name's run, its latest
+        const int last = ((at + 1ull) == kept) || (filed[at + 1ull].hash != filed[at].hash) ||
+                         (filed[at + 1ull].name_length != filed[at].name_length) ||
+                         (memcmp(buffer->data + filed[at + 1ull].name_at, buffer->data + filed[at].name_at,
+                                 (size_t)filed[at].name_length) != 0);
+        if (last)
+        {
+            whole &= qry_file_put(buffer, filed[at].at);
+            *count += 1ull;
+        }
+    }
+    free(filed);
+    return whole;
+}
+
 // The bytes of the frame at `at` in the buffer written where its head's marks say, before the hand is told its blob
 // is on disk: into the named stream of the .qry that bears its name, `<path>:<name>`, where it is marked
-// QRY_MARK_STREAMED; and where it is marked QRY_MARK_FILED, in the place of the current file its name gives, its path
-// from the top of the tree, written beside it as `<file>.part` and then put in its place whole. 1, or 0 where it is
-// marked and was not written whole; the hand reads it back and is told so
+// QRY_MARK_STREAMED. A blob marked QRY_MARK_FILED stays in the run until it ends (qry_files_put). 1, or 0 where it is
+// marked for a stream and was not written whole; the hand reads it back and is told so
 static int qry_marked_written(QryBuffer *buffer, unsigned long long at)
 {
     QryFrameHead opened;
     memcpy(&opened, buffer->data + at, sizeof(opened));
     const char *const name = (const char *)(buffer->data + at + sizeof(opened));
     const unsigned char *const bytes = buffer->data + at + opened.bytes_at;
-    if ((opened.marks & QRY_MARK_FILED) != 0u)
-    {
-        char placed[1400];
-        char beside[1410];
-        if (!qry_file_placed(name, (size_t)opened.name_length, placed, sizeof(placed)))
-        {
-            return 0;
-        }
-        snprintf(beside, sizeof(beside), "%s.part", placed);
-        const int put = qry_bytes_put(beside, bytes, opened.size);
-#if defined(_WIN32)
-        const int moved = put && (MoveFileExA(beside, placed, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0);
-#else
-        const int moved = put && (rename(beside, placed) == 0);
-#endif
-        if (!moved)
-        {
-            remove(beside);
-        }
-        return moved;
-    }
     if ((opened.marks & QRY_MARK_STREAMED) == 0u)
     {
         return 1;
@@ -2477,6 +3035,8 @@ static int qry_marked_written(QryBuffer *buffer, unsigned long long at)
     snprintf(stream, sizeof(stream), "%s:%.*s", buffer->path, (int)opened.name_length, name);
     return qry_bytes_put(stream, bytes, opened.size);
 #else
+    (void)name;
+    (void)bytes;
     return 0;
 #endif
 }
@@ -2759,10 +3319,16 @@ int qry_write_until_stopped(QryBuffer *buffer)
     }
     unsigned long long last = qry_milliseconds();
     int stopped = 0;
+    int moved = 0;
     while (!stopped)
     {
+        // a pass that moved a member's ring is followed by another at once: what a member added while it was taken is
+        // taken on its next turn
         const unsigned long long waited = qry_milliseconds() - last;
-        qry_wait(buffer, (waited < QRY_WRITE_MILLISECONDS) ? (QRY_WRITE_MILLISECONDS - waited) : 1ull);
+        if (!moved)
+        {
+            qry_wait(buffer, (waited < QRY_WRITE_MILLISECONDS) ? (QRY_WRITE_MILLISECONDS - waited) : 1ull);
+        }
         const int stopping = (atomic_load(&head->stopping) != 0u);
         // a dump no blob after it came to say, said by the writer once the run stops
         if (stopping)
@@ -2788,6 +3354,8 @@ int qry_write_until_stopped(QryBuffer *buffer)
             }
             last = qry_milliseconds();
         }
+        // then each member in its turn
+        moved = qry_members_moved(buffer);
         const unsigned long long tail = state->tail_seen;
         const unsigned long long written = atomic_load(&head->written);
         const int due = stopping || ((tail - written) >= QRY_WRITE_BYTES) ||
@@ -2798,7 +3366,8 @@ int qry_write_until_stopped(QryBuffer *buffer)
             qry_range_written(buffer, &file, written, tail, state);
             last = qry_milliseconds();
         }
-        stopped = stopping && (atomic_load(&head->tail) == atomic_load(&head->written)) &&
+        stopped = stopping && !moved && qry_members_empty(buffer) &&
+                  (atomic_load(&head->tail) == atomic_load(&head->written)) &&
                   (atomic_load(&head->critical_written) >= atomic_load(&head->critical_handed)) &&
                   (head->dumped_blobs == 0ull);
     }
@@ -2815,7 +3384,7 @@ int qry_write_until_stopped(QryBuffer *buffer)
     qry_lock(buffer);
     int placed = 0;
     qry_appended(buffer, "writer", strlen("writer"), account, (unsigned long long)length, QRY_ORDINARY, 0u,
-                 head->capacity, &placed);
+                 head->capacity, 0ull, &placed);
     qry_unlock(buffer);
     qry_range_written(buffer, &file, atomic_load(&head->written), atomic_load(&head->tail), state);
     const int closed = qry_file_closed(&file);
@@ -2825,18 +3394,28 @@ int qry_write_until_stopped(QryBuffer *buffer)
     const unsigned long long began = qry_nanoseconds();
     unsigned long long rows = 0ull;
     const int tabled = closed && qry_table_dumped(buffer, &rows);
+    // then every current file the run holds in its place, before the writer says it has stopped: a script that stops
+    // its run and reads a file the run wrote reads it as the run left it
+    const unsigned long long put_began = qry_nanoseconds();
+    unsigned long long files = 0ull;
+    const int put = qry_files_put(buffer, atomic_load(&head->tail), &files);
     atomic_store(&head->writing, 0u);
     printf("  %s: %s", buffer->path, account);
     if (tabled)
     {
         printf("  %s: dumped with its table of %llu rows in %.3f ms\n", buffer->path, rows,
-               (double)(qry_nanoseconds() - began) / 1000000.0);
+               (double)(put_began - began) / 1000000.0);
     }
     else
     {
         printf("  %s: not dumped with its table; it stands as written as the run ran\n", buffer->path);
     }
-    return closed && !failed;
+    if (files != 0ull)
+    {
+        printf("  %s: %llu files written in their places in %.3f ms%s\n", buffer->path, files,
+               (double)(qry_nanoseconds() - put_began) / 1000000.0, put ? "" : "; a file was not written whole");
+    }
+    return closed && !failed && put;
 }
 
 int qry_stop(QryBuffer *buffer, unsigned int milliseconds)

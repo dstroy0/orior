@@ -136,6 +136,15 @@ fi
         "$OUT/ksc_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.ksc" &&
         "$OUT/kdm_check" "$OUT" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.kdm"
 ) || exit 1
+# the file kdm_check handed its run, in its place once that run has ended: it names the run's .qry, the newest
+newest_run="$(ls -t "$OUT"/kqr_runs/query*.qry | head -1)"
+command -v cygpath > /dev/null && newest_run="$(cygpath -m "$newest_run")"
+if grep -qF "# $newest_run" "$OUT/kdm_check_put.kdm" 2> /dev/null; then
+    echo "  the file the run held is in its place now the run has ended"
+else
+    echo "  the file the run held is NOT in its place now the run has ended"
+    exit 1
+fi
 "$OUT/survivors_check" || exit 1
 mkdir -p "$OUT/scheduler_check.dry"
 "$OUT/scheduler_check" "$OUT/scheduler_check.dry" || exit 1

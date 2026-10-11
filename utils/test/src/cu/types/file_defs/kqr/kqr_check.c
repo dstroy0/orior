@@ -39,13 +39,14 @@ static void check_that(int held, const char *what)
     }
 }
 
-// the whole file at `path` into memory of the caller's to free, its length in `size`: NULL where it did not read
+// the whole file at `path` as the run holds it, or the disk where the run holds none (qry_file_read), into memory of
+// the caller's to free, its length in `size`: NULL where it did not read
 static char *file_read(const char *path, size_t *size)
 {
     unsigned char *bytes = NULL;
     unsigned long long length = 0ull;
     *size = 0u;
-    if (!qry_file_read(NULL, path, &bytes, &length))
+    if (!qry_file_read(qry_run(), path, &bytes, &length))
     {
         return NULL;
     }

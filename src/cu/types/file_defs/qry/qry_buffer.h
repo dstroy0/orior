@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_buffer.h: a query run's buffer, its .qry in shared memory (qry.h). One writer process owns it for the run and is
-// the only thing that writes the .qry to disk. Every other process of the run maps it by the .qry's path and hands its
-// blobs into it: a hand is a copy to the buffer's tail under a lock the processes share, and nothing more, and the
-// stretch past what is on disk is the writer's input queue. A process reads what it needs straight from the buffer, the
-// latest blob of a name or every blob of it, before or after it reaches disk.
+// the only thing that writes the .qry to disk. Every other process of the run maps it by the .qry's path and is a
+// member of the run: it hands its ordinary blobs into a ring of its own in the buffer, at the ring's tail, and nothing
+// more, with no lock another member takes. The writer takes the members in turn, in the order of their rings, and on a
+// member's turn moves every blob from its ring's head to its tail as it stands into the run's buffer in one go, each
+// given its sequence as it is moved; the member keeps adding past what is taken, and a member whose ring holds nothing
+// has a turn that does nothing. A panic and a critical blob wait for no turn: each goes in at the buffer's tail as it
+// is handed, ahead of every member. The stretch past what is on disk is the writer's input queue. A process reads what
+// it needs straight from the buffer, the latest blob of a name or every blob of it, before or after it reaches disk,
+// once the writer has moved it; a read waits first for the reading process's own ring to be moved (qry_moved).
 //
 // Every blob is handed with a priority, and the lowest number wins: everything stops to let it through.
 //
@@ -25,7 +30,7 @@
 // QRY_WRITE_MILLISECONDS pass with anything waiting, and the rest when it is stopped. An ordinary blob that would leave
 // less than QRY_CRITICAL_ROOM for the others is dumped, and a blob named QRY_DUMPED says which.
 //
-// The buffer keeps the run's table beside its blobs, a row a blob added as it is handed: the name's hash, the
+// The buffer keeps the run's table beside its blobs, a row a blob added as it goes in: the name's hash, the
 // sequence, the time, the priority and where the blob's name and bytes sit. A read of every blob of a name, or of
 // its first, goes down the rows and touches no blob but its own. As the run ends the writer dumps the run from memory
 // as the .qry: the table first, its rows put in the order of their names' hashes and then their sequences, then every
@@ -103,6 +108,17 @@ extern "C"
 #define QRY_CRITICAL_WAIT_MILLISECONDS 30000u
 #endif
 
+// the members a run's buffer keeps a ring for, each a process that hands the run an ordinary blob, and the bytes of
+// each ring, a power of two. A ring's memory is given as a member takes it, and a ring whose member ended with nothing
+// left in it is taken again. An ordinary blob past half a ring goes in at the buffer's tail as a critical one does,
+// once its member's ring is moved
+#ifndef QRY_MEMBERS
+#define QRY_MEMBERS 256u
+#endif
+#ifndef QRY_MEMBER_BYTES
+#define QRY_MEMBER_BYTES (4ull << 20u)
+#endif
+
 // the longest name a blob takes
 #define QRY_NAME_LONGEST 255u
 
@@ -161,12 +177,25 @@ extern "C"
     // the path of the .qry the buffer is of
     const char *qry_path(const QryBuffer *buffer);
 
-    // `size` bytes at `bytes` handed as a blob of `name` at `priority`: its sequence, or 0 where it was dumped, the
-    // name is none a blob takes, the priority is past QRY_ORDINARY, or it is critical and could not be put on disk. A
-    // critical blob is on disk when this returns; a panic is in the buffer, the writer woken for it and the line open,
-    // and nothing waits
+    // `size` bytes at `bytes` handed as a blob of `name` at `priority`. An ordinary blob goes into this process's ring
+    // and has its sequence once the writer moves it (qry_moved): 1, or 0 where the ring stayed full until the writer
+    // stopped. A panic or a critical blob goes in at the buffer's tail: its sequence, or 0 where it was dumped or it is
+    // critical and could not be put on disk. A critical blob is on disk when this returns; a panic is in the buffer,
+    // the writer woken for it and the line open, and nothing waits. 0 too where the name is none a blob takes or the
+    // priority is past QRY_ORDINARY
     unsigned long long qry_hand(QryBuffer *buffer, const char *name, const void *bytes, unsigned long long size,
                                 unsigned int priority);
+
+    // every ordinary blob this process has handed moved into the run's buffer, waiting for the writer's turn of this
+    // process where any waits: the sequence of the last of them, or 0 where it handed none or the writer stopped first.
+    // A process takes this before another process is to read what it handed: before it starts one, and before it waits
+    // on an answer to what it handed
+    unsigned long long qry_moved(QryBuffer *buffer);
+
+    // every ordinary blob any member has handed by now moved into the run's buffer, waiting for each member's turn: 1,
+    // or 0 where the writer stopped first. A process that started another takes this once the other has ended, and
+    // then reads what the other handed, whether it ended clean or not
+    int qry_settled(QryBuffer *buffer);
 
     // `size` bytes at `bytes` handed as a critical blob of `name` that the writer also writes into a named stream of
     // the .qry it writes, `<the .qry's path>:<name>`, for a program that reads its input only from a file's path, as
@@ -231,12 +260,13 @@ extern "C"
     int qry_who_named(QryWho who, char *text, size_t room);
 
     // `size` bytes at `bytes` handed as the current file at `path`, critical: the run's writer, the only thing that
-    // writes a file, puts them in the .qry under the file's name (qry_file_named) and writes them in the file's place,
-    // beside it first and then put in its place whole, before the hand returns. Every file a run's programs make,
-    // their thin wrappers of this, is written so: the writer keeps the pressure of every write and the memory every
-    // one takes. The write is followed in the run by a blob QRY_FILED_CALL, critical, its sequence and `who` made the
-    // write. Its sequence once the file reads back as those bytes, or 0 where it was not written or stands outside
-    // the top of the tree
+    // writes a file, puts them in the .qry under the file's name (qry_file_named) before the hand returns, and once the
+    // run ends writes the latest of the name in the file's place, beside it first and then put in its place whole. A
+    // file does not change under a run in progress: while it runs, every program of the run reads the file as the run
+    // holds it (qry_file_read). Every file a run's programs make, their thin wrappers of this, is written so: the
+    // writer keeps the pressure of every write and the memory every one takes. The write is followed in the run by a
+    // blob QRY_FILED_CALL, critical, its sequence and `who` made the write. Its sequence once the .qry holds it, or 0
+    // where it does not or the path stands outside the top of the tree
     unsigned long long qry_filed_by(QryBuffer *buffer, const char *path, const void *bytes, unsigned long long size,
                                     QryWho who);
 
@@ -244,9 +274,14 @@ extern "C"
 #define qry_filed(buffer_, path_, bytes_, size_) qry_filed_by((buffer_), (path_), (bytes_), (size_), QRY_WHO_HERE)
 
     // The file at `path` as the run holds it: the latest blob of its name (qry_file_named) in the run's buffer, or
-    // where the run holds none, the file read whole. Into memory of the caller's to free; 1, or 0 where neither is
-    // there
+    // where the run holds none, the file read whole from the disk and taken into the run under its name, ordinary, so
+    // that every read of it after, by any process of the run, is from memory. Into memory of the caller's to free; 1,
+    // or 0 where neither is there. With no run, `buffer` NULL, the file is read from the disk
     int qry_file_read(QryBuffer *buffer, const char *path, unsigned char **bytes, unsigned long long *size);
+
+    // 1 where the run holds the file at `path` as a current file it is to write in its place as it ends (qry_filed),
+    // 0 where it does not or the path stands outside the top of the tree
+    int qry_file_held(QryBuffer *buffer, const char *path);
 
     // the line of `bytes`, `size` of them, from `*at` through its line's end copied into `line`, which holds `room`,
     // ended by a zero byte and cut to the room as fgets cuts one, and `*at` moved past what was copied: 1, or 0 where

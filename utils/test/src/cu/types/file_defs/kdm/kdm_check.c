@@ -11,6 +11,9 @@
 //   pipes      the pipes and their comment let go and put again at the end, after a who line of the code that put them
 //   whole      a file written whole again keeps the who of each line it held, and a line it did not goes under the
 //              writer's (ktext_lines_written_by)
+//   put        a file handed to the run is read as the run holds it and is not on the disk while the run runs; once
+//              the run ends it is in its place (chain_check.sh); a file the run reads from the disk is the run's after,
+//              read from memory
 //   a part's   the section of the part's .kdm named on the command line written again as it holds it leaves the file as
 //   file       it was, a who line after its first line
 //
@@ -226,9 +229,37 @@ int main(int count, char **words)
     free(text);
     kdm_free(&s_file);
 
+    // a file the run writes is the run's while the run runs: read as the run holds it, not on the disk, and in its
+    // place once the run ends, which chain_check.sh looks for. Its text names this run's .qry, which no other run's
+    // file names
+    char put_path[1024];
+    snprintf(put_path, sizeof(put_path), "%s/kdm_check_put.kdm", words[1]);
+    char put_text[1200];
+    snprintf(put_text, sizeof(put_text), "kdm put\n# %s\n", qry_path(qry_run()));
+    check_that(qry_filed(qry_run(), put_path, put_text, strlen(put_text)) != 0ull, "a file is handed to the run");
+    unsigned char *put_held = NULL;
+    unsigned long long put_size = 0ull;
+    check_that(qry_file_read(qry_run(), put_path, &put_held, &put_size) && (put_size == strlen(put_text)) &&
+                   (memcmp(put_held, put_text, (size_t)put_size) == 0),
+               "and read back as the run holds it");
+    free(put_held);
+    put_held = NULL;
+    put_size = 0ull;
+    const int on_disk = qry_file_read(NULL, put_path, &put_held, &put_size) && (put_size == strlen(put_text)) &&
+                        (memcmp(put_held, put_text, (size_t)put_size) == 0);
+    free(put_held);
+    check_that(!on_disk, "and not on the disk while the run runs");
+
     if (count >= 3)
     {
         check_that(kdm_read(&s_file, words[2]) && (s_file.lines != 0u), "a part's .kdm reads");
+        // read once from the disk, the file is the run's: every read of it after is from memory
+        char part_name[QRY_NAME_LONGEST + 1u];
+        const unsigned char *part_held = NULL;
+        unsigned long long part_size = 0ull;
+        check_that(qry_file_named(words[2], part_name, sizeof(part_name)) &&
+                       qry_latest(qry_run(), part_name, &part_held, &part_size, NULL) && (part_size != 0ull),
+                   "and once read from the disk, the run holds it, and reads it from memory after");
         char *const before = joined(&s_file, 0u);
         const unsigned int lines = s_file.lines;
         const unsigned int tail = kdm_tail_at(&s_file);

@@ -115,8 +115,9 @@ qry_writer_built "$OUT"
 run_started "$OUT/qry"
 "$OUT/gate_descent" "$(cygpath -m "$DESCENT")" > "$DESCENT/gate_descent.out" || exit 1
 PAIRS=()
-for rows in "$DESCENT"/*.kdm; do
-    name="$(basename "$rows" .kdm)"
+# each relation whose half the descent wrote, as it says: the run holds the halves, and the disk only once it ends
+for name in $(sed -n "s/^  \([a-z]*\) *the target's half written to .*/\1/p" "$DESCENT/gate_descent.out"); do
+    rows="$DESCENT/$name.kdm"
     into="$DESCENT/$name"
     mkdir -p "$into"
     "$OUT/interface_sass_writings" chains "$PATTERN" "$KERNEL_TEXT" "$(cygpath -m "$MACHINE")" "$WIN_OUT" \
